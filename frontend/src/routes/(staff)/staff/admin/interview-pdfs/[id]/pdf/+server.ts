@@ -14,8 +14,11 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     throw error(403, 'Accès refusé.');
   }
 
-  const interview = await prisma.interview.findUnique({
-    where: { id: params.id },
+  // Only a finalized interview has a complete synthesis; an in-progress row
+  // would render a half-filled PDF. The list only links done interviews, so this
+  // scope hardens a hand-typed URL. findFirst, since status isn't a unique key.
+  const interview = await prisma.interview.findFirst({
+    where: { id: params.id, status: 'done' },
     select: interviewPdfSelect,
   });
 

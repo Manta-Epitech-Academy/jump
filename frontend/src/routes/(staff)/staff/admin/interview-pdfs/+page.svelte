@@ -19,7 +19,15 @@
   import * as Card from '$lib/components/ui/card';
   import { Input } from '$lib/components/ui/input';
   import * as Table from '$lib/components/ui/table';
-  import KpiTile from '$lib/components/staff/KpiTile.svelte';
+  import KpiTile, { type KpiTone } from '$lib/components/staff/KpiTile.svelte';
+  import type { Icon as IconType } from '@lucide/svelte';
+  import {
+    INTERVIEW_RECOMMENDATIONS,
+    INTERVIEW_RECOMMENDATION_DISPLAY_ORDER,
+    type RecommendationToneToken,
+    type RecommendationIconToken,
+  } from '$lib/domain/interview';
+  import type { InterviewRecommendation } from '@prisma/client';
   import { cn, formatDateTimeFr } from '$lib/utils';
   import { toast } from 'svelte-sonner';
   import ExportMenu from './components/ExportMenu.svelte';
@@ -41,13 +49,6 @@
     resetOpen = true;
   }
 
-  const recoLabels: Record<string, string> = {
-    tres_compatible: 'Compatible',
-    bon_profil: 'A suivre',
-    indecis: 'Indecis',
-    pas_interesse: 'Pas interesse',
-  };
-
   function recoVariant(
     reco: string | null,
   ): 'default' | 'secondary' | 'destructive' | 'outline' {
@@ -61,43 +62,57 @@
     data.filters.reco !== 'all' || data.filters.q !== '',
   );
 
-  const cards = [
+  // The KPI tiles mirror the recommendation catalogue (label, icon, accent) so
+  // they can't drift from the verdict surfaces (the dev synthesis card and the
+  // exported PDF). Only the two view-local vocabularies are mapped here: the
+  // catalogue's brand tone token -> a KpiTile tone, and its face glyph -> a
+  // Lucide component. The sub-caption is editorial copy the catalogue doesn't
+  // carry, so it stays a local table.
+  const recoTone: Record<RecommendationToneToken, KpiTone> = {
+    'epi-tech': 'teal',
+    'epi-blue': 'blue',
+    'epi-drift': 'neutral',
+    'epi-tomorrow': 'pink',
+  };
+  const recoIcon: Record<RecommendationIconToken, typeof IconType> = {
+    laugh: Laugh,
+    smile: Smile,
+    meh: Meh,
+    frown: Frown,
+  };
+  const recoCaption: Record<InterviewRecommendation, string> = {
+    tres_compatible: '100 % compatible',
+    bon_profil: 'Bon profil',
+    indecis: 'À relancer',
+    pas_interesse: 'Non motivé',
+  };
+
+  type KpiCard = {
+    key: string;
+    label: string;
+    caption: string;
+    tone: KpiTone;
+    Icon: typeof IconType;
+  };
+  const cards: KpiCard[] = [
     {
       key: 'all',
       label: 'Tous',
-      caption: 'Entretiens finalises',
+      caption: 'Entretiens finalisés',
       tone: 'neutral',
       Icon: Layers,
     },
-    {
-      key: 'tres_compatible',
-      label: 'Compatible',
-      caption: '100% compatible',
-      tone: 'teal',
-      Icon: Laugh,
-    },
-    {
-      key: 'bon_profil',
-      label: 'A suivre',
-      caption: 'Bon profil',
-      tone: 'blue',
-      Icon: Smile,
-    },
-    {
-      key: 'indecis',
-      label: 'Indecis',
-      caption: 'A relancer',
-      tone: 'orange',
-      Icon: Meh,
-    },
-    {
-      key: 'pas_interesse',
-      label: 'Pas interesse',
-      caption: 'Non motive',
-      tone: 'pink',
-      Icon: Frown,
-    },
-  ] as const;
+    ...INTERVIEW_RECOMMENDATION_DISPLAY_ORDER.map((key): KpiCard => {
+      const desc = INTERVIEW_RECOMMENDATIONS[key];
+      return {
+        key,
+        label: desc.short,
+        caption: recoCaption[key],
+        tone: recoTone[desc.tone],
+        Icon: recoIcon[desc.icon],
+      };
+    }),
+  ];
 
   function cardValue(key: string): number {
     if (key === 'all') return data.totalDone;
@@ -143,7 +158,7 @@
         PDF Entretiens<span class="text-epi-pink">_</span>
       </h1>
       <p class="mt-1 font-mono text-xs tracking-wide text-muted-foreground">
-        &lt;Synthese des entretiens de motivation/&gt;
+        &lt;Synthèse des entretiens de motivation/&gt;
       </p>
     </div>
 
@@ -179,7 +194,7 @@
           <FileText class="h-4 w-4 text-epi-blue" />
           Entretiens
           <span class="font-mono text-xs font-normal text-muted-foreground">
-            ({data.matchCount}{data.truncated ? ' - 100 affichees' : ''})
+            ({data.matchCount}{data.truncated ? ' - 100 affichées' : ''})
           </span>
         </Card.Title>
 
@@ -205,7 +220,7 @@
               onclick={clearFilters}
             >
               <X class="h-3.5 w-3.5" />
-              Reinitialiser
+              Réinitialiser
             </Button>
           {/if}
         </div>
@@ -219,7 +234,7 @@
             <Table.Head class={th}>Talent</Table.Head>
             <Table.Head class={th}>Interviewer</Table.Head>
             <Table.Head class={th}>Campus</Table.Head>
-            <Table.Head class={th}>Evenement</Table.Head>
+            <Table.Head class={th}>Événement</Table.Head>
             <Table.Head class={th}>Date</Table.Head>
             <Table.Head class={cn(th, 'text-right')}>PDF</Table.Head>
             <Table.Head class={cn(th, 'text-right')}>
@@ -236,8 +251,8 @@
                     variant={recoVariant(interview.recommendation)}
                     class="gap-1 rounded-sm font-mono text-[0.7rem] tracking-wide uppercase"
                   >
-                    {recoLabels[interview.recommendation] ??
-                      interview.recommendation}
+                    {INTERVIEW_RECOMMENDATIONS[interview.recommendation]
+                      ?.short ?? interview.recommendation}
                   </Badge>
                 {:else}
                   <span class="text-xs text-muted-foreground">-</span>
@@ -300,11 +315,11 @@
                     class="mt-1 text-epi-blue"
                     onclick={clearFilters}
                   >
-                    Reinitialiser les filtres
+                    Réinitialiser les filtres
                   </Button>
                 {:else}
                   <p class="font-mono text-xs text-muted-foreground">
-                    &lt;Aucun entretien finalise/&gt;
+                    &lt;Aucun entretien finalisé/&gt;
                   </p>
                 {/if}
               </Table.Cell>

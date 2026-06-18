@@ -1,4 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
+import type { Prisma, InterviewRecommendation } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { resetInterview } from '$lib/server/services/interviewResetService';
 import { INTERVIEW_RECOMMENDATIONS } from '$lib/domain/interview';
@@ -18,10 +19,11 @@ export const load: PageServerLoad = async ({ url, locals, depends }) => {
   const statusFilter = VALID_RECOS.has(recoParam) ? recoParam : 'all';
   const q = url.searchParams.get('q') ?? '';
 
-  const where: Record<string, unknown> = { status: 'done' };
+  const where: Prisma.InterviewWhereInput = { status: 'done' };
 
   if (statusFilter !== 'all') {
-    where.recommendation = statusFilter;
+    // Validated against the catalogue keys above, so the cast is safe.
+    where.recommendation = statusFilter as InterviewRecommendation;
   }
 
   if (q) {
@@ -35,7 +37,7 @@ export const load: PageServerLoad = async ({ url, locals, depends }) => {
 
   const PAGE_SIZE = 100;
 
-  const [interviews, matchCount, recoCounts] = await Promise.all([
+  const [interviews, matchCount, recoCounts, timeline] = await Promise.all([
     prisma.interview.findMany({
       where,
       select: {
@@ -56,14 +58,15 @@ export const load: PageServerLoad = async ({ url, locals, depends }) => {
       where: { status: 'done' },
       _count: true,
     }),
+    // Timeline for ExportMenu: every done interview's conductedAt, so the menu
+    // can count PDFs per period client-side. Light (a single date column) and
+    // bounded by our corpus (a few hundred finished interviews).
+    prisma.interview.findMany({
+      where: { status: 'done' },
+      select: { conductedAt: true },
+      orderBy: { conductedAt: 'desc' },
+    }),
   ]);
-
-  // Build timeline for ExportMenu (conductedAt of all done interviews)
-  const timeline = await prisma.interview.findMany({
-    where: { status: 'done' },
-    select: { conductedAt: true },
-    orderBy: { conductedAt: 'desc' },
-  });
 
   const recoMap: Record<string, number> = {};
   for (const r of recoCounts) {

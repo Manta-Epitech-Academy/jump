@@ -92,7 +92,7 @@
   }
 
   function onDownload() {
-    toast.info('Generation des PDF en cours, le telechargement va demarrer...');
+    toast.info('Génération des PDF en cours, le téléchargement va démarrer...');
   }
 
   function sinceLabel(iso: string): string {
@@ -113,7 +113,7 @@
     <p
       class="font-mono text-[0.7rem] tracking-wider text-muted-foreground uppercase"
     >
-      Syntheses d'entretien
+      Synthèses d'entretien
     </p>
 
     {#if sinceMark !== null}
@@ -143,7 +143,7 @@
             )}
           >
             <Download class="h-4 w-4" />
-            Telecharger les nouveaux ({sinceCount})
+            Télécharger les nouveaux ({sinceCount})
           </a>
         {:else}
           <p class="text-xs text-muted-foreground">
@@ -157,13 +157,13 @@
       <span
         class="font-mono text-[0.7rem] tracking-wider text-muted-foreground uppercase"
       >
-        Periode
+        Période
       </span>
       <SegmentedFilter
         options={periodOptions}
         value={period}
         onChange={(v) => (period = v as Period)}
-        ariaLabel="Periode d'export"
+        ariaLabel="Période d'export"
         fullWidth
       />
 
@@ -194,7 +194,7 @@
         </div>
         {#if customInvalid}
           <p class="text-xs text-muted-foreground">
-            Choisissez une date de debut et de fin valides.
+            Choisissez une date de début et de fin valides.
           </p>
         {/if}
       {/if}
@@ -210,7 +210,7 @@
       >
         <span class="flex items-center gap-2">
           <Archive class="h-4 w-4 text-epi-blue" />
-          Telecharger
+          Télécharger
         </span>
         <span class="font-mono text-xs text-muted-foreground tabular-nums">
           {count} PDF
@@ -222,7 +222,7 @@
       >
         <span class="flex items-center gap-2">
           <Archive class="h-4 w-4" />
-          Telecharger
+          Télécharger
         </span>
         <span class="font-mono text-xs tabular-nums">
           {customInvalid ? '-' : '0'}
@@ -231,7 +231,7 @@
     {/if}
 
     <p class="text-[0.7rem] leading-snug text-muted-foreground">
-      Archive ZIP. Les PDF sont generes a la volee, cela peut prendre quelques
+      Archive ZIP. Les PDF sont générés à la volée, cela peut prendre quelques
       instants.
     </p>
   </Popover.Content>
