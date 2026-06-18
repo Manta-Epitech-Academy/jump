@@ -25,13 +25,17 @@ async function uploadSignature(
 export const load: PageServerLoad = async () => {
   const [signatories, campuses] = await Promise.all([
     prisma.signatory.findMany({
-      orderBy: [{ campusId: 'asc' }, { position: 'asc' }, { name: 'asc' }],
+      // Grouped into global / per-campus buckets in the page; within a bucket
+      // `position` then `name` decides order. `updatedAt` is the durable cache
+      // version the preview <img> appends as `?v=` (see api/signatures/[id]).
+      orderBy: [{ position: 'asc' }, { name: 'asc' }],
       select: {
         id: true,
         campusId: true,
         name: true,
         role: true,
         position: true,
+        updatedAt: true,
       },
     }),
     prisma.campus.findMany({
@@ -54,7 +58,7 @@ export const actions: Actions = {
     const role = (formData.get('role') as string)?.trim();
     const campusIdRaw = (formData.get('campusId') as string)?.trim();
     const campusId = campusIdRaw ? campusIdRaw : null;
-    const position = Number(formData.get('position') ?? 0) || 0;
+    const position = Math.max(0, Number(formData.get('position') ?? 0) || 0);
     const file = formData.get('file') as File | null;
 
     if (!name || !role) {
@@ -98,7 +102,7 @@ export const actions: Actions = {
     const role = (formData.get('role') as string)?.trim();
     const campusIdRaw = (formData.get('campusId') as string)?.trim();
     const campusId = campusIdRaw ? campusIdRaw : null;
-    const position = Number(formData.get('position') ?? 0) || 0;
+    const position = Math.max(0, Number(formData.get('position') ?? 0) || 0);
     const file = formData.get('file') as File | null;
 
     if (!id || !name || !role) {

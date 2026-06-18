@@ -22,6 +22,7 @@
     name: string;
     role: string;
     position: number;
+    updatedAt: Date;
   };
 
   let { data } = $props();
@@ -52,9 +53,6 @@
   let fRole = $state('');
   let fCampus = $state<string>(GLOBAL_VALUE);
   let fPosition = $state(0);
-
-  // Bump on save so the preview <img> refetches after an image replacement.
-  let previewVersion = $state(0);
 
   let deleteDialogOpen = $state(false);
   let itemToDelete = $state<string | null>(null);
@@ -103,7 +101,7 @@
       class="flex h-16 w-28 shrink-0 items-center justify-center rounded-sm border bg-white"
     >
       <img
-        src="/api/signatures/{s.id}?v={previewVersion}"
+        src="/api/signatures/{s.id}?v={s.updatedAt.getTime()}"
         alt="Signature de {s.name}"
         class="max-h-14 max-w-24 object-contain"
       />
@@ -242,7 +240,6 @@
             submitting = false;
             if (result.type === 'success') {
               open = false;
-              previewVersion += 1;
               toast.success('Signataire enregistré.');
               await invalidateAll();
             } else if (result.type === 'failure') {

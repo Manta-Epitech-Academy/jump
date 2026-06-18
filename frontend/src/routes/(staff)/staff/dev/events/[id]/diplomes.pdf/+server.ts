@@ -34,7 +34,12 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     }),
     prisma.signatory.findMany({
       where: { OR: [{ campusId: null }, { campusId }] },
-      orderBy: [{ campusId: 'asc' }, { position: 'asc' }, { name: 'asc' }],
+      // `position` is the single ordering knob the admin sets ("plus petit =
+      // affiché en premier"). Order by it alone so a global signatory and a
+      // campus-local one interleave by position; sorting by `campusId` first
+      // would pin globals after locals (NULLS LAST) and make `position`
+      // unable to move a signatory across that boundary.
+      orderBy: [{ position: 'asc' }, { name: 'asc' }],
       select: { name: true, role: true, signatureKey: true, contentType: true },
     }),
   ]);
