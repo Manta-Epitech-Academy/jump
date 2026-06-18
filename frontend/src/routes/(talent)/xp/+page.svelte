@@ -175,10 +175,10 @@
 
         <div class="min-w-0 flex-1">
           <h2 class="text-base font-bold text-slate-900 dark:text-white">
-            Points d'experience
+            Points d'expérience
           </h2>
           <p class="text-sm text-slate-500">
-            Chaque activite, entrainement et defi te rapproche du sommet.
+            Chaque activité, entraînement et défi te rapproche du sommet.
           </p>
         </div>
       </div>
