@@ -22,31 +22,33 @@
         break-inside: avoid;
       }
       .header {
-        text-align: center;
-        margin-bottom: 16px;
-        padding-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
         border-bottom: 2px solid #e2e8f0;
       }
       .header svg {
-        height: 28px;
+        height: 18px;
         width: auto;
       }
       .header h1 {
-        font-size: 16px;
+        font-size: 13px;
         color: #0f172a;
-        margin: 0 0 2px 0;
+        margin: 0;
       }
       .header p {
-        font-size: 10px;
+        font-size: 9px;
         color: #64748b;
-        margin: 0;
+        margin: 0 0 0 auto;
       }
       .meta-grid {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
-        gap: 4px 16px;
-        margin-bottom: 14px;
-        padding: 8px 12px;
+        gap: 2px 16px;
+        margin-bottom: 10px;
+        padding: 5px 10px;
         background: #f8fafc;
         border-radius: 4px;
         border: 1px solid #e2e8f0;
@@ -128,8 +130,8 @@
         color: #e2e8f0;
       }
       .verdict-box {
-        margin-top: 14px;
-        padding: 10px 14px;
+        margin-bottom: 12px;
+        padding: 8px 12px;
         border: 2px solid #0f172a;
         border-radius: 6px;
         background: #f8fafc;
@@ -235,6 +237,19 @@
       <% } %>
     </div>
 
+    <div class="verdict-box">
+      <div class="verdict-title">Avis de l'équipe</div>
+      <% if (data.recommendation) { %>
+      <div class="reco-badge reco-<%= data.recommendationKey %>">
+        <%= data.recommendation %>
+      </div>
+      <% } else { %>
+      <div class="answer-empty">Aucune recommandation</div>
+      <% } %> <% if (data.verdictNote) { %>
+      <div class="verdict-note"><%= data.verdictNote %></div>
+      <% } %>
+    </div>
+
     <% for (const section of data.sections) { %>
     <div class="section">
       <div class="section-title"><%= section.title %></div>
@@ -286,18 +301,5 @@
       <% } %> <% } %>
     </div>
     <% } %>
-
-    <div class="verdict-box">
-      <div class="verdict-title">Avis de l'équipe</div>
-      <% if (data.recommendation) { %>
-      <div class="reco-badge reco-<%= data.recommendationKey %>">
-        <%= data.recommendation %>
-      </div>
-      <% } else { %>
-      <div class="answer-empty">Aucune recommandation</div>
-      <% } %> <% if (data.verdictNote) { %>
-      <div class="verdict-note"><%= data.verdictNote %></div>
-      <% } %>
-    </div>
   </body>
 </html>
