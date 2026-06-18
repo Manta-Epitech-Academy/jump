@@ -554,6 +554,7 @@ model Campus {
   minigameAttempts  MinigameAttempt[]
   xpGrants          XpGrant[]
   xpRewards         XpReward[]
+  signatories       Signatory[]
 }
 
 model CmsPage {
@@ -1047,6 +1048,28 @@ model AppSetting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// A signatory whose handwritten signature is printed on the internship
+// certificate (diplôme de stage). `campusId` null = global (e.g. the Director
+// General) and applies to every campus without duplication; a set `campusId`
+// scopes the signatory to one campus's local managers. The signature image
+// bytes live in S3 under `signatureKey`; `position` orders the blocks on the
+// diploma.
+model Signatory {
+  id           String   @id @default(cuid())
+  campusId     String?
+  name         String
+  role         String
+  signatureKey String   @unique
+  contentType  String
+  position     Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  campus Campus? @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+  @@index([campusId])
 }
 
 model AdminFile {

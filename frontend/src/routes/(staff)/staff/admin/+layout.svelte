@@ -3,6 +3,7 @@
   import { resolve } from '$app/paths';
   import ShieldAlert from '@lucide/svelte/icons/shield-alert';
   import Map from '@lucide/svelte/icons/map';
+  import Signature from '@lucide/svelte/icons/signature';
   import Users from '@lucide/svelte/icons/users';
   import GraduationCap from '@lucide/svelte/icons/graduation-cap';
   import UserX from '@lucide/svelte/icons/user-x';
@@ -220,6 +221,13 @@
     >
       <Map class="h-4 w-4" />
       <span>Réseau Campus</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/signatures')}
+      class={navLinkClass(isActive('/staff/admin/signatures'))}
+    >
+      <Signature class="h-4 w-4" />
+      <span>Signataires</span>
     </a>
     <a
       href={resolve('/staff/admin/users')}

@@ -3,6 +3,7 @@ import { withBrowser } from '../infra/browserPool';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import diplomaTemplate from '../templates/diploma.html?raw';
 import certificateTemplate from '../templates/certificate.html?raw';
+import stageDiplomaTemplate from '../templates/stage-diploma.html?raw';
 
 export async function generateDiplomaPDF(data: {
   studentName: string;
@@ -36,6 +37,25 @@ export async function generateCertificatePDF(data: {
     certificateTemplate,
     { ...data, logoSvg: epitechLogoSvg },
     { width: '794px', height: '1123px' },
+  );
+}
+
+// Internship certificate ("Certificat de stage"): one A4 landscape page per
+// student, all sharing the same signatory blocks (one global Director General
+// plus the campus's local managers). The signature images are passed as
+// pre-built base64 data URIs so the template needs no network access.
+export async function generateStageDiplomasPDF(data: {
+  students: { prenom: string; nom: string }[];
+  city: string;
+  startDate: string;
+  endDate: string;
+  todayDate: string;
+  signatories: { name: string; role: string; imageDataUri: string }[];
+}): Promise<Uint8Array<ArrayBuffer>> {
+  return await generatePDF(
+    stageDiplomaTemplate,
+    { ...data, logoSvg: epitechLogoSvg },
+    { width: '1123px', height: '794px' },
   );
 }
 

@@ -3,6 +3,7 @@
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
   import IdCard from '@lucide/svelte/icons/id-card';
+  import Award from '@lucide/svelte/icons/award';
   import Smile from '@lucide/svelte/icons/smile';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { Button } from '$lib/components/ui/button';
@@ -27,6 +28,7 @@
 
   let generatingBadges = $state(false);
   let badgeModeOpen = $state(false);
+  let generatingDiplomas = $state(false);
 
   // Four distinct colours, reused in both illustration grids so the foldable
   // preview visibly mirrors the simple one (same colours, doubled and flipped).
@@ -63,6 +65,37 @@
       generatingBadges = false;
     }
   }
+
+  // Generate the internship certificate sheet for every inscrit of this event
+  // (one page per student). Same whole-event flow as the badges above: the
+  // endpoint builds the PDF server-side from all participations and the campus's
+  // signatories.
+  async function generateDiplomas() {
+    if (generatingDiplomas) return;
+    generatingDiplomas = true;
+    try {
+      const endpoint = page.url.pathname.replace(
+        /\/inscrits\/?$/,
+        '/diplomes.pdf',
+      );
+      const res = await fetch(endpoint);
+      if (!res.ok) throw new Error(`Diplomas failed: ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Diplômes - ${data.event.titre}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('generate diplomas', e);
+      toast.error('Échec de la génération des diplômes.');
+    } finally {
+      generatingDiplomas = false;
+    }
+  }
 </script>
 
 <svelte:head>
@@ -94,6 +127,20 @@
       {:else}
         <IdCard class="mr-1.5 h-4 w-4" />
         Générer badges
+      {/if}
+    </Button>
+    <Button
+      variant="outline"
+      size="sm"
+      onclick={generateDiplomas}
+      disabled={generatingDiplomas}
+    >
+      {#if generatingDiplomas}
+        <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+        Génération…
+      {:else}
+        <Award class="mr-1.5 h-4 w-4" />
+        Générer diplômes
       {/if}
     </Button>
     <EventSalesforceButton externalId={data.event.externalId} />
