@@ -81,8 +81,22 @@ async function generatePDF(
   return withBrowser(async (browser) => {
     const page = await browser.newPage();
     try {
-      await page.setContent(htmlContent, { waitUntil: 'load' });
-      await page.evaluateHandle('document.fonts.ready');
+      // Parse the DOM but do NOT wait on the network `load` event. The only
+      // remote resource is the Google Fonts stylesheet, and in an egress-locked
+      // pod that request never settles, so `load` never fires and setContent
+      // hits Puppeteer's 30s timeout (this is what broke the 200-page stage
+      // diploma in prod). All images/logo are inline data URIs, so the DOM is
+      // complete at `domcontentloaded`.
+      await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
+
+      // Give web fonts a brief chance to load when the network IS reachable,
+      // but never block the render on a hung font request.
+      await page.evaluate(() =>
+        Promise.race([
+          document.fonts.ready,
+          new Promise((resolve) => setTimeout(resolve, 2000)),
+        ]),
+      );
 
       const pdfBuffer = await page.pdf({
         width: format.width,
@@ -90,6 +104,9 @@ async function generatePDF(
         printBackground: true,
         preferCSSPageSize: true,
         margin: { top: 0, right: 0, bottom: 0, left: 0 },
+        // A cohort sheet can run to ~200 pages; on a constrained pod CPU the
+        // print pass needs more headroom than Puppeteer's 30s default.
+        timeout: 120_000,
       });
 
       return new Uint8Array(pdfBuffer) as Uint8Array<ArrayBuffer>;

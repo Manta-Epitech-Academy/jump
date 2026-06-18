@@ -44,16 +44,21 @@
         width: 16px;
         background-color: #013afb;
       }
+      /* Soft corner glow via a radial gradient rather than `filter: blur()`.
+         A blur filter is rasterized per page; across 200 pages it dominates
+         Puppeteer's print time and was blowing past the 30s timeout. A gradient
+         renders for free and looks the same. */
       .glow {
         position: absolute;
-        bottom: -160px;
-        right: -80px;
-        height: 360px;
-        width: 360px;
-        border-radius: 50%;
-        background-color: #00ff97;
-        opacity: 0.18;
-        filter: blur(64px);
+        bottom: -200px;
+        right: -160px;
+        height: 520px;
+        width: 520px;
+        background: radial-gradient(
+          circle,
+          rgba(0, 255, 151, 0.22) 0%,
+          rgba(0, 255, 151, 0) 70%
+        );
       }
       .content {
         position: relative;
