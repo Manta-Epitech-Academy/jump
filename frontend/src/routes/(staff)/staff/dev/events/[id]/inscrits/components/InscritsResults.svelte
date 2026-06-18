@@ -462,7 +462,7 @@
         searchValue={searchQuery}
         onSearchInput={(v) => (searchQuery = v)}
         searchPlaceholder="Rechercher un stagiaire…"
-        searchWidthClass="max-w-[230px]"
+        searchWidthClass="w-full max-w-[230px]"
         filtersAlign="end"
         count={filtered.length}
         countNoun="stagiaire"

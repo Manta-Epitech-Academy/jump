@@ -14,9 +14,15 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
+  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
+  import type { ColumnDef } from '$lib/components/staff/datatable/types';
   import { track, errReason, bucketBytes, daysBetween } from '$lib/analytics';
 
   let { data } = $props();
+
+  type FileRow = (typeof data)['files'][number];
 
   let uploading = $state(false);
   let fileInput = $state<HTMLInputElement | null>(null);
@@ -59,6 +65,58 @@
       return FileArchive;
     return FileIcon;
   }
+
+  // Client-side search + sort: the shared list is small (admins share a handful
+  // of files), so filter/sort in memory rather than round-tripping the server.
+  let searchQuery = $state('');
+  let sortKey = $state<string | null>('createdAt');
+  let sortDir = $state<'asc' | 'desc'>('desc');
+
+  const uploaderLabel = (f: FileRow) =>
+    f.uploadedBy.user.name || f.uploadedBy.user.email || '';
+
+  const filtered = $derived(
+    data.files.filter((f) =>
+      f.name.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+    ),
+  );
+  const sorted = $derived.by(() => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => dir * compare(a, b, sortKey));
+  });
+
+  function compare(a: FileRow, b: FileRow, key: string | null): number {
+    switch (key) {
+      case 'name':
+        return a.name.localeCompare(b.name, 'fr');
+      case 'size':
+        return a.size - b.size;
+      case 'uploadedBy':
+        return uploaderLabel(a).localeCompare(uploaderLabel(b), 'fr');
+      case 'createdAt':
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      default:
+        return 0;
+    }
+  }
+
+  function toggleSort(key: string) {
+    if (sortKey === key) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    else {
+      sortKey = key;
+      sortDir = 'asc';
+    }
+  }
+
+  const columns: ColumnDef[] = [
+    { key: 'name', label: 'Nom du fichier', sortable: true },
+    { key: 'size', label: 'Taille', sortable: true },
+    { key: 'uploadedBy', label: 'Uploadé par', sortable: true },
+    { key: 'createdAt', label: 'Date', sortable: true },
+    { key: 'actions', label: 'Actions', align: 'right' },
+  ];
 </script>
 
 <svelte:head>
@@ -66,183 +124,171 @@
 </svelte:head>
 
 <div class="space-y-6">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Fichiers <span class="text-epi-pink">Partagés</span>
-      </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
-        Espace de partage entre administrateurs
-      </p>
-    </div>
-    <form
-      method="POST"
-      action="?/upload"
-      enctype="multipart/form-data"
-      use:enhance={() => {
-        uploading = true;
-        const file = fileInput?.files?.[0] ?? null;
-        return async ({ result, update }) => {
-          uploading = false;
-          if (result.type === 'success') {
-            track('admin_file_uploaded', {
-              sizeBucket: bucketBytes(file?.size ?? null),
-              kind: file?.type ?? 'unknown',
-            });
-            toast.success('Fichier uploadé avec succès');
-            if (fileInput) fileInput.value = '';
-            await update();
-          } else if (result.type === 'failure') {
-            track('admin_file_upload_failed', {
-              reason: errReason(result),
-              sizeBucket: bucketBytes(file?.size ?? null),
-            });
-            toast.error(
-              (result.data as { message?: string })?.message ||
-                "Erreur lors de l'upload",
-            );
-          }
-        };
-      }}
-    >
-      <input
-        bind:this={fileInput}
-        type="file"
-        name="file"
-        id="file-upload"
-        class="hidden"
-        onchange={(e) => {
-          const form = (e.target as HTMLInputElement).closest('form');
-          if (form) form.requestSubmit();
-        }}
-      />
-      <Button
-        type="button"
-        disabled={uploading}
-        class="bg-epi-pink text-white hover:bg-epi-pink/90"
-        onclick={() => fileInput?.click()}
-      >
-        <Upload class="mr-2 h-4 w-4" />
-        {uploading ? 'Upload...' : 'Uploader'}
-      </Button>
-    </form>
+  <div>
+    <h1 class="font-heading text-3xl tracking-wide uppercase">
+      Fichiers <span class="text-epi-pink">Partagés</span>
+    </h1>
+    <p class="text-sm font-bold text-muted-foreground uppercase">
+      Espace de partage entre administrateurs
+    </p>
   </div>
 
-  {#if data.files.length === 0}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border bg-card py-16 shadow-sm"
-    >
-      <FileIcon class="mb-4 h-12 w-12 text-muted-foreground/40" />
-      <p class="text-lg font-bold text-muted-foreground">
-        Aucun fichier partagé
-      </p>
-      <p class="text-sm text-muted-foreground/60">
-        Cliquez sur « Uploader » pour ajouter un fichier.
-      </p>
-    </div>
-  {:else}
-    <div class="rounded-sm border bg-card shadow-sm">
-      <Table.Root>
-        <Table.Header>
-          <Table.Row>
-            <Table.Head class="w-12"></Table.Head>
-            <Table.Head>Nom du fichier</Table.Head>
-            <Table.Head>Taille</Table.Head>
-            <Table.Head>Uploadé par</Table.Head>
-            <Table.Head>Date</Table.Head>
-            <Table.Head class="text-right">Actions</Table.Head>
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
-          {#each data.files as file}
-            {@const Icon = getFileIcon(file.contentType)}
-            <Table.Row>
-              <Table.Cell>
-                <Icon class="h-4 w-4 text-muted-foreground" />
-              </Table.Cell>
-              <Table.Cell class="max-w-xs truncate font-bold">
-                {file.name}
-              </Table.Cell>
-              <Table.Cell class="text-muted-foreground">
-                {formatSize(file.size)}
-              </Table.Cell>
-              <Table.Cell class="text-muted-foreground">
-                {file.uploadedBy.user.name || file.uploadedBy.user.email}
-              </Table.Cell>
-              <Table.Cell class="text-xs text-muted-foreground">
-                {formatDate(file.createdAt)}
-              </Table.Cell>
-              <Table.Cell class="text-right">
-                <Tooltip.Provider delayDuration={300}>
-                  <Tooltip.Root>
-                    <Tooltip.Trigger>
-                      {#snippet child({ props })}
-                        <form
-                          method="POST"
-                          action="?/download&id={file.id}"
-                          class="inline"
-                          use:enhance={() => {
-                            return async ({ result }) => {
-                              if (
-                                result.type === 'success' &&
-                                result.data?.signedUrl
-                              ) {
-                                track('admin_file_downloaded', {
-                                  sizeBucket: bucketBytes(file.size),
-                                  kind: file.contentType,
-                                });
-                                const a = document.createElement('a');
-                                a.href = result.data.signedUrl as string;
-                                a.download =
-                                  (result.data.fileName as string) || '';
-                                a.click();
-                              } else {
-                                track('admin_file_download_failed', {
-                                  reason: errReason(result),
-                                  sizeBucket: bucketBytes(file.size),
-                                });
-                                toast.error('Erreur lors du téléchargement');
-                              }
-                            };
-                          }}
-                        >
-                          <Button
-                            {...props}
-                            type="submit"
-                            variant="ghost"
-                            size="icon"
-                          >
-                            <Download class="h-4 w-4" />
-                          </Button>
-                        </form>
-                      {/snippet}
-                    </Tooltip.Trigger>
-                    <Tooltip.Content><p>Télécharger</p></Tooltip.Content>
-                  </Tooltip.Root>
-                  <Tooltip.Root>
-                    <Tooltip.Trigger>
-                      {#snippet child({ props })}
-                        <Button
-                          {...props}
-                          variant="ghost"
-                          size="icon"
-                          class="text-destructive hover:text-destructive"
-                          onclick={() => confirmDelete(file.id)}
-                        >
-                          <Trash2 class="h-4 w-4" />
-                        </Button>
-                      {/snippet}
-                    </Tooltip.Trigger>
-                    <Tooltip.Content><p>Supprimer</p></Tooltip.Content>
-                  </Tooltip.Root>
-                </Tooltip.Provider>
-              </Table.Cell>
-            </Table.Row>
-          {/each}
-        </Table.Body>
-      </Table.Root>
-    </div>
-  {/if}
+  <DataTableToolbar
+    searchValue={searchQuery}
+    onSearchInput={(v) => (searchQuery = v)}
+    searchPlaceholder="Rechercher un fichier…"
+    count={sorted.length}
+    countNoun="fichier"
+  >
+    {#snippet actions()}
+      <form
+        method="POST"
+        action="?/upload"
+        enctype="multipart/form-data"
+        use:enhance={() => {
+          uploading = true;
+          const file = fileInput?.files?.[0] ?? null;
+          return async ({ result, update }) => {
+            uploading = false;
+            if (result.type === 'success') {
+              track('admin_file_uploaded', {
+                sizeBucket: bucketBytes(file?.size ?? null),
+                kind: file?.type ?? 'unknown',
+              });
+              toast.success('Fichier uploadé avec succès');
+              if (fileInput) fileInput.value = '';
+              await update();
+            } else if (result.type === 'failure') {
+              track('admin_file_upload_failed', {
+                reason: errReason(result),
+                sizeBucket: bucketBytes(file?.size ?? null),
+              });
+              toast.error(
+                (result.data as { message?: string })?.message ||
+                  "Erreur lors de l'upload",
+              );
+            }
+          };
+        }}
+      >
+        <input
+          bind:this={fileInput}
+          type="file"
+          name="file"
+          id="file-upload"
+          class="hidden"
+          onchange={(e) => {
+            const form = (e.target as HTMLInputElement).closest('form');
+            if (form) form.requestSubmit();
+          }}
+        />
+        <Button
+          type="button"
+          size="sm"
+          disabled={uploading}
+          class="bg-epi-pink text-white hover:bg-epi-pink/90"
+          onclick={() => fileInput?.click()}
+        >
+          <Upload class="mr-2 h-4 w-4" />
+          {uploading ? 'Upload...' : 'Uploader'}
+        </Button>
+      </form>
+    {/snippet}
+  </DataTableToolbar>
+
+  <SortableTable
+    {columns}
+    rows={sorted}
+    {sortKey}
+    {sortDir}
+    onSort={toggleSort}
+    rowKey={(f) => f.id}
+  >
+    {#snippet row(file)}
+      {@const Icon = getFileIcon(file.contentType)}
+      <Table.Cell class="max-w-xs font-bold">
+        <div class="flex items-center gap-2">
+          <Icon class="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span class="truncate">{file.name}</span>
+        </div>
+      </Table.Cell>
+      <Table.Cell class="text-muted-foreground">
+        {formatSize(file.size)}
+      </Table.Cell>
+      <Table.Cell class="text-muted-foreground">
+        {file.uploadedBy.user.name || file.uploadedBy.user.email}
+      </Table.Cell>
+      <Table.Cell class="text-xs text-muted-foreground">
+        {formatDate(file.createdAt)}
+      </Table.Cell>
+      <Table.Cell class="text-right">
+        <Tooltip.Provider delayDuration={300}>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <form
+                  method="POST"
+                  action="?/download&id={file.id}"
+                  class="inline"
+                  use:enhance={() => {
+                    return async ({ result }) => {
+                      if (result.type === 'success' && result.data?.signedUrl) {
+                        track('admin_file_downloaded', {
+                          sizeBucket: bucketBytes(file.size),
+                          kind: file.contentType,
+                        });
+                        const a = document.createElement('a');
+                        a.href = result.data.signedUrl as string;
+                        a.download = (result.data.fileName as string) || '';
+                        a.click();
+                      } else {
+                        track('admin_file_download_failed', {
+                          reason: errReason(result),
+                          sizeBucket: bucketBytes(file.size),
+                        });
+                        toast.error('Erreur lors du téléchargement');
+                      }
+                    };
+                  }}
+                >
+                  <Button {...props} type="submit" variant="ghost" size="icon">
+                    <Download class="h-4 w-4" />
+                  </Button>
+                </form>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content><p>Télécharger</p></Tooltip.Content>
+          </Tooltip.Root>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <Button
+                  {...props}
+                  variant="ghost"
+                  size="icon"
+                  class="text-destructive hover:text-destructive"
+                  onclick={() => confirmDelete(file.id)}
+                >
+                  <Trash2 class="h-4 w-4" />
+                </Button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content><p>Supprimer</p></Tooltip.Content>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+      </Table.Cell>
+    {/snippet}
+
+    {#snippet empty()}
+      <EmptyState
+        icon={FileIcon}
+        title="Aucun fichier"
+        description={searchQuery
+          ? 'Aucun fichier ne correspond à votre recherche.'
+          : 'Cliquez sur « Uploader » pour partager un fichier.'}
+      />
+    {/snippet}
+  </SortableTable>
 
   <ConfirmDeleteDialog
     bind:open={deleteDialogOpen}

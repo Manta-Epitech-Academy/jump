@@ -250,6 +250,18 @@ model StaffProfile {
   // finished since. A convenience filter, not a completeness guarantee (the
   // all-time export stays the authoritative archive); null = never exported.
   onboardingDocsExportedAt DateTime?
+  // High-water mark for this admin's bulk interview-synthesis PDF archival, set
+  // each time they download the full ("everything up to now") archive from
+  // `/staff/admin/onboarding-pdfs`. Sibling of `onboardingDocsExportedAt`: a
+  // convenience filter, not a completeness guarantee; null = never exported.
+  interviewDocsExportedAt  DateTime?
+  // High-water mark for this admin's Salesforce-divergences CSV export, set each
+  // time they download the full ("everything up to now") CSV from
+  // `/staff/admin/sf-conflicts`, so the menu can surface the talents confirmed
+  // since. Same role as `onboardingDocsExportedAt`: a convenience filter, not a
+  // completeness guarantee (the all-time export stays authoritative); null =
+  // never exported.
+  sfExportedAt             DateTime?
   createdAt                DateTime   @default(now())
   updatedAt                DateTime   @updatedAt
 
@@ -265,6 +277,7 @@ model StaffProfile {
   presencesMarked         EventPresence[]
   presenceClosuresMade    EventPresenceClosure[]
   imageRightsCorrections  ImageRightsDecisionRecord[]
+  interviewResets         InterviewReset[]            @relation("InterviewResetBy")
 
   @@index([campusId])
 }
@@ -389,6 +402,7 @@ model Talent {
   deletionRequests   TalentDeletionRequest[]
   eventPresences     EventPresence[]
   imageRightsRecords ImageRightsDecisionRecord[]
+  interviewResets    InterviewReset[]
 
   @@index([xp])
   @@index([schoolId])
@@ -554,6 +568,7 @@ model Campus {
   minigameAttempts  MinigameAttempt[]
   xpGrants          XpGrant[]
   xpRewards         XpReward[]
+  signatories       Signatory[]
 }
 
 model CmsPage {
@@ -918,6 +933,32 @@ model Interview {
   @@index([campusId])
 }
 
+/// Audit trail for an orientation interview an admin reset. An interview
+/// finalized by mistake is hard-deleted, so the talent returns to "à faire" and
+/// a fresh interview can be conducted; this append-only row is the only trace
+/// left of the discarded one: whose it was, who had conducted it, when, who
+/// reset it and why. A destructive reversal of a colleague's finalized work on a
+/// minor's record never happens silently. Pure accountability, never read on a
+/// hot path.
+model InterviewReset {
+  id                 String   @id @default(cuid())
+  talentId           String
+  /// Snapshot of the deleted interview (its row no longer exists, so these are
+  /// plain fields, not relations): who conducted it and when.
+  conductedByStaffId String?
+  conductedAt        DateTime
+  /// The admin who performed the reset; kept as a live FK for "reset by" lookups.
+  resetByStaffId     String?
+  /// Why it was reset. Required, collected in the confirm dialog.
+  reason             String
+  createdAt          DateTime @default(now())
+
+  talent  Talent        @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  resetBy StaffProfile? @relation("InterviewResetBy", fields: [resetByStaffId], references: [id], onDelete: SetNull)
+
+  @@index([talentId, createdAt])
+}
+
 model StepsProgress {
   id               String        @id @default(cuid())
   talentId         String
@@ -1047,6 +1088,28 @@ model AppSetting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// A signatory whose handwritten signature is printed on the internship
+// certificate (diplôme de stage). `campusId` null = global (e.g. the Director
+// General) and applies to every campus without duplication; a set `campusId`
+// scopes the signatory to one campus's local managers. The signature image
+// bytes live in S3 under `signatureKey`; `position` orders the blocks on the
+// diploma.
+model Signatory {
+  id           String   @id @default(cuid())
+  campusId     String?
+  name         String
+  role         String
+  signatureKey String   @unique
+  contentType  String
+  position     Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  campus Campus? @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+  @@index([campusId])
 }
 
 model AdminFile {

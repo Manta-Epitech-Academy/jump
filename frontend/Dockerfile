@@ -17,7 +17,7 @@ RUN bun install --frozen-lockfile
 # Copy source and build
 COPY . .
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" bunx prisma generate
-RUN bun run build
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" BETTER_AUTH_SECRET="build-placeholder" bun run build
 
 # Step 2: Runtime image
 FROM oven/bun:1.3.14-alpine

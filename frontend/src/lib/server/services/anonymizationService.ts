@@ -11,12 +11,15 @@ import {
 /**
  * The single GDPR-erasure primitive. Clears a talent's PII in place rather than
  * deleting rows: name/contact fields are nulled or replaced with placeholders,
- * the linked auth identity is scrubbed and its sessions/accounts dropped,
- * portfolio content (which can embed PII) is removed, and the generated
- * onboarding PDFs (charte / règlement student / règlement parent / droit à
- * l'image — each embeds the student's and guardian's names and a signature)
- * are deleted from object storage, not merely dereferenced. We deliberately
- * keep `xp` and `eventsCount` so aggregate stats survive the erasure.
+ * the linked auth identity is scrubbed and its sessions/accounts dropped, and
+ * every talent-scoped satellite that embeds a name, a contact detail, or free
+ * text (interviews, portfolio, comm + send history, the PDF-job payload) is
+ * deleted outright. The generated onboarding PDFs (charte / règlement student /
+ * règlement parent / droit à l'image — each embeds the student's and guardian's
+ * names and a signature) are deleted from object storage, not merely
+ * dereferenced. We deliberately keep the de-identified behavioural telemetry
+ * (participation, progress, minigame / quiz attempts, the xp ledger) so `xp`,
+ * `eventsCount` and aggregate stats survive the erasure.
  *
  * Parents are data subjects too: their identity lives both as columns on the
  * Talent (both guardian slots, plus the guardian's typed signer name on the
@@ -139,13 +142,40 @@ export async function anonymizeTalent(
     },
   });
 
-  // 2. Delete associated PII records (Salesforce mirror, interests, and the
-  //    image-rights decision ledger — each fact carries the guardian's typed
-  //    signer name, so the history must be erased alongside the projection
-  //    scrubbed above, not just the current value).
+  // 2. Delete every talent-scoped satellite row that carries identifying
+  //    content. Counterpart to the in-place scrub above: where a record embeds
+  //    a name, a contact detail, or free text, the whole row is removed rather
+  //    than nulled field-by-field (drift-proof as columns are added, and the
+  //    same set resetTalentToImport wipes). The anonymous behavioural telemetry
+  //    is deliberately KEPT (participation, stepsProgress, minigameAttempt,
+  //    talentQuizAttempt, xpGrant, observable / competence state): once the name
+  //    is gone those are de-identified activity backing xp / eventsCount and
+  //    aggregate stats.
+  //      - talentSfImport / talentInterest / imageRightsDecisionRecord: the SF
+  //        mirror, interest selections, and the image-rights ledger (the ledger
+  //        embeds the guardian's typed signer name).
+  //      - interview / interviewReset: the synthesis row holds free-text staff
+  //        observations about the minor; both existing wipe paths already
+  //        hard-delete it. InterviewReset is a reset's audit trace + reason.
+  //      - portfolioItem: student-authored content with potential PII.
+  //      - onboardingPdfJob: payload snapshots the student + guardian name and
+  //        city. The generated S3 PDFs are deleted post-commit; this is the DB
+  //        copy of the same names.
+  //      - onboardingReminder: captured subject / body of relance mail + SMS.
+  //      - broadcastRecipient: the talent's and the parent's email / phone per
+  //        send, matched on both slots (SetNull relations, so deleted here, not
+  //        left orphaned). The parent is a data subject too.
   await tx.talentSfImport.deleteMany({ where: { talentId } });
   await tx.talentInterest.deleteMany({ where: { talentId } });
   await tx.imageRightsDecisionRecord.deleteMany({ where: { talentId } });
+  await tx.interview.deleteMany({ where: { talentId } });
+  await tx.interviewReset.deleteMany({ where: { talentId } });
+  await tx.portfolioItem.deleteMany({ where: { talentId } });
+  await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
+  await tx.onboardingReminder.deleteMany({ where: { talentId } });
+  await tx.broadcastRecipient.deleteMany({
+    where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
+  });
 
   // 3. Scrub the linked BetterAuth user and revoke its access — only if linked.
   if (talent.userId) {
@@ -162,10 +192,7 @@ export async function anonymizeTalent(
     await tx.bauth_account.deleteMany({ where: { userId: talent.userId } });
   }
 
-  // 4. Delete portfolio items (student-created content with potential PII).
-  await tx.portfolioItem.deleteMany({ where: { talentId } });
-
-  // 5. Scrub the parent `bauth_user`(s) — but only those no other talent still
+  // 4. Scrub the parent `bauth_user`(s) — but only those no other talent still
   //    references, so a shared parent (siblings) keeps their account. Already-
   //    anonymised siblings have null parent emails, so they never count here.
   //    The sibling + role guard is shared with resetTalentToImport; here we

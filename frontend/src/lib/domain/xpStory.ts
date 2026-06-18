@@ -42,14 +42,36 @@ export function podiumTierFromBonus(amount: number): 1 | 2 | 3 | 'top' {
 }
 
 /**
- * Explicit, plain-French label for a single grant in the history feed - the staff
- * reading the fiche should understand exactly what earned the XP, with no internal
- * jargon and no ambiguity.
+ * Explicit, plain-French label for a single grant in the history feed - the one
+ * place that knows how every XP fact is worded, read by both the dev staff fiche
+ * and the talent's own `/xp` timeline. Either reader must understand exactly what
+ * earned the XP, with no internal jargon and no anglicisms ("early bird" /
+ * "onboarding" stay out).
+ *
+ * Most labels are audience-neutral (descriptive noun phrases, no tu/vous) and the
+ * same string serves both. Where the two audiences genuinely want different copy
+ * the `audience` param branches *here*, so the divergence stays centralised rather
+ * than forking a second label map into a component: the talent reads warmer,
+ * gamified wording; the staff reads the most unambiguous phrasing for a fiche.
+ *
+ * `rewardName` is the `XpReward.name` behind a `reward` grant (resolved
+ * server-side via the grant's `sourceId`); it carries the activity identity (e.g.
+ * "OSINT CTFD Stage Seconde"), so a reward without it falls back to a generic but
+ * still meaningful label rather than the old catch-all "XP gagnés".
  */
-export function xpHistoryLabel(source: string, amount: number): string {
+export function xpHistoryLabel(
+  source: string,
+  amount: number,
+  rewardName?: string | null,
+  audience: 'staff' | 'talent' = 'staff',
+): string {
   switch (source) {
     case 'minigame':
-      return "Jeu d'entraînement terminé";
+      // Talent reads the warm, gamified framing; staff need it unambiguous that a
+      // training *game* was finished (not a generic activity) when scanning a fiche.
+      return audience === 'talent'
+        ? 'Entraînement cérébral'
+        : "Jeu d'entraînement terminé";
     case 'minigame_rank': {
       const tier = podiumTierFromBonus(amount);
       if (tier === 1) return '1re place au classement';
@@ -63,6 +85,8 @@ export function xpHistoryLabel(source: string, amount: number): string {
       return 'Inscription parmi les premiers';
     case 'activity_presence':
       return 'Participation à un atelier';
+    case 'reward':
+      return rewardName?.trim() || 'Activité notée';
     case 'admin_adjustment':
       return amount >= 0
         ? 'Bonus accordé par le staff'

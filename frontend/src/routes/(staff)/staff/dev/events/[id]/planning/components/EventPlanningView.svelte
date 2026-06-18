@@ -4,9 +4,15 @@
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import CalendarViewer from '$lib/components/planning/CalendarViewer.svelte';
   import WeekNavigator from '$lib/components/planning/WeekNavigator.svelte';
+  import WeekViewToggle from '$lib/components/planning/WeekViewToggle.svelte';
   import ActivityPreviewDialog from '$lib/components/events/planning/ActivityPreviewDialog.svelte';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
-  import { pickInitialWeek, startOfDay } from '$lib/domain/calendarWeek';
+  import {
+    pickInitialWeek,
+    pickInitialWeekView,
+    startOfDay,
+    type WeekView,
+  } from '$lib/domain/calendarWeek';
   import type { TimeSlotWithActivity } from '$lib/types';
   import type { PageData } from '../$types';
 
@@ -44,6 +50,12 @@
         startOfDay(new Date(event.date)),
       ),
     ),
+  );
+
+  // Open full-week when the event has a weekend slot, else work-week, so the
+  // default never hides a slot. WeekViewToggle's stored choice overrides it.
+  let weekView = $state<WeekView>(
+    untrack(() => pickInitialWeekView(planning.timeSlots)),
   );
 
   let previewSlot = $state<TimeSlotWithActivity | null>(null);
@@ -90,8 +102,11 @@
           {/if}
         </p>
       </div>
-      <div class="flex items-center gap-2">
-        <WeekNavigator {range} bind:weekStart />
+      <div
+        class="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3"
+      >
+        <WeekViewToggle bind:value={weekView} />
+        <WeekNavigator {range} bind:weekStart {weekView} />
       </div>
     </div>
   </div>
@@ -100,6 +115,7 @@
     <CalendarViewer
       {slots}
       {weekStart}
+      {weekView}
       {serverNow}
       dimUnstarted={false}
       onSlotClick={(slot) => {

@@ -103,6 +103,124 @@ type CampusPlanning = { campus: string; days: DayInput[] };
 // ─── Campus schedules ────────────────────────────────────────────────────────
 // Source of truth. Add a campus by appending a CampusPlanning entry.
 const SCHEDULES: CampusPlanning[] = [
+  // From the planning screenshots. Two-week stage. Semaine 1 « découverte »
+  // (lun-jeu locaux, vendredi remote « à la carte »); semaine 2 « projet »
+  // (kick-off → design sprint → maquettage → pitchs/finale → remise des prix,
+  // vendredi remote « à la carte »). Daily grid: conférence le matin, déjeuner
+  // 12h30-13h30, ateliers l'après-midi.
+  {
+    campus: 'Nancy',
+    days: [
+      // ── Semaine 1 : découverte ──
+      // J1 - Lundi 15 juin
+      {
+        date: '2026-06-15',
+        slots: [
+          { start: '10:00', end: '11:00', nom: 'Accueil' },
+          { start: '11:00', end: '12:30', nom: 'Setting up' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '17:00', nom: 'Atelier' },
+        ],
+      },
+      // J2 - Mardi 16 juin
+      {
+        date: '2026-06-16',
+        slots: [
+          { start: '10:00', end: '12:30', nom: 'Conférence' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '17:00', nom: 'OSINT CTF' },
+        ],
+      },
+      // J3 - Mercredi 17 juin
+      {
+        date: '2026-06-17',
+        slots: [
+          { start: '10:00', end: '12:30', nom: 'Conférence' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '15:00', nom: 'Shell RPG' },
+          { start: '15:00', end: '17:00', nom: 'Shell CTF' },
+        ],
+      },
+      // J4 - Jeudi 18 juin
+      {
+        date: '2026-06-18',
+        slots: [
+          { start: '10:00', end: '12:30', nom: 'Pitch projet' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '15:00', nom: 'PyPong' },
+          { start: '15:00', end: '17:00', nom: 'SnakeJS' },
+        ],
+      },
+      // J5 - Vendredi 19 juin : remote « à la carte »
+      {
+        date: '2026-06-19',
+        slots: [
+          {
+            start: '10:00',
+            end: '17:00',
+            nom: 'A la carte !',
+            type: 'special',
+          },
+        ],
+      },
+      // ── Semaine 2 : projet ──
+      // J6 - Lundi 22 juin
+      {
+        date: '2026-06-22',
+        slots: [
+          { start: '10:00', end: '11:00', nom: 'Conférence' },
+          { start: '11:00', end: '12:30', nom: 'Kick-off' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '17:00', nom: 'Design sprint' },
+        ],
+      },
+      // J7 - Mardi 23 juin
+      {
+        date: '2026-06-23',
+        slots: [
+          { start: '10:00', end: '12:30', nom: 'Conférence' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '17:00', nom: 'Maquettage' },
+        ],
+      },
+      // J8 - Mercredi 24 juin
+      // Correction PO : prépa aux pitchs 13h30-16h, puis demi-finale 16h-17h
+      // (l'écran montrait 13h30-15h / 15h-17h, à ne pas reprendre).
+      {
+        date: '2026-06-24',
+        slots: [
+          { start: '10:00', end: '12:30', nom: 'Conférence' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '16:00', nom: 'Préparation du pitch' },
+          { start: '16:00', end: '17:00', nom: 'Demi-finale' },
+        ],
+      },
+      // J9 - Jeudi 25 juin
+      {
+        date: '2026-06-25',
+        slots: [
+          { start: '10:00', end: '12:30', nom: 'Conférence' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '14:30', nom: 'Préparation du pitch' },
+          { start: '14:30', end: '15:30', nom: 'Finale' },
+          { start: '15:30', end: '16:30', nom: 'Demo' },
+          { start: '16:30', end: '17:00', nom: 'Remise des prix' },
+        ],
+      },
+      // J10 - Vendredi 26 juin : remote « à la carte »
+      {
+        date: '2026-06-26',
+        slots: [
+          {
+            start: '10:00',
+            end: '17:00',
+            nom: 'A la carte !',
+            type: 'special',
+          },
+        ],
+      },
+    ],
+  },
   {
     campus: 'Lille',
     days: [
@@ -732,6 +850,263 @@ const SCHEDULES: CampusPlanning[] = [
       },
     ],
   },
+  {
+    // From Organisation_stages_de_2nd.xlsx (Lyon). Two weeks: découverte
+    // (15-19/06) puis projet (22-26/06). Group-rotating slots (Jeux vidéo /
+    // Entretiens / Chasse à l'œuf / Jeux de société) are folded into one title,
+    // matching how the other campuses model parallel tracks.
+    campus: 'Lyon',
+    days: [
+      // J1 - Lundi 15 juin : Ice Breaker
+      {
+        date: '2026-06-15',
+        slots: [
+          {
+            start: '09:00',
+            end: '09:30',
+            nom: 'Accueil & brief de la journée',
+          },
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Accueil : welcome, petit déj & mot de bienvenue',
+          },
+          {
+            start: '11:00',
+            end: '12:00',
+            nom: 'Décathlon Digital (amphi) : mes métiers de la tech',
+          },
+          { start: '12:00', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '14:00',
+            nom: 'Brief des jeux & pitch de l’après-midi',
+          },
+          {
+            start: '14:00',
+            end: '15:00',
+            nom: 'Pitch d’idées & jeux d’adresse / de force',
+          },
+          { start: '15:00', end: '15:30', nom: 'Pause & changement de salles' },
+          {
+            start: '15:30',
+            end: '16:30',
+            nom: 'Jeux d’adresse, jeux de force & pitch d’idées',
+          },
+          { start: '16:30', end: '17:00', nom: 'Debrief (amphi)' },
+        ],
+      },
+      // J2 - Mardi 16 juin : Cyber
+      {
+        date: '2026-06-16',
+        slots: [
+          { start: '10:00', end: '11:00', nom: 'Conférence Moontech (amphi)' },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Entretiens d’orientation, décrypt binaire & activités ludiques (jeux de société, chasse à l’œuf, jeux vidéo)',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '14:00',
+            nom: 'GeoGuessr : Let’s explore the world!',
+          },
+          {
+            start: '14:00',
+            end: '17:00',
+            nom: 'CTF : lab.epitech.academy',
+          },
+        ],
+      },
+      // J3 - Mercredi 17 juin : Programmation
+      {
+        date: '2026-06-17',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence Randstad Digital : coder c’est créer (amphi)',
+          },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Activités ludiques & entretiens d’orientation (jeux vidéo, décrypt binaire, jeux de société, chasse à l’œuf)',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Workshop “Coding Club” : PyPong & Snake.js',
+          },
+        ],
+      },
+      // J4 - Jeudi 18 juin : Linux
+      {
+        date: '2026-06-18',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “Open Source” (Mathieu Lempereur, amphi)',
+          },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Activités ludiques & entretiens d’orientation (chasse à l’œuf, jeux vidéo, décrypt binaire, jeux de société)',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Workshop “Linux” : discover-linux',
+          },
+        ],
+      },
+      // J5 - Vendredi 19 juin : remote (Deep Fakes & Vibe Coding)
+      {
+        date: '2026-06-19',
+        slots: [
+          {
+            start: '10:00',
+            end: '10:30',
+            nom: 'Présentation de la journée en distanciel',
+            type: 'special',
+          },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Fake Ads & Fake News (à distance)',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '14:00',
+            nom: 'Lancement de l’après-midi à distance',
+            type: 'special',
+          },
+          {
+            start: '14:00',
+            end: '16:00',
+            nom: 'Programming with IA (à distance)',
+          },
+        ],
+      },
+      // J6 - Lundi 22 juin : Design Sprint
+      {
+        date: '2026-06-22',
+        slots: [
+          { start: '10:00', end: '11:00', nom: 'Conférence Google (amphi)' },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Kick-off, construction des groupes & idéation',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Design Sprint speed run (5 étapes)',
+          },
+        ],
+      },
+      // J7 - Mardi 23 juin : Design Product
+      {
+        date: '2026-06-23',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “Product Owner”',
+          },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Landing page ou maquette App Mobile (Figma)',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '14:00',
+            end: '16:30',
+            nom: 'Landing page ou maquette App Mobile (Figma)',
+          },
+          { start: '16:30', end: '17:00', nom: 'Debrief' },
+        ],
+      },
+      // J8 - Mercredi 24 juin : Préparation au pitch & demi-finales
+      {
+        date: '2026-06-24',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence Jimmy (Go2Innov, amphi)',
+          },
+          { start: '11:00', end: '12:30', nom: 'Pitch Deck' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '15:00',
+            nom: 'Préparation du pitch & prise de parole en public',
+          },
+          {
+            start: '15:00',
+            end: '16:30',
+            nom: 'Pitch : demi-finale',
+            type: 'special',
+          },
+        ],
+      },
+      // J9 - Jeudi 25 juin : Pitch Day & Demo Day
+      {
+        date: '2026-06-25',
+        slots: [
+          { start: '10:00', end: '11:00', nom: 'Conférence Schifters (amphi)' },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Activités ludiques & entretiens d’orientation (jeux de société, chasse à l’œuf, jeux vidéo)',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '14:00',
+            end: '17:00',
+            nom: 'Demo Day (amphi) & goûter',
+            type: 'special',
+          },
+        ],
+      },
+      // J10 - Vendredi 26 juin : remote (Deep Fakes & Vibe Coding)
+      {
+        date: '2026-06-26',
+        slots: [
+          {
+            start: '10:00',
+            end: '10:30',
+            nom: 'Présentation de la journée en distanciel',
+            type: 'special',
+          },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Fake Ads & Fake News (à distance)',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '14:00',
+            nom: 'Lancement de l’après-midi à distance',
+            type: 'special',
+          },
+          {
+            start: '14:00',
+            end: '16:00',
+            nom: 'Programming with IA (à distance)',
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 // ─── Seeding ─────────────────────────────────────────────────────────────────
@@ -757,7 +1132,7 @@ async function seedCampus(plan: CampusPlanning): Promise<void> {
     (await prisma.planning.create({ data: { eventId: event.id } }));
 
   const tz = campus.timezone;
-  const creates = plan.days.flatMap((day) =>
+  const slotData = plan.days.flatMap((day) =>
     day.slots.map((s) => {
       const startTime = fromWallClock(day.date, s.start, tz);
       const endTime = fromWallClock(day.date, s.end, tz);
@@ -766,20 +1141,18 @@ async function seedCampus(plan: CampusPlanning): Promise<void> {
           `Slot ends at or before it starts: ${plan.campus} ${day.date} ${s.start}-${s.end} (${s.nom})`,
         );
       }
-      return prisma.timeSlot.create({
-        data: {
-          planningId: planning.id,
-          startTime,
-          endTime,
-          activity: {
-            create: {
-              nom: s.nom,
-              activityType: s.type ?? inferActivityType(s.nom),
-              isDynamic: false,
-            },
+      return {
+        planningId: planning.id,
+        startTime,
+        endTime,
+        activity: {
+          create: {
+            nom: s.nom,
+            activityType: s.type ?? inferActivityType(s.nom),
+            isDynamic: false,
           },
         },
-      });
+      };
     }),
   );
 
@@ -789,14 +1162,20 @@ async function seedCampus(plan: CampusPlanning): Promise<void> {
     where: { planningId: planning.id },
   });
 
-  await prisma.$transaction([
-    // Full rebuild (cascades to activities) so the script is idempotent.
-    prisma.timeSlot.deleteMany({ where: { planningId: planning.id } }),
-    ...creates,
-  ]);
+  // Full rebuild (cascades to activities) so the script is idempotent. Use an
+  // interactive transaction with a generous timeout: against a remote DB the
+  // per-slot round-trips blow past the default 5s interactive limit (the batch
+  // array form gives no way to raise it).
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.timeSlot.deleteMany({ where: { planningId: planning.id } });
+      await Promise.all(slotData.map((data) => tx.timeSlot.create({ data })));
+    },
+    { timeout: 120_000, maxWait: 15_000 },
+  );
 
   console.log(
-    `✓ ${plan.campus.padEnd(14)} ${creates.length} slots across ${plan.days.length} days (tz ${tz}) → "${event.titre}"` +
+    `✓ ${plan.campus.padEnd(14)} ${slotData.length} slots across ${plan.days.length} days (tz ${tz}) → "${event.titre}"` +
       (replaced > 0 ? `  [replaced ${replaced} existing]` : ''),
   );
 }
