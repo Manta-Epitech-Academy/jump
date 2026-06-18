@@ -37,6 +37,11 @@
   // on screen — only offer it on the unfiltered view so a narrowed list can't
   // mislead an admin into a global wipe.
   const isFiltered = $derived(filterCampus !== 'all' || filterType !== 'all');
+  // When filtered, the active filter *is* the selection: resolve exactly the
+  // unresolved rows currently on screen.
+  const filteredUnresolved = $derived(
+    filteredErrors.filter((e) => !e.resolved),
+  );
 </script>
 
 <svelte:head>
@@ -119,6 +124,33 @@
           <Button type="submit" variant="outline" class="gap-2">
             <CheckCheck class="h-4 w-4" />
             Tout résoudre ({data.unresolvedCount})
+          </Button>
+        </form>
+      {/if}
+
+      {#if isFiltered && filteredUnresolved.length > 0}
+        <form
+          method="POST"
+          action="?/resolveSelected"
+          use:enhance={() =>
+            async ({ result, update }) => {
+              if (result.type === 'success') {
+                track('sync_errors_resolved_selected', {
+                  count: filteredUnresolved.length,
+                });
+                toast.success('Erreurs filtrées résolues');
+                await update();
+              } else {
+                toast.error('Une erreur est survenue');
+              }
+            }}
+        >
+          {#each filteredUnresolved as e (e.id)}
+            <input type="hidden" name="ids" value={e.id} />
+          {/each}
+          <Button type="submit" variant="outline" class="gap-2">
+            <Check class="h-4 w-4" />
+            Résoudre les {filteredUnresolved.length} affichés
           </Button>
         </form>
       {/if}

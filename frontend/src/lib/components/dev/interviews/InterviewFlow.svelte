@@ -50,6 +50,7 @@
   import { cn } from '$lib/utils';
   import {
     INTERVIEW_SECTIONS,
+    INTERVIEW_SYNTHESIS_SECTIONS,
     VERDICT_SECTION,
     INTERVIEW_RECOMMENDATIONS,
     INTERVIEW_RECOMMENDATION_DISPLAY_ORDER,
@@ -347,6 +348,16 @@
     return labels.length ? labels.join(', ') : null;
   }
 
+  // The selected labels of a multi-choice question, as a list. Rendered as
+  // discrete chips in the synthesis rather than joined: option labels can
+  // themselves contain commas and slashes ("IA / Data"), so a "a, b" join reads
+  // ambiguously as more answers than there are. One chip = one answer.
+  function answerChips(q: InterviewQuestion): string[] {
+    if (q.kind !== 'multi') return [];
+    const arr = (fv(q.field) as string[] | undefined) ?? [];
+    return q.options.filter((o) => arr.includes(o.value)).map((o) => o.label);
+  }
+
   const chipBase =
     'cursor-pointer rounded-sm border px-3.5 py-2 text-sm font-medium transition select-none active:scale-95 disabled:cursor-default disabled:active:scale-100';
   const chipIdle =
@@ -580,52 +591,64 @@
   <p class="text-sm text-muted-foreground/60">—</p>
 {/snippet}
 
-<!-- One synthesis line: the question, then its structured answer (chips joined,
-     stars, or the text testimony) with any free-text note as prose beneath. A
-     note alone still reads as the answer; nothing at all shows a muted dash. -->
+<!-- One synthesis entry: the question and its structured answer (chips joined or
+     stars) share a line; any free text (a note, or the testimony itself) drops
+     to its own full-width line below, behind the blue rail. Nothing at all shows
+     a muted dash next to the question. -->
 {#snippet synthesisRow(q: InterviewQuestion)}
   {@const note = noteText(q)}
-  <div class="grid gap-1 py-2 sm:grid-cols-[2fr_3fr] sm:gap-4">
-    <p class="text-xs text-muted-foreground sm:pt-0.5">{q.label}</p>
-    <div class="space-y-1.5">
-      {#if q.kind === 'text'}
-        {@const value = answerLabel(q)}
-        {#if value}
-          {@render prose(value)}
-        {:else}
-          {@render dash()}
-        {/if}
-      {:else if q.kind === 'rating'}
-        {#if $form.satisfactionStars}
-          <div class="flex items-center gap-0.5">
-            {#each Array.from({ length: q.max }) as _, idx (idx)}
-              <Star
-                class={cn(
-                  'h-3.5 w-3.5',
-                  ($form.satisfactionStars ?? 0) > idx
-                    ? 'fill-epi-orange text-epi-orange'
-                    : 'text-muted-foreground/30',
-                )}
-              />
-            {/each}
-            <span class="ml-1.5 text-sm font-semibold text-foreground">
-              {$form.satisfactionStars}/{q.max}
-            </span>
-          </div>
+  {@const value = answerLabel(q)}
+  <div class="space-y-1.5 py-2">
+    <div class="grid gap-1 sm:grid-cols-[2fr_3fr] sm:gap-4">
+      <p class="text-xs text-muted-foreground sm:pt-0.5">{q.label}</p>
+      <div>
+        {#if q.kind === 'rating'}
+          {#if $form.satisfactionStars}
+            <div class="flex items-center gap-0.5">
+              {#each Array.from({ length: q.max }) as _, idx (idx)}
+                <Star
+                  class={cn(
+                    'h-3.5 w-3.5',
+                    ($form.satisfactionStars ?? 0) > idx
+                      ? 'fill-epi-orange text-epi-orange'
+                      : 'text-muted-foreground/30',
+                  )}
+                />
+              {/each}
+              <span class="ml-1.5 text-sm font-semibold text-foreground">
+                {$form.satisfactionStars}/{q.max}
+              </span>
+            </div>
+          {:else if !note}
+            {@render dash()}
+          {/if}
+        {:else if q.kind === 'text'}
+          <!-- The testimony is free text: it renders full-width below. -->
+          {#if !value && !note}{@render dash()}{/if}
+        {:else if q.kind === 'multi'}
+          {@const chips = answerChips(q)}
+          {#if chips.length}
+            <div class="flex flex-wrap gap-1.5">
+              {#each chips as c (c)}
+                <span
+                  class="inline-flex items-center rounded-sm border border-border bg-muted/50 px-2 py-0.5 text-xs font-medium text-foreground"
+                >
+                  {c}
+                </span>
+              {/each}
+            </div>
+          {:else if !note}
+            {@render dash()}
+          {/if}
+        {:else if value}
+          <p class="text-sm font-semibold text-foreground">{value}</p>
         {:else if !note}
           {@render dash()}
         {/if}
-        {#if note}{@render prose(note)}{/if}
-      {:else}
-        {@const label = answerLabel(q)}
-        {#if label}
-          <p class="text-sm font-semibold text-foreground">{label}</p>
-        {:else if !note}
-          {@render dash()}
-        {/if}
-        {#if note}{@render prose(note)}{/if}
-      {/if}
+      </div>
     </div>
+    {#if q.kind === 'text' && value}{@render prose(value)}{/if}
+    {#if note}{@render prose(note)}{/if}
   </div>
 {/snippet}
 
@@ -765,7 +788,7 @@
             {/if}
           </div>
 
-          {#each INTERVIEW_SECTIONS as section (section.key)}
+          {#each INTERVIEW_SYNTHESIS_SECTIONS as section (section.key)}
             <div class="space-y-1">
               <p
                 class="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase"

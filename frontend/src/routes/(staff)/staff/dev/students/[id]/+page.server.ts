@@ -425,6 +425,15 @@ async function persistInterview(
         ? ('in_progress' as const)
         : undefined;
 
+  // `conductedAt` defaults to row-creation time, i.e. when the interview is
+  // first started or autosaved as `in_progress`. Re-stamp it at clôture so it
+  // marks when the interview was finalized, not when the form was first opened.
+  // Everything downstream treats a `done` interview's `conductedAt` as its
+  // completion date (the admin PDF list orders and dates by it, the reset audit
+  // snapshots it), so a just-closed interview must carry "now" even if it sat in
+  // progress for a while.
+  const conductedAt = mode === 'close' ? new Date() : undefined;
+
   await db.interview.upsert({
     where: { participationId },
     create: {
@@ -433,11 +442,13 @@ async function persistInterview(
       campusId,
       staffId: locals.staffProfile.id,
       status: createStatus,
+      ...(conductedAt ? { conductedAt } : {}),
       ...answers,
     },
     update: {
       ...answers,
       ...(setStatus ? { status: setStatus } : {}),
+      ...(conductedAt ? { conductedAt } : {}),
     },
   });
 

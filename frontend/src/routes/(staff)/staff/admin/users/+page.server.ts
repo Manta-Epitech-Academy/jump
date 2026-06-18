@@ -8,20 +8,45 @@ import { staffRoles, bauthRoleForStaffRole } from '$lib/domain/staff';
 import { createAdminInvitationSchema } from '$lib/validation/staff';
 
 export const load: PageServerLoad = async ({ locals }) => {
+  // Select only the columns the page renders. `include` here used to drag the
+  // full bauth_user row (every BetterAuth column) plus full campus rows for both
+  // members and invitations, ballooning the SSR payload (~1.1 MB / 10 KB a row)
+  // even though the tables show name/email/role/campus and nothing else.
   const [members, invitations, campuses] = await Promise.all([
     prisma.bauth_user.findMany({
       where: { staffProfile: { isNot: null } },
       orderBy: [{ name: 'asc' }, { email: 'asc' }],
-      include: { staffProfile: { include: { campus: true } } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        staffProfile: {
+          select: {
+            staffRole: true,
+            campusId: true,
+            campus: { select: { name: true } },
+          },
+        },
+      },
     }),
+    // Invitations are pending by construction: the OAuth callback deletes the
+    // row on first sign-in, so this list never accumulates accepted ones.
     prisma.staffInvitation.findMany({
-      include: {
-        campus: true,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        email: true,
+        staffRole: true,
+        createdAt: true,
+        campus: { select: { name: true } },
         invitedBy: { select: { name: true, email: true } },
       },
-      orderBy: { createdAt: 'desc' },
     }),
-    prisma.campus.findMany({ orderBy: { name: 'asc' } }),
+    prisma.campus.findMany({
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
   ]);
 
   const inviteForm = await superValidate(zod4(createAdminInvitationSchema));
@@ -104,6 +129,25 @@ export const actions: Actions = {
     try {
       await prisma.staffInvitation.delete({ where: { id } });
       return { success: true };
+    } catch (err) {
+      return fail(500, { message: "Erreur lors de l'annulation." });
+    }
+  },
+
+  // Bulk-cancel selected pending invitations — clears the stale backlog in one
+  // shot rather than one delete per row. `ids` arrives as repeated form fields.
+  cancelInvitationsBulk: async ({ request }) => {
+    const data = await request.formData();
+    const ids = data
+      .getAll('ids')
+      .filter((v): v is string => typeof v === 'string' && v.length > 0);
+    if (ids.length === 0) return fail(400, { message: 'Aucune invitation.' });
+
+    try {
+      const { count } = await prisma.staffInvitation.deleteMany({
+        where: { id: { in: ids } },
+      });
+      return { success: true, count };
     } catch (err) {
       return fail(500, { message: "Erreur lors de l'annulation." });
     }

@@ -64,6 +64,7 @@
       diffs={resolved.diffs}
       enrichment={resolved.enrichment}
       authConflicts={resolved.authConflicts}
+      lastExportAt={data.lastExportAt}
       {query}
     />
   {:else if failed}
