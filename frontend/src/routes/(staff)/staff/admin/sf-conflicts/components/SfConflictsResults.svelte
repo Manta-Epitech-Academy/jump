@@ -1,6 +1,5 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { resolve } from '$app/paths';
   import * as Card from '$lib/components/ui/card';
   import * as Table from '$lib/components/ui/table';
   import * as Tabs from '$lib/components/ui/tabs';
@@ -9,7 +8,6 @@
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
   import SalesforceIconLink from '$lib/components/salesforce/SalesforceIconLink.svelte';
-  import Download from '@lucide/svelte/icons/download';
   import CloudDownload from '@lucide/svelte/icons/cloud-download';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import CheckCheck from '@lucide/svelte/icons/check-check';
@@ -31,6 +29,7 @@
     type AuthRepairAction,
   } from '$lib/domain/authIdentity';
   import type { SfConflictsData } from './types';
+  import SfExportMenu from './SfExportMenu.svelte';
 
   // The streamed reconciliation payload plus the shell's search box value. This
   // component owns every data-dependent projection, both tabs and the two repair
@@ -42,7 +41,9 @@
     enrichment,
     authConflicts,
     query,
-  }: SfConflictsData & { query: string } = $props();
+    lastExportAt,
+  }: SfConflictsData & { query: string; lastExportAt: string | null } =
+    $props();
 
   function displayValue(field: DiffField, value: string | null): string {
     if (!value) return '—';
@@ -160,6 +161,21 @@
   );
   const dataCount = $derived(conflictCount + pushFieldCount);
   const hasData = $derived(dataCount > 0);
+
+  // One confirmation instant per talent who appears in the export (the most
+  // recent across their diff + enrichment rows), feeding the export menu's
+  // per-period counts. Built off the already-resolved scans, so the menu never
+  // runs its own query and its "(N talents)" matches what the CSV carries.
+  const exportTimeline = $derived.by(() => {
+    const byTalent = new Map<string, string>();
+    const bump = (id: string, iso: string) => {
+      const cur = byTalent.get(id);
+      if (!cur || iso > cur) byTalent.set(id, iso);
+    };
+    for (const t of diffs) bump(t.talentId, t.confirmedAt);
+    for (const t of enrichment) bump(t.talentId, t.confirmedAt);
+    return [...byTalent.values()].map((confirmedAt) => ({ confirmedAt }));
+  });
 
   // ── Adopt-Salesforce confirm ──────────────────────────────────────────────
   let adoptOpen = $state(false);
@@ -343,13 +359,7 @@
         demande un arbitrage ; le reste se <strong>transmet</strong> via le CSV.
       </p>
       {#if hasData}
-        <a
-          href={resolve('/staff/admin/sf-conflicts/export')}
-          class={buttonVariants({ variant: 'outline' })}
-          download
-        >
-          <Download class="mr-2 h-4 w-4" /> Exporter CSV
-        </a>
+        <SfExportMenu timeline={exportTimeline} {lastExportAt} />
       {/if}
     </div>
 
