@@ -547,7 +547,7 @@ const SCHEDULES: CampusPlanning[] = [
           {
             start: '10:00',
             end: '11:00',
-            nom: 'Conférence “L’open source pour changer le monde” (Sophie Imbach, Acquisition Manager B2B, Kaliop)',
+            nom: 'Conférence “L’open source pour changer le monde”',
           },
           // Two parallel tracks per team: two overlapping slots, as scheduled.
           {
