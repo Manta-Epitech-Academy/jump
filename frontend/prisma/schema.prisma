@@ -250,6 +250,13 @@ model StaffProfile {
   // finished since. A convenience filter, not a completeness guarantee (the
   // all-time export stays the authoritative archive); null = never exported.
   onboardingDocsExportedAt DateTime?
+  // High-water mark for this admin's Salesforce-divergences CSV export, set each
+  // time they download the full ("everything up to now") CSV from
+  // `/staff/admin/sf-conflicts`, so the menu can surface the talents confirmed
+  // since. Same role as `onboardingDocsExportedAt`: a convenience filter, not a
+  // completeness guarantee (the all-time export stays authoritative); null =
+  // never exported.
+  sfExportedAt             DateTime?
   createdAt                DateTime   @default(now())
   updatedAt                DateTime   @updatedAt
 

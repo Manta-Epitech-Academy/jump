@@ -65,6 +65,21 @@ export interface TalentDiff {
   prenom: string;
   email: string | null;
   diffs: FieldDiff[];
+  /** Most recent confirmation instant (ISO), see `latestConfirmedAt`. */
+  confirmedAt: string;
+}
+
+/**
+ * The most recent of a talent's confirmation timestamps, as an ISO string. Used
+ * only to window the CSV export by *when the talent confirmed* (see the export
+ * endpoint) and to count talents per period in the menu; it never changes what
+ * the page shows. At least one input is always set for a talent that surfaces
+ * here (every query below gates on a confirmed section), so the fallback to the
+ * epoch is unreachable defence.
+ */
+function latestConfirmedAt(...dates: (Date | null | undefined)[]): string {
+  const ms = dates.filter((d): d is Date => d != null).map((d) => d.getTime());
+  return new Date(ms.length ? Math.max(...ms) : 0).toISOString();
 }
 
 // Compare on a normalized form so cosmetic differences don't surface as a diff a
@@ -104,6 +119,8 @@ export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
       schoolId: true,
       infoValidatedAt: true,
       highSchoolValidatedAt: true,
+      techInterestsValidatedAt: true,
+      generalInterestsValidatedAt: true,
       school: { select: { name: true, uai: true } },
       sfImport: {
         select: {
@@ -201,6 +218,12 @@ export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
         prenom: t.prenom,
         email: t.email,
         diffs,
+        confirmedAt: latestConfirmedAt(
+          t.infoValidatedAt,
+          t.highSchoolValidatedAt,
+          t.techInterestsValidatedAt,
+          t.generalInterestsValidatedAt,
+        ),
       });
     }
   }
@@ -273,14 +296,15 @@ export async function adoptSalesforceField(
  * Enrichment Salesforce can't hold. The worker payload carries no parent
  * contacts, so they are never a diff to reconcile — but they are exactly the data
  * Jump collects at onboarding that the SF team would want backfilled. Scope is
- * deliberately the parent *contact record* only (lien, civilité, name, email,
- * phone for each parent): contact-shaped data with an obvious SF home. Equipment,
- * interests and image-rights are also Jump-only but are operational/pedagogical —
- * SF has neither a column nor a use for them, so listing them as "à transmettre"
- * would mislead. Surfaced in the on-screen list and the CSV export alike, one
- * labelled row per non-empty field, gated on a confirmed info section. Coded
- * values (lien, civilité) are rendered through their canonical labels so the
- * export reads in French, not enum strings.
+ * the parent *contact record* (lien, civilité, name, email, phone for each
+ * parent) plus the talent's *centres d'intérêt*: contact- and profile-shaped data
+ * with an SF home. Interests used to be left out (SF had no field for them); SF
+ * now imports them, so they ride the same "à transmettre" rows — see the interest
+ * block in `listSalesforceEnrichment`. Equipment and image-rights stay out: still
+ * purely operational, no SF column. Surfaced in the on-screen list and the CSV
+ * export alike, one labelled row per non-empty field, gated on a confirmed
+ * section. Coded values (lien, civilité) are rendered through their canonical
+ * labels so the export reads in French, not enum strings.
  */
 type EnrichmentFieldDef = {
   key:
@@ -331,6 +355,8 @@ export interface TalentEnrichment {
   prenom: string;
   email: string | null;
   fields: { label: string; value: string }[];
+  /** Most recent confirmation instant (ISO), see `latestConfirmedAt`. */
+  confirmedAt: string;
 }
 
 export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
@@ -354,6 +380,15 @@ export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
       parent2Prenom: true,
       parent2Email: true,
       parent2Phone: true,
+      infoValidatedAt: true,
+      techInterestsValidatedAt: true,
+      generalInterestsValidatedAt: true,
+      interestsFreeText: true,
+      interests: {
+        select: {
+          interest: { select: { nom: true, kind: true, order: true } },
+        },
+      },
     },
     orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
   });
@@ -364,6 +399,30 @@ export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
       const raw = (t[key] ?? '').trim();
       return { label, value: format ? format(raw) : raw };
     }).filter((f) => f.value);
+
+    // Centres d'intérêt: Jump-only data SF now imports. Names only (emoji
+    // dropped) joined by ';' so a multi-select picklist import matches each value
+    // exactly; tech and perso stay on separate rows (distinct SF fields). Only
+    // listed once the talent has confirmed the interests section, so an
+    // in-progress onboarding never leaks half-picked interests into the export.
+    if (t.techInterestsValidatedAt || t.generalInterestsValidatedAt) {
+      const joinKind = (tech: boolean) =>
+        t.interests
+          .map((ti) => ti.interest)
+          .filter((i) => (i.kind === 'tech') === tech)
+          .sort((a, b) => a.order - b.order)
+          .map((i) => i.nom)
+          .join(';');
+      const tech = joinKind(true);
+      const perso = joinKind(false);
+      if (tech) fields.push({ label: "Centres d'intérêt — Tech", value: tech });
+      if (perso)
+        fields.push({ label: "Centres d'intérêt — Perso", value: perso });
+    }
+    const freeText = (t.interestsFreeText ?? '').trim();
+    if (freeText)
+      fields.push({ label: "Centres d'intérêt — Autres", value: freeText });
+
     if (fields.length > 0) {
       out.push({
         talentId: t.id,
@@ -372,8 +431,30 @@ export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
         prenom: t.prenom,
         email: t.email,
         fields,
+        confirmedAt: latestConfirmedAt(
+          t.infoValidatedAt,
+          t.techInterestsValidatedAt,
+          t.generalInterestsValidatedAt,
+        ),
       });
     }
   }
   return out;
+}
+
+/**
+ * Advance an admin's Salesforce-export high-water mark to `at` — the mirror of
+ * `recordOnboardingDocsExport`. Called once the windowed CSV has been assembled
+ * so the menu's "depuis le dernier export" delta moves forward on the next load.
+ * Fire-and-forget at the call site: a failed write simply re-offers the same
+ * talents next time, never blocks the download.
+ */
+export async function recordSfExport(
+  staffProfileId: string,
+  at: Date,
+): Promise<void> {
+  await prisma.staffProfile.update({
+    where: { id: staffProfileId },
+    data: { sfExportedAt: at },
+  });
 }
