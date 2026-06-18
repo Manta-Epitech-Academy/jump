@@ -11,6 +11,7 @@
   import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
   import * as Table from '$lib/components/ui/table';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+  import { Checkbox } from '$lib/components/ui/checkbox';
   import { cn } from '$lib/utils';
   import type { ColumnDef, SortDir } from './types';
 
@@ -36,6 +37,8 @@
     layout = 'auto',
     mobileRow,
     mobileSort = true,
+    selectable = false,
+    selected,
   }: {
     columns: ColumnDef[];
     rows: T[];
@@ -91,6 +94,15 @@
     mobileRow?: Snippet<[T, number]>;
     /** Show the compact "Trier" dropdown above the mobile cards (sortable cols only). */
     mobileSort?: boolean;
+    /**
+     * Opt-in row selection. Renders a leading checkbox column (desktop + mobile)
+     * plus a select-all header box. The parent owns `selected` — a reactive Set
+     * keyed by `rowKey` — and renders its own bulk-action bar off `selected.size`;
+     * this component only toggles membership. Off by default, so existing callers
+     * render exactly as before.
+     */
+    selectable?: boolean;
+    selected?: Set<string>;
   } = $props();
 
   const sortableColumns = $derived(columns.filter((c) => c.sortable));
@@ -110,6 +122,35 @@
     mounted = true;
   });
   const showDesktop = $derived(!mobileRow || !mounted || isDesktop.current);
+
+  // Selection (opt-in). The parent's `selected` is a reactive Set (a SvelteSet),
+  // so mutating it here propagates back without a callback. The index passed to
+  // every/some/forEach matches `rowKey(r, i)`.
+  const allSelected = $derived(
+    selectable &&
+      !!selected &&
+      rows.length > 0 &&
+      rows.every((r, i) => selected.has(rowKey(r, i))),
+  );
+  const someSelected = $derived(
+    selectable &&
+      !!selected &&
+      !allSelected &&
+      rows.some((r, i) => selected.has(rowKey(r, i))),
+  );
+  function toggleAll(checked: boolean) {
+    if (!selected) return;
+    rows.forEach((r, i) => {
+      const key = rowKey(r, i);
+      if (checked) selected.add(key);
+      else selected.delete(key);
+    });
+  }
+  function toggleRow(key: string, checked: boolean) {
+    if (!selected) return;
+    if (checked) selected.add(key);
+    else selected.delete(key);
+  }
 </script>
 
 {#if showDesktop}
@@ -120,6 +161,22 @@
     >
       <Table.Header class={headerClass}>
         <Table.Row>
+          {#if selectable}
+            <Table.Head
+              class={cn(
+                'w-10',
+                stickyHeader &&
+                  'lg:sticky lg:top-0 lg:z-20 lg:border-b lg:bg-muted',
+              )}
+            >
+              <Checkbox
+                checked={allSelected}
+                indeterminate={someSelected}
+                onCheckedChange={(v) => toggleAll(v === true)}
+                aria-label="Tout sélectionner"
+              />
+            </Table.Head>
+          {/if}
           {#each columns as col (col.key)}
             <Table.Head
               class={cn(
@@ -169,7 +226,10 @@
       <Table.Body>
         {#if rows.length === 0}
           <Table.Row>
-            <Table.Cell colspan={columns.length} class="h-32 text-center">
+            <Table.Cell
+              colspan={columns.length + (selectable ? 1 : 0)}
+              class="h-32 text-center"
+            >
               {#if empty}
                 {@render empty()}
               {:else}
@@ -186,6 +246,15 @@
                 rowHref && 'relative',
               )}
             >
+              {#if selectable}
+                <Table.Cell class="relative z-10 w-10">
+                  <Checkbox
+                    checked={selected?.has(rowKey(r, i)) ?? false}
+                    onCheckedChange={(v) => toggleRow(rowKey(r, i), v === true)}
+                    aria-label="Sélectionner la ligne"
+                  />
+                </Table.Cell>
+              {/if}
               {@render row(r, i)}
               {#if rowHref}
                 <!-- Stretched-link overlay: a real <a> covering the whole row,
@@ -274,6 +343,15 @@
     {:else}
       {#each rows as r, i (rowKey(r, i))}
         <div class="relative rounded-sm border bg-card p-3 shadow-sm">
+          {#if selectable}
+            <div class="relative z-10 mb-2">
+              <Checkbox
+                checked={selected?.has(rowKey(r, i)) ?? false}
+                onCheckedChange={(v) => toggleRow(rowKey(r, i), v === true)}
+                aria-label="Sélectionner"
+              />
+            </div>
+          {/if}
           {@render mobileRow(r, i)}
           {#if rowHref}
             <a
