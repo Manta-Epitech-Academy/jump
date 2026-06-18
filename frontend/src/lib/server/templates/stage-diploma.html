@@ -36,29 +36,14 @@
       .page:last-child {
         page-break-after: auto;
       }
-      .accent-bar {
+      /* Thin full border framing the whole page. */
+      .frame {
         position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        width: 16px;
-        background-color: #013afb;
-      }
-      /* Soft corner glow via a radial gradient rather than `filter: blur()`.
-         A blur filter is rasterized per page; across 200 pages it dominates
-         Puppeteer's print time and was blowing past the 30s timeout. A gradient
-         renders for free and looks the same. */
-      .glow {
-        position: absolute;
-        bottom: -200px;
-        right: -160px;
-        height: 520px;
-        width: 520px;
-        background: radial-gradient(
-          circle,
-          rgba(0, 255, 151, 0.22) 0%,
-          rgba(0, 255, 151, 0) 70%
-        );
+        top: 24px;
+        right: 24px;
+        bottom: 24px;
+        left: 24px;
+        border: 2px solid #013afb;
       }
       .content {
         position: relative;
@@ -212,8 +197,7 @@
   <body>
     <% data.students.forEach(function (student) { %>
     <div class="page">
-      <div class="accent-bar"></div>
-      <div class="glow"></div>
+      <div class="frame"></div>
       <div class="content">
         <div class="header">
           <div class="logo"></div>
