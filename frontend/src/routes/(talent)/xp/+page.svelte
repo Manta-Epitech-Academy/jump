@@ -158,35 +158,28 @@
       class="mb-8 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
       in:fly={{ y: -20, duration: 400 }}
     >
-      <div class="p-6 sm:p-8">
+      <div class="flex items-center gap-4 px-5 py-4 sm:gap-5 sm:px-6">
+        <!-- XP badge -->
         <div
-          class="flex flex-col items-center gap-6 sm:flex-row sm:items-start"
+          class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-epi-orange/10 ring-2 ring-epi-orange/30 dark:bg-epi-orange/20"
         >
-          <!-- XP badge -->
-          <div
-            class="flex h-24 w-24 items-center justify-center rounded-2xl bg-epi-orange/10 ring-2 ring-epi-orange/30 dark:bg-epi-orange/20"
-          >
-            <div class="text-center">
-              <div
-                class="text-3xl font-black tracking-tighter text-slate-900 dark:text-white"
-              >
-                {totalXp}
-              </div>
-              <div class="text-xs font-bold text-epi-orange uppercase">XP</div>
+          <div class="text-center">
+            <div
+              class="text-xl font-black tracking-tighter text-slate-900 dark:text-white"
+            >
+              {totalXp}
             </div>
+            <div class="text-[9px] font-bold text-epi-orange uppercase">XP</div>
           </div>
+        </div>
 
-          <!-- Stats -->
-          <div
-            class="flex min-w-0 flex-1 flex-col justify-center text-center sm:text-left"
-          >
-            <h2 class="text-lg font-bold text-slate-900 dark:text-white">
-              Points d'experience
-            </h2>
-            <p class="mt-1 text-sm text-slate-500">
-              Chaque activite, entrainement et defi te rapproche du sommet.
-            </p>
-          </div>
+        <div class="min-w-0 flex-1">
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">
+            Points d'experience
+          </h2>
+          <p class="text-sm text-slate-500">
+            Chaque activite, entrainement et defi te rapproche du sommet.
+          </p>
         </div>
       </div>
     </div>
