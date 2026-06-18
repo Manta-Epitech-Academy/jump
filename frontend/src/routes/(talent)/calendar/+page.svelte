@@ -4,9 +4,14 @@
   import CalendarIcon from '@lucide/svelte/icons/calendar';
   import CalendarViewer from '$lib/components/planning/CalendarViewer.svelte';
   import WeekNavigator from '$lib/components/planning/WeekNavigator.svelte';
+  import WeekViewToggle from '$lib/components/planning/WeekViewToggle.svelte';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
-  import { pickInitialWeek } from '$lib/domain/calendarWeek';
+  import {
+    pickInitialWeek,
+    pickInitialWeekView,
+    type WeekView,
+  } from '$lib/domain/calendarWeek';
   import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
@@ -28,6 +33,12 @@
         data.planning.range ? new Date(data.planning.range.start) : null,
       ),
     ),
+  );
+
+  // Open full-week when the timeline has a weekend activity, else work-week, so
+  // the default never hides a slot. WeekViewToggle's stored choice overrides it.
+  let weekView = $state<WeekView>(
+    untrack(() => pickInitialWeekView(data.planning.slots)),
   );
 
   let previewSlot = $state<Slot | null>(null);
@@ -64,15 +75,21 @@
   <TalentPageHeader title="Planning">
     {#snippet actions()}
       {#if range}
-        <WeekNavigator
-          {range}
-          bind:weekStart
-          onNavigate={(dir) =>
-            track('calendar_week_navigated', {
-              direction: dir,
-              currentWeekOffset: weekOffset(weekStart),
-            })}
-        />
+        <div
+          class="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3"
+        >
+          <WeekViewToggle bind:value={weekView} />
+          <WeekNavigator
+            {range}
+            bind:weekStart
+            {weekView}
+            onNavigate={(dir) =>
+              track('calendar_week_navigated', {
+                direction: dir,
+                currentWeekOffset: weekOffset(weekStart),
+              })}
+          />
+        </div>
       {/if}
     {/snippet}
   </TalentPageHeader>
@@ -83,6 +100,7 @@
         class="mx-auto max-w-5xl px-4 md:px-8"
         slots={timeSlots}
         {weekStart}
+        {weekView}
         serverNow={data.serverNow}
         dimUnstarted={true}
         onSlotClick={openPreview}
