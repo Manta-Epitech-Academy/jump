@@ -10,6 +10,7 @@
   import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import History from '@lucide/svelte/icons/history';
   import Coffee from '@lucide/svelte/icons/coffee';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
@@ -367,9 +368,13 @@
               <span class="text-lg font-bold text-epi-orange">XP</span>
             </div>
             <span
-              class="mt-2 text-xs font-medium text-slate-400 transition-colors group-hover:text-epi-blue"
+              class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-400 transition-all group-hover:bg-epi-blue/10 group-hover:text-epi-blue dark:bg-slate-800 dark:group-hover:bg-epi-blue/20"
             >
-              Voir mon historique
+              <History class="h-3 w-3" />
+              Voir mon parcours
+              <ArrowRight
+                class="h-3 w-3 transition-transform group-hover:translate-x-0.5"
+              />
             </span>
           </div>
         </a>

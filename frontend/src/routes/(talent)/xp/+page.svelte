@@ -177,40 +177,15 @@
           </div>
 
           <!-- Stats -->
-          <div class="min-w-0 flex-1 text-center sm:text-left">
+          <div
+            class="flex min-w-0 flex-1 flex-col justify-center text-center sm:text-left"
+          >
             <h2 class="text-lg font-bold text-slate-900 dark:text-white">
-              {totalXp} points d'expérience
+              Points d'experience
             </h2>
             <p class="mt-1 text-sm text-slate-500">
-              Chaque activité, entraînement et défi te rapproche du sommet.
+              Chaque activite, entrainement et defi te rapproche du sommet.
             </p>
-
-            <!-- Stats row -->
-            <div
-              class="mt-4 flex flex-wrap justify-center gap-4 sm:justify-start"
-            >
-              <div
-                class="flex items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400"
-              >
-                <Sparkles class="h-3.5 w-3.5" />
-                {data.grants.length} gain{data.grants.length > 1 ? 's' : ''} d'XP
-              </div>
-              {#if data.grants.length > 0}
-                {@const first = data.grants[data.grants.length - 1]}
-                <div
-                  class="flex items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                >
-                  <Rocket class="h-3.5 w-3.5" />
-                  Depuis le {new Date(first.createdAt).toLocaleDateString(
-                    'fr-FR',
-                    {
-                      day: 'numeric',
-                      month: 'long',
-                    },
-                  )}
-                </div>
-              {/if}
-            </div>
           </div>
         </div>
       </div>
