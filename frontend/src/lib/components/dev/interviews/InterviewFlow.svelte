@@ -348,6 +348,16 @@
     return labels.length ? labels.join(', ') : null;
   }
 
+  // The selected labels of a multi-choice question, as a list. Rendered as
+  // discrete chips in the synthesis rather than joined: option labels can
+  // themselves contain commas and slashes ("IA / Data"), so a "a, b" join reads
+  // ambiguously as more answers than there are. One chip = one answer.
+  function answerChips(q: InterviewQuestion): string[] {
+    if (q.kind !== 'multi') return [];
+    const arr = (fv(q.field) as string[] | undefined) ?? [];
+    return q.options.filter((o) => arr.includes(o.value)).map((o) => o.label);
+  }
+
   const chipBase =
     'cursor-pointer rounded-sm border px-3.5 py-2 text-sm font-medium transition select-none active:scale-95 disabled:cursor-default disabled:active:scale-100';
   const chipIdle =
@@ -615,6 +625,21 @@
         {:else if q.kind === 'text'}
           <!-- The testimony is free text: it renders full-width below. -->
           {#if !value && !note}{@render dash()}{/if}
+        {:else if q.kind === 'multi'}
+          {@const chips = answerChips(q)}
+          {#if chips.length}
+            <div class="flex flex-wrap gap-1.5">
+              {#each chips as c (c)}
+                <span
+                  class="inline-flex items-center rounded-sm border border-border bg-muted/50 px-2 py-0.5 text-xs font-medium text-foreground"
+                >
+                  {c}
+                </span>
+              {/each}
+            </div>
+          {:else if !note}
+            {@render dash()}
+          {/if}
         {:else if value}
           <p class="text-sm font-semibold text-foreground">{value}</p>
         {:else if !note}

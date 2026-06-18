@@ -67,10 +67,11 @@ type TemplateQuestion = {
   kind: string;
   field: string;
   label: string;
-  /** The structured answer: a label for single, the joined labels for multi (no
-   *  bullets, it sits inline next to the question), the testimony for text, or
-   *  the score for rating. Free-text notes ride the separate `note` field. */
-  value: string | number | null;
+  /** The structured answer: a label for single, the list of selected labels for
+   *  multi (rendered as discrete chips, not joined, since labels can contain
+   *  commas and slashes), the testimony for text, or the score for rating.
+   *  Free-text notes ride the separate `note` field. */
+  value: string | string[] | number | null;
   max?: number;
   note?: string | null;
 };
@@ -137,7 +138,7 @@ function buildSections(interview: InterviewForPdf) {
           kind: 'multi',
           field: q.field,
           label: q.label,
-          value: resolveLabels(cq, arr).join(', ') || null,
+          value: resolveLabels(cq, arr),
           note,
         };
       }
@@ -162,6 +163,20 @@ function formatDate(date: Date): string {
   });
 }
 
+/** Display name for the masthead: first name title-cased (each word, so
+ *  "Jean-Pierre" survives), last name fully uppercased, e.g. "Lucie BARTOLETTI".
+ *  Mirrors the PDF filename's prenom/NOM convention. */
+function formatTalentName(prenom: string, nom: string): string {
+  const titleCase = (s: string) =>
+    s
+      .toLocaleLowerCase('fr')
+      .replace(
+        /(^|[\s'-])(\p{L})/gu,
+        (_, sep, ch) => sep + ch.toLocaleUpperCase('fr'),
+      );
+  return `${titleCase(prenom)} ${nom.toLocaleUpperCase('fr')}`;
+}
+
 export async function generateInterviewPdf(
   interview: InterviewForPdf,
 ): Promise<Uint8Array<ArrayBuffer>> {
@@ -171,8 +186,11 @@ export async function generateInterviewPdf(
     : null;
 
   const data = {
-    logoSvg: epitechLogoSvg,
-    talentName: `${interview.talent.prenom} ${interview.talent.nom}`,
+    // The masthead sits on full-bleed brand blue, so the logo ships white. The
+    // source asset is the blue wordmark (every path filled #013AFB); recolour it
+    // here rather than maintaining a second 26 KB copy.
+    logoSvgWhite: epitechLogoSvg.replaceAll('#013AFB', '#ffffff'),
+    talentName: formatTalentName(interview.talent.prenom, interview.talent.nom),
     staffName: interview.staff.user.name ?? 'Staff',
     campusName: interview.campus.name,
     conductedAt: formatDate(interview.conductedAt),
