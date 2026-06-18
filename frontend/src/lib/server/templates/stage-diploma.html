@@ -10,6 +10,8 @@
     <style>
       * {
         box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
       }
       html,
       body {
@@ -18,8 +20,6 @@
         background-color: #ffffff;
         font-family: 'IBM Plex Sans', sans-serif;
         color: #0f172a;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
       }
       @page {
         size: 1123px 794px;
@@ -70,9 +70,17 @@
         text-align: center;
         gap: 10px;
       }
-      .header-logo svg {
-        width: auto;
+      /* The logo (an SVG) and every signature image are declared ONCE here as
+         background images and referenced by class on each page. Inlining them
+         per page would duplicate tens of KB across 200 pages and blow up the
+         HTML Puppeteer has to parse (the slow path that timed out). */
+      .logo {
+        width: 200px;
         height: 42px;
+        background-image: url('<%= data.logoDataUri %>');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
       }
       .institute {
         font-size: 12px;
@@ -149,11 +157,18 @@
         text-align: center;
       }
       .sig-img {
+        width: 160px;
         height: 56px;
-        max-width: 160px;
-        object-fit: contain;
         margin-bottom: 4px;
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center bottom;
       }
+      <% data.signatories.forEach(function (s, i) { %>
+      .sig-img-<%= i %> {
+        background-image: url('<%= s.imageDataUri %>');
+      }
+      <% }); %>
       .sig-img--empty {
         height: 56px;
       }
@@ -196,8 +211,7 @@
       <div class="glow"></div>
       <div class="content">
         <div class="header">
-          <!-- nosemgrep: javascript.express.security.audit.xss.ejs.explicit-unescape.template-explicit-unescape -->
-          <div class="header-logo"><%- data.logoSvg %></div>
+          <div class="logo"></div>
           <p class="institute">European Institute of Information Technology</p>
         </div>
 
@@ -225,13 +239,9 @@
                 <p class="sig-role"><%= student.prenom %> <%= student.nom %></p>
               </div>
             </div>
-            <% data.signatories.forEach(function (s) { %>
+            <% data.signatories.forEach(function (s, i) { %>
             <div class="sig-block">
-              <img
-                class="sig-img"
-                src="<%= s.imageDataUri %>"
-                alt="Signature"
-              />
+              <div class="sig-img sig-img-<%= i %>"></div>
               <div class="sig-line">
                 <p class="sig-name"><%= s.name %></p>
                 <p class="sig-role"><%= s.role %></p>

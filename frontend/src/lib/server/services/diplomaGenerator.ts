@@ -52,9 +52,17 @@ export async function generateStageDiplomasPDF(data: {
   todayDate: string;
   signatories: { name: string; role: string; imageDataUri: string }[];
 }): Promise<Uint8Array<ArrayBuffer>> {
+  // The logo and the signature images are referenced as CSS background images
+  // declared once in the template (see stage-diploma.html), not inlined per
+  // page, so a 200-student sheet stays small. Encode the SVG logo as a data URI
+  // here so the template needs nothing but the string.
+  const logoDataUri = `data:image/svg+xml;base64,${Buffer.from(
+    epitechLogoSvg,
+  ).toString('base64')}`;
+
   return await generatePDF(
     stageDiplomaTemplate,
-    { ...data, logoSvg: epitechLogoSvg },
+    { ...data, logoDataUri },
     { width: '1123px', height: '794px' },
   );
 }
