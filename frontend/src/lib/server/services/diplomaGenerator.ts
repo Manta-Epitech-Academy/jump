@@ -40,7 +40,7 @@ export async function generateCertificatePDF(data: {
   );
 }
 
-// Internship certificate ("Certificat de stage"): one A4 portrait page per
+// Internship certificate ("Certificat de stage"): one A4 landscape page per
 // student, all sharing the same signatory blocks (one global Director General
 // plus the campus's local managers). The signature images are passed as
 // pre-built base64 data URIs so the template needs no network access.
@@ -55,7 +55,7 @@ export async function generateStageDiplomasPDF(data: {
   return await generatePDF(
     stageDiplomaTemplate,
     { ...data, logoSvg: epitechLogoSvg },
-    { width: '794px', height: '1123px' },
+    { width: '1123px', height: '794px' },
   );
 }
 

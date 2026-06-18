@@ -11,7 +11,7 @@ import { prisma } from '$lib/server/db';
 import { formatDateFr } from '$lib/utils';
 
 // Generates the internship certificate sheet for every talent registered to
-// this event (no selection — all inscrits), one A4 portrait page per student.
+// this event (no selection — all inscrits), one A4 landscape page per student.
 // Campus-scoped via the event load. Signatories are the global ones plus this
 // campus's local ones; their signature images are fetched from S3 and inlined
 // as base64 data URIs so the PDF template needs no network access.
