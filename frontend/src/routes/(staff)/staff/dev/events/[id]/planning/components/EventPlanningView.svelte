@@ -9,6 +9,7 @@
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import {
     pickInitialWeek,
+    pickInitialWeekView,
     startOfDay,
     type WeekView,
   } from '$lib/domain/calendarWeek';
@@ -51,7 +52,11 @@
     ),
   );
 
-  let weekView = $state<WeekView>('work');
+  // Open full-week when the event has a weekend slot, else work-week, so the
+  // default never hides a slot. WeekViewToggle's stored choice overrides it.
+  let weekView = $state<WeekView>(
+    untrack(() => pickInitialWeekView(planning.timeSlots)),
+  );
 
   let previewSlot = $state<TimeSlotWithActivity | null>(null);
   let previewOpen = $state(false);

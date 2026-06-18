@@ -76,6 +76,24 @@ export function pickInitialWeek(
   return startOfWeek(startOfDay(new Date(nearest.startTime)));
 }
 
+/**
+ * The view a calendar should open in: `full` when any slot falls on a weekend,
+ * otherwise `work`. The work-week default densifies weekday-only plannings, but
+ * it must never hide the very slot the calendar opens on, so a week (or whole
+ * timeline) carrying a Saturday/Sunday activity opens full rather than blank.
+ * Companion to {@link pickInitialWeek}: that picks which week to open, this
+ * picks how wide. A persisted user choice still overrides this initial seed.
+ */
+export function pickInitialWeekView(
+  slots: { startTime: Date | string }[],
+): WeekView {
+  for (const s of slots) {
+    const dow = new Date(s.startTime).getDay();
+    if (dow === 0 || dow === 6) return 'full';
+  }
+  return 'work';
+}
+
 /** A compact "1 – 7 déc 2026" style label for the visible week. */
 export function weekLabel(weekDays: Date[]): string {
   const a = weekDays[0];

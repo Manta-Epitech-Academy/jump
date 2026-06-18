@@ -7,7 +7,11 @@
   import WeekViewToggle from '$lib/components/planning/WeekViewToggle.svelte';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
-  import { pickInitialWeek, type WeekView } from '$lib/domain/calendarWeek';
+  import {
+    pickInitialWeek,
+    pickInitialWeekView,
+    type WeekView,
+  } from '$lib/domain/calendarWeek';
   import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
@@ -31,7 +35,11 @@
     ),
   );
 
-  let weekView = $state<WeekView>('work');
+  // Open full-week when the timeline has a weekend activity, else work-week, so
+  // the default never hides a slot. WeekViewToggle's stored choice overrides it.
+  let weekView = $state<WeekView>(
+    untrack(() => pickInitialWeekView(data.planning.slots)),
+  );
 
   let previewSlot = $state<Slot | null>(null);
   let previewOpen = $state(false);
