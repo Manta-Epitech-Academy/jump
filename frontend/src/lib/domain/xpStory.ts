@@ -44,9 +44,16 @@ export function podiumTierFromBonus(amount: number): 1 | 2 | 3 | 'top' {
 /**
  * Explicit, plain-French label for a single grant in the history feed - the staff
  * reading the fiche should understand exactly what earned the XP, with no internal
- * jargon and no ambiguity.
+ * jargon and no ambiguity. `rewardName` is the `XpReward.name` behind a `reward`
+ * grant (resolved server-side via the grant's `sourceId`); it carries the activity
+ * identity (e.g. "OSINT CTFD Stage Seconde"), so a reward without it falls back to
+ * a generic but still meaningful label rather than the old catch-all "XP gagnés".
  */
-export function xpHistoryLabel(source: string, amount: number): string {
+export function xpHistoryLabel(
+  source: string,
+  amount: number,
+  rewardName?: string | null,
+): string {
   switch (source) {
     case 'minigame':
       return "Jeu d'entraînement terminé";
@@ -63,6 +70,8 @@ export function xpHistoryLabel(source: string, amount: number): string {
       return 'Inscription parmi les premiers';
     case 'activity_presence':
       return 'Participation à un atelier';
+    case 'reward':
+      return rewardName?.trim() || 'Activité notée';
     case 'admin_adjustment':
       return amount >= 0
         ? 'Bonus accordé par le staff'

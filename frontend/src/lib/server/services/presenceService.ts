@@ -1,6 +1,5 @@
 import { scopedPrisma } from '$lib/server/db/scoped';
-import { dbDateToKey, type PresenceSlot } from '$lib/domain/eventPresence';
-import { isSlotPastCutoff } from '$lib/server/presence/slotClosure';
+import type { PresenceSlot } from '$lib/domain/eventPresence';
 
 // Émargement is autonomous from Participation, but the roster of who is expected
 // is still read from Participation (the Salesforce campaign-member mirror).
@@ -52,29 +51,6 @@ export async function reopenPresenceSlot(
   });
 }
 
-/**
- * Whether a (day, slot) is closed right now: either a staff member closed it
- * early (an `EventPresenceClosure` row) or its 11h/15h cutoff has passed. The
- * single-slot mirror of the set-based closed/cutoff projection the page load
- * computes for the whole grid. Checks the clock first (no DB round-trip) before
- * looking for a manual closure row.
- */
-async function isPresenceSlotClosed(
-  campusId: string,
-  eventId: string,
-  day: Date,
-  slot: PresenceSlot,
-  timezone: string,
-  now: Date = new Date(),
-): Promise<boolean> {
-  if (isSlotPastCutoff(dbDateToKey(day), slot, timezone, now)) return true;
-  const closure = await scopedPrisma(campusId).eventPresenceClosure.findUnique({
-    where: { eventId_day_slot: { eventId, day, slot } },
-    select: { eventId: true },
-  });
-  return closure !== null;
-}
-
 export type MarkAllPresentResult =
   | { status: 'closed' }
   | { status: 'done'; marked: number };
@@ -87,27 +63,27 @@ export type MarkAllPresentResult =
  * `skipDuplicates` against the (talent, event, day, slot) unique key inserts
  * only where no row exists yet, so it never clobbers a deliberate mark.
  *
- * Refuses a closed créneau (`status: 'closed'`). On a closed slot the pending
- * cells already *read* as absent (a projection over the whole roster), so a bulk
- * present would silently flip a slot's worth of absences to present and inflate
- * the attendance rate, with no stored row to show it happened. Once closed the
- * only way back in is a deliberate per-row correction (or reopening the slot),
- * which mirrors how the QR refuses self-check-ins past the cutoff. Enforced here,
- * not in the action, so no caller can bypass it (the on-screen button is already
- * hidden once a slot closes, but a stale page can still POST after the cutoff).
+ * Refuses only a *manual* early-close (`status: 'closed'`): a staff member
+ * deliberately closed the créneau, so reopening it (Rouvrir) is the way back in.
+ * A clock-closed créneau (past its 11h/15h cutoff) still accepts the bulk mark,
+ * mirroring per-row marking which is always allowed: staff are often émargeant
+ * late and forcing 200 marks by hand would be the only alternative. Unmarked
+ * cells carry no stored row, so `createMany` + `skipDuplicates` only ever inserts
+ * present where nothing was saved and never clobbers a deliberate absent/justifié.
  */
 export async function markAllPresentInSlot(
   campusId: string,
   eventId: string,
   day: Date,
   slot: PresenceSlot,
-  timezone: string,
   markedById: string | null,
 ): Promise<MarkAllPresentResult> {
   const db = scopedPrisma(campusId);
-  if (await isPresenceSlotClosed(campusId, eventId, day, slot, timezone)) {
-    return { status: 'closed' };
-  }
+  const manualClosure = await db.eventPresenceClosure.findUnique({
+    where: { eventId_day_slot: { eventId, day, slot } },
+    select: { eventId: true },
+  });
+  if (manualClosure) return { status: 'closed' };
 
   const roster = await db.participation.findMany({
     where: { eventId },
