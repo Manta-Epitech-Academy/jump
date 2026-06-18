@@ -195,26 +195,15 @@
         <div class="space-y-8">
           {#each groupedDays as day, dayIndex (day.dateKey)}
             <!-- Day header -->
-            <div class="relative flex items-center gap-4">
-              <div
-                class="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white ring-2 ring-slate-200 sm:h-12 sm:w-12 dark:bg-slate-900 dark:ring-slate-700"
+            <div class="relative flex items-center gap-3 pl-10 sm:pl-12">
+              <h3
+                class="text-xs font-bold tracking-wide text-slate-400 uppercase dark:text-slate-500"
               >
-                <span
-                  class="text-sm font-black text-slate-700 dark:text-slate-300"
-                >
-                  {day.dayNumber}
-                </span>
-              </div>
-              <div>
-                <h3
-                  class="text-sm font-bold text-slate-700 capitalize dark:text-slate-300"
-                >
-                  {day.label}
-                </h3>
-                <span class="text-xs font-semibold text-epi-orange">
-                  +{day.total} XP
-                </span>
-              </div>
+                {day.label}
+              </h3>
+              <span class="text-xs font-semibold text-epi-orange">
+                +{day.total} XP
+              </span>
             </div>
 
             <!-- Grants for this day -->
