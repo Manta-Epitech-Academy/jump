@@ -1,14 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
-import { fail, redirect } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
-import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
-import { auth } from '$lib/server/auth';
-import { forwardAuthCookies } from '$lib/server/auth/cookies';
-import {
-  ensureTalentUser,
-  resetTalentToImport,
-} from '$lib/server/services/talentAccount';
+import { resetTalentToImport } from '$lib/server/services/talentAccount';
 import { changeParentEmail } from '$lib/server/services/parentAccount';
 import { parentCompleteWhere } from '$lib/server/db/stageCompliance';
 import {
@@ -18,6 +12,7 @@ import {
   TALENT_ROW_SELECT,
   projectTalentRow,
   ONBOARDING_DONE_WHERE,
+  type TalentsCohort,
 } from './query';
 
 const PER_PAGE = 50;
@@ -38,98 +33,74 @@ export const load: PageServerLoad = async ({ url }) => {
   // and the gate both parent buckets share (no parentEmail = no one to chase).
   const hasParent = { parentEmail: { not: null } } as const;
 
-  const [
-    rows,
-    totalItems,
-    scopedTotal,
-    onboarded,
-    withParent,
-    parentsComplete,
-    neverConnected,
-    campuses,
-  ] = await Promise.all([
-    prisma.talent.findMany({
-      where,
-      orderBy,
-      skip: (filters.page - 1) * PER_PAGE,
-      take: PER_PAGE,
-      select: TALENT_ROW_SELECT,
-    }),
-    prisma.talent.count({ where }),
-    // KPI counts, all over `scopeWhere` (status/parentStatus excluded).
-    prisma.talent.count({ where: scopeWhere }),
-    prisma.talent.count({
-      where: { AND: [scopeWhere, ONBOARDING_DONE_WHERE] },
-    }),
-    prisma.talent.count({ where: { AND: [scopeWhere, hasParent] } }),
-    prisma.talent.count({
-      where: { AND: [scopeWhere, hasParent, parentCompleteWhere] },
-    }),
-    // Talents imported without ever creating a login account — the far end of
-    // the funnel (parents still owing is read off `withParent - parentsComplete`).
-    prisma.talent.count({ where: { AND: [scopeWhere, { userId: null }] } }),
-    prisma.campus.findMany({
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true },
-    }),
-  ]);
-
-  return {
-    talents: rows.map(projectTalentRow),
-    campuses,
-    totalPages: Math.ceil(totalItems / PER_PAGE),
-    totalItems,
-    currentPage: filters.page,
-    filters,
-    stats: {
+  // Stream the cohort: the heading paints immediately while the row page and the
+  // six scoped KPI counts (count() over the cumulative campus population — the
+  // page's measured ~300-400ms blocking cost) resolve behind the shell skeleton.
+  // Campuses (filter multiselect) rides the same payload: its only consumer, the
+  // toolbar, lives inside the streamed results region.
+  const cohort: Promise<TalentsCohort> = (async () => {
+    const [
+      rows,
+      totalItems,
       scopedTotal,
       onboarded,
       withParent,
       parentsComplete,
       neverConnected,
-    },
+      campuses,
+    ] = await Promise.all([
+      prisma.talent.findMany({
+        where,
+        orderBy,
+        skip: (filters.page - 1) * PER_PAGE,
+        take: PER_PAGE,
+        select: TALENT_ROW_SELECT,
+      }),
+      prisma.talent.count({ where }),
+      // KPI counts, all over `scopeWhere` (status/parentStatus excluded).
+      prisma.talent.count({ where: scopeWhere }),
+      prisma.talent.count({
+        where: { AND: [scopeWhere, ONBOARDING_DONE_WHERE] },
+      }),
+      prisma.talent.count({ where: { AND: [scopeWhere, hasParent] } }),
+      prisma.talent.count({
+        where: { AND: [scopeWhere, hasParent, parentCompleteWhere] },
+      }),
+      // Talents imported without ever creating a login account — the far end of
+      // the funnel (parents still owing = `withParent - parentsComplete`).
+      prisma.talent.count({ where: { AND: [scopeWhere, { userId: null }] } }),
+      prisma.campus.findMany({
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true },
+      }),
+    ]);
+
+    return {
+      talents: rows.map(projectTalentRow),
+      campuses,
+      totalItems,
+      totalPages: Math.ceil(totalItems / PER_PAGE),
+      stats: {
+        scopedTotal,
+        onboarded,
+        withParent,
+        parentsComplete,
+        neverConnected,
+      },
+    };
+  })();
+
+  return {
+    filters,
+    // Un-awaited on purpose: SvelteKit streams it so the heading paints first.
+    cohort,
   };
 };
 
 export const actions: Actions = {
-  // Impersonate a talent: swap the admin's session for a BetterAuth
-  // impersonation session (stamps `session.impersonatedBy` so the talent-side
-  // banner can offer "return to admin"). Seeded talents get a bauth_user
-  // bootstrapped on the fly via ensureTalentUser.
-  impersonate: async ({ request, cookies, locals }) => {
-    // Belt-and-braces: the /staff/admin/* route guard already enforces admin,
-    // and BetterAuth re-checks the actor's role, but assert it here too since
-    // this action mints a session as someone else.
-    if (locals.staffProfile?.staffRole !== 'admin') return fail(403);
-
-    const data = await request.formData();
-    const talentId = data.get('talentId');
-    if (typeof talentId !== 'string' || !talentId) return fail(400);
-
-    let userId: string;
-    try {
-      userId = await ensureTalentUser(talentId);
-    } catch (err) {
-      console.error('[impersonate] ensureTalentUser failed', err);
-      return fail(400, {
-        message:
-          "Ce talent n'a pas d'email — impossible de créer un compte de connexion.",
-      });
-    }
-
-    const res = await auth.api.impersonateUser({
-      body: { userId },
-      headers: request.headers,
-      asResponse: true,
-    });
-    if (!res.ok) {
-      console.error('[impersonate] BetterAuth refused', res.status);
-      return fail(500, { message: 'Impersonation refusée.' });
-    }
-
-    forwardAuthCookies(res, cookies);
-    throw redirect(303, resolve('/'));
-  },
+  // Impersonation now goes through the shared POST /staff/admin/impersonate
+  // endpoint (see $lib/server/auth/impersonate), so the talents directory and
+  // the users page drive one mechanism instead of two.
 
   // Factory reset: wipe everything a talent accrued after the Salesforce worker
   // import (XP, minigames, files, onboarding, parents, login account, event

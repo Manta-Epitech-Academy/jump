@@ -78,6 +78,25 @@ export const actions: Actions = {
     return { success: true };
   },
 
+  // Resolve a specific set of rows — the page passes the currently-filtered
+  // unresolved ids, so an admin can clear "all Coding Club errors" without the
+  // DB-wide `resolveAll` (which is deliberately offered only on the unfiltered
+  // view). Scoped to `resolved: false` so a stale id can't un-resolve a row.
+  resolveSelected: async ({ request }) => {
+    const formData = await request.formData();
+    const ids = formData
+      .getAll('ids')
+      .filter((v): v is string => typeof v === 'string' && v.length > 0);
+    if (ids.length === 0) return fail(400);
+
+    const { count } = await prisma.syncError.updateMany({
+      where: { id: { in: ids }, resolved: false },
+      data: { resolved: true, resolvedAt: new Date() },
+    });
+
+    return { success: true, count };
+  },
+
   /**
    * Rebind a talent's externalId from the dead one (`existingExtId`) to the
    * one Salesforce is now sending (`attemptedExtId`), then mark the row

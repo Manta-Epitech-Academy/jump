@@ -7,6 +7,7 @@
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { Badge } from '$lib/components/ui/badge';
   import { Button, buttonVariants } from '$lib/components/ui/button';
+  import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
   import SalesforceIconLink from '$lib/components/salesforce/SalesforceIconLink.svelte';
   import Download from '@lucide/svelte/icons/download';
   import CloudDownload from '@lucide/svelte/icons/cloud-download';
@@ -181,6 +182,44 @@
     authConflicts.filter((c) => c.exposureRisk).length,
   );
 
+  // Client-side pagination. The streamed payload is whole-cohort, so all three
+  // lists (conflicts to arbitrate, fields to push, identity conflicts) could each
+  // run to hundreds of rows × multiple fields — rendering them all at once made
+  // this the longest page in the admin space. The data is already in memory, so
+  // page it here; the CSV export stays exhaustive regardless of the page shown.
+  const PER_PAGE = 25;
+  let conflictsPage = $state(1);
+  let pushPage = $state(1);
+  let authPage = $state(1);
+  // A new search resets every list to its first page so a narrowed result can't
+  // strand the admin on an out-of-range page.
+  $effect(() => {
+    void needle;
+    conflictsPage = 1;
+    pushPage = 1;
+    authPage = 1;
+  });
+
+  const conflictsTotalPages = $derived(
+    Math.ceil(visibleConflicts.length / PER_PAGE),
+  );
+  const pagedConflicts = $derived(
+    visibleConflicts.slice(
+      (conflictsPage - 1) * PER_PAGE,
+      conflictsPage * PER_PAGE,
+    ),
+  );
+  const pushTotalPages = $derived(
+    Math.ceil(visiblePushGroups.length / PER_PAGE),
+  );
+  const pagedPushGroups = $derived(
+    visiblePushGroups.slice((pushPage - 1) * PER_PAGE, pushPage * PER_PAGE),
+  );
+  const authTotalPages = $derived(Math.ceil(visibleAuth.length / PER_PAGE));
+  const pagedAuth = $derived(
+    visibleAuth.slice((authPage - 1) * PER_PAGE, authPage * PER_PAGE),
+  );
+
   // Detail rows are revealed on demand (chevron) so the table stays light; the
   // data is already in `authConflicts`, no extra request.
   let expandedAuth = $state<Set<string>>(new Set());
@@ -352,7 +391,7 @@
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
-                  {#each visibleConflicts as c (c.talentId + c.field)}
+                  {#each pagedConflicts as c (c.talentId + c.field)}
                     <Table.Row>
                       <Table.Cell>
                         <div class="font-medium">{c.prenom} {c.nom}</div>
@@ -412,6 +451,11 @@
               </Table.Root>
             </Card.Content>
           </Card.Root>
+          <Pagination
+            page={conflictsPage}
+            totalPages={conflictsTotalPages}
+            onPageChange={(p) => (conflictsPage = p)}
+          />
         {/if}
       </section>
 
@@ -431,7 +475,7 @@
 
           <Card.Root>
             <Card.Content class="p-0">
-              {#each visiblePushGroups as g (g.talentId)}
+              {#each pagedPushGroups as g (g.talentId)}
                 <div class="border-b px-5 py-4 last:border-0">
                   <div class="mb-3 flex items-center gap-2">
                     <span class="font-medium">{g.prenom} {g.nom}</span>
@@ -483,6 +527,11 @@
               {/each}
             </Card.Content>
           </Card.Root>
+          <Pagination
+            page={pushPage}
+            totalPages={pushTotalPages}
+            onPageChange={(p) => (pushPage = p)}
+          />
         </section>
       {/if}
     {/if}
@@ -522,7 +571,7 @@
               </Table.Row>
             </Table.Header>
             <Table.Body>
-              {#each visibleAuth as c (c.talentId)}
+              {#each pagedAuth as c (c.talentId)}
                 {@const primary = actionForVerdict(c.verdict)}
                 <Table.Row class={c.exposureRisk ? 'bg-red-500/5' : ''}>
                   <Table.Cell>
@@ -654,6 +703,11 @@
           </Table.Root>
         </Card.Content>
       </Card.Root>
+      <Pagination
+        page={authPage}
+        totalPages={authTotalPages}
+        onPageChange={(p) => (authPage = p)}
+      />
     {/if}
   </Tabs.Content>
 </Tabs.Root>
