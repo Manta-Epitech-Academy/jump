@@ -221,13 +221,6 @@
           </p>
 
           <div class="signatures">
-            <div class="sig-block">
-              <div class="sig-img--empty"></div>
-              <div class="sig-line">
-                <p class="sig-name">Le Titulaire</p>
-                <p class="sig-role"><%= student.prenom %> <%= student.nom %></p>
-              </div>
-            </div>
             <% data.signatories.forEach(function (s, i) { %>
             <div class="sig-block">
               <div class="sig-img sig-img-<%= i %>"></div>
