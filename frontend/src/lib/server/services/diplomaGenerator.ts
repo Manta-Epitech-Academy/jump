@@ -81,12 +81,13 @@ async function generatePDF(
   return withBrowser(async (browser) => {
     const page = await browser.newPage();
     try {
-      // Parse the DOM but do NOT wait on the network `load` event. The only
-      // remote resource is the Google Fonts stylesheet, and in an egress-locked
-      // pod that request never settles, so `load` never fires and setContent
-      // hits Puppeteer's 30s timeout (this is what broke the 200-page stage
-      // diploma in prod). All images/logo are inline data URIs, so the DOM is
-      // complete at `domcontentloaded`.
+      // Parse the DOM but do NOT wait on the network `load` event. The Google
+      // Fonts stylesheet is the only remote resource, and blocking setContent on
+      // `load` blocks the whole render on that one request, which can hang it for
+      // a long time when Google Fonts is slow or unreachable (a `load`-wait once
+      // stalled the 200-page stage diploma into Puppeteer's 30s timeout). All
+      // images/logo are inline data URIs, so the DOM is structurally complete at
+      // `domcontentloaded`; the fonts get a bounded grace period in the race below.
       await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
 
       // Give web fonts a brief chance to load when the network IS reachable,

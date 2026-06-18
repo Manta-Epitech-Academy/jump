@@ -42,6 +42,8 @@
     if (generatingBadges) return;
     badgeModeOpen = false;
     generatingBadges = true;
+
+    const toastId = toast.loading('Génération des badges…');
     try {
       const endpoint = page.url.pathname.replace(
         /\/inscrits\/?$/,
@@ -58,9 +60,10 @@
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      toast.success('Badges générés.', { id: toastId });
     } catch (e) {
       console.error('generate badges', e);
-      toast.error('Échec de la génération des badges.');
+      toast.error('Échec de la génération des badges.', { id: toastId });
     } finally {
       generatingBadges = false;
     }
@@ -69,10 +72,27 @@
   // Generate the internship certificate sheet for every inscrit of this event
   // (one page per student). Same whole-event flow as the badges above: the
   // endpoint builds the PDF server-side from all participations and the campus's
-  // signatories.
+  // signatories. The render runs ~10s for a full cohort, so a persistent loading
+  // toast (kept for the whole wait via its id) reassures the user it is not stuck.
+  // No confetti here: the dev workspace is sober, unlike the pedago single-diploma
+  // download.
   async function generateDiplomas() {
     if (generatingDiplomas) return;
     generatingDiplomas = true;
+
+    // Best-effort headcount for the message. The cohort is a streamed promise, so
+    // fall back to a generic label if it has not resolved yet or rejects.
+    let loadingMessage = 'Génération des diplômes…';
+    try {
+      const { cohort } = await data.cohort;
+      if (cohort.total > 0) {
+        loadingMessage = `Génération de ${cohort.total} diplôme${cohort.total > 1 ? 's' : ''}…`;
+      }
+    } catch {
+      // Keep the generic message.
+    }
+
+    const toastId = toast.loading(loadingMessage);
     try {
       const endpoint = page.url.pathname.replace(
         /\/inscrits\/?$/,
@@ -89,9 +109,10 @@
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      toast.success('Diplômes générés.', { id: toastId });
     } catch (e) {
       console.error('generate diplomas', e);
-      toast.error('Échec de la génération des diplômes.');
+      toast.error('Échec de la génération des diplômes.', { id: toastId });
     } finally {
       generatingDiplomas = false;
     }
