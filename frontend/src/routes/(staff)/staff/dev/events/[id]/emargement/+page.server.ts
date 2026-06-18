@@ -251,7 +251,10 @@ export const actions: Actions = {
       );
     }
 
-    return message(form, 'Stagiaires en attente marqués présents.');
+    return message(
+      form,
+      'Stagiaires sans présence enregistrée marqués présents.',
+    );
   },
 
   closeSlot: async ({ request, locals, params }) => {

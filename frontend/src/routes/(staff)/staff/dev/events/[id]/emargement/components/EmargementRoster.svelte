@@ -668,14 +668,16 @@
           async ({ result, update }) => {
             await update();
             if (result.type === 'success')
-              toast.success('Stagiaires en attente marqués présents.');
-            // The créneau closed between render and submit (e.g. the 11h/15h
-            // cutoff passed): the server refuses the bulk mark, surface why.
+              toast.success(
+                'Stagiaires sans présence enregistrée marqués présents.',
+              );
+            // The bulk mark only fails now if a staff member manually closed the
+            // créneau between render and submit; the 11h/15h cutoff no longer
+            // refuses it. Surface the server message, which points at Rouvrir.
             else if (result.type === 'failure')
               toast.error(
                 (result.data?.form as { message?: string } | undefined)
-                  ?.message ??
-                  'Ce créneau est clôturé : corrigez les présences ligne par ligne.',
+                  ?.message ?? 'Ce créneau a été clôturé.',
               );
             presentConfirmOpen = false;
           }}
