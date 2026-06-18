@@ -146,11 +146,7 @@
 </svelte:head>
 
 <div class="flex min-h-screen flex-col">
-  <TalentPageHeader
-    title="Mon XP"
-    subtitle="Ton parcours de progression."
-    icon={Trophy}
-  />
+  <TalentPageHeader title="Mon XP" icon={Trophy} />
 
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
     <!-- Hero: current XP total + stats -->
