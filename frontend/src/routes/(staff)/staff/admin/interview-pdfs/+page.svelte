@@ -10,6 +10,7 @@
   import Smile from '@lucide/svelte/icons/smile';
   import Meh from '@lucide/svelte/icons/meh';
   import Frown from '@lucide/svelte/icons/frown';
+  import { resolve } from '$app/paths';
   import { enhance } from '$app/forms';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -256,34 +257,17 @@
                 </span>
               </Table.Cell>
               <Table.Cell class="text-right">
-                <form
-                  method="POST"
-                  action="?/view"
-                  class="inline"
-                  use:enhance={() =>
-                    async ({ result }) => {
-                      if (result.type === 'success' && result.data?.url) {
-                        window.open(
-                          result.data.url as string,
-                          '_blank',
-                          'noopener',
-                        );
-                      } else {
-                        toast.error('Impossible de generer le PDF');
-                      }
-                    }}
+                <a
+                  href={resolve(
+                    `/staff/admin/interview-pdfs/${interview.id}/pdf`,
+                  )}
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex items-center gap-1.5 text-xs text-epi-blue hover:underline"
                 >
-                  <input type="hidden" name="id" value={interview.id} />
-                  <Button
-                    type="submit"
-                    variant="link"
-                    size="sm"
-                    class="h-auto gap-1.5 p-0 text-xs text-epi-blue"
-                  >
-                    <ExternalLink class="h-3.5 w-3.5" />
-                    Voir
-                  </Button>
-                </form>
+                  <ExternalLink class="h-3.5 w-3.5" />
+                  Voir
+                </a>
               </Table.Cell>
               <Table.Cell class="text-right">
                 <Button

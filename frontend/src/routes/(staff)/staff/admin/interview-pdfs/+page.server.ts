@@ -1,10 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server/db';
-import {
-  generateInterviewPdf,
-  interviewPdfFilename,
-  interviewPdfSelect,
-} from '$lib/server/services/interviewPdfGenerator';
+import { interviewPdfSelect } from '$lib/server/services/interviewPdfGenerator';
 import { resetInterview } from '$lib/server/services/interviewResetService';
 import { fail } from '@sveltejs/kit';
 
@@ -91,26 +87,6 @@ export const load: PageServerLoad = async ({ url, locals, depends }) => {
 };
 
 export const actions: Actions = {
-  view: async ({ request }) => {
-    const form = await request.formData();
-    const id = form.get('id') as string;
-    if (!id) return fail(400, { error: 'Missing id' });
-
-    const interview = await prisma.interview.findUnique({
-      where: { id },
-      select: interviewPdfSelect,
-    });
-
-    if (!interview) return fail(404, { error: 'Interview not found' });
-
-    const pdf = await generateInterviewPdf(interview);
-    const filename = interviewPdfFilename(interview);
-
-    // Return as base64 data URL for inline viewing
-    const b64 = Buffer.from(pdf).toString('base64');
-    return { url: `data:application/pdf;base64,${b64}`, filename };
-  },
-
   // Reset = hard-delete an interview finalized by mistake, returning the talent
   // to "à faire" so a fresh one can be conducted. Belt-and-braces admin assert
   // on top of the /staff/admin/* route guard, since this destroys a colleague's

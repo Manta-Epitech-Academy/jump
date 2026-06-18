@@ -8,91 +8,118 @@
       }
       body {
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-        margin: 36px 40px;
+        margin: 28px 36px;
         color: #1e293b;
-        line-height: 1.5;
-        font-size: 13px;
+        line-height: 1.4;
+        font-size: 11px;
+      }
+      /* Prevent page breaks inside sections and questions */
+      .section,
+      .question,
+      .verdict-box,
+      .meta-grid {
+        page-break-inside: avoid;
+        break-inside: avoid;
       }
       .header {
         text-align: center;
-        margin-bottom: 28px;
-        padding-bottom: 16px;
+        margin-bottom: 16px;
+        padding-bottom: 10px;
         border-bottom: 2px solid #e2e8f0;
       }
+      .header svg {
+        height: 28px;
+        width: auto;
+      }
       .header h1 {
-        font-size: 20px;
+        font-size: 16px;
         color: #0f172a;
-        margin: 0 0 4px 0;
+        margin: 0 0 2px 0;
       }
       .header p {
-        font-size: 12px;
+        font-size: 10px;
         color: #64748b;
         margin: 0;
       }
       .meta-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px 24px;
-        margin-bottom: 24px;
-        padding: 12px 16px;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 4px 16px;
+        margin-bottom: 14px;
+        padding: 8px 12px;
         background: #f8fafc;
-        border-radius: 6px;
+        border-radius: 4px;
         border: 1px solid #e2e8f0;
-        font-size: 12px;
+        font-size: 10px;
       }
       .meta-grid .label {
         color: #64748b;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        font-size: 10px;
+        font-size: 8px;
       }
       .meta-grid .value {
         color: #0f172a;
       }
       .section {
-        margin-bottom: 20px;
+        margin-bottom: 12px;
       }
       .section-title {
-        font-size: 14px;
+        font-size: 11px;
         font-weight: 700;
         color: #0f172a;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        padding-bottom: 4px;
+        padding-bottom: 2px;
         border-bottom: 2px solid #3b82f6;
-        margin-bottom: 12px;
+        margin-bottom: 6px;
         display: inline-block;
       }
       .question {
-        margin-bottom: 10px;
+        margin-bottom: 5px;
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
       }
       .question-label {
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 600;
         color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-        margin-bottom: 2px;
+        flex-shrink: 0;
+        min-width: 0;
+      }
+      .answer,
+      .answer-empty {
+        font-size: 11px;
       }
       .answer {
-        font-size: 13px;
         color: #0f172a;
+        font-weight: 500;
       }
       .answer-list {
-        margin: 2px 0;
-        padding-left: 16px;
+        margin: 0;
+        padding-left: 14px;
+        font-size: 11px;
       }
       .answer-list li {
-        margin: 1px 0;
+        margin: 0;
       }
       .answer-empty {
         color: #94a3b8;
         font-style: italic;
       }
+      /* For questions that need vertical layout (lists, text, notes) */
+      .question-block {
+        margin-bottom: 6px;
+        display: block;
+      }
+      .question-block .question-label {
+        margin-bottom: 1px;
+      }
       .stars {
-        font-size: 16px;
-        letter-spacing: 2px;
+        font-size: 13px;
+        letter-spacing: 1px;
       }
       .star-filled {
         color: #f59e0b;
@@ -101,27 +128,27 @@
         color: #e2e8f0;
       }
       .verdict-box {
-        margin-top: 24px;
-        padding: 16px;
+        margin-top: 14px;
+        padding: 10px 14px;
         border: 2px solid #0f172a;
-        border-radius: 8px;
+        border-radius: 6px;
         background: #f8fafc;
       }
       .verdict-title {
-        font-size: 14px;
+        font-size: 11px;
         font-weight: 700;
         color: #0f172a;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        margin-bottom: 10px;
+        margin-bottom: 6px;
       }
       .reco-badge {
         display: inline-block;
-        padding: 4px 12px;
-        border-radius: 4px;
-        font-size: 13px;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 11px;
         font-weight: 700;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
       }
       .reco-tres_compatible {
         background: #d1fae5;
@@ -140,36 +167,37 @@
         color: #991b1b;
       }
       .verdict-note {
-        font-size: 13px;
+        font-size: 11px;
         color: #334155;
-        margin-top: 6px;
+        margin-top: 4px;
         white-space: pre-wrap;
       }
       .one-sentence {
         font-style: italic;
         color: #334155;
-        border-left: 3px solid #3b82f6;
-        padding-left: 10px;
+        border-left: 2px solid #3b82f6;
+        padding-left: 8px;
         margin: 2px 0;
         white-space: pre-wrap;
+        font-size: 11px;
       }
       .note {
-        margin-top: 5px;
-        padding: 6px 10px;
+        margin-top: 3px;
+        padding: 4px 8px;
         background: #f8fafc;
-        border-left: 3px solid #cbd5e1;
-        border-radius: 0 4px 4px 0;
+        border-left: 2px solid #cbd5e1;
+        border-radius: 0 3px 3px 0;
       }
       .note-label {
-        font-size: 9px;
+        font-size: 8px;
         font-weight: 700;
         color: #94a3b8;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        margin-bottom: 2px;
+        margin-bottom: 1px;
       }
       .note-text {
-        font-size: 12px;
+        font-size: 10px;
         color: #475569;
         white-space: pre-wrap;
       }
@@ -210,18 +238,19 @@
     <% for (const section of data.sections) { %>
     <div class="section">
       <div class="section-title"><%= section.title %></div>
-      <% for (const q of section.questions) { %>
-      <div class="question">
+      <% for (const q of section.questions) { %> <% const hasNote = !!q.note; %>
+      <% const isBlock = q.kind === 'text' || (Array.isArray(q.value) &&
+      q.value.length > 0) || q.kind === 'rating' || hasNote; %> <% if (isBlock)
+      { %>
+      <div class="question-block">
         <div class="question-label"><%= q.label %></div>
         <% if (q.kind === 'rating') { %>
         <div class="stars">
-          <% for (let i = 1; i <= q.max; i++) { %>
-          <span
+          <% for (let i = 1; i <= q.max; i++) { %><span
             class="<%= i <= (q.value || 0) ? 'star-filled' : 'star-empty' %>"
             >&#9733;</span
-          >
-          <% } %> <% if (q.value) { %><span
-            style="font-size: 12px; color: #64748b; margin-left: 4px"
+          ><% } %> <% if (q.value) { %>
+          <span style="font-size: 10px; color: #64748b"
             ><%= q.value %>/<%= q.max %></span
           ><% } %>
         </div>
@@ -231,28 +260,30 @@
         <% } else if (q.value) { %>
         <div class="answer"><%= q.value %></div>
         <% } else { %>
-        <div class="answer-empty">Non renseigné</div>
-        <% } %> <% } else if (Array.isArray(q.value)) { %> <% if (q.value.length
-        > 0) { %>
+        <div class="answer-empty">Non renseigne</div>
+        <% } %> <% } else if (Array.isArray(q.value) && q.value.length > 0) { %>
         <ul class="answer-list">
           <% for (const v of q.value) { %>
           <li><%= v %></li>
           <% } %>
         </ul>
-        <% } else { %>
-        <div class="answer-empty">Non renseigné</div>
-        <% } %> <% } else if (q.value) { %>
-        <div class="answer"><%= q.value %></div>
-        <% } else { %>
-        <div class="answer-empty">Non renseigné</div>
-        <% } %> <% if (q.note) { %>
+        <% } %> <% if (hasNote) { %>
         <div class="note">
           <div class="note-label">Note</div>
           <div class="note-text"><%= q.note %></div>
         </div>
         <% } %>
       </div>
-      <% } %>
+      <% } else { %>
+      <div class="question">
+        <div class="question-label"><%= q.label %></div>
+        <% if (q.value) { %>
+        <div class="answer"><%= q.value %></div>
+        <% } else { %>
+        <div class="answer-empty">Non renseigne</div>
+        <% } %>
+      </div>
+      <% } %> <% } %>
     </div>
     <% } %>
 
