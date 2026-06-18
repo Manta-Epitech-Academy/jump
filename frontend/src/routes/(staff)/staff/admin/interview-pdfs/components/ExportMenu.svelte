@@ -109,7 +109,7 @@
     Exporter les PDF
     <ChevronDown class="h-4 w-4 opacity-70" />
   </Popover.Trigger>
-  <Popover.Content align="end" class="w-80 space-y-4 p-4">
+  <Popover.Content align="end" class="w-96 space-y-4 p-4">
     <p
       class="font-mono text-[0.7rem] tracking-wider text-muted-foreground uppercase"
     >
