@@ -3,6 +3,7 @@
   import { fly } from 'svelte/transition';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
+  import { xpHistoryLabel } from '$lib/domain/xpStory';
   import Trophy from '@lucide/svelte/icons/trophy';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
@@ -10,7 +11,7 @@
   import BookOpen from '@lucide/svelte/icons/book-open';
   import Award from '@lucide/svelte/icons/award';
   import Wrench from '@lucide/svelte/icons/wrench';
-  import Rocket from '@lucide/svelte/icons/rocket';
+  import PartyPopper from '@lucide/svelte/icons/party-popper';
   import Zap from '@lucide/svelte/icons/zap';
   import type { Component } from 'svelte';
 
@@ -18,8 +19,10 @@
 
   // -- Source display config --------------------------------------------------
 
+  // Presentation only (icon + colours per source). The human label for each grant
+  // is the single shared `xpHistoryLabel`, so the talent timeline and the dev
+  // fiche XP story always read the same wording for the same fact.
   type SourceConfig = {
-    label: string;
     icon: Component<{ class?: string }>;
     color: string; // tailwind color token (e.g. "epi-orange")
     bgClass: string;
@@ -29,15 +32,13 @@
 
   const SOURCE_CONFIG: Record<string, SourceConfig> = {
     onboarding: {
-      label: 'Onboarding terminé',
-      icon: Rocket,
+      icon: PartyPopper,
       color: 'epi-blue',
       bgClass: 'bg-epi-blue/10 dark:bg-epi-blue/20',
       textClass: 'text-epi-blue',
       borderClass: 'border-epi-blue/20',
     },
     onboarding_early_bird: {
-      label: 'Bonus early bird',
       icon: Zap,
       color: 'amber',
       bgClass: 'bg-amber-500/10 dark:bg-amber-500/20',
@@ -45,7 +46,6 @@
       borderClass: 'border-amber-500/20',
     },
     minigame: {
-      label: 'Entraînement cérébral',
       icon: Gamepad2,
       color: 'epi-teal',
       bgClass: 'bg-epi-teal-solid/10 dark:bg-epi-teal-solid/20',
@@ -53,7 +53,6 @@
       borderClass: 'border-epi-teal-solid/20',
     },
     minigame_rank: {
-      label: 'Bonus classement',
       icon: Medal,
       color: 'purple',
       bgClass: 'bg-purple-500/10 dark:bg-purple-500/20',
@@ -61,17 +60,13 @@
       borderClass: 'border-purple-500/20',
     },
     activity_presence: {
-      label: 'Activité complétée',
       icon: BookOpen,
       color: 'epi-orange',
       bgClass: 'bg-epi-orange/10 dark:bg-epi-orange/20',
       textClass: 'text-epi-orange',
       borderClass: 'border-epi-orange/20',
     },
-    // The label here is the generic fallback; a reward grant's real label is its
-    // resolved `rewardName` (the activity name), applied per-grant in the markup.
     reward: {
-      label: 'Activité notée',
       icon: Award,
       color: 'emerald',
       bgClass: 'bg-emerald-500/10 dark:bg-emerald-500/20',
@@ -79,7 +74,6 @@
       borderClass: 'border-emerald-500/20',
     },
     admin_adjustment: {
-      label: 'Ajustement',
       icon: Wrench,
       color: 'slate',
       bgClass: 'bg-slate-500/10 dark:bg-slate-500/20',
@@ -89,7 +83,6 @@
   };
 
   const fallbackConfig: SourceConfig = {
-    label: 'XP',
     icon: Sparkles,
     color: 'slate',
     bgClass: 'bg-slate-100 dark:bg-slate-800',
@@ -108,19 +101,39 @@
   type Grant = (typeof data.grants)[number];
   type GroupedDay = {
     dateKey: string;
-    dayNumber: number;
     label: string;
     total: number;
     grants: Grant[];
   };
 
+  // Local calendar-day key (Y-M-D). Read the talent's local date components like
+  // the rest of the portal: an ISO/UTC key buckets near-midnight grants onto the
+  // wrong day.
+  function dateKeyOf(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  // "Aujourd'hui" / "Hier" for the two most recent days, full date before that.
+  // Recent grants are the common case, so the relative label reads faster than a
+  // date the talent has to decode.
+  function dayLabel(date: Date, dateKey: string): string {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (dateKey === dateKeyOf(today)) return "Aujourd'hui";
+    if (dateKey === dateKeyOf(yesterday)) return 'Hier';
+    return date.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  }
+
   let groupedDays = $derived.by(() => {
     const map = new Map<string, Grant[]>();
     for (const g of data.grants) {
-      // Group by the talent's local calendar day, like the rest of the portal.
-      // An ISO/UTC key buckets near-midnight grants onto the wrong day.
-      const d = new Date(g.createdAt);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const key = dateKeyOf(new Date(g.createdAt));
       const list = map.get(key);
       if (list) list.push(g);
       else map.set(key, [g]);
@@ -130,13 +143,7 @@
       const date = new Date(dateKey + 'T12:00:00');
       days.push({
         dateKey,
-        dayNumber: date.getDate(),
-        label: date.toLocaleDateString('fr-FR', {
-          weekday: 'long',
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        }),
+        label: dayLabel(date, dateKey),
         total: grants.reduce((sum, g) => sum + g.amount, 0),
         grants,
       });
@@ -220,7 +227,12 @@
               {#each day.grants as grant, grantIndex (grant.id)}
                 {@const config = getConfig(grant.source)}
                 {@const Icon = config.icon}
-                {@const label = grant.rewardName?.trim() || config.label}
+                {@const label = xpHistoryLabel(
+                  grant.source,
+                  grant.amount,
+                  grant.rewardName,
+                  'talent',
+                )}
                 <div
                   class="group relative overflow-hidden rounded-2xl border {config.borderClass} bg-white p-4 shadow-sm transition-all hover:shadow-md dark:bg-slate-900"
                   in:fly={{

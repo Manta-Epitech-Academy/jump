@@ -88,7 +88,12 @@ export async function getTalentXpStory(
       .map((g) => ({
         id: g.id,
         source: g.source,
-        label: xpHistoryLabel(g.source, g.amount, rewardNameFor(g.sourceId)),
+        label: xpHistoryLabel(
+          g.source,
+          g.amount,
+          rewardNameFor(g.sourceId),
+          'staff',
+        ),
         amount: g.amount,
         dateLabel: dateLabel(g.createdAt, timeZone),
       })),
