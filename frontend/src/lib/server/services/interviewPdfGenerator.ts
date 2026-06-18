@@ -67,7 +67,10 @@ type TemplateQuestion = {
   kind: string;
   field: string;
   label: string;
-  value: string | string[] | number | null;
+  /** The structured answer: a label for single, the joined labels for multi (no
+   *  bullets, it sits inline next to the question), the testimony for text, or
+   *  the score for rating. Free-text notes ride the separate `note` field. */
+  value: string | number | null;
   max?: number;
   note?: string | null;
 };
@@ -134,7 +137,7 @@ function buildSections(interview: InterviewForPdf) {
           kind: 'multi',
           field: q.field,
           label: q.label,
-          value: resolveLabels(cq, arr),
+          value: resolveLabels(cq, arr).join(', ') || null,
           note,
         };
       }

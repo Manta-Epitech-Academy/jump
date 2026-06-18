@@ -581,52 +581,49 @@
   <p class="text-sm text-muted-foreground/60">—</p>
 {/snippet}
 
-<!-- One synthesis line: the question, then its structured answer (chips joined,
-     stars, or the text testimony) with any free-text note as prose beneath. A
-     note alone still reads as the answer; nothing at all shows a muted dash. -->
+<!-- One synthesis entry: the question and its structured answer (chips joined or
+     stars) share a line; any free text (a note, or the testimony itself) drops
+     to its own full-width line below, behind the blue rail. Nothing at all shows
+     a muted dash next to the question. -->
 {#snippet synthesisRow(q: InterviewQuestion)}
   {@const note = noteText(q)}
-  <div class="grid gap-1 py-2 sm:grid-cols-[2fr_3fr] sm:gap-4">
-    <p class="text-xs text-muted-foreground sm:pt-0.5">{q.label}</p>
-    <div class="space-y-1.5">
-      {#if q.kind === 'text'}
-        {@const value = answerLabel(q)}
-        {#if value}
-          {@render prose(value)}
-        {:else}
-          {@render dash()}
-        {/if}
-      {:else if q.kind === 'rating'}
-        {#if $form.satisfactionStars}
-          <div class="flex items-center gap-0.5">
-            {#each Array.from({ length: q.max }) as _, idx (idx)}
-              <Star
-                class={cn(
-                  'h-3.5 w-3.5',
-                  ($form.satisfactionStars ?? 0) > idx
-                    ? 'fill-epi-orange text-epi-orange'
-                    : 'text-muted-foreground/30',
-                )}
-              />
-            {/each}
-            <span class="ml-1.5 text-sm font-semibold text-foreground">
-              {$form.satisfactionStars}/{q.max}
-            </span>
-          </div>
+  {@const value = answerLabel(q)}
+  <div class="space-y-1.5 py-2">
+    <div class="grid gap-1 sm:grid-cols-[2fr_3fr] sm:gap-4">
+      <p class="text-xs text-muted-foreground sm:pt-0.5">{q.label}</p>
+      <div>
+        {#if q.kind === 'rating'}
+          {#if $form.satisfactionStars}
+            <div class="flex items-center gap-0.5">
+              {#each Array.from({ length: q.max }) as _, idx (idx)}
+                <Star
+                  class={cn(
+                    'h-3.5 w-3.5',
+                    ($form.satisfactionStars ?? 0) > idx
+                      ? 'fill-epi-orange text-epi-orange'
+                      : 'text-muted-foreground/30',
+                  )}
+                />
+              {/each}
+              <span class="ml-1.5 text-sm font-semibold text-foreground">
+                {$form.satisfactionStars}/{q.max}
+              </span>
+            </div>
+          {:else if !note}
+            {@render dash()}
+          {/if}
+        {:else if q.kind === 'text'}
+          <!-- The testimony is free text: it renders full-width below. -->
+          {#if !value && !note}{@render dash()}{/if}
+        {:else if value}
+          <p class="text-sm font-semibold text-foreground">{value}</p>
         {:else if !note}
           {@render dash()}
         {/if}
-        {#if note}{@render prose(note)}{/if}
-      {:else}
-        {@const label = answerLabel(q)}
-        {#if label}
-          <p class="text-sm font-semibold text-foreground">{label}</p>
-        {:else if !note}
-          {@render dash()}
-        {/if}
-        {#if note}{@render prose(note)}{/if}
-      {/if}
+      </div>
     </div>
+    {#if q.kind === 'text' && value}{@render prose(value)}{/if}
+    {#if note}{@render prose(note)}{/if}
   </div>
 {/snippet}
 

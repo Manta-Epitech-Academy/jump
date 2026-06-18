@@ -78,46 +78,34 @@
         margin-bottom: 6px;
         display: inline-block;
       }
+      /* Question + structured answer share one line: the label takes a fixed
+         left column (≈2fr) and the answer fills the rest (≈3fr), mirroring the
+         dev synthesis grid. Free text drops to its own full-width .prose line. */
       .question {
-        margin-bottom: 5px;
+        margin-bottom: 4px;
         display: flex;
         align-items: baseline;
         gap: 8px;
       }
       .question-label {
+        width: 40%;
+        flex-shrink: 0;
         font-size: 10px;
         font-weight: 600;
         color: #64748b;
-        flex-shrink: 0;
-        min-width: 0;
       }
       .answer,
       .answer-empty {
+        flex: 1;
         font-size: 11px;
       }
       .answer {
         color: #0f172a;
         font-weight: 500;
       }
-      .answer-list {
-        margin: 0;
-        padding-left: 14px;
-        font-size: 11px;
-      }
-      .answer-list li {
-        margin: 0;
-      }
       .answer-empty {
         color: #94a3b8;
         font-style: italic;
-      }
-      /* For questions that need vertical layout (lists, text, notes) */
-      .question-block {
-        margin-bottom: 6px;
-        display: block;
-      }
-      .question-block .question-label {
-        margin-bottom: 1px;
       }
       .stars {
         font-size: 13px;
@@ -174,33 +162,15 @@
         margin-top: 4px;
         white-space: pre-wrap;
       }
-      .one-sentence {
-        font-style: italic;
-        color: #334155;
-        border-left: 2px solid #3b82f6;
-        padding-left: 8px;
-        margin: 2px 0;
-        white-space: pre-wrap;
+      /* Free text (a per-question note, or the testimony) on its own full-width
+         line, behind a subtle blue rail. No background, no "Note" label: the
+         placement carries the meaning, same as the dev synthesis. */
+      .prose {
+        border-left: 2px solid #93c5fd;
+        padding-left: 7px;
+        margin: 2px 0 6px;
         font-size: 11px;
-      }
-      .note {
-        margin-top: 3px;
-        padding: 4px 8px;
-        background: #f8fafc;
-        border-left: 2px solid #cbd5e1;
-        border-radius: 0 3px 3px 0;
-      }
-      .note-label {
-        font-size: 8px;
-        font-weight: 700;
-        color: #94a3b8;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 1px;
-      }
-      .note-text {
-        font-size: 10px;
-        color: #475569;
+        color: #334155;
         white-space: pre-wrap;
       }
     </style>
@@ -253,51 +223,34 @@
     <% for (const section of data.sections) { %>
     <div class="section">
       <div class="section-title"><%= section.title %></div>
-      <% for (const q of section.questions) { %> <% const hasNote = !!q.note; %>
-      <% const isBlock = q.kind === 'text' || (Array.isArray(q.value) &&
-      q.value.length > 0) || q.kind === 'rating' || hasNote; %> <% if (isBlock)
-      { %>
-      <div class="question-block">
-        <div class="question-label"><%= q.label %></div>
-        <% if (q.kind === 'rating') { %>
-        <div class="stars">
-          <% for (let i = 1; i <= q.max; i++) { %><span
-            class="<%= i <= (q.value || 0) ? 'star-filled' : 'star-empty' %>"
-            >&#9733;</span
-          ><% } %> <% if (q.value) { %>
-          <span style="font-size: 10px; color: #64748b"
-            ><%= q.value %>/<%= q.max %></span
-          ><% } %>
-        </div>
-        <% } else if (q.kind === 'text') { %> <% if (q.field === 'oneSentence'
-        && q.value) { %>
-        <div class="one-sentence">&laquo; <%= q.value %> &raquo;</div>
-        <% } else if (q.value) { %>
-        <div class="answer"><%= q.value %></div>
-        <% } else { %>
-        <div class="answer-empty">Non renseigne</div>
-        <% } %> <% } else if (Array.isArray(q.value) && q.value.length > 0) { %>
-        <ul class="answer-list">
-          <% for (const v of q.value) { %>
-          <li><%= v %></li>
-          <% } %>
-        </ul>
-        <% } %> <% if (hasNote) { %>
-        <div class="note">
-          <div class="note-label">Note</div>
-          <div class="note-text"><%= q.note %></div>
-        </div>
-        <% } %>
-      </div>
-      <% } else { %>
+      <% for (const q of section.questions) { %>
       <div class="question">
         <div class="question-label"><%= q.label %></div>
-        <% if (q.value) { %>
+        <% if (q.kind === 'rating') { %> <% if (q.value) { %>
+        <div class="answer stars">
+          <% for (let i = 1; i <= q.max; i++) { %><span
+            class="<%= i <= q.value ? 'star-filled' : 'star-empty' %>"
+            >&#9733;</span
+          ><% } %>
+          <span style="font-size: 10px; color: #64748b"
+            >&nbsp;<%= q.value %>/<%= q.max %></span
+          >
+        </div>
+        <% } else { %>
+        <div class="answer-empty">Non renseigne</div>
+        <% } %> <% } else if (q.kind === 'text') { %> <%# The testimony is free
+        text: it renders full-width below. %> <% if (!q.value) { %>
+        <div class="answer-empty">Non renseigne</div>
+        <% } %> <% } else if (q.value) { %>
         <div class="answer"><%= q.value %></div>
         <% } else { %>
         <div class="answer-empty">Non renseigne</div>
         <% } %>
       </div>
+      <% if (q.kind === 'text' && q.value) { %>
+      <div class="prose"><%= q.value %></div>
+      <% } %> <% if (q.note) { %>
+      <div class="prose"><%= q.note %></div>
       <% } %> <% } %>
     </div>
     <% } %>
