@@ -210,14 +210,14 @@
         <div class="body">
           <p class="attribution">se voit, ce jour, attribuer ce certificat</p>
           <h2 class="student-name"><%= student.prenom %> <%= student.nom %></h2>
-          <p class="desc">
-            Ce stage d'observation d'une semaine, réalisé du
-            <strong><%= data.startDate %></strong> au
-            <strong><%= data.endDate %></strong>, a permis à l'élève de
+          <p class="desc" style="font-style: italic">
+            Ce stage d'observation de deux semaines, réalisé du <%=
+            data.startDate %> au <%= data.endDate %>, a permis à l'élève de
             découvrir l'univers des métiers de l'informatique et de l'innovation
-            technologique au sein d'Epitech. L'élève a pu s'immerger dans un
-            environnement dynamique, explorer les projets des étudiants et mieux
-            appréhender les compétences clés du domaine informatique.
+            technologique au sein d'Epitech <%= data.city %>. L'élève a pu
+            s'immerger dans un environnement dynamique, rencontrer des
+            professionnels et appréhender les compétences clés du domaine de la
+            tech.
           </p>
 
           <div class="signatures">
