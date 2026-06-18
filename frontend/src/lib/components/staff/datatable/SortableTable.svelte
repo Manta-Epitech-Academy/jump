@@ -6,6 +6,7 @@
   import type { Snippet } from 'svelte';
   import { onMount } from 'svelte';
   import { MediaQuery } from 'svelte/reactivity';
+  import type { SvelteSet } from 'svelte/reactivity';
   import ArrowUp from '@lucide/svelte/icons/arrow-up';
   import ArrowDown from '@lucide/svelte/icons/arrow-down';
   import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
@@ -96,13 +97,15 @@
     mobileSort?: boolean;
     /**
      * Opt-in row selection. Renders a leading checkbox column (desktop + mobile)
-     * plus a select-all header box. The parent owns `selected` — a reactive Set
-     * keyed by `rowKey` — and renders its own bulk-action bar off `selected.size`;
-     * this component only toggles membership. Off by default, so existing callers
-     * render exactly as before.
+     * plus a select-all header box. The parent owns `selected`, keyed by `rowKey`,
+     * and renders its own bulk-action bar off `selected.size`; this component only
+     * toggles membership. Off by default, so existing callers render exactly as
+     * before. Typed `SvelteSet`, not bare `Set`, on purpose: the checkbox state
+     * reads `selected.has(...)` and the toggles mutate `selected` in place, so the
+     * collection itself must be reactive — a plain `Set` would re-render nothing.
      */
     selectable?: boolean;
-    selected?: Set<string>;
+    selected?: SvelteSet<string>;
   } = $props();
 
   const sortableColumns = $derived(columns.filter((c) => c.sortable));
