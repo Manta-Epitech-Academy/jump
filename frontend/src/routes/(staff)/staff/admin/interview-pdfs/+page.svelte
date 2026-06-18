@@ -30,10 +30,33 @@
   import type { InterviewRecommendation } from '@prisma/client';
   import { cn, formatDateTimeFr } from '$lib/utils';
   import { toast } from 'svelte-sonner';
+  import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ExportMenu from './components/ExportMenu.svelte';
   import ResetInterviewDialog from './components/ResetInterviewDialog.svelte';
 
   let { data }: { data: PageData } = $props();
+
+  // Resolve the streamed cohort into local state rather than a bare `{#await}`:
+  // search and the reco tiles re-navigate (and the reset action re-runs the
+  // load), each handing `data.cohort` a fresh promise. A template `{#await}`
+  // would flash the skeleton + remount the table + KPI tiles on every one of
+  // those; holding the last result keeps them in place and shows the skeleton
+  // only on the first load. The `=== p` guard drops a stale resolution arriving
+  // after a newer navigation has started. Mirrors talents / sf-conflicts.
+  type Cohort = Awaited<PageData['cohort']>;
+  let cohort = $state<Cohort | null>(null);
+  let cohortFailed = $state(false);
+  $effect(() => {
+    const p = data.cohort;
+    p.then((d) => {
+      if (data.cohort === p) {
+        cohort = d;
+        cohortFailed = false;
+      }
+    }).catch(() => {
+      if (data.cohort === p) cohortFailed = true;
+    });
+  });
 
   type ResetTarget = {
     id: string;
@@ -115,8 +138,9 @@
   ];
 
   function cardValue(key: string): number {
-    if (key === 'all') return data.totalDone;
-    return data.recoCounts[key] ?? 0;
+    if (!cohort) return 0;
+    if (key === 'all') return cohort.totalDone;
+    return cohort.recoCounts[key] ?? 0;
   }
 
   function navigateWithParams(params: Record<string, string>) {
@@ -163,172 +187,184 @@
     </div>
 
     <div class="flex items-center gap-3">
-      {#if data.exportTimeline.length > 0}
-        <ExportMenu
-          timeline={data.exportTimeline}
-          lastExportAt={data.lastExportAt}
-        />
-      {/if}
+      <ExportMenu lastExportAt={data.lastExportAt} />
     </div>
   </div>
 
-  <!-- KPI tiles as filter toggles -->
-  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-    {#each cards as card (card.key)}
-      <KpiTile
-        label={card.label}
-        value={cardValue(card.key)}
-        sub={card.caption}
-        icon={card.Icon}
-        tone={card.tone}
-        onclick={() => navigateWithParams({ reco: card.key })}
-        pressed={data.filters.reco === card.key}
-      />
-    {/each}
-  </div>
+  {#if cohort}
+    {@const c = cohort}
+    <!-- KPI tiles as filter toggles -->
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      {#each cards as card (card.key)}
+        <KpiTile
+          label={card.label}
+          value={cardValue(card.key)}
+          sub={card.caption}
+          icon={card.Icon}
+          tone={card.tone}
+          onclick={() => navigateWithParams({ reco: card.key })}
+          pressed={data.filters.reco === card.key}
+        />
+      {/each}
+    </div>
 
-  <Card.Root class="shadow-none">
-    <Card.Header class="gap-4">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <Card.Title class="flex items-center gap-2 tracking-wide uppercase">
-          <FileText class="h-4 w-4 text-epi-blue" />
-          Entretiens
-          <span class="font-mono text-xs font-normal text-muted-foreground">
-            ({data.matchCount}{data.truncated ? ' - 100 affichées' : ''})
-          </span>
-        </Card.Title>
+    <Card.Root class="shadow-none">
+      <Card.Header class="gap-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <Card.Title class="flex items-center gap-2 tracking-wide uppercase">
+            <FileText class="h-4 w-4 text-epi-blue" />
+            Entretiens
+            <span class="font-mono text-xs font-normal text-muted-foreground">
+              ({c.matchCount}{c.truncated ? ' - 100 affichées' : ''})
+            </span>
+          </Card.Title>
 
-        <div class="flex flex-wrap items-center gap-2">
-          <div class="relative">
-            <Search
-              class="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
-              type="search"
-              placeholder="Rechercher un talent..."
-              value={searchQuery}
-              oninput={handleSearchInput}
-              class="h-9 w-56 rounded-sm pl-8"
-            />
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="relative">
+              <Search
+                class="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                type="search"
+                placeholder="Rechercher un talent..."
+                value={searchQuery}
+                oninput={handleSearchInput}
+                class="h-9 w-56 rounded-sm pl-8"
+              />
+            </div>
+
+            {#if hasFilters}
+              <Button
+                variant="ghost"
+                size="sm"
+                class="gap-1.5 text-muted-foreground"
+                onclick={clearFilters}
+              >
+                <X class="h-3.5 w-3.5" />
+                Réinitialiser
+              </Button>
+            {/if}
           </div>
-
-          {#if hasFilters}
-            <Button
-              variant="ghost"
-              size="sm"
-              class="gap-1.5 text-muted-foreground"
-              onclick={clearFilters}
-            >
-              <X class="h-3.5 w-3.5" />
-              Réinitialiser
-            </Button>
-          {/if}
         </div>
-      </div>
-    </Card.Header>
-    <Card.Content>
-      <Table.Root>
-        <Table.Header>
-          <Table.Row>
-            <Table.Head class={th}>Avis</Table.Head>
-            <Table.Head class={th}>Talent</Table.Head>
-            <Table.Head class={th}>Interviewer</Table.Head>
-            <Table.Head class={th}>Campus</Table.Head>
-            <Table.Head class={th}>Événement</Table.Head>
-            <Table.Head class={th}>Date</Table.Head>
-            <Table.Head class={cn(th, 'text-right')}>PDF</Table.Head>
-            <Table.Head class={cn(th, 'text-right')}>
-              <span class="sr-only">Réinitialiser</span>
-            </Table.Head>
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
-          {#each data.interviews as interview (interview.id)}
+      </Card.Header>
+      <Card.Content>
+        <Table.Root>
+          <Table.Header>
             <Table.Row>
-              <Table.Cell>
-                {#if interview.recommendation}
-                  <Badge
-                    variant={recoVariant(interview.recommendation)}
-                    class="gap-1 rounded-sm font-mono text-[0.7rem] tracking-wide uppercase"
-                  >
-                    {INTERVIEW_RECOMMENDATIONS[interview.recommendation]
-                      ?.short ?? interview.recommendation}
-                  </Badge>
-                {:else}
-                  <span class="text-xs text-muted-foreground">-</span>
-                {/if}
-              </Table.Cell>
-              <Table.Cell class="font-medium">
-                {interview.talentName}
-              </Table.Cell>
-              <Table.Cell>{interview.staffName}</Table.Cell>
-              <Table.Cell>{interview.campusName}</Table.Cell>
-              <Table.Cell class="max-w-48 truncate">
-                {interview.eventTitle ?? '-'}
-              </Table.Cell>
-              <Table.Cell>
-                <span class="font-mono text-xs text-muted-foreground">
-                  {formatDateTimeFr(interview.conductedAt)}
-                </span>
-              </Table.Cell>
-              <Table.Cell class="text-right">
-                <a
-                  href={resolve(
-                    `/staff/admin/interview-pdfs/${interview.id}/pdf`,
-                  )}
-                  target="_blank"
-                  rel="noopener"
-                  class="inline-flex items-center gap-1.5 text-xs text-epi-blue hover:underline"
-                >
-                  <ExternalLink class="h-3.5 w-3.5" />
-                  Voir
-                </a>
-              </Table.Cell>
-              <Table.Cell class="text-right">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  class="h-auto gap-1.5 p-0 text-xs text-muted-foreground hover:text-destructive"
-                  onclick={() =>
-                    openReset({
-                      id: interview.id,
-                      talentName: interview.talentName,
-                      staffName: interview.staffName,
-                      conductedAt: interview.conductedAt,
-                    })}
-                >
-                  <RotateCcw class="h-3.5 w-3.5" />
-                  Réinitialiser
-                </Button>
-              </Table.Cell>
+              <Table.Head class={th}>Avis</Table.Head>
+              <Table.Head class={th}>Talent</Table.Head>
+              <Table.Head class={th}>Interviewer</Table.Head>
+              <Table.Head class={th}>Campus</Table.Head>
+              <Table.Head class={th}>Événement</Table.Head>
+              <Table.Head class={th}>Date</Table.Head>
+              <Table.Head class={cn(th, 'text-right')}>PDF</Table.Head>
+              <Table.Head class={cn(th, 'text-right')}>
+                <span class="sr-only">Réinitialiser</span>
+              </Table.Head>
             </Table.Row>
-          {:else}
-            <Table.Row>
-              <Table.Cell colspan={8} class="py-12 text-center">
-                {#if hasFilters}
-                  <p class="font-mono text-xs text-muted-foreground">
-                    &lt;Aucun entretien pour ce filtre/&gt;
-                  </p>
+          </Table.Header>
+          <Table.Body>
+            {#each c.interviews as interview (interview.id)}
+              <Table.Row>
+                <Table.Cell>
+                  {#if interview.recommendation}
+                    <Badge
+                      variant={recoVariant(interview.recommendation)}
+                      class="gap-1 rounded-sm font-mono text-[0.7rem] tracking-wide uppercase"
+                    >
+                      {INTERVIEW_RECOMMENDATIONS[interview.recommendation]
+                        ?.short ?? interview.recommendation}
+                    </Badge>
+                  {:else}
+                    <span class="text-xs text-muted-foreground">-</span>
+                  {/if}
+                </Table.Cell>
+                <Table.Cell class="font-medium">
+                  {interview.talentName}
+                </Table.Cell>
+                <Table.Cell>{interview.staffName}</Table.Cell>
+                <Table.Cell>{interview.campusName}</Table.Cell>
+                <Table.Cell class="max-w-48 truncate">
+                  {interview.eventTitle ?? '-'}
+                </Table.Cell>
+                <Table.Cell>
+                  <span class="font-mono text-xs text-muted-foreground">
+                    {formatDateTimeFr(interview.conductedAt)}
+                  </span>
+                </Table.Cell>
+                <Table.Cell class="text-right">
+                  <a
+                    href={resolve(
+                      `/staff/admin/interview-pdfs/${interview.id}/pdf`,
+                    )}
+                    target="_blank"
+                    rel="noopener"
+                    class="inline-flex items-center gap-1.5 text-xs text-epi-blue hover:underline"
+                  >
+                    <ExternalLink class="h-3.5 w-3.5" />
+                    Voir
+                  </a>
+                </Table.Cell>
+                <Table.Cell class="text-right">
                   <Button
-                    variant="link"
+                    variant="ghost"
                     size="sm"
-                    class="mt-1 text-epi-blue"
-                    onclick={clearFilters}
+                    class="h-auto gap-1.5 p-0 text-xs text-muted-foreground hover:text-destructive"
+                    onclick={() =>
+                      openReset({
+                        id: interview.id,
+                        talentName: interview.talentName,
+                        staffName: interview.staffName,
+                        conductedAt: interview.conductedAt,
+                      })}
                   >
-                    Réinitialiser les filtres
+                    <RotateCcw class="h-3.5 w-3.5" />
+                    Réinitialiser
                   </Button>
-                {:else}
-                  <p class="font-mono text-xs text-muted-foreground">
-                    &lt;Aucun entretien finalisé/&gt;
-                  </p>
-                {/if}
-              </Table.Cell>
-            </Table.Row>
-          {/each}
-        </Table.Body>
-      </Table.Root>
-    </Card.Content>
-  </Card.Root>
+                </Table.Cell>
+              </Table.Row>
+            {:else}
+              <Table.Row>
+                <Table.Cell colspan={8} class="py-12 text-center">
+                  {#if hasFilters}
+                    <p class="font-mono text-xs text-muted-foreground">
+                      &lt;Aucun entretien pour ce filtre/&gt;
+                    </p>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      class="mt-1 text-epi-blue"
+                      onclick={clearFilters}
+                    >
+                      Réinitialiser les filtres
+                    </Button>
+                  {:else}
+                    <p class="font-mono text-xs text-muted-foreground">
+                      &lt;Aucun entretien finalisé/&gt;
+                    </p>
+                  {/if}
+                </Table.Cell>
+              </Table.Row>
+            {/each}
+          </Table.Body>
+        </Table.Root>
+      </Card.Content>
+    </Card.Root>
+  {:else if cohortFailed}
+    <div
+      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
+    >
+      <h3 class="text-sm font-bold tracking-widest text-foreground uppercase">
+        Chargement impossible
+      </h3>
+      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
+        Les entretiens n'ont pas pu être chargés. Rechargez la page pour
+        réessayer.
+      </p>
+    </div>
+  {:else}
+    <ResultsSkeleton rows={8} rail={false} />
+  {/if}
 </div>
 
 <ResetInterviewDialog bind:open={resetOpen} target={resetTarget} />

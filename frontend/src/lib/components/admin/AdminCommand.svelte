@@ -11,6 +11,7 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import GitCompareArrows from '@lucide/svelte/icons/git-compare-arrows';
   import FileCog from '@lucide/svelte/icons/file-cog';
+  import ClipboardList from '@lucide/svelte/icons/clipboard-list';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
   import Megaphone from '@lucide/svelte/icons/megaphone';
@@ -84,6 +85,12 @@
       href: resolve('/staff/admin/onboarding-pdfs'),
       icon: FileCog,
       keywords: ['pdf', 'documents', 'signes', 'export'],
+    },
+    {
+      label: 'PDF Entretiens',
+      href: resolve('/staff/admin/interview-pdfs'),
+      icon: ClipboardList,
+      keywords: ['pdf', 'entretien', 'synthese', 'motivation', 'export'],
     },
     {
       label: 'Tickets',

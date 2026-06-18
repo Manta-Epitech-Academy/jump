@@ -37,59 +37,63 @@ export const load: PageServerLoad = async ({ url, locals, depends }) => {
 
   const PAGE_SIZE = 100;
 
-  const [interviews, matchCount, recoCounts, timeline] = await Promise.all([
-    prisma.interview.findMany({
-      where,
-      select: {
-        id: true,
-        conductedAt: true,
-        recommendation: true,
-        talent: { select: { prenom: true, nom: true } },
-        staff: { select: { user: { select: { name: true } } } },
-        campus: { select: { name: true } },
-        participation: { select: { event: { select: { titre: true } } } },
-      },
-      orderBy: { conductedAt: 'desc' },
-      take: PAGE_SIZE,
-    }),
-    prisma.interview.count({ where }),
-    prisma.interview.groupBy({
-      by: ['recommendation'],
-      where: { status: 'done' },
-      _count: true,
-    }),
-    // Timeline for ExportMenu: every done interview's conductedAt, so the menu
-    // can count PDFs per period client-side. Light (a single date column) and
-    // bounded by our corpus (a few hundred finished interviews).
-    prisma.interview.findMany({
-      where: { status: 'done' },
-      select: { conductedAt: true },
-      orderBy: { conductedAt: 'desc' },
-    }),
-  ]);
+  // Stream the cohort: the heading and export menu paint immediately while the
+  // row page, the total match count and the per-recommendation KPI counts (the
+  // blocking query cost) resolve behind the shell skeleton. Mirrors the talents
+  // / sf-conflicts admin tables. The export timeline used to ride this load too,
+  // but it's an unbounded scan only the export popover needs, so it moved to
+  // ./export-timeline and the menu fetches it lazily on open.
+  const cohort = (async () => {
+    const [interviews, matchCount, recoCounts] = await Promise.all([
+      prisma.interview.findMany({
+        where,
+        select: {
+          id: true,
+          conductedAt: true,
+          recommendation: true,
+          talent: { select: { prenom: true, nom: true } },
+          staff: { select: { user: { select: { name: true } } } },
+          campus: { select: { name: true } },
+          participation: { select: { event: { select: { titre: true } } } },
+        },
+        orderBy: { conductedAt: 'desc' },
+        take: PAGE_SIZE,
+      }),
+      prisma.interview.count({ where }),
+      prisma.interview.groupBy({
+        by: ['recommendation'],
+        where: { status: 'done' },
+        _count: true,
+      }),
+    ]);
 
-  const recoMap: Record<string, number> = {};
-  for (const r of recoCounts) {
-    if (r.recommendation) recoMap[r.recommendation] = r._count;
-  }
-  const totalDone = recoCounts.reduce((s, r) => s + r._count, 0);
+    const recoMap: Record<string, number> = {};
+    for (const r of recoCounts) {
+      if (r.recommendation) recoMap[r.recommendation] = r._count;
+    }
+    const totalDone = recoCounts.reduce((s, r) => s + r._count, 0);
+
+    return {
+      interviews: interviews.map((i) => ({
+        id: i.id,
+        conductedAt: i.conductedAt.toISOString(),
+        recommendation: i.recommendation,
+        talentName: `${i.talent.prenom} ${i.talent.nom}`,
+        staffName: i.staff.user.name ?? 'Staff',
+        campusName: i.campus.name,
+        eventTitle: i.participation.event.titre,
+      })),
+      matchCount,
+      truncated: matchCount > PAGE_SIZE,
+      totalDone,
+      recoCounts: recoMap,
+    };
+  })();
 
   return {
     filters: { reco: statusFilter, q },
-    interviews: interviews.map((i) => ({
-      id: i.id,
-      conductedAt: i.conductedAt.toISOString(),
-      recommendation: i.recommendation,
-      talentName: `${i.talent.prenom} ${i.talent.nom}`,
-      staffName: i.staff.user.name ?? 'Staff',
-      campusName: i.campus.name,
-      eventTitle: i.participation.event.titre,
-    })),
-    matchCount,
-    truncated: matchCount > PAGE_SIZE,
-    totalDone,
-    recoCounts: recoMap,
-    exportTimeline: timeline.map((t) => t.conductedAt.toISOString()),
+    // Un-awaited on purpose: SvelteKit streams it so the chrome paints first.
+    cohort,
     lastExportAt:
       locals.staffProfile?.interviewDocsExportedAt?.toISOString() ?? null,
   };
