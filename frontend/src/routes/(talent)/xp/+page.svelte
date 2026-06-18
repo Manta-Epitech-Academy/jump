@@ -4,6 +4,7 @@
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import { xpHistoryLabel } from '$lib/domain/xpStory';
+  import { toDateKey } from '$lib/domain/eventPresence';
   import Trophy from '@lucide/svelte/icons/trophy';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
@@ -106,23 +107,24 @@
     grants: Grant[];
   };
 
-  // Local calendar-day key (Y-M-D). Read the talent's local date components like
-  // the rest of the portal: an ISO/UTC key buckets near-midnight grants onto the
-  // wrong day.
-  function dateKeyOf(d: Date): string {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }
+  // Calendar-day key in the talent's timezone (resolved server-side and passed
+  // as `data.timeZone`), shared with the rest of the portal via `toDateKey`. An
+  // explicit zone keeps SSR and the browser on the same day; an ambient
+  // `new Date()` would split a near-midnight grant across a UTC pod and the
+  // browser and hydrate with a flash.
+  const dayKey = (d: Date): string => toDateKey(d, data.timeZone);
 
   // "Aujourd'hui" / "Hier" for the two most recent days, full date before that.
   // Recent grants are the common case, so the relative label reads faster than a
   // date the talent has to decode.
-  function dayLabel(date: Date, dateKey: string): string {
-    const today = new Date();
-    const yesterday = new Date(today);
+  function dayLabel(instant: Date, dateKey: string): string {
+    const now = new Date();
+    const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
-    if (dateKey === dateKeyOf(today)) return "Aujourd'hui";
-    if (dateKey === dateKeyOf(yesterday)) return 'Hier';
-    return date.toLocaleDateString('fr-FR', {
+    if (dateKey === dayKey(now)) return "Aujourd'hui";
+    if (dateKey === dayKey(yesterday)) return 'Hier';
+    return instant.toLocaleDateString('fr-FR', {
+      timeZone: data.timeZone,
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -133,17 +135,19 @@
   let groupedDays = $derived.by(() => {
     const map = new Map<string, Grant[]>();
     for (const g of data.grants) {
-      const key = dateKeyOf(new Date(g.createdAt));
+      const key = dayKey(new Date(g.createdAt));
       const list = map.get(key);
       if (list) list.push(g);
       else map.set(key, [g]);
     }
     const days: GroupedDay[] = [];
     for (const [dateKey, grants] of map) {
-      const date = new Date(dateKey + 'T12:00:00');
       days.push({
         dateKey,
-        label: dayLabel(date, dateKey),
+        // Any grant from this day is a valid instant to render the day label in
+        // `data.timeZone`; reconstructing a date from the key would re-introduce
+        // an ambient-zone round-trip.
+        label: dayLabel(new Date(grants[0].createdAt), dateKey),
         total: grants.reduce((sum, g) => sum + g.amount, 0),
         grants,
       });
@@ -151,8 +155,14 @@
     return days;
   });
 
+  // Honest sign: every live source is positive today, but an `admin_adjustment`
+  // can be negative (its label already branches on sign), so never hard-print a
+  // `+` that would render `+-30`.
+  const signed = (n: number): string => (n > 0 ? `+${n}` : `${n}`);
+
   function formatTime(date: Date | string): string {
     return new Date(date).toLocaleTimeString('fr-FR', {
+      timeZone: data.timeZone,
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -216,7 +226,7 @@
                 {day.label}
               </h3>
               <span class="text-xs font-semibold text-epi-orange">
-                +{day.total} XP
+                {signed(day.total)} XP
               </span>
             </div>
 
@@ -275,7 +285,7 @@
                       class="shrink-0 rounded-xl {config.bgClass} px-3 py-1.5 text-center"
                     >
                       <span class="text-lg font-black {config.textClass}">
-                        +{grant.amount}
+                        {signed(grant.amount)}
                       </span>
                       <span
                         class="text-[10px] font-bold {config.textClass} uppercase"
