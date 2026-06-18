@@ -4,9 +4,14 @@
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import CalendarViewer from '$lib/components/planning/CalendarViewer.svelte';
   import WeekNavigator from '$lib/components/planning/WeekNavigator.svelte';
+  import WeekViewToggle from '$lib/components/planning/WeekViewToggle.svelte';
   import ActivityPreviewDialog from '$lib/components/events/planning/ActivityPreviewDialog.svelte';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
-  import { pickInitialWeek, startOfDay } from '$lib/domain/calendarWeek';
+  import {
+    pickInitialWeek,
+    startOfDay,
+    type WeekView,
+  } from '$lib/domain/calendarWeek';
   import type { TimeSlotWithActivity } from '$lib/types';
   import type { PageData } from '../$types';
 
@@ -45,6 +50,8 @@
       ),
     ),
   );
+
+  let weekView = $state<WeekView>('work');
 
   let previewSlot = $state<TimeSlotWithActivity | null>(null);
   let previewOpen = $state(false);
@@ -90,8 +97,9 @@
           {/if}
         </p>
       </div>
-      <div class="flex items-center gap-2">
-        <WeekNavigator {range} bind:weekStart />
+      <div class="flex flex-wrap items-center gap-3">
+        <WeekViewToggle bind:value={weekView} />
+        <WeekNavigator {range} bind:weekStart {weekView} />
       </div>
     </div>
   </div>
@@ -100,6 +108,7 @@
     <CalendarViewer
       {slots}
       {weekStart}
+      {weekView}
       {serverNow}
       dimUnstarted={false}
       onSlotClick={(slot) => {

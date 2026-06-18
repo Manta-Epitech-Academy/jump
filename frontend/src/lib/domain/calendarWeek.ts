@@ -30,9 +30,20 @@ export function sameDay(a: Date, b: Date): boolean {
   );
 }
 
-/** The seven days (Mon-Sun) of the week starting at `weekStart`. */
-export function weekDaysFrom(weekStart: Date): Date[] {
-  return Array.from({ length: 7 }, (_, i) => {
+/**
+ * How many day columns the calendars render: the work week hides the weekend,
+ * the full week shows it. Default view is `work` (stage de seconde créneaux are
+ * weekdays only, so Sat/Sun are dead columns).
+ */
+export type WeekView = 'work' | 'full';
+export const WEEK_VIEW_DAYS: Record<WeekView, number> = { work: 5, full: 7 };
+
+/**
+ * The days of the week starting at `weekStart`: `days` of them (5 for a work
+ * week, 7 for a full week). Defaults to the full Monday-Sunday span.
+ */
+export function weekDaysFrom(weekStart: Date, days = 7): Date[] {
+  return Array.from({ length: days }, (_, i) => {
     const d = new Date(weekStart);
     d.setDate(d.getDate() + i);
     return d;
@@ -68,7 +79,7 @@ export function pickInitialWeek(
 /** A compact "1 – 7 déc 2026" style label for the visible week. */
 export function weekLabel(weekDays: Date[]): string {
   const a = weekDays[0];
-  const b = weekDays[6];
+  const b = weekDays[weekDays.length - 1];
   const sameMonth = a.getMonth() === b.getMonth();
   const sameYear = a.getFullYear() === b.getFullYear();
   const left = a.toLocaleDateString('fr-FR', {
