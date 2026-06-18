@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 
@@ -40,12 +41,28 @@
     },
   ];
 
-  // Pick a fresh variant each time the overlay opens, so devs across the campuses
-  // de France compare which one they got. Math.random in an effect (not render)
-  // keeps the pick stable for the whole showing.
+  // The montage is picked once per page session, not re-rolled on each open: a dev
+  // generates diplomas once per stage, so re-rolling per click buys nothing, and
+  // the variety that matters lives across devs/campuses, not within one session.
   let index = $state(0);
-  $effect(() => {
-    if (open) index = Math.floor(Math.random() * VARIANTS.length);
+
+  onMount(() => {
+    index = Math.floor(Math.random() * VARIANTS.length);
+
+    // Warm the browser cache for the chosen montage so it is already decoded when
+    // the overlay opens, instead of fetching only when the <img> first renders
+    // (which made it pop in mid-ceremony). Deferred to idle so this eager fetch
+    // never competes with the page's first paint or the streamed cohort load.
+    const preload = () => {
+      const img = new Image();
+      img.src = VARIANTS[index].img;
+    };
+    if ('requestIdleCallback' in window) {
+      const id = requestIdleCallback(preload);
+      return () => cancelIdleCallback(id);
+    }
+    const id = setTimeout(preload, 200);
+    return () => clearTimeout(id);
   });
 
   const variant = $derived(VARIANTS[index]);
