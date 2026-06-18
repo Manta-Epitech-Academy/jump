@@ -344,7 +344,7 @@
       >
         <a
           href={resolve('/xp')}
-          class="relative order-1 block overflow-hidden rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/50 transition-all hover:shadow-2xl active:scale-[0.98] dark:bg-slate-900 dark:shadow-none"
+          class="group relative order-1 block overflow-hidden rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/50 transition-all hover:shadow-2xl active:scale-[0.98] dark:bg-slate-900 dark:shadow-none"
         >
           <!-- Decorative background blur -->
           <div
@@ -366,6 +366,11 @@
               </span>
               <span class="text-lg font-bold text-epi-orange">XP</span>
             </div>
+            <span
+              class="mt-2 text-xs font-medium text-slate-400 transition-colors group-hover:text-epi-blue"
+            >
+              Voir mon historique
+            </span>
           </div>
         </a>
 
