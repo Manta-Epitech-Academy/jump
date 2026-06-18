@@ -12,10 +12,12 @@
   import Settings from '@lucide/svelte/icons/settings';
   import Menu from '@lucide/svelte/icons/menu';
   import X from '@lucide/svelte/icons/x';
+  import Search from '@lucide/svelte/icons/search';
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
   import BrandMark from '$lib/components/layout/BrandMark.svelte';
   import FileText from '@lucide/svelte/icons/file-text';
   import FileCog from '@lucide/svelte/icons/file-cog';
+  import ClipboardList from '@lucide/svelte/icons/clipboard-list';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import Heart from '@lucide/svelte/icons/heart';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
@@ -34,6 +36,7 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import StaffSettingsDialog from '$lib/components/layout/StaffSettingsDialog.svelte';
+  import AdminCommand from '$lib/components/admin/AdminCommand.svelte';
   import { fly, fade } from 'svelte/transition';
   import { track, secondsBetween } from '$lib/analytics';
 
@@ -41,6 +44,7 @@
 
   let mobileMenuOpen = $state(false);
   let settingsOpen = $state(false);
+  let commandOpen = $state(false);
 
   // Close the mobile menu on page navigation
   $effect(() => {
@@ -122,6 +126,13 @@
     >
       <FileCog class="h-4 w-4" />
       <span>Génération PDF onboarding</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/interview-pdfs')}
+      class={navLinkClass(isActive('/staff/admin/interview-pdfs'))}
+    >
+      <ClipboardList class="h-4 w-4" />
+      <span>PDF Entretiens</span>
     </a>
     <a
       href={resolve('/staff/admin/tickets')}
@@ -338,6 +349,21 @@
     </div>
 
     <div class="flex items-center gap-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-9 gap-2 rounded-sm text-slate-300 hover:bg-slate-800 hover:text-white"
+        onclick={() => (commandOpen = true)}
+        aria-label="Rechercher une personne"
+      >
+        <Search class="h-4 w-4" />
+        <span class="hidden text-xs sm:inline">Rechercher</span>
+        <kbd
+          class="hidden rounded border border-slate-700 bg-slate-800 px-1.5 text-[10px] text-slate-400 sm:inline"
+          >⌘K</kbd
+        >
+      </Button>
+
       <ModeToggle />
 
       <div class="ml-2 flex items-center gap-4">
@@ -451,4 +477,6 @@
       {@render children()}
     </main>
   </div>
+
+  <AdminCommand bind:open={commandOpen} />
 </div>

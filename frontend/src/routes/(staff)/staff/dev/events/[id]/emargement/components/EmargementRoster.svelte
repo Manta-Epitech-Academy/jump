@@ -291,7 +291,7 @@
           searchValue={searchQuery}
           onSearchInput={(v) => (searchQuery = v)}
           searchPlaceholder="Rechercher un stagiaire…"
-          searchWidthClass="max-w-[230px]"
+          searchWidthClass="flex-1 min-w-0 max-w-[230px]"
           filtersAlign="end"
           count={filtered.length}
           countNoun="stagiaire"
@@ -310,6 +310,7 @@
                 options={statusOptions}
                 value={statusFilter}
                 onChange={(v) => (statusFilter = v as typeof statusFilter)}
+                triggerClass="w-32"
               />
             </div>
           {/snippet}
@@ -526,29 +527,40 @@
           {#snippet slotLifecycle()}
             {#if activeSlot}
               {#if isActivePastCutoff}
-                <!-- Auto-closed by the clock (past 11h / 15h): not reopenable,
-                     the day moved on. A late arrival is handled by marking the
-                     talent's cell directly on their line. -->
-                <Tooltip.Root>
-                  <Tooltip.Trigger>
-                    {#snippet child({ props })}
-                      <span
-                        {...props}
-                        class="inline-flex w-full cursor-default items-center justify-center gap-1.5 rounded-sm border bg-muted/40 px-3 py-2 text-sm font-medium text-muted-foreground"
-                      >
-                        <Lock class="h-4 w-4" />
-                        Clôturé automatiquement
-                      </span>
-                    {/snippet}
-                  </Tooltip.Trigger>
-                  <Tooltip.Content class="max-w-56">
-                    Clôture automatique passé {slotLabelFr(activeSlot.slot) ===
-                    'Matin'
+                <!-- Auto-closed by the clock (past 11h / 15h) and not reopenable.
+                     Clôturer is spent, so it sits disabled in its usual spot
+                     while Tout présent stays live and same-width: staff are often
+                     émargeant late and per-row marking already works on a closed
+                     slot, so the bulk shortcut should too. -->
+                <div class="@container space-y-2">
+                  <div class="grid grid-cols-1 gap-2 @[21rem]:grid-cols-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      class="w-full rounded-sm whitespace-nowrap"
+                      onclick={() => (presentConfirmOpen = true)}
+                    >
+                      <CheckCheck class="mr-1.5 h-4 w-4" />
+                      Tout présent
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled
+                      class="w-full rounded-sm whitespace-nowrap"
+                    >
+                      <Lock class="mr-1.5 h-4 w-4" />
+                      Clôturé
+                    </Button>
+                  </div>
+                  <p class="text-[11px] leading-snug text-muted-foreground">
+                    Clôturé automatiquement passé {slotLabelFr(
+                      activeSlot.slot,
+                    ) === 'Matin'
                       ? '11h'
-                      : '15h'}. Pour un retardataire, modifiez directement sa
-                    présence sur sa ligne.
-                  </Tooltip.Content>
-                </Tooltip.Root>
+                      : '15h'}. Le marquage reste possible.
+                  </p>
+                </div>
               {:else if isActiveClosed}
                 <form
                   method="POST"
@@ -577,12 +589,17 @@
                      a choice: mark everyone present, or clôturer (which marks the
                      still-en-attente stagiaires absent and cuts the QR). The
                      caption spells out the clôture effect, the part staff missed. -->
-                <div class="space-y-2">
-                  <div class="grid grid-cols-2 gap-2">
+                <div class="@container space-y-2">
+                  <!-- Side by side when the card is wide enough, stacked when
+                       it is not. The threshold tracks the card, not the
+                       viewport: the rail makes this card full-width at xl but
+                       half-width in the sm two-up, where a 2-col grid clips
+                       "Tout présent" onto two lines with the icon stranded. -->
+                  <div class="grid grid-cols-1 gap-2 @[21rem]:grid-cols-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      class="w-full rounded-sm"
+                      class="w-full rounded-sm whitespace-nowrap"
                       onclick={() => (presentConfirmOpen = true)}
                     >
                       <CheckCheck class="mr-1.5 h-4 w-4" />
@@ -591,7 +608,7 @@
                     <Button
                       variant="outline"
                       size="sm"
-                      class="w-full rounded-sm"
+                      class="w-full rounded-sm whitespace-nowrap"
                       onclick={() => (closeConfirmOpen = true)}
                     >
                       <Lock class="mr-1.5 h-4 w-4" />
@@ -638,9 +655,9 @@
     <Dialog.Header>
       <Dialog.Title>Marquer tout le monde présent ?</Dialog.Title>
       <Dialog.Description>
-        Tous les stagiaires encore « En attente » sur ce créneau passeront
-        présents. Les présences déjà saisies (absent, justifié, en retard) ne
-        sont pas modifiées.
+        Tous les stagiaires sans présence enregistrée sur ce créneau passeront
+        présents. Les présences déjà saisies (présent, absent, justifié, en
+        retard) ne sont pas modifiées.
       </Dialog.Description>
     </Dialog.Header>
     {#if activeSlot}
@@ -651,14 +668,16 @@
           async ({ result, update }) => {
             await update();
             if (result.type === 'success')
-              toast.success('Stagiaires en attente marqués présents.');
-            // The créneau closed between render and submit (e.g. the 11h/15h
-            // cutoff passed): the server refuses the bulk mark, surface why.
+              toast.success(
+                'Stagiaires sans présence enregistrée marqués présents.',
+              );
+            // The bulk mark only fails now if a staff member manually closed the
+            // créneau between render and submit; the 11h/15h cutoff no longer
+            // refuses it. Surface the server message, which points at Rouvrir.
             else if (result.type === 'failure')
               toast.error(
                 (result.data?.form as { message?: string } | undefined)
-                  ?.message ??
-                  'Ce créneau est clôturé : corrigez les présences ligne par ligne.',
+                  ?.message ?? 'Ce créneau a été clôturé.',
               );
             presentConfirmOpen = false;
           }}

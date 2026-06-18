@@ -25,8 +25,38 @@ export async function getTalentXpStory(
 ): Promise<XpStory> {
   const grants = await prisma.xpGrant.findMany({
     where: { talentId },
-    select: { id: true, source: true, amount: true, createdAt: true },
+    select: {
+      id: true,
+      source: true,
+      amount: true,
+      sourceId: true,
+      createdAt: true,
+    },
   });
+
+  // A `reward` grant's identity lives on its XpReward (the activity name), not on
+  // the grant. The grant's sourceId is `${rewardId}_${talentId}`, so strip the
+  // known talentId suffix to recover the rewardId and resolve every name in one
+  // query, then humanise. Non-reward grants need no lookup.
+  const rewardIdOf = (sourceId: string): string =>
+    sourceId.endsWith(`_${talentId}`)
+      ? sourceId.slice(0, -(talentId.length + 1))
+      : sourceId;
+
+  const rewardIds = grants
+    .filter((g) => g.source === 'reward' && g.sourceId)
+    .map((g) => rewardIdOf(g.sourceId!));
+  const rewardNames = new Map<string, string>();
+  if (rewardIds.length) {
+    const rewards = await prisma.xpReward.findMany({
+      where: { id: { in: rewardIds } },
+      select: { id: true, name: true },
+    });
+    for (const r of rewards) rewardNames.set(r.id, r.name);
+  }
+
+  const rewardNameFor = (sourceId: string | null): string | undefined =>
+    sourceId ? rewardNames.get(rewardIdOf(sourceId)) : undefined;
 
   return {
     total: grants.reduce((sum, g) => sum + g.amount, 0),
@@ -35,7 +65,7 @@ export async function getTalentXpStory(
       .map((g) => ({
         id: g.id,
         source: g.source,
-        label: xpHistoryLabel(g.source, g.amount),
+        label: xpHistoryLabel(g.source, g.amount, rewardNameFor(g.sourceId)),
         amount: g.amount,
         dateLabel: dateLabel(g.createdAt, timeZone),
       })),

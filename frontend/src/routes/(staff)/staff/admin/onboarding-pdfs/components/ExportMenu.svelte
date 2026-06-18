@@ -9,6 +9,7 @@
   import Download from '@lucide/svelte/icons/download';
   import History from '@lucide/svelte/icons/history';
   import ImageIcon from '@lucide/svelte/icons/image';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import ScrollText from '@lucide/svelte/icons/scroll-text';
   import type { Icon as IconType } from '@lucide/svelte';
   import { resolve } from '$app/paths';
@@ -18,16 +19,34 @@
   import { cn, formatDateTimeFr } from '$lib/utils';
   import { toast } from 'svelte-sonner';
 
-  let {
-    timeline,
-    lastExportAt,
-  }: {
-    timeline: ExportTimelineEntry[];
-    lastExportAt: string | null;
-  } = $props();
+  let { lastExportAt }: { lastExportAt: string | null } = $props();
+
+  // The completion timeline is fetched lazily when the popover opens rather than
+  // passed down from the page load: it's a full talent-table scan and that load
+  // re-runs every 5s (live job feed), so keeping it off the load avoids the scan
+  // on every tick. Refetched on each open so the per-period counts and the
+  // "depuis le dernier export" delta stay fresh without a standing query.
+  let timeline = $state<ExportTimelineEntry[]>([]);
+  // First successful fetch flips this; the popover body shows a spinner until
+  // then, then keeps the last data on subsequent re-opens while it refetches.
+  let loaded = $state(false);
 
   const exportBase = resolve('/staff/admin/onboarding-pdfs/export');
+  const timelineHref = resolve('/staff/admin/onboarding-pdfs/export-timeline');
   const DAY = 86_400_000;
+
+  async function loadTimeline() {
+    try {
+      const res = await fetch(timelineHref);
+      if (!res.ok) throw new Error(`timeline ${res.status}`);
+      const data: { timeline: ExportTimelineEntry[] } = await res.json();
+      timeline = data.timeline;
+      loaded = true;
+    } catch (err) {
+      console.error('[onboarding-pdfs] timeline fetch failed', err);
+      toast.error("Impossible de charger l'historique des exports.");
+    }
+  }
 
   // Parse the ISO timeline once into sortable instants. Recomputed when the
   // poll re-ships `timeline`, which is also when "now"-relative buckets refresh.
@@ -190,7 +209,7 @@
   {/if}
 {/snippet}
 
-<Popover.Root>
+<Popover.Root onOpenChange={(open) => open && loadTimeline()}>
   <Popover.Trigger class={cn(buttonVariants({ variant: 'default' }), 'gap-2')}>
     <Archive class="h-4 w-4" />
     Télécharger les PDF signés
@@ -203,109 +222,118 @@
       Documents signés
     </p>
 
-    {#if sinceMark !== null}
+    {#if !loaded}
       <div
-        class="space-y-2.5 rounded-md border border-epi-blue/30 bg-epi-blue/5 p-3"
+        class="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"
       >
-        <div>
-          <div class="flex items-center gap-2 text-sm font-medium">
-            <History class="h-4 w-4 text-epi-blue" />
-            Depuis le dernier export
+        <LoaderCircle class="h-4 w-4 animate-spin" />
+        Chargement de l'historique…
+      </div>
+    {:else}
+      {#if sinceMark !== null}
+        <div
+          class="space-y-2.5 rounded-md border border-epi-blue/30 bg-epi-blue/5 p-3"
+        >
+          <div>
+            <div class="flex items-center gap-2 text-sm font-medium">
+              <History class="h-4 w-4 text-epi-blue" />
+              Depuis le dernier export
+            </div>
+            <p
+              class="mt-1 text-xs text-muted-foreground"
+              title={formatDateTimeFr(lastExportAt!)}
+            >
+              Dernier export {sinceLabel(lastExportAt!)}
+            </p>
           </div>
-          <p
-            class="mt-1 text-xs text-muted-foreground"
-            title={formatDateTimeFr(lastExportAt!)}
-          >
-            Dernier export {sinceLabel(lastExportAt!)}
-          </p>
+          {#if sinceCount > 0}
+            <a
+              href={exportHref(null, sinceRange, true)}
+              download
+              onclick={() => onDownload()}
+              class={cn(
+                buttonVariants({ variant: 'default', size: 'sm' }),
+                'w-full gap-2',
+              )}
+            >
+              <Download class="h-4 w-4" />
+              Télécharger les nouveaux ({sinceCount})
+            </a>
+          {:else}
+            <p class="text-xs text-muted-foreground">
+              Aucun nouveau document depuis.
+            </p>
+          {/if}
         </div>
-        {#if sinceCount > 0}
-          <a
-            href={exportHref(null, sinceRange, true)}
-            download
-            onclick={() => onDownload()}
-            class={cn(
-              buttonVariants({ variant: 'default', size: 'sm' }),
-              'w-full gap-2',
-            )}
-          >
-            <Download class="h-4 w-4" />
-            Télécharger les nouveaux ({sinceCount})
-          </a>
-        {:else}
-          <p class="text-xs text-muted-foreground">
-            Aucun nouveau document depuis.
-          </p>
+      {/if}
+
+      <div class="space-y-2">
+        <span
+          class="font-mono text-[0.7rem] tracking-wider text-muted-foreground uppercase"
+        >
+          Période
+        </span>
+        <SegmentedFilter
+          options={periodOptions}
+          value={period}
+          onChange={(v) => (period = v as Period)}
+          ariaLabel="Période d'export"
+          fullWidth
+        />
+
+        {#if period === 'custom'}
+          <div class="flex items-end gap-2 pt-1">
+            <label
+              class="flex flex-1 flex-col gap-1 text-[0.7rem] tracking-wide text-muted-foreground uppercase"
+            >
+              Du
+              <input
+                type="date"
+                bind:value={customFrom}
+                max={customTo || undefined}
+                class="h-9 w-full rounded-sm border bg-transparent px-2 text-sm normal-case"
+              />
+            </label>
+            <label
+              class="flex flex-1 flex-col gap-1 text-[0.7rem] tracking-wide text-muted-foreground uppercase"
+            >
+              Au
+              <input
+                type="date"
+                bind:value={customTo}
+                min={customFrom || undefined}
+                class="h-9 w-full rounded-sm border bg-transparent px-2 text-sm normal-case"
+              />
+            </label>
+          </div>
+          {#if customInvalid}
+            <p class="text-xs text-muted-foreground">
+              Choisissez une date de début et de fin valides.
+            </p>
+          {/if}
         {/if}
       </div>
+
+      <div class="space-y-0.5">
+        {#each rows as row (row.type)}
+          {@render downloadRow(
+            row.label,
+            countIn(selectedRange, row.type ?? undefined),
+            exportHref(
+              row.type,
+              selectedRange,
+              row.type === null && period === 'all',
+            ),
+            row.Icon,
+            customInvalid,
+          )}
+        {/each}
+      </div>
+
+      <p class="text-[0.7rem] leading-snug text-muted-foreground">
+        Archive ZIP, un dossier par type. Les PDF déjà générés sont rassemblés,
+        rien n'est régénéré.
+      </p>
     {/if}
-
-    <div class="space-y-2">
-      <span
-        class="font-mono text-[0.7rem] tracking-wider text-muted-foreground uppercase"
-      >
-        Période
-      </span>
-      <SegmentedFilter
-        options={periodOptions}
-        value={period}
-        onChange={(v) => (period = v as Period)}
-        ariaLabel="Période d'export"
-        fullWidth
-      />
-
-      {#if period === 'custom'}
-        <div class="flex items-end gap-2 pt-1">
-          <label
-            class="flex flex-1 flex-col gap-1 text-[0.7rem] tracking-wide text-muted-foreground uppercase"
-          >
-            Du
-            <input
-              type="date"
-              bind:value={customFrom}
-              max={customTo || undefined}
-              class="h-9 w-full rounded-sm border bg-transparent px-2 text-sm normal-case"
-            />
-          </label>
-          <label
-            class="flex flex-1 flex-col gap-1 text-[0.7rem] tracking-wide text-muted-foreground uppercase"
-          >
-            Au
-            <input
-              type="date"
-              bind:value={customTo}
-              min={customFrom || undefined}
-              class="h-9 w-full rounded-sm border bg-transparent px-2 text-sm normal-case"
-            />
-          </label>
-        </div>
-        {#if customInvalid}
-          <p class="text-xs text-muted-foreground">
-            Choisissez une date de début et de fin valides.
-          </p>
-        {/if}
-      {/if}
-    </div>
-
-    <div class="space-y-0.5">
-      {#each rows as row (row.type)}
-        {@render downloadRow(
-          row.label,
-          countIn(selectedRange, row.type ?? undefined),
-          exportHref(
-            row.type,
-            selectedRange,
-            row.type === null && period === 'all',
-          ),
-          row.Icon,
-          customInvalid,
-        )}
-      {/each}
-    </div>
-
-    <p class="text-[0.7rem] leading-snug text-muted-foreground">
-      Archive ZIP, un dossier par type. Les PDF déjà générés sont rassemblés,
-      rien n'est régénéré.
-    </p>
   </Popover.Content>
 </Popover.Root>

@@ -160,7 +160,8 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
  * Everything else a talent accrues after import is deleted: the XP ledger and
  * its cached projections (`xp`/`eventsCount` → 0), minigame attempts, quiz /
  * observable / competence state, steps progress, interviews (and their calendar
- * syncs), portfolio, interests, reminders, PDF jobs, broadcast-recipient rows,
+ * syncs, plus the audit trail of any admin reset), portfolio, interests,
+ * reminders, PDF jobs, broadcast-recipient rows,
  * deletion requests, every onboarding/parent/image-rights/règlement column, and
  * the generated onboarding PDFs in object storage. The login identity goes too:
  * a freshly-imported talent has no `bauth_user` (their `userId` is null until a
@@ -246,6 +247,9 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     //    slots (SetNull relations, so deleted explicitly rather than left
     //    orphaned).
     await tx.interview.deleteMany({ where: { talentId } });
+    // The reset-audit trail is talent-scoped too (talentId + a free-text reason);
+    // it must go with the interviews it traces, matching anonymizeTalent.
+    await tx.interviewReset.deleteMany({ where: { talentId } });
     await tx.stepsProgress.deleteMany({ where: { talentId } });
     await tx.portfolioItem.deleteMany({ where: { talentId } });
     await tx.talentObservableState.deleteMany({ where: { talentId } });
