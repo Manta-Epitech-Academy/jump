@@ -8,6 +8,7 @@
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import Medal from '@lucide/svelte/icons/medal';
   import BookOpen from '@lucide/svelte/icons/book-open';
+  import Award from '@lucide/svelte/icons/award';
   import Wrench from '@lucide/svelte/icons/wrench';
   import Rocket from '@lucide/svelte/icons/rocket';
   import Zap from '@lucide/svelte/icons/zap';
@@ -66,6 +67,16 @@
       bgClass: 'bg-epi-orange/10 dark:bg-epi-orange/20',
       textClass: 'text-epi-orange',
       borderClass: 'border-epi-orange/20',
+    },
+    // The label here is the generic fallback; a reward grant's real label is its
+    // resolved `rewardName` (the activity name), applied per-grant in the markup.
+    reward: {
+      label: 'Activité notée',
+      icon: Award,
+      color: 'emerald',
+      bgClass: 'bg-emerald-500/10 dark:bg-emerald-500/20',
+      textClass: 'text-emerald-500',
+      borderClass: 'border-emerald-500/20',
     },
     admin_adjustment: {
       label: 'Ajustement',
@@ -209,6 +220,7 @@
               {#each day.grants as grant, grantIndex (grant.id)}
                 {@const config = getConfig(grant.source)}
                 {@const Icon = config.icon}
+                {@const label = grant.rewardName?.trim() || config.label}
                 <div
                   class="group relative overflow-hidden rounded-2xl border {config.borderClass} bg-white p-4 shadow-sm transition-all hover:shadow-md dark:bg-slate-900"
                   in:fly={{
@@ -236,7 +248,7 @@
                         <span
                           class="text-sm font-semibold text-slate-900 dark:text-white"
                         >
-                          {config.label}
+                          {label}
                         </span>
                       </div>
                       <div
