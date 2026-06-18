@@ -8,7 +8,7 @@ import {
   type InterviewQuestion,
   type ChoiceQuestion,
 } from '$lib/domain/interview';
-import type { Prisma } from '@prisma/client';
+import type { InterviewRecommendation, Prisma } from '@prisma/client';
 
 /**
  * The exact `Interview` selection the PDF needs, defined once and shared by the
@@ -207,16 +207,33 @@ export async function generateInterviewPdf(
   });
 }
 
-/** Sanitized filename for a single interview PDF. */
+/**
+ * Filename verdict slug per recommendation, best \u2192 worst. The PDF leads with
+ * the verdict so an exported batch sorts by potential. Kept here (not the enum
+ * labels) because these are file-naming terms chosen for the export, distinct
+ * from the in-app recommendation labels. `null` recommendation \u2192 no verdict.
+ */
+const FILENAME_VERDICT: Record<InterviewRecommendation, string> = {
+  tres_compatible: 'fort_potentiel',
+  bon_profil: 'potentiel',
+  indecis: 'a_confirmer',
+  pas_interesse: 'faible_potentiel',
+};
+
+/** Sanitized filename for a single interview PDF, prefixed by the verdict. */
 export function interviewPdfFilename(interview: {
   talent: { prenom: string; nom: string };
-  conductedAt: Date;
+  recommendation: InterviewRecommendation | null;
 }): string {
-  const name = `${interview.talent.prenom}-${interview.talent.nom}`
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9-]/g, '_')
-    .toLowerCase();
-  const date = interview.conductedAt.toISOString().slice(0, 10);
-  return `entretien-${name}-${date}.pdf`;
+  const slug = (s: string) =>
+    s
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]/g, '');
+  const prenom = slug(interview.talent.prenom);
+  const nom = slug(interview.talent.nom).toUpperCase();
+  const verdict = interview.recommendation
+    ? FILENAME_VERDICT[interview.recommendation]
+    : 'sans_verdict';
+  return `${verdict}-entretien-${prenom}_${nom}.pdf`;
 }
