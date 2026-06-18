@@ -401,10 +401,13 @@ export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
     }).filter((f) => f.value);
 
     // Centres d'intérêt: Jump-only data SF now imports. Names only (emoji
-    // dropped) joined by ';' so a multi-select picklist import matches each value
-    // exactly; tech and perso stay on separate rows (distinct SF fields). Only
-    // listed once the talent has confirmed the interests section, so an
-    // in-progress onboarding never leaks half-picked interests into the export.
+    // dropped) joined by ';' so a multi-select picklist import matches each
+    // value exactly; tech and perso stay on separate rows (distinct SF fields),
+    // and the free-text "Autres" rides the same gate. All three are gated on a
+    // confirmed interests section, never on the data's mere presence: a goBack
+    // from a later step clears the confirmation flags but keeps the structured
+    // picks and the free text as form prefill, so gating on presence would leak
+    // a half-confirmed, in-progress onboarding into the export.
     if (t.techInterestsValidatedAt || t.generalInterestsValidatedAt) {
       const joinKind = (tech: boolean) =>
         t.interests
@@ -418,10 +421,10 @@ export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
       if (tech) fields.push({ label: "Centres d'intérêt — Tech", value: tech });
       if (perso)
         fields.push({ label: "Centres d'intérêt — Perso", value: perso });
+      const freeText = (t.interestsFreeText ?? '').trim();
+      if (freeText)
+        fields.push({ label: "Centres d'intérêt — Autres", value: freeText });
     }
-    const freeText = (t.interestsFreeText ?? '').trim();
-    if (freeText)
-      fields.push({ label: "Centres d'intérêt — Autres", value: freeText });
 
     if (fields.length > 0) {
       out.push({
