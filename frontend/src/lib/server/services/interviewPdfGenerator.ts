@@ -51,7 +51,7 @@ export const interviewPdfSelect = {
   satisfactionNote: true,
   nextYearEventsNote: true,
   // Relations.
-  talent: { select: { prenom: true, nom: true } },
+  talent: { select: { prenom: true, nom: true, externalId: true } },
   staff: { select: { user: { select: { name: true } } } },
   campus: { select: { name: true } },
   participation: { select: { event: { select: { titre: true } } } },
@@ -241,9 +241,10 @@ const FILENAME_VERDICT: Record<InterviewRecommendation, string> = {
   pas_interesse: 'faible_potentiel',
 };
 
-/** Sanitized filename for a single interview PDF, prefixed by the verdict. */
+/** Sanitized filename for a single interview PDF, prefixed by the verdict and
+ *  suffixed by the talent's Salesforce externalId (omitted when unsynced). */
 export function interviewPdfFilename(interview: {
-  talent: { prenom: string; nom: string };
+  talent: { prenom: string; nom: string; externalId: string | null };
   recommendation: InterviewRecommendation | null;
 }): string {
   const slug = (s: string) =>
@@ -256,5 +257,7 @@ export function interviewPdfFilename(interview: {
   const verdict = interview.recommendation
     ? FILENAME_VERDICT[interview.recommendation]
     : 'sans_verdict';
-  return `${verdict}-entretien-${prenom}_${nom}.pdf`;
+  const externalId = slug(interview.talent.externalId ?? '');
+  const suffix = externalId ? `-${externalId}` : '';
+  return `${verdict}-entretien-${prenom}_${nom}${suffix}.pdf`;
 }
