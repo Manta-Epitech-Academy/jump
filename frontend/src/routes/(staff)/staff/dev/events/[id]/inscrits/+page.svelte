@@ -68,7 +68,11 @@
         /\/inscrits\/?$/,
         '/badges.pdf',
       );
-      const res = await fetch(`${endpoint}?mode=${mode}`);
+      // Same cache-busting as the diplomas export below: `&t=` defeats
+      // Cloudflare's cache-by-extension on `.pdf`, `no-store` the browser cache.
+      const res = await fetch(`${endpoint}?mode=${mode}&t=${Date.now()}`, {
+        cache: 'no-store',
+      });
       if (!res.ok) throw new Error(`Badges failed: ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -118,7 +122,14 @@
         /\/inscrits\/?$/,
         '/diplomes.pdf',
       );
-      const res = await fetch(endpoint);
+      // Unique query param + no-store: the PDF is regenerated from live DB
+      // (signatory role/image can change), so it must never be served from a
+      // cache. `?t=` gives every request a fresh key so Cloudflare's
+      // cache-by-extension on `.pdf` can't return a stale edge copy; `no-store`
+      // bypasses the browser's own HTTP cache.
+      const res = await fetch(`${endpoint}?t=${Date.now()}`, {
+        cache: 'no-store',
+      });
       if (!res.ok) throw new Error(`Diplomas failed: ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
