@@ -5,61 +5,69 @@
   import { base } from '$app/paths';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import type { SerializedNote } from '$lib/domain/talentNotes';
 
-  // Reusable staff-only note editor. Posts to the shared talent-note endpoint,
-  // used both inline on the talent fiche and inside the émargement modal.
-  // Optimistic concurrency: tracks the content it loaded (`baseContent`) and, on
-  // a 409, surfaces the concurrent version instead of clobbering it.
+  // Composer for a single staff note — create (note=null) or edit an existing
+  // one. Shared by the fiche feed and the émargement dialog. Editing uses
+  // per-note optimistic concurrency: it posts the `updatedAt` it loaded and, on a
+  // 409, surfaces the concurrent version instead of clobbering it.
   let {
     talentId,
     note = null,
+    eventId = null,
     onSaved,
     onCancel,
   }: {
     talentId: string;
-    note?: string | null;
-    onSaved?: (note: string | null) => void;
-    // When provided, renders an "Annuler" button next to Enregistrer. The inline
-    // fiche passes this to drop back to its read view; the émargement modal omits
-    // it and leans on the dialog's own close instead.
+    note?: SerializedNote | null;
+    // Optional context anchor for a NEW note (émargement passes the current
+    // event); ignored when editing.
+    eventId?: string | null;
+    onSaved?: (note: SerializedNote) => void;
     onCancel?: () => void;
   } = $props();
 
-  // Seed the edit buffer once from the loaded note: the editor owns `value` and
-  // `baseContent` after mount (it remounts per talent and per dialog open), so
-  // capturing only the initial prop value is intentional, not a missed reaction.
+  // Seed the edit buffer once from the loaded note: the editor owns its state
+  // after mount (it remounts per note and per dialog open), so capturing only the
+  // initial prop values is intentional, not a missed reaction.
   // svelte-ignore state_referenced_locally
-  let value = $state(note ?? '');
+  let value = $state(note?.body ?? '');
   // svelte-ignore state_referenced_locally
-  let baseContent = $state(note ?? '');
+  let baseUpdatedAt = $state(note?.updatedAt ?? null);
   let saving = $state(false);
-  let conflict = $state<{ current: string | null } | null>(null);
+  let conflict = $state<SerializedNote | null>(null);
 
-  const dirty = $derived(value.trim() !== baseContent);
+  const isEdit = $derived(note !== null);
+  const dirty = $derived(
+    value.trim().length > 0 && value.trim() !== (note?.body ?? ''),
+  );
 
   async function save(force = false) {
-    if (saving) return;
+    if (saving || !value.trim()) return;
     saving = true;
     try {
-      const body = new FormData();
-      body.set('content', value);
-      body.set('baseContent', force ? (conflict?.current ?? '') : baseContent);
-      const res = await fetch(`${base}/staff/dev/students/${talentId}/note`, {
-        method: 'POST',
-        body,
+      const url = isEdit
+        ? `${base}/staff/dev/students/${talentId}/notes/${note!.id}`
+        : `${base}/staff/dev/students/${talentId}/notes`;
+      const payload = isEdit
+        ? {
+            body: value,
+            baseUpdatedAt: force ? conflict!.updatedAt : baseUpdatedAt,
+          }
+        : { body: value, eventId: eventId ?? undefined };
+      const res = await fetch(url, {
+        method: isEdit ? 'PATCH' : 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
       });
       if (res.status === 409) {
-        const data = await res.json();
-        conflict = { current: data.current ?? null };
+        conflict = (await res.json()).current as SerializedNote;
         return;
       }
       if (!res.ok) throw new Error(String(res.status));
-      const data = await res.json();
-      const saved = (data.note ?? '') as string;
-      value = saved;
-      baseContent = saved;
+      const saved = (await res.json()).note as SerializedNote;
       conflict = null;
-      onSaved?.(data.note ?? null);
+      onSaved?.(saved);
       toast.success('Note enregistrée.');
     } catch (e) {
       console.error('save talent note', e);
@@ -70,8 +78,9 @@
   }
 
   function takeCurrent() {
-    value = conflict?.current ?? '';
-    baseContent = conflict?.current ?? '';
+    if (!conflict) return;
+    value = conflict.body;
+    baseUpdatedAt = conflict.updatedAt;
     conflict = null;
   }
 </script>
@@ -79,11 +88,11 @@
 <div class="space-y-2">
   <Textarea
     bind:value
-    rows={6}
+    rows={5}
     disabled={saving}
     maxlength={5000}
-    placeholder="Discipline, administratif, retard…"
-    class="min-h-28 resize-y"
+    placeholder="Retard, posture, administratif…"
+    class="min-h-24 resize-y"
     aria-invalid={conflict ? true : undefined}
   />
 
@@ -97,9 +106,7 @@
       </p>
       <div class="rounded border bg-background p-2 text-muted-foreground">
         <p class="mb-1 text-xs font-semibold uppercase">Version actuelle</p>
-        <p class="whitespace-pre-wrap">
-          {conflict.current || '(note vidée)'}
-        </p>
+        <p class="whitespace-pre-wrap">{conflict.body}</p>
       </div>
       <div class="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" onclick={takeCurrent}>
@@ -117,24 +124,23 @@
     </div>
   {/if}
 
-  <div class="flex items-center justify-between gap-2">
-    <p class="text-xs text-muted-foreground">
-      Visible uniquement par le staff.
-    </p>
-    <div class="flex items-center gap-2">
-      {#if onCancel}
-        <Button size="sm" variant="ghost" onclick={onCancel} disabled={saving}>
-          Annuler
-        </Button>
-      {/if}
-      <Button size="sm" onclick={() => save()} disabled={saving || !dirty}>
-        {#if saving}
-          <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
-          Enregistrement…
-        {:else}
-          Enregistrer
-        {/if}
+  <div class="flex items-center justify-end gap-2">
+    {#if onCancel}
+      <Button size="sm" variant="ghost" onclick={onCancel} disabled={saving}>
+        Annuler
       </Button>
-    </div>
+    {/if}
+    <Button
+      size="sm"
+      onclick={() => save()}
+      disabled={saving || (isEdit ? !dirty : !value.trim())}
+    >
+      {#if saving}
+        <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+        Enregistrement…
+      {:else}
+        {isEdit ? 'Enregistrer' : 'Ajouter'}
+      {/if}
+    </Button>
   </div>
 </div>

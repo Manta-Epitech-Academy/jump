@@ -1,11 +1,25 @@
 import { z } from 'zod';
 
-// Staff-only free-text note on a Talent. `baseContent` carries the note as the
-// editor loaded it, used for optimistic concurrency (compare-and-set) so a
-// concurrent edit can't be silently overwritten.
-export const talentNoteSchema = z.object({
-  content: z.string().trim().max(5000, 'Maximum 5000 caractères'),
-  baseContent: z.string().max(5000).default(''),
+const noteBody = z
+  .string()
+  .trim()
+  .min(1, 'La note est vide')
+  .max(5000, 'Maximum 5000 caractères');
+
+/** Create a new note on a talent. `eventId` anchors the émargement context. */
+export const noteCreateSchema = z.object({
+  body: noteBody,
+  eventId: z.string().optional(),
 });
 
-export type TalentNoteForm = z.infer<typeof talentNoteSchema>;
+/**
+ * Edit an existing note. `baseUpdatedAt` is the `updatedAt` the editor loaded
+ * (ISO), used for the per-note optimistic compare-and-set.
+ */
+export const noteUpdateSchema = z.object({
+  body: noteBody,
+  baseUpdatedAt: z.string().min(1),
+});
+
+export type NoteCreateInput = z.infer<typeof noteCreateSchema>;
+export type NoteUpdateInput = z.infer<typeof noteUpdateSchema>;

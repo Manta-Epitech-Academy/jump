@@ -178,6 +178,7 @@
       {isActiveClosed}
       {isActivePastCutoff}
       {canEdit}
+      eventId={data.event.id}
       bind:activeSlotKey
       bind:dialogOpen={rosterDialogOpen}
     />

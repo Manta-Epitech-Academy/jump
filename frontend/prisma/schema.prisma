@@ -278,6 +278,8 @@ model StaffProfile {
   presenceClosuresMade    EventPresenceClosure[]
   imageRightsCorrections  ImageRightsDecisionRecord[]
   interviewResets         InterviewReset[]            @relation("InterviewResetBy")
+  notesAuthored           Note_TalentNote[]           @relation("Note_TalentNoteAuthor")
+  notesEdited             Note_TalentNote[]           @relation("Note_TalentNoteEditor")
 
   @@index([campusId])
 }
@@ -303,10 +305,6 @@ model Talent {
   nom                         String
   prenom                      String
   niveau                      String?
-  // Free-text staff-only note (discipline, administratif, retard, …). Edited
-  // from the dev talent fiche and émargement. NEVER exposed to the talent
-  // portal — the (talent) loads that return locals.talent strip this field.
-  note                        String?
   xp                          Int                  @default(0)
   eventsCount                 Int                  @default(0)
   charterAcceptedAt           DateTime?
@@ -403,6 +401,7 @@ model Talent {
   eventPresences     EventPresence[]
   imageRightsRecords ImageRightsDecisionRecord[]
   interviewResets    InterviewReset[]
+  notes              Note_TalentNote[]
 
   @@index([xp])
   @@index([schoolId])
@@ -543,6 +542,38 @@ model TalentDeletionRequest {
 
   @@index([status, requestedAt])
   @@index([talentId])
+}
+
+/// One staff note about a talent. Replaces the single free-text `Talent.note`
+/// column with a 1:N feed: many notes per talent, each authored and timestamped
+/// (created + last-edited). Mutable in place — editing fixes the document, hence
+/// `updatedAt`, NOT an append-only ledger (nothing aggregates from it, so the
+/// facts-as-rows shape — XpGrant, ImageRightsDecisionRecord — would be over-built
+/// here). Any dev member can edit/delete any note (small internal team; the
+/// predecessor was a single shared note anyone could overwrite). Staff-only;
+/// NEVER loaded in a talent request. Optional `eventId` anchors the screen the
+/// note was taken on (émargement prefills it); null for a general fiche note.
+model Note_TalentNote {
+  id         String   @id @default(cuid())
+  talentId   String
+  // Author + last editor as FKs (rendered "écrit par / modifié par" in the feed).
+  // SetNull so a staff departure never deletes a talent's note history.
+  authorId   String?
+  editedById String?
+  body       String
+  // Optional origin anchor. SetNull: deleting the event drops the context, the
+  // note about the talent survives.
+  eventId    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  talent   Talent        @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  author   StaffProfile? @relation("Note_TalentNoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  editedBy StaffProfile? @relation("Note_TalentNoteEditor", fields: [editedById], references: [id], onDelete: SetNull)
+  event    Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([talentId, createdAt])
+  @@index([eventId])
 }
 
 // ─── Domain Tables ───
@@ -733,6 +764,7 @@ model Event {
   minigameAttempts MinigameAttempt[]
   presenceClosures EventPresenceClosure[]
   eventPresences   EventPresence[]
+  talentNotes      Note_TalentNote[]
 
   @@index([campusId])
 }

@@ -17,7 +17,7 @@
   import RightRailCard from './components/RightRailCard.svelte';
   import InterviewFlow from '$lib/components/dev/interviews/InterviewFlow.svelte';
   import InterviewSectionNav from '$lib/components/dev/interviews/InterviewSectionNav.svelte';
-  import TalentNotePanel from '$lib/components/dev/notes/TalentNotePanel.svelte';
+  import TalentNotesFeed from '$lib/components/dev/notes/TalentNotesFeed.svelte';
   import type { InterviewStatus } from '@prisma/client';
 
   import type { FlagKey } from '$lib/domain/featureFlags';
@@ -309,18 +309,15 @@
             timezone={data.timezone}
           />
 
-          <!-- Staff note last: the Synthèse above is the at-a-glance dossier status
-               staff scan on every visit, the note is an annotation layer. Same
-               EpiSection chrome as the Synthèse so the rail reads as one charte-
-               styled column. Neutral accent: a free-text note carries no brand
-               vector. Read-first (TalentNotePanel) since it is read far more than
-               edited; the editor only mounts on demand. Hidden in interview mode
-               so nothing competes with the focused question rail. -->
+          <!-- Staff notes last: the Synthèse above is the at-a-glance dossier
+               status staff scan on every visit, the notes are an annotation
+               layer. Same EpiSection chrome as the Synthèse so the rail reads as
+               one charte-styled column. Neutral accent: free-text notes carry no
+               brand vector. A feed of many notes (pedago + administratif), each
+               authored and timestamped. Hidden in interview mode so nothing
+               competes with the focused question rail. -->
           <EpiSection title="Notes" accent="neutral">
-            <TalentNotePanel
-              talentId={data.student.id}
-              note={data.student.note}
-            />
+            <TalentNotesFeed talentId={data.student.id} notes={data.notes} />
           </EpiSection>
         {/if}
       </div>

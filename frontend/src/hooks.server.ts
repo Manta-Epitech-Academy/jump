@@ -114,11 +114,11 @@ export const handle: Handle = async ({ event, resolve }) => {
         name: true,
         image: true,
         staffProfile: { include: { campus: true } },
-        // Omit the staff-only `note`: `locals.talent` is the talent's view of
-        // themselves and gets serialized to their browser via the root layout.
-        // Keeping it off the session object makes the leak structurally
-        // impossible rather than relying on every talent load to strip it.
-        talent: { omit: { note: true } },
+        // Staff notes about a talent live in their own table (`Note_TalentNote`),
+        // never on the Talent row, so there is nothing staff-only to strip from
+        // `locals.talent` here — the leak the old `note` column had to omit is
+        // structurally gone.
+        talent: true,
       },
     });
 

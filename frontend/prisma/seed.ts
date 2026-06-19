@@ -3368,6 +3368,54 @@ const PORTFOLIO: {
 
 // ─── Main ───
 
+/**
+ * A few staff notes across several authors — including one edited by a different
+ * staff member than its author — so the fiche feed, the émargement note count and
+ * the admin gallery all have multi-note, multi-author data to render. Author ids
+ * are StaffProfile ids (note `authorId` / `editedById`).
+ */
+async function seedTalentNotes(
+  staffByKey: Record<string, { id: string }>,
+  talentByEmail: Record<string, { id: string }>,
+): Promise<number> {
+  const author1 = staffByKey['pauline.marchand']?.id;
+  const author2 = staffByKey['marie.manta']?.id;
+  const talents = Object.values(talentByEmail);
+  if (!author1 || !author2 || talents.length < 3) return 0;
+
+  const data = [
+    {
+      talentId: talents[0].id,
+      authorId: author1,
+      body: 'Très moteur en groupe, tire les autres vers le haut.',
+    },
+    {
+      talentId: talents[0].id,
+      authorId: author2,
+      body: 'Arrivé avec 15 min de retard le premier matin.',
+    },
+    {
+      talentId: talents[1].id,
+      authorId: author2,
+      body: 'À recontacter après le stage pour la suite.',
+    },
+    {
+      talentId: talents[1].id,
+      authorId: author1,
+      editedById: author2,
+      body: 'Profil très curieux, pose beaucoup de questions techniques.',
+    },
+    {
+      talentId: talents[2].id,
+      authorId: author1,
+      body: 'Décharge image manquante, à relancer côté parents.',
+    },
+  ];
+
+  await prisma.note_TalentNote.createMany({ data });
+  return data.length;
+}
+
 async function main() {
   console.log('⟳  Wiping existing data…');
   await wipeAll();
@@ -3479,6 +3527,10 @@ async function main() {
   );
   console.log(`✓  Broadcasts (${broadcastRecipientCount} recipient rows)`);
 
+  // 12c. Staff notes on talents (multi-note feed)
+  const talentNoteCount = await seedTalentNotes(staffByKey, talentByEmail);
+  console.log(`✓  Notes talent (${talentNoteCount})`);
+
   // 13. CMS welcome pages for stage_seconde events
   await seedWelcomePages(eventIds, staffByKey);
   console.log('✓  CMS welcome pages');
@@ -3531,6 +3583,7 @@ async function wipeAll() {
     prisma.portfolioItem.deleteMany(),
     prisma.stepsProgress.deleteMany(),
     prisma.onboardingReminder.deleteMany(),
+    prisma.note_TalentNote.deleteMany(),
     // Broadcasts + email-action mappings — dropped before staff so the
     // `MessageTemplate.createdById` FK doesn't block.
     prisma.emailActionMapping.deleteMany(),

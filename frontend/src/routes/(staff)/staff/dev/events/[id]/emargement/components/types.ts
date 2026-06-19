@@ -17,7 +17,9 @@ export const PRESENCE_ROSTER_SELECT = {
       civilite: true,
       email: true,
       phone: true,
-      note: true,
+      // Just the count, not the bodies: the roster is ~200 rows and the notes
+      // feed is lazy-loaded by the dialog. The count drives the icon tint.
+      _count: { select: { notes: true } },
       user: { select: { email: true } },
       parentCivilite: true,
       parentPrenom: true,
@@ -49,8 +51,9 @@ export type PresenceRow = {
   civilite: string | null;
   email: string | null;
   phone: string | null;
-  /** Staff-only free-text note (`Talent.note`); null when none. */
-  note: string | null;
+  /** Count of staff notes on this talent; drives the note-icon tint. The note
+   *  bodies are lazy-loaded by the dialog, not carried in the roster. */
+  noteCount: number;
   /** Up to two guardians, in priority order; empty when none are on file. */
   guardians: Guardian[];
 };

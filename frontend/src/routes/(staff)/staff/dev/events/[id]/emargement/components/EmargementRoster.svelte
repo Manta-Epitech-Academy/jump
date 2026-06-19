@@ -57,6 +57,7 @@
     isActiveClosed,
     isActivePastCutoff,
     canEdit,
+    eventId,
     activeSlotKey = $bindable(),
     dialogOpen = $bindable(false),
   }: EmargementCohort & {
@@ -65,6 +66,8 @@
     isActiveClosed: boolean;
     isActivePastCutoff: boolean;
     canEdit: boolean;
+    /** Anchors notes created from this screen to the event (see NotesDialog). */
+    eventId: string;
     activeSlotKey: string;
     dialogOpen?: boolean;
   } = $props();
@@ -211,23 +214,21 @@
     contactOpen = true;
   }
 
-  // Reactive note overrides (mirrors the presence `overrides` map): a save paints
-  // the new note locally so the row icon highlight and the next modal open use it
-  // without a full page reload.
-  const noteOverrides = new SvelteMap<string, string | null>();
-  function rowNote(row: PresenceRow): string | null {
-    return noteOverrides.has(row.talentId)
-      ? (noteOverrides.get(row.talentId) ?? null)
-      : row.note;
+  // Reactive note-count overrides (mirrors the presence `overrides` map): the
+  // dialog reports the new count after a create/delete so the row icon tint
+  // updates without a full page reload. The bodies live in the dialog, not here.
+  const noteCounts = new SvelteMap<string, number>();
+  function rowNoteCount(row: PresenceRow): number {
+    return noteCounts.get(row.talentId) ?? row.noteCount;
   }
 
   function openNotes(row: PresenceRow) {
-    notesTarget = { ...row, note: rowNote(row) };
+    notesTarget = row;
     notesOpen = true;
   }
 
-  function onNoteSaved(talentId: string, note: string | null) {
-    noteOverrides.set(talentId, note);
+  function onNoteCountChange(talentId: string, count: number) {
+    noteCounts.set(talentId, count);
   }
 
   // The talent fiche opens in a new tab on purpose: staff stay anchored in the
@@ -373,36 +374,41 @@
                 onset={(s) => setStatus(r, s)}
               />
             </Table.Cell>
-            <!-- Notes icon, always present (every talent can have a note);
-                 tinted epi-blue when a note exists so noted talents stand out. -->
+            <!-- Notes icon, always present (every talent can have notes). Quiet
+                 at rest like the contact icon beside it (brightens on row
+                 hover/focus); a small count badge — not a permanently flooded
+                 blue icon — marks how many notes exist, so noted talents stand
+                 out and 1 note reads differently from 5. The count, not the
+                 bodies, lives on the roster. -->
             <Table.Cell class="text-right">
-              {@const note = rowNote(r)?.trim()}
+              {@const count = rowNoteCount(r)}
               <Tooltip.Root>
                 <Tooltip.Trigger>
                   {#snippet child({ props })}
-                    <Button
-                      {...props}
-                      variant="ghost"
-                      size="icon"
-                      class={`h-8 w-8 rounded-sm transition-colors hover:bg-epi-blue/10 hover:text-epi-blue ${note ? 'text-epi-blue' : 'text-muted-foreground/40 group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground'}`}
-                      onclick={() => openNotes(r)}
-                      aria-label={`Notes de ${r.prenom} ${r.nom}`}
-                    >
-                      <NotebookPen class="h-4 w-4" />
-                    </Button>
+                    <div class="relative inline-flex">
+                      <Button
+                        {...props}
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 rounded-sm text-muted-foreground/40 transition-colors group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
+                        onclick={() => openNotes(r)}
+                        aria-label={`Notes de ${r.prenom} ${r.nom}`}
+                      >
+                        <NotebookPen class="h-4 w-4" />
+                      </Button>
+                      {#if count > 0}
+                        <span
+                          class="pointer-events-none absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-epi-blue px-1 text-[10px] leading-none font-semibold text-white tabular-nums"
+                        >
+                          {count}
+                        </span>
+                      {/if}
+                    </div>
                   {/snippet}
                 </Tooltip.Trigger>
-                <!-- When a note exists, surface its text on hover so staff can
-                     read it without opening the modal; clamp long notes and
-                     point to the click for the full editor. Empty: the CTA. -->
                 <Tooltip.Content class="max-w-72">
-                  {#if note}
-                    <p class="line-clamp-6 text-left whitespace-pre-wrap">
-                      {note}
-                    </p>
-                    <p class="mt-1 text-left text-background/60">
-                      Cliquer pour éditer
-                    </p>
+                  {#if count > 0}
+                    {count} note{count > 1 ? 's' : ''} · cliquer pour voir
                   {:else}
                     Ajouter une note
                   {/if}
@@ -466,15 +472,24 @@
                   <span class="font-medium">{r.prenom}</span>
                   <span class="font-bold uppercase">{r.nom}</span>
                 </p>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class={`h-8 w-8 shrink-0 rounded-sm hover:bg-epi-blue/10 hover:text-epi-blue ${rowNote(r)?.trim() ? 'text-epi-blue' : 'text-muted-foreground'}`}
-                  onclick={() => openNotes(r)}
-                  aria-label={`Notes de ${r.prenom} ${r.nom}`}
-                >
-                  <NotebookPen class="h-4 w-4" />
-                </Button>
+                <div class="relative inline-flex shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
+                    onclick={() => openNotes(r)}
+                    aria-label={`Notes de ${r.prenom} ${r.nom}`}
+                  >
+                    <NotebookPen class="h-4 w-4" />
+                  </Button>
+                  {#if rowNoteCount(r) > 0}
+                    <span
+                      class="pointer-events-none absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-epi-blue px-1 text-[10px] leading-none font-semibold text-white tabular-nums"
+                    >
+                      {rowNoteCount(r)}
+                    </span>
+                  {/if}
+                </div>
                 {#if r.phone || r.email || r.guardians.length}
                   <Button
                     variant="ghost"
@@ -647,7 +662,12 @@
 <!-- Contact card: phones to reach the stagiaire, then the family if no answer -->
 <ContactDialog bind:open={contactOpen} row={contactTarget} />
 
-<NotesDialog bind:open={notesOpen} row={notesTarget} onsaved={onNoteSaved} />
+<NotesDialog
+  bind:open={notesOpen}
+  row={notesTarget}
+  {eventId}
+  onCountChange={onNoteCountChange}
+/>
 
 <!-- Mark-all-present confirmation -->
 <Dialog.Root bind:open={presentConfirmOpen}>

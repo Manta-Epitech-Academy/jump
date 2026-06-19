@@ -154,6 +154,8 @@ export async function anonymizeTalent(
   //      - talentSfImport / talentInterest / imageRightsDecisionRecord: the SF
   //        mirror, interest selections, and the image-rights ledger (the ledger
   //        embeds the guardian's typed signer name).
+  //      - note_TalentNote: staff notes about the minor (pedago + administratif
+  //        free text). The whole feed is removed on erasure.
   //      - interview / interviewReset: the synthesis row holds free-text staff
   //        observations about the minor; both existing wipe paths already
   //        hard-delete it. InterviewReset is a reset's audit trace + reason.
@@ -168,6 +170,7 @@ export async function anonymizeTalent(
   await tx.talentSfImport.deleteMany({ where: { talentId } });
   await tx.talentInterest.deleteMany({ where: { talentId } });
   await tx.imageRightsDecisionRecord.deleteMany({ where: { talentId } });
+  await tx.note_TalentNote.deleteMany({ where: { talentId } });
   await tx.interview.deleteMany({ where: { talentId } });
   await tx.interviewReset.deleteMany({ where: { talentId } });
   await tx.portfolioItem.deleteMany({ where: { talentId } });
