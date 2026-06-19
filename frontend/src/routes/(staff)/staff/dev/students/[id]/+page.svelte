@@ -38,7 +38,11 @@
   const codingClubHistory = $derived(
     data.participations
       .filter(
-        (p) => p.event.eventType === EVENT_TYPES.CODING_CLUB && p.isPresent,
+        (p) =>
+          p.event.eventType === EVENT_TYPES.CODING_CLUB &&
+          p.isPresent &&
+          new Date(p.event.date).setHours(0, 0, 0, 0) <=
+            new Date().setHours(23, 59, 59, 999),
       )
       .sort(
         (a, b) =>

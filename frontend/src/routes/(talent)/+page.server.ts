@@ -200,7 +200,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
           where: {
             talentId: studentId,
             isPresent: true,
-            event: { eventType: 'coding_club', date: { lt: startOfDay } },
+            event: { eventType: 'coding_club', date: { lte: filterDateEnd } },
           },
           select: {
             id: true,

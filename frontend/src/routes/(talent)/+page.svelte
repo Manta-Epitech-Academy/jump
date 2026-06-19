@@ -507,14 +507,14 @@
               <h2
                 class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
               >
-                Événements passés<span class="text-epi-teal">_</span>
+                Coding Club passés<span class="text-epi-teal">_</span>
               </h2>
             </div>
 
-            <div class="space-y-1 p-4">
+            <div class="space-y-1 px-6 pt-4 pb-2">
               {#each data.pastCodingClubs as p (p.id)}
                 <div class="flex items-center gap-3 rounded-xl px-2 py-1.5">
-                  <span class="shrink-0 font-mono text-xs text-slate-400">
+                  <span class="shrink-0 text-xs text-slate-400">
                     {new Date(p.event.date).toLocaleDateString('fr-FR', {
                       day: 'numeric',
                       month: 'short',
@@ -529,13 +529,18 @@
               {/each}
             </div>
 
-            <a
-              href={resolve('/events')}
-              class="flex items-center justify-center gap-1.5 border-t border-slate-100 px-6 py-3 text-sm font-semibold text-epi-blue transition-colors hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
-            >
-              Voir tout
-              <ArrowRight class="h-4 w-4" />
-            </a>
+            <div class="flex justify-center pb-4">
+              <a
+                href={resolve('/events')}
+                class="group inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-400 transition-all hover:bg-epi-blue/10 hover:text-epi-blue dark:bg-slate-800 dark:hover:bg-epi-blue/20"
+              >
+                <CalendarCheck class="h-3 w-3" />
+                Voir tout
+                <ArrowRight
+                  class="h-3 w-3 transition-transform group-hover:translate-x-0.5"
+                />
+              </a>
+            </div>
           </div>
         {/if}
       </div>
