@@ -7,12 +7,15 @@ import type { Prisma } from '@prisma/client';
 
 export const PER_PAGE = 50;
 
+export type NoteSortKey = 'date' | 'talent';
+
 export type NoteFilters = {
   q: string;
   campusIds: string[];
   /** A StaffProfile id, or '' for all authors. */
   author: string;
-  /** Sort on createdAt: newest (`desc`, default) or oldest (`asc`). */
+  /** Sortable column (header click); defaults to creation date. */
+  sort: NoteSortKey;
   dir: 'asc' | 'desc';
   page: number;
 };
@@ -26,6 +29,7 @@ export function parseNoteFilters(sp: URLSearchParams): NoteFilters {
     q: (sp.get('q') ?? '').trim(),
     campusIds,
     author: sp.get('author') ?? '',
+    sort: sp.get('sort') === 'talent' ? 'talent' : 'date',
     dir: sp.get('dir') === 'asc' ? 'asc' : 'desc',
     page: Math.max(1, Number(sp.get('page') ?? '1') || 1),
   };
@@ -71,9 +75,17 @@ export function buildNoteWhere(
 }
 
 export function buildNoteOrderBy(
+  sort: NoteSortKey,
   dir: 'asc' | 'desc',
 ): Prisma.Note_TalentNoteOrderByWithRelationInput[] {
-  // `id` tiebreaker keeps pagination stable when many notes share a timestamp.
+  // `id` tiebreaker keeps pagination stable when many notes share a sort key.
+  if (sort === 'talent') {
+    return [
+      { talent: { nom: dir } },
+      { talent: { prenom: dir } },
+      { id: 'desc' },
+    ];
+  }
   return [{ createdAt: dir }, { id: 'desc' }];
 }
 

@@ -17,7 +17,7 @@ import {
 export const load: PageServerLoad = async ({ url }) => {
   const filters = parseNoteFilters(url.searchParams);
   const where = buildNoteWhere(filters);
-  const orderBy = buildNoteOrderBy(filters.dir);
+  const orderBy = buildNoteOrderBy(filters.sort, filters.dir);
 
   // Un-awaited on purpose: the page shell + toolbar paint immediately while the
   // row page, the total count, and the filter option lists resolve behind the
@@ -64,12 +64,11 @@ export const actions: Actions = {
   // doesn't surface staff notes, so this is the global steward's one path to pull
   // an inappropriate note about a minor. The route is already admin-gated by
   // hooks; the role check is defensive.
-  delete: async ({ request, locals }) => {
+  delete: async ({ url, locals }) => {
     if (locals.staffProfile?.staffRole !== 'admin') {
       return fail(403, { message: 'Action réservée aux admins.' });
     }
-    const form = await request.formData();
-    const noteId = String(form.get('noteId') ?? '');
+    const noteId = url.searchParams.get('id') ?? '';
     if (!noteId) return fail(400, { message: 'Note manquante.' });
     try {
       await prisma.note_TalentNote.delete({ where: { id: noteId } });

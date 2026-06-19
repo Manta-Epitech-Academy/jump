@@ -17,8 +17,6 @@
     onDelete: () => void;
   } = $props();
 
-  let confirming = $state(false);
-
   const fmt = new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
     month: 'short',
@@ -51,7 +49,7 @@
         size="icon"
         variant="ghost"
         class="h-7 w-7 rounded-sm text-muted-foreground hover:text-destructive"
-        onclick={() => (confirming = true)}
+        onclick={onDelete}
         aria-label="Supprimer la note"
       >
         <Trash2 class="h-3.5 w-3.5" />
@@ -88,34 +86,4 @@
       {/if}
     </span>
   </div>
-
-  {#if confirming}
-    <div
-      class="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-sm border border-destructive/30 bg-destructive/5 px-2.5 py-2 text-xs"
-    >
-      <span class="text-destructive">Supprimer cette note définitivement ?</span
-      >
-      <div class="flex gap-1.5">
-        <Button
-          size="sm"
-          variant="ghost"
-          class="h-7"
-          onclick={() => (confirming = false)}
-        >
-          Annuler
-        </Button>
-        <Button
-          size="sm"
-          variant="destructive"
-          class="h-7"
-          onclick={() => {
-            confirming = false;
-            onDelete();
-          }}
-        >
-          Supprimer
-        </Button>
-      </div>
-    </div>
-  {/if}
 </div>

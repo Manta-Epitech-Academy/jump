@@ -1,6 +1,7 @@
 <script lang="ts">
   import Plus from '@lucide/svelte/icons/plus';
-  import { Button } from '$lib/components/ui/button';
+  import { Button, buttonVariants } from '$lib/components/ui/button';
+  import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { toast } from 'svelte-sonner';
   import { base } from '$app/paths';
   import type { SerializedNote } from '$lib/domain/talentNotes';
@@ -32,6 +33,8 @@
   let items = $state<SerializedNote[]>([...notes]);
   let composing = $state(false);
   let editingId = $state<string | null>(null);
+  let deleteOpen = $state(false);
+  let deleteTarget = $state<SerializedNote | null>(null);
 
   async function deleteNote(note: SerializedNote) {
     try {
@@ -101,10 +104,37 @@
           <TalentNoteCard
             {note}
             onEdit={() => (editingId = note.id)}
-            onDelete={() => deleteNote(note)}
+            onDelete={() => {
+              deleteTarget = note;
+              deleteOpen = true;
+            }}
           />
         {/if}
       {/each}
     </div>
   {/if}
 </div>
+
+<AlertDialog.Root bind:open={deleteOpen}>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title class="font-heading text-xl tracking-tight uppercase">
+        Supprimer la note ?
+      </AlertDialog.Title>
+      <AlertDialog.Description>
+        Cette note sera définitivement supprimée. Cette action est irréversible.
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
+      <AlertDialog.Action
+        class={buttonVariants({ variant: 'destructive' })}
+        onclick={() => {
+          if (deleteTarget) deleteNote(deleteTarget);
+        }}
+      >
+        Supprimer
+      </AlertDialog.Action>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>
