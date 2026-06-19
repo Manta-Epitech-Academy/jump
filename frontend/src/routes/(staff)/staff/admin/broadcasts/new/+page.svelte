@@ -8,7 +8,6 @@
   import { Input } from '$lib/components/ui/input';
   import PhoneInput from '$lib/components/ui/phone-input/PhoneInput.svelte';
   import { Label } from '$lib/components/ui/label';
-  import * as Select from '$lib/components/ui/select';
   import * as RadioGroup from '$lib/components/ui/radio-group';
   import * as Collapsible from '$lib/components/ui/collapsible';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -17,6 +16,9 @@
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
   import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
+  import SearchableSelect, {
+    type SelectOption,
+  } from '$lib/components/staff/SearchableSelect.svelte';
   import MessageBodyEditor from '$lib/components/admin/broadcasts/MessageBodyEditor.svelte';
   import MessagePreview from '$lib/components/admin/broadcasts/MessagePreview.svelte';
   import BroadcastFilters from '$lib/components/admin/broadcasts/BroadcastFilters.svelte';
@@ -311,7 +313,24 @@
     dateStyle: 'short',
   });
 
-  const NONE = '__none__';
+  const templateOptions: SelectOption[] = $derived(
+    templatesForChannel.map((t) => ({ value: t.id, label: t.name })),
+  );
+  const campusOptions: SelectOption[] = $derived(
+    data.campuses.map((c) => ({ value: c.id, label: c.name })),
+  );
+  const eventOptions: SelectOption[] = $derived(
+    filteredEvents.map((e) => ({
+      value: e.id,
+      label: `${dateFormatter.format(e.date)} · ${e.titre}`,
+    })),
+  );
+  const sourceOptions: SelectOption[] = $derived(
+    filteredSources.map((b) => ({
+      value: b.id,
+      label: `${dateFormatter.format(b.createdAt)} · ${b.name}`,
+    })),
+  );
 
   const activeFilterCount = $derived(
     countActiveBroadcastFilters($form.filters),
@@ -387,29 +406,18 @@
         ariaLabel="Canal de l'envoi"
       />
       <div class="grid gap-2">
-        <Label for="templateId">Partir d'un modèle</Label>
+        <Label>Partir d'un modèle</Label>
         <div class="flex items-center gap-2">
-          <Select.Root
-            type="single"
+          <SearchableSelect
+            clearable={false}
+            options={templateOptions}
             value={$form.templateId}
-            onValueChange={(v) => ($form.templateId = v ?? '')}
-          >
-            <Select.Trigger id="templateId" class="flex-1">
-              <span class="truncate">
-                {selectedTemplate?.name ?? '— Sélectionner un modèle —'}
-              </span>
-            </Select.Trigger>
-            <Select.Content>
-              {#if templatesForChannel.length === 0}
-                <div class="px-2 py-1.5 text-xs text-muted-foreground">
-                  Aucun modèle {BROADCAST_CHANNEL_LABELS[channelChoice]}.
-                </div>
-              {/if}
-              {#each templatesForChannel as t (t.id)}
-                <Select.Item value={t.id}>{t.name}</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
+            onChange={(v) => ($form.templateId = v ?? '')}
+            placeholder="— Sélectionner un modèle —"
+            searchPlaceholder="Rechercher un modèle…"
+            emptyLabel={`Aucun modèle ${BROADCAST_CHANNEL_LABELS[channelChoice]}.`}
+            triggerClass="flex-1"
+          />
           <Button
             variant="outline"
             size="icon"
@@ -466,22 +474,17 @@
       {@render sectionLabel(3, 'Audience & ciblage')}
 
       <div class="grid gap-2">
-        <Label for="campusId">Campus</Label>
-        <Select.Root
-          type="single"
+        <Label>Campus</Label>
+        <SearchableSelect
+          clearable={false}
+          options={campusOptions}
           value={$form.campusId}
-          onValueChange={(v) => onCampusChange(v ?? '')}
-        >
-          <Select.Trigger id="campusId" class="w-full">
-            {data.campuses.find((c) => c.id === $form.campusId)?.name ??
-              '— Sélectionner —'}
-          </Select.Trigger>
-          <Select.Content>
-            {#each data.campuses as c (c.id)}
-              <Select.Item value={c.id}>{c.name}</Select.Item>
-            {/each}
-          </Select.Content>
-        </Select.Root>
+          onChange={(v) => onCampusChange(v ?? '')}
+          placeholder="— Sélectionner —"
+          searchPlaceholder="Rechercher un campus…"
+          emptyLabel="Aucun campus."
+          triggerClass="w-full"
+        />
         {#if $errors.campusId}
           <p class="text-xs text-destructive">{$errors.campusId}</p>
         {/if}
@@ -510,34 +513,18 @@
 
       {#if eventScoped}
         <div class="grid gap-2">
-          <Label for="eventId">Event (optionnel — vide = tous)</Label>
-          <Select.Root
-            type="single"
-            value={$form.eventId || NONE}
-            onValueChange={(v) => ($form.eventId = v === NONE ? '' : (v ?? ''))}
+          <Label>Event (optionnel — vide = tous)</Label>
+          <SearchableSelect
+            options={eventOptions}
+            value={$form.eventId || 'all'}
+            onChange={(v) => ($form.eventId = v === 'all' ? '' : (v ?? ''))}
             disabled={!$form.campusId}
-          >
-            <Select.Trigger id="eventId" class="w-full">
-              <span class="truncate">
-                {#if $form.eventId && filteredEvents.find((ev) => ev.id === $form.eventId)}
-                  {@const e = filteredEvents.find(
-                    (ev) => ev.id === $form.eventId,
-                  )}
-                  {`${dateFormatter.format(e!.date)} — ${e!.titre}`}
-                {:else}
-                  Tous les events du campus
-                {/if}
-              </span>
-            </Select.Trigger>
-            <Select.Content>
-              <Select.Item value={NONE}>Tous les events du campus</Select.Item>
-              {#each filteredEvents as e (e.id)}
-                <Select.Item value={e.id}>
-                  {dateFormatter.format(e.date)} — {e.titre}
-                </Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
+            allLabel="Tous les events du campus"
+            placeholder="Tous les events du campus"
+            searchPlaceholder="Rechercher un event…"
+            emptyLabel="Aucun event."
+            triggerClass="w-full"
+          />
         </div>
       {/if}
 
@@ -593,34 +580,18 @@
         </Collapsible.Trigger>
         <Collapsible.Content class="space-y-3 border-t p-3">
           <div class="grid gap-2">
-            <Label for="sourceBroadcastId">Envoi source</Label>
-            <Select.Root
-              type="single"
-              value={$form.sourceBroadcastId || NONE}
-              onValueChange={(v) =>
-                ($form.sourceBroadcastId = v === NONE ? '' : (v ?? ''))}
-            >
-              <Select.Trigger id="sourceBroadcastId" class="w-full">
-                <span class="truncate">
-                  {#if $form.sourceBroadcastId && filteredSources.find((s) => s.id === $form.sourceBroadcastId)}
-                    {@const b = filteredSources.find(
-                      (s) => s.id === $form.sourceBroadcastId,
-                    )}
-                    {`${dateFormatter.format(b!.createdAt)} — ${b!.name}`}
-                  {:else}
-                    Aucun
-                  {/if}
-                </span>
-              </Select.Trigger>
-              <Select.Content>
-                <Select.Item value={NONE}>Aucun</Select.Item>
-                {#each filteredSources as b (b.id)}
-                  <Select.Item value={b.id}>
-                    {dateFormatter.format(b.createdAt)} — {b.name}
-                  </Select.Item>
-                {/each}
-              </Select.Content>
-            </Select.Root>
+            <Label>Envoi source</Label>
+            <SearchableSelect
+              options={sourceOptions}
+              value={$form.sourceBroadcastId || 'all'}
+              onChange={(v) =>
+                ($form.sourceBroadcastId = v === 'all' ? '' : (v ?? ''))}
+              allLabel="Aucun"
+              placeholder="Aucun"
+              searchPlaceholder="Rechercher un envoi…"
+              emptyLabel="Aucun envoi."
+              triggerClass="w-full"
+            />
           </div>
           {#if $form.sourceBroadcastId}
             <div class="grid gap-2">

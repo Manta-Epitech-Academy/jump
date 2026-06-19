@@ -11,10 +11,12 @@
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
-  import * as Select from '$lib/components/ui/select';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
+  import SearchableSelect, {
+    type SelectOption,
+  } from '$lib/components/staff/SearchableSelect.svelte';
 
   type Signatory = {
     id: string;
@@ -40,6 +42,9 @@
       campus: c,
       signatories: data.signatories.filter((s) => s.campusId === c.id),
     })),
+  );
+  const campusOptions: SelectOption[] = $derived(
+    data.campuses.map((c) => ({ value: c.id, label: c.name })),
   );
 
   // Dialog + form state.
@@ -83,12 +88,6 @@
     itemToDelete = id;
     deleteDialogOpen = true;
   }
-
-  const campusSelectLabel = $derived(
-    fCampus === GLOBAL_VALUE
-      ? 'Global (tous les campus)'
-      : (data.campuses.find((c) => c.id === fCampus)?.name ?? 'Sélectionner'),
-  );
 </script>
 
 <svelte:head>
@@ -261,22 +260,16 @@
 
         <div class="space-y-2">
           <Label>Périmètre</Label>
-          <Select.Root
-            type="single"
-            value={fCampus}
-            onValueChange={(v) => (fCampus = v)}
-          >
-            <Select.Trigger class="w-full">{campusSelectLabel}</Select.Trigger>
-            <Select.Content>
-              <Select.Item
-                value={GLOBAL_VALUE}
-                label="Global (tous les campus)"
-              />
-              {#each data.campuses as c}
-                <Select.Item value={c.id} label={c.name} />
-              {/each}
-            </Select.Content>
-          </Select.Root>
+          <SearchableSelect
+            options={campusOptions}
+            value={fCampus === GLOBAL_VALUE ? 'all' : fCampus}
+            onChange={(v) => (fCampus = v === 'all' ? GLOBAL_VALUE : v)}
+            allLabel="Global (tous les campus)"
+            placeholder="Global (tous les campus)"
+            searchPlaceholder="Rechercher un campus…"
+            emptyLabel="Aucun campus."
+            triggerClass="w-full"
+          />
         </div>
 
         <div class="space-y-2">
