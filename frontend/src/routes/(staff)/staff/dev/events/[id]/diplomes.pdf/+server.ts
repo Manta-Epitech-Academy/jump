@@ -72,6 +72,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': 'attachment; filename="diplomes.pdf"',
+        // Regenerated from live DB each call (signatory role/image can change).
+        // Without this the browser HTTP-caches the stable .pdf URL and re-serves
+        // a stale diploma. Mirrors onboarding-pdfs / interview-pdfs exports.
+        'Cache-Control': 'no-store',
       },
     },
   );
