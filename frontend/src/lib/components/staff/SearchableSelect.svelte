@@ -29,6 +29,8 @@
     multiple = false,
     values = [],
     onChangeMultiple,
+    clearable = true,
+    disabled = false,
     allLabel = 'Tous',
     allCount,
     placeholder = 'Filtrer…',
@@ -47,6 +49,16 @@
     /** Selected values (multi mode); empty means no filter. */
     values?: string[];
     onChangeMultiple?: (values: string[]) => void;
+    /**
+     * Single mode only: render the `'all'` sentinel row. Default `true` (this is
+     * a filter). Pass `false` to use it as a required form field: the sentinel
+     * row is dropped, and the trigger shows `placeholder` until a real option is
+     * picked (a `value` not in `options` reads as unselected). Multi mode always
+     * keeps the row as its clear-all.
+     */
+    clearable?: boolean;
+    /** Disable the trigger (e.g. a dependent field gated on another). */
+    disabled?: boolean;
     allLabel?: string;
     /** Optional tally shown on the `'all'` row (e.g. the cohort total). */
     allCount?: number;
@@ -64,8 +76,16 @@
   } = $props();
 
   let open = $state(false);
-  // `none` = nothing selected (the `'all'` row is checked, trigger is muted).
-  const none = $derived(multiple ? values.length === 0 : value === 'all');
+  // `none` = nothing selected (trigger is muted, showing the placeholder). With
+  // a sentinel the `'all'` value means none; without one (required field) it's
+  // any `value` that doesn't match a real option.
+  const none = $derived(
+    multiple
+      ? values.length === 0
+      : clearable
+        ? value === 'all'
+        : !options.some((o) => o.value === value),
+  );
   const isSelected = $derived((v: string) =>
     multiple ? values.includes(v) : value === v,
   );
@@ -108,6 +128,7 @@
         {...props}
         type="button"
         role="combobox"
+        {disabled}
         aria-expanded={open}
         class={cn(
           'flex h-9 cursor-pointer items-center justify-between gap-2 rounded-sm border border-input bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-colors outline-none select-none hover:bg-accent/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 dark:hover:bg-input/50',
@@ -132,17 +153,19 @@
       <Command.Input placeholder={searchPlaceholder} />
       <Command.List class="max-h-[300px] overflow-y-auto">
         <Command.Empty>{emptyLabel}</Command.Empty>
-        <Command.Item value={allLabel} onSelect={() => select('all')}>
-          <Check class={cn('h-4 w-4', none ? 'opacity-100' : 'opacity-0')} />
-          <span class="truncate">{allLabel}</span>
-          {#if allCount != null}
-            <span
-              class="mr-2 ml-auto font-mono text-[10px] font-bold text-muted-foreground"
-            >
-              {allCount}
-            </span>
-          {/if}
-        </Command.Item>
+        {#if clearable || multiple}
+          <Command.Item value={allLabel} onSelect={() => select('all')}>
+            <Check class={cn('h-4 w-4', none ? 'opacity-100' : 'opacity-0')} />
+            <span class="truncate">{allLabel}</span>
+            {#if allCount != null}
+              <span
+                class="mr-2 ml-auto font-mono text-[10px] font-bold text-muted-foreground"
+              >
+                {allCount}
+              </span>
+            {/if}
+          </Command.Item>
+        {/if}
         {#each options as opt (opt.value)}
           <Command.Item value={opt.label} onSelect={() => select(opt.value)}>
             <Check
