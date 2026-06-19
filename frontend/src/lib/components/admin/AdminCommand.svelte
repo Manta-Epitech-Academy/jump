@@ -57,150 +57,171 @@
     keywords: string[];
   };
 
-  // Page navigation targets. Mirrors the admin sidebar (one mental model) but
-  // kept as its own list: the palette only needs label/href/icon, never the
-  // sidebar's live badge counts. `keywords` are accent-free synonyms so a query
-  // like "salesforce", "envoi" or "rgpd" still resolves the right page.
-  const PAGES: NavItem[] = [
+  // Page navigation grouped by category, mirroring the sidebar structure.
+  type NavSection = { label: string; items: NavItem[] };
+
+  const NAV_SECTIONS: NavSection[] = [
     {
-      label: "Vue d'ensemble",
-      href: resolve('/staff/admin'),
-      icon: LayoutDashboard,
-      keywords: ['dashboard', 'accueil', 'overview'],
-    },
-    {
-      label: 'Erreurs de Sync',
-      href: resolve('/staff/admin/sync-errors'),
-      icon: TriangleAlert,
-      keywords: ['synchro', 'salesforce', 'erreur'],
-    },
-    {
-      label: 'Divergences Salesforce',
-      href: resolve('/staff/admin/sf-conflicts'),
-      icon: GitCompareArrows,
-      keywords: ['sf', 'conflit', 'conflits', 'reconciliation'],
-    },
-    {
-      label: 'Génération PDF onboarding',
-      href: resolve('/staff/admin/onboarding-pdfs'),
-      icon: FileCog,
-      keywords: ['pdf', 'documents', 'signes', 'export'],
-    },
-    {
-      label: 'PDF Entretiens',
-      href: resolve('/staff/admin/interview-pdfs'),
-      icon: ClipboardList,
-      keywords: ['pdf', 'entretien', 'synthese', 'motivation', 'export'],
-    },
-    {
-      label: 'Tickets',
-      href: resolve('/staff/admin/tickets'),
-      icon: LifeBuoy,
-      keywords: ['support', 'bug', 'suggestion'],
-    },
-    {
-      label: 'Fichiers',
-      href: resolve('/staff/admin/files'),
-      icon: FolderOpen,
-      keywords: ['s3', 'partage'],
+      label: 'Systeme',
+      items: [
+        {
+          label: 'Dashboard',
+          href: resolve('/staff/admin'),
+          icon: LayoutDashboard,
+          keywords: ['dashboard', 'accueil', 'overview', 'vue ensemble'],
+        },
+        {
+          label: 'Erreurs de Sync',
+          href: resolve('/staff/admin/sync-errors'),
+          icon: TriangleAlert,
+          keywords: ['synchro', 'salesforce', 'erreur'],
+        },
+        {
+          label: 'Divergences SF',
+          href: resolve('/staff/admin/sf-conflicts'),
+          icon: GitCompareArrows,
+          keywords: ['sf', 'conflit', 'salesforce', 'reconciliation'],
+        },
+        {
+          label: 'PDF Onboarding',
+          href: resolve('/staff/admin/onboarding-pdfs'),
+          icon: FileCog,
+          keywords: ['pdf', 'documents', 'signes', 'export'],
+        },
+        {
+          label: 'PDF Entretiens',
+          href: resolve('/staff/admin/interview-pdfs'),
+          icon: ClipboardList,
+          keywords: ['pdf', 'entretien', 'synthese', 'motivation', 'export'],
+        },
+        {
+          label: 'Tickets',
+          href: resolve('/staff/admin/tickets'),
+          icon: LifeBuoy,
+          keywords: ['support', 'bug', 'suggestion'],
+        },
+        {
+          label: '[DEV] S3 Test',
+          href: resolve('/staff/admin/files'),
+          icon: FolderOpen,
+          keywords: ['s3', 'fichiers', 'partage'],
+        },
+      ],
     },
     {
       label: 'Communication',
-      href: resolve('/staff/admin/communication'),
-      icon: Megaphone,
-      keywords: ['comm'],
+      items: [
+        {
+          label: "Vue d'ensemble",
+          href: resolve('/staff/admin/communication'),
+          icon: Megaphone,
+          keywords: ['comm'],
+        },
+        {
+          label: 'Envoi en masse',
+          href: resolve('/staff/admin/broadcasts'),
+          icon: Send,
+          keywords: ['broadcast', 'campagne', 'email', 'sms'],
+        },
+        {
+          label: 'Templates',
+          href: resolve('/staff/admin/broadcasts/templates'),
+          icon: Mails,
+          keywords: ['modele', 'broadcast'],
+        },
+        {
+          label: 'Mails transactionnels',
+          href: resolve('/staff/admin/email-actions'),
+          icon: MailCog,
+          keywords: ['email', 'action', 'mapping'],
+        },
+        {
+          label: 'Relances',
+          href: resolve('/staff/admin/communication/relances'),
+          icon: History,
+          keywords: ['relance', 'rappel'],
+        },
+        {
+          label: "Pages d'accueil",
+          href: resolve('/staff/admin/welcome-pages'),
+          icon: DoorOpen,
+          keywords: ['welcome', 'cms'],
+        },
+      ],
     },
     {
-      label: 'Envoi en masse',
-      href: resolve('/staff/admin/broadcasts'),
-      icon: Send,
-      keywords: ['broadcast', 'campagne', 'email', 'sms'],
+      label: 'Organisation',
+      items: [
+        {
+          label: 'Reseau Campus',
+          href: resolve('/staff/admin/campuses'),
+          icon: Map,
+          keywords: ['campus', 'feature', 'flag'],
+        },
+        {
+          label: 'Membres & invitations',
+          href: resolve('/staff/admin/users'),
+          icon: Users,
+          keywords: ['staff', 'utilisateur', 'invitation', 'role'],
+        },
+        {
+          label: 'Talents',
+          href: resolve('/staff/admin/talents'),
+          icon: GraduationCap,
+          keywords: ['eleve', 'etudiant', 'annuaire'],
+        },
+        {
+          label: 'Notes',
+          href: resolve('/staff/admin/notes'),
+          icon: NotebookPen,
+          keywords: ['note'],
+        },
+        {
+          label: 'Suppressions',
+          href: resolve('/staff/admin/account-deletions'),
+          icon: UserX,
+          keywords: ['rgpd', 'suppression', 'anonymisation'],
+        },
+      ],
     },
     {
-      label: 'Templates de broadcast',
-      href: resolve('/staff/admin/broadcasts/templates'),
-      icon: Mails,
-      keywords: ['modele', 'broadcast'],
-    },
-    {
-      label: 'Mails transactionnels',
-      href: resolve('/staff/admin/email-actions'),
-      icon: MailCog,
-      keywords: ['email', 'action', 'mapping'],
-    },
-    {
-      label: 'Relances (lecture seule)',
-      href: resolve('/staff/admin/communication/relances'),
-      icon: History,
-      keywords: ['relance', 'rappel'],
-    },
-    {
-      label: "Pages d'accueil",
-      href: resolve('/staff/admin/welcome-pages'),
-      icon: DoorOpen,
-      keywords: ['welcome', 'cms'],
-    },
-    {
-      label: 'Réseau Campus',
-      href: resolve('/staff/admin/campuses'),
-      icon: Map,
-      keywords: ['campus', 'feature', 'flag'],
-    },
-    {
-      label: 'Membres & invitations',
-      href: resolve('/staff/admin/users'),
-      icon: Users,
-      keywords: ['staff', 'utilisateur', 'invitation', 'role'],
-    },
-    {
-      label: 'Talents',
-      href: resolve('/staff/admin/talents'),
-      icon: GraduationCap,
-      keywords: ['eleve', 'etudiant', 'annuaire'],
-    },
-    {
-      label: 'Notes',
-      href: resolve('/staff/admin/notes'),
-      icon: NotebookPen,
-      keywords: ['note'],
-    },
-    {
-      label: 'Suppressions de compte',
-      href: resolve('/staff/admin/account-deletions'),
-      icon: UserX,
-      keywords: ['rgpd', 'suppression', 'anonymisation'],
-    },
-    {
-      label: 'Templates Officiels',
-      href: resolve('/staff/admin/templates'),
-      icon: FileText,
-      keywords: ['activite', 'officiel'],
-    },
-    {
-      label: 'Thèmes Officiels',
-      href: resolve('/staff/admin/themes'),
-      icon: Tags,
-      keywords: ['theme', 'tag'],
-    },
-    {
-      label: "Centres d'intérêt",
-      href: resolve('/staff/admin/interests'),
-      icon: Heart,
-      keywords: ['interet', 'centre'],
-    },
-    {
-      label: 'Modèles de Planning',
-      href: resolve('/staff/admin/planning-templates'),
-      icon: CalendarDays,
-      keywords: ['planning', 'modele'],
-    },
-    {
-      label: 'Mini-jeux',
-      href: resolve('/staff/admin/minigames'),
-      icon: Gamepad2,
-      keywords: ['jeu', 'game', 'rotation'],
+      label: 'Pedagogie',
+      items: [
+        {
+          label: 'Templates',
+          href: resolve('/staff/admin/templates'),
+          icon: FileText,
+          keywords: ['activite', 'officiel'],
+        },
+        {
+          label: 'Themes',
+          href: resolve('/staff/admin/themes'),
+          icon: Tags,
+          keywords: ['theme', 'tag'],
+        },
+        {
+          label: "Centres d'interet",
+          href: resolve('/staff/admin/interests'),
+          icon: Heart,
+          keywords: ['interet', 'centre'],
+        },
+        {
+          label: 'Modeles de Planning',
+          href: resolve('/staff/admin/planning-templates'),
+          icon: CalendarDays,
+          keywords: ['planning', 'modele'],
+        },
+        {
+          label: 'Mini-jeux',
+          href: resolve('/staff/admin/minigames'),
+          icon: Gamepad2,
+          keywords: ['jeu', 'game', 'rotation'],
+        },
+      ],
     },
   ];
+
+  const ALL_PAGES = NAV_SECTIONS.flatMap((s) => s.items);
 
   let inputValue = $state('');
   let results = $state<PersonResult[]>([]);
@@ -217,13 +238,24 @@
 
   // Pages filtered client-side on label + keywords; the full list shows on an
   // empty query so the palette opens as a menu. People stay server-filtered.
-  const matchedPages = $derived.by(() => {
-    const q = norm(inputValue.trim());
-    if (!q) return PAGES;
-    return PAGES.filter(
-      (p) => norm(p.label).includes(q) || p.keywords.some((k) => k.includes(q)),
-    );
+  const query = $derived(norm(inputValue.trim()));
+
+  // When searching, filter across all pages. When empty, show grouped sections.
+  const matchedSections = $derived.by(() => {
+    if (!query) return NAV_SECTIONS;
+    return NAV_SECTIONS.map((s) => ({
+      ...s,
+      items: s.items.filter(
+        (p) =>
+          norm(p.label).includes(query) ||
+          p.keywords.some((k) => k.includes(query)),
+      ),
+    })).filter((s) => s.items.length > 0);
   });
+
+  const hasPageResults = $derived(
+    matchedSections.some((s) => s.items.length > 0),
+  );
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
@@ -300,10 +332,10 @@
 <!-- shouldFilter={false}: pages are filtered above, people server-side. -->
 <Command.Dialog bind:open shouldFilter={false}>
   <Command.Input
-    placeholder="Aller à une page, ou chercher un talent, un parent, un membre…"
+    placeholder="Rechercher une page, un talent, un parent..."
     bind:value={inputValue}
   />
-  <Command.List class="max-h-[350px] overflow-y-auto">
+  <Command.List class="max-h-[400px] overflow-y-auto">
     <Command.Empty class="py-10">
       {#if searching}
         <div class="space-y-4 p-4">
@@ -319,30 +351,32 @@
         </div>
       {:else if inputValue.trim().length >= 2}
         <p class="text-center text-sm text-muted-foreground italic">
-          Aucun résultat.
+          Aucun resultat.
         </p>
       {:else}
         <p class="text-center text-sm text-muted-foreground">
-          Tapez au moins 2 caractères pour chercher une personne.
+          Tapez au moins 2 caracteres pour chercher une personne.
         </p>
       {/if}
     </Command.Empty>
 
-    {#if matchedPages.length > 0}
-      <Command.Group heading="Navigation">
-        {#each matchedPages as p (p.href)}
+    <!-- Navigation pages grouped by category -->
+    {#each matchedSections as section (section.label)}
+      <Command.Group heading={section.label}>
+        {#each section.items as p (p.href)}
           {@const Icon = p.icon}
-          <Command.Item onSelect={() => go(p.href)} class="gap-3 px-3 py-2.5">
-            <Icon class="h-4 w-4 text-muted-foreground" />
-            <span class="text-sm font-medium">{p.label}</span>
+          <Command.Item onSelect={() => go(p.href)} class="gap-2.5 px-3 py-1.5">
+            <Icon class="h-3.5 w-3.5 text-muted-foreground" />
+            <span class="text-xs font-medium">{p.label}</span>
             <ArrowRight
-              class="ml-auto h-4 w-4 shrink-0 text-muted-foreground opacity-30"
+              class="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-20"
             />
           </Command.Item>
         {/each}
       </Command.Group>
-    {/if}
+    {/each}
 
+    <!-- People results (server-side search) -->
     {#if talents.length > 0}
       <Command.Group heading="Talents">
         {#each talents as r (r.id)}
