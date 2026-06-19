@@ -8,6 +8,7 @@
   import X from '@lucide/svelte/icons/x';
   import LogIn from '@lucide/svelte/icons/log-in';
   import Users from '@lucide/svelte/icons/users';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
@@ -17,6 +18,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import * as Avatar from '$lib/components/ui/avatar';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import * as Collapsible from '$lib/components/ui/collapsible';
   import { Badge } from '$lib/components/ui/badge';
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
@@ -27,8 +29,18 @@
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
+  import SearchableSelect, {
+    type SelectOption,
+  } from '$lib/components/staff/SearchableSelect.svelte';
   import type { ColumnDef } from '$lib/components/staff/datatable/types';
-  import { STAFF_ROLES, getStaffRoleLabel } from '$lib/domain/staff';
+  import {
+    STAFF_ROLES,
+    STAFF_SPACES,
+    getStaffRoleLabel,
+    staffRoles,
+    type StaffSpaceId,
+  } from '$lib/domain/staff';
+  import { can } from '$lib/domain/permissions';
   import type { StaffRole } from '@prisma/client';
   import { track, errReason } from '$lib/analytics';
   let { data } = $props();
@@ -52,6 +64,9 @@
   const selectedInvites = new SvelteSet<string>();
   let bulkCancelOpen = $state(false);
   let bulkCancelling = $state(false);
+  // Invitations are rarely consulted, so the section is collapsed by default
+  // and demoted below the members roster (this page's primary content).
+  let invitesOpen = $state(false);
 
   const filteredInvites = $derived(
     data.invitations.filter((i) =>
@@ -125,7 +140,8 @@
       if (!q) return true;
       return (
         (u.name ?? '').toLowerCase().includes(q) ||
-        (u.email ?? '').toLowerCase().includes(q)
+        (u.email ?? '').toLowerCase().includes(q) ||
+        (u.staffProfile?.campus?.name ?? '').toLowerCase().includes(q)
       );
     }),
   );
@@ -181,6 +197,79 @@
   const pagedMembers = $derived(
     sortedMembers.slice((memberPage - 1) * PER_PAGE, memberPage * PER_PAGE),
   );
+
+  // ----- Explorer un campus : campus-first impersonation --------------------
+  // Most admin visits here are to drop into a campus's space ("what does a
+  // Strasbourg dev see?"), not to impersonate one named person. So pick a
+  // campus + space and we resolve a representative member to impersonate,
+  // reusing the already-loaded roster and the existing loginAs flow: pagination
+  // never gets in the way. Who you became is shown afterwards in the
+  // impersonation banner, so nothing is hidden.
+  let exploreCampusId = $state<string | null>(null);
+  let exploreSpace = $state<StaffSpaceId>('dev');
+
+  // Typeahead options: there are ~15 campuses in prod, so a searchable picker
+  // (same SearchableSelect the talents page uses for campuses) beats scanning a
+  // plain dropdown when the whole point is jumping to a campus fast.
+  const campusOptions: SelectOption[] = $derived(
+    data.campuses.map((c) => ({ value: c.id, label: c.name })),
+  );
+
+  const roleRank = (role: StaffRole | null | undefined) => {
+    const i = staffRoles.indexOf(role as StaffRole);
+    return i === -1 ? staffRoles.length : i;
+  };
+
+  // campusId -> representative member per space. Lead-first (superdev/peda
+  // outrank dev/manta via staffRoles order), ties broken by name so the pick is
+  // stable across reloads.
+  const campusReps = $derived.by(() => {
+    const map = new Map<string, Partial<Record<StaffSpaceId, MemberRow>>>();
+    for (const campus of data.campuses) {
+      const slot: Partial<Record<StaffSpaceId, MemberRow>> = {};
+      for (const space of STAFF_SPACES) {
+        slot[space.id] = data.members
+          .filter(
+            (m) =>
+              m.staffProfile?.campusId === campus.id &&
+              can(space.group, m.staffProfile?.staffRole),
+          )
+          .sort(
+            (a, b) =>
+              roleRank(a.staffProfile?.staffRole) -
+                roleRank(b.staffProfile?.staffRole) ||
+              memberName(a).localeCompare(memberName(b), 'fr'),
+          )[0];
+      }
+      map.set(campus.id, slot);
+    }
+    return map;
+  });
+
+  const exploreSlot: Partial<Record<StaffSpaceId, MemberRow>> = $derived(
+    (exploreCampusId ? campusReps.get(exploreCampusId) : undefined) ?? {},
+  );
+  const exploreTarget = $derived(exploreSlot[exploreSpace] ?? null);
+  const exploreCampusName = $derived(
+    data.campuses.find((c) => c.id === exploreCampusId)?.name ?? '',
+  );
+
+  // If the chosen campus has no member for the selected space but has one for
+  // the other, switch so "Entrer" stays actionable instead of dead-ending.
+  $effect(() => {
+    if (!exploreCampusId || exploreSlot[exploreSpace]) return;
+    const fallback = STAFF_SPACES.find((s) => exploreSlot[s.id]);
+    if (fallback) exploreSpace = fallback.id;
+  });
+
+  function enterCampus() {
+    if (!exploreTarget) return;
+    loginAs(
+      exploreTarget.id,
+      exploreTarget.staffProfile?.staffRole ?? null,
+      exploreCampusName || null,
+    );
+  }
 
   // Keep the members search in sync with `?q` on navigation: when the command
   // palette deep-links here while already on this page, the component isn't
@@ -302,126 +391,80 @@
     </Button>
   </div>
 
-  <!-- Invitations -->
+  <!-- Explorer un campus -->
   <section class="space-y-3">
-    <h2 class="font-heading text-lg tracking-wide uppercase">
-      Invitations en attente
-      <span class="ml-2 text-sm text-muted-foreground"
-        >({data.invitations.length})</span
-      >
-    </h2>
+    <div class="space-y-1">
+      <h2 class="font-heading text-lg tracking-wide uppercase">
+        Explorer un campus
+      </h2>
+      <p class="text-sm text-muted-foreground">
+        Entrez dans l'espace d'un campus tel que son équipe le voit, sans
+        choisir qui : on se connecte en tant qu'un membre représentatif (le
+        responsable en priorité).
+      </p>
+    </div>
 
-    <DataTableToolbar
-      searchValue={inviteSearch}
-      onSearchInput={(v) => {
-        inviteSearch = v;
-        invitePage = 1;
-      }}
-      searchPlaceholder="Rechercher un email…"
-      count={sortedInvites.length}
-      countNoun="invitation"
-    >
-      {#snippet countActions()}
-        {#if selectedInvites.size > 0}
-          <Button
-            variant="destructive"
-            size="sm"
-            class="h-7 gap-1.5"
-            onclick={() => (bulkCancelOpen = true)}
-          >
-            <X class="h-3.5 w-3.5" />
-            Annuler la sélection ({selectedInvites.size})
-          </Button>
-        {/if}
-      {/snippet}
-    </DataTableToolbar>
-
-    <SortableTable
-      columns={inviteColumns}
-      rows={pagedInvites}
-      sortKey={inviteSortKey}
-      sortDir={inviteSortDir}
-      onSort={toggleInviteSort}
-      rowKey={(i) => i.id}
-      selectable
-      selected={selectedInvites}
-    >
-      {#snippet row(inv)}
-        <Table.Cell>
-          <div class="flex items-center gap-2 text-sm text-muted-foreground">
-            <Mail class="h-3 w-3" />
-            {inv.email}
-          </div>
-        </Table.Cell>
-        <Table.Cell>
-          {#if inv.staffRole === 'admin'}
-            <span class="text-muted-foreground">—</span>
-          {:else}
-            {inv.campus?.name ?? '—'}
-          {/if}
-        </Table.Cell>
-        <Table.Cell>
-          <Badge variant="secondary">{getStaffRoleLabel(inv.staffRole)}</Badge>
-        </Table.Cell>
-        <Table.Cell class="text-sm text-muted-foreground">
-          {inv.invitedBy?.name ?? inv.invitedBy?.email ?? '—'}
-        </Table.Cell>
-        <Table.Cell class="text-sm text-muted-foreground">
-          {relativeAge(inv.createdAt)}
-        </Table.Cell>
-        <Table.Cell class="text-right">
-          <form
-            method="POST"
-            action="?/cancelInvitation&id={inv.id}"
-            class="inline"
-            use:enhance={() => {
-              return async ({ update, result }) => {
-                if (result.type === 'success') {
-                  track('admin_invitation_cancelled');
-                  toast.success('Invitation annulée');
-                }
-                await update();
-              };
-            }}
-          >
-            <Tooltip.Provider delayDuration={300}>
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  {#snippet child({ props })}
-                    <Button
-                      {...props}
-                      type="submit"
-                      variant="ghost"
-                      size="icon"
-                      class="text-destructive hover:bg-destructive/10"
-                    >
-                      <X class="h-4 w-4" />
-                    </Button>
-                  {/snippet}
-                </Tooltip.Trigger>
-                <Tooltip.Content><p>Annuler l'invitation</p></Tooltip.Content>
-              </Tooltip.Root>
-            </Tooltip.Provider>
-          </form>
-        </Table.Cell>
-      {/snippet}
-
-      {#snippet empty()}
-        <EmptyState
-          icon={Mail}
-          title="Aucune invitation"
-          description={inviteSearch
-            ? 'Aucune invitation ne correspond à cette recherche.'
-            : 'Aucune invitation en attente.'}
+    <div class="flex flex-wrap items-end gap-3">
+      <div class="space-y-2">
+        <Label>Campus</Label>
+        <SearchableSelect
+          options={campusOptions}
+          value={exploreCampusId ?? 'all'}
+          onChange={(v) => (exploreCampusId = v === 'all' ? null : v)}
+          allLabel="Aucun campus"
+          placeholder="Choisir un campus"
+          searchPlaceholder="Rechercher un campus…"
+          emptyLabel="Aucun campus."
+          triggerClass="w-56"
         />
-      {/snippet}
-    </SortableTable>
+      </div>
 
-    <Pagination
-      page={invitePage}
-      totalPages={inviteTotalPages}
-      onPageChange={(p) => (invitePage = p)}
-    />
+      <div class="space-y-2">
+        <Label for="explore-space">Espace</Label>
+        <Select.Root
+          type="single"
+          value={exploreSpace}
+          onValueChange={(v) => (exploreSpace = v as StaffSpaceId)}
+        >
+          <Select.Trigger id="explore-space" class="w-40">
+            {STAFF_SPACES.find((s) => s.id === exploreSpace)?.label}
+          </Select.Trigger>
+          <Select.Content>
+            {#each STAFF_SPACES as space (space.id)}
+              <Select.Item
+                value={space.id}
+                disabled={!!exploreCampusId && !exploreSlot[space.id]}
+              >
+                {space.label}
+              </Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
+      </div>
+
+      <Button
+        onclick={enterCampus}
+        disabled={!exploreTarget || impersonating !== null}
+        class="gap-2"
+      >
+        <LogIn class="h-4 w-4" />
+        Entrer
+      </Button>
+    </div>
+
+    {#if exploreCampusId}
+      <p class="text-xs text-muted-foreground">
+        {#if exploreTarget}
+          Connexion en tant que <span class="font-semibold text-foreground"
+            >{exploreTarget.name || exploreTarget.email}</span
+          >
+          ({getStaffRoleLabel(exploreTarget.staffProfile?.staffRole)}).
+        {:else}
+          Aucun membre {STAFF_SPACES.find((s) => s.id === exploreSpace)?.label} sur
+          ce campus.
+        {/if}
+      </p>
+    {/if}
   </section>
 
   <!-- Members -->
@@ -439,7 +482,7 @@
         memberSearch = v;
         memberPage = 1;
       }}
-      searchPlaceholder="Rechercher un membre…"
+      searchPlaceholder="Rechercher un membre ou un campus…"
       count={sortedMembers.length}
       countNoun="membre"
     />
@@ -665,6 +708,155 @@
       totalPages={memberTotalPages}
       onPageChange={(p) => (memberPage = p)}
     />
+  </section>
+
+  <!-- Invitations: rarely consulted, so demoted and collapsed by default -->
+  <section class="space-y-3">
+    <Collapsible.Root
+      open={invitesOpen}
+      onOpenChange={(o) => (invitesOpen = o)}
+    >
+      <Collapsible.Trigger
+        class="flex w-full items-center gap-2 border-t pt-4 text-left transition-colors hover:text-epi-pink"
+      >
+        <ChevronRight
+          class="h-4 w-4 shrink-0 text-muted-foreground transition-transform {invitesOpen
+            ? 'rotate-90'
+            : ''}"
+        />
+        <h2 class="font-heading text-lg tracking-wide uppercase">
+          Invitations en attente
+        </h2>
+        <span class="text-sm text-muted-foreground"
+          >({data.invitations.length})</span
+        >
+        <span
+          class="ml-auto text-[10px] font-black tracking-widest text-muted-foreground uppercase"
+        >
+          {invitesOpen ? 'Masquer' : 'Afficher'}
+        </span>
+      </Collapsible.Trigger>
+
+      <Collapsible.Content class="space-y-3 pt-3">
+        <DataTableToolbar
+          searchValue={inviteSearch}
+          onSearchInput={(v) => {
+            inviteSearch = v;
+            invitePage = 1;
+          }}
+          searchPlaceholder="Rechercher un email…"
+          count={sortedInvites.length}
+          countNoun="invitation"
+        >
+          {#snippet countActions()}
+            {#if selectedInvites.size > 0}
+              <Button
+                variant="destructive"
+                size="sm"
+                class="h-7 gap-1.5"
+                onclick={() => (bulkCancelOpen = true)}
+              >
+                <X class="h-3.5 w-3.5" />
+                Annuler la sélection ({selectedInvites.size})
+              </Button>
+            {/if}
+          {/snippet}
+        </DataTableToolbar>
+
+        <SortableTable
+          columns={inviteColumns}
+          rows={pagedInvites}
+          sortKey={inviteSortKey}
+          sortDir={inviteSortDir}
+          onSort={toggleInviteSort}
+          rowKey={(i) => i.id}
+          selectable
+          selected={selectedInvites}
+        >
+          {#snippet row(inv)}
+            <Table.Cell>
+              <div
+                class="flex items-center gap-2 text-sm text-muted-foreground"
+              >
+                <Mail class="h-3 w-3" />
+                {inv.email}
+              </div>
+            </Table.Cell>
+            <Table.Cell>
+              {#if inv.staffRole === 'admin'}
+                <span class="text-muted-foreground">—</span>
+              {:else}
+                {inv.campus?.name ?? '—'}
+              {/if}
+            </Table.Cell>
+            <Table.Cell>
+              <Badge variant="secondary"
+                >{getStaffRoleLabel(inv.staffRole)}</Badge
+              >
+            </Table.Cell>
+            <Table.Cell class="text-sm text-muted-foreground">
+              {inv.invitedBy?.name ?? inv.invitedBy?.email ?? '—'}
+            </Table.Cell>
+            <Table.Cell class="text-sm text-muted-foreground">
+              {relativeAge(inv.createdAt)}
+            </Table.Cell>
+            <Table.Cell class="text-right">
+              <form
+                method="POST"
+                action="?/cancelInvitation&id={inv.id}"
+                class="inline"
+                use:enhance={() => {
+                  return async ({ update, result }) => {
+                    if (result.type === 'success') {
+                      track('admin_invitation_cancelled');
+                      toast.success('Invitation annulée');
+                    }
+                    await update();
+                  };
+                }}
+              >
+                <Tooltip.Provider delayDuration={300}>
+                  <Tooltip.Root>
+                    <Tooltip.Trigger>
+                      {#snippet child({ props })}
+                        <Button
+                          {...props}
+                          type="submit"
+                          variant="ghost"
+                          size="icon"
+                          class="text-destructive hover:bg-destructive/10"
+                        >
+                          <X class="h-4 w-4" />
+                        </Button>
+                      {/snippet}
+                    </Tooltip.Trigger>
+                    <Tooltip.Content
+                      ><p>Annuler l'invitation</p></Tooltip.Content
+                    >
+                  </Tooltip.Root>
+                </Tooltip.Provider>
+              </form>
+            </Table.Cell>
+          {/snippet}
+
+          {#snippet empty()}
+            <EmptyState
+              icon={Mail}
+              title="Aucune invitation"
+              description={inviteSearch
+                ? 'Aucune invitation ne correspond à cette recherche.'
+                : 'Aucune invitation en attente.'}
+            />
+          {/snippet}
+        </SortableTable>
+
+        <Pagination
+          page={invitePage}
+          totalPages={inviteTotalPages}
+          onPageChange={(p) => (invitePage = p)}
+        />
+      </Collapsible.Content>
+    </Collapsible.Root>
   </section>
 
   <ConfirmDeleteDialog
