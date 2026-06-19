@@ -9,7 +9,7 @@
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
-  import * as Select from '$lib/components/ui/select';
+  import SearchableSelect from '$lib/components/staff/SearchableSelect.svelte';
   import * as Table from '$lib/components/ui/table';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { Checkbox } from '$lib/components/ui/checkbox';
@@ -145,7 +145,7 @@
   const allTimezones = timezoneGroups.flatMap((g) =>
     g.zones.map((z) => ({
       ...z,
-      label: `${formatUtcOffset(z.value)} — ${z.cities}`,
+      label: `${formatUtcOffset(z.value)} · ${z.cities}`,
     })),
   );
 
@@ -428,29 +428,16 @@
               <div class="space-y-2">
                 <Label>Fuseau horaire</Label>
                 <input type="hidden" name="timezone" value={$form.timezone} />
-                <Select.Root
-                  type="single"
+                <SearchableSelect
+                  clearable={false}
+                  options={allTimezones}
                   value={$form.timezone}
-                  onValueChange={(v) => ($form.timezone = v)}
-                >
-                  <Select.Trigger class="w-full">
-                    {getTimezoneLabel($form.timezone)}
-                  </Select.Trigger>
-                  <Select.Content class="max-h-72">
-                    {#each timezoneGroups as group}
-                      <Select.Group>
-                        <Select.GroupHeading>{group.label}</Select.GroupHeading>
-                        {#each group.zones as tz}
-                          <Select.Item
-                            value={tz.value}
-                            label="{formatUtcOffset(tz.value)} — {tz.cities}"
-                          />
-                        {/each}
-                      </Select.Group>
-                      <Select.Separator />
-                    {/each}
-                  </Select.Content>
-                </Select.Root>
+                  onChange={(v) => ($form.timezone = v)}
+                  placeholder="Choisir un fuseau horaire"
+                  searchPlaceholder="Rechercher une ville ou un fuseau…"
+                  emptyLabel="Aucun fuseau."
+                  triggerClass="w-full"
+                />
                 {#if $errors.timezone}<span class="text-xs text-destructive"
                     >{$errors.timezone}</span
                   >{/if}

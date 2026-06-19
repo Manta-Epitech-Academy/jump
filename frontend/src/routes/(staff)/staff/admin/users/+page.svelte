@@ -966,22 +966,18 @@
 
         {#if $inviteForm.staffRole !== 'admin'}
           <div class="space-y-2">
-            <Label for="invite-campus">Campus</Label>
-            <Select.Root
-              type="single"
-              name="campusId"
-              bind:value={$inviteForm.campusId}
-            >
-              <Select.Trigger id="invite-campus" class="w-full">
-                {data.campuses?.find((c) => c.id === $inviteForm.campusId)
-                  ?.name ?? 'Sélectionner un campus'}
-              </Select.Trigger>
-              <Select.Content>
-                {#each data.campuses ?? [] as c}
-                  <Select.Item value={c.id}>{c.name}</Select.Item>
-                {/each}
-              </Select.Content>
-            </Select.Root>
+            <Label>Campus</Label>
+            <input type="hidden" name="campusId" value={$inviteForm.campusId} />
+            <SearchableSelect
+              clearable={false}
+              options={campusOptions}
+              value={$inviteForm.campusId}
+              onChange={(v) => ($inviteForm.campusId = v)}
+              placeholder="Sélectionner un campus"
+              searchPlaceholder="Rechercher un campus…"
+              emptyLabel="Aucun campus."
+              triggerClass="w-full"
+            />
             {#if $inviteErrors.campusId}
               <p class="text-xs text-destructive">{$inviteErrors.campusId}</p>
             {/if}

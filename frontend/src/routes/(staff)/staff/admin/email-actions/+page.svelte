@@ -5,8 +5,10 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import CheckCircle2 from '@lucide/svelte/icons/circle-check-big';
   import { Button } from '$lib/components/ui/button';
-  import * as Select from '$lib/components/ui/select';
   import * as Table from '$lib/components/ui/table';
+  import SearchableSelect, {
+    type SelectOption,
+  } from '$lib/components/staff/SearchableSelect.svelte';
   import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
 
   let { data } = $props();
@@ -23,7 +25,9 @@
       ]),
     ),
   );
-  const NONE = '__none__';
+  const templateOptions: SelectOption[] = $derived(
+    data.templates.map((t) => ({ value: t.id, label: t.name })),
+  );
 
   const th = 'text-xs uppercase';
 </script>
@@ -133,26 +137,17 @@
                   name="templateId"
                   value={selectedTemplate[action.key]}
                 />
-                <Select.Root
-                  type="single"
-                  value={selectedTemplate[action.key] || NONE}
-                  onValueChange={(v) =>
-                    (selectedTemplate[action.key] = v === NONE ? '' : v)}
-                >
-                  <Select.Trigger class="h-9 flex-1">
-                    {data.templates.find(
-                      (t) => t.id === selectedTemplate[action.key],
-                    )?.name ?? '— Aucun (email ignoré) —'}
-                  </Select.Trigger>
-                  <Select.Content>
-                    <Select.Item value={NONE}>
-                      — Aucun (email ignoré) —
-                    </Select.Item>
-                    {#each data.templates as t (t.id)}
-                      <Select.Item value={t.id}>{t.name}</Select.Item>
-                    {/each}
-                  </Select.Content>
-                </Select.Root>
+                <SearchableSelect
+                  options={templateOptions}
+                  value={selectedTemplate[action.key] || 'all'}
+                  onChange={(v) =>
+                    (selectedTemplate[action.key] = v === 'all' ? '' : v)}
+                  allLabel="— Aucun (email ignoré) —"
+                  placeholder="— Aucun (email ignoré) —"
+                  searchPlaceholder="Rechercher un modèle…"
+                  emptyLabel="Aucun modèle."
+                  triggerClass="h-9 flex-1"
+                />
                 <Button type="submit" size="sm" class="rounded-sm">
                   Enregistrer
                 </Button>

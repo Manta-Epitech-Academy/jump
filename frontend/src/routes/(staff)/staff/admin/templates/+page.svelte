@@ -22,6 +22,9 @@
   import * as Select from '$lib/components/ui/select';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import MultiThemeSelect from '$lib/components/admin/MultiThemeSelect.svelte';
+  import SearchableSelect, {
+    type SelectOption,
+  } from '$lib/components/staff/SearchableSelect.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import { toast } from 'svelte-sonner';
@@ -78,6 +81,10 @@
   let filterType = $state('all');
   let filterDifficulty = $state('all');
   let filterTheme = $state('all');
+
+  const themeOptions: SelectOption[] = $derived(
+    data.themes.map((t) => ({ value: t.nom, label: t.nom })),
+  );
 
   let filteredTemplates = $derived(
     data.templates.filter((t) => {
@@ -231,21 +238,16 @@
       </Select.Content>
     </Select.Root>
 
-    <Select.Root
-      type="single"
+    <SearchableSelect
+      options={themeOptions}
       value={filterTheme}
-      onValueChange={(v) => (filterTheme = v ?? 'all')}
-    >
-      <Select.Trigger class="h-8 w-40 text-xs">
-        {filterTheme !== 'all' ? filterTheme : 'Thème'}
-      </Select.Trigger>
-      <Select.Content>
-        <Select.Item value="all">Tous</Select.Item>
-        {#each data.themes as theme}
-          <Select.Item value={theme.nom}>{theme.nom}</Select.Item>
-        {/each}
-      </Select.Content>
-    </Select.Root>
+      onChange={(v) => (filterTheme = v ?? 'all')}
+      allLabel="Tous"
+      placeholder="Thème"
+      searchPlaceholder="Rechercher un thème…"
+      emptyLabel="Aucun thème."
+      triggerClass="h-8 w-40 text-xs"
+    />
 
     {#if hasActiveFilters}
       <Button
