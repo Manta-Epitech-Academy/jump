@@ -2,42 +2,23 @@
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import ShieldAlert from '@lucide/svelte/icons/shield-alert';
-  import Map from '@lucide/svelte/icons/map';
-  import Signature from '@lucide/svelte/icons/signature';
-  import Users from '@lucide/svelte/icons/users';
-  import GraduationCap from '@lucide/svelte/icons/graduation-cap';
-  import UserX from '@lucide/svelte/icons/user-x';
-  import NotebookPen from '@lucide/svelte/icons/notebook-pen';
-  import Tags from '@lucide/svelte/icons/tags';
   import LogOut from '@lucide/svelte/icons/log-out';
   import Settings from '@lucide/svelte/icons/settings';
   import Menu from '@lucide/svelte/icons/menu';
   import X from '@lucide/svelte/icons/x';
   import Search from '@lucide/svelte/icons/search';
-  import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
   import BrandMark from '$lib/components/layout/BrandMark.svelte';
-  import FileText from '@lucide/svelte/icons/file-text';
-  import FileCog from '@lucide/svelte/icons/file-cog';
-  import ClipboardList from '@lucide/svelte/icons/clipboard-list';
-  import CalendarDays from '@lucide/svelte/icons/calendar-days';
-  import Heart from '@lucide/svelte/icons/heart';
-  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-  import GitCompareArrows from '@lucide/svelte/icons/git-compare-arrows';
-  import FolderOpen from '@lucide/svelte/icons/folder-open';
-  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
-  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
-  import Megaphone from '@lucide/svelte/icons/megaphone';
-  import Send from '@lucide/svelte/icons/send';
-  import Mails from '@lucide/svelte/icons/mails';
-  import MailCog from '@lucide/svelte/icons/mail-warning';
-  import History from '@lucide/svelte/icons/history';
-  import DoorOpen from '@lucide/svelte/icons/door-open';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as Avatar from '$lib/components/ui/avatar';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import StaffSettingsDialog from '$lib/components/layout/StaffSettingsDialog.svelte';
   import AdminCommand from '$lib/components/admin/AdminCommand.svelte';
+  import {
+    ADMIN_NAV,
+    type AdminNavItem,
+    type AdminBadgeKey,
+  } from '$lib/components/admin/adminNav';
   import { fly, fade } from 'svelte/transition';
   import { track, secondsBetween } from '$lib/analytics';
 
@@ -54,23 +35,44 @@
     }
   });
 
-  function isActive(path: string, excludePrefix?: string) {
-    const basePath = resolve('/').replace(/\/$/, '');
-    const fullPath = `${basePath}${path}`;
-    if (path === '/staff/admin') {
-      return (
-        page.url.pathname === fullPath || page.url.pathname === `${fullPath}/`
-      );
+  const ADMIN_HOME = resolve('/staff/admin');
+
+  // Entries carry already-resolved hrefs, so highlight by comparing them
+  // directly against the current pathname.
+  function isActive(href: string, activeExclude?: string) {
+    const path = page.url.pathname;
+    if (href === ADMIN_HOME) {
+      // The dashboard href is a prefix of every admin route, so it must match
+      // exactly rather than by prefix.
+      return path === href || path === `${href}/`;
     }
     // Avoid double-highlight when a child route has its own sidebar entry
     // (e.g. `/broadcasts/templates` shouldn't keep `/broadcasts` active).
-    if (
-      excludePrefix &&
-      page.url.pathname.startsWith(`${basePath}${excludePrefix}`)
-    ) {
+    if (activeExclude && path.startsWith(activeExclude)) {
       return false;
     }
-    return page.url.pathname.startsWith(fullPath);
+    return path.startsWith(href);
+  }
+
+  // The sidebar owns badge counts (it has the load data); the config only names
+  // the slot. `danger` picks the red treatment reserved for conflicts.
+  function badgeFor(key: AdminBadgeKey): {
+    count: number;
+    danger: boolean;
+    title?: string;
+  } {
+    switch (key) {
+      case 'authConflicts':
+        return {
+          count: data.authConflictsPending,
+          danger: true,
+          title: `${data.authConflictsPending} conflit(s) d'identité de connexion à résoudre`,
+        };
+      case 'tickets':
+        return { count: data.ticketsUnread, danger: false };
+      case 'deletions':
+        return { count: data.deletionRequestsPending, danger: false };
+    }
   }
 
   const navLinkClass = (active: boolean) => `
@@ -83,244 +85,47 @@
 	`;
 </script>
 
+{#snippet navLink(item: AdminNavItem)}
+  {@const Icon = item.icon}
+  <a
+    href={item.href}
+    class={navLinkClass(isActive(item.href, item.activeExclude))}
+  >
+    <Icon class="h-4 w-4" />
+    {#if item.badge}
+      {@const badge = badgeFor(item.badge)}
+      <span class="flex flex-1 items-center justify-between">
+        <span>{item.label}</span>
+        {#if badge.count > 0}
+          <span
+            class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white {badge.danger
+              ? 'bg-red-500'
+              : 'bg-epi-pink'}"
+            title={badge.title}
+          >
+            {badge.count}
+          </span>
+        {/if}
+      </span>
+    {:else}
+      <span>{item.label}</span>
+    {/if}
+  </a>
+{/snippet}
+
 {#snippet navMenu()}
-  <div
-    class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
-  >
-    Système<span class="text-epi-pink">_</span>
-  </div>
-  <nav class="mb-8 space-y-1">
-    <a
-      href={resolve('/staff/admin')}
-      class={navLinkClass(isActive('/staff/admin'))}
+  {#each ADMIN_NAV as section, i (section.title)}
+    <div
+      class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
     >
-      <LayoutDashboard class="h-4 w-4" />
-      <span>Vue d'ensemble</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/sync-errors')}
-      class={navLinkClass(isActive('/staff/admin/sync-errors'))}
-    >
-      <TriangleAlert class="h-4 w-4" />
-      <span>Erreurs de Sync</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/sf-conflicts')}
-      class={navLinkClass(isActive('/staff/admin/sf-conflicts'))}
-    >
-      <GitCompareArrows class="h-4 w-4" />
-      <span class="flex flex-1 items-center justify-between">
-        <span>Divergences Salesforce</span>
-        {#if data.authConflictsPending > 0}
-          <span
-            class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white"
-            title="{data.authConflictsPending} conflit(s) d'identité de connexion à résoudre"
-          >
-            {data.authConflictsPending}
-          </span>
-        {/if}
-      </span>
-    </a>
-    <a
-      href={resolve('/staff/admin/onboarding-pdfs')}
-      class={navLinkClass(isActive('/staff/admin/onboarding-pdfs'))}
-    >
-      <FileCog class="h-4 w-4" />
-      <span>Génération PDF onboarding</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/interview-pdfs')}
-      class={navLinkClass(isActive('/staff/admin/interview-pdfs'))}
-    >
-      <ClipboardList class="h-4 w-4" />
-      <span>PDF Entretiens</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/tickets')}
-      class={navLinkClass(isActive('/staff/admin/tickets'))}
-    >
-      <LifeBuoy class="h-4 w-4" />
-      <span class="flex flex-1 items-center justify-between">
-        <span>Tickets</span>
-        {#if data.ticketsUnread > 0}
-          <span
-            class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-epi-pink px-1.5 text-[10px] font-bold text-white"
-          >
-            {data.ticketsUnread}
-          </span>
-        {/if}
-      </span>
-    </a>
-    <a
-      href={resolve('/staff/admin/files')}
-      class={navLinkClass(isActive('/staff/admin/files'))}
-    >
-      <FolderOpen class="h-4 w-4" />
-      <span>[DEV] S3 Test</span>
-    </a>
-  </nav>
-
-  <div
-    class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
-  >
-    Communication<span class="text-epi-pink">_</span>
-  </div>
-  <nav class="mb-8 space-y-1">
-    <a
-      href={resolve('/staff/admin/communication')}
-      class={navLinkClass(
-        isActive(
-          '/staff/admin/communication',
-          '/staff/admin/communication/relances',
-        ),
-      )}
-    >
-      <Megaphone class="h-4 w-4" />
-      <span>Vue d'ensemble</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/broadcasts')}
-      class={navLinkClass(
-        isActive(
-          '/staff/admin/broadcasts',
-          '/staff/admin/broadcasts/templates',
-        ),
-      )}
-    >
-      <Send class="h-4 w-4" />
-      <span>Envoi en masse</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/broadcasts/templates')}
-      class={navLinkClass(isActive('/staff/admin/broadcasts/templates'))}
-    >
-      <Mails class="h-4 w-4" />
-      <span>Templates</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/email-actions')}
-      class={navLinkClass(isActive('/staff/admin/email-actions'))}
-    >
-      <MailCog class="h-4 w-4" />
-      <span>Mails transactionnels</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/communication/relances')}
-      class={navLinkClass(isActive('/staff/admin/communication/relances'))}
-    >
-      <History class="h-4 w-4" />
-      <span>Relances (lecture seule)</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/welcome-pages')}
-      class={navLinkClass(isActive('/staff/admin/welcome-pages'))}
-    >
-      <DoorOpen class="h-4 w-4" />
-      <span>Pages d'accueil</span>
-    </a>
-  </nav>
-
-  <div
-    class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
-  >
-    Organisation<span class="text-epi-pink">_</span>
-  </div>
-  <nav class="mb-8 space-y-1">
-    <a
-      href={resolve('/staff/admin/campuses')}
-      class={navLinkClass(isActive('/staff/admin/campuses'))}
-    >
-      <Map class="h-4 w-4" />
-      <span>Réseau Campus</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/signatures')}
-      class={navLinkClass(isActive('/staff/admin/signatures'))}
-    >
-      <Signature class="h-4 w-4" />
-      <span>Signataires</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/users')}
-      class={navLinkClass(isActive('/staff/admin/users'))}
-    >
-      <Users class="h-4 w-4" />
-      <span>Membres & invitations</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/talents')}
-      class={navLinkClass(isActive('/staff/admin/talents'))}
-    >
-      <GraduationCap class="h-4 w-4" />
-      <span>Talents</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/notes')}
-      class={navLinkClass(isActive('/staff/admin/notes'))}
-    >
-      <NotebookPen class="h-4 w-4" />
-      <span>Notes</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/account-deletions')}
-      class={navLinkClass(isActive('/staff/admin/account-deletions'))}
-    >
-      <UserX class="h-4 w-4" />
-      <span class="flex flex-1 items-center justify-between">
-        <span>Suppressions</span>
-        {#if data.deletionRequestsPending > 0}
-          <span
-            class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-epi-pink px-1.5 text-[10px] font-bold text-white"
-          >
-            {data.deletionRequestsPending}
-          </span>
-        {/if}
-      </span>
-    </a>
-  </nav>
-
-  <div
-    class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
-  >
-    Pédagogie<span class="text-epi-pink">_</span>
-  </div>
-  <nav class="space-y-1">
-    <a
-      href={resolve('/staff/admin/templates')}
-      class={navLinkClass(isActive('/staff/admin/templates'))}
-    >
-      <FileText class="h-4 w-4" />
-      <span>Templates Officiels</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/themes')}
-      class={navLinkClass(isActive('/staff/admin/themes'))}
-    >
-      <Tags class="h-4 w-4" />
-      <span>Thèmes Officiels</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/interests')}
-      class={navLinkClass(isActive('/staff/admin/interests'))}
-    >
-      <Heart class="h-4 w-4" />
-      <span>Centres d'intérêt</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/planning-templates')}
-      class={navLinkClass(isActive('/staff/admin/planning-templates'))}
-    >
-      <CalendarDays class="h-4 w-4" />
-      <span>Modèles de Planning</span>
-    </a>
-    <a
-      href={resolve('/staff/admin/minigames')}
-      class={navLinkClass(isActive('/staff/admin/minigames'))}
-    >
-      <Gamepad2 class="h-4 w-4" />
-      <span>Mini-jeux</span>
-    </a>
-  </nav>
+      {section.title}<span class="text-epi-pink">_</span>
+    </div>
+    <nav class="space-y-1 {i < ADMIN_NAV.length - 1 ? 'mb-8' : ''}">
+      {#each section.items as item (item.href)}
+        {@render navLink(item)}
+      {/each}
+    </nav>
+  {/each}
 {/snippet}
 
 <div class="flex h-screen w-full flex-col overflow-hidden bg-background">

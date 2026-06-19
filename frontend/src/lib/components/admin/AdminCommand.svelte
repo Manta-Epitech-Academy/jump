@@ -7,29 +7,9 @@
   import Users from '@lucide/svelte/icons/users';
   import UsersRound from '@lucide/svelte/icons/users-round';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
-  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-  import GitCompareArrows from '@lucide/svelte/icons/git-compare-arrows';
-  import FileCog from '@lucide/svelte/icons/file-cog';
-  import ClipboardList from '@lucide/svelte/icons/clipboard-list';
-  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
-  import FolderOpen from '@lucide/svelte/icons/folder-open';
-  import Megaphone from '@lucide/svelte/icons/megaphone';
-  import Send from '@lucide/svelte/icons/send';
-  import Mails from '@lucide/svelte/icons/mails';
-  import MailCog from '@lucide/svelte/icons/mail-warning';
-  import History from '@lucide/svelte/icons/history';
-  import DoorOpen from '@lucide/svelte/icons/door-open';
-  import Map from '@lucide/svelte/icons/map';
-  import NotebookPen from '@lucide/svelte/icons/notebook-pen';
-  import UserX from '@lucide/svelte/icons/user-x';
-  import FileText from '@lucide/svelte/icons/file-text';
-  import Tags from '@lucide/svelte/icons/tags';
-  import Heart from '@lucide/svelte/icons/heart';
-  import CalendarDays from '@lucide/svelte/icons/calendar-days';
-  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import type { Icon as IconType } from '@lucide/svelte';
   import { Skeleton } from '$lib/components/ui/skeleton';
+  import { ADMIN_NAV } from '$lib/components/admin/adminNav';
 
   // Admin-only command palette (Cmd/Ctrl+K), two surfaces in one list:
   //  - Navigation: jump to any admin page, filtered client-side (instant, no
@@ -50,158 +30,6 @@
     navQ: string;
   };
 
-  type NavItem = {
-    label: string;
-    href: string;
-    icon: typeof IconType;
-    keywords: string[];
-  };
-
-  // Page navigation targets. Mirrors the admin sidebar (one mental model) but
-  // kept as its own list: the palette only needs label/href/icon, never the
-  // sidebar's live badge counts. `keywords` are accent-free synonyms so a query
-  // like "salesforce", "envoi" or "rgpd" still resolves the right page.
-  const PAGES: NavItem[] = [
-    {
-      label: "Vue d'ensemble",
-      href: resolve('/staff/admin'),
-      icon: LayoutDashboard,
-      keywords: ['dashboard', 'accueil', 'overview'],
-    },
-    {
-      label: 'Erreurs de Sync',
-      href: resolve('/staff/admin/sync-errors'),
-      icon: TriangleAlert,
-      keywords: ['synchro', 'salesforce', 'erreur'],
-    },
-    {
-      label: 'Divergences Salesforce',
-      href: resolve('/staff/admin/sf-conflicts'),
-      icon: GitCompareArrows,
-      keywords: ['sf', 'conflit', 'conflits', 'reconciliation'],
-    },
-    {
-      label: 'Génération PDF onboarding',
-      href: resolve('/staff/admin/onboarding-pdfs'),
-      icon: FileCog,
-      keywords: ['pdf', 'documents', 'signes', 'export'],
-    },
-    {
-      label: 'PDF Entretiens',
-      href: resolve('/staff/admin/interview-pdfs'),
-      icon: ClipboardList,
-      keywords: ['pdf', 'entretien', 'synthese', 'motivation', 'export'],
-    },
-    {
-      label: 'Tickets',
-      href: resolve('/staff/admin/tickets'),
-      icon: LifeBuoy,
-      keywords: ['support', 'bug', 'suggestion'],
-    },
-    {
-      label: 'Fichiers',
-      href: resolve('/staff/admin/files'),
-      icon: FolderOpen,
-      keywords: ['s3', 'partage'],
-    },
-    {
-      label: 'Communication',
-      href: resolve('/staff/admin/communication'),
-      icon: Megaphone,
-      keywords: ['comm'],
-    },
-    {
-      label: 'Envoi en masse',
-      href: resolve('/staff/admin/broadcasts'),
-      icon: Send,
-      keywords: ['broadcast', 'campagne', 'email', 'sms'],
-    },
-    {
-      label: 'Templates de broadcast',
-      href: resolve('/staff/admin/broadcasts/templates'),
-      icon: Mails,
-      keywords: ['modele', 'broadcast'],
-    },
-    {
-      label: 'Mails transactionnels',
-      href: resolve('/staff/admin/email-actions'),
-      icon: MailCog,
-      keywords: ['email', 'action', 'mapping'],
-    },
-    {
-      label: 'Relances (lecture seule)',
-      href: resolve('/staff/admin/communication/relances'),
-      icon: History,
-      keywords: ['relance', 'rappel'],
-    },
-    {
-      label: "Pages d'accueil",
-      href: resolve('/staff/admin/welcome-pages'),
-      icon: DoorOpen,
-      keywords: ['welcome', 'cms'],
-    },
-    {
-      label: 'Réseau Campus',
-      href: resolve('/staff/admin/campuses'),
-      icon: Map,
-      keywords: ['campus', 'feature', 'flag'],
-    },
-    {
-      label: 'Membres & invitations',
-      href: resolve('/staff/admin/users'),
-      icon: Users,
-      keywords: ['staff', 'utilisateur', 'invitation', 'role'],
-    },
-    {
-      label: 'Talents',
-      href: resolve('/staff/admin/talents'),
-      icon: GraduationCap,
-      keywords: ['eleve', 'etudiant', 'annuaire'],
-    },
-    {
-      label: 'Notes',
-      href: resolve('/staff/admin/notes'),
-      icon: NotebookPen,
-      keywords: ['note'],
-    },
-    {
-      label: 'Suppressions de compte',
-      href: resolve('/staff/admin/account-deletions'),
-      icon: UserX,
-      keywords: ['rgpd', 'suppression', 'anonymisation'],
-    },
-    {
-      label: 'Templates Officiels',
-      href: resolve('/staff/admin/templates'),
-      icon: FileText,
-      keywords: ['activite', 'officiel'],
-    },
-    {
-      label: 'Thèmes Officiels',
-      href: resolve('/staff/admin/themes'),
-      icon: Tags,
-      keywords: ['theme', 'tag'],
-    },
-    {
-      label: "Centres d'intérêt",
-      href: resolve('/staff/admin/interests'),
-      icon: Heart,
-      keywords: ['interet', 'centre'],
-    },
-    {
-      label: 'Modèles de Planning',
-      href: resolve('/staff/admin/planning-templates'),
-      icon: CalendarDays,
-      keywords: ['planning', 'modele'],
-    },
-    {
-      label: 'Mini-jeux',
-      href: resolve('/staff/admin/minigames'),
-      icon: Gamepad2,
-      keywords: ['jeu', 'game', 'rotation'],
-    },
-  ];
-
   let inputValue = $state('');
   let results = $state<PersonResult[]>([]);
   let searching = $state(false);
@@ -215,14 +43,23 @@
       .normalize('NFD')
       .replace(/\p{Diacritic}/gu, '');
 
-  // Pages filtered client-side on label + keywords; the full list shows on an
-  // empty query so the palette opens as a menu. People stay server-filtered.
-  const matchedPages = $derived.by(() => {
+  // Navigation is the same `ADMIN_NAV` the sidebar renders, grouped by section
+  // so the short labels stay unambiguous (a section heading supplies the
+  // context the palette used to bake into longer labels). Filtered client-side
+  // on label + keywords; the full tree shows on an empty query so the palette
+  // opens as a menu. People stay server-filtered. Sidebar badge counts are
+  // deliberately omitted here.
+  const matchedSections = $derived.by(() => {
     const q = norm(inputValue.trim());
-    if (!q) return PAGES;
-    return PAGES.filter(
-      (p) => norm(p.label).includes(q) || p.keywords.some((k) => k.includes(q)),
-    );
+    if (!q) return ADMIN_NAV;
+    return ADMIN_NAV.map((section) => ({
+      title: section.title,
+      items: section.items.filter(
+        (p) =>
+          norm(p.label).includes(q) ||
+          (p.keywords ?? []).some((k) => k.includes(q)),
+      ),
+    })).filter((section) => section.items.length > 0);
   });
 
   function handleKeydown(e: KeyboardEvent) {
@@ -328,9 +165,9 @@
       {/if}
     </Command.Empty>
 
-    {#if matchedPages.length > 0}
-      <Command.Group heading="Navigation">
-        {#each matchedPages as p (p.href)}
+    {#each matchedSections as section (section.title)}
+      <Command.Group heading={section.title}>
+        {#each section.items as p (p.href)}
           {@const Icon = p.icon}
           <Command.Item onSelect={() => go(p.href)} class="gap-3 px-3 py-2.5">
             <Icon class="h-4 w-4 text-muted-foreground" />
@@ -341,7 +178,7 @@
           </Command.Item>
         {/each}
       </Command.Group>
-    {/if}
+    {/each}
 
     {#if talents.length > 0}
       <Command.Group heading="Talents">
