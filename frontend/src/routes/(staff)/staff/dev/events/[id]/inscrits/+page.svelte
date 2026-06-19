@@ -14,7 +14,7 @@
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import InscritsResults from './components/InscritsResults.svelte';
-  import DiplomaCeremonyOverlay from './components/DiplomaCeremonyOverlay.svelte';
+  import LoadingCeremony from '$lib/components/LoadingCeremony.svelte';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import type { FlagKey } from '$lib/domain/featureFlags';
 
@@ -30,9 +30,24 @@
   let generatingBadges = $state(false);
   let badgeModeOpen = $state(false);
   let generatingDiplomas = $state(false);
-  // Drives the full-screen ceremony overlay shown while the diploma sheet renders;
-  // null when idle. Carries the headcount + city the overlay copy interpolates.
-  let diplomaCeremony = $state<{ count: number; city: string } | null>(null);
+  // Headcount for the ceremony copy, filled from the streamed cohort when the
+  // diploma generation starts; 0 until then (the title degrades gracefully).
+  let diplomaCount = $state(0);
+
+  const diplomaCeremonyTitle = $derived(
+    diplomaCount > 0
+      ? `Génération de ${diplomaCount} diplôme${diplomaCount > 1 ? 's' : ''}`
+      : 'Génération des diplômes',
+  );
+
+  // Rotating step lines for the ceremony overline - kept true to what the PDF
+  // render actually does (one page per inscrit, with the campus signatures).
+  const DIPLOMA_CEREMONY_MESSAGES = [
+    'Préparation des diplômes…',
+    'Mise en page de chaque diplôme…',
+    'Application des signatures…',
+    'Presque prêt…',
+  ];
 
   // Four distinct colours, reused in both illustration grids so the foldable
   // preview visibly mirrors the simple one (same colours, doubled and flipped).
@@ -80,38 +95,30 @@
   //
   // The render runs ~15s for a big cohort and used to leave staff staring at a
   // bare spinner, fearing it had hung (the actual reported complaint). Instead of
-  // a toast we raise a full-screen ceremony overlay (DiplomaCeremonyOverlay) for
-  // the whole wait. This is a once-per-stage clôture action, so we hold the
-  // overlay a minimum beat even when the file is ready early (small campuses
-  // render in ~1s) and reveal the download as the overlay closes - the ceremony.
-  // Big cohorts simply wait the natural render time. The beat is long enough to
-  // read the line and take in the image before the download interrupts.
-  const CEREMONY_MIN_MS = 7000;
-
+  // a toast we raise a full-screen LoadingCeremony for the whole wait. It owns a
+  // minimum display beat, so small campuses (~1s render) still get the full
+  // moment instead of a flash, while big cohorts simply stay up the natural
+  // render time.
   async function generateDiplomas() {
     if (generatingDiplomas) return;
+    // Flip the flag first (reentry guard + opens the overlay immediately), then
+    // fill the headcount from the streamed cohort. It is almost always already
+    // resolved by now, so the count lands before first paint; if it rejects, the
+    // title falls back to the count-less line.
     generatingDiplomas = true;
-
-    // Best-effort headcount for the overlay copy. The cohort is a streamed
-    // promise, so fall back to 0 if it has not resolved yet or rejects; the copy
-    // degrades gracefully (no count shown).
-    let count = 0;
     try {
       const { cohort } = await data.cohort;
-      count = cohort.total;
+      diplomaCount = cohort.total;
     } catch {
-      // Keep count at 0.
+      diplomaCount = 0;
     }
-    diplomaCeremony = { count, city: data.campusName };
 
-    const minDisplay = new Promise((r) => setTimeout(r, CEREMONY_MIN_MS));
     try {
       const endpoint = page.url.pathname.replace(
         /\/inscrits\/?$/,
         '/diplomes.pdf',
       );
-      // Wait for the render AND the minimum ceremony beat before revealing.
-      const [res] = await Promise.all([fetch(endpoint), minDisplay]);
+      const res = await fetch(endpoint);
       if (!res.ok) throw new Error(`Diplomas failed: ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -126,7 +133,6 @@
       console.error('generate diplomas', e);
       toast.error('Échec de la génération des diplômes.');
     } finally {
-      diplomaCeremony = null;
       generatingDiplomas = false;
     }
   }
@@ -268,8 +274,8 @@
   </Dialog.Content>
 </Dialog.Root>
 
-<DiplomaCeremonyOverlay
-  open={diplomaCeremony !== null}
-  count={diplomaCeremony?.count ?? 0}
-  city={diplomaCeremony?.city ?? ''}
+<LoadingCeremony
+  open={generatingDiplomas}
+  title={diplomaCeremonyTitle}
+  messages={DIPLOMA_CEREMONY_MESSAGES}
 />
