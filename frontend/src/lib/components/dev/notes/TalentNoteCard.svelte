@@ -25,8 +25,6 @@
     minute: '2-digit',
   });
   const when = (iso: string) => fmt.format(new Date(iso));
-
-  const authorName = $derived(note.author?.name ?? 'Staff');
 </script>
 
 <div class="group/note rounded-sm border bg-card px-3 py-2.5">
@@ -65,20 +63,32 @@
   {/if}
 
   <div class="mt-2.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-    <Avatar.Root class="h-5 w-5">
-      <Avatar.Image
-        src={note.author?.image ?? undefined}
-        alt={authorName}
-        class="object-cover"
-      />
-      <Avatar.Fallback
-        class="bg-epi-blue/10 text-[9px] font-bold text-epi-blue"
-      >
-        {getInitials(authorName)}
-      </Avatar.Fallback>
-    </Avatar.Root>
+    {#if note.author}
+      <Avatar.Root class="h-5 w-5">
+        <Avatar.Image
+          src={note.author.image ?? undefined}
+          alt={note.author.name ?? 'Staff'}
+          class="object-cover"
+        />
+        <Avatar.Fallback
+          class="bg-epi-blue/10 text-[9px] font-bold text-epi-blue"
+        >
+          {getInitials(note.author.name)}
+        </Avatar.Fallback>
+      </Avatar.Root>
+    {/if}
     <span>
-      <span class="font-medium text-foreground">{authorName}</span>
+      <!-- Null author = a note migrated from the old single `Talent.note` field
+           (no author was ever recorded), or one whose author's staff account was
+           later deleted. Labelled as such, never a fake "Staff" name — every note
+           written or edited since the feature shipped carries its real author. -->
+      {#if note.author}
+        <span class="font-medium text-foreground"
+          >{note.author.name ?? 'Staff'}</span
+        >
+      {:else}
+        <span class="italic">Auteur inconnu</span>
+      {/if}
       · {when(note.createdAt)}
       {#if note.edited}
         · modifié{note.editedBy?.name ? ` par ${note.editedBy.name}` : ''}

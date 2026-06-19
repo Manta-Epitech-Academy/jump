@@ -181,7 +181,11 @@
         {/if}
       </Table.Cell>
       <Table.Cell class="text-sm whitespace-nowrap text-muted-foreground">
-        {note.author?.name ?? 'Staff'}
+        {#if note.author}
+          {note.author.name ?? 'Staff'}
+        {:else}
+          <span class="italic">Auteur inconnu</span>
+        {/if}
       </Table.Cell>
       <Table.Cell class="text-sm whitespace-nowrap text-muted-foreground">
         {when(note.createdAt)}
@@ -239,7 +243,9 @@
           </p>
         {/if}
         <p class="text-xs text-muted-foreground">
-          {note.author?.name ?? 'Staff'} · {when(note.createdAt)}
+          {#if note.author}{note.author.name ?? 'Staff'}{:else}<span
+              class="italic">Auteur inconnu</span
+            >{/if} · {when(note.createdAt)}
         </p>
       </div>
     {/snippet}
