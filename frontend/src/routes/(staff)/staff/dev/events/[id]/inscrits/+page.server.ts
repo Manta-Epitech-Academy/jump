@@ -172,9 +172,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     timezone,
     origin,
     countdown,
-    // The acting staff's campus name, used as the city in the diploma ceremony
-    // overlay copy ("du campus de {ville}"). Same source the PDF endpoint reads.
-    campusName: locals.staffProfile?.campus?.name ?? '',
     // Un-awaited on purpose: SvelteKit streams it so the shell paints first.
     cohort,
   };
