@@ -5,6 +5,9 @@
   import { page } from '$app/state';
 
   import MessageSquare from '@lucide/svelte/icons/message-square';
+  import Calendar from '@lucide/svelte/icons/calendar';
+  import { EVENT_TYPES } from '$lib/domain/event';
+  import { formatDateFr } from '$lib/utils';
 
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
@@ -32,6 +35,16 @@
     new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
   );
   const hasCodingClub = $derived(featureFlags.has('coding_club'));
+  const codingClubHistory = $derived(
+    data.participations
+      .filter(
+        (p) => p.event.eventType === EVENT_TYPES.CODING_CLUB && p.isPresent,
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.event.date).getTime() - new Date(a.event.date).getTime(),
+      ),
+  );
   const talentsHref = $derived(
     hasCodingClub ? resolve('/staff/dev/students') : undefined,
   );
@@ -173,6 +186,26 @@
             {contacts}
           />
         </EpiSection>
+
+        {#if hasCodingClub && codingClubHistory.length > 0}
+          <EpiSection title="Historique Coding Club" accent="tomorrow">
+            <ul class="space-y-1.5">
+              {#each codingClubHistory as p (p.id)}
+                <li
+                  class="flex items-center gap-2.5 rounded-sm border bg-card px-3 py-2 text-sm"
+                >
+                  <Calendar
+                    class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                  />
+                  <span class="font-mono text-xs text-muted-foreground"
+                    >{formatDateFr(p.event.date)}</span
+                  >
+                  <span class="truncate font-medium">{p.event.titre}</span>
+                </li>
+              {/each}
+            </ul>
+          </EpiSection>
+        {/if}
 
         <ContactCard student={data.student} />
       {/if}

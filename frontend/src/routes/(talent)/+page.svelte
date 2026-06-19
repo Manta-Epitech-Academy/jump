@@ -14,6 +14,7 @@
   import Coffee from '@lucide/svelte/icons/coffee';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import CalendarCheck from '@lucide/svelte/icons/calendar-check';
   import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
@@ -490,6 +491,53 @@
             {/if}
           </div>
         </div>
+
+        <!-- Past coding club events the talent attended. order-5 keeps it
+             last in the left column on mobile (after planning). Only rendered
+             when the campus has the coding_club flag on and the talent has
+             attended at least one past event. -->
+        {#if data.pastCodingClubs.length > 0}
+          <div
+            class="order-5 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+          >
+            <div
+              class="flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
+            >
+              <CalendarCheck class="h-4 w-4 shrink-0 text-epi-blue" />
+              <h2
+                class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
+              >
+                Événements passés<span class="text-epi-teal">_</span>
+              </h2>
+            </div>
+
+            <div class="space-y-1 p-4">
+              {#each data.pastCodingClubs as p (p.id)}
+                <div class="flex items-center gap-3 rounded-xl px-2 py-1.5">
+                  <span class="shrink-0 font-mono text-xs text-slate-400">
+                    {new Date(p.event.date).toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'short',
+                    })}
+                  </span>
+                  <span
+                    class="truncate text-sm font-medium text-slate-700 dark:text-slate-300"
+                  >
+                    {p.event.titre}
+                  </span>
+                </div>
+              {/each}
+            </div>
+
+            <a
+              href={resolve('/events')}
+              class="flex items-center justify-center gap-1.5 border-t border-slate-100 px-6 py-3 text-sm font-semibold text-epi-blue transition-colors hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
+            >
+              Voir tout
+              <ArrowRight class="h-4 w-4" />
+            </a>
+          </div>
+        {/if}
       </div>
 
       <!-- RIGHT COLUMN: the day's missions (minigame first, then the event's

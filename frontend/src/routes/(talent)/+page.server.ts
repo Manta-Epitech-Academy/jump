@@ -194,6 +194,23 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       }
     }
 
+    // Past coding club events the talent attended (widget: 5 most recent).
+    const pastCodingClubs = locals.featureFlags?.has('coding_club')
+      ? await prisma.participation.findMany({
+          where: {
+            talentId: studentId,
+            isPresent: true,
+            event: { eventType: 'coding_club', date: { lt: startOfDay } },
+          },
+          select: {
+            id: true,
+            event: { select: { titre: true, date: true } },
+          },
+          orderBy: { event: { date: 'desc' } },
+          take: 5,
+        })
+      : [];
+
     return {
       student: locals.talent,
       planning,
@@ -202,6 +219,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       minigameRankReward,
       onboardingArrival,
       welcome,
+      pastCodingClubs,
     };
   } catch (err) {
     console.error('Error fetching camper dashboard data:', err);
