@@ -18,6 +18,7 @@
   let {
     talentId,
     notes,
+    timezone,
     eventId = null,
     onCountChange,
     composing = $bindable(false),
@@ -27,6 +28,9 @@
   }: {
     talentId: string;
     notes: SerializedNote[];
+    // Campus IANA timezone, forwarded to each card so note timestamps read in the
+    // campus wall clock (see TalentNoteCard — the fiche feed is SSR'd under UTC).
+    timezone: string;
     eventId?: string | null;
     // Fired with the new note count after a create/delete, so a host (the
     // émargement dialog) can keep its roster icon tint in sync.
@@ -125,6 +129,7 @@
           {:else}
             <TalentNoteCard
               {note}
+              {timezone}
               onEdit={() => (editingId = note.id)}
               onDelete={() => {
                 deleteTarget = note;

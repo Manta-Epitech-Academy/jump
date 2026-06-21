@@ -106,11 +106,13 @@ export const NOTE_ROW_SELECT = {
       email: true,
       civilite: true,
       // Effective campus = most-recent participation's campus, same as the
-      // other admin talent views; disambiguates same-name talents.
+      // other admin talent views; disambiguates same-name talents. Its timezone
+      // rides along so each row's date renders in its own campus wall clock (the
+      // gallery is global, spanning campuses, and is SSR'd under a UTC server).
       participations: {
         take: 1,
         orderBy: { event: { date: 'desc' } },
-        select: { campus: { select: { name: true } } },
+        select: { campus: { select: { name: true, timezone: true } } },
       },
     },
   },
@@ -140,6 +142,9 @@ export function projectNoteRow(n: NoteRow) {
       civilite: n.talent.civilite,
     },
     campus: n.talent.participations[0]?.campus?.name ?? null,
+    // IANA tz of that campus (defaulted, matching getCampusTimezone), used to
+    // format this row's dates in the campus wall clock rather than the server's.
+    timezone: n.talent.participations[0]?.campus?.timezone ?? 'Europe/Paris',
   };
 }
 

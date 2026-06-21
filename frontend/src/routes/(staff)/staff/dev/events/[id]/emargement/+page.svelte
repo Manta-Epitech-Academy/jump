@@ -179,6 +179,7 @@
       {isActivePastCutoff}
       {canEdit}
       eventId={data.event.id}
+      timezone={data.timezone}
       bind:activeSlotKey
       bind:dialogOpen={rosterDialogOpen}
     />

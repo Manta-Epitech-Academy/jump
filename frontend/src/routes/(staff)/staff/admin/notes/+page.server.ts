@@ -71,7 +71,10 @@ export const actions: Actions = {
     const noteId = url.searchParams.get('id') ?? '';
     if (!noteId) return fail(400, { message: 'Note manquante.' });
     try {
-      await prisma.note_TalentNote.delete({ where: { id: noteId } });
+      // `deleteMany` so a note already removed (double-submit, or another admin
+      // got there first) is a no-op success rather than a P2025 → 500: the row is
+      // gone either way, which is the intent. The catch still guards real faults.
+      await prisma.note_TalentNote.deleteMany({ where: { id: noteId } });
       return { success: true };
     } catch (e) {
       console.error('admin delete note', e);

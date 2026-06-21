@@ -324,6 +324,7 @@
             <TalentNotesFeed
               talentId={data.student.id}
               notes={data.notes}
+              timezone={data.timezone}
               bind:composing={notesComposing}
               showComposeButton={false}
               listMaxHeightClass="max-h-[22rem]"

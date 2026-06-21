@@ -64,14 +64,27 @@
     { key: 'action', label: '', align: 'right', class: 'w-12' },
   ];
 
-  const fmt = new Intl.DateTimeFormat('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  const when = (iso: string) => fmt.format(new Date(iso));
+  // One formatter per campus timezone (the gallery is global, so rows span
+  // campuses), built lazily and cached: each note's date reads in its own campus
+  // wall clock instead of the server's (these rows stream in SSR'd under a UTC
+  // process) or the admin's browser.
+  const fmtByTz = new Map<string, Intl.DateTimeFormat>();
+  function fmtFor(tz: string): Intl.DateTimeFormat {
+    let f = fmtByTz.get(tz);
+    if (!f) {
+      f = new Intl.DateTimeFormat('fr-FR', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: tz,
+      });
+      fmtByTz.set(tz, f);
+    }
+    return f;
+  }
+  const when = (iso: string, tz: string) => fmtFor(tz).format(new Date(iso));
 
   function navigateWithParams(params: Record<string, string>) {
     const url = new URL(page.url);
@@ -188,11 +201,12 @@
         {/if}
       </Table.Cell>
       <Table.Cell class="text-sm whitespace-nowrap text-muted-foreground">
-        {when(note.createdAt)}
+        {when(note.createdAt, note.timezone)}
         {#if note.edited}
           <span class="block text-xs">
             modifié{note.editedByName ? ` par ${note.editedByName}` : ''} le {when(
               note.updatedAt,
+              note.timezone,
             )}
           </span>
         {/if}
@@ -245,7 +259,7 @@
         <p class="text-xs text-muted-foreground">
           {#if note.author}{note.author.name ?? 'Staff'}{:else}<span
               class="italic">Auteur inconnu</span
-            >{/if} · {when(note.createdAt)}
+            >{/if} · {when(note.createdAt, note.timezone)}
         </p>
       </div>
     {/snippet}

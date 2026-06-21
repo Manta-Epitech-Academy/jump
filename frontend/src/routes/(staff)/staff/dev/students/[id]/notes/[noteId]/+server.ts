@@ -64,6 +64,10 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
   await requireTalentNoteAccess(locals, params.id);
   await assertNoteOfTalent(params.noteId, params.id);
 
-  await prisma.note_TalentNote.delete({ where: { id: params.noteId } });
+  // `deleteMany`, not `delete`: `assertNoteOfTalent` above already 404s a missing
+  // note, but two staff deleting the same note race between that check and here.
+  // `delete` would throw P2025 (→ 500) for the loser even though the note is gone;
+  // `deleteMany` no-ops to count 0, so a concurrent delete still reports success.
+  await prisma.note_TalentNote.deleteMany({ where: { id: params.noteId } });
   return json({ ok: true });
 };

@@ -13,11 +13,15 @@
     open = $bindable(),
     row,
     eventId,
+    timezone,
     onCountChange,
   }: {
     open: boolean;
     row: PresenceRow | null;
     eventId: string;
+    /** Campus IANA timezone, forwarded to the feed so note times read in the
+     *  campus wall clock (matches the créneau the roster lights, see types.ts). */
+    timezone: string;
     onCountChange?: (talentId: string, count: number) => void;
   } = $props();
 
@@ -76,6 +80,7 @@
           <TalentNotesFeed
             talentId={row.talentId}
             {notes}
+            {timezone}
             {eventId}
             showStaffOnlyHint={false}
             onCountChange={(count) => onCountChange?.(row.talentId, count)}

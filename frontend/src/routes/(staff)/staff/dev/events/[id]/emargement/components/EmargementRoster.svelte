@@ -59,6 +59,7 @@
     isActivePastCutoff,
     canEdit,
     eventId,
+    timezone,
     activeSlotKey = $bindable(),
     dialogOpen = $bindable(false),
   }: EmargementCohort & {
@@ -69,6 +70,8 @@
     canEdit: boolean;
     /** Anchors notes created from this screen to the event (see NotesDialog). */
     eventId: string;
+    /** Campus IANA timezone, forwarded to the notes dialog for byline times. */
+    timezone: string;
     activeSlotKey: string;
     dialogOpen?: boolean;
   } = $props();
@@ -680,6 +683,7 @@
   bind:open={notesOpen}
   row={notesTarget}
   {eventId}
+  {timezone}
   onCountChange={onNoteCountChange}
 />
 

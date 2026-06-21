@@ -13,10 +13,16 @@
 
   let {
     note,
+    timezone,
     onEdit,
     onDelete,
   }: {
     note: SerializedNote;
+    // Campus IANA timezone for the byline date/time. Required, never an ambient
+    // default: the feed is SSR-rendered on the fiche, where the server process
+    // runs UTC, so an implicit local timezone would print the wrong wall clock
+    // (and, near midnight, the wrong day). The caller passes its campus tz.
+    timezone: string;
     onEdit: () => void;
     onDelete: () => void;
   } = $props();
@@ -27,15 +33,22 @@
   // event collapses to its type ("Stage de Seconde"), and an edit adds a quiet
   // "modifié" marker (never a second date inline; the date + editor live in its
   // tooltip). Date and time are formatted apart so the line reads "17 juin, 14:35"
-  // (no locale "à"), shaving width.
-  const dateFmt = new Intl.DateTimeFormat('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-  });
-  const timeFmt = new Intl.DateTimeFormat('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  // (no locale "à"), shaving width. Both read the campus tz so the hour matches
+  // the créneau it was taken on, not the viewer's (or the server's) clock.
+  const dateFmt = $derived(
+    new Intl.DateTimeFormat('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      timeZone: timezone,
+    }),
+  );
+  const timeFmt = $derived(
+    new Intl.DateTimeFormat('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: timezone,
+    }),
+  );
   const when = (iso: string) => {
     const d = new Date(iso);
     return `${dateFmt.format(d)}, ${timeFmt.format(d)}`;
