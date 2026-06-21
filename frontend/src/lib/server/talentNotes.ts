@@ -8,7 +8,7 @@ import type { SerializedNote } from '$lib/domain/talentNotes';
 export const NOTE_INCLUDE = {
   author: { select: { user: { select: { name: true, image: true } } } },
   editedBy: { select: { user: { select: { name: true, image: true } } } },
-  event: { select: { id: true, titre: true } },
+  event: { select: { id: true, titre: true, eventType: true } },
 } satisfies Prisma.Note_TalentNoteInclude;
 
 type NoteWithRelations = Prisma.Note_TalentNoteGetPayload<{
@@ -28,7 +28,13 @@ export function serializeNote(note: NoteWithRelations): SerializedNote {
     editedBy: note.editedBy
       ? { name: note.editedBy.user.name, image: note.editedBy.user.image }
       : null,
-    event: note.event ? { id: note.event.id, titre: note.event.titre } : null,
+    event: note.event
+      ? {
+          id: note.event.id,
+          titre: note.event.titre,
+          type: note.event.eventType,
+        }
+      : null,
   };
 }
 

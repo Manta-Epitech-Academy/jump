@@ -233,7 +233,8 @@ export function slotLabelLong(s: EventSlot): string {
 
 /**
  * The créneau to land on when opening the page: today's half-day by the clock
- * when the stage is running, otherwise the first (upcoming) or last (past).
+ * when the stage is running, otherwise the next upcoming créneau, falling back to
+ * the last one once the stage is over.
  */
 export function defaultActiveSlotKey(
   slots: EventSlot[],
@@ -246,8 +247,32 @@ export function defaultActiveSlotKey(
   if (todayExact) return todayExact.key;
   const todayAny = slots.find((s) => s.day === todayKey);
   if (todayAny) return todayAny.key;
-  if (todayKey < slots[0].day) return slots[0].key;
-  return slots[slots.length - 1].key;
+  // Today carries no créneau of its own: before the stage, after it, or a weekend
+  // (or gap) in the middle. Land on the next créneau on or after today, and only
+  // fall back to the last one when the whole stage is already past. (Before this,
+  // any non-créneau day past the start jumped to the last day — a Sunday mid-stage
+  // opened on the final Friday.)
+  const upcoming = slots.find((s) => s.day >= todayKey);
+  return upcoming ? upcoming.key : slots[slots.length - 1].key;
+}
+
+/**
+ * The créneau key an instant falls in, in the campus timezone: its calendar day
+ * plus the morning/afternoon half by the **same 13h split** `defaultActiveSlotKey`
+ * uses, so "which créneau is this?" is answered one way across the feature. Lets
+ * the émargement roster light a talent's note trigger when their latest note was
+ * taken during the créneau currently on screen (`=== activeSlot.key`).
+ */
+export function slotKeyOfInstant(instant: Date, timezone: string): string {
+  const hour = Number(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).format(instant),
+  );
+  const slot: PresenceSlot = hour < 13 ? 'morning' : 'afternoon';
+  return slotKey(toDateKey(instant, timezone), slot);
 }
 
 /** "lundi 9 juin" for a day tab / navigator label. */

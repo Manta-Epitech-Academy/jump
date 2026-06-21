@@ -77,6 +77,7 @@
             talentId={row.talentId}
             {notes}
             {eventId}
+            showStaffOnlyHint={false}
             onCountChange={(count) => onCountChange?.(row.talentId, count)}
           />
         {/key}

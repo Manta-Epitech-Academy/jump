@@ -16,5 +16,7 @@ export type SerializedNote = {
   edited: boolean;
   author: NoteStaff | null;
   editedBy: NoteStaff | null;
-  event: { id: string; titre: string } | null;
+  /** The event the note was taken at: `type` drives the condensed metadata label
+   *  ("Stage de Seconde"), `titre` is kept for any future detail view. */
+  event: { id: string; titre: string; type: string } | null;
 };

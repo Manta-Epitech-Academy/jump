@@ -5,7 +5,9 @@
   import { page } from '$app/state';
 
   import MessageSquare from '@lucide/svelte/icons/message-square';
+  import Plus from '@lucide/svelte/icons/plus';
 
+  import { Button } from '$lib/components/ui/button';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
 
@@ -39,6 +41,10 @@
   const charteSigned = $derived(
     data.primaryComplianceParticipation?.stageCompliance?.charteSigned,
   );
+
+  // The notes composer is driven from the card header ("Ajouter une note"), so
+  // the feed's own inline button is hidden and its open-state is bound here.
+  let notesComposing = $state(false);
 
   // Contacts surfaced (copyable) next to the recommendations that need a
   // call/email. The fiche is read-only for dev staff, no talent edits here.
@@ -295,6 +301,35 @@
         {#if interviewMode && interviewStatus === 'in_progress'}
           <InterviewSectionNav bind:step={interviewStep} />
         {:else if !interviewMode}
+          <!-- Staff notes first: they are the human read on the talent and the
+               reason staff open the rail, so they lead over the Synthèse's
+               at-a-glance dossier status below. Same EpiSection chrome so the rail
+               reads as one charte-styled column. Neutral accent: free-text notes
+               carry no brand vector. A feed of many notes (pedago +
+               administratif), each authored and timestamped. The "Ajouter une
+               note" action sits in the card header (meta), not inside the feed.
+               Hidden in interview mode so nothing competes with the question rail. -->
+          <EpiSection title="Notes" accent="neutral">
+            {#snippet meta()}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={notesComposing}
+                onclick={() => (notesComposing = true)}
+              >
+                <Plus class="mr-1.5 h-3.5 w-3.5" />
+                Ajouter une note
+              </Button>
+            {/snippet}
+            <TalentNotesFeed
+              talentId={data.student.id}
+              notes={data.notes}
+              bind:composing={notesComposing}
+              showComposeButton={false}
+              listMaxHeightClass="max-h-[22rem]"
+            />
+          </EpiSection>
+
           <RightRailCard
             lastActiveAt={data.student.lastActiveAt}
             firstLoginAt={data.firstLoginAt}
@@ -308,17 +343,6 @@
             studentName={`${data.student.prenom} ${data.student.nom}`}
             timezone={data.timezone}
           />
-
-          <!-- Staff notes last: the Synthèse above is the at-a-glance dossier
-               status staff scan on every visit, the notes are an annotation
-               layer. Same EpiSection chrome as the Synthèse so the rail reads as
-               one charte-styled column. Neutral accent: free-text notes carry no
-               brand vector. A feed of many notes (pedago + administratif), each
-               authored and timestamped. Hidden in interview mode so nothing
-               competes with the focused question rail. -->
-          <EpiSection title="Notes" accent="neutral">
-            <TalentNotesFeed talentId={data.student.id} notes={data.notes} />
-          </EpiSection>
         {/if}
       </div>
     </div>

@@ -17,9 +17,12 @@ export const PRESENCE_ROSTER_SELECT = {
       civilite: true,
       email: true,
       phone: true,
-      // Just the count, not the bodies: the roster is ~200 rows and the notes
-      // feed is lazy-loaded by the dialog. The count drives the icon tint.
+      // Not the bodies (lazy-loaded by the dialog): the count drives the hover
+      // tooltip, and every note's createdAt is mapped server-side to its créneau
+      // so the roster can light only the talents noted in the slot on screen.
+      // Dates only, so even a chatty talent's notes stay cheap over ~200 rows.
       _count: { select: { notes: true } },
+      notes: { select: { createdAt: true } },
       user: { select: { email: true } },
       parentCivilite: true,
       parentPrenom: true,
@@ -51,9 +54,12 @@ export type PresenceRow = {
   civilite: string | null;
   email: string | null;
   phone: string | null;
-  /** Count of staff notes on this talent; drives the note-icon tint. The note
-   *  bodies are lazy-loaded by the dialog, not carried in the roster. */
+  /** Count of staff notes on this talent; surfaced in the trigger's hover tooltip.
+   *  The note bodies are lazy-loaded by the dialog, not carried in the roster. */
   noteCount: number;
+  /** The distinct créneau keys (`${day}|${slot}`) this talent has a note in, by
+   *  note createdAt. The trigger lights only when the active créneau is in here. */
+  noteSlotKeys: string[];
   /** Up to two guardians, in priority order; empty when none are on file. */
   guardians: Guardian[];
 };

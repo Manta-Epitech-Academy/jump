@@ -17,6 +17,7 @@ import {
   toDateKey,
   effectiveStatus,
   computeAttendanceRate,
+  slotKeyOfInstant,
   type PresenceRecord,
   type CellStatus,
 } from '$lib/domain/eventPresence';
@@ -125,6 +126,11 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
         email: t.user?.email ?? t.email,
         phone: t.phone,
         noteCount: t._count.notes,
+        noteSlotKeys: [
+          ...new Set(
+            t.notes.map((n) => slotKeyOfInstant(n.createdAt, timezone)),
+          ),
+        ],
         guardians,
       };
     });

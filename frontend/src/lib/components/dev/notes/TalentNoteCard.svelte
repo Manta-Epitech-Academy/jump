@@ -1,10 +1,14 @@
 <script lang="ts">
   import * as Avatar from '$lib/components/ui/avatar';
-  import { Button } from '$lib/components/ui/button';
+  import * as Tooltip from '$lib/components/ui/tooltip';
+  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+  import { buttonVariants } from '$lib/components/ui/button';
   import Pencil from '@lucide/svelte/icons/pencil';
   import Trash2 from '@lucide/svelte/icons/trash-2';
-  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import Ellipsis from '@lucide/svelte/icons/ellipsis';
   import { getInitials } from '$lib/avatar';
+  import { eventTypeLabel } from '$lib/domain/event';
+  import { cn } from '$lib/utils';
   import type { SerializedNote } from '$lib/domain/talentNotes';
 
   let {
@@ -17,54 +21,52 @@
     onDelete: () => void;
   } = $props();
 
-  const fmt = new Intl.DateTimeFormat('fr-FR', {
+  // The byline stays light and on ONE line: who, when, and which event, condensed
+  // and muted above the note. The time shows (the matin/après-midi créneau makes
+  // the hour meaningful), no year since the feed is recent and stage-scoped; the
+  // event collapses to its type ("Stage de Seconde"), and an edit adds a quiet
+  // "modifié" marker (never a second date inline; the date + editor live in its
+  // tooltip). Date and time are formatted apart so the line reads "17 juin, 14:35"
+  // (no locale "à"), shaving width.
+  const dateFmt = new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
-    month: 'short',
-    year: 'numeric',
+    month: 'long',
+  });
+  const timeFmt = new Intl.DateTimeFormat('fr-FR', {
     hour: '2-digit',
     minute: '2-digit',
   });
-  const when = (iso: string) => fmt.format(new Date(iso));
+  const when = (iso: string) => {
+    const d = new Date(iso);
+    return `${dateFmt.format(d)}, ${timeFmt.format(d)}`;
+  };
+
+  // Separator with NON-BREAKING spaces around the middot, so it survives every
+  // trim: Svelte drops literal whitespace at `{#if}` boundaries, and CSS strips a
+  // leading space at the start of the metadata flex item (which rendered "Fevre·"
+  // with no space). A real expression of nbsp dodges both.
+  const SEP = ' · ';
+
+  // The modification date + editor live in the "modifié" tooltip, so "quand / par
+  // qui" is one hover away without a second date on the line. Empty when never
+  // edited. Null editor = the editing staff account was later removed.
+  const editedTitle = $derived(
+    note.edited
+      ? `Modifié le ${when(note.updatedAt)}${note.editedBy?.name ? ` par ${note.editedBy.name}` : ''}`
+      : '',
+  );
 </script>
 
 <div class="group/note rounded-sm border bg-card px-3 py-2.5">
-  <div class="flex items-start justify-between gap-2">
-    <p class="min-w-0 flex-1 text-sm whitespace-pre-wrap">{note.body}</p>
-    <!-- Any dev member may edit/delete any note (no ownership gate). -->
-    <div
-      class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-focus-within/note:opacity-100 group-hover/note:opacity-100"
-    >
-      <Button
-        size="icon"
-        variant="ghost"
-        class="h-7 w-7 rounded-sm"
-        onclick={onEdit}
-        aria-label="Modifier la note"
-      >
-        <Pencil class="h-3.5 w-3.5" />
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        class="h-7 w-7 rounded-sm text-muted-foreground hover:text-destructive"
-        onclick={onDelete}
-        aria-label="Supprimer la note"
-      >
-        <Trash2 class="h-3.5 w-3.5" />
-      </Button>
-    </div>
-  </div>
-
-  {#if note.event}
-    <p class="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-      <CalendarDays class="h-3.5 w-3.5" />
-      {note.event.titre}
-    </p>
-  {/if}
-
-  <div class="mt-2.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+  <!-- Byline lead, mirroring the Centres d'intérêt pull-quotes beside it: small
+       and muted above the note (the hero below). Kept to one line: the date /
+       event type / "modifié" marker always stay whole (the metadata that earns its
+       place), the actions collapse into a single "⋯" menu so they reserve one
+       icon's width and never overlap the text, and the author name is the only
+       part that truncates when the rail is tight. -->
+  <div class="flex items-center text-[11px] text-muted-foreground">
     {#if note.author}
-      <Avatar.Root class="h-5 w-5">
+      <Avatar.Root class="mr-1.5 h-5 w-5 shrink-0">
         <Avatar.Image
           src={note.author.image ?? undefined}
           alt={note.author.name ?? 'Staff'}
@@ -77,23 +79,68 @@
         </Avatar.Fallback>
       </Avatar.Root>
     {/if}
-    <span>
-      <!-- Null author = a note migrated from the old single `Talent.note` field
-           (no author was ever recorded), or one whose author's staff account was
-           later deleted. Labelled as such, never a fake "Staff" name — every note
-           written or edited since the feature shipped carries its real author. -->
-      {#if note.author}
-        <span class="font-medium text-foreground"
-          >{note.author.name ?? 'Staff'}</span
-        >
-      {:else}
-        <span class="italic">Auteur inconnu</span>
-      {/if}
-      · {when(note.createdAt)}
-      {#if note.edited}
-        · modifié{note.editedBy?.name ? ` par ${note.editedBy.name}` : ''}
-        le {when(note.updatedAt)}
-      {/if}
+    <span class="flex min-w-0 flex-1 items-center">
+      <!-- Null author = a note migrated from the old single `Talent.note` field,
+           or one whose author's staff account was later deleted: labelled as such,
+           never a fake "Staff" name. -->
+      <span
+        class="min-w-0 truncate {note.author
+          ? 'font-medium text-foreground'
+          : 'italic'}"
+      >
+        {note.author ? (note.author.name ?? 'Staff') : 'Auteur inconnu'}
+      </span>
+      <span class="shrink-0 whitespace-nowrap">
+        {SEP}{when(note.createdAt)}{#if note.event}{SEP}{eventTypeLabel(
+            note.event.type,
+          )}{/if}{#if note.edited}{SEP}<Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <span
+                  {...props}
+                  class="cursor-help underline decoration-dotted underline-offset-2"
+                  >modifié</span
+                >
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content>{editedTitle}</Tooltip.Content>
+          </Tooltip.Root>{/if}
+      </span>
     </span>
+    <!-- Actions in a single "⋯" menu (any dev member may edit/delete any note, no
+         ownership gate). Hover/focus reveals it, and it stays shown while open. -->
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger
+        class={cn(
+          buttonVariants({ variant: 'ghost', size: 'icon' }),
+          'ml-1 h-7 w-7 shrink-0 rounded-sm text-muted-foreground opacity-0 transition-opacity group-focus-within/note:opacity-100 group-hover/note:opacity-100 data-[state=open]:opacity-100',
+        )}
+        aria-label="Actions sur la note"
+      >
+        <Ellipsis class="h-3.5 w-3.5" />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content align="end">
+        <DropdownMenu.Item class="cursor-pointer" onclick={onEdit}>
+          <Pencil class="mr-2 h-4 w-4 text-muted-foreground" />
+          Modifier
+        </DropdownMenu.Item>
+        <DropdownMenu.Item
+          class="cursor-pointer text-destructive focus:text-destructive"
+          onclick={onDelete}
+        >
+          <Trash2 class="mr-2 h-4 w-4" />
+          Supprimer
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
   </div>
+
+  <!-- The note itself, the hero: bumped to the quote scale at full contrast, with
+       a quiet left rule so it reads as a quote block. Neutral (not teal/blue) to
+       keep the dev rail sober and avoid competing with the trigger colour. -->
+  <p
+    class="mt-2 border-l-2 border-muted-foreground/25 pl-3 text-[15px] leading-relaxed whitespace-pre-wrap text-foreground"
+  >
+    {note.body}
+  </p>
 </div>

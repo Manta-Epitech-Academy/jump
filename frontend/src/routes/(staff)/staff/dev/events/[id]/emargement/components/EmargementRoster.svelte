@@ -14,6 +14,7 @@
   import * as Table from '$lib/components/ui/table';
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
+  import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
@@ -231,6 +232,35 @@
     noteCounts.set(talentId, count);
   }
 
+  // True when this talent has a note taken during the créneau on screen (by note
+  // createdAt, mapped to its créneau server-side in `noteSlotKeys`): it lights the
+  // trigger so staff spot who was noted this half-day. A note just added in the
+  // dialog catches up on the next 5s poll (good enough; no optimistic timestamp).
+  function rowNoteInActiveSlot(row: PresenceRow): boolean {
+    return !!activeSlot && row.noteSlotKeys.includes(activeSlot.key);
+  }
+
+  // The trigger conveys state by its own colour, never a count badge (which read
+  // as a notification): lit (tinted + ring) only when a note lands in the active
+  // créneau, otherwise the quiet contact-icon resting tone. Notes from other
+  // créneaux don't tint it; they surface in the hover tooltip and the dialog.
+  // `mobile` keeps the resting icon legible where there is no row hover.
+  function noteTriggerClass(row: PresenceRow, mobile = false): string {
+    const base = 'h-8 w-8 shrink-0 rounded-sm transition-colors';
+    if (rowNoteInActiveSlot(row)) {
+      return cn(
+        base,
+        'bg-epi-blue/10 text-epi-blue ring-1 ring-inset ring-epi-blue/30 hover:bg-epi-blue/15',
+      );
+    }
+    return cn(
+      base,
+      mobile
+        ? 'text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue'
+        : 'text-muted-foreground/40 group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue',
+    );
+  }
+
   // The talent fiche opens in a new tab on purpose: staff stay anchored in the
   // émargement flow (presence toggles, filters, scroll position) instead of
   // navigating away mid-attendance, while still reaching the full dossier when a
@@ -374,40 +404,33 @@
                 onset={(s) => setStatus(r, s)}
               />
             </Table.Cell>
-            <!-- Notes icon, always present (every talent can have notes). Quiet
-                 at rest like the contact icon beside it (brightens on row
-                 hover/focus); a small count badge — not a permanently flooded
-                 blue icon — marks how many notes exist, so noted talents stand
-                 out and 1 note reads differently from 5. The count, not the
-                 bodies, lives on the roster. -->
+            <!-- Notes icon, always present (every talent can have notes). State
+                 reads from the icon's own colour, never a count badge (which
+                 looked like a notification): muted at rest, blue once a note
+                 exists, lit when the latest note falls in the active créneau. The
+                 tint, not the bodies, lives on the roster. -->
             <Table.Cell class="text-right">
               {@const count = rowNoteCount(r)}
+              {@const live = rowNoteInActiveSlot(r)}
               <Tooltip.Root>
                 <Tooltip.Trigger>
                   {#snippet child({ props })}
-                    <div class="relative inline-flex">
-                      <Button
-                        {...props}
-                        variant="ghost"
-                        size="icon"
-                        class="h-8 w-8 rounded-sm text-muted-foreground/40 transition-colors group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
-                        onclick={() => openNotes(r)}
-                        aria-label={`Notes de ${r.prenom} ${r.nom}`}
-                      >
-                        <NotebookPen class="h-4 w-4" />
-                      </Button>
-                      {#if count > 0}
-                        <span
-                          class="pointer-events-none absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-epi-blue px-1 text-[10px] leading-none font-semibold text-white tabular-nums"
-                        >
-                          {count}
-                        </span>
-                      {/if}
-                    </div>
+                    <Button
+                      {...props}
+                      variant="ghost"
+                      size="icon"
+                      class={noteTriggerClass(r)}
+                      onclick={() => openNotes(r)}
+                      aria-label={`Notes de ${r.prenom} ${r.nom}`}
+                    >
+                      <NotebookPen class="h-4 w-4" />
+                    </Button>
                   {/snippet}
                 </Tooltip.Trigger>
                 <Tooltip.Content class="max-w-72">
-                  {#if count > 0}
+                  {#if live}
+                    Noté sur ce créneau · cliquer pour voir
+                  {:else if count > 0}
                     {count} note{count > 1 ? 's' : ''} · cliquer pour voir
                   {:else}
                     Ajouter une note
@@ -472,24 +495,15 @@
                   <span class="font-medium">{r.prenom}</span>
                   <span class="font-bold uppercase">{r.nom}</span>
                 </p>
-                <div class="relative inline-flex shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-8 w-8 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
-                    onclick={() => openNotes(r)}
-                    aria-label={`Notes de ${r.prenom} ${r.nom}`}
-                  >
-                    <NotebookPen class="h-4 w-4" />
-                  </Button>
-                  {#if rowNoteCount(r) > 0}
-                    <span
-                      class="pointer-events-none absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-epi-blue px-1 text-[10px] leading-none font-semibold text-white tabular-nums"
-                    >
-                      {rowNoteCount(r)}
-                    </span>
-                  {/if}
-                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class={noteTriggerClass(r, true)}
+                  onclick={() => openNotes(r)}
+                  aria-label={`Notes de ${r.prenom} ${r.nom}`}
+                >
+                  <NotebookPen class="h-4 w-4" />
+                </Button>
                 {#if r.phone || r.email || r.guardians.length}
                   <Button
                     variant="ghost"
