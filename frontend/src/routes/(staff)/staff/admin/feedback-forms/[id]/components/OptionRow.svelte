@@ -83,7 +83,7 @@
   {#if showKind}
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
-        class="rounded-sm px-2 py-1 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50"
+        class="cursor-pointer rounded-sm px-2 py-1 text-xs text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
         disabled={locked}
       >
         {KIND_LABELS[option.kind] ?? option.kind}
@@ -108,7 +108,7 @@
 
   <button
     type="button"
-    class="rounded-sm p-1 text-muted-foreground/60 opacity-0 transition group-hover:opacity-100 hover:bg-muted hover:text-destructive disabled:opacity-0"
+    class="cursor-pointer rounded-sm p-1 text-muted-foreground/60 opacity-0 transition group-hover:opacity-100 hover:bg-muted hover:text-destructive disabled:opacity-0"
     disabled={locked}
     aria-label="Supprimer l'option"
     onclick={() => editor.deleteOption(qid, option.id)}

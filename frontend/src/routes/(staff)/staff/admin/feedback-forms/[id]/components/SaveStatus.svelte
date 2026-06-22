@@ -2,6 +2,7 @@
   import Loader2 from '@lucide/svelte/icons/loader-2';
   import Check from '@lucide/svelte/icons/check';
   import CircleAlert from '@lucide/svelte/icons/circle-alert';
+  import Cloud from '@lucide/svelte/icons/cloud';
   import type { FormEditor } from '../editor.svelte';
 
   let { editor }: { editor: FormEditor } = $props();
@@ -10,7 +11,9 @@
 <!-- Quiet, persistent feedback that inline edits actually land (the old editor
      saved silently on blur). Saving spinner while any request is in flight, an
      error once a save has failed (so it never falsely reads "Enregistré"),
-     otherwise "Enregistré" once anything has saved this session. -->
+     "Enregistré" once something saved, otherwise a standing "Enregistrement
+     automatique" so the builder reads as auto-saving from the very first edit
+     (testers couldn't tell whether their changes were being kept). -->
 <div
   class="flex h-6 items-center gap-1.5 text-xs text-muted-foreground"
   aria-live="polite"
@@ -24,5 +27,8 @@
   {:else if editor.lastSavedAt}
     <Check class="h-3.5 w-3.5 text-emerald-600" />
     <span>Enregistré</span>
+  {:else}
+    <Cloud class="h-3.5 w-3.5" />
+    <span>Enregistrement automatique</span>
   {/if}
 </div>

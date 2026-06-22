@@ -3,6 +3,7 @@
   import Copy from '@lucide/svelte/icons/copy';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Plus from '@lucide/svelte/icons/plus';
+  import ChevronUp from '@lucide/svelte/icons/chevron-up';
   import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
   import CircleDot from '@lucide/svelte/icons/circle-dot';
   import SquareCheck from '@lucide/svelte/icons/square-check';
@@ -16,6 +17,7 @@
   import { Switch } from '$lib/components/ui/switch';
   import * as Select from '$lib/components/ui/select';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import { sortable } from '$lib/actions/sortable';
   import TypePicker from './TypePicker.svelte';
   import OptionRow from './OptionRow.svelte';
@@ -41,6 +43,9 @@
   } = $props();
 
   const active = $derived(editor.activeId === q.id);
+  // 1-based rank in the form's flattened order, so each card reads as a numbered
+  // question (testers mistook the first question for the section's description).
+  const number = $derived(editor.questions.findIndex((x) => x.id === q.id) + 1);
 
   const TYPE_ICON = {
     single: CircleDot,
@@ -86,6 +91,7 @@
     class="absolute -top-0 left-1/2 z-10 -translate-x-1/2 cursor-grab rounded-b-sm px-3 text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground active:cursor-grabbing disabled:opacity-0"
     disabled={locked}
     aria-label="Déplacer la question"
+    title="Glisser pour déplacer (ou ↑ / ↓)"
     onkeydown={(e) => {
       if (e.key === 'ArrowUp') {
         e.preventDefault();
@@ -103,9 +109,13 @@
     <!-- Compact summary -->
     <button
       type="button"
-      class="flex w-full items-center gap-3 px-4 py-3 text-left"
+      class="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left"
       onclick={() => editor.setActive(q.id)}
     >
+      <span
+        class="w-4 shrink-0 text-center text-xs font-medium text-muted-foreground tabular-nums"
+        >{number}</span
+      >
       <Icon class="h-4 w-4 shrink-0 text-muted-foreground" />
       <span class="min-w-0 flex-1 truncate text-sm font-medium">
         {q.prompt || 'Question sans intitulé'}
@@ -118,6 +128,30 @@
   {:else}
     <!-- Active editor -->
     <div class="space-y-4 p-5 pt-6">
+      <div class="flex items-center justify-between">
+        <span
+          class="font-mono text-[10px] font-medium tracking-[0.14em] text-muted-foreground uppercase"
+        >
+          Question {number}
+        </span>
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            {#snippet child({ props })}
+              <button
+                {...props}
+                type="button"
+                class="cursor-pointer rounded-sm p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Réduire la question"
+                onclick={() => editor.setActive(null)}
+              >
+                <ChevronUp class="h-4 w-4" />
+              </button>
+            {/snippet}
+          </Tooltip.Trigger>
+          <Tooltip.Content>Réduire</Tooltip.Content>
+        </Tooltip.Root>
+      </div>
+
       <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
         <Textarea
           value={q.prompt}
@@ -135,6 +169,16 @@
           onChange={(t) => editor.patchQuestion(q.id, { type: t })}
         />
       </div>
+
+      {#if q.type === 'gate'}
+        <p
+          class="rounded-sm bg-muted/40 px-3 py-2 text-xs leading-snug text-muted-foreground"
+        >
+          Question d'aiguillage : ajoutez une option de type « Passer ». Si le
+          stagiaire la choisit, les questions de coordonnées qui suivent sont
+          ignorées.
+        </p>
+      {/if}
 
       <!-- Body: mirrors the rendered answer control -->
       {#if hasOptions}
@@ -161,7 +205,7 @@
         </div>
         <button
           type="button"
-          class="ml-7 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
+          class="ml-7 flex cursor-pointer items-center gap-2 text-sm text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           disabled={locked}
           onclick={() => editor.addOption(q.id)}
         >
@@ -254,24 +298,40 @@
 
       <!-- Footer toolbar -->
       <div class="flex items-center justify-end gap-1 border-t pt-3">
-        <button
-          type="button"
-          class="rounded-sm p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
-          disabled={locked}
-          aria-label="Dupliquer la question"
-          onclick={() => editor.duplicateQuestion(q.id)}
-        >
-          <Copy class="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          class="rounded-sm p-2 text-muted-foreground hover:bg-muted hover:text-destructive disabled:opacity-40"
-          disabled={locked}
-          aria-label="Supprimer la question"
-          onclick={() => editor.deleteQuestion(q.id)}
-        >
-          <Trash2 class="h-4 w-4" />
-        </button>
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            {#snippet child({ props })}
+              <button
+                {...props}
+                type="button"
+                class="cursor-pointer rounded-sm p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={locked}
+                aria-label="Dupliquer la question"
+                onclick={() => editor.duplicateQuestion(q.id)}
+              >
+                <Copy class="h-4 w-4" />
+              </button>
+            {/snippet}
+          </Tooltip.Trigger>
+          <Tooltip.Content>Dupliquer la question</Tooltip.Content>
+        </Tooltip.Root>
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            {#snippet child({ props })}
+              <button
+                {...props}
+                type="button"
+                class="cursor-pointer rounded-sm p-2 text-muted-foreground hover:bg-muted hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={locked}
+                aria-label="Supprimer la question"
+                onclick={() => editor.deleteQuestion(q.id)}
+              >
+                <Trash2 class="h-4 w-4" />
+              </button>
+            {/snippet}
+          </Tooltip.Trigger>
+          <Tooltip.Content>Supprimer la question</Tooltip.Content>
+        </Tooltip.Root>
         <div class="mx-1 h-5 w-px bg-border"></div>
         <label class="flex items-center gap-2 px-1 text-sm">
           Obligatoire
@@ -284,7 +344,7 @@
         </label>
         <DropdownMenu.Root>
           <DropdownMenu.Trigger
-            class="rounded-sm p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            class="cursor-pointer rounded-sm p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label="Plus d'options"
           >
             <EllipsisVertical class="h-4 w-4" />
@@ -324,7 +384,7 @@
                 onCheckedChange={(v) =>
                   editor.patchQuestion(q.id, { skipsIdentity: v })}
               >
-                Saute l'identité si refus
+                Masquer si coordonnées déjà connues
               </DropdownMenu.CheckboxItem>
             {/if}
             <DropdownMenu.Separator />
@@ -340,16 +400,23 @@
     <div
       class="absolute top-4 -right-12 hidden flex-col gap-1 rounded-sm border bg-card p-1 shadow-sm xl:flex"
     >
-      <button
-        type="button"
-        class="rounded-sm p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
-        disabled={locked}
-        aria-label="Ajouter une question ici"
-        title="Ajouter une question"
-        onclick={() => editor.addQuestion({ afterId: q.id })}
-      >
-        <Plus class="h-4 w-4" />
-      </button>
+      <Tooltip.Root>
+        <Tooltip.Trigger>
+          {#snippet child({ props })}
+            <button
+              {...props}
+              type="button"
+              class="cursor-pointer rounded-sm p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={locked}
+              aria-label="Ajouter une question ici"
+              onclick={() => editor.addQuestion({ afterId: q.id })}
+            >
+              <Plus class="h-4 w-4" />
+            </button>
+          {/snippet}
+        </Tooltip.Trigger>
+        <Tooltip.Content side="right">Ajouter une question</Tooltip.Content>
+      </Tooltip.Root>
     </div>
   {/if}
 </div>

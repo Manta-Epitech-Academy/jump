@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import { Input } from '$lib/components/ui/input';
   import { Switch } from '$lib/components/ui/switch';
   import * as Select from '$lib/components/ui/select';
@@ -8,6 +9,14 @@
   import type { FormEditor, FormStatus, FormMeta } from '../editor.svelte';
 
   let { editor }: { editor: FormEditor } = $props();
+
+  // Published but no access mode = a live form nobody can reach. Warn rather than
+  // silently leave it unreachable (raised in testing).
+  const publishedButUnreachable = $derived(
+    editor.status === 'published' &&
+      !editor.allowsAuthenticatedAccess &&
+      !editor.allowsPublicAccess,
+  );
 
   const STATUS_LABELS: Record<FormStatus, string> = {
     draft: 'Brouillon',
@@ -77,6 +86,19 @@
 
   <div class="space-y-3 rounded-sm border bg-card p-5 shadow-sm">
     <FieldLabel text="Accès & diffusion" />
+
+    {#if publishedButUnreachable}
+      <div
+        class="flex items-start gap-2 rounded-sm border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+      >
+        <TriangleAlert class="mt-0.5 h-4 w-4 shrink-0" />
+        <p class="min-w-0 flex-1">
+          Ce formulaire est <strong>publié</strong> mais aucun mode d'accès n'est
+          activé : personne ne peut y répondre. Activez l'accès authentifié ou public.
+        </p>
+      </div>
+    {/if}
+
     {#each TOGGLES as t (t.key)}
       <label
         class="flex cursor-pointer items-start justify-between gap-3 rounded-sm border px-3 py-2.5"

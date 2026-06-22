@@ -2,6 +2,8 @@
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
   import { enhance as formEnhance } from '$app/forms';
+  import { page } from '$app/state';
+  import { toast } from 'svelte-sonner';
   import Plus from '@lucide/svelte/icons/plus';
   import Copy from '@lucide/svelte/icons/copy';
   import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -15,6 +17,8 @@
   import { Textarea } from '$lib/components/ui/textarea';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Table from '$lib/components/ui/table';
+  import * as Tooltip from '$lib/components/ui/tooltip';
+  import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import { resolve } from '$app/paths';
   import type { PageData } from './$types';
   import type { FormListRow } from './+page.server';
@@ -74,105 +78,178 @@
         Aucun formulaire pour le moment.
       </div>
     {:else}
-      <div class="rounded-sm border bg-card shadow-sm">
-        <Table.Root>
-          <Table.Header>
-            <Table.Row>
-              <Table.Head>Titre</Table.Head>
-              <Table.Head>Statut</Table.Head>
-              <Table.Head class="text-right">Questions</Table.Head>
-              <Table.Head class="text-right">Réponses</Table.Head>
-              <Table.Head>Accès</Table.Head>
-              <Table.Head class="text-right">Actions</Table.Head>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {#each cohort.rows as row (row.id)}
+      <Tooltip.Provider delayDuration={300}>
+        <div class="rounded-sm border bg-card shadow-sm">
+          <Table.Root>
+            <Table.Header>
               <Table.Row>
-                <Table.Cell>
-                  <a
-                    href={resolve(`/staff/admin/feedback-forms/${row.id}`)}
-                    class="font-medium hover:underline"
-                  >
-                    {row.title}
-                  </a>
-                  <span class="block font-mono text-xs text-muted-foreground"
-                    >/{row.slug}</span
-                  >
-                </Table.Cell>
-                <Table.Cell>
-                  <span
-                    class="inline-flex rounded-sm px-2 py-0.5 text-xs font-medium {STATUS_CLASS[
-                      row.status
-                    ]}"
-                  >
-                    {STATUS_LABEL[row.status] ?? row.status}
-                  </span>
-                </Table.Cell>
-                <Table.Cell class="text-right font-mono text-sm"
-                  >{row.questionCount}</Table.Cell
-                >
-                <Table.Cell class="text-right font-mono text-sm"
-                  >{row.submissionCount}</Table.Cell
-                >
-                <Table.Cell class="text-xs text-muted-foreground">
-                  {row.allowsPublicAccess ? 'Auth + Public' : 'Auth'}
-                </Table.Cell>
-                <Table.Cell>
-                  <div class="flex items-center justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8"
-                      title="Réponses ({row.submissionCount})"
-                      href={resolve(
-                        `/staff/admin/feedback-forms/${row.id}/responses`,
-                      )}
-                    >
-                      <MessageSquare class="h-4 w-4" />
-                      <span class="sr-only">Réponses</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8"
-                      href={resolve(`/staff/admin/feedback-forms/${row.id}`)}
-                    >
-                      <Pencil class="h-4 w-4" />
-                      <span class="sr-only">Modifier</span>
-                    </Button>
-                    <form method="POST" action="?/duplicate" use:formEnhance>
-                      <input type="hidden" name="id" value={row.id} />
-                      <Button
-                        type="submit"
-                        variant="ghost"
-                        size="icon"
-                        class="h-8 w-8"
-                      >
-                        <Copy class="h-4 w-4" />
-                        <span class="sr-only">Dupliquer</span>
-                      </Button>
-                    </form>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      disabled={row.submissionCount > 0}
-                      title={row.submissionCount > 0
-                        ? 'Formulaire avec des réponses : archivez-le plutôt'
-                        : 'Supprimer'}
-                      onclick={() => askDelete(row)}
-                    >
-                      <Trash2 class="h-4 w-4" />
-                      <span class="sr-only">Supprimer</span>
-                    </Button>
-                  </div>
-                </Table.Cell>
+                <Table.Head>Titre</Table.Head>
+                <Table.Head>Statut</Table.Head>
+                <Table.Head class="text-right">Questions</Table.Head>
+                <Table.Head class="text-right">Réponses</Table.Head>
+                <Table.Head>Accès</Table.Head>
+                <Table.Head class="text-right">Actions</Table.Head>
               </Table.Row>
-            {/each}
-          </Table.Body>
-        </Table.Root>
-      </div>
+            </Table.Header>
+            <Table.Body>
+              {#each cohort.rows as row (row.id)}
+                <Table.Row>
+                  <Table.Cell>
+                    <a
+                      href={resolve(`/staff/admin/feedback-forms/${row.id}`)}
+                      class="font-medium hover:underline"
+                    >
+                      {row.title}
+                    </a>
+                    {#if row.allowsPublicAccess}
+                      <!-- Public form: show the real shareable link (was a bare
+                         `/slug`, which looked like a route but wasn't one). -->
+                      <span
+                        class="mt-0.5 flex items-center gap-1 font-mono text-xs text-muted-foreground"
+                      >
+                        /bilan/{row.slug}
+                        <CopyButton
+                          value={`${page.url.origin}/bilan/${row.slug}`}
+                          label="Copier le lien public"
+                        />
+                      </span>
+                    {:else}
+                      <!-- Auth-only: the slug is an identifier, not a URL, so
+                         render it without a leading slash. -->
+                      <span
+                        class="block font-mono text-xs text-muted-foreground"
+                        >{row.slug}</span
+                      >
+                    {/if}
+                  </Table.Cell>
+                  <Table.Cell>
+                    <span
+                      class="inline-flex rounded-sm px-2 py-0.5 text-xs font-medium {STATUS_CLASS[
+                        row.status
+                      ]}"
+                    >
+                      {STATUS_LABEL[row.status] ?? row.status}
+                    </span>
+                  </Table.Cell>
+                  <Table.Cell class="text-right font-mono text-sm"
+                    >{row.questionCount}</Table.Cell
+                  >
+                  <Table.Cell class="text-right font-mono text-sm"
+                    >{row.submissionCount}</Table.Cell
+                  >
+                  <Table.Cell class="text-xs text-muted-foreground">
+                    {row.allowsPublicAccess ? 'Auth + Public' : 'Auth'}
+                  </Table.Cell>
+                  <Table.Cell>
+                    <div class="flex items-center justify-end gap-1">
+                      <Tooltip.Root>
+                        <Tooltip.Trigger>
+                          {#snippet child({ props })}
+                            <Button
+                              {...props}
+                              variant="ghost"
+                              size="icon"
+                              class="h-8 w-8"
+                              href={resolve(
+                                `/staff/admin/feedback-forms/${row.id}/responses`,
+                              )}
+                            >
+                              <MessageSquare class="h-4 w-4" />
+                              <span class="sr-only">Réponses</span>
+                            </Button>
+                          {/snippet}
+                        </Tooltip.Trigger>
+                        <Tooltip.Content
+                          >Réponses ({row.submissionCount})</Tooltip.Content
+                        >
+                      </Tooltip.Root>
+                      <Tooltip.Root>
+                        <Tooltip.Trigger>
+                          {#snippet child({ props })}
+                            <Button
+                              {...props}
+                              variant="ghost"
+                              size="icon"
+                              class="h-8 w-8"
+                              href={resolve(
+                                `/staff/admin/feedback-forms/${row.id}`,
+                              )}
+                            >
+                              <Pencil class="h-4 w-4" />
+                              <span class="sr-only">Modifier</span>
+                            </Button>
+                          {/snippet}
+                        </Tooltip.Trigger>
+                        <Tooltip.Content>Modifier</Tooltip.Content>
+                      </Tooltip.Root>
+                      <form
+                        method="POST"
+                        action="?/duplicate"
+                        use:formEnhance={() =>
+                          async ({ result, update }) => {
+                            // The action redirects to the new form; toast first so
+                            // the duplication is acknowledged (testers weren't sure
+                            // it had happened) and persists across the navigation.
+                            if (result.type === 'redirect') {
+                              toast.success('Formulaire dupliqué');
+                            }
+                            await update();
+                          }}
+                      >
+                        <input type="hidden" name="id" value={row.id} />
+                        <Tooltip.Root>
+                          <Tooltip.Trigger>
+                            {#snippet child({ props })}
+                              <Button
+                                {...props}
+                                type="submit"
+                                variant="ghost"
+                                size="icon"
+                                class="h-8 w-8"
+                              >
+                                <Copy class="h-4 w-4" />
+                                <span class="sr-only">Dupliquer</span>
+                              </Button>
+                            {/snippet}
+                          </Tooltip.Trigger>
+                          <Tooltip.Content>Dupliquer</Tooltip.Content>
+                        </Tooltip.Root>
+                      </form>
+                      <Tooltip.Root>
+                        <Tooltip.Trigger>
+                          {#snippet child({ props })}
+                            <!-- Span wrapper so the tooltip still fires while the
+                               button is disabled (a disabled button emits no
+                               pointer events); this is the case where the hint
+                               matters most: why deletion is blocked. -->
+                            <span {...props} class="inline-flex">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                class="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                disabled={row.submissionCount > 0}
+                                onclick={() => askDelete(row)}
+                              >
+                                <Trash2 class="h-4 w-4" />
+                                <span class="sr-only">Supprimer</span>
+                              </Button>
+                            </span>
+                          {/snippet}
+                        </Tooltip.Trigger>
+                        <Tooltip.Content>
+                          {row.submissionCount > 0
+                            ? 'Formulaire avec des réponses : archivez-le plutôt'
+                            : 'Supprimer'}
+                        </Tooltip.Content>
+                      </Tooltip.Root>
+                    </div>
+                  </Table.Cell>
+                </Table.Row>
+              {/each}
+            </Table.Body>
+          </Table.Root>
+        </div>
+      </Tooltip.Provider>
     {/if}
   {/await}
 </div>

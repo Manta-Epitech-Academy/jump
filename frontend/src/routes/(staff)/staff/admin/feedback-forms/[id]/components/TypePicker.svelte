@@ -24,7 +24,7 @@
     { value: 'scale', label: 'Échelle', icon: Star },
     { value: 'text', label: 'Texte court', icon: Minus },
     { value: 'textarea', label: 'Texte long', icon: AlignLeft },
-    { value: 'gate', label: 'Coordonnées (gate)', icon: ContactRound },
+    { value: 'gate', label: 'Aiguillage coordonnées', icon: ContactRound },
   ] as const;
 
   const current = $derived(TYPES.find((t) => t.value === value) ?? TYPES[0]);

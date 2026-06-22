@@ -60,7 +60,7 @@
 
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
-        class="rounded-sm p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+        class="cursor-pointer rounded-sm p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
         disabled={locked}
         aria-label="Actions de la section"
       >

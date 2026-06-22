@@ -9,6 +9,7 @@
   import Eye from '@lucide/svelte/icons/eye';
   import Rows3 from '@lucide/svelte/icons/rows-3';
   import { Button } from '$lib/components/ui/button';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import { sortable } from '$lib/actions/sortable';
   import { projectEditorToSchema } from '$lib/domain/feedbackForms/projectToSchema';
   import {
@@ -104,119 +105,130 @@
 <svelte:head><title>Éditer le formulaire</title></svelte:head>
 
 <div class="space-y-5 pb-24">
-  <div class="flex flex-wrap items-center justify-between gap-3">
-    <a
-      href={resolve('/staff/admin/feedback-forms')}
-      class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-    >
-      <ArrowLeft class="h-4 w-4" /> Tous les formulaires
-    </a>
-    <div class="flex items-center gap-3">
-      <SaveStatus {editor} />
-      <Button
-        variant="outline"
-        size="sm"
-        class="rounded-sm"
-        onclick={() => (previewOpen = true)}
-      >
-        <Eye class="mr-1.5 h-4 w-4" /> Aperçu
-      </Button>
-    </div>
-  </div>
-
-  <FormTabs formId={editor.formId} />
-
-  {#if locked}
-    <div
-      class="flex flex-wrap items-start gap-3 rounded-sm border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
-    >
-      <Lock class="mt-0.5 h-4 w-4 shrink-0" />
-      <p class="min-w-0 flex-1">
-        Ce formulaire a des réponses : seuls les libellés sont modifiables. Pour
-        en changer la structure, dupliquez-le.
-      </p>
-      <form method="POST" action="?/duplicate" use:enhance>
-        <Button type="submit" variant="outline" size="sm" class="rounded-sm">
-          Dupliquer
-        </Button>
-      </form>
-    </div>
-  {/if}
-
-  {#if tab === 'settings'}
-    <SettingsPanel {editor} />
-  {:else}
-    <div class="mx-auto max-w-2xl space-y-4">
-      <HeaderCard {editor} />
-
-      {#each editor.groups as group (group.section?.id ?? '__none__')}
-        {#if group.section}
-          {@const s = group.section}
-          <SectionBanner
-            {editor}
-            section={s}
-            index={sortedSections.findIndex((x) => x.id === s.id) + 1}
-            total={sortedSections.length}
-            {locked}
-          />
-        {/if}
-
-        <div
-          class="space-y-4"
-          use:sortable={{ disabled: locked, ...dragHandlers }}
+  <Tooltip.Provider delayDuration={300}>
+    <!-- Sticky toolbar: keeps the save status (so testers always see edits are
+       being kept), the preview, and the tabs in view while scrolling a long
+       form. The negative top offset cancels the admin <main>'s padding
+       (p-4 md:p-8) so the bar pins flush at the very top; with plain `top-0` a
+       sticky element clamps to the content box and leaks a padding-tall strip of
+       content above it. Opaque so dense cards don't ghost through; the tab bar's
+       own border-b is the bottom seam. -->
+    <div class="sticky -top-4 z-20 space-y-3 bg-background pt-3 md:-top-8">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <a
+          href={resolve('/staff/admin/feedback-forms')}
+          class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
-          {#each group.questions as q (q.id)}
-            <QuestionCard
-              {editor}
-              question={q}
-              {locked}
-              sections={editor.sections}
-            />
-          {/each}
+          <ArrowLeft class="h-4 w-4" /> Tous les formulaires
+        </a>
+        <div class="flex items-center gap-3">
+          <SaveStatus {editor} />
+          <Button
+            variant="outline"
+            size="sm"
+            class="rounded-sm"
+            onclick={() => (previewOpen = true)}
+          >
+            <Eye class="mr-1.5 h-4 w-4" /> Aperçu
+          </Button>
         </div>
+      </div>
+
+      <FormTabs formId={editor.formId} />
+    </div>
+
+    {#if locked}
+      <div
+        class="flex flex-wrap items-start gap-3 rounded-sm border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+      >
+        <Lock class="mt-0.5 h-4 w-4 shrink-0" />
+        <p class="min-w-0 flex-1">
+          Ce formulaire a des réponses : seuls les libellés sont modifiables.
+          Pour en changer la structure, dupliquez-le.
+        </p>
+        <form method="POST" action="?/duplicate" use:enhance>
+          <Button type="submit" variant="outline" size="sm" class="rounded-sm">
+            Dupliquer
+          </Button>
+        </form>
+      </div>
+    {/if}
+
+    {#if tab === 'settings'}
+      <SettingsPanel {editor} />
+    {:else}
+      <div class="mx-auto max-w-2xl space-y-4">
+        <HeaderCard {editor} />
+
+        {#each editor.groups as group (group.section?.id ?? '__none__')}
+          {#if group.section}
+            {@const s = group.section}
+            <SectionBanner
+              {editor}
+              section={s}
+              index={sortedSections.findIndex((x) => x.id === s.id) + 1}
+              total={sortedSections.length}
+              {locked}
+            />
+          {/if}
+
+          <div
+            class="space-y-4"
+            use:sortable={{ disabled: locked, ...dragHandlers }}
+          >
+            {#each group.questions as q (q.id)}
+              <QuestionCard
+                {editor}
+                question={q}
+                {locked}
+                sections={editor.sections}
+              />
+            {/each}
+          </div>
+
+          {#if !locked}
+            <button
+              type="button"
+              class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-sm border border-dashed py-2.5 text-sm text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
+              onclick={() =>
+                editor.addQuestion({
+                  afterId: group.questions.at(-1)?.id,
+                  sectionId: group.section?.id ?? null,
+                })}
+            >
+              <Plus class="h-4 w-4" /> Ajouter une question
+            </button>
+          {/if}
+        {/each}
+
+        {#if editor.groups.length === 0}
+          <div
+            class="rounded-sm border border-dashed bg-muted/10 p-12 text-center text-sm text-muted-foreground"
+          >
+            Formulaire vide.
+            <button
+              type="button"
+              class="cursor-pointer font-medium text-foreground underline underline-offset-2 disabled:cursor-not-allowed"
+              disabled={locked}
+              onclick={() => editor.addQuestion()}
+            >
+              Ajouter une première question
+            </button>.
+          </div>
+        {/if}
 
         {#if !locked}
           <button
             type="button"
-            class="flex w-full items-center justify-center gap-2 rounded-sm border border-dashed py-2.5 text-sm text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
-            onclick={() =>
-              editor.addQuestion({
-                afterId: group.questions.at(-1)?.id,
-                sectionId: group.section?.id ?? null,
-              })}
+            class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-sm border border-dashed py-2.5 text-sm text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
+            onclick={() => editor.addSection()}
           >
-            <Plus class="h-4 w-4" /> Ajouter une question
+            <Rows3 class="h-4 w-4" /> Ajouter une section
           </button>
         {/if}
-      {/each}
-
-      {#if editor.groups.length === 0}
-        <div
-          class="rounded-sm border border-dashed bg-muted/10 p-12 text-center text-sm text-muted-foreground"
-        >
-          Formulaire vide.
-          <button
-            type="button"
-            class="font-medium text-foreground underline underline-offset-2"
-            disabled={locked}
-            onclick={() => editor.addQuestion()}
-          >
-            Ajouter une première question
-          </button>.
-        </div>
-      {/if}
-
-      {#if !locked}
-        <button
-          type="button"
-          class="flex w-full items-center justify-center gap-2 rounded-sm border border-dashed py-2.5 text-sm text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
-          onclick={() => editor.addSection()}
-        >
-          <Rows3 class="h-4 w-4" /> Ajouter une section
-        </button>
-      {/if}
-    </div>
-  {/if}
+      </div>
+    {/if}
+  </Tooltip.Provider>
 </div>
 
 <PreviewDialog bind:open={previewOpen} schema={previewSchema} />
