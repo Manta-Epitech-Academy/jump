@@ -14,6 +14,7 @@
   import * as Table from '$lib/components/ui/table';
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
+  import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
@@ -57,6 +58,8 @@
     isActiveClosed,
     isActivePastCutoff,
     canEdit,
+    eventId,
+    timezone,
     activeSlotKey = $bindable(),
     dialogOpen = $bindable(false),
   }: EmargementCohort & {
@@ -65,6 +68,10 @@
     isActiveClosed: boolean;
     isActivePastCutoff: boolean;
     canEdit: boolean;
+    /** Anchors notes created from this screen to the event (see NotesDialog). */
+    eventId: string;
+    /** Campus IANA timezone, forwarded to the notes dialog for byline times. */
+    timezone: string;
     activeSlotKey: string;
     dialogOpen?: boolean;
   } = $props();
@@ -211,23 +218,50 @@
     contactOpen = true;
   }
 
-  // Reactive note overrides (mirrors the presence `overrides` map): a save paints
-  // the new note locally so the row icon highlight and the next modal open use it
-  // without a full page reload.
-  const noteOverrides = new SvelteMap<string, string | null>();
-  function rowNote(row: PresenceRow): string | null {
-    return noteOverrides.has(row.talentId)
-      ? (noteOverrides.get(row.talentId) ?? null)
-      : row.note;
+  // Reactive note-count overrides (mirrors the presence `overrides` map): the
+  // dialog reports the new count after a create/delete so the row icon tint
+  // updates without a full page reload. The bodies live in the dialog, not here.
+  const noteCounts = new SvelteMap<string, number>();
+  function rowNoteCount(row: PresenceRow): number {
+    return noteCounts.get(row.talentId) ?? row.noteCount;
   }
 
   function openNotes(row: PresenceRow) {
-    notesTarget = { ...row, note: rowNote(row) };
+    notesTarget = row;
     notesOpen = true;
   }
 
-  function onNoteSaved(talentId: string, note: string | null) {
-    noteOverrides.set(talentId, note);
+  function onNoteCountChange(talentId: string, count: number) {
+    noteCounts.set(talentId, count);
+  }
+
+  // True when this talent has a note taken during the créneau on screen (from each
+  // note's stored anchor, projected to `noteSlotKeys` server-side): it lights the
+  // trigger so staff spot who was noted this half-day. A note just added in the
+  // dialog catches up on the next 5s poll (good enough; no optimistic timestamp).
+  function rowNoteInActiveSlot(row: PresenceRow): boolean {
+    return !!activeSlot && row.noteSlotKeys.includes(activeSlot.key);
+  }
+
+  // The trigger conveys state by its own colour, never a count badge (which read
+  // as a notification): lit (tinted + ring) only when a note lands in the active
+  // créneau, otherwise the quiet contact-icon resting tone. Notes from other
+  // créneaux don't tint it; they surface in the hover tooltip and the dialog.
+  // `mobile` keeps the resting icon legible where there is no row hover.
+  function noteTriggerClass(row: PresenceRow, mobile = false): string {
+    const base = 'h-8 w-8 shrink-0 rounded-sm transition-colors';
+    if (rowNoteInActiveSlot(row)) {
+      return cn(
+        base,
+        'bg-epi-blue/10 text-epi-blue ring-1 ring-inset ring-epi-blue/30 hover:bg-epi-blue/15',
+      );
+    }
+    return cn(
+      base,
+      mobile
+        ? 'text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue'
+        : 'text-muted-foreground/40 group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue',
+    );
   }
 
   // The talent fiche opens in a new tab on purpose: staff stay anchored in the
@@ -373,10 +407,14 @@
                 onset={(s) => setStatus(r, s)}
               />
             </Table.Cell>
-            <!-- Notes icon, always present (every talent can have a note);
-                 tinted epi-blue when a note exists so noted talents stand out. -->
+            <!-- Notes icon, always present (every talent can have notes). State
+                 reads from the icon's own colour, never a count badge (which
+                 looked like a notification): muted at rest, blue once a note
+                 exists, lit when the latest note falls in the active créneau. The
+                 tint, not the bodies, lives on the roster. -->
             <Table.Cell class="text-right">
-              {@const note = rowNote(r)?.trim()}
+              {@const count = rowNoteCount(r)}
+              {@const live = rowNoteInActiveSlot(r)}
               <Tooltip.Root>
                 <Tooltip.Trigger>
                   {#snippet child({ props })}
@@ -384,7 +422,7 @@
                       {...props}
                       variant="ghost"
                       size="icon"
-                      class={`h-8 w-8 rounded-sm transition-colors hover:bg-epi-blue/10 hover:text-epi-blue ${note ? 'text-epi-blue' : 'text-muted-foreground/40 group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground'}`}
+                      class={noteTriggerClass(r)}
                       onclick={() => openNotes(r)}
                       aria-label={`Notes de ${r.prenom} ${r.nom}`}
                     >
@@ -392,17 +430,11 @@
                     </Button>
                   {/snippet}
                 </Tooltip.Trigger>
-                <!-- When a note exists, surface its text on hover so staff can
-                     read it without opening the modal; clamp long notes and
-                     point to the click for the full editor. Empty: the CTA. -->
                 <Tooltip.Content class="max-w-72">
-                  {#if note}
-                    <p class="line-clamp-6 text-left whitespace-pre-wrap">
-                      {note}
-                    </p>
-                    <p class="mt-1 text-left text-background/60">
-                      Cliquer pour éditer
-                    </p>
+                  {#if live}
+                    Noté sur ce créneau · cliquer pour voir
+                  {:else if count > 0}
+                    {count} note{count > 1 ? 's' : ''} · cliquer pour voir
                   {:else}
                     Ajouter une note
                   {/if}
@@ -469,7 +501,7 @@
                 <Button
                   variant="ghost"
                   size="icon"
-                  class={`h-8 w-8 shrink-0 rounded-sm hover:bg-epi-blue/10 hover:text-epi-blue ${rowNote(r)?.trim() ? 'text-epi-blue' : 'text-muted-foreground'}`}
+                  class={noteTriggerClass(r, true)}
                   onclick={() => openNotes(r)}
                   aria-label={`Notes de ${r.prenom} ${r.nom}`}
                 >
@@ -647,7 +679,14 @@
 <!-- Contact card: phones to reach the stagiaire, then the family if no answer -->
 <ContactDialog bind:open={contactOpen} row={contactTarget} />
 
-<NotesDialog bind:open={notesOpen} row={notesTarget} onsaved={onNoteSaved} />
+<NotesDialog
+  bind:open={notesOpen}
+  row={notesTarget}
+  {eventId}
+  {timezone}
+  {activeSlot}
+  onCountChange={onNoteCountChange}
+/>
 
 <!-- Mark-all-present confirmation -->
 <Dialog.Root bind:open={presentConfirmOpen}>

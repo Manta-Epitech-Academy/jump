@@ -124,7 +124,18 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
         // Prefer the login email (authoritative) over the imported SF address.
         email: t.user?.email ?? t.email,
         phone: t.phone,
-        note: t.note,
+        noteCount: t._count.notes,
+        // The distinct créneaux this talent carries a note for, from each note's
+        // stored anchor (notes without one — fiche notes — never light a trigger).
+        noteSlotKeys: [
+          ...new Set(
+            t.notes
+              .filter((n) => n.presenceDay && n.presenceSlot)
+              .map((n) =>
+                slotKey(dbDateToKey(n.presenceDay!), n.presenceSlot!),
+              ),
+          ),
+        ],
         guardians,
       };
     });

@@ -55,7 +55,7 @@
 </script>
 
 <section class={cn('rounded-sm border bg-card dark:shadow-none', extraClass)}>
-  <header class="flex items-end justify-between gap-3 border-b px-5 pt-5 pb-4">
+  <header class="flex items-center justify-between gap-3 border-b px-5 py-4">
     <div class="min-w-0">
       {#if overline}
         <p
@@ -69,7 +69,7 @@
       {/if}
       <h2
         class={cn(
-          'font-heading text-xl tracking-wide uppercase md:text-2xl',
+          'font-heading text-xl leading-none tracking-wide uppercase md:text-2xl',
           overline && 'mt-1.5',
         )}
       >

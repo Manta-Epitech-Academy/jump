@@ -265,6 +265,11 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
       where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
     });
     await tx.talentDeletionRequest.deleteMany({ where: { talentId } });
+    // Staff notes (note_TalentNote) are deliberately KEPT on a reset: they are
+    // the staff's own observations about the talent (retard, posture,
+    // administratif), not onboarding-derived data, so they outlive an identity
+    // re-onboard. They are erased only by anonymizeTalent (true RGPD erasure),
+    // mirroring how the single-column predecessor survived a reset.
 
     // 3. Reset the worker-created Participation rows to their import defaults
     //    (the worker creates them with only talent/event/campus set).

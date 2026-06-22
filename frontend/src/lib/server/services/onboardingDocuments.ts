@@ -325,9 +325,9 @@ export function isOnboardingDocumentType(
  * yet.
  */
 export function projectTalentDocument(
-  // Accepts the note-stripped session talent (`locals.talent`); this only reads
-  // the document signed-at / file-path fields, never the staff-only note.
-  talent: Omit<Talent, 'note'>,
+  // Accepts the session talent (`locals.talent`); reads only the document
+  // signed-at / file-path fields.
+  talent: Talent,
   type: TalentViewableDocumentType,
 ): {
   type: TalentViewableDocumentType;
