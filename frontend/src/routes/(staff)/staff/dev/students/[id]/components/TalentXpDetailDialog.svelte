@@ -3,6 +3,7 @@
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import Trophy from '@lucide/svelte/icons/trophy';
   import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import Award from '@lucide/svelte/icons/award';
   import Coins from '@lucide/svelte/icons/coins';
   import * as Dialog from '$lib/components/ui/dialog';
   import { formatGivenName } from '$lib/domain/profile';
@@ -31,6 +32,7 @@
     if (source === 'onboarding' || source === 'onboarding_early_bird') {
       return CircleCheck;
     }
+    if (source === 'reward') return Award;
     return Coins;
   }
 </script>

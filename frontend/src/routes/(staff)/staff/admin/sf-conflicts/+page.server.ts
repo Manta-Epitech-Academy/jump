@@ -13,7 +13,7 @@ import {
 } from '$lib/server/services/authIdentityRepairService';
 import type { SfConflictsData } from './components/types';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
   // Two families of conflict surfaced as two tabs on this page:
   //  - DATA  : Talent ⇆ TalentSfImport field diffs + enrichment to push (CSV).
   //  - AUTH  : Talent ⇆ bauth_user identity drift (login-layer), with per-verdict
@@ -32,7 +32,14 @@ export const load: PageServerLoad = async () => {
     enrichment,
     authConflicts,
   }));
-  return { deferred };
+  // Cheap shell data: this admin's CSV-export high-water mark, read straight off
+  // the hydrated profile (no query). Drives the export menu's "depuis le dernier
+  // export" delta; null until their first full export. Returned alongside the
+  // un-awaited scans so the shell still paints before the cohort lands.
+  return {
+    deferred,
+    lastExportAt: locals.staffProfile?.sfExportedAt?.toISOString() ?? null,
+  };
 };
 
 // Resolution is per (talent, field): a single diff row, never the whole talent.

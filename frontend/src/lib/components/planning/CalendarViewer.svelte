@@ -22,11 +22,17 @@
   import Zap from '@lucide/svelte/icons/zap';
   import { cn } from '$lib/utils';
   import { activityTypeStyles } from '$lib/validation/templates';
-  import { sameDay, weekDaysFrom } from '$lib/domain/calendarWeek';
+  import {
+    sameDay,
+    weekDaysFrom,
+    WEEK_VIEW_DAYS,
+    type WeekView,
+  } from '$lib/domain/calendarWeek';
 
   let {
     slots,
     weekStart,
+    weekView = 'work',
     serverNow,
     dimUnstarted = false,
     onSlotClick,
@@ -35,6 +41,8 @@
     slots: S[];
     /** Monday of the visible week, owned by the parent. */
     weekStart: Date;
+    /** Work week (Mon-Fri) or full week (Mon-Sun). Drives the column count. */
+    weekView?: WeekView;
     /** Server timestamp seed so SSR and first client render agree. */
     serverNow: number;
     /** Dim slots that haven't started yet (talent), or show them at full
@@ -56,7 +64,8 @@
     return () => clearInterval(i);
   });
 
-  let weekDays = $derived(weekDaysFrom(weekStart));
+  let dayCount = $derived(WEEK_VIEW_DAYS[weekView]);
+  let weekDays = $derived(weekDaysFrom(weekStart, dayCount));
 
   type PackedSlot = S & {
     colIndex: number;
@@ -150,7 +159,7 @@
   let slotsByDay = $derived.by(() => {
     const map = new Map<number, PackedSlot[]>();
     const dayIndexByKey = new Map<string, number>();
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < weekDays.length; i++) {
       dayIndexByKey.set(dayKey(weekDays[i]), i);
     }
     const byDay = new Map<number, S[]>();
@@ -226,7 +235,7 @@
   <!-- Day header row -->
   <div
     class="grid shrink-0 border-b border-slate-200 dark:border-slate-800"
-    style="grid-template-columns: 3rem repeat(7, minmax(0, 1fr));"
+    style="grid-template-columns: 3rem repeat({dayCount}, minmax(0, 1fr));"
   >
     <div></div>
     {#each weekDays as d, i (i)}
@@ -260,7 +269,7 @@
   <div class="min-h-0 flex-1 overflow-y-auto">
     <div
       class="relative grid"
-      style="grid-template-columns: 3rem repeat(7, minmax(0, 1fr)); height: {gridHeightPx}px;"
+      style="grid-template-columns: 3rem repeat({dayCount}, minmax(0, 1fr)); height: {gridHeightPx}px;"
     >
       <!-- Hour labels column -->
       <div class="relative">

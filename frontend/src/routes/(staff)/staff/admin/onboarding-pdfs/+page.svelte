@@ -9,7 +9,6 @@
   import Clock from '@lucide/svelte/icons/clock';
   import CircleCheck from '@lucide/svelte/icons/circle-check';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-  import { onMount } from 'svelte';
   import { enhance } from '$app/forms';
   import { goto, invalidate } from '$app/navigation';
   import { page } from '$app/state';
@@ -133,7 +132,12 @@
   // this load's data (not the whole layout) while the tab is visible. Cheap
   // query; 5s keeps the queue feeling live without hammering the DB.
   const th = 'font-mono text-xs font-normal uppercase tracking-wider';
-  onMount(() => {
+  // Poll only while jobs are in flight: once the queue settles (inFlight === 0)
+  // there is nothing to refresh, so an idle page stops hitting the DB every 5s.
+  // The effect re-reads inFlight, so it re-arms automatically if a reload brings
+  // the count back above 0.
+  $effect(() => {
+    if (inFlight === 0) return;
     const id = setInterval(() => {
       if (document.visibilityState === 'visible')
         invalidate('admin:onboarding-pdfs');
@@ -221,11 +225,8 @@
         </form>
       {/if}
 
-      {#if data.exportTimeline.length > 0}
-        <ExportMenu
-          timeline={data.exportTimeline}
-          lastExportAt={data.lastExportAt}
-        />
+      {#if data.countByStatus.success > 0}
+        <ExportMenu lastExportAt={data.lastExportAt} />
       {/if}
     </div>
   </div>

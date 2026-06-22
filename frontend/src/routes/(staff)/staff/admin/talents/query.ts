@@ -375,3 +375,27 @@ export function projectTalentRow(row: TalentRow) {
     parentStatus,
   };
 }
+
+/** One projected directory row, as the table + dialogs consume it. */
+export type TalentDirectoryRow = ReturnType<typeof projectTalentRow>;
+
+/**
+ * The streamed directory payload: the page chrome (heading) paints immediately
+ * while the current page of rows, the total count and the six scoped KPI counts
+ * resolve behind the shell skeleton. Shared by the page `load` and
+ * `TalentsResults` so the streamed shape and the consuming component can't drift
+ * — the admin sibling of the dev `InscritsCohort`.
+ */
+export type TalentsCohort = {
+  talents: TalentDirectoryRow[];
+  campuses: { id: string; name: string }[];
+  totalItems: number;
+  totalPages: number;
+  stats: {
+    scopedTotal: number;
+    onboarded: number;
+    withParent: number;
+    parentsComplete: number;
+    neverConnected: number;
+  };
+};

@@ -297,7 +297,7 @@ export const INTERVIEW_SECTIONS: readonly InterviewSection[] = [
   },
   {
     key: 'retour',
-    title: 'Retour',
+    title: 'Retour sur le stage',
     questions: [
       {
         kind: 'single',
@@ -358,6 +358,31 @@ export const INTERVIEW_SECTIONS: readonly InterviewSection[] = [
     ],
   },
 ] as const;
+
+/** Section order for the read-only synthesis (the dev recap and the PDF
+ *  export), deliberately distinct from the conduct order above. The conduct
+ *  flow opens on "Motivation" to warm the student up; the synthesis instead
+ *  leads with "Retour sur le stage" (the freshest takeaway), then motivation,
+ *  orientation, and the lycée context last. Single source for both synthesis
+ *  surfaces so they can never drift. Any section absent from this list is
+ *  appended, so a new conduct section is never silently dropped from the
+ *  synthesis. */
+const SYNTHESIS_SECTION_ORDER = [
+  'retour',
+  'motivation',
+  'orientation',
+  'lycee',
+];
+
+export const INTERVIEW_SYNTHESIS_SECTIONS: readonly InterviewSection[] = [
+  ...INTERVIEW_SECTIONS,
+].sort((a, b) => {
+  const rank = (key: string) => {
+    const i = SYNTHESIS_SECTION_ORDER.indexOf(key);
+    return i === -1 ? SYNTHESIS_SECTION_ORDER.length : i;
+  };
+  return rank(a.key) - rank(b.key);
+});
 
 /** Every per-question note column, flattened from the catalogue. The conduct
  *  action loops this to trim each note and store '' as null. The notes are

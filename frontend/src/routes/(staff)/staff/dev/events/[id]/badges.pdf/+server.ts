@@ -42,6 +42,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': 'attachment; filename="badges.pdf"',
+        // Regenerated from live DB each call; never serve a cached copy.
+        'Cache-Control': 'no-store',
       },
     },
   );

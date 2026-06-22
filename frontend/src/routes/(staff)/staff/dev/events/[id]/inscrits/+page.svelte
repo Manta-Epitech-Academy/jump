@@ -3,6 +3,7 @@
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
   import IdCard from '@lucide/svelte/icons/id-card';
+  import Award from '@lucide/svelte/icons/award';
   import Smile from '@lucide/svelte/icons/smile';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { Button } from '$lib/components/ui/button';
@@ -13,6 +14,7 @@
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import InscritsResults from './components/InscritsResults.svelte';
+  import LoadingCeremony from '$lib/components/LoadingCeremony.svelte';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import type { FlagKey } from '$lib/domain/featureFlags';
 
@@ -27,6 +29,25 @@
 
   let generatingBadges = $state(false);
   let badgeModeOpen = $state(false);
+  let generatingDiplomas = $state(false);
+  // Headcount for the ceremony copy, filled from the streamed cohort when the
+  // diploma generation starts; 0 until then (the title degrades gracefully).
+  let diplomaCount = $state(0);
+
+  const diplomaCeremonyTitle = $derived(
+    diplomaCount > 0
+      ? `Génération de ${diplomaCount} diplôme${diplomaCount > 1 ? 's' : ''}`
+      : 'Génération des diplômes',
+  );
+
+  // Rotating step lines for the ceremony overline - kept true to what the PDF
+  // render actually does (one page per inscrit, with the campus signatures).
+  const DIPLOMA_CEREMONY_MESSAGES = [
+    'Préparation des diplômes…',
+    'Mise en page de chaque diplôme…',
+    'Application des signatures…',
+    'Presque prêt…',
+  ];
 
   // Four distinct colours, reused in both illustration grids so the foldable
   // preview visibly mirrors the simple one (same colours, doubled and flipped).
@@ -40,12 +61,18 @@
     if (generatingBadges) return;
     badgeModeOpen = false;
     generatingBadges = true;
+
+    const toastId = toast.loading('Génération des badges…');
     try {
       const endpoint = page.url.pathname.replace(
         /\/inscrits\/?$/,
         '/badges.pdf',
       );
-      const res = await fetch(`${endpoint}?mode=${mode}`);
+      // Same cache-busting as the diplomas export below: `&t=` defeats
+      // Cloudflare's cache-by-extension on `.pdf`, `no-store` the browser cache.
+      const res = await fetch(`${endpoint}?mode=${mode}&t=${Date.now()}`, {
+        cache: 'no-store',
+      });
       if (!res.ok) throw new Error(`Badges failed: ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -56,11 +83,68 @@
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      toast.success('Badges générés.', { id: toastId });
     } catch (e) {
       console.error('generate badges', e);
-      toast.error('Échec de la génération des badges.');
+      toast.error('Échec de la génération des badges.', { id: toastId });
     } finally {
       generatingBadges = false;
+    }
+  }
+
+  // Generate the internship certificate sheet for every inscrit of this event
+  // (one page per student). Same whole-event flow as the badges above: the
+  // endpoint builds the PDF server-side from all participations and the campus's
+  // signatories.
+  //
+  // The render runs ~15s for a big cohort and used to leave staff staring at a
+  // bare spinner, fearing it had hung (the actual reported complaint). Instead of
+  // a toast we raise a full-screen LoadingCeremony for the whole wait. It owns a
+  // minimum display beat, so small campuses (~1s render) still get the full
+  // moment instead of a flash, while big cohorts simply stay up the natural
+  // render time.
+  async function generateDiplomas() {
+    if (generatingDiplomas) return;
+    // Flip the flag first (reentry guard + opens the overlay immediately), then
+    // fill the headcount from the streamed cohort. It is almost always already
+    // resolved by now, so the count lands before first paint; if it rejects, the
+    // title falls back to the count-less line.
+    generatingDiplomas = true;
+    try {
+      const { cohort } = await data.cohort;
+      diplomaCount = cohort.total;
+    } catch {
+      diplomaCount = 0;
+    }
+
+    try {
+      const endpoint = page.url.pathname.replace(
+        /\/inscrits\/?$/,
+        '/diplomes.pdf',
+      );
+      // Unique query param + no-store: the PDF is regenerated from live DB
+      // (signatory role/image can change), so it must never be served from a
+      // cache. `?t=` gives every request a fresh key so Cloudflare's
+      // cache-by-extension on `.pdf` can't return a stale edge copy; `no-store`
+      // bypasses the browser's own HTTP cache.
+      const res = await fetch(`${endpoint}?t=${Date.now()}`, {
+        cache: 'no-store',
+      });
+      if (!res.ok) throw new Error(`Diplomas failed: ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Diplômes - ${data.event.titre}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('generate diplomas', e);
+      toast.error('Échec de la génération des diplômes.');
+    } finally {
+      generatingDiplomas = false;
     }
   }
 </script>
@@ -94,6 +178,20 @@
       {:else}
         <IdCard class="mr-1.5 h-4 w-4" />
         Générer badges
+      {/if}
+    </Button>
+    <Button
+      variant="outline"
+      size="sm"
+      onclick={generateDiplomas}
+      disabled={generatingDiplomas}
+    >
+      {#if generatingDiplomas}
+        <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+        Génération…
+      {:else}
+        <Award class="mr-1.5 h-4 w-4" />
+        Générer diplômes
       {/if}
     </Button>
     <EventSalesforceButton externalId={data.event.externalId} />
@@ -186,3 +284,9 @@
     </div>
   </Dialog.Content>
 </Dialog.Root>
+
+<LoadingCeremony
+  open={generatingDiplomas}
+  title={diplomaCeremonyTitle}
+  messages={DIPLOMA_CEREMONY_MESSAGES}
+/>

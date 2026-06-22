@@ -10,7 +10,6 @@ import {
 import {
   onboardingDownloadFilename,
   isOnboardingDocumentType,
-  loadFinishedOnboardingTimeline,
 } from '$lib/server/services/onboardingDocuments';
 
 type JobStatus = 'pending' | 'processing' | 'success' | 'error';
@@ -59,7 +58,7 @@ export const load: PageServerLoad = async ({ url, depends, locals }) => {
     };
   }
 
-  const [jobs, counts, matchCount, timeline] = await Promise.all([
+  const [jobs, counts, matchCount] = await Promise.all([
     prisma.onboardingPdfJob.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -73,10 +72,6 @@ export const load: PageServerLoad = async ({ url, depends, locals }) => {
       _count: { _all: true },
     }),
     prisma.onboardingPdfJob.count({ where }),
-    // Completion timeline of every finished PDF (type + instant, no identity).
-    // The bulk-download menu computes its per-period / per-type counts and the
-    // "since last export" delta client-side from this one list.
-    loadFinishedOnboardingTimeline(),
   ]);
 
   const countByStatus: Record<JobStatus, number> = {
@@ -95,14 +90,11 @@ export const load: PageServerLoad = async ({ url, depends, locals }) => {
     filters: { status, type, q },
     errorCount: countByStatus.error,
     matchCount,
-    // Feeds the bulk-download menu. ISO instants so the client can bucket by
-    // period and diff against `lastExportAt`.
-    exportTimeline: timeline.map((d) => ({
-      type: d.type,
-      finishedAt: d.finishedAt.toISOString(),
-    })),
     // This admin's high-water mark, so the menu can offer "depuis le dernier
-    // export". Null until their first full export.
+    // export". Null until their first full export. The export *timeline* itself
+    // is no longer loaded here: it's a full talent-table scan and this load
+    // re-runs every 5s (live job feed), so the menu fetches it lazily on open
+    // from ./export-timeline instead of riding the poll.
     lastExportAt:
       locals.staffProfile?.onboardingDocsExportedAt?.toISOString() ?? null,
     truncated: matchCount > PAGE_SIZE,

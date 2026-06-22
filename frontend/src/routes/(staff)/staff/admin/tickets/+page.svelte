@@ -12,13 +12,17 @@
   import { invalidateAll } from '$app/navigation';
   import { toast } from 'svelte-sonner';
   import { TICKET_CATEGORY_LABELS } from '$lib/domain/tickets';
+  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
+  import SegmentedFilter, {
+    type SegmentOption,
+  } from '$lib/components/staff/SegmentedFilter.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
+  import type { ColumnDef } from '$lib/components/staff/datatable/types';
 
   let { data } = $props();
 
-  let openTickets = $derived(data.tickets.filter((t) => t.status === 'open'));
-  let closedTickets = $derived(
-    data.tickets.filter((t) => t.status === 'closed'),
-  );
+  type TicketRow = (typeof data)['tickets'][number];
 
   let optimistic = $state<boolean | null>(null);
   let toggling = $state(false);
@@ -44,7 +48,87 @@
       toggling = false;
     }
   }
+
+  // One table for the whole queue; the open/closed split is a toolbar filter
+  // (default Ouverts, the actionable set) rather than two separate tables.
+  // Datasets are small, so filter + sort run client-side in memory.
+  const openCount = $derived(
+    data.tickets.filter((t) => t.status === 'open').length,
+  );
+  const closedCount = $derived(data.tickets.length - openCount);
+
+  let searchQuery = $state('');
+  let statusFilter = $state<'open' | 'closed' | 'all'>('open');
+  let sortKey = $state<string | null>('lastMessageAt');
+  let sortDir = $state<'asc' | 'desc'>('desc');
+
+  const authorLabel = (t: TicketRow) => t.author.name || t.author.email || '';
+
+  const filtered = $derived(
+    data.tickets.filter((t) => {
+      if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        t.title.toLowerCase().includes(q) ||
+        authorLabel(t).toLowerCase().includes(q)
+      );
+    }),
+  );
+  const sorted = $derived.by(() => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => dir * compare(a, b, sortKey));
+  });
+
+  function compare(a: TicketRow, b: TicketRow, key: string | null): number {
+    switch (key) {
+      case 'category':
+        return a.category.localeCompare(b.category, 'fr');
+      case 'title':
+        return a.title.localeCompare(b.title, 'fr');
+      case 'author':
+        return authorLabel(a).localeCompare(authorLabel(b), 'fr');
+      case 'messages':
+        return a.messageCount - b.messageCount;
+      case 'lastMessageAt':
+        return (
+          new Date(a.lastMessageAt).getTime() -
+          new Date(b.lastMessageAt).getTime()
+        );
+      default:
+        return 0;
+    }
+  }
+
+  function toggleSort(key: string) {
+    if (sortKey === key) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    else {
+      sortKey = key;
+      sortDir = 'asc';
+    }
+  }
+
+  const statusOptions: SegmentOption[] = $derived([
+    { value: 'open', label: 'Ouverts', count: openCount },
+    { value: 'closed', label: 'Clos', count: closedCount },
+    { value: 'all', label: 'Tous', count: data.tickets.length },
+  ]);
+
+  const columns: ColumnDef[] = [
+    { key: 'category', label: 'Type', sortable: true },
+    { key: 'title', label: 'Titre', sortable: true },
+    { key: 'author', label: 'Auteur', sortable: true },
+    { key: 'messages', label: 'Messages', sortable: true, align: 'right' },
+    { key: 'lastMessageAt', label: 'Dernier message', sortable: true },
+  ];
+
+  const categoryLabel = (c: string) =>
+    TICKET_CATEGORY_LABELS[c as keyof typeof TICKET_CATEGORY_LABELS] ?? c;
 </script>
+
+<svelte:head>
+  <title>Tickets — Admin</title>
+</svelte:head>
 
 <div class="space-y-6">
   <div>
@@ -88,131 +172,83 @@
     </Card.Content>
   </Card.Root>
 
-  <Card.Root>
-    <Card.Header>
-      <Card.Title class="flex items-center gap-2 uppercase">
-        <Inbox class="h-4 w-4 text-epi-pink" />
-        Ouverts ({openTickets.length})
-      </Card.Title>
-    </Card.Header>
-    <Card.Content class="p-0">
-      <Table.Root>
-        <Table.Header>
-          <Table.Row>
-            <Table.Head>Type</Table.Head>
-            <Table.Head>Titre</Table.Head>
-            <Table.Head>Auteur</Table.Head>
-            <Table.Head class="text-center">Messages</Table.Head>
-            <Table.Head>Dernier message</Table.Head>
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
-          {#each openTickets as ticket}
-            <Table.Row
-              class="cursor-pointer hover:bg-muted/40"
-              onclick={() =>
-                (window.location.href = resolve(
-                  `/staff/admin/tickets/${ticket.id}`,
-                ))}
-            >
-              <Table.Cell>
-                {#if ticket.category === 'bug'}
-                  <Badge variant="destructive" class="gap-1">
-                    <Bug class="h-3 w-3" />
-                    {TICKET_CATEGORY_LABELS.bug}
-                  </Badge>
-                {:else}
-                  <Badge variant="secondary" class="gap-1">
-                    <Lightbulb class="h-3 w-3" />
-                    {TICKET_CATEGORY_LABELS.suggestion}
-                  </Badge>
-                {/if}
-              </Table.Cell>
-              <Table.Cell class="font-bold">
-                <div class="flex items-center gap-2">
-                  {#if ticket.unread}
-                    <span class="h-2 w-2 rounded-full bg-epi-pink"></span>
-                  {/if}
-                  {ticket.title}
-                </div>
-              </Table.Cell>
-              <Table.Cell>
-                <div class="flex flex-col">
-                  <span class="text-sm">{ticket.author.name ?? '—'}</span>
-                  <span class="text-xs text-muted-foreground"
-                    >{ticket.author.email}</span
-                  >
-                </div>
-              </Table.Cell>
-              <Table.Cell class="text-center">{ticket.messageCount}</Table.Cell>
-              <Table.Cell class="text-sm text-muted-foreground">
-                {formatDateTimeFr(ticket.lastMessageAt)}
-              </Table.Cell>
-            </Table.Row>
-          {:else}
-            <Table.Row>
-              <Table.Cell colspan={5} class="text-center text-muted-foreground">
-                Aucun ticket ouvert.
-              </Table.Cell>
-            </Table.Row>
-          {/each}
-        </Table.Body>
-      </Table.Root>
-    </Card.Content>
-  </Card.Root>
+  <DataTableToolbar
+    searchValue={searchQuery}
+    onSearchInput={(v) => (searchQuery = v)}
+    searchPlaceholder="Rechercher par titre ou auteur…"
+    count={sorted.length}
+    countNoun="ticket"
+  >
+    {#snippet filters()}
+      <SegmentedFilter
+        ariaLabel="Filtrer par statut"
+        options={statusOptions}
+        value={statusFilter}
+        onChange={(v) => (statusFilter = v as 'open' | 'closed' | 'all')}
+      />
+    {/snippet}
+  </DataTableToolbar>
 
-  {#if closedTickets.length > 0}
-    <Card.Root>
-      <Card.Header>
-        <Card.Title class="flex items-center gap-2 uppercase">
-          <LifeBuoy class="h-4 w-4 text-muted-foreground" />
-          Clos ({closedTickets.length})
-        </Card.Title>
-      </Card.Header>
-      <Card.Content class="p-0">
-        <Table.Root>
-          <Table.Header>
-            <Table.Row>
-              <Table.Head>Type</Table.Head>
-              <Table.Head>Titre</Table.Head>
-              <Table.Head>Auteur</Table.Head>
-              <Table.Head class="text-center">Messages</Table.Head>
-              <Table.Head>Dernier message</Table.Head>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {#each closedTickets as ticket}
-              <Table.Row
-                class="cursor-pointer hover:bg-muted/40"
-                onclick={() =>
-                  (window.location.href = resolve(
-                    `/staff/admin/tickets/${ticket.id}`,
-                  ))}
-              >
-                <Table.Cell>
-                  <Badge variant="outline">
-                    {TICKET_CATEGORY_LABELS[
-                      ticket.category as keyof typeof TICKET_CATEGORY_LABELS
-                    ] ?? ticket.category}
-                  </Badge>
-                </Table.Cell>
-                <Table.Cell class="font-bold text-muted-foreground">
-                  {ticket.title}
-                </Table.Cell>
-                <Table.Cell class="text-sm text-muted-foreground"
-                  >{ticket.author.email}</Table.Cell
-                >
-                <Table.Cell class="text-center text-muted-foreground"
-                  >{ticket.messageCount}</Table.Cell
-                >
-                <Table.Cell class="text-sm text-muted-foreground">
-                  {formatDateTimeFr(ticket.lastMessageAt)}
-                </Table.Cell>
-              </Table.Row>
-            {/each}
-          </Table.Body>
-        </Table.Root>
-      </Card.Content>
-    </Card.Root>
-  {/if}
+  <SortableTable
+    {columns}
+    rows={sorted}
+    {sortKey}
+    {sortDir}
+    onSort={toggleSort}
+    rowKey={(t) => t.id}
+    rowHref={(t) => resolve(`/staff/admin/tickets/${t.id}`)}
+    rowLabel={(t) => t.title}
+  >
+    {#snippet row(ticket)}
+      <Table.Cell>
+        {#if ticket.category === 'bug'}
+          <Badge variant="destructive" class="gap-1">
+            <Bug class="h-3 w-3" />
+            {TICKET_CATEGORY_LABELS.bug}
+          </Badge>
+        {:else}
+          <Badge variant="secondary" class="gap-1">
+            <Lightbulb class="h-3 w-3" />
+            {categoryLabel(ticket.category)}
+          </Badge>
+        {/if}
+      </Table.Cell>
+      <Table.Cell
+        class={ticket.status === 'closed'
+          ? 'font-bold text-muted-foreground'
+          : 'font-bold'}
+      >
+        <div class="flex items-center gap-2">
+          {#if ticket.unread}
+            <span class="h-2 w-2 rounded-full bg-epi-pink"></span>
+          {/if}
+          {ticket.title}
+        </div>
+      </Table.Cell>
+      <Table.Cell>
+        <div class="flex flex-col">
+          <span class="text-sm">{ticket.author.name ?? '—'}</span>
+          <span class="text-xs text-muted-foreground"
+            >{ticket.author.email}</span
+          >
+        </div>
+      </Table.Cell>
+      <Table.Cell class="text-right tabular-nums">
+        {ticket.messageCount}
+      </Table.Cell>
+      <Table.Cell class="text-sm text-muted-foreground">
+        {formatDateTimeFr(ticket.lastMessageAt)}
+      </Table.Cell>
+    {/snippet}
+
+    {#snippet empty()}
+      <EmptyState
+        icon={Inbox}
+        title="Aucun ticket"
+        description={searchQuery || statusFilter !== 'all'
+          ? 'Aucun ticket ne correspond à ce filtre.'
+          : 'Aucun ticket remonté pour le moment.'}
+      />
+    {/snippet}
+  </SortableTable>
 </div>

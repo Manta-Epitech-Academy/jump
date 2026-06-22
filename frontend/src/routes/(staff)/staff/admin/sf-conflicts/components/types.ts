@@ -24,6 +24,8 @@ export type TalentDiff = {
   prenom: string;
   email: string | null;
   diffs: FieldDiff[];
+  /** Most recent confirmation instant (ISO); only used to window the export. */
+  confirmedAt: string;
 };
 
 export type TalentEnrichment = {
@@ -33,6 +35,8 @@ export type TalentEnrichment = {
   prenom: string;
   email: string | null;
   fields: { label: string; value: string }[];
+  /** Most recent confirmation instant (ISO); only used to window the export. */
+  confirmedAt: string;
 };
 
 /** The payload streamed behind the page shell's resolve — three full-cohort

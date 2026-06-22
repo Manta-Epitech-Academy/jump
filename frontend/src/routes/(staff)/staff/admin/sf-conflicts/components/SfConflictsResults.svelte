@@ -1,14 +1,13 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { resolve } from '$app/paths';
   import * as Card from '$lib/components/ui/card';
   import * as Table from '$lib/components/ui/table';
   import * as Tabs from '$lib/components/ui/tabs';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { Badge } from '$lib/components/ui/badge';
   import { Button, buttonVariants } from '$lib/components/ui/button';
+  import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
   import SalesforceIconLink from '$lib/components/salesforce/SalesforceIconLink.svelte';
-  import Download from '@lucide/svelte/icons/download';
   import CloudDownload from '@lucide/svelte/icons/cloud-download';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import CheckCheck from '@lucide/svelte/icons/check-check';
@@ -30,6 +29,7 @@
     type AuthRepairAction,
   } from '$lib/domain/authIdentity';
   import type { SfConflictsData } from './types';
+  import SfExportMenu from './SfExportMenu.svelte';
 
   // The streamed reconciliation payload plus the shell's search box value. This
   // component owns every data-dependent projection, both tabs and the two repair
@@ -41,7 +41,9 @@
     enrichment,
     authConflicts,
     query,
-  }: SfConflictsData & { query: string } = $props();
+    lastExportAt,
+  }: SfConflictsData & { query: string; lastExportAt: string | null } =
+    $props();
 
   function displayValue(field: DiffField, value: string | null): string {
     if (!value) return '—';
@@ -160,6 +162,21 @@
   const dataCount = $derived(conflictCount + pushFieldCount);
   const hasData = $derived(dataCount > 0);
 
+  // One confirmation instant per talent who appears in the export (the most
+  // recent across their diff + enrichment rows), feeding the export menu's
+  // per-period counts. Built off the already-resolved scans, so the menu never
+  // runs its own query and its "(N talents)" matches what the CSV carries.
+  const exportTimeline = $derived.by(() => {
+    const byTalent = new Map<string, string>();
+    const bump = (id: string, iso: string) => {
+      const cur = byTalent.get(id);
+      if (!cur || iso > cur) byTalent.set(id, iso);
+    };
+    for (const t of diffs) bump(t.talentId, t.confirmedAt);
+    for (const t of enrichment) bump(t.talentId, t.confirmedAt);
+    return [...byTalent.values()].map((confirmedAt) => ({ confirmedAt }));
+  });
+
   // ── Adopt-Salesforce confirm ──────────────────────────────────────────────
   let adoptOpen = $state(false);
   let adopting = $state(false);
@@ -179,6 +196,44 @@
   const authCount = $derived(authConflicts.length);
   const authExposureCount = $derived(
     authConflicts.filter((c) => c.exposureRisk).length,
+  );
+
+  // Client-side pagination. The streamed payload is whole-cohort, so all three
+  // lists (conflicts to arbitrate, fields to push, identity conflicts) could each
+  // run to hundreds of rows × multiple fields — rendering them all at once made
+  // this the longest page in the admin space. The data is already in memory, so
+  // page it here; the CSV export stays exhaustive regardless of the page shown.
+  const PER_PAGE = 25;
+  let conflictsPage = $state(1);
+  let pushPage = $state(1);
+  let authPage = $state(1);
+  // A new search resets every list to its first page so a narrowed result can't
+  // strand the admin on an out-of-range page.
+  $effect(() => {
+    void needle;
+    conflictsPage = 1;
+    pushPage = 1;
+    authPage = 1;
+  });
+
+  const conflictsTotalPages = $derived(
+    Math.ceil(visibleConflicts.length / PER_PAGE),
+  );
+  const pagedConflicts = $derived(
+    visibleConflicts.slice(
+      (conflictsPage - 1) * PER_PAGE,
+      conflictsPage * PER_PAGE,
+    ),
+  );
+  const pushTotalPages = $derived(
+    Math.ceil(visiblePushGroups.length / PER_PAGE),
+  );
+  const pagedPushGroups = $derived(
+    visiblePushGroups.slice((pushPage - 1) * PER_PAGE, pushPage * PER_PAGE),
+  );
+  const authTotalPages = $derived(Math.ceil(visibleAuth.length / PER_PAGE));
+  const pagedAuth = $derived(
+    visibleAuth.slice((authPage - 1) * PER_PAGE, authPage * PER_PAGE),
   );
 
   // Detail rows are revealed on demand (chevron) so the table stays light; the
@@ -304,13 +359,7 @@
         demande un arbitrage ; le reste se <strong>transmet</strong> via le CSV.
       </p>
       {#if hasData}
-        <a
-          href={resolve('/staff/admin/sf-conflicts/export')}
-          class={buttonVariants({ variant: 'outline' })}
-          download
-        >
-          <Download class="mr-2 h-4 w-4" /> Exporter CSV
-        </a>
+        <SfExportMenu timeline={exportTimeline} {lastExportAt} />
       {/if}
     </div>
 
@@ -352,7 +401,7 @@
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
-                  {#each visibleConflicts as c (c.talentId + c.field)}
+                  {#each pagedConflicts as c (c.talentId + c.field)}
                     <Table.Row>
                       <Table.Cell>
                         <div class="font-medium">{c.prenom} {c.nom}</div>
@@ -412,6 +461,11 @@
               </Table.Root>
             </Card.Content>
           </Card.Root>
+          <Pagination
+            page={conflictsPage}
+            totalPages={conflictsTotalPages}
+            onPageChange={(p) => (conflictsPage = p)}
+          />
         {/if}
       </section>
 
@@ -431,7 +485,7 @@
 
           <Card.Root>
             <Card.Content class="p-0">
-              {#each visiblePushGroups as g (g.talentId)}
+              {#each pagedPushGroups as g (g.talentId)}
                 <div class="border-b px-5 py-4 last:border-0">
                   <div class="mb-3 flex items-center gap-2">
                     <span class="font-medium">{g.prenom} {g.nom}</span>
@@ -483,6 +537,11 @@
               {/each}
             </Card.Content>
           </Card.Root>
+          <Pagination
+            page={pushPage}
+            totalPages={pushTotalPages}
+            onPageChange={(p) => (pushPage = p)}
+          />
         </section>
       {/if}
     {/if}
@@ -522,7 +581,7 @@
               </Table.Row>
             </Table.Header>
             <Table.Body>
-              {#each visibleAuth as c (c.talentId)}
+              {#each pagedAuth as c (c.talentId)}
                 {@const primary = actionForVerdict(c.verdict)}
                 <Table.Row class={c.exposureRisk ? 'bg-red-500/5' : ''}>
                   <Table.Cell>
@@ -654,6 +713,11 @@
           </Table.Root>
         </Card.Content>
       </Card.Root>
+      <Pagination
+        page={authPage}
+        totalPages={authTotalPages}
+        onPageChange={(p) => (authPage = p)}
+      />
     {/if}
   </Tabs.Content>
 </Tabs.Root>

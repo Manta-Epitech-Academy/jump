@@ -10,7 +10,7 @@
     searchValue,
     onSearchInput,
     searchPlaceholder = 'Rechercher…',
-    searchWidthClass = 'max-w-72',
+    searchWidthClass = 'w-full max-w-72',
     filtersAlign = 'start',
     count,
     countNoun = 'résultat',
@@ -23,7 +23,12 @@
     searchValue: string;
     onSearchInput: (value: string) => void;
     searchPlaceholder?: string;
-    /** Max-width utility for the search box; default `max-w-72` (288px). */
+    /**
+     * Width utilities for the search box wrapper (a flex child of the toolbar
+     * row). Defaults to `w-full max-w-72`; pass `flex-1 min-w-0 max-w-…` to let
+     * a wide filter cluster share the row instead of forcing the search onto a
+     * full line of its own (see émargement).
+     */
     searchWidthClass?: string;
     /**
      * `end` pushes the filters to the right edge as one group (space-between
@@ -48,7 +53,7 @@
 
 <div class="space-y-3">
   <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
-    <div class="relative w-full {searchWidthClass}">
+    <div class="relative {searchWidthClass}">
       <Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
       <Input
         placeholder={searchPlaceholder}
