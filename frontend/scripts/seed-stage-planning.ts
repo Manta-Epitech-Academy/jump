@@ -319,6 +319,7 @@ const SCHEDULES: CampusPlanning[] = [
   {
     campus: 'Nantes',
     days: [
+      // ── Semaine 1 : découverte ──
       {
         date: '2026-06-15',
         slots: [
@@ -392,6 +393,106 @@ const SCHEDULES: CampusPlanning[] = [
             start: '13:30',
             end: '17:00',
             nom: 'Ateliers “Découverte et exploration” à distance',
+          },
+        ],
+      },
+      // ── Semaine 2 : projet / hackathon ──
+      // Journée type : conférence 10h-11h, créneau campus (travail RPG +
+      // entretiens d’orientation) 11h-12h30, déjeuner 12h30-13h30, atelier
+      // l’après-midi 13h30-17h. Conférences nommées par l’intervenant (Google,
+      // Lucca, La Trace, Capgemini). Vendredi 26 : journée remote (le CSV ne
+      // liste qu’une conférence et un atelier à distance, pas de créneau campus
+      // ni de pause).
+      // J6 — Lundi 22 juin : Build with IA / Fast Design Sprint
+      {
+        date: '2026-06-22',
+        slots: [
+          { start: '10:00', end: '11:00', nom: 'Conférence Google' },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Travail RPG (concours sur 2 semaines) & entretiens d’orientation',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause repas' },
+          { start: '13:30', end: '17:00', nom: 'Kick-off Hackathon' },
+        ],
+      },
+      // J7 — Mardi 23 juin : Product Design & Prompt Engineering
+      {
+        date: '2026-06-23',
+        slots: [
+          { start: '10:00', end: '11:00', nom: 'Conférence Lucca' },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Travail RPG (concours sur 2 semaines) & entretiens d’orientation',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause repas' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Atelier : App mobile (Figma) & Landing Page (Prompt Engineer)',
+          },
+        ],
+      },
+      // J8 — Mercredi 24 juin : Entrepreneuriat & Pitch
+      {
+        date: '2026-06-24',
+        slots: [
+          { start: '10:00', end: '11:00', nom: 'Conférence La Trace' },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Travail RPG (concours sur 2 semaines) & entretiens d’orientation',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause repas' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Atelier : vidéo de promotion, prise de parole, concours de pitch & demi-finales',
+          },
+        ],
+      },
+      // J9 — Jeudi 25 juin : IA, Soft Skills & Tech Responsable
+      // Le CSV fixe « 17h : Présentation finale » ; fin estimée à 18h (durée non
+      // précisée). Milestone visible → pin `special`.
+      {
+        date: '2026-06-25',
+        slots: [
+          { start: '10:00', end: '11:00', nom: 'Conférence Capgemini' },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Travail RPG (concours sur 2 semaines) & entretiens d’orientation',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause repas' },
+          { start: '13:30', end: '17:00', nom: 'Préparation du portfolio' },
+          {
+            start: '17:00',
+            end: '18:00',
+            nom: 'Présentation finale',
+            type: 'special',
+          },
+        ],
+      },
+      // J10 — Vendredi 26 juin : Restitution & Clôture (remote)
+      // Journée à distance : Live Twitch / contenus à distance. Pin `special`
+      // pour rester visible et marquer le distanciel (comme les autres remote).
+      {
+        date: '2026-06-26',
+        slots: [
+          {
+            start: '10:00',
+            end: '12:30',
+            nom: 'Live Twitch & contenus à distance',
+            type: 'special',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause repas' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Live Coding, Gaming, Live Orientation & méthode Epitech (à distance)',
+            type: 'special',
           },
         ],
       },
