@@ -16,6 +16,10 @@ export type SerializedNote = {
   edited: boolean;
   author: NoteStaff | null;
   editedBy: NoteStaff | null;
+  /** The émargement créneau the note was taken on, as a `${day}|${slot}` key, or
+   *  null for a general note (fiche) with no créneau. Lets the émargement dialog
+   *  group "Ce créneau" on the stored anchor rather than the note's clock time. */
+  presenceSlotKey: string | null;
   /** The event the note was taken at: `type` drives the condensed metadata label
    *  ("Stage de Seconde"), `titre` is kept for any future detail view. */
   event: { id: string; titre: string; type: string } | null;

@@ -152,7 +152,7 @@
        a quiet left rule so it reads as a quote block. Neutral (not teal/blue) to
        keep the dev rail sober and avoid competing with the trigger colour. -->
   <p
-    class="mt-2 border-l-2 border-muted-foreground/25 pl-3 text-[15px] leading-relaxed whitespace-pre-wrap text-foreground"
+    class="mt-2 border-l-2 border-muted-foreground/25 pl-3 text-[15px] leading-relaxed break-words whitespace-pre-wrap text-foreground"
   >
     {note.body}
   </p>

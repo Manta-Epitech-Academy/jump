@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
+import { dbDateToKey, slotKey } from '$lib/domain/eventPresence';
 import type { SerializedNote } from '$lib/domain/talentNotes';
 
 /** Author/editor identity + optional event anchor, for rendering the feed. */
@@ -28,6 +29,12 @@ export function serializeNote(note: NoteWithRelations): SerializedNote {
     editedBy: note.editedBy
       ? { name: note.editedBy.user.name, image: note.editedBy.user.image }
       : null,
+    // The créneau anchor, flattened to the same `${day}|${slot}` key the émargement
+    // roster uses, so the dialog matches a note to the active créneau exactly.
+    presenceSlotKey:
+      note.presenceDay && note.presenceSlot
+        ? slotKey(dbDateToKey(note.presenceDay), note.presenceSlot)
+        : null,
     event: note.event
       ? {
           id: note.event.id,

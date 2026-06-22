@@ -1,5 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { dateKeyToDbDate } from '$lib/domain/eventPresence';
 import { noteCreateSchema } from '$lib/validation/talentNotes';
 import {
   NOTE_INCLUDE,
@@ -36,7 +37,7 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
   if (!parsed.success) {
     throw error(400, parsed.error.issues[0]?.message ?? 'Note invalide.');
   }
-  const { body, eventId } = parsed.data;
+  const { body, eventId, presenceDay, presenceSlot } = parsed.data;
 
   // Optional context anchor — only accept an event on this staff's campus, so a
   // forged id can't link a note to another campus's event.
@@ -54,6 +55,10 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
       authorId: staffId,
       body,
       eventId: eventId ?? null,
+      // The créneau the note was taken on (émargement dialog only); the schema
+      // refine guarantees both halves are present together and carry an event.
+      presenceDay: presenceDay ? dateKeyToDbDate(presenceDay) : null,
+      presenceSlot: presenceSlot ?? null,
     },
     include: NOTE_INCLUDE,
   });

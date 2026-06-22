@@ -564,6 +564,13 @@ model Note_TalentNote {
   // Optional origin anchor. SetNull: deleting the event drops the context, the
   // note about the talent survives.
   eventId    String?
+  // The émargement créneau the note was taken on, when created from the émargement
+  // dialog (else null, e.g. a general note from the fiche). Stored as a fact rather
+  // than inferred from `createdAt`: it's what makes the roster trigger and the
+  // "Ce créneau" group exact instead of "typed during this half-day". Mirrors
+  // EventPresence's (day, slot) shape; only meaningful alongside `eventId`.
+  presenceDay  DateTime?     @db.Date
+  presenceSlot PresenceSlot?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

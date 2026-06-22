@@ -18,11 +18,11 @@ export const PRESENCE_ROSTER_SELECT = {
       email: true,
       phone: true,
       // Not the bodies (lazy-loaded by the dialog): the count drives the hover
-      // tooltip, and every note's createdAt is mapped server-side to its créneau
-      // so the roster can light only the talents noted in the slot on screen.
-      // Dates only, so even a chatty talent's notes stay cheap over ~200 rows.
+      // tooltip, and each note's stored créneau anchor (presenceDay + presenceSlot)
+      // lets the roster light only the talents noted in the slot on screen. Anchor
+      // only, so even a chatty talent's notes stay cheap over ~200 rows.
       _count: { select: { notes: true } },
-      notes: { select: { createdAt: true } },
+      notes: { select: { presenceDay: true, presenceSlot: true } },
       user: { select: { email: true } },
       parentCivilite: true,
       parentPrenom: true,

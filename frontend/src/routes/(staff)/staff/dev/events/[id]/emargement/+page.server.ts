@@ -17,7 +17,6 @@ import {
   toDateKey,
   effectiveStatus,
   computeAttendanceRate,
-  slotKeyOfInstant,
   type PresenceRecord,
   type CellStatus,
 } from '$lib/domain/eventPresence';
@@ -126,9 +125,15 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
         email: t.user?.email ?? t.email,
         phone: t.phone,
         noteCount: t._count.notes,
+        // The distinct créneaux this talent carries a note for, from each note's
+        // stored anchor (notes without one — fiche notes — never light a trigger).
         noteSlotKeys: [
           ...new Set(
-            t.notes.map((n) => slotKeyOfInstant(n.createdAt, timezone)),
+            t.notes
+              .filter((n) => n.presenceDay && n.presenceSlot)
+              .map((n) =>
+                slotKey(dbDateToKey(n.presenceDay!), n.presenceSlot!),
+              ),
           ),
         ],
         guardians,

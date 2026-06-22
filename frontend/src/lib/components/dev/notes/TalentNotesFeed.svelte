@@ -6,6 +6,7 @@
   import { toast } from 'svelte-sonner';
   import { base } from '$app/paths';
   import { cn } from '$lib/utils';
+  import type { PresenceSlot } from '@prisma/client';
   import type { SerializedNote } from '$lib/domain/talentNotes';
   import TalentNoteEditor from './TalentNoteEditor.svelte';
   import TalentNoteCard from './TalentNoteCard.svelte';
@@ -20,12 +21,15 @@
     notes,
     timezone,
     eventId = null,
+    presenceDay = null,
+    presenceSlot = null,
     onCountChange,
     composing = $bindable(false),
     showComposeButton = true,
     showStaffOnlyHint = true,
     listMaxHeightClass = 'max-h-[60vh]',
     highlightIds = [],
+    highlightLabel,
   }: {
     talentId: string;
     notes: SerializedNote[];
@@ -33,6 +37,11 @@
     // campus wall clock (see TalentNoteCard — the fiche feed is SSR'd under UTC).
     timezone: string;
     eventId?: string | null;
+    // The émargement créneau a NEW note is taken on (the dialog passes the active
+    // slot), persisted so the note anchors to that créneau. Null on the fiche, where
+    // notes carry no créneau. Ignored when editing an existing note.
+    presenceDay?: string | null;
+    presenceSlot?: PresenceSlot | null;
     // Fired with the new note count after a create/delete, so a host (the
     // émargement dialog) can keep its roster icon tint in sync.
     onCountChange?: (count: number) => void;
@@ -49,11 +58,15 @@
     // suits it; the fiche rail passes a shorter cap so the Synthèse below stays in
     // view instead of being pushed off by a long feed.
     listMaxHeightClass?: string;
-    // Ids of notes to flag (ring) and reveal (scroll the first into view). The
-    // émargement dialog passes the note(s) taken during the créneau it was opened
-    // on, so staff land on "what was left this créneau" instead of hunting it down
-    // a long, newest-first feed. Empty everywhere else (the fiche never sets it).
+    // Ids of notes to flag and reveal (scroll the first into view). The émargement
+    // dialog passes the note(s) taken during the créneau it was opened on, so staff
+    // land on "what was left this créneau" instead of hunting it down a long,
+    // newest-first feed. Empty everywhere else (the fiche never sets it).
     highlightIds?: string[];
+    // Short tag rendered just above each flagged note (e.g. "Note de ce créneau"),
+    // so the label travels with the note instead of floating off at the top. The
+    // caller owns the wording; no tag shows without it.
+    highlightLabel?: string;
   } = $props();
 
   // The feed owns the list after mount, applying create/edit/delete results so it
@@ -64,18 +77,19 @@
   let deleteOpen = $state(false);
   let deleteTarget = $state<SerializedNote | null>(null);
 
+  // When the émargement dialog flags a créneau's note(s), the feed splits in two:
+  // the flagged ones lift into a bounded group at the top (so staff see "what was
+  // left this créneau" at a glance, one header, clear edges, no scrolling) and the
+  // rest fall under "Autres notes". `items` itself is untouched, so the reported
+  // count and add/edit/delete are unchanged; this is purely how the list renders.
   const highlight = $derived(new Set(highlightIds));
-  // Only the first (newest) match is scrolled to; the rest just ring in place.
-  const firstHighlightId = $derived(
-    items.find((n) => highlight.has(n.id))?.id ?? null,
+  const grouped = $derived(highlightIds.length > 0);
+  const slotNotes = $derived(
+    grouped ? items.filter((n) => highlight.has(n.id)) : [],
   );
-
-  // One-shot reveal on mount. The dialog remounts the feed per talent (keyed), so
-  // each fresh open re-runs it; rAF defers the scroll until after first paint.
-  function reveal(node: HTMLElement, active: boolean) {
-    if (active)
-      requestAnimationFrame(() => node.scrollIntoView({ block: 'nearest' }));
-  }
+  const otherNotes = $derived(
+    grouped ? items.filter((n) => !highlight.has(n.id)) : items,
+  );
 
   async function deleteNote(note: SerializedNote) {
     try {
@@ -97,8 +111,39 @@
 <!-- One tooltip provider for the whole feed: the cards' edit/delete and "modifié"
      tooltips need it, and the émargement dialog portals the feed away from the
      roster's own provider, so the feed must carry its own. -->
+<!-- One note row, shared by the flat list and the two grouped sections so the
+     edit/delete wiring lives in a single place. -->
+{#snippet noteRow(note: SerializedNote)}
+  {#if editingId === note.id}
+    <div class="rounded-sm border bg-muted/20 p-3">
+      <TalentNoteEditor
+        {talentId}
+        {note}
+        onSaved={(saved) => {
+          items = items.map((n) => (n.id === saved.id ? saved : n));
+          editingId = null;
+        }}
+        onCancel={() => (editingId = null)}
+      />
+    </div>
+  {:else}
+    <TalentNoteCard
+      {note}
+      {timezone}
+      onEdit={() => (editingId = note.id)}
+      onDelete={() => {
+        deleteTarget = note;
+        deleteOpen = true;
+      }}
+    />
+  {/if}
+{/snippet}
+
+<!-- min-w-0: this is a grid item of the émargement Dialog.Content (display:grid).
+     Without it the item keeps its min-content width and overflows the dialog on a
+     narrow screen (the note cards then never get a bounded width to truncate into). -->
 <Tooltip.Provider delayDuration={150}>
-  <div class="space-y-3">
+  <div class="min-w-0 space-y-3">
     {#if showComposeButton && !composing}
       <div class="flex justify-end">
         <Button size="sm" variant="outline" onclick={() => (composing = true)}>
@@ -113,6 +158,8 @@
         <TalentNoteEditor
           {talentId}
           {eventId}
+          {presenceDay}
+          {presenceSlot}
           onSaved={(saved) => {
             items = [saved, ...items];
             onCountChange?.(items.length);
@@ -133,40 +180,40 @@
          composer and the staff-only caveat stay outside this scroll region. The cap
          lands mid-card (notes are variable height); the partial note left peeking is
          the affordance that says "more below". -->
-      <div class={cn('space-y-2 overflow-y-auto pr-1', listMaxHeightClass)}>
-        {#each items as note (note.id)}
-          <div
-            class={cn(
-              highlight.has(note.id) &&
-                'rounded-sm ring-2 ring-epi-blue/40 ring-offset-2 ring-offset-background',
-            )}
-            use:reveal={note.id === firstHighlightId}
+      <div class={cn('space-y-3 overflow-y-auto pr-1', listMaxHeightClass)}>
+        {#if grouped && slotNotes.length > 0}
+          <section
+            class="space-y-2 rounded-md bg-epi-blue/5 p-2 ring-1 ring-epi-blue/20"
           >
-            {#if editingId === note.id}
-              <div class="rounded-sm border bg-muted/20 p-3">
-                <TalentNoteEditor
-                  {talentId}
-                  {note}
-                  onSaved={(saved) => {
-                    items = items.map((n) => (n.id === saved.id ? saved : n));
-                    editingId = null;
-                  }}
-                  onCancel={() => (editingId = null)}
-                />
-              </div>
-            {:else}
-              <TalentNoteCard
-                {note}
-                {timezone}
-                onEdit={() => (editingId = note.id)}
-                onDelete={() => {
-                  deleteTarget = note;
-                  deleteOpen = true;
-                }}
-              />
+            {#if highlightLabel}
+              <h3
+                class="flex items-center gap-1.5 px-1 text-[11px] font-medium text-epi-blue"
+              >
+                <span class="h-1.5 w-1.5 rounded-full bg-epi-blue"></span>
+                {highlightLabel}
+              </h3>
             {/if}
+            {#each slotNotes as note (note.id)}
+              {@render noteRow(note)}
+            {/each}
+          </section>
+          {#if otherNotes.length > 0}
+            <div class="space-y-2">
+              <h3 class="px-1 text-[11px] font-medium text-muted-foreground">
+                Autres
+              </h3>
+              {#each otherNotes as note (note.id)}
+                {@render noteRow(note)}
+              {/each}
+            </div>
+          {/if}
+        {:else}
+          <div class="space-y-2">
+            {#each items as note (note.id)}
+              {@render noteRow(note)}
+            {/each}
           </div>
-        {/each}
+        {/if}
       </div>
     {/if}
 

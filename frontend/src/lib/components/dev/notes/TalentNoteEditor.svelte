@@ -5,6 +5,7 @@
   import { base } from '$app/paths';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import type { PresenceSlot } from '@prisma/client';
   import type { SerializedNote } from '$lib/domain/talentNotes';
 
   // Composer for a single staff note — create (note=null) or edit an existing
@@ -15,6 +16,8 @@
     talentId,
     note = null,
     eventId = null,
+    presenceDay = null,
+    presenceSlot = null,
     onSaved,
     onCancel,
   }: {
@@ -23,6 +26,10 @@
     // Optional context anchor for a NEW note (émargement passes the current
     // event); ignored when editing.
     eventId?: string | null;
+    // The émargement créneau the new note is taken on (day + half), persisted with
+    // the event so the note anchors to that créneau. Null on the fiche.
+    presenceDay?: string | null;
+    presenceSlot?: PresenceSlot | null;
     onSaved?: (note: SerializedNote) => void;
     onCancel?: () => void;
   } = $props();
@@ -54,7 +61,12 @@
             body: value,
             baseUpdatedAt: force ? conflict!.updatedAt : baseUpdatedAt,
           }
-        : { body: value, eventId: eventId ?? undefined };
+        : {
+            body: value,
+            eventId: eventId ?? undefined,
+            presenceDay: presenceDay ?? undefined,
+            presenceSlot: presenceSlot ?? undefined,
+          };
       const res = await fetch(url, {
         method: isEdit ? 'PATCH' : 'POST',
         headers: { 'content-type': 'application/json' },

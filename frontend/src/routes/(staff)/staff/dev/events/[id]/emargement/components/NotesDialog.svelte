@@ -4,11 +4,7 @@
   import { base } from '$app/paths';
   import TalentNotesFeed from '$lib/components/dev/notes/TalentNotesFeed.svelte';
   import type { SerializedNote } from '$lib/domain/talentNotes';
-  import {
-    slotKeyOfInstant,
-    slotLabelLong,
-    type EventSlot,
-  } from '$lib/domain/eventPresence';
+  import { slotLabelLong, type EventSlot } from '$lib/domain/eventPresence';
   import type { PresenceRow } from './types';
 
   // Per-row notes modal: shows the talent's full notes feed without leaving the
@@ -65,18 +61,15 @@
       });
   });
 
-  // The note(s) whose createdAt lands in the créneau the dialog was opened on, by
-  // the same mapping that lit the roster trigger (slotKeyOfInstant). The feed
-  // rings them and scrolls the first into view. Empty when opened from an unlit
-  // trigger (no note this créneau) — then nothing is flagged and the full feed shows.
+  // The note(s) anchored to the créneau the dialog was opened on, matched on the
+  // stored anchor (`presenceSlotKey`) the roster trigger also uses — exact, not
+  // inferred from the clock. The feed lifts them into the "Ce créneau" group.
+  // Empty when opened from an unlit trigger (no note this créneau) — then nothing
+  // is flagged and the full feed shows.
   const highlightIds = $derived(
     notes && activeSlot
       ? notes
-          .filter(
-            (n) =>
-              slotKeyOfInstant(new Date(n.createdAt), timezone) ===
-              activeSlot.key,
-          )
+          .filter((n) => n.presenceSlotKey === activeSlot.key)
           .map((n) => n.id)
       : [],
   );
@@ -88,7 +81,7 @@
       <Dialog.Header>
         <Dialog.Title>Notes - {row.prenom} {row.nom}</Dialog.Title>
         <Dialog.Description>
-          Notes réservées au staff (retard, administratif, pédagogique…).
+          Réservées au staff (retard, administratif, pédagogique…).
         </Dialog.Description>
       </Dialog.Header>
       {#if loadError}
@@ -102,18 +95,6 @@
           <LoaderCircle class="h-5 w-5 animate-spin" />
         </div>
       {:else}
-        {#if activeSlot && highlightIds.length > 0}
-          <p class="text-xs text-muted-foreground">
-            {#if highlightIds.length === 1}
-              Note laissée pendant ce créneau ({slotLabelLong(activeSlot)}),
-              mise en évidence ci-dessous.
-            {:else}
-              {highlightIds.length} notes laissées pendant ce créneau ({slotLabelLong(
-                activeSlot,
-              )}), mises en évidence ci-dessous.
-            {/if}
-          </p>
-        {/if}
         {#key row.talentId}
           <TalentNotesFeed
             talentId={row.talentId}
@@ -121,6 +102,11 @@
             {timezone}
             {eventId}
             {highlightIds}
+            highlightLabel={activeSlot
+              ? `Ce créneau · ${slotLabelLong(activeSlot)}`
+              : undefined}
+            presenceDay={activeSlot?.day ?? null}
+            presenceSlot={activeSlot?.slot ?? null}
             showStaffOnlyHint={false}
             onCountChange={(count) => onCountChange?.(row.talentId, count)}
           />
