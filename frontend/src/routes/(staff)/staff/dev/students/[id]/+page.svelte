@@ -191,7 +191,7 @@
           />
         </EpiSection>
 
-        {#if hasCodingClub && codingClubHistory.length > 0}
+        {#if codingClubHistory.length > 0}
           <EpiSection title="Historique Coding Club" accent="tomorrow">
             <ul class="space-y-1.5">
               {#each codingClubHistory as p (p.id)}

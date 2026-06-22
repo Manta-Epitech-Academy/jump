@@ -195,21 +195,22 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     }
 
     // Past coding club events the talent attended (widget: 5 most recent).
-    const pastCodingClubs = locals.featureFlags?.has('coding_club')
-      ? await prisma.participation.findMany({
-          where: {
-            talentId: studentId,
-            isPresent: true,
-            event: { eventType: 'coding_club', date: { lte: filterDateEnd } },
-          },
-          select: {
-            id: true,
-            event: { select: { titre: true, date: true } },
-          },
-          orderBy: { event: { date: 'desc' } },
-          take: 5,
-        })
-      : [];
+    // Not gated by the coding_club feature flag: a talent who attended a
+    // coding club always sees their history, even if the campus hasn't
+    // switched to the full multi-event workspace yet.
+    const pastCodingClubs = await prisma.participation.findMany({
+      where: {
+        talentId: studentId,
+        isPresent: true,
+        event: { eventType: 'coding_club', date: { lte: filterDateEnd } },
+      },
+      select: {
+        id: true,
+        event: { select: { titre: true, date: true } },
+      },
+      orderBy: { event: { date: 'desc' } },
+      take: 5,
+    });
 
     return {
       student: locals.talent,
