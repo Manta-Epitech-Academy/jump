@@ -22,6 +22,16 @@ const config = {
     // recorder injects ad-hoc inline scripts and `on*` attribute handlers
     // that we can't pre-hash, so we need `'unsafe-inline'` to be effective.
     adapter: adapter(),
+    // Stale-client recovery after a prod deploy. Each build stamps a version
+    // into `_app/version.json`; the client polls it every 60s. When it changes
+    // (a new deploy shipped) the `updated` store flips, and the root layout
+    // forces a full page reload on the next navigation (see +layout.svelte).
+    // Without this, a client holding old HTML keeps requesting old hashed
+    // chunks the new image no longer serves -> 404 + "Failed to fetch
+    // dynamically imported module".
+    version: {
+      pollInterval: 60_000,
+    },
   },
 };
 

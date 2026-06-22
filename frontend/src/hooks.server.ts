@@ -66,6 +66,19 @@ function setSecurityHeaders(response: Response) {
     'Strict-Transport-Security',
     'max-age=31536000; includeSubDomains',
   );
+  // Never let the browser reuse a cached HTML document without revalidating.
+  // The document references content-hashed `_app/immutable` chunks; a stale
+  // cached page points at hashes a later deploy has deleted -> 404 on boot.
+  // (The immutable assets themselves are served by adapter-node's static
+  // handler before this hook, so their long-lived caching is untouched.) Only
+  // stamp pages that haven't already set their own policy, so endpoints with
+  // explicit cache headers - e.g. the no-store diploma PDFs - keep theirs.
+  if (
+    !response.headers.has('Cache-Control') &&
+    response.headers.get('Content-Type')?.includes('text/html')
+  ) {
+    response.headers.set('Cache-Control', 'no-cache');
+  }
 }
 
 // Cuid v2 (default Prisma) is 24+ lowercase alphanumeric chars. We keep the

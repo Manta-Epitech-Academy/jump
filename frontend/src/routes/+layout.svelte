@@ -8,9 +8,9 @@
   import '@fontsource/space-mono/700.css';
   import './layout.css';
   import { Toaster } from '$lib/components/ui/sonner';
-  import { onNavigate } from '$app/navigation';
+  import { onNavigate, beforeNavigate } from '$app/navigation';
   import { ModeWatcher } from 'mode-watcher';
-  import { page } from '$app/state';
+  import { page, updated } from '$app/state';
   import { dev } from '$app/environment';
   import Umami from '$lib/components/Umami.svelte';
   import ImpersonationAutoExit from '$lib/components/ImpersonationAutoExit.svelte';
@@ -24,6 +24,18 @@
   import faviconDev from '$lib/assets/favicon-dev.svg?url';
 
   let { children } = $props();
+
+  // Stale-client recovery: once `kit.version.pollInterval` has detected a new
+  // deploy (`updated.current` true), turn the next client-side navigation into
+  // a full page load. The fresh document references the new hashed chunks, so
+  // we never try to import a chunk the new image already deleted (the 404 +
+  // "Failed to fetch dynamically imported module" after a prod update).
+  beforeNavigate((navigation) => {
+    if (updated.current && navigation.to?.url && !navigation.willUnload) {
+      navigation.cancel();
+      window.location.href = navigation.to.url.href;
+    }
+  });
 
   onNavigate((navigation) => {
     if (!document.startViewTransition) return;
