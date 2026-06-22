@@ -117,6 +117,7 @@
     "seed": "bun run prisma/seed.ts"
   },
   "overrides": {
+    "ts-deepmerge": "^8.0.0",
     "basic-ftp": "^5.3.1",
     "picomatch": "^4.0.4",
     "cookie": "^0.7.0",
