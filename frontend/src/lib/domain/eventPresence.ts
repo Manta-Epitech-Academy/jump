@@ -256,25 +256,6 @@ export function defaultActiveSlotKey(
   return upcoming ? upcoming.key : slots[slots.length - 1].key;
 }
 
-/**
- * The créneau key an instant falls in, in the campus timezone: its calendar day
- * plus the morning/afternoon half by the **same 13h split** `defaultActiveSlotKey`
- * uses, so "which créneau is this?" is answered one way across the feature. Lets
- * the émargement roster light a talent's note trigger when their latest note was
- * taken during the créneau currently on screen (`=== activeSlot.key`).
- */
-export function slotKeyOfInstant(instant: Date, timezone: string): string {
-  const hour = Number(
-    new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      hour: '2-digit',
-      hourCycle: 'h23',
-    }).format(instant),
-  );
-  const slot: PresenceSlot = hour < 13 ? 'morning' : 'afternoon';
-  return slotKey(toDateKey(instant, timezone), slot);
-}
-
 /** "lundi 9 juin" for a day tab / navigator label. */
 export function dayLabelFr(key: DateKey): string {
   return dateKeyToDbDate(key).toLocaleDateString('fr-FR', {

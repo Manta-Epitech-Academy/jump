@@ -6,6 +6,7 @@
   import { toast } from 'svelte-sonner';
   import { base } from '$app/paths';
   import { cn } from '$lib/utils';
+  import { slotKey } from '$lib/domain/eventPresence';
   import type { PresenceSlot } from '@prisma/client';
   import type { SerializedNote } from '$lib/domain/talentNotes';
   import TalentNoteEditor from './TalentNoteEditor.svelte';
@@ -28,7 +29,6 @@
     showComposeButton = true,
     showStaffOnlyHint = true,
     listMaxHeightClass = 'max-h-[60vh]',
-    highlightIds = [],
     highlightLabel,
   }: {
     talentId: string;
@@ -37,9 +37,10 @@
     // campus wall clock (see TalentNoteCard — the fiche feed is SSR'd under UTC).
     timezone: string;
     eventId?: string | null;
-    // The émargement créneau a NEW note is taken on (the dialog passes the active
-    // slot), persisted so the note anchors to that créneau. Null on the fiche, where
-    // notes carry no créneau. Ignored when editing an existing note.
+    // The active émargement créneau (the dialog passes the slot on screen). Two
+    // roles: it's the anchor persisted on a NEW note, and it selects which existing
+    // notes lift into the "Ce créneau" group (those whose stored anchor matches).
+    // Null on the fiche, where notes carry no créneau. Ignored when editing.
     presenceDay?: string | null;
     presenceSlot?: PresenceSlot | null;
     // Fired with the new note count after a create/delete, so a host (the
@@ -58,14 +59,9 @@
     // suits it; the fiche rail passes a shorter cap so the Synthèse below stays in
     // view instead of being pushed off by a long feed.
     listMaxHeightClass?: string;
-    // Ids of notes to flag and reveal (scroll the first into view). The émargement
-    // dialog passes the note(s) taken during the créneau it was opened on, so staff
-    // land on "what was left this créneau" instead of hunting it down a long,
-    // newest-first feed. Empty everywhere else (the fiche never sets it).
-    highlightIds?: string[];
-    // Short tag rendered just above each flagged note (e.g. "Note de ce créneau"),
-    // so the label travels with the note instead of floating off at the top. The
-    // caller owns the wording; no tag shows without it.
+    // Short tag rendered above the "Ce créneau" group (e.g. "Ce créneau · lun. 9
+    // juin · Matin"), so the label travels with the grouped notes. The caller owns
+    // the wording; no tag shows without it.
     highlightLabel?: string;
   } = $props();
 
@@ -77,18 +73,26 @@
   let deleteOpen = $state(false);
   let deleteTarget = $state<SerializedNote | null>(null);
 
-  // When the émargement dialog flags a créneau's note(s), the feed splits in two:
-  // the flagged ones lift into a bounded group at the top (so staff see "what was
-  // left this créneau" at a glance, one header, clear edges, no scrolling) and the
-  // rest fall under "Autres notes". `items` itself is untouched, so the reported
-  // count and add/edit/delete are unchanged; this is purely how the list renders.
-  const highlight = $derived(new Set(highlightIds));
-  const grouped = $derived(highlightIds.length > 0);
+  // On the émargement créneau the feed splits in two: notes whose stored anchor
+  // matches the active créneau lift into a bounded group at the top (so staff see
+  // "what was left this créneau" at a glance, one header, clear edges, no
+  // scrolling) and the rest fall under "Autres". Matching on each note's own
+  // `presenceSlotKey` means a note just added here joins the group immediately,
+  // with no round-trip. `items` itself is untouched, so the reported count and
+  // add/edit/delete are unchanged; this is purely how the list renders. On the
+  // fiche (no active créneau) nothing groups and the flat list shows.
+  const activeSlotKey = $derived(
+    presenceDay && presenceSlot ? slotKey(presenceDay, presenceSlot) : null,
+  );
   const slotNotes = $derived(
-    grouped ? items.filter((n) => highlight.has(n.id)) : [],
+    activeSlotKey
+      ? items.filter((n) => n.presenceSlotKey === activeSlotKey)
+      : [],
   );
   const otherNotes = $derived(
-    grouped ? items.filter((n) => !highlight.has(n.id)) : items,
+    activeSlotKey
+      ? items.filter((n) => n.presenceSlotKey !== activeSlotKey)
+      : items,
   );
 
   async function deleteNote(note: SerializedNote) {
@@ -108,9 +112,6 @@
   }
 </script>
 
-<!-- One tooltip provider for the whole feed: the cards' edit/delete and "modifié"
-     tooltips need it, and the émargement dialog portals the feed away from the
-     roster's own provider, so the feed must carry its own. -->
 <!-- One note row, shared by the flat list and the two grouped sections so the
      edit/delete wiring lives in a single place. -->
 {#snippet noteRow(note: SerializedNote)}
@@ -139,10 +140,13 @@
   {/if}
 {/snippet}
 
-<!-- min-w-0: this is a grid item of the émargement Dialog.Content (display:grid).
-     Without it the item keeps its min-content width and overflows the dialog on a
-     narrow screen (the note cards then never get a bounded width to truncate into). -->
+<!-- One tooltip provider for the whole feed: the cards' edit/delete and "modifié"
+     tooltips need it, and the émargement dialog portals the feed away from the
+     roster's own provider, so the feed must carry its own. -->
 <Tooltip.Provider delayDuration={150}>
+  <!-- min-w-0: this is a grid item of the émargement Dialog.Content (display:grid).
+       Without it the item keeps its min-content width and overflows the dialog on a
+       narrow screen (the note cards then never get a bounded width to truncate into). -->
   <div class="min-w-0 space-y-3">
     {#if showComposeButton && !composing}
       <div class="flex justify-end">
@@ -181,7 +185,7 @@
          lands mid-card (notes are variable height); the partial note left peeking is
          the affordance that says "more below". -->
       <div class={cn('space-y-3 overflow-y-auto pr-1', listMaxHeightClass)}>
-        {#if grouped && slotNotes.length > 0}
+        {#if slotNotes.length > 0}
           <section
             class="space-y-2 rounded-md bg-epi-blue/5 p-2 ring-1 ring-epi-blue/20"
           >

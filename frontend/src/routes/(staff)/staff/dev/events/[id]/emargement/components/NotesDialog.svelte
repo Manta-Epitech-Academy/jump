@@ -24,9 +24,9 @@
     /** Campus IANA timezone, forwarded to the feed so note times read in the
      *  campus wall clock (matches the créneau the roster lights, see types.ts). */
     timezone: string;
-    /** The créneau on screen when the dialog opened. When the talent has a note
-     *  taken during it (the reason the trigger lit), the feed flags and reveals
-     *  that note so staff don't hunt it among more-recent, unrelated ones. */
+    /** The créneau on screen when the dialog opened. Anchors new notes to it and
+     *  lifts any note already taken during it into the feed's "Ce créneau" group,
+     *  so staff don't hunt it among more-recent, unrelated ones. */
     activeSlot: EventSlot | null;
     onCountChange?: (talentId: string, count: number) => void;
   } = $props();
@@ -60,19 +60,6 @@
         loadError = true;
       });
   });
-
-  // The note(s) anchored to the créneau the dialog was opened on, matched on the
-  // stored anchor (`presenceSlotKey`) the roster trigger also uses — exact, not
-  // inferred from the clock. The feed lifts them into the "Ce créneau" group.
-  // Empty when opened from an unlit trigger (no note this créneau) — then nothing
-  // is flagged and the full feed shows.
-  const highlightIds = $derived(
-    notes && activeSlot
-      ? notes
-          .filter((n) => n.presenceSlotKey === activeSlot.key)
-          .map((n) => n.id)
-      : [],
-  );
 </script>
 
 <Dialog.Root bind:open>
@@ -101,7 +88,6 @@
             {notes}
             {timezone}
             {eventId}
-            {highlightIds}
             highlightLabel={activeSlot
               ? `Ce créneau · ${slotLabelLong(activeSlot)}`
               : undefined}

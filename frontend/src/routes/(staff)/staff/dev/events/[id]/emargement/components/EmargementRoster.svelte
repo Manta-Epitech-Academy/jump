@@ -235,8 +235,8 @@
     noteCounts.set(talentId, count);
   }
 
-  // True when this talent has a note taken during the créneau on screen (by note
-  // createdAt, mapped to its créneau server-side in `noteSlotKeys`): it lights the
+  // True when this talent has a note taken during the créneau on screen (from each
+  // note's stored anchor, projected to `noteSlotKeys` server-side): it lights the
   // trigger so staff spot who was noted this half-day. A note just added in the
   // dialog catches up on the next 5s poll (good enough; no optimistic timestamp).
   function rowNoteInActiveSlot(row: PresenceRow): boolean {

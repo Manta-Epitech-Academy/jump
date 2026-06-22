@@ -57,8 +57,9 @@ export type PresenceRow = {
   /** Count of staff notes on this talent; surfaced in the trigger's hover tooltip.
    *  The note bodies are lazy-loaded by the dialog, not carried in the roster. */
   noteCount: number;
-  /** The distinct créneau keys (`${day}|${slot}`) this talent has a note in, by
-   *  note createdAt. The trigger lights only when the active créneau is in here. */
+  /** The distinct créneau keys (`${day}|${slot}`) this talent has a note in, from
+   *  each note's stored anchor. The trigger lights only when the active créneau is
+   *  in here. */
   noteSlotKeys: string[];
   /** Up to two guardians, in priority order; empty when none are on file. */
   guardians: Guardian[];
