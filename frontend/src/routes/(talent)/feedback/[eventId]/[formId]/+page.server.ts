@@ -1,26 +1,22 @@
 import type { Actions, PageServerLoad } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import {
-  loadForm,
-  validateAnswer,
-  type Answers,
-} from '$lib/domain/feedbackForms/schema';
-import { buildPrefill, STAGE_FORM_ID } from '$lib/domain/feedback';
-
-const VALID_FORM_IDS = [STAGE_FORM_ID];
+import type { Answers } from '$lib/domain/feedbackForms/schema';
+import { buildPrefill } from '$lib/domain/feedback';
+import { getFormGraphBySlug, toFormSchema } from '$lib/server/feedbackForms';
+import { recordSubmission } from '$lib/server/feedbackSubmissions';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   if (!locals.talent) {
-    throw error(401, 'Non autorise');
+    throw error(401, 'Non autorisé');
   }
 
-  if (!VALID_FORM_IDS.includes(params.formId)) {
-    throw error(404, 'Formulaire introuvable');
-  }
-
-  const formSchema = loadForm(params.formId);
-  if (!formSchema) {
+  const graph = await getFormGraphBySlug(params.formId);
+  if (
+    !graph ||
+    graph.status !== 'published' ||
+    !graph.allowsAuthenticatedAccess
+  ) {
     throw error(404, 'Formulaire introuvable');
   }
 
@@ -28,7 +24,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     where: { id: params.eventId },
   });
   if (!event) {
-    throw error(404, 'Evenement introuvable');
+    throw error(404, 'Événement introuvable');
   }
 
   const participation = await prisma.participation.findFirst({
@@ -39,14 +35,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     throw error(404, 'Participation introuvable');
   }
 
-  const existing = await prisma.feedbackSubmission.findUnique({
+  const existing = await prisma.feedback_Submission.findUnique({
     where: {
-      eventId_talentId_formId: {
+      formId_eventId_talentId: {
+        formId: graph.id,
         eventId: params.eventId,
         talentId: locals.talent.id,
-        formId: params.formId,
       },
     },
+    select: { id: true },
   });
   if (existing) {
     throw redirect(303, '/');
@@ -60,7 +57,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const prefill = buildPrefill(locals.talent, campus?.name ?? '');
 
   return {
-    formSchema,
+    formSchema: toFormSchema(graph),
     prefill,
     eventId: params.eventId,
     formId: params.formId,
@@ -70,12 +67,27 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 export const actions: Actions = {
   default: async ({ request, locals, params }) => {
     if (!locals.talent) {
-      throw error(401, 'Non autorise');
+      throw error(401, 'Non autorisé');
     }
 
-    const formSchema = loadForm(params.formId);
-    if (!formSchema) {
+    const graph = await getFormGraphBySlug(params.formId);
+    if (
+      !graph ||
+      graph.status !== 'published' ||
+      !graph.allowsAuthenticatedAccess
+    ) {
       throw error(404, 'Formulaire introuvable');
+    }
+
+    // Mirror the load guard: a talent may only submit for an event they took
+    // part in, else a crafted POST could inject a response into any event's
+    // bilan (the page load enforces this, but the action is reachable directly).
+    const participation = await prisma.participation.findFirst({
+      where: { eventId: params.eventId, talentId: locals.talent.id },
+      select: { id: true },
+    });
+    if (!participation) {
+      throw error(404, 'Participation introuvable');
     }
 
     let body: { answers?: Answers };
@@ -87,42 +99,23 @@ export const actions: Actions = {
 
     const answers = body.answers;
     if (!answers || typeof answers !== 'object') {
-      return fail(400, { message: 'Reponses manquantes' });
+      return fail(400, { message: 'Réponses manquantes' });
     }
 
-    const validationErrors: string[] = [];
-    for (const q of formSchema.questions) {
-      const err = validateAnswer(q, answers[q.id]);
-      if (err) {
-        validationErrors.push(`${q.id}: ${err}`);
-      }
-    }
-
-    if (validationErrors.length > 0) {
-      return fail(400, { validationErrors });
-    }
-
-    const eventId = params.eventId;
-    const formId = params.formId;
-
-    await prisma.feedbackSubmission.upsert({
-      where: {
-        eventId_talentId_formId: {
-          eventId,
-          talentId: locals.talent.id,
-          formId,
-        },
-      },
-      create: {
-        eventId,
+    try {
+      await recordSubmission(graph, answers, {
+        source: 'authenticated',
         talentId: locals.talent.id,
-        formId,
-        answers: answers as object,
-      },
-      update: {
-        answers: answers as object,
-      },
-    });
+        eventId: params.eventId,
+      });
+    } catch (err) {
+      const message =
+        err && typeof err === 'object' && 'body' in err
+          ? ((err.body as { message?: string })?.message ??
+            'Erreur lors de l’enregistrement')
+          : 'Erreur lors de l’enregistrement';
+      return fail(400, { message });
+    }
 
     return { success: true };
   },

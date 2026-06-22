@@ -265,6 +265,10 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
       where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
     });
     await tx.talentDeletionRequest.deleteMany({ where: { talentId } });
+    // Bilan feedback the talent submitted after onboarding (answers + their
+    // selected options cascade). Talent-created Jump data, so it goes on a reset
+    // to import, mirroring anonymizeTalent.
+    await tx.feedback_Submission.deleteMany({ where: { talentId } });
     // Staff notes (note_TalentNote) are deliberately KEPT on a reset: they are
     // the staff's own observations about the talent (retard, posture,
     // administratif), not onboarding-derived data, so they outlive an identity

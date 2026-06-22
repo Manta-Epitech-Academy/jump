@@ -8,26 +8,31 @@
 
   let { options, onanswer }: Props = $props();
 
-  // Display reversed: best (index 0) on the left
+  // Display reversed: best (index 0) on top / on the left.
   const reversed = $derived([...options].reverse());
 </script>
 
+<!--
+  Mobile (default): full-width stacked rows (emoji + label) with big tap targets
+  and readable labels - a horizontal row of N labelled options never fits a phone.
+  sm+: the compact horizontal grid, one column per option.
+-->
 <div
-  class="grid gap-2 px-4 pb-2"
-  style:grid-template-columns="repeat({options.length}, 1fr)"
+  class="flex flex-col gap-2 px-4 pb-2 sm:grid"
+  style:grid-template-columns="repeat({options.length}, minmax(0, 1fr))"
 >
-  {#each reversed as label, ri}
+  {#each reversed as label, ri (label)}
     {@const origIdx = options.length - 1 - ri}
     {@const emoji = scaleEmoji(origIdx, options.length)}
     {@const color = scaleLevelColor(origIdx, options.length)}
     <button
       type="button"
-      class="flex flex-col items-center gap-1 rounded-xl border-2 border-transparent p-3 text-center transition-colors hover:border-[var(--lvl)]"
+      class="flex items-center gap-3 rounded-xl border-2 border-[var(--lvl)] p-3 text-left transition-colors active:bg-slate-50 sm:flex-col sm:items-center sm:gap-1 sm:border-transparent sm:text-center sm:hover:border-[var(--lvl)] sm:active:bg-transparent dark:active:bg-slate-800"
       style:--lvl={color}
       onclick={() => onanswer?.(label, `${emoji}  ${label}`)}
     >
       <span class="text-2xl">{emoji}</span>
-      <span class="text-xs leading-tight font-medium">{label}</span>
+      <span class="text-sm leading-tight font-medium sm:text-xs">{label}</span>
     </button>
   {/each}
 </div>

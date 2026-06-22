@@ -40,15 +40,15 @@
   <title>Feedback - {data.formSchema.title}</title>
 </svelte:head>
 
-<div class="flex min-h-dvh flex-col">
+<!-- Full-height app shell: header + footer are shrink-0, the chat pane flexes to
+     fill and scrolls internally (no page scroll, no fixed-height hack). Full-bleed
+     on mobile; framed card from sm up. -->
+<div class="flex h-dvh flex-col overflow-hidden">
   <TalentPageHeader title="Feedback" backHref="/" />
 
-  <div
-    class="mx-auto w-full max-w-4xl px-4 py-6"
-    style="height: calc(100dvh - 10rem);"
-  >
+  <div class="mx-auto min-h-0 w-full max-w-4xl flex-1 sm:px-4 sm:py-6">
     <div
-      class="flex h-full flex-col overflow-hidden rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none"
+      class="flex h-full flex-col overflow-hidden sm:rounded-2xl sm:shadow-xl sm:shadow-slate-200/50 dark:sm:shadow-none"
     >
       <ChatScreen
         form={data.formSchema}
@@ -58,5 +58,5 @@
     </div>
   </div>
 
-  <TalentFooter />
+  <TalentFooter class="shrink-0" />
 </div>

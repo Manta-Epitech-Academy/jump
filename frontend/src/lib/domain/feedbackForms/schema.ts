@@ -1,5 +1,3 @@
-import stage from './stage.json';
-
 export type QuestionType =
   | 'single'
   | 'multiple'
@@ -37,13 +35,12 @@ export interface FormSchema {
 export type AnswerValue = string | string[];
 export type Answers = Record<string, AnswerValue>;
 
-const FORMS: Record<string, FormSchema> = {
-  stage: stage as FormSchema,
-};
-
-export function loadForm(id: string): FormSchema | null {
-  return FORMS[id] ?? null;
-}
+/**
+ * Upper bound on a single free-text answer (`text` / `textarea`). The public
+ * submit endpoint is unauthenticated, so this caps what an anonymous respondent
+ * can persist per field; the SvelteKit body limit only bounds the whole request.
+ */
+export const MAX_FREE_TEXT_LENGTH = 5000;
 
 export function validateAnswer(
   q: Question,
@@ -55,7 +52,7 @@ export function validateAnswer(
     (Array.isArray(value) && value.length === 0);
 
   if (isEmpty) {
-    return q.required ? 'Cette reponse est requise.' : null;
+    return q.required ? 'Cette réponse est requise.' : null;
   }
 
   if (q.type === 'multiple' && Array.isArray(value)) {
@@ -67,7 +64,13 @@ export function validateAnswer(
     }
   }
 
-  if (q.type === 'text' && typeof value === 'string') {
+  if (
+    (q.type === 'text' || q.type === 'textarea') &&
+    typeof value === 'string'
+  ) {
+    if (value.length > MAX_FREE_TEXT_LENGTH) {
+      return `Réponse trop longue (maximum ${MAX_FREE_TEXT_LENGTH} caractères).`;
+    }
     if (q.inputKind === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
       return 'Adresse e-mail invalide.';
     }

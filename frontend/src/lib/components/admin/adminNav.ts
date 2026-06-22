@@ -24,7 +24,7 @@ import Tags from '@lucide/svelte/icons/tags';
 import Heart from '@lucide/svelte/icons/heart';
 import CalendarDays from '@lucide/svelte/icons/calendar-days';
 import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
-import MessageSquare from '@lucide/svelte/icons/message-square';
+import ListChecks from '@lucide/svelte/icons/list-checks';
 
 // Single source of truth for admin-space navigation. Both surfaces read this:
 //  - the sidebar (`(staff)/staff/admin/+layout.svelte`) renders the sections
@@ -231,10 +231,18 @@ export const ADMIN_NAV: AdminNavSection[] = [
         keywords: ['jeu', 'game', 'rotation'],
       },
       {
-        label: 'Feedback',
-        href: resolve('/staff/admin/feedback'),
-        icon: MessageSquare,
-        keywords: ['feedback', 'retour', 'avis', 'questionnaire'],
+        label: 'Formulaires de bilan',
+        href: resolve('/staff/admin/feedback-forms'),
+        icon: ListChecks,
+        keywords: [
+          'formulaire',
+          'bilan',
+          'feedback',
+          'builder',
+          'questionnaire',
+          'reponses',
+          'avis',
+        ],
       },
     ],
   },

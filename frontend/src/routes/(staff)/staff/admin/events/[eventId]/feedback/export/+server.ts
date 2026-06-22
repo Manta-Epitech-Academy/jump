@@ -1,14 +1,14 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import { loadForm } from '$lib/domain/feedbackForms/schema';
+import { getFormGraphBySlug } from '$lib/server/feedbackForms';
 
 export const GET: RequestHandler = async ({ params, url, locals }) => {
   if (!locals.staffProfile) throw error(403, 'Acces refuse.');
 
-  const formId = url.searchParams.get('formId') ?? 'w1';
-  const schema = loadForm(formId);
-  if (!schema) throw error(400, 'Formulaire inconnu.');
+  const slug = url.searchParams.get('formId') ?? 'w1';
+  const graph = await getFormGraphBySlug(slug);
+  if (!graph) throw error(400, 'Formulaire inconnu.');
 
   const event = await prisma.event.findUnique({
     where: { id: params.eventId },
@@ -16,29 +16,39 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
   });
   if (!event) throw error(404, 'Evenement introuvable.');
 
-  const submissions = await prisma.feedbackSubmission.findMany({
-    where: { eventId: params.eventId, formId },
-    include: { talent: { select: { prenom: true, nom: true } } },
-    orderBy: { createdAt: 'asc' },
+  const submissions = await prisma.feedback_Submission.findMany({
+    where: { formId: graph.id, eventId: params.eventId },
+    include: {
+      talent: { select: { prenom: true, nom: true } },
+      answers: {
+        select: {
+          questionId: true,
+          freeText: true,
+          selectedOptions: { select: { option: { select: { label: true } } } },
+        },
+      },
+    },
+    orderBy: { submittedAt: 'asc' },
   });
 
-  const questions = schema.questions.filter(
+  const columns = graph.questions.filter(
     (q) => q.type !== 'gate' && !q.identity,
   );
 
-  const headers = ['Prenom', 'Nom', ...questions.map((q) => q.prompt)];
+  const headers = ['Prenom', 'Nom', ...columns.map((q) => q.prompt)];
 
   const rows = submissions.map((sub) => {
-    const answers = sub.answers as Record<string, unknown>;
+    const byQuestion = new Map<string, string>();
+    for (const a of sub.answers) {
+      byQuestion.set(
+        a.questionId,
+        a.freeText ?? a.selectedOptions.map((s) => s.option.label).join(', '),
+      );
+    }
     return [
-      sub.talent.prenom ?? '',
-      sub.talent.nom ?? '',
-      ...questions.map((q) => {
-        const val = answers[q.id];
-        if (Array.isArray(val)) return val.join(', ');
-        if (typeof val === 'string') return val;
-        return '';
-      }),
+      sub.talent?.prenom ?? sub.respondentFirstName ?? '',
+      sub.talent?.nom ?? sub.respondentLastName ?? '',
+      ...columns.map((q) => byQuestion.get(q.id) ?? ''),
     ];
   });
 
@@ -53,10 +63,8 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     .map((row) => row.map(csvEscape).join(','))
     .join('\n');
 
-  const bom = '\uFEFF';
-  const body = bom + csv;
-
-  const filename = `feedback-${formId}-${event.titre.replace(/[^a-zA-Z0-9-_ ]/g, '')}.csv`;
+  const body = '\uFEFF' + csv;
+  const filename = `feedback-${slug}-${event.titre.replace(/[^a-zA-Z0-9-_ ]/g, '')}.csv`;
 
   return new Response(body, {
     headers: {

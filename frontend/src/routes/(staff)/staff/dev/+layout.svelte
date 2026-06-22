@@ -11,6 +11,7 @@
   import X from '@lucide/svelte/icons/x';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import UserCheck from '@lucide/svelte/icons/user-check';
+  import MessageSquareText from '@lucide/svelte/icons/message-square-text';
   import BookOpen from '@lucide/svelte/icons/book-open';
   import UserCog from '@lucide/svelte/icons/user-cog';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
@@ -44,6 +45,7 @@
   let hasInscrits = $derived(featureFlags.has('inscrits'));
   let hasEntretiens = $derived(featureFlags.has('entretiens'));
   let hasEmargement = $derived(featureFlags.has('emargement'));
+  let hasBilan = $derived(featureFlags.has('bilan'));
   let hasIntervenants = $derived(featureFlags.has('staff_intervenants'));
   let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
   let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
@@ -56,6 +58,7 @@
   let showStage = $derived(
     hasInscrits ||
       hasEmargement ||
+      hasBilan ||
       hasEntretiens ||
       hasPlanning ||
       hasIntervenants ||
@@ -235,6 +238,17 @@
         >
           <UserCheck class="h-5 w-5" />
           <span>Émargement</span>
+        </a>
+      {/if}
+      {#if hasBilan}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/bilan`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/bilan`),
+          )}
+        >
+          <MessageSquareText class="h-5 w-5" />
+          <span>Bilan du stage</span>
         </a>
       {/if}
       {#if hasPlanning}

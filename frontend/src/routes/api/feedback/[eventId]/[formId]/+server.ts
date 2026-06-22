@@ -1,28 +1,31 @@
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import {
-  loadForm,
-  validateAnswer,
-  type Answers,
-} from '$lib/domain/feedbackForms/schema';
-
-import { STAGE_FORM_ID } from '$lib/domain/feedback';
-
-const VALID_FORM_IDS = [STAGE_FORM_ID];
+import type { Answers } from '$lib/domain/feedbackForms/schema';
+import { getFormGraphBySlug } from '$lib/server/feedbackForms';
+import { recordSubmission } from '$lib/server/feedbackSubmissions';
 
 export const POST: RequestHandler = async ({ request, locals, params }) => {
   if (!locals.talent) {
     throw error(401, 'Non autorise');
   }
 
-  if (!VALID_FORM_IDS.includes(params.formId)) {
+  const graph = await getFormGraphBySlug(params.formId);
+  if (
+    !graph ||
+    graph.status !== 'published' ||
+    !graph.allowsAuthenticatedAccess
+  ) {
     throw error(404, 'Formulaire introuvable');
   }
 
-  const formSchema = loadForm(params.formId);
-  if (!formSchema) {
-    throw error(404, 'Formulaire introuvable');
+  // The submission must belong to a real participation, mirroring the page load.
+  const participation = await prisma.participation.findFirst({
+    where: { eventId: params.eventId, talentId: locals.talent.id },
+    select: { id: true },
+  });
+  if (!participation) {
+    throw error(404, 'Participation introuvable');
   }
 
   let body: { answers?: Answers };
@@ -37,24 +40,24 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
     return json({ message: 'Reponses manquantes' }, { status: 400 });
   }
 
-  await prisma.feedbackSubmission.upsert({
-    where: {
-      eventId_talentId_formId: {
-        eventId: params.eventId,
-        talentId: locals.talent.id,
-        formId: params.formId,
-      },
-    },
-    create: {
-      eventId: params.eventId,
+  try {
+    await recordSubmission(graph, answers, {
+      source: 'authenticated',
       talentId: locals.talent.id,
-      formId: params.formId,
-      answers: answers as object,
-    },
-    update: {
-      answers: answers as object,
-    },
-  });
+      eventId: params.eventId,
+    });
+  } catch (err) {
+    const status =
+      err && typeof err === 'object' && 'status' in err
+        ? (err.status as number)
+        : 500;
+    const message =
+      err && typeof err === 'object' && 'body' in err
+        ? ((err.body as { message?: string })?.message ??
+          'Erreur lors de l’enregistrement')
+        : 'Erreur lors de l’enregistrement';
+    return json({ message }, { status });
+  }
 
   return json({ success: true });
 };

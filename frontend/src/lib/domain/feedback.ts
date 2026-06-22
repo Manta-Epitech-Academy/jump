@@ -1,41 +1,32 @@
-import { fromDate } from '@internationalized/date';
 import type { Answers } from './feedbackForms/schema';
 
-/** The single feedback form ID for stage de seconde. */
-export const STAGE_FORM_ID = 'stage';
-
 /**
- * Deadline for stage feedback: second Friday >= eventStart at 17:00 (campus tz).
- * This covers the full two-week stage period.
+ * Slug of the canonical "Bilan du stage" form. The dev Bilan page, its QR, and
+ * the admin redirect all resolve the form by this slug, so keep it single-sourced
+ * here rather than re-typing the literal at each call site.
  */
-export function feedbackDeadline(eventStart: Date, timezone: string): Date {
-  const zoned = fromDate(eventStart, timezone);
-  const wallDate = new Date(zoned.year, zoned.month - 1, zoned.day);
-  const dow = wallDate.getDay();
-  const daysToFriday = (5 - dow + 7) % 7;
-  // Second Friday (end of stage)
-  const daysToAdd = daysToFriday + 7;
-
-  const deadline = zoned
-    .add({ days: daysToAdd })
-    .set({ hour: 17, minute: 0, second: 0, millisecond: 0 });
-  return deadline.toDate();
-}
+export const STAGE_FORM_SLUG = 'stage';
 
 /**
- * Returns the form ID if the deadline has passed and the talent hasn't submitted yet.
+ * Returns the slug of the first dashboard-nudge form the talent still owes for the
+ * event, or null. The candidate forms come from the DB (`Feedback_Form.dashboardNudge`),
+ * so adding a nudged form needs no code change.
+ *
+ * Timing is staff-controlled, not deadline-driven: the card is shown from the event
+ * start onward, and the precise relance window is the `dashboardNudge` toggle itself
+ * (turned on when staff ask the cohort to fill it IRL, e.g. the Thursday/Friday of
+ * the week, and off/archived when done). `existingFormIds` are the form ids already
+ * submitted for the event; nudge forms are compared by id, and the URL uses the slug.
  */
 export function pendingFeedbackForm(
   eventStart: Date,
   now: Date,
-  timezone: string,
+  nudgeForms: { id: string; slug: string }[],
   existingFormIds: string[],
 ): { formId: string } | null {
-  const deadline = feedbackDeadline(eventStart, timezone);
-  if (now >= deadline && !existingFormIds.includes(STAGE_FORM_ID)) {
-    return { formId: STAGE_FORM_ID };
-  }
-  return null;
+  if (now < eventStart) return null;
+  const pending = nudgeForms.find((f) => !existingFormIds.includes(f.id));
+  return pending ? { formId: pending.slug } : null;
 }
 
 /**

@@ -205,27 +205,28 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         },
         include: {
           event: {
-            select: { id: true, date: true, campusId: true },
+            select: { date: true },
           },
         },
       });
       if (feedbackParticipation) {
-        const campus = await prisma.campus.findUnique({
-          where: { id: feedbackParticipation.event.campusId },
-          select: { timezone: true },
-        });
-        const timezone = campus?.timezone ?? 'Europe/Paris';
-        const existingSubs = await prisma.feedbackSubmission.findMany({
-          where: {
-            talentId: studentId,
-            eventId: feedbackParticipation.eventId,
-          },
-          select: { formId: true },
-        });
+        const [nudgeForms, existingSubs] = await Promise.all([
+          prisma.feedback_Form.findMany({
+            where: { status: 'published', dashboardNudge: true },
+            select: { id: true, slug: true },
+          }),
+          prisma.feedback_Submission.findMany({
+            where: {
+              talentId: studentId,
+              eventId: feedbackParticipation.eventId,
+            },
+            select: { formId: true },
+          }),
+        ]);
         const pending = pendingFeedbackForm(
           feedbackParticipation.event.date,
           new Date(),
-          timezone,
+          nudgeForms,
           existingSubs.map((s) => s.formId),
         );
         if (pending) {

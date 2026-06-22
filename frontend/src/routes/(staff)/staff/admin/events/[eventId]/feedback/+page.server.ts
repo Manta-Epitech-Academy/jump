@@ -1,99 +1,71 @@
 import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import { loadForm, type FormSchema } from '$lib/domain/feedbackForms/schema';
+import { computeFormStats, type FormStats } from '$lib/server/feedbackStats';
 import type { PageServerLoad } from './$types';
 
-function aggregateAnswers(
-  submissions: Array<{ answers: unknown }>,
-  schema: FormSchema,
-): Record<
-  string,
-  { type: string; distribution?: Record<string, number>; texts?: string[] }
-> {
-  const result: Record<
-    string,
-    { type: string; distribution?: Record<string, number>; texts?: string[] }
-  > = {};
+/** The two weekly bilan forms this admin page reports on, in display order. */
+const WEEK_FORM_SLUGS = ['w1', 'w2'] as const;
 
-  for (const q of schema.questions) {
-    if (q.type === 'gate') continue;
+type AggEntry = {
+  type: string;
+  distribution?: Record<string, number>;
+  texts?: string[];
+};
 
+/** Projects normalized stats into the page's {schema, aggregated} shape. */
+function toView(formId: string, stats: FormStats | null) {
+  const aggregated: Record<string, AggEntry> = {};
+  for (const q of stats?.questions ?? []) {
     if (q.type === 'text' || q.type === 'textarea') {
-      const texts: string[] = [];
-      for (const sub of submissions) {
-        const answers = sub.answers as Record<string, unknown>;
-        const val = answers[q.id];
-        if (typeof val === 'string' && val.trim()) texts.push(val);
-      }
-      result[q.id] = { type: q.type, texts };
+      aggregated[q.questionId] = { type: q.type, texts: q.freeTexts };
     } else {
-      const dist: Record<string, number> = {};
-      for (const opt of q.options ?? []) dist[opt] = 0;
-      if (q.extraOptions) for (const opt of q.extraOptions) dist[opt] = 0;
-      for (const sub of submissions) {
-        const answers = sub.answers as Record<string, unknown>;
-        const val = answers[q.id];
-        if (typeof val === 'string') {
-          dist[val] = (dist[val] ?? 0) + 1;
-        } else if (Array.isArray(val)) {
-          for (const v of val) {
-            if (typeof v === 'string') dist[v] = (dist[v] ?? 0) + 1;
-          }
-        }
-      }
-      result[q.id] = { type: q.type, distribution: dist };
+      aggregated[q.questionId] = {
+        type: q.type,
+        distribution: Object.fromEntries(
+          q.options.map((o) => [o.label, o.count]),
+        ),
+      };
     }
   }
-
-  return result;
+  return {
+    formId,
+    schema: {
+      questions: (stats?.questions ?? []).map((q) => ({
+        id: q.questionId,
+        prompt: q.prompt,
+        type: q.type,
+        identity: q.identity,
+      })),
+    },
+    submissionCount: stats?.totalSubmissions ?? 0,
+    aggregated,
+  };
 }
 
 export const load: PageServerLoad = async ({ params }) => {
-  const [event, submissions, participantCount] = await Promise.all([
+  const [event, formRows, participantCount] = await Promise.all([
     prisma.event.findUnique({
       where: { id: params.eventId },
       select: { id: true, titre: true },
     }),
-    prisma.feedbackSubmission.findMany({
-      where: { eventId: params.eventId },
-      orderBy: { createdAt: 'desc' },
+    prisma.feedback_Form.findMany({
+      where: { slug: { in: [...WEEK_FORM_SLUGS] } },
+      select: { id: true, slug: true },
     }),
     prisma.participation.count({ where: { eventId: params.eventId } }),
   ]);
 
-  if (!event) error(404, 'Evenement introuvable');
+  if (!event) error(404, 'Événement introuvable');
 
-  const w1Schema = loadForm('w1');
-  const w2Schema = loadForm('w2');
-
-  const byForm = new Map<string, typeof submissions>();
-  for (const sub of submissions) {
-    const arr = byForm.get(sub.formId) ?? [];
-    arr.push(sub);
-    byForm.set(sub.formId, arr);
-  }
-
-  const forms = [];
-
-  if (w1Schema) {
-    const subs = byForm.get('w1') ?? [];
-    forms.push({
-      formId: 'w1',
-      schema: w1Schema,
-      submissionCount: subs.length,
-      aggregated: aggregateAnswers(subs, w1Schema),
-    });
-  }
-
-  if (w2Schema) {
-    const subs = byForm.get('w2') ?? [];
-    forms.push({
-      formId: 'w2',
-      schema: w2Schema,
-      submissionCount: subs.length,
-      aggregated: aggregateAnswers(subs, w2Schema),
-    });
-  }
+  const forms = await Promise.all(
+    WEEK_FORM_SLUGS.map(async (slug) => {
+      const row = formRows.find((f) => f.slug === slug);
+      const stats = row
+        ? await computeFormStats(row.id, { eventId: params.eventId })
+        : null;
+      return toView(slug, stats);
+    }),
+  );
 
   return { event, participantCount, forms };
 };
