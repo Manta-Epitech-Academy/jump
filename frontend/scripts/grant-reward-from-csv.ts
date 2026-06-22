@@ -35,11 +35,17 @@
  * `--email-col` / `--score-col`, and `--delimiter` for a non-comma CSV (FR Excel
  * exports with `;`), for a differently shaped file.
  *
- * Amount: by default the talent's own score (per the 10 XP = 1 min scale), so the
- * reward's `XpReward.xpAmount` is left null and the per-talent amount lives on the
- * grant. With `--amount=<n>` every matched talent gets the same flat XP (no score
- * column needed, e.g. an attendance-based reward) and that shared amount is stored
- * on `XpReward.xpAmount` instead.
+ * Amount: three mutually-exclusive modes.
+ *   - default (1:1)    each talent's own score becomes their XP, unchanged.
+ *   - --amount=<n>     every matched talent gets the same flat XP (no score column
+ *                      needed, e.g. an attendance reward); recorded on XpReward.xpAmount.
+ *   - --multiplier=<m> each score is scaled: XP = round(score * m). `m` is a plain
+ *                      factor (`--multiplier=3`) or a fraction (`--multiplier=1800/9999`),
+ *                      so the PO's "produit en croix" (a CTF noté /9999 converti sur
+ *                      1800 XP) is the two numbers as-is, divided exactly by the
+ *                      script -- no hand-rounded 0.18.
+ * In the two per-score modes `XpReward.xpAmount` stays null (the amount lives on
+ * each grant); only flat mode records a single shared amount on the reward.
  *
  * Self-contained on purpose (no `$lib` import): like the other scripts it must
  * run against the production image where Vite aliases do not resolve. The grant
@@ -88,6 +94,8 @@ Options:
   --awarded-on=YYYY-MM-DD  Activity's real date, stored on the reward (not the run date)
   --amount=<n>             Flat XP for every matched talent (no score column needed).
                            Omit to credit each talent their own score, 1:1.
+  --multiplier=<m>         Scale each score: XP = round(score * m). A plain factor
+                           ("3") or a fraction ("1800/9999"). Excludes --amount.
   --map=<file>             Reconcile emails: a CSV with columns csvEmail,talentEmail
   --report=<file>          Write the full per-row classification to a CSV artifact
   --email-col=<header>     Email column header (default: "user email")
@@ -105,7 +113,13 @@ Example:
   bun scripts/grant-reward-from-csv.ts \\
     --campus=Strasbourg --key=osint-ctfd-2026-06-15 \\
     --name="OSINT CTFD Stage Seconde (15/06/2026)" --awarded-on=2026-06-15 \\
-    --csv=/path/OSINT_CTF-scoreboard.csv --report=/tmp/report.csv --dry-run`;
+    --csv=/path/OSINT_CTF-scoreboard.csv --report=/tmp/report.csv --dry-run
+
+Scaled example (CTF noté /9999, converti sur 1800 XP):
+  bun scripts/grant-reward-from-csv.ts \\
+    --campus=Strasbourg --key=ctf-2026-06-15 --name="CTF Stage Seconde" \\
+    --multiplier=1800/9999 \\
+    --csv=/path/ctf-scoreboard.csv --report=/tmp/report.csv --dry-run`;
 
 if (has('help') || process.argv.includes('-h')) {
   console.log(USAGE);
@@ -126,6 +140,7 @@ const reportPath = flag('report');
 const emailCol = (flag('email-col') ?? 'user email').toLowerCase();
 const scoreCol = (flag('score-col') ?? 'score').toLowerCase();
 const flatAmountRaw = flag('amount');
+const multiplierRaw = flag('multiplier');
 const delimiter = flag('delimiter') ?? ',';
 const dryRun = has('dry-run');
 const force = has('force');
@@ -134,6 +149,29 @@ function die(msg: string): never {
   console.error(`\n${msg}\n`);
   process.exit(1);
 }
+
+/** Parse a strict positive integer ("3" -> 3); null for anything else (empty, "0", "12.5", "x"). */
+const parsePositiveInt = (v: string): number | null =>
+  /^\d+$/.test(v) && Number(v) > 0 ? Number(v) : null;
+
+/**
+ * A per-score scale: either a plain factor ("3", "0.5") or a fraction ("1800/9999").
+ * Fractions are kept as num/den and divided per row so the PO's "produit en croix"
+ * stays exact (no hand-rounded 0.18). null = not a valid positive scale.
+ */
+type Multiplier = { num: number; den: number };
+const parseMultiplier = (raw: string): Multiplier | null => {
+  const frac = raw.match(/^(\d+)\/(\d+)$/);
+  if (frac) {
+    const num = Number(frac[1]);
+    const den = Number(frac[2]);
+    return num > 0 && den > 0 ? { num, den } : null;
+  }
+  // Plain factor (int or decimal) is just a fraction over 1.
+  return /^\d+(\.\d+)?$/.test(raw) && Number(raw) > 0
+    ? { num: Number(raw), den: 1 }
+    : null;
+};
 
 if (!campusName || !key || !name || !csvPath) {
   die(
@@ -148,14 +186,23 @@ if (awardedOnRaw && Number.isNaN(awardedOn!.getTime())) {
 
 if (delimiter.length !== 1)
   die('Invalid --delimiter (expected a single character).');
-if (
-  flatAmountRaw !== undefined &&
-  (!/^\d+$/.test(flatAmountRaw) || Number(flatAmountRaw) <= 0)
-)
+
+if (flatAmountRaw !== undefined && parsePositiveInt(flatAmountRaw) === null)
   die(`Invalid --amount "${flatAmountRaw}" (expected a positive integer).`);
 // Flat-amount mode: every matched talent gets the same XP, no score column
 // needed. Score mode (null): XP = the talent's own score column, 1:1.
 const flatAmount = flatAmountRaw !== undefined ? Number(flatAmountRaw) : null;
+
+// Scaled mode: XP = round(score * multiplier). Excludes --amount; per-talent
+// amounts still live on the grant (xpAmount stays null).
+if (multiplierRaw !== undefined && flatAmountRaw !== undefined)
+  die('--amount (flat) and --multiplier (scaled) are mutually exclusive.');
+const multiplier =
+  multiplierRaw !== undefined ? parseMultiplier(multiplierRaw) : null;
+if (multiplierRaw !== undefined && multiplier === null)
+  die(
+    `Invalid --multiplier "${multiplierRaw}" (expected a positive number like 3 or a fraction like 1800/9999).`,
+  );
 
 const url = process.env.DATABASE_URL ?? '';
 const isLocal = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
@@ -341,7 +388,11 @@ const rewardGrantSourceId = (rewardId: string, talentId: string) =>
 
 async function main() {
   const mode =
-    flatAmount !== null ? `flat ${flatAmount} XP each` : 'XP = score';
+    flatAmount !== null
+      ? `flat ${flatAmount} XP each`
+      : multiplier !== null
+        ? `scaled: round(score × ${multiplier.den === 1 ? multiplier.num : `${multiplier.num}/${multiplier.den}`})`
+        : 'XP = score';
   console.log(
     `Grant reward "${key}" to ${campusName} (${mode}): ${dryRun ? 'DRY RUN (no writes)' : 'LIVE'}${
       force ? ' [--force]' : ''
@@ -374,10 +425,16 @@ async function main() {
   const seen = new Set(parsed.map((p) => p.email));
   const staleAliases = [...aliases.keys()].filter((k) => !seen.has(k));
 
-  const resolveAmount =
+  const resolveAmount: (scoreRaw: string) => number | null =
     flatAmount !== null
       ? () => flatAmount
-      : (s: string) => (/^\d+$/.test(s) && Number(s) > 0 ? Number(s) : null);
+      : multiplier !== null
+        ? (s) => {
+            const score = parsePositiveInt(s);
+            if (score === null) return null;
+            return Math.round((score * multiplier.num) / multiplier.den);
+          }
+        : (s) => parsePositiveInt(s);
   const rows = classify(parsed, byEmail, aliases, resolveAmount);
   const count = (s: Row['status']) => rows.filter((r) => r.status === s).length;
   const matched = rows.filter((r) => r.status === 'matched') as Extract<
