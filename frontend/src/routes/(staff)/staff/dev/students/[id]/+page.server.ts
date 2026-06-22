@@ -11,6 +11,7 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
+import { NOTE_INCLUDE, serializeNote } from '$lib/server/talentNotes';
 import { interviewConductSchema } from '$lib/validation/interviews';
 import { NOTE_FIELDS, type NoteField } from '$lib/domain/interview';
 import { EVENT_TYPES } from '$lib/domain/event';
@@ -44,6 +45,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       broadcastRows,
       completedInterviewCount,
       xpStory,
+      noteRows,
     ] = await Promise.all([
       db.talent.findUniqueOrThrow({
         where: { id: params.id },
@@ -119,7 +121,16 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         where: { talentId: params.id, status: 'done' },
       }),
       getTalentXpStory(params.id, timezone),
+      // Staff notes feed (newest first). Visibility is already asserted by the
+      // scoped `student` query above resolving for this campus.
+      prisma.note_TalentNote.findMany({
+        where: { talentId: params.id },
+        orderBy: { createdAt: 'desc' },
+        include: NOTE_INCLUDE,
+      }),
     ]);
+
+    const notes = noteRows.map(serializeNote);
 
     const senderIds = Array.from(new Set(reminderRows.map((r) => r.sentBy)));
     const senders = senderIds.length
@@ -299,6 +310,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
     return {
       student,
+      notes,
       xpStory,
       participations,
       primaryComplianceParticipation,
