@@ -684,6 +684,7 @@
   row={notesTarget}
   {eventId}
   {timezone}
+  {activeSlot}
   onCountChange={onNoteCountChange}
 />
 

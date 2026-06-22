@@ -327,7 +327,7 @@
               timezone={data.timezone}
               bind:composing={notesComposing}
               showComposeButton={false}
-              listMaxHeightClass="max-h-[22rem]"
+              listMaxHeightClass="max-h-[17rem]"
             />
           </EpiSection>
 

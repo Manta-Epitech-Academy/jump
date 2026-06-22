@@ -25,6 +25,7 @@
     showComposeButton = true,
     showStaffOnlyHint = true,
     listMaxHeightClass = 'max-h-[60vh]',
+    highlightIds = [],
   }: {
     talentId: string;
     notes: SerializedNote[];
@@ -48,6 +49,11 @@
     // suits it; the fiche rail passes a shorter cap so the Synthèse below stays in
     // view instead of being pushed off by a long feed.
     listMaxHeightClass?: string;
+    // Ids of notes to flag (ring) and reveal (scroll the first into view). The
+    // émargement dialog passes the note(s) taken during the créneau it was opened
+    // on, so staff land on "what was left this créneau" instead of hunting it down
+    // a long, newest-first feed. Empty everywhere else (the fiche never sets it).
+    highlightIds?: string[];
   } = $props();
 
   // The feed owns the list after mount, applying create/edit/delete results so it
@@ -57,6 +63,19 @@
   let editingId = $state<string | null>(null);
   let deleteOpen = $state(false);
   let deleteTarget = $state<SerializedNote | null>(null);
+
+  const highlight = $derived(new Set(highlightIds));
+  // Only the first (newest) match is scrolled to; the rest just ring in place.
+  const firstHighlightId = $derived(
+    items.find((n) => highlight.has(n.id))?.id ?? null,
+  );
+
+  // One-shot reveal on mount. The dialog remounts the feed per talent (keyed), so
+  // each fresh open re-runs it; rAF defers the scroll until after first paint.
+  function reveal(node: HTMLElement, active: boolean) {
+    if (active)
+      requestAnimationFrame(() => node.scrollIntoView({ block: 'nearest' }));
+  }
 
   async function deleteNote(note: SerializedNote) {
     try {
@@ -111,32 +130,42 @@
     {:else}
       <!-- Every note shows (no count cap), but the list scrolls past a screenful so
          a talent with many notes never blows out the dialog or the fiche rail. The
-         composer and the staff-only caveat stay outside this scroll region. -->
+         composer and the staff-only caveat stay outside this scroll region. The cap
+         lands mid-card (notes are variable height); the partial note left peeking is
+         the affordance that says "more below". -->
       <div class={cn('space-y-2 overflow-y-auto pr-1', listMaxHeightClass)}>
         {#each items as note (note.id)}
-          {#if editingId === note.id}
-            <div class="rounded-sm border bg-muted/20 p-3">
-              <TalentNoteEditor
-                {talentId}
+          <div
+            class={cn(
+              highlight.has(note.id) &&
+                'rounded-sm ring-2 ring-epi-blue/40 ring-offset-2 ring-offset-background',
+            )}
+            use:reveal={note.id === firstHighlightId}
+          >
+            {#if editingId === note.id}
+              <div class="rounded-sm border bg-muted/20 p-3">
+                <TalentNoteEditor
+                  {talentId}
+                  {note}
+                  onSaved={(saved) => {
+                    items = items.map((n) => (n.id === saved.id ? saved : n));
+                    editingId = null;
+                  }}
+                  onCancel={() => (editingId = null)}
+                />
+              </div>
+            {:else}
+              <TalentNoteCard
                 {note}
-                onSaved={(saved) => {
-                  items = items.map((n) => (n.id === saved.id ? saved : n));
-                  editingId = null;
+                {timezone}
+                onEdit={() => (editingId = note.id)}
+                onDelete={() => {
+                  deleteTarget = note;
+                  deleteOpen = true;
                 }}
-                onCancel={() => (editingId = null)}
               />
-            </div>
-          {:else}
-            <TalentNoteCard
-              {note}
-              {timezone}
-              onEdit={() => (editingId = note.id)}
-              onDelete={() => {
-                deleteTarget = note;
-                deleteOpen = true;
-              }}
-            />
-          {/if}
+            {/if}
+          </div>
         {/each}
       </div>
     {/if}
