@@ -57,7 +57,7 @@
  * and the unresolved rows before crediting prod.
  *
  * Run:
- *   bun scripts/grant-reward-from-csv.ts \
+ *   bun scripts/grant-reward-from-csv_mateo.ts \
  *     --campus=Strasbourg --key=osint-ctfd-2026-06-15 \
  *     --name="OSINT CTFD Stage Seconde (15/06/2026)" --awarded-on=2026-06-15 \
  *     --csv=/path/OSINT_CTF-scoreboard.csv --report=/tmp/osint-report.csv --dry-run
