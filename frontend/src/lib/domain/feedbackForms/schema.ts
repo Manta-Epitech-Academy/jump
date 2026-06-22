@@ -55,26 +55,31 @@ export function validateAnswer(
     return q.required ? 'Cette réponse est requise.' : null;
   }
 
-  if (q.type === 'multiple' && Array.isArray(value)) {
-    if (q.minSelections !== undefined && value.length < q.minSelections) {
+  // Validate against the shape `recordSubmission` will actually persist, never
+  // gated on the runtime type. The public endpoint is reachable directly, so a
+  // client can post a `multiple` answer as a bare string or a free-text answer as
+  // an array to slip past a type-gated guard (and, for free text, past the length
+  // cap, since the array is later joined into one unbounded string).
+  if (q.type === 'multiple') {
+    const count = Array.isArray(value) ? value.length : 1;
+    if (q.minSelections !== undefined && count < q.minSelections) {
       return `Veuillez sélectionner au moins ${q.minSelections} option(s).`;
     }
-    if (q.maxSelections !== undefined && value.length > q.maxSelections) {
+    if (q.maxSelections !== undefined && count > q.maxSelections) {
       return `Veuillez sélectionner au plus ${q.maxSelections} option(s).`;
     }
   }
 
-  if (
-    (q.type === 'text' || q.type === 'textarea') &&
-    typeof value === 'string'
-  ) {
-    if (value.length > MAX_FREE_TEXT_LENGTH) {
+  if (q.type === 'text' || q.type === 'textarea') {
+    // Mirror the persistence join so the cap bounds what lands in `freeText`.
+    const text = Array.isArray(value) ? value.join(', ') : value;
+    if (text.length > MAX_FREE_TEXT_LENGTH) {
       return `Réponse trop longue (maximum ${MAX_FREE_TEXT_LENGTH} caractères).`;
     }
-    if (q.inputKind === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    if (q.inputKind === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) {
       return 'Adresse e-mail invalide.';
     }
-    if (q.inputKind === 'tel' && !/^[+0-9 ().-]{6,20}$/.test(value)) {
+    if (q.inputKind === 'tel' && !/^[+0-9 ().-]{6,20}$/.test(text)) {
       return 'Numéro de téléphone invalide.';
     }
   }

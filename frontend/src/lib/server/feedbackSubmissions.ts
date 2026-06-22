@@ -115,11 +115,16 @@ export async function recordSubmission(
 
     const labelMap = optionIdByQuestionLabel.get(q.id);
     const labels = Array.isArray(value) ? value : [value];
-    const optionIds: string[] = [];
+    const matched: string[] = [];
     for (const label of labels) {
       const optId = labelMap?.get(label);
-      if (optId) optionIds.push(optId);
+      if (optId) matched.push(optId);
     }
+    // Non-`multiple` types record a single selection; dedupe so a repeated label
+    // can't violate the (answerId, optionId) composite PK and 500 the submit.
+    const optionIds = [
+      ...new Set(q.type === 'multiple' ? matched : matched.slice(0, 1)),
+    ];
     if (optionIds.length > 0) {
       answerRows.push({ questionId: q.id, freeText: null, optionIds });
     }

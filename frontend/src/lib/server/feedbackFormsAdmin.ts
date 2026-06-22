@@ -393,12 +393,31 @@ export async function duplicateQuestion(
 
 // ─── Option ───
 
+/**
+ * Throws 409 if `label` is already used by another option of the same question.
+ * `recordSubmission` resolves an answer to an option by (question, label), so two
+ * options sharing a label would collide there and silently misattribute answers.
+ * Mirrors {@link assertKeyAvailable}; `exceptId` excludes the option being renamed.
+ */
+export async function assertOptionLabelAvailable(
+  questionId: string,
+  label: string,
+  exceptId?: string,
+): Promise<void> {
+  const clash = await prisma.feedback_QuestionOption.findFirst({
+    where: { questionId, label, id: exceptId ? { not: exceptId } : undefined },
+    select: { id: true },
+  });
+  if (clash) throw error(409, `L'option « ${label} » existe déjà.`);
+}
+
 export async function createOption(
   formId: string,
   questionId: string,
   input: { label: string; kind?: Feedback_OptionKind; position: number },
 ): Promise<{ id: string }> {
   await assertEditable(formId);
+  await assertOptionLabelAvailable(questionId, input.label);
   return prisma.feedback_QuestionOption.create({
     data: {
       questionId,
@@ -418,6 +437,13 @@ export async function updateOption(
   // Relabelling is rename-safe (answers reference the option id) -> always allowed.
   // Changing the kind is structural.
   if (patch.kind !== undefined) await assertEditable(formId);
+  if (patch.label !== undefined) {
+    const opt = await prisma.feedback_QuestionOption.findUnique({
+      where: { id },
+      select: { questionId: true },
+    });
+    if (opt) await assertOptionLabelAvailable(opt.questionId, patch.label, id);
+  }
   await prisma.feedback_QuestionOption.update({ where: { id }, data: patch });
 }
 

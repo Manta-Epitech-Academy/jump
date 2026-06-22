@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import QrCode from '@lucide/svelte/icons/qr-code';
+  import Download from '@lucide/svelte/icons/download';
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
@@ -40,26 +41,38 @@
   <Tooltip.Provider delayDuration={150}>
     <PageHeader title="Bilan du stage">
       {#if data.form}
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <Button
-                {...props}
-                variant="outline"
-                size="sm"
-                onclick={() => (qrOpen = true)}
-                class="rounded-sm"
-              >
-                <QrCode class="mr-1.5 h-4 w-4" />
-                Afficher le QR code
-              </Button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content class="max-w-56">
-            Projetez le QR code : les stagiaires le scannent pour donner leur
-            avis sur le stage.
-          </Tooltip.Content>
-        </Tooltip.Root>
+        <div class="flex items-center gap-2">
+          <Button
+            href={`${page.url.pathname}/export`}
+            download
+            variant="outline"
+            size="sm"
+            class="rounded-sm"
+          >
+            <Download class="mr-1.5 h-4 w-4" />
+            Exporter CSV
+          </Button>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <Button
+                  {...props}
+                  variant="outline"
+                  size="sm"
+                  onclick={() => (qrOpen = true)}
+                  class="rounded-sm"
+                >
+                  <QrCode class="mr-1.5 h-4 w-4" />
+                  Afficher le QR code
+                </Button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content class="max-w-56">
+              Projetez le QR code : les stagiaires le scannent pour donner leur
+              avis sur le stage.
+            </Tooltip.Content>
+          </Tooltip.Root>
+        </div>
       {/if}
     </PageHeader>
   </Tooltip.Provider>
