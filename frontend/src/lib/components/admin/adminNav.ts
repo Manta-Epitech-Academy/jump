@@ -12,7 +12,7 @@ import Send from '@lucide/svelte/icons/send';
 import Mails from '@lucide/svelte/icons/mails';
 import MailCog from '@lucide/svelte/icons/mail-warning';
 import History from '@lucide/svelte/icons/history';
-import DoorOpen from '@lucide/svelte/icons/door-open';
+import Newspaper from '@lucide/svelte/icons/newspaper';
 import Map from '@lucide/svelte/icons/map';
 import Signature from '@lucide/svelte/icons/signature';
 import Users from '@lucide/svelte/icons/users';
@@ -147,10 +147,10 @@ export const ADMIN_NAV: AdminNavSection[] = [
         keywords: ['relance', 'rappel'],
       },
       {
-        label: "Pages d'accueil",
-        href: resolve('/staff/admin/welcome-pages'),
-        icon: DoorOpen,
-        keywords: ['welcome', 'cms'],
+        label: 'Actualites',
+        href: resolve('/staff/admin/actus'),
+        icon: Newspaper,
+        keywords: ['news', 'actus', 'actualites'],
       },
     ],
   },
