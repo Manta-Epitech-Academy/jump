@@ -5,6 +5,7 @@
   import X from '@lucide/svelte/icons/x';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import RowSaveDot from './RowSaveDot.svelte';
   import type {
     FormEditor,
@@ -38,6 +39,10 @@
   // The bot's reaction to this choice. The editor row is shown whenever a reaction
   // exists, or once the author toggles it open on an option that has none yet.
   let showReaction = $state(false);
+  const hasReaction = $derived(!!option.reaction);
+  const reactionTooltip = $derived(
+    hasReaction ? 'Réaction du canard' : 'Ajouter une réaction du canard',
+  );
 
   function saveReaction(value: string) {
     const next = value.trim() || null;
@@ -115,40 +120,64 @@
       </DropdownMenu.Root>
     {/if}
 
-    <button
-      type="button"
-      title="Réaction du canard"
-      aria-label="Réaction du canard"
-      aria-pressed={showReaction || !!option.reaction}
-      class="cursor-pointer rounded-sm p-1 transition hover:bg-muted {option.reaction
-        ? 'text-epi-pink'
-        : 'text-muted-foreground/60 opacity-0 group-hover:opacity-100'}"
-      onclick={() => (showReaction = !showReaction)}
-    >
-      <MessageCircle class="h-4 w-4" />
-    </button>
+    <Tooltip.Root>
+      <Tooltip.Trigger>
+        {#snippet child({ props })}
+          <button
+            {...props}
+            type="button"
+            aria-label={reactionTooltip}
+            aria-pressed={showReaction || hasReaction}
+            class="cursor-pointer rounded-sm p-1 transition hover:bg-muted {hasReaction
+              ? 'text-epi-pink'
+              : 'text-muted-foreground/60 opacity-0 group-hover:opacity-100'}"
+            onclick={() => (showReaction = !showReaction)}
+          >
+            <MessageCircle class="h-4 w-4" />
+          </button>
+        {/snippet}
+      </Tooltip.Trigger>
+      <Tooltip.Content>{reactionTooltip}</Tooltip.Content>
+    </Tooltip.Root>
 
     <RowSaveDot state={editor.status_.get(option.id)} />
 
-    <button
-      type="button"
-      class="cursor-pointer rounded-sm p-1 text-muted-foreground/60 opacity-0 transition group-hover:opacity-100 hover:bg-muted hover:text-destructive disabled:opacity-0"
-      disabled={locked}
-      aria-label="Supprimer l'option"
-      onclick={() => editor.deleteOption(qid, option.id)}
-    >
-      <X class="h-4 w-4" />
-    </button>
+    <Tooltip.Root>
+      <Tooltip.Trigger>
+        {#snippet child({ props })}
+          <button
+            {...props}
+            type="button"
+            class="cursor-pointer rounded-sm p-1 text-muted-foreground/60 opacity-0 transition group-hover:opacity-100 hover:bg-muted hover:text-destructive disabled:opacity-0"
+            disabled={locked}
+            aria-label="Supprimer l'option"
+            onclick={() => editor.deleteOption(qid, option.id)}
+          >
+            <X class="h-4 w-4" />
+          </button>
+        {/snippet}
+      </Tooltip.Trigger>
+      <Tooltip.Content>Supprimer l'option</Tooltip.Content>
+    </Tooltip.Root>
   </div>
 
-  {#if showReaction || option.reaction}
-    <div class="mt-1 flex items-center gap-2 pl-12">
-      <MessageCircle class="h-3.5 w-3.5 shrink-0 text-epi-pink/70" />
+  {#if showReaction || hasReaction}
+    <!-- A placed reaction reads as a pink-tinted bot bubble (solid border, normal
+         weight); an empty/just-opened row stays a dashed, italic placeholder, so
+         "has a reaction" vs "none yet" is obvious at a glance. -->
+    <div class="mt-1.5 flex items-start gap-2 pl-12">
+      <MessageCircle
+        class="mt-1.5 h-3.5 w-3.5 shrink-0 {hasReaction
+          ? 'text-epi-pink'
+          : 'text-muted-foreground/50'}"
+      />
       <input
         value={option.reaction ?? ''}
         aria-label="Réaction du canard à cette option"
         placeholder="Réaction du canard (facultatif), ex. « Ahhh j'adore ! »"
-        class="flex-1 border-b border-transparent bg-transparent py-0.5 text-xs text-muted-foreground italic outline-none hover:border-border focus:border-foreground"
+        class="flex-1 rounded-xl rounded-bl-sm border px-3 py-1.5 text-xs transition outline-none {hasReaction
+          ? 'border-epi-pink/30 bg-epi-pink/10 text-foreground focus:border-epi-pink'
+          : 'border-dashed bg-transparent text-muted-foreground italic focus:border-foreground'}"
         onblur={(e) => saveReaction(e.currentTarget.value)}
       />
     </div>
