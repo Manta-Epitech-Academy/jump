@@ -28,9 +28,9 @@ import {
 } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-import stage from '../src/lib/domain/feedbackForms/stage.json' with { type: 'json' };
-import w1 from '../src/lib/domain/feedbackForms/w1.json' with { type: 'json' };
-import w2 from '../src/lib/domain/feedbackForms/w2.json' with { type: 'json' };
+import stage from './feedbackForms/stage.json' with { type: 'json' };
+import w1 from './feedbackForms/w1.json' with { type: 'json' };
+import w2 from './feedbackForms/w2.json' with { type: 'json' };
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
