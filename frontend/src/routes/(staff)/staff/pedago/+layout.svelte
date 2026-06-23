@@ -8,7 +8,6 @@
   import X from '@lucide/svelte/icons/x';
   import BookOpenText from '@lucide/svelte/icons/book-open-text';
   import UserCheck from '@lucide/svelte/icons/user-check';
-  import FileText from '@lucide/svelte/icons/file-text';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
@@ -30,7 +29,6 @@
     new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
   );
   let hasCodingClub = $derived(featureFlags.has('coding_club'));
-  let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
   let hasPlanning = $derived(featureFlags.has('planning'));
 
   let mobileMenuOpen = $state(false);
@@ -130,15 +128,6 @@
         <UserCheck class="h-5 w-5" />
         <span>Présences</span>
       </a>
-      {#if hasWelcomePage}
-        <a
-          href={resolve('/staff/pedago/contenu/welcome')}
-          class={navLinkClass(isActive('/staff/pedago/contenu/welcome'))}
-        >
-          <FileText class="h-5 w-5" />
-          <span>Page d'accueil</span>
-        </a>
-      {/if}
     </nav>
   {/if}
 

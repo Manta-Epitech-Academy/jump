@@ -3531,44 +3531,60 @@ async function main() {
   const talentNoteCount = await seedTalentNotes(staffByKey, talentByEmail);
   console.log(`✓  Notes talent (${talentNoteCount})`);
 
-  // 13. CMS welcome pages for stage_seconde events
-  await seedWelcomePages(eventIds, staffByKey);
-  console.log('✓  CMS welcome pages');
+  // 13. News posts for stage_seconde events
+  await seedNewsPosts(eventIds, staffByKey);
+  console.log('✓  News posts');
 
   // ── Final summary ──
   await printSummary(parentEmail);
 }
 
-// ─── Welcome pages ───
+// ─── News posts ───
 
-async function seedWelcomePages(
+async function seedNewsPosts(
   eventIds: string[],
   staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
 ) {
   // stage_seconde events are at indices 2 (past), 7 (ongoing), 10 (future Lyon)
   const stageEventIndices = [2, 7, 10];
-  const updatedBy = Object.values(staffByKey)[0].userId;
+  const firstStaff = Object.values(staffByKey)[0];
 
-  const content = `<h2>Bienvenue sur Jump ! 🚀</h2>
-<p>Salut, et <strong>bienvenue dans l'aventure !</strong> Tu viens de rejoindre Jump, la plateforme de ton stage de seconde à Epitech. Pendant ces quelques jours, découvre l'univers du <strong>code</strong>, de la <strong>tech</strong> et de la <strong>création numérique</strong> en <em>construisant</em> tes propres projets.</p>
+  const content = `<h2>Bienvenue sur Jump !</h2>
+<p>Salut, et <strong>bienvenue dans l'aventure !</strong> Tu viens de rejoindre Jump, la plateforme de ton stage de seconde a Epitech. Pendant ces quelques jours, decouvre l'univers du <strong>code</strong>, de la <strong>tech</strong> et de la <strong>creation numerique</strong> en <em>construisant</em> tes propres projets.</p>
 <h3>Ce qui t'attend</h3>
 <ul>
-  <li>🧩 <strong>Des ateliers concrets :</strong> tu vas coder, créer, recommencer — c'est comme ça qu'on apprend.</li>
-  <li>🏆 <strong>Des XP et des niveaux :</strong> gagne de l'expérience à chaque activité pour grimper de Novice à <em>Expert</em> !</li>
-  <li>🎮 <strong>Un mini-jeu par jour :</strong> un défi quotidien pour des XP bonus.</li>
-  <li>💼 <strong>Ton portfolio :</strong> repars avec une vraie trace de ce que tu as accompli.</li>
+  <li><strong>Des ateliers concrets :</strong> tu vas coder, creer, recommencer.</li>
+  <li><strong>Des XP et des niveaux :</strong> gagne de l'experience a chaque activite pour grimper de Novice a <em>Expert</em> !</li>
+  <li><strong>Un mini-jeu par jour :</strong> un defi quotidien pour des XP bonus.</li>
+  <li><strong>Ton portfolio :</strong> repars avec une vraie trace de ce que tu as accompli.</li>
 </ul>
-<img src="https://placehold.co/600x400/blue/white?text=Photo%20du%20campus" alt="Bannière bleue: Photo du campus à venir" />
-<h3>Comment ça marche</h3>
-<p>Chaque jour, retrouve ta <strong>mission du jour</strong> sur ton tableau de bord. Clique, suis les étapes, et gagne tes XP. Si tu bloques, <strong>pas de panique</strong> — les Mantas (tes encadrants) sont là pour t'aider.</p>
-<blockquote><p>« Ne cherche pas à tout réussir du premier coup. Le code, c'est essayer, se tromper, et recommencer. »</p></blockquote>`;
+<h3>Comment ca marche</h3>
+<p>Chaque jour, retrouve ta <strong>mission du jour</strong> sur ton tableau de bord. Clique, suis les etapes, et gagne tes XP. Si tu bloques, <strong>pas de panique</strong>, les Mantas (tes encadrants) sont la pour t'aider.</p>`;
+
+  // Resolve campusId from each event
+  const events = await prisma.event.findMany({
+    where: {
+      id: { in: stageEventIndices.map((i) => eventIds[i]).filter(Boolean) },
+    },
+    select: { id: true, campusId: true },
+  });
+  const eventCampusMap = new Map(events.map((e) => [e.id, e.campusId]));
 
   const rows = stageEventIndices.flatMap((idx) => {
     const eventId = eventIds[idx];
     if (!eventId) return [];
-    return [{ slug: 'welcome', eventId, updatedBy, content }];
+    const campusId = eventCampusMap.get(eventId) ?? null;
+    return [
+      {
+        eventId,
+        campusId,
+        authorId: firstStaff.id,
+        title: 'Bienvenue au stage !',
+        content,
+      },
+    ];
   });
-  await prisma.cmsPage.createMany({ data: rows });
+  await prisma.newsPost.createMany({ data: rows });
 }
 
 // ─── Wipe ───
@@ -3584,6 +3600,7 @@ async function wipeAll() {
     prisma.stepsProgress.deleteMany(),
     prisma.onboardingReminder.deleteMany(),
     prisma.note_TalentNote.deleteMany(),
+    prisma.newsPost.deleteMany(),
     // Broadcasts + email-action mappings — dropped before staff so the
     // `MessageTemplate.createdById` FK doesn't block.
     prisma.emailActionMapping.deleteMany(),
