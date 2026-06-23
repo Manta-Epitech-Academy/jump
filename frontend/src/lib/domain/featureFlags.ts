@@ -72,14 +72,13 @@ export const FEATURE_FLAGS = {
       'Gestion des membres staff et invitations au niveau campus (/staff/dev/team).',
     removeBy: new Date('2026-07-15'),
   }),
-  staff_welcome_page: def({
-    key: 'staff_welcome_page',
+  news_feed: def({
+    key: 'news_feed',
     kind: 'rollout',
     defaultEnabled: false,
-    label: "Édition page d'accueil talents",
+    label: "Fil d'actualites",
     description:
-      "Édition CMS de la page d'accueil affichée aux talents (dev + pedago).",
-    removeBy: new Date('2026-07-15'),
+      "Fil d'actualites CMS sur le dashboard talent, editable par les devs et admins.",
   }),
   staff_sync_errors: def({
     key: 'staff_sync_errors',
