@@ -1,42 +1,25 @@
 <script lang="ts">
-  import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
-  import { Button } from '$lib/components/ui/button';
+  import { base } from '$app/paths';
   import { cn } from '$lib/utils';
-  import WelcomeMessageBody from '$lib/components/talent/WelcomeMessageBody.svelte';
+  import NewsPostBody from '$lib/components/talent/NewsPostBody.svelte';
   import Newspaper from '@lucide/svelte/icons/newspaper';
-  import Mail from '@lucide/svelte/icons/mail';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
 
-  // Seed of the talent's "fil d'actualité". Today the only item is the stage
-  // welcome message; future items (announcements, badges earned, etc.) stack
-  // into the same list. The list region is height-bounded + scrollable so the
-  // feed grows without pushing page height.
-  //
-  // This card is the welcome message's permanent home. `highlight` flags it
-  // fresh (ring + "Nouveau") on first arrival from onboarding.
+  // The talent dashboard's news feed card. Shows the latest published news post
+  // with a clamped preview and a link to the full /actus page. `highlight` flags
+  // it fresh (ring + "Nouveau") on first arrival from onboarding.
   let {
-    welcomeContent,
+    news,
     highlight = false,
   }: {
-    welcomeContent: string | null;
+    news: {
+      id: string;
+      title: string;
+      content: string;
+      publishedAt: string;
+    } | null;
     highlight?: boolean;
   } = $props();
-
-  let open = $state(false);
-  let bodyRef = $state<HTMLDivElement | null>(null);
-
-  // On open, pin the message to the top. The scroll container differs per
-  // platform (the dialog panel on desktop, the body itself on mobile), so walk
-  // up from the body once it mounts and zero every scrollable ancestor.
-  $effect(() => {
-    if (!open || !bodyRef) return;
-    const body = bodyRef;
-    requestAnimationFrame(() => {
-      for (let el: HTMLElement | null = body; el; el = el.parentElement) {
-        el.scrollTop = 0;
-      }
-    });
-  });
 </script>
 
 <div
@@ -67,47 +50,32 @@
   <div
     class="max-h-[40rem] divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800"
   >
-    {#if welcomeContent}
+    {#if news}
       <article class="p-6">
-        <div
-          class="mb-2 flex items-center gap-1.5 text-[11px] font-bold text-slate-400 uppercase"
-        >
-          <Mail class="h-3.5 w-3.5" />
-          Message de bienvenue
-        </div>
+        <h3 class="mb-2 text-sm font-bold text-slate-900 dark:text-white">
+          {news.title}
+        </h3>
 
-        <!-- Clamped preview: fades out, full content in the dialog. -->
+        <!-- Clamped preview: fades out, full content on /actus. -->
         <div class="relative max-h-[20rem] overflow-hidden">
-          <WelcomeMessageBody content={welcomeContent} class="prose-sm" />
+          <NewsPostBody content={news.content} class="prose-sm" />
           <div
             class="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white to-transparent dark:from-slate-900"
           ></div>
         </div>
 
-        <Button
-          variant="outline"
-          onclick={() => (open = true)}
-          class="mt-4 w-full gap-2 rounded-xl border-slate-200 transition-colors hover:border-epi-blue hover:bg-epi-blue hover:text-white dark:border-slate-800 dark:hover:border-epi-blue dark:hover:bg-epi-blue dark:hover:text-white"
-        >
-          Lire le message <ArrowRight class="h-4 w-4" />
-        </Button>
+        <div class="mt-4">
+          <a
+            href="{base}/actus"
+            class="group inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-400 transition-all hover:bg-epi-blue/10 hover:text-epi-blue dark:bg-slate-800 dark:hover:bg-epi-blue/20"
+          >
+            Voir tout
+            <ArrowRight
+              class="h-3 w-3 transition-transform group-hover:translate-x-0.5"
+            />
+          </a>
+        </div>
       </article>
     {/if}
   </div>
 </div>
-
-{#if welcomeContent}
-  <ResponsiveDialog.Root bind:open>
-    <ResponsiveDialog.Content class="sm:max-w-2xl">
-      <ResponsiveDialog.Header>
-        <ResponsiveDialog.Title class="flex items-center gap-2">
-          <Mail class="h-5 w-5 text-epi-blue" />
-          Message de bienvenue
-        </ResponsiveDialog.Title>
-      </ResponsiveDialog.Header>
-      <ResponsiveDialog.Body bind:ref={bodyRef}>
-        <WelcomeMessageBody content={welcomeContent} />
-      </ResponsiveDialog.Body>
-    </ResponsiveDialog.Content>
-  </ResponsiveDialog.Root>
-{/if}

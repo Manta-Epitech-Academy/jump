@@ -15,8 +15,7 @@ import {
   getUnseenMinigameRankReward,
 } from '$lib/server/services/minigameService';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
-import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
-import { stageWindowEnd } from '$lib/domain/event';
+import { renderNewsPost } from '$lib/domain/newsPost';
 import { toPlanningView } from '$lib/domain/talentPlanning';
 import { buildPreviewPlanningView } from '$lib/server/talentPlanningPreview';
 
@@ -147,50 +146,63 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       };
     }
 
-    // The staff-authored CMS welcome message seeds the dashboard's Actualités
-    // feed and shows for the whole stage window — this card is its only home.
-    // Distinct from the fixed pre-onboarding splash at /welcome, which owns its
-    // own copy and does not read this row.
-    let welcome: { content: string } | null = null;
+    // Latest non-expired news post visible to this talent.
+    let latestNews: {
+      id: string;
+      title: string;
+      content: string;
+      publishedAt: string;
+    } | null = null;
     {
-      const stageParticipation = await prisma.participation.findFirst({
+      // Resolve the talent's campus ID from the campus name already in locals.
+      const talentCampusId = locals.talentCampusName
+        ? ((
+            await prisma.campus.findFirst({
+              where: { name: locals.talentCampusName },
+              select: { id: true },
+            })
+          )?.id ?? null)
+        : null;
+
+      const now = new Date();
+      const post = await prisma.newsPost.findFirst({
         where: {
-          talentId: studentId,
-          event: { eventType: 'stage_seconde' },
+          AND: [
+            { OR: [{ campusId: talentCampusId }, { campusId: null }] },
+            { publishedAt: { lte: now } },
+            { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+          ],
         },
-        orderBy: { event: { date: 'desc' } },
+        orderBy: { publishedAt: 'desc' },
         select: {
+          id: true,
+          title: true,
+          content: true,
+          publishedAt: true,
           event: {
             select: {
-              id: true,
               titre: true,
-              endDate: true,
-              date: true,
               campus: { select: { name: true, contactEmail: true } },
             },
           },
         },
       });
-      if (stageParticipation) {
-        const { event } = stageParticipation;
-        const stageEnd = stageWindowEnd(event.date, event.endDate);
-        if (stageEnd >= new Date()) {
-          const welcomePage = await prisma.cmsPage.findUnique({
-            where: { slug_eventId: { slug: 'welcome', eventId: event.id } },
-            select: { content: true },
-          });
-          if (welcomePage?.content) {
-            welcome = {
-              content: renderWelcomeMessage(welcomePage.content, {
-                prenom: locals.talent.prenom,
-                nom: locals.talent.nom,
-                campusName: event.campus.name,
-                campusContactEmail: event.campus.contactEmail,
-                stageName: event.titre,
-              }),
-            };
-          }
-        }
+
+      if (post) {
+        const campus = post.event?.campus;
+        const rendered = renderNewsPost(post.content, {
+          prenom: locals.talent!.prenom,
+          nom: locals.talent!.nom,
+          campusName: campus?.name ?? locals.talentCampusName ?? '',
+          campusContactEmail: campus?.contactEmail ?? null,
+          stageName: post.event?.titre ?? null,
+        });
+        latestNews = {
+          id: post.id,
+          title: post.title,
+          content: rendered,
+          publishedAt: post.publishedAt.toISOString(),
+        };
       }
     }
 
@@ -201,7 +213,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       minigameReward,
       minigameRankReward,
       onboardingArrival,
-      welcome,
+      latestNews,
     };
   } catch (err) {
     console.error('Error fetching camper dashboard data:', err);
