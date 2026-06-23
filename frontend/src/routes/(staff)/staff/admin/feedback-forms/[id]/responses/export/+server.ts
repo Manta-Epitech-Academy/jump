@@ -29,9 +29,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     },
   });
 
-  const columns = graph.questions.filter(
-    (q) => q.type !== 'gate' && !q.identity,
-  );
+  const columns = graph.questions.filter((q) => q.identityField == null);
 
   const headers = [
     'Source',

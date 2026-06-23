@@ -28,6 +28,7 @@
     EditorSection,
     QuestionType,
     InputKind,
+    IdentityField,
   } from '../editor.svelte';
 
   let {
@@ -53,7 +54,6 @@
     scale: Star,
     text: Minus,
     textarea: AlignLeft,
-    gate: ContactRound,
   } as const;
   const Icon = $derived(TYPE_ICON[q.type]);
 
@@ -65,8 +65,23 @@
     { value: 'text', label: 'Texte' },
   ];
 
+  // Identity fields a question can collect. Mirrors the Feedback_IdentityField
+  // enum; the empty value means "not an identity question".
+  const IDENTITY_FIELD_OPTIONS = [
+    { value: 'email', label: 'E-mail' },
+    { value: 'phone', label: 'Téléphone' },
+    { value: 'firstName', label: 'Prénom' },
+    { value: 'lastName', label: 'Nom' },
+    { value: 'civility', label: 'Civilité' },
+    { value: 'campus', label: 'Campus' },
+  ] as const;
+  const activeIdentityLabel = $derived(
+    IDENTITY_FIELD_OPTIONS.find((o) => o.value === q.identityField)?.label ??
+      'Aucune',
+  );
+
   const hasOptions = $derived(q.type !== 'text' && q.type !== 'textarea');
-  const showKind = $derived(q.type === 'scale' || q.type === 'gate');
+  const showKind = $derived(q.type === 'scale');
 
   function intOrNull(v: string): number | null {
     const n = parseInt(v, 10);
@@ -120,6 +135,9 @@
       <span class="min-w-0 flex-1 truncate text-sm font-medium">
         {q.prompt || 'Question sans intitulé'}
       </span>
+      {#if q.identityField}
+        <ContactRound class="h-3.5 w-3.5 shrink-0 text-epi-teal" />
+      {/if}
       {#if q.required}
         <Asterisk class="h-3.5 w-3.5 shrink-0 text-epi-pink" />
       {/if}
@@ -169,16 +187,6 @@
           onChange={(t) => editor.patchQuestion(q.id, { type: t })}
         />
       </div>
-
-      {#if q.type === 'gate'}
-        <p
-          class="rounded-sm bg-muted/40 px-3 py-2 text-xs leading-snug text-muted-foreground"
-        >
-          Question d'aiguillage : ajoutez une option de type « Passer ». Si le
-          stagiaire la choisit, les questions de coordonnées qui suivent sont
-          ignorées.
-        </p>
-      {/if}
 
       <!-- Body: mirrors the rendered answer control -->
       {#if hasOptions}
@@ -333,15 +341,36 @@
           <Tooltip.Content>Supprimer la question</Tooltip.Content>
         </Tooltip.Root>
         <div class="mx-1 h-5 w-px bg-border"></div>
-        <label class="flex items-center gap-2 px-1 text-sm">
-          Obligatoire
-          <Switch
-            checked={q.required}
-            disabled={locked}
-            onCheckedChange={(v) =>
-              v !== q.required && editor.patchQuestion(q.id, { required: v })}
-          />
-        </label>
+        {#if q.identityField}
+          <!-- Identity fields are always required (no anonymous respondents);
+               the switch is locked on so the invariant reads at a glance. -->
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <span
+                  {...props}
+                  class="flex items-center gap-2 px-1 text-sm text-muted-foreground"
+                >
+                  Obligatoire
+                  <Switch checked disabled />
+                </span>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content>
+              Toujours obligatoire pour une donnée d'identité.
+            </Tooltip.Content>
+          </Tooltip.Root>
+        {:else}
+          <label class="flex items-center gap-2 px-1 text-sm">
+            Obligatoire
+            <Switch
+              checked={q.required}
+              disabled={locked}
+              onCheckedChange={(v) =>
+                v !== q.required && editor.patchQuestion(q.id, { required: v })}
+            />
+          </label>
+        {/if}
         <DropdownMenu.Root>
           <DropdownMenu.Trigger
             class="cursor-pointer rounded-sm p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -369,28 +398,41 @@
                 {/each}
               </DropdownMenu.SubContent>
             </DropdownMenu.Sub>
-            <DropdownMenu.CheckboxItem
-              checked={q.identity}
-              disabled={locked}
-              onCheckedChange={(v) =>
-                editor.patchQuestion(q.id, { identity: v })}
-            >
-              Donnée d'identité
-            </DropdownMenu.CheckboxItem>
-            {#if q.type === 'gate'}
-              <DropdownMenu.CheckboxItem
-                checked={q.skipsIdentity}
-                disabled={locked}
-                onCheckedChange={(v) =>
-                  editor.patchQuestion(q.id, { skipsIdentity: v })}
-              >
-                Masquer si coordonnées déjà connues
-              </DropdownMenu.CheckboxItem>
-            {/if}
-            <DropdownMenu.Separator />
-            <DropdownMenu.Item disabled class="font-mono text-[11px]">
-              clé : {q.key}
-            </DropdownMenu.Item>
+            <DropdownMenu.Sub>
+              <DropdownMenu.SubTrigger disabled={locked}>
+                Donnée d'identité
+                <span class="ml-auto pl-2 text-xs text-muted-foreground">
+                  {activeIdentityLabel}
+                </span>
+              </DropdownMenu.SubTrigger>
+              <DropdownMenu.SubContent class="w-60">
+                <DropdownMenu.RadioGroup
+                  value={q.identityField ?? ''}
+                  onValueChange={(v) =>
+                    editor.patchQuestion(q.id, {
+                      identityField: (v || null) as IdentityField | null,
+                    })}
+                >
+                  <DropdownMenu.RadioItem value="">
+                    Aucune (question normale)
+                  </DropdownMenu.RadioItem>
+                  <DropdownMenu.Separator />
+                  {#each IDENTITY_FIELD_OPTIONS as o (o.value)}
+                    <DropdownMenu.RadioItem value={o.value}>
+                      {o.label}
+                    </DropdownMenu.RadioItem>
+                  {/each}
+                </DropdownMenu.RadioGroup>
+                <DropdownMenu.Separator />
+                <p
+                  class="px-2 py-1.5 text-[11px] leading-snug text-muted-foreground"
+                >
+                  Demandée uniquement aux répondants publics et toujours
+                  obligatoire. Les talents connectés ne la voient pas : Jump
+                  connaît déjà leur identité.
+                </p>
+              </DropdownMenu.SubContent>
+            </DropdownMenu.Sub>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
       </div>

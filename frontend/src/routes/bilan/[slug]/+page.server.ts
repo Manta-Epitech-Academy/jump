@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ params }) => {
   }
 
   return {
-    formSchema: toFormSchema(graph),
+    formSchema: toFormSchema(graph, 'public'),
     slug: params.slug,
   };
 };

@@ -6,7 +6,12 @@ import type {
   Question,
   QuestionType,
   InputKind,
+  IdentityField,
 } from '$lib/domain/feedbackForms/schema';
+import { IDENTITY_FIELD_TO_INPUT_KIND } from '$lib/domain/feedbackForms/schema';
+
+/** Who a projected form is rendered for; mirrors Feedback_SubmissionSource. */
+export type FormAudience = 'public' | 'authenticated';
 
 /**
  * Server-side data layer for the DB-backed feedback forms ("Bilan du stage").
@@ -58,7 +63,15 @@ function projectQuestion(q: GraphQuestion): Question {
     .filter((o) => o.kind === 'choice')
     .map((o) => o.label);
   const extra = q.options.filter((o) => o.kind === 'extra').map((o) => o.label);
-  const skip = q.options.find((o) => o.kind === 'skip');
+
+  const identityField = (q.identityField ?? undefined) as
+    | IdentityField
+    | undefined;
+  // An identity question derives its validation kind from the field and is always
+  // required; a content question keeps what the author set.
+  const inputKind = identityField
+    ? (IDENTITY_FIELD_TO_INPUT_KIND[identityField] ?? undefined)
+    : ((q.inputKind ?? undefined) as InputKind | undefined);
 
   return {
     id: q.key,
@@ -67,27 +80,35 @@ function projectQuestion(q: GraphQuestion): Question {
     // transition, so carrying it on every question in the section is harmless.
     sectionIntro: q.section?.intro ?? undefined,
     prompt: q.prompt,
-    required: q.required,
+    required: identityField ? true : q.required,
     type: q.type as QuestionType,
     options: choice.length > 0 ? choice : undefined,
     extraOptions: extra.length > 0 ? extra : undefined,
     minSelections: q.minSelections ?? undefined,
     maxSelections: q.maxSelections ?? undefined,
-    inputKind: (q.inputKind ?? undefined) as InputKind | undefined,
+    inputKind,
     placeholder: q.placeholder ?? undefined,
-    identity: q.identity || undefined,
-    skipsIdentity: q.skipsIdentity || undefined,
-    skipOption: skip?.label,
+    identityField,
   };
 }
 
-/** Projects a DB form graph into the flat `FormSchema` the chat UI consumes. */
-export function toFormSchema(graph: FeedbackFormGraph): FormSchema {
+/**
+ * Projects a DB form graph into the flat `FormSchema` the chat UI consumes.
+ * Identity questions are dropped for authenticated talents (Jump already holds
+ * their identity); public respondents are asked them.
+ */
+export function toFormSchema(
+  graph: FeedbackFormGraph,
+  audience: FormAudience,
+): FormSchema {
+  const questions = graph.questions
+    .filter((q) => audience === 'public' || q.identityField == null)
+    .map(projectQuestion);
   return {
     id: graph.slug,
     title: graph.title,
     intro: graph.intro,
-    questions: graph.questions.map(projectQuestion),
+    questions,
   };
 }
 

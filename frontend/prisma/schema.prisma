@@ -917,7 +917,6 @@ enum Feedback_QuestionType {
   scale
   text
   textarea
-  gate
 }
 
 enum Feedback_InputKind {
@@ -930,7 +929,20 @@ enum Feedback_InputKind {
 enum Feedback_OptionKind {
   choice
   extra
-  skip
+}
+
+// Marks a question as collecting one piece of respondent identity, and which
+// typed Feedback_Submission.respondent* column it routes into. Replaces the old
+// `identity` boolean + magic-key prefill: identity questions are shown only to
+// public respondents (connected talents are read from Talent) and are always
+// required. Null = a normal content question.
+enum Feedback_IdentityField {
+  email
+  phone
+  firstName
+  lastName
+  civility
+  campus
 }
 
 enum Feedback_SubmissionSource {
@@ -986,7 +998,7 @@ model Feedback_Section {
 model Feedback_Question {
   id        String  @id @default(cuid())
   formId    String
-  // Null for questions outside any section (e.g. the coordinates gate).
+  // Null for questions outside any section.
   sectionId String?
   // Stable semantic answer key (e.g. "campus", "avis_accueil"), unique per form.
   key       String
@@ -995,15 +1007,14 @@ model Feedback_Question {
   prompt        String
   type          Feedback_QuestionType
   required      Boolean               @default(true)
-  // Identity fields (campus / name / email / phone). Prefilled & skipped for
-  // authenticated talents; asked & required on the public form. Never produce a
-  // Feedback_Answer row (they feed the submission's respondent columns instead).
-  identity      Boolean               @default(false)
+  // When set, this question collects one piece of respondent identity and routes
+  // into the matching Feedback_Submission.respondent* column. Shown only on the
+  // public form (connected talents are read from Talent), never produces a
+  // Feedback_Answer row, and is always treated as required. Null = content question.
+  identityField Feedback_IdentityField?
   inputKind     Feedback_InputKind?
   minSelections Int?
   maxSelections Int?
-  // GATE only: answering with the SKIP option skips the remaining identity questions.
-  skipsIdentity Boolean               @default(false)
   placeholder   String?
 
   createdAt DateTime @default(now())

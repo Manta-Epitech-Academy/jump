@@ -4,7 +4,6 @@
   import Star from '@lucide/svelte/icons/star';
   import Minus from '@lucide/svelte/icons/minus';
   import AlignLeft from '@lucide/svelte/icons/align-left';
-  import ContactRound from '@lucide/svelte/icons/contact-round';
   import * as Select from '$lib/components/ui/select';
   import type { QuestionType } from '../editor.svelte';
 
@@ -24,7 +23,6 @@
     { value: 'scale', label: 'Échelle', icon: Star },
     { value: 'text', label: 'Texte court', icon: Minus },
     { value: 'textarea', label: 'Texte long', icon: AlignLeft },
-    { value: 'gate', label: 'Aiguillage coordonnées', icon: ContactRound },
   ] as const;
 
   const current = $derived(TYPES.find((t) => t.value === value) ?? TYPES[0]);

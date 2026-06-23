@@ -33,7 +33,6 @@
   const KIND_LABELS: Record<string, string> = {
     choice: 'Choix',
     extra: 'Extra',
-    skip: 'Passer',
   };
 </script>
 

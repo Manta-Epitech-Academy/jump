@@ -8,15 +8,13 @@
 
   interface Props {
     form: FormSchema;
-    prefill?: Answers;
     onSubmit: (answers: Answers) => Promise<void>;
   }
 
-  let { form, prefill = {}, onSubmit }: Props = $props();
+  let { form, onSubmit }: Props = $props();
 
   const initialForm = form;
-  const initialPrefill = prefill;
-  const conv = new Conversation(initialForm, initialPrefill);
+  const conv = new Conversation(initialForm);
   let submitted = $state(false);
 
   $effect(() => {
@@ -33,9 +31,7 @@
   const showChoices = $derived(
     conv.status === 'awaiting' &&
       conv.current &&
-      (conv.current.type === 'single' ||
-        conv.current.type === 'multiple' ||
-        conv.current.type === 'gate'),
+      (conv.current.type === 'single' || conv.current.type === 'multiple'),
   );
 
   const showScale = $derived(

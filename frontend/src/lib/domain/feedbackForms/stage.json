@@ -4,20 +4,10 @@
   "intro": "Coin coin ! Moi c'est Bernard le canard. On doit remplir les attestations de stage pour ton lycee. Pour etre les plus precis possible, on te laisse la parole. Ton lycee pourra acceder a tes reponses sur demande. C'est parti, ca prend 5 minutes !",
   "questions": [
     {
-      "id": "coordonnees_gate",
-      "prompt": "Avant de commencer : veux-tu renseigner tes coordonnees (campus, nom, prenom, telephone, e-mail) ?",
-      "required": true,
-      "type": "gate",
-      "skipsIdentity": true,
-      "options": ["Oui, je les renseigne", "Non, passer cette etape"],
-      "skipOption": "Non, passer cette etape"
-    },
-    {
       "id": "campus",
       "section": "Tes coordonnees",
       "prompt": "Tout d'abord, sur quel campus es-tu ?",
-      "required": false,
-      "identity": true,
+      "required": true,
       "type": "single",
       "options": [
         "Bordeaux",
@@ -35,51 +25,48 @@
         "Saint Andre - La Reunion",
         "Strasbourg",
         "Toulouse"
-      ]
+      ],
+      "identityField": "campus"
     },
     {
       "id": "civilite",
       "prompt": "Ta civilite ?",
-      "required": false,
-      "identity": true,
+      "required": true,
       "type": "single",
-      "options": ["Monsieur", "Madame", "Je ne souhaite pas le preciser"]
+      "options": ["Monsieur", "Madame", "Je ne souhaite pas le preciser"],
+      "identityField": "civility"
     },
     {
       "id": "nom",
       "prompt": "Quel est ton nom ?",
-      "required": false,
-      "identity": true,
+      "required": true,
       "type": "text",
-      "inputKind": "name",
-      "placeholder": "Ton nom"
+      "placeholder": "Ton nom",
+      "identityField": "lastName"
     },
     {
       "id": "prenom",
       "prompt": "Et ton prenom ?",
-      "required": false,
-      "identity": true,
+      "required": true,
       "type": "text",
-      "inputKind": "name",
-      "placeholder": "Ton prenom"
+      "placeholder": "Ton prenom",
+      "identityField": "firstName"
     },
     {
       "id": "telephone",
       "prompt": "Ton numero de telephone ?",
-      "required": false,
-      "identity": true,
+      "required": true,
       "type": "text",
-      "inputKind": "tel",
-      "placeholder": "06 12 34 56 78"
+      "placeholder": "06 12 34 56 78",
+      "identityField": "phone"
     },
     {
       "id": "mail",
       "prompt": "Ton adresse e-mail ?",
-      "required": false,
-      "identity": true,
+      "required": true,
       "type": "text",
-      "inputKind": "email",
-      "placeholder": "prenom@exemple.com"
+      "placeholder": "prenom@exemple.com",
+      "identityField": "email"
     },
     {
       "id": "avis_accueil",

@@ -45,7 +45,7 @@
     {#if hasQuestions}
       <div class="h-[72vh]">
         {#key run}
-          <ChatScreen form={schema} prefill={{}} onSubmit={noop} />
+          <ChatScreen form={schema} onSubmit={noop} />
         {/key}
       </div>
     {:else}

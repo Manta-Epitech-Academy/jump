@@ -1,5 +1,3 @@
-import type { Answers } from './feedbackForms/schema';
-
 /**
  * Slug of the canonical "Bilan du stage" form. The dev Bilan page, its QR, and
  * the admin redirect all resolve the form by this slug, so keep it single-sourced
@@ -27,41 +25,4 @@ export function pendingFeedbackForm(
   if (now < eventStart) return null;
   const pending = nudgeForms.find((f) => !existingFormIds.includes(f.id));
   return pending ? { formId: pending.slug } : null;
-}
-
-/**
- * Build a prefill map from talent identity fields to form question IDs.
- * Only non-null values are included.
- */
-export function buildPrefill(
-  talent: {
-    prenom: string | null;
-    nom: string | null;
-    email: string | null;
-    phone: string | null;
-    civilite?: string | null;
-  },
-  campusName: string,
-): Answers {
-  const prefill: Answers = {};
-
-  prefill['campus'] = campusName;
-
-  if (talent.civilite != null) {
-    prefill['civilite'] = talent.civilite;
-  }
-  if (talent.nom != null) {
-    prefill['nom'] = talent.nom;
-  }
-  if (talent.prenom != null) {
-    prefill['prenom'] = talent.prenom;
-  }
-  if (talent.phone != null) {
-    prefill['telephone'] = talent.phone;
-  }
-  if (talent.email != null) {
-    prefill['mail'] = talent.email;
-  }
-
-  return prefill;
 }

@@ -3,9 +3,34 @@ export type QuestionType =
   | 'multiple'
   | 'scale'
   | 'text'
-  | 'textarea'
-  | 'gate';
+  | 'textarea';
 export type InputKind = 'email' | 'tel' | 'name' | 'text';
+
+export type IdentityField =
+  | 'email'
+  | 'phone'
+  | 'firstName'
+  | 'lastName'
+  | 'civility'
+  | 'campus';
+
+/**
+ * Runtime input kind derived from an identity field, so identity text questions
+ * validate (email / tel) without the author setting `inputKind` separately. Name
+ * fields map to `name` (plain text, future hook); civility / campus need no
+ * validation (and are usually authored as a `single` choice), hence `null`.
+ */
+export const IDENTITY_FIELD_TO_INPUT_KIND: Record<
+  IdentityField,
+  InputKind | null
+> = {
+  email: 'email',
+  phone: 'tel',
+  firstName: 'name',
+  lastName: 'name',
+  civility: null,
+  campus: null,
+};
 
 export interface Question {
   id: string;
@@ -20,9 +45,7 @@ export interface Question {
   maxSelections?: number;
   inputKind?: InputKind;
   placeholder?: string;
-  identity?: boolean;
-  skipsIdentity?: boolean;
-  skipOption?: string;
+  identityField?: IdentityField;
 }
 
 export interface FormSchema {

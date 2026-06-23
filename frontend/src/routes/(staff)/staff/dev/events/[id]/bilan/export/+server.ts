@@ -43,9 +43,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     },
   });
 
-  const columns = graph.questions.filter(
-    (q) => q.type !== 'gate' && !q.identity,
-  );
+  const columns = graph.questions.filter((q) => q.identityField == null);
   const headers = ['Prenom', 'Nom', 'E-mail', ...columns.map((q) => q.prompt)];
 
   const rows = submissions.map((sub) => {

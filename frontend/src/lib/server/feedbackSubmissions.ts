@@ -1,6 +1,10 @@
 import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import { validateAnswer, type Answers } from '$lib/domain/feedbackForms/schema';
+import {
+  validateAnswer,
+  type Answers,
+  type IdentityField,
+} from '$lib/domain/feedbackForms/schema';
 import {
   toFormSchema,
   type FeedbackFormGraph,
@@ -16,9 +20,9 @@ import {
  * from the linked Talent, so they are dropped here.
  */
 
-/** Maps an identity question key to its respondent column. */
-const IDENTITY_KEY_TO_COLUMN: Record<
-  string,
+/** Maps an identity field to its respondent column. */
+const IDENTITY_FIELD_TO_COLUMN: Record<
+  IdentityField,
   | 'respondentCampusLabel'
   | 'respondentCivility'
   | 'respondentLastName'
@@ -27,11 +31,11 @@ const IDENTITY_KEY_TO_COLUMN: Record<
   | 'respondentEmail'
 > = {
   campus: 'respondentCampusLabel',
-  civilite: 'respondentCivility',
-  nom: 'respondentLastName',
-  prenom: 'respondentFirstName',
-  telephone: 'respondentPhone',
-  mail: 'respondentEmail',
+  civility: 'respondentCivility',
+  lastName: 'respondentLastName',
+  firstName: 'respondentFirstName',
+  phone: 'respondentPhone',
+  email: 'respondentEmail',
 };
 
 export type SubmissionContext =
@@ -49,18 +53,14 @@ export async function recordSubmission(
   answers: Answers,
   ctx: SubmissionContext,
 ): Promise<{ id: string }> {
-  const schema = toFormSchema(graph);
+  // Project for the actual audience: authenticated submits never receive identity
+  // questions (Jump holds that data), so they're absent from `schema.questions`
+  // here and never validated; public submits get them and validate as required.
+  const schema = toFormSchema(graph, ctx.source);
 
   // Server-side validation (the client validates too, but never trust it).
-  // Mirrors the persist loop below: a `gate` only steers the conversation and
-  // never carries an answer, and for authenticated submits identity is sourced
-  // from the linked Talent (not the payload), so validating it here would 400 a
-  // talent whose optional fields, e.g. phone, are simply absent. Identity is
-  // still validated for public submits, where the respondent types it.
   const errors: string[] = [];
   for (const q of schema.questions) {
-    if (q.type === 'gate') continue;
-    if (q.identity && ctx.source === 'authenticated') continue;
     const err = validateAnswer(q, answers[q.id]);
     if (err) errors.push(`${q.id}: ${err}`);
   }
@@ -88,12 +88,11 @@ export async function recordSubmission(
   for (const q of graph.questions) {
     const value = answers[q.key];
 
-    if (q.type === 'gate') continue; // control flow only, never persisted
-
-    if (q.identity) {
+    if (q.identityField) {
+      // Identity routes into a typed respondent column for public submits;
+      // authenticated identity is read from the linked Talent, never the payload.
       if (ctx.source === 'public') {
-        const col = IDENTITY_KEY_TO_COLUMN[q.key];
-        if (col) respondent[col] = asString(value);
+        respondent[IDENTITY_FIELD_TO_COLUMN[q.identityField]] = asString(value);
       }
       continue; // identity never becomes an answer row
     }

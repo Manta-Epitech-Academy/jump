@@ -1,4 +1,11 @@
-import type { FormSchema, Question, QuestionType, InputKind } from './schema';
+import type {
+  FormSchema,
+  Question,
+  QuestionType,
+  InputKind,
+  IdentityField,
+} from './schema';
+import { IDENTITY_FIELD_TO_INPUT_KIND } from './schema';
 
 /**
  * Client-side twin of the server's `toFormSchema` (`$lib/server/feedbackForms`).
@@ -10,7 +17,7 @@ import type { FormSchema, Question, QuestionType, InputKind } from './schema';
  * with the server projection.
  */
 
-export type EditorOptionKind = 'choice' | 'extra' | 'skip';
+export type EditorOptionKind = 'choice' | 'extra';
 
 export interface EditorOption {
   id: string;
@@ -27,11 +34,10 @@ export interface EditorQuestion {
   prompt: string;
   type: QuestionType;
   required: boolean;
-  identity: boolean;
+  identityField: IdentityField | null;
   inputKind: InputKind | null;
   minSelections: number | null;
   maxSelections: number | null;
-  skipsIdentity: boolean;
   placeholder: string | null;
   options: EditorOption[];
 }
@@ -60,24 +66,27 @@ function projectQuestion(
     .filter((o) => o.kind === 'choice')
     .map((o) => o.label);
   const extra = q.options.filter((o) => o.kind === 'extra').map((o) => o.label);
-  const skip = q.options.find((o) => o.kind === 'skip');
+
+  // An identity question derives its validation kind from the field and is always
+  // required; a content question keeps what the author set.
+  const inputKind = q.identityField
+    ? (IDENTITY_FIELD_TO_INPUT_KIND[q.identityField] ?? undefined)
+    : (q.inputKind ?? undefined);
 
   return {
     id: q.key,
     section: section?.title,
     sectionIntro: section?.intro ?? undefined,
     prompt: q.prompt,
-    required: q.required,
+    required: q.identityField ? true : q.required,
     type: q.type,
     options: choice.length > 0 ? choice : undefined,
     extraOptions: extra.length > 0 ? extra : undefined,
     minSelections: q.minSelections ?? undefined,
     maxSelections: q.maxSelections ?? undefined,
-    inputKind: q.inputKind ?? undefined,
+    inputKind,
     placeholder: q.placeholder ?? undefined,
-    identity: q.identity || undefined,
-    skipsIdentity: q.skipsIdentity || undefined,
-    skipOption: skip?.label,
+    identityField: q.identityField ?? undefined,
   };
 }
 

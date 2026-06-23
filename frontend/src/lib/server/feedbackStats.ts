@@ -20,7 +20,6 @@ export interface QuestionStat {
   key: string;
   prompt: string;
   type: string;
-  identity: boolean;
   options: OptionStat[];
   freeTexts: string[];
   answeredCount: number;
@@ -123,13 +122,12 @@ export async function computeFormStats(
   }
 
   const questions: QuestionStat[] = graph.questions
-    .filter((q) => q.type !== 'gate' && !q.identity)
+    .filter((q) => q.identityField == null)
     .map((q) => ({
       questionId: q.id,
       key: q.key,
       prompt: q.prompt,
       type: q.type,
-      identity: q.identity,
       options: q.options.map((o) => ({
         optionId: o.id,
         label: o.label,

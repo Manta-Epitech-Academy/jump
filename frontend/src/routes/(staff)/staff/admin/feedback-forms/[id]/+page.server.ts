@@ -40,11 +40,10 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
       prompt: q.prompt,
       type: q.type,
       required: q.required,
-      identity: q.identity,
+      identityField: q.identityField,
       inputKind: q.inputKind,
       minSelections: q.minSelections,
       maxSelections: q.maxSelections,
-      skipsIdentity: q.skipsIdentity,
       placeholder: q.placeholder,
       options: q.options.map((o) => ({
         id: o.id,

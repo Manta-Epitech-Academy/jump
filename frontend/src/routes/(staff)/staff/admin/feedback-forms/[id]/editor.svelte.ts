@@ -1,6 +1,10 @@
 import { toast } from 'svelte-sonner';
 import { SvelteMap } from 'svelte/reactivity';
-import type { QuestionType, InputKind } from '$lib/domain/feedbackForms/schema';
+import type {
+  QuestionType,
+  InputKind,
+  IdentityField,
+} from '$lib/domain/feedbackForms/schema';
 import type {
   EditorOption,
   EditorQuestion,
@@ -260,7 +264,6 @@ export class FormEditor {
       prompt: 'Nouvelle question',
       type: 'single',
       required: true,
-      identity: false,
       sectionId,
       position: insertIndex,
     })) as { id: string } | null;
@@ -275,11 +278,10 @@ export class FormEditor {
       prompt: 'Nouvelle question',
       type: 'single',
       required: true,
-      identity: false,
+      identityField: null,
       inputKind: null,
       minSelections: null,
       maxSelections: null,
-      skipsIdentity: false,
       placeholder: null,
       options: [],
     });
@@ -545,4 +547,4 @@ export class FormEditor {
 }
 
 export type { EditorOption, EditorQuestion, EditorSection, EditorOptionKind };
-export type { QuestionType, InputKind };
+export type { QuestionType, InputKind, IdentityField };

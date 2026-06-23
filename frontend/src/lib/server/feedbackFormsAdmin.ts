@@ -2,12 +2,14 @@ import { error } from '@sveltejs/kit';
 import type {
   Feedback_QuestionType,
   Feedback_InputKind,
+  Feedback_IdentityField,
   Feedback_OptionKind,
   Feedback_FormStatus,
   Prisma,
 } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { assertEditable, getFormGraphById } from '$lib/server/feedbackForms';
+import { IDENTITY_NOT_MULTIPLE_MESSAGE } from '$lib/validation/feedbackForms';
 
 /**
  * Admin mutations for the feedback form builder. The whole `/staff/admin/*` tree
@@ -140,11 +142,10 @@ export async function duplicateForm(
           prompt: q.prompt,
           type: q.type,
           required: q.required,
-          identity: q.identity,
+          identityField: q.identityField,
           inputKind: q.inputKind,
           minSelections: q.minSelections,
           maxSelections: q.maxSelections,
-          skipsIdentity: q.skipsIdentity,
           placeholder: q.placeholder,
           options: {
             create: q.options.map((o) => ({
@@ -212,11 +213,10 @@ export type QuestionStructureInput = {
   prompt: string;
   type: Feedback_QuestionType;
   required?: boolean;
-  identity?: boolean;
+  identityField?: Feedback_IdentityField | null;
   inputKind?: Feedback_InputKind | null;
   minSelections?: number | null;
   maxSelections?: number | null;
-  skipsIdentity?: boolean;
   placeholder?: string | null;
 };
 
@@ -237,11 +237,71 @@ export async function assertKeyAvailable(
   if (clash) throw error(409, `La clé « ${key} » existe déjà.`);
 }
 
+/**
+ * Throws 409 if another question on the form already collects the same identity
+ * field. Each respondent column holds one value, so a second `email` question
+ * would silently overwrite the first at submit time, breaking the no-anonymity
+ * guarantee (email collected exactly once). Mirrors {@link assertKeyAvailable}.
+ */
+export async function assertIdentityFieldAvailable(
+  formId: string,
+  identityField: Feedback_IdentityField,
+  exceptId?: string,
+): Promise<void> {
+  const clash = await prisma.feedback_Question.findFirst({
+    where: {
+      formId,
+      identityField,
+      id: exceptId ? { not: exceptId } : undefined,
+    },
+    select: { id: true },
+  });
+  if (clash) {
+    throw error(
+      409,
+      'Une autre question collecte déjà cette donnée d’identité.',
+    );
+  }
+}
+
+/**
+ * Throws 400 if the question would end up collecting an identity field as a
+ * `multiple` choice. The create path enforces this via {@link questionSchema}'s
+ * refine, but the single-field PATCH path validates against the refine-less
+ * `questionPatchSchema`, so re-check here against the merged (current + patch)
+ * state. See {@link IDENTITY_NOT_MULTIPLE_MESSAGE} for the consequence.
+ */
+async function assertIdentityNotMultiple(
+  id: string,
+  patch: Partial<QuestionStructureInput>,
+): Promise<void> {
+  // Only a patch that adds an identity field, or flips the type to `multiple`,
+  // can introduce the conflict; any other patch leaves it resolvable as-is.
+  if (!patch.identityField && patch.type !== 'multiple') return;
+
+  const current = await prisma.feedback_Question.findUnique({
+    where: { id },
+    select: { type: true, identityField: true },
+  });
+  const type = patch.type ?? current?.type;
+  const identityField =
+    patch.identityField !== undefined
+      ? patch.identityField
+      : current?.identityField;
+  if (identityField && type === 'multiple') {
+    throw error(400, IDENTITY_NOT_MULTIPLE_MESSAGE);
+  }
+}
+
 export async function createQuestion(
   formId: string,
   input: QuestionStructureInput,
 ): Promise<{ id: string }> {
   await assertEditable(formId);
+  if (input.identityField)
+    await assertIdentityFieldAvailable(formId, input.identityField);
+  if (input.identityField && input.type === 'multiple')
+    throw error(400, IDENTITY_NOT_MULTIPLE_MESSAGE);
   return prisma.feedback_Question.create({
     data: {
       formId,
@@ -251,11 +311,10 @@ export async function createQuestion(
       prompt: input.prompt,
       type: input.type,
       required: input.required ?? true,
-      identity: input.identity ?? false,
+      identityField: input.identityField ?? null,
       inputKind: input.inputKind ?? null,
       minSelections: input.minSelections ?? null,
       maxSelections: input.maxSelections ?? null,
-      skipsIdentity: input.skipsIdentity ?? false,
       placeholder: input.placeholder ?? null,
     },
     select: { id: true },
@@ -266,11 +325,10 @@ const STRUCTURAL_QUESTION_FIELDS: (keyof QuestionStructureInput)[] = [
   'key',
   'type',
   'required',
-  'identity',
+  'identityField',
   'inputKind',
   'minSelections',
   'maxSelections',
-  'skipsIdentity',
   'sectionId',
 ];
 
@@ -284,6 +342,9 @@ export async function updateQuestion(
   );
   if (touchesStructure) await assertEditable(formId);
   if (patch.key !== undefined) await assertKeyAvailable(formId, patch.key, id);
+  if (patch.identityField)
+    await assertIdentityFieldAvailable(formId, patch.identityField, id);
+  await assertIdentityNotMultiple(id, patch);
 
   const data: Prisma.Feedback_QuestionUpdateInput = {};
   if (patch.prompt !== undefined) data.prompt = patch.prompt;
@@ -291,14 +352,13 @@ export async function updateQuestion(
   if (patch.key !== undefined) data.key = patch.key;
   if (patch.type !== undefined) data.type = patch.type;
   if (patch.required !== undefined) data.required = patch.required;
-  if (patch.identity !== undefined) data.identity = patch.identity;
+  if (patch.identityField !== undefined)
+    data.identityField = patch.identityField;
   if (patch.inputKind !== undefined) data.inputKind = patch.inputKind;
   if (patch.minSelections !== undefined)
     data.minSelections = patch.minSelections;
   if (patch.maxSelections !== undefined)
     data.maxSelections = patch.maxSelections;
-  if (patch.skipsIdentity !== undefined)
-    data.skipsIdentity = patch.skipsIdentity;
   if (patch.sectionId !== undefined) {
     data.section = patch.sectionId
       ? { connect: { id: patch.sectionId } }
@@ -372,11 +432,12 @@ export async function duplicateQuestion(
         prompt: src.prompt,
         type: src.type,
         required: src.required,
-        identity: src.identity,
+        // The copy can't collect the same identity field (one column, one value),
+        // so it lands as a plain question; reassign after deleting the original.
+        identityField: null,
         inputKind: src.inputKind,
         minSelections: src.minSelections,
         maxSelections: src.maxSelections,
-        skipsIdentity: src.skipsIdentity,
         placeholder: src.placeholder,
         options: {
           create: src.options.map((o) => ({

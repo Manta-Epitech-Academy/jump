@@ -2,7 +2,6 @@ import type { Actions, PageServerLoad } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import type { Answers } from '$lib/domain/feedbackForms/schema';
-import { buildPrefill } from '$lib/domain/feedback';
 import { getFormGraphBySlug, toFormSchema } from '$lib/server/feedbackForms';
 import { recordSubmission } from '$lib/server/feedbackSubmissions';
 
@@ -29,7 +28,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   const participation = await prisma.participation.findFirst({
     where: { eventId: params.eventId, talentId: locals.talent.id },
-    select: { campusId: true },
+    select: { id: true },
   });
   if (!participation) {
     throw error(404, 'Participation introuvable');
@@ -49,16 +48,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     throw redirect(303, '/');
   }
 
-  const campus = await prisma.campus.findUnique({
-    where: { id: participation.campusId },
-    select: { name: true },
-  });
-
-  const prefill = buildPrefill(locals.talent, campus?.name ?? '');
-
   return {
-    formSchema: toFormSchema(graph),
-    prefill,
+    // Authenticated audience: identity questions are dropped (Jump already holds
+    // the talent's identity), so no prefill is needed.
+    formSchema: toFormSchema(graph, 'authenticated'),
     eventId: params.eventId,
     formId: params.formId,
   };

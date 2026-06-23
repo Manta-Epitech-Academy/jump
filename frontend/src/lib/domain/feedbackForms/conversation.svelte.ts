@@ -52,14 +52,9 @@ export class Conversation {
 
   #seq = 0;
   #lastSection: string | undefined = undefined;
-  /** Réponses déjà connues (ex. utilisateur authentifié) → questions d'identité sautées. */
-  #prefill: Answers;
-  /** Activé via le gate « coordonnées » : saute toutes les questions d'identité. */
-  #skipIdentity = false;
 
-  constructor(form: FormSchema, prefill: Answers = {}) {
+  constructor(form: FormSchema) {
     this.form = form;
-    this.#prefill = prefill;
   }
 
   get current(): Question | undefined {
@@ -97,39 +92,6 @@ export class Conversation {
   }
 
   async #ask() {
-    // Saute silencieusement : le gate inutile, et les questions d'identité
-    // déjà connues (prefill) ou écartées par le gate « coordonnées ».
-    while (this.index < this.form.questions.length) {
-      const q = this.form.questions[this.index];
-
-      // Gate « coordonnées » : inutile si plus aucune question d'identité à poser.
-      if (q.type === 'gate' && q.skipsIdentity) {
-        const pendingIdentity = this.form.questions.some(
-          (qq, idx) =>
-            idx > this.index && qq.identity && isEmpty(this.#prefill[qq.id]),
-        );
-        if (!pendingIdentity) {
-          this.index += 1;
-          continue;
-        }
-        break; // on pose le gate
-      }
-
-      if (q.identity) {
-        const pre = this.#prefill[q.id];
-        if (pre !== undefined && !isEmpty(pre)) {
-          this.answers[q.id] = pre;
-          this.index += 1;
-          continue;
-        }
-        if (this.#skipIdentity) {
-          this.index += 1;
-          continue;
-        }
-      }
-      break;
-    }
-
     const q = this.form.questions[this.index];
     if (!q) {
       await this.#botSay(
@@ -163,15 +125,6 @@ export class Conversation {
       return;
     }
     this.error = null;
-
-    // Gate « coordonnées » : question de contrôle, non stockée.
-    if (q.type === 'gate') {
-      if (value === q.skipOption) this.#skipIdentity = true;
-      this.#push('user', display ?? formatAnswer(value));
-      this.index += 1;
-      await this.#ask();
-      return;
-    }
 
     if (isEmpty(value)) {
       this.#push('user', '— (je passe)');
