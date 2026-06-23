@@ -46,7 +46,7 @@
   let hasEmargement = $derived(featureFlags.has('emargement'));
   let hasIntervenants = $derived(featureFlags.has('staff_intervenants'));
   let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
-  let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
+  let hasNewsFeed = $derived(featureFlags.has('news_feed'));
   let hasSyncErrors = $derived(featureFlags.has('staff_sync_errors'));
   let hasPlanning = $derived(featureFlags.has('planning'));
   // The "Stage de Seconde" section header must not show when none of its links
@@ -59,7 +59,7 @@
       hasEntretiens ||
       hasPlanning ||
       hasIntervenants ||
-      hasWelcomePage ||
+      hasNewsFeed ||
       hasCodingClub,
   );
   // The "Gestion" section header must not show when none of its links would:
@@ -259,13 +259,13 @@
           <span>Intervenants</span>
         </a>
       {/if}
-      {#if hasWelcomePage}
+      {#if hasNewsFeed}
         <a
-          href={resolve('/staff/dev/contenu/welcome')}
-          class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
+          href={resolve('/staff/dev/contenu/actus')}
+          class={navLinkClass(isActive('/staff/dev/contenu/actus'))}
         >
           <FileText class="h-5 w-5" />
-          <span>Page d'accueil</span>
+          <span>Actualites</span>
         </a>
       {/if}
       {#if hasEntretiens}
