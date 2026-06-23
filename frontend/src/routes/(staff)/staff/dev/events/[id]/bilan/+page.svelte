@@ -90,11 +90,15 @@
       </p>
     </div>
   {:else if cohort}
-    <div class="grid gap-6 xl:grid-cols-10">
-      <div class="min-w-0 xl:col-span-7">
+    <!-- The roster is a slim who-answered checklist; the value of this page is the
+         results. Split the width evenly rather than handing the table 70%, so the
+         answer breakdowns get room to tile (see StatsPanel) instead of stacking into
+         one tall, narrow strip. -->
+    <div class="grid gap-6 xl:grid-cols-2">
+      <div class="min-w-0">
         <BilanRoster rows={cohort.rows} />
       </div>
-      <div class="min-w-0 xl:col-span-3">
+      <div class="min-w-0">
         <StatsPanel
           respondedCount={cohort.respondedCount}
           total={cohort.total}
