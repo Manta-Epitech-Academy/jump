@@ -31,5 +31,19 @@
         e.currentTarget.value !== editor.intro &&
         editor.patchForm({ intro: e.currentTarget.value })}
     />
+    <div class="border-t pt-2">
+      <Textarea
+        value={editor.outro ?? ''}
+        rows={2}
+        aria-label="Message de fin"
+        placeholder={'Message de fin (facultatif), ex. « Merci {prenom} ! »'}
+        class="resize-none border-0 px-0 text-sm text-muted-foreground shadow-none focus-visible:ring-0"
+        onblur={(e) => {
+          const next = e.currentTarget.value.trim() || null;
+          if (next !== (editor.outro ?? null))
+            editor.patchForm({ outro: next });
+        }}
+      />
+    </div>
   </div>
 </div>

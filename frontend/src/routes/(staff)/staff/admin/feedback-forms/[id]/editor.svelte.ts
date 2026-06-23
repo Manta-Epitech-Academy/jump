@@ -18,6 +18,7 @@ export type FormStatus = 'draft' | 'published' | 'archived';
 export interface FormMeta {
   title: string;
   intro: string;
+  outro: string | null;
   personaName: string | null;
   status: FormStatus;
   allowsAuthenticatedAccess: boolean;
@@ -84,6 +85,7 @@ export class FormEditor {
   // ── Form meta (auto-saved, like Forms: no submit button) ──
   title = $state('');
   intro = $state('');
+  outro = $state<string | null>(null);
   personaName = $state<string | null>(null);
   status = $state<FormStatus>('draft');
   allowsAuthenticatedAccess = $state(false);
@@ -435,6 +437,7 @@ export class FormEditor {
       label: 'Option',
       kind: 'choice',
       position: q.options.length,
+      reaction: null,
     });
   }
 

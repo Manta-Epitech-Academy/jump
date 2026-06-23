@@ -36,6 +36,7 @@ export const POST: RequestHandler = async ({ params, locals }) => {
       label: o.label,
       kind: o.kind,
       position: o.position,
+      reaction: o.reaction,
     })),
   });
 };

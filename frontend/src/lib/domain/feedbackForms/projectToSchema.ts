@@ -24,6 +24,7 @@ export interface EditorOption {
   label: string;
   kind: EditorOptionKind;
   position: number;
+  reaction: string | null;
 }
 
 export interface EditorQuestion {
@@ -53,6 +54,7 @@ export interface EditorGraph {
   slug: string;
   title: string;
   intro: string;
+  outro: string | null;
   sections: EditorSection[];
   questions: EditorQuestion[];
 }
@@ -73,6 +75,11 @@ function projectQuestion(
     ? (IDENTITY_FIELD_TO_INPUT_KIND[q.identityField] ?? undefined)
     : (q.inputKind ?? undefined);
 
+  const optionReactions: Record<string, string> = {};
+  for (const o of q.options) {
+    if (o.reaction) optionReactions[o.label] = o.reaction;
+  }
+
   return {
     id: q.key,
     section: section?.title,
@@ -87,6 +94,8 @@ function projectQuestion(
     inputKind,
     placeholder: q.placeholder ?? undefined,
     identityField: q.identityField ?? undefined,
+    optionReactions:
+      Object.keys(optionReactions).length > 0 ? optionReactions : undefined,
   };
 }
 
@@ -100,6 +109,7 @@ export function projectEditorToSchema(graph: EditorGraph): FormSchema {
     id: graph.slug,
     title: graph.title,
     intro: graph.intro,
+    outro: graph.outro ?? undefined,
     questions: ordered.map((q) => projectQuestion(q, sectionById)),
   };
 }

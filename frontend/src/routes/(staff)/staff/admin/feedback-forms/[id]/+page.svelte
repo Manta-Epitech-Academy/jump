@@ -38,6 +38,7 @@
       meta: {
         title: data.form.title,
         intro: data.form.intro,
+        outro: data.form.outro,
         personaName: data.form.personaName,
         status: data.form.status as FormStatus,
         allowsAuthenticatedAccess: data.form.allowsAuthenticatedAccess,
@@ -68,6 +69,7 @@
           label: o.label,
           kind: o.kind as EditorOptionKind,
           position: o.position,
+          reaction: o.reaction,
         })),
       })),
     })),
@@ -87,6 +89,7 @@
       slug: editor.slug,
       title: editor.title,
       intro: editor.intro,
+      outro: editor.outro,
       sections: editor.sections,
       questions: editor.questions,
     }),
@@ -230,4 +233,8 @@
   </Tooltip.Provider>
 </div>
 
-<PreviewDialog bind:open={previewOpen} schema={previewSchema} />
+<PreviewDialog
+  bind:open={previewOpen}
+  schema={previewSchema}
+  identity={{ prenom: 'Marc', campus: 'Lyon' }}
+/>

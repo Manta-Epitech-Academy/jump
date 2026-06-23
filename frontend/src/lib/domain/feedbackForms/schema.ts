@@ -32,6 +32,62 @@ export const IDENTITY_FIELD_TO_INPUT_KIND: Record<
   campus: null,
 };
 
+/**
+ * Identity known about the respondent, used to interpolate bot copy
+ * (`Salut {prenom} !`). For a connected talent it is seeded from `Talent`; for a
+ * public respondent it is filled in as the identity questions are answered.
+ */
+export interface IdentityContext {
+  prenom?: string;
+  nom?: string;
+  campus?: string;
+  civilite?: string;
+}
+
+/** Identity fields that feed an interpolation token (email/phone aren't used in copy). */
+export const IDENTITY_FIELD_TO_CONTEXT_KEY: Partial<
+  Record<IdentityField, keyof IdentityContext>
+> = {
+  firstName: 'prenom',
+  lastName: 'nom',
+  campus: 'campus',
+  civility: 'civilite',
+};
+
+const INTERPOLATION_TOKENS: ReadonlySet<keyof IdentityContext> = new Set([
+  'prenom',
+  'nom',
+  'campus',
+  'civilite',
+]);
+
+/**
+ * Replaces `{token}` placeholders in bot copy with the respondent's identity.
+ * Known tokens resolve to their value (or empty string if not yet known);
+ * unknown tokens are left untouched so authored braces survive.
+ */
+export function interpolate(text: string, ctx: IdentityContext): string {
+  return text.replace(/{(\w+)}/g, (whole, key: string) =>
+    INTERPOLATION_TOKENS.has(key as keyof IdentityContext)
+      ? (ctx[key as keyof IdentityContext] ?? '')
+      : whole,
+  );
+}
+
+/**
+ * French typography for chat bubbles: binds the punctuation that takes a leading
+ * space (`? ! : ;` and the closing guillemet) to the word before it with a
+ * no-break space, and the opening guillemet to the word after it. This stops a
+ * lone `?` (or `!`, `:`…) from wrapping onto its own line at a bubble's edge.
+ * Display-only: only existing spaces are tightened, never inserted, so values
+ * without French spacing (an e-mail, a time like `9:30`) are left untouched.
+ */
+export function applyFrenchSpacing(text: string): string {
+  return text
+    .replace(/[\u0020\u00A0\u202F]+([?!:;»])/g, '\u00A0$1')
+    .replace(/(«)[\u0020\u00A0\u202F]+/g, '$1\u00A0');
+}
+
 export interface Question {
   id: string;
   section?: string;
@@ -46,12 +102,16 @@ export interface Question {
   inputKind?: InputKind;
   placeholder?: string;
   identityField?: IdentityField;
+  /** Label -> bot reaction, for options that carry one. */
+  optionReactions?: Record<string, string>;
 }
 
 export interface FormSchema {
   id: string;
   title: string;
   intro: string;
+  /** Closing bot line; falls back to a generic message when absent. */
+  outro?: string;
   questions: Question[];
 }
 

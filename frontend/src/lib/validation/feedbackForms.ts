@@ -38,6 +38,7 @@ export const formCreateSchema = z.object({
 export const formMetaSchema = z.object({
   title: z.string().trim().min(1).max(200),
   intro: z.string().trim().min(1).max(2000),
+  outro: z.string().trim().max(2000).nullish(),
   personaName: z.string().trim().max(100).nullish(),
   status: z.enum(FORM_STATUSES),
   allowsAuthenticatedAccess: z.boolean(),
@@ -49,6 +50,7 @@ export const formMetaSchema = z.object({
 export const formMetaPatchSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
   intro: z.string().trim().min(1).max(2000).optional(),
+  outro: z.string().trim().max(2000).nullish(),
   personaName: z.string().trim().max(100).nullish(),
   status: z.enum(FORM_STATUSES).optional(),
   allowsAuthenticatedAccess: z.boolean().optional(),
@@ -126,11 +128,13 @@ export const questionPatchSchema = z.object({
 export const optionSchema = z.object({
   label: z.string().trim().min(1).max(300),
   kind: z.enum(OPTION_KINDS).default('choice'),
+  reaction: z.string().trim().max(500).nullish(),
 });
 
 export const optionPatchSchema = z.object({
   label: z.string().trim().min(1).max(300).optional(),
   kind: z.enum(OPTION_KINDS).optional(),
+  reaction: z.string().trim().max(500).nullish(),
 });
 
 export const reorderSchema = z.object({

@@ -3,12 +3,20 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
   import ChatScreen from '$lib/components/feedback/ChatScreen.svelte';
-  import type { FormSchema } from '$lib/domain/feedbackForms/schema';
+  import type {
+    FormSchema,
+    IdentityContext,
+  } from '$lib/domain/feedbackForms/schema';
 
   let {
     open = $bindable(false),
     schema,
-  }: { open: boolean; schema: FormSchema } = $props();
+    identity = {},
+  }: {
+    open: boolean;
+    schema: FormSchema;
+    identity?: IdentityContext;
+  } = $props();
 
   // The dialog unmounts its content on close, so every open already replays the
   // conversation from the top against the current draft. `run` is bumped only by
@@ -45,7 +53,7 @@
     {#if hasQuestions}
       <div class="h-[72vh]">
         {#key run}
-          <ChatScreen form={schema} onSubmit={noop} />
+          <ChatScreen form={schema} onSubmit={noop} {identity} />
         {/key}
       </div>
     {:else}

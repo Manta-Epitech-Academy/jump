@@ -964,6 +964,10 @@ model Feedback_Form {
   // the old hardcoded STAGE_FORM_ID coupling.
   dashboardNudge            Boolean @default(false)
 
+  // Closing bot line emitted once the conversation ends (interpolated, e.g.
+  // "Merci {prenom} !"). Null = the engine's generic fallback.
+  outro String?
+
   // Author + last editor (rendered in the admin builder). SetNull so a staff
   // departure never deletes a form.
   createdById String?
@@ -1038,6 +1042,10 @@ model Feedback_QuestionOption {
   // its label, so renaming the label never orphans a response.
   label      String
   kind       Feedback_OptionKind @default(choice)
+  // Optional bot reaction emitted (interpolated) right after this option is
+  // picked, before the next question. Null = no reaction. Pure conversational
+  // copy: never persisted as an answer, never affects routing or stats.
+  reaction   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

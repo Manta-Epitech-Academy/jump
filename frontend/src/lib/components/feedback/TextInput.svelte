@@ -59,6 +59,16 @@
     />
   {/if}
 
+  {#if !question.required && value.trim().length === 0}
+    <button
+      type="button"
+      class="shrink-0 self-center px-2 py-2 text-sm text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
+      onclick={() => onanswer('')}
+    >
+      Passer
+    </button>
+  {/if}
+
   <button
     type="button"
     class={cn(

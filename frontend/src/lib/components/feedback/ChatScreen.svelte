@@ -1,5 +1,10 @@
 <script lang="ts">
-  import type { FormSchema, Answers } from '$lib/domain/feedbackForms/schema';
+  import { untrack } from 'svelte';
+  import type {
+    FormSchema,
+    Answers,
+    IdentityContext,
+  } from '$lib/domain/feedbackForms/schema';
   import { Conversation } from '$lib/domain/feedbackForms/conversation.svelte';
   import ChatThread from './ChatThread.svelte';
   import QuickReplies from './QuickReplies.svelte';
@@ -9,12 +14,16 @@
   interface Props {
     form: FormSchema;
     onSubmit: (answers: Answers) => Promise<void>;
+    /** Known respondent identity, used to interpolate the bot copy. */
+    identity?: IdentityContext;
   }
 
-  let { form, onSubmit }: Props = $props();
+  let { form, onSubmit, identity = {} }: Props = $props();
 
-  const initialForm = form;
-  const conv = new Conversation(initialForm);
+  // Built once: the conversation is a stateful machine, not reactive to later
+  // prop changes. `untrack` makes that one-time read explicit (and silences the
+  // state_referenced_locally warning).
+  const conv = untrack(() => new Conversation(form, identity));
   let submitted = $state(false);
 
   $effect(() => {
@@ -77,7 +86,6 @@
 
     {#if conv.isDone}
       <div class="flex flex-col items-center gap-3 py-3">
-        <p class="text-center text-sm font-medium">Merci pour ton retour !</p>
         <a
           href="/"
           class="rounded-full bg-epi-blue px-6 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"

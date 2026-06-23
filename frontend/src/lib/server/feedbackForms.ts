@@ -73,6 +73,11 @@ function projectQuestion(q: GraphQuestion): Question {
     ? (IDENTITY_FIELD_TO_INPUT_KIND[identityField] ?? undefined)
     : ((q.inputKind ?? undefined) as InputKind | undefined);
 
+  const optionReactions: Record<string, string> = {};
+  for (const o of q.options) {
+    if (o.reaction) optionReactions[o.label] = o.reaction;
+  }
+
   return {
     id: q.key,
     section: q.section?.title,
@@ -89,6 +94,8 @@ function projectQuestion(q: GraphQuestion): Question {
     inputKind,
     placeholder: q.placeholder ?? undefined,
     identityField,
+    optionReactions:
+      Object.keys(optionReactions).length > 0 ? optionReactions : undefined,
   };
 }
 
@@ -108,6 +115,7 @@ export function toFormSchema(
     id: graph.slug,
     title: graph.title,
     intro: graph.intro,
+    outro: graph.outro ?? undefined,
     questions,
   };
 }

@@ -52,6 +52,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     // Authenticated audience: identity questions are dropped (Jump already holds
     // the talent's identity), so no prefill is needed.
     formSchema: toFormSchema(graph, 'authenticated'),
+    // Seeds the bot's interpolated copy ("Salut {prenom} !"); the identity
+    // questions are skipped, so this is the only source for a connected talent.
+    identity: {
+      prenom: locals.talent.prenom,
+      nom: locals.talent.nom,
+      civilite: locals.talent.civilite ?? undefined,
+      campus: locals.talentCampusName ?? undefined,
+    },
     eventId: params.eventId,
     formId: params.formId,
   };

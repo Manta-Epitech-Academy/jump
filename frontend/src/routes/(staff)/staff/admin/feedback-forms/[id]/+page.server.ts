@@ -20,6 +20,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
       slug: graph.slug,
       title: graph.title,
       intro: graph.intro,
+      outro: graph.outro,
       personaName: graph.personaName,
       status: graph.status,
       allowsAuthenticatedAccess: graph.allowsAuthenticatedAccess,
@@ -50,6 +51,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
         label: o.label,
         kind: o.kind,
         position: o.position,
+        reaction: o.reaction,
       })),
     })),
   };

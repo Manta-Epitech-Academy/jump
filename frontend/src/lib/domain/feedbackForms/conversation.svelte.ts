@@ -5,8 +5,18 @@
  * bot → réponse utilisateur → question suivante, avec indicateur de frappe,
  * en-têtes de section et validation.
  */
-import type { FormSchema, Question, Answers, AnswerValue } from './schema';
-import { validateAnswer } from './schema';
+import type {
+  FormSchema,
+  Question,
+  Answers,
+  AnswerValue,
+  IdentityContext,
+} from './schema';
+import {
+  validateAnswer,
+  interpolate,
+  IDENTITY_FIELD_TO_CONTEXT_KEY,
+} from './schema';
 
 export type ChatRole = 'bot' | 'user';
 
@@ -52,9 +62,13 @@ export class Conversation {
 
   #seq = 0;
   #lastSection: string | undefined = undefined;
+  // Identity used to interpolate bot copy. Seeded from the connected talent;
+  // for a public respondent it is filled in as identity questions are answered.
+  #ctx: IdentityContext;
 
-  constructor(form: FormSchema) {
+  constructor(form: FormSchema, identity: IdentityContext = {}) {
     this.form = form;
+    this.#ctx = { ...identity };
   }
 
   get current(): Question | undefined {
@@ -81,7 +95,7 @@ export class Conversation {
   async #botSay(text: string, delay = 650) {
     this.status = 'typing';
     await sleep(delay);
-    this.#push('bot', text);
+    this.#push('bot', interpolate(text, this.#ctx));
   }
 
   /** Démarre la conversation (intro + première question). */
@@ -94,10 +108,10 @@ export class Conversation {
   async #ask() {
     const q = this.form.questions[this.index];
     if (!q) {
-      await this.#botSay(
-        "Merci, c'est tout bon ! Je prépare ton récapitulatif. 🎉",
-        500,
-      );
+      const outro = this.form.outro?.trim()
+        ? this.form.outro
+        : "Merci, c'est tout bon ! Je prépare ton récapitulatif. 🎉";
+      await this.#botSay(outro, 500);
       this.status = 'done';
       return;
     }
@@ -131,9 +145,27 @@ export class Conversation {
     } else {
       this.answers[q.id] = value;
       this.#push('user', display ?? formatAnswer(value));
+      this.#captureIdentity(q, value);
+      await this.#emitReactions(q, value);
     }
 
     this.index += 1;
     await this.#ask();
+  }
+
+  /** Fills the interpolation context from an answered identity question. */
+  #captureIdentity(q: Question, value: AnswerValue) {
+    if (!q.identityField || typeof value !== 'string') return;
+    const key = IDENTITY_FIELD_TO_CONTEXT_KEY[q.identityField];
+    if (key) this.#ctx[key] = value;
+  }
+
+  /** Emits Bernard's reaction for each chosen option that carries one. */
+  async #emitReactions(q: Question, value: AnswerValue) {
+    if (!q.optionReactions) return;
+    for (const label of Array.isArray(value) ? value : [value]) {
+      const reaction = q.optionReactions[label];
+      if (reaction) await this.#botSay(reaction);
+    }
   }
 }

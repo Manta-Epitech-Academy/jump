@@ -50,7 +50,11 @@
     <div
       class="flex h-full flex-col overflow-hidden sm:rounded-2xl sm:shadow-xl sm:shadow-slate-200/50 dark:sm:shadow-none"
     >
-      <ChatScreen form={data.formSchema} onSubmit={handleSubmit} />
+      <ChatScreen
+        form={data.formSchema}
+        onSubmit={handleSubmit}
+        identity={data.identity}
+      />
     </div>
   </div>
 

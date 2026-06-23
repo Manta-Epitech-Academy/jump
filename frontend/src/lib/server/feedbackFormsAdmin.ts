@@ -78,6 +78,7 @@ export async function updateForm(
   patch: {
     title?: string;
     intro?: string;
+    outro?: string | null;
     personaName?: string | null;
     status?: Feedback_FormStatus;
     allowsAuthenticatedAccess?: boolean;
@@ -106,6 +107,7 @@ export async function duplicateForm(
         slug,
         title: `${src.title} (copie)`,
         intro: src.intro,
+        outro: src.outro,
         personaName: src.personaName,
         // A copy always starts as an editable draft, never public.
         status: 'draft',
@@ -152,6 +154,7 @@ export async function duplicateForm(
               position: o.position,
               label: o.label,
               kind: o.kind,
+              reaction: o.reaction,
             })),
           },
         },
@@ -444,6 +447,7 @@ export async function duplicateQuestion(
             position: o.position,
             label: o.label,
             kind: o.kind,
+            reaction: o.reaction,
           })),
         },
       },
@@ -475,7 +479,12 @@ export async function assertOptionLabelAvailable(
 export async function createOption(
   formId: string,
   questionId: string,
-  input: { label: string; kind?: Feedback_OptionKind; position: number },
+  input: {
+    label: string;
+    kind?: Feedback_OptionKind;
+    position: number;
+    reaction?: string | null;
+  },
 ): Promise<{ id: string }> {
   await assertEditable(formId);
   await assertOptionLabelAvailable(questionId, input.label);
@@ -485,6 +494,7 @@ export async function createOption(
       label: input.label,
       kind: input.kind ?? 'choice',
       position: input.position,
+      reaction: input.reaction ?? null,
     },
     select: { id: true },
   });
@@ -493,10 +503,14 @@ export async function createOption(
 export async function updateOption(
   formId: string,
   id: string,
-  patch: { label?: string; kind?: Feedback_OptionKind },
+  patch: {
+    label?: string;
+    kind?: Feedback_OptionKind;
+    reaction?: string | null;
+  },
 ): Promise<void> {
-  // Relabelling is rename-safe (answers reference the option id) -> always allowed.
-  // Changing the kind is structural.
+  // Relabelling is rename-safe (answers reference the option id) and the reaction
+  // is pure copy -> both always allowed. Changing the kind is structural.
   if (patch.kind !== undefined) await assertEditable(formId);
   if (patch.label !== undefined) {
     const opt = await prisma.feedback_QuestionOption.findUnique({
