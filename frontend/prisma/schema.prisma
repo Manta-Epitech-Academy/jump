@@ -174,7 +174,6 @@ model bauth_user {
   staffProfile              StaffProfile?
   talent                    Talent?
   invitationsIssued         StaffInvitation[]    @relation("StaffInvitationInvitedBy")
-  cmsPages                  CmsPage[]
   ticketsAuthored           Ticket[]             @relation("TicketAuthor")
   ticketMessages            TicketMessage[]
   broadcastsCreated         Broadcast[]          @relation("BroadcastCreator")
@@ -280,6 +279,7 @@ model StaffProfile {
   interviewResets         InterviewReset[]            @relation("InterviewResetBy")
   notesAuthored           Note_TalentNote[]           @relation("Note_TalentNoteAuthor")
   notesEdited             Note_TalentNote[]           @relation("Note_TalentNoteEditor")
+  newsPosts               NewsPost[]
 
   @@index([campusId])
 }
@@ -607,20 +607,26 @@ model Campus {
   xpGrants          XpGrant[]
   xpRewards         XpReward[]
   signatories       Signatory[]
+  newsPosts         NewsPost[]
 }
 
-model CmsPage {
-  id        String   @id @default(cuid())
-  slug      String
-  eventId   String
-  content   String   @db.Text
-  updatedAt DateTime @updatedAt
-  updatedBy String
+model NewsPost {
+  id          String    @id @default(cuid())
+  campusId    String?
+  eventId     String?
+  authorId    String?
+  title       String
+  content     String    @db.Text
+  publishedAt DateTime  @default(now())
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  event Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user  bauth_user @relation(fields: [updatedBy], references: [id])
+  campus Campus?       @relation(fields: [campusId], references: [id], onDelete: SetNull)
+  event  Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  author StaffProfile? @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
-  @@unique([slug, eventId])
+  @@index([campusId, publishedAt])
   @@index([eventId])
 }
 
@@ -766,7 +772,7 @@ model Event {
   planning         Planning?
   observableStates TalentObservableState[]
   quizAttempts     TalentQuizAttempt[]
-  cmsPages         CmsPage[]
+  newsPosts        NewsPost[]
   broadcasts       Broadcast[]
   minigameAttempts MinigameAttempt[]
   presenceClosures EventPresenceClosure[]
