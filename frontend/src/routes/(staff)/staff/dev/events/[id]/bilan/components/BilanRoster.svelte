@@ -14,10 +14,16 @@
   } from '$lib/components/staff/datatable/types';
   import type { BilanRow } from '../+page.server';
 
-  let { rows }: { rows: BilanRow[] } = $props();
+  let { rows, recoOptions }: { rows: BilanRow[]; recoOptions: string[] } =
+    $props();
+
+  // Sentinel for the "no recommendation answer" filter bucket (kept distinct from
+  // any real option label).
+  const RECO_NONE = '__none';
 
   let searchQuery = $state('');
   let statut = $state<'all' | 'responded' | 'pending'>('all');
+  let reco = $state<string>('all');
   let sortKey = $state<string>('nom');
   let sortDir = $state<SortDir>('asc');
 
@@ -25,6 +31,7 @@
     { key: 'avatar', label: '', class: 'w-10' },
     { key: 'prenom', label: 'Prénom', sortable: true, class: 'w-40' },
     { key: 'nom', label: 'Nom', sortable: true, class: 'w-full' },
+    { key: 'reco', label: 'Recommandation', sortable: true, class: 'w-44' },
     { key: 'statut', label: 'Réponse', sortable: true, class: 'w-32' },
     { key: 'date', label: 'Le', align: 'right', class: 'w-32' },
   ];
@@ -38,6 +45,30 @@
   function fmtDate(iso: string | null): string {
     return iso ? dateFmt.format(new Date(iso)) : '—';
   }
+
+  // Sentiment tier from the option's position in the canonical best→worst list,
+  // so the colour survives label edits and works for any future reco question:
+  // top third positive (green), bottom quarter negative (red), middle neutral
+  // (amber). For the 4 stage options this reads green / green / amber / red.
+  type RecoTier = 'positive' | 'neutral' | 'negative';
+  function recoTier(label: string | null): RecoTier | null {
+    if (!label) return null;
+    const idx = recoOptions.indexOf(label);
+    if (idx < 0) return null;
+    if (recoOptions.length <= 1) return 'neutral';
+    const ratio = idx / (recoOptions.length - 1);
+    if (ratio <= 0.34) return 'positive';
+    if (ratio >= 0.75) return 'negative';
+    return 'neutral';
+  }
+
+  const recoBadgeClass: Record<RecoTier, string> = {
+    positive:
+      'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
+    neutral:
+      'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
+    negative: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400',
+  };
 
   function toggleSort(key: string) {
     if (sortKey === key) {
@@ -53,11 +84,24 @@
     let out = rows.filter((r) => {
       if (statut === 'responded' && !r.respondedAt) return false;
       if (statut === 'pending' && r.respondedAt) return false;
+      if (reco !== 'all') {
+        if (reco === RECO_NONE) {
+          if (r.recoLabel) return false;
+        } else if (r.recoLabel !== reco) {
+          return false;
+        }
+      }
       if (!q) return true;
       return `${r.prenom ?? ''} ${r.nom ?? ''}`.toLowerCase().includes(q);
     });
     const dir = sortDir === 'asc' ? 1 : -1;
     out = [...out].sort((a, b) => {
+      // Reco sorts by best→worst rank; unanswered always sinks to the bottom.
+      if (sortKey === 'reco') {
+        const ra = a.recoLabel ? recoOptions.indexOf(a.recoLabel) : Infinity;
+        const rb = b.recoLabel ? recoOptions.indexOf(b.recoLabel) : Infinity;
+        return ra === rb ? 0 : ra < rb ? -dir : dir;
+      }
       let av: string;
       let bv: string;
       if (sortKey === 'statut') {
@@ -77,6 +121,12 @@
     { value: 'responded', label: 'A répondu' },
     { value: 'pending', label: 'En attente' },
   ];
+
+  const recoFilterOptions = $derived([
+    { value: 'all', label: 'Toutes' },
+    ...recoOptions.map((l) => ({ value: l, label: l })),
+    { value: RECO_NONE, label: 'Sans réponse' },
+  ]);
 </script>
 
 <div class="space-y-4">
@@ -84,18 +134,42 @@
     searchValue={searchQuery}
     onSearchInput={(v) => (searchQuery = v)}
     searchPlaceholder="Rechercher un stagiaire…"
+    searchWidthClass="w-full max-w-[230px]"
+    filtersAlign="end"
     count={filtered.length}
     countNoun="stagiaire"
     countNounPlural="stagiaires"
     countSuffix="correspondent aux filtres"
   >
     {#snippet filters()}
-      <FilterSelect
-        ariaLabel="Réponse"
-        value={statut}
-        options={statutOptions}
-        onChange={(v) => (statut = v as typeof statut)}
-      />
+      <div class="flex items-center gap-2">
+        <span
+          class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
+        >
+          Réponse
+        </span>
+        <FilterSelect
+          ariaLabel="Filtrer par réponse"
+          value={statut}
+          options={statutOptions}
+          onChange={(v) => (statut = v as typeof statut)}
+        />
+      </div>
+      {#if recoOptions.length > 0}
+        <div class="flex items-center gap-2">
+          <span
+            class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
+          >
+            Recommandation
+          </span>
+          <FilterSelect
+            ariaLabel="Filtrer par recommandation"
+            value={reco}
+            options={recoFilterOptions}
+            onChange={(v) => (reco = v)}
+          />
+        </div>
+      {/if}
     {/snippet}
   </DataTableToolbar>
 
@@ -106,7 +180,6 @@
     {sortDir}
     onSort={toggleSort}
     rowKey={(r) => r.talentId}
-    rowHref={(r) => resolve(`/staff/dev/students/${r.talentId}`)}
     row={rowSnippet}
     mobileRow={mobileRowSnippet}
   />
@@ -128,15 +201,46 @@
   {/if}
 {/snippet}
 
-{#snippet rowSnippet(r: BilanRow)}
-  <Table.Cell class="w-10">
+{#snippet recoBadge(r: BilanRow)}
+  {@const tier = recoTier(r.recoLabel)}
+  {#if r.recoLabel && tier}
+    <span
+      class={cn(
+        'inline-flex items-center rounded-sm px-2 py-0.5 text-xs font-medium',
+        recoBadgeClass[tier],
+      )}
+    >
+      {r.recoLabel}
+    </span>
+  {:else}
+    <span class="text-xs text-muted-foreground">—</span>
+  {/if}
+{/snippet}
+
+<!-- Only the avatar links to the fiche (new tab), the row and the name are inert.
+     Marking a stagiaire's recommendation should never be a click away from a full
+     navigation; mirrors the émargement roster. -->
+{#snippet avatarLink(r: BilanRow)}
+  <a
+    href={resolve(`/staff/dev/students/${r.talentId}`)}
+    target="_blank"
+    rel="noopener"
+    class="inline-flex"
+    title="Voir la fiche"
+    aria-label={`Ouvrir la fiche de ${r.prenom ?? ''} ${r.nom ?? ''} (nouvel onglet)`}
+  >
     <TalentAvatar
       talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
       size="sm"
     />
-  </Table.Cell>
+  </a>
+{/snippet}
+
+{#snippet rowSnippet(r: BilanRow)}
+  <Table.Cell class="w-10">{@render avatarLink(r)}</Table.Cell>
   <Table.Cell class="font-medium">{r.prenom ?? '—'}</Table.Cell>
   <Table.Cell>{r.nom ?? '—'}</Table.Cell>
+  <Table.Cell>{@render recoBadge(r)}</Table.Cell>
   <Table.Cell>{@render statutBadge(r)}</Table.Cell>
   <Table.Cell class="text-right font-mono text-xs text-muted-foreground">
     {fmtDate(r.respondedAt)}
@@ -145,16 +249,14 @@
 
 {#snippet mobileRowSnippet(r: BilanRow)}
   <div class={cn('flex items-center gap-3 p-3')}>
-    <TalentAvatar
-      talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
-      size="sm"
-    />
-    <div class="min-w-0 flex-1">
+    {@render avatarLink(r)}
+    <div class="min-w-0 flex-1 space-y-1">
       <p class="truncate text-sm font-medium">
         {r.prenom ?? ''}
         {r.nom ?? ''}
       </p>
       <p class="text-xs text-muted-foreground">{fmtDate(r.respondedAt)}</p>
+      {@render recoBadge(r)}
     </div>
     {@render statutBadge(r)}
   </div>

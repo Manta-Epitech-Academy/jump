@@ -59,25 +59,30 @@
     />
   {/if}
 
-  {#if !question.required && value.trim().length === 0}
+  <!-- Actions kept as one bottom-anchored group: the row is `items-end` so the
+       send button sits at the bottom of the (multi-line) field, and centring the
+       pair here keeps "Passer" level with it instead of floating mid-height. -->
+  <div class="flex shrink-0 items-center gap-2">
+    {#if !question.required && value.trim().length === 0}
+      <button
+        type="button"
+        class="cursor-pointer px-2 py-2 text-sm text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
+        onclick={() => onanswer('')}
+      >
+        Passer
+      </button>
+    {/if}
+
     <button
       type="button"
-      class="shrink-0 self-center px-2 py-2 text-sm text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
-      onclick={() => onanswer('')}
+      class={cn(
+        'flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-epi-teal text-epi-blue transition-opacity',
+        !canSubmit && 'cursor-not-allowed opacity-40',
+      )}
+      disabled={!canSubmit}
+      onclick={submit}
     >
-      Passer
+      <Send size={18} />
     </button>
-  {/if}
-
-  <button
-    type="button"
-    class={cn(
-      'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-epi-teal text-epi-blue transition-opacity',
-      !canSubmit && 'cursor-not-allowed opacity-40',
-    )}
-    disabled={!canSubmit}
-    onclick={submit}
-  >
-    <Send size={18} />
-  </button>
+  </div>
 </div>

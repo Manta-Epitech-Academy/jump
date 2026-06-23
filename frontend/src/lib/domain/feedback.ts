@@ -6,6 +6,14 @@
 export const STAGE_FORM_SLUG = 'stage';
 
 /**
+ * Stable key of the recommendation question ("recommanderais-tu ce stage ?").
+ * It is the single most important question, reused across every feedback form,
+ * so the dev Bilan promotes it to a roster column + filter + the lone chart.
+ * Single-sourced here rather than re-typing the `'reco'` literal at each site.
+ */
+export const RECO_QUESTION_KEY = 'reco';
+
+/**
  * Returns the slug of the first dashboard-nudge form the talent still owes for the
  * event, or null. The candidate forms come from the DB (`Feedback_Form.dashboardNudge`),
  * so adding a nudged form needs no code change.

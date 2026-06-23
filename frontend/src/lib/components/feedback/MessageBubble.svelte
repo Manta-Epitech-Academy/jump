@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ChatRole } from '$lib/domain/feedbackForms/conversation.svelte';
-  import { applyFrenchSpacing } from '$lib/domain/feedbackForms/schema';
+  import { typesetChat } from '$lib/domain/feedbackForms/schema';
   import { cn } from '$lib/utils';
 
   interface Props {
@@ -12,8 +12,9 @@
   let { role, text, time }: Props = $props();
 
   const isBot = $derived(role === 'bot');
-  // No-break space before French punctuation so a lone "?" never wraps alone.
-  const display = $derived(applyFrenchSpacing(text));
+  // No-break space before French punctuation and before a trailing emoji, so
+  // neither a lone "?" nor a lone emoji ever wraps onto its own line.
+  const display = $derived(typesetChat(text));
 </script>
 
 <div

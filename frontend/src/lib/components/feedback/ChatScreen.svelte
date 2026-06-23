@@ -105,7 +105,7 @@
           {#each conv.current.extraOptions as eo (eo)}
             <button
               type="button"
-              class="text-xs text-muted-foreground underline underline-offset-2"
+              class="cursor-pointer text-xs text-muted-foreground underline underline-offset-2"
               onclick={() => conv.answer(eo)}>{eo}</button
             >
           {/each}

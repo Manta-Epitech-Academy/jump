@@ -50,7 +50,7 @@
             class="rounded-sm"
           >
             <Download class="mr-1.5 h-4 w-4" />
-            Exporter CSV
+            Exporter XLSX
           </Button>
           <Tooltip.Root>
             <Tooltip.Trigger>
@@ -90,21 +90,24 @@
       </p>
     </div>
   {:else if cohort}
-    <!-- The roster is a slim who-answered checklist; the value of this page is the
-         results. Split the width evenly rather than handing the table 70%, so the
-         answer breakdowns get room to tile (see StatsPanel) instead of stacking into
-         one tall, narrow strip. -->
-    <div class="grid gap-6 xl:grid-cols-2">
-      <div class="min-w-0">
-        <BilanRoster rows={cohort.rows} />
+    <!-- 70/30 split, matching the other validated stage_seconde dev pages
+         (inscrits, émargement): the roster is the working surface, the rail
+         carries the glanceable summary (taux de réponse + the recommendation
+         breakdown, the one chart that matters). `min-w-0` keeps the table from
+         blowing the grid past the viewport. -->
+    <div class="grid gap-6 xl:grid-cols-10">
+      <div class="min-w-0 xl:col-span-7">
+        <BilanRoster rows={cohort.rows} recoOptions={cohort.recoOptions} />
       </div>
-      <div class="min-w-0">
-        <StatsPanel
-          respondedCount={cohort.respondedCount}
-          total={cohort.total}
-          stats={cohort.stats}
-        />
-      </div>
+      <aside class="min-w-0 xl:col-span-3">
+        <div class="xl:sticky xl:top-6">
+          <StatsPanel
+            respondedCount={cohort.respondedCount}
+            total={cohort.total}
+            stats={cohort.stats}
+          />
+        </div>
+      </aside>
     </div>
   {:else if cohortFailed}
     <div

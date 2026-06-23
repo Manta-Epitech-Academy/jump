@@ -240,17 +240,6 @@
           <span>Émargement</span>
         </a>
       {/if}
-      {#if hasBilan}
-        <a
-          href={resolve(`/staff/dev/events/${data.activeStage.id}/bilan`)}
-          class={navLinkClass(
-            isActive(`/staff/dev/events/${data.activeStage.id}/bilan`),
-          )}
-        >
-          <MessageSquareText class="h-5 w-5" />
-          <span>Bilan du stage</span>
-        </a>
-      {/if}
       {#if hasPlanning}
         <a
           href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
@@ -291,6 +280,17 @@
         >
           <MessageSquare class="h-5 w-5" />
           <span>Entretiens</span>
+        </a>
+      {/if}
+      {#if hasBilan}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/bilan`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/bilan`),
+          )}
+        >
+          <MessageSquareText class="h-5 w-5" />
+          <span>Bilan du stage</span>
         </a>
       {/if}
     </nav>

@@ -4,19 +4,24 @@ import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { requireFlag } from '$lib/server/auth/guards';
 import { prisma } from '$lib/server/db';
 import { computeFormStats, type FormStats } from '$lib/server/feedbackStats';
-import { STAGE_FORM_SLUG } from '$lib/domain/feedback';
+import { getFormGraphBySlug } from '$lib/server/feedbackForms';
+import { RECO_QUESTION_KEY, STAGE_FORM_SLUG } from '$lib/domain/feedback';
 
 export interface BilanRow {
   talentId: string;
   nom: string | null;
   prenom: string | null;
   respondedAt: string | null;
+  /** Label of the chosen recommendation option, null if not (yet) answered. */
+  recoLabel: string | null;
 }
 
 export interface BilanCohort {
   rows: BilanRow[];
   respondedCount: number;
   total: number;
+  /** Recommendation options in canonical best→worst order (filter + badge tier). */
+  recoOptions: string[];
   stats: FormStats | null;
 }
 
@@ -29,18 +34,22 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   const db = scopedPrisma(campusId);
 
   // The bilan form is the canonical "stage" form; the page reports this event's
-  // authenticated submissions against it. Resolved the same way as the QR
-  // (published + authenticated) so the two never disagree: a draft or archived
-  // form yields no bilan here either, instead of showing stats for a form whose
-  // QR would 404. The dev space never surfaces the public link.
-  const form = await prisma.feedback_Form.findFirst({
-    where: {
-      slug: STAGE_FORM_SLUG,
-      status: 'published',
-      allowsAuthenticatedAccess: true,
-    },
-    select: { id: true, title: true },
-  });
+  // authenticated submissions against it. Resolved the same way as the QR/export
+  // (published + authenticated) so they never disagree: a draft or archived form
+  // yields no bilan here either, instead of stats for a form whose QR would 404.
+  // The full graph is loaded (not just id/title) so we can read the recommendation
+  // question and its options. The dev space never surfaces the public link.
+  const graph = await getFormGraphBySlug(STAGE_FORM_SLUG);
+  const form =
+    graph && graph.status === 'published' && graph.allowsAuthenticatedAccess
+      ? graph
+      : null;
+
+  const recoQ =
+    form?.questions.find((q) => q.key === RECO_QUESTION_KEY) ?? null;
+  const recoOptions = recoQ
+    ? recoQ.options.filter((o) => o.kind === 'choice').map((o) => o.label)
+    : [];
 
   const cohort: Promise<BilanCohort> = (async () => {
     const [participations, submissions, stats] = await Promise.all([
@@ -52,38 +61,68 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
         },
         orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
       }),
-      form
-        ? prisma.feedback_Submission.findMany({
-            where: {
-              formId: form.id,
-              eventId: event.id,
-              source: 'authenticated',
+      (async () => {
+        if (!form)
+          return [] as {
+            talentId: string | null;
+            submittedAt: Date;
+            recoLabel: string | null;
+          }[];
+        const subs = await prisma.feedback_Submission.findMany({
+          where: {
+            formId: form.id,
+            eventId: event.id,
+            source: 'authenticated',
+          },
+          select: {
+            talentId: true,
+            submittedAt: true,
+            // Only the recommendation answer is pulled per talent for the roster
+            // column; the empty-string id matches nothing when there is no reco
+            // question, leaving every recoLabel null.
+            answers: {
+              where: { questionId: recoQ?.id ?? '' },
+              select: {
+                selectedOptions: {
+                  select: { option: { select: { label: true } } },
+                },
+              },
             },
-            select: { talentId: true, submittedAt: true },
-          })
-        : Promise.resolve([]),
+          },
+        });
+        return subs.map((s) => ({
+          talentId: s.talentId,
+          submittedAt: s.submittedAt,
+          recoLabel: s.answers[0]?.selectedOptions[0]?.option.label ?? null,
+        }));
+      })(),
       form
         ? computeFormStats(form.id, { eventId: event.id })
         : Promise.resolve(null),
     ]);
 
-    const respondedAt = new Map(
+    const byTalent = new Map(
       submissions
         .filter((s) => s.talentId)
-        .map((s) => [s.talentId as string, s.submittedAt.toISOString()]),
+        .map((s) => [s.talentId as string, s]),
     );
 
-    const rows: BilanRow[] = participations.map((p) => ({
-      talentId: p.talentId,
-      nom: p.talent.nom,
-      prenom: p.talent.prenom,
-      respondedAt: respondedAt.get(p.talentId) ?? null,
-    }));
+    const rows: BilanRow[] = participations.map((p) => {
+      const sub = byTalent.get(p.talentId);
+      return {
+        talentId: p.talentId,
+        nom: p.talent.nom,
+        prenom: p.talent.prenom,
+        respondedAt: sub ? sub.submittedAt.toISOString() : null,
+        recoLabel: sub?.recoLabel ?? null,
+      };
+    });
 
     return {
       rows,
       respondedCount: rows.filter((r) => r.respondedAt).length,
       total: rows.length,
+      recoOptions,
       stats,
     };
   })();

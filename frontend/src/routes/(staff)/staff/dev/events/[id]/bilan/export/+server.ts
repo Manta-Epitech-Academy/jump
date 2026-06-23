@@ -7,13 +7,13 @@ import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { getFormGraphBySlug } from '$lib/server/feedbackForms';
 import { buildSubmissionWhere } from '$lib/server/feedbackStats';
 import { STAGE_FORM_SLUG } from '$lib/domain/feedback';
-import { csvResponse } from '$lib/server/csv';
+import { buildXlsx } from '$lib/server/xlsx';
 
-// Event-scoped CSV of the bilan responses, the dev-space counterpart of the QR.
+// Event-scoped XLSX of the bilan responses, the dev-space counterpart of the QR.
 // Resolves the form exactly like the page (canonical stage slug, published +
 // authenticated) so the export never reports a form the page wouldn't show. The
-// route is dev-space + `bilan`-flag gated; cells go through `csvResponse`, which
-// formula-guards every value (submissions carry untrusted respondent input).
+// route is dev-space + `bilan`-flag gated. XLSX inline strings are inert, so no
+// CSV-style formula guard is needed on the untrusted respondent input.
 export const GET: RequestHandler = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
   requireFlag(locals, 'bilan');
@@ -62,5 +62,25 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     ];
   });
 
-  return csvResponse(`bilan-${graph.slug}.csv`, headers, rows);
+  const xlsx = buildXlsx({
+    name: 'Bilan',
+    headers,
+    rows,
+    colWidths: [16, 16, 24, ...columns.map(() => 28)],
+  });
+
+  const safeTitle =
+    event.titre
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^A-Za-z0-9 _-]/g, '')
+      .trim() || 'bilan';
+
+  return new Response(xlsx.buffer as ArrayBuffer, {
+    headers: {
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="Bilan - ${safeTitle}.xlsx"`,
+    },
+  });
 };

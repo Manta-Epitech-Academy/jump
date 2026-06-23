@@ -33,8 +33,10 @@
 </script>
 
 <Select.Root type="single" {value} onValueChange={onChange}>
+  <!-- `default` size = h-9, so the trigger lines up with the search Input it sits
+       beside in a DataTableToolbar (sm/h-8 left it visibly short). -->
   <Select.Trigger
-    size="sm"
+    size="default"
     class={cn('w-44 cursor-pointer rounded-sm', triggerClass)}
     aria-label={ariaLabel}
   >

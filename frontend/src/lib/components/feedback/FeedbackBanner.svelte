@@ -23,7 +23,7 @@
     <button
       type="button"
       onclick={() => (dismissed = true)}
-      class="shrink-0 text-muted-foreground hover:text-foreground"
+      class="shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
       aria-label="Fermer"
     >
       <X class="h-4 w-4" />

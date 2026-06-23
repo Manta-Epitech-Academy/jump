@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { typesetChat } from '$lib/domain/feedbackForms/schema';
   import { scaleEmoji, scaleLevelColor } from './scale';
 
   interface Props {
@@ -27,12 +28,14 @@
     {@const color = scaleLevelColor(origIdx, options.length)}
     <button
       type="button"
-      class="flex items-center gap-3 rounded-xl border-2 border-[var(--lvl)] p-3 text-left transition-colors active:bg-slate-50 sm:flex-col sm:items-center sm:gap-1 sm:border-transparent sm:text-center sm:hover:border-[var(--lvl)] sm:active:bg-transparent dark:active:bg-slate-800"
+      class="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-[var(--lvl)] p-3 text-left transition-colors active:bg-slate-50 sm:flex-col sm:items-center sm:gap-1 sm:border-transparent sm:text-center sm:hover:border-[var(--lvl)] sm:active:bg-transparent dark:active:bg-slate-800"
       style:--lvl={color}
       onclick={() => onanswer?.(label, `${emoji}  ${label}`)}
     >
       <span class="text-2xl">{emoji}</span>
-      <span class="text-sm leading-tight font-medium sm:text-xs">{label}</span>
+      <span class="text-sm leading-tight font-medium sm:text-xs"
+        >{typesetChat(label)}</span
+      >
     </button>
   {/each}
 </div>
