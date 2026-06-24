@@ -4,6 +4,7 @@
   import Globe from '@lucide/svelte/icons/globe';
   import Send from '@lucide/svelte/icons/send';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import Link2Off from '@lucide/svelte/icons/link-2-off';
   import { Button } from '$lib/components/ui/button';
   import { Switch } from '$lib/components/ui/switch';
   import * as Popover from '$lib/components/ui/popover';
@@ -43,14 +44,20 @@
     editor.publishedButUnreachable || editor.publicMissingEmail,
   );
 
+  // The honest "who can respond right now": folds the publish statut into the
+  // access modes, so a draft or archived form never reads as if it were live.
   const summary = $derived(
-    editor.allowsAuthenticatedAccess && editor.allowsPublicAccess
-      ? 'Proposé aux talents connectés et aux répondants publics.'
-      : editor.allowsAuthenticatedAccess
-        ? 'Proposé aux talents connectés uniquement.'
-        : editor.allowsPublicAccess
-          ? 'Accessible publiquement uniquement.'
-          : 'Aucun mode d’accès n’est activé : personne ne peut répondre.',
+    !editor.isPublished
+      ? editor.status === 'archived'
+        ? 'Formulaire archivé : il n’accepte plus de réponses.'
+        : 'Brouillon : personne ne peut répondre tant qu’il n’est pas publié.'
+      : editor.liveForAuthenticated && editor.liveForPublic
+        ? 'En ligne pour les talents connectés et les répondants publics.'
+        : editor.liveForAuthenticated
+          ? 'En ligne pour les talents connectés.'
+          : editor.liveForPublic
+            ? 'En ligne pour les répondants publics.'
+            : 'Publié, mais personne ne peut répondre pour l’instant.',
   );
 </script>
 
@@ -82,7 +89,7 @@
   </Popover.Trigger>
   <Popover.Content
     align="end"
-    class="max-h-[80vh] w-80 space-y-3 overflow-y-auto p-4"
+    class="max-h-[80vh] w-96 space-y-3 overflow-y-auto p-4"
   >
     <div class="space-y-0.5">
       <p class="text-sm font-semibold">Diffusion</p>
@@ -176,15 +183,44 @@
           </p>
         </div>
       {/if}
-      <div
-        class="flex flex-wrap items-center gap-2 rounded-sm bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
-      >
-        <span>Lien public :</span>
-        <code class="rounded bg-background px-1.5 py-0.5"
-          >/bilan/{editor.slug}</code
+      <!-- The public route 404s unless the form is published with an e-mail
+           question, so the link only reads as copyable when it actually
+           resolves. Otherwise it's a dimmed, dashed "inactive" block (not just a
+           missing copy button) with the reason, so a dead link is never mistaken
+           for a shareable one. -->
+      {#if editor.liveForPublic}
+        <div
+          class="flex flex-wrap items-center gap-2 rounded-sm bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
         >
-        <CopyButton value={publicUrl} label="Copier le lien public" />
-      </div>
+          <span>Lien public :</span>
+          <code class="rounded bg-background px-1.5 py-0.5"
+            >/bilan/{editor.slug}</code
+          >
+          <CopyButton value={publicUrl} label="Copier le lien public" />
+        </div>
+      {:else}
+        <div
+          class="space-y-1.5 rounded-sm border border-dashed border-muted-foreground/30 px-3 py-2.5"
+        >
+          <div
+            class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground/70"
+          >
+            <Link2Off class="h-3.5 w-3.5 shrink-0" />
+            <span>Lien public inactif :</span>
+            <code
+              class="rounded bg-muted px-1.5 py-0.5 break-all text-muted-foreground/60"
+              >/bilan/{editor.slug}</code
+            >
+          </div>
+          {#if !editor.isPublished}
+            <p class="text-[11px] leading-snug text-muted-foreground">
+              {editor.status === 'archived'
+                ? 'Formulaire archivé : ce lien renvoie une erreur.'
+                : 'Le lien sera actif une fois le formulaire publié.'}
+            </p>
+          {/if}
+        </div>
+      {/if}
     {/if}
   </Popover.Content>
 </Popover.Root>

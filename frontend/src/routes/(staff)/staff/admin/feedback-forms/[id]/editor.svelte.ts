@@ -201,6 +201,26 @@ export class FormEditor {
     );
   }
 
+  get isPublished(): boolean {
+    return this.status === 'published';
+  }
+
+  /**
+   * Single source for "can someone actually answer right now". A mode being on
+   * is intent; reachability also needs the form published (draft/archived 404 the
+   * routes), and public additionally needs an e-mail question. The diffusion
+   * popover reads these so it never presents a dead link or an over-stated state.
+   */
+  get liveForAuthenticated(): boolean {
+    return this.isPublished && this.allowsAuthenticatedAccess;
+  }
+
+  get liveForPublic(): boolean {
+    return (
+      this.isPublished && this.allowsPublicAccess && !this.publicMissingEmail
+    );
+  }
+
   /**
    * True when an identity question is shown to nobody: identity questions are
    * only asked to public respondents, so without public access they are dead
