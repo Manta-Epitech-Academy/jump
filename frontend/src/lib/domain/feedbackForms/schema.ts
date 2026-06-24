@@ -161,8 +161,9 @@ export interface Question {
 export interface FormSchema {
   id: string;
   title: string;
-  intro: string;
-  /** Closing bot line; falls back to a generic message when absent. */
+  /** Opening bot line; falls back to {@link DEFAULT_INTRO} when absent. */
+  intro?: string;
+  /** Closing bot line; falls back to {@link DEFAULT_OUTRO} when absent. */
   outro?: string;
   /** Name of the chat persona; falls back to the default mascot when absent. */
   personaName?: string;
@@ -181,6 +182,24 @@ export const DEFAULT_PERSONA = {
   name: 'Bernard le canard',
   iconUrl: '/canard.png',
 } as const;
+
+/**
+ * Opening line the persona speaks when a form sets no custom `intro`. There is
+ * always a greeting; this is what "leave the intro empty" produces. Kept free of
+ * {@link interpolate} tokens so it reads correctly for a public respondent (who
+ * has no known first name). Single source, like {@link DEFAULT_OUTRO}.
+ */
+export const DEFAULT_INTRO =
+  'Salut ! On fait le point sur ton stage ? C’est parti. 🙌';
+
+/**
+ * Closing line the persona speaks when a form sets no custom `outro`. There is
+ * always a goodbye message; this is what "leave the outro empty" produces.
+ * Single source so the chat engine (`conversation.svelte.ts`) and the builder's
+ * help text can never disagree about it.
+ */
+export const DEFAULT_OUTRO =
+  "Merci, c'est tout bon ! Je prépare ton récapitulatif. 🎉";
 
 /**
  * Builds the public proxy URL for a form's persona icon, or `undefined` when the

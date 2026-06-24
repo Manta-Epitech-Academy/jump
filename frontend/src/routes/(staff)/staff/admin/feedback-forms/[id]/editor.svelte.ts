@@ -21,7 +21,7 @@ export type FormStatus = 'draft' | 'published' | 'archived';
 
 export interface FormMeta {
   title: string;
-  intro: string;
+  intro: string | null;
   outro: string | null;
   personaName: string | null;
   personaIconKey: string | null;
@@ -89,7 +89,7 @@ export class FormEditor {
 
   // ── Form meta (auto-saved, like Forms: no submit button) ──
   title = $state('');
-  intro = $state('');
+  intro = $state<string | null>(null);
   outro = $state<string | null>(null);
   personaName = $state<string | null>(null);
   personaIconKey = $state<string | null>(null);

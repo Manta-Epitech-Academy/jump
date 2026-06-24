@@ -315,8 +315,14 @@
         {/if}
       </div>
       <div class="space-y-1.5">
-        <Label for="intro">Message d'introduction</Label>
-        <Textarea id="intro" name="intro" rows={4} bind:value={$form.intro} />
+        <Label for="intro">Message d'introduction (facultatif)</Label>
+        <Textarea
+          id="intro"
+          name="intro"
+          rows={4}
+          placeholder="Laissé vide, la mascotte dit un message d’accueil par défaut."
+          bind:value={$form.intro}
+        />
         {#if $errors.intro}
           <p class="text-xs text-destructive">{$errors.intro}</p>
         {/if}

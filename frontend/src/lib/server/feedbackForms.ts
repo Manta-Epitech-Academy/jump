@@ -117,7 +117,7 @@ export function toFormSchema(
   return {
     id: graph.slug,
     title: graph.title,
-    intro: graph.intro,
+    intro: graph.intro ?? undefined,
     outro: graph.outro ?? undefined,
     personaName: graph.personaName ?? undefined,
     personaIconUrl: buildPersonaIconUrl(graph.id, graph.personaIconKey),

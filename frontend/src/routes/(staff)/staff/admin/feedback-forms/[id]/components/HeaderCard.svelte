@@ -4,7 +4,11 @@
   import X from '@lucide/svelte/icons/x';
   import { Textarea } from '$lib/components/ui/textarea';
   import * as Tooltip from '$lib/components/ui/tooltip';
-  import { DEFAULT_PERSONA } from '$lib/domain/feedbackForms/schema';
+  import {
+    DEFAULT_PERSONA,
+    DEFAULT_INTRO,
+    DEFAULT_OUTRO,
+  } from '$lib/domain/feedbackForms/schema';
   import FieldLabel from './FieldLabel.svelte';
   import type { FormEditor } from '../editor.svelte';
 
@@ -130,21 +134,22 @@
     <div class="space-y-1.5">
       <FieldLabel
         text="Message d'accueil"
-        info="Premier message de la mascotte, avant la première question. {'{prenom}'} est remplacé par le prénom du répondant."
+        info={`Premier message de la mascotte, avant la première question. Il y en a toujours un : laissé vide, c’est « ${DEFAULT_INTRO} ». Vous pouvez écrire {prenom}, remplacé par le prénom du répondant.`}
       />
       <div
         class="rounded-2xl rounded-bl-sm border bg-background px-4 py-2.5 shadow-sm transition focus-within:border-epi-pink/50"
       >
         <Textarea
-          value={editor.intro}
+          value={editor.intro ?? ''}
           rows={2}
           aria-label="Message d'accueil"
-          placeholder={'Message d’accueil, ex. « Salut {prenom} ! Prêt pour le bilan ? »'}
+          placeholder={'Message d’accueil (facultatif), ex. « Salut {prenom} ! Prêt pour le bilan ? »'}
           class="resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
-          onblur={(e) =>
-            e.currentTarget.value.trim() &&
-            e.currentTarget.value !== editor.intro &&
-            editor.patchForm({ intro: e.currentTarget.value })}
+          onblur={(e) => {
+            const next = e.currentTarget.value.trim() || null;
+            if (next !== (editor.intro ?? null))
+              editor.patchForm({ intro: next });
+          }}
         />
       </div>
     </div>
@@ -152,7 +157,7 @@
     <div class="space-y-1.5">
       <FieldLabel
         text="Message de fin"
-        info="Dernier message, une fois le bilan terminé. Laisser vide pour le message par défaut."
+        info={`Dernier message de la mascotte, une fois le bilan terminé. Il y en a toujours un : laissé vide, c’est « ${DEFAULT_OUTRO} ». Vous pouvez écrire {prenom}, remplacé par le prénom du répondant.`}
       />
       <div
         class="rounded-2xl rounded-bl-sm border bg-background px-4 py-2.5 shadow-sm transition focus-within:border-epi-pink/50"

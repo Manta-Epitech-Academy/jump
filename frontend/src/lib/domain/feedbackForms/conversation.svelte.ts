@@ -23,6 +23,8 @@ import {
   validateAnswer,
   interpolate,
   IDENTITY_FIELD_TO_CONTEXT_KEY,
+  DEFAULT_INTRO,
+  DEFAULT_OUTRO,
 } from './schema';
 
 export type ChatRole = 'bot' | 'user';
@@ -170,16 +172,15 @@ export class Conversation {
   /** Démarre la conversation (intro + première question). */
   async start() {
     if (this.status !== 'idle') return;
-    await this.#botSay(this.form.intro, 'open');
+    const intro = this.form.intro?.trim() ? this.form.intro : DEFAULT_INTRO;
+    await this.#botSay(intro, 'open');
     await this.#ask();
   }
 
   async #ask() {
     const q = this.form.questions[this.index];
     if (!q) {
-      const outro = this.form.outro?.trim()
-        ? this.form.outro
-        : "Merci, c'est tout bon ! Je prépare ton récapitulatif. 🎉";
+      const outro = this.form.outro?.trim() ? this.form.outro : DEFAULT_OUTRO;
       await this.#botSay(outro, this.#takeDwell());
       this.status = 'done';
       return;

@@ -954,7 +954,9 @@ model Feedback_Form {
   id          String              @id @default(cuid())
   slug        String              @unique
   title       String
-  intro       String
+  // Opening bot line (interpolated, e.g. "Salut {prenom} !"). Null = the
+  // engine's default greeting, mirroring `outro` below.
+  intro       String?
   personaName String?
   // S3 object key of the uploaded persona avatar (WebP). Null = the default
   // mascot art. Served through the public /api/feedback-forms/[id]/persona-icon

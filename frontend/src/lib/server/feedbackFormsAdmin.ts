@@ -57,14 +57,14 @@ async function uniqueSlug(base: string): Promise<string> {
 
 export async function createForm(
   staffId: string,
-  input: { title: string; intro: string; personaName?: string | null },
+  input: { title: string; intro?: string | null; personaName?: string | null },
 ): Promise<{ id: string }> {
   const slug = await uniqueSlug(input.title);
   const form = await prisma.feedback_Form.create({
     data: {
       slug,
       title: input.title,
-      intro: input.intro,
+      intro: input.intro ?? null,
       personaName: input.personaName ?? null,
       createdById: staffId,
       updatedById: staffId,
@@ -79,7 +79,7 @@ export async function updateForm(
   id: string,
   patch: {
     title?: string;
-    intro?: string;
+    intro?: string | null;
     outro?: string | null;
     personaName?: string | null;
     status?: Feedback_FormStatus;

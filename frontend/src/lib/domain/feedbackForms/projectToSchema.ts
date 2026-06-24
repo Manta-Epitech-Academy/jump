@@ -54,7 +54,7 @@ export interface EditorGraph {
   formId: string;
   slug: string;
   title: string;
-  intro: string;
+  intro: string | null;
   outro: string | null;
   personaName: string | null;
   personaIconKey: string | null;
@@ -120,7 +120,7 @@ export function projectEditorToSchema(
   return {
     id: graph.slug,
     title: graph.title,
-    intro: graph.intro,
+    intro: graph.intro ?? undefined,
     outro: graph.outro ?? undefined,
     personaName: graph.personaName ?? undefined,
     personaIconUrl: buildPersonaIconUrl(graph.formId, graph.personaIconKey),
