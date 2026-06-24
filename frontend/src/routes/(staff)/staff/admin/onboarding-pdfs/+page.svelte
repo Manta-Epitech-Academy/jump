@@ -16,7 +16,7 @@
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
   import { Input } from '$lib/components/ui/input';
-  import * as Select from '$lib/components/ui/select';
+  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import * as Table from '$lib/components/ui/table';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import { cn, formatDateTimeFr } from '$lib/utils';
@@ -30,6 +30,14 @@
     charter: 'Charte',
     'image-rights': "Droit à l'image",
   };
+
+  const documentTypeFilterOptions = [
+    { value: 'all', label: 'Tous les documents' },
+    ...Object.entries(documentTypeLabels).map(([value, label]) => ({
+      value,
+      label,
+    })),
+  ];
 
   const statusLabels: Record<string, string> = {
     pending: 'En attente',
@@ -271,23 +279,13 @@
             />
           </div>
 
-          <Select.Root
-            type="single"
+          <FilterSelect
+            options={documentTypeFilterOptions}
             value={data.filters.type}
-            onValueChange={(v) => navigateWithParams({ type: v ?? 'all' })}
-          >
-            <Select.Trigger class="h-9 w-44 rounded-sm text-xs">
-              {data.filters.type === 'all'
-                ? 'Tous les documents'
-                : documentTypeLabels[data.filters.type]}
-            </Select.Trigger>
-            <Select.Content>
-              <Select.Item value="all">Tous les documents</Select.Item>
-              <Select.Item value="rules">Règlement intérieur</Select.Item>
-              <Select.Item value="charter">Charte</Select.Item>
-              <Select.Item value="image-rights">Droit à l'image</Select.Item>
-            </Select.Content>
-          </Select.Root>
+            onChange={(v) => navigateWithParams({ type: v })}
+            ariaLabel="Filtrer par document"
+            triggerClass="text-xs"
+          />
 
           {#if hasFilters}
             <Button

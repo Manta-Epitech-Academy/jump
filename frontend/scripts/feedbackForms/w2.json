@@ -1,0 +1,247 @@
+{
+  "id": "w2",
+  "title": "Bilan 2eme semaine - Stage seconde Epitech",
+  "intro": "Coin coin, c'est encore Bernard le canard ! On arrive au bout du stage. On doit remplir les attestations pour ton lycee, alors on te redonne la parole pour cette 2eme semaine. Ton lycee pourra acceder a tes reponses sur demande. Derniere ligne droite !",
+  "questions": [
+    {
+      "id": "campus",
+      "section": "Tes coordonnees",
+      "prompt": "Pour commencer, sur quel campus es-tu ?",
+      "required": true,
+      "type": "single",
+      "options": [
+        "Bordeaux",
+        "Lille",
+        "Lyon",
+        "Nantes",
+        "Marseille",
+        "Montpellier",
+        "Moulins",
+        "Mulhouse",
+        "Nancy",
+        "Nice",
+        "Paris - Kremlin Bicetre",
+        "Rennes",
+        "Saint Andre - La Reunion",
+        "Strasbourg",
+        "Toulouse"
+      ],
+      "identityField": "campus"
+    },
+    {
+      "id": "civilite",
+      "prompt": "Ta civilite ?",
+      "required": true,
+      "type": "single",
+      "options": ["Monsieur", "Madame", "Je ne souhaite pas le preciser"],
+      "identityField": "civility"
+    },
+    {
+      "id": "nom",
+      "prompt": "Quel est ton nom ?",
+      "required": true,
+      "type": "text",
+      "placeholder": "Ton nom",
+      "identityField": "lastName"
+    },
+    {
+      "id": "prenom",
+      "prompt": "Et ton prenom ?",
+      "required": true,
+      "type": "text",
+      "placeholder": "Ton prenom",
+      "identityField": "firstName"
+    },
+    {
+      "id": "telephone",
+      "prompt": "Ton numero de telephone ?",
+      "required": true,
+      "type": "text",
+      "placeholder": "06 12 34 56 78",
+      "identityField": "phone"
+    },
+    {
+      "id": "mail",
+      "prompt": "Ton adresse e-mail ?",
+      "required": true,
+      "type": "text",
+      "placeholder": "prenom@exemple.com",
+      "identityField": "email"
+    },
+    {
+      "id": "avis_conf_tools",
+      "section": "Hackathon - Vis ma vie de Product Designer",
+      "sectionIntro": "Parlons du hackathon et de la 2eme semaine !",
+      "prompt": "Ton avis sur la conference \"Tools : Build with IA\" by Google (J6) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_conf_product",
+      "prompt": "Ton avis sur la conference \"Product : De l'idee a la marque\" (J7) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_conf_success",
+      "prompt": "Ton avis sur la conference \"Success : De la startup a la licorne\" (J8) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_hackathon_design_sprint",
+      "prompt": "Ton avis sur le Design Sprint (J6) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ],
+      "extraOptions": ["Je n'ai pas tout compris"]
+    },
+    {
+      "id": "avis_hackathon_landing_page",
+      "prompt": "Ton avis sur la creation de Landing Page - Vis ma vie de Prompt Engineer (J7) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ],
+      "extraOptions": ["Je n'ai pas tout compris"]
+    },
+    {
+      "id": "avis_hackathon_figma",
+      "prompt": "Ton avis sur la maquette mobile Figma - Vis ma vie de Product Designer (J7) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ],
+      "extraOptions": ["Je n'ai pas tout compris"]
+    },
+    {
+      "id": "avis_hackathon_pitch",
+      "prompt": "Ton avis sur la preparation et le Pitch Contest (J8) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_conf_ia",
+      "section": "Demo Day & cloture",
+      "prompt": "Ton avis sur la conference \"IA & Impact : construire une tech responsable\" (J9) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_demo_day",
+      "prompt": "Ton avis sur le Demo Day et le cocktail de cloture (J9) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "piste_orientation",
+      "section": "Orientation & suite",
+      "sectionIntro": "Quelques questions pour mieux te connaitre et preparer la suite.",
+      "prompt": "Ce stage t'a-t-il permis de decouvrir une piste d'orientation post-bac ?",
+      "required": true,
+      "type": "single",
+      "options": ["Oui", "Non"]
+    },
+    {
+      "id": "invitation_conferences",
+      "prompt": "Souhaites-tu etre invite a des conferences sur la tech organisees par Epitech ?",
+      "required": false,
+      "type": "single",
+      "options": ["Oui", "Non"]
+    },
+    {
+      "id": "ateliers_vacances",
+      "prompt": "Les prochains ateliers de decouverte auront lieu pendant les vacances de Premiere et Terminale (stages gratuits de 3 a 5 jours : cybersecurite, IA, robotique, creation de jeu video). Souhaites-tu y participer ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Oui, je suis tres interesse",
+        "Oui, pourquoi pas",
+        "Non, je n'aime decidement pas la tech"
+      ]
+    },
+    {
+      "id": "domaines",
+      "prompt": "A l'issue de ces deux semaines, quels domaines t'attirent le plus ? (au plus 3)",
+      "required": true,
+      "type": "multiple",
+      "maxSelections": 3,
+      "options": [
+        "UX / UI Design / Web Design",
+        "Marketing digital et/ou influence digitale",
+        "Data",
+        "Objets connectes",
+        "Cybersecurite",
+        "Intelligence Artificielle",
+        "Infrastructures et reseaux",
+        "Developpement web et mobile",
+        "Developpement informatique",
+        "Transformation digitale en general",
+        "Rien de tout cela"
+      ]
+    },
+    {
+      "id": "recommandation",
+      "prompt": "Recommanderais-tu ce stage aux eleves de seconde de l'an prochain ?",
+      "required": true,
+      "type": "scale",
+      "options": ["Oui 1000 fois", "Oui", "Mitige", "Non"]
+    },
+    {
+      "id": "ameliorations",
+      "prompt": "Selon toi, que pourrions-nous ameliorer pour rendre ce stage encore plus interessant ?",
+      "required": false,
+      "type": "textarea",
+      "placeholder": "Tes idees..."
+    }
+  ]
+}

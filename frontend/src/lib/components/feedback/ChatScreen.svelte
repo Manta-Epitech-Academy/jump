@@ -1,0 +1,138 @@
+<script lang="ts">
+  import { untrack } from 'svelte';
+  import type {
+    FormSchema,
+    Answers,
+    IdentityContext,
+  } from '$lib/domain/feedbackForms/schema';
+  import { DEFAULT_PERSONA } from '$lib/domain/feedbackForms/schema';
+  import { Conversation } from '$lib/domain/feedbackForms/conversation.svelte';
+  import ChatThread from './ChatThread.svelte';
+  import QuickReplies from './QuickReplies.svelte';
+  import ScaleRating from './ScaleRating.svelte';
+  import TextInput from './TextInput.svelte';
+
+  interface Props {
+    form: FormSchema;
+    onSubmit: (answers: Answers) => Promise<void>;
+    /** Known respondent identity, used to interpolate the bot copy. */
+    identity?: IdentityContext;
+    /**
+     * Who is answering. A connected talent gets a "back to my space" link at the
+     * end; a public respondent has no Jump account and nothing else to do here,
+     * so the closer just tells them they can leave.
+     */
+    audience: 'public' | 'authenticated';
+  }
+
+  let { form, onSubmit, identity = {}, audience }: Props = $props();
+
+  // Chat persona set on the form (Mascotte), falling back to the default mascot.
+  const persona = $derived(form.personaName?.trim() || DEFAULT_PERSONA.name);
+  const personaIcon = $derived(form.personaIconUrl ?? DEFAULT_PERSONA.iconUrl);
+
+  // Built once: the conversation is a stateful machine, not reactive to later
+  // prop changes. `untrack` makes that one-time read explicit (and silences the
+  // state_referenced_locally warning).
+  const conv = untrack(() => new Conversation(form, identity));
+  let submitted = $state(false);
+
+  $effect(() => {
+    conv.start();
+  });
+
+  $effect(() => {
+    if (conv.isDone && !submitted) {
+      submitted = true;
+      onSubmit(conv.answers);
+    }
+  });
+
+  const showChoices = $derived(
+    conv.status === 'awaiting' &&
+      conv.current &&
+      (conv.current.type === 'single' || conv.current.type === 'multiple'),
+  );
+
+  const showScale = $derived(
+    conv.status === 'awaiting' && conv.current?.type === 'scale',
+  );
+
+  const showText = $derived(
+    conv.status === 'awaiting' &&
+      conv.current &&
+      (conv.current.type === 'text' || conv.current.type === 'textarea'),
+  );
+</script>
+
+<div class="flex h-full min-h-0 flex-col">
+  <!-- Header -->
+  <div
+    class="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800"
+  >
+    <div class="relative">
+      <img
+        src={personaIcon}
+        alt={persona}
+        class="h-8 w-8 rounded-full object-cover"
+      />
+      <span
+        class="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-green-500 dark:border-slate-800"
+      ></span>
+    </div>
+    <div class="flex flex-col">
+      <span class="text-sm leading-tight font-semibold">{persona}</span>
+      <span class="text-xs text-muted-foreground">{form.title}</span>
+    </div>
+  </div>
+
+  <!-- Chat thread -->
+  <ChatThread messages={conv.messages} typing={conv.status === 'typing'} />
+
+  <!-- Response dock: all answer inputs live here, flush at the bottom -->
+  <div class="mt-auto px-4 py-2">
+    {#if conv.error}
+      <p class="mb-2 text-center text-xs text-red-500">{conv.error}</p>
+    {/if}
+
+    {#if conv.isDone}
+      <div class="flex flex-col items-center gap-3 py-3">
+        {#if audience === 'authenticated'}
+          <a
+            href="/"
+            class="rounded-full bg-epi-blue px-6 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            Retour à mon espace
+          </a>
+        {:else}
+          <!-- Public respondent: no Jump account, so no "back to my space".
+               The outro bubble above already closes the conversation; this just
+               confirms they are free to go. -->
+          <p class="text-center text-xs text-muted-foreground">
+            C'est tout bon, tu peux fermer cette page.
+          </p>
+        {/if}
+      </div>
+    {:else if showChoices && conv.current}
+      <QuickReplies question={conv.current} onanswer={(v) => conv.answer(v)} />
+    {:else if showScale && conv.current?.options}
+      <ScaleRating
+        options={conv.current.options}
+        onanswer={(value, display) => conv.answer(value, display)}
+      />
+      {#if conv.current.extraOptions?.length}
+        <div class="mt-2 text-center">
+          {#each conv.current.extraOptions as eo (eo)}
+            <button
+              type="button"
+              class="cursor-pointer text-xs text-muted-foreground underline underline-offset-2"
+              onclick={() => conv.answer(eo)}>{eo}</button
+            >
+          {/each}
+        </div>
+      {/if}
+    {:else if showText && conv.current}
+      <TextInput question={conv.current} onanswer={(v) => conv.answer(v)} />
+    {/if}
+  </div>
+</div>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import Plus from '@lucide/svelte/icons/plus';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import * as Tooltip from '$lib/components/ui/tooltip';
@@ -72,6 +73,9 @@
   let editingId = $state<string | null>(null);
   let deleteOpen = $state(false);
   let deleteTarget = $state<SerializedNote | null>(null);
+  // In-flight guard for the delete confirm: disables the footer buttons and shows
+  // a spinner so the destructive action can't be double-fired while the request runs.
+  let deleting = $state(false);
 
   // On the émargement créneau the feed splits in two: notes whose stored anchor
   // matches the active créneau lift into a bounded group at the top (so staff see
@@ -96,6 +100,8 @@
   );
 
   async function deleteNote(note: SerializedNote) {
+    if (deleting) return;
+    deleting = true;
     try {
       const res = await fetch(
         `${base}/staff/dev/students/${talentId}/notes/${note.id}`,
@@ -105,9 +111,15 @@
       items = items.filter((n) => n.id !== note.id);
       onCountChange?.(items.length);
       toast.success('Note supprimée.');
+      // bits-ui's AlertDialog.Action is a plain button (no auto-close), so the
+      // confirm only dismisses if we close it ourselves. Close on success;
+      // leave it open on error so the toast lands with the dialog still in view.
+      deleteOpen = false;
     } catch (e) {
       console.error('delete talent note', e);
       toast.error('Échec de la suppression de la note.');
+    } finally {
+      deleting = false;
     }
   }
 </script>
@@ -242,14 +254,19 @@
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
-      <AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
+      <AlertDialog.Cancel disabled={deleting}>Annuler</AlertDialog.Cancel>
       <AlertDialog.Action
         class={buttonVariants({ variant: 'destructive' })}
+        disabled={deleting}
         onclick={() => {
           if (deleteTarget) deleteNote(deleteTarget);
         }}
       >
-        Supprimer
+        {#if deleting}
+          <LoaderCircle class="mr-2 h-4 w-4 animate-spin" /> Suppression...
+        {:else}
+          Supprimer
+        {/if}
       </AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>

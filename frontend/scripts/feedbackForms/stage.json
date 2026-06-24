@@ -1,0 +1,250 @@
+{
+  "id": "stage",
+  "title": "Bilan du stage de seconde",
+  "intro": "Coucou ! Moi c'est Bernard le canard 🦆. Je viens prendre ton bilan, vite fait bien fait, promis je ne mords pas.",
+  "outro": "Et voilà, c'est fini ! Merci {prenom}, t'es au top 🦆 File profiter de ta journée… et qui sait, à bientôt chez Epitech 👋 coin coin !",
+  "questions": [
+    {
+      "id": "on_y_va",
+      "prompt": "On y va ?",
+      "required": true,
+      "type": "single",
+      "options": [
+        "C'est parti !",
+        {
+          "label": "Si je dois 😅",
+          "reaction": "Hé hé, tu vas voir, c'est rapide et je suis adorable. 🦆"
+        }
+      ]
+    },
+    {
+      "id": "campus",
+      "section": "Identité",
+      "sectionIntro": "Avant de papoter, dis-moi vite qui tu es 👇",
+      "prompt": "Tu es sur quel campus ?",
+      "required": true,
+      "type": "single",
+      "options": [
+        "Bordeaux",
+        "Lille",
+        "Lyon",
+        "Nantes",
+        "Marseille",
+        "Montpellier",
+        "Moulins",
+        "Mulhouse",
+        "Nancy",
+        "Nice",
+        "Paris - Kremlin Bicêtre",
+        "Rennes",
+        "Saint André - La Réunion",
+        "Strasbourg",
+        "Toulouse"
+      ],
+      "identityField": "campus"
+    },
+    {
+      "id": "prenom",
+      "prompt": "Ton prénom ?",
+      "required": true,
+      "type": "text",
+      "placeholder": "Ton prénom",
+      "identityField": "firstName"
+    },
+    {
+      "id": "nom",
+      "prompt": "Et ton nom ?",
+      "required": true,
+      "type": "text",
+      "placeholder": "Ton nom",
+      "identityField": "lastName"
+    },
+    {
+      "id": "mail",
+      "prompt": "Ton adresse e-mail, pour qu'on retrouve ta trace ?",
+      "required": true,
+      "type": "text",
+      "placeholder": "prenom@exemple.com",
+      "identityField": "email"
+    },
+    {
+      "id": "civilite",
+      "prompt": "Tu préfères qu'on te dise…",
+      "required": true,
+      "type": "single",
+      "options": ["Monsieur", "Madame", "Je préfère ne pas dire"],
+      "identityField": "civility"
+    },
+    {
+      "id": "s1_tech",
+      "section": "Semaine 1 - la tech",
+      "sectionIntro": "Salut {prenom} ! Le campus de {campus}, c'est noté 👋. Allez, on enchaîne !",
+      "prompt": "Première semaine, la team tech 🤓 : code, cyber, tout ça. Verdict ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        {
+          "label": "J'ai accroché, j'en veux plus 🔥",
+          "reaction": "Ahhh un·e futur·e geek, j'adore 👀"
+        },
+        "J'ai bien aimé découvrir",
+        "C'était correct",
+        {
+          "label": "Bof, pas pour moi",
+          "reaction": "Pas grave, t'as le droit ! On continue."
+        }
+      ]
+    },
+    {
+      "id": "s2_hackathon",
+      "section": "Semaine 2 - le hackathon",
+      "prompt": "Deuxième semaine, le hackathon 💡 vous avez créé un produit de A à Z. C'était comment pour toi ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "J'ai adoré créer un truc à moi",
+        "Bien aimé, c'était prenant",
+        "Correct",
+        "J'ai eu du mal à suivre"
+      ]
+    },
+    {
+      "id": "confs_matin",
+      "section": "Les conférences du matin",
+      "prompt": "Le matin, il y avait les conférences avec des pros et des entreprises 💼. Tu en as pensé quoi ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "J'ai adoré, ça m'a donné envie",
+        "Intéressant, j'ai appris des trucs",
+        "Sympa sans plus",
+        "Ça m'a pas parlé"
+      ]
+    },
+    {
+      "id": "confs_marquant",
+      "prompt": "Un intervenant ou un sujet qui t'a marqué ?",
+      "required": false,
+      "type": "text",
+      "placeholder": "Son nom, le sujet… (facultatif)"
+    },
+    {
+      "id": "ateliers",
+      "section": "Les ateliers de l'après-midi",
+      "prompt": "Et les ateliers de l'aprèm, tu suivais ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Carrément, j'ai kiffé",
+        "Suivi dans l'ensemble",
+        "J'ai décroché par moments",
+        "J'étais souvent perdu"
+      ]
+    },
+    {
+      "id": "ateliers_dur",
+      "prompt": "Un atelier qui t'a paru difficile ?",
+      "required": false,
+      "type": "text",
+      "placeholder": "Lequel, et pourquoi… (facultatif)"
+    },
+    {
+      "id": "vie_campus",
+      "section": "La vie sur le campus",
+      "prompt": "Parlons fun 🎉 : ambiance, activités, défis, système de points sur le campus… tu as vécu ça comment ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Activités fun, j'ai participé à fond",
+        "Il y en avait, j'ai participé un peu",
+        "Il y en avait mais j'ai pas accroché",
+        "J'ai pas remarqué d'activités"
+      ]
+    },
+    {
+      "id": "accompagnement",
+      "section": "L'accompagnement",
+      "prompt": "Les encadrants, ils passaient te voir ou t'aider souvent ?",
+      "required": true,
+      "type": "single",
+      "options": [
+        "Plusieurs fois par jour",
+        "Au moins une fois par jour",
+        "Ça dépendait des jours",
+        {
+          "label": "Rarement, souvent livré à moi-même",
+          "reaction": "Ah, noté 🦆 je remonte ça à l'équipe, promis."
+        },
+        {
+          "label": "Jamais, débrouillé tout seul",
+          "reaction": "Ah, noté 🦆 je remonte ça à l'équipe, promis."
+        }
+      ]
+    },
+    {
+      "id": "reco",
+      "section": "La grande question",
+      "prompt": "Roulement de tambour 🥁… tu recommanderais ce stage à un seconde de l'an prochain ?",
+      "required": true,
+      "type": "single",
+      "options": [
+        {
+          "label": "Oui, 1000 fois 😍",
+          "reaction": "Tu me fais rougir 🦆❤️"
+        },
+        {
+          "label": "Oui",
+          "reaction": "Tu me fais rougir 🦆❤️"
+        },
+        {
+          "label": "Mitigé",
+          "reaction": "Ok, merci pour ta franchise 🤫"
+        },
+        {
+          "label": "Non",
+          "reaction": "Ok, merci pour ta franchise 🤫"
+        }
+      ]
+    },
+    {
+      "id": "reco_mot",
+      "prompt": "Un mot pour expliquer ta note ? Ça reste entre nous.",
+      "required": false,
+      "type": "textarea",
+      "placeholder": "Ce que tu dirais à un futur stagiaire, ou ce qui a coincé… (facultatif)"
+    },
+    {
+      "id": "domaines",
+      "section": "Tes domaines préférés",
+      "prompt": "Dans tout ce que tu as touché, qu'est-ce qui t'a le plus branché ? (2 max)",
+      "required": true,
+      "type": "multiple",
+      "maxSelections": 2,
+      "options": [
+        "Cybersécurité",
+        "Programmation et dev",
+        "Linux et systèmes libres",
+        "Maquettage mobile (Figma)",
+        "Landing pages et web",
+        "Idéation et esprit start-up",
+        "Rien de spécial"
+      ]
+    },
+    {
+      "id": "orientation",
+      "section": "Orientation post-bac",
+      "prompt": "Ça t'a aidé à y voir plus clair pour après le bac ?",
+      "required": true,
+      "type": "single",
+      "options": ["Oui", "Non", "Pas encore, ça mûrit"]
+    },
+    {
+      "id": "mot_fin",
+      "section": "Le mot de la fin",
+      "prompt": "Dernière ! Si tu étais le big boss, tu changerais quoi pour rendre le stage encore meilleur ?",
+      "required": false,
+      "type": "textarea",
+      "placeholder": "Tes idées… (facultatif)"
+    }
+  ]
+}
