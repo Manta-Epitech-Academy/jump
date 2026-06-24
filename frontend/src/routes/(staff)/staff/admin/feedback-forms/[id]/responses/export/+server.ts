@@ -4,7 +4,7 @@ import { prisma } from '$lib/server/db';
 import { csvResponse } from '$lib/server/csv';
 import { requireAdmin } from '$lib/server/feedbackFormsAdmin';
 import { getFormGraphById } from '$lib/server/feedbackForms';
-import { buildSubmissionWhere } from '$lib/server/feedbackStats';
+import { answerCells, buildSubmissionWhere } from '$lib/server/feedbackStats';
 
 export const GET: RequestHandler = async ({ params, url, locals }) => {
   requireAdmin(locals);
@@ -41,13 +41,6 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
   ];
 
   const rows = submissions.map((sub) => {
-    const byQuestion = new Map<string, string>();
-    for (const a of sub.answers) {
-      byQuestion.set(
-        a.questionId,
-        a.freeText ?? a.selectedOptions.map((s) => s.option.label).join(', '),
-      );
-    }
     const isPublic = sub.source === 'public';
     return [
       isPublic ? 'Public' : 'Authentifié',
@@ -55,7 +48,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
       sub.talent?.email ?? sub.respondentEmail ?? '',
       sub.talent?.prenom ?? sub.respondentFirstName ?? '',
       sub.talent?.nom ?? sub.respondentLastName ?? '',
-      ...columns.map((q) => byQuestion.get(q.id) ?? ''),
+      ...answerCells(sub.answers, columns),
     ];
   });
 

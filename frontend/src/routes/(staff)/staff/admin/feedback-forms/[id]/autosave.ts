@@ -3,7 +3,7 @@
  *
  * Returns `{ oninput, onblur }` handlers (not a Svelte action, so they attach to
  * the shadcn `<Input>` / `<Textarea>` components the same way they attach to a
- * raw `<input>` — both forward these props to the underlying element):
+ * raw `<input>` (both forward these props to the underlying element):
  *
  *  - **on input**: the field is marked dirty at once (so the header reads
  *    "non enregistré" the instant a key lands), then a debounced save fires

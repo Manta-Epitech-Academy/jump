@@ -5,7 +5,7 @@ import { getCampusId } from '$lib/server/db/scoped';
 import { requireFlag } from '$lib/server/auth/guards';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { getFormGraphBySlug } from '$lib/server/feedbackForms';
-import { buildSubmissionWhere } from '$lib/server/feedbackStats';
+import { answerCells, buildSubmissionWhere } from '$lib/server/feedbackStats';
 import { STAGE_FORM_SLUG } from '$lib/domain/feedback';
 import { buildXlsx } from '$lib/server/xlsx';
 
@@ -46,21 +46,12 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   const columns = graph.questions.filter((q) => q.identityField == null);
   const headers = ['Prenom', 'Nom', 'E-mail', ...columns.map((q) => q.prompt)];
 
-  const rows = submissions.map((sub) => {
-    const byQuestion = new Map<string, string>();
-    for (const a of sub.answers) {
-      byQuestion.set(
-        a.questionId,
-        a.freeText ?? a.selectedOptions.map((s) => s.option.label).join(', '),
-      );
-    }
-    return [
-      sub.talent?.prenom ?? sub.respondentFirstName ?? '',
-      sub.talent?.nom ?? sub.respondentLastName ?? '',
-      sub.talent?.email ?? sub.respondentEmail ?? '',
-      ...columns.map((q) => byQuestion.get(q.id) ?? ''),
-    ];
-  });
+  const rows = submissions.map((sub) => [
+    sub.talent?.prenom ?? sub.respondentFirstName ?? '',
+    sub.talent?.nom ?? sub.respondentLastName ?? '',
+    sub.talent?.email ?? sub.respondentEmail ?? '',
+    ...answerCells(sub.answers, columns),
+  ]);
 
   const xlsx = buildXlsx({
     name: 'Bilan',

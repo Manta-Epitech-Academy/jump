@@ -67,6 +67,33 @@ export function buildSubmissionWhere(
   };
 }
 
+/** The answer shape both exports include on a submission. */
+interface ExportAnswer {
+  questionId: string;
+  freeText: string | null;
+  selectedOptions: { option: { label: string } }[];
+}
+
+/**
+ * Flattens a submission's answers into one cell per content column, in column
+ * order. Free text wins; otherwise the selected option labels are joined. Shared
+ * by the admin CSV and dev XLSX exports so the answer-rendering rule lives once
+ * (the channels still own their own identity / source / campus columns).
+ */
+export function answerCells(
+  answers: ExportAnswer[],
+  columns: { id: string }[],
+): string[] {
+  const byQuestion = new Map<string, string>();
+  for (const a of answers) {
+    byQuestion.set(
+      a.questionId,
+      a.freeText ?? a.selectedOptions.map((s) => s.option.label).join(', '),
+    );
+  }
+  return columns.map((q) => byQuestion.get(q.id) ?? '');
+}
+
 export async function computeFormStats(
   formId: string,
   scope: StatsScope = {},

@@ -217,7 +217,13 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       if (feedbackParticipation) {
         const [nudgeForms, existingSubs] = await Promise.all([
           prisma.feedback_Form.findMany({
-            where: { status: 'published', dashboardNudge: true },
+            // allowsAuthenticatedAccess: a nudged form a connected talent can't
+            // answer would 404 on click, so never surface one in the banner.
+            where: {
+              status: 'published',
+              dashboardNudge: true,
+              allowsAuthenticatedAccess: true,
+            },
             select: { id: true, slug: true, personaIconKey: true },
           }),
           prisma.feedback_Submission.findMany({

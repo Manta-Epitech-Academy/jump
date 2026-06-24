@@ -130,10 +130,13 @@ export async function updateForm(
     dashboardNudge?: boolean;
   },
 ): Promise<void> {
-  await prisma.feedback_Form.update({
-    where: { id },
-    data: { ...patch, updatedById: staffId },
-  });
+  const data = { ...patch, updatedById: staffId };
+  // A dashboard nudge only makes sense for a form connected talents can answer
+  // (the answering route 404s when authenticated access is off). Turning off
+  // authenticated access clears the nudge in the same write so the banner can
+  // never point talents at a form that rejects them.
+  if (patch.allowsAuthenticatedAccess === false) data.dashboardNudge = false;
+  await prisma.feedback_Form.update({ where: { id }, data });
 }
 
 /** Deep-clones a form (+ sections, questions, options) into a fresh draft. */
@@ -373,6 +376,7 @@ export async function createQuestion(
   input: QuestionStructureInput,
 ): Promise<{ id: string }> {
   await assertEditable(formId);
+  if (input.sectionId) await assertSectionInForm(formId, input.sectionId);
   if (input.identityField)
     await assertIdentityFieldAvailable(formId, input.identityField);
   if (input.identityField && input.type === 'multiple')
@@ -420,6 +424,7 @@ export async function updateQuestion(
   if (patch.key !== undefined) await assertKeyAvailable(formId, patch.key, id);
   if (patch.identityField)
     await assertIdentityFieldAvailable(formId, patch.identityField, id);
+  if (patch.sectionId) await assertSectionInForm(formId, patch.sectionId);
   await assertIdentityNotMultiple(id, patch);
 
   const data: Prisma.Feedback_QuestionUpdateInput = {};
