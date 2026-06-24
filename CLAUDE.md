@@ -219,6 +219,7 @@ The dev stage-seconde pages (`inscrits`, `émargement`, `entretiens`) and admin 
 - **Auth checks:** Don't call BetterAuth directly in page server loads; `hooks.server.ts` already hydrates `locals.{user, staffProfile, talent}`.
 - **Styling:** Tailwind utility classes only, no inline styles.
 - **Component naming:** PascalCase, domain-scoped in subfolders (`components/events/`, `components/students/`).
+- **Staff filter controls:** Pick by list shape, do not default to a plain dropdown. A few inline choices → `SegmentedFilter`. A short, known list too wide to sit inline → `FilterSelect`. A long, typeable list (campuses, lycées, talents, games) → `SearchableSelect` (built-in search box; renders its own `'all'` sentinel, so leave it out of `options`). The rationale lives in the `FilterSelect`/`SearchableSelect` doc comments. A campus filter on a plain `FilterSelect` is the classic miss.
 - **Lucide icons:** Always import per-icon, never the barrel. Barrel imports drag every icon through Vite's dev resolver and tank cold-start (~9s → ~3s on this codebase). If you slip, run `bun scripts/codemod-lucide-imports.ts` to auto-rewrite.
 
   ```ts
