@@ -17,9 +17,15 @@
     onSubmit: (answers: Answers) => Promise<void>;
     /** Known respondent identity, used to interpolate the bot copy. */
     identity?: IdentityContext;
+    /**
+     * Who is answering. A connected talent gets a "back to my space" link at the
+     * end; a public respondent has no Jump account and nothing else to do here,
+     * so the closer just tells them they can leave.
+     */
+    audience: 'public' | 'authenticated';
   }
 
-  let { form, onSubmit, identity = {} }: Props = $props();
+  let { form, onSubmit, identity = {}, audience }: Props = $props();
 
   // Chat persona set on the form (Mascotte), falling back to the default mascot.
   const persona = $derived(form.personaName?.trim() || DEFAULT_PERSONA.name);
@@ -91,12 +97,21 @@
 
     {#if conv.isDone}
       <div class="flex flex-col items-center gap-3 py-3">
-        <a
-          href="/"
-          class="rounded-full bg-epi-blue px-6 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-        >
-          Retour a mon espace
-        </a>
+        {#if audience === 'authenticated'}
+          <a
+            href="/"
+            class="rounded-full bg-epi-blue px-6 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            Retour à mon espace
+          </a>
+        {:else}
+          <!-- Public respondent: no Jump account, so no "back to my space".
+               The outro bubble above already closes the conversation; this just
+               confirms they are free to go. -->
+          <p class="text-center text-xs text-muted-foreground">
+            C'est tout bon, tu peux fermer cette page.
+          </p>
+        {/if}
       </div>
     {:else if showChoices && conv.current}
       <QuickReplies question={conv.current} onanswer={(v) => conv.answer(v)} />

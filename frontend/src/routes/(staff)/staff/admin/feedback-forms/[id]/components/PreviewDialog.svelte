@@ -79,7 +79,7 @@
     {#if hasQuestions}
       <div class="h-[72vh]">
         {#key `${run}-${audience}`}
-          <ChatScreen form={schema} onSubmit={noop} {identity} />
+          <ChatScreen form={schema} onSubmit={noop} {identity} {audience} />
         {/key}
       </div>
     {:else}

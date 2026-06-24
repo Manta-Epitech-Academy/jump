@@ -5,7 +5,7 @@
 
   interface Props {
     question: Question;
-    onanswer: (v: AnswerValue) => void;
+    onanswer: (v: AnswerValue) => boolean | Promise<boolean>;
   }
 
   let { question, onanswer }: Props = $props();
@@ -14,10 +14,12 @@
   const isTextarea = $derived(question.type === 'textarea');
   const canSubmit = $derived(!question.required || value.trim().length > 0);
 
-  function submit() {
+  async function submit() {
     if (!canSubmit) return;
-    onanswer(value.trim());
-    value = '';
+    // Keep the typed text if the answer is rejected (e.g. invalid e-mail), so the
+    // talent can fix it instead of retyping. Clear only once it is accepted.
+    const accepted = await onanswer(value.trim());
+    if (accepted) value = '';
   }
 
   function onkeydown(e: KeyboardEvent) {

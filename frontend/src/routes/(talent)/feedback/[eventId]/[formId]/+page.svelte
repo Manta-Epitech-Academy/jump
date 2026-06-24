@@ -54,6 +54,7 @@
         form={data.formSchema}
         onSubmit={handleSubmit}
         identity={data.identity}
+        audience="authenticated"
       />
     </div>
   </div>

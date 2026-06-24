@@ -191,15 +191,17 @@ export class Conversation {
    * Soumet une réponse à la question courante.
    * `display` permet d'afficher dans la bulle un texte différent de la valeur
    * stockée (ex. émoji + libellé pour une note), sans polluer les données / le PDF.
+   * Retourne `false` si la réponse est refusée (validation, ex. e-mail invalide)
+   * pour que la saisie soit conservée côté champ, `true` si elle est acceptée.
    */
-  async answer(value: AnswerValue, display?: string) {
+  async answer(value: AnswerValue, display?: string): Promise<boolean> {
     const q = this.current;
-    if (!q || this.status !== 'awaiting') return;
+    if (!q || this.status !== 'awaiting') return false;
 
     const err = validateAnswer(q, value);
     if (err) {
       this.error = err;
-      return;
+      return false;
     }
     this.error = null;
 
@@ -215,6 +217,7 @@ export class Conversation {
 
     this.index += 1;
     await this.#ask();
+    return true;
   }
 
   /** Fills the interpolation context from an answered identity question. */
