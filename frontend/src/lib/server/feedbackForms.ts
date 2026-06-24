@@ -126,16 +126,19 @@ export function countSubmissions(formId: string): Promise<number> {
 }
 
 /**
- * Throws 409 if the form already has responses. Structural edits (add / delete /
- * reorder questions / options / sections) would shift the meaning of existing
- * answers, so once responses exist the admin must duplicate the form to restructure.
- * Text-only edits (prompt / label / intro) stay allowed and don't call this.
+ * Throws 423 (Locked) if the form already has responses. Structural edits (add /
+ * delete / reorder questions / options / sections) would shift the meaning of
+ * existing answers, so once responses exist the admin must duplicate the form to
+ * restructure. Text-only edits (prompt / label / intro) stay allowed and don't
+ * call this. The status is deliberately distinct from the 409 (Conflict) that
+ * uniqueness checks throw: the client flips read-only on 423 only, so a benign
+ * "label already exists" clash never locks the whole builder.
  */
 export async function assertEditable(formId: string): Promise<void> {
   const n = await countSubmissions(formId);
   if (n > 0) {
     throw error(
-      409,
+      423,
       'Ce formulaire a déjà des réponses : dupliquez-le pour en modifier la structure.',
     );
   }

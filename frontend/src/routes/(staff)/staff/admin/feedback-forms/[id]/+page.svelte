@@ -30,28 +30,28 @@
 
   let { data }: { data: PageData } = $props();
 
-  const editor = new FormEditor(
-    untrack(() => ({
-      formId: data.form.id,
-      slug: data.form.slug,
-      locked: data.locked,
+  function buildInit(d: PageData) {
+    return {
+      formId: d.form.id,
+      slug: d.form.slug,
+      locked: d.locked,
       meta: {
-        title: data.form.title,
-        intro: data.form.intro,
-        outro: data.form.outro,
-        personaName: data.form.personaName,
-        status: data.form.status as FormStatus,
-        allowsAuthenticatedAccess: data.form.allowsAuthenticatedAccess,
-        allowsPublicAccess: data.form.allowsPublicAccess,
-        dashboardNudge: data.form.dashboardNudge,
+        title: d.form.title,
+        intro: d.form.intro,
+        outro: d.form.outro,
+        personaName: d.form.personaName,
+        status: d.form.status as FormStatus,
+        allowsAuthenticatedAccess: d.form.allowsAuthenticatedAccess,
+        allowsPublicAccess: d.form.allowsPublicAccess,
+        dashboardNudge: d.form.dashboardNudge,
       },
-      sections: data.sections.map((s) => ({
+      sections: d.sections.map((s) => ({
         id: s.id,
         title: s.title,
         intro: s.intro,
         position: s.position,
       })),
-      questions: data.questions.map((q) => ({
+      questions: d.questions.map((q) => ({
         id: q.id,
         key: q.key,
         position: q.position,
@@ -72,8 +72,19 @@
           reaction: o.reaction,
         })),
       })),
-    })),
-  );
+    };
+  }
+
+  // Rebuild the controller ONLY when navigating to a different form. SvelteKit
+  // reuses this component across the [id] param (e.g. the locked banner's
+  // "Dupliquer" redirect lands on the new form's id), so a one-shot `new
+  // FormEditor` at mount would keep rendering the old form until a full refresh.
+  // The body is untracked so same-form invalidations (polls, optimistic reloads)
+  // never clobber in-flight local edits; only the id change recreates it.
+  const editor = $derived.by(() => {
+    void data.form.id;
+    return untrack(() => new FormEditor(buildInit(data)));
+  });
 
   const locked = $derived(editor.locked);
   const tab = $derived(
@@ -108,13 +119,19 @@
 
 <div class="space-y-5 pb-24">
   <Tooltip.Provider delayDuration={300}>
-    <!-- Sticky toolbar: keeps the save status (so testers always see edits are
-       being kept), the preview, and the tabs in view while scrolling a long
-       form. The negative top offset cancels the admin <main>'s padding
+    <!-- Sticky top chrome: keeps the save status (so testers always see edits
+       are being kept), the preview, the tabs, and (when the form is locked)
+       the lock notice in view while scrolling a long form. The banner is the
+       last child of this one sticky element rather than a second sticky pinned
+       below it: a long locked form is effectively read-only, so the reason its
+       controls are disabled should stay on screen the whole time, and folding
+       it in here avoids coupling a second sticky to this bar's (wrapping)
+       height. The negative top offset cancels the admin <main>'s padding
        (p-4 md:p-8) so the bar pins flush at the very top; with plain `top-0` a
-       sticky element clamps to the content box and leaks a padding-tall strip of
-       content above it. Opaque so dense cards don't ghost through; the tab bar's
-       own border-b is the bottom seam. -->
+       sticky element clamps to the content box and leaks a padding-tall strip
+       of content above it. Opaque so dense cards don't ghost through; the tab
+       bar's border-b is the seam under the tabs, and the lock banner, when
+       shown, is the bottom edge. -->
     <div class="sticky -top-4 z-20 space-y-3 bg-background pt-3 md:-top-8">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <a
@@ -137,24 +154,29 @@
       </div>
 
       <FormTabs formId={editor.formId} />
-    </div>
 
-    {#if locked}
-      <div
-        class="flex flex-wrap items-start gap-3 rounded-sm border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
-      >
-        <Lock class="mt-0.5 h-4 w-4 shrink-0" />
-        <p class="min-w-0 flex-1">
-          Ce formulaire a des réponses : seuls les libellés sont modifiables.
-          Pour en changer la structure, dupliquez-le.
-        </p>
-        <form method="POST" action="?/duplicate" use:enhance>
-          <Button type="submit" variant="outline" size="sm" class="rounded-sm">
-            Dupliquer
-          </Button>
-        </form>
-      </div>
-    {/if}
+      {#if locked}
+        <div
+          class="flex flex-wrap items-start gap-3 rounded-sm border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+        >
+          <Lock class="mt-0.5 h-4 w-4 shrink-0" />
+          <p class="min-w-0 flex-1">
+            Ce formulaire a des réponses : seuls les libellés sont modifiables.
+            Pour en changer la structure, dupliquez-le.
+          </p>
+          <form method="POST" action="?/duplicate" use:enhance>
+            <Button
+              type="submit"
+              variant="outline"
+              size="sm"
+              class="rounded-sm"
+            >
+              Dupliquer
+            </Button>
+          </form>
+        </div>
+      {/if}
+    </div>
 
     {#if tab === 'settings'}
       <SettingsPanel {editor} />

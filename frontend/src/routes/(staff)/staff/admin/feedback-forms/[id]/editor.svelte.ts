@@ -76,7 +76,7 @@ const sameOrder = (a: string[], b: string[]) =>
  * `questions` is kept in flattened-grouped order at all times (unsectioned first,
  * then sections by position, intra-order preserved) so the document render, the
  * runtime projection, and reorder commits all agree. A concurrent submission that
- * locks the form surfaces as a 409 → `lockedByServer`, flipping the UI read-only.
+ * locks the form surfaces as a 423 → `lockedByServer`, flipping the UI read-only.
  */
 export class FormEditor {
   readonly formId: string;
@@ -208,7 +208,7 @@ export class FormEditor {
         body: body ? JSON.stringify(body) : undefined,
       });
       if (!res.ok) {
-        if (res.status === 409) this.lockedByServer = true;
+        if (res.status === 423) this.lockedByServer = true;
         const b = (await res.json().catch(() => null)) as {
           message?: string;
         } | null;
@@ -427,14 +427,21 @@ export class FormEditor {
   async addOption(qid: string): Promise<void> {
     const q = this.#q(qid);
     if (!q) return;
+    // Option labels are unique per question (answers resolve by (question, label)),
+    // so a fixed default would clash on the second add. Pick the first free
+    // "Option" / "Option N" instead, matching the Forms-style numbering.
+    const used = new Set(q.options.map((o) => o.label));
+    let label = 'Option';
+    let n = q.options.length + 1;
+    while (used.has(label)) label = `Option ${n++}`;
     const created = (await this.#send(qid, `questions/${qid}/options`, 'POST', {
-      label: 'Option',
+      label,
       kind: 'choice',
     })) as { id: string } | null;
     if (!created) return;
     q.options.push({
       id: created.id,
-      label: 'Option',
+      label,
       kind: 'choice',
       position: q.options.length,
       reaction: null,

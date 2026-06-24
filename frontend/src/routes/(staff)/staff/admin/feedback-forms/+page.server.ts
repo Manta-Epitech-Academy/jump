@@ -17,6 +17,7 @@ export interface FormListRow {
   title: string;
   status: string;
   allowsPublicAccess: boolean;
+  allowsAuthenticatedAccess: boolean;
   questionCount: number;
   submissionCount: number;
   updatedAt: string;
@@ -38,6 +39,7 @@ export const load: PageServerLoad = async () => {
         title: true,
         status: true,
         allowsPublicAccess: true,
+        allowsAuthenticatedAccess: true,
         updatedAt: true,
         _count: { select: { questions: true, submissions: true } },
       },
@@ -49,6 +51,7 @@ export const load: PageServerLoad = async () => {
         title: f.title,
         status: f.status,
         allowsPublicAccess: f.allowsPublicAccess,
+        allowsAuthenticatedAccess: f.allowsAuthenticatedAccess,
         questionCount: f._count.questions,
         submissionCount: f._count.submissions,
         updatedAt: f.updatedAt.toISOString(),
