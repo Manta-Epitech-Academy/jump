@@ -11,6 +11,7 @@
   } from '$lib/domain/feedbackForms/schema';
   import FieldLabel from './FieldLabel.svelte';
   import { createAutosave } from '../autosave';
+  import { editableInline } from '../editableField';
   import type { FormEditor } from '../editor.svelte';
 
   let { editor }: { editor: FormEditor } = $props();
@@ -78,7 +79,9 @@
       value={editor.title}
       aria-label="Titre du formulaire"
       placeholder="Titre du formulaire"
-      class="w-full border-b border-transparent bg-transparent pb-1 text-2xl font-semibold tracking-tight outline-none focus:border-border"
+      class={editableInline(
+        'w-full pb-1 text-2xl font-semibold tracking-tight',
+      )}
       oninput={titleField.oninput}
       onblur={titleField.onblur}
     />
@@ -150,7 +153,7 @@
           value={editor.personaName ?? ''}
           aria-label="Nom de la mascotte"
           placeholder={DEFAULT_PERSONA.name}
-          class="w-full border-b border-transparent bg-transparent text-sm font-medium outline-none hover:border-border focus:border-foreground"
+          class={editableInline('w-full text-sm font-medium')}
           oninput={personaField.oninput}
           onblur={personaField.onblur}
         />
@@ -166,14 +169,14 @@
         info={`Premier message de la mascotte, avant la première question. Il y en a toujours un : laissé vide, c’est « ${DEFAULT_INTRO} ». Vous pouvez écrire {prenom}, remplacé par le prénom du répondant.`}
       />
       <div
-        class="rounded-2xl rounded-bl-sm border bg-background px-4 py-2.5 shadow-sm transition focus-within:border-epi-pink/50"
+        class="rounded-2xl rounded-bl-sm border border-dashed border-muted-foreground/30 bg-background px-4 py-2.5 shadow-sm transition focus-within:border-solid focus-within:border-epi-pink/50 hover:border-muted-foreground/50"
       >
         <Textarea
           value={editor.intro ?? ''}
           rows={2}
           aria-label="Message d'accueil"
           placeholder={'Message d’accueil (facultatif), ex. « Salut {prenom} ! Prêt pour le bilan ? »'}
-          class="resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+          class="cursor-text resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
           oninput={introField.oninput}
           onblur={introField.onblur}
         />
@@ -186,14 +189,14 @@
         info={`Dernier message de la mascotte, une fois le bilan terminé. Il y en a toujours un : laissé vide, c’est « ${DEFAULT_OUTRO} ». Vous pouvez écrire {prenom}, remplacé par le prénom du répondant.`}
       />
       <div
-        class="rounded-2xl rounded-bl-sm border bg-background px-4 py-2.5 shadow-sm transition focus-within:border-epi-pink/50"
+        class="rounded-2xl rounded-bl-sm border border-dashed border-muted-foreground/30 bg-background px-4 py-2.5 shadow-sm transition focus-within:border-solid focus-within:border-epi-pink/50 hover:border-muted-foreground/50"
       >
         <Textarea
           value={editor.outro ?? ''}
           rows={2}
           aria-label="Message de fin"
           placeholder={'Message de fin (facultatif), ex. « Merci {prenom} ! »'}
-          class="resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+          class="cursor-text resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
           oninput={outroField.oninput}
           onblur={outroField.onblur}
         />

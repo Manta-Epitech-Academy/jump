@@ -203,7 +203,7 @@
           rows={2}
           aria-label="Intitulé de la question"
           placeholder="Question"
-          class="flex-1 resize-none rounded-none border-0 border-b bg-muted/30 px-3 py-2 text-base shadow-none focus-visible:border-foreground focus-visible:ring-0"
+          class="flex-1 cursor-text resize-none rounded-none border-0 border-b bg-muted/30 px-3 py-2 text-base shadow-none focus-visible:border-foreground focus-visible:ring-0"
           oninput={promptField.oninput}
           onblur={promptField.onblur}
         />

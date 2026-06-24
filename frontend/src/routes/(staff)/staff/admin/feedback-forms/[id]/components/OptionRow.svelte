@@ -8,6 +8,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import RowSaveDot from './RowSaveDot.svelte';
   import { createAutosave } from '../autosave';
+  import { editableInline } from '../editableField';
   import type {
     FormEditor,
     EditorOption,
@@ -115,7 +116,7 @@
     <input
       value={option.label}
       aria-label="Libellé de l'option"
-      class="flex-1 border-b border-transparent bg-transparent py-1 text-sm outline-none hover:border-border focus:border-foreground"
+      class={editableInline('flex-1 py-1 text-sm')}
       onfocus={() => (dupWarning = false)}
       oninput={labelField.oninput}
       onblur={labelField.onblur}
@@ -206,7 +207,7 @@
         value={option.reaction ?? ''}
         aria-label="Réaction de la mascotte à cette option"
         placeholder="Réaction de la mascotte (facultatif), ex. « Ahhh j'adore ! »"
-        class="flex-1 rounded-xl rounded-bl-sm border px-3 py-1.5 text-xs transition outline-none {hasReaction
+        class="flex-1 cursor-text rounded-xl rounded-bl-sm border px-3 py-1.5 text-xs transition outline-none {hasReaction
           ? 'border-epi-pink/30 bg-epi-pink/10 text-foreground focus:border-epi-pink'
           : 'border-dashed bg-transparent text-muted-foreground italic focus:border-foreground'}"
         oninput={reactionField.oninput}

@@ -7,6 +7,7 @@
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import RowSaveDot from './RowSaveDot.svelte';
   import { createAutosave } from '../autosave';
+  import { editableInline } from '../editableField';
   import type { FormEditor, EditorSection } from '../editor.svelte';
 
   let {
@@ -58,7 +59,7 @@
         value={section.title}
         aria-label="Titre de la section"
         placeholder="Titre de la section"
-        class="w-full border-b border-transparent bg-transparent pb-1 text-lg font-semibold outline-none hover:border-border focus:border-foreground"
+        class={editableInline('w-full pb-1 text-lg font-semibold')}
         oninput={titleField.oninput}
         onblur={titleField.onblur}
       />
@@ -67,7 +68,7 @@
         rows={1}
         aria-label="Description de la section"
         placeholder="Description (optionnelle)"
-        class="resize-none border-0 px-0 text-sm text-muted-foreground shadow-none focus-visible:ring-0"
+        class="cursor-text resize-none border-0 border-b border-border px-0 text-sm text-muted-foreground shadow-none transition-colors hover:border-muted-foreground focus-visible:border-foreground focus-visible:ring-0"
         oninput={introField.oninput}
         onblur={introField.onblur}
       />

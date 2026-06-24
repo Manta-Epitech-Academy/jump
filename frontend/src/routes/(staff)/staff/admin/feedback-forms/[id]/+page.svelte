@@ -186,8 +186,10 @@
         >
           <Lock class="mt-0.5 h-4 w-4 shrink-0" />
           <p class="min-w-0 flex-1">
-            Ce formulaire a des réponses : seuls les libellés sont modifiables.
-            Pour en changer la structure, dupliquez-le.
+            Ce formulaire a déjà des réponses. Vous pouvez toujours en modifier
+            les textes (titre, intitulés, libellés, messages), mais pas la
+            structure (ajout, suppression, ordre, type de question). Pour la
+            changer, dupliquez-le.
           </p>
           <form method="POST" action="?/duplicate" use:enhance>
             <Button
