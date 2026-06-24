@@ -21,6 +21,7 @@ import type {
 } from './schema';
 import {
   validateAnswer,
+  isEmptyAnswer,
   interpolate,
   IDENTITY_FIELD_TO_CONTEXT_KEY,
   DEFAULT_INTRO,
@@ -89,14 +90,6 @@ function nowLabel(): string {
 function formatAnswer(value: AnswerValue): string {
   if (Array.isArray(value)) return value.join('  ·  ');
   return value;
-}
-
-function isEmpty(value: AnswerValue | undefined): boolean {
-  return (
-    value === undefined ||
-    (typeof value === 'string' && value.trim() === '') ||
-    (Array.isArray(value) && value.length === 0)
-  );
 }
 
 export class Conversation {
@@ -210,8 +203,8 @@ export class Conversation {
     }
     this.error = null;
 
-    if (isEmpty(value)) {
-      this.#push('user', '— (je passe)');
+    if (isEmptyAnswer(value)) {
+      this.#push('user', '(je passe)');
     } else {
       this.answers[q.id] = value;
       this.#push('user', display ?? formatAnswer(value));

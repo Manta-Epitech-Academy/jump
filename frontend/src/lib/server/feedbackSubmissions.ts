@@ -1,7 +1,9 @@
 import { error } from '@sveltejs/kit';
+import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import {
   validateAnswer,
+  isEmptyAnswer,
   type Answers,
   type IdentityField,
 } from '$lib/domain/feedbackForms/schema';
@@ -97,11 +99,7 @@ export async function recordSubmission(
       continue; // identity never becomes an answer row
     }
 
-    const isEmpty =
-      value === undefined ||
-      value === '' ||
-      (Array.isArray(value) && value.length === 0);
-    if (isEmpty) continue;
+    if (isEmptyAnswer(value)) continue;
 
     if (q.type === 'text' || q.type === 'textarea') {
       answerRows.push({
@@ -156,18 +154,44 @@ export async function recordSubmission(
     },
   };
 
-  return prisma.$transaction(async (tx) => {
-    // Authenticated re-submit replaces the prior one (the route blocks this in
-    // practice, but keep it idempotent). Public submissions never dedupe.
-    if (ctx.source === 'authenticated') {
-      await tx.feedback_Submission.deleteMany({
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // Authenticated re-submit replaces the prior one (the page redirects an
+      // already-submitted talent, so this is the rare double-tab / retry case).
+      // Public submissions never dedupe.
+      if (ctx.source === 'authenticated') {
+        await tx.feedback_Submission.deleteMany({
+          where: {
+            formId: graph.id,
+            eventId: ctx.eventId,
+            talentId: ctx.talentId,
+          },
+        });
+      }
+      return tx.feedback_Submission.create({ data, select: { id: true } });
+    });
+  } catch (e) {
+    // Two concurrent authenticated submits for the same (form, event, talent)
+    // can race the delete + create against the unique index; the loser hits
+    // P2002. The winner's row is already persisted, so this is an idempotent
+    // success, not a 500 - return the row that won.
+    if (
+      ctx.source === 'authenticated' &&
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === 'P2002'
+    ) {
+      const existing = await prisma.feedback_Submission.findUnique({
         where: {
-          formId: graph.id,
-          eventId: ctx.eventId,
-          talentId: ctx.talentId,
+          formId_eventId_talentId: {
+            formId: graph.id,
+            eventId: ctx.eventId,
+            talentId: ctx.talentId,
+          },
         },
+        select: { id: true },
       });
+      if (existing) return existing;
     }
-    return tx.feedback_Submission.create({ data, select: { id: true } });
-  });
+    throw e;
+  }
 }

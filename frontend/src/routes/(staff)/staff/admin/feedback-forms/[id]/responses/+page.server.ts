@@ -22,20 +22,31 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
   const campusName = url.searchParams.get('campus') || undefined;
 
-  const [stats, publicRespondents, campuses] = await Promise.all([
+  // Cheap shell: the campus filter chips. Awaited so the page chrome paints at once.
+  const campuses = await prisma.campus.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+
+  // Heavy aggregation (groupBys + the free-text scan over every submission of the
+  // form, across all events/campuses) is streamed, not awaited: per the staff
+  // streaming rule, cohort-scale work must not block the load. The page resolves
+  // this behind a ResultsSkeleton.
+  const results = Promise.all([
     computeFormStats(form.id, { campusName }),
     getPublicRespondents(form.id, { campusName }),
-    prisma.campus.findMany({
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    }),
-  ]);
+  ]).then(([stats, publicRespondents]) => {
+    // The form's existence is already enforced above; computeFormStats only
+    // returns null if its graph vanished mid-request (deleted concurrently), so
+    // surface that as a 404 rather than thread a nullable stats through the page.
+    if (!stats) throw error(404, 'Formulaire introuvable');
+    return { stats, publicRespondents };
+  });
 
   return {
     form,
-    stats,
-    publicRespondents,
     campuses,
     selectedCampus: campusName ?? 'all',
+    results,
   };
 };

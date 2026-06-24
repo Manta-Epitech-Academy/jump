@@ -5,7 +5,7 @@ import type {
   InputKind,
   IdentityField,
 } from './schema';
-import { IDENTITY_FIELD_TO_INPUT_KIND, buildPersonaIconUrl } from './schema';
+import { projectQuestionToSchema, buildPersonaIconUrl } from './schema';
 
 /**
  * Client-side twin of the server's `toFormSchema` (`$lib/server/feedbackForms`).
@@ -67,39 +67,10 @@ function projectQuestion(
   sectionById: Map<string, EditorSection>,
 ): Question {
   const section = q.sectionId ? sectionById.get(q.sectionId) : undefined;
-  const choice = q.options
-    .filter((o) => o.kind === 'choice')
-    .map((o) => o.label);
-  const extra = q.options.filter((o) => o.kind === 'extra').map((o) => o.label);
-
-  // An identity question derives its validation kind from the field and is always
-  // required; a content question keeps what the author set.
-  const inputKind = q.identityField
-    ? (IDENTITY_FIELD_TO_INPUT_KIND[q.identityField] ?? undefined)
-    : (q.inputKind ?? undefined);
-
-  const optionReactions: Record<string, string> = {};
-  for (const o of q.options) {
-    if (o.reaction) optionReactions[o.label] = o.reaction;
-  }
-
-  return {
-    id: q.key,
-    section: section?.title,
-    sectionIntro: section?.intro ?? undefined,
-    prompt: q.prompt,
-    required: q.identityField ? true : q.required,
-    type: q.type,
-    options: choice.length > 0 ? choice : undefined,
-    extraOptions: extra.length > 0 ? extra : undefined,
-    minSelections: q.minSelections ?? undefined,
-    maxSelections: q.maxSelections ?? undefined,
-    inputKind,
-    placeholder: q.placeholder ?? undefined,
-    identityField: q.identityField ?? undefined,
-    optionReactions:
-      Object.keys(optionReactions).length > 0 ? optionReactions : undefined,
-  };
+  return projectQuestionToSchema(
+    q,
+    section ? { title: section.title, intro: section.intro } : undefined,
+  );
 }
 
 /** Which respondent the preview projects. Mirrors the server's `FormAudience`. */

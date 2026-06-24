@@ -173,7 +173,7 @@ export async function anonymizeTalent(
   await tx.imageRightsDecisionRecord.deleteMany({ where: { talentId } });
   await tx.note_TalentNote.deleteMany({ where: { talentId } });
   // feedback_Submission: the talent's bilan answers embed free-text opinions
-  // (textarea questions) — identifying content, so the whole submission is
+  // (textarea questions), identifying content, so the whole submission is
   // removed (cascades to its answers + selected options). A public bilan response
   // carries no talentId until reconciled, yet stores the respondent's self-typed
   // e-mail / phone / name, so it is also matched by the talent's own e-mail and

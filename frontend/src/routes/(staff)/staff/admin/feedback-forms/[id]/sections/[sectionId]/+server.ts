@@ -11,7 +11,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
   requireAdmin(locals);
   const parsed = sectionSchema.partial().safeParse(await request.json());
   if (!parsed.success) throw error(400, parsed.error.issues[0]?.message);
-  await updateSection(params.sectionId, parsed.data);
+  await updateSection(params.id, params.sectionId, parsed.data);
   return json({ success: true });
 };
 

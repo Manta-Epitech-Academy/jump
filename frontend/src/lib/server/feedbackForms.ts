@@ -9,7 +9,7 @@ import type {
   IdentityField,
 } from '$lib/domain/feedbackForms/schema';
 import {
-  IDENTITY_FIELD_TO_INPUT_KIND,
+  projectQuestionToSchema,
   buildPersonaIconUrl,
 } from '$lib/domain/feedbackForms/schema';
 
@@ -62,44 +62,27 @@ export function getFormGraphById(
 }
 
 function projectQuestion(q: GraphQuestion): Question {
-  const choice = q.options
-    .filter((o) => o.kind === 'choice')
-    .map((o) => o.label);
-  const extra = q.options.filter((o) => o.kind === 'extra').map((o) => o.label);
-
-  const identityField = (q.identityField ?? undefined) as
-    | IdentityField
-    | undefined;
-  // An identity question derives its validation kind from the field and is always
-  // required; a content question keeps what the author set.
-  const inputKind = identityField
-    ? (IDENTITY_FIELD_TO_INPUT_KIND[identityField] ?? undefined)
-    : ((q.inputKind ?? undefined) as InputKind | undefined);
-
-  const optionReactions: Record<string, string> = {};
-  for (const o of q.options) {
-    if (o.reaction) optionReactions[o.label] = o.reaction;
-  }
-
-  return {
-    id: q.key,
-    section: q.section?.title,
-    // Stored once per section; the controller only emits it at the section
-    // transition, so carrying it on every question in the section is harmless.
-    sectionIntro: q.section?.intro ?? undefined,
-    prompt: q.prompt,
-    required: identityField ? true : q.required,
-    type: q.type as QuestionType,
-    options: choice.length > 0 ? choice : undefined,
-    extraOptions: extra.length > 0 ? extra : undefined,
-    minSelections: q.minSelections ?? undefined,
-    maxSelections: q.maxSelections ?? undefined,
-    inputKind,
-    placeholder: q.placeholder ?? undefined,
-    identityField,
-    optionReactions:
-      Object.keys(optionReactions).length > 0 ? optionReactions : undefined,
-  };
+  // Stored once per section; the controller only emits the intro at the section
+  // transition, so carrying it on every question in the section is harmless.
+  return projectQuestionToSchema(
+    {
+      key: q.key,
+      prompt: q.prompt,
+      type: q.type as QuestionType,
+      required: q.required,
+      identityField: (q.identityField ?? null) as IdentityField | null,
+      inputKind: (q.inputKind ?? null) as InputKind | null,
+      minSelections: q.minSelections,
+      maxSelections: q.maxSelections,
+      placeholder: q.placeholder,
+      options: q.options.map((o) => ({
+        label: o.label,
+        kind: o.kind as 'choice' | 'extra',
+        reaction: o.reaction,
+      })),
+    },
+    q.section ? { title: q.section.title, intro: q.section.intro } : undefined,
+  );
 }
 
 /**

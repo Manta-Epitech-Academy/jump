@@ -53,6 +53,48 @@ async function uniqueSlug(base: string): Promise<string> {
   }
 }
 
+// ─── Form-scoped target guards ───
+// The REST routes pass the form id from the URL plus a question / option /
+// section id from the path. The structural-edit lock (`assertEditable`) is keyed
+// on the *form*, so a mutation handed an id that belongs to a different form
+// would have its lock checked against the wrong form - letting an editable form's
+// (unlocked) state authorise a structural edit to a locked one. These pin the
+// target to the form named in the URL: a cross-form id 404s, so the lock holds by
+// construction rather than by callers remembering to pass matching ids.
+
+async function assertQuestionInForm(
+  formId: string,
+  questionId: string,
+): Promise<void> {
+  const q = await prisma.feedback_Question.findFirst({
+    where: { id: questionId, formId },
+    select: { id: true },
+  });
+  if (!q) throw error(404, 'Question introuvable.');
+}
+
+async function assertOptionInForm(
+  formId: string,
+  optionId: string,
+): Promise<void> {
+  const o = await prisma.feedback_QuestionOption.findFirst({
+    where: { id: optionId, question: { formId } },
+    select: { id: true },
+  });
+  if (!o) throw error(404, 'Option introuvable.');
+}
+
+async function assertSectionInForm(
+  formId: string,
+  sectionId: string,
+): Promise<void> {
+  const s = await prisma.feedback_Section.findFirst({
+    where: { id: sectionId, formId },
+    select: { id: true },
+  });
+  if (!s) throw error(404, 'Section introuvable.');
+}
+
 // ─── Form ───
 
 export async function createForm(
@@ -222,14 +264,17 @@ export async function createSection(
 }
 
 export async function updateSection(
+  formId: string,
   id: string,
   patch: { title?: string; intro?: string | null },
 ): Promise<void> {
+  await assertSectionInForm(formId, id);
   // Text-only edit: allowed even with responses.
   await prisma.feedback_Section.update({ where: { id }, data: patch });
 }
 
 export async function deleteSection(formId: string, id: string): Promise<void> {
+  await assertSectionInForm(formId, id);
   await assertEditable(formId);
   await prisma.feedback_Section.delete({ where: { id } });
 }
@@ -367,6 +412,7 @@ export async function updateQuestion(
   id: string,
   patch: Partial<QuestionStructureInput>,
 ): Promise<void> {
+  await assertQuestionInForm(formId, id);
   const touchesStructure = STRUCTURAL_QUESTION_FIELDS.some(
     (f) => patch[f] !== undefined,
   );
@@ -402,6 +448,7 @@ export async function deleteQuestion(
   formId: string,
   id: string,
 ): Promise<void> {
+  await assertQuestionInForm(formId, id);
   await assertEditable(formId);
   await prisma.feedback_Question.delete({ where: { id } });
 }
@@ -513,6 +560,7 @@ export async function createOption(
     reaction?: string | null;
   },
 ): Promise<{ id: string }> {
+  await assertQuestionInForm(formId, questionId);
   await assertEditable(formId);
   await assertOptionLabelAvailable(questionId, input.label);
   return prisma.feedback_QuestionOption.create({
@@ -536,25 +584,33 @@ export async function updateOption(
     reaction?: string | null;
   },
 ): Promise<void> {
+  // One scoped lookup pins the option to the form and yields its questionId for
+  // the label-uniqueness check below.
+  const opt = await prisma.feedback_QuestionOption.findFirst({
+    where: { id, question: { formId } },
+    select: { questionId: true },
+  });
+  if (!opt) throw error(404, 'Option introuvable.');
   // Relabelling is rename-safe (answers reference the option id) and the reaction
   // is pure copy -> both always allowed. Changing the kind is structural.
   if (patch.kind !== undefined) await assertEditable(formId);
-  if (patch.label !== undefined) {
-    const opt = await prisma.feedback_QuestionOption.findUnique({
-      where: { id },
-      select: { questionId: true },
-    });
-    if (opt) await assertOptionLabelAvailable(opt.questionId, patch.label, id);
-  }
+  if (patch.label !== undefined)
+    await assertOptionLabelAvailable(opt.questionId, patch.label, id);
   await prisma.feedback_QuestionOption.update({ where: { id }, data: patch });
 }
 
 export async function deleteOption(formId: string, id: string): Promise<void> {
+  await assertOptionInForm(formId, id);
   await assertEditable(formId);
   await prisma.feedback_QuestionOption.delete({ where: { id } });
 }
 
 // ─── Reordering ───
+
+// The reorder loops scope each write to the form (via `updateMany`, which unlike
+// `update` accepts a non-unique filter): an id that belongs to another form
+// matches nothing and is a no-op, so a crafted order list can't reposition a
+// different form's rows.
 
 export async function reorderSections(
   formId: string,
@@ -563,8 +619,8 @@ export async function reorderSections(
   await assertEditable(formId);
   await prisma.$transaction(
     orderedIds.map((id, i) =>
-      prisma.feedback_Section.update({
-        where: { id },
+      prisma.feedback_Section.updateMany({
+        where: { id, formId },
         data: { position: i },
       }),
     ),
@@ -578,8 +634,8 @@ export async function reorderQuestions(
   await assertEditable(formId);
   await prisma.$transaction(
     orderedIds.map((id, i) =>
-      prisma.feedback_Question.update({
-        where: { id },
+      prisma.feedback_Question.updateMany({
+        where: { id, formId },
         data: { position: i },
       }),
     ),
@@ -593,8 +649,8 @@ export async function reorderOptions(
   await assertEditable(formId);
   await prisma.$transaction(
     orderedIds.map((id, i) =>
-      prisma.feedback_QuestionOption.update({
-        where: { id },
+      prisma.feedback_QuestionOption.updateMany({
+        where: { id, question: { formId } },
         data: { position: i },
       }),
     ),
