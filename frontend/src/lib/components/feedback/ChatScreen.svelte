@@ -20,6 +20,9 @@
 
   let { form, onSubmit, identity = {} }: Props = $props();
 
+  // Chat persona name set on the form (Mascotte), with the historical default.
+  const persona = $derived(form.personaName?.trim() || 'Bernard le canard');
+
   // Built once: the conversation is a stateful machine, not reactive to later
   // prop changes. `untrack` makes that one-time read explicit (and silences the
   // state_referenced_locally warning).
@@ -62,7 +65,7 @@
     <div class="relative">
       <img
         src="/canard.png"
-        alt="Bernard le canard"
+        alt={persona}
         class="h-8 w-8 rounded-full object-cover"
       />
       <span
@@ -70,7 +73,7 @@
       ></span>
     </div>
     <div class="flex flex-col">
-      <span class="text-sm leading-tight font-semibold">Bernard le canard</span>
+      <span class="text-sm leading-tight font-semibold">{persona}</span>
       <span class="text-xs text-muted-foreground">{form.title}</span>
     </div>
   </div>

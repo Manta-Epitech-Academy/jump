@@ -32,6 +32,37 @@ export const IDENTITY_FIELD_TO_INPUT_KIND: Record<
   campus: null,
 };
 
+/** Identity fields with their French label, in builder display order. Single
+ *  source for the badge and the builder's identity selector (mirrors the
+ *  `Feedback_IdentityField` enum). */
+export const IDENTITY_FIELD_OPTIONS: { value: IdentityField; label: string }[] =
+  [
+    { value: 'email', label: 'E-mail' },
+    { value: 'phone', label: 'Téléphone' },
+    { value: 'firstName', label: 'Prénom' },
+    { value: 'lastName', label: 'Nom' },
+    { value: 'civility', label: 'Civilité' },
+    { value: 'campus', label: 'Campus' },
+  ];
+
+/**
+ * Natural question type for each identity field, used to auto-configure a question
+ * when an identity field is picked: text-like data becomes a short text input,
+ * civility / campus a single choice. Keeps an identity field off an incompatible
+ * type (e.g. an e-mail rendered as a star rating).
+ */
+export const IDENTITY_FIELD_TO_QUESTION_TYPE: Record<
+  IdentityField,
+  QuestionType
+> = {
+  email: 'text',
+  phone: 'text',
+  firstName: 'text',
+  lastName: 'text',
+  civility: 'single',
+  campus: 'single',
+};
+
 /**
  * Identity known about the respondent, used to interpolate bot copy
  * (`Salut {prenom} !`). For a connected talent it is seeded from `Talent`; for a
@@ -133,6 +164,8 @@ export interface FormSchema {
   intro: string;
   /** Closing bot line; falls back to a generic message when absent. */
   outro?: string;
+  /** Name of the chat persona; falls back to the default mascot when absent. */
+  personaName?: string;
   questions: Question[];
 }
 

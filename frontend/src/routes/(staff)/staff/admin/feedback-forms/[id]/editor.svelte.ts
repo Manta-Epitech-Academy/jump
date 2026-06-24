@@ -1,5 +1,6 @@
 import { toast } from 'svelte-sonner';
 import { SvelteMap } from 'svelte/reactivity';
+import { IDENTITY_FIELD_TO_QUESTION_TYPE } from '$lib/domain/feedbackForms/schema';
 import type {
   QuestionType,
   InputKind,
@@ -163,6 +164,53 @@ export class FormEditor {
     this.activeId = id;
   }
 
+  // ── Identity / audience derivations ──
+  // Kept on the controller (like `get groups`) so the audience legend and the
+  // question cards read the same truth and can't drift apart.
+
+  /**
+   * Public form that can never accept a submission: public access is on but no
+   * question collects the e-mail, which the public submit endpoint requires
+   * (`feedbackSubmissions` throws 400 without `respondentEmail`).
+   */
+  get publicMissingEmail(): boolean {
+    return (
+      this.allowsPublicAccess &&
+      !this.questions.some((q) => q.identityField === 'email')
+    );
+  }
+
+  /** Published form nobody can reach: live, but no access mode is enabled. */
+  get publishedButUnreachable(): boolean {
+    return (
+      this.status === 'published' &&
+      !this.allowsAuthenticatedAccess &&
+      !this.allowsPublicAccess
+    );
+  }
+
+  /**
+   * True when an identity question is shown to nobody: identity questions are
+   * only asked to public respondents, so without public access they are dead
+   * weight (connected talents never see them).
+   */
+  isIdentityUnreachable(q: EditorQuestion): boolean {
+    return q.identityField != null && !this.allowsPublicAccess;
+  }
+
+  /**
+   * Identity fields already collected by another question. The selector disables
+   * these so an author can't pick a field the server would reject (each identity
+   * field is unique per form, `assertIdentityFieldAvailable` → 409).
+   */
+  usedIdentityFields(exceptId: string): Set<IdentityField> {
+    const used = new Set<IdentityField>();
+    for (const q of this.questions) {
+      if (q.id !== exceptId && q.identityField) used.add(q.identityField);
+    }
+    return used;
+  }
+
   #q(id: string) {
     return this.questions.find((q) => q.id === id);
   }
@@ -303,6 +351,29 @@ export class FormEditor {
     Object.assign(q, patch);
     const ok = await this.#send(id, `questions/${id}`, 'PATCH', patch);
     if (ok === null) Object.assign(q, prev);
+  }
+
+  /**
+   * Sets or clears a question's identity field. Picking a field auto-configures
+   * the question's type to a compatible one (text-like fields → `text`, civility
+   * / campus → `single`), so an identity field never lands on an incompatible
+   * type (an e-mail rendered as a star rating, or a `multiple` the server would
+   * reject). `required` and the input validation kind stay derived at projection
+   * time, so they are not persisted here. Goes through `patchQuestion`, so the
+   * whole change is one optimistic PATCH with rollback.
+   */
+  async setIdentityField(
+    id: string,
+    field: IdentityField | null,
+  ): Promise<void> {
+    const q = this.#q(id);
+    if (!q) return;
+    const patch: Partial<EditorQuestion> = { identityField: field };
+    if (field) {
+      const type = IDENTITY_FIELD_TO_QUESTION_TYPE[field];
+      if (type !== q.type) patch.type = type;
+    }
+    await this.patchQuestion(id, patch);
   }
 
   /** Reassigns a question to another section (or none) and re-persists the order. */
@@ -466,6 +537,32 @@ export class FormEditor {
       patch,
     );
     if (ok === null) Object.assign(o, prev);
+  }
+
+  /**
+   * Renames an option, enforcing the (question, label) uniqueness rule on the
+   * CLIENT so a duplicate never reaches the server as a blocking 409. Without
+   * this the editor would roll the label back while the uncontrolled input kept
+   * the typed value, so every blur re-fired the error and the field felt stuck
+   * (only a refresh recovered). The caller reverts the field and warns instead.
+   * Returns the outcome: `unchanged` also covers a whitespace-only edit (the
+   * field should re-sync to the trimmed saved value).
+   */
+  renameOption(
+    qid: string,
+    oid: string,
+    raw: string,
+  ): 'ok' | 'unchanged' | 'empty' | 'duplicate' {
+    const q = this.#q(qid);
+    const o = q?.options.find((x) => x.id === oid);
+    if (!q || !o) return 'unchanged';
+    const label = raw.trim();
+    if (label === o.label) return 'unchanged';
+    if (!label) return 'empty';
+    if (q.options.some((x) => x.id !== oid && x.label === label))
+      return 'duplicate';
+    this.patchOption(qid, oid, { label });
+    return 'ok';
   }
 
   async deleteOption(qid: string, oid: string): Promise<void> {

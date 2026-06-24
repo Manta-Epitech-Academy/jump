@@ -21,6 +21,7 @@
   } from './editor.svelte';
   import FormTabs from './components/FormTabs.svelte';
   import HeaderCard from './components/HeaderCard.svelte';
+  import DiffusionPopover from './components/DiffusionPopover.svelte';
   import SectionBanner from './components/SectionBanner.svelte';
   import QuestionCard from './components/QuestionCard.svelte';
   import SettingsPanel from './components/SettingsPanel.svelte';
@@ -95,16 +96,38 @@
   );
 
   let previewOpen = $state(false);
+  let previewAudience = $state<'public' | 'authenticated'>('authenticated');
   const previewSchema = $derived(
-    projectEditorToSchema({
-      slug: editor.slug,
-      title: editor.title,
-      intro: editor.intro,
-      outro: editor.outro,
-      sections: editor.sections,
-      questions: editor.questions,
-    }),
+    projectEditorToSchema(
+      {
+        slug: editor.slug,
+        title: editor.title,
+        intro: editor.intro,
+        outro: editor.outro,
+        personaName: editor.personaName,
+        sections: editor.sections,
+        questions: editor.questions,
+      },
+      previewAudience,
+    ),
   );
+  // A connected talent has a known identity (used to interpolate copy); a public
+  // respondent does not (they are asked it in-flow).
+  const previewIdentity = $derived(
+    previewAudience === 'authenticated'
+      ? { prenom: 'Marc', campus: 'Lyon' }
+      : {},
+  );
+
+  function openPreview() {
+    // Default to the more surprising experience available: a public-only form
+    // previews public, everything else previews the connected-talent flow.
+    previewAudience =
+      editor.allowsPublicAccess && !editor.allowsAuthenticatedAccess
+        ? 'public'
+        : 'authenticated';
+    previewOpen = true;
+  }
 
   // One shared set of drag handlers for every per-section question list (only one
   // drag runs at a time; the controller snapshots/commits the whole flat order).
@@ -146,10 +169,11 @@
             variant="outline"
             size="sm"
             class="rounded-sm"
-            onclick={() => (previewOpen = true)}
+            onclick={openPreview}
           >
             <Eye class="mr-1.5 h-4 w-4" /> Aperçu
           </Button>
+          <DiffusionPopover {editor} />
         </div>
       </div>
 
@@ -257,6 +281,7 @@
 
 <PreviewDialog
   bind:open={previewOpen}
+  bind:audience={previewAudience}
   schema={previewSchema}
-  identity={{ prenom: 'Marc', campus: 'Lyon' }}
+  identity={previewIdentity}
 />

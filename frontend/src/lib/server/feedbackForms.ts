@@ -116,6 +116,7 @@ export function toFormSchema(
     title: graph.title,
     intro: graph.intro,
     outro: graph.outro ?? undefined,
+    personaName: graph.personaName ?? undefined,
     questions,
   };
 }

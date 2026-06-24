@@ -10,22 +10,28 @@
   let {
     value,
     disabled = false,
+    exclude = [],
     onChange,
   }: {
     value: QuestionType;
     disabled?: boolean;
+    /** Types to hide from the picker (e.g. `multiple` for an identity question). */
+    exclude?: QuestionType[];
     onChange: (t: QuestionType) => void;
   } = $props();
 
-  const TYPES = [
+  const ALL_TYPES = [
     { value: 'single', label: 'Choix unique', icon: CircleDot },
     { value: 'multiple', label: 'Choix multiple', icon: SquareCheck },
     { value: 'scale', label: 'Échelle', icon: Star },
     { value: 'text', label: 'Texte court', icon: Minus },
     { value: 'textarea', label: 'Texte long', icon: AlignLeft },
   ] as const;
+  const TYPES = $derived(ALL_TYPES.filter((t) => !exclude.includes(t.value)));
 
-  const current = $derived(TYPES.find((t) => t.value === value) ?? TYPES[0]);
+  const current = $derived(
+    ALL_TYPES.find((t) => t.value === value) ?? TYPES[0],
+  );
   const CurrentIcon = $derived(current.icon);
 </script>
 

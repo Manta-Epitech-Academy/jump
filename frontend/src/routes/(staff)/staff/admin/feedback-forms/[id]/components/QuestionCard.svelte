@@ -10,8 +10,9 @@
   import Star from '@lucide/svelte/icons/star';
   import Minus from '@lucide/svelte/icons/minus';
   import AlignLeft from '@lucide/svelte/icons/align-left';
-  import ContactRound from '@lucide/svelte/icons/contact-round';
   import Asterisk from '@lucide/svelte/icons/asterisk';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import ContactRound from '@lucide/svelte/icons/contact-round';
   import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
   import { Switch } from '$lib/components/ui/switch';
@@ -22,6 +23,11 @@
   import TypePicker from './TypePicker.svelte';
   import OptionRow from './OptionRow.svelte';
   import RowSaveDot from './RowSaveDot.svelte';
+  import IdentityBadge from './IdentityBadge.svelte';
+  import {
+    IDENTITY_FIELD_OPTIONS,
+    IDENTITY_FIELD_TO_INPUT_KIND,
+  } from '$lib/domain/feedbackForms/schema';
   import type {
     FormEditor,
     EditorQuestion,
@@ -65,20 +71,23 @@
     { value: 'text', label: 'Texte' },
   ];
 
-  // Identity fields a question can collect. Mirrors the Feedback_IdentityField
-  // enum; the empty value means "not an identity question".
-  const IDENTITY_FIELD_OPTIONS = [
-    { value: 'email', label: 'E-mail' },
-    { value: 'phone', label: 'Téléphone' },
-    { value: 'firstName', label: 'Prénom' },
-    { value: 'lastName', label: 'Nom' },
-    { value: 'civility', label: 'Civilité' },
-    { value: 'campus', label: 'Campus' },
-  ] as const;
-  const activeIdentityLabel = $derived(
-    IDENTITY_FIELD_OPTIONS.find((o) => o.value === q.identityField)?.label ??
-      'Aucune',
+  // Fields already collected by another question, so we can't pick them here
+  // (each identity field is unique per form; the server returns 409 otherwise).
+  const usedFields = $derived(editor.usedIdentityFields(q.id));
+  // Validation derived from the identity field (the projection forces it, so the
+  // manual "Validation" selector is hidden and this read-only note shown instead).
+  const derivedKind = $derived(
+    q.identityField ? IDENTITY_FIELD_TO_INPUT_KIND[q.identityField] : null,
   );
+  const DERIVED_KIND_LABEL: Record<NonNullable<typeof derivedKind>, string> = {
+    email: 'Validé comme une adresse e-mail.',
+    tel: 'Validé comme un numéro de téléphone.',
+    name: 'Saisi comme du texte court.',
+    text: 'Saisi comme du texte court.',
+  };
+  // Identity question that reaches nobody: only public respondents are asked
+  // identity questions, so without public access it is never shown.
+  const unreachable = $derived(editor.isIdentityUnreachable(q));
 
   const hasOptions = $derived(q.type !== 'text' && q.type !== 'textarea');
   const showKind = $derived(q.type === 'scale');
@@ -136,7 +145,7 @@
         {q.prompt || 'Question sans intitulé'}
       </span>
       {#if q.identityField}
-        <ContactRound class="h-3.5 w-3.5 shrink-0 text-epi-teal" />
+        <IdentityBadge field={q.identityField} />
       {/if}
       {#if q.required}
         <Asterisk class="h-3.5 w-3.5 shrink-0 text-epi-pink" />
@@ -184,9 +193,27 @@
         <TypePicker
           value={q.type}
           disabled={locked}
+          exclude={q.identityField ? ['multiple'] : []}
           onChange={(t) => editor.patchQuestion(q.id, { type: t })}
         />
       </div>
+
+      <!-- Dead-question consequence: an identity question is only ever shown to
+           public respondents, so without public access it reaches nobody. Shown
+           inline (not just in the footer menu) so the misconfig can't be missed.
+           Only renders on the rare misconfigured card, never on normal ones. -->
+      {#if unreachable}
+        <div
+          class="flex items-start gap-2 rounded-sm border border-amber-300 bg-amber-50 p-2 text-[11px] leading-snug text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+        >
+          <TriangleAlert class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <p class="min-w-0 flex-1">
+            Cette donnée d'identité n'est demandée qu'aux répondants publics, or
+            l'accès public est désactivé : cette question n'est affichée à
+            personne.
+          </p>
+        </div>
+      {/if}
 
       <!-- Body: mirrors the rendered answer control -->
       {#if hasOptions}
@@ -263,7 +290,15 @@
               : 'Réponse courte du stagiaire'}
           </div>
           <div class="flex flex-wrap items-center gap-4">
-            {#if q.type === 'text'}
+            {#if q.identityField}
+              <!-- Identity questions derive their validation from the field; the
+                   manual selector is hidden and the derived rule shown read-only. -->
+              {#if derivedKind}
+                <span class="text-xs text-muted-foreground"
+                  >{DERIVED_KIND_LABEL[derivedKind]}</span
+                >
+              {/if}
+            {:else if q.type === 'text'}
               <label
                 class="flex items-center gap-2 text-sm text-muted-foreground"
               >
@@ -305,136 +340,164 @@
       {/if}
 
       <!-- Footer toolbar -->
-      <div class="flex items-center justify-end gap-1 border-t pt-3">
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <button
-                {...props}
-                type="button"
-                class="cursor-pointer rounded-sm p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
-                disabled={locked}
-                aria-label="Dupliquer la question"
-                onclick={() => editor.duplicateQuestion(q.id)}
+      <div
+        class="flex flex-wrap items-center justify-between gap-2 border-t pt-3"
+      >
+        <!-- Identity property: a compact, top-level labelled control (not a body
+             block, so the ~80% of normal questions stay clean; not buried in the
+             overflow menu, so it stays discoverable). The trigger shows the teal
+             badge when set, a muted button otherwise. -->
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger
+            disabled={locked}
+            class="cursor-pointer rounded-sm disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Donnée d'identité"
+          >
+            {#if q.identityField}
+              <IdentityBadge field={q.identityField} />
+            {:else}
+              <span
+                class="inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-xs text-muted-foreground hover:text-foreground"
               >
-                <Copy class="h-4 w-4" />
-              </button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content>Dupliquer la question</Tooltip.Content>
-        </Tooltip.Root>
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <button
-                {...props}
-                type="button"
-                class="cursor-pointer rounded-sm p-2 text-muted-foreground hover:bg-muted hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40"
-                disabled={locked}
-                aria-label="Supprimer la question"
-                onclick={() => editor.deleteQuestion(q.id)}
-              >
-                <Trash2 class="h-4 w-4" />
-              </button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content>Supprimer la question</Tooltip.Content>
-        </Tooltip.Root>
-        <div class="mx-1 h-5 w-px bg-border"></div>
-        {#if q.identityField}
-          <!-- Identity fields are always required (no anonymous respondents);
-               the switch is locked on so the invariant reads at a glance. -->
+                <ContactRound class="h-3.5 w-3.5" /> Donnée d'identité
+              </span>
+            {/if}
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content align="start" class="w-64">
+            <DropdownMenu.RadioGroup
+              value={q.identityField ?? ''}
+              onValueChange={(v) =>
+                editor.setIdentityField(
+                  q.id,
+                  (v || null) as IdentityField | null,
+                )}
+            >
+              <DropdownMenu.RadioItem value="">
+                Question normale
+              </DropdownMenu.RadioItem>
+              <DropdownMenu.Separator />
+              {#each IDENTITY_FIELD_OPTIONS as o (o.value)}
+                <DropdownMenu.RadioItem
+                  value={o.value}
+                  disabled={usedFields.has(o.value)}
+                >
+                  {o.label}
+                  {#if usedFields.has(o.value)}
+                    <span class="ml-auto pl-2 text-xs text-muted-foreground"
+                      >déjà utilisée</span
+                    >
+                  {/if}
+                </DropdownMenu.RadioItem>
+              {/each}
+            </DropdownMenu.RadioGroup>
+            <DropdownMenu.Separator />
+            <p
+              class="px-2 py-1.5 text-[11px] leading-snug text-muted-foreground"
+            >
+              Demandée aux répondants publics et toujours obligatoire. Les
+              talents connectés ne la voient pas : Jump connaît déjà leur
+              identité.
+            </p>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+
+        <div class="flex items-center gap-1">
           <Tooltip.Root>
             <Tooltip.Trigger>
               {#snippet child({ props })}
-                <span
+                <button
                   {...props}
-                  class="flex items-center gap-2 px-1 text-sm text-muted-foreground"
+                  type="button"
+                  class="cursor-pointer rounded-sm p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={locked}
+                  aria-label="Dupliquer la question"
+                  onclick={() => editor.duplicateQuestion(q.id)}
                 >
-                  Obligatoire
-                  <Switch checked disabled />
-                </span>
+                  <Copy class="h-4 w-4" />
+                </button>
               {/snippet}
             </Tooltip.Trigger>
-            <Tooltip.Content>
-              Toujours obligatoire pour une donnée d'identité.
-            </Tooltip.Content>
+            <Tooltip.Content>Dupliquer la question</Tooltip.Content>
           </Tooltip.Root>
-        {:else}
-          <label class="flex items-center gap-2 px-1 text-sm">
-            Obligatoire
-            <Switch
-              checked={q.required}
-              disabled={locked}
-              onCheckedChange={(v) =>
-                v !== q.required && editor.patchQuestion(q.id, { required: v })}
-            />
-          </label>
-        {/if}
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger
-            class="cursor-pointer rounded-sm p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Plus d'options"
-          >
-            <EllipsisVertical class="h-4 w-4" />
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content align="end" class="w-56">
-            <DropdownMenu.Sub>
-              <DropdownMenu.SubTrigger disabled={locked}>
-                Déplacer vers…
-              </DropdownMenu.SubTrigger>
-              <DropdownMenu.SubContent>
-                <DropdownMenu.Item
-                  onSelect={() => editor.moveQuestionToSection(q.id, null)}
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <button
+                  {...props}
+                  type="button"
+                  class="cursor-pointer rounded-sm p-2 text-muted-foreground hover:bg-muted hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={locked}
+                  aria-label="Supprimer la question"
+                  onclick={() => editor.deleteQuestion(q.id)}
                 >
-                  Aucune section
-                </DropdownMenu.Item>
-                {#each sections as s (s.id)}
-                  <DropdownMenu.Item
-                    onSelect={() => editor.moveQuestionToSection(q.id, s.id)}
+                  <Trash2 class="h-4 w-4" />
+                </button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content>Supprimer la question</Tooltip.Content>
+          </Tooltip.Root>
+          <div class="mx-1 h-5 w-px bg-border"></div>
+          {#if q.identityField}
+            <!-- Identity fields are always required (no anonymous respondents);
+               the switch is locked on so the invariant reads at a glance. -->
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <span
+                    {...props}
+                    class="flex items-center gap-2 px-1 text-sm text-muted-foreground"
                   >
-                    {s.title}
+                    Obligatoire
+                    <Switch checked disabled />
+                  </span>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content>
+                Toujours obligatoire pour une donnée d'identité.
+              </Tooltip.Content>
+            </Tooltip.Root>
+          {:else}
+            <label class="flex items-center gap-2 px-1 text-sm">
+              Obligatoire
+              <Switch
+                checked={q.required}
+                disabled={locked}
+                onCheckedChange={(v) =>
+                  v !== q.required &&
+                  editor.patchQuestion(q.id, { required: v })}
+              />
+            </label>
+          {/if}
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger
+              class="cursor-pointer rounded-sm p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Plus d'options"
+            >
+              <EllipsisVertical class="h-4 w-4" />
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content align="end" class="w-56">
+              <DropdownMenu.Sub>
+                <DropdownMenu.SubTrigger disabled={locked}>
+                  Déplacer vers…
+                </DropdownMenu.SubTrigger>
+                <DropdownMenu.SubContent>
+                  <DropdownMenu.Item
+                    onSelect={() => editor.moveQuestionToSection(q.id, null)}
+                  >
+                    Aucune section
                   </DropdownMenu.Item>
-                {/each}
-              </DropdownMenu.SubContent>
-            </DropdownMenu.Sub>
-            <DropdownMenu.Sub>
-              <DropdownMenu.SubTrigger disabled={locked}>
-                Donnée d'identité
-                <span class="ml-auto pl-2 text-xs text-muted-foreground">
-                  {activeIdentityLabel}
-                </span>
-              </DropdownMenu.SubTrigger>
-              <DropdownMenu.SubContent class="w-60">
-                <DropdownMenu.RadioGroup
-                  value={q.identityField ?? ''}
-                  onValueChange={(v) =>
-                    editor.patchQuestion(q.id, {
-                      identityField: (v || null) as IdentityField | null,
-                    })}
-                >
-                  <DropdownMenu.RadioItem value="">
-                    Aucune (question normale)
-                  </DropdownMenu.RadioItem>
-                  <DropdownMenu.Separator />
-                  {#each IDENTITY_FIELD_OPTIONS as o (o.value)}
-                    <DropdownMenu.RadioItem value={o.value}>
-                      {o.label}
-                    </DropdownMenu.RadioItem>
+                  {#each sections as s (s.id)}
+                    <DropdownMenu.Item
+                      onSelect={() => editor.moveQuestionToSection(q.id, s.id)}
+                    >
+                      {s.title}
+                    </DropdownMenu.Item>
                   {/each}
-                </DropdownMenu.RadioGroup>
-                <DropdownMenu.Separator />
-                <p
-                  class="px-2 py-1.5 text-[11px] leading-snug text-muted-foreground"
-                >
-                  Demandée uniquement aux répondants publics et toujours
-                  obligatoire. Les talents connectés ne la voient pas : Jump
-                  connaît déjà leur identité.
-                </p>
-              </DropdownMenu.SubContent>
-            </DropdownMenu.Sub>
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
+                </DropdownMenu.SubContent>
+              </DropdownMenu.Sub>
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
+        </div>
       </div>
     </div>
 

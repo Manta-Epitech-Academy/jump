@@ -55,6 +55,7 @@ export interface EditorGraph {
   title: string;
   intro: string;
   outro: string | null;
+  personaName: string | null;
   sections: EditorSection[];
   questions: EditorQuestion[];
 }
@@ -99,17 +100,27 @@ function projectQuestion(
   };
 }
 
-export function projectEditorToSchema(graph: EditorGraph): FormSchema {
+/** Which respondent the preview projects. Mirrors the server's `FormAudience`. */
+export type PreviewAudience = 'public' | 'authenticated';
+
+export function projectEditorToSchema(
+  graph: EditorGraph,
+  audience: PreviewAudience = 'public',
+): FormSchema {
   const sectionById = new Map(graph.sections.map((s) => [s.id, s]));
   // Match the server projection (`FORM_GRAPH_INCLUDE` orders by `position`) so
   // the live preview can never drift from the respondent's question order, even
-  // if the in-memory array is momentarily out of order mid-edit.
-  const ordered = [...graph.questions].sort((a, b) => a.position - b.position);
+  // if the in-memory array is momentarily out of order mid-edit. Identity
+  // questions are dropped for connected talents, exactly like `toFormSchema`.
+  const ordered = [...graph.questions]
+    .filter((q) => audience === 'public' || q.identityField == null)
+    .sort((a, b) => a.position - b.position);
   return {
     id: graph.slug,
     title: graph.title,
     intro: graph.intro,
     outro: graph.outro ?? undefined,
+    personaName: graph.personaName ?? undefined,
     questions: ordered.map((q) => projectQuestion(q, sectionById)),
   };
 }

@@ -1,10 +1,7 @@
 <script lang="ts">
-  import { page } from '$app/state';
-  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import { Input } from '$lib/components/ui/input';
   import { Switch } from '$lib/components/ui/switch';
   import * as Select from '$lib/components/ui/select';
-  import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import {
     FORM_STATUS_LABELS,
     FORM_STATUS_OPTIONS,
@@ -14,33 +11,8 @@
 
   let { editor }: { editor: FormEditor } = $props();
 
-  // Published but no access mode = a live form nobody can reach. Warn rather than
-  // silently leave it unreachable (raised in testing).
-  const publishedButUnreachable = $derived(
-    editor.status === 'published' &&
-      !editor.allowsAuthenticatedAccess &&
-      !editor.allowsPublicAccess,
-  );
-
-  const publicUrl = $derived(`${page.url.origin}/bilan/${editor.slug}`);
-
-  const TOGGLES = [
-    {
-      key: 'allowsAuthenticatedAccess',
-      label: 'Accès authentifié',
-      help: 'Proposé aux stagiaires connectés depuis leur espace.',
-    },
-    {
-      key: 'allowsPublicAccess',
-      label: 'Accès public',
-      help: 'Accessible sans compte via un lien partageable.',
-    },
-    {
-      key: 'dashboardNudge',
-      label: 'Relance sur le tableau de bord',
-      help: 'Affiche une carte de rappel tant que le stagiaire n’a pas répondu.',
-    },
-  ] as const;
+  // Access modes (who can answer) and the public link live in the header
+  // "Diffusion" control, not here. This tab owns form behaviour only.
 </script>
 
 <div class="mx-auto max-w-2xl space-y-6">
@@ -83,49 +55,22 @@
   </div>
 
   <div class="space-y-3 rounded-sm border bg-card p-5 shadow-sm">
-    <FieldLabel text="Accès & diffusion" />
-
-    {#if publishedButUnreachable}
-      <div
-        class="flex items-start gap-2 rounded-sm border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
-      >
-        <TriangleAlert class="mt-0.5 h-4 w-4 shrink-0" />
-        <p class="min-w-0 flex-1">
-          Ce formulaire est <strong>publié</strong> mais aucun mode d'accès n'est
-          activé : personne ne peut y répondre. Activez l'accès authentifié ou public.
-        </p>
-      </div>
-    {/if}
-
-    {#each TOGGLES as t (t.key)}
-      <label
-        class="flex cursor-pointer items-start justify-between gap-3 rounded-sm border px-3 py-2.5"
-      >
-        <span class="flex flex-col gap-0.5">
-          <span class="text-sm font-medium">{t.label}</span>
-          <span class="text-[11px] leading-snug text-muted-foreground"
-            >{t.help}</span
-          >
+    <FieldLabel text="Relance" />
+    <label
+      class="flex cursor-pointer items-start justify-between gap-3 rounded-sm border px-3 py-2.5"
+    >
+      <span class="flex flex-col gap-0.5">
+        <span class="text-sm font-medium">Relance sur le tableau de bord</span>
+        <span class="text-[11px] leading-snug text-muted-foreground">
+          Affiche une carte de rappel tant que le stagiaire n’a pas répondu.
         </span>
-        <Switch
-          checked={editor[t.key]}
-          onCheckedChange={(v) =>
-            v !== editor[t.key] &&
-            editor.patchForm({ [t.key]: v } as Partial<FormMeta>)}
-        />
-      </label>
-    {/each}
-
-    {#if editor.allowsPublicAccess}
-      <div
-        class="flex flex-wrap items-center gap-2 rounded-sm bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
-      >
-        <span>Lien public :</span>
-        <code class="rounded bg-background px-1.5 py-0.5"
-          >/bilan/{editor.slug}</code
-        >
-        <CopyButton value={publicUrl} label="Copier le lien public" />
-      </div>
-    {/if}
+      </span>
+      <Switch
+        checked={editor.dashboardNudge}
+        onCheckedChange={(v) =>
+          v !== editor.dashboardNudge &&
+          editor.patchForm({ dashboardNudge: v } as Partial<FormMeta>)}
+      />
+    </label>
   </div>
 </div>

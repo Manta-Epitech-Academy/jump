@@ -36,6 +36,10 @@
     extra: 'Extra',
   };
 
+  // Set when a rename was refused as a duplicate, so the row shows a soft inline
+  // warning instead of the editor's blocking error toast (cleared on next focus).
+  let dupWarning = $state(false);
+
   // The bot's reaction to this choice. The editor row is shown whenever a reaction
   // exists, or once the author toggles it open on an option that has none yet.
   let showReaction = $state(false);
@@ -91,9 +95,14 @@
       value={option.label}
       aria-label="Libellé de l'option"
       class="flex-1 border-b border-transparent bg-transparent py-1 text-sm outline-none hover:border-border focus:border-foreground"
-      onblur={(e) =>
-        e.currentTarget.value !== option.label &&
-        editor.patchOption(qid, option.id, { label: e.currentTarget.value })}
+      onfocus={() => (dupWarning = false)}
+      onblur={(e) => {
+        // A duplicate / empty rename is refused without persisting; snap the
+        // field back to the saved value so it never traps the typed value.
+        const res = editor.renameOption(qid, option.id, e.currentTarget.value);
+        if (res !== 'ok') e.currentTarget.value = option.label;
+        dupWarning = res === 'duplicate';
+      }}
     />
 
     {#if showKind}
@@ -160,6 +169,12 @@
       <Tooltip.Content>Supprimer l'option</Tooltip.Content>
     </Tooltip.Root>
   </div>
+
+  {#if dupWarning}
+    <p class="mt-1 pl-12 text-[11px] text-amber-600 dark:text-amber-500">
+      Ce libellé est déjà utilisé dans cette question.
+    </p>
+  {/if}
 
   {#if showReaction || hasReaction}
     <!-- A placed reaction reads as a pink-tinted bot bubble (solid border, normal
