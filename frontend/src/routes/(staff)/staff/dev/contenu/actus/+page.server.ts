@@ -66,6 +66,18 @@ export const actions: Actions = {
 
     const content = sanitizeWelcomeHtml(rawContent);
 
+    const publishedAtRaw = formData.get('publishedAt');
+    const expiresAtRaw = formData.get('expiresAt');
+
+    const publishedAt =
+      typeof publishedAtRaw === 'string' && publishedAtRaw
+        ? new Date(publishedAtRaw)
+        : new Date();
+    const expiresAt =
+      typeof expiresAtRaw === 'string' && expiresAtRaw
+        ? new Date(expiresAtRaw)
+        : defaultExpiresAt(publishedAt);
+
     await prisma.newsPost.create({
       data: {
         campusId,
@@ -73,7 +85,8 @@ export const actions: Actions = {
         title: title.trim(),
         content,
         eventId: typeof eventId === 'string' && eventId ? eventId : null,
-        expiresAt: defaultExpiresAt(),
+        publishedAt,
+        expiresAt,
       },
     });
 
@@ -103,9 +116,23 @@ export const actions: Actions = {
 
     const content = sanitizeWelcomeHtml(rawContent);
 
+    const publishedAtRaw = formData.get('publishedAt');
+    const expiresAtRaw = formData.get('expiresAt');
+
+    const updateData: Record<string, unknown> = {
+      title: title.trim(),
+      content,
+    };
+    if (typeof publishedAtRaw === 'string' && publishedAtRaw) {
+      updateData.publishedAt = new Date(publishedAtRaw);
+    }
+    if (typeof expiresAtRaw === 'string' && expiresAtRaw) {
+      updateData.expiresAt = new Date(expiresAtRaw);
+    }
+
     await prisma.newsPost.updateMany({
       where: { id, campusId },
-      data: { title: title.trim(), content },
+      data: updateData,
     });
 
     return { success: true };

@@ -6,6 +6,8 @@ import { renderNewsPost, type NewsPostContext } from '$lib/domain/newsPost';
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) throw error(401, 'Non autorise');
 
+  const talentId = locals.talent.id;
+
   const talentCampusId = locals.talentCampusName
     ? ((
         await prisma.campus.findFirst({
@@ -16,32 +18,57 @@ export const load: PageServerLoad = async ({ locals }) => {
     : null;
 
   const now = new Date();
+
+  const postSelect = {
+    id: true,
+    title: true,
+    content: true,
+    publishedAt: true,
+    eventId: true,
+    author: {
+      select: {
+        user: { select: { name: true, image: true } },
+      },
+    },
+    event: {
+      select: {
+        titre: true,
+        campus: { select: { name: true, contactEmail: true } },
+      },
+    },
+  } as const;
+
+  const baseWhere = {
+    publishedAt: { lte: now },
+    OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+  };
+
+  // Posts without event: campus filter only
+  // Posts with event: campus filter + talent must have a Participation for that event
+  const talentEventIds = await prisma.participation.findMany({
+    where: { talentId },
+    select: { eventId: true },
+    distinct: ['eventId'],
+  });
+  const eventIdSet = new Set(talentEventIds.map((p) => p.eventId));
+
   const posts = await prisma.newsPost.findMany({
     where: {
       AND: [
         { OR: [{ campusId: talentCampusId }, { campusId: null }] },
-        { publishedAt: { lte: now } },
-        { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+        baseWhere,
+        {
+          OR: [
+            { eventId: null },
+            ...(eventIdSet.size > 0
+              ? [{ eventId: { in: [...eventIdSet] } }]
+              : []),
+          ],
+        },
       ],
     },
     orderBy: { publishedAt: 'desc' },
-    select: {
-      id: true,
-      title: true,
-      content: true,
-      publishedAt: true,
-      author: {
-        select: {
-          user: { select: { name: true, image: true } },
-        },
-      },
-      event: {
-        select: {
-          titre: true,
-          campus: { select: { name: true, contactEmail: true } },
-        },
-      },
-    },
+    select: postSelect,
   });
 
   const ctx: NewsPostContext = {

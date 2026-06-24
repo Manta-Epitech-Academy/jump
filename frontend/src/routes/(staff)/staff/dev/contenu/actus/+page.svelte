@@ -4,6 +4,8 @@
   import { toast } from 'svelte-sonner';
   import { Button } from '$lib/components/ui/button';
   import CmsEditor from '$lib/components/cms/CmsEditor.svelte';
+  import DateTimePicker from '$lib/components/staff/DateTimePicker.svelte';
+  import { defaultExpiresAt } from '$lib/domain/newsPost';
   import Save from '@lucide/svelte/icons/save';
   import Plus from '@lucide/svelte/icons/plus';
   import Pencil from '@lucide/svelte/icons/pencil';
@@ -21,9 +23,13 @@
   let newTitle = $state('');
   let newContent = $state('');
   let newEventId = $state('');
+  let newPublishedAt = $state('');
+  let newExpiresAt = $state('');
 
   let editTitle = $state('');
   let editContent = $state('');
+  let editPublishedAt = $state('');
+  let editExpiresAt = $state('');
 
   let confirmDeleteId = $state<string | null>(null);
 
@@ -33,11 +39,29 @@
     year: 'numeric',
   });
 
+  function toLocalInput(d: Date | string): string {
+    const date = typeof d === 'string' ? new Date(d) : new Date(d.getTime());
+    const mins = date.getMinutes();
+    const rounded = Math.ceil(mins / 15) * 15;
+    date.setMinutes(rounded, 0, 0);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function daysUntilExpiry(expiresAt: string | null): number | null {
+    if (!expiresAt) return null;
+    const diff = new Date(expiresAt).getTime() - Date.now();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  }
+
   function startCreate() {
     editingPost = null;
     newTitle = '';
     newContent = '';
     newEventId = '';
+    const now = new Date();
+    newPublishedAt = toLocalInput(now);
+    newExpiresAt = toLocalInput(defaultExpiresAt(now));
     creating = true;
   }
 
@@ -46,6 +70,8 @@
     editingPost = post;
     editTitle = post.title;
     editContent = post.content;
+    editPublishedAt = toLocalInput(post.publishedAt);
+    editExpiresAt = post.expiresAt ? toLocalInput(post.expiresAt) : '';
   }
 
   function cancelEdit() {
@@ -104,7 +130,7 @@
               type="text"
               bind:value={newTitle}
               required
-              class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
+              class="w-full rounded-md border border-input bg-card px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
               placeholder="Titre de l'actualite..."
             />
           </div>
@@ -126,7 +152,7 @@
                 id="new-event"
                 name="eventId"
                 bind:value={newEventId}
-                class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-ring focus:outline-none"
+                class="w-full rounded-md border border-input bg-card px-3 py-2 text-sm focus:ring-2 focus:ring-ring focus:outline-none"
               >
                 <option value="">Aucun</option>
                 {#each data.events as event}
@@ -135,6 +161,18 @@
               </select>
             </div>
           {/if}
+          <div class="grid grid-cols-2 gap-4">
+            <DateTimePicker
+              bind:value={newPublishedAt}
+              name="publishedAt"
+              label="Date de publication"
+            />
+            <DateTimePicker
+              bind:value={newExpiresAt}
+              name="expiresAt"
+              label="Date d'expiration"
+            />
+          </div>
           <div class="flex justify-end gap-2">
             <Button variant="outline" type="button" onclick={cancelEdit}>
               <X class="mr-2 h-4 w-4" />
@@ -185,7 +223,7 @@
                   type="text"
                   bind:value={editTitle}
                   required
-                  class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
+                  class="w-full rounded-md border border-input bg-card px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
                 />
               </div>
               <div>
@@ -195,6 +233,18 @@
                   bind:content={editContent}
                   allowImageUpload
                   placeholder="Contenu de l'actualite..."
+                />
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <DateTimePicker
+                  bind:value={editPublishedAt}
+                  name="publishedAt"
+                  label="Date de publication"
+                />
+                <DateTimePicker
+                  bind:value={editExpiresAt}
+                  name="expiresAt"
+                  label="Date d'expiration"
                 />
               </div>
               <div class="flex justify-end gap-2">
@@ -217,6 +267,24 @@
               <h3 class="text-lg font-semibold">{post.title}</h3>
               <p class="mt-1 text-xs text-muted-foreground">
                 Publie le {dateFmt.format(new Date(post.publishedAt))} par {post.authorName}
+                {#if post.expiresAt}
+                  {@const days = daysUntilExpiry(post.expiresAt)}
+                  {#if days !== null}
+                    {#if days <= 0}
+                      <span class="ml-2 font-medium text-destructive"
+                        >Expire</span
+                      >
+                    {:else if days <= 3}
+                      <span class="ml-2 font-medium text-orange-500"
+                        >Expire dans {days}j</span
+                      >
+                    {:else}
+                      <span class="ml-2 text-muted-foreground"
+                        >Expire dans {days}j</span
+                      >
+                    {/if}
+                  {/if}
+                {/if}
               </p>
             </div>
             <div

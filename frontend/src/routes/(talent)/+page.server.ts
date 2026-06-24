@@ -165,12 +165,27 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         : null;
 
       const now = new Date();
+      const talentEventIds = await prisma.participation.findMany({
+        where: { talentId: locals.talent!.id },
+        select: { eventId: true },
+        distinct: ['eventId'],
+      });
+      const eventIdSet = new Set(talentEventIds.map((p) => p.eventId));
+
       const post = await prisma.newsPost.findFirst({
         where: {
           AND: [
             { OR: [{ campusId: talentCampusId }, { campusId: null }] },
             { publishedAt: { lte: now } },
             { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+            {
+              OR: [
+                { eventId: null },
+                ...(eventIdSet.size > 0
+                  ? [{ eventId: { in: [...eventIdSet] } }]
+                  : []),
+              ],
+            },
           ],
         },
         orderBy: { publishedAt: 'desc' },

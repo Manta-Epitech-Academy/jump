@@ -85,10 +85,7 @@ function tokenPattern(token: string): RegExp {
  * in markup rendered with `{@html}` - a campus name or email must never be able
  * to inject tags.
  */
-export function renderNewsPost(
-  content: string,
-  ctx: NewsPostContext,
-): string {
+export function renderNewsPost(content: string, ctx: NewsPostContext): string {
   let out = content;
   for (const variable of NEWS_POST_VARIABLES) {
     out = out.replace(tokenPattern(variable.token), () =>

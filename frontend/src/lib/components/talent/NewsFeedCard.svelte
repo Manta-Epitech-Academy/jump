@@ -64,14 +64,14 @@
           ></div>
         </div>
 
-        <div class="mt-4">
+        <div class="mt-4 flex justify-center">
           <a
             href="{base}/actus"
-            class="group inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-400 transition-all hover:bg-epi-blue/10 hover:text-epi-blue dark:bg-slate-800 dark:hover:bg-epi-blue/20"
+            class="group inline-flex items-center gap-2 rounded-full bg-slate-100 px-5 py-2 text-sm font-semibold text-slate-500 transition-all hover:bg-epi-blue/10 hover:text-epi-blue dark:bg-slate-800 dark:hover:bg-epi-blue/20"
           >
             Voir tout
             <ArrowRight
-              class="h-3 w-3 transition-transform group-hover:translate-x-0.5"
+              class="h-4 w-4 transition-transform group-hover:translate-x-0.5"
             />
           </a>
         </div>
