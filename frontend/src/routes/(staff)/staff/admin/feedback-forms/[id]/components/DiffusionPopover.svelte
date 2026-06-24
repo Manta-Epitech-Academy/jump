@@ -7,14 +7,21 @@
   import { Button } from '$lib/components/ui/button';
   import { Switch } from '$lib/components/ui/switch';
   import * as Popover from '$lib/components/ui/popover';
+  import * as Select from '$lib/components/ui/select';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
-  import type { FormEditor, FormMeta } from '../editor.svelte';
+  import {
+    FORM_STATUS_LABELS,
+    FORM_STATUS_OPTIONS,
+  } from '$lib/domain/feedbackForms/status';
+  import FieldLabel from './FieldLabel.svelte';
+  import type { FormEditor, FormMeta, FormStatus } from '../editor.svelte';
 
   let { editor }: { editor: FormEditor } = $props();
 
   // Google-Forms-style "Send" pattern: a sharing control in the header chrome,
-  // not a whole settings tab. Owns who can answer (the two access modes) and the
-  // public link. Form behaviour (statut, mascotte, relance) stays in Paramètres.
+  // replacing the settings tab. Owns the publish statut, who can answer (the two
+  // access modes), the dashboard relance, and the public link. The persona name
+  // is edited inline in the header card.
   const TOGGLES = [
     {
       key: 'allowsAuthenticatedAccess',
@@ -73,10 +80,34 @@
       </Button>
     {/snippet}
   </Popover.Trigger>
-  <Popover.Content align="end" class="w-80 space-y-3 p-4">
+  <Popover.Content
+    align="end"
+    class="max-h-[80vh] w-80 space-y-3 overflow-y-auto p-4"
+  >
     <div class="space-y-0.5">
       <p class="text-sm font-semibold">Diffusion</p>
       <p class="text-[11px] leading-snug text-muted-foreground">{summary}</p>
+    </div>
+
+    <div class="space-y-1.5">
+      <FieldLabel text="Statut" />
+      <Select.Root
+        type="single"
+        value={editor.status}
+        onValueChange={(v) =>
+          v &&
+          v !== editor.status &&
+          editor.patchForm({ status: v as FormStatus })}
+      >
+        <Select.Trigger class="h-9 w-full rounded-sm">
+          {FORM_STATUS_LABELS[editor.status]}
+        </Select.Trigger>
+        <Select.Content>
+          {#each FORM_STATUS_OPTIONS as opt (opt.value)}
+            <Select.Item value={opt.value}>{opt.label}</Select.Item>
+          {/each}
+        </Select.Content>
+      </Select.Root>
     </div>
 
     {#if editor.publishedButUnreachable}
@@ -109,6 +140,29 @@
         />
       </label>
     {/each}
+
+    {#if editor.allowsAuthenticatedAccess}
+      <!-- Relance only reaches connected talents (the public has no dashboard),
+           so it is offered only when authenticated access is on. -->
+      <label
+        class="flex cursor-pointer items-start justify-between gap-3 rounded-sm border px-3 py-2.5"
+      >
+        <span class="flex flex-col gap-0.5">
+          <span class="text-sm font-medium">Relance sur le tableau de bord</span
+          >
+          <span class="text-[11px] leading-snug text-muted-foreground">
+            Affiche une carte de rappel aux talents connectés tant qu’ils n’ont
+            pas répondu.
+          </span>
+        </span>
+        <Switch
+          checked={editor.dashboardNudge}
+          onCheckedChange={(v) =>
+            v !== editor.dashboardNudge &&
+            editor.patchForm({ dashboardNudge: v } as Partial<FormMeta>)}
+        />
+      </label>
+    {/if}
 
     {#if editor.allowsPublicAccess}
       {#if editor.publicMissingEmail}

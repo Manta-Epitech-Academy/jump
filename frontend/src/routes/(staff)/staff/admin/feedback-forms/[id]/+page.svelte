@@ -1,6 +1,5 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { page } from '$app/state';
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -24,7 +23,6 @@
   import DiffusionPopover from './components/DiffusionPopover.svelte';
   import SectionBanner from './components/SectionBanner.svelte';
   import QuestionCard from './components/QuestionCard.svelte';
-  import SettingsPanel from './components/SettingsPanel.svelte';
   import SaveStatus from './components/SaveStatus.svelte';
   import PreviewDialog from './components/PreviewDialog.svelte';
   import type { PageData } from './$types';
@@ -88,9 +86,6 @@
   });
 
   const locked = $derived(editor.locked);
-  const tab = $derived(
-    page.url.searchParams.get('tab') === 'settings' ? 'settings' : 'questions',
-  );
   const sortedSections = $derived(
     [...editor.sections].sort((a, b) => a.position - b.position),
   );
@@ -202,80 +197,76 @@
       {/if}
     </div>
 
-    {#if tab === 'settings'}
-      <SettingsPanel {editor} />
-    {:else}
-      <div class="mx-auto max-w-2xl space-y-4">
-        <HeaderCard {editor} />
+    <div class="mx-auto max-w-2xl space-y-4">
+      <HeaderCard {editor} />
 
-        {#each editor.groups as group (group.section?.id ?? '__none__')}
-          {#if group.section}
-            {@const s = group.section}
-            <SectionBanner
-              {editor}
-              section={s}
-              index={sortedSections.findIndex((x) => x.id === s.id) + 1}
-              total={sortedSections.length}
-              {locked}
-            />
-          {/if}
-
-          <div
-            class="space-y-4"
-            use:sortable={{ disabled: locked, ...dragHandlers }}
-          >
-            {#each group.questions as q (q.id)}
-              <QuestionCard
-                {editor}
-                question={q}
-                {locked}
-                sections={editor.sections}
-              />
-            {/each}
-          </div>
-
-          {#if !locked}
-            <button
-              type="button"
-              class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-sm border border-dashed py-2.5 text-sm text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
-              onclick={() =>
-                editor.addQuestion({
-                  afterId: group.questions.at(-1)?.id,
-                  sectionId: group.section?.id ?? null,
-                })}
-            >
-              <Plus class="h-4 w-4" /> Ajouter une question
-            </button>
-          {/if}
-        {/each}
-
-        {#if editor.groups.length === 0}
-          <div
-            class="rounded-sm border border-dashed bg-muted/10 p-12 text-center text-sm text-muted-foreground"
-          >
-            Formulaire vide.
-            <button
-              type="button"
-              class="cursor-pointer font-medium text-foreground underline underline-offset-2 disabled:cursor-not-allowed"
-              disabled={locked}
-              onclick={() => editor.addQuestion()}
-            >
-              Ajouter une première question
-            </button>.
-          </div>
+      {#each editor.groups as group (group.section?.id ?? '__none__')}
+        {#if group.section}
+          {@const s = group.section}
+          <SectionBanner
+            {editor}
+            section={s}
+            index={sortedSections.findIndex((x) => x.id === s.id) + 1}
+            total={sortedSections.length}
+            {locked}
+          />
         {/if}
+
+        <div
+          class="space-y-4"
+          use:sortable={{ disabled: locked, ...dragHandlers }}
+        >
+          {#each group.questions as q (q.id)}
+            <QuestionCard
+              {editor}
+              question={q}
+              {locked}
+              sections={editor.sections}
+            />
+          {/each}
+        </div>
 
         {#if !locked}
           <button
             type="button"
             class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-sm border border-dashed py-2.5 text-sm text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
-            onclick={() => editor.addSection()}
+            onclick={() =>
+              editor.addQuestion({
+                afterId: group.questions.at(-1)?.id,
+                sectionId: group.section?.id ?? null,
+              })}
           >
-            <Rows3 class="h-4 w-4" /> Ajouter une section
+            <Plus class="h-4 w-4" /> Ajouter une question
           </button>
         {/if}
-      </div>
-    {/if}
+      {/each}
+
+      {#if editor.groups.length === 0}
+        <div
+          class="rounded-sm border border-dashed bg-muted/10 p-12 text-center text-sm text-muted-foreground"
+        >
+          Formulaire vide.
+          <button
+            type="button"
+            class="cursor-pointer font-medium text-foreground underline underline-offset-2 disabled:cursor-not-allowed"
+            disabled={locked}
+            onclick={() => editor.addQuestion()}
+          >
+            Ajouter une première question
+          </button>.
+        </div>
+      {/if}
+
+      {#if !locked}
+        <button
+          type="button"
+          class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-sm border border-dashed py-2.5 text-sm text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
+          onclick={() => editor.addSection()}
+        >
+          <Rows3 class="h-4 w-4" /> Ajouter une section
+        </button>
+      {/if}
+    </div>
   </Tooltip.Provider>
 </div>
 

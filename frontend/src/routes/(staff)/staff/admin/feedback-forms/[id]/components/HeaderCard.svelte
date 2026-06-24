@@ -36,13 +36,25 @@
     <div class="flex items-center gap-2.5">
       <img
         src="/canard.png"
-        alt=""
+        alt={persona}
         class="h-7 w-7 shrink-0 rounded-full object-cover"
       />
       <div class="flex min-w-0 flex-col leading-tight">
-        <span class="truncate text-sm font-medium">{persona}</span>
+        <!-- Mascotte name, edited inline (the old Paramètres "Mascotte" field).
+             The bot speaks the intro/outro below under this name. -->
+        <input
+          value={editor.personaName ?? ''}
+          aria-label="Nom de la mascotte"
+          placeholder="Bernard le canard"
+          class="w-full border-b border-transparent bg-transparent text-sm font-medium outline-none hover:border-border focus:border-foreground"
+          onblur={(e) =>
+            (e.currentTarget.value.trim() || null) !== editor.personaName &&
+            editor.patchForm({
+              personaName: e.currentTarget.value.trim() || null,
+            })}
+        />
         <span class="text-[11px] text-muted-foreground">
-          Ce que le canard dit autour des questions
+          La mascotte qui dit le mot d’accueil et le mot de fin
         </span>
       </div>
     </div>
