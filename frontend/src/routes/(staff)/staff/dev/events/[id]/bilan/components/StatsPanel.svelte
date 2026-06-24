@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { RECO_QUESTION_KEY } from '$lib/domain/feedback';
+  import { RECO_QUESTION_KEY, RECO_VERDICT_LABEL } from '$lib/domain/feedback';
   import type { FormStats } from '$lib/server/feedbackStats';
 
   let {
@@ -54,12 +54,11 @@
   {#if recoStat}
     {@const answered = recoStat.answeredCount}
     <section class="rounded-sm border bg-card p-4">
-      <h2
-        class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        Recommandation
-      </h2>
-      <h3 class="mt-3 mb-2 text-sm font-semibold">{recoStat.prompt}</h3>
+      <!-- The question is the card title outright: a separate "Recommandation"
+           eyebrow just restated it. Static, staff-facing wording single-sourced in
+           domain/feedback, not the question's own talent-phrased prompt, so the
+           verdict reads the same across every form. -->
+      <h2 class="mb-3 text-sm font-semibold">{RECO_VERDICT_LABEL}</h2>
       <!-- Single question in a narrow (30%) rail: stack each label above its
            full-width bar so the label keeps the whole column instead of being
            chopped beside the bar. -->

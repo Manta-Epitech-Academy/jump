@@ -14,6 +14,16 @@ export const STAGE_FORM_SLUG = 'stage';
 export const RECO_QUESTION_KEY = 'reco';
 
 /**
+ * Staff-facing label for the recommendation chart on the dashboards (dev Bilan,
+ * admin responses). Deliberately decoupled from the question's own `prompt`: the
+ * actual wording is talent-phrased ("recommanderais-tu ce stage ?") and can be
+ * re-edited per form, but staff scanning the verdict want one stable heading that
+ * reads the same across every form. Vouvoiement, since staff read it.
+ */
+export const RECO_VERDICT_LABEL =
+  'Est-ce que vous recommanderiez le stage à Epitech ?';
+
+/**
  * Returns the slug of the first dashboard-nudge form the talent still owes for the
  * event, or null. The candidate forms come from the DB (`Feedback_Form.dashboardNudge`),
  * so adding a nudged form needs no code change.

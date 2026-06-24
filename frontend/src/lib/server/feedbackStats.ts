@@ -128,12 +128,17 @@ export async function computeFormStats(
       key: q.key,
       prompt: q.prompt,
       type: q.type,
-      options: q.options.map((o) => ({
-        optionId: o.id,
-        label: o.label,
-        kind: o.kind,
-        count: countByOption.get(o.id) ?? 0,
-      })),
+      // Options come back most→least chosen so both dashboards lead with the
+      // dominant answer. Stable sort: ties keep the form's canonical option order.
+      // The CSV export reads the graph directly, so its columns stay canonical.
+      options: q.options
+        .map((o) => ({
+          optionId: o.id,
+          label: o.label,
+          kind: o.kind,
+          count: countByOption.get(o.id) ?? 0,
+        }))
+        .sort((a, b) => b.count - a.count),
       freeTexts: freeByQuestion.get(q.id) ?? [],
       answeredCount: countByQuestion.get(q.id) ?? 0,
     }));
