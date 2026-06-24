@@ -7,6 +7,7 @@
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import RowSaveDot from './RowSaveDot.svelte';
+  import { createAutosave } from '../autosave';
   import type {
     FormEditor,
     EditorOption,
@@ -50,11 +51,29 @@
       : 'Ajouter une réaction de la mascotte',
   );
 
-  function saveReaction(value: string) {
-    const next = value.trim() || null;
-    if (next !== (option.reaction ?? null))
-      editor.patchOption(qid, option.id, { reaction: next });
-  }
+  // The label stays blur-only (delay 0): it is the answer key and is unique per
+  // question, so it is validated and persisted once, on commit, not on every
+  // keystroke. A rejected (empty / duplicate) rename snaps the field back to the
+  // saved label and a duplicate raises the soft inline warning. Typing still
+  // marks the row dirty so the header reads "non enregistré" in the meantime.
+  const labelField = createAutosave({
+    registry: () => editor,
+    delay: 0,
+    commit: (value) => {
+      const res = editor.renameOption(qid, option.id, value);
+      dupWarning = res === 'duplicate';
+      if (res !== 'ok') return option.label;
+    },
+  });
+  // The reaction is free text: it saves live while typing, trimming on blur.
+  const reactionField = createAutosave({
+    registry: () => editor,
+    commit: (value, { final }) => {
+      const next = (final ? value.trim() : value) || null;
+      if (next !== (option.reaction ?? null))
+        editor.patchOption(qid, option.id, { reaction: next });
+    },
+  });
 </script>
 
 <!-- WYSIWYG option row: the glyph mirrors how the option renders (radio / checkbox
@@ -98,13 +117,8 @@
       aria-label="Libellé de l'option"
       class="flex-1 border-b border-transparent bg-transparent py-1 text-sm outline-none hover:border-border focus:border-foreground"
       onfocus={() => (dupWarning = false)}
-      onblur={(e) => {
-        // A duplicate / empty rename is refused without persisting; snap the
-        // field back to the saved value so it never traps the typed value.
-        const res = editor.renameOption(qid, option.id, e.currentTarget.value);
-        if (res !== 'ok') e.currentTarget.value = option.label;
-        dupWarning = res === 'duplicate';
-      }}
+      oninput={labelField.oninput}
+      onblur={labelField.onblur}
     />
 
     {#if showKind}
@@ -195,7 +209,8 @@
         class="flex-1 rounded-xl rounded-bl-sm border px-3 py-1.5 text-xs transition outline-none {hasReaction
           ? 'border-epi-pink/30 bg-epi-pink/10 text-foreground focus:border-epi-pink'
           : 'border-dashed bg-transparent text-muted-foreground italic focus:border-foreground'}"
-        onblur={(e) => saveReaction(e.currentTarget.value)}
+        oninput={reactionField.oninput}
+        onblur={reactionField.onblur}
       />
     </div>
   {/if}

@@ -10,9 +10,43 @@
     DEFAULT_OUTRO,
   } from '$lib/domain/feedbackForms/schema';
   import FieldLabel from './FieldLabel.svelte';
+  import { createAutosave } from '../autosave';
   import type { FormEditor } from '../editor.svelte';
 
   let { editor }: { editor: FormEditor } = $props();
+
+  // The title is required: an empty entry is never persisted, and on blur the
+  // field snaps back to the saved title. The raw value is kept while typing so
+  // the caret never jumps; the persona/intro/outro fields normalise empties to
+  // null and trim only on blur, once focus has left.
+  const titleField = createAutosave({
+    registry: () => editor,
+    commit: (value, { final }) => {
+      if (!value.trim()) return final ? editor.title : undefined;
+      if (value !== editor.title) editor.patchForm({ title: value });
+    },
+  });
+  const personaField = createAutosave({
+    registry: () => editor,
+    commit: (value, { final }) => {
+      const next = (final ? value.trim() : value) || null;
+      if (next !== editor.personaName) editor.patchForm({ personaName: next });
+    },
+  });
+  const introField = createAutosave({
+    registry: () => editor,
+    commit: (value, { final }) => {
+      const next = (final ? value.trim() : value) || null;
+      if (next !== (editor.intro ?? null)) editor.patchForm({ intro: next });
+    },
+  });
+  const outroField = createAutosave({
+    registry: () => editor,
+    commit: (value, { final }) => {
+      const next = (final ? value.trim() : value) || null;
+      if (next !== (editor.outro ?? null)) editor.patchForm({ outro: next });
+    },
+  });
 
   // The persona that speaks the opening and closing lines. Mirrors the talent chat
   // header (ChatScreen), falling back to the default mascot when left blank.
@@ -35,7 +69,7 @@
      the document heading; the intro/outro are framed as the persona's chat bubbles
      so an author can tell a conversation message apart from the title at a glance
      (previously three unlabeled gray fields stacked with no cue which was which).
-     Auto-saves on blur. -->
+     Auto-saves live while typing, flushing on blur. -->
 <div class="overflow-hidden rounded-sm border bg-card shadow-sm">
   <div class="h-2.5 bg-epi-pink"></div>
 
@@ -45,10 +79,8 @@
       aria-label="Titre du formulaire"
       placeholder="Titre du formulaire"
       class="w-full border-b border-transparent bg-transparent pb-1 text-2xl font-semibold tracking-tight outline-none focus:border-border"
-      onblur={(e) =>
-        e.currentTarget.value.trim() &&
-        e.currentTarget.value !== editor.title &&
-        editor.patchForm({ title: e.currentTarget.value })}
+      oninput={titleField.oninput}
+      onblur={titleField.onblur}
     />
   </div>
 
@@ -119,11 +151,8 @@
           aria-label="Nom de la mascotte"
           placeholder={DEFAULT_PERSONA.name}
           class="w-full border-b border-transparent bg-transparent text-sm font-medium outline-none hover:border-border focus:border-foreground"
-          onblur={(e) =>
-            (e.currentTarget.value.trim() || null) !== editor.personaName &&
-            editor.patchForm({
-              personaName: e.currentTarget.value.trim() || null,
-            })}
+          oninput={personaField.oninput}
+          onblur={personaField.onblur}
         />
         <span class="text-[11px] text-muted-foreground">
           La mascotte qui dit le mot d’accueil et le mot de fin
@@ -145,11 +174,8 @@
           aria-label="Message d'accueil"
           placeholder={'Message d’accueil (facultatif), ex. « Salut {prenom} ! Prêt pour le bilan ? »'}
           class="resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
-          onblur={(e) => {
-            const next = e.currentTarget.value.trim() || null;
-            if (next !== (editor.intro ?? null))
-              editor.patchForm({ intro: next });
-          }}
+          oninput={introField.oninput}
+          onblur={introField.onblur}
         />
       </div>
     </div>
@@ -168,11 +194,8 @@
           aria-label="Message de fin"
           placeholder={'Message de fin (facultatif), ex. « Merci {prenom} ! »'}
           class="resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
-          onblur={(e) => {
-            const next = e.currentTarget.value.trim() || null;
-            if (next !== (editor.outro ?? null))
-              editor.patchForm({ outro: next });
-          }}
+          oninput={outroField.oninput}
+          onblur={outroField.onblur}
         />
       </div>
     </div>

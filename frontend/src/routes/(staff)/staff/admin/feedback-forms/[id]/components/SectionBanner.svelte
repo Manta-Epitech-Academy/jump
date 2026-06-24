@@ -6,6 +6,7 @@
   import { Textarea } from '$lib/components/ui/textarea';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import RowSaveDot from './RowSaveDot.svelte';
+  import { createAutosave } from '../autosave';
   import type { FormEditor, EditorSection } from '../editor.svelte';
 
   let {
@@ -21,6 +22,25 @@
     total: number;
     locked: boolean;
   } = $props();
+
+  // The section title is required (snaps back when cleared); the description is
+  // optional and stored verbatim (empty → null). Both save live while typing.
+  const titleField = createAutosave({
+    registry: () => editor,
+    commit: (value, { final }) => {
+      if (!value.trim()) return final ? section.title : undefined;
+      if (value !== section.title)
+        editor.patchSection(section.id, { title: value });
+    },
+  });
+  const introField = createAutosave({
+    registry: () => editor,
+    commit: (value) => {
+      const next = value || null;
+      if (next !== section.intro)
+        editor.patchSection(section.id, { intro: next });
+    },
+  });
 </script>
 
 <!-- Full-width section banner that owns the question block beneath it. -->
@@ -39,10 +59,8 @@
         aria-label="Titre de la section"
         placeholder="Titre de la section"
         class="w-full border-b border-transparent bg-transparent pb-1 text-lg font-semibold outline-none hover:border-border focus:border-foreground"
-        onblur={(e) =>
-          e.currentTarget.value.trim() &&
-          e.currentTarget.value !== section.title &&
-          editor.patchSection(section.id, { title: e.currentTarget.value })}
+        oninput={titleField.oninput}
+        onblur={titleField.onblur}
       />
       <Textarea
         value={section.intro ?? ''}
@@ -50,11 +68,8 @@
         aria-label="Description de la section"
         placeholder="Description (optionnelle)"
         class="resize-none border-0 px-0 text-sm text-muted-foreground shadow-none focus-visible:ring-0"
-        onblur={(e) =>
-          (e.currentTarget.value || null) !== section.intro &&
-          editor.patchSection(section.id, {
-            intro: e.currentTarget.value || null,
-          })}
+        oninput={introField.oninput}
+        onblur={introField.onblur}
       />
     </div>
 

@@ -24,6 +24,7 @@
   import SectionBanner from './components/SectionBanner.svelte';
   import QuestionCard from './components/QuestionCard.svelte';
   import SaveStatus from './components/SaveStatus.svelte';
+  import FlushOnNavigate from './components/FlushOnNavigate.svelte';
   import PreviewDialog from './components/PreviewDialog.svelte';
   import type { PageData } from './$types';
 
@@ -137,6 +138,8 @@
 </script>
 
 <svelte:head><title>Éditer le formulaire</title></svelte:head>
+
+<FlushOnNavigate />
 
 <div class="space-y-5 pb-24">
   <Tooltip.Provider delayDuration={300}>

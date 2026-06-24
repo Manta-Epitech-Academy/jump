@@ -106,6 +106,14 @@ export class FormEditor {
   status_ = new SvelteMap<string, SaveState>();
   inflight = $state(0);
   lastSavedAt = $state<number | null>(null);
+  /**
+   * Count of text fields holding typed-but-not-yet-persisted input. A field is
+   * dirty between its first keystroke and the save firing (on debounce or blur);
+   * this lets the header read an honest "non enregistré" over that window instead
+   * of a stale "Enregistré". Driven only by the autosave handlers, which balance
+   * each enter with an exit, so the count never drifts.
+   */
+  #dirtyCount = $state(0);
   /** True while a persona-icon upload is in flight (drives the avatar spinner). */
   uploadingIcon = $state(false);
 
@@ -151,6 +159,17 @@ export class FormEditor {
       if (state === 'error') return true;
     }
     return false;
+  }
+
+  /** True while a text field holds typed input no save has been fired for yet. */
+  get isDirty(): boolean {
+    return this.#dirtyCount > 0;
+  }
+  enterDirty() {
+    this.#dirtyCount++;
+  }
+  exitDirty() {
+    this.#dirtyCount = Math.max(0, this.#dirtyCount - 1);
   }
 
   /** The document as ordered groups: leading unsectioned questions, then each section. */
@@ -286,6 +305,11 @@ export class FormEditor {
         method,
         headers: body ? { 'content-type': 'application/json' } : undefined,
         body: body ? JSON.stringify(body) : undefined,
+        // Lets a save dispatched on the way out (the blur-flush in
+        // FlushOnNavigate, fired during `willUnload`) outlive the unloading
+        // document and still reach the server. Patch bodies are tiny, well under
+        // the per-page keepalive budget.
+        keepalive: true,
       });
       if (!res.ok) {
         if (res.status === 423) this.lockedByServer = true;

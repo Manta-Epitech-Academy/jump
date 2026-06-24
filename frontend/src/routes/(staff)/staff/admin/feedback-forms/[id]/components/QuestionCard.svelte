@@ -24,6 +24,7 @@
   import OptionRow from './OptionRow.svelte';
   import RowSaveDot from './RowSaveDot.svelte';
   import IdentityBadge from './IdentityBadge.svelte';
+  import { createAutosave } from '../autosave';
   import {
     IDENTITY_FIELD_OPTIONS,
     IDENTITY_FIELD_TO_INPUT_KIND,
@@ -48,6 +49,23 @@
     locked: boolean;
     sections: EditorSection[];
   } = $props();
+
+  // The prompt is stored verbatim; the placeholder is optional (empty → null).
+  // Both save live while typing and flush on blur.
+  const promptField = createAutosave({
+    registry: () => editor,
+    commit: (value) => {
+      if (value !== q.prompt) editor.patchQuestion(q.id, { prompt: value });
+    },
+  });
+  const placeholderField = createAutosave({
+    registry: () => editor,
+    commit: (value) => {
+      const next = value || null;
+      if (next !== q.placeholder)
+        editor.patchQuestion(q.id, { placeholder: next });
+    },
+  });
 
   const active = $derived(editor.activeId === q.id);
   // 1-based rank in the form's flattened order, so each card reads as a numbered
@@ -186,9 +204,8 @@
           aria-label="Intitulé de la question"
           placeholder="Question"
           class="flex-1 resize-none rounded-none border-0 border-b bg-muted/30 px-3 py-2 text-base shadow-none focus-visible:border-foreground focus-visible:ring-0"
-          onblur={(e) =>
-            e.currentTarget.value !== q.prompt &&
-            editor.patchQuestion(q.id, { prompt: e.currentTarget.value })}
+          oninput={promptField.oninput}
+          onblur={promptField.onblur}
         />
         <TypePicker
           value={q.type}
@@ -329,11 +346,8 @@
               placeholder="Placeholder (optionnel)"
               disabled={locked}
               class="h-8 w-56 rounded-sm"
-              onblur={(e) =>
-                (e.currentTarget.value || null) !== q.placeholder &&
-                editor.patchQuestion(q.id, {
-                  placeholder: e.currentTarget.value || null,
-                })}
+              oninput={placeholderField.oninput}
+              onblur={placeholderField.onblur}
             />
           </div>
         </div>
