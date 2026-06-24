@@ -7,7 +7,7 @@ import { prisma } from '$lib/server/db';
 import { getCampusId } from '$lib/server/db/scoped';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { requireStaffGroup, requireFlag } from '$lib/server/auth/guards';
-import { STAGE_FORM_SLUG } from '$lib/domain/feedback';
+import { STAGE_FORM_SLUG, feedbackFormPath } from '$lib/domain/feedback';
 
 // On-screen QR for the bilan form. Encodes the AUTHENTICATED feedback link for
 // this event, so a talent who scans logs in (if needed) and their answers are
@@ -33,7 +33,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
   const origin = env.ORIGIN;
   if (!origin) throw error(500, 'ORIGIN is not configured');
-  const link = `${origin}${base}/feedback/${params.id}/${form.slug}`;
+  const link = `${origin}${base}${feedbackFormPath(params.id!, form.slug)}`;
 
   const png = await QRCode.toBuffer(link, {
     width: 1024,

@@ -4,18 +4,24 @@
   import { resolve } from '$app/paths';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Download from '@lucide/svelte/icons/download';
+  import Funnel from '@lucide/svelte/icons/funnel';
   import FormTabs from '../components/FormTabs.svelte';
-  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
+  import SearchableSelect, {
+    type SelectOption,
+  } from '$lib/components/staff/SearchableSelect.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import * as Table from '$lib/components/ui/table';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
 
-  const campusFilterOptions = $derived([
-    { value: 'all', label: 'Tous les campus' },
-    ...data.campuses.map((c) => ({ value: c.name, label: c.name })),
-  ]);
+  // SearchableSelect renders the "Tous les campus" sentinel itself (its `'all'`
+  // row), so the options list is just the real campuses. Campus is a long,
+  // typeable list, so it gets the search box per the FilterSelect/SearchableSelect
+  // convention, not a plain dropdown.
+  const campusOptions: SelectOption[] = $derived(
+    data.campuses.map((c) => ({ value: c.name, label: c.name })),
+  );
 
   function onCampusChange(value: string | undefined) {
     const url = new URL(page.url);
@@ -50,13 +56,20 @@
   <FormTabs formId={data.form.id} />
 
   <div class="flex flex-wrap items-center justify-between gap-4">
-    <FilterSelect
-      options={campusFilterOptions}
+    <SearchableSelect
+      options={campusOptions}
       value={data.selectedCampus}
       onChange={onCampusChange}
-      ariaLabel="Filtrer par campus"
-      triggerClass="text-xs"
-    />
+      allLabel="Tous les campus"
+      placeholder="Tous les campus"
+      searchPlaceholder="Rechercher un campus…"
+      emptyLabel="Aucun campus."
+      triggerClass="w-full sm:w-56"
+    >
+      {#snippet icon()}
+        <Funnel class="h-4 w-4 text-muted-foreground" />
+      {/snippet}
+    </SearchableSelect>
 
     <a
       href={exportHref}

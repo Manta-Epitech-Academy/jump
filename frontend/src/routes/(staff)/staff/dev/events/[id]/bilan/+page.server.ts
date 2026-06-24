@@ -1,11 +1,17 @@
 import type { PageServerLoad } from './$types';
+import { base } from '$app/paths';
+import { env } from '$env/dynamic/private';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { requireFlag } from '$lib/server/auth/guards';
 import { prisma } from '$lib/server/db';
 import { computeFormStats, type FormStats } from '$lib/server/feedbackStats';
 import { getFormGraphBySlug } from '$lib/server/feedbackForms';
-import { RECO_QUESTION_KEY, STAGE_FORM_SLUG } from '$lib/domain/feedback';
+import {
+  RECO_QUESTION_KEY,
+  STAGE_FORM_SLUG,
+  feedbackFormPath,
+} from '$lib/domain/feedback';
 
 export interface BilanRow {
   talentId: string;
@@ -25,9 +31,7 @@ export interface BilanCohort {
   stats: FormStats | null;
 }
 
-export const load: PageServerLoad = async ({ params, locals, depends }) => {
-  depends('staff:event-bilan');
-
+export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
   requireFlag(locals, 'bilan');
   const event = await loadEventOr404(params.id, campusId);
@@ -127,9 +131,17 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
     };
   })();
 
+  // The shareable link shown next to the QR. Built from ORIGIN server-side (not
+  // the page's own origin) so the copyable URL is byte-for-byte what the QR image
+  // encodes, and stays correct behind a proxy. `feedbackFormPath` is the single
+  // source the QR endpoint also uses, so the two never drift.
+  const feedbackUrl = form
+    ? `${env.ORIGIN ?? ''}${base}${feedbackFormPath(event.id, STAGE_FORM_SLUG)}`
+    : null;
+
   return {
     event: { id: event.id, titre: event.titre },
-    form: form ? { title: form.title } : null,
+    form: form ? { title: form.title, url: feedbackUrl } : null,
     cohort,
   };
 };

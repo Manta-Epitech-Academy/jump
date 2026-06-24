@@ -4,6 +4,8 @@
   import Clock from '@lucide/svelte/icons/clock';
   import * as Table from '$lib/components/ui/table';
   import { cn } from '$lib/utils';
+  import { Button } from '$lib/components/ui/button';
+  import { formatGivenName } from '$lib/domain/profile';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
@@ -33,7 +35,7 @@
     { key: 'nom', label: 'Nom', sortable: true, class: 'w-full' },
     { key: 'reco', label: 'Recommandation', sortable: true, class: 'w-44' },
     { key: 'statut', label: 'Réponse', sortable: true, class: 'w-32' },
-    { key: 'date', label: 'Le', align: 'right', class: 'w-32' },
+    { key: 'date', label: 'Date', sortable: true, class: 'w-32' },
   ];
 
   const dateFmt = new Intl.DateTimeFormat('fr-FR', {
@@ -102,6 +104,17 @@
         const rb = b.recoLabel ? recoOptions.indexOf(b.recoLabel) : Infinity;
         return ra === rb ? 0 : ra < rb ? -dir : dir;
       }
+      // Date sort: unanswered rows (no respondedAt) always sink to the bottom,
+      // regardless of direction, mirroring the reco column's missing-value rule.
+      // ISO strings compare lexicographically, i.e. chronologically.
+      if (sortKey === 'date') {
+        const ad = a.respondedAt ?? '';
+        const bd = b.respondedAt ?? '';
+        if (!ad && !bd) return 0;
+        if (!ad) return 1;
+        if (!bd) return -1;
+        return ad < bd ? -dir : ad > bd ? dir : 0;
+      }
       let av: string;
       let bv: string;
       if (sortKey === 'statut') {
@@ -127,6 +140,26 @@
     ...recoOptions.map((l) => ({ value: l, label: l })),
     { value: RECO_NONE, label: 'Sans réponse' },
   ]);
+
+  const anyFiltersApplied = $derived(
+    searchQuery.trim() !== '' || statut !== 'all' || reco !== 'all',
+  );
+
+  // Mirrors the sibling rosters (inscrits/émargement/entretiens): singular vs
+  // plural agreement, and "au total" when nothing is filtered.
+  const countSuffix = $derived(
+    anyFiltersApplied
+      ? filtered.length > 1
+        ? 'correspondent aux filtres'
+        : 'correspond aux filtres'
+      : 'au total',
+  );
+
+  function resetFilters() {
+    searchQuery = '';
+    statut = 'all';
+    reco = 'all';
+  }
 </script>
 
 <div class="space-y-4">
@@ -138,8 +171,7 @@
     filtersAlign="end"
     count={filtered.length}
     countNoun="stagiaire"
-    countNounPlural="stagiaires"
-    countSuffix="correspondent aux filtres"
+    {countSuffix}
   >
     {#snippet filters()}
       <div class="flex items-center gap-2">
@@ -182,6 +214,9 @@
     rowKey={(r) => r.talentId}
     row={rowSnippet}
     mobileRow={mobileRowSnippet}
+    empty={emptySnippet}
+    stickyHeader
+    layout="fixed"
   />
 </div>
 
@@ -238,11 +273,16 @@
 
 {#snippet rowSnippet(r: BilanRow)}
   <Table.Cell class="w-10">{@render avatarLink(r)}</Table.Cell>
-  <Table.Cell class="font-medium">{r.prenom ?? '—'}</Table.Cell>
-  <Table.Cell>{r.nom ?? '—'}</Table.Cell>
+  <Table.Cell class="font-medium">
+    {@const prenom = formatGivenName(r.prenom)}
+    <span class="block truncate" title={prenom}>{prenom || '—'}</span>
+  </Table.Cell>
+  <Table.Cell class="font-bold uppercase">
+    <span class="block truncate" title={r.nom ?? ''}>{r.nom ?? '—'}</span>
+  </Table.Cell>
   <Table.Cell>{@render recoBadge(r)}</Table.Cell>
   <Table.Cell>{@render statutBadge(r)}</Table.Cell>
-  <Table.Cell class="text-right font-mono text-xs text-muted-foreground">
+  <Table.Cell class="text-sm text-muted-foreground tabular-nums">
     {fmtDate(r.respondedAt)}
   </Table.Cell>
 {/snippet}
@@ -251,13 +291,35 @@
   <div class={cn('flex items-center gap-3 p-3')}>
     {@render avatarLink(r)}
     <div class="min-w-0 flex-1 space-y-1">
-      <p class="truncate text-sm font-medium">
-        {r.prenom ?? ''}
-        {r.nom ?? ''}
+      <p class="truncate text-sm">
+        <span class="font-medium">{formatGivenName(r.prenom)}</span>
+        <span class="font-bold uppercase">{r.nom ?? ''}</span>
       </p>
-      <p class="text-xs text-muted-foreground">{fmtDate(r.respondedAt)}</p>
+      <p class="text-xs text-muted-foreground tabular-nums">
+        {fmtDate(r.respondedAt)}
+      </p>
       {@render recoBadge(r)}
     </div>
     {@render statutBadge(r)}
+  </div>
+{/snippet}
+
+{#snippet emptySnippet()}
+  <div class="flex flex-col items-center gap-3 py-6">
+    <span
+      class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
+    >
+      Aucun résultat
+    </span>
+    {#if anyFiltersApplied}
+      <Button
+        variant="outline"
+        size="sm"
+        onclick={resetFilters}
+        class="rounded-sm"
+      >
+        Réinitialiser les filtres
+      </Button>
+    {/if}
   </div>
 {/snippet}

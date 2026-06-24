@@ -24,6 +24,16 @@ export const RECO_VERDICT_LABEL =
   'Est-ce que vous recommanderiez le stage à Epitech ?';
 
 /**
+ * Route path (base- and origin-less) a talent opens to answer a form for an
+ * event: the authenticated bilan link. Single-sourced so the projected QR image
+ * and the shareable URL shown beside it always target the exact same route, even
+ * if it is later renamed. Callers prepend `${ORIGIN}${base}` for an absolute URL.
+ */
+export function feedbackFormPath(eventId: string, formSlug: string): string {
+  return `/feedback/${eventId}/${formSlug}`;
+}
+
+/**
  * Returns the slug of the first dashboard-nudge form the talent still owes for the
  * event, or null. The candidate forms come from the DB (`Feedback_Form.dashboardNudge`),
  * so adding a nudged form needs no code change.

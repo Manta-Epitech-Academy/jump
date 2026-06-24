@@ -7,28 +7,11 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import type { PageData } from './$types';
-  import type { BilanCohort } from './+page.server';
   import BilanRoster from './components/BilanRoster.svelte';
   import StatsPanel from './components/StatsPanel.svelte';
   import QrDialog from './components/QrDialog.svelte';
 
   let { data }: { data: PageData } = $props();
-
-  // Resolve the streamed cohort into local state (not a bare {#await}) so the
-  // roster stays mounted across navigations and keeps its search/filter state.
-  let cohort = $state<BilanCohort | null>(null);
-  let cohortFailed = $state(false);
-  $effect(() => {
-    const p = data.cohort;
-    p.then((d) => {
-      if (data.cohort === p) {
-        cohort = d;
-        cohortFailed = false;
-      }
-    }).catch(() => {
-      if (data.cohort === p) cohortFailed = true;
-    });
-  });
 
   let qrOpen = $state(false);
 </script>
@@ -89,39 +72,45 @@
         admin.
       </p>
     </div>
-  {:else if cohort}
-    <!-- 70/30 split, matching the other validated stage_seconde dev pages
-         (inscrits, émargement): the roster is the working surface, the rail
-         carries the glanceable summary (taux de réponse + the recommendation
-         breakdown, the one chart that matters). `min-w-0` keeps the table from
-         blowing the grid past the viewport. -->
-    <div class="grid gap-6 xl:grid-cols-10">
-      <div class="min-w-0 xl:col-span-7">
-        <BilanRoster rows={cohort.rows} recoOptions={cohort.recoOptions} />
-      </div>
-      <aside class="min-w-0 xl:col-span-3">
-        <div class="xl:sticky xl:top-6">
-          <StatsPanel
-            respondedCount={cohort.respondedCount}
-            total={cohort.total}
-            stats={cohort.stats}
-          />
-        </div>
-      </aside>
-    </div>
-  {:else if cohortFailed}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-    >
-      <h3 class="text-sm font-bold tracking-widest text-foreground uppercase">
-        Chargement impossible
-      </h3>
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        La liste n'a pas pu être chargée. Rechargez la page pour réessayer.
-      </p>
-    </div>
   {:else}
-    <ResultsSkeleton rail rows={10} />
+    {#await data.cohort}
+      <ResultsSkeleton />
+    {:then cohort}
+      <!-- 70/30 split, matching the other validated stage_seconde dev pages
+           (inscrits, émargement): the roster is the working surface, the rail
+           carries the glanceable summary (taux de réponse + the recommendation
+           breakdown, the one chart that matters). `min-w-0` keeps the table from
+           blowing the grid past the viewport. The page is read-only (no poll, no
+           optimistic write), so a bare {#await} is the right pattern, like
+           inscrits/entretiens; no $state unwrap needed. -->
+      <div class="grid gap-6 xl:grid-cols-10">
+        <div class="min-w-0 xl:col-span-7">
+          <BilanRoster rows={cohort.rows} recoOptions={cohort.recoOptions} />
+        </div>
+        <aside class="min-w-0 xl:col-span-3">
+          <div
+            class="xl:sticky xl:top-6 xl:max-h-[calc(100dvh-6rem)] xl:overflow-y-auto xl:pr-1"
+          >
+            <StatsPanel
+              respondedCount={cohort.respondedCount}
+              total={cohort.total}
+              stats={cohort.stats}
+            />
+          </div>
+        </aside>
+      </div>
+    {:catch}
+      <div
+        class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
+      >
+        <h3 class="text-sm font-bold tracking-widest text-foreground uppercase">
+          Chargement impossible
+        </h3>
+        <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
+          La liste n'a pas pu être chargée. Rechargez la page pour réessayer.
+        </p>
+      </div>
+    {/await}
   {/if}
 </div>
 
@@ -130,5 +119,6 @@
     bind:open={qrOpen}
     basePath={page.url.pathname}
     title={data.form.title}
+    url={data.form.url}
   />
 {/if}
