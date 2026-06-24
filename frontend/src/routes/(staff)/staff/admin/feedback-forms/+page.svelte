@@ -9,18 +9,18 @@
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Pencil from '@lucide/svelte/icons/pencil';
   import MessageSquare from '@lucide/svelte/icons/message-square';
-  import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
+  import FormStatusSelect from '$lib/components/admin/feedback/FormStatusSelect.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
   import * as Dialog from '$lib/components/ui/dialog';
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as Table from '$lib/components/ui/table';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
+  import { FORM_STATUS_LABELS } from '$lib/domain/feedbackForms/status';
   import { resolve } from '$app/paths';
   import type { PageData } from './$types';
   import type { FormListRow, FormsCohort } from './+page.server';
@@ -52,21 +52,6 @@
       },
     },
   );
-
-  const STATUS_LABEL: Record<string, string> = {
-    draft: 'Brouillon',
-    published: 'Publié',
-    archived: 'Archivé',
-  };
-  const STATUS_CLASS: Record<string, string> = {
-    draft:
-      'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
-    published:
-      'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
-    archived: 'bg-slate-100 text-slate-500 dark:bg-slate-800',
-  };
-  // Lifecycle order shown in the per-row status menu.
-  const STATUS_ORDER = ['draft', 'published', 'archived'] as const;
 
   /** Id of the row whose status PATCH is in flight (locks its trigger). */
   let statusPending = $state<string | null>(null);
@@ -106,7 +91,9 @@
           'Publié, mais aucun mode d’accès n’est activé : personne ne peut répondre. Ouvrez les paramètres pour en activer un.',
         );
       } else {
-        toast.success(`Statut : ${STATUS_LABEL[status]}`);
+        toast.success(
+          `Statut : ${FORM_STATUS_LABELS[status as keyof typeof FORM_STATUS_LABELS]}`,
+        );
       }
     } finally {
       statusPending = null;
@@ -183,30 +170,11 @@
                   {/if}
                 </Table.Cell>
                 <Table.Cell>
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger
-                      disabled={statusPending === row.id}
-                      class="inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50 {STATUS_CLASS[
-                        row.status
-                      ]}"
-                      aria-label="Changer le statut"
-                    >
-                      {STATUS_LABEL[row.status] ?? row.status}
-                      <ChevronDown class="h-3 w-3 opacity-70" />
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Content align="start" class="w-44">
-                      <DropdownMenu.RadioGroup
-                        value={row.status}
-                        onValueChange={(v) => setStatus(row, v)}
-                      >
-                        {#each STATUS_ORDER as s (s)}
-                          <DropdownMenu.RadioItem value={s}>
-                            {STATUS_LABEL[s]}
-                          </DropdownMenu.RadioItem>
-                        {/each}
-                      </DropdownMenu.RadioGroup>
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Root>
+                  <FormStatusSelect
+                    value={row.status}
+                    onChange={(v) => setStatus(row, v)}
+                    disabled={statusPending === row.id}
+                  />
                 </Table.Cell>
                 <Table.Cell class="text-right font-mono text-sm"
                   >{row.questionCount}</Table.Cell

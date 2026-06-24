@@ -5,6 +5,10 @@
   import { Switch } from '$lib/components/ui/switch';
   import * as Select from '$lib/components/ui/select';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
+  import {
+    FORM_STATUS_LABELS,
+    FORM_STATUS_OPTIONS,
+  } from '$lib/domain/feedbackForms/status';
   import FieldLabel from './FieldLabel.svelte';
   import type { FormEditor, FormStatus, FormMeta } from '../editor.svelte';
 
@@ -17,12 +21,6 @@
       !editor.allowsAuthenticatedAccess &&
       !editor.allowsPublicAccess,
   );
-
-  const STATUS_LABELS: Record<FormStatus, string> = {
-    draft: 'Brouillon',
-    published: 'Publié',
-    archived: 'Archivé',
-  };
 
   const publicUrl = $derived(`${page.url.origin}/bilan/${editor.slug}`);
 
@@ -59,11 +57,11 @@
             editor.patchForm({ status: v as FormStatus })}
         >
           <Select.Trigger class="h-9 w-full rounded-sm">
-            {STATUS_LABELS[editor.status]}
+            {FORM_STATUS_LABELS[editor.status]}
           </Select.Trigger>
           <Select.Content>
-            {#each Object.entries(STATUS_LABELS) as [value, label] (value)}
-              <Select.Item {value}>{label}</Select.Item>
+            {#each FORM_STATUS_OPTIONS as opt (opt.value)}
+              <Select.Item value={opt.value}>{opt.label}</Select.Item>
             {/each}
           </Select.Content>
         </Select.Root>

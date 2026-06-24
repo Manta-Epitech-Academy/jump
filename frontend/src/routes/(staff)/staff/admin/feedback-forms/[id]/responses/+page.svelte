@@ -5,11 +5,16 @@
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Download from '@lucide/svelte/icons/download';
   import FormTabs from '../components/FormTabs.svelte';
-  import * as Select from '$lib/components/ui/select';
+  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import * as Table from '$lib/components/ui/table';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
+
+  const campusFilterOptions = $derived([
+    { value: 'all', label: 'Tous les campus' },
+    ...data.campuses.map((c) => ({ value: c.name, label: c.name })),
+  ]);
 
   const total = $derived(data.stats?.totalSubmissions ?? 0);
 
@@ -57,23 +62,13 @@
   <FormTabs formId={data.form.id} />
 
   <div class="flex flex-wrap items-center justify-between gap-4">
-    <Select.Root
-      type="single"
+    <FilterSelect
+      options={campusFilterOptions}
       value={data.selectedCampus}
-      onValueChange={onCampusChange}
-    >
-      <Select.Trigger class="h-9 w-56 rounded-sm text-xs">
-        {data.selectedCampus === 'all'
-          ? 'Tous les campus'
-          : data.selectedCampus}
-      </Select.Trigger>
-      <Select.Content>
-        <Select.Item value="all">Tous les campus</Select.Item>
-        {#each data.campuses as c (c.id)}
-          <Select.Item value={c.name}>{c.name}</Select.Item>
-        {/each}
-      </Select.Content>
-    </Select.Root>
+      onChange={onCampusChange}
+      ariaLabel="Filtrer par campus"
+      triggerClass="text-xs"
+    />
 
     <div class="flex items-center gap-4">
       <p class="text-sm text-muted-foreground">
