@@ -162,7 +162,7 @@
               <Table.Head>Prénom</Table.Head>
               <Table.Head>Nom</Table.Head>
               <Table.Head>Campus déclaré</Table.Head>
-              <Table.Head class="text-right">Le</Table.Head>
+              <Table.Head>Date</Table.Head>
             </Table.Row>
           </Table.Header>
           <Table.Body>
@@ -176,7 +176,7 @@
                 <Table.Cell class="text-muted-foreground"
                   >{r.campusLabel ?? '—'}</Table.Cell
                 >
-                <Table.Cell class="text-right font-mono text-xs">
+                <Table.Cell class="font-mono text-xs text-muted-foreground">
                   {dateFmt.format(new Date(r.submittedAt))}
                 </Table.Cell>
               </Table.Row>
