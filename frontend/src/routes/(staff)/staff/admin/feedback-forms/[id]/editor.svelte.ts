@@ -1,6 +1,9 @@
 import { toast } from 'svelte-sonner';
 import { SvelteMap } from 'svelte/reactivity';
-import { IDENTITY_FIELD_TO_QUESTION_TYPE } from '$lib/domain/feedbackForms/schema';
+import {
+  IDENTITY_FIELD_TO_QUESTION_TYPE,
+  buildPersonaIconUrl,
+} from '$lib/domain/feedbackForms/schema';
 import type {
   QuestionType,
   InputKind,
@@ -21,6 +24,7 @@ export interface FormMeta {
   intro: string;
   outro: string | null;
   personaName: string | null;
+  personaIconKey: string | null;
   status: FormStatus;
   allowsAuthenticatedAccess: boolean;
   allowsPublicAccess: boolean;
@@ -88,6 +92,7 @@ export class FormEditor {
   intro = $state('');
   outro = $state<string | null>(null);
   personaName = $state<string | null>(null);
+  personaIconKey = $state<string | null>(null);
   status = $state<FormStatus>('draft');
   allowsAuthenticatedAccess = $state(false);
   allowsPublicAccess = $state(false);
@@ -101,6 +106,8 @@ export class FormEditor {
   status_ = new SvelteMap<string, SaveState>();
   inflight = $state(0);
   lastSavedAt = $state<number | null>(null);
+  /** True while a persona-icon upload is in flight (drives the avatar spinner). */
+  uploadingIcon = $state(false);
 
   /** The single selected/expanded card (Forms shows one active card at a time). */
   activeId = $state<string | null>(null);
@@ -126,6 +133,11 @@ export class FormEditor {
   }
   get baseUrl(): string {
     return `/staff/admin/feedback-forms/${this.formId}`;
+  }
+
+  /** Proxy URL of the current persona icon, or undefined to fall back to default. */
+  get personaIconUrl(): string | undefined {
+    return buildPersonaIconUrl(this.formId, this.personaIconKey);
   }
 
   /**
@@ -283,6 +295,72 @@ export class FormEditor {
     Object.assign(this, patch);
     const ok = await this.#send('form:meta', 'meta', 'PATCH', patch);
     if (ok === null) Object.assign(this, prev);
+  }
+
+  /**
+   * Uploads a new persona avatar. Unlike meta edits this is multipart to a
+   * dedicated endpoint (not the JSON `meta` PATCH), so it tracks its own
+   * save-state row (`form:icon`) and inflight count rather than going through
+   * `#send`. On success the returned key flips the rendered `?v=` URL so the
+   * avatar swaps without a reload.
+   */
+  async uploadPersonaIcon(file: File): Promise<void> {
+    this.uploadingIcon = true;
+    this.status_.set('form:icon', 'saving');
+    this.inflight++;
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const res = await fetch(
+        `/api/feedback-forms/${this.formId}/persona-icon`,
+        { method: 'POST', body },
+      );
+      if (!res.ok) {
+        const b = (await res.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+        toast.error(b?.message ?? "Échec de l'envoi de l'icône.");
+        this.status_.set('form:icon', 'error');
+        return;
+      }
+      const { key } = (await res.json()) as { key: string };
+      this.personaIconKey = key;
+      this.#flashSaved('form:icon');
+    } catch {
+      toast.error('Une erreur réseau est survenue.');
+      this.status_.set('form:icon', 'error');
+    } finally {
+      this.inflight--;
+      this.uploadingIcon = false;
+    }
+  }
+
+  /** Removes the custom persona avatar, reverting to the default mascot art. */
+  async removePersonaIcon(): Promise<void> {
+    const prev = this.personaIconKey;
+    if (!prev) return;
+    this.personaIconKey = null;
+    this.status_.set('form:icon', 'saving');
+    this.inflight++;
+    try {
+      const res = await fetch(
+        `/api/feedback-forms/${this.formId}/persona-icon`,
+        { method: 'DELETE' },
+      );
+      if (!res.ok) {
+        this.personaIconKey = prev;
+        toast.error("Échec de la suppression de l'icône.");
+        this.status_.set('form:icon', 'error');
+        return;
+      }
+      this.#flashSaved('form:icon');
+    } catch {
+      this.personaIconKey = prev;
+      toast.error('Une erreur réseau est survenue.');
+      this.status_.set('form:icon', 'error');
+    } finally {
+      this.inflight--;
+    }
   }
 
   // ── Questions ──

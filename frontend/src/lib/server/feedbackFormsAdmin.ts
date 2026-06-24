@@ -10,6 +10,8 @@ import type {
 import { prisma } from '$lib/server/db';
 import { assertEditable, getFormGraphById } from '$lib/server/feedbackForms';
 import { IDENTITY_NOT_MULTIPLE_MESSAGE } from '$lib/validation/feedbackForms';
+import { getStorage } from '$lib/server/infra/storage';
+import { copyPersonaIcon } from '$lib/server/feedbackForms/personaIcon';
 
 /**
  * Admin mutations for the feedback form builder. The whole `/staff/admin/*` tree
@@ -101,7 +103,7 @@ export async function duplicateForm(
   if (!src) throw error(404, 'Formulaire introuvable.');
   const slug = await uniqueSlug(`${src.title} (copie)`);
 
-  return prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx) => {
     const form = await tx.feedback_Form.create({
       data: {
         slug,
@@ -163,9 +165,28 @@ export async function duplicateForm(
 
     return { id: form.id };
   });
+
+  // Copy the persona icon to a key the copy owns (outside the txn; S3 is not
+  // transactional). Sharing one key would let either form's delete break the
+  // other. Best-effort: a failed copy just leaves the copy on the default art.
+  if (src.personaIconKey) {
+    const key = await copyPersonaIcon(src.personaIconKey, created.id);
+    if (key) {
+      await prisma.feedback_Form.update({
+        where: { id: created.id },
+        data: { personaIconKey: key },
+      });
+    }
+  }
+
+  return created;
 }
 
 export async function deleteForm(id: string): Promise<void> {
+  const form = await prisma.feedback_Form.findUnique({
+    where: { id },
+    select: { personaIconKey: true },
+  });
   const n = await prisma.feedback_Submission.count({ where: { formId: id } });
   if (n > 0) {
     throw error(
@@ -174,6 +195,12 @@ export async function deleteForm(id: string): Promise<void> {
     );
   }
   await prisma.feedback_Form.delete({ where: { id } });
+  // Reclaim the icon object after the row is gone (best-effort; no GC backstop).
+  if (form?.personaIconKey) {
+    await getStorage()
+      .delete(form.personaIconKey)
+      .catch(() => {});
+  }
 }
 
 // ─── Section ───

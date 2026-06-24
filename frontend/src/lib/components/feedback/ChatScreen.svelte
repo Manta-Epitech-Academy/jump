@@ -5,6 +5,7 @@
     Answers,
     IdentityContext,
   } from '$lib/domain/feedbackForms/schema';
+  import { DEFAULT_PERSONA } from '$lib/domain/feedbackForms/schema';
   import { Conversation } from '$lib/domain/feedbackForms/conversation.svelte';
   import ChatThread from './ChatThread.svelte';
   import QuickReplies from './QuickReplies.svelte';
@@ -20,8 +21,9 @@
 
   let { form, onSubmit, identity = {} }: Props = $props();
 
-  // Chat persona name set on the form (Mascotte), with the historical default.
-  const persona = $derived(form.personaName?.trim() || 'Bernard le canard');
+  // Chat persona set on the form (Mascotte), falling back to the default mascot.
+  const persona = $derived(form.personaName?.trim() || DEFAULT_PERSONA.name);
+  const personaIcon = $derived(form.personaIconUrl ?? DEFAULT_PERSONA.iconUrl);
 
   // Built once: the conversation is a stateful machine, not reactive to later
   // prop changes. `untrack` makes that one-time read explicit (and silences the
@@ -64,7 +66,7 @@
   >
     <div class="relative">
       <img
-        src="/canard.png"
+        src={personaIcon}
         alt={persona}
         class="h-8 w-8 rounded-full object-cover"
       />

@@ -166,7 +166,36 @@ export interface FormSchema {
   outro?: string;
   /** Name of the chat persona; falls back to the default mascot when absent. */
   personaName?: string;
+  /** Proxy URL of the persona's uploaded avatar; absent = the default mascot art. */
+  personaIconUrl?: string;
   questions: Question[];
+}
+
+/**
+ * The mascot shown when a form sets no custom persona. Single source for the
+ * name + art so the duck is never hardcoded at a render site; every fallback
+ * reads from here, and a form fully overrides both via `personaName` /
+ * `personaIconUrl`.
+ */
+export const DEFAULT_PERSONA = {
+  name: 'Bernard le canard',
+  iconUrl: '/canard.png',
+} as const;
+
+/**
+ * Builds the public proxy URL for a form's persona icon, or `undefined` when the
+ * form has no custom icon (callers fall back to {@link DEFAULT_PERSONA}). The
+ * `?v=<key>` busts the browser cache on replace: a new upload gets a new key, so
+ * the URL changes even though the path (keyed by form id) is stable. Pure, so the
+ * client projection and the server projection produce identical URLs.
+ */
+export function buildPersonaIconUrl(
+  formId: string,
+  key: string | null | undefined,
+): string | undefined {
+  return key
+    ? `/api/feedback-forms/${formId}/persona-icon?v=${key}`
+    : undefined;
 }
 
 export type AnswerValue = string | string[];

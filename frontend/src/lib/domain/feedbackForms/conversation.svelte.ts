@@ -231,7 +231,7 @@ export class Conversation {
   }
 
   /**
-   * Emits Bernard's reaction for each chosen option that carries one. Each lands
+   * Emits the persona's reaction for each chosen option that carries one. Each lands
    * promptly (`snap`); the savoured pause comes after, on the following prompt.
    * Returns whether at least one reaction was emitted.
    */

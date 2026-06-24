@@ -39,6 +39,7 @@
         intro: d.form.intro,
         outro: d.form.outro,
         personaName: d.form.personaName,
+        personaIconKey: d.form.personaIconKey,
         status: d.form.status as FormStatus,
         allowsAuthenticatedAccess: d.form.allowsAuthenticatedAccess,
         allowsPublicAccess: d.form.allowsPublicAccess,
@@ -95,11 +96,13 @@
   const previewSchema = $derived(
     projectEditorToSchema(
       {
+        formId: editor.formId,
         slug: editor.slug,
         title: editor.title,
         intro: editor.intro,
         outro: editor.outro,
         personaName: editor.personaName,
+        personaIconKey: editor.personaIconKey,
         sections: editor.sections,
         questions: editor.questions,
       },

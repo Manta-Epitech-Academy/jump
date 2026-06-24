@@ -45,7 +45,9 @@
   let showReaction = $state(false);
   const hasReaction = $derived(!!option.reaction);
   const reactionTooltip = $derived(
-    hasReaction ? 'Réaction du canard' : 'Ajouter une réaction du canard',
+    hasReaction
+      ? 'Réaction de la mascotte'
+      : 'Ajouter une réaction de la mascotte',
   );
 
   function saveReaction(value: string) {
@@ -188,8 +190,8 @@
       />
       <input
         value={option.reaction ?? ''}
-        aria-label="Réaction du canard à cette option"
-        placeholder="Réaction du canard (facultatif), ex. « Ahhh j'adore ! »"
+        aria-label="Réaction de la mascotte à cette option"
+        placeholder="Réaction de la mascotte (facultatif), ex. « Ahhh j'adore ! »"
         class="flex-1 rounded-xl rounded-bl-sm border px-3 py-1.5 text-xs transition outline-none {hasReaction
           ? 'border-epi-pink/30 bg-epi-pink/10 text-foreground focus:border-epi-pink'
           : 'border-dashed bg-transparent text-muted-foreground italic focus:border-foreground'}"

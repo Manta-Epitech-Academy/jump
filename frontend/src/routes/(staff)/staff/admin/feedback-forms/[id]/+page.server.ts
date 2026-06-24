@@ -22,6 +22,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
       intro: graph.intro,
       outro: graph.outro,
       personaName: graph.personaName,
+      personaIconKey: graph.personaIconKey,
       status: graph.status,
       allowsAuthenticatedAccess: graph.allowsAuthenticatedAccess,
       allowsPublicAccess: graph.allowsPublicAccess,

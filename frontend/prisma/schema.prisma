@@ -956,6 +956,10 @@ model Feedback_Form {
   title       String
   intro       String
   personaName String?
+  // S3 object key of the uploaded persona avatar (WebP). Null = the default
+  // mascot art. Served through the public /api/feedback-forms/[id]/persona-icon
+  // proxy; the key changes on every replace so the rendered ?v= URL busts cache.
+  personaIconKey String?
   status      Feedback_FormStatus @default(draft)
 
   allowsAuthenticatedAccess Boolean @default(true)

@@ -5,7 +5,7 @@ import type {
   InputKind,
   IdentityField,
 } from './schema';
-import { IDENTITY_FIELD_TO_INPUT_KIND } from './schema';
+import { IDENTITY_FIELD_TO_INPUT_KIND, buildPersonaIconUrl } from './schema';
 
 /**
  * Client-side twin of the server's `toFormSchema` (`$lib/server/feedbackForms`).
@@ -51,11 +51,13 @@ export interface EditorSection {
 }
 
 export interface EditorGraph {
+  formId: string;
   slug: string;
   title: string;
   intro: string;
   outro: string | null;
   personaName: string | null;
+  personaIconKey: string | null;
   sections: EditorSection[];
   questions: EditorQuestion[];
 }
@@ -121,6 +123,7 @@ export function projectEditorToSchema(
     intro: graph.intro,
     outro: graph.outro ?? undefined,
     personaName: graph.personaName ?? undefined,
+    personaIconUrl: buildPersonaIconUrl(graph.formId, graph.personaIconKey),
     questions: ordered.map((q) => projectQuestion(q, sectionById)),
   };
 }

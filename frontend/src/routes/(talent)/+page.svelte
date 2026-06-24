@@ -178,7 +178,11 @@
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
     {#each data.pendingFeedback as pf (pf.formId)}
       <div class="mb-4">
-        <FeedbackBanner eventId={pf.eventId} formId={pf.formId} />
+        <FeedbackBanner
+          eventId={pf.eventId}
+          formId={pf.formId}
+          personaIconUrl={pf.personaIconUrl}
+        />
       </div>
     {/each}
 

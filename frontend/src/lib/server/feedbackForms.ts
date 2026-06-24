@@ -8,7 +8,10 @@ import type {
   InputKind,
   IdentityField,
 } from '$lib/domain/feedbackForms/schema';
-import { IDENTITY_FIELD_TO_INPUT_KIND } from '$lib/domain/feedbackForms/schema';
+import {
+  IDENTITY_FIELD_TO_INPUT_KIND,
+  buildPersonaIconUrl,
+} from '$lib/domain/feedbackForms/schema';
 
 /** Who a projected form is rendered for; mirrors Feedback_SubmissionSource. */
 export type FormAudience = 'public' | 'authenticated';
@@ -117,6 +120,7 @@ export function toFormSchema(
     intro: graph.intro,
     outro: graph.outro ?? undefined,
     personaName: graph.personaName ?? undefined,
+    personaIconUrl: buildPersonaIconUrl(graph.id, graph.personaIconKey),
     questions,
   };
 }

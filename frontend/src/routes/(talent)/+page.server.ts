@@ -18,6 +18,7 @@ import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
 import { stageWindowEnd } from '$lib/domain/event';
 import { pendingFeedbackForm } from '$lib/domain/feedback';
+import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
 import { toPlanningView } from '$lib/domain/talentPlanning';
 import { buildPreviewPlanningView } from '$lib/server/talentPlanningPreview';
 
@@ -196,7 +197,11 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     }
 
     // Feedback banner: check if the stage_seconde event has pending feedback
-    let pendingFeedback: Array<{ eventId: string; formId: string }> = [];
+    let pendingFeedback: Array<{
+      eventId: string;
+      formId: string;
+      personaIconUrl?: string;
+    }> = [];
     if (locals.featureFlags?.has('stage_seconde')) {
       const feedbackParticipation = await prisma.participation.findFirst({
         where: {
@@ -213,7 +218,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         const [nudgeForms, existingSubs] = await Promise.all([
           prisma.feedback_Form.findMany({
             where: { status: 'published', dashboardNudge: true },
-            select: { id: true, slug: true },
+            select: { id: true, slug: true, personaIconKey: true },
           }),
           prisma.feedback_Submission.findMany({
             where: {
@@ -230,8 +235,18 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
           existingSubs.map((s) => s.formId),
         );
         if (pending) {
+          // `pending.formId` is the form slug (the answering route param); the
+          // icon proxy is keyed by the real id, so resolve the matched row.
+          const matched = nudgeForms.find((f) => f.slug === pending.formId);
           pendingFeedback = [
-            { ...pending, eventId: feedbackParticipation.eventId },
+            {
+              ...pending,
+              eventId: feedbackParticipation.eventId,
+              personaIconUrl: buildPersonaIconUrl(
+                matched?.id ?? '',
+                matched?.personaIconKey,
+              ),
+            },
           ];
         }
       }
