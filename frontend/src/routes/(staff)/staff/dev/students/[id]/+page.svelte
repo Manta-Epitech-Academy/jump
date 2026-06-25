@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { resolve } from '$app/paths';
   import { replaceState } from '$app/navigation';
   import { page } from '$app/state';
 
@@ -8,7 +7,6 @@
   import Plus from '@lucide/svelte/icons/plus';
 
   import { Button } from '$lib/components/ui/button';
-  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
 
   import TalentProfileHero from './components/TalentProfileHero.svelte';
@@ -22,21 +20,10 @@
   import TalentNotesFeed from '$lib/components/dev/notes/TalentNotesFeed.svelte';
   import type { InterviewStatus } from '@prisma/client';
 
-  import type { FlagKey } from '$lib/domain/featureFlags';
   import { formatPersonName } from '$lib/domain/profile';
   import { cn } from '$lib/utils';
 
   let { data }: { data: PageData } = $props();
-
-  // Navigation is flat in stage-only mode; the breadcrumb only earns its keep
-  // (and a link back to the listing) once coding_club adds depth.
-  const featureFlags = $derived(
-    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
-  );
-  const hasCodingClub = $derived(featureFlags.has('coding_club'));
-  const talentsHref = $derived(
-    hasCodingClub ? resolve('/staff/dev/students') : undefined,
-  );
 
   const charteSigned = $derived(
     data.primaryComplianceParticipation?.stageCompliance?.charteSigned,
@@ -124,21 +111,6 @@
 </svelte:head>
 
 <div class="space-y-6 pb-12">
-  {#if hasCodingClub}
-    <PageBreadcrumb
-      items={[
-        { label: 'Stagiaires', href: talentsHref },
-        {
-          label: formatPersonName(
-            data.student.prenom,
-            data.student.nom,
-            'surname-first',
-          ),
-        },
-      ]}
-    />
-  {/if}
-
   <TalentProfileHero student={data.student} xpStory={data.xpStory} />
 
   <div class="grid gap-6 lg:grid-cols-10">

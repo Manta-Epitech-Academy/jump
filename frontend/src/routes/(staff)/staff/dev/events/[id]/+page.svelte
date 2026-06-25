@@ -2,21 +2,30 @@
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
   import { toast } from 'svelte-sonner';
+  import { page } from '$app/state';
 
   import type { PageData } from './$types';
-  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import { onErrorToast } from '$lib/utils/formErrors';
-  import { track, errReason } from '$lib/analytics';
-  import { STAGE_SECONDE_LABEL, eventTypeHasTheme } from '$lib/domain/event';
+  import { can } from '$lib/domain/permissions';
+  import { eventTypeLabel } from '$lib/domain/event';
+  import {
+    EVENT_MODULE_KEYS,
+    EVENT_MODULE_DEFS,
+  } from '$lib/domain/eventModules';
+  import * as Card from '$lib/components/ui/card';
+  import { Button } from '$lib/components/ui/button';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
+  import StickyNote from '@lucide/svelte/icons/sticky-note';
+  import Clock from '@lucide/svelte/icons/clock';
 
   import EditEventDialog from './components/EditEventDialog.svelte';
+  import StartTimeInline from './components/StartTimeInline.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
-  import PreparationView from './components/PreparationView.svelte';
-  import OngoingView from './components/OngoingView.svelte';
-  import PastView from './components/PastView.svelte';
-  import EventDashboard from './components/EventDashboard.svelte';
 
   let { data }: { data: PageData } = $props();
+
+  const isLead = $derived(can('devLead', page.data.staffProfile?.staffRole));
 
   const {
     form: editForm,
@@ -30,18 +39,29 @@
       resetForm: false,
       onResult: ({ result }) => {
         if (result.type === 'success') {
-          track('event_updated', {
-            eventId: data.event.id,
-            eventType: data.event.eventType,
-          });
           openEditEvent = false;
-          toast.success(result.data?.form.message);
+          toast.success(result.data?.form?.message ?? 'Enregistré.');
         } else if (result.type === 'failure') {
-          track('event_update_failed', {
-            eventId: data.event.id,
-            eventType: data.event.eventType,
-            reason: errReason(result),
-          });
+          toast.error(result.data?.form?.message ?? 'Action impossible.');
+        }
+      },
+      onError: onErrorToast(),
+    },
+  );
+
+  const {
+    form: modulesForm,
+    enhance: modulesEnhance,
+    delayed: modulesDelayed,
+  } = superForm(
+    untrack(() => data.modulesForm),
+    {
+      id: 'event-modules',
+      resetForm: false,
+      onResult: ({ result }) => {
+        if (result.type === 'success') {
+          toast.success(result.data?.form?.message ?? 'Modules enregistrés.');
+        } else if (result.type === 'failure') {
           toast.error(result.data?.form?.message ?? 'Action impossible.');
         }
       },
@@ -51,101 +71,124 @@
 
   let openEditEvent = $state(false);
 
-  const eventDate = $derived(new Date(data.event.date));
-  const eventEndDate = $derived(
-    data.event.endDate ? new Date(data.event.endDate) : null,
+  const dateFmt = new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  const dateLabel = $derived(
+    (() => {
+      const start = dateFmt.format(new Date(data.event.date));
+      if (!data.event.endDate) return start;
+      return `${start} au ${dateFmt.format(new Date(data.event.endDate))}`;
+    })(),
   );
 
-  const pageTitle = $derived(
-    data.kind === 'stage' ? STAGE_SECONDE_LABEL : data.event.titre,
-  );
-
-  // Planning is a read-only viewer in the dev space, governed per campus by the
-  // `planning` feature flag: the campus's schedule is populated in DB, then the
-  // flag is switched on, and every dev planning link (this dashboard button, the
-  // ProgrammeJour shortcut, the sidebar entry) lights up together. Campuses that
-  // run their schedule outside Jump leave it off and see none of it.
-  const showPlanning = $derived(data.featureFlags.includes('planning'));
+  function applyPreset() {
+    $modulesForm.modules = [...data.presetModules];
+  }
 </script>
 
 <svelte:head>
-  <title>{pageTitle}</title>
+  <title>{data.event.titre} - Paramètres</title>
 </svelte:head>
 
-<div class="flex flex-col gap-4">
-  {#if data.kind !== 'stage' || data.event.externalId}
-    <div class="flex items-start justify-between gap-3">
-      {#if data.kind !== 'stage'}
-        <PageBreadcrumb items={[{ label: pageTitle }]} />
-      {:else}
-        <div></div>
-      {/if}
-      <EventSalesforceButton externalId={data.event.externalId} />
+<div class="mx-auto flex max-w-3xl flex-col gap-6">
+  <header class="flex flex-wrap items-start justify-between gap-3">
+    <div class="min-w-0">
+      <p
+        class="font-mono text-xs font-bold tracking-wide text-muted-foreground uppercase"
+      >
+        {eventTypeLabel(data.event.eventType)}
+      </p>
+      <h1 class="truncate text-2xl font-bold">{data.event.titre}</h1>
+      <p class="text-sm text-muted-foreground">{dateLabel}</p>
     </div>
-  {/if}
+    <EventSalesforceButton externalId={data.event.externalId} />
+  </header>
 
-  {#if data.kind === 'stage' && data.status === 'upcoming'}
-    <PreparationView
-      eventId={data.event.id}
-      notes={data.event.notes}
-      daysToStart={data.prep.daysToStart}
-      openDate={new Date(data.prep.openDate)}
-      eventType={data.event.eventType}
-      startMinutes={data.event.startMinutes}
-      timezone={data.timezone}
-      kpis={data.prep.kpis}
-      lyceesBreakdown={data.prep.lyceesBreakdown}
-      interestsCloud={data.prep.interestsCloud}
-      onEditNotes={() => (openEditEvent = true)}
-    />
-  {:else if data.kind === 'stage' && data.status === 'ongoing'}
-    <OngoingView
-      eventId={data.event.id}
-      notes={data.event.notes}
-      dayN={data.ongoing.dayN}
-      totalDays={data.ongoing.totalDays}
-      startDate={eventDate}
-      endDate={eventEndDate ?? eventDate}
-      timezone={data.timezone}
-      kpis={data.ongoing.kpis}
-      alerts={data.ongoing.alerts}
-      timeSlots={data.ongoing.todayTimeSlots}
-      lyceesBreakdown={data.ongoing.lyceesBreakdown}
-      interestsCloud={data.ongoing.interestsCloud}
-      {showPlanning}
-      onEditNotes={() => (openEditEvent = true)}
-    />
-  {:else if data.kind === 'stage' && data.status === 'past'}
-    <PastView
-      eventId={data.event.id}
-      notes={data.event.notes}
-      startDate={eventDate}
-      endDate={new Date(data.past.endDate)}
-      timezone={data.timezone}
-      stats={data.past.stats}
-      onEditNotes={() => (openEditEvent = true)}
-    />
-  {:else if data.kind === 'event'}
-    <EventDashboard
-      eventId={data.event.id}
-      titre={data.event.titre}
-      date={eventDate}
-      endDate={eventEndDate}
-      notes={data.event.notes}
-      timezone={data.timezone}
-      eventType={data.event.eventType}
-      startMinutes={data.event.startMinutes}
-      showStartTime={data.status !== 'past'}
-      promptStartTime={data.status === 'upcoming'}
-      themeName={data.event.theme?.nom ?? null}
-      mantasCount={data.event.mantas.length}
-      stats={data.legacy.stats}
-      alerts={data.legacy.alerts}
-      showIntervenants={data.featureFlags.includes('staff_intervenants')}
-      {showPlanning}
-      onEditNotes={() => (openEditEvent = true)}
-    />
-  {/if}
+  <!-- Modules: which dev-workspace surfaces this event exposes. Per-event, so two
+       events on one campus can differ. Lead-only; members see it read-only. -->
+  <Card.Root class="rounded-sm">
+    <Card.Header>
+      <Card.Title class="flex items-center gap-2 text-base">
+        <SlidersHorizontal class="h-4 w-4" /> Modules de l'événement
+      </Card.Title>
+      <Card.Description>
+        Choisissez les pages activées pour cet événement. Les autres événements
+        du campus gardent leur propre configuration.
+      </Card.Description>
+    </Card.Header>
+    <form method="POST" action="?/setEventModules" use:modulesEnhance>
+      <Card.Content class="space-y-2">
+        {#each EVENT_MODULE_KEYS as key (key)}
+          {@const def = EVENT_MODULE_DEFS[key]}
+          <label
+            class="flex cursor-pointer items-start gap-3 rounded-sm border border-border p-3 transition-colors hover:bg-muted/50 has-[:checked]:border-epi-blue has-[:checked]:bg-epi-blue/5"
+          >
+            <input
+              type="checkbox"
+              name="modules"
+              value={key}
+              bind:group={$modulesForm.modules}
+              disabled={!isLead}
+              class="mt-0.5 h-4 w-4 shrink-0 accent-epi-blue"
+            />
+            <span class="min-w-0">
+              <span class="block text-sm font-bold">{def.label}</span>
+              <span class="block text-xs text-muted-foreground"
+                >{def.description}</span
+              >
+            </span>
+          </label>
+        {/each}
+      </Card.Content>
+      {#if isLead}
+        <Card.Footer class="justify-between gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onclick={applyPreset}
+            title="Réinitialiser sur le préréglage du type d'événement"
+          >
+            Préréglage {eventTypeLabel(data.event.eventType)}
+          </Button>
+          <Button type="submit" size="sm" disabled={$modulesDelayed}>
+            {#if $modulesDelayed}
+              <LoaderCircle class="mr-2 h-4 w-4 animate-spin" /> Enregistrement...
+            {:else}
+              Enregistrer les modules
+            {/if}
+          </Button>
+        </Card.Footer>
+      {/if}
+    </form>
+  </Card.Root>
+
+  <!-- Arrival time + staff notes. -->
+  <Card.Root class="rounded-sm">
+    <Card.Content
+      class="flex flex-wrap items-center justify-between gap-4 pt-6"
+    >
+      <div class="flex items-center gap-2 text-sm">
+        <Clock class="h-4 w-4 text-muted-foreground" />
+        <span class="text-muted-foreground">Heure d'arrivée des jeunes :</span>
+        <StartTimeInline
+          eventType={data.event.eventType}
+          startMinutes={data.event.startMinutes}
+        />
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onclick={() => (openEditEvent = true)}
+        disabled={!isLead}
+      >
+        <StickyNote class="mr-2 h-4 w-4" /> Notes
+      </Button>
+    </Card.Content>
+  </Card.Root>
 </div>
 
 <EditEventDialog
@@ -155,5 +198,5 @@
   {editEnhance}
   {editDelayed}
   themes={data.themes}
-  canHaveTheme={eventTypeHasTheme(data.event.eventType)}
+  canHaveTheme={data.canHaveTheme}
 />

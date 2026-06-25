@@ -3,10 +3,7 @@
   import { formatPhoneForDisplay } from '$lib/domain/phone';
   import * as Command from '$lib/components/ui/command';
   import { goto } from '$app/navigation';
-  import Calendar from '@lucide/svelte/icons/calendar';
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
-  import History from '@lucide/svelte/icons/history';
-  import Users from '@lucide/svelte/icons/users';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import Phone from '@lucide/svelte/icons/phone';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -192,37 +189,7 @@
             >{isPedago ? 'Dashboard Pédago' : 'Dashboard ADM'}</span
           >
         </Command.Item>
-        {#if !isPedago}
-          <Command.Item
-            onSelect={() => runCommand(resolve(`${basePath}/students`))}
-            class="py-3"
-          >
-            <Users class="mr-3 h-5 w-5 text-epi-teal-solid" />
-            <span class="font-bold">Annuaire des Talents</span>
-          </Command.Item>
-          <Command.Item
-            onSelect={() => runCommand(resolve(`${basePath}/events/history`))}
-            class="py-3"
-          >
-            <History class="mr-3 h-5 w-5 text-muted-foreground" />
-            <span class="font-bold">Historique & Archives</span>
-          </Command.Item>
-        {/if}
       </Command.Group>
-
-      {#if !isPedago}
-        <Command.Separator />
-
-        <Command.Group heading="Actions Rapides">
-          <Command.Item
-            onSelect={() => runCommand(resolve(`${basePath}/events/import`))}
-            class="py-3"
-          >
-            <Calendar class="mr-3 h-5 w-5 text-epi-pink" />
-            <span class="font-bold">Importer un événement Salesforce</span>
-          </Command.Item>
-        </Command.Group>
-      {/if}
     {/if}
   </Command.List>
 </Command.Dialog>

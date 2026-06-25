@@ -776,8 +776,28 @@ model Event {
   eventPresences      EventPresence[]
   feedbackSubmissions Feedback_Submission[]
   talentNotes         Note_TalentNote[]
+  modules             EventConfig_Module[]
 
   @@index([campusId])
+}
+
+// Per-event surface configuration for the dev workspace. A row's mere
+// presence = that module is enabled for the event (no `enabled` boolean: the
+// event's rows ARE the truth, there is no campus-wide default to override the
+// way CampusFeatureFlag has). `moduleKey` is validated in code against
+// EVENT_MODULES (mirrors how `flagKey`/`eventType` stay plain strings so a new
+// module needs no migration). Seeded from the event type's preset at creation;
+// the SF sync never touches these rows, so the per-event config is never
+// clobbered. See src/lib/domain/eventModules.ts.
+model EventConfig_Module {
+  eventId   String
+  moduleKey String
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, moduleKey])
+  @@index([moduleKey])
 }
 
 model EventManta {

@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
-import { generatePin } from '$lib/utils';
 import { prisma } from '$lib/server/db';
 import { eventTypeHasTheme, hhmmToMinutes } from '$lib/domain/event';
+import { isEventModuleKey } from '$lib/domain/eventModules';
 
 async function validateMantaIds(campusId: string, mantaIds: string[]) {
   if (mantaIds.length === 0) return;
@@ -23,64 +23,6 @@ async function validateMantaIds(campusId: string, mantaIds: string[]) {
 
 export const EventService = {
   /**
-   * Duplicates an event and its participants (resetting status).
-   */
-  async duplicateEvent(
-    originalId: string,
-    newData: { titre: string; date: string },
-    campusId: string,
-  ) {
-    const original = await prisma.event.findUniqueOrThrow({
-      where: { id: originalId },
-      include: {
-        mantas: true,
-        participations: true,
-      },
-    });
-    if (original.campusId !== campusId) {
-      throw error(
-        403,
-        'Accès refusé : cet événement appartient à un autre campus.',
-      );
-    }
-
-    const pin = generatePin();
-
-    const newEvent = await prisma.event.create({
-      data: {
-        titre: newData.titre,
-        date: new Date(newData.date),
-        startMinutes: original.startMinutes,
-        themeId: original.themeId,
-        campusId,
-        pin,
-        mantas: {
-          create: original.mantas.map((m) => ({
-            staffProfileId: m.staffProfileId,
-          })),
-        },
-        planning: { create: {} },
-      },
-    });
-
-    for (const p of original.participations) {
-      await prisma.participation.create({
-        data: {
-          talentId: p.talentId,
-          eventId: newEvent.id,
-          campusId,
-          bringPc: p.bringPc,
-          isPresent: false,
-        },
-      });
-    }
-
-    return newEvent.id;
-  },
-
-  // TODO: activity recommender for parallel tracks in coding clubs
-
-  /**
    * Sets (or clears) the Jump-owned start time-of-day. SF never provides it,
    * and the sync never writes `startMinutes` back, so this is the single
    * writer. `startTime` is "HH:MM"; empty clears it back to the type default
@@ -101,6 +43,59 @@ export const EventService = {
     await prisma.event.update({
       where: { id: eventId },
       data: { startMinutes: hhmmToMinutes(startTime) },
+    });
+  },
+
+  /**
+   * Sets the dev-workspace surfaces an event exposes (its `EventConfig_Module`
+   * rows). Jump-owned: seeded from the type preset at creation, then edited
+   * here per event; the SF sync never touches these rows. Diffs against the
+   * current set so unchanged modules keep their `createdAt`, and only writes
+   * when something actually changed.
+   */
+  async setEventModules(
+    eventId: string,
+    campusId: string,
+    moduleKeys: string[],
+  ) {
+    const event = await prisma.event.findUniqueOrThrow({
+      where: { id: eventId },
+      select: { campusId: true },
+    });
+    if (event.campusId !== campusId) {
+      throw error(
+        403,
+        'Accès refusé : cet événement appartient à un autre campus.',
+      );
+    }
+
+    const desired = new Set<string>(moduleKeys.filter(isEventModuleKey));
+    const current = await prisma.eventConfig_Module.findMany({
+      where: { eventId },
+      select: { moduleKey: true },
+    });
+    const currentKeys = new Set(current.map((m) => m.moduleKey));
+
+    const toAdd = [...desired].filter((k) => !currentKeys.has(k));
+    const toRemove = [...currentKeys].filter((k) => !desired.has(k));
+    if (toAdd.length === 0 && toRemove.length === 0) return;
+
+    await prisma.$transaction(async (tx) => {
+      if (toRemove.length > 0) {
+        await tx.eventConfig_Module.deleteMany({
+          where: { eventId, moduleKey: { in: toRemove } },
+        });
+      }
+      if (toAdd.length > 0) {
+        // `skipDuplicates` keeps the diff idempotent: two leads saving the same
+        // event concurrently both diff against the pre-write snapshot, so the
+        // loser would otherwise hit the composite PK (P2002) and roll back its
+        // whole save. Skipping the already-present row lets both settle.
+        await tx.eventConfig_Module.createMany({
+          data: toAdd.map((moduleKey) => ({ eventId, moduleKey })),
+          skipDuplicates: true,
+        });
+      }
     });
   },
 

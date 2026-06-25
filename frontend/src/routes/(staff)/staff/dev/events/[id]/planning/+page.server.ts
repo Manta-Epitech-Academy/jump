@@ -7,14 +7,20 @@ import {
   scopedPrisma,
   type ScopedPrismaClient,
 } from '$lib/server/db/scoped';
-import { requireFlag } from '$lib/server/auth/guards';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-  requireFlag(locals, 'planning');
   const campusId = getCampusId(locals);
   const db = scopedPrisma(campusId);
+  const event = await loadEventOr404(params.id, campusId);
 
-  const [event, planning] = await loadPlanningData(db, params.id);
+  // Planning is data-driven (not a module): the read-only dev view exists only
+  // when the event actually has a schedule. An event with no time slots has
+  // nothing to show, so it 404s rather than presenting an empty grid.
+  const planning = await loadPlanning(db, params.id);
+  if (planning.timeSlots.length === 0) {
+    throw error(404, 'Aucun planning pour cet événement.');
+  }
 
   return {
     event,
@@ -26,29 +32,27 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 };
 
 /**
- * The dev planning page is read-only: it loads the event and its planning (slots
- * + activities + subject-section counts) and nothing that powered editing (no
- * template catalogues, no form validations, no actions). A missing event or
- * planning row (Prisma P2025) becomes a 404; any other error propagates as a 500.
+ * The dev planning page is read-only: it loads the planning (slots + activities
+ * + subject-section counts) and nothing that powered editing (no template
+ * catalogues, no form validations, no actions). The event itself is loaded and
+ * module-gated by the caller. A missing planning row (Prisma P2025) becomes a
+ * 404; any other error propagates as a 500.
  */
-async function loadPlanningData(db: ScopedPrismaClient, eventId: string) {
+async function loadPlanning(db: ScopedPrismaClient, eventId: string) {
   try {
-    return await Promise.all([
-      db.event.findUniqueOrThrow({ where: { id: eventId } }),
-      db.planning.findUniqueOrThrow({
-        where: { eventId },
-        include: {
-          timeSlots: {
-            orderBy: { startTime: 'asc' },
-            include: {
-              activity: {
-                include: {
-                  subjectVersion: {
-                    select: {
-                      id: true,
-                      _count: {
-                        select: { sections: { where: { level: 1 } } },
-                      },
+    return await db.planning.findUniqueOrThrow({
+      where: { eventId },
+      include: {
+        timeSlots: {
+          orderBy: { startTime: 'asc' },
+          include: {
+            activity: {
+              include: {
+                subjectVersion: {
+                  select: {
+                    id: true,
+                    _count: {
+                      select: { sections: { where: { level: 1 } } },
                     },
                   },
                 },
@@ -56,14 +60,14 @@ async function loadPlanningData(db: ScopedPrismaClient, eventId: string) {
             },
           },
         },
-      }),
-    ]);
+      },
+    });
   } catch (e) {
     if (
       e instanceof Prisma.PrismaClientKnownRequestError &&
       e.code === 'P2025'
     ) {
-      throw error(404, 'Événement introuvable');
+      throw error(404, 'Planning introuvable.');
     }
     throw e;
   }

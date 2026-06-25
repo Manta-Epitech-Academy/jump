@@ -66,7 +66,6 @@
     countdown,
     timezone,
     event,
-    hasCodingClub,
   }: InscritsCohort & {
     origin: {
       lycee: { nom: string } | null;
@@ -81,7 +80,6 @@
     };
     timezone: string;
     event: { id: string; titre: string; externalId: string | null };
-    hasCodingClub: boolean;
   } = $props();
 
   // Status tints for the dossier tooltip. The tooltip surface is bg-foreground,
@@ -422,28 +420,12 @@
     >
       Aucun stagiaire inscrit
     </h3>
-    {#if hasCodingClub}
-      <p class="mt-1 text-xs font-medium text-muted-foreground">
-        Importer une cohorte via la page d'import.
-      </p>
-      <Button
-        variant="outline"
-        size="sm"
-        href={resolve('/staff/dev/events/import')}
-        class="mt-4 rounded-sm"
-      >
-        Importer
-      </Button>
-    {:else}
-      <!-- Stage-only: the cohort is synced from Salesforce by the worker, not
-           imported by hand. The CSV import page is coding_club-gated and 404s
-           here, and stage participations land via the sync anyway, so point
-           the dev at that rather than a dead "Importer" button. -->
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        Les stagiaires sont synchronisés automatiquement depuis Salesforce et
-        apparaîtront ici une fois la synchronisation effectuée.
-      </p>
-    {/if}
+    <!-- The cohort is synced from Salesforce by the worker, not imported by
+         hand, so there is no manual-import action here. -->
+    <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
+      Les stagiaires sont synchronisés automatiquement depuis Salesforce et
+      apparaîtront ici une fois la synchronisation effectuée.
+    </p>
   </div>
 {:else}
   <!-- Two-column (70/30) split is held back to `xl`: a 6-column roster plus

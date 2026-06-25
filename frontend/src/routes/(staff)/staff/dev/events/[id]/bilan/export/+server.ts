@@ -2,8 +2,11 @@ import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { getCampusId } from '$lib/server/db/scoped';
-import { requireFlag } from '$lib/server/auth/guards';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
+import {
+  loadEventOr404,
+  requireEventModule,
+} from '$lib/server/services/stageContext';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { getFormGraphBySlug } from '$lib/server/feedbackForms';
 import { answerCells, buildSubmissionWhere } from '$lib/server/feedbackStats';
 import { STAGE_FORM_SLUG } from '$lib/domain/feedback';
@@ -16,8 +19,8 @@ import { buildXlsx } from '$lib/server/xlsx';
 // CSV-style formula guard is needed on the untrusted respondent input.
 export const GET: RequestHandler = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
-  requireFlag(locals, 'bilan');
   const event = await loadEventOr404(params.id, campusId);
+  requireEventModule(event, EVENT_MODULES.BILAN);
 
   const graph = await getFormGraphBySlug(STAGE_FORM_SLUG);
   if (

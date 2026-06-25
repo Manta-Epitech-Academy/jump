@@ -7,8 +7,6 @@ export type WorkspaceHomeCrumb = { label: string; href: string };
 type PageLike = Pick<Page, 'url' | 'data'>;
 
 type DevData = {
-  activeStage?: { id?: string };
-  event?: { id?: string };
   featureFlags?: Iterable<string>;
 };
 
@@ -25,22 +23,14 @@ function hasFlag(flags: Iterable<string> | undefined, key: FlagKey): boolean {
 
 function devHomeCrumb(page: PageLike): WorkspaceHomeCrumb | null {
   const data = (page.data ?? {}) as DevData;
-  // With coding_club, /staff/dev renders the full workspace dashboard.
+  // With coding_club, /staff/dev renders the full workspace dashboard, so it is
+  // a real home destination. Without it, /staff/dev only redirects into the
+  // current event's surfaces (no standalone landing), so there is no home crumb
+  // to add: the event's own crumb, rendered by the page, is the top of the trail.
   if (hasFlag(data.featureFlags, 'coding_club')) {
     return { label: 'Tableau de bord', href: resolve('/staff/dev') };
   }
-  // Without coding_club, /staff/dev redirects to the active stage overview
-  // (src/routes/(staff)/staff/dev/+page.server.ts). Crumb to the destination
-  // directly so the label matches what's in the sidebar ("Vue d'ensemble"),
-  // and skip it when the page's loaded event IS the active stage — comparing
-  // IDs (not URLs) avoids a hydration flash on the overview page itself.
-  const stageId = data.activeStage?.id;
-  if (!stageId) return null;
-  if (data.event?.id === stageId) return null;
-  return {
-    label: "Vue d'ensemble",
-    href: resolve(`/staff/dev/events/${stageId}`),
-  };
+  return null;
 }
 
 function pedagoHomeCrumb(page: PageLike): WorkspaceHomeCrumb {

@@ -38,9 +38,11 @@
     recoCounts,
     topStaff,
     total,
+    eventId,
     timezone,
     currentStaffId,
   }: EntretiensCohort & {
+    eventId: string;
     timezone: string;
     currentStaffId: string | null;
   } = $props();
@@ -156,7 +158,8 @@
   );
 
   const ficheHref = (r: EntretienRow) =>
-    resolve(`/staff/dev/students/${r.talentId}`) + '?interview=1';
+    resolve(`/staff/dev/students/${r.talentId}`) +
+    `?interview=1&event=${eventId}`;
 </script>
 
 {#snippet statusBadge(status: InterviewListStatus, full: boolean)}

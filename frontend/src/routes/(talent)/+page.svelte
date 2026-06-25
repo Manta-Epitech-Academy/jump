@@ -79,10 +79,10 @@
   // `planning.state` alone; no raw participation rows reach the UI.
   let planning = $derived(data.planning);
 
-  // The widget's state is always shown, but the "Voir le planning" CTA opens the
-  // /calendar grid, which 404s when the campus runs its schedule outside Jump.
-  // With the flag off we keep the ongoing/upcoming state and drop that link.
-  let hasPlanning = $derived(data.featureFlags.includes('planning'));
+  // The widget's state is always shown (it's participation-derived), but the
+  // "Voir le planning" CTA opens the /calendar grid, which only exists when the
+  // talent actually has a planned event. Data-driven, no campus flag.
+  let hasPlanning = $derived(data.hasPlannedEvents);
 
   // Event-type label for the planning widget, with the per-state fallback the
   // copy used before (ongoing → "Activité", upcoming → "Atelier Epitech").

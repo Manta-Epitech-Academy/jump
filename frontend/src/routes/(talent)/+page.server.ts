@@ -16,7 +16,7 @@ import {
 } from '$lib/server/services/minigameService';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
-import { stageWindowEnd } from '$lib/domain/event';
+import { stageWindowEnd, STAGE_DEFAULT_DURATION_DAYS } from '$lib/domain/event';
 import { pendingFeedbackForm } from '$lib/domain/feedback';
 import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
 import { toPlanningView } from '$lib/domain/talentPlanning';
@@ -155,12 +155,25 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     // own copy and does not read this row.
     let welcome: { content: string } | null = null;
     {
+      // With several concurrent stages, prefer the ongoing one: filter to stages
+      // whose window is still open, then take the earliest-starting (an ongoing
+      // stage outranks a not-yet-started one). Window mirrors `stageWindowEnd`.
+      const now = new Date();
+      const windowLookback = new Date(
+        now.getTime() - STAGE_DEFAULT_DURATION_DAYS * 86_400_000,
+      );
       const stageParticipation = await prisma.participation.findFirst({
         where: {
           talentId: studentId,
-          event: { eventType: 'stage_seconde' },
+          event: {
+            eventType: 'stage_seconde',
+            OR: [
+              { endDate: { gte: now } },
+              { endDate: null, date: { gte: windowLookback } },
+            ],
+          },
         },
-        orderBy: { event: { date: 'desc' } },
+        orderBy: { event: { date: 'asc' } },
         select: {
           event: {
             select: {

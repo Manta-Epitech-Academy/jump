@@ -7,8 +7,12 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { requireStaffGroup, requireFlag } from '$lib/server/auth/guards';
+import {
+  loadEventOr404,
+  requireEventModule,
+} from '$lib/server/services/stageContext';
+import { requireStaffGroup } from '$lib/server/auth/guards';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
 import {
   presenceSlots,
   slotKey,
@@ -42,9 +46,9 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   depends('staff:event-presence');
 
   const campusId = getCampusId(locals);
-  requireFlag(locals, 'emargement');
   const timezone = getCampusTimezone(locals);
   const event = await loadEventOr404(params.id, campusId);
+  requireEventModule(event, EVENT_MODULES.EMARGEMENT);
   const db = scopedPrisma(campusId);
 
   const now = new Date();
@@ -198,13 +202,13 @@ async function assertEnrolled(
 
 export const actions: Actions = {
   setPresence: async ({ request, locals, params }) => {
-    requireFlag(locals, 'emargement');
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(setPresenceSchema));
     if (!form.valid) return fail(400, { form });
 
     const campusId = getCampusId(locals);
     const event = await loadEventOr404(params.id, campusId);
+    requireEventModule(event, EVENT_MODULES.EMARGEMENT);
     await assertEnrolled(campusId, event.id, form.data.talentId);
     const db = scopedPrisma(campusId);
 
@@ -238,13 +242,13 @@ export const actions: Actions = {
   },
 
   markAllPresent: async ({ request, locals, params }) => {
-    requireFlag(locals, 'emargement');
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(markAllPresentSchema));
     if (!form.valid) return fail(400, { form });
 
     const campusId = getCampusId(locals);
     const event = await loadEventOr404(params.id, campusId);
+    requireEventModule(event, EVENT_MODULES.EMARGEMENT);
 
     const result = await markAllPresentInSlot(
       campusId,
@@ -269,13 +273,13 @@ export const actions: Actions = {
   },
 
   closeSlot: async ({ request, locals, params }) => {
-    requireFlag(locals, 'emargement');
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(closeSlotSchema));
     if (!form.valid) return fail(400, { form });
 
     const campusId = getCampusId(locals);
     const event = await loadEventOr404(params.id, campusId);
+    requireEventModule(event, EVENT_MODULES.EMARGEMENT);
     await closePresenceSlot(
       campusId,
       event.id,
@@ -288,13 +292,13 @@ export const actions: Actions = {
   },
 
   reopenSlot: async ({ request, locals, params }) => {
-    requireFlag(locals, 'emargement');
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(reopenSlotSchema));
     if (!form.valid) return fail(400, { form });
 
     const campusId = getCampusId(locals);
     const event = await loadEventOr404(params.id, campusId);
+    requireEventModule(event, EVENT_MODULES.EMARGEMENT);
     await reopenPresenceSlot(
       campusId,
       event.id,

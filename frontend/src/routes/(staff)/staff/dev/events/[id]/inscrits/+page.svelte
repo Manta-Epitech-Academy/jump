@@ -15,7 +15,6 @@
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import InscritsResults from './components/InscritsResults.svelte';
   import LoadingCeremony from '$lib/components/LoadingCeremony.svelte';
-  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { data }: { data: PageData } = $props();
@@ -150,7 +149,7 @@
 </script>
 
 <svelte:head>
-  <title>{STAGE_SECONDE_LABEL} — Inscrits</title>
+  <title>{data.event.titre} · Inscrits</title>
 </svelte:head>
 
 <div class="space-y-6 pb-10">
@@ -158,7 +157,7 @@
     <PageBreadcrumb
       items={[
         {
-          label: STAGE_SECONDE_LABEL,
+          label: data.event.titre,
           href: resolve(`/staff/dev/events/${data.event.id}`),
         },
         { label: 'Inscrits' },
@@ -206,7 +205,6 @@
       countdown={data.countdown}
       timezone={data.timezone}
       event={data.event}
-      {hasCodingClub}
     />
   {:catch}
     <div

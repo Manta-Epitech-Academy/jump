@@ -53,6 +53,18 @@ const EVENT_TYPES = {
 } as const;
 type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
 
+// Dev-workspace modules a seeded stage event exposes (EventConfig_Module rows).
+// Kept in sync with src/lib/domain/eventModules.ts by hand (the seed stays free
+// of $lib imports). Stage events get the full set so every validated surface is
+// testable locally; other event types expose nothing.
+const STAGE_MODULE_KEYS = [
+  'inscrits',
+  'emargement',
+  'planning',
+  'bilan',
+  'entretiens',
+];
+
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
@@ -4370,6 +4382,13 @@ async function seedEvents(
               return staff ? { staffProfileId: staff.id } : null;
             })
             .filter((x): x is NonNullable<typeof x> => x !== null),
+        },
+        modules: {
+          create:
+            (blueprint.eventType ?? EVENT_TYPES.CODING_CLUB) ===
+            EVENT_TYPES.STAGE_SECONDE
+              ? STAGE_MODULE_KEYS.map((moduleKey) => ({ moduleKey }))
+              : [],
         },
         planning: { create: { timeSlots: { create: timeSlotData } } },
       },

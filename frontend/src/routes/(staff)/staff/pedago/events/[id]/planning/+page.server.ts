@@ -17,10 +17,11 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
-import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
+import { requireStaffGroup } from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-  requireFlag(locals, 'planning');
+  // Pedago planning is the build tool, gated by role (pedaLead edits, manta
+  // read-only via STAFF_ROLE_GATES), not by a campus flag.
   const db = scopedPrisma(getCampusId(locals));
 
   let event;
@@ -94,7 +95,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 export const actions: Actions = {
   assignMantas: async ({ request, locals, params }) => {
-    requireFlag(locals, 'planning');
     requireStaffGroup(locals, 'leads');
     const formData = await request.formData();
     const mantas = formData.getAll('mantas') as string[];

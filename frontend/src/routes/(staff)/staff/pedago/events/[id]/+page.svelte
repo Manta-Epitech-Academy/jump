@@ -32,7 +32,8 @@
   let readiness = $derived(data.readiness);
   let kpis = $derived(data.kpis);
   let status = $derived(data.status);
-  let hasPlanning = $derived(data.featureFlags.includes('planning'));
+  // Planning is a standard pedago surface now (role-gated build tool), no flag.
+  const hasPlanning = true;
 
   let presentRatio = $derived(
     kpis.participantsCount > 0

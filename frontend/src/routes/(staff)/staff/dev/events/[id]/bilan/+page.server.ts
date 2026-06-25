@@ -2,8 +2,11 @@ import type { PageServerLoad } from './$types';
 import { base } from '$app/paths';
 import { env } from '$env/dynamic/private';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { requireFlag } from '$lib/server/auth/guards';
+import {
+  loadEventOr404,
+  requireEventModule,
+} from '$lib/server/services/stageContext';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { prisma } from '$lib/server/db';
 import { computeFormStats, type FormStats } from '$lib/server/feedbackStats';
 import { getFormGraphBySlug } from '$lib/server/feedbackForms';
@@ -33,8 +36,8 @@ export interface BilanCohort {
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
-  requireFlag(locals, 'bilan');
   const event = await loadEventOr404(params.id, campusId);
+  requireEventModule(event, EVENT_MODULES.BILAN);
   const db = scopedPrisma(campusId);
 
   // The bilan form is the canonical "stage" form; the page reports this event's

@@ -6,7 +6,6 @@
   import WeekNavigator from '$lib/components/planning/WeekNavigator.svelte';
   import WeekViewToggle from '$lib/components/planning/WeekViewToggle.svelte';
   import ActivityPreviewDialog from '$lib/components/events/planning/ActivityPreviewDialog.svelte';
-  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import {
     pickInitialWeek,
     pickInitialWeekView,
@@ -71,7 +70,7 @@
       <PageBreadcrumb
         items={[
           {
-            label: STAGE_SECONDE_LABEL,
+            label: event.titre,
             href: resolve(`/staff/dev/events/${event.id}`),
           },
           { label: 'Planning' },
@@ -86,14 +85,11 @@
         <p
           class="text-sm font-bold tracking-wider text-muted-foreground uppercase"
         >
-          {STAGE_SECONDE_LABEL} • {new Date(event.date).toLocaleDateString(
-            'fr-FR',
-            {
-              day: 'numeric',
-              month: 'short',
-              timeZone: timezone,
-            },
-          )}{#if event.endDate}
+          {event.titre} • {new Date(event.date).toLocaleDateString('fr-FR', {
+            day: 'numeric',
+            month: 'short',
+            timeZone: timezone,
+          })}{#if event.endDate}
             – {new Date(event.endDate).toLocaleDateString('fr-FR', {
               day: 'numeric',
               month: 'short',

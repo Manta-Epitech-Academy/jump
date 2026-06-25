@@ -5,6 +5,7 @@ import {
   EVENT_TYPE_VALUES,
   type EventType,
 } from '$lib/domain/event';
+import { presetModulesForType } from '$lib/domain/eventModules';
 import { isNiveau, type Niveau } from '$lib/domain/niveau';
 import { normalizePhoneToE164 } from '$lib/domain/phone';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
@@ -79,6 +80,10 @@ export async function syncEvents(
     });
 
     if (!existing) {
+      // Seed the per-event modules from the type's preset, once, at creation.
+      // After this the rows are Jump-owned: the update branch never touches
+      // them, so the dev team's per-event surface config is never clobbered.
+      const presetModules = presetModulesForType(eventType);
       await prisma.event.create({
         data: {
           externalId: e.external_id,
@@ -87,6 +92,9 @@ export async function syncEvents(
           eventType,
           campusId: campus.id,
           planning: { create: {} },
+          modules: {
+            create: presetModules.map((moduleKey) => ({ moduleKey })),
+          },
         },
       });
       created++;

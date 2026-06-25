@@ -1,7 +1,16 @@
 import { error } from '@sveltejs/kit';
 import type { ScopedPrismaClient } from '$lib/server/db/scoped';
 import { EVENT_TYPES } from '$lib/domain/event';
-import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
+import {
+  type EventModuleKey,
+  isEventModuleKey,
+} from '$lib/domain/eventModules';
+import {
+  type EventLifecycleStatus,
+  getEventStatus,
+  getLifecycleBounds,
+} from '$lib/domain/eventLifecycle';
+import { schoolYearOf, type SchoolYear } from '$lib/domain/schoolYear';
 import { prisma } from '$lib/server/db';
 
 export const STAGE_DEFAULT_DURATION_DAYS = 14;
@@ -177,6 +186,8 @@ export type EventRecord = {
   eventType: string;
   campusId: string;
   externalId: string | null;
+  /** The dev-workspace surfaces this event exposes (presence = enabled). */
+  modules: Set<EventModuleKey>;
 };
 
 export async function loadEventOr404(
@@ -194,12 +205,17 @@ export async function loadEventOr404(
       eventType: true,
       campusId: true,
       externalId: true,
+      modules: { select: { moduleKey: true } },
     },
   });
   if (!event || event.campusId !== campusId) {
     throw error(404, 'Événement introuvable.');
   }
-  return event;
+  const { modules, ...rest } = event;
+  return {
+    ...rest,
+    modules: new Set(modules.map((m) => m.moduleKey).filter(isEventModuleKey)),
+  };
 }
 
 export async function loadStageOr404(
@@ -214,10 +230,110 @@ export async function loadStageOr404(
   return event;
 }
 
+/**
+ * Gate a dev-workspace surface on a per-event module (the per-event analog of
+ * `requireFlag`). Throws 404 when the event does not expose the module, so a
+ * direct URL to a surface the event has turned off behaves like a missing page.
+ */
+export function requireEventModule(
+  event: { modules: Set<EventModuleKey> },
+  key: EventModuleKey,
+): void {
+  if (!event.modules.has(key)) {
+    throw error(404, 'Fonctionnalité non disponible pour cet événement.');
+  }
+}
+
 export function stageEndOrDefault(event: {
   date: Date;
   endDate: Date | null;
 }): Date {
   if (event.endDate) return event.endDate;
   return addDays(event.date, STAGE_DEFAULT_DURATION_DAYS);
+}
+
+export type WorkspaceEventEntry = {
+  id: string;
+  titre: string;
+  date: Date;
+  /** Effective end (explicit endDate, else the default-duration window). */
+  endDate: Date;
+  status: EventLifecycleStatus;
+  schoolYear: SchoolYear;
+  /** Surfaces this event exposes: drive the sidebar nav for the current event. */
+  modules: EventModuleKey[];
+  /**
+   * Whether the event has a schedule (≥1 time slot). Planning is not a module:
+   * it's read-only data owned by pedago/admin, so its dev nav entry shows
+   * data-driven — only when there is actually a schedule to look at.
+   */
+  hasPlanning: boolean;
+};
+
+export type WorkspaceEvents = {
+  /** All workspace events for the campus, most recent first. */
+  events: WorkspaceEventEntry[];
+  /** The event the workspace defaults to: ongoing > soonest upcoming > most recent past. */
+  current: WorkspaceEventEntry | null;
+};
+
+/**
+ * Every event that belongs to the dev cohort workspace for this (already
+ * campus-scoped) client: those exposing at least one module. Replaces the old
+ * single-stage resolution: the workspace now hosts as many events as a campus
+ * configures, across school years, switchable in the sidebar. Membership is the
+ * module set, not the event type, so a future non-stage event kind joins simply
+ * by enabling a module. An event whose modules are all turned off drops out of
+ * the switcher (its Paramètres page stays reachable by direct URL).
+ */
+export async function resolveWorkspaceEvents(
+  db: ScopedPrismaClient,
+  timezone: string,
+): Promise<WorkspaceEvents> {
+  const rows = await db.event.findMany({
+    where: { modules: { some: {} } },
+    select: {
+      id: true,
+      titre: true,
+      date: true,
+      endDate: true,
+      modules: { select: { moduleKey: true } },
+      planning: { select: { _count: { select: { timeSlots: true } } } },
+    },
+    orderBy: { date: 'desc' },
+  });
+  const bounds = getLifecycleBounds(timezone);
+  const events: WorkspaceEventEntry[] = rows.map((e) => {
+    // Resolve the effective end once and derive the status from it. A stage
+    // synced from Salesforce has no explicit `endDate` (the SF sync never sets
+    // it; only an applied planning template does), so feeding the raw row to
+    // `getEventStatus` would treat it as single-day and read `past` the day
+    // after it starts. `stageEndOrDefault` applies the default-duration window,
+    // matching how the old single-stage resolution decided "still ongoing".
+    const endDate = stageEndOrDefault(e);
+    return {
+      id: e.id,
+      titre: e.titre,
+      date: e.date,
+      endDate,
+      status: getEventStatus({ date: e.date, endDate }, bounds),
+      schoolYear: schoolYearOf(e.date, timezone),
+      modules: e.modules.map((m) => m.moduleKey).filter(isEventModuleKey),
+      hasPlanning: (e.planning?._count.timeSlots ?? 0) > 0,
+    };
+  });
+
+  const byDateAsc = (a: WorkspaceEventEntry, b: WorkspaceEventEntry) =>
+    a.date.getTime() - b.date.getTime();
+  const ongoing = events
+    .filter((e) => e.status === 'ongoing')
+    .sort(byDateAsc)[0];
+  const upcoming = events
+    .filter((e) => e.status === 'upcoming')
+    .sort(byDateAsc)[0];
+  // `events` is date-desc, so the first past entry is the most recent one.
+  const past = events.find((e) => e.status === 'past');
+  const current = ongoing ?? upcoming ?? past ?? null;
+
+  return { events, current };
 }
