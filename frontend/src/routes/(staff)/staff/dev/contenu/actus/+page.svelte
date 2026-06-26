@@ -3,9 +3,11 @@
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { Button } from '$lib/components/ui/button';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import CmsEditor from '$lib/components/cms/CmsEditor.svelte';
+  import VariableInserter from '$lib/components/cms/VariableInserter.svelte';
   import DateTimePicker from '$lib/components/staff/DateTimePicker.svelte';
-  import { defaultExpiresAt } from '$lib/domain/newsPost';
+  import { defaultExpiresAt, NEWS_POST_VARIABLES } from '$lib/domain/newsPost';
   import Save from '@lucide/svelte/icons/save';
   import Plus from '@lucide/svelte/icons/plus';
   import Pencil from '@lucide/svelte/icons/pencil';
@@ -23,20 +25,29 @@
   let newTitle = $state('');
   let newContent = $state('');
   let newEventId = $state('');
+  let newPublishNow = $state(true);
   let newPublishedAt = $state('');
+  let newHasExpiration = $state(false);
   let newExpiresAt = $state('');
 
   let editTitle = $state('');
   let editContent = $state('');
+  let editPublishNow = $state(true);
   let editPublishedAt = $state('');
+  let editHasExpiration = $state(false);
   let editExpiresAt = $state('');
 
   let confirmDeleteId = $state<string | null>(null);
+
+  let newEditorRef: CmsEditor | undefined = $state();
+  let editEditorRef: CmsEditor | undefined = $state();
 
   const dateFmt = new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 
   function toLocalInput(d: Date | string): string {
@@ -59,9 +70,10 @@
     newTitle = '';
     newContent = '';
     newEventId = '';
-    const now = new Date();
-    newPublishedAt = toLocalInput(now);
-    newExpiresAt = toLocalInput(defaultExpiresAt(now));
+    newPublishNow = true;
+    newPublishedAt = toLocalInput(new Date());
+    newHasExpiration = false;
+    newExpiresAt = '';
     creating = true;
   }
 
@@ -70,7 +82,10 @@
     editingPost = post;
     editTitle = post.title;
     editContent = post.content;
+    const isFuture = new Date(post.publishedAt) > new Date();
+    editPublishNow = !isFuture;
     editPublishedAt = toLocalInput(post.publishedAt);
+    editHasExpiration = !!post.expiresAt;
     editExpiresAt = post.expiresAt ? toLocalInput(post.expiresAt) : '';
   }
 
@@ -82,7 +97,7 @@
 
   $effect(() => {
     if (actionData?.success) {
-      toast.success('Actualite enregistree !');
+      toast.success('Actualité enregistrée !');
       cancelEdit();
     }
     if (actionData?.error) {
@@ -91,25 +106,21 @@
   });
 </script>
 
-<div class="mx-auto max-w-4xl space-y-6 p-6">
-  <div class="flex items-start justify-between gap-4">
-    <div>
-      <h1 class="text-2xl font-bold">Actualites</h1>
-      <p class="mt-1 text-sm text-muted-foreground">
-        Gerez les actualites affichees aux stagiaires sur leur tableau de bord.
-      </p>
-    </div>
-    {#if !creating && !editingPost}
-      <Button onclick={startCreate}>
-        <Plus class="mr-2 h-4 w-4" />
-        Nouvelle actualite
-      </Button>
-    {/if}
-  </div>
+<div class="space-y-6 pb-10">
+  <PageHeader title="Actualités">
+    {#snippet children()}
+      {#if !creating && !editingPost}
+        <Button onclick={startCreate}>
+          <Plus class="mr-2 h-4 w-4" />
+          Nouvelle actualité
+        </Button>
+      {/if}
+    {/snippet}
+  </PageHeader>
 
   {#if creating}
     <div class="rounded-lg border border-border bg-card p-6">
-      <h2 class="mb-4 text-lg font-semibold">Nouvelle actualite</h2>
+      <h2 class="mb-4 text-lg font-semibold">Nouvelle actualité</h2>
       <form
         method="POST"
         action="?/create"
@@ -131,22 +142,29 @@
               bind:value={newTitle}
               required
               class="w-full rounded-md border border-input bg-card px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
-              placeholder="Titre de l'actualite..."
+              placeholder="Titre de l'actualité..."
             />
           </div>
           <div>
-            <label class="mb-1 block text-sm font-medium">Contenu</label>
+            <div class="mb-1 flex items-center justify-between">
+              <label class="block text-sm font-medium">Contenu</label>
+              <VariableInserter
+                variables={NEWS_POST_VARIABLES}
+                onInsert={(token) => newEditorRef?.insertText(token)}
+              />
+            </div>
             <input type="hidden" name="content" value={newContent} />
             <CmsEditor
+              bind:this={newEditorRef}
               bind:content={newContent}
               allowImageUpload
-              placeholder="Redigez le contenu de l'actualite..."
+              placeholder="Rédigez le contenu de l'actualité..."
             />
           </div>
           {#if data.events.length > 0}
             <div>
               <label for="new-event" class="mb-1 block text-sm font-medium">
-                Evenement associe (optionnel)
+                Événement associé (optionnel)
               </label>
               <select
                 id="new-event"
@@ -161,17 +179,55 @@
               </select>
             </div>
           {/if}
-          <div class="grid grid-cols-2 gap-4">
-            <DateTimePicker
-              bind:value={newPublishedAt}
-              name="publishedAt"
-              label="Date de publication"
-            />
-            <DateTimePicker
-              bind:value={newExpiresAt}
-              name="expiresAt"
-              label="Date d'expiration"
-            />
+          <div class="space-y-3">
+            <div class="flex items-center gap-3">
+              <label class="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  checked={newPublishNow}
+                  onchange={() => (newPublishNow = true)}
+                  class="accent-primary"
+                />
+                Publier maintenant
+              </label>
+              <label class="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  checked={!newPublishNow}
+                  onchange={() => (newPublishNow = false)}
+                  class="accent-primary"
+                />
+                Programmer
+              </label>
+            </div>
+            {#if newPublishNow}
+              <input type="hidden" name="publishedAt" value="" />
+            {:else}
+              <DateTimePicker
+                bind:value={newPublishedAt}
+                name="publishedAt"
+                label="Date de publication"
+              />
+            {/if}
+          </div>
+          <div class="space-y-3">
+            <label class="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                bind:checked={newHasExpiration}
+                class="accent-primary"
+              />
+              Définir une date d'expiration
+            </label>
+            {#if newHasExpiration}
+              <DateTimePicker
+                bind:value={newExpiresAt}
+                name="expiresAt"
+                label="Date d'expiration"
+              />
+            {:else}
+              <input type="hidden" name="expiresAt" value="" />
+            {/if}
           </div>
           <div class="flex justify-end gap-2">
             <Button variant="outline" type="button" onclick={cancelEdit}>
@@ -180,7 +236,7 @@
             </Button>
             <Button type="submit">
               <Save class="mr-2 h-4 w-4" />
-              Publier
+              {newPublishNow ? 'Publier' : 'Programmer'}
             </Button>
           </div>
         </div>
@@ -191,7 +247,7 @@
   {#if data.posts.length === 0 && !creating}
     <div class="rounded-lg border border-dashed border-border p-8 text-center">
       <p class="text-muted-foreground">
-        Aucune actualite pour le moment. Cliquez sur "Nouvelle actualite" pour
+        Aucune actualité pour le moment. Cliquez sur "Nouvelle actualité" pour
         commencer.
       </p>
     </div>
@@ -201,7 +257,7 @@
     {#each data.posts as post (post.id)}
       {#if editingPost?.id === post.id}
         <div class="rounded-lg border border-primary/30 bg-card p-6">
-          <h2 class="mb-4 text-lg font-semibold">Modifier l'actualite</h2>
+          <h2 class="mb-4 text-lg font-semibold">Modifier l'actualité</h2>
           <form
             method="POST"
             action="?/update"
@@ -227,25 +283,70 @@
                 />
               </div>
               <div>
-                <label class="mb-1 block text-sm font-medium">Contenu</label>
+                <div class="mb-1 flex items-center justify-between">
+                  <label class="block text-sm font-medium">Contenu</label>
+                  <VariableInserter
+                    variables={NEWS_POST_VARIABLES}
+                    onInsert={(token) => editEditorRef?.insertText(token)}
+                  />
+                </div>
                 <input type="hidden" name="content" value={editContent} />
                 <CmsEditor
+                  bind:this={editEditorRef}
                   bind:content={editContent}
                   allowImageUpload
-                  placeholder="Contenu de l'actualite..."
+                  placeholder="Contenu de l'actualité..."
                 />
               </div>
-              <div class="grid grid-cols-2 gap-4">
-                <DateTimePicker
-                  bind:value={editPublishedAt}
-                  name="publishedAt"
-                  label="Date de publication"
-                />
-                <DateTimePicker
-                  bind:value={editExpiresAt}
-                  name="expiresAt"
-                  label="Date d'expiration"
-                />
+              <div class="space-y-3">
+                <div class="flex items-center gap-3">
+                  <label class="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      checked={editPublishNow}
+                      onchange={() => (editPublishNow = true)}
+                      class="accent-primary"
+                    />
+                    Publier maintenant
+                  </label>
+                  <label class="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      checked={!editPublishNow}
+                      onchange={() => (editPublishNow = false)}
+                      class="accent-primary"
+                    />
+                    Programmer
+                  </label>
+                </div>
+                {#if editPublishNow}
+                  <input type="hidden" name="publishedAt" value="" />
+                {:else}
+                  <DateTimePicker
+                    bind:value={editPublishedAt}
+                    name="publishedAt"
+                    label="Date de publication"
+                  />
+                {/if}
+              </div>
+              <div class="space-y-3">
+                <label class="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    bind:checked={editHasExpiration}
+                    class="accent-primary"
+                  />
+                  Définir une date d'expiration
+                </label>
+                {#if editHasExpiration}
+                  <DateTimePicker
+                    bind:value={editExpiresAt}
+                    name="expiresAt"
+                    label="Date d'expiration"
+                  />
+                {:else}
+                  <input type="hidden" name="expiresAt" value="" />
+                {/if}
               </div>
               <div class="flex justify-end gap-2">
                 <Button variant="outline" type="button" onclick={cancelEdit}>
@@ -266,21 +367,21 @@
             <div class="min-w-0 flex-1">
               <h3 class="text-lg font-semibold">{post.title}</h3>
               <p class="mt-1 text-xs text-muted-foreground">
-                Publie le {dateFmt.format(new Date(post.publishedAt))} par {post.authorName}
+                Publié le {dateFmt.format(new Date(post.publishedAt))} par {post.authorName}
                 {#if post.expiresAt}
                   {@const days = daysUntilExpiry(post.expiresAt)}
                   {#if days !== null}
                     {#if days <= 0}
                       <span class="ml-2 font-medium text-destructive"
-                        >Expire</span
+                        >Expiré</span
                       >
                     {:else if days <= 3}
                       <span class="ml-2 font-medium text-orange-500"
-                        >Expire dans {days}j</span
+                        >Expiré dans {days}j</span
                       >
                     {:else}
                       <span class="ml-2 text-muted-foreground"
-                        >Expire dans {days}j</span
+                        >Expiré dans {days}j</span
                       >
                     {/if}
                   {/if}

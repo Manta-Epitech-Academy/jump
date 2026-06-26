@@ -15,6 +15,8 @@
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 
   let selectedPost = $state<(typeof data.posts)[number] | null>(null);
@@ -27,10 +29,10 @@
 </script>
 
 <svelte:head>
-  <title>Actualites</title>
+  <title>Actualités</title>
 </svelte:head>
 
-<TalentPageHeader title="Actualites" icon={Newspaper} />
+<TalentPageHeader title="Actualités" icon={Newspaper} />
 
 <div class="mx-auto max-w-5xl px-4 py-8 sm:py-12">
   {#if data.posts.length > 0}
@@ -83,10 +85,10 @@
     >
       <Inbox class="mb-4 h-8 w-8 text-slate-400" />
       <h3 class="text-lg font-bold text-slate-700 dark:text-slate-300">
-        Aucune actualite pour le moment
+        Aucune actualité pour le moment
       </h3>
       <p class="mt-2 max-w-sm text-sm text-slate-500">
-        Les actualites de ton campus apparaitront ici.
+        Les actualités de ton campus apparaîtront ici.
       </p>
     </div>
   {/if}

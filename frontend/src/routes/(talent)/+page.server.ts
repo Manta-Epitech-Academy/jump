@@ -146,15 +146,18 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       };
     }
 
-    // Latest non-expired news post visible to this talent.
-    let latestNews: {
+    // Recent non-expired news posts visible to this talent (up to 5 for the
+    // dashboard card; the full list lives at /actus).
+    const MAX_DASHBOARD_NEWS = 5;
+    let newsPosts: {
       id: string;
       title: string;
       content: string;
       publishedAt: string;
-    } | null = null;
+      authorName: string;
+      authorImage: string | null;
+    }[] = [];
     {
-      // Resolve the talent's campus ID from the campus name already in locals.
       const talentCampusId = locals.talentCampusName
         ? ((
             await prisma.campus.findFirst({
@@ -172,7 +175,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       });
       const eventIdSet = new Set(talentEventIds.map((p) => p.eventId));
 
-      const post = await prisma.newsPost.findFirst({
+      const posts = await prisma.newsPost.findMany({
         where: {
           AND: [
             { OR: [{ campusId: talentCampusId }, { campusId: null }] },
@@ -189,11 +192,17 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
           ],
         },
         orderBy: { publishedAt: 'desc' },
+        take: MAX_DASHBOARD_NEWS,
         select: {
           id: true,
           title: true,
           content: true,
           publishedAt: true,
+          author: {
+            select: {
+              user: { select: { name: true, image: true } },
+            },
+          },
           event: {
             select: {
               titre: true,
@@ -203,22 +212,23 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         },
       });
 
-      if (post) {
+      newsPosts = posts.map((post) => {
         const campus = post.event?.campus;
-        const rendered = renderNewsPost(post.content, {
-          prenom: locals.talent!.prenom,
-          nom: locals.talent!.nom,
-          campusName: campus?.name ?? locals.talentCampusName ?? '',
-          campusContactEmail: campus?.contactEmail ?? null,
-          stageName: post.event?.titre ?? null,
-        });
-        latestNews = {
+        return {
           id: post.id,
           title: post.title,
-          content: rendered,
+          content: renderNewsPost(post.content, {
+            prenom: locals.talent!.prenom,
+            nom: locals.talent!.nom,
+            campusName: campus?.name ?? locals.talentCampusName ?? '',
+            campusContactEmail: campus?.contactEmail ?? null,
+            stageName: post.event?.titre ?? null,
+          }),
           publishedAt: post.publishedAt.toISOString(),
+          authorName: post.author?.user?.name ?? 'Staff',
+          authorImage: post.author?.user?.image ?? null,
         };
-      }
+      });
     }
 
     return {
@@ -228,7 +238,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       minigameReward,
       minigameRankReward,
       onboardingArrival,
-      latestNews,
+      newsPosts,
     };
   } catch (err) {
     console.error('Error fetching camper dashboard data:', err);

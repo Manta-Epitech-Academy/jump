@@ -32,8 +32,8 @@ export type NewsPostVariable = {
 export const NEWS_POST_VARIABLES: readonly NewsPostVariable[] = [
   {
     token: '{{PRENOM}}',
-    label: 'Prenom',
-    description: 'Prenom du talent',
+    label: 'Prénom',
+    description: 'Prénom du talent',
     resolve: (c) => c.prenom,
   },
   {

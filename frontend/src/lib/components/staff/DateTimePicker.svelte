@@ -97,7 +97,7 @@
           {#if displayDate}
             {displayDate} a {hours}h{minutes}
           {:else}
-            Selectionner une date
+            Sélectionner une date
           {/if}
         </Button>
       {/snippet}

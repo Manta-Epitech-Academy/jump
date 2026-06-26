@@ -76,7 +76,7 @@ export const actions: Actions = {
     const expiresAt =
       typeof expiresAtRaw === 'string' && expiresAtRaw
         ? new Date(expiresAtRaw)
-        : defaultExpiresAt(publishedAt);
+        : null;
 
     await prisma.newsPost.create({
       data: {
@@ -123,12 +123,14 @@ export const actions: Actions = {
       title: title.trim(),
       content,
     };
-    if (typeof publishedAtRaw === 'string' && publishedAtRaw) {
-      updateData.publishedAt = new Date(publishedAtRaw);
-    }
-    if (typeof expiresAtRaw === 'string' && expiresAtRaw) {
-      updateData.expiresAt = new Date(expiresAtRaw);
-    }
+    updateData.publishedAt =
+      typeof publishedAtRaw === 'string' && publishedAtRaw
+        ? new Date(publishedAtRaw)
+        : new Date();
+    updateData.expiresAt =
+      typeof expiresAtRaw === 'string' && expiresAtRaw
+        ? new Date(expiresAtRaw)
+        : null;
 
     await prisma.newsPost.updateMany({
       where: { id, campusId },
