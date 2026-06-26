@@ -4,7 +4,11 @@ import { prisma } from '$lib/server/db';
 import { csvResponse } from '$lib/server/csv';
 import { requireAdmin } from '$lib/server/feedbackFormsAdmin';
 import { getFormGraphById } from '$lib/server/feedbackForms';
-import { answerCells, buildSubmissionWhere } from '$lib/server/feedbackStats';
+import {
+  answerCells,
+  buildSubmissionWhere,
+  eventAxisScope,
+} from '$lib/server/feedbackStats';
 
 export const GET: RequestHandler = async ({ params, url, locals }) => {
   requireAdmin(locals);
@@ -14,17 +18,10 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 
   const campusName = url.searchParams.get('campus') || undefined;
   const eventParam = url.searchParams.get('event') || 'all';
-  // Same event axis as the page: a specific event, the public (hors-événement)
-  // bucket, or everything. Kept here too so a scoped on-screen view exports the
-  // same slice the admin is looking at, not the whole pile.
-  const scope = {
-    campusName,
-    ...(eventParam === 'public'
-      ? { noEvent: true }
-      : eventParam !== 'all'
-        ? { eventId: eventParam }
-        : {}),
-  };
+  // Same event axis as the page (a specific event, the public hors-événement
+  // bucket, or everything) so a scoped on-screen view exports the same slice the
+  // admin is looking at, not the whole pile.
+  const scope = { campusName, ...eventAxisScope(eventParam) };
 
   const submissions = await prisma.feedback_Submission.findMany({
     where: buildSubmissionWhere(graph.id, scope),

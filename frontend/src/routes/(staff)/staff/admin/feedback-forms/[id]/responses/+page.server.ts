@@ -6,6 +6,7 @@ import {
   computeFormStats,
   getPublicRespondents,
   getEventResponseBreakdown,
+  eventAxisScope,
   type StatsScope,
 } from '$lib/server/feedbackStats';
 
@@ -48,14 +49,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const selectedEvent =
     eventParam === 'public' || knownEvent ? eventParam : 'all';
 
-  const scope: StatsScope = {
-    campusName,
-    ...(selectedEvent === 'public'
-      ? { noEvent: true }
-      : selectedEvent !== 'all'
-        ? { eventId: selectedEvent }
-        : {}),
-  };
+  const scope: StatsScope = { campusName, ...eventAxisScope(selectedEvent) };
 
   // Heavy aggregation (groupBys + the free-text scan) is streamed, not awaited:
   // per the staff streaming rule, cohort-scale work must not block the load. The

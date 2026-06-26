@@ -226,11 +226,15 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       personaIconUrl?: string;
     }> = [];
     if (locals.featureFlags?.has('stage_seconde')) {
+      // A talent can match several stage events (the welcome block above orders
+      // the same lookup for the same reason). Feedback is owed after the event,
+      // so nudge about the most recently started stage, not a DB-arbitrary one.
       const feedbackParticipation = await prisma.participation.findFirst({
         where: {
           talentId: studentId,
           event: { eventType: 'stage_seconde' },
         },
+        orderBy: { event: { date: 'desc' } },
         include: {
           event: {
             select: { date: true, eventType: true, feedbackFormId: true },

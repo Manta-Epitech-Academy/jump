@@ -51,6 +51,20 @@ export interface StatsScope {
   campusName?: string;
 }
 
+/**
+ * Maps the admin responses page's `event` axis param ('all' | 'public' | an
+ * event id) to the event filter of a {@link StatsScope}. Single-sourced so the
+ * page load and the CSV export resolve the same slice and can never drift on how
+ * the param is interpreted.
+ */
+export function eventAxisScope(
+  eventParam: string,
+): Pick<StatsScope, 'eventId' | 'noEvent'> {
+  if (eventParam === 'public') return { noEvent: true };
+  if (eventParam !== 'all') return { eventId: eventParam };
+  return {};
+}
+
 /** The single submission filter shared by stats, the respondent list, and CSV. */
 export function buildSubmissionWhere(
   formId: string,
