@@ -28,4 +28,11 @@ export const eventModulesSchema = z.object({
     .default([]),
 });
 
+// Which feedback form the event uses (its `bilan` surface reports against it).
+// Empty string = clear the override and fall back to the type default. A
+// non-empty value is a form id, checked server-side against an existing form.
+export const eventFeedbackFormSchema = z.object({
+  feedbackFormId: z.string().default(''),
+});
+
 export type EventForm = z.infer<typeof eventSchema>;

@@ -186,6 +186,8 @@ export type EventRecord = {
   eventType: string;
   campusId: string;
   externalId: string | null;
+  /** Per-event feedback form override; null = use the type default. */
+  feedbackFormId: string | null;
   /** The dev-workspace surfaces this event exposes (presence = enabled). */
   modules: Set<EventModuleKey>;
 };
@@ -205,6 +207,7 @@ export async function loadEventOr404(
       eventType: true,
       campusId: true,
       externalId: true,
+      feedbackFormId: true,
       modules: { select: { moduleKey: true } },
     },
   });

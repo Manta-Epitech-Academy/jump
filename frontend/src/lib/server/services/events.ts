@@ -100,6 +100,44 @@ export const EventService = {
   },
 
   /**
+   * Sets (or clears) the feedback form this event uses. Empty `formId` clears
+   * the override so the event falls back to the form marked default for its
+   * type. A non-empty id is validated to point at an existing form (publication
+   * is enforced later, at resolve time). Jump-owned and campus-guarded; the SF
+   * sync never touches `feedbackFormId`.
+   */
+  async setEventFeedbackForm(
+    eventId: string,
+    campusId: string,
+    formId: string,
+  ) {
+    const event = await prisma.event.findUniqueOrThrow({
+      where: { id: eventId },
+      select: { campusId: true },
+    });
+    if (event.campusId !== campusId) {
+      throw error(
+        403,
+        'Accès refusé : cet événement appartient à un autre campus.',
+      );
+    }
+
+    const next = formId.trim() || null;
+    if (next) {
+      const form = await prisma.feedback_Form.findUnique({
+        where: { id: next },
+        select: { id: true },
+      });
+      if (!form) throw error(400, 'Formulaire introuvable.');
+    }
+
+    await prisma.event.update({
+      where: { id: eventId },
+      data: { feedbackFormId: next },
+    });
+  },
+
+  /**
    * Updates Jump-side metadata on an event. Identity fields (titre, date,
    * endDate, mantas) are owned by Salesforce — the SF worker would overwrite
    * anything we write locally, so they're not editable here. The start time

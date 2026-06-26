@@ -21,6 +21,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import { FORM_STATUS_LABELS } from '$lib/domain/feedbackForms/status';
+  import { publicFormPath } from '$lib/domain/feedback';
   import { resolve } from '$app/paths';
   import type { PageData } from './$types';
   import type { FormListRow, FormsCohort } from './+page.server';
@@ -106,10 +107,10 @@
   }
 </script>
 
-<svelte:head><title>Formulaires de bilan</title></svelte:head>
+<svelte:head><title>Formulaires de feedback</title></svelte:head>
 
 <div class="space-y-6">
-  <AdminPageHeader title="Formulaires" accent="de bilan">
+  <AdminPageHeader title="Formulaires" accent="de feedback">
     {#snippet actions()}
       <Button size="sm" class="rounded-sm" onclick={() => (createOpen = true)}>
         <Plus class="mr-1.5 h-4 w-4" /> Nouveau formulaire
@@ -155,9 +156,9 @@
                     <span
                       class="mt-0.5 flex items-center gap-1 font-mono text-xs text-muted-foreground"
                     >
-                      /bilan/{row.slug}
+                      {publicFormPath(row.slug)}
                       <CopyButton
-                        value={`${page.url.origin}/bilan/${row.slug}`}
+                        value={`${page.url.origin}${publicFormPath(row.slug)}`}
                         label="Copier le lien public"
                       />
                     </span>

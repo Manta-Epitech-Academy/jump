@@ -62,9 +62,9 @@ export const EVENT_MODULE_DEFS: Record<EventModuleKey, EventModuleDef> = {
   }),
   [EVENT_MODULES.BILAN]: def({
     key: EVENT_MODULES.BILAN,
-    label: 'Bilan du stage',
+    label: 'Feedback',
     description:
-      'Suivi des réponses au formulaire de bilan (taux de réponse, statistiques) et QR de partage à la cohorte.',
+      "Suivi des réponses au formulaire de feedback de l'événement (taux de réponse, statistiques) et QR de partage à la cohorte.",
     segment: 'bilan',
   }),
   [EVENT_MODULES.ENTRETIENS]: def({
@@ -80,14 +80,15 @@ export const EVENT_MODULE_DEFS: Record<EventModuleKey, EventModuleDef> = {
  * Module preset seeded onto a new event at creation, keyed by its event type.
  * The type is just a starting point: after creation the per-event module rows
  * are the truth and are edited independently (changing the type never rebinds
- * an existing event). The Stage de Seconde preset is today's default-on
- * baseline (inscrits + entretiens); staff enable émargement / planning / bilan
- * per event. Unknown / coding_club types start empty.
+ * an existing event). The Stage de Seconde preset is the default-on baseline
+ * (inscrits + entretiens + feedback); staff enable émargement / planning per
+ * event. Unknown / coding_club types start empty.
  */
 export const EVENT_TYPE_PRESETS: Record<string, EventModuleKey[]> = {
   [EVENT_TYPES.STAGE_SECONDE]: [
     EVENT_MODULES.INSCRITS,
     EVENT_MODULES.ENTRETIENS,
+    EVENT_MODULES.BILAN,
   ],
   [EVENT_TYPES.CODING_CLUB]: [],
 };

@@ -21,6 +21,7 @@
 
   import EditEventDialog from './components/EditEventDialog.svelte';
   import StartTimeInline from './components/StartTimeInline.svelte';
+  import FeedbackFormCard from './components/FeedbackFormCard.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
 
   let { data }: { data: PageData } = $props();
@@ -165,6 +166,17 @@
       {/if}
     </form>
   </Card.Root>
+
+  <!-- Which feedback form this event uses. Shown only when the event exposes the
+       feedback (bilan) surface; lead-only edit, members see it read-only. -->
+  {#if data.hasBilan && data.feedbackFormForm}
+    <FeedbackFormCard
+      data={data.feedbackFormForm}
+      options={data.feedbackForms}
+      defaultFormTitle={data.defaultFormTitle}
+      {isLead}
+    />
+  {/if}
 
   <!-- Arrival time + staff notes. -->
   <Card.Root class="rounded-sm">

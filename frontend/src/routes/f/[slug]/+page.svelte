@@ -14,7 +14,7 @@
     if (submitting || submitted) return;
     submitting = true;
     try {
-      const res = await fetch(`/api/bilan/${data.slug}`, {
+      const res = await fetch(`/api/f/${data.slug}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ answers }),

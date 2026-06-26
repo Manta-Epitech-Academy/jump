@@ -7,28 +7,24 @@ import {
   requireEventModule,
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { getFormGraphBySlug } from '$lib/server/feedbackForms';
+import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
 import { answerCells, buildSubmissionWhere } from '$lib/server/feedbackStats';
-import { STAGE_FORM_SLUG } from '$lib/domain/feedback';
 import { buildXlsx } from '$lib/server/xlsx';
 
-// Event-scoped XLSX of the bilan responses, the dev-space counterpart of the QR.
-// Resolves the form exactly like the page (canonical stage slug, published +
-// authenticated) so the export never reports a form the page wouldn't show. The
-// route is dev-space + `bilan`-flag gated. XLSX inline strings are inert, so no
-// CSV-style formula guard is needed on the untrusted respondent input.
+// Event-scoped XLSX of the feedback responses, the dev-space counterpart of the
+// QR. Resolves the event's form exactly like the page (override else type
+// default, published + authenticated) so the export never reports a form the
+// page wouldn't show. The route is dev-space + `bilan`-module gated. XLSX inline
+// strings are inert, so no CSV-style formula guard is needed on the untrusted
+// respondent input.
 export const GET: RequestHandler = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
   const event = await loadEventOr404(params.id, campusId);
   requireEventModule(event, EVENT_MODULES.BILAN);
 
-  const graph = await getFormGraphBySlug(STAGE_FORM_SLUG);
-  if (
-    !graph ||
-    graph.status !== 'published' ||
-    !graph.allowsAuthenticatedAccess
-  ) {
-    throw error(404, 'Aucun formulaire de bilan.');
+  const graph = await resolvePublishedEventForm(event);
+  if (!graph) {
+    throw error(404, 'Aucun formulaire de feedback.');
   }
 
   const submissions = await prisma.feedback_Submission.findMany({
@@ -57,24 +53,28 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   ]);
 
   const xlsx = buildXlsx({
-    name: 'Bilan',
+    name: 'Reponses',
     headers,
     rows,
     colWidths: [16, 16, 24, ...columns.map(() => 28)],
   });
 
-  const safeTitle =
-    event.titre
+  // ASCII-only filename label, fed by the form title (whatever form the event
+  // uses) and the event title, so the download names itself per attached form.
+  const ascii = (s: string) =>
+    s
       .normalize('NFD')
       .replace(/[̀-ͯ]/g, '')
       .replace(/[^A-Za-z0-9 _-]/g, '')
-      .trim() || 'bilan';
+      .trim();
+  const formLabel = ascii(graph.title) || 'Feedback';
+  const eventLabel = ascii(event.titre) || 'evenement';
 
   return new Response(xlsx.buffer as ArrayBuffer, {
     headers: {
       'Content-Type':
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="Bilan - ${safeTitle}.xlsx"`,
+      'Content-Disposition': `attachment; filename="${formLabel} - ${eventLabel}.xlsx"`,
     },
   });
 };

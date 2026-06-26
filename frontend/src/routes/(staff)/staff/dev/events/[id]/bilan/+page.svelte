@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import QrCode from '@lucide/svelte/icons/qr-code';
   import Download from '@lucide/svelte/icons/download';
+  import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
@@ -17,12 +18,12 @@
 </script>
 
 <svelte:head>
-  <title>Bilan du stage · {data.event.titre}</title>
+  <title>{data.form?.title ?? 'Feedback'} · {data.event.titre}</title>
 </svelte:head>
 
 <div class="space-y-6 pb-10">
   <Tooltip.Provider delayDuration={150}>
-    <PageHeader title="Bilan du stage">
+    <PageHeader title={data.form?.title ?? 'Feedback'}>
       {#if data.form}
         <div class="flex items-center gap-2">
           <Button
@@ -51,8 +52,8 @@
               {/snippet}
             </Tooltip.Trigger>
             <Tooltip.Content class="max-w-56">
-              Projetez le QR code : les stagiaires le scannent pour donner leur
-              avis sur le stage.
+              Projetez le QR code : les talents le scannent pour donner leur
+              avis.
             </Tooltip.Content>
           </Tooltip.Root>
         </div>
@@ -65,12 +66,21 @@
       class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
     >
       <h3 class="text-sm font-bold tracking-widest text-foreground uppercase">
-        Aucun formulaire de bilan
+        Aucun formulaire de feedback
       </h3>
       <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        Le formulaire « stage » n'existe pas encore. Créez-le depuis l'espace
-        admin.
+        Aucun formulaire publié n'est associé à cet événement. Choisissez-en un
+        dans les paramètres de l'événement, ou créez-en un dans l'espace admin.
       </p>
+      <Button
+        href={page.url.pathname.replace(/\/bilan$/, '')}
+        variant="outline"
+        size="sm"
+        class="mt-4 rounded-sm"
+      >
+        <SlidersHorizontal class="mr-1.5 h-4 w-4" />
+        Paramètres de l'événement
+      </Button>
     </div>
   {:else}
     {#await data.cohort}

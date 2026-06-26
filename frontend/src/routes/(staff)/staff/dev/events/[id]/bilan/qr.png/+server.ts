@@ -3,7 +3,6 @@ import { error } from '@sveltejs/kit';
 import QRCode from 'qrcode';
 import { env } from '$env/dynamic/private';
 import { base } from '$app/paths';
-import { prisma } from '$lib/server/db';
 import { getCampusId } from '$lib/server/db/scoped';
 import {
   loadEventOr404,
@@ -11,11 +10,13 @@ import {
 } from '$lib/server/services/stageContext';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { STAGE_FORM_SLUG, feedbackFormPath } from '$lib/domain/feedback';
+import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
+import { feedbackFormPath } from '$lib/domain/feedback';
 
-// On-screen QR for the bilan form. Encodes the AUTHENTICATED feedback link for
-// this event, so a talent who scans logs in (if needed) and their answers are
-// tied to their Jump account. Rendered server-side and projected full-screen.
+// On-screen QR for the event's feedback form. Encodes the AUTHENTICATED feedback
+// link for this event, so a talent who scans logs in (if needed) and their
+// answers are tied to their Jump account. Rendered server-side and projected
+// full-screen.
 export const GET: RequestHandler = async ({ locals, params }) => {
   requireStaffGroup(locals, 'devMember');
   const campusId = getCampusId(locals);
@@ -24,15 +25,10 @@ export const GET: RequestHandler = async ({ locals, params }) => {
   const event = await loadEventOr404(params.id!, campusId);
   requireEventModule(event, EVENT_MODULES.BILAN);
 
-  const form = await prisma.feedback_Form.findFirst({
-    where: {
-      slug: STAGE_FORM_SLUG,
-      status: 'published',
-      allowsAuthenticatedAccess: true,
-    },
-    select: { slug: true },
-  });
-  if (!form) throw error(404, 'Formulaire de bilan introuvable.');
+  // Same resolution as the page/export so the QR can never point at a form they
+  // wouldn't show (override else type default, published + authenticated).
+  const form = await resolvePublishedEventForm(event);
+  if (!form) throw error(404, 'Formulaire de feedback introuvable.');
 
   const origin = env.ORIGIN;
   if (!origin) throw error(500, 'ORIGIN is not configured');

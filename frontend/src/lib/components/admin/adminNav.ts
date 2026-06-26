@@ -231,13 +231,13 @@ export const ADMIN_NAV: AdminNavSection[] = [
         keywords: ['jeu', 'game', 'rotation'],
       },
       {
-        label: 'Formulaires de bilan',
+        label: 'Formulaires de feedback',
         href: resolve('/staff/admin/feedback-forms'),
         icon: ListChecks,
         keywords: [
           'formulaire',
-          'bilan',
           'feedback',
+          'bilan',
           'builder',
           'questionnaire',
           'reponses',

@@ -2,7 +2,7 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
 
-  // Full-screen QR of the bilan form's authenticated link, projected to the
+  // Full-screen QR of the event form's authenticated link, projected to the
   // cohort. The image is server-rendered so the link is built from ORIGIN, not
   // the page JS. One stable code for the whole event.
   let {
@@ -36,14 +36,14 @@
         {title}
       </Dialog.Title>
       <Dialog.Description class="text-base">
-        Scanne ce QR code pour donner ton avis sur le stage. Ça prend 5 minutes.
+        Scanne ce QR code pour donner ton avis. Ça prend 5 minutes.
       </Dialog.Description>
     </Dialog.Header>
 
     <div class="rounded-2xl border bg-white p-6 shadow-sm">
       <img
         src={qrSrc}
-        alt="QR code du bilan de stage"
+        alt="QR code du formulaire de feedback"
         class="h-[60vmin] w-[60vmin] [image-rendering:pixelated]"
       />
     </div>

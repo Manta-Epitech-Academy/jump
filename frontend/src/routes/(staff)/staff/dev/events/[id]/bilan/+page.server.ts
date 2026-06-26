@@ -9,12 +9,8 @@ import {
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { prisma } from '$lib/server/db';
 import { computeFormStats, type FormStats } from '$lib/server/feedbackStats';
-import { getFormGraphBySlug } from '$lib/server/feedbackForms';
-import {
-  RECO_QUESTION_KEY,
-  STAGE_FORM_SLUG,
-  feedbackFormPath,
-} from '$lib/domain/feedback';
+import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
+import { RECO_QUESTION_KEY, feedbackFormPath } from '$lib/domain/feedback';
 
 export interface BilanRow {
   talentId: string;
@@ -40,17 +36,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   requireEventModule(event, EVENT_MODULES.BILAN);
   const db = scopedPrisma(campusId);
 
-  // The bilan form is the canonical "stage" form; the page reports this event's
-  // authenticated submissions against it. Resolved the same way as the QR/export
-  // (published + authenticated) so they never disagree: a draft or archived form
-  // yields no bilan here either, instead of stats for a form whose QR would 404.
-  // The full graph is loaded (not just id/title) so we can read the recommendation
-  // question and its options. The dev space never surfaces the public link.
-  const graph = await getFormGraphBySlug(STAGE_FORM_SLUG);
-  const form =
-    graph && graph.status === 'published' && graph.allowsAuthenticatedAccess
-      ? graph
-      : null;
+  // The form this event uses (its override, else the type default). Resolved the
+  // same way as the QR/export (published + authenticated) so they never disagree:
+  // a draft or archived form yields no bilan here either, instead of stats for a
+  // form whose QR would 404. The full graph is loaded (not just id/title) so we
+  // can read the recommendation question and its options. Dev never shows the
+  // public link.
+  const form = await resolvePublishedEventForm(event);
 
   const recoQ =
     form?.questions.find((q) => q.key === RECO_QUESTION_KEY) ?? null;
@@ -139,7 +131,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // encodes, and stays correct behind a proxy. `feedbackFormPath` is the single
   // source the QR endpoint also uses, so the two never drift.
   const feedbackUrl = form
-    ? `${env.ORIGIN ?? ''}${base}${feedbackFormPath(event.id, STAGE_FORM_SLUG)}`
+    ? `${env.ORIGIN ?? ''}${base}${feedbackFormPath(event.id, form.slug)}`
     : null;
 
   return {

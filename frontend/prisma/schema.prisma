@@ -754,7 +754,13 @@ model Event {
   eventType    String    @default("coding_club")
   campusId     String
   themeId      String?
-  pin          String?
+  // Which feedback form this event uses (the `bilan` module reports against it,
+  // and its QR/link/export resolve through it). Null = fall back to the form
+  // marked `defaultForEventType` for this event's type (see Feedback_Form). A
+  // per-event override of that type default; SetNull so deleting a form just
+  // drops the binding back to the default rather than the event.
+  feedbackFormId String?
+  pin            String?
   notes        String?
   externalId   String?   @unique
   createdAt    DateTime  @default(now())
@@ -762,6 +768,7 @@ model Event {
 
   campus              Campus                  @relation(fields: [campusId], references: [id])
   theme               Theme?                  @relation(fields: [themeId], references: [id])
+  feedbackForm        Feedback_Form?          @relation("EventFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
   mantas              EventManta[]
   participations      Participation[]
   stepsProgress       StepsProgress[]
@@ -779,6 +786,7 @@ model Event {
   modules             EventConfig_Module[]
 
   @@index([campusId])
+  @@index([feedbackFormId])
 }
 
 // Per-event surface configuration for the dev workspace. A row's mere
@@ -994,6 +1002,14 @@ model Feedback_Form {
   // "Merci {prenom} !"). Null = the engine's generic fallback.
   outro String?
 
+  // Marks this form as the default for an `Event.eventType` (e.g. 'stage_seconde').
+  // An event with no explicit `feedbackFormId` resolves to the form holding its
+  // type here, so every stage uses the bilan form with zero per-event config.
+  // @unique = at most one default form per type; reassigning clears the prior
+  // holder. Null = not a type default (the form is only used where explicitly
+  // attached or shared publicly). Plain string, mirroring `eventType`/`flagKey`.
+  defaultForEventType String? @unique
+
   // Author + last editor (rendered in the admin builder). SetNull so a staff
   // departure never deletes a form.
   createdById String?
@@ -1007,6 +1023,7 @@ model Feedback_Form {
   sections    Feedback_Section[]
   questions   Feedback_Question[]
   submissions Feedback_Submission[]
+  events      Event[]               @relation("EventFeedbackForm")
 
   @@index([status])
 }
