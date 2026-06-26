@@ -751,12 +751,16 @@
 
           <div class="grid gap-4 sm:grid-cols-2">
             <div class="space-y-2">
-              <div class="flex items-center gap-2">
+              <!-- Fixed-height label row so the optional "À confirmer" badge
+                   can't grow this column taller than the bare-label column
+                   next to it, which would shove the control below out of line
+                   with its neighbour. The endDate column mirrors this height. -->
+              <div class="flex h-6 items-center gap-2">
                 <Label for="startTime">Heure d'arrivée des jeunes</Label>
                 {#if !$form.startTime}
                   <Badge
                     variant="outline"
-                    class="border-amber-500/50 text-[10px] font-normal text-amber-600"
+                    class="border-amber-500/50 text-[10px] leading-none font-normal text-amber-600"
                   >
                     À confirmer
                   </Badge>
@@ -778,7 +782,11 @@
                 >{/if}
             </div>
             <div class="space-y-2">
-              <Label for="endDate">Date de fin</Label>
+              <!-- Same fixed-height label row as the startTime column so both
+                   controls in this grid line up, badge or not. -->
+              <div class="flex h-6 items-center">
+                <Label for="endDate">Date de fin</Label>
+              </div>
               <DatePicker
                 id="endDate"
                 name="endDate"
