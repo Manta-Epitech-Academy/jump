@@ -6,7 +6,7 @@
   import { fly } from 'svelte/transition';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
-  import { EVENT_TYPE_LABELS, minutesToHHMM } from '$lib/domain/event';
+  import { eventPublicName, minutesToHHMM } from '$lib/domain/event';
   import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -84,23 +84,21 @@
   // talent actually has a planned event. Data-driven, no campus flag.
   let hasPlanning = $derived(data.hasPlannedEvents);
 
-  // Event-type label for the planning widget, with the per-state fallback the
-  // copy used before (ongoing → "Activité", upcoming → "Atelier Epitech").
+  // Label for the planning widget: the event's admin-set public name when set,
+  // else the friendly type label ("Stage de Seconde", "Coding Club"). Never the
+  // raw Salesforce titre, which would leak the campaign identifier to talents.
   let planningTypeLabel = $derived(
-    planning.state === 'ongoing'
-      ? (EVENT_TYPE_LABELS[planning.eventType] ?? planning.titre ?? 'Activité')
-      : planning.state === 'upcoming'
-        ? (EVENT_TYPE_LABELS[planning.eventType] ??
-          planning.titre ??
-          'Atelier Epitech')
-        : '',
+    planning.state === 'ongoing' || planning.state === 'upcoming'
+      ? eventPublicName(planning)
+      : '',
   );
 
-  // Wall-clock start time of the next session ("10:00"), shown only once a dev
-  // has *confirmed* it (`startMinutes` set). We deliberately don't fall back to
-  // the type default here: a confidently-wrong hour is worse for a student than
-  // none, so until it's confirmed the talent sees the date alone (never the SF
-  // `date`'s meaningless midnight). Staff see the default + a nag meanwhile.
+  // Wall-clock start time of the next session ("10:00"), shown only once it has
+  // been *confirmed* (`startMinutes` set, on the admin events page). We
+  // deliberately don't fall back to the type default here: a confidently-wrong
+  // hour is worse for a student than none, so until it's confirmed the talent
+  // sees the date alone (never the SF `date`'s meaningless midnight). Staff see
+  // the type default meanwhile, with the admin list flagging it to confirm.
   let upcomingStartTime = $derived(
     planning.state === 'upcoming' ? minutesToHHMM(planning.startMinutes) : '',
   );

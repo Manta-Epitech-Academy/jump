@@ -3,7 +3,7 @@ import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { verifyCheckinToken } from '$lib/server/presence/checkinToken';
 import { isSlotPastCutoff } from '$lib/server/presence/slotClosure';
-import { eventTypeLabel } from '$lib/domain/event';
+import { eventPublicName } from '$lib/domain/event';
 import {
   dateKeyToDbDate,
   dayLabelFr,
@@ -50,7 +50,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const [event, closure, participation] = await Promise.all([
     prisma.event.findUnique({
       where: { id: eventId },
-      select: { eventType: true, campus: { select: { timezone: true } } },
+      select: {
+        eventType: true,
+        publicName: true,
+        campus: { select: { timezone: true } },
+      },
     }),
     prisma.eventPresenceClosure.findUnique({
       where: { eventId_day_slot: { eventId, day: dayDate, slot } },
@@ -63,9 +67,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   ]);
 
   if (!event) return { state: 'invalid' as CheckinState, ...empty };
-  // Short, friendly label ("Stage de Seconde") instead of the cohort `titre`.
+  // Short, friendly label: the event's public name when set, else the type
+  // label ("Stage de Seconde") - never the cohort `titre`.
   const withLabel = {
-    eventLabel: eventTypeLabel(event.eventType),
+    eventLabel: eventPublicName(event),
     prenom: talent.prenom,
     ...labels,
   };

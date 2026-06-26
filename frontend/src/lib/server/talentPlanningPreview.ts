@@ -81,12 +81,14 @@ export function buildPreviewPlanningView(
         state: 'ongoing',
         eventType: EVENT_TYPES.STAGE_SECONDE,
         titre: EVENT_TYPE_LABELS[EVENT_TYPES.STAGE_SECONDE],
+        publicName: null,
       };
     case 'active_club':
       return {
         state: 'ongoing',
         eventType: EVENT_TYPES.CODING_CLUB,
         titre: EVENT_TYPE_LABELS[EVENT_TYPES.CODING_CLUB],
+        publicName: null,
       };
     case 'upcoming': {
       const date = new Date();
@@ -95,6 +97,7 @@ export function buildPreviewPlanningView(
         state: 'upcoming',
         eventType: EVENT_TYPES.CODING_CLUB,
         titre: EVENT_TYPE_LABELS[EVENT_TYPES.CODING_CLUB],
+        publicName: null,
         // A confirmed time so the "à HH:MM" line is exercised too.
         startMinutes: DEFAULT_START_MINUTES[EVENT_TYPES.CODING_CLUB],
         date,

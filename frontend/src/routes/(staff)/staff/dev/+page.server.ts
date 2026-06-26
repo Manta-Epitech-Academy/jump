@@ -18,18 +18,17 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
   const { workspace } = await parent();
   const current = workspace.current;
-
-  if (current) {
-    const first = firstEnabledModule(current.modules);
-    if (first) {
-      throw redirect(
-        303,
-        resolvePath(
-          `/staff/dev/events/${current.id}/${EVENT_MODULE_DEFS[first].segment}`,
-        ),
-      );
-    }
-    throw redirect(303, resolvePath(`/staff/dev/events/${current.id}`));
+  // Workspace membership = at least one module, so a `current` event always has
+  // a first surface to land on. The empty state below is for a campus with no
+  // configured event at all (no per-event "home" exists anymore to fall back to).
+  const first = current ? firstEnabledModule(current.modules) : null;
+  if (current && first) {
+    throw redirect(
+      303,
+      resolvePath(
+        `/staff/dev/events/${current.id}/${EVENT_MODULE_DEFS[first].segment}`,
+      ),
+    );
   }
 
   return {

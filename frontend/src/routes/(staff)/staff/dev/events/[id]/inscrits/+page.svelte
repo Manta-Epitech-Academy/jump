@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { eventDisplayName } from '$lib/domain/event';
   import { toast } from 'svelte-sonner';
   import IdCard from '@lucide/svelte/icons/id-card';
   import Award from '@lucide/svelte/icons/award';
@@ -77,7 +77,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Badges${mode === 'foldable' ? ' pliables' : ''} - ${data.event.titre}.pdf`;
+      a.download = `Badges${mode === 'foldable' ? ' pliables' : ''} - ${eventDisplayName(data.event)}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -134,7 +134,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Diplômes - ${data.event.titre}.pdf`;
+      a.download = `Diplômes - ${eventDisplayName(data.event)}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -149,19 +149,13 @@
 </script>
 
 <svelte:head>
-  <title>{data.event.titre} · Inscrits</title>
+  <title>{eventDisplayName(data.event)} · Inscrits</title>
 </svelte:head>
 
 <div class="space-y-6 pb-10">
   {#if hasCodingClub}
     <PageBreadcrumb
-      items={[
-        {
-          label: data.event.titre,
-          href: resolve(`/staff/dev/events/${data.event.id}`),
-        },
-        { label: 'Inscrits' },
-      ]}
+      items={[{ label: eventDisplayName(data.event) }, { label: 'Inscrits' }]}
     />
   {/if}
   <PageHeader title="Inscrits">

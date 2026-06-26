@@ -19,12 +19,10 @@ ALTER TABLE "Event" ADD CONSTRAINT "Event_feedbackFormId_fkey" FOREIGN KEY ("fee
 -- so a DB that never seeded the form is a no-op.
 UPDATE "Feedback_Form" SET "defaultForEventType" = 'stage_seconde' WHERE "slug" = 'stage';
 
--- Backfill: enable the `bilan` module on every existing stage_seconde event.
--- The earlier add_event_config_module migration only seeded bilan where the
--- campus flag happened to be on (default off), but feedback is now part of the
--- stage baseline (see EVENT_TYPE_PRESETS), so every stage exposes it.
-INSERT INTO "EventConfig_Module" ("eventId", "moduleKey")
-SELECT e."id", 'bilan'
-FROM "Event" e
-WHERE e."eventType" = 'stage_seconde'
-ON CONFLICT DO NOTHING;
+-- NOTE: enabling the `bilan` module on existing events is intentionally NOT done
+-- here. The module preset now defaults all surfaces on (see EVENT_TYPE_PRESETS),
+-- and migration 20260626140000_backfill_default_modules_zero already fills the
+-- four modules onto every previously-empty event. Re-inserting bilan here would
+-- also run BEFORE the dev-activation cutover (20260626130000) on a fresh deploy,
+-- which would wrongly auto-activate stage events that had no modules. Modules are
+-- the base's concern; this migration only adds the feedback-form binding.

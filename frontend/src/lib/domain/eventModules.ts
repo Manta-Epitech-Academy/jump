@@ -50,28 +50,28 @@ export const EVENT_MODULE_DEFS: Record<EventModuleKey, EventModuleDef> = {
     key: EVENT_MODULES.INSCRITS,
     label: 'Inscrits',
     description:
-      "Registre des inscrits de l'événement : suivi des conformités, origine des talents.",
+      "La liste des jeunes inscrits : d'où ils viennent et si leur dossier est complet.",
     segment: 'inscrits',
   }),
   [EVENT_MODULES.EMARGEMENT]: def({
     key: EVENT_MODULES.EMARGEMENT,
     label: 'Émargement',
     description:
-      'Feuille de présence par demi-journée pour suivre la présence des talents.',
+      "La feuille de présence : pointer qui est là, le matin et l'après-midi.",
     segment: 'emargement',
   }),
   [EVENT_MODULES.BILAN]: def({
     key: EVENT_MODULES.BILAN,
     label: 'Feedback',
     description:
-      "Suivi des réponses au formulaire de feedback de l'événement (taux de réponse, statistiques) et QR de partage à la cohorte.",
+      'Les réponses des jeunes au questionnaire de fin, leurs statistiques, et un QR code à partager pour le remplir.',
     segment: 'bilan',
   }),
   [EVENT_MODULES.ENTRETIENS]: def({
     key: EVENT_MODULES.ENTRETIENS,
     label: 'Entretiens',
     description:
-      "Entretiens individuels d'orientation auprès des inscrits (un entretien par personne) : ressenti, projection, suite du parcours.",
+      "Les entretiens d'orientation, un par jeune : noter le ressenti, le projet et la suite du parcours.",
     segment: 'entretiens',
   }),
 };
@@ -80,21 +80,19 @@ export const EVENT_MODULE_DEFS: Record<EventModuleKey, EventModuleDef> = {
  * Module preset seeded onto a new event at creation, keyed by its event type.
  * The type is just a starting point: after creation the per-event module rows
  * are the truth and are edited independently (changing the type never rebinds
- * an existing event). The Stage de Seconde preset is the default-on baseline
- * (inscrits + entretiens + feedback); staff enable émargement / planning per
- * event. Unknown / coding_club types start empty.
+ * an existing event). Every type (stage, coding club, anything unknown the
+ * worker imports) starts with all four surfaces on; admins trim per event from
+ * the admin event-config page. Per-type rows stay so a future type can diverge.
  */
+const DEFAULT_PRESET: EventModuleKey[] = [...EVENT_MODULE_KEYS];
+
 export const EVENT_TYPE_PRESETS: Record<string, EventModuleKey[]> = {
-  [EVENT_TYPES.STAGE_SECONDE]: [
-    EVENT_MODULES.INSCRITS,
-    EVENT_MODULES.ENTRETIENS,
-    EVENT_MODULES.BILAN,
-  ],
-  [EVENT_TYPES.CODING_CLUB]: [],
+  [EVENT_TYPES.STAGE_SECONDE]: DEFAULT_PRESET,
+  [EVENT_TYPES.CODING_CLUB]: DEFAULT_PRESET,
 };
 
 export function presetModulesForType(eventType: string): EventModuleKey[] {
-  return EVENT_TYPE_PRESETS[eventType] ?? [];
+  return EVENT_TYPE_PRESETS[eventType] ?? DEFAULT_PRESET;
 }
 
 export function isEventModuleKey(value: string): value is EventModuleKey {

@@ -741,8 +741,15 @@ model ActivityTheme {
 }
 
 model Event {
-  id           String    @id @default(cuid())
-  titre        String
+  id    String @id @default(cuid())
+  titre String
+  // Salesforce campaign name (`titre`) is an internal identifier, ugly to show
+  // ("Montpellier-19-06-2026-CodingClub"). `publicName` is the friendly name an
+  // admin types, surfaced in the dev switcher / talent widget / page chrome in
+  // its place. `null` falls back to `titre` (staff) or the type label (talent).
+  // Admin-set today; the worker may seed it from SF later (plain nullable field
+  // so a future no-clobber sync can write it, like the other reconciled fields).
+  publicName   String?
   date         DateTime
   // Salesforce gives us the calendar day (`date`/`endDate`) but never a
   // start time, so the time-of-day is Jump-owned: wall-clock minutes from
@@ -763,6 +770,12 @@ model Event {
   pin            String?
   notes        String?
   externalId   String?   @unique
+  // Explicit admin gate for the dev workspace, decoupled from modules: an event
+  // appears in the dev sidebar/switcher only once an admin activates it here.
+  // `null` = not yet validated (hidden, even when its modules are pre-configured).
+  // Modules decide WHICH surfaces show; this decides WHETHER the event shows at
+  // all. Set on activate, cleared on deactivate.
+  devActivatedAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 

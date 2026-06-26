@@ -9,6 +9,7 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import { can } from '$lib/domain/permissions';
   import { defaultActiveSlotKey } from '$lib/domain/eventPresence';
+  import { eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import type { EmargementCohort } from './components/types';
   import QrDialog from './components/QrDialog.svelte';
@@ -92,7 +93,7 @@
 </script>
 
 <svelte:head>
-  <title>Émargement — {data.event.titre}</title>
+  <title>Émargement — {eventDisplayName(data.event)}</title>
 </svelte:head>
 
 <div class="space-y-6 pb-10">

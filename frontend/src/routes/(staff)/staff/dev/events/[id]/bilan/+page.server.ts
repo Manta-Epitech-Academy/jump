@@ -135,7 +135,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     : null;
 
   return {
-    event: { id: event.id, titre: event.titre },
+    event: { id: event.id, titre: event.titre, publicName: event.publicName },
     form: form ? { title: form.title, url: feedbackUrl } : null,
     cohort,
   };

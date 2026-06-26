@@ -18,12 +18,15 @@ export type PlanningView =
       state: 'ongoing';
       eventType: EventType;
       titre: string;
+      /** Admin-set friendly name; talent-facing copy prefers it over the type. */
+      publicName: string | null;
     }
   | {
       /** No active event, but a future one is scheduled. */
       state: 'upcoming';
       eventType: EventType;
       titre: string;
+      publicName: string | null;
       date: Date;
       /** Confirmed wall-clock start, or null when staff haven't set one. */
       startMinutes: number | null;
@@ -42,6 +45,7 @@ export type PlanningParticipation = {
   event: {
     eventType: string;
     titre: string;
+    publicName: string | null;
     date: Date;
     startMinutes: number | null;
   } | null;
@@ -61,6 +65,7 @@ export function toPlanningView(
       state: 'ongoing',
       eventType: active.event.eventType as EventType,
       titre: active.event.titre,
+      publicName: active.event.publicName,
     };
   }
   if (upcoming?.event) {
@@ -68,6 +73,7 @@ export function toPlanningView(
       state: 'upcoming',
       eventType: upcoming.event.eventType as EventType,
       titre: upcoming.event.titre,
+      publicName: upcoming.event.publicName,
       date: upcoming.event.date,
       startMinutes: upcoming.event.startMinutes,
     };

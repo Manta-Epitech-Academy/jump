@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { resolve } from '$app/paths';
+  import { eventDisplayName } from '$lib/domain/event';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import CalendarViewer from '$lib/components/planning/CalendarViewer.svelte';
   import WeekNavigator from '$lib/components/planning/WeekNavigator.svelte';
@@ -68,13 +68,7 @@
   <div class="shrink-0 border-b pb-4">
     {#if hasCodingClub}
       <PageBreadcrumb
-        items={[
-          {
-            label: event.titre,
-            href: resolve(`/staff/dev/events/${event.id}`),
-          },
-          { label: 'Planning' },
-        ]}
+        items={[{ label: eventDisplayName(event) }, { label: 'Planning' }]}
       />
     {/if}
     <div class="flex flex-wrap items-end justify-between gap-3">
@@ -85,11 +79,14 @@
         <p
           class="text-sm font-bold tracking-wider text-muted-foreground uppercase"
         >
-          {event.titre} • {new Date(event.date).toLocaleDateString('fr-FR', {
-            day: 'numeric',
-            month: 'short',
-            timeZone: timezone,
-          })}{#if event.endDate}
+          {eventDisplayName(event)} • {new Date(event.date).toLocaleDateString(
+            'fr-FR',
+            {
+              day: 'numeric',
+              month: 'short',
+              timeZone: timezone,
+            },
+          )}{#if event.endDate}
             – {new Date(event.endDate).toLocaleDateString('fr-FR', {
               day: 'numeric',
               month: 'short',

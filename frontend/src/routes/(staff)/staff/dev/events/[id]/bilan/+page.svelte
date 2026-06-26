@@ -2,11 +2,11 @@
   import { page } from '$app/state';
   import QrCode from '@lucide/svelte/icons/qr-code';
   import Download from '@lucide/svelte/icons/download';
-  import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import { eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import BilanRoster from './components/BilanRoster.svelte';
   import StatsPanel from './components/StatsPanel.svelte';
@@ -18,7 +18,9 @@
 </script>
 
 <svelte:head>
-  <title>{data.form?.title ?? 'Feedback'} · {data.event.titre}</title>
+  <title
+    >{data.form?.title ?? 'Feedback'} · {eventDisplayName(data.event)}</title
+  >
 </svelte:head>
 
 <div class="space-y-6 pb-10">
@@ -69,18 +71,9 @@
         Aucun formulaire de feedback
       </h3>
       <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        Aucun formulaire publié n'est associé à cet événement. Choisissez-en un
-        dans les paramètres de l'événement, ou créez-en un dans l'espace admin.
+        Aucun formulaire publié n'est associé à cet événement. Un administrateur
+        peut en associer un depuis la configuration de l'événement.
       </p>
-      <Button
-        href={page.url.pathname.replace(/\/bilan$/, '')}
-        variant="outline"
-        size="sm"
-        class="mt-4 rounded-sm"
-      >
-        <SlidersHorizontal class="mr-1.5 h-4 w-4" />
-        Paramètres de l'événement
-      </Button>
     </div>
   {:else}
     {#await data.cohort}

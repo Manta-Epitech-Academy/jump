@@ -11,7 +11,6 @@
   import MessageSquareText from '@lucide/svelte/icons/message-square-text';
   import UserCog from '@lucide/svelte/icons/user-cog';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
-  import CalendarCog from '@lucide/svelte/icons/calendar-cog';
   import FileText from '@lucide/svelte/icons/file-text';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
@@ -31,8 +30,8 @@
   import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
   import EventWorkspaceSwitcher from '$lib/components/dev/EventWorkspaceSwitcher.svelte';
-  import Settings from '@lucide/svelte/icons/settings';
   import { EVENT_MODULES } from '$lib/domain/eventModules';
+  import { eventDisplayName } from '$lib/domain/event';
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
@@ -53,10 +52,10 @@
     workspace.events.find((e) => e.id === page.params.id) ?? workspace.current,
   );
   let currentModules = $derived(new Set(currentEvent?.modules ?? []));
-  // The "Gestion" section shows for any dev-lead (it always carries the
-  // "Événements du campus" config entry), or for anyone with the sync-errors
-  // surface. Staff du campus stays lead-only behind its own flag.
-  let showManagement = $derived(hasSyncErrors || isLead);
+  // The "Gestion" section shows when it has at least one entry: the sync-errors
+  // surface, or the lead-only "Staff du campus" (behind its flag). Event module
+  // config moved to the admin space, so there is no per-event config entry here.
+  let showManagement = $derived(hasSyncErrors || (isLead && hasCampusTeam));
   let commandOpen = $state(false);
   let mobileMenuOpen = $state(false);
 
@@ -147,7 +146,7 @@
       </div>
     {:else}
       <div class="sidebar-section-title">
-        {ev.titre}<span class="text-epi-teal">_</span>
+        {eventDisplayName(ev)}<span class="text-epi-teal">_</span>
       </div>
     {/if}
     <nav class="space-y-1">
@@ -213,15 +212,6 @@
           <span>Page d'accueil</span>
         </a>
       {/if}
-      {#if isLead}
-        <a
-          href={resolve(`/staff/dev/events/${ev.id}`)}
-          class={navLinkClass(isActive(`/staff/dev/events/${ev.id}`, true))}
-        >
-          <Settings class="h-5 w-5" />
-          <span>Paramètres</span>
-        </a>
-      {/if}
     </nav>
   {/if}
 
@@ -230,15 +220,6 @@
       Gestion<span class="text-epi-orange">_</span>
     </div>
     <nav class="space-y-1">
-      <Gated group="devLead" mode="hide">
-        <a
-          href={resolve('/staff/dev/events')}
-          class={navLinkClass(isActive('/staff/dev/events', true))}
-        >
-          <CalendarCog class="h-5 w-5" />
-          <span>Événements du campus</span>
-        </a>
-      </Gated>
       {#if hasCampusTeam}
         <Gated group="devLead" mode="hide">
           <a

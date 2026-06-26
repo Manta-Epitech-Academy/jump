@@ -120,7 +120,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   })();
 
   return {
-    event: { id: event.id, titre: event.titre },
+    event: { id: event.id, titre: event.titre, publicName: event.publicName },
     timezone,
     // Lets the leaderboard highlight the acting staff member's own row so they
     // can locate themselves at a glance, whatever their rank.
