@@ -5,6 +5,7 @@
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Download from '@lucide/svelte/icons/download';
   import Funnel from '@lucide/svelte/icons/funnel';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import FormTabs from '../components/FormTabs.svelte';
   import SearchableSelect, {
     type SelectOption,
@@ -23,18 +24,49 @@
     data.campuses.map((c) => ({ value: c.name, label: c.name })),
   );
 
-  function onCampusChange(value: string | undefined) {
+  // The event axis: a form is reused across many events, so this is the primary
+  // way to read "the Coding Club de juin" instead of every event's responses at
+  // once. Each option carries its campus, date and response count; the public
+  // (hors-événement) bucket joins the list only when there are public responses.
+  // SearchableSelect owns the "Tous les événements" sentinel.
+  const eventOptions: SelectOption[] = $derived([
+    ...data.breakdown.events.map((e) => ({
+      value: e.eventId,
+      label: `${e.label} · ${e.campusName} · ${e.dateLabel} (${e.count})`,
+    })),
+    ...(data.breakdown.publicCount > 0
+      ? [
+          {
+            value: 'public',
+            label: `Réponses publiques · hors événement (${data.breakdown.publicCount})`,
+          },
+        ]
+      : []),
+  ]);
+
+  const selectedEventLabel = $derived(
+    data.selectedEvent === 'all'
+      ? null
+      : data.selectedEvent === 'public'
+        ? 'Réponses publiques (hors événement)'
+        : (data.breakdown.events.find((e) => e.eventId === data.selectedEvent)
+            ?.label ?? null),
+  );
+
+  function setParam(key: string, value: string | undefined) {
     const url = new URL(page.url);
-    if (value && value !== 'all') url.searchParams.set('campus', value);
-    else url.searchParams.delete('campus');
+    if (value && value !== 'all') url.searchParams.set(key, value);
+    else url.searchParams.delete(key);
     goto(url.toString(), { keepFocus: true, noScroll: true });
   }
 
-  const exportHref = $derived(
-    data.selectedCampus === 'all'
-      ? `${page.url.pathname}/export`
-      : `${page.url.pathname}/export?campus=${encodeURIComponent(data.selectedCampus)}`,
-  );
+  const exportHref = $derived.by(() => {
+    const p = new URLSearchParams();
+    if (data.selectedCampus !== 'all') p.set('campus', data.selectedCampus);
+    if (data.selectedEvent !== 'all') p.set('event', data.selectedEvent);
+    const qs = p.toString();
+    return `${page.url.pathname}/export${qs ? `?${qs}` : ''}`;
+  });
 
   const dateFmt = new Intl.DateTimeFormat('fr-FR', {
     day: '2-digit',
@@ -56,20 +88,38 @@
   <FormTabs formId={data.form.id} />
 
   <div class="flex flex-wrap items-center justify-between gap-4">
-    <SearchableSelect
-      options={campusOptions}
-      value={data.selectedCampus}
-      onChange={onCampusChange}
-      allLabel="Tous les campus"
-      placeholder="Tous les campus"
-      searchPlaceholder="Rechercher un campus…"
-      emptyLabel="Aucun campus."
-      triggerClass="w-full sm:w-56"
-    >
-      {#snippet icon()}
-        <Funnel class="h-4 w-4 text-muted-foreground" />
-      {/snippet}
-    </SearchableSelect>
+    <div class="flex flex-wrap items-center gap-2">
+      {#if eventOptions.length > 0}
+        <SearchableSelect
+          options={eventOptions}
+          value={data.selectedEvent}
+          onChange={(v) => setParam('event', v)}
+          allLabel="Tous les événements"
+          placeholder="Tous les événements"
+          searchPlaceholder="Rechercher un événement…"
+          emptyLabel="Aucun événement."
+          triggerClass="w-full sm:w-80"
+        >
+          {#snippet icon()}
+            <CalendarDays class="h-4 w-4 text-muted-foreground" />
+          {/snippet}
+        </SearchableSelect>
+      {/if}
+      <SearchableSelect
+        options={campusOptions}
+        value={data.selectedCampus}
+        onChange={(v) => setParam('campus', v)}
+        allLabel="Tous les campus"
+        placeholder="Tous les campus"
+        searchPlaceholder="Rechercher un campus…"
+        emptyLabel="Aucun campus."
+        triggerClass="w-full sm:w-56"
+      >
+        {#snippet icon()}
+          <Funnel class="h-4 w-4 text-muted-foreground" />
+        {/snippet}
+      </SearchableSelect>
+    </div>
 
     <a
       href={exportHref}
@@ -79,6 +129,12 @@
       <Download class="h-3.5 w-3.5" /> Exporter CSV
     </a>
   </div>
+
+  {#if selectedEventLabel}
+    <p class="-mt-2 text-sm font-semibold text-foreground">
+      {selectedEventLabel}
+    </p>
+  {/if}
 
   {#await data.results}
     <ResultsSkeleton rail={false} />
