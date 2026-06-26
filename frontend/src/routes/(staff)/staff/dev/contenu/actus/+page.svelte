@@ -3,6 +3,7 @@
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { Button } from '$lib/components/ui/button';
+  import { Badge } from '$lib/components/ui/badge';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import CmsEditor from '$lib/components/cms/CmsEditor.svelte';
   import VariableInserter from '$lib/components/cms/VariableInserter.svelte';
@@ -270,7 +271,7 @@
 
     <div class="space-y-4">
       {#each data.posts as post (post.id)}
-        {#if editingPost?.id === post.id}
+        {#if editingPost?.id === post.id && post.campusId}
           <div class="rounded-lg border border-primary/30 bg-card p-6">
             <h2 class="mb-4 text-lg font-semibold">Modifier l'actualité</h2>
             <form
@@ -395,7 +396,12 @@
           <div class="group rounded-lg border border-border bg-card p-6">
             <div class="flex items-start justify-between gap-4">
               <div class="min-w-0 flex-1">
-                <h3 class="text-lg font-semibold">{post.title}</h3>
+                <div class="flex flex-wrap items-center gap-2">
+                  <h3 class="text-lg font-semibold">{post.title}</h3>
+                  {#if !post.campusId}
+                    <Badge variant="secondary">Tous les campus</Badge>
+                  {/if}
+                </div>
                 <p class="mt-1 text-xs text-muted-foreground">
                   Publié le {dateFmt.format(new Date(post.publishedAt))} par {post.authorName}
                   {#if post.expiresAt}
@@ -418,49 +424,51 @@
                   {/if}
                 </p>
               </div>
-              <div
-                class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
-              >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onclick={() => startEdit(post)}
+              {#if post.campusId}
+                <div
+                  class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
                 >
-                  <Pencil class="h-4 w-4" />
-                </Button>
-                {#if confirmDeleteId === post.id}
-                  <form
-                    method="POST"
-                    action="?/delete"
-                    use:enhance={() => {
-                      return async ({ update }) => {
-                        confirmDeleteId = null;
-                        await update();
-                      };
-                    }}
-                  >
-                    <input type="hidden" name="id" value={post.id} />
-                    <Button variant="destructive" size="sm" type="submit">
-                      Confirmer
-                    </Button>
-                  </form>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onclick={() => (confirmDeleteId = null)}
-                  >
-                    Annuler
-                  </Button>
-                {:else}
                   <Button
                     variant="ghost"
                     size="icon"
-                    onclick={() => (confirmDeleteId = post.id)}
+                    onclick={() => startEdit(post)}
                   >
-                    <Trash2 class="h-4 w-4 text-destructive" />
+                    <Pencil class="h-4 w-4" />
                   </Button>
-                {/if}
-              </div>
+                  {#if confirmDeleteId === post.id}
+                    <form
+                      method="POST"
+                      action="?/delete"
+                      use:enhance={() => {
+                        return async ({ update }) => {
+                          confirmDeleteId = null;
+                          await update();
+                        };
+                      }}
+                    >
+                      <input type="hidden" name="id" value={post.id} />
+                      <Button variant="destructive" size="sm" type="submit">
+                        Confirmer
+                      </Button>
+                    </form>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onclick={() => (confirmDeleteId = null)}
+                    >
+                      Annuler
+                    </Button>
+                  {:else}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onclick={() => (confirmDeleteId = post.id)}
+                    >
+                      <Trash2 class="h-4 w-4 text-destructive" />
+                    </Button>
+                  {/if}
+                </div>
+              {/if}
             </div>
             <div
               class="prose prose-sm mt-4 max-w-none prose-slate dark:prose-invert"

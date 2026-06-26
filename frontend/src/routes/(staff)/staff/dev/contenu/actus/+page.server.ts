@@ -12,9 +12,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   const campusId = getCampusId(locals);
 
+  const now = new Date();
   const [posts, events] = await Promise.all([
     prisma.newsPost.findMany({
-      where: { campusId },
+      where: {
+        OR: [{ campusId }, { campusId: null, publishedAt: { lte: now } }],
+      },
       orderBy: { publishedAt: 'desc' },
       include: { author: { select: { user: { select: { name: true } } } } },
     }),
@@ -31,6 +34,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       id: p.id,
       title: p.title,
       content: p.content,
+      campusId: p.campusId,
       eventId: p.eventId,
       publishedAt: p.publishedAt.toISOString(),
       expiresAt: p.expiresAt?.toISOString() ?? null,
