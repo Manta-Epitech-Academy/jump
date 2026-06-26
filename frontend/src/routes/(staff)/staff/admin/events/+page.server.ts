@@ -4,12 +4,26 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { EventService } from '$lib/server/services/events';
-import { adminEventSchema } from '$lib/validation/events';
+import {
+  adminEventSchema,
+  bulkEventModulesSchema,
+  bulkEventActivationSchema,
+} from '$lib/validation/events';
 import { eventTypeLabel, minutesToHHMM } from '$lib/domain/event';
 import {
   isEventModuleKey,
   type EventModuleKey,
 } from '$lib/domain/eventModules';
+import {
+  getLifecycleBounds,
+  getEventStatus,
+  type LifecycleBounds,
+  type EventLifecycleStatus,
+} from '$lib/domain/eventLifecycle';
+import {
+  eventPrepReasons,
+  type EventPrepReason,
+} from '$lib/domain/eventReadiness';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { toDateKey } from '$lib/domain/planningTime';
 
@@ -33,6 +47,18 @@ export type AdminEventVM = {
   schoolYearStart: number;
   /** "HH:MM" Jump-owned start, or "" when unset (shows the type default). */
   startTime: string;
+  /** Lifecycle bucket in the event's own campus tz: à venir / en cours / passé. */
+  status: EventLifecycleStatus;
+  /** Linked to a Salesforce campaign (`externalId`); false = admin-created. */
+  synced: boolean;
+  /** Admin has activated it: it shows in the dev workspace (gate, not modules). */
+  devActivated: boolean;
+  /**
+   * Config gaps the admin can still close (start time, modules), for events
+   * that haven't ended. Empty for past or fully-configured events. Drives the
+   * "À préparer" cue + filter.
+   */
+  prepReasons: EventPrepReason[];
   /** End day `YYYY-MM-DD` (campus tz) for the form, or "" when unset. */
   endDate: string;
   notes: string;
@@ -72,6 +98,8 @@ export const load: PageServerLoad = async () => {
       startMinutes: true,
       eventType: true,
       notes: true,
+      externalId: true,
+      devActivatedAt: true,
       campusId: true,
       campus: { select: { name: true, timezone: true } },
       modules: { select: { moduleKey: true } },
@@ -79,9 +107,28 @@ export const load: PageServerLoad = async () => {
     },
   });
 
+  // Lifecycle bounds are timezone-dependent and the list is cross-campus, so
+  // memoize one bounds object per distinct campus tz instead of recomputing it
+  // for every row.
+  const boundsByTz = new Map<string, LifecycleBounds>();
+  const boundsFor = (tz: string): LifecycleBounds => {
+    let b = boundsByTz.get(tz);
+    if (!b) {
+      b = getLifecycleBounds(tz);
+      boundsByTz.set(tz, b);
+    }
+    return b;
+  };
+
   const events: AdminEventVM[] = rows.map((e) => {
     const tz = e.campus.timezone;
     const sy = schoolYearOf(e.date, tz);
+    const startDateKey = toDateKey(e.date, tz);
+    const status = getEventStatus(
+      { date: e.date, endDate: e.endDate },
+      boundsFor(tz),
+    );
+    const modules = e.modules.map((m) => m.moduleKey).filter(isEventModuleKey);
     return {
       id: e.id,
       titre: e.titre,
@@ -93,13 +140,22 @@ export const load: PageServerLoad = async () => {
       campusName: e.campus.name,
       dateLabel: dateRangeLabel(e.date, e.endDate, tz),
       dateTs: e.date.getTime(),
-      startDateKey: toDateKey(e.date, tz),
+      startDateKey,
       schoolYearLabel: sy.label,
       schoolYearStart: sy.startYear,
       startTime: minutesToHHMM(e.startMinutes),
+      status,
+      synced: e.externalId != null,
+      devActivated: e.devActivatedAt != null,
+      prepReasons: eventPrepReasons({
+        status,
+        devActivated: e.devActivatedAt != null,
+        startTimeConfirmed: e.startMinutes != null,
+        moduleCount: modules.length,
+      }),
       endDate: e.endDate ? toDateKey(e.endDate, tz) : '',
       notes: e.notes ?? '',
-      modules: e.modules.map((m) => m.moduleKey).filter(isEventModuleKey),
+      modules,
       participations: e._count.participations,
     };
   });
@@ -121,11 +177,64 @@ export const actions: Actions = {
         endDate: form.data.endDate,
         notes: form.data.notes,
         modules: form.data.modules,
+        devActivated: form.data.devActivated,
       });
       return message(form, 'Événement mis à jour.');
     } catch (err) {
       console.error(err);
       return message(form, 'Erreur lors de la mise à jour.', { status: 500 });
+    }
+  },
+
+  // Bulk module edit over the list selection. Posted from a plain enhanced form
+  // (not superform), so the payload is hand-parsed and validated here. `ids`
+  // arrives comma-joined, `modules` as repeated fields.
+  bulkModules: async ({ request }) => {
+    const fd = await request.formData();
+    const parsed = bulkEventModulesSchema.safeParse({
+      ids: String(fd.get('ids') ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+      modules: fd.getAll('modules').map(String),
+    });
+    if (!parsed.success) {
+      return fail(400, { bulkError: 'Sélection invalide.' });
+    }
+
+    try {
+      await EventService.bulkSetModules(parsed.data.ids, parsed.data.modules);
+      return { bulkCount: parsed.data.ids.length };
+    } catch (err) {
+      console.error(err);
+      return fail(500, { bulkError: 'Erreur lors de la mise à jour groupée.' });
+    }
+  },
+
+  // Bulk show/hide in the dev workspace over the selection. Same plain-form
+  // parsing as bulkModules; `activate` arrives as "true"/"false".
+  bulkActivation: async ({ request }) => {
+    const fd = await request.formData();
+    const parsed = bulkEventActivationSchema.safeParse({
+      ids: String(fd.get('ids') ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+      activate: fd.get('activate') === 'true',
+    });
+    if (!parsed.success) {
+      return fail(400, { bulkError: 'Sélection invalide.' });
+    }
+
+    try {
+      await EventService.bulkSetActivation(
+        parsed.data.ids,
+        parsed.data.activate,
+      );
+      return { bulkCount: parsed.data.ids.length };
+    } catch (err) {
+      console.error(err);
+      return fail(500, { bulkError: 'Erreur lors de la mise à jour groupée.' });
     }
   },
 };

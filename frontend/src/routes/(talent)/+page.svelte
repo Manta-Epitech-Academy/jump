@@ -93,11 +93,12 @@
       : '',
   );
 
-  // Wall-clock start time of the next session ("10:00"), shown only once a dev
-  // has *confirmed* it (`startMinutes` set). We deliberately don't fall back to
-  // the type default here: a confidently-wrong hour is worse for a student than
-  // none, so until it's confirmed the talent sees the date alone (never the SF
-  // `date`'s meaningless midnight). Staff see the default + a nag meanwhile.
+  // Wall-clock start time of the next session ("10:00"), shown only once it has
+  // been *confirmed* (`startMinutes` set, on the admin events page). We
+  // deliberately don't fall back to the type default here: a confidently-wrong
+  // hour is worse for a student than none, so until it's confirmed the talent
+  // sees the date alone (never the SF `date`'s meaningless midnight). Staff see
+  // the type default meanwhile, with the admin list flagging it to confirm.
   let upcomingStartTime = $derived(
     planning.state === 'upcoming' ? minutesToHHMM(planning.startMinutes) : '',
   );

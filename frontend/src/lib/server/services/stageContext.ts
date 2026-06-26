@@ -10,7 +10,8 @@ import {
   getEventStatus,
   getLifecycleBounds,
 } from '$lib/domain/eventLifecycle';
-import { monthOf, schoolYearOf, type SchoolYear } from '$lib/domain/schoolYear';
+import { schoolYearOf, type SchoolYear } from '$lib/domain/schoolYear';
+import { toDateKey } from '$lib/domain/planningTime';
 import { prisma } from '$lib/server/db';
 
 export const STAGE_DEFAULT_DURATION_DAYS = 14;
@@ -265,8 +266,13 @@ export type WorkspaceEventEntry = {
   endDate: Date;
   status: EventLifecycleStatus;
   schoolYear: SchoolYear;
-  /** Calendar month (1-12) in campus tz: the switcher's second drill-down level. */
-  month: number;
+  /**
+   * The event's year-month `YYYY-MM` in campus tz: the switcher's second
+   * drill-down level. A real year-month (not a bare 1-12) so the two ends of a
+   * school year that fall in the same calendar month (August bookends it) stay
+   * distinct, and a plain string sort is already chronological within the year.
+   */
+  monthKey: string;
   /** Surfaces this event exposes: drive the sidebar nav for the current event. */
   modules: EventModuleKey[];
   /**
@@ -286,19 +292,19 @@ export type WorkspaceEvents = {
 
 /**
  * Every event that belongs to the dev cohort workspace for this (already
- * campus-scoped) client: those exposing at least one module. Replaces the old
- * single-stage resolution: the workspace now hosts as many events as a campus
- * configures, across school years, switchable in the sidebar. Membership is the
- * module set, not the event type, so a future non-stage event kind joins simply
- * by enabling a module. An event whose modules are all turned off drops out of
- * the switcher (its Paramètres page stays reachable by direct URL).
+ * campus-scoped) client: those an admin has activated. Membership is the
+ * explicit `devActivatedAt` gate, NOT the module set: an event is configured
+ * (its modules pre-seeded at creation) but stays hidden until an admin validates
+ * it on the admin events page. Modules then decide WHICH surfaces it exposes.
+ * The workspace hosts as many events as a campus activates, across school years,
+ * switchable in the sidebar.
  */
 export async function resolveWorkspaceEvents(
   db: ScopedPrismaClient,
   timezone: string,
 ): Promise<WorkspaceEvents> {
   const rows = await db.event.findMany({
-    where: { modules: { some: {} } },
+    where: { devActivatedAt: { not: null } },
     select: {
       id: true,
       titre: true,
@@ -327,7 +333,7 @@ export async function resolveWorkspaceEvents(
       endDate,
       status: getEventStatus({ date: e.date, endDate }, bounds),
       schoolYear: schoolYearOf(e.date, timezone),
-      month: monthOf(e.date, timezone),
+      monthKey: toDateKey(e.date, timezone).slice(0, 7),
       modules: e.modules.map((m) => m.moduleKey).filter(isEventModuleKey),
       hasPlanning: (e.planning?._count.timeSlots ?? 0) > 0,
     };

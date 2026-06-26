@@ -22,7 +22,7 @@
     date: string | Date;
     status: 'past' | 'ongoing' | 'upcoming';
     schoolYear: { label: string; startYear: number };
-    month: number;
+    monthKey: string; // "YYYY-MM" in campus tz
     modules: string[];
   };
 
@@ -57,33 +57,55 @@
     return [...seen].sort((a, b) => b[1] - a[1]).map(([label]) => label);
   });
 
-  // Order months along the school year (Sept → Aug), not the calendar year, so
-  // a year that spans the new year reads in the right sequence.
-  const scholarRank = (m: number) => (m >= 9 ? m - 12 : m);
-  function monthsOf(yearLabel: string): number[] {
-    const set = new Set<number>();
+  // Drill key is the year-month "YYYY-MM", not a bare 1-12: a school year opens
+  // and closes in August (15 Aug → 15 Aug), so both ends can land in August;
+  // keying on the real year-month keeps them apart. A plain string sort of
+  // "YYYY-MM" is already chronological within a school year (no scholar-rank).
+  function monthsOf(yearLabel: string): string[] {
+    const set = new Set<string>();
     for (const e of events)
-      if (e.schoolYear.label === yearLabel) set.add(e.month);
-    return [...set].sort((a, b) => scholarRank(a) - scholarRank(b));
+      if (e.schoolYear.label === yearLabel) set.add(e.monthKey);
+    return [...set].sort();
   }
 
+  const monthName = (key: string) => MOIS_FR[Number(key.slice(5, 7))];
+
   let selectedYear = $state('');
-  let selectedMonth = $state(0);
+  let selectedMonthKey = $state('');
   // Re-anchor on the current event whenever it changes (a navigation), so
   // reopening the picker lands on the event in view. A user's in-popover
   // drill-down doesn't touch `current`, so it isn't clobbered mid-pick.
   $effect(() => {
     if (current) {
       selectedYear = current.schoolYear.label;
-      selectedMonth = current.month;
+      selectedMonthKey = current.monthKey;
     }
   });
 
   const monthsForYear = $derived(monthsOf(selectedYear));
+  // Label each month chip by its name alone, except when the same month name
+  // appears twice in the year (only August can, as the year's bookend) — then
+  // disambiguate with the calendar year.
+  const monthChips = $derived.by(() => {
+    const nameCounts = new Map<string, number>();
+    for (const key of monthsForYear) {
+      const n = monthName(key);
+      nameCounts.set(n, (nameCounts.get(n) ?? 0) + 1);
+    }
+    return monthsForYear.map((key) => {
+      const name = monthName(key);
+      const label =
+        nameCounts.get(name)! > 1 ? `${name} ${key.slice(0, 4)}` : name;
+      return { key, label };
+    });
+  });
+
   const eventsForSelection = $derived(
     events
       .filter(
-        (e) => e.schoolYear.label === selectedYear && e.month === selectedMonth,
+        (e) =>
+          e.schoolYear.label === selectedYear &&
+          e.monthKey === selectedMonthKey,
       )
       .sort((a, b) => {
         if (a.status !== b.status)
@@ -97,7 +119,7 @@
   function selectYear(label: string) {
     selectedYear = label;
     const months = monthsOf(label);
-    if (!months.includes(selectedMonth)) selectedMonth = months[0] ?? 0;
+    if (!months.includes(selectedMonthKey)) selectedMonthKey = months[0] ?? '';
   }
 
   const dateFmt = new Intl.DateTimeFormat('fr-FR', {
@@ -165,12 +187,12 @@
       {/each}
     </div>
     <div class="flex flex-wrap gap-1">
-      {#each monthsForYear as m (m)}
+      {#each monthChips as m (m.key)}
         <button
-          class={chipClass(m === selectedMonth)}
-          onclick={() => (selectedMonth = m)}
+          class={chipClass(m.key === selectedMonthKey)}
+          onclick={() => (selectedMonthKey = m.key)}
         >
-          {MOIS_FR[m]}
+          {m.label}
         </button>
       {/each}
     </div>

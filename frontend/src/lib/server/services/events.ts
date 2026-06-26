@@ -80,20 +80,30 @@ export const EventService = {
       endDate: string;
       notes: string;
       modules: string[];
+      devActivated: boolean;
     },
   ) {
     // Surfaces a clean 404 (rather than a transaction-level throw) if the event
     // vanished between the page load and the save. The campus tz turns the
-    // bare end-date day into a correct instant.
+    // bare end-date day into a correct instant; `devActivatedAt` is read to
+    // preserve the original activation instant across edits that keep it on.
     const event = await prisma.event.findUniqueOrThrow({
       where: { id: eventId },
-      select: { campus: { select: { timezone: true } } },
+      select: {
+        devActivatedAt: true,
+        campus: { select: { timezone: true } },
+      },
     });
     // 23:59 campus-local on the chosen day: `getEventStatus` only flips the
     // event to "past" once that whole day has elapsed, and `toDateKey` still
     // resolves it to that day for the émargement créneaux.
     const endDate = data.endDate
       ? fromWallClock(data.endDate, '23:59', event.campus.timezone)
+      : null;
+    // Keep the existing instant while it stays activated; stamp now on a fresh
+    // activation; clear it when deactivated.
+    const devActivatedAt = data.devActivated
+      ? (event.devActivatedAt ?? new Date())
       : null;
 
     await prisma.$transaction(async (tx) => {
@@ -105,9 +115,48 @@ export const EventService = {
           startMinutes: hhmmToMinutes(data.startTime),
           endDate,
           notes: data.notes,
+          devActivatedAt,
         },
       });
     });
+  },
+
+  /**
+   * Applies one exact module set to many events at once (admin list bulk edit).
+   * Overwrite semantics, same per-event diff as a single save, all in one
+   * transaction so a partial failure rolls the whole batch back. Admin-only and
+   * cross-campus like `updateEventConfig`, so no campus check: the ids are the
+   * authority. Only the module rows change; every other event field is left
+   * untouched.
+   */
+  async bulkSetModules(eventIds: string[], modules: string[]) {
+    if (eventIds.length === 0) return;
+    await prisma.$transaction(async (tx) => {
+      for (const eventId of eventIds) {
+        await applyModuleDiff(tx, eventId, modules);
+      }
+    });
+  },
+
+  /**
+   * Shows or hides many events in the dev workspace at once (the `devActivatedAt`
+   * gate). Admin-only, cross-campus: the ids are the authority. On activate only
+   * the not-yet-activated rows are stamped, so an already-activated event keeps
+   * its original instant; deactivate clears them all.
+   */
+  async bulkSetActivation(eventIds: string[], activate: boolean) {
+    if (eventIds.length === 0) return;
+    if (activate) {
+      await prisma.event.updateMany({
+        where: { id: { in: eventIds }, devActivatedAt: null },
+        data: { devActivatedAt: new Date() },
+      });
+    } else {
+      await prisma.event.updateMany({
+        where: { id: { in: eventIds } },
+        data: { devActivatedAt: null },
+      });
+    }
   },
 
   /**

@@ -31,6 +31,32 @@ export const adminEventSchema = z.object({
   modules: z
     .array(z.enum(EVENT_MODULE_KEYS as [string, ...string[]]))
     .default([]),
+  // Explicit dev-workspace visibility gate (decoupled from modules). Posted by a
+  // Switch whose hidden input is present only when on, so absent = false.
+  devActivated: z.boolean().default(false),
 });
 
 export type AdminEventForm = z.infer<typeof adminEventSchema>;
+
+/**
+ * Bulk module edit from the admin events list: apply one exact module set to
+ * every selected event at once (overwrite semantics, mirroring a single save).
+ * `modules` empty = the selection exposes nothing. Posted from a plain enhanced
+ * form, so this is parsed with `safeParse` in the action rather than superform.
+ */
+export const bulkEventModulesSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1),
+  modules: z
+    .array(z.enum(EVENT_MODULE_KEYS as [string, ...string[]]))
+    .default([]),
+});
+
+/**
+ * Bulk dev-workspace activation over the list selection: show/hide many events
+ * in the dev workspace at once (the binary `devActivatedAt` gate, not modules).
+ * Hand-parsed from a plain enhanced form like the module bulk.
+ */
+export const bulkEventActivationSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1),
+  activate: z.boolean(),
+});

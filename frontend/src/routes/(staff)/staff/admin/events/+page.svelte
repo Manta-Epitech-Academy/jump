@@ -4,14 +4,25 @@
   import CalendarCog from '@lucide/svelte/icons/calendar-cog';
   import Pencil from '@lucide/svelte/icons/pencil';
   import FilterX from '@lucide/svelte/icons/filter-x';
+  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import CircleDot from '@lucide/svelte/icons/circle-dot';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import ListChecks from '@lucide/svelte/icons/list-checks';
+  import Eye from '@lucide/svelte/icons/eye';
+  import EyeOff from '@lucide/svelte/icons/eye-off';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
   import { Badge } from '$lib/components/ui/badge';
-  import { Checkbox } from '$lib/components/ui/checkbox';
+  import { Switch } from '$lib/components/ui/switch';
+  import { TimePicker } from '$lib/components/ui/time-picker';
+  import { DatePicker } from '$lib/components/ui/date-picker';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Table from '$lib/components/ui/table';
+  import EventModulesCell from '$lib/components/events/EventModulesCell.svelte';
+  import EventModuleIcon from '$lib/components/events/EventModuleIcon.svelte';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
@@ -29,15 +40,27 @@
     EVENT_MODULE_KEYS,
     type EventModuleKey,
   } from '$lib/domain/eventModules';
+  import { effectiveStartMinutes, minutesToHHMM } from '$lib/domain/event';
+  import { EVENT_PREP_REASON_LABELS } from '$lib/domain/eventReadiness';
+  import { enhance as formEnhance } from '$app/forms';
+  import type { SubmitFunction } from '@sveltejs/kit';
+  import { SvelteSet } from 'svelte/reactivity';
+  import KpiTile from '$lib/components/staff/KpiTile.svelte';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import type { AdminEventVM } from './+page.server';
 
   let { data } = $props();
+
+  type StatusFilter = 'upcoming' | 'ongoing' | 'prep' | 'all';
 
   // ─── Filters + sort (in-memory over the full event list) ──────────────────
   let search = $state('');
   let campusFilter = $state('all');
   let yearFilter = $state('all');
   let typeFilter = $state('all');
+  // Default to the forward-looking view: across hundreds of events the admin's
+  // job is preparing what's coming, not scrolling the past graveyard.
+  let statusFilter = $state<StatusFilter>('upcoming');
   // Default mirrors the server order (date desc): the newest events first.
   let sortKey = $state('date');
   let sortDir = $state<SortDir>('desc');
@@ -114,9 +137,12 @@
     }
   }
 
-  const filtered = $derived.by(() => {
+  // Everything except the status filter: drives both the KPI tile counts (each
+  // tile shows its bucket within the current campus/year/type/search scope) and,
+  // once status is applied, the table rows.
+  const baseFiltered = $derived.by(() => {
     const q = search.trim().toLowerCase();
-    const out = data.events.filter((e) => {
+    return data.events.filter((e) => {
       if (campusFilter !== 'all' && e.campusId !== campusFilter) return false;
       if (yearFilter !== 'all' && e.schoolYearLabel !== yearFilter)
         return false;
@@ -129,6 +155,24 @@
         e.eventTypeLabel.toLowerCase().includes(q)
       );
     });
+  });
+
+  function matchesStatus(e: AdminEventVM): boolean {
+    switch (statusFilter) {
+      case 'upcoming':
+        return e.status === 'upcoming';
+      case 'ongoing':
+        return e.status === 'ongoing';
+      // prepReasons is already empty for past events, so length alone is enough.
+      case 'prep':
+        return e.prepReasons.length > 0;
+      case 'all':
+        return true;
+    }
+  }
+
+  const rows = $derived.by(() => {
+    const out = baseFiltered.filter(matchesStatus);
     out.sort((a, b) => {
       const c = compareEvents(a, b, sortKey);
       return sortDir === 'asc' ? c : -c;
@@ -136,18 +180,49 @@
     return out;
   });
 
-  const anyFiltersApplied = $derived(
+  const stats = $derived.by(() => {
+    let upcoming = 0;
+    let ongoing = 0;
+    let prep = 0;
+    let inscrUpcoming = 0;
+    let inscrTotal = 0;
+    for (const e of baseFiltered) {
+      inscrTotal += e.participations;
+      if (e.status === 'upcoming') {
+        upcoming++;
+        inscrUpcoming += e.participations;
+      } else if (e.status === 'ongoing') {
+        ongoing++;
+      }
+      if (e.prepReasons.length > 0) prep++;
+    }
+    return {
+      upcoming,
+      ongoing,
+      prep,
+      all: baseFiltered.length,
+      inscrUpcoming,
+      inscrTotal,
+    };
+  });
+
+  const STATUS_SUFFIX: Record<StatusFilter, string> = {
+    upcoming: 'à venir',
+    ongoing: 'en cours',
+    prep: 'à préparer',
+    all: 'au total',
+  };
+  const scopeFiltersApplied = $derived(
     search.trim().length > 0 ||
       campusFilter !== 'all' ||
       yearFilter !== 'all' ||
       typeFilter !== 'all',
   );
+  const anyFiltersApplied = $derived(
+    scopeFiltersApplied || statusFilter !== 'upcoming',
+  );
   const countSuffix = $derived(
-    anyFiltersApplied
-      ? filtered.length > 1
-        ? 'correspondent aux filtres'
-        : 'correspond aux filtres'
-      : 'au total',
+    STATUS_SUFFIX[statusFilter] + (scopeFiltersApplied ? ' (filtrés)' : ''),
   );
 
   function resetFilters() {
@@ -155,6 +230,7 @@
     campusFilter = 'all';
     yearFilter = 'all';
     typeFilter = 'all';
+    statusFilter = 'upcoming';
   }
 
   // ─── Edit dialog ─────────────────────────────────────────────────────────
@@ -173,6 +249,14 @@
   let open = $state(false);
   let editing = $state<AdminEventVM | null>(null);
 
+  // The type's fallback hour ("10:00" stage / "14:00" coding club), shown in the
+  // dialog so staff see what applies until they confirm a real one.
+  const defaultStartTime = $derived(
+    editing
+      ? minutesToHHMM(effectiveStartMinutes(editing.eventType, null))
+      : '',
+  );
+
   function openEdit(e: AdminEventVM) {
     editing = e;
     $form.id = e.id;
@@ -181,6 +265,7 @@
     $form.endDate = e.endDate;
     $form.notes = e.notes;
     $form.modules = [...e.modules];
+    $form.devActivated = e.devActivated;
     open = true;
   }
 
@@ -190,6 +275,76 @@
     } else {
       $form.modules = $form.modules.filter((k) => k !== key);
     }
+  }
+
+  // ─── Bulk module edit (over the list selection) ──────────────────────────
+  const selected = new SvelteSet<string>();
+  let bulkOpen = $state(false);
+  let bulkSubmitting = $state(false);
+  let bulkModules = $state<EventModuleKey[]>([...EVENT_MODULE_KEYS]);
+
+  function openBulk() {
+    // Start from "all on" (the creation preset) each time, so the dialog is a
+    // fresh decision rather than carrying the last batch's choice.
+    bulkModules = [...EVENT_MODULE_KEYS];
+    bulkOpen = true;
+  }
+
+  function toggleBulkModule(key: EventModuleKey, checked: boolean) {
+    if (checked) {
+      if (!bulkModules.includes(key)) bulkModules = [...bulkModules, key];
+    } else {
+      bulkModules = bulkModules.filter((k) => k !== key);
+    }
+  }
+
+  const submitBulk: SubmitFunction = () => {
+    const count = selected.size;
+    bulkSubmitting = true;
+    return async ({ result, update }) => {
+      bulkSubmitting = false;
+      if (result.type === 'success') {
+        toast.success(
+          `Modules appliqués à ${count} événement${count > 1 ? 's' : ''}.`,
+        );
+        bulkOpen = false;
+        selected.clear();
+      } else if (result.type === 'failure') {
+        toast.error(
+          (result.data?.bulkError as string | undefined) ??
+            'Erreur lors de la mise à jour groupée.',
+        );
+      }
+      // Re-run load so the rows reflect the new module sets (and statuses/prep).
+      await update();
+    };
+  };
+
+  // Bulk show/hide in the dev workspace (the activation gate). Binary, so no
+  // dialog: two buttons in the selection bar, one SubmitFunction each.
+  function bulkActivation(activate: boolean): SubmitFunction {
+    return () => {
+      const count = selected.size;
+      const plural = count > 1 ? 's' : '';
+      bulkSubmitting = true;
+      return async ({ result, update }) => {
+        bulkSubmitting = false;
+        if (result.type === 'success') {
+          toast.success(
+            activate
+              ? `${count} événement${plural} activé${plural} dans l'espace dev.`
+              : `${count} événement${plural} retiré${plural} de l'espace dev.`,
+          );
+          selected.clear();
+        } else if (result.type === 'failure') {
+          toast.error(
+            (result.data?.bulkError as string | undefined) ??
+              'Erreur lors de la mise à jour groupée.',
+          );
+        }
+        await update();
+      };
+    };
   }
 </script>
 
@@ -205,12 +360,52 @@
     </p>
   </div>
 
+  <!-- Cockpit band: each tile is a status filter (click to scope the table),
+       counted within the current campus/year/type/search selection. -->
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <KpiTile
+      label="À venir"
+      value={stats.upcoming}
+      sub={`${stats.inscrUpcoming} inscrits`}
+      icon={CalendarClock}
+      tone="blue"
+      pressed={statusFilter === 'upcoming'}
+      onclick={() => (statusFilter = 'upcoming')}
+    />
+    <KpiTile
+      label="En cours"
+      value={stats.ongoing}
+      icon={CircleDot}
+      tone="teal"
+      pressed={statusFilter === 'ongoing'}
+      onclick={() => (statusFilter = 'ongoing')}
+    />
+    <KpiTile
+      label="À préparer"
+      value={stats.prep}
+      icon={TriangleAlert}
+      tone="orange"
+      helpText="Événements à venir ou en cours auxquels il manque l'heure d'arrivée ou des sections à activer."
+      pressed={statusFilter === 'prep'}
+      onclick={() => (statusFilter = 'prep')}
+    />
+    <KpiTile
+      label="Tous"
+      value={stats.all}
+      sub={`${stats.inscrTotal} inscrits`}
+      icon={CalendarDays}
+      tone="neutral"
+      pressed={statusFilter === 'all'}
+      onclick={() => (statusFilter = 'all')}
+    />
+  </div>
+
   <DataTableToolbar
     searchValue={search}
     onSearchInput={(v) => (search = v)}
     searchPlaceholder="Rechercher un événement…"
     filtersAlign="end"
-    count={filtered.length}
+    count={rows.length}
     countNoun="événement"
     {countSuffix}
   >
@@ -258,43 +453,147 @@
     {/snippet}
   </DataTableToolbar>
 
+  {#if selected.size > 0}
+    <div
+      class="flex flex-wrap items-center gap-3 rounded-sm border bg-card px-4 py-2 shadow-sm"
+    >
+      <span class="text-sm font-bold">
+        {selected.size} événement{selected.size > 1 ? 's' : ''} sélectionné{selected.size >
+        1
+          ? 's'
+          : ''}
+      </span>
+      <Button size="sm" onclick={openBulk} class="rounded-sm">
+        <ListChecks class="mr-1.5 h-4 w-4" />
+        Modifier les modules
+      </Button>
+      <form
+        method="POST"
+        action="?/bulkActivation"
+        use:formEnhance={bulkActivation(true)}
+      >
+        <input type="hidden" name="ids" value={[...selected].join(',')} />
+        <input type="hidden" name="activate" value="true" />
+        <Button
+          type="submit"
+          variant="outline"
+          size="sm"
+          disabled={bulkSubmitting}
+          class="rounded-sm"
+        >
+          <Eye class="mr-1.5 h-4 w-4" />
+          Activer dans l'espace dev
+        </Button>
+      </form>
+      <form
+        method="POST"
+        action="?/bulkActivation"
+        use:formEnhance={bulkActivation(false)}
+      >
+        <input type="hidden" name="ids" value={[...selected].join(',')} />
+        <input type="hidden" name="activate" value="false" />
+        <Button
+          type="submit"
+          variant="outline"
+          size="sm"
+          disabled={bulkSubmitting}
+          class="rounded-sm"
+        >
+          <EyeOff class="mr-1.5 h-4 w-4" />
+          Retirer
+        </Button>
+      </form>
+      <Button
+        variant="ghost"
+        size="sm"
+        onclick={() => selected.clear()}
+        class="text-muted-foreground hover:text-foreground"
+      >
+        Tout désélectionner
+      </Button>
+    </div>
+  {/if}
+
+  {#snippet prepChip(e: AdminEventVM)}
+    {#if e.prepReasons.length > 0}
+      <Tooltip.Provider delayDuration={200}>
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            {#snippet child({ props })}
+              <Badge
+                {...props}
+                variant="outline"
+                class="border-amber-500/50 text-[10px] font-normal text-amber-600"
+              >
+                À préparer
+              </Badge>
+            {/snippet}
+          </Tooltip.Trigger>
+          <Tooltip.Content>
+            <ul class="space-y-0.5">
+              {#each e.prepReasons as r (r)}
+                <li>{EVENT_PREP_REASON_LABELS[r]}</li>
+              {/each}
+            </ul>
+          </Tooltip.Content>
+        </Tooltip.Root>
+      </Tooltip.Provider>
+    {/if}
+  {/snippet}
+
   <SortableTable
     {columns}
-    rows={filtered}
+    {rows}
     {sortKey}
     {sortDir}
     onSort={toggleSort}
     rowKey={(e) => e.id}
+    onRowClick={(e) => openEdit(e)}
+    selectable
+    {selected}
     stickyHeader
   >
     {#snippet row(e: AdminEventVM)}
       <Table.Cell>
-        <span class="block truncate font-bold" title={e.displayName}
-          >{e.displayName}</span
-        >
+        <div class="flex items-center gap-2">
+          <span class="truncate font-bold" title={e.displayName}>
+            {e.displayName}
+          </span>
+          {#if e.devActivated}
+            <Badge
+              variant="outline"
+              class="shrink-0 border-emerald-500/40 text-[10px] font-normal text-emerald-600"
+            >
+              Espace dev
+            </Badge>
+          {/if}
+          {#if !e.synced}
+            <Badge
+              variant="outline"
+              class="shrink-0 text-[10px] font-normal text-muted-foreground"
+            >
+              Manuel
+            </Badge>
+          {/if}
+        </div>
         {#if e.publicName}
-          <span class="block truncate text-xs text-muted-foreground"
-            >{e.titre}</span
-          >
+          <span class="block truncate text-xs text-muted-foreground">
+            {e.titre}
+          </span>
         {/if}
       </Table.Cell>
       <Table.Cell class="text-muted-foreground">{e.campusName}</Table.Cell>
       <Table.Cell class="text-xs text-muted-foreground"
         >{e.eventTypeLabel}</Table.Cell
       >
-      <Table.Cell class="text-xs text-muted-foreground"
-        >{e.dateLabel}</Table.Cell
-      >
-      <Table.Cell>
-        <div class="flex flex-wrap gap-1">
-          {#each e.modules as key}
-            <Badge variant="secondary" class="text-[10px]"
-              >{EVENT_MODULE_DEFS[key]?.label ?? key}</Badge
-            >
-          {:else}
-            <span class="text-xs text-muted-foreground">—</span>
-          {/each}
+      <Table.Cell class="text-xs text-muted-foreground">
+        <div class="flex flex-col items-start gap-1">
+          <span>{e.dateLabel}{e.startTime ? ` · ${e.startTime}` : ''}</span>
+          {@render prepChip(e)}
         </div>
+      </Table.Cell>
+      <Table.Cell>
+        <EventModulesCell modules={e.modules} />
       </Table.Cell>
       <Table.Cell class="text-right tabular-nums">{e.participations}</Table.Cell
       >
@@ -302,7 +601,11 @@
         <Button
           variant="ghost"
           size="icon"
-          onclick={() => openEdit(e)}
+          class="text-muted-foreground opacity-60 transition-opacity group-hover/row:opacity-100"
+          onclick={(ev) => {
+            ev.stopPropagation();
+            openEdit(e);
+          }}
           aria-label="Configurer {e.displayName}"
         >
           <Pencil class="h-4 w-4" />
@@ -313,7 +616,25 @@
     {#snippet mobileRow(e: AdminEventVM)}
       <div class="flex items-start justify-between gap-2">
         <div class="min-w-0">
-          <p class="truncate font-bold">{e.displayName}</p>
+          <div class="flex items-center gap-2">
+            <p class="truncate font-bold">{e.displayName}</p>
+            {#if e.devActivated}
+              <Badge
+                variant="outline"
+                class="shrink-0 border-emerald-500/40 text-[10px] font-normal text-emerald-600"
+              >
+                Espace dev
+              </Badge>
+            {/if}
+            {#if !e.synced}
+              <Badge
+                variant="outline"
+                class="shrink-0 text-[10px] font-normal text-muted-foreground"
+              >
+                Manuel
+              </Badge>
+            {/if}
+          </div>
           <p class="truncate text-xs text-muted-foreground">
             {e.campusName} · {e.eventTypeLabel} · {e.dateLabel}
           </p>
@@ -321,21 +642,19 @@
         <Button
           variant="ghost"
           size="icon"
-          class="shrink-0"
-          onclick={() => openEdit(e)}
+          class="relative z-10 shrink-0 text-muted-foreground"
+          onclick={(ev) => {
+            ev.stopPropagation();
+            openEdit(e);
+          }}
           aria-label="Configurer {e.displayName}"
         >
           <Pencil class="h-4 w-4" />
         </Button>
       </div>
-      <div class="mt-3 flex flex-wrap items-center gap-1">
-        {#each e.modules as key}
-          <Badge variant="secondary" class="text-[10px]"
-            >{EVENT_MODULE_DEFS[key]?.label ?? key}</Badge
-          >
-        {:else}
-          <span class="text-xs text-muted-foreground">Aucun module</span>
-        {/each}
+      <div class="mt-3 flex items-center gap-2">
+        <EventModulesCell modules={e.modules} />
+        {@render prepChip(e)}
         <span class="ml-auto text-xs text-muted-foreground tabular-nums">
           {e.participations} inscrits
         </span>
@@ -384,6 +703,29 @@
       >
         <input type="hidden" name="id" bind:value={$form.id} />
         <div class="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:px-6">
+          <label
+            for="devActivated"
+            class="flex cursor-pointer items-start gap-3 rounded-sm border p-3 transition-colors select-none {$form.devActivated
+              ? 'border-epi-pink/40 bg-epi-pink/5'
+              : 'hover:bg-muted/40'}"
+          >
+            <div class="flex-1 space-y-1">
+              <span class="text-sm font-bold">Visible dans l'espace dev</span>
+              <p class="text-xs text-muted-foreground">
+                Tant que c'est désactivé, l'équipe dev ne voit pas cet
+                événement, même configuré. Activez-le quand il est prêt.
+              </p>
+            </div>
+            <Switch
+              id="devActivated"
+              name="devActivated"
+              value="true"
+              checked={$form.devActivated}
+              onCheckedChange={(v) => ($form.devActivated = v === true)}
+              class="mt-0.5"
+            />
+          </label>
+
           <div class="space-y-2">
             <Label for="publicName">Nom public</Label>
             <Input
@@ -393,8 +735,14 @@
               placeholder={editing?.titre ?? 'Ex : Stage de seconde - Février'}
             />
             <p class="text-xs text-muted-foreground">
-              Affiché dans l'espace dev et côté talent. Vide : le nom Salesforce
-              est utilisé.
+              {#if $form.publicName.trim()}
+                Ce nom est vu par le staff et par les jeunes, à la place du nom
+                importé de Salesforce.
+              {:else}
+                Pour l'instant, c'est le nom importé de Salesforce qui
+                s'affiche. Donnez-lui un nom plus parlant : il sera vu par le
+                staff comme par les jeunes.
+              {/if}
             </p>
             {#if $errors.publicName}<span class="text-xs text-destructive"
                 >{$errors.publicName}</span
@@ -403,15 +751,27 @@
 
           <div class="grid gap-4 sm:grid-cols-2">
             <div class="space-y-2">
-              <Label for="startTime">Heure d'arrivée des jeunes</Label>
-              <Input
+              <div class="flex items-center gap-2">
+                <Label for="startTime">Heure d'arrivée des jeunes</Label>
+                {#if !$form.startTime}
+                  <Badge
+                    variant="outline"
+                    class="border-amber-500/50 text-[10px] font-normal text-amber-600"
+                  >
+                    À confirmer
+                  </Badge>
+                {/if}
+              </div>
+              <TimePicker
                 id="startTime"
                 name="startTime"
-                type="time"
                 bind:value={$form.startTime}
               />
               <p class="text-xs text-muted-foreground">
-                Vide : l'heure par défaut du type d'événement s'applique.
+                Tant qu'elle n'est pas renseignée, les jeunes ne voient que la
+                date, sans heure. Le staff, lui, voit l'horaire par défaut{defaultStartTime
+                  ? ` (${defaultStartTime})`
+                  : ''} en attendant.
               </p>
               {#if $errors.startTime}<span class="text-xs text-destructive"
                   >{$errors.startTime}</span
@@ -419,16 +779,17 @@
             </div>
             <div class="space-y-2">
               <Label for="endDate">Date de fin</Label>
-              <Input
+              <DatePicker
                 id="endDate"
                 name="endDate"
-                type="date"
                 min={editing?.startDateKey}
+                placeholder="Durée par défaut"
                 bind:value={$form.endDate}
               />
               <p class="text-xs text-muted-foreground">
-                Salesforce ne fournit que la date de début. Vide : durée par
-                défaut (≈ 2 semaines pour un stage, 1 jour sinon).
+                L'import Salesforce ne donne que la date de début. Laissez vide
+                pour la durée par défaut (≈ 2 semaines pour un stage, 1 jour
+                pour les autres).
               </p>
               {#if $errors.endDate}<span class="text-xs text-destructive"
                   >{$errors.endDate}</span
@@ -441,29 +802,42 @@
               Modules de l'événement
             </legend>
             <p class="text-xs text-muted-foreground">
-              Les surfaces que cet événement expose dans l'espace dev. Le
-              planning n'est pas un module : il apparaît dès qu'un emploi du
-              temps existe.
+              Choisissez les sections que le staff verra pour cet événement, et
+              n'activez que celles qui vous servent. Le planning n'est pas dans
+              la liste : il apparaît tout seul dès qu'un emploi du temps est
+              défini.
             </p>
-            <div class="space-y-2">
+            <div class="divide-y rounded-sm border">
               {#each EVENT_MODULE_KEYS as key (key)}
                 {@const def = EVENT_MODULE_DEFS[key]}
+                {@const checked = $form.modules.includes(key)}
+                <!-- The whole row is a <label for> the switch, so clicking
+                     anywhere (icon, title, description) toggles it. The switch
+                     stays the focusable control; a <span> title avoids an
+                     invalid nested <label>. -->
                 <label
-                  class="flex cursor-pointer items-start gap-3 rounded-sm border bg-card p-3 hover:border-epi-pink/40"
+                  for="module-{key}"
+                  class="flex cursor-pointer items-start gap-3 p-3 transition-colors select-none hover:bg-muted/40"
                 >
-                  <Checkbox
-                    name="modules"
-                    value={key}
-                    checked={$form.modules.includes(key)}
-                    onCheckedChange={(v) => toggleModule(key, v === true)}
-                    class="mt-1"
-                  />
+                  <span
+                    class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-sm border bg-muted/40 text-muted-foreground"
+                  >
+                    <EventModuleIcon module={key} class="size-4" />
+                  </span>
                   <div class="flex-1 space-y-1">
                     <span class="text-sm font-bold">{def.label}</span>
                     <p class="text-xs text-muted-foreground">
                       {def.description}
                     </p>
                   </div>
+                  <Switch
+                    id="module-{key}"
+                    name="modules"
+                    value={key}
+                    {checked}
+                    onCheckedChange={(v) => toggleModule(key, v === true)}
+                    class="mt-0.5"
+                  />
                 </label>
               {/each}
             </div>
@@ -480,13 +854,95 @@
             />
           </div>
         </div>
-        <Dialog.Footer class="border-t px-4 py-4 sm:px-6">
+        <Dialog.Footer class="gap-2 border-t px-4 py-4 sm:px-6">
+          <Button
+            type="button"
+            variant="outline"
+            onclick={() => (open = false)}
+          >
+            Annuler
+          </Button>
           <Button
             type="submit"
             disabled={$delayed}
             class="bg-epi-pink text-white"
           >
             {$delayed ? 'Sauvegarde…' : 'Enregistrer'}
+          </Button>
+        </Dialog.Footer>
+      </form>
+    </Dialog.Content>
+  </Dialog.Root>
+
+  <Dialog.Root bind:open={bulkOpen}>
+    <Dialog.Content class="flex max-h-[90dvh] flex-col gap-0 p-0 sm:max-w-lg">
+      <Dialog.Header class="border-b px-4 py-4 text-start sm:px-6">
+        <Dialog.Title class="flex items-center gap-2">
+          <ListChecks class="h-5 w-5 text-epi-pink" />
+          Modules en masse
+        </Dialog.Title>
+        <Dialog.Description>
+          {selected.size} événement{selected.size > 1 ? 's' : ''} sélectionné{selected.size >
+          1
+            ? 's'
+            : ''}.
+        </Dialog.Description>
+      </Dialog.Header>
+      <form
+        method="POST"
+        action="?/bulkModules"
+        use:formEnhance={submitBulk}
+        class="flex min-h-0 flex-1 flex-col"
+      >
+        <input type="hidden" name="ids" value={[...selected].join(',')} />
+        <div class="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-6">
+          <p class="text-xs text-muted-foreground">
+            Les événements sélectionnés exposeront <strong>exactement</strong> les
+            sections cochées. Cela remplace leur configuration de modules actuelle.
+          </p>
+          <div class="divide-y rounded-sm border">
+            {#each EVENT_MODULE_KEYS as key (key)}
+              {@const def = EVENT_MODULE_DEFS[key]}
+              {@const checked = bulkModules.includes(key)}
+              <label
+                for="bulk-{key}"
+                class="flex cursor-pointer items-start gap-3 p-3 transition-colors select-none hover:bg-muted/40"
+              >
+                <span
+                  class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-sm border bg-muted/40 text-muted-foreground"
+                >
+                  <EventModuleIcon module={key} class="size-4" />
+                </span>
+                <div class="flex-1 space-y-1">
+                  <span class="text-sm font-bold">{def.label}</span>
+                  <p class="text-xs text-muted-foreground">{def.description}</p>
+                </div>
+                <Switch
+                  id="bulk-{key}"
+                  name="modules"
+                  value={key}
+                  {checked}
+                  onCheckedChange={(v) => toggleBulkModule(key, v === true)}
+                  class="mt-0.5"
+                />
+              </label>
+            {/each}
+          </div>
+        </div>
+        <Dialog.Footer class="gap-2 border-t px-4 py-4 sm:px-6">
+          <Button
+            type="button"
+            variant="outline"
+            onclick={() => (bulkOpen = false)}
+          >
+            Annuler
+          </Button>
+          <Button
+            type="submit"
+            disabled={bulkSubmitting}
+            class="bg-epi-pink text-white"
+          >
+            {bulkSubmitting ? 'Application…' : 'Appliquer'}
           </Button>
         </Dialog.Footer>
       </form>

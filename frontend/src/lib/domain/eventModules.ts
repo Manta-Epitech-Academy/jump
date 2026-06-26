@@ -50,28 +50,28 @@ export const EVENT_MODULE_DEFS: Record<EventModuleKey, EventModuleDef> = {
     key: EVENT_MODULES.INSCRITS,
     label: 'Inscrits',
     description:
-      "Registre des inscrits de l'événement : suivi des conformités, origine des talents.",
+      "La liste des jeunes inscrits : d'où ils viennent et si leur dossier est complet.",
     segment: 'inscrits',
   }),
   [EVENT_MODULES.EMARGEMENT]: def({
     key: EVENT_MODULES.EMARGEMENT,
     label: 'Émargement',
     description:
-      'Feuille de présence par demi-journée pour suivre la présence des talents.',
+      "La feuille de présence : pointer qui est là, le matin et l'après-midi.",
     segment: 'emargement',
   }),
   [EVENT_MODULES.BILAN]: def({
     key: EVENT_MODULES.BILAN,
     label: 'Bilan du stage',
     description:
-      'Suivi des réponses au formulaire de bilan (taux de réponse, statistiques) et QR de partage à la cohorte.',
+      'Les réponses des jeunes au questionnaire de fin, leurs statistiques, et un QR code à partager pour le remplir.',
     segment: 'bilan',
   }),
   [EVENT_MODULES.ENTRETIENS]: def({
     key: EVENT_MODULES.ENTRETIENS,
     label: 'Entretiens',
     description:
-      "Entretiens individuels d'orientation auprès des inscrits (un entretien par personne) : ressenti, projection, suite du parcours.",
+      "Les entretiens d'orientation, un par jeune : noter le ressenti, le projet et la suite du parcours.",
     segment: 'entretiens',
   }),
 };

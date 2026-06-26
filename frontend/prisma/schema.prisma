@@ -764,6 +764,12 @@ model Event {
   pin          String?
   notes        String?
   externalId   String?   @unique
+  // Explicit admin gate for the dev workspace, decoupled from modules: an event
+  // appears in the dev sidebar/switcher only once an admin activates it here.
+  // `null` = not yet validated (hidden, even when its modules are pre-configured).
+  // Modules decide WHICH surfaces show; this decides WHETHER the event shows at
+  // all. Set on activate, cleared on deactivate.
+  devActivatedAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
