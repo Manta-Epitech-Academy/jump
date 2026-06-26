@@ -288,14 +288,26 @@
             {/if}
           </div>
           <div class="space-y-3">
-            <label class="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                bind:checked={newHasExpiration}
-                class="accent-primary"
-              />
-              Définir une date d'expiration
-            </label>
+            <div class="flex items-center gap-3">
+              <label class="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  checked={!newHasExpiration}
+                  onchange={() => (newHasExpiration = false)}
+                  class="accent-primary"
+                />
+                Sans expiration
+              </label>
+              <label class="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  checked={newHasExpiration}
+                  onchange={() => (newHasExpiration = true)}
+                  class="accent-primary"
+                />
+                Définir une expiration
+              </label>
+            </div>
             {#if newHasExpiration}
               <DateTimePicker
                 bind:value={newExpiresAt}
@@ -438,14 +450,26 @@
                 {/if}
               </div>
               <div class="space-y-3">
-                <label class="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    bind:checked={editHasExpiration}
-                    class="accent-primary"
-                  />
-                  Définir une date d'expiration
-                </label>
+                <div class="flex items-center gap-3">
+                  <label class="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      checked={!editHasExpiration}
+                      onchange={() => (editHasExpiration = false)}
+                      class="accent-primary"
+                    />
+                    Sans expiration
+                  </label>
+                  <label class="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      checked={editHasExpiration}
+                      onchange={() => (editHasExpiration = true)}
+                      class="accent-primary"
+                    />
+                    Définir une expiration
+                  </label>
+                </div>
                 {#if editHasExpiration}
                   <DateTimePicker
                     bind:value={editExpiresAt}
