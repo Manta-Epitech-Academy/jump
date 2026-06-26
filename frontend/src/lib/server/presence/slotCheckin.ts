@@ -6,7 +6,7 @@ import {
   dateKeyToDbDate,
   type PresenceSlot,
 } from '$lib/domain/eventPresence';
-import { eventTypeLabel } from '$lib/domain/event';
+import { eventPublicName } from '$lib/domain/event';
 import { mintCheckinToken, buildCheckinLink } from './checkinToken';
 
 const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -60,6 +60,6 @@ export async function resolveSlotCheckinLink(opts: {
     expiresAt,
     day: opts.day,
     slot,
-    eventLabel: eventTypeLabel(event.eventType),
+    eventLabel: eventPublicName(event),
   };
 }

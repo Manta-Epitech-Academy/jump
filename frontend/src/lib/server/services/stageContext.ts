@@ -10,7 +10,7 @@ import {
   getEventStatus,
   getLifecycleBounds,
 } from '$lib/domain/eventLifecycle';
-import { schoolYearOf, type SchoolYear } from '$lib/domain/schoolYear';
+import { monthOf, schoolYearOf, type SchoolYear } from '$lib/domain/schoolYear';
 import { prisma } from '$lib/server/db';
 
 export const STAGE_DEFAULT_DURATION_DAYS = 14;
@@ -180,6 +180,8 @@ function addDays(d: Date, days: number): Date {
 export type EventRecord = {
   id: string;
   titre: string;
+  /** Admin-set friendly name; falls back to `titre` for display. */
+  publicName: string | null;
   date: Date;
   startMinutes: number | null;
   endDate: Date | null;
@@ -199,6 +201,7 @@ export async function loadEventOr404(
     select: {
       id: true,
       titre: true,
+      publicName: true,
       date: true,
       startMinutes: true,
       endDate: true,
@@ -255,11 +258,15 @@ export function stageEndOrDefault(event: {
 export type WorkspaceEventEntry = {
   id: string;
   titre: string;
+  /** Admin-set friendly name; falls back to `titre` for display. */
+  publicName: string | null;
   date: Date;
   /** Effective end (explicit endDate, else the default-duration window). */
   endDate: Date;
   status: EventLifecycleStatus;
   schoolYear: SchoolYear;
+  /** Calendar month (1-12) in campus tz: the switcher's second drill-down level. */
+  month: number;
   /** Surfaces this event exposes: drive the sidebar nav for the current event. */
   modules: EventModuleKey[];
   /**
@@ -295,6 +302,7 @@ export async function resolveWorkspaceEvents(
     select: {
       id: true,
       titre: true,
+      publicName: true,
       date: true,
       endDate: true,
       modules: { select: { moduleKey: true } },
@@ -314,10 +322,12 @@ export async function resolveWorkspaceEvents(
     return {
       id: e.id,
       titre: e.titre,
+      publicName: e.publicName,
       date: e.date,
       endDate,
       status: getEventStatus({ date: e.date, endDate }, bounds),
       schoolYear: schoolYearOf(e.date, timezone),
+      month: monthOf(e.date, timezone),
       modules: e.modules.map((m) => m.moduleKey).filter(isEventModuleKey),
       hasPlanning: (e.planning?._count.timeSlots ?? 0) > 0,
     };

@@ -16,7 +16,11 @@ import {
 } from '$lib/server/services/minigameService';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
-import { stageWindowEnd, STAGE_DEFAULT_DURATION_DAYS } from '$lib/domain/event';
+import {
+  stageWindowEnd,
+  STAGE_DEFAULT_DURATION_DAYS,
+  eventPublicName,
+} from '$lib/domain/event';
 import { pendingFeedbackForm } from '$lib/domain/feedback';
 import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
 import { toPlanningView } from '$lib/domain/talentPlanning';
@@ -61,6 +65,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         select: {
           eventType: true,
           titre: true,
+          publicName: true,
           date: true,
           startMinutes: true,
         },
@@ -179,6 +184,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
             select: {
               id: true,
               titre: true,
+              publicName: true,
               endDate: true,
               date: true,
               campus: { select: { name: true, contactEmail: true } },
@@ -201,7 +207,10 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
                 nom: locals.talent.nom,
                 campusName: event.campus.name,
                 campusContactEmail: event.campus.contactEmail,
-                stageName: event.titre,
+                stageName: eventPublicName({
+                  publicName: event.publicName,
+                  eventType: 'stage_seconde',
+                }),
               }),
             };
           }

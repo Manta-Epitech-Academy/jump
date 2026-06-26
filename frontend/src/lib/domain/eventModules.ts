@@ -80,20 +80,19 @@ export const EVENT_MODULE_DEFS: Record<EventModuleKey, EventModuleDef> = {
  * Module preset seeded onto a new event at creation, keyed by its event type.
  * The type is just a starting point: after creation the per-event module rows
  * are the truth and are edited independently (changing the type never rebinds
- * an existing event). The Stage de Seconde preset is today's default-on
- * baseline (inscrits + entretiens); staff enable émargement / planning / bilan
- * per event. Unknown / coding_club types start empty.
+ * an existing event). Every type (stage, coding club, anything unknown the
+ * worker imports) starts with all four surfaces on; admins trim per event from
+ * the admin event-config page. Per-type rows stay so a future type can diverge.
  */
+const DEFAULT_PRESET: EventModuleKey[] = [...EVENT_MODULE_KEYS];
+
 export const EVENT_TYPE_PRESETS: Record<string, EventModuleKey[]> = {
-  [EVENT_TYPES.STAGE_SECONDE]: [
-    EVENT_MODULES.INSCRITS,
-    EVENT_MODULES.ENTRETIENS,
-  ],
-  [EVENT_TYPES.CODING_CLUB]: [],
+  [EVENT_TYPES.STAGE_SECONDE]: DEFAULT_PRESET,
+  [EVENT_TYPES.CODING_CLUB]: DEFAULT_PRESET,
 };
 
 export function presetModulesForType(eventType: string): EventModuleKey[] {
-  return EVENT_TYPE_PRESETS[eventType] ?? [];
+  return EVENT_TYPE_PRESETS[eventType] ?? DEFAULT_PRESET;
 }
 
 export function isEventModuleKey(value: string): value is EventModuleKey {

@@ -23,3 +23,25 @@ export function schoolYearOf(
   const startYear = month >= 9 ? year : year - 1;
   return { startYear, label: `${startYear}-${startYear + 1}` };
 }
+
+/** Calendar month (1-12) of an event in the campus timezone. */
+export function monthOf(date: Date | string, timezone: string): number {
+  return Number(toDateKey(date, timezone).slice(5, 7));
+}
+
+/** French month names indexed 1-12 (index 0 unused), for switcher labels. */
+export const MOIS_FR = [
+  '',
+  'janvier',
+  'février',
+  'mars',
+  'avril',
+  'mai',
+  'juin',
+  'juillet',
+  'août',
+  'septembre',
+  'octobre',
+  'novembre',
+  'décembre',
+] as const;

@@ -14,6 +14,7 @@ import MailCog from '@lucide/svelte/icons/mail-warning';
 import History from '@lucide/svelte/icons/history';
 import DoorOpen from '@lucide/svelte/icons/door-open';
 import Map from '@lucide/svelte/icons/map';
+import CalendarCog from '@lucide/svelte/icons/calendar-cog';
 import Signature from '@lucide/svelte/icons/signature';
 import Users from '@lucide/svelte/icons/users';
 import GraduationCap from '@lucide/svelte/icons/graduation-cap';
@@ -163,6 +164,12 @@ export const ADMIN_NAV: AdminNavSection[] = [
         href: resolve('/staff/admin/campuses'),
         icon: Map,
         keywords: ['campus', 'feature', 'flag'],
+      },
+      {
+        label: 'Événements',
+        href: resolve('/staff/admin/events'),
+        icon: CalendarCog,
+        keywords: ['evenement', 'event', 'module', 'stage', 'coding', 'nom'],
       },
       {
         label: 'Signataires',

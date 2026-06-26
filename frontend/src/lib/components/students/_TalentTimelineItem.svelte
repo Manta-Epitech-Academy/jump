@@ -8,7 +8,6 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { Button } from '$lib/components/ui/button';
   import { formatDateFr, cn } from '$lib/utils';
-  import { resolve } from '$app/paths';
   import {
     VERDICT_VALUES,
     VERDICT_LABELS,
@@ -147,16 +146,7 @@
       </div>
 
       <h3 class="font-heading text-lg leading-tight tracking-wide uppercase">
-        {#if p.event?.id}
-          <a
-            href={resolve(`/staff/dev/events/${p.event.id}`)}
-            class="transition-colors hover:text-epi-blue"
-          >
-            {p.event.titre}
-          </a>
-        {:else}
-          Événement inconnu
-        {/if}
+        {p.event?.titre ?? 'Événement inconnu'}
       </h3>
 
       <div

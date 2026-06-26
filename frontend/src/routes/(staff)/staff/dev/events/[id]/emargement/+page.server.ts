@@ -175,7 +175,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   })();
 
   return {
-    event: { id: event.id, titre: event.titre },
+    event: { id: event.id, titre: event.titre, publicName: event.publicName },
     timezone,
     slots,
     todayKey: toDateKey(now, timezone),

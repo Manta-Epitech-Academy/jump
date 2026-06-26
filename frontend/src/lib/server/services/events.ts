@@ -1,7 +1,45 @@
 import { error } from '@sveltejs/kit';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { eventTypeHasTheme, hhmmToMinutes } from '$lib/domain/event';
+import { hhmmToMinutes } from '$lib/domain/event';
 import { isEventModuleKey } from '$lib/domain/eventModules';
+import { fromWallClock } from '$lib/domain/planningTime';
+
+/**
+ * Diffs an event's `EventConfig_Module` rows against the desired set inside an
+ * open transaction: deletes removed modules, inserts added ones, leaves
+ * unchanged rows (so their `createdAt` is preserved). `skipDuplicates` keeps it
+ * idempotent under concurrent saves — two admins saving the same event both
+ * diff the pre-write snapshot, so the loser would otherwise hit the composite
+ * PK (P2002) and roll back its whole save.
+ */
+async function applyModuleDiff(
+  tx: Prisma.TransactionClient,
+  eventId: string,
+  moduleKeys: string[],
+) {
+  const desired = new Set<string>(moduleKeys.filter(isEventModuleKey));
+  const current = await tx.eventConfig_Module.findMany({
+    where: { eventId },
+    select: { moduleKey: true },
+  });
+  const currentKeys = new Set(current.map((m) => m.moduleKey));
+
+  const toAdd = [...desired].filter((k) => !currentKeys.has(k));
+  const toRemove = [...currentKeys].filter((k) => !desired.has(k));
+
+  if (toRemove.length > 0) {
+    await tx.eventConfig_Module.deleteMany({
+      where: { eventId, moduleKey: { in: toRemove } },
+    });
+  }
+  if (toAdd.length > 0) {
+    await tx.eventConfig_Module.createMany({
+      data: toAdd.map((moduleKey) => ({ eventId, moduleKey })),
+      skipDuplicates: true,
+    });
+  }
+}
 
 async function validateMantaIds(campusId: string, mantaIds: string[]) {
   if (mantaIds.length === 0) return;
@@ -23,134 +61,53 @@ async function validateMantaIds(campusId: string, mantaIds: string[]) {
 
 export const EventService = {
   /**
-   * Sets (or clears) the Jump-owned start time-of-day. SF never provides it,
-   * and the sync never writes `startMinutes` back, so this is the single
-   * writer. `startTime` is "HH:MM"; empty clears it back to the type default
-   * (`startMinutes = null` = unconfirmed). A non-null value means a human
-   * confirmed the time.
+   * Admin event configuration: the friendly `publicName`, the Jump-owned start
+   * time-of-day and end date, free-text notes, and the dev-workspace surfaces
+   * the event exposes — all in one transaction. Admin-only (the
+   * `/staff/admin/events` page is admin-gated and admins are cross-campus, so
+   * there is no campus check here; the event id is the authority). The start
+   * `date`, `titre` and `eventType` stay Salesforce-owned. `endDate` is NOT
+   * sent by Salesforce, so Jump owns it here (like the start time): a
+   * `YYYY-MM-DD` campus-tz day, stored at end-of-day so the last day still
+   * reads as "ongoing"; empty clears it back to the type default span. Note an
+   * applied planning template also rewrites `endDate` (its last day wins).
    */
-  async setStartTime(eventId: string, campusId: string, startTime: string) {
-    const event = await prisma.event.findUniqueOrThrow({
-      where: { id: eventId },
-      select: { campusId: true },
-    });
-    if (event.campusId !== campusId) {
-      throw error(
-        403,
-        'Accès refusé : cet événement appartient à un autre campus.',
-      );
-    }
-    await prisma.event.update({
-      where: { id: eventId },
-      data: { startMinutes: hhmmToMinutes(startTime) },
-    });
-  },
-
-  /**
-   * Sets the dev-workspace surfaces an event exposes (its `EventConfig_Module`
-   * rows). Jump-owned: seeded from the type preset at creation, then edited
-   * here per event; the SF sync never touches these rows. Diffs against the
-   * current set so unchanged modules keep their `createdAt`, and only writes
-   * when something actually changed.
-   */
-  async setEventModules(
+  async updateEventConfig(
     eventId: string,
-    campusId: string,
-    moduleKeys: string[],
-  ) {
-    const event = await prisma.event.findUniqueOrThrow({
-      where: { id: eventId },
-      select: { campusId: true },
-    });
-    if (event.campusId !== campusId) {
-      throw error(
-        403,
-        'Accès refusé : cet événement appartient à un autre campus.',
-      );
-    }
-
-    const desired = new Set<string>(moduleKeys.filter(isEventModuleKey));
-    const current = await prisma.eventConfig_Module.findMany({
-      where: { eventId },
-      select: { moduleKey: true },
-    });
-    const currentKeys = new Set(current.map((m) => m.moduleKey));
-
-    const toAdd = [...desired].filter((k) => !currentKeys.has(k));
-    const toRemove = [...currentKeys].filter((k) => !desired.has(k));
-    if (toAdd.length === 0 && toRemove.length === 0) return;
-
-    await prisma.$transaction(async (tx) => {
-      if (toRemove.length > 0) {
-        await tx.eventConfig_Module.deleteMany({
-          where: { eventId, moduleKey: { in: toRemove } },
-        });
-      }
-      if (toAdd.length > 0) {
-        // `skipDuplicates` keeps the diff idempotent: two leads saving the same
-        // event concurrently both diff against the pre-write snapshot, so the
-        // loser would otherwise hit the composite PK (P2002) and roll back its
-        // whole save. Skipping the already-present row lets both settle.
-        await tx.eventConfig_Module.createMany({
-          data: toAdd.map((moduleKey) => ({ eventId, moduleKey })),
-          skipDuplicates: true,
-        });
-      }
-    });
-  },
-
-  /**
-   * Updates Jump-side metadata on an event. Identity fields (titre, date,
-   * endDate, mantas) are owned by Salesforce — the SF worker would overwrite
-   * anything we write locally, so they're not editable here. The start time
-   * has its own writer (`setStartTime`), kept apart so editing notes can't
-   * touch it.
-   */
-  async updateEvent(
-    eventId: string,
-    campusId: string,
     data: {
-      theme?: string;
-      notes?: string;
+      publicName: string;
+      startTime: string;
+      endDate: string;
+      notes: string;
+      modules: string[];
     },
   ) {
-    const currentEvent = await prisma.event.findUniqueOrThrow({
+    // Surfaces a clean 404 (rather than a transaction-level throw) if the event
+    // vanished between the page load and the save. The campus tz turns the
+    // bare end-date day into a correct instant.
+    const event = await prisma.event.findUniqueOrThrow({
       where: { id: eventId },
+      select: { campus: { select: { timezone: true } } },
     });
-    if (currentEvent.campusId !== campusId) {
-      throw error(
-        403,
-        'Accès refusé : cet événement appartient à un autre campus.',
-      );
-    }
-    const oldThemeId = currentEvent.themeId;
-    const themeApplies = eventTypeHasTheme(currentEvent.eventType);
+    // 23:59 campus-local on the chosen day: `getEventStatus` only flips the
+    // event to "past" once that whole day has elapsed, and `toDateKey` still
+    // resolves it to that day for the émargement créneaux.
+    const endDate = data.endDate
+      ? fromWallClock(data.endDate, '23:59', event.campus.timezone)
+      : null;
 
-    let newThemeId: string | null = null;
-    if (themeApplies && data.theme && data.theme.trim() !== '') {
-      const existing = await prisma.theme.findFirst({
-        where: { nom: data.theme },
+    await prisma.$transaction(async (tx) => {
+      await applyModuleDiff(tx, eventId, data.modules);
+      await tx.event.update({
+        where: { id: eventId },
+        data: {
+          publicName: data.publicName.trim() || null,
+          startMinutes: hhmmToMinutes(data.startTime),
+          endDate,
+          notes: data.notes,
+        },
       });
-
-      if (existing) {
-        newThemeId = existing.id;
-      } else {
-        const created = await prisma.theme.create({
-          data: { nom: data.theme, campusId },
-        });
-        newThemeId = created.id;
-      }
-    }
-
-    await prisma.event.update({
-      where: { id: eventId },
-      data: {
-        themeId: themeApplies ? (newThemeId ?? undefined) : undefined,
-        notes: data.notes,
-      },
     });
-
-    return themeApplies && oldThemeId !== newThemeId;
   },
 
   /**

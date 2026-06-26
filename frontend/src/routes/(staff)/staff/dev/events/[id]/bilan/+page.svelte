@@ -6,6 +6,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import { eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import BilanRoster from './components/BilanRoster.svelte';
   import StatsPanel from './components/StatsPanel.svelte';
@@ -17,7 +18,7 @@
 </script>
 
 <svelte:head>
-  <title>Bilan du stage · {data.event.titre}</title>
+  <title>Bilan du stage · {eventDisplayName(data.event)}</title>
 </svelte:head>
 
 <div class="space-y-6 pb-10">

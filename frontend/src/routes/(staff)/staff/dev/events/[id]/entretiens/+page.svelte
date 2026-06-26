@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { resolve } from '$app/paths';
+  import { eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
@@ -15,19 +15,13 @@
 </script>
 
 <svelte:head>
-  <title>{data.event.titre} · Entretiens</title>
+  <title>{eventDisplayName(data.event)} · Entretiens</title>
 </svelte:head>
 
 <div class="space-y-6 pb-10">
   {#if hasCodingClub}
     <PageBreadcrumb
-      items={[
-        {
-          label: data.event.titre,
-          href: resolve(`/staff/dev/events/${data.event.id}`),
-        },
-        { label: 'Entretiens' },
-      ]}
+      items={[{ label: eventDisplayName(data.event) }, { label: 'Entretiens' }]}
     />
   {/if}
   <PageHeader title="Entretiens" />
