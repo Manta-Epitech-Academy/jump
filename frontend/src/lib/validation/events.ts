@@ -31,8 +31,12 @@ export const adminEventSchema = z.object({
   modules: z
     .array(z.enum(EVENT_MODULE_KEYS as [string, ...string[]]))
     .default([]),
-  // Explicit dev-workspace visibility gate (decoupled from modules). Posted by a
-  // Switch whose hidden input is present only when on, so absent = false.
+  // Per-module sub-options, keyed by module key (e.g. { inscrits: { showStatutColumn:
+  // false } }). Kept loose here (the form is posted with `dataType: 'json'`); each
+  // module's settings are authoritatively parsed against its own schema in the
+  // service (`parseModuleSettings`), and only persisted for enabled modules.
+  moduleSettings: z.record(z.string(), z.unknown()).default({}),
+  // Explicit dev-workspace visibility gate (decoupled from modules).
   devActivated: z.boolean().default(false),
   // Which feedback form the event's `bilan` surface uses. Empty clears the
   // override → the event falls back to the form marked default for its type. A
@@ -63,4 +67,24 @@ export const bulkEventModulesSchema = z.object({
 export const bulkEventActivationSchema = z.object({
   ids: z.array(z.string().min(1)).min(1),
   activate: z.boolean(),
+});
+
+/**
+ * "Enregistrer comme modèle" from the config wizard: snapshot the current module
+ * config (presence + per-module settings + default feedback form) as a new named,
+ * global `EventConfig_Template`. The config fields mirror the event form; the
+ * snapshot is a point-in-time copy, with no live link back to the event. Module
+ * settings stay loose here (authoritatively parsed per module in the service).
+ */
+export const eventConfigTemplateSaveSchema = z.object({
+  name: z.string().trim().min(1, 'Nom requis.').max(80),
+  description: z.string().trim().max(280).default(''),
+  // The SF event type the template was saved from, captured so the wizard can
+  // suggest it for matching events (soft hint, not a binding).
+  forEventType: z.string().default(''),
+  modules: z
+    .array(z.enum(EVENT_MODULE_KEYS as [string, ...string[]]))
+    .default([]),
+  moduleSettings: z.record(z.string(), z.unknown()).default({}),
+  feedbackFormId: z.string().default(''),
 });

@@ -1,17 +1,20 @@
 import type { PageServerLoad, Actions } from './$types';
-import { fail } from '@sveltejs/kit';
+import { fail, isHttpError } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { EventService } from '$lib/server/services/events';
+import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
 import {
   adminEventSchema,
   bulkEventModulesSchema,
   bulkEventActivationSchema,
+  eventConfigTemplateSaveSchema,
 } from '$lib/validation/events';
 import { eventTypeLabel, minutesToHHMM } from '$lib/domain/event';
 import {
   isEventModuleKey,
+  parseModuleSettings,
   type EventModuleKey,
 } from '$lib/domain/eventModules';
 import {
@@ -63,6 +66,8 @@ export type AdminEventVM = {
   endDate: string;
   notes: string;
   modules: EventModuleKey[];
+  /** Per-module sub-options keyed by module key (only enabled modules carry one). */
+  moduleSettings: Record<string, unknown>;
   /** Per-event feedback form override (id), or "" = use the type default. */
   feedbackFormId: string;
   participations: number;
@@ -105,7 +110,7 @@ export const load: PageServerLoad = async () => {
       feedbackFormId: true,
       campusId: true,
       campus: { select: { name: true, timezone: true } },
-      modules: { select: { moduleKey: true } },
+      modules: { select: { moduleKey: true, settings: true } },
       _count: { select: { participations: true } },
     },
   });
@@ -131,7 +136,13 @@ export const load: PageServerLoad = async () => {
       { date: e.date, endDate: e.endDate },
       boundsFor(tz),
     );
-    const modules = e.modules.map((m) => m.moduleKey).filter(isEventModuleKey);
+    const present = e.modules.filter((m) => isEventModuleKey(m.moduleKey));
+    const modules = present.map((m) => m.moduleKey as EventModuleKey);
+    const moduleSettings: Record<string, unknown> = {};
+    for (const m of present) {
+      const key = m.moduleKey as EventModuleKey;
+      moduleSettings[key] = parseModuleSettings(key, m.settings);
+    }
     return {
       id: e.id,
       titre: e.titre,
@@ -159,6 +170,7 @@ export const load: PageServerLoad = async () => {
       endDate: e.endDate ? toDateKey(e.endDate, tz) : '',
       notes: e.notes ?? '',
       modules,
+      moduleSettings,
       feedbackFormId: e.feedbackFormId ?? '',
       participations: e._count.participations,
     };
@@ -168,30 +180,35 @@ export const load: PageServerLoad = async () => {
   // forms an event can be bound to, plus the title of the form that resolves by
   // default per event type (shown as the "Par défaut (…)" sentinel). One query
   // each, cross-event (the dialog reuses them for whichever row is opened).
-  const [publishedForms, typeDefaults] = await Promise.all([
+  const [publishedForms, typeDefaults, templates] = await Promise.all([
     prisma.feedback_Form.findMany({
+      // Any published, talent-answerable form is pickable for an event (forms are
+      // not owned by events — an event-specific one is just a normally-named form).
       where: { status: 'published', allowsAuthenticatedAccess: true },
       select: { id: true, title: true },
       orderBy: { title: 'asc' },
     }),
     prisma.feedback_Form.findMany({
       where: { defaultForEventType: { not: null } },
-      select: { defaultForEventType: true, title: true },
+      select: { id: true, defaultForEventType: true, title: true },
     }),
+    EventConfigTemplateService.list(),
   ]);
   const feedbackForms = publishedForms.map((f) => ({
     value: f.id,
     label: f.title,
   }));
-  const defaultFormTitleByType: Record<string, string> = {};
+  // The form an event type resolves to when it sets no override: its id (to deep-
+  // link the editor) + title (for the "Par défaut (…)" picker label).
+  const defaultFormByType: Record<string, { id: string; title: string }> = {};
   for (const f of typeDefaults) {
     if (f.defaultForEventType)
-      defaultFormTitleByType[f.defaultForEventType] = f.title;
+      defaultFormByType[f.defaultForEventType] = { id: f.id, title: f.title };
   }
 
   const form = await superValidate(zod4(adminEventSchema));
 
-  return { events, form, feedbackForms, defaultFormTitleByType };
+  return { events, form, feedbackForms, defaultFormByType, templates };
 };
 
 export const actions: Actions = {
@@ -206,6 +223,7 @@ export const actions: Actions = {
         endDate: form.data.endDate,
         notes: form.data.notes,
         modules: form.data.modules,
+        moduleSettings: form.data.moduleSettings,
         devActivated: form.data.devActivated,
         feedbackFormId: form.data.feedbackFormId,
       });
@@ -265,6 +283,64 @@ export const actions: Actions = {
     } catch (err) {
       console.error(err);
       return fail(500, { bulkError: 'Erreur lors de la mise à jour groupée.' });
+    }
+  },
+
+  // "Enregistrer comme modèle" from the config wizard: snapshot the posted module
+  // config as a new global EventConfig_Template. Plain enhanced form — name +
+  // description + a JSON `config` blob (modules + per-module settings + default
+  // feedback form), since the config is nested.
+  saveAsTemplate: async ({ request, locals }) => {
+    const fd = await request.formData();
+    let config: unknown;
+    try {
+      config = JSON.parse(String(fd.get('config') ?? '{}'));
+    } catch {
+      return fail(400, { templateError: 'Configuration invalide.' });
+    }
+    const parsed = eventConfigTemplateSaveSchema.safeParse({
+      name: fd.get('name'),
+      description: fd.get('description') ?? '',
+      ...(config as Record<string, unknown>),
+    });
+    if (!parsed.success) {
+      return fail(400, {
+        templateError: parsed.error.issues[0]?.message ?? 'Modèle invalide.',
+      });
+    }
+    try {
+      const { id, updated } = await EventConfigTemplateService.saveTemplate({
+        ...parsed.data,
+        actorId: locals.staffProfile?.id ?? null,
+      });
+      return {
+        templateId: id,
+        templateName: parsed.data.name,
+        templateUpdated: updated,
+      };
+    } catch (err) {
+      if (isHttpError(err)) {
+        return fail(err.status, { templateError: String(err.body.message) });
+      }
+      console.error(err);
+      return fail(500, {
+        templateError: "Erreur lors de l'enregistrement du modèle.",
+      });
+    }
+  },
+
+  // Delete a config template from the wizard's step 1. The list is managed
+  // optimistically client-side, so this just removes the row server-side.
+  deleteTemplate: async ({ request }) => {
+    const fd = await request.formData();
+    const id = String(fd.get('id') ?? '').trim();
+    if (!id) return fail(400, { templateError: 'Modèle manquant.' });
+    try {
+      await EventConfigTemplateService.remove(id);
+      return { ok: true };
+    } catch (err) {
+      console.error(err);
+      return fail(500, { templateError: 'Erreur lors de la suppression.' });
     }
   },
 };

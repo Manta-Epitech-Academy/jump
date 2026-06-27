@@ -2,42 +2,78 @@ import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { hhmmToMinutes } from '$lib/domain/event';
-import { isEventModuleKey } from '$lib/domain/eventModules';
+import {
+  isEventModuleKey,
+  parseModuleSettings,
+  type EventModuleKey,
+} from '$lib/domain/eventModules';
 import { fromWallClock } from '$lib/domain/planningTime';
 
 /**
  * Diffs an event's `EventConfig_Module` rows against the desired set inside an
- * open transaction: deletes removed modules, inserts added ones, leaves
- * unchanged rows (so their `createdAt` is preserved). `skipDuplicates` keeps it
- * idempotent under concurrent saves — two admins saving the same event both
- * diff the pre-write snapshot, so the loser would otherwise hit the composite
- * PK (P2002) and roll back its whole save.
+ * open transaction: deletes removed modules, then reconciles the rest.
+ *
+ * `settings` carries the per-module sub-options, validated per module before any
+ * write. `overwriteSettings` splits the two callers:
+ *  - the single-event wizard save is the authoritative sub-option editor, so it
+ *    UPSERTS every desired module with its validated settings (update preserves
+ *    `createdAt`);
+ *  - the bulk module edit only sets presence, so it ADDS missing modules with
+ *    default settings and leaves existing rows' settings untouched — a bulk apply
+ *    must never reset a campus's per-event sub-options.
+ *
+ * Both paths stay idempotent under concurrent saves: the bulk add uses
+ * `skipDuplicates`, and the wizard upsert is naturally race-safe on the PK (two
+ * admins saving the same event no longer hit a P2002 that rolls back the save).
  */
 async function applyModuleDiff(
   tx: Prisma.TransactionClient,
   eventId: string,
   moduleKeys: string[],
+  opts: { settings?: Record<string, unknown>; overwriteSettings: boolean },
 ) {
-  const desired = new Set<string>(moduleKeys.filter(isEventModuleKey));
+  const desired = [
+    ...new Set(moduleKeys.filter(isEventModuleKey)),
+  ] as EventModuleKey[];
   const current = await tx.eventConfig_Module.findMany({
     where: { eventId },
     select: { moduleKey: true },
   });
   const currentKeys = new Set(current.map((m) => m.moduleKey));
 
-  const toAdd = [...desired].filter((k) => !currentKeys.has(k));
-  const toRemove = [...currentKeys].filter((k) => !desired.has(k));
-
+  const toRemove = [...currentKeys].filter(
+    (k) => !desired.includes(k as EventModuleKey),
+  );
   if (toRemove.length > 0) {
     await tx.eventConfig_Module.deleteMany({
       where: { eventId, moduleKey: { in: toRemove } },
     });
   }
-  if (toAdd.length > 0) {
-    await tx.eventConfig_Module.createMany({
-      data: toAdd.map((moduleKey) => ({ eventId, moduleKey })),
-      skipDuplicates: true,
-    });
+
+  const settingsFor = (key: EventModuleKey): Prisma.InputJsonValue =>
+    parseModuleSettings(key, opts.settings?.[key]) as Prisma.InputJsonValue;
+
+  if (opts.overwriteSettings) {
+    for (const moduleKey of desired) {
+      const settings = settingsFor(moduleKey);
+      await tx.eventConfig_Module.upsert({
+        where: { eventId_moduleKey: { eventId, moduleKey } },
+        create: { eventId, moduleKey, settings },
+        update: { settings },
+      });
+    }
+  } else {
+    const toAdd = desired.filter((k) => !currentKeys.has(k));
+    if (toAdd.length > 0) {
+      await tx.eventConfig_Module.createMany({
+        data: toAdd.map((moduleKey) => ({
+          eventId,
+          moduleKey,
+          settings: settingsFor(moduleKey),
+        })),
+        skipDuplicates: true,
+      });
+    }
   }
 }
 
@@ -80,6 +116,7 @@ export const EventService = {
       endDate: string;
       notes: string;
       modules: string[];
+      moduleSettings: Record<string, unknown>;
       devActivated: boolean;
       feedbackFormId: string;
     },
@@ -120,7 +157,10 @@ export const EventService = {
     }
 
     await prisma.$transaction(async (tx) => {
-      await applyModuleDiff(tx, eventId, data.modules);
+      await applyModuleDiff(tx, eventId, data.modules, {
+        settings: data.moduleSettings,
+        overwriteSettings: true,
+      });
       await tx.event.update({
         where: { id: eventId },
         data: {
@@ -147,7 +187,9 @@ export const EventService = {
     if (eventIds.length === 0) return;
     await prisma.$transaction(async (tx) => {
       for (const eventId of eventIds) {
-        await applyModuleDiff(tx, eventId, modules);
+        await applyModuleDiff(tx, eventId, modules, {
+          overwriteSettings: false,
+        });
       }
     });
   },

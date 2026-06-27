@@ -8,6 +8,7 @@ import {
   loadEventOr404,
   requireEventModule,
   stageEndOrDefault,
+  eventModuleSettings,
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { compareNiveaux } from '$lib/domain/niveau';
@@ -173,6 +174,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     timezone,
     origin,
     countdown,
+    // Inscrits sub-option: hide the dossier/statut funnel column for events whose
+    // campus doesn't onboard. Cheap shell value, so it rides the first paint.
+    showStatutColumn: eventModuleSettings(event, EVENT_MODULES.INSCRITS)
+      .showStatutColumn,
     // Un-awaited on purpose: SvelteKit streams it so the shell paints first.
     cohort,
   };

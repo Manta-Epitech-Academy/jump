@@ -1,7 +1,4 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
-  import { superForm } from 'sveltekit-superforms';
-  import CalendarCog from '@lucide/svelte/icons/calendar-cog';
   import Pencil from '@lucide/svelte/icons/pencil';
   import FilterX from '@lucide/svelte/icons/filter-x';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
@@ -12,18 +9,13 @@
   import Eye from '@lucide/svelte/icons/eye';
   import EyeOff from '@lucide/svelte/icons/eye-off';
   import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
-  import { Textarea } from '$lib/components/ui/textarea';
   import { Badge } from '$lib/components/ui/badge';
   import { Switch } from '$lib/components/ui/switch';
-  import { TimePicker } from '$lib/components/ui/time-picker';
-  import { DatePicker } from '$lib/components/ui/date-picker';
   import * as Dialog from '$lib/components/ui/dialog';
-  import * as Select from '$lib/components/ui/select';
   import * as Table from '$lib/components/ui/table';
   import EventModulesCell from '$lib/components/events/EventModulesCell.svelte';
   import EventModuleIcon from '$lib/components/events/EventModuleIcon.svelte';
+  import EventConfigWizard from '$lib/components/events/EventConfigWizard.svelte';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
@@ -41,7 +33,6 @@
     EVENT_MODULE_KEYS,
     type EventModuleKey,
   } from '$lib/domain/eventModules';
-  import { effectiveStartMinutes, minutesToHHMM } from '$lib/domain/event';
   import { EVENT_PREP_REASON_LABELS } from '$lib/domain/eventReadiness';
   import { enhance as formEnhance } from '$app/forms';
   import type { SubmitFunction } from '@sveltejs/kit';
@@ -235,66 +226,14 @@
   }
 
   // ─── Edit dialog ─────────────────────────────────────────────────────────
-  const { form, errors, enhance, delayed } = superForm(
-    untrack(() => data.form),
-    {
-      onResult: ({ result }) => {
-        if (result.type === 'success') {
-          open = false;
-          toast.success(result.data?.form?.message || 'Événement mis à jour.');
-        }
-      },
-    },
-  );
-
+  // The config wizard (EventConfigWizard) owns the superform, the two steps and
+  // all the per-module sub-options; the page only opens it on the chosen row.
   let open = $state(false);
   let editing = $state<AdminEventVM | null>(null);
 
-  // The type's fallback hour ("10:00" stage / "14:00" coding club), shown in the
-  // dialog so staff see what applies until they confirm a real one.
-  const defaultStartTime = $derived(
-    editing
-      ? minutesToHHMM(effectiveStartMinutes(editing.eventType, null))
-      : '',
-  );
-
   function openEdit(e: AdminEventVM) {
     editing = e;
-    $form.id = e.id;
-    $form.publicName = e.publicName;
-    $form.startTime = e.startTime;
-    $form.endDate = e.endDate;
-    $form.notes = e.notes;
-    $form.modules = [...e.modules];
-    $form.devActivated = e.devActivated;
-    $form.feedbackFormId = e.feedbackFormId;
     open = true;
-  }
-
-  // ─── Feedback form picker (used by the bilan module) ─────────────────────
-  // '' (use the type default) maps to a sentinel because bits-ui Select wants a
-  // non-empty value; mapped back on change. The default label names the form the
-  // event type resolves to when no override is set.
-  const NO_FORM = 'default';
-  const feedbackDefaultLabel = $derived.by(() => {
-    const t = editing ? data.defaultFormTitleByType[editing.eventType] : '';
-    return t
-      ? `Par défaut (${t})`
-      : 'Par défaut (aucun formulaire pour ce type)';
-  });
-  const feedbackTriggerLabel = $derived(
-    $form.feedbackFormId
-      ? (data.feedbackForms.find((f) => f.value === $form.feedbackFormId)
-          ?.label ?? 'Formulaire inconnu')
-      : feedbackDefaultLabel,
-  );
-
-  function toggleModule(key: EventModuleKey, checked: boolean) {
-    if (checked) {
-      if (!$form.modules.includes(key)) $form.modules = [...$form.modules, key];
-    } else {
-      $form.modules = $form.modules.filter((k) => k !== key);
-    }
   }
 
   // ─── Bulk module edit (over the list selection) ──────────────────────────
@@ -702,239 +641,14 @@
     {/snippet}
   </SortableTable>
 
-  <Dialog.Root bind:open>
-    <Dialog.Content class="flex max-h-[90dvh] flex-col gap-0 p-0 sm:max-w-2xl">
-      <Dialog.Header class="border-b px-4 py-4 text-start sm:px-6">
-        <Dialog.Title class="flex items-center gap-2">
-          <CalendarCog class="h-5 w-5 text-epi-pink" />
-          Configurer l'événement
-        </Dialog.Title>
-        {#if editing}
-          <Dialog.Description>
-            {editing.campusName} · {editing.eventTypeLabel} · {editing.dateLabel}
-          </Dialog.Description>
-        {/if}
-      </Dialog.Header>
-      <form
-        method="POST"
-        action="?/update"
-        use:enhance
-        class="flex min-h-0 flex-1 flex-col"
-      >
-        <input type="hidden" name="id" bind:value={$form.id} />
-        <div class="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:px-6">
-          <label
-            for="devActivated"
-            class="flex cursor-pointer items-start gap-3 rounded-sm border p-3 transition-colors select-none {$form.devActivated
-              ? 'border-epi-pink/40 bg-epi-pink/5'
-              : 'hover:bg-muted/40'}"
-          >
-            <div class="flex-1 space-y-1">
-              <span class="text-sm font-bold">Visible dans l'espace dev</span>
-              <p class="text-xs text-muted-foreground">
-                Tant que c'est désactivé, l'équipe dev ne voit pas cet
-                événement, même configuré. Activez-le quand il est prêt.
-              </p>
-            </div>
-            <Switch
-              id="devActivated"
-              name="devActivated"
-              value="true"
-              checked={$form.devActivated}
-              onCheckedChange={(v) => ($form.devActivated = v === true)}
-              class="mt-0.5"
-            />
-          </label>
-
-          <div class="space-y-2">
-            <Label for="publicName">Nom public</Label>
-            <Input
-              id="publicName"
-              name="publicName"
-              bind:value={$form.publicName}
-              placeholder={editing?.titre ?? 'Ex : Stage de seconde - Février'}
-            />
-            <p class="text-xs text-muted-foreground">
-              {#if $form.publicName.trim()}
-                Ce nom est vu par le staff et par les jeunes, à la place du nom
-                importé de Salesforce.
-              {:else}
-                Pour l'instant, c'est le nom importé de Salesforce qui
-                s'affiche. Donnez-lui un nom plus parlant : il sera vu par le
-                staff comme par les jeunes.
-              {/if}
-            </p>
-            {#if $errors.publicName}<span class="text-xs text-destructive"
-                >{$errors.publicName}</span
-              >{/if}
-          </div>
-
-          <div class="grid gap-4 sm:grid-cols-2">
-            <div class="space-y-2">
-              <!-- Fixed-height label row so the optional "À confirmer" badge
-                   can't grow this column taller than the bare-label column
-                   next to it, which would shove the control below out of line
-                   with its neighbour. The endDate column mirrors this height. -->
-              <div class="flex h-6 items-center gap-2">
-                <Label for="startTime">Heure d'arrivée des jeunes</Label>
-                {#if !$form.startTime}
-                  <Badge
-                    variant="outline"
-                    class="border-amber-500/50 text-[10px] leading-none font-normal text-amber-600"
-                  >
-                    À confirmer
-                  </Badge>
-                {/if}
-              </div>
-              <TimePicker
-                id="startTime"
-                name="startTime"
-                bind:value={$form.startTime}
-              />
-              <p class="text-xs text-muted-foreground">
-                Tant qu'elle n'est pas renseignée, les jeunes ne voient que la
-                date, sans heure. Le staff, lui, voit l'horaire par défaut{defaultStartTime
-                  ? ` (${defaultStartTime})`
-                  : ''} en attendant.
-              </p>
-              {#if $errors.startTime}<span class="text-xs text-destructive"
-                  >{$errors.startTime}</span
-                >{/if}
-            </div>
-            <div class="space-y-2">
-              <!-- Same fixed-height label row as the startTime column so both
-                   controls in this grid line up, badge or not. -->
-              <div class="flex h-6 items-center">
-                <Label for="endDate">Date de fin</Label>
-              </div>
-              <DatePicker
-                id="endDate"
-                name="endDate"
-                min={editing?.startDateKey}
-                placeholder="Durée par défaut"
-                bind:value={$form.endDate}
-              />
-              <p class="text-xs text-muted-foreground">
-                L'import Salesforce ne donne que la date de début. Laissez vide
-                pour la durée par défaut (≈ 2 semaines pour un stage, 1 jour
-                pour les autres).
-              </p>
-              {#if $errors.endDate}<span class="text-xs text-destructive"
-                  >{$errors.endDate}</span
-                >{/if}
-            </div>
-          </div>
-
-          <fieldset class="space-y-3">
-            <legend class="text-sm font-bold uppercase">
-              Modules de l'événement
-            </legend>
-            <p class="text-xs text-muted-foreground">
-              Choisissez les sections que le staff verra pour cet événement, et
-              n'activez que celles qui vous servent. Le planning n'est pas dans
-              la liste : il apparaît tout seul dès qu'un emploi du temps est
-              défini.
-            </p>
-            <div class="divide-y rounded-sm border">
-              {#each EVENT_MODULE_KEYS as key (key)}
-                {@const def = EVENT_MODULE_DEFS[key]}
-                {@const checked = $form.modules.includes(key)}
-                <!-- The whole row is a <label for> the switch, so clicking
-                     anywhere (icon, title, description) toggles it. The switch
-                     stays the focusable control; a <span> title avoids an
-                     invalid nested <label>. -->
-                <label
-                  for="module-{key}"
-                  class="flex cursor-pointer items-start gap-3 p-3 transition-colors select-none hover:bg-muted/40"
-                >
-                  <span
-                    class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-sm border bg-muted/40 text-muted-foreground"
-                  >
-                    <EventModuleIcon module={key} class="size-4" />
-                  </span>
-                  <div class="flex-1 space-y-1">
-                    <span class="text-sm font-bold">{def.label}</span>
-                    <p class="text-xs text-muted-foreground">
-                      {def.description}
-                    </p>
-                  </div>
-                  <Switch
-                    id="module-{key}"
-                    name="modules"
-                    value={key}
-                    {checked}
-                    onCheckedChange={(v) => toggleModule(key, v === true)}
-                    class="mt-0.5"
-                  />
-                </label>
-              {/each}
-            </div>
-          </fieldset>
-
-          <div class="space-y-2">
-            <Label for="feedbackFormId">Formulaire de feedback</Label>
-            <!-- Always-present hidden field so the binding is posted (and kept)
-                 on every save, even if the picker is left untouched; the Select
-                 drives its value. Empty = use the type default. -->
-            <input
-              type="hidden"
-              name="feedbackFormId"
-              value={$form.feedbackFormId}
-            />
-            <Select.Root
-              type="single"
-              value={$form.feedbackFormId || NO_FORM}
-              onValueChange={(v) =>
-                ($form.feedbackFormId = v === NO_FORM ? '' : v)}
-            >
-              <Select.Trigger id="feedbackFormId" class="w-full">
-                {feedbackTriggerLabel}
-              </Select.Trigger>
-              <Select.Content>
-                <Select.Item value={NO_FORM}>{feedbackDefaultLabel}</Select.Item
-                >
-                {#each data.feedbackForms as opt (opt.value)}
-                  <Select.Item value={opt.value}>{opt.label}</Select.Item>
-                {/each}
-              </Select.Content>
-            </Select.Root>
-            <p class="text-xs text-muted-foreground">
-              Le formulaire que les jeunes remplissent pour cet événement
-              (module Feedback). « Par défaut » utilise le formulaire associé au
-              type d'événement.
-            </p>
-          </div>
-
-          <div class="space-y-2">
-            <Label for="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              name="notes"
-              bind:value={$form.notes}
-              rows={3}
-              placeholder="Notes internes sur l'événement…"
-            />
-          </div>
-        </div>
-        <Dialog.Footer class="gap-2 border-t px-4 py-4 sm:px-6">
-          <Button
-            type="button"
-            variant="outline"
-            onclick={() => (open = false)}
-          >
-            Annuler
-          </Button>
-          <Button
-            type="submit"
-            disabled={$delayed}
-            class="bg-epi-pink text-white"
-          >
-            {$delayed ? 'Sauvegarde…' : 'Enregistrer'}
-          </Button>
-        </Dialog.Footer>
-      </form>
-    </Dialog.Content>
-  </Dialog.Root>
+  <EventConfigWizard
+    bind:open
+    {editing}
+    formData={data.form}
+    feedbackForms={data.feedbackForms}
+    defaultFormByType={data.defaultFormByType}
+    templates={data.templates}
+  />
 
   <Dialog.Root bind:open={bulkOpen}>
     <Dialog.Content class="flex max-h-[90dvh] flex-col gap-0 p-0 sm:max-w-lg">

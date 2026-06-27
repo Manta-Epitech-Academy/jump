@@ -3,7 +3,9 @@ import type { ScopedPrismaClient } from '$lib/server/db/scoped';
 import { EVENT_TYPES } from '$lib/domain/event';
 import {
   type EventModuleKey,
+  type EventModuleSettings,
   isEventModuleKey,
+  parseModuleSettings,
 } from '$lib/domain/eventModules';
 import {
   type EventLifecycleStatus,
@@ -193,7 +195,25 @@ export type EventRecord = {
   feedbackFormId: string | null;
   /** The dev-workspace surfaces this event exposes (presence = enabled). */
   modules: Set<EventModuleKey>;
+  /**
+   * Raw per-module sub-option Json, keyed by module key (only present modules).
+   * Read it through `eventModuleSettings(event, key)` to get a typed, defaulted
+   * object rather than touching the raw value.
+   */
+  moduleSettings: Map<EventModuleKey, unknown>;
 };
+
+/**
+ * Typed, fully-defaulted sub-options for a module on this event. Returns the
+ * module's defaults when the module is absent or carries no settings, so callers
+ * never branch on presence — e.g. `eventModuleSettings(event, 'inscrits').showStatutColumn`.
+ */
+export function eventModuleSettings<K extends EventModuleKey>(
+  event: { moduleSettings: Map<EventModuleKey, unknown> },
+  key: K,
+): EventModuleSettings[K] {
+  return parseModuleSettings(key, event.moduleSettings.get(key));
+}
 
 export async function loadEventOr404(
   eventId: string,
@@ -212,16 +232,20 @@ export async function loadEventOr404(
       campusId: true,
       externalId: true,
       feedbackFormId: true,
-      modules: { select: { moduleKey: true } },
+      modules: { select: { moduleKey: true, settings: true } },
     },
   });
   if (!event || event.campusId !== campusId) {
     throw error(404, 'Événement introuvable.');
   }
   const { modules, ...rest } = event;
+  const present = modules.filter((m) => isEventModuleKey(m.moduleKey));
   return {
     ...rest,
-    modules: new Set(modules.map((m) => m.moduleKey).filter(isEventModuleKey)),
+    modules: new Set(present.map((m) => m.moduleKey as EventModuleKey)),
+    moduleSettings: new Map(
+      present.map((m) => [m.moduleKey as EventModuleKey, m.settings]),
+    ),
   };
 }
 

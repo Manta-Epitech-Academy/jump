@@ -58,8 +58,8 @@
   });
 
   // Drill key is the year-month "YYYY-MM", not a bare 1-12: a school year opens
-  // and closes in August (15 Aug → 15 Aug), so both ends can land in August;
-  // keying on the real year-month keeps them apart. A plain string sort of
+  // and closes at the end of July (31 Jul → 31 Jul), so both ends can land in
+  // July; keying on the real year-month keeps them apart. A plain string sort of
   // "YYYY-MM" is already chronological within a school year (no scholar-rank).
   function monthsOf(yearLabel: string): string[] {
     const set = new Set<string>();

@@ -282,6 +282,7 @@ model StaffProfile {
   notesEdited             Note_TalentNote[]           @relation("Note_TalentNoteEditor")
   feedbackFormsCreated    Feedback_Form[]             @relation("Feedback_FormCreator")
   feedbackFormsUpdated    Feedback_Form[]             @relation("Feedback_FormEditor")
+  eventConfigTemplates    EventConfig_Template[]      @relation("EventConfigTemplateCreator")
 
   @@index([campusId])
 }
@@ -813,12 +814,56 @@ model Event {
 model EventConfig_Module {
   eventId   String
   moduleKey String
+  // Per-module sub-options (e.g. inscrits.showStatutColumn). Null = module-default
+  // settings. They are heterogeneous per module and meant to grow, so a Json bag
+  // validated app-side (per-module Zod in domain/eventModules.ts) beats a sparse
+  // wide table; FKs (like feedbackFormId) stay typed columns on Event, never here.
+  settings  Json?
   createdAt DateTime @default(now())
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@id([eventId, moduleKey])
   @@index([moduleKey])
+}
+
+// A reusable, named event-configuration preset (global, like PlanningTemplate),
+// created by staff from the config wizard ("Enregistrer comme modèle"). Applying
+// one is a point-in-time SEED: the wizard copies its modules + settings + default
+// feedback form into the event, with no live link afterwards (the event's own
+// rows stay the truth). `forEventType` is a soft hint (captured from the event a
+// template was saved from) the wizard uses to suggest a template for a matching
+// SF type, never a binding. `name` is globally unique → saving with an existing
+// name updates that template (upsert), which is how a template is edited.
+model EventConfig_Template {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  description    String?
+  forEventType   String?
+  feedbackFormId String?
+  createdById    String?
+  updatedById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  feedbackForm Feedback_Form?               @relation("EventConfigTemplateFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
+  createdBy    StaffProfile?                @relation("EventConfigTemplateCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  modules      EventConfig_TemplateModule[]
+
+  @@index([forEventType])
+  @@index([feedbackFormId])
+}
+
+// Mirror of EventConfig_Module on the template side (presence = enabled, same
+// `settings` Json shape), so applying a template or saving one is a plain row copy.
+model EventConfig_TemplateModule {
+  templateId String
+  moduleKey  String
+  settings   Json?
+
+  template EventConfig_Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@id([templateId, moduleKey])
 }
 
 model EventManta {
@@ -1031,12 +1076,13 @@ model Feedback_Form {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  createdBy   StaffProfile?         @relation("Feedback_FormCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy   StaffProfile?         @relation("Feedback_FormEditor", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdBy   StaffProfile?          @relation("Feedback_FormCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   StaffProfile?          @relation("Feedback_FormEditor", fields: [updatedById], references: [id], onDelete: SetNull)
   sections    Feedback_Section[]
   questions   Feedback_Question[]
   submissions Feedback_Submission[]
-  events      Event[]               @relation("EventFeedbackForm")
+  events      Event[]                @relation("EventFeedbackForm")
+  configTemplates EventConfig_Template[] @relation("EventConfigTemplateFeedbackForm")
 
   @@index([status])
 }

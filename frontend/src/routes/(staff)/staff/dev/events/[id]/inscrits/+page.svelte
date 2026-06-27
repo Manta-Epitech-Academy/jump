@@ -199,6 +199,7 @@
       countdown={data.countdown}
       timezone={data.timezone}
       event={data.event}
+      showStatutColumn={data.showStatutColumn}
     />
   {:catch}
     <div

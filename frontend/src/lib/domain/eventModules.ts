@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { EVENT_TYPES } from './event';
 
 /**
@@ -97,6 +98,68 @@ export function presetModulesForType(eventType: string): EventModuleKey[] {
 
 export function isEventModuleKey(value: string): value is EventModuleKey {
   return (EVENT_MODULE_KEYS as string[]).includes(value);
+}
+
+/**
+ * Per-module sub-options, persisted as the `settings` Json on each
+ * `EventConfig_Module` row (and mirrored on `EventConfig_TemplateModule`). Each
+ * schema parses an unknown Json bag into a fully-defaulted typed object, so
+ * callers never branch on missing keys. Extra keys are stripped (Zod object
+ * default), so a settings shape can grow without breaking old rows. A module
+ * with no sub-options uses the empty schema. FKs (the bilan feedback form) stay
+ * typed columns on `Event`, never in here.
+ */
+export const inscritsModuleSettingsSchema = z.object({
+  // Show the dossier/statut funnel column on the Inscrits table for this event.
+  // Campuses that don't onboard (e.g. Paris: interviews + public bilan only) turn
+  // it off so the column isn't dead noise. Gates ONLY that column, never the
+  // talent fiche.
+  showStatutColumn: z.boolean().default(true),
+});
+
+const emptyModuleSettingsSchema = z.object({});
+
+export const EVENT_MODULE_SETTINGS_SCHEMAS = {
+  [EVENT_MODULES.INSCRITS]: inscritsModuleSettingsSchema,
+  [EVENT_MODULES.EMARGEMENT]: emptyModuleSettingsSchema,
+  [EVENT_MODULES.BILAN]: emptyModuleSettingsSchema,
+  [EVENT_MODULES.ENTRETIENS]: emptyModuleSettingsSchema,
+} as const;
+
+export type EventModuleSettings = {
+  [K in EventModuleKey]: z.infer<(typeof EVENT_MODULE_SETTINGS_SCHEMAS)[K]>;
+};
+
+/**
+ * Parse a raw `settings` Json (DB column or posted form value) into the typed,
+ * fully-defaulted settings for `key`. Falls back to all-defaults on any malformed
+ * input, so a hand-edited or legacy row can never crash a read.
+ */
+export function parseModuleSettings<K extends EventModuleKey>(
+  key: K,
+  raw: unknown,
+): EventModuleSettings[K] {
+  const schema = EVENT_MODULE_SETTINGS_SCHEMAS[key] as unknown as z.ZodType<
+    EventModuleSettings[K]
+  >;
+  const parsed = schema.safeParse(raw ?? {});
+  return parsed.success ? parsed.data : schema.parse({});
+}
+
+/** The all-defaults settings for a module (used when a module is freshly enabled). */
+export function defaultModuleSettings<K extends EventModuleKey>(
+  key: K,
+): EventModuleSettings[K] {
+  return parseModuleSettings(key, {});
+}
+
+/** Whether a module exposes any sub-options (drives the advanced section in the wizard). */
+export function moduleHasSettings(key: EventModuleKey): boolean {
+  return (
+    Object.keys(
+      (EVENT_MODULE_SETTINGS_SCHEMAS[key] as z.ZodObject<z.ZodRawShape>).shape,
+    ).length > 0
+  );
 }
 
 export function eventModuleLabel(key: string): string {
