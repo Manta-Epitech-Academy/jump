@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { untrack, onMount } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
   import { enhance as formEnhance } from '$app/forms';
   import { page } from '$app/state';
@@ -42,6 +42,13 @@
   let createOpen = $state(false);
   let deleteOpen = $state(false);
   let deleteTarget = $state<FormListRow | null>(null);
+
+  // Deep-link from the event config wizard's "Créer un nouveau formulaire":
+  // land here with the create dialog already open instead of on a bare table.
+  // One-shot (onMount, not $effect) so closing the dialog doesn't reopen it.
+  onMount(() => {
+    if (page.url.searchParams.has('create')) createOpen = true;
+  });
 
   // The cohort streams in as an un-awaited promise. We resolve it into local
   // `$state` (rather than binding `{#await}` directly) because this page writes

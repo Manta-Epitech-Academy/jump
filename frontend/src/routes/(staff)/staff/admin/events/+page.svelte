@@ -647,6 +647,7 @@
     formData={data.form}
     feedbackForms={data.feedbackForms}
     defaultFormByType={data.defaultFormByType}
+    formPreviews={data.formPreviews}
     templates={data.templates}
   />
 

@@ -6,6 +6,11 @@ import { prisma } from '$lib/server/db';
 import { EventService } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
 import {
+  requireAdmin,
+  duplicateForm,
+  updateForm,
+} from '$lib/server/feedbackFormsAdmin';
+import {
   adminEventSchema,
   bulkEventModulesSchema,
   bulkEventActivationSchema,
@@ -206,9 +211,38 @@ export const load: PageServerLoad = async () => {
       defaultFormByType[f.defaultForEventType] = { id: f.id, title: f.title };
   }
 
+  // A compact, read-only preview of each pickable form (ordered question
+  // prompts) so the wizard shows "what's in this form" inline before it's
+  // chosen, instead of asking the admin to judge by title alone. Forms are a
+  // small curated catalogue, so previewing them all up front is cheap and saves
+  // a per-select round-trip. Identity questions (email/name capture) are
+  // omitted: the preview is about the form's actual content.
+  const previewIds = [
+    ...new Set([
+      ...publishedForms.map((f) => f.id),
+      ...typeDefaults.map((f) => f.id),
+    ]),
+  ];
+  const previewQuestions = await prisma.feedback_Question.findMany({
+    where: { formId: { in: previewIds }, identityField: null },
+    select: { formId: true, prompt: true },
+    orderBy: { position: 'asc' },
+  });
+  const formPreviews: Record<string, string[]> = {};
+  for (const q of previewQuestions) {
+    (formPreviews[q.formId] ??= []).push(q.prompt);
+  }
+
   const form = await superValidate(zod4(adminEventSchema));
 
-  return { events, form, feedbackForms, defaultFormByType, templates };
+  return {
+    events,
+    form,
+    feedbackForms,
+    defaultFormByType,
+    templates,
+    formPreviews,
+  };
 };
 
 export const actions: Actions = {
@@ -341,6 +375,44 @@ export const actions: Actions = {
     } catch (err) {
       console.error(err);
       return fail(500, { templateError: 'Erreur lors de la suppression.' });
+    }
+  },
+
+  // "Dupliquer" from the feedback sub-option: deep-clone the chosen form so the
+  // admin can branch it for this event without touching the shared original.
+  // The copy is published + answerable from birth (it mirrors an already-live
+  // form and is meant to be used right away), and stays a normal catalogue form
+  // — no event ownership. The wizard binds the event to it client-side and the
+  // copy becomes selectable like any other form; the admin renames/edits it in
+  // the builder.
+  duplicateFeedbackForm: async ({ request, locals }) => {
+    const { staffId } = requireAdmin(locals);
+    const fd = await request.formData();
+    const sourceId = String(fd.get('sourceId') ?? '').trim();
+    if (!sourceId) {
+      return fail(400, { feedbackFormError: 'Formulaire source manquant.' });
+    }
+    try {
+      const { id } = await duplicateForm(staffId, sourceId);
+      await updateForm(staffId, id, {
+        status: 'published',
+        allowsAuthenticatedAccess: true,
+      });
+      const copy = await prisma.feedback_Form.findUniqueOrThrow({
+        where: { id },
+        select: { title: true },
+      });
+      return { duplicatedFormId: id, duplicatedFormTitle: copy.title };
+    } catch (err) {
+      if (isHttpError(err)) {
+        return fail(err.status, {
+          feedbackFormError: String(err.body.message),
+        });
+      }
+      console.error(err);
+      return fail(500, {
+        feedbackFormError: 'Erreur lors de la duplication du formulaire.',
+      });
     }
   },
 };

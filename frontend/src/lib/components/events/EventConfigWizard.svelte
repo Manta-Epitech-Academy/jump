@@ -6,6 +6,8 @@
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Bookmark from '@lucide/svelte/icons/bookmark';
   import Pencil from '@lucide/svelte/icons/pencil';
+  import Copy from '@lucide/svelte/icons/copy';
+  import Plus from '@lucide/svelte/icons/plus';
   import Check from '@lucide/svelte/icons/check';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import X from '@lucide/svelte/icons/x';
@@ -29,7 +31,7 @@
   } from '$lib/domain/eventModules';
   import { effectiveStartMinutes, minutesToHHMM } from '$lib/domain/event';
   import type { AdminEventForm } from '$lib/validation/events';
-  import { enhance as kitEnhance } from '$app/forms';
+  import { enhance as kitEnhance, deserialize } from '$app/forms';
   import { toast } from 'svelte-sonner';
 
   // Structural subset of AdminEventVM the wizard needs (kept local so this
@@ -68,6 +70,7 @@
     formData,
     feedbackForms,
     defaultFormByType,
+    formPreviews,
     templates,
   }: {
     open: boolean;
@@ -75,6 +78,8 @@
     formData: SuperValidated<AdminEventForm>;
     feedbackForms: { value: string; label: string }[];
     defaultFormByType: Record<string, { id: string; title: string }>;
+    /** Per-form ordered question prompts, for the inline read-only preview. */
+    formPreviews: Record<string, string[]>;
     templates: TemplateVM[];
   } = $props();
 
@@ -131,8 +136,16 @@
     selectedTemplateId = null;
     confirmingDeleteId = null;
     workingTemplates = [...templates];
-    // Always open on Initialisation: the admin picks a starting point first.
-    step = 1;
+    // Local copies of the feedback catalogue + previews, so a form duplicated
+    // from inside the wizard appears in the picker without a page invalidation
+    // (which would reset the in-progress config, like the template list above).
+    workingForms = [...feedbackForms];
+    workingPreviews = { ...formPreviews };
+    // Step 1 (pick a starting template) only matters the first time an event is
+    // set up. A never-configured event has no module rows yet and opens on it;
+    // an already-configured one opens straight on step 2 to tweak. The "Choisir
+    // un modèle" link on step 2 still re-enters step 1 on demand.
+    step = e.modules.length === 0 ? 1 : 2;
   }
 
   // Prefill once per open, keyed on the event id (re-runs when a different row
@@ -206,6 +219,11 @@
 
   // ─── Feedback form picker (bilan sub-option) ─────────────────────────────
   const NO_FORM = 'default';
+  // Local, mutable mirrors of the catalogue + previews so a form duplicated from
+  // the sub-option shows up immediately (seeded from props in prefill()).
+  let workingForms = $state<{ value: string; label: string }[]>([]);
+  let workingPreviews = $state<Record<string, string[]>>({});
+  let duplicatingForm = $state(false);
   const defaultForm = $derived(
     editing ? defaultFormByType[editing.eventType] : undefined,
   );
@@ -216,15 +234,59 @@
   );
   const feedbackTriggerLabel = $derived(
     $form.feedbackFormId
-      ? (feedbackForms.find((f) => f.value === $form.feedbackFormId)?.label ??
+      ? (workingForms.find((f) => f.value === $form.feedbackFormId)?.label ??
           'Formulaire inconnu')
       : feedbackDefaultLabel,
   );
   // The form this event resolves to right now: the override, else the type
-  // default. Drives the "open in editor" deep-link; empty = nothing to open.
+  // default. Drives the preview + "open in editor" deep-link; empty = nothing.
   const effectiveFormId = $derived(
     $form.feedbackFormId || defaultForm?.id || '',
   );
+  // Ordered question prompts of the resolved form, for the inline preview.
+  const effectivePreview = $derived(workingPreviews[effectiveFormId] ?? []);
+
+  // "Dupliquer pour cet événement": branch the resolved form into a fresh copy.
+  // Posted via fetch (not an enhanced <form>) because this lives inside the main
+  // config <form> — a nested form is invalid HTML. On success the copy is added
+  // to the local catalogue, bound to the event, and opened in the builder.
+  async function duplicateSelectedForm() {
+    const src = effectiveFormId;
+    if (!src || duplicatingForm) return;
+    duplicatingForm = true;
+    try {
+      const body = new FormData();
+      body.set('sourceId', src);
+      const res = await fetch('?/duplicateFeedbackForm', {
+        method: 'POST',
+        body,
+      });
+      const result = deserialize(await res.text());
+      if (result.type === 'success' && result.data?.duplicatedFormId) {
+        const id = result.data.duplicatedFormId as string;
+        const title = result.data.duplicatedFormTitle as string;
+        workingForms = [...workingForms, { value: id, label: title }];
+        workingPreviews = {
+          ...workingPreviews,
+          [id]: workingPreviews[src] ?? [],
+        };
+        $form.feedbackFormId = id;
+        toast.success('Copie créée. Ouverture de l’éditeur…');
+        window.open(`/staff/admin/feedback-forms/${id}`, '_blank', 'noopener');
+      } else if (result.type === 'failure') {
+        toast.error(
+          (result.data?.feedbackFormError as string | undefined) ??
+            'Erreur lors de la duplication.',
+        );
+      } else if (result.type === 'error') {
+        toast.error('Erreur lors de la duplication.');
+      }
+    } catch {
+      toast.error('Erreur lors de la duplication.');
+    } finally {
+      duplicatingForm = false;
+    }
+  }
 
   const defaultStartTime = $derived(
     editing
@@ -264,7 +326,10 @@
 </script>
 
 <Dialog.Root bind:open>
-  <Dialog.Content class="flex max-h-[90dvh] flex-col gap-0 p-0 sm:max-w-2xl">
+  <Dialog.Content
+    class="flex max-h-[90dvh] flex-col gap-0 p-0 sm:max-w-2xl"
+    onOpenAutoFocus={(e) => e.preventDefault()}
+  >
     <Dialog.Header class="border-b px-4 py-4 text-start sm:px-6">
       <Dialog.Title class="flex items-center gap-2">
         <CalendarCog class="h-5 w-5 text-epi-pink" />
@@ -315,7 +380,7 @@
                 <button
                   type="button"
                   onclick={() => applyTemplate(t)}
-                  class="flex flex-1 items-start gap-3 rounded-l-sm p-3 text-start transition-colors hover:bg-epi-pink/5"
+                  class="flex flex-1 cursor-pointer items-start gap-3 rounded-l-sm p-3 text-start transition-colors hover:bg-epi-pink/5"
                 >
                   <span
                     class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-sm border bg-muted/40 text-muted-foreground"
@@ -640,32 +705,111 @@
                           <Select.Item value={NO_FORM}>
                             {feedbackDefaultLabel}
                           </Select.Item>
-                          {#each feedbackForms as opt (opt.value)}
+                          {#each workingForms as opt (opt.value)}
                             <Select.Item value={opt.value}>
                               {opt.label}
                             </Select.Item>
                           {/each}
                         </Select.Content>
                       </Select.Root>
-                      <div class="flex items-center justify-between gap-2">
-                        <p class="text-[11px] text-muted-foreground">
-                          Pour créer, dupliquer ou modifier un formulaire,
-                          ouvrez l'éditeur.
+                      <!-- The dropdown selection IS the choice. This preview
+                           shows what the resolved form asks; the actions below
+                           only ADAPT a form, they don't select one (that was
+                           the confusing part). -->
+                      {#if effectiveFormId}
+                        <div class="rounded-sm border bg-background/60">
+                          <div class="border-b px-3 py-1.5">
+                            <span
+                              class="text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
+                            >
+                              Ce que les jeunes rempliront
+                            </span>
+                          </div>
+                          <div class="max-h-44 overflow-y-auto px-3 py-2">
+                            {#if effectivePreview.length === 0}
+                              <p class="text-[11px] text-muted-foreground">
+                                Ce formulaire n'a pas encore de questions.
+                              </p>
+                            {:else}
+                              <ol class="space-y-1">
+                                {#each effectivePreview as prompt, i (i)}
+                                  <li
+                                    class="flex gap-2 text-[11px] leading-snug"
+                                  >
+                                    <span
+                                      class="shrink-0 text-muted-foreground/50 tabular-nums"
+                                    >
+                                      {i + 1}.
+                                    </span>
+                                    <span class="text-foreground">{prompt}</span
+                                    >
+                                  </li>
+                                {/each}
+                              </ol>
+                            {/if}
+                          </div>
+                        </div>
+
+                        <div class="space-y-1.5">
+                          <p class="text-[11px] text-muted-foreground">
+                            Ce formulaire vous convient ? Sinon, adaptez-le :
+                          </p>
+                          <div class="flex flex-wrap items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={duplicatingForm}
+                              onclick={duplicateSelectedForm}
+                              class="rounded-sm"
+                            >
+                              <Copy class="mr-1.5 h-3.5 w-3.5" />
+                              Dupliquer et personnaliser
+                            </Button>
+                            <Button
+                              href={`/staff/admin/feedback-forms/${effectiveFormId}`}
+                              target="_blank"
+                              rel="noopener"
+                              variant="ghost"
+                              size="sm"
+                              class="rounded-sm"
+                            >
+                              <Pencil class="mr-1.5 h-3.5 w-3.5" />
+                              Modifier
+                            </Button>
+                            <Button
+                              href="/staff/admin/feedback-forms?create=1"
+                              target="_blank"
+                              rel="noopener"
+                              variant="ghost"
+                              size="sm"
+                              class="rounded-sm text-muted-foreground"
+                            >
+                              <Plus class="mr-1.5 h-3.5 w-3.5" />
+                              Créer un nouveau formulaire
+                            </Button>
+                          </div>
+                        </div>
+                      {:else}
+                        <p
+                          class="text-[11px] leading-snug text-muted-foreground"
+                        >
+                          Aucun formulaire n'est associé : cet événement ne
+                          collectera pas de feedback. Choisissez-en un
+                          ci-dessus, ou créez-en un nouveau.
                         </p>
-                        {#if effectiveFormId}
-                          <Button
-                            href={`/staff/admin/feedback-forms/${effectiveFormId}`}
-                            target="_blank"
-                            rel="noopener"
-                            variant="outline"
-                            size="sm"
-                            class="shrink-0 rounded-sm"
-                          >
-                            <Pencil class="mr-1.5 h-3.5 w-3.5" />
-                            Ouvrir dans l'éditeur
-                          </Button>
-                        {/if}
-                      </div>
+                        <Button
+                          href="/staff/admin/feedback-forms?create=1"
+                          target="_blank"
+                          rel="noopener"
+                          variant="outline"
+                          size="sm"
+                          class="rounded-sm"
+                        >
+                          <Plus class="mr-1.5 h-3.5 w-3.5" />
+                          Créer un nouveau formulaire
+                        </Button>
+                      {/if}
                     </div>
                   {/if}
                 </div>
