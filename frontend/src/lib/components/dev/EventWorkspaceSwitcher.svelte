@@ -3,6 +3,7 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import * as Popover from '$lib/components/ui/popover';
+  import { mergeProps } from 'bits-ui';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -257,9 +258,14 @@
         {#snippet child({ props: tooltipProps })}
           <Popover.Trigger>
             {#snippet child({ props: popoverProps })}
+              <!-- One button is both triggers, so merge the two prop bags rather
+                   than spreading them: Popover.Trigger also defines
+                   onpointerenter/leave, which would otherwise overwrite the
+                   tooltip's hover handlers and leave it stuck open-once (its
+                   onpointerleave never fires to re-arm the next hover).
+                   mergeProps chains the handlers so both fire. -->
               <button
-                {...tooltipProps}
-                {...popoverProps}
+                {...mergeProps(tooltipProps, popoverProps)}
                 aria-label="Changer d'événement"
                 class="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border border-sidebar-border bg-sidebar-hover text-sidebar-foreground-muted transition-colors hover:bg-white/10 hover:text-sidebar-foreground"
               >
