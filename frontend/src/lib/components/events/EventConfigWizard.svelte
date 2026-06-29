@@ -103,10 +103,13 @@
   let step = $state<1 | 2>(1);
   let selectedTemplateId = $state<string | null>(null);
 
-  // Local copy of the template catalogue, seeded from the prop each time the
-  // dialog opens. Save/delete mutate THIS optimistically rather than invalidating
-  // the page — invalidation reloaded `data.form` and wiped the in-progress config.
-  let workingTemplates = $state<TemplateVM[]>([]);
+  // Local copy of the template catalogue, seeded ONCE from the prop at mount.
+  // Save/delete mutate THIS optimistically rather than invalidating the page
+  // (invalidation reloaded `data.form` and wiped the in-progress config). It is
+  // deliberately NOT reseeded per open: the prop never refreshes without an
+  // invalidation, so reseeding would drop a template just saved while configuring
+  // another event (it would reappear only on a full reload).
+  let workingTemplates = $state<TemplateVM[]>(untrack(() => [...templates]));
   let confirmingDeleteId = $state<string | null>(null);
 
   // Fill all module keys with their defaults, merged over any saved/template
@@ -135,12 +138,9 @@
     $form.feedbackFormId = e.feedbackFormId;
     selectedTemplateId = null;
     confirmingDeleteId = null;
-    workingTemplates = [...templates];
-    // Local copies of the feedback catalogue + previews, so a form duplicated
-    // from inside the wizard appears in the picker without a page invalidation
-    // (which would reset the in-progress config, like the template list above).
-    workingForms = [...feedbackForms];
-    workingPreviews = { ...formPreviews };
+    // The catalogue mirrors (workingTemplates / workingForms / workingPreviews)
+    // are NOT reseeded here: they are seeded once at mount and kept across opens
+    // so an optimistic save/duplicate survives switching to another event.
     // Step 1 (pick a starting template) only matters the first time an event is
     // set up. A never-configured event has no module rows yet and opens on it;
     // an already-configured one opens straight on step 2 to tweak. The "Choisir
@@ -238,9 +238,15 @@
   // ─── Feedback form picker (bilan sub-option) ─────────────────────────────
   const NO_FORM = 'default';
   // Local, mutable mirrors of the catalogue + previews so a form duplicated from
-  // the sub-option shows up immediately (seeded from props in prefill()).
-  let workingForms = $state<{ value: string; label: string }[]>([]);
-  let workingPreviews = $state<Record<string, string[]>>({});
+  // the sub-option shows up immediately. Seeded ONCE from props at mount and
+  // mutated optimistically (never reseeded per open, like workingTemplates), so a
+  // duplicate survives switching to another event's dialog without invalidation.
+  let workingForms = $state<{ value: string; label: string }[]>(
+    untrack(() => [...feedbackForms]),
+  );
+  let workingPreviews = $state<Record<string, string[]>>(
+    untrack(() => ({ ...formPreviews })),
+  );
   let duplicatingForm = $state(false);
   const defaultForm = $derived(
     editing ? defaultFormByType[editing.eventType] : undefined,
