@@ -16,11 +16,12 @@ import {
 } from '$lib/server/services/minigameService';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
-import { stageWindowEnd, EVENT_TYPES } from '$lib/domain/event';
+import { stageWindowEnd } from '$lib/domain/event';
 import { pendingFeedbackForm } from '$lib/domain/feedback';
 import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
 import { toPlanningView } from '$lib/domain/talentPlanning';
 import { buildPreviewPlanningView } from '$lib/server/talentPlanningPreview';
+import { listAttendedEvents } from '$lib/server/talent/attendedEvents';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -199,24 +200,8 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     }
 
     // Past events the talent attended (widget: 5 most recent).
-    // Uses EventPresence (emargement system) to determine attendance.
-    const pastEvents = await prisma.event.findMany({
-      where: {
-        date: { lte: filterDateEnd },
-        eventPresences: {
-          some: {
-            talentId: studentId,
-            status: { in: ['present', 'late'] },
-          },
-        },
-      },
-      select: {
-        id: true,
-        titre: true,
-        date: true,
-        eventType: true,
-      },
-      orderBy: { date: 'desc' },
+    const pastEvents = await listAttendedEvents(studentId, {
+      timeZone: tz,
       take: 5,
     });
 

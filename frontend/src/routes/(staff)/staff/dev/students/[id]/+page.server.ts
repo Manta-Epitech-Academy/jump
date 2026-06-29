@@ -23,6 +23,7 @@ import { recordImageRightsDecision } from '$lib/server/services/imageRightsServi
 import { imageRightsCorrectionSchema } from '$lib/validation/imageRights';
 import type { Communication } from '$lib/domain/communications';
 import { getTalentXpStory } from '$lib/server/services/xpStoryService';
+import { listAttendedEvents } from '$lib/server/talent/attendedEvents';
 
 // The scoped-down fiche keeps only the latest handful of communications, shown
 // one-line each in the sticky right rail, no pagination. Volume per talent is
@@ -129,24 +130,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         orderBy: { createdAt: 'desc' },
         include: NOTE_INCLUDE,
       }),
-      prisma.event.findMany({
-        where: {
-          date: { lte: new Date(new Date().setHours(23, 59, 59, 999)) },
-          eventPresences: {
-            some: {
-              talentId: params.id,
-              status: { in: ['present', 'late'] },
-            },
-          },
-        },
-        select: {
-          id: true,
-          titre: true,
-          date: true,
-          eventType: true,
-        },
-        orderBy: { date: 'desc' },
-      }),
+      listAttendedEvents(params.id, { timeZone: timezone }),
     ]);
 
     const notes = noteRows.map(serializeNote);
