@@ -56,6 +56,11 @@
   // surface, or the lead-only "Staff du campus" (behind its flag). Event module
   // config moved to the admin space, so there is no per-event config entry here.
   let showManagement = $derived(hasSyncErrors || (isLead && hasCampusTeam));
+  // Student-search command palette (⌘K). Hidden for now - the feature isn't
+  // ready to ship. Flipping this back to `true` re-enables every entry point:
+  // the sidebar search button, the mobile search icon, and the GlobalCommand
+  // mount (which also owns the ⌘K global shortcut, so it goes too while hidden).
+  const STUDENT_SEARCH_ENABLED = false;
   let commandOpen = $state(false);
   let mobileMenuOpen = $state(false);
 
@@ -119,36 +124,41 @@
 {/snippet}
 
 {#snippet sidebarSearch()}
-  <div class="px-3 pb-2">
-    <button
-      class="flex h-9 w-full items-center justify-between rounded-sm border border-sidebar-border bg-sidebar-hover px-3 text-sm text-sidebar-foreground-muted transition-colors hover:bg-white/10 hover:text-sidebar-foreground"
-      onclick={() => (commandOpen = true)}
-    >
-      <span class="flex items-center gap-2">
-        <Search class="h-4 w-4" />
-        <span class="text-xs font-medium">Rechercher un stagiaire...</span>
-      </span>
-      <kbd
-        class="pointer-events-none flex h-5 items-center gap-1 rounded border border-sidebar-border bg-white/10 px-1.5 font-mono text-[10px] font-medium select-none"
+  {#if STUDENT_SEARCH_ENABLED}
+    <div class="px-3 pb-2">
+      <button
+        class="flex h-9 w-full items-center justify-between rounded-sm border border-sidebar-border bg-sidebar-hover px-3 text-sm text-sidebar-foreground-muted transition-colors hover:bg-white/10 hover:text-sidebar-foreground"
+        onclick={() => (commandOpen = true)}
       >
-        <span class="text-xs">⌘</span>K
-      </kbd>
-    </button>
-  </div>
+        <span class="flex items-center gap-2">
+          <Search class="h-4 w-4" />
+          <span class="text-xs font-medium">Rechercher un stagiaire...</span>
+        </span>
+        <kbd
+          class="pointer-events-none flex h-5 items-center gap-1 rounded border border-sidebar-border bg-white/10 px-1.5 font-mono text-[10px] font-medium select-none"
+        >
+          <span class="text-xs">⌘</span>K
+        </kbd>
+      </button>
+    </div>
+  {/if}
 {/snippet}
 
 {#snippet navMenu()}
   {#if currentEvent}
     {@const ev = currentEvent}
-    {#if workspace.events.length > 1}
-      <div class="px-1 pt-1 pb-1">
+    <!-- The event in view is the section heading (underscore motif). With more
+         than one workspace event, a small "go to" button beside it opens the
+         picker - the title stays the prominent label, the switcher is demoted. -->
+    <div class="sidebar-section-title flex items-center gap-1.5">
+      <span class="flex min-w-0 flex-1 items-baseline">
+        <span class="truncate">{eventDisplayName(ev)}</span>
+        <span class="text-epi-teal">_</span>
+      </span>
+      {#if workspace.events.length > 1}
         <EventWorkspaceSwitcher events={workspace.events} currentId={ev.id} />
-      </div>
-    {:else}
-      <div class="sidebar-section-title">
-        {eventDisplayName(ev)}<span class="text-epi-teal">_</span>
-      </div>
-    {/if}
+      {/if}
+    </div>
     <nav class="space-y-1">
       <!-- Surfaces are gated per event by its module set (not campus flags), so
            two events on one campus can expose different pages. -->
@@ -384,9 +394,15 @@
           orientation="inline"
         />
       </div>
-      <Button variant="ghost" size="icon" onclick={() => (commandOpen = true)}>
-        <Search class="h-5 w-5" />
-      </Button>
+      {#if STUDENT_SEARCH_ENABLED}
+        <Button
+          variant="ghost"
+          size="icon"
+          onclick={() => (commandOpen = true)}
+        >
+          <Search class="h-5 w-5" />
+        </Button>
+      {/if}
     </header>
 
     {#if mobileMenuOpen}
@@ -420,7 +436,9 @@
   </div>
 </div>
 
-<GlobalCommand bind:open={commandOpen} basePath="/staff/dev" />
+{#if STUDENT_SEARCH_ENABLED}
+  <GlobalCommand bind:open={commandOpen} basePath="/staff/dev" />
+{/if}
 
 {#if data.ticketsEnabled}
   <TicketsLauncher basePath="/staff/dev" unreadCount={data.ticketsUnread} />

@@ -10,6 +10,7 @@
   import Plus from '@lucide/svelte/icons/plus';
   import Check from '@lucide/svelte/icons/check';
   import Trash2 from '@lucide/svelte/icons/trash-2';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import X from '@lucide/svelte/icons/x';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
@@ -163,18 +164,21 @@
 
   // ─── Templates (step 1) ──────────────────────────────────────────────────
   // SF only tells us the type; templates saved from an event of that type are
-  // suggested (badge + sorted first), but the admin can pick any or none.
+  // grouped first under a heading, but the admin can pick any or none.
   const isSuggested = (t: TemplateVM) =>
     editing != null &&
     t.forEventType != null &&
     t.forEventType === editing.eventType;
-  const orderedTemplates = $derived(
-    [...workingTemplates].sort((a, b) => {
-      const sa = isSuggested(a);
-      const sb = isSuggested(b);
-      if (sa !== sb) return sa ? -1 : 1;
-      return a.name.localeCompare(b.name, 'fr');
-    }),
+  const byName = (a: TemplateVM, b: TemplateVM) =>
+    a.name.localeCompare(b.name, 'fr');
+  // Type match is a set, not a winner: every template saved from a same-type
+  // event carries that type. So we name the group once with a heading rather
+  // than stamping a "Suggéré" badge on each (which would dilute to noise).
+  const suggestedTemplates = $derived(
+    workingTemplates.filter(isSuggested).sort(byName),
+  );
+  const otherTemplates = $derived(
+    workingTemplates.filter((t) => !isSuggested(t)).sort(byName),
   );
 
   function applyTemplate(t: TemplateVM) {
@@ -216,6 +220,16 @@
   }
 
   const moduleActive = (key: EventModuleKey) => $form.modules.includes(key);
+
+  // "Visible dans l'espace dev" only takes effect with at least one module: the
+  // dev space is nothing but per-module surfaces, so making a section-less event
+  // visible shows nothing (it would never get the "Espace dev" badge nor land in
+  // the switcher). We gate the toggle on that rather than let an admin tick a
+  // promise that silently does nothing. The displayed state is the EFFECTIVE
+  // visibility (gate AND >=1 module), so toggling the last module off reads as
+  // not-visible immediately, matching what the dev space will show.
+  const canActivate = $derived($form.modules.length > 0);
+  const effectivelyVisible = $derived($form.devActivated && canActivate);
 
   // ─── Feedback form picker (bilan sub-option) ─────────────────────────────
   const NO_FORM = 'default';
@@ -361,7 +375,103 @@
           sans modèle. Tout reste modifiable à l'étape suivante.
         </p>
 
-        {#if orderedTemplates.length === 0}
+        {#snippet templateCard(t: TemplateVM)}
+          <div class="flex items-stretch rounded-sm border transition-colors">
+            <button
+              type="button"
+              onclick={() => applyTemplate(t)}
+              class="flex flex-1 cursor-pointer items-start gap-3 rounded-l-sm p-3 text-start transition-colors hover:bg-epi-pink/5"
+            >
+              <span
+                class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-sm border bg-muted/40 text-muted-foreground"
+              >
+                <LayoutTemplate class="size-4" />
+              </span>
+              <div class="min-w-0 flex-1 space-y-1">
+                <span class="text-sm font-bold">{t.name}</span>
+                {#if t.description}
+                  <p class="line-clamp-1 text-xs text-muted-foreground">
+                    {t.description}
+                  </p>
+                {/if}
+                <div class="flex items-center gap-1.5 pt-0.5">
+                  {#each t.modules as key (key)}
+                    <span
+                      class="flex size-5 items-center justify-center rounded-sm bg-secondary text-secondary-foreground"
+                      title={EVENT_MODULE_DEFS[key]?.label ?? key}
+                    >
+                      <EventModuleIcon module={key} class="size-3" />
+                    </span>
+                  {/each}
+                </div>
+              </div>
+            </button>
+            <div class="flex shrink-0 items-center gap-1 pr-2">
+              {#if confirmingDeleteId === t.id}
+                <span class="text-[10px] text-muted-foreground"
+                  >Supprimer ?</span
+                >
+                <form
+                  method="POST"
+                  action="?/deleteTemplate"
+                  use:kitEnhance={() => {
+                    const removed = t;
+                    workingTemplates = workingTemplates.filter(
+                      (x) => x.id !== removed.id,
+                    );
+                    confirmingDeleteId = null;
+                    return async ({ result }) => {
+                      if (result.type === 'failure') {
+                        workingTemplates = [...workingTemplates, removed];
+                        toast.error(
+                          (result.data?.templateError as string | undefined) ??
+                            'Erreur lors de la suppression.',
+                        );
+                      } else {
+                        toast.success('Modèle supprimé.');
+                      }
+                    };
+                  }}
+                  class="contents"
+                >
+                  <input type="hidden" name="id" value={t.id} />
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    size="icon"
+                    class="size-7 text-destructive"
+                    aria-label="Confirmer la suppression"
+                  >
+                    <Check class="size-4" />
+                  </Button>
+                </form>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  class="size-7"
+                  aria-label="Annuler"
+                  onclick={() => (confirmingDeleteId = null)}
+                >
+                  <X class="size-4" />
+                </Button>
+              {:else}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  class="size-7 text-muted-foreground hover:text-destructive"
+                  aria-label="Supprimer le modèle"
+                  onclick={() => (confirmingDeleteId = t.id)}
+                >
+                  <Trash2 class="size-4" />
+                </Button>
+              {/if}
+            </div>
+          </div>
+        {/snippet}
+
+        {#if workingTemplates.length === 0}
           <div
             class="rounded-sm border border-dashed bg-muted/10 p-6 text-center text-xs text-muted-foreground"
           >
@@ -369,118 +479,35 @@
             Enregistrer comme modèle » pour le réutiliser plus tard.
           </div>
         {:else}
-          <div class="space-y-2">
-            {#each orderedTemplates as t (t.id)}
-              {@const suggested = isSuggested(t)}
-              <div
-                class="flex items-stretch rounded-sm border transition-colors {suggested
-                  ? 'border-epi-pink/40 bg-epi-pink/5'
-                  : ''}"
-              >
-                <button
-                  type="button"
-                  onclick={() => applyTemplate(t)}
-                  class="flex flex-1 cursor-pointer items-start gap-3 rounded-l-sm p-3 text-start transition-colors hover:bg-epi-pink/5"
-                >
-                  <span
-                    class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-sm border bg-muted/40 text-muted-foreground"
+          <div class="space-y-4">
+            {#if suggestedTemplates.length > 0}
+              <div class="space-y-2">
+                {#if otherTemplates.length > 0}
+                  <p
+                    class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
                   >
-                    <LayoutTemplate class="size-4" />
-                  </span>
-                  <div class="min-w-0 flex-1 space-y-1">
-                    <div class="flex items-center gap-2">
-                      <span class="text-sm font-bold">{t.name}</span>
-                      {#if suggested}
-                        <Badge
-                          class="bg-epi-pink/15 text-[10px] tracking-wide text-epi-pink uppercase"
-                        >
-                          Suggéré
-                        </Badge>
-                      {/if}
-                    </div>
-                    {#if t.description}
-                      <p class="line-clamp-1 text-xs text-muted-foreground">
-                        {t.description}
-                      </p>
-                    {/if}
-                    <div class="flex items-center gap-1.5 pt-0.5">
-                      {#each t.modules as key (key)}
-                        <span
-                          class="flex size-5 items-center justify-center rounded-sm bg-secondary text-secondary-foreground"
-                          title={EVENT_MODULE_DEFS[key]?.label ?? key}
-                        >
-                          <EventModuleIcon module={key} class="size-3" />
-                        </span>
-                      {/each}
-                    </div>
-                  </div>
-                </button>
-                <div class="flex shrink-0 items-center gap-1 pr-2">
-                  {#if confirmingDeleteId === t.id}
-                    <span class="text-[10px] text-muted-foreground"
-                      >Supprimer ?</span
-                    >
-                    <form
-                      method="POST"
-                      action="?/deleteTemplate"
-                      use:kitEnhance={() => {
-                        const removed = t;
-                        workingTemplates = workingTemplates.filter(
-                          (x) => x.id !== removed.id,
-                        );
-                        confirmingDeleteId = null;
-                        return async ({ result }) => {
-                          if (result.type === 'failure') {
-                            workingTemplates = [...workingTemplates, removed];
-                            toast.error(
-                              (result.data?.templateError as
-                                | string
-                                | undefined) ??
-                                'Erreur lors de la suppression.',
-                            );
-                          } else {
-                            toast.success('Modèle supprimé.');
-                          }
-                        };
-                      }}
-                      class="contents"
-                    >
-                      <input type="hidden" name="id" value={t.id} />
-                      <Button
-                        type="submit"
-                        variant="ghost"
-                        size="icon"
-                        class="size-7 text-destructive"
-                        aria-label="Confirmer la suppression"
-                      >
-                        <Check class="size-4" />
-                      </Button>
-                    </form>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      class="size-7"
-                      aria-label="Annuler"
-                      onclick={() => (confirmingDeleteId = null)}
-                    >
-                      <X class="size-4" />
-                    </Button>
-                  {:else}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      class="size-7 text-muted-foreground hover:text-destructive"
-                      aria-label="Supprimer le modèle"
-                      onclick={() => (confirmingDeleteId = t.id)}
-                    >
-                      <Trash2 class="size-4" />
-                    </Button>
-                  {/if}
-                </div>
+                    Suggérés pour ce type d'événement
+                  </p>
+                {/if}
+                {#each suggestedTemplates as t (t.id)}
+                  {@render templateCard(t)}
+                {/each}
               </div>
-            {/each}
+            {/if}
+            {#if otherTemplates.length > 0}
+              <div class="space-y-2">
+                {#if suggestedTemplates.length > 0}
+                  <p
+                    class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                  >
+                    Autres modèles
+                  </p>
+                {/if}
+                {#each otherTemplates as t (t.id)}
+                  {@render templateCard(t)}
+                {/each}
+              </div>
+            {/if}
           </div>
         {/if}
       </div>
@@ -530,9 +557,13 @@
 
           <label
             for="devActivated"
-            class="flex cursor-pointer items-start gap-3 rounded-sm border p-3 transition-colors select-none {$form.devActivated
+            class="flex items-start gap-3 rounded-sm border p-3 transition-colors select-none {canActivate
+              ? 'cursor-pointer'
+              : 'cursor-not-allowed'} {effectivelyVisible
               ? 'border-epi-pink/40 bg-epi-pink/5'
-              : 'hover:bg-muted/40'}"
+              : canActivate
+                ? 'hover:bg-muted/40'
+                : 'border-amber-500/40 bg-amber-500/5'}"
           >
             <div class="flex-1 space-y-1">
               <span class="flex items-center gap-1.5 text-sm font-bold">
@@ -541,10 +572,20 @@
                   text="Tant que c'est désactivé, l'équipe dev ne voit pas cet événement, même configuré. Activez-le quand il est prêt."
                 />
               </span>
+              {#if !canActivate}
+                <span
+                  class="flex items-center gap-1.5 text-[11px] font-medium text-amber-600"
+                >
+                  <TriangleAlert class="size-3.5 shrink-0" />
+                  Activez au moins une section ci-dessous pour rendre l'événement
+                  visible.
+                </span>
+              {/if}
             </div>
             <Switch
               id="devActivated"
-              checked={$form.devActivated}
+              checked={effectivelyVisible}
+              disabled={!canActivate}
               onCheckedChange={(v) => ($form.devActivated = v === true)}
               class="mt-0.5"
             />

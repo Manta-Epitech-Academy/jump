@@ -242,6 +242,18 @@
   let bulkSubmitting = $state(false);
   let bulkModules = $state<EventModuleKey[]>([...EVENT_MODULE_KEYS]);
 
+  // How many selected events can actually be shown in the dev space (≥1 module).
+  // Activating a section-less event is a no-op there, so this drives both the
+  // disabled "Activer" button and the pre-warning when the selection is mixed.
+  const selectedActivatable = $derived.by(() => {
+    let n = 0;
+    for (const e of data.events) {
+      if (selected.has(e.id) && e.modules.length > 0) n++;
+    }
+    return n;
+  });
+  const selectedNoModules = $derived(selected.size - selectedActivatable);
+
   function openBulk() {
     // Start from "all on" (the creation preset) each time, so the dialog is a
     // fresh decision rather than carrying the last batch's choice.
@@ -284,16 +296,34 @@
   function bulkActivation(activate: boolean): SubmitFunction {
     return () => {
       const count = selected.size;
-      const plural = count > 1 ? 's' : '';
       bulkSubmitting = true;
       return async ({ result, update }) => {
         bulkSubmitting = false;
         if (result.type === 'success') {
-          toast.success(
-            activate
-              ? `${count} événement${plural} activé${plural} dans l'espace dev.`
-              : `${count} événement${plural} retiré${plural} de l'espace dev.`,
-          );
+          const s = (n: number) => (n > 1 ? 's' : '');
+          if (!activate) {
+            toast.success(
+              `${count} événement${s(count)} retiré${s(count)} de l'espace dev.`,
+            );
+          } else {
+            // Section-less events are skipped server-side (activating them shows
+            // nothing), so report the real split rather than the click count.
+            const activated = (result.data?.bulkActivated as number) ?? 0;
+            const skipped = (result.data?.bulkSkipped as number) ?? 0;
+            if (activated === 0) {
+              toast.error(
+                `Aucun événement activé : ${skipped} sans section à afficher.`,
+              );
+            } else if (skipped > 0) {
+              toast.success(
+                `${activated} événement${s(activated)} activé${s(activated)} · ${skipped} ignoré${s(skipped)} (aucune section).`,
+              );
+            } else {
+              toast.success(
+                `${activated} événement${s(activated)} activé${s(activated)} dans l'espace dev.`,
+              );
+            }
+          }
           selected.clear();
         } else if (result.type === 'failure') {
           toast.error(
@@ -437,7 +467,10 @@
           type="submit"
           variant="outline"
           size="sm"
-          disabled={bulkSubmitting}
+          disabled={bulkSubmitting || selectedActivatable === 0}
+          title={selectedActivatable === 0
+            ? "Aucun événement sélectionné n'a de section activée."
+            : undefined}
           class="rounded-sm"
         >
           <Eye class="mr-1.5 h-4 w-4" />
@@ -470,6 +503,16 @@
       >
         Tout désélectionner
       </Button>
+      {#if selectedNoModules > 0}
+        <span
+          class="flex w-full items-center gap-1.5 text-[11px] font-medium text-amber-600"
+        >
+          <TriangleAlert class="h-3.5 w-3.5 shrink-0" />
+          {selectedNoModules} sans section ne {selectedNoModules > 1
+            ? 'seront pas activés'
+            : 'sera pas activé'} (rien à afficher côté dev).
+        </span>
+      {/if}
     </div>
   {/if}
 
@@ -518,7 +561,7 @@
           <span class="truncate font-bold" title={e.displayName}>
             {e.displayName}
           </span>
-          {#if e.devActivated}
+          {#if e.shownInDev}
             <Badge
               variant="outline"
               class="shrink-0 border-emerald-500/40 text-[10px] font-normal text-emerald-600"
@@ -577,7 +620,7 @@
         <div class="min-w-0">
           <div class="flex items-center gap-2">
             <p class="truncate font-bold">{e.displayName}</p>
-            {#if e.devActivated}
+            {#if e.shownInDev}
               <Badge
                 variant="outline"
                 class="shrink-0 border-emerald-500/40 text-[10px] font-normal text-emerald-600"

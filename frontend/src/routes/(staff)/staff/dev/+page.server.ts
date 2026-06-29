@@ -18,9 +18,10 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
   const { workspace } = await parent();
   const current = workspace.current;
-  // Workspace membership = at least one module, so a `current` event always has
-  // a first surface to land on. The empty state below is for a campus with no
-  // configured event at all (no per-event "home" exists anymore to fall back to).
+  // Workspace membership requires at least one enabled module (see
+  // `resolveWorkspaceEvents`), so a non-null `current` always has a first surface
+  // to land on. The empty state below only shows when the campus has no activated
+  // event exposing any surface (no per-event "home" exists anymore to fall back to).
   const first = current ? firstEnabledModule(current.modules) : null;
   if (current && first) {
     throw redirect(

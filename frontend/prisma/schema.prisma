@@ -742,26 +742,26 @@ model ActivityTheme {
 }
 
 model Event {
-  id    String @id @default(cuid())
-  titre String
+  id             String    @id @default(cuid())
+  titre          String
   // Salesforce campaign name (`titre`) is an internal identifier, ugly to show
   // ("Montpellier-19-06-2026-CodingClub"). `publicName` is the friendly name an
   // admin types, surfaced in the dev switcher / talent widget / page chrome in
   // its place. `null` falls back to `titre` (staff) or the type label (talent).
   // Admin-set today; the worker may seed it from SF later (plain nullable field
   // so a future no-clobber sync can write it, like the other reconciled fields).
-  publicName   String?
-  date         DateTime
+  publicName     String?
+  date           DateTime
   // Salesforce gives us the calendar day (`date`/`endDate`) but never a
   // start time, so the time-of-day is Jump-owned: wall-clock minutes from
   // local midnight (0–1439), `null` until staff set it. Kept separate from
   // `date` precisely so the SF sync — which rewrites `date` — can never
   // clobber it. Compose with the campus timezone for a real instant.
-  startMinutes Int?
-  endDate      DateTime?
-  eventType    String    @default("coding_club")
-  campusId     String
-  themeId      String?
+  startMinutes   Int?
+  endDate        DateTime?
+  eventType      String    @default("coding_club")
+  campusId       String
+  themeId        String?
   // Which feedback form this event uses (the `bilan` module reports against it,
   // and its QR/link/export resolve through it). Null = fall back to the form
   // marked `defaultForEventType` for this event's type (see Feedback_Form). A
@@ -769,16 +769,22 @@ model Event {
   // drops the binding back to the default rather than the event.
   feedbackFormId String?
   pin            String?
-  notes        String?
-  externalId   String?   @unique
+  notes          String?
+  externalId     String?   @unique
   // Explicit admin gate for the dev workspace, decoupled from modules: an event
   // appears in the dev sidebar/switcher only once an admin activates it here.
   // `null` = not yet validated (hidden, even when its modules are pre-configured).
   // Modules decide WHICH surfaces show; this decides WHETHER the event shows at
   // all. Set on activate, cleared on deactivate.
   devActivatedAt DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  // First time an admin set this event up through the config wizard. `null` =
+  // never hand-configured: the wizard opens on its Initialisation step (pick a
+  // template or start blank). Module rows alone can't carry this signal - the
+  // flags->modules cutover backfills them - so the hand-config act is recorded
+  // explicitly here, a sibling of `devActivatedAt`. Set once, on the first save.
+  configuredAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   campus              Campus                  @relation(fields: [campusId], references: [id])
   theme               Theme?                  @relation(fields: [themeId], references: [id])
@@ -1037,18 +1043,18 @@ enum Feedback_SubmissionSource {
 }
 
 model Feedback_Form {
-  id          String              @id @default(cuid())
-  slug        String              @unique
-  title       String
+  id             String              @id @default(cuid())
+  slug           String              @unique
+  title          String
   // Opening bot line (interpolated, e.g. "Salut {prenom} !"). Null = the
   // engine's default greeting, mirroring `outro` below.
-  intro       String?
-  personaName String?
+  intro          String?
+  personaName    String?
   // S3 object key of the uploaded persona avatar (WebP). Null = the default
   // mascot art. Served through the public /api/feedback-forms/[id]/persona-icon
   // proxy; the key changes on every replace so the rendered ?v= URL busts cache.
   personaIconKey String?
-  status      Feedback_FormStatus @default(draft)
+  status         Feedback_FormStatus @default(draft)
 
   allowsAuthenticatedAccess Boolean @default(true)
   allowsPublicAccess        Boolean @default(false)
@@ -1076,12 +1082,12 @@ model Feedback_Form {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  createdBy   StaffProfile?          @relation("Feedback_FormCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy   StaffProfile?          @relation("Feedback_FormEditor", fields: [updatedById], references: [id], onDelete: SetNull)
-  sections    Feedback_Section[]
-  questions   Feedback_Question[]
-  submissions Feedback_Submission[]
-  events      Event[]                @relation("EventFeedbackForm")
+  createdBy       StaffProfile?          @relation("Feedback_FormCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy       StaffProfile?          @relation("Feedback_FormEditor", fields: [updatedById], references: [id], onDelete: SetNull)
+  sections        Feedback_Section[]
+  questions       Feedback_Question[]
+  submissions     Feedback_Submission[]
+  events          Event[]                @relation("EventFeedbackForm")
   configTemplates EventConfig_Template[] @relation("EventConfigTemplateFeedbackForm")
 
   @@index([status])
@@ -1112,7 +1118,7 @@ model Feedback_Question {
 
   prompt        String
   type          Feedback_QuestionType
-  required      Boolean               @default(true)
+  required      Boolean                 @default(true)
   // When set, this question collects one piece of respondent identity and routes
   // into the matching Feedback_Submission.respondent* column. Shown only on the
   // public form (connected talents are read from Talent), never produces a

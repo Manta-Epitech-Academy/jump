@@ -59,8 +59,21 @@ export type AdminEventVM = {
   status: EventLifecycleStatus;
   /** Linked to a Salesforce campaign (`externalId`); false = admin-created. */
   synced: boolean;
-  /** Admin has activated it: it shows in the dev workspace (gate, not modules). */
+  /**
+   * Raw activation gate (`devActivatedAt`): the admin has claimed the event for
+   * the dev cohort. This alone does NOT put it in the dev workspace - see
+   * `shownInDev`. Kept distinct because activation is the first step and modules
+   * are configured after, so an activated-but-empty event legitimately sits on
+   * the "À préparer" queue. Drives the activation toggle + prep reasons.
+   */
   devActivated: boolean;
+  /**
+   * Effectively shown in the dev workspace = activated AND exposes >=1 module.
+   * Mirrors `resolveWorkspaceEvents`' membership rule so the admin badge and the
+   * dev switcher agree on what "in the dev space" means. An activated event with
+   * no module is not shown there (it reads as "À préparer · Aucune section").
+   */
+  shownInDev: boolean;
   /**
    * Config gaps the admin can still close (start time, modules), for events
    * that haven't ended. Empty for past or fully-configured events. Drives the
@@ -166,6 +179,7 @@ export const load: PageServerLoad = async () => {
       status,
       synced: e.externalId != null,
       devActivated: e.devActivatedAt != null,
+      shownInDev: e.devActivatedAt != null && modules.length > 0,
       prepReasons: eventPrepReasons({
         status,
         devActivated: e.devActivatedAt != null,
@@ -309,11 +323,11 @@ export const actions: Actions = {
     }
 
     try {
-      await EventService.bulkSetActivation(
+      const { activated, skipped } = await EventService.bulkSetActivation(
         parsed.data.ids,
         parsed.data.activate,
       );
-      return { bulkCount: parsed.data.ids.length };
+      return { bulkActivated: activated, bulkSkipped: skipped };
     } catch (err) {
       console.error(err);
       return fail(500, { bulkError: 'Erreur lors de la mise à jour groupée.' });

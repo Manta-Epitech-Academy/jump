@@ -199,20 +199,41 @@ export const EventService = {
    * gate). Admin-only, cross-campus: the ids are the authority. On activate only
    * the not-yet-activated rows are stamped, so an already-activated event keeps
    * its original instant; deactivate clears them all.
+   *
+   * Activation skips events that expose no module: flipping their gate would
+   * surface nothing (no "Espace dev" badge, absent from the dev switcher - same
+   * rule as `resolveWorkspaceEvents`), so a bulk activate that appeared to work
+   * would silently be a no-op for them. We report how many were skipped instead.
+   * Returns `activated` = events now effectively shown (eligible, ≥1 module) and
+   * `skipped` = section-less events left untouched.
    */
-  async bulkSetActivation(eventIds: string[], activate: boolean) {
-    if (eventIds.length === 0) return;
-    if (activate) {
-      await prisma.event.updateMany({
-        where: { id: { in: eventIds }, devActivatedAt: null },
-        data: { devActivatedAt: new Date() },
-      });
-    } else {
+  async bulkSetActivation(
+    eventIds: string[],
+    activate: boolean,
+  ): Promise<{ activated: number; skipped: number }> {
+    if (eventIds.length === 0) return { activated: 0, skipped: 0 };
+    if (!activate) {
       await prisma.event.updateMany({
         where: { id: { in: eventIds } },
         data: { devActivatedAt: null },
       });
+      return { activated: eventIds.length, skipped: 0 };
     }
+    const eligible = await prisma.event.findMany({
+      where: { id: { in: eventIds }, modules: { some: {} } },
+      select: { id: true },
+    });
+    const eligibleIds = eligible.map((e) => e.id);
+    if (eligibleIds.length > 0) {
+      await prisma.event.updateMany({
+        where: { id: { in: eligibleIds }, devActivatedAt: null },
+        data: { devActivatedAt: new Date() },
+      });
+    }
+    return {
+      activated: eligibleIds.length,
+      skipped: eventIds.length - eligibleIds.length,
+    };
   },
 
   /**

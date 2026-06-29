@@ -319,19 +319,24 @@ export type WorkspaceEvents = {
 
 /**
  * Every event that belongs to the dev cohort workspace for this (already
- * campus-scoped) client: those an admin has activated. Membership is the
- * explicit `devActivatedAt` gate, NOT the module set: an event is configured
- * (its modules pre-seeded at creation) but stays hidden until an admin validates
- * it on the admin events page. Modules then decide WHICH surfaces it exposes.
- * The workspace hosts as many events as a campus activates, across school years,
- * switchable in the sidebar.
+ * campus-scoped) client. Membership is two gates, both required:
+ *  - `devActivatedAt`: an admin has validated the event for the dev cohort (an
+ *    event is configured at creation but stays hidden until then), AND
+ *  - at least one enabled module: the dev space is nothing but per-module
+ *    surfaces, so an event exposing zero of them has nowhere to land. Including
+ *    it would seat it in the switcher and let it become `current`, then dead-end
+ *    on the empty state (`firstEnabledModule` -> null). Excluding it keeps the
+ *    invariant the landing relies on: a non-null `current` is always landable.
+ * Modules then decide WHICH surfaces a member event exposes. The workspace hosts
+ * as many events as a campus activates, across school years, switchable in the
+ * sidebar.
  */
 export async function resolveWorkspaceEvents(
   db: ScopedPrismaClient,
   timezone: string,
 ): Promise<WorkspaceEvents> {
   const rows = await db.event.findMany({
-    where: { devActivatedAt: { not: null } },
+    where: { devActivatedAt: { not: null }, modules: { some: {} } },
     select: {
       id: true,
       titre: true,
