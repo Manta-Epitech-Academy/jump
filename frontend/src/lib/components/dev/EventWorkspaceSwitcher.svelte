@@ -7,6 +7,8 @@
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Search from '@lucide/svelte/icons/search';
+  import SalesforceIcon from '$lib/components/icons/SalesforceIcon.svelte';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import { cn } from '$lib/utils';
   import {
     EVENT_MODULE_DEFS,
@@ -14,6 +16,7 @@
     isEventModuleKey,
   } from '$lib/domain/eventModules';
   import { eventDisplayName } from '$lib/domain/event';
+  import { foldText, matchScore } from '$lib/domain/eventSearch';
   import { MOIS_FR } from '$lib/domain/schoolYear';
 
   // Client-safe shape of a workspace event (a subset of the server's
@@ -22,8 +25,8 @@
     id: string;
     titre: string;
     publicName: string | null;
+    externalId: string | null;
     date: string | Date;
-    status: 'past' | 'ongoing' | 'upcoming';
     schoolYear: { label: string; startYear: number };
     monthKey: string; // "YYYY-MM" in campus tz
     modules: string[];
@@ -39,27 +42,6 @@
 
   const current = $derived(events.find((e) => e.id === currentId) ?? null);
 
-  const STATUS_RANK: Record<SwitcherEvent['status'], number> = {
-    ongoing: 0,
-    upcoming: 1,
-    past: 2,
-  };
-  const STATUS_LABEL: Record<SwitcherEvent['status'], string> = {
-    ongoing: 'En cours',
-    upcoming: 'À venir',
-    past: 'Passé',
-  };
-
-  // Within a month, surface what's live first (en cours, then à venir soonest,
-  // then passé most-recent).
-  function sortEvents(a: SwitcherEvent, b: SwitcherEvent): number {
-    if (a.status !== b.status)
-      return STATUS_RANK[a.status] - STATUS_RANK[b.status];
-    const ta = new Date(a.date).getTime();
-    const tb = new Date(b.date).getTime();
-    return a.status === 'upcoming' ? ta - tb : tb - ta;
-  }
-
   // Epitech reasons by school year, so the year is the picker's backbone: one
   // year shown at a time, switched with the arrows. The real data is small
   // (a campus runs ~16-32 events a year, most months hold 1-2), so the month is
@@ -74,24 +56,43 @@
   let selectedYear = $state('');
   let query = $state('');
   let open = $state(false);
+  let listEl = $state<HTMLElement>();
+  let inputEl = $state<HTMLInputElement>();
 
-  // Each time the picker opens, re-anchor on the event in view (its year) and
-  // clear any stale search. A user's in-popover year browsing doesn't touch
-  // `current`, so it isn't clobbered mid-pick (navigating closes the popover
-  // before `current` changes).
+  const dateFmt = new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+  });
+  // Search results span every year, so their date carries the year to stay
+  // unambiguous (the browse list gets the year from its month header instead).
+  const dateFmtYear = new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  // Accent-folded query, computed once. Empty => browse mode (year nav + month
+  // groups); non-empty => search mode (flat, ranked, across all years).
+  const q = $derived(foldText(query.trim()));
+  const querying = $derived(q.length > 0);
+
+  // Each time the picker opens, re-anchor on the event in view (its year), clear
+  // any stale search, and focus the box so it's type-to-search. In-popover year
+  // browsing doesn't touch `current`, so it isn't clobbered mid-pick (navigating
+  // closes the popover before `current` changes).
   $effect(() => {
     if (open) {
       query = '';
       if (current) selectedYear = current.schoolYear.label;
+      requestAnimationFrame(() => inputEl?.focus());
     }
   });
 
-  // On open, scroll the month of the event in view to the top of the list, so
-  // the picker opens centered on "now" without breaking the chronological order
-  // (scroll up for the past, down for what's coming).
-  let listEl = $state<HTMLElement>();
+  // On open in browse mode, scroll the month of the event in view to the top, so
+  // the picker opens centered on "now" without breaking the timeline (scroll up
+  // for the past, down for what's coming).
   $effect(() => {
-    if (open && !query.trim() && listEl) {
+    if (open && !querying && listEl) {
       requestAnimationFrame(() => {
         listEl
           ?.querySelector('[data-current="true"]')
@@ -103,16 +104,40 @@
   const yearIndex = $derived(years.indexOf(selectedYear));
   const monthName = (key: string) => MOIS_FR[Number(key.slice(5, 7))];
 
-  // The selected year's events, filtered by the search, grouped by month. Month
-  // order: the month of the event in view first (so reopening lands on it), then
-  // the rest most-recent-first. While searching, just most-recent.
+  // What each event matches on: its friendly name, the SF campaign titre (so a
+  // row stays findable by the name devs know in Salesforce, even once it has a
+  // public name), the date (with and without year), and the school year.
+  function searchFields(e: SwitcherEvent): string[] {
+    const d = new Date(e.date);
+    return [
+      eventDisplayName(e),
+      e.titre,
+      dateFmtYear.format(d),
+      dateFmt.format(d),
+      e.schoolYear.label,
+    ].map(foldText);
+  }
+
+  // Search mode: every event across all years, ranked by match relevance then
+  // most-recent first. Returns nothing in browse mode (`groups` renders then).
+  const searchResults = $derived.by(() => {
+    if (!querying) return [];
+    return events
+      .map((e) => ({ e, score: matchScore(q, searchFields(e)) }))
+      .filter((r) => r.score > 0)
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          new Date(b.e.date).getTime() - new Date(a.e.date).getTime(),
+      )
+      .map((r) => r.e);
+  });
+
+  // Browse mode: the selected year's events grouped by month, plain
+  // chronological (a real timeline). Empty while searching.
   const groups = $derived.by(() => {
-    const q = query.trim().toLowerCase();
-    const pool = events.filter(
-      (e) =>
-        e.schoolYear.label === selectedYear &&
-        (!q || eventDisplayName(e).toLowerCase().includes(q)),
-    );
+    if (querying) return [];
+    const pool = events.filter((e) => e.schoolYear.label === selectedYear);
     const byMonth = new Map<string, SwitcherEvent[]>();
     for (const e of pool) {
       const arr = byMonth.get(e.monthKey);
@@ -123,28 +148,78 @@
       current && current.schoolYear.label === selectedYear
         ? current.monthKey
         : null;
-    // Plain chronological order - a real timeline. Yanking the current month to
-    // the front read as "juin -> juillet -> mai" (non-monotone, confusing); the
-    // current month is brought into view by scrolling instead (see the open
-    // effect), so the past stays above it and the future below.
+    // Yanking the current month to the front read as "juin -> juillet -> mai"
+    // (non-monotone, confusing); it's brought into view by scrolling instead
+    // (see the open effect), so the past stays above it and the future below.
     const keys = [...byMonth.keys()].sort();
     // A school year straddles two calendar years (Sept-Dec 2025, then Jan-Jul
-    // 2026), so scrolling up into the autumn months, "décembre" alone is
-    // ambiguous. Every header carries its calendar year (shown muted beside the
-    // month name) - which also disambiguates the July/August bookend for free.
+    // 2026), so "décembre" alone is ambiguous up in the autumn. Every header
+    // carries its calendar year (muted, beside the month name) - which also
+    // disambiguates the July/August bookend for free.
     return keys.map((k) => ({
       key: k,
       name: monthName(k),
       year: k.slice(0, 4),
       isCurrent: k === currentKey,
-      events: byMonth.get(k)!.slice().sort(sortEvents),
+      events: byMonth
+        .get(k)!
+        .slice()
+        .sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+        ),
     }));
   });
 
-  const dateFmt = new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: 'short',
+  // The rows in render order (search results, else the browse groups
+  // flattened): the spine the keyboard cursor walks.
+  const flatEvents = $derived(
+    querying ? searchResults : groups.flatMap((g) => g.events),
+  );
+  const navIndex = $derived(
+    new Map(flatEvents.map((e, i) => [e.id, i] as const)),
+  );
+
+  let activeIndex = $state(0);
+  // Re-anchor the highlight whenever the visible list changes: the top result
+  // while searching, the current event while browsing. Arrow keys move it
+  // without touching these inputs, so they aren't clobbered mid-navigation.
+  $effect(() => {
+    activeIndex = querying ? 0 : current ? (navIndex.get(current.id) ?? 0) : 0;
   });
+
+  function scrollActiveIntoView() {
+    requestAnimationFrame(() => {
+      listEl
+        ?.querySelector('[data-active="true"]')
+        ?.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
+  // The box is a mini command palette: arrows move the highlight, Enter goes,
+  // Escape clears the search (then, when empty, lets the popover close).
+  function onSearchKeydown(ev: KeyboardEvent) {
+    if (ev.key === 'ArrowDown') {
+      ev.preventDefault();
+      if (flatEvents.length) {
+        activeIndex = (activeIndex + 1) % flatEvents.length;
+        scrollActiveIntoView();
+      }
+    } else if (ev.key === 'ArrowUp') {
+      ev.preventDefault();
+      if (flatEvents.length) {
+        activeIndex = (activeIndex - 1 + flatEvents.length) % flatEvents.length;
+        scrollActiveIntoView();
+      }
+    } else if (ev.key === 'Enter') {
+      ev.preventDefault();
+      const e = flatEvents[activeIndex];
+      if (e) pick(e);
+    } else if (ev.key === 'Escape' && query) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      query = '';
+    }
+  }
 
   // Keep the same surface when switching: if the new event exposes the surface
   // currently open, stay on it; otherwise land on its first enabled surface,
@@ -183,18 +258,20 @@
       </button>
     {/snippet}
   </Popover.Trigger>
-  <Popover.Content align="start" class="w-72 p-0">
+  <Popover.Content align="start" class="w-80 p-0">
     <div class="flex items-center gap-2 border-b px-3 py-2">
       <Search class="size-4 shrink-0 text-muted-foreground" />
       <input
         bind:value={query}
+        bind:this={inputEl}
+        onkeydown={onSearchKeydown}
         placeholder="Aller à un événement…"
         aria-label="Rechercher un événement"
         class="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
       />
     </div>
 
-    {#if selectedYear}
+    {#if selectedYear && !querying}
       <div class="flex items-center justify-between border-b px-2 py-1.5">
         <button
           type="button"
@@ -218,41 +295,84 @@
       </div>
     {/if}
 
-    <div bind:this={listEl} class="max-h-72 overflow-y-auto px-1 pb-1">
-      {#each groups as g (g.key)}
-        <div
-          data-current={g.isCurrent}
-          class="sticky top-0 z-10 flex items-baseline gap-1.5 bg-popover px-2 pt-2 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase"
-        >
-          <span>{g.name}</span>
-          <span class="font-normal opacity-60">{g.year}</span>
-        </div>
-        {#each g.events as e (e.id)}
-          <button
-            onclick={() => pick(e)}
+    <Tooltip.Provider delayDuration={150}>
+      <div bind:this={listEl} class="max-h-72 overflow-y-auto px-1 pb-1">
+        {#snippet eventRow(e: SwitcherEvent, dateLabel: string)}
+          {@const idx = navIndex.get(e.id) ?? -1}
+          <!--
+            Shared row for both modes (browse groups + flat search results). The
+            raw Salesforce campaign name is too long for the row and re-states
+            the campus and date already on screen, so it rides in a hover tooltip
+            behind the Salesforce glyph: a read-only glance to check the friendly
+            name against the campaign, no navigation. Row click switches event;
+            the glyph is a separate control, so the two don't nest. The cursor
+            (keyboard/hover) is a filled background; the current event keeps a
+            subtle ring so it stays marked even when the cursor moves elsewhere.
+          -->
+          <div
+            data-active={idx === activeIndex}
             class={cn(
-              'flex w-full min-w-0 cursor-pointer flex-col rounded-sm px-2 py-1.5 text-left transition-colors hover:bg-accent',
-              e.id === currentId && 'bg-accent',
+              'flex items-center rounded-sm transition-colors hover:bg-accent',
+              idx === activeIndex && 'bg-accent',
+              e.id === currentId && 'ring-1 ring-border ring-inset',
             )}
           >
-            <span class="truncate text-sm font-medium"
-              >{eventDisplayName(e)}</span
+            <button
+              onclick={() => pick(e)}
+              onmouseenter={() => (activeIndex = idx)}
+              class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left"
             >
-            <span
-              class={cn(
-                'text-xs text-muted-foreground',
-                e.status === 'ongoing' && 'text-epi-teal-solid',
-              )}
+              <span class="min-w-0 flex-1 truncate text-sm font-medium"
+                >{eventDisplayName(e)}</span
+              >
+              <span class="shrink-0 text-xs text-muted-foreground"
+                >{dateLabel}</span
+              >
+            </button>
+            {#if e.externalId}
+              <Tooltip.Root>
+                <Tooltip.Trigger
+                  type="button"
+                  aria-label="Voir le nom de la campagne Salesforce"
+                  class="mr-2 flex shrink-0 cursor-help items-center rounded-sm p-0.5 transition-opacity hover:opacity-70"
+                >
+                  <SalesforceIcon class="size-3.5" />
+                </Tooltip.Trigger>
+                <Tooltip.Content side="right" class="whitespace-nowrap">
+                  {e.titre}
+                </Tooltip.Content>
+              </Tooltip.Root>
+            {/if}
+          </div>
+        {/snippet}
+
+        {#if querying}
+          {#each searchResults as e (e.id)}
+            {@render eventRow(e, dateFmtYear.format(new Date(e.date)))}
+          {:else}
+            <p class="px-2 py-6 text-center text-xs text-muted-foreground">
+              Aucun événement trouvé.
+            </p>
+          {/each}
+        {:else}
+          {#each groups as g (g.key)}
+            <div
+              data-current={g.isCurrent}
+              class="sticky top-0 z-10 flex items-baseline gap-1.5 bg-popover px-2 pt-2 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase"
             >
-              {STATUS_LABEL[e.status]} · {dateFmt.format(new Date(e.date))}
-            </span>
-          </button>
-        {/each}
-      {:else}
-        <p class="px-2 py-6 text-center text-xs text-muted-foreground">
-          {query.trim() ? 'Aucun événement trouvé.' : 'Aucun événement.'}
-        </p>
-      {/each}
-    </div>
+              <span>{g.name}</span>
+              <span class="font-normal opacity-60">{g.year}</span>
+            </div>
+            {#each g.events as e (e.id)}
+              {@render eventRow(e, dateFmt.format(new Date(e.date)))}
+            {/each}
+          {:else}
+            <p class="px-2 py-6 text-center text-xs text-muted-foreground">
+              Aucun événement.
+            </p>
+          {/each}
+        {/if}
+      </div>
+    </Tooltip.Provider>
   </Popover.Content>
 </Popover.Root>

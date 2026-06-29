@@ -29,8 +29,8 @@ import {
   type EventLifecycleStatus,
 } from '$lib/domain/eventLifecycle';
 import {
-  eventPrepReasons,
-  type EventPrepReason,
+  eventConfigState,
+  type EventConfigState,
 } from '$lib/domain/eventReadiness';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { toDateKey } from '$lib/domain/planningTime';
@@ -61,25 +61,19 @@ export type AdminEventVM = {
   synced: boolean;
   /**
    * Raw activation gate (`devActivatedAt`): the admin has claimed the event for
-   * the dev cohort. This alone does NOT put it in the dev workspace - see
-   * `shownInDev`. Kept distinct because activation is the first step and modules
-   * are configured after, so an activated-but-empty event legitimately sits on
-   * the "À préparer" queue. Drives the activation toggle + prep reasons.
+   * the dev cohort. This alone does NOT make it visible - that also needs >=1
+   * module, at which point `configState` becomes `shown`. Drives the wizard's
+   * visibility toggle (the page reads the state through `configState`).
    */
   devActivated: boolean;
   /**
-   * Effectively shown in the dev workspace = activated AND exposes >=1 module.
-   * Mirrors `resolveWorkspaceEvents`' membership rule so the admin badge and the
-   * dev switcher agree on what "in the dev space" means. An activated event with
-   * no module is not shown there (it reads as "À préparer · Aucune section").
+   * The event's configuration state (à configurer / prêt à publier / visible),
+   * a pure projection of (modules, activation). Single source for the admin
+   * "État" badge and the "À préparer" cue + filter. `shown` mirrors
+   * `resolveWorkspaceEvents`' membership rule, so the admin and the dev space
+   * agree on what "in the dev space" means.
    */
-  shownInDev: boolean;
-  /**
-   * Config gaps the admin can still close (start time, modules), for events
-   * that haven't ended. Empty for past or fully-configured events. Drives the
-   * "À préparer" cue + filter.
-   */
-  prepReasons: EventPrepReason[];
+  configState: EventConfigState;
   /** End day `YYYY-MM-DD` (campus tz) for the form, or "" when unset. */
   endDate: string;
   notes: string;
@@ -179,11 +173,8 @@ export const load: PageServerLoad = async () => {
       status,
       synced: e.externalId != null,
       devActivated: e.devActivatedAt != null,
-      shownInDev: e.devActivatedAt != null && modules.length > 0,
-      prepReasons: eventPrepReasons({
-        status,
+      configState: eventConfigState({
         devActivated: e.devActivatedAt != null,
-        startTimeConfirmed: e.startMinutes != null,
         moduleCount: modules.length,
       }),
       endDate: e.endDate ? toDateKey(e.endDate, tz) : '',

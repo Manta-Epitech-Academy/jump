@@ -23,9 +23,7 @@
     ColumnDef,
     SortDir,
   } from '$lib/components/staff/datatable/types';
-  import SegmentedFilter, {
-    type SegmentOption,
-  } from '$lib/components/staff/SegmentedFilter.svelte';
+  import type { SegmentOption } from '$lib/components/staff/SegmentedFilter.svelte';
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import SearchableSelect, {
     type SelectOption,
@@ -194,8 +192,8 @@
     return cols;
   });
 
-  // Niveau is a one-click segmented filter, but only worth showing when the
-  // cohort actually spans more than one level (otherwise "Tous / 2nde" is noise).
+  // Niveau filters through a Select (matching Statut), but only worth showing when
+  // the cohort actually spans more than one level (otherwise "Tous / 2nde" is noise).
   const showNiveauFilter = $derived(availableNiveaux.length > 1);
   const niveauOptions: SegmentOption[] = $derived([
     { value: 'all', label: 'Tous' },
@@ -490,7 +488,7 @@
               >
                 Niveau
               </span>
-              <SegmentedFilter
+              <FilterSelect
                 ariaLabel="Filtrer par niveau scolaire"
                 options={niveauOptions}
                 value={niveauFilter}

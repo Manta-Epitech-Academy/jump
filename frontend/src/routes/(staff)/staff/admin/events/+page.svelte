@@ -33,7 +33,12 @@
     EVENT_MODULE_KEYS,
     type EventModuleKey,
   } from '$lib/domain/eventModules';
-  import { EVENT_PREP_REASON_LABELS } from '$lib/domain/eventReadiness';
+  import {
+    EVENT_CONFIG_STATE_LABELS,
+    EVENT_CONFIG_STATE_HINTS,
+    isEventToPrepare,
+    type EventConfigState,
+  } from '$lib/domain/eventReadiness';
   import { enhance as formEnhance } from '$app/forms';
   import type { SubmitFunction } from '@sveltejs/kit';
   import { SvelteSet } from 'svelte/reactivity';
@@ -86,6 +91,7 @@
 
   const columns: ColumnDef[] = [
     { key: 'name', label: 'Événement', sortable: true, class: 'w-full' },
+    { key: 'state', label: 'État', sortable: true, class: 'w-36' },
     { key: 'campus', label: 'Campus', sortable: true, class: 'w-40' },
     { key: 'type', label: 'Type', class: 'w-32' },
     { key: 'date', label: 'Dates', sortable: true, class: 'w-44' },
@@ -100,6 +106,27 @@
     },
     { key: 'actions', label: '', align: 'right', class: 'w-16' },
   ];
+
+  // Sort "État" most-work-first: à configurer, then prêt à publier, then visible.
+  const STATE_RANK: Record<EventConfigState, number> = {
+    unconfigured: 0,
+    ready: 1,
+    shown: 2,
+  };
+
+  // The État badge colour. Past events mute to grey: their config state is
+  // historical, not a to-do, so it shouldn't alarm in amber.
+  function stateBadgeClass(state: EventConfigState, isPast: boolean): string {
+    if (isPast) return 'border-border text-muted-foreground';
+    switch (state) {
+      case 'shown':
+        return 'border-emerald-500/40 text-emerald-600';
+      case 'ready':
+        return 'border-blue-500/40 text-blue-600';
+      case 'unconfigured':
+        return 'border-amber-500/50 text-amber-600';
+    }
+  }
 
   function toggleSort(key: string) {
     if (sortKey === key) {
@@ -120,6 +147,8 @@
         return a.displayName.localeCompare(b.displayName, 'fr');
       case 'campus':
         return a.campusName.localeCompare(b.campusName, 'fr');
+      case 'state':
+        return STATE_RANK[a.configState] - STATE_RANK[b.configState];
       case 'date':
         return a.dateTs - b.dateTs;
       case 'participations':
@@ -155,9 +184,11 @@
         return e.status === 'upcoming';
       case 'ongoing':
         return e.status === 'ongoing';
-      // prepReasons is already empty for past events, so length alone is enough.
       case 'prep':
-        return e.prepReasons.length > 0;
+        return isEventToPrepare({
+          status: e.status,
+          configState: e.configState,
+        });
       case 'all':
         return true;
     }
@@ -186,7 +217,8 @@
       } else if (e.status === 'ongoing') {
         ongoing++;
       }
-      if (e.prepReasons.length > 0) prep++;
+      if (isEventToPrepare({ status: e.status, configState: e.configState }))
+        prep++;
     }
     return {
       upcoming,
@@ -374,7 +406,7 @@
       value={stats.prep}
       icon={TriangleAlert}
       tone="orange"
-      helpText="Événements à venir ou en cours auxquels il manque l'heure d'arrivée ou des sections à activer."
+      helpText="Événements à venir ou en cours pas encore visibles dans l'espace dev : à configurer ou à publier."
       pressed={statusFilter === 'prep'}
       onclick={() => (statusFilter = 'prep')}
     />
@@ -516,31 +548,29 @@
     </div>
   {/if}
 
-  {#snippet prepChip(e: AdminEventVM)}
-    {#if e.prepReasons.length > 0}
-      <Tooltip.Provider delayDuration={200}>
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <Badge
-                {...props}
-                variant="outline"
-                class="border-amber-500/50 text-[10px] font-normal text-amber-600"
-              >
-                À préparer
-              </Badge>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            <ul class="space-y-0.5">
-              {#each e.prepReasons as r (r)}
-                <li>{EVENT_PREP_REASON_LABELS[r]}</li>
-              {/each}
-            </ul>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Tooltip.Provider>
-    {/if}
+  {#snippet statusBadge(e: AdminEventVM)}
+    {@const isPast = e.status === 'past'}
+    <Tooltip.Provider delayDuration={200}>
+      <Tooltip.Root>
+        <Tooltip.Trigger>
+          {#snippet child({ props })}
+            <Badge
+              {...props}
+              variant="outline"
+              class="shrink-0 text-[10px] font-normal {stateBadgeClass(
+                e.configState,
+                isPast,
+              )}"
+            >
+              {EVENT_CONFIG_STATE_LABELS[e.configState]}
+            </Badge>
+          {/snippet}
+        </Tooltip.Trigger>
+        <Tooltip.Content class="max-w-56 text-xs">
+          {EVENT_CONFIG_STATE_HINTS[e.configState]}
+        </Tooltip.Content>
+      </Tooltip.Root>
+    </Tooltip.Provider>
   {/snippet}
 
   <SortableTable
@@ -561,14 +591,6 @@
           <span class="truncate font-bold" title={e.displayName}>
             {e.displayName}
           </span>
-          {#if e.shownInDev}
-            <Badge
-              variant="outline"
-              class="shrink-0 border-emerald-500/40 text-[10px] font-normal text-emerald-600"
-            >
-              Espace dev
-            </Badge>
-          {/if}
           {#if !e.synced}
             <Badge
               variant="outline"
@@ -584,15 +606,13 @@
           </span>
         {/if}
       </Table.Cell>
+      <Table.Cell>{@render statusBadge(e)}</Table.Cell>
       <Table.Cell class="text-muted-foreground">{e.campusName}</Table.Cell>
       <Table.Cell class="text-xs text-muted-foreground"
         >{e.eventTypeLabel}</Table.Cell
       >
       <Table.Cell class="text-xs text-muted-foreground">
-        <div class="flex flex-col items-start gap-1">
-          <span>{e.dateLabel}{e.startTime ? ` · ${e.startTime}` : ''}</span>
-          {@render prepChip(e)}
-        </div>
+        {e.dateLabel}{e.startTime ? ` · ${e.startTime}` : ''}
       </Table.Cell>
       <Table.Cell>
         <EventModulesCell modules={e.modules} />
@@ -620,14 +640,6 @@
         <div class="min-w-0">
           <div class="flex items-center gap-2">
             <p class="truncate font-bold">{e.displayName}</p>
-            {#if e.shownInDev}
-              <Badge
-                variant="outline"
-                class="shrink-0 border-emerald-500/40 text-[10px] font-normal text-emerald-600"
-              >
-                Espace dev
-              </Badge>
-            {/if}
             {#if !e.synced}
               <Badge
                 variant="outline"
@@ -656,7 +668,7 @@
       </div>
       <div class="mt-3 flex items-center gap-2">
         <EventModulesCell modules={e.modules} />
-        {@render prepChip(e)}
+        {@render statusBadge(e)}
         <span class="ml-auto text-xs text-muted-foreground tabular-nums">
           {e.participations} inscrits
         </span>

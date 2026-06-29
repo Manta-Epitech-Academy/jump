@@ -288,6 +288,8 @@ export type WorkspaceEventEntry = {
   titre: string;
   /** Admin-set friendly name; falls back to `titre` for display. */
   publicName: string | null;
+  /** Salesforce Campaign id, for the switcher's deep-link. Null when unlinked. */
+  externalId: string | null;
   date: Date;
   /** Effective end (explicit endDate, else the default-duration window). */
   endDate: Date;
@@ -341,6 +343,7 @@ export async function resolveWorkspaceEvents(
       id: true,
       titre: true,
       publicName: true,
+      externalId: true,
       date: true,
       endDate: true,
       modules: { select: { moduleKey: true } },
@@ -361,6 +364,7 @@ export async function resolveWorkspaceEvents(
       id: e.id,
       titre: e.titre,
       publicName: e.publicName,
+      externalId: e.externalId,
       date: e.date,
       endDate,
       status: getEventStatus({ date: e.date, endDate }, bounds),

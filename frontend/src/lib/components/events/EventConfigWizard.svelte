@@ -3,7 +3,6 @@
   import { superForm, type SuperValidated } from 'sveltekit-superforms';
   import CalendarCog from '@lucide/svelte/icons/calendar-cog';
   import LayoutTemplate from '@lucide/svelte/icons/layout-template';
-  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Bookmark from '@lucide/svelte/icons/bookmark';
   import Pencil from '@lucide/svelte/icons/pencil';
   import Copy from '@lucide/svelte/icons/copy';
@@ -259,6 +258,20 @@
   );
   // Ordered question prompts of the resolved form, for the inline preview.
   const effectivePreview = $derived(workingPreviews[effectiveFormId] ?? []);
+  // Cap the inline preview so a long form doesn't blow out the dialog; the rest
+  // is summarized as "+ N autres questions" (no nested scroll area).
+  const PREVIEW_LIMIT = 8;
+
+  // Editing the resolved form in place edits the SHARED catalogue form. The
+  // provable-shared case is the type default with no per-event override: a change
+  // there hits every event of that type. We surface that consequence so
+  // "Modifier" never silently edits the shared default — the safe per-event path
+  // is "Dupliquer et personnaliser".
+  const editingSharedDefault = $derived(
+    !$form.feedbackFormId &&
+      !!defaultForm &&
+      effectiveFormId === defaultForm.id,
+  );
 
   // "Dupliquer pour cet événement": branch the resolved form into a fresh copy.
   // Posted via fetch (not an enhanced <form>) because this lives inside the main
@@ -331,8 +344,10 @@
   );
 
   function openSaveTemplate() {
+    // Propose the public name the user just set in the form (live value), not the
+    // event's stale snapshot or its full SF title.
     templateName = editing
-      ? `${editing.publicName || editing.titre}`.slice(0, 80)
+      ? `${$form.publicName || editing.titre}`.slice(0, 80)
       : '';
     templateDescription = '';
     saveTemplateOpen = true;
@@ -354,17 +369,45 @@
           {editing.campusName} · {editing.eventTypeLabel} · {editing.dateLabel}
         </Dialog.Description>
       {/if}
-      <div
+      <!-- The stepper IS the navigation: clicking a step moves there, so step 2
+           carries no separate back button. Step 1 stays reachable even once the
+           config is filled, to re-pick a template. -->
+      <nav
+        aria-label="Étapes de configuration"
         class="mt-2 flex items-center gap-2 text-[11px] font-bold tracking-wide uppercase"
       >
-        <span class={step === 1 ? 'text-epi-pink' : 'text-muted-foreground'}>
+        <button
+          type="button"
+          onclick={() => (step = 1)}
+          aria-current={step === 1 ? 'step' : undefined}
+          class="transition-colors {step === 1
+            ? 'cursor-default text-epi-pink'
+            : 'cursor-pointer text-muted-foreground hover:text-foreground'}"
+        >
           1 · Initialisation
-        </span>
+        </button>
         <span class="text-muted-foreground/40">›</span>
-        <span class={step === 2 ? 'text-epi-pink' : 'text-muted-foreground'}>
+        <button
+          type="button"
+          onclick={() => (step = 2)}
+          aria-current={step === 2 ? 'step' : undefined}
+          class="transition-colors {step === 2
+            ? 'cursor-default text-epi-pink'
+            : 'cursor-pointer text-muted-foreground hover:text-foreground'}"
+        >
           2 · Configuration
-        </span>
-      </div>
+        </button>
+      </nav>
+      {#if step === 2 && selectedTemplateId}
+        {@const t = workingTemplates.find((x) => x.id === selectedTemplateId)}
+        {#if t}
+          <p class="mt-1.5 text-[11px] text-muted-foreground">
+            Prérempli depuis <strong class="font-semibold text-foreground"
+              >{t.name}</strong
+            >
+          </p>
+        {/if}
+      {/if}
     </Dialog.Header>
 
     {#if step === 1}
@@ -518,7 +561,8 @@
         <Button
           type="button"
           onclick={skipTemplate}
-          class="bg-epi-pink text-white"
+          variant={workingTemplates.length === 0 ? 'default' : 'outline'}
+          class={workingTemplates.length === 0 ? 'bg-epi-pink text-white' : ''}
         >
           Configurer sans modèle
         </Button>
@@ -532,123 +576,77 @@
         class="flex min-h-0 flex-1 flex-col"
       >
         <div class="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:px-6">
-          <div class="flex items-center justify-between gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              class="-ml-2 h-7 text-muted-foreground"
-              onclick={() => (step = 1)}
-            >
-              <ArrowLeft class="mr-1.5 h-4 w-4" />
-              Choisir un modèle
-            </Button>
-            {#if selectedTemplateId}
-              {@const t = workingTemplates.find(
-                (x) => x.id === selectedTemplateId,
-              )}
-              {#if t}
-                <span class="text-[11px] text-muted-foreground">
-                  Prérempli depuis <strong>{t.name}</strong>
-                </span>
-              {/if}
-            {/if}
-          </div>
-
-          <label
-            for="devActivated"
-            class="flex items-start gap-3 rounded-sm border p-3 transition-colors select-none {canActivate
-              ? 'cursor-pointer'
-              : 'cursor-not-allowed'} {effectivelyVisible
-              ? 'border-epi-pink/40 bg-epi-pink/5'
-              : canActivate
-                ? 'hover:bg-muted/40'
-                : 'border-amber-500/40 bg-amber-500/5'}"
-          >
-            <div class="flex-1 space-y-1">
-              <span class="flex items-center gap-1.5 text-sm font-bold">
-                Visible dans l'espace dev
+          <div class="space-y-4">
+            <div class="space-y-2">
+              <Label for="publicName" class="flex items-center gap-1.5">
+                Nom public
                 <InfoTooltip
-                  text="Tant que c'est désactivé, l'équipe dev ne voit pas cet événement, même configuré. Activez-le quand il est prêt."
+                  text="Ce nom est vu par le staff et par les jeunes, à la place du nom importé de Salesforce. Laissé vide, c'est le nom Salesforce qui s'affiche."
                 />
-              </span>
-              {#if !canActivate}
-                <span
-                  class="flex items-center gap-1.5 text-[11px] font-medium text-amber-600"
-                >
-                  <TriangleAlert class="size-3.5 shrink-0" />
-                  Activez au moins une section ci-dessous pour rendre l'événement
-                  visible.
-                </span>
-              {/if}
-            </div>
-            <Switch
-              id="devActivated"
-              checked={effectivelyVisible}
-              disabled={!canActivate}
-              onCheckedChange={(v) => ($form.devActivated = v === true)}
-              class="mt-0.5"
-            />
-          </label>
-
-          <div class="space-y-2">
-            <Label for="publicName" class="flex items-center gap-1.5">
-              Nom public
-              <InfoTooltip
-                text="Ce nom est vu par le staff et par les jeunes, à la place du nom importé de Salesforce. Laissé vide, c'est le nom Salesforce qui s'affiche."
+              </Label>
+              <Input
+                id="publicName"
+                bind:value={$form.publicName}
+                placeholder={editing?.titre ??
+                  'Ex : Stage de seconde - Février'}
               />
-            </Label>
-            <Input
-              id="publicName"
-              bind:value={$form.publicName}
-              placeholder={editing?.titre ?? 'Ex : Stage de seconde - Février'}
-            />
-            {#if $errors.publicName}<span class="text-xs text-destructive"
-                >{$errors.publicName}</span
-              >{/if}
-          </div>
-
-          <div class="grid gap-4 sm:grid-cols-2">
-            <div class="space-y-2">
-              <div class="flex h-6 items-center gap-2">
-                <Label for="startTime" class="flex items-center gap-1.5">
-                  Heure d'arrivée des jeunes
-                  <InfoTooltip
-                    text={`Tant qu'elle n'est pas renseignée, les jeunes ne voient que la date, sans heure. Le staff voit l'horaire par défaut${defaultStartTime ? ` (${defaultStartTime})` : ''} en attendant.`}
-                  />
-                </Label>
-                {#if !$form.startTime}
-                  <Badge
-                    variant="outline"
-                    class="border-amber-500/50 text-[10px] leading-none font-normal text-amber-600"
-                  >
-                    À confirmer
-                  </Badge>
-                {/if}
-              </div>
-              <TimePicker id="startTime" bind:value={$form.startTime} />
-              {#if $errors.startTime}<span class="text-xs text-destructive"
-                  >{$errors.startTime}</span
+              {#if $errors.publicName}<span class="text-xs text-destructive"
+                  >{$errors.publicName}</span
                 >{/if}
             </div>
-            <div class="space-y-2">
-              <div class="flex h-6 items-center">
-                <Label for="endDate" class="flex items-center gap-1.5">
-                  Date de fin
-                  <InfoTooltip
-                    text="L'import Salesforce ne donne que la date de début. Laissez vide pour la durée par défaut (≈ 2 semaines pour un stage, 1 jour pour les autres)."
-                  />
-                </Label>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div class="space-y-2">
+                <div class="flex h-6 items-center gap-2">
+                  <Label for="startTime" class="flex items-center gap-1.5">
+                    Heure d'arrivée des jeunes
+                    <InfoTooltip
+                      text={`Tant qu'elle n'est pas renseignée, les jeunes ne voient que la date, sans heure. Le staff voit l'horaire par défaut${defaultStartTime ? ` (${defaultStartTime})` : ''} en attendant.`}
+                    />
+                  </Label>
+                  {#if !$form.startTime}
+                    <Badge
+                      variant="outline"
+                      class="border-amber-500/50 text-[10px] leading-none font-normal text-amber-600"
+                    >
+                      À confirmer
+                    </Badge>
+                  {/if}
+                </div>
+                <TimePicker id="startTime" bind:value={$form.startTime} />
+                {#if $errors.startTime}<span class="text-xs text-destructive"
+                    >{$errors.startTime}</span
+                  >{/if}
               </div>
-              <DatePicker
-                id="endDate"
-                min={editing?.startDateKey}
-                placeholder="Durée par défaut"
-                bind:value={$form.endDate}
+              <div class="space-y-2">
+                <div class="flex h-6 items-center">
+                  <Label for="endDate" class="flex items-center gap-1.5">
+                    Date de fin
+                    <InfoTooltip
+                      text="L'import Salesforce ne donne que la date de début. Laissez vide pour la durée par défaut (≈ 2 semaines pour un stage, 1 jour pour les autres)."
+                    />
+                  </Label>
+                </div>
+                <DatePicker
+                  id="endDate"
+                  min={editing?.startDateKey}
+                  placeholder="Durée par défaut"
+                  bind:value={$form.endDate}
+                />
+                {#if $errors.endDate}<span class="text-xs text-destructive"
+                    >{$errors.endDate}</span
+                  >{/if}
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <Label for="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                bind:value={$form.notes}
+                rows={3}
+                placeholder="Notes internes sur l'événement…"
               />
-              {#if $errors.endDate}<span class="text-xs text-destructive"
-                  >{$errors.endDate}</span
-                >{/if}
             </div>
           </div>
 
@@ -766,14 +764,14 @@
                               Ce que les jeunes rempliront
                             </span>
                           </div>
-                          <div class="max-h-44 overflow-y-auto px-3 py-2">
+                          <div class="px-3 py-2">
                             {#if effectivePreview.length === 0}
                               <p class="text-[11px] text-muted-foreground">
                                 Ce formulaire n'a pas encore de questions.
                               </p>
                             {:else}
                               <ol class="space-y-1">
-                                {#each effectivePreview as prompt, i (i)}
+                                {#each effectivePreview.slice(0, PREVIEW_LIMIT) as prompt, i (i)}
                                   <li
                                     class="flex gap-2 text-[11px] leading-snug"
                                   >
@@ -787,6 +785,21 @@
                                   </li>
                                 {/each}
                               </ol>
+                              {#if effectivePreview.length > PREVIEW_LIMIT}
+                                <p
+                                  class="mt-1.5 pl-5 text-[11px] text-muted-foreground/70"
+                                >
+                                  + {effectivePreview.length - PREVIEW_LIMIT} autre{effectivePreview.length -
+                                    PREVIEW_LIMIT >
+                                  1
+                                    ? 's'
+                                    : ''} question{effectivePreview.length -
+                                    PREVIEW_LIMIT >
+                                  1
+                                    ? 's'
+                                    : ''}
+                                </p>
+                              {/if}
                             {/if}
                           </div>
                         </div>
@@ -830,6 +843,22 @@
                               Créer un nouveau formulaire
                             </Button>
                           </div>
+                          {#if editingSharedDefault}
+                            <p
+                              class="flex items-start gap-1.5 text-[11px] text-amber-600"
+                            >
+                              <TriangleAlert class="mt-px size-3 shrink-0" />
+                              « Modifier » change le formulaire par défaut de ce type,
+                              pour tous ses événements. Dupliquez-le pour n'adapter
+                              que celui-ci.
+                            </p>
+                          {:else}
+                            <p class="text-[11px] text-muted-foreground/70">
+                              « Modifier » agit sur le formulaire partagé ; «
+                              Dupliquer » en crée une copie propre à cet
+                              événement.
+                            </p>
+                          {/if}
                         </div>
                       {:else}
                         <p
@@ -858,15 +887,50 @@
             </div>
           </fieldset>
 
-          <div class="space-y-2">
-            <Label for="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              bind:value={$form.notes}
-              rows={3}
-              placeholder="Notes internes sur l'événement…"
-            />
-          </div>
+          <section class="space-y-2">
+            <h3 class="text-sm font-bold uppercase">Visibilité</h3>
+            <label
+              for="devActivated"
+              class="flex items-start gap-3 rounded-sm border p-3 transition-colors select-none {canActivate
+                ? 'cursor-pointer'
+                : 'cursor-not-allowed'} {effectivelyVisible
+                ? 'border-epi-pink/40 bg-epi-pink/5'
+                : canActivate
+                  ? 'hover:bg-muted/40'
+                  : 'border-amber-500/40 bg-amber-500/5'}"
+            >
+              <div class="flex-1 space-y-1">
+                <span class="flex items-center gap-1.5 text-sm font-bold">
+                  Visible dans l'espace dev
+                  <InfoTooltip
+                    text="Tant que c'est désactivé, l'équipe dev ne voit pas cet événement, même configuré. Activez-le quand il est prêt."
+                  />
+                </span>
+                {#if canActivate}
+                  <span class="text-[11px] text-muted-foreground">
+                    {$form.modules.length} section{$form.modules.length > 1
+                      ? 's'
+                      : ''} active{$form.modules.length > 1 ? 's' : ''} pour cet événement.
+                  </span>
+                {:else}
+                  <span
+                    class="flex items-center gap-1.5 text-[11px] font-medium text-amber-600"
+                  >
+                    <TriangleAlert class="size-3.5 shrink-0" />
+                    Activez au moins une section ci-dessus pour rendre l'événement
+                    visible.
+                  </span>
+                {/if}
+              </div>
+              <Switch
+                id="devActivated"
+                checked={effectivelyVisible}
+                disabled={!canActivate}
+                onCheckedChange={(v) => ($form.devActivated = v === true)}
+                class="mt-0.5"
+              />
+            </label>
+          </section>
         </div>
 
         <Dialog.Footer
