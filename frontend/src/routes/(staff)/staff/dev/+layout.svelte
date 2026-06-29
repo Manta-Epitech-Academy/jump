@@ -48,8 +48,24 @@
   // else the resolved default. Its module set drives which surfaces the sidebar
   // shows; switching events re-renders the nav for the picked event.
   let workspace = $derived(data.workspace);
+  // Remember the last event actually browsed. A talent fiche is campus-scoped, so
+  // its URL carries a talent id, not an event id; without this the sidebar would
+  // snap from the event you were in back to the resolved default the instant you
+  // open a profile. Resolution order: the event in the path, an explicit `?event=`
+  // (the entretiens fiche link sets it, so a reload or deep-link stays put), the
+  // last event browsed this session, then the resolved default.
+  let lastEventId = $state<string | null>(null);
+  $effect(() => {
+    const id = page.params.id;
+    if (id && workspace.events.some((e) => e.id === id)) lastEventId = id;
+  });
   let currentEvent = $derived(
-    workspace.events.find((e) => e.id === page.params.id) ?? workspace.current,
+    workspace.events.find((e) => e.id === page.params.id) ??
+      workspace.events.find(
+        (e) => e.id === page.url.searchParams.get('event'),
+      ) ??
+      workspace.events.find((e) => e.id === lastEventId) ??
+      workspace.current,
   );
   let currentModules = $derived(new Set(currentEvent?.modules ?? []));
   // The "Gestion" section shows when it has at least one entry: the sync-errors
