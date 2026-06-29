@@ -141,7 +141,7 @@
           {/snippet}
         </Tooltip.Trigger>
         <Tooltip.Content>
-          Toutes les présences du stage (tous les créneaux)
+          Toutes les présences de l'événement (tous les créneaux)
         </Tooltip.Content>
       </Tooltip.Root>
 

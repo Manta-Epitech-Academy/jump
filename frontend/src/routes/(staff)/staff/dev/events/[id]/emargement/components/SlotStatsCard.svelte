@@ -140,7 +140,7 @@
       </p>
       {#if stageRate !== null}
         <p>
-          Présence du stage :
+          Présence globale :
           <span class="font-bold text-foreground tabular-nums"
             >{stageRate}%</span
           >

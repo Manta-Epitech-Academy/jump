@@ -30,7 +30,7 @@
   import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
   import EventWorkspaceSwitcher from '$lib/components/dev/EventWorkspaceSwitcher.svelte';
-  import { EVENT_MODULES } from '$lib/domain/eventModules';
+  import { EVENT_MODULES, EVENT_MODULE_DEFS } from '$lib/domain/eventModules';
   import { eventDisplayName } from '$lib/domain/event';
 
   let { children, data } = $props();
@@ -161,14 +161,16 @@
     </div>
     <nav class="space-y-1">
       <!-- Surfaces are gated per event by its module set (not campus flags), so
-           two events on one campus can expose different pages. -->
+           two events on one campus can expose different pages. Labels come from
+           EVENT_MODULE_DEFS (the canonical nav + config label) so they stay event-
+           type-agnostic: the dev space now shows coding clubs too, not just stages. -->
       {#if currentModules.has(EVENT_MODULES.INSCRITS)}
         <a
           href={resolve(`/staff/dev/events/${ev.id}/inscrits`)}
           class={navLinkClass(isActive(`/staff/dev/events/${ev.id}/inscrits`))}
         >
           <Users class="h-5 w-5" />
-          <span>Inscrits</span>
+          <span>{EVENT_MODULE_DEFS[EVENT_MODULES.INSCRITS].label}</span>
         </a>
       {/if}
       {#if currentModules.has(EVENT_MODULES.EMARGEMENT)}
@@ -179,7 +181,7 @@
           )}
         >
           <UserCheck class="h-5 w-5" />
-          <span>Émargement</span>
+          <span>{EVENT_MODULE_DEFS[EVENT_MODULES.EMARGEMENT].label}</span>
         </a>
       {/if}
       <!-- Planning is data-driven, not a module: shown only when the event has a
@@ -199,7 +201,7 @@
           class={navLinkClass(isActive(`/staff/dev/events/${ev.id}/bilan`))}
         >
           <MessageSquareText class="h-5 w-5" />
-          <span>Bilan du stage</span>
+          <span>{EVENT_MODULE_DEFS[EVENT_MODULES.BILAN].label}</span>
         </a>
       {/if}
       {#if currentModules.has(EVENT_MODULES.ENTRETIENS)}
@@ -210,7 +212,7 @@
           )}
         >
           <MessageSquare class="h-5 w-5" />
-          <span>Entretiens</span>
+          <span>{EVENT_MODULE_DEFS[EVENT_MODULES.ENTRETIENS].label}</span>
         </a>
       {/if}
       {#if hasWelcomePage}
