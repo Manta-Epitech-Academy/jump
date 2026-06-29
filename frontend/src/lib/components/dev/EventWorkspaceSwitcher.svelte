@@ -10,11 +10,7 @@
   import SalesforceIcon from '$lib/components/icons/SalesforceIcon.svelte';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { cn } from '$lib/utils';
-  import {
-    EVENT_MODULE_DEFS,
-    firstEnabledModule,
-    isEventModuleKey,
-  } from '$lib/domain/eventModules';
+  import { reachableSurfaces, surfaceSegment } from '$lib/domain/eventModules';
   import { eventDisplayName } from '$lib/domain/event';
   import { MOIS_FR } from '$lib/domain/schoolYear';
 
@@ -29,6 +25,11 @@
     schoolYear: { label: string; startYear: number };
     monthKey: string; // "YYYY-MM" in campus tz
     modules: string[];
+    // The data gates folded into surface reachability, so the switcher routes to
+    // a page the target event can actually open (a bilan-without-form event is
+    // hidden from the nav; routing to it would 404).
+    hasPlanning: boolean;
+    hasFeedbackForm: boolean;
   };
 
   let {
@@ -120,21 +121,22 @@
     }));
   });
 
-  // Keep the same surface when switching: if the new event exposes the surface
-  // currently open, stay on it; otherwise land on its first enabled surface,
-  // or the dev home when it exposes nothing reachable.
+  // Keep the same surface when switching: if the new event can reach the surface
+  // currently open, stay on it; otherwise land on its first reachable surface,
+  // or the dev home when it exposes nothing reachable. "Reachable" folds the data
+  // gates (planning/bilan), so switching never lands on a page that 404s.
   function currentSegment(): string {
     const m = page.url.pathname.match(/\/staff\/dev\/events\/[^/]+\/([^/?]+)/);
     return m?.[1] ?? '';
   }
   function targetFor(e: SwitcherEvent): string {
     const seg = currentSegment();
-    if (seg && isEventModuleKey(seg) && e.modules.includes(seg)) {
+    const segments = reachableSurfaces(e).map(surfaceSegment);
+    if (seg && segments.includes(seg)) {
       return resolve(`/staff/dev/events/${e.id}/${seg}`);
     }
-    const first = firstEnabledModule(e.modules);
-    return first
-      ? resolve(`/staff/dev/events/${e.id}/${EVENT_MODULE_DEFS[first].segment}`)
+    return segments.length
+      ? resolve(`/staff/dev/events/${e.id}/${segments[0]}`)
       : resolve('/staff/dev');
   }
 

@@ -19,7 +19,7 @@ import { fromWallClock } from '$lib/domain/planningTime';
  *    UPSERTS every desired module with its validated settings (update preserves
  *    `createdAt`);
  *  - the bulk module edit only sets presence, so it ADDS missing modules with
- *    default settings and leaves existing rows' settings untouched — a bulk apply
+ *    default settings and leaves existing rows' settings untouched - a bulk apply
  *    must never reset a campus's per-event sub-options.
  *
  * Both paths stay idempotent under concurrent saves: the bulk add uses

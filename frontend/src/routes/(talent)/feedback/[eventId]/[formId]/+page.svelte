@@ -28,7 +28,7 @@
       toast.error(
         err instanceof Error
           ? err.message
-          : "Erreur lors de l'enregistrement. Reessaie.",
+          : "Erreur lors de l'enregistrement. Réessaie.",
       );
     } finally {
       submitting = false;

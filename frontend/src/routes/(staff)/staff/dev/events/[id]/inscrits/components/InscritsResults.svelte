@@ -81,7 +81,7 @@
     event: { id: string; titre: string; externalId: string | null };
     // Inscrits sub-option: campuses that don't onboard (e.g. Paris) hide the
     // dossier/statut funnel column so it isn't dead noise. Gates only this column
-    // (header, filter, cells) — the talent fiche is untouched.
+    // (header, filter, cells) - the talent fiche is untouched.
     showStatutColumn?: boolean;
   } = $props();
 
@@ -669,7 +669,7 @@
                            the stretched-link overlay so it both fires the tooltip
                            on hover and navigates to the fiche on click (cmd/middle
                            click included). tabindex=-1 keeps a single tab stop per
-                           row — the overlay link already covers keyboard nav. -->
+                           row - the overlay link already covers keyboard nav. -->
                       <a
                         {...props}
                         href={resolve(`/staff/dev/students/${r.talentId}`)}

@@ -9,7 +9,7 @@ import {
 } from '$lib/domain/eventModules';
 
 /**
- * Service for `EventConfig_Template` — reusable, named, global event-config
+ * Service for `EventConfig_Template` - reusable, named, global event-config
  * presets, all created by staff from the config wizard. Applying one is a
  * point-in-time SEED into an event (the wizard prefills from `summary`, the save
  * writes the event's own rows); there is no live link back. Saving snapshots the
@@ -100,7 +100,7 @@ function moduleCreateRows(
 }
 
 export const EventConfigTemplateService = {
-  /** All templates, alphabetical — the global catalogue the wizard offers. */
+  /** All templates, alphabetical - the global catalogue the wizard offers. */
   async list(): Promise<EventConfigTemplateSummary[]> {
     const rows = await prisma.eventConfig_Template.findMany({
       orderBy: { name: 'asc' },
@@ -155,7 +155,6 @@ export const EventConfigTemplateService = {
             publicName,
             startMinutes,
             feedbackFormId,
-            updatedById: input.actorId,
             modules: { create: moduleRows },
           },
         }),
@@ -172,7 +171,6 @@ export const EventConfigTemplateService = {
         startMinutes,
         feedbackFormId,
         createdById: input.actorId,
-        updatedById: input.actorId,
         modules: { create: moduleRows },
       },
       select: { id: true },

@@ -24,10 +24,10 @@ import {
 } from '$lib/domain/eventModules';
 import {
   getLifecycleBounds,
-  getEventStatus,
   type LifecycleBounds,
   type EventLifecycleStatus,
 } from '$lib/domain/eventLifecycle';
+import { resolveEventStatus } from '$lib/server/services/stageContext';
 import {
   eventConfigState,
   type EventConfigState,
@@ -142,10 +142,10 @@ export const load: PageServerLoad = async () => {
     const tz = e.campus.timezone;
     const sy = schoolYearOf(e.date, tz);
     const startDateKey = toDateKey(e.date, tz);
-    const status = getEventStatus(
-      { date: e.date, endDate: e.endDate },
-      boundsFor(tz),
-    );
+    // Same stage-default-window rule as the dev workspace (see
+    // `resolveEventStatus`): a running SF-synced stage carries no endDate and
+    // must not read `past`, so the cockpit and the dev space agree.
+    const status = resolveEventStatus(e, boundsFor(tz));
     const present = e.modules.filter((m) => isEventModuleKey(m.moduleKey));
     const modules = present.map((m) => m.moduleKey as EventModuleKey);
     const moduleSettings: Record<string, unknown> = {};
@@ -190,7 +190,7 @@ export const load: PageServerLoad = async () => {
   const [publishedForms, typeDefaults, templates] = await Promise.all([
     prisma.feedback_Form.findMany({
       // Any published, talent-answerable form is pickable for an event (forms are
-      // not owned by events — an event-specific one is just a normally-named form).
+      // not owned by events - an event-specific one is just a normally-named form).
       where: { status: 'published', allowsAuthenticatedAccess: true },
       select: { id: true, title: true },
       orderBy: { title: 'asc' },
@@ -330,7 +330,7 @@ export const actions: Actions = {
   },
 
   // "Enregistrer comme modèle" from the config wizard: snapshot the posted module
-  // config as a new global EventConfig_Template. Plain enhanced form — name +
+  // config as a new global EventConfig_Template. Plain enhanced form - name +
   // description + a JSON `config` blob (modules + per-module settings + default
   // feedback form), since the config is nested.
   saveAsTemplate: async ({ request, locals }) => {
@@ -391,7 +391,7 @@ export const actions: Actions = {
   // admin can branch it for this event without touching the shared original.
   // The copy is published + answerable from birth (it mirrors an already-live
   // form and is meant to be used right away), and stays a normal catalogue form
-  // — no event ownership. The wizard binds the event to it client-side and the
+  // - no event ownership. The wizard binds the event to it client-side and the
   // copy becomes selectable like any other form; the admin renames/edits it in
   // the builder.
   duplicateFeedbackForm: async ({ request, locals }) => {

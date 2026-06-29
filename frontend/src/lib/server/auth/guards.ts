@@ -142,7 +142,7 @@ export async function applyRouteGuards(
       // Show the splash while the talent has any stage whose window is still
       // open. "Window" = the explicit endDate, or date + default duration when
       // none (mirrors `stageWindowEnd` so an endDate-less mini-stage doesn't
-      // lose the splash the day after it starts). Existence is enough — with
+      // lose the splash the day after it starts). Existence is enough - with
       // several concurrent stages, any open one triggers it.
       const now = new Date();
       const windowLookback = new Date(

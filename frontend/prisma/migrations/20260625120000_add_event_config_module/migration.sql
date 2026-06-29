@@ -16,9 +16,10 @@ ALTER TABLE "EventConfig_Module" ADD CONSTRAINT "EventConfig_Module_eventId_fkey
 -- Backfill: seed per-event modules from each campus's currently-effective
 -- surface flags, so every existing Stage de Seconde event keeps exactly the
 -- surfaces it shows today. Effective = the CampusFeatureFlag override when
--- present, else the code default (inscrits/entretiens on; emargement/planning/
--- bilan off). Only stage_seconde events were ever in the dev workspace, so
--- only they are seeded; other event types stay out of it (no module rows).
+-- present, else the code default (inscrits/entretiens on; emargement/bilan off).
+-- Only stage_seconde events were ever in the dev workspace, so only they are
+-- seeded; other event types stay out of it (no module rows). `planning` is
+-- deliberately absent: it is data-driven, never a module (see eventModules.ts).
 INSERT INTO "EventConfig_Module" ("eventId", "moduleKey")
 SELECT e."id", m."moduleKey"
 FROM "Event" e
@@ -26,7 +27,6 @@ CROSS JOIN (VALUES
     ('inscrits', true),
     ('entretiens', true),
     ('emargement', false),
-    ('planning', false),
     ('bilan', false)
 ) AS m("moduleKey", "defaultEnabled")
 LEFT JOIN "CampusFeatureFlag" f

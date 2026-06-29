@@ -776,12 +776,6 @@ model Event {
   // Modules decide WHICH surfaces show; this decides WHETHER the event shows at
   // all. Set on activate, cleared on deactivate.
   devActivatedAt DateTime?
-  // First time an admin set this event up through the config wizard. `null` =
-  // never hand-configured: the wizard opens on its Initialisation step (pick a
-  // template or start blank). Module rows alone can't carry this signal - the
-  // flags->modules cutover backfills them - so the hand-config act is recorded
-  // explicitly here, a sibling of `devActivatedAt`. Set once, on the first save.
-  configuredAt   DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -857,7 +851,6 @@ model EventConfig_Template {
   startMinutes   Int?
   feedbackFormId String?
   createdById    String?
-  updatedById    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

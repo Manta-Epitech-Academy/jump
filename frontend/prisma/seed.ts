@@ -56,14 +56,9 @@ type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
 // Dev-workspace modules a seeded stage event exposes (EventConfig_Module rows).
 // Kept in sync with src/lib/domain/eventModules.ts by hand (the seed stays free
 // of $lib imports). Stage events get the full set so every validated surface is
-// testable locally; other event types expose nothing.
-const STAGE_MODULE_KEYS = [
-  'inscrits',
-  'emargement',
-  'planning',
-  'bilan',
-  'entretiens',
-];
+// testable locally; other event types expose nothing. `planning` is not a module
+// (it is data-driven from the event's time slots), so it is not listed here.
+const STAGE_MODULE_KEYS = ['inscrits', 'emargement', 'bilan', 'entretiens'];
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });

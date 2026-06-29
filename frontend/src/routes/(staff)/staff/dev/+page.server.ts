@@ -2,8 +2,8 @@ import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve as resolvePath } from '$app/paths';
 import {
-  firstEnabledModule,
-  EVENT_MODULE_DEFS,
+  firstReachableSurface,
+  surfaceSegment,
 } from '$lib/domain/eventModules';
 
 /**
@@ -18,17 +18,15 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
   const { workspace } = await parent();
   const current = workspace.current;
-  // Workspace membership requires at least one enabled module (see
-  // `resolveWorkspaceEvents`), so a non-null `current` always has a first surface
-  // to land on. The empty state below only shows when the campus has no activated
-  // event exposing any surface (no per-event "home" exists anymore to fall back to).
-  const first = current ? firstEnabledModule(current.modules) : null;
+  // Land on the event's first reachable surface. "Reachable" folds the module set
+  // with the data gates (planning needs a schedule, bilan needs a live form), so
+  // this never redirects to a surface that would 404 the way routing off the raw
+  // module set did. Null (no reachable surface) falls through to the empty state.
+  const first = current ? firstReachableSurface(current) : null;
   if (current && first) {
     throw redirect(
       303,
-      resolvePath(
-        `/staff/dev/events/${current.id}/${EVENT_MODULE_DEFS[first].segment}`,
-      ),
+      resolvePath(`/staff/dev/events/${current.id}/${surfaceSegment(first)}`),
     );
   }
 

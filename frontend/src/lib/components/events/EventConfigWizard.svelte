@@ -276,7 +276,7 @@
   // Editing the resolved form in place edits the SHARED catalogue form. The
   // provable-shared case is the type default with no per-event override: a change
   // there hits every event of that type. We surface that consequence so
-  // "Modifier" never silently edits the shared default — the safe per-event path
+  // "Modifier" never silently edits the shared default - the safe per-event path
   // is "Dupliquer et personnaliser".
   const editingSharedDefault = $derived(
     !$form.feedbackFormId &&
@@ -286,7 +286,7 @@
 
   // "Dupliquer pour cet événement": branch the resolved form into a fresh copy.
   // Posted via fetch (not an enhanced <form>) because this lives inside the main
-  // config <form> — a nested form is invalid HTML. On success the copy is added
+  // config <form> - a nested form is invalid HTML. On success the copy is added
   // to the local catalogue, bound to the event, and opened in the builder.
   async function duplicateSelectedForm() {
     const src = effectiveFormId;
@@ -1001,7 +1001,7 @@
 
 <!-- Save-as-template sub-dialog (separate so its form isn't nested in the config
      form). Snapshots the current modules + sub-options + default feedback form;
-     an existing name updates that template. No page invalidation — the list is
+     an existing name updates that template. No page invalidation - the list is
      updated optimistically so the in-progress config is never reset. -->
 <Dialog.Root bind:open={saveTemplateOpen}>
   <Dialog.Content class="sm:max-w-md">

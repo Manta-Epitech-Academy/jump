@@ -1,9 +1,6 @@
 -- AlterTable
 ALTER TABLE "EventConfig_Module" ADD COLUMN     "settings" JSONB;
 
--- AlterTable
-ALTER TABLE "Event" ADD COLUMN     "configuredAt" TIMESTAMP(3);
-
 -- CreateTable
 CREATE TABLE "EventConfig_Template" (
     "id" TEXT NOT NULL,
@@ -14,7 +11,6 @@ CREATE TABLE "EventConfig_Template" (
     "startMinutes" INTEGER,
     "feedbackFormId" TEXT,
     "createdById" TEXT,
-    "updatedById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 

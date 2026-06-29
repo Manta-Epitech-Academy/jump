@@ -37,7 +37,7 @@ export interface FormStats {
 /**
  * Restricts aggregation. `eventId` scopes to one event (the dev page); `eventIds`
  * scopes to a set of events; `noEvent` scopes to the submissions tied to no event
- * (public responses, whose `eventId` is null) — these are mutually exclusive ways
+ * (public responses, whose `eventId` is null) - these are mutually exclusive ways
  * to pick the event axis. `campusName` scopes to one campus across BOTH channels:
  * authenticated submissions through their event's campus, and public submissions
  * through their self-reported campus label. With no scope, every submission of

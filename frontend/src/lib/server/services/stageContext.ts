@@ -9,6 +9,7 @@ import {
 } from '$lib/domain/eventModules';
 import {
   type EventLifecycleStatus,
+  type LifecycleBounds,
   getEventStatus,
   getLifecycleBounds,
 } from '$lib/domain/eventLifecycle';
@@ -206,7 +207,7 @@ export type EventRecord = {
 /**
  * Typed, fully-defaulted sub-options for a module on this event. Returns the
  * module's defaults when the module is absent or carries no settings, so callers
- * never branch on presence — e.g. `eventModuleSettings(event, 'inscrits').showStatutColumn`.
+ * never branch on presence - e.g. `eventModuleSettings(event, 'inscrits').showStatutColumn`.
  */
 export function eventModuleSettings<K extends EventModuleKey>(
   event: { moduleSettings: Map<EventModuleKey, unknown> },
@@ -294,6 +295,27 @@ export function eventEndOrDefault(event: {
   return event.date;
 }
 
+/**
+ * Lifecycle status of an event, accounting for the stage default-duration
+ * window. A stage de seconde synced from Salesforce carries no `endDate` yet
+ * runs ~2 weeks, so feeding the raw row to `getEventStatus` would read `past`
+ * the day after it starts; only a stage gets the synthesized window. Every other
+ * type keeps its real (possibly null) `endDate` and uses the standard
+ * single-day rule (a one-afternoon coding club is not "ongoing" for two weeks).
+ * Single-sourced so the dev workspace and the admin events cockpit can't disagree
+ * on whether a running stage is `ongoing`.
+ */
+export function resolveEventStatus(
+  event: { date: Date; endDate: Date | null; eventType: string },
+  bounds: LifecycleBounds,
+): EventLifecycleStatus {
+  const endDate =
+    event.eventType === EVENT_TYPES.STAGE_SECONDE
+      ? eventEndOrDefault(event)
+      : event.endDate;
+  return getEventStatus({ date: event.date, endDate }, bounds);
+}
+
 export type WorkspaceEventEntry = {
   id: string;
   titre: string;
@@ -321,7 +343,7 @@ export type WorkspaceEventEntry = {
   /**
    * Whether the event has a schedule (≥1 time slot). Planning is not a module:
    * it's read-only data owned by pedago/admin, so its dev nav entry shows
-   * data-driven — only when there is actually a schedule to look at.
+   * data-driven - only when there is actually a schedule to look at.
    */
   hasPlanning: boolean;
   /**
@@ -348,9 +370,11 @@ export type WorkspaceEvents = {
  *    event is configured at creation but stays hidden until then), AND
  *  - at least one enabled module: the dev space is nothing but per-module
  *    surfaces, so an event exposing zero of them has nowhere to land. Including
- *    it would seat it in the switcher and let it become `current`, then dead-end
- *    on the empty state (`firstEnabledModule` -> null). Excluding it keeps the
- *    invariant the landing relies on: a non-null `current` is always landable.
+ *    it would seat it in the switcher and let it become `current`, then drop on
+ *    the empty state (`firstReachableSurface` -> null). Excluding it keeps the
+ *    landing's happy path: a `current` with a reachable surface lands on it.
+ *    (A member whose only surfaces are gated off by data, e.g. bilan without a
+ *    form, still resolves to null and shows the empty state rather than a 404.)
  * Modules then decide WHICH surfaces a member event exposes. The workspace hosts
  * as many events as a campus activates, across school years, switchable in the
  * sidebar.
@@ -405,27 +429,17 @@ export async function resolveWorkspaceEvents(
       : liveDefaultTypes.has(e.eventType);
   const bounds = getLifecycleBounds(timezone);
   const events: WorkspaceEventEntry[] = rows.map((e) => {
-    // A stage synced from Salesforce has no explicit `endDate` (the SF sync
-    // never sets it; only an applied planning template does), so feeding the raw
-    // row to `getEventStatus` would treat it as single-day and read `past` the
-    // day after it starts. For a stage we synthesize the default-duration window
-    // (matching how the old single-stage resolution decided "still ongoing").
-    // Any other type keeps its real endDate, so `getEventStatus` applies its
-    // standard single-day-when-null rule and a one-day coding club is not read
-    // as "ongoing" for two weeks.
-    const endDate = eventEndOrDefault(e);
-    const isStage = e.eventType === EVENT_TYPES.STAGE_SECONDE;
     return {
       id: e.id,
       titre: e.titre,
       publicName: e.publicName,
       externalId: e.externalId,
       date: e.date,
-      endDate,
-      status: getEventStatus(
-        { date: e.date, endDate: isStage ? endDate : e.endDate },
-        bounds,
-      ),
+      // Effective end for display: the stage default-duration window, else the
+      // real (possibly null) endDate. `resolveEventStatus` applies the same rule
+      // for the lifecycle bucket, so the two never disagree.
+      endDate: eventEndOrDefault(e),
+      status: resolveEventStatus(e, bounds),
       schoolYear: schoolYearOf(e.date, timezone),
       monthKey: toDateKey(e.date, timezone).slice(0, 7),
       modules: e.modules.map((m) => m.moduleKey).filter(isEventModuleKey),

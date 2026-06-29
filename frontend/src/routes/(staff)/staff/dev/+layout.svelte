@@ -30,8 +30,23 @@
   import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
   import EventWorkspaceSwitcher from '$lib/components/dev/EventWorkspaceSwitcher.svelte';
-  import { EVENT_MODULES, EVENT_MODULE_DEFS } from '$lib/domain/eventModules';
+  import {
+    reachableSurfaces,
+    surfaceSegment,
+    surfaceLabel,
+    type EventSurfaceKey,
+  } from '$lib/domain/eventModules';
   import { eventDisplayName } from '$lib/domain/event';
+
+  // Icons live with the component (Svelte components can't sit in the domain
+  // layer); order/label/reachability are single-sourced in `eventModules`.
+  const SURFACE_ICONS: Record<EventSurfaceKey, typeof Users> = {
+    inscrits: Users,
+    emargement: UserCheck,
+    planning: CalendarDays,
+    bilan: MessageSquareText,
+    entretiens: MessageSquare,
+  };
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
@@ -67,7 +82,6 @@
       workspace.events.find((e) => e.id === lastEventId) ??
       workspace.current,
   );
-  let currentModules = $derived(new Set(currentEvent?.modules ?? []));
   // The "Gestion" section shows when it has at least one entry: the sync-errors
   // surface, or the lead-only "Staff du campus" (behind its flag). Event module
   // config moved to the admin space, so there is no per-event config entry here.
@@ -176,65 +190,23 @@
       {/if}
     </div>
     <nav class="space-y-1">
-      <!-- Surfaces are gated per event by its module set (not campus flags), so
-           two events on one campus can expose different pages. Labels come from
-           EVENT_MODULE_DEFS (the canonical nav + config label) so they stay event-
-           type-agnostic: the dev space now shows coding clubs too, not just stages. -->
-      {#if currentModules.has(EVENT_MODULES.INSCRITS)}
+      <!-- Surfaces are per event, not campus flags, so two events on one campus
+           can expose different pages. The reachable set folds the module rows
+           with the data gates (planning needs a schedule, bilan needs a live
+           form) in one place (`reachableSurfaces`), so this nav, the event
+           switcher and the dev landing all agree on what a dev can open. Labels
+           stay event-type-agnostic, so the dev space shows coding clubs too. -->
+      {#each reachableSurfaces(ev) as key (key)}
+        {@const seg = surfaceSegment(key)}
+        {@const Icon = SURFACE_ICONS[key]}
         <a
-          href={resolve(`/staff/dev/events/${ev.id}/inscrits`)}
-          class={navLinkClass(isActive(`/staff/dev/events/${ev.id}/inscrits`))}
+          href={resolve(`/staff/dev/events/${ev.id}/${seg}`)}
+          class={navLinkClass(isActive(`/staff/dev/events/${ev.id}/${seg}`))}
         >
-          <Users class="h-5 w-5" />
-          <span>{EVENT_MODULE_DEFS[EVENT_MODULES.INSCRITS].label}</span>
+          <Icon class="h-5 w-5" />
+          <span>{surfaceLabel(key)}</span>
         </a>
-      {/if}
-      {#if currentModules.has(EVENT_MODULES.EMARGEMENT)}
-        <a
-          href={resolve(`/staff/dev/events/${ev.id}/emargement`)}
-          class={navLinkClass(
-            isActive(`/staff/dev/events/${ev.id}/emargement`),
-          )}
-        >
-          <UserCheck class="h-5 w-5" />
-          <span>{EVENT_MODULE_DEFS[EVENT_MODULES.EMARGEMENT].label}</span>
-        </a>
-      {/if}
-      <!-- Planning is data-driven, not a module: shown only when the event has a
-           schedule (built by pedago/admin), since the dev view is read-only. -->
-      {#if ev.hasPlanning}
-        <a
-          href={resolve(`/staff/dev/events/${ev.id}/planning`)}
-          class={navLinkClass(isActive(`/staff/dev/events/${ev.id}/planning`))}
-        >
-          <CalendarDays class="h-5 w-5" />
-          <span>Planning</span>
-        </a>
-      {/if}
-      <!-- Feedback is gated on the module AND a resolvable live form (like
-           planning's data-driven gate): bilan enabled without a published form
-           would land the dev on an empty page, so the entry hides until there is
-           feedback to look at. The page 404s on the same condition. -->
-      {#if currentModules.has(EVENT_MODULES.BILAN) && ev.hasFeedbackForm}
-        <a
-          href={resolve(`/staff/dev/events/${ev.id}/bilan`)}
-          class={navLinkClass(isActive(`/staff/dev/events/${ev.id}/bilan`))}
-        >
-          <MessageSquareText class="h-5 w-5" />
-          <span>{EVENT_MODULE_DEFS[EVENT_MODULES.BILAN].label}</span>
-        </a>
-      {/if}
-      {#if currentModules.has(EVENT_MODULES.ENTRETIENS)}
-        <a
-          href={resolve(`/staff/dev/events/${ev.id}/entretiens`)}
-          class={navLinkClass(
-            isActive(`/staff/dev/events/${ev.id}/entretiens`),
-          )}
-        >
-          <MessageSquare class="h-5 w-5" />
-          <span>{EVENT_MODULE_DEFS[EVENT_MODULES.ENTRETIENS].label}</span>
-        </a>
-      {/if}
+      {/each}
       {#if hasWelcomePage}
         <a
           href={resolve('/staff/dev/contenu/welcome')}

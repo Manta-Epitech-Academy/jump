@@ -188,7 +188,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
     // Interview conduct surface. The orientation interview is 1:1 with a
     // participation (one per person per event) and is offered on any event that
-    // exposes the `entretiens` module — not only the stage. The entretiens page
+    // exposes the `entretiens` module - not only the stage. The entretiens page
     // links here with `?event=<id>`, so we attach to THAT event's participation;
     // opened without context (search, deep link) we fall back to the latest
     // interviewable one, stage first for backward-compatible behaviour. Staff

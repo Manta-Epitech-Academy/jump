@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { EVENT_TYPES } from './event';
 
 /**
  * Per-event "modules" = the dev-workspace surfaces a single event exposes.
@@ -78,22 +77,16 @@ export const EVENT_MODULE_DEFS: Record<EventModuleKey, EventModuleDef> = {
 };
 
 /**
- * Module preset seeded onto a new event at creation, keyed by its event type.
- * The type is just a starting point: after creation the per-event module rows
- * are the truth and are edited independently (changing the type never rebinds
- * an existing event). Every type (stage, coding club, anything unknown the
- * worker imports) starts with all four surfaces on; admins trim per event from
- * the admin event-config page. Per-type rows stay so a future type can diverge.
+ * Modules seeded onto a new event at creation. The event type is only a starting
+ * point: after creation the per-event module rows are the truth and are edited
+ * independently (changing the type never rebinds an existing event). Every type
+ * (stage, coding club, anything the worker imports) starts with all four surfaces
+ * on; admins trim per event from the admin event-config page. There is no
+ * per-type table because no type's default actually differs today - branch on
+ * `eventType` here the day one does.
  */
-const DEFAULT_PRESET: EventModuleKey[] = [...EVENT_MODULE_KEYS];
-
-export const EVENT_TYPE_PRESETS: Record<string, EventModuleKey[]> = {
-  [EVENT_TYPES.STAGE_SECONDE]: DEFAULT_PRESET,
-  [EVENT_TYPES.CODING_CLUB]: DEFAULT_PRESET,
-};
-
-export function presetModulesForType(eventType: string): EventModuleKey[] {
-  return EVENT_TYPE_PRESETS[eventType] ?? DEFAULT_PRESET;
+export function presetModulesForType(_eventType: string): EventModuleKey[] {
+  return [...EVENT_MODULE_KEYS];
 }
 
 export function isEventModuleKey(value: string): value is EventModuleKey {
@@ -186,15 +179,75 @@ export function eventHasModule(
 }
 
 /**
- * First enabled module in display order: the surface the dev workspace lands
- * on for an event (replaces the old inscrits→entretiens→emargement flag
- * fallthrough). Returns null when the event exposes nothing.
+ * A dev-workspace "surface" is a sidebar entry / landable page. Most surfaces
+ * are modules (a row's presence = enabled), but two carry a second, data-driven
+ * gate beyond the module row, so "which page can a dev actually reach" is not the
+ * raw module set:
+ *  - `planning` is not a module at all (read-only pedago/admin schedule data): it
+ *    is reachable only when the event has a real schedule.
+ *  - `bilan` is a module but also needs a resolvable live feedback form, or its
+ *    page 404s.
+ * This projection folds those gates in one place so the sidebar nav, the event
+ * switcher and the dev landing all agree on the reachable set. Routing off the
+ * raw module set instead (the old `firstEnabledModule`) sent the switcher and the
+ * landing into a 404 for a bilan-without-form event the nav had already hidden.
  */
-export function firstEnabledModule(
-  modules: ReadonlySet<string> | readonly string[],
-): EventModuleKey | null {
-  for (const key of EVENT_MODULE_KEYS) {
-    if (eventHasModule(modules, key)) return key;
-  }
-  return null;
+export type EventSurfaceKey = EventModuleKey | 'planning';
+
+/**
+ * Sidebar / landing order. Modules keep their `EVENT_MODULE_KEYS` order; the
+ * `planning` pseudo-surface is interleaved where the nav shows it (between
+ * émargement and bilan).
+ */
+export const EVENT_SURFACE_ORDER: EventSurfaceKey[] = [
+  EVENT_MODULES.INSCRITS,
+  EVENT_MODULES.EMARGEMENT,
+  'planning',
+  EVENT_MODULES.BILAN,
+  EVENT_MODULES.ENTRETIENS,
+];
+
+/** The per-event signals a surface's reachability folds in. */
+export interface EventSurfaceGates {
+  modules: ReadonlySet<string> | readonly string[];
+  /** Event has a schedule (≥1 time slot): gates `planning`. */
+  hasPlanning: boolean;
+  /** Event resolves a live feedback form: gates `bilan` on top of its module. */
+  hasFeedbackForm: boolean;
+}
+
+/** Whether a dev can actually reach a surface, module presence + data gates. */
+export function isSurfaceReachable(
+  key: EventSurfaceKey,
+  gates: EventSurfaceGates,
+): boolean {
+  if (key === 'planning') return gates.hasPlanning;
+  if (!eventHasModule(gates.modules, key)) return false;
+  if (key === EVENT_MODULES.BILAN) return gates.hasFeedbackForm;
+  return true;
+}
+
+/** Reachable surfaces in sidebar order. */
+export function reachableSurfaces(gates: EventSurfaceGates): EventSurfaceKey[] {
+  return EVENT_SURFACE_ORDER.filter((key) => isSurfaceReachable(key, gates));
+}
+
+/**
+ * The surface the dev workspace lands on for an event (first reachable in
+ * display order), or null when the event exposes nothing reachable.
+ */
+export function firstReachableSurface(
+  gates: EventSurfaceGates,
+): EventSurfaceKey | null {
+  return reachableSurfaces(gates)[0] ?? null;
+}
+
+/** URL sub-path under `/staff/dev/events/[id]/` for a surface. */
+export function surfaceSegment(key: EventSurfaceKey): string {
+  return key === 'planning' ? 'planning' : EVENT_MODULE_DEFS[key].segment;
+}
+
+/** Sidebar label for a surface (FR, staff-facing → vous). */
+export function surfaceLabel(key: EventSurfaceKey): string {
+  return key === 'planning' ? 'Planning' : EVENT_MODULE_DEFS[key].label;
 }
