@@ -7,7 +7,7 @@ import {
 import {
   loadEventOr404,
   requireEventModule,
-  stageEndOrDefault,
+  eventEndOrDefault,
   eventModuleSettings,
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
@@ -57,7 +57,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     getEventStatus(event, bounds),
     locals.stagePhaseOverride,
   );
-  const stageEnd = stageEndOrDefault(event);
+  const eventEnd = eventEndOrDefault(event);
   const { dayN, totalDays } = stageCountdown(event, timezone, bounds.now);
   const countdown = {
     status,
@@ -67,7 +67,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       timezone,
     ),
     startMinutes: event.startMinutes,
-    endDate: stageEnd,
+    endDate: eventEnd,
     dayN,
     totalDays,
   };
@@ -178,6 +178,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     // campus doesn't onboard. Cheap shell value, so it rides the first paint.
     showStatutColumn: eventModuleSettings(event, EVENT_MODULES.INSCRITS)
       .showStatutColumn,
+    // Inscrits sub-option: the internship-diploma export (Certificat de stage).
+    // Off for events that don't issue one (e.g. coding clubs). Cheap shell value.
+    allowDiplomas: eventModuleSettings(event, EVENT_MODULES.INSCRITS).diplomas,
     // Un-awaited on purpose: SvelteKit streams it so the shell paints first.
     cohort,
   };

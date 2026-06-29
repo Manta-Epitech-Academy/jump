@@ -83,6 +83,8 @@ export async function syncEvents(
       // Seed the per-event modules from the type's preset, once, at creation.
       // After this the rows are Jump-owned: the update branch never touches
       // them, so the dev team's per-event surface config is never clobbered.
+      // Sub-option settings stay unset (each defaults off until an admin enables
+      // it from the config wizard).
       const presetModules = presetModulesForType(eventType);
       await prisma.event.create({
         data: {

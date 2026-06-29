@@ -713,12 +713,39 @@
                           checked={getModuleSetting(
                             'inscrits',
                             'showStatutColumn',
-                            true,
+                            false,
                           )}
                           onCheckedChange={(v) =>
                             setModuleSetting(
                               'inscrits',
                               'showStatutColumn',
+                              v === true,
+                            )}
+                        />
+                      </label>
+                      <label
+                        for="inscrits-diplomes"
+                        class="flex cursor-pointer items-center justify-between gap-3 select-none"
+                      >
+                        <span
+                          class="flex items-center gap-1.5 text-xs font-medium"
+                        >
+                          Génération des diplômes
+                          <InfoTooltip
+                            text="Affiche le bouton « Générer diplômes » (le certificat de stage) sur la page Inscrits. Désactivez-le pour un événement qui ne délivre pas de certificat de stage, comme un coding club."
+                          />
+                        </span>
+                        <Switch
+                          id="inscrits-diplomes"
+                          checked={getModuleSetting(
+                            'inscrits',
+                            'diplomas',
+                            false,
+                          )}
+                          onCheckedChange={(v) =>
+                            setModuleSetting(
+                              'inscrits',
+                              'diplomas',
                               v === true,
                             )}
                         />

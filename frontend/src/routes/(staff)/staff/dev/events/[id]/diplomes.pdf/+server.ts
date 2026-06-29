@@ -1,10 +1,14 @@
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import {
   loadEventOr404,
-  stageEndOrDefault,
+  eventModuleSettings,
+  requireEventModule,
+  eventEndOrDefault,
 } from '$lib/server/services/stageContext';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { generateStageDiplomasPDF } from '$lib/server/services/diplomaGenerator';
 import { getStorage, isObjectNotFound } from '$lib/server/infra/storage';
 import { prisma } from '$lib/server/db';
@@ -20,6 +24,13 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
   const campusId = getCampusId(locals);
   const event = await loadEventOr404(params.id, campusId);
+  // The diploma sheet is an Inscrits sub-option (the internship Certificat de
+  // stage). Gate the route too, not just the button: a direct URL for an event
+  // that doesn't issue one (coding club) behaves like a missing page.
+  requireEventModule(event, EVENT_MODULES.INSCRITS);
+  if (!eventModuleSettings(event, EVENT_MODULES.INSCRITS).diplomas) {
+    throw error(404, 'Fonctionnalité non disponible pour cet événement.');
+  }
   const db = scopedPrisma(campusId);
 
   const [participations, campus, signatoryRows] = await Promise.all([
@@ -75,7 +86,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     })),
     city: campus?.name ?? '',
     startDate: formatDateFr(event.date, timezone),
-    endDate: formatDateFr(stageEndOrDefault(event), timezone),
+    endDate: formatDateFr(eventEndOrDefault(event), timezone),
     todayDate: formatDateFr(new Date(), timezone),
     signatories,
   });

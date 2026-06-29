@@ -110,11 +110,18 @@ export function isEventModuleKey(value: string): value is EventModuleKey {
  * typed columns on `Event`, never in here.
  */
 export const inscritsModuleSettingsSchema = z.object({
-  // Show the dossier/statut funnel column on the Inscrits table for this event.
-  // Campuses that don't onboard (e.g. Paris: interviews + public bilan only) turn
-  // it off so the column isn't dead noise. Gates ONLY that column, never the
-  // talent fiche.
-  showStatutColumn: z.boolean().default(true),
+  // Show the dossier/statut funnel column (connexion, règlement, droit à l'image)
+  // on the Inscrits table for this event. Opt-in: defaults off, an admin turns it
+  // on per event from the config wizard (onboarding campuses want it; others, e.g.
+  // Paris with interviews + public bilan only, leave it off). Gates ONLY that
+  // column, never the talent fiche.
+  showStatutColumn: z.boolean().default(false),
+  // Show the "Générer diplômes" export (the internship Certificat de stage) on the
+  // Inscrits header. Opt-in: defaults off, so nothing stage-specific surfaces until
+  // an admin enables it (a coding club issues no certificate; even a stage turns it
+  // on explicitly). Gating goes through this sub-option, never an eventType check
+  // at the call site.
+  diplomas: z.boolean().default(false),
 });
 
 const emptyModuleSettingsSchema = z.object({});

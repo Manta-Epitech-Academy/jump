@@ -275,12 +275,23 @@ export function requireEventModule(
   }
 }
 
-export function stageEndOrDefault(event: {
+/**
+ * Effective end of an event. An explicit `endDate` always wins. Otherwise only a
+ * stage de seconde falls back to the default-duration window: a SF-synced stage
+ * carries no endDate (only an applied planning template sets one) yet runs ~2
+ * weeks. Every other type with no endDate is a single-day event - its start is
+ * returned - so a one-afternoon coding club isn't treated as a two-week run.
+ */
+export function eventEndOrDefault(event: {
   date: Date;
   endDate: Date | null;
+  eventType: string;
 }): Date {
   if (event.endDate) return event.endDate;
-  return addDays(event.date, STAGE_DEFAULT_DURATION_DAYS);
+  if (event.eventType === EVENT_TYPES.STAGE_SECONDE) {
+    return addDays(event.date, STAGE_DEFAULT_DURATION_DAYS);
+  }
+  return event.date;
 }
 
 export type WorkspaceEventEntry = {
@@ -291,7 +302,10 @@ export type WorkspaceEventEntry = {
   /** Salesforce Campaign id, for the switcher's deep-link. Null when unlinked. */
   externalId: string | null;
   date: Date;
-  /** Effective end (explicit endDate, else the default-duration window). */
+  /**
+   * Effective end: explicit endDate, else the stage default-duration window, else
+   * (any other type) the start date (single-day). See `eventEndOrDefault`.
+   */
   endDate: Date;
   status: EventLifecycleStatus;
   schoolYear: SchoolYear;
@@ -346,6 +360,7 @@ export async function resolveWorkspaceEvents(
       externalId: true,
       date: true,
       endDate: true,
+      eventType: true,
       modules: { select: { moduleKey: true } },
       planning: { select: { _count: { select: { timeSlots: true } } } },
     },
@@ -353,13 +368,16 @@ export async function resolveWorkspaceEvents(
   });
   const bounds = getLifecycleBounds(timezone);
   const events: WorkspaceEventEntry[] = rows.map((e) => {
-    // Resolve the effective end once and derive the status from it. A stage
-    // synced from Salesforce has no explicit `endDate` (the SF sync never sets
-    // it; only an applied planning template does), so feeding the raw row to
-    // `getEventStatus` would treat it as single-day and read `past` the day
-    // after it starts. `stageEndOrDefault` applies the default-duration window,
-    // matching how the old single-stage resolution decided "still ongoing".
-    const endDate = stageEndOrDefault(e);
+    // A stage synced from Salesforce has no explicit `endDate` (the SF sync
+    // never sets it; only an applied planning template does), so feeding the raw
+    // row to `getEventStatus` would treat it as single-day and read `past` the
+    // day after it starts. For a stage we synthesize the default-duration window
+    // (matching how the old single-stage resolution decided "still ongoing").
+    // Any other type keeps its real endDate, so `getEventStatus` applies its
+    // standard single-day-when-null rule and a one-day coding club is not read
+    // as "ongoing" for two weeks.
+    const endDate = eventEndOrDefault(e);
+    const isStage = e.eventType === EVENT_TYPES.STAGE_SECONDE;
     return {
       id: e.id,
       titre: e.titre,
@@ -367,7 +385,10 @@ export async function resolveWorkspaceEvents(
       externalId: e.externalId,
       date: e.date,
       endDate,
-      status: getEventStatus({ date: e.date, endDate }, bounds),
+      status: getEventStatus(
+        { date: e.date, endDate: isStage ? endDate : e.endDate },
+        bounds,
+      ),
       schoolYear: schoolYearOf(e.date, timezone),
       monthKey: toDateKey(e.date, timezone).slice(0, 7),
       modules: e.modules.map((m) => m.moduleKey).filter(isEventModuleKey),

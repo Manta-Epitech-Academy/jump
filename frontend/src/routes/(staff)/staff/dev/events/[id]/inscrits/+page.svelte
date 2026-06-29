@@ -173,20 +173,22 @@
         Générer badges
       {/if}
     </Button>
-    <Button
-      variant="outline"
-      size="sm"
-      onclick={generateDiplomas}
-      disabled={generatingDiplomas}
-    >
-      {#if generatingDiplomas}
-        <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
-        Génération…
-      {:else}
-        <Award class="mr-1.5 h-4 w-4" />
-        Générer diplômes
-      {/if}
-    </Button>
+    {#if data.allowDiplomas}
+      <Button
+        variant="outline"
+        size="sm"
+        onclick={generateDiplomas}
+        disabled={generatingDiplomas}
+      >
+        {#if generatingDiplomas}
+          <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+          Génération…
+        {:else}
+          <Award class="mr-1.5 h-4 w-4" />
+          Générer diplômes
+        {/if}
+      </Button>
+    {/if}
     <EventSalesforceButton externalId={data.event.externalId} />
   </PageHeader>
 
