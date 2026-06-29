@@ -76,7 +76,6 @@ export type AdminEventVM = {
   configState: EventConfigState;
   /** End day `YYYY-MM-DD` (campus tz) for the form, or "" when unset. */
   endDate: string;
-  notes: string;
   modules: EventModuleKey[];
   /** Per-module sub-options keyed by module key (only enabled modules carry one). */
   moduleSettings: Record<string, unknown>;
@@ -116,7 +115,6 @@ export const load: PageServerLoad = async () => {
       endDate: true,
       startMinutes: true,
       eventType: true,
-      notes: true,
       externalId: true,
       devActivatedAt: true,
       feedbackFormId: true,
@@ -178,7 +176,6 @@ export const load: PageServerLoad = async () => {
         moduleCount: modules.length,
       }),
       endDate: e.endDate ? toDateKey(e.endDate, tz) : '',
-      notes: e.notes ?? '',
       modules,
       moduleSettings,
       feedbackFormId: e.feedbackFormId ?? '',
@@ -260,7 +257,6 @@ export const actions: Actions = {
         publicName: form.data.publicName,
         startTime: form.data.startTime,
         endDate: form.data.endDate,
-        notes: form.data.notes,
         modules: form.data.modules,
         moduleSettings: form.data.moduleSettings,
         devActivated: form.data.devActivated,

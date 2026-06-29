@@ -98,8 +98,8 @@ async function validateMantaIds(campusId: string, mantaIds: string[]) {
 export const EventService = {
   /**
    * Admin event configuration: the friendly `publicName`, the Jump-owned start
-   * time-of-day and end date, free-text notes, and the dev-workspace surfaces
-   * the event exposes — all in one transaction. Admin-only (the
+   * time-of-day and end date, and the dev-workspace surfaces the event exposes,
+   * all in one transaction. Admin-only (the
    * `/staff/admin/events` page is admin-gated and admins are cross-campus, so
    * there is no campus check here; the event id is the authority). The start
    * `date`, `titre` and `eventType` stay Salesforce-owned. `endDate` is NOT
@@ -114,7 +114,6 @@ export const EventService = {
       publicName: string;
       startTime: string;
       endDate: string;
-      notes: string;
       modules: string[];
       moduleSettings: Record<string, unknown>;
       devActivated: boolean;
@@ -167,7 +166,6 @@ export const EventService = {
           publicName: data.publicName.trim() || null,
           startMinutes: hhmmToMinutes(data.startTime),
           endDate,
-          notes: data.notes,
           devActivatedAt,
           feedbackFormId,
         },

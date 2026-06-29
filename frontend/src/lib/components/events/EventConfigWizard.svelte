@@ -47,7 +47,6 @@
     startDateKey: string;
     startTime: string;
     endDate: string;
-    notes: string;
     modules: EventModuleKey[];
     moduleSettings: Record<string, unknown>;
     devActivated: boolean;
@@ -128,7 +127,6 @@
     $form.publicName = e.publicName;
     $form.startTime = e.startTime;
     $form.endDate = e.endDate;
-    $form.notes = e.notes;
     $form.modules = [...e.modules];
     $form.moduleSettings = withDefaults(e.moduleSettings);
     $form.devActivated = e.devActivated;
@@ -637,16 +635,6 @@
                     >{$errors.endDate}</span
                   >{/if}
               </div>
-            </div>
-
-            <div class="space-y-2">
-              <Label for="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                bind:value={$form.notes}
-                rows={3}
-                placeholder="Notes internes sur l'événement…"
-              />
             </div>
           </div>
 

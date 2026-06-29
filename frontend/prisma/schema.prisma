@@ -769,7 +769,6 @@ model Event {
   // drops the binding back to the default rather than the event.
   feedbackFormId String?
   pin            String?
-  notes          String?
   externalId     String?   @unique
   // Explicit admin gate for the dev workspace, decoupled from modules: an event
   // appears in the dev sidebar/switcher only once an admin activates it here.

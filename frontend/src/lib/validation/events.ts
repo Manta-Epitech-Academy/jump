@@ -4,8 +4,8 @@ import { EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
 
 /**
  * Admin event configuration (the `/staff/admin/events` page): the friendly
- * public name, the Jump-owned start time, free-text notes, and the dev-workspace
- * surfaces the event exposes. One submit writes all four (see
+ * public name, the Jump-owned start time, and the dev-workspace surfaces the
+ * event exposes. One submit writes them all (see
  * `EventService.updateEventConfig`). `publicName` empty clears it (falls back to
  * the SF `titre`); `startTime` empty clears it to the type default; `modules`
  * empty = the event exposes nothing. Each module is validated against the
@@ -27,7 +27,6 @@ export const adminEventSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide (AAAA-MM-JJ).')
     .or(z.literal(''))
     .default(''),
-  notes: z.string().default(''),
   modules: z
     .array(z.enum(EVENT_MODULE_KEYS as [string, ...string[]]))
     .default([]),

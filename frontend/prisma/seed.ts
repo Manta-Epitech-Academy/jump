@@ -1961,7 +1961,6 @@ type EventBlueprint = {
   campus: 'Paris' | 'Lyon';
   theme: string;
   pin: string;
-  notes?: string | null;
   mantaKeys: string[];
   days?: DayBlueprint[]; // if multi-day
   slots?: SlotBlueprint[]; // if single day (dayOffset=0)
@@ -2033,7 +2032,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Cybersécurité',
     pin: '9999',
-    notes: 'Sujet phishing très apprécié.',
     mantaKeys: ['jules.dupont', 'laura.garcia'],
     slots: [
       standardOrgaSlot(),
@@ -2097,7 +2095,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Robotique',
     pin: '4321',
-    notes: null,
     mantaKeys: ['laura.garcia'],
     slots: [
       standardOrgaSlot(),
@@ -2147,7 +2144,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Développement Web',
     pin: '1001',
-    notes: 'Édition juin — promotion précédente. Archive pédagogique.',
     mantaKeys: ['jules.dupont', 'laura.garcia'],
     days: [
       {
@@ -2227,7 +2223,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Intelligence Artificielle',
     pin: '7777',
-    notes: null,
     mantaKeys: ['jules.dupont', 'laura.garcia'],
     slots: [
       {
@@ -2278,7 +2273,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Développement Web',
     pin: '2222',
-    notes: null,
     mantaKeys: [], // ← intentional
     slots: [
       standardOrgaSlot(),
@@ -2310,7 +2304,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Jeux Vidéo',
     pin: '3333',
-    notes: null,
     mantaKeys: ['jules.dupont'],
     slots: [], // ← intentional (empty planning)
     // Niveau mix: stage cohort (2nde) + extras from other class levels.
@@ -2329,7 +2322,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Jeux Vidéo',
     pin: '5678',
-    notes: null,
     mantaKeys: ['laura.garcia'],
     slots: [
       standardOrgaSlot(),
@@ -2360,8 +2352,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Développement Web',
     pin: '1003',
-    notes:
-      "Cohorte en plein milieu du stage. Demo Day vendredi à 14h (Amphi A).\n\n## Logistique\n\n- Repas : commande validée pour les 5 jours.\n- Mentors : 2 référents pédago disponibles tous les après-midis.\n\n## À surveiller\n\n- Retour parents sur le droit à l'image — 3 dossiers en attente de relance.",
     mantaKeys: ['jules.dupont', 'laura.garcia'],
     days: [
       // Day 0 — Lundi (déjà passé, J1)
@@ -2499,7 +2489,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Lyon',
     theme: 'Développement Web',
     pin: '6001',
-    notes: null,
     mantaKeys: ['pierre.leblanc'],
     slots: [
       standardOrgaSlot(),
@@ -2538,7 +2527,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Lyon',
     theme: 'Robotique',
     pin: '6002',
-    notes: null,
     mantaKeys: ['pierre.leblanc'],
     slots: [
       standardOrgaSlot(),
@@ -2563,7 +2551,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Lyon',
     theme: 'Développement Web',
     pin: '6003',
-    notes: null,
     mantaKeys: ['pierre.leblanc', 'jeanne.albert', 'romain.caron'],
     days: [
       {
@@ -4374,7 +4361,6 @@ async function seedEvents(
         campusId,
         themeId,
         pin: blueprint.pin,
-        notes: blueprint.notes ?? null,
         mantas: {
           create: blueprint.mantaKeys
             .map((key) => {
