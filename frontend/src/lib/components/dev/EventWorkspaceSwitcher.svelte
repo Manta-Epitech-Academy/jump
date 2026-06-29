@@ -246,18 +246,32 @@
 </script>
 
 <Popover.Root bind:open>
-  <Popover.Trigger>
-    {#snippet child({ props })}
-      <button
-        {...props}
-        aria-label="Changer d'événement"
-        title="Changer d'événement"
-        class="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border border-sidebar-border bg-sidebar-hover text-sidebar-foreground-muted transition-colors hover:bg-white/10 hover:text-sidebar-foreground"
-      >
-        <ChevronDown class="size-4" />
-      </button>
-    {/snippet}
-  </Popover.Trigger>
+  <!-- The chevron both opens the picker and carries a hover hint, so it is a
+       Popover trigger AND a Tooltip trigger on one element: nest the two `child`
+       snippets and spread both prop bags (the house pattern, see ModeToggle). A
+       native `title` was used before, which clashed with the dark sidebar and
+       the shadcn tooltip on the Salesforce glyph in the rows below. -->
+  <Tooltip.Provider delayDuration={150}>
+    <Tooltip.Root>
+      <Tooltip.Trigger>
+        {#snippet child({ props: tooltipProps })}
+          <Popover.Trigger>
+            {#snippet child({ props: popoverProps })}
+              <button
+                {...tooltipProps}
+                {...popoverProps}
+                aria-label="Changer d'événement"
+                class="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border border-sidebar-border bg-sidebar-hover text-sidebar-foreground-muted transition-colors hover:bg-white/10 hover:text-sidebar-foreground"
+              >
+                <ChevronDown class="size-4" />
+              </button>
+            {/snippet}
+          </Popover.Trigger>
+        {/snippet}
+      </Tooltip.Trigger>
+      <Tooltip.Content side="right">Changer d'événement</Tooltip.Content>
+    </Tooltip.Root>
+  </Tooltip.Provider>
   <Popover.Content align="start" class="w-80 p-0">
     <div class="flex items-center gap-2 border-b px-3 py-2">
       <Search class="size-4 shrink-0 text-muted-foreground" />
