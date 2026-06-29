@@ -504,9 +504,9 @@
         </div>
 
         <!-- Past coding club events the talent attended. order-5 keeps it
-             last in the left column on mobile (after planning). Only rendered
-             when the campus has the coding_club flag on and the talent has
-             attended at least one past event. -->
+             last in the left column on mobile (after planning). Not gated by
+             the coding_club feature flag: a talent who attended at least one
+             past event always sees their history (see the load comment). -->
         {#if data.pastCodingClubs.length > 0}
           <div
             class="order-5 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
@@ -527,6 +527,7 @@
                 <div class="flex items-center gap-3 rounded-xl px-2 py-1.5">
                   <span class="shrink-0 text-xs text-slate-400">
                     {new Date(p.event.date).toLocaleDateString('fr-FR', {
+                      timeZone: data.timeZone,
                       day: 'numeric',
                       month: 'short',
                     })}

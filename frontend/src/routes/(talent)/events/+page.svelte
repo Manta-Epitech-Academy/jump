@@ -6,6 +6,7 @@
   import CalendarCheck from '@lucide/svelte/icons/calendar-check';
   import Calendar from '@lucide/svelte/icons/calendar';
   import Sparkles from '@lucide/svelte/icons/sparkles';
+  import { toDateKey } from '$lib/domain/eventPresence';
 
   let { data }: { data: PageData } = $props();
 
@@ -19,8 +20,10 @@
   let groupedMonths = $derived.by(() => {
     const map = new Map<string, (typeof data.pastEvents)[number][]>();
     for (const p of data.pastEvents) {
-      const d = new Date(p.event.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      // Month bucket in the talent's timezone (`YYYY-MM` from the shared
+      // day-key helper), so SSR on a UTC pod and the browser agree on the
+      // month of a near-midnight event instead of hydrating with a flash.
+      const key = toDateKey(new Date(p.event.date), data.timeZone).slice(0, 7);
       const list = map.get(key);
       if (list) list.push(p);
       else map.set(key, [p]);
@@ -29,6 +32,7 @@
     for (const [key, events] of map) {
       const d = new Date(events[0].event.date);
       const label = d.toLocaleDateString('fr-FR', {
+        timeZone: data.timeZone,
         month: 'long',
         year: 'numeric',
       });
@@ -135,6 +139,7 @@
                       </span>
                       <div class="mt-0.5 text-xs text-slate-400">
                         {new Date(p.event.date).toLocaleDateString('fr-FR', {
+                          timeZone: data.timeZone,
                           weekday: 'long',
                           day: 'numeric',
                           month: 'long',

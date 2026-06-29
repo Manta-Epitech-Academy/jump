@@ -16,7 +16,7 @@ import {
 } from '$lib/server/services/minigameService';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
-import { stageWindowEnd } from '$lib/domain/event';
+import { stageWindowEnd, EVENT_TYPES } from '$lib/domain/event';
 import { pendingFeedbackForm } from '$lib/domain/feedback';
 import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
 import { toPlanningView } from '$lib/domain/talentPlanning';
@@ -204,7 +204,10 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       where: {
         talentId: studentId,
         isPresent: true,
-        event: { eventType: 'coding_club', date: { lte: filterDateEnd } },
+        event: {
+          eventType: EVENT_TYPES.CODING_CLUB,
+          date: { lte: filterDateEnd },
+        },
       },
       select: {
         id: true,
@@ -285,6 +288,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       onboardingArrival,
       welcome,
       pastCodingClubs,
+      timeZone: tz,
       pendingFeedback,
     };
   } catch (err) {
