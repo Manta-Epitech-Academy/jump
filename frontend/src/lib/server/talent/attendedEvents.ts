@@ -5,7 +5,6 @@ export type AttendedEvent = {
   id: string;
   titre: string;
   date: Date;
-  eventType: string;
 };
 
 /**
@@ -38,7 +37,7 @@ export function listAttendedEvents(
         some: { talentId, status: { in: ['present', 'late'] } },
       },
     },
-    select: { id: true, titre: true, date: true, eventType: true },
+    select: { id: true, titre: true, date: true },
     orderBy: { date: 'desc' },
     ...(take !== undefined ? { take } : {}),
   });
