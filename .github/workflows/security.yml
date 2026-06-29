@@ -170,6 +170,10 @@ jobs:
         with:
           target: "http://localhost:3030"
           rules_file_name: ".github/zap-rules.tsv"
+          # -I: do not fail the build on WARN-level alerts (header hardening,
+          # informational). Only rules marked FAIL in zap-rules.tsv block the
+          # gate; warnings still appear in the uploaded report for triage.
+          cmd_options: "-I"
           fail_action: true
           allow_issue_writing: false
 

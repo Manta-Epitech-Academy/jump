@@ -278,6 +278,10 @@ model StaffProfile {
   presenceClosuresMade    EventPresenceClosure[]
   imageRightsCorrections  ImageRightsDecisionRecord[]
   interviewResets         InterviewReset[]            @relation("InterviewResetBy")
+  notesAuthored           Note_TalentNote[]           @relation("Note_TalentNoteAuthor")
+  notesEdited             Note_TalentNote[]           @relation("Note_TalentNoteEditor")
+  feedbackFormsCreated    Feedback_Form[]             @relation("Feedback_FormCreator")
+  feedbackFormsUpdated    Feedback_Form[]             @relation("Feedback_FormEditor")
 
   @@index([campusId])
 }
@@ -303,10 +307,6 @@ model Talent {
   nom                         String
   prenom                      String
   niveau                      String?
-  // Free-text staff-only note (discipline, administratif, retard, …). Edited
-  // from the dev talent fiche and émargement. NEVER exposed to the talent
-  // portal — the (talent) loads that return locals.talent strip this field.
-  note                        String?
   xp                          Int                  @default(0)
   eventsCount                 Int                  @default(0)
   charterAcceptedAt           DateTime?
@@ -382,27 +382,29 @@ model Talent {
   createdAt                   DateTime             @default(now())
   updatedAt                   DateTime             @updatedAt
 
-  user               bauth_user?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
-  participations     Participation[]
-  stepsProgress      StepsProgress[]
-  portfolioItems     PortfolioItem[]
-  interviews         Interview[]
-  observableStates   TalentObservableState[]
-  competenceStates   TalentCompetenceState[]
-  quizAttempts       TalentQuizAttempt[]
-  reminders          OnboardingReminder[]
-  pdfJobs            OnboardingPdfJob[]
-  minigameAttempts   MinigameAttempt[]
-  interests          TalentInterest[]
-  xpGrants           XpGrant[]
-  school             School?                     @relation(fields: [schoolId], references: [id], onDelete: SetNull)
-  sfImport           TalentSfImport?
-  broadcastsReceived BroadcastRecipient[]        @relation("BroadcastRecipientTalent")
-  broadcastsAsParent BroadcastRecipient[]        @relation("BroadcastRecipientParent")
-  deletionRequests   TalentDeletionRequest[]
-  eventPresences     EventPresence[]
-  imageRightsRecords ImageRightsDecisionRecord[]
-  interviewResets    InterviewReset[]
+  user                bauth_user?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  participations      Participation[]
+  stepsProgress       StepsProgress[]
+  portfolioItems      PortfolioItem[]
+  interviews          Interview[]
+  observableStates    TalentObservableState[]
+  competenceStates    TalentCompetenceState[]
+  quizAttempts        TalentQuizAttempt[]
+  reminders           OnboardingReminder[]
+  pdfJobs             OnboardingPdfJob[]
+  minigameAttempts    MinigameAttempt[]
+  interests           TalentInterest[]
+  xpGrants            XpGrant[]
+  school              School?                     @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  sfImport            TalentSfImport?
+  broadcastsReceived  BroadcastRecipient[]        @relation("BroadcastRecipientTalent")
+  broadcastsAsParent  BroadcastRecipient[]        @relation("BroadcastRecipientParent")
+  deletionRequests    TalentDeletionRequest[]
+  eventPresences      EventPresence[]
+  imageRightsRecords  ImageRightsDecisionRecord[]
+  feedbackSubmissions Feedback_Submission[]
+  interviewResets     InterviewReset[]
+  notes               Note_TalentNote[]
 
   @@index([xp])
   @@index([schoolId])
@@ -543,6 +545,45 @@ model TalentDeletionRequest {
 
   @@index([status, requestedAt])
   @@index([talentId])
+}
+
+/// One staff note about a talent. Replaces the single free-text `Talent.note`
+/// column with a 1:N feed: many notes per talent, each authored and timestamped
+/// (created + last-edited). Mutable in place — editing fixes the document, hence
+/// `updatedAt`, NOT an append-only ledger (nothing aggregates from it, so the
+/// facts-as-rows shape — XpGrant, ImageRightsDecisionRecord — would be over-built
+/// here). Any dev member can edit/delete any note (small internal team; the
+/// predecessor was a single shared note anyone could overwrite). Staff-only;
+/// NEVER loaded in a talent request. Optional `eventId` anchors the screen the
+/// note was taken on (émargement prefills it); null for a general fiche note.
+model Note_TalentNote {
+  id           String        @id @default(cuid())
+  talentId     String
+  // Author + last editor as FKs (rendered "écrit par / modifié par" in the feed).
+  // SetNull so a staff departure never deletes a talent's note history.
+  authorId     String?
+  editedById   String?
+  body         String
+  // Optional origin anchor. SetNull: deleting the event drops the context, the
+  // note about the talent survives.
+  eventId      String?
+  // The émargement créneau the note was taken on, when created from the émargement
+  // dialog (else null, e.g. a general note from the fiche). Stored as a fact rather
+  // than inferred from `createdAt`: it's what makes the roster trigger and the
+  // "Ce créneau" group exact instead of "typed during this half-day". Mirrors
+  // EventPresence's (day, slot) shape; only meaningful alongside `eventId`.
+  presenceDay  DateTime?     @db.Date
+  presenceSlot PresenceSlot?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  talent   Talent        @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  author   StaffProfile? @relation("Note_TalentNoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  editedBy StaffProfile? @relation("Note_TalentNoteEditor", fields: [editedById], references: [id], onDelete: SetNull)
+  event    Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([talentId, createdAt])
+  @@index([eventId])
 }
 
 // ─── Domain Tables ───
@@ -719,20 +760,22 @@ model Event {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  campus           Campus                  @relation(fields: [campusId], references: [id])
-  theme            Theme?                  @relation(fields: [themeId], references: [id])
-  mantas           EventManta[]
-  participations   Participation[]
-  stepsProgress    StepsProgress[]
-  portfolioItems   PortfolioItem[]
-  planning         Planning?
-  observableStates TalentObservableState[]
-  quizAttempts     TalentQuizAttempt[]
-  cmsPages         CmsPage[]
-  broadcasts       Broadcast[]
-  minigameAttempts MinigameAttempt[]
-  presenceClosures EventPresenceClosure[]
-  eventPresences   EventPresence[]
+  campus              Campus                  @relation(fields: [campusId], references: [id])
+  theme               Theme?                  @relation(fields: [themeId], references: [id])
+  mantas              EventManta[]
+  participations      Participation[]
+  stepsProgress       StepsProgress[]
+  portfolioItems      PortfolioItem[]
+  planning            Planning?
+  observableStates    TalentObservableState[]
+  quizAttempts        TalentQuizAttempt[]
+  cmsPages            CmsPage[]
+  broadcasts          Broadcast[]
+  minigameAttempts    MinigameAttempt[]
+  presenceClosures    EventPresenceClosure[]
+  eventPresences      EventPresence[]
+  feedbackSubmissions Feedback_Submission[]
+  talentNotes         Note_TalentNote[]
 
   @@index([campusId])
 }
@@ -850,6 +893,240 @@ model EventPresenceClosure {
   closedBy StaffProfile? @relation(fields: [closedById], references: [id], onDelete: SetNull)
 
   @@unique([eventId, day, slot])
+}
+
+// ─── Feedback ("Bilan du stage") ───
+// Normalized, runtime-editable feedback forms. Definition tree:
+//   Feedback_Form -> Feedback_Section -> Feedback_Question -> Feedback_QuestionOption
+// Response tree:
+//   Feedback_Submission -> Feedback_Answer -> Feedback_AnswerOption
+// Stats are a groupBy on optionId (rename-safe). The Restrict FKs on
+// Feedback_Answer.question and Feedback_AnswerOption.option enforce the
+// structural-edit lock at the DB: once a form has responses, questions/options
+// it depends on can't be deleted, so the admin must duplicate to restructure.
+
+enum Feedback_FormStatus {
+  draft
+  published
+  archived
+}
+
+enum Feedback_QuestionType {
+  single
+  multiple
+  scale
+  text
+  textarea
+}
+
+enum Feedback_InputKind {
+  email
+  tel
+  name
+  text
+}
+
+enum Feedback_OptionKind {
+  choice
+  extra
+}
+
+// Marks a question as collecting one piece of respondent identity, and which
+// typed Feedback_Submission.respondent* column it routes into. Replaces the old
+// `identity` boolean + magic-key prefill: identity questions are shown only to
+// public respondents (connected talents are read from Talent) and are always
+// required. Null = a normal content question.
+enum Feedback_IdentityField {
+  email
+  phone
+  firstName
+  lastName
+  civility
+  campus
+}
+
+enum Feedback_SubmissionSource {
+  authenticated
+  public
+}
+
+model Feedback_Form {
+  id          String              @id @default(cuid())
+  slug        String              @unique
+  title       String
+  // Opening bot line (interpolated, e.g. "Salut {prenom} !"). Null = the
+  // engine's default greeting, mirroring `outro` below.
+  intro       String?
+  personaName String?
+  // S3 object key of the uploaded persona avatar (WebP). Null = the default
+  // mascot art. Served through the public /api/feedback-forms/[id]/persona-icon
+  // proxy; the key changes on every replace so the rendered ?v= URL busts cache.
+  personaIconKey String?
+  status      Feedback_FormStatus @default(draft)
+
+  allowsAuthenticatedAccess Boolean @default(true)
+  allowsPublicAccess        Boolean @default(false)
+  // The form(s) the talent dashboard nudges past the feedback deadline. Replaces
+  // the old hardcoded STAGE_FORM_ID coupling.
+  dashboardNudge            Boolean @default(false)
+
+  // Closing bot line emitted once the conversation ends (interpolated, e.g.
+  // "Merci {prenom} !"). Null = the engine's generic fallback.
+  outro String?
+
+  // Author + last editor (rendered in the admin builder). SetNull so a staff
+  // departure never deletes a form.
+  createdById String?
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy   StaffProfile?         @relation("Feedback_FormCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   StaffProfile?         @relation("Feedback_FormEditor", fields: [updatedById], references: [id], onDelete: SetNull)
+  sections    Feedback_Section[]
+  questions   Feedback_Question[]
+  submissions Feedback_Submission[]
+
+  @@index([status])
+}
+
+model Feedback_Section {
+  id       String  @id @default(cuid())
+  formId   String
+  position Int
+  title    String
+  // Stored once per section (not repeated on each question) -> 3NF.
+  intro    String?
+
+  form      Feedback_Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
+  questions Feedback_Question[]
+
+  @@index([formId, position])
+}
+
+model Feedback_Question {
+  id        String  @id @default(cuid())
+  formId    String
+  // Null for questions outside any section.
+  sectionId String?
+  // Stable semantic answer key (e.g. "campus", "avis_accueil"), unique per form.
+  key       String
+  position  Int
+
+  prompt        String
+  type          Feedback_QuestionType
+  required      Boolean               @default(true)
+  // When set, this question collects one piece of respondent identity and routes
+  // into the matching Feedback_Submission.respondent* column. Shown only on the
+  // public form (connected talents are read from Talent), never produces a
+  // Feedback_Answer row, and is always treated as required. Null = content question.
+  identityField Feedback_IdentityField?
+  inputKind     Feedback_InputKind?
+  minSelections Int?
+  maxSelections Int?
+  placeholder   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  form    Feedback_Form             @relation(fields: [formId], references: [id], onDelete: Cascade)
+  section Feedback_Section?         @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  options Feedback_QuestionOption[]
+  answers Feedback_Answer[]
+
+  @@unique([formId, key])
+  @@index([formId, position])
+  @@index([sectionId])
+}
+
+model Feedback_QuestionOption {
+  id         String              @id @default(cuid())
+  questionId String
+  position   Int
+  // Shown text + canonical stored value. Answers reference this row's id, never
+  // its label, so renaming the label never orphans a response.
+  label      String
+  kind       Feedback_OptionKind @default(choice)
+  // Optional bot reaction emitted (interpolated) right after this option is
+  // picked, before the next question. Null = no reaction. Pure conversational
+  // copy: never persisted as an answer, never affects routing or stats.
+  reaction   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  question      Feedback_Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answerOptions Feedback_AnswerOption[]
+
+  @@index([questionId, position])
+}
+
+model Feedback_Submission {
+  id     String                    @id @default(cuid())
+  formId String
+  source Feedback_SubmissionSource
+
+  // Set for authenticated submissions; null for public until reconciled.
+  talentId  String?
+  // The cohort event (authenticated). Null for public: a non-onboarded campus has
+  // no Jump event.
+  eventId   String?
+  // When a public submission was later linked to a Talent by email.
+  matchedAt DateTime?
+
+  // Self-reported respondent identity. Populated ONLY for public submissions; for
+  // authenticated ones identity is read from the linked Talent (single source).
+  respondentEmail       String?
+  respondentFirstName   String?
+  respondentLastName    String?
+  respondentPhone       String?
+  respondentCivility    String?
+  respondentCampusLabel String?
+
+  submittedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  form    Feedback_Form     @relation(fields: [formId], references: [id], onDelete: Restrict)
+  talent  Talent?           @relation(fields: [talentId], references: [id], onDelete: SetNull)
+  event   Event?            @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  answers Feedback_Answer[]
+
+  // Non-null for authenticated -> one submission per talent per event per form.
+  // Both null for public -> Postgres treats NULLs as distinct, so public rows never collide.
+  @@unique([formId, eventId, talentId])
+  @@index([eventId])
+  @@index([formId, source])
+  @@index([talentId])
+  @@index([respondentEmail])
+}
+
+model Feedback_Answer {
+  id           String  @id @default(cuid())
+  submissionId String
+  questionId   String
+  // For text / textarea answers.
+  freeText     String?
+
+  submission      Feedback_Submission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  // Restrict: enforces the structural-edit lock (a question with answers can't be deleted).
+  question        Feedback_Question       @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  selectedOptions Feedback_AnswerOption[]
+
+  @@unique([submissionId, questionId])
+  @@index([questionId])
+}
+
+model Feedback_AnswerOption {
+  answerId String
+  optionId String
+
+  answer Feedback_Answer         @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  // Restrict: an option with answers can't be deleted (structural-edit lock).
+  option Feedback_QuestionOption @relation(fields: [optionId], references: [id], onDelete: Restrict)
+
+  @@id([answerId, optionId])
+  @@index([optionId])
 }
 
 enum PresenceSlot {

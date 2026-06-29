@@ -22,6 +22,10 @@
   import * as Select from '$lib/components/ui/select';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import MultiThemeSelect from '$lib/components/admin/MultiThemeSelect.svelte';
+  import SearchableSelect, {
+    type SelectOption,
+  } from '$lib/components/staff/SearchableSelect.svelte';
+  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import { toast } from 'svelte-sonner';
@@ -33,6 +37,18 @@
   import { track, errReason } from '$lib/analytics';
 
   let { data } = $props();
+
+  const typeFilterOptions = [
+    { value: 'all', label: 'Tous les types' },
+    ...activityTypes.map((type) => ({
+      value: type,
+      label: activityTypeLabels[type],
+    })),
+  ];
+  const difficultyFilterOptions = [
+    { value: 'all', label: 'Toutes les difficultés' },
+    ...difficultes.map((diff) => ({ value: diff, label: diff })),
+  ];
 
   const { form, errors, enhance, delayed, reset } = superForm(
     untrack(() => data.form),
@@ -78,6 +94,10 @@
   let filterType = $state('all');
   let filterDifficulty = $state('all');
   let filterTheme = $state('all');
+
+  const themeOptions: SelectOption[] = $derived(
+    data.themes.map((t) => ({ value: t.nom, label: t.nom })),
+  );
 
   let filteredTemplates = $derived(
     data.templates.filter((t) => {
@@ -197,55 +217,34 @@
 
   <!-- Filters -->
   <div class="flex flex-wrap items-center gap-3">
-    <Select.Root
-      type="single"
+    <FilterSelect
+      options={typeFilterOptions}
       value={filterType}
-      onValueChange={(v) => (filterType = v ?? 'all')}
-    >
-      <Select.Trigger class="h-8 w-40 text-xs">
-        {filterType !== 'all'
-          ? activityTypeLabels[filterType as keyof typeof activityTypeLabels]
-          : 'Type'}
-      </Select.Trigger>
-      <Select.Content>
-        <Select.Item value="all">Tous</Select.Item>
-        {#each activityTypes as type}
-          <Select.Item value={type}>{activityTypeLabels[type]}</Select.Item>
-        {/each}
-      </Select.Content>
-    </Select.Root>
+      onChange={(v) => (filterType = v)}
+      ariaLabel="Filtrer par type"
+      size="sm"
+      triggerClass="text-xs"
+    />
 
-    <Select.Root
-      type="single"
+    <FilterSelect
+      options={difficultyFilterOptions}
       value={filterDifficulty}
-      onValueChange={(v) => (filterDifficulty = v ?? 'all')}
-    >
-      <Select.Trigger class="h-8 w-40 text-xs">
-        {filterDifficulty !== 'all' ? filterDifficulty : 'Difficulté'}
-      </Select.Trigger>
-      <Select.Content>
-        <Select.Item value="all">Toutes</Select.Item>
-        {#each difficultes as diff}
-          <Select.Item value={diff}>{diff}</Select.Item>
-        {/each}
-      </Select.Content>
-    </Select.Root>
+      onChange={(v) => (filterDifficulty = v)}
+      ariaLabel="Filtrer par difficulté"
+      size="sm"
+      triggerClass="text-xs"
+    />
 
-    <Select.Root
-      type="single"
+    <SearchableSelect
+      options={themeOptions}
       value={filterTheme}
-      onValueChange={(v) => (filterTheme = v ?? 'all')}
-    >
-      <Select.Trigger class="h-8 w-40 text-xs">
-        {filterTheme !== 'all' ? filterTheme : 'Thème'}
-      </Select.Trigger>
-      <Select.Content>
-        <Select.Item value="all">Tous</Select.Item>
-        {#each data.themes as theme}
-          <Select.Item value={theme.nom}>{theme.nom}</Select.Item>
-        {/each}
-      </Select.Content>
-    </Select.Root>
+      onChange={(v) => (filterTheme = v ?? 'all')}
+      allLabel="Tous"
+      placeholder="Thème"
+      searchPlaceholder="Rechercher un thème…"
+      emptyLabel="Aucun thème."
+      triggerClass="h-8 w-40 text-xs"
+    />
 
     {#if hasActiveFilters}
       <Button

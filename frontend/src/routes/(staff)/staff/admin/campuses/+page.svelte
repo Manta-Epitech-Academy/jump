@@ -9,7 +9,7 @@
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
-  import * as Select from '$lib/components/ui/select';
+  import SearchableSelect from '$lib/components/staff/SearchableSelect.svelte';
   import * as Table from '$lib/components/ui/table';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { Checkbox } from '$lib/components/ui/checkbox';
@@ -145,7 +145,7 @@
   const allTimezones = timezoneGroups.flatMap((g) =>
     g.zones.map((z) => ({
       ...z,
-      label: `${formatUtcOffset(z.value)} — ${z.cities}`,
+      label: `${formatUtcOffset(z.value)} · ${z.cities}`,
     })),
   );
 
@@ -235,7 +235,65 @@
     </Button>
   </div>
 
-  <div class="rounded-sm border bg-card shadow-sm">
+  <!-- Mobile: stacked cards. The desktop table x-scrolls on narrow screens,
+       which buries the nom externe / fuseau / actions columns off-frame, so
+       below md each campus renders as a self-contained card instead. -->
+  <div class="space-y-3 md:hidden">
+    {#each data.campuses as campus}
+      <div class="rounded-sm border bg-card p-4 shadow-sm">
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex min-w-0 items-center gap-2">
+            <Map class="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span class="truncate font-bold">{campus.name}</span>
+          </div>
+          <div class="flex shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onclick={() => openEdit(campus)}
+              aria-label="Modifier {campus.name}"
+            >
+              <Pencil class="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="text-destructive hover:text-destructive"
+              onclick={() => confirmDelete(campus.id)}
+              aria-label="Supprimer {campus.name}"
+            >
+              <Trash2 class="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        <dl class="mt-3 space-y-1.5 text-sm">
+          <div class="flex items-baseline justify-between gap-3">
+            <dt class="shrink-0 text-muted-foreground">Nom externe</dt>
+            <dd class="text-right">{campus.externalName ?? '—'}</dd>
+          </div>
+          <div class="flex items-baseline justify-between gap-3">
+            <dt class="shrink-0 text-muted-foreground">Fuseau horaire</dt>
+            <dd class="text-right text-xs text-muted-foreground">
+              {getTimezoneLabel(campus.timezone ?? 'Europe/Paris')}
+            </dd>
+          </div>
+        </dl>
+        <div class="mt-3 flex flex-wrap gap-1">
+          {#each campus.flags as key}
+            <Badge variant="secondary" class="text-[10px]"
+              >{FEATURE_FLAGS[key as FlagKey]?.label ?? key}</Badge
+            >
+          {:else}
+            <span class="text-xs text-muted-foreground"
+              >Aucune fonctionnalité</span
+            >
+          {/each}
+        </div>
+      </div>
+    {/each}
+  </div>
+
+  <div class="hidden rounded-sm border bg-card shadow-sm md:block">
     <Table.Root>
       <Table.Header>
         <Table.Row>
@@ -313,130 +371,123 @@
   </div>
 
   <Dialog.Root bind:open>
-    <Dialog.Content class="sm:max-w-3xl">
-      <Dialog.Header>
+    <Dialog.Content class="flex max-h-[90dvh] flex-col gap-0 p-0 sm:max-w-3xl">
+      <Dialog.Header class="border-b px-4 py-4 text-start sm:px-6">
         <Dialog.Title>{isEditing ? 'Modifier' : 'Nouveau'} Campus</Dialog.Title>
       </Dialog.Header>
       <form
         method="POST"
         action={isEditing ? '?/update' : '?/create'}
         use:enhance
-        class="py-4"
+        class="flex min-h-0 flex-1 flex-col"
       >
         {#if isEditing}<input type="hidden" name="id" value={editId} />{/if}
-        <div class="grid gap-6 md:grid-cols-2">
-          <div class="space-y-4">
-            <div class="space-y-2">
-              <Label>Nom de la ville / campus</Label>
-              <Input
-                name="name"
-                bind:value={$form.name}
-                placeholder="Ex: Paris"
-              />
-              {#if $errors.name}<span class="text-xs text-destructive"
-                  >{$errors.name}</span
-                >{/if}
-            </div>
-            <div class="space-y-2">
-              <Label>Nom externe (synchronisation)</Label>
-              <Input
-                name="externalName"
-                bind:value={$form.externalName}
-                placeholder="Ex: paris"
-              />
-              {#if $errors.externalName}<span class="text-xs text-destructive"
-                  >{$errors.externalName}</span
-                >{/if}
-            </div>
-            <div class="space-y-2">
-              <Label>Email de contact</Label>
-              <Input
-                type="email"
-                name="contactEmail"
-                bind:value={$form.contactEmail}
-                placeholder="Ex: contact.paris@epitech.eu"
-              />
-              <p class="text-xs text-muted-foreground">
-                Disponible dans les templates via <code
-                  class="rounded bg-muted px-1 py-0.5 text-[10px]"
-                  >{`{{EMAIL_CONTACT_CAMPUS}}`}</code
-                >.
-              </p>
-              {#if $errors.contactEmail}<span class="text-xs text-destructive"
-                  >{$errors.contactEmail}</span
-                >{/if}
-            </div>
-            <div class="space-y-2">
-              <Label>Fuseau horaire</Label>
-              <input type="hidden" name="timezone" value={$form.timezone} />
-              <Select.Root
-                type="single"
-                value={$form.timezone}
-                onValueChange={(v) => ($form.timezone = v)}
-              >
-                <Select.Trigger class="w-full">
-                  {getTimezoneLabel($form.timezone)}
-                </Select.Trigger>
-                <Select.Content class="max-h-72">
-                  {#each timezoneGroups as group}
-                    <Select.Group>
-                      <Select.GroupHeading>{group.label}</Select.GroupHeading>
-                      {#each group.zones as tz}
-                        <Select.Item
-                          value={tz.value}
-                          label="{formatUtcOffset(tz.value)} — {tz.cities}"
-                        />
-                      {/each}
-                    </Select.Group>
-                    <Select.Separator />
-                  {/each}
-                </Select.Content>
-              </Select.Root>
-              {#if $errors.timezone}<span class="text-xs text-destructive"
-                  >{$errors.timezone}</span
-                >{/if}
-            </div>
-          </div>
-          <fieldset class="space-y-3">
-            <legend class="text-sm font-bold uppercase">
-              Fonctionnalités activées
-            </legend>
-            <Input
-              type="search"
-              bind:value={flagSearch}
-              placeholder="Rechercher une fonctionnalité..."
-              class="h-9"
-            />
-            <div class="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
-              {#if capabilityFlags.some((f) => matchedKeys.has(f.key))}
-                <div class="space-y-2">
-                  <p class="text-xs font-bold text-muted-foreground uppercase">
-                    Capacités
-                  </p>
-                  {#each capabilityFlags as flag (flag.key)}
-                    {@render flagRow(flag, !matchedKeys.has(flag.key))}
-                  {/each}
-                </div>
-              {/if}
-              {#if rolloutFlags.some((f) => matchedKeys.has(f.key))}
-                <div class="space-y-2">
-                  <p class="text-xs font-bold text-muted-foreground uppercase">
-                    Déploiements
-                  </p>
-                  {#each rolloutFlags as flag (flag.key)}
-                    {@render flagRow(flag, !matchedKeys.has(flag.key))}
-                  {/each}
-                </div>
-              {/if}
-              {#if matchedKeys.size === 0}
-                <p class="py-4 text-center text-xs text-muted-foreground">
-                  Aucune fonctionnalité ne correspond.
+        <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+          <div class="grid gap-6 md:grid-cols-2">
+            <div class="space-y-4">
+              <div class="space-y-2">
+                <Label>Nom de la ville / campus</Label>
+                <Input
+                  name="name"
+                  bind:value={$form.name}
+                  placeholder="Ex: Paris"
+                />
+                {#if $errors.name}<span class="text-xs text-destructive"
+                    >{$errors.name}</span
+                  >{/if}
+              </div>
+              <div class="space-y-2">
+                <Label>Nom externe (synchronisation)</Label>
+                <Input
+                  name="externalName"
+                  bind:value={$form.externalName}
+                  placeholder="Ex: paris"
+                />
+                {#if $errors.externalName}<span class="text-xs text-destructive"
+                    >{$errors.externalName}</span
+                  >{/if}
+              </div>
+              <div class="space-y-2">
+                <Label>Email de contact</Label>
+                <Input
+                  type="email"
+                  name="contactEmail"
+                  bind:value={$form.contactEmail}
+                  placeholder="Ex: contact.paris@epitech.eu"
+                />
+                <p class="text-xs text-muted-foreground">
+                  Disponible dans les templates via <code
+                    class="rounded bg-muted px-1 py-0.5 text-[10px]"
+                    >{`{{EMAIL_CONTACT_CAMPUS}}`}</code
+                  >.
                 </p>
-              {/if}
+                {#if $errors.contactEmail}<span class="text-xs text-destructive"
+                    >{$errors.contactEmail}</span
+                  >{/if}
+              </div>
+              <div class="space-y-2">
+                <Label>Fuseau horaire</Label>
+                <input type="hidden" name="timezone" value={$form.timezone} />
+                <SearchableSelect
+                  clearable={false}
+                  options={allTimezones}
+                  value={$form.timezone}
+                  onChange={(v) => ($form.timezone = v)}
+                  placeholder="Choisir un fuseau horaire"
+                  searchPlaceholder="Rechercher une ville ou un fuseau…"
+                  emptyLabel="Aucun fuseau."
+                  triggerClass="w-full"
+                />
+                {#if $errors.timezone}<span class="text-xs text-destructive"
+                    >{$errors.timezone}</span
+                  >{/if}
+              </div>
             </div>
-          </fieldset>
+            <fieldset class="space-y-3">
+              <legend class="text-sm font-bold uppercase">
+                Fonctionnalités activées
+              </legend>
+              <Input
+                type="search"
+                bind:value={flagSearch}
+                placeholder="Rechercher une fonctionnalité..."
+                class="h-9"
+              />
+              <div class="space-y-4 md:max-h-[55vh] md:overflow-y-auto md:pr-1">
+                {#if capabilityFlags.some((f) => matchedKeys.has(f.key))}
+                  <div class="space-y-2">
+                    <p
+                      class="text-xs font-bold text-muted-foreground uppercase"
+                    >
+                      Capacités
+                    </p>
+                    {#each capabilityFlags as flag (flag.key)}
+                      {@render flagRow(flag, !matchedKeys.has(flag.key))}
+                    {/each}
+                  </div>
+                {/if}
+                {#if rolloutFlags.some((f) => matchedKeys.has(f.key))}
+                  <div class="space-y-2">
+                    <p
+                      class="text-xs font-bold text-muted-foreground uppercase"
+                    >
+                      Déploiements
+                    </p>
+                    {#each rolloutFlags as flag (flag.key)}
+                      {@render flagRow(flag, !matchedKeys.has(flag.key))}
+                    {/each}
+                  </div>
+                {/if}
+                {#if matchedKeys.size === 0}
+                  <p class="py-4 text-center text-xs text-muted-foreground">
+                    Aucune fonctionnalité ne correspond.
+                  </p>
+                {/if}
+              </div>
+            </fieldset>
+          </div>
         </div>
-        <Dialog.Footer class="mt-6">
+        <Dialog.Footer class="border-t px-4 py-4 sm:px-6">
           <Button
             type="submit"
             disabled={$delayed}

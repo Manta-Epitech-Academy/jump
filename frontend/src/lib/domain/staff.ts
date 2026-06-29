@@ -1,4 +1,5 @@
 import type { StaffRole } from '@prisma/client';
+import type { StaffGroup } from './permissions';
 
 export const staffRoles = [
   'admin',
@@ -82,6 +83,26 @@ export function getStaffRoleRedirectPath(
       return null;
   }
 }
+
+/**
+ * The campus-scoped staff spaces an admin can drop into to see a campus as its
+ * own team does (admin is excluded on purpose: it isn't campus-scoped). `group`
+ * is the role set that can stand in for the campus in that space; when
+ * resolving a representative member to impersonate, prefer the lead
+ * (superdev/peda outrank dev/manta, see `staffRoles` order) so the admin lands
+ * with the fullest view. Reuses the permissions groups rather than inlining
+ * role arrays.
+ */
+export type StaffSpaceId = 'dev' | 'pedago';
+
+export const STAFF_SPACES: readonly {
+  id: StaffSpaceId;
+  label: string;
+  group: StaffGroup;
+}[] = [
+  { id: 'dev', label: 'Dev', group: 'devMember' },
+  { id: 'pedago', label: 'Pédago', group: 'pedaMember' },
+];
 
 /**
  * StaffProfile.staffRole is the source of truth for what a user can do inside

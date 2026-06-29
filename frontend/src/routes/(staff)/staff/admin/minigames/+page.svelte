@@ -20,8 +20,10 @@
   import { Switch } from '$lib/components/ui/switch';
   import { Badge } from '$lib/components/ui/badge';
   import * as Dialog from '$lib/components/ui/dialog';
-  import * as Select from '$lib/components/ui/select';
   import * as Table from '$lib/components/ui/table';
+  import SearchableSelect, {
+    type SelectOption,
+  } from '$lib/components/staff/SearchableSelect.svelte';
   import { cn } from '$lib/utils';
 
   let { data }: { data: PageData } = $props();
@@ -96,6 +98,9 @@
   );
 
   const publishable = $derived(data.games.filter((g) => g.levelCount > 0));
+  const publishableOptions: SelectOption[] = $derived(
+    publishable.map((g) => ({ value: g.name, label: g.displayName })),
+  );
   const forceGame = $derived(
     publishable.find((g) => g.name === $forceForm.game) ?? null,
   );
@@ -112,6 +117,9 @@
   // ── Test a level ──
   let testGame = $state('');
   let testLevel = $state(1);
+  const gameOptions: SelectOption[] = $derived(
+    data.games.map((g) => ({ value: g.name, label: g.displayName })),
+  );
   const testMeta = $derived(
     data.games.find((g) => g.name === testGame) ?? null,
   );
@@ -310,20 +318,16 @@
         <div class="space-y-1">
           <Label>Jeu</Label>
           <input type="hidden" name="game" value={$forceForm.game} />
-          <Select.Root
-            type="single"
+          <SearchableSelect
+            clearable={false}
+            options={publishableOptions}
             value={$forceForm.game}
-            onValueChange={(v) => onForceGameChange(v ?? '')}
-          >
-            <Select.Trigger class="min-w-[220px]">
-              {forceGame?.displayName ?? 'Choisir un jeu'}
-            </Select.Trigger>
-            <Select.Content>
-              {#each publishable as g (g.name)}
-                <Select.Item value={g.name} label={g.displayName} />
-              {/each}
-            </Select.Content>
-          </Select.Root>
+            onChange={(v) => onForceGameChange(v ?? '')}
+            placeholder="Choisir un jeu"
+            searchPlaceholder="Rechercher un jeu…"
+            emptyLabel="Aucun jeu."
+            triggerClass="min-w-[220px]"
+          />
         </div>
         <div class="space-y-1">
           <Label>Niveau</Label>
@@ -383,23 +387,19 @@
       <div class="flex flex-wrap items-end gap-3">
         <div class="space-y-1">
           <Label>Jeu</Label>
-          <Select.Root
-            type="single"
+          <SearchableSelect
+            clearable={false}
+            options={gameOptions}
             value={testGame}
-            onValueChange={(v) => {
+            onChange={(v) => {
               testGame = v ?? '';
               testLevel = 1;
             }}
-          >
-            <Select.Trigger class="min-w-[220px]">
-              {testMeta?.displayName ?? 'Choisir un jeu'}
-            </Select.Trigger>
-            <Select.Content>
-              {#each data.games as g (g.name)}
-                <Select.Item value={g.name} label={g.displayName} />
-              {/each}
-            </Select.Content>
-          </Select.Root>
+            placeholder="Choisir un jeu"
+            searchPlaceholder="Rechercher un jeu…"
+            emptyLabel="Aucun jeu."
+            triggerClass="min-w-[220px]"
+          />
         </div>
         <div class="space-y-1">
           <Label>Niveau</Label>

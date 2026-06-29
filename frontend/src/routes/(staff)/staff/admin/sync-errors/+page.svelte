@@ -8,7 +8,7 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
-  import * as Select from '$lib/components/ui/select';
+  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import * as Table from '$lib/components/ui/table';
   import { formatDateTimeFr } from '$lib/utils';
   import { EVENT_TYPES } from '$lib/domain/event';
@@ -24,6 +24,18 @@
     [EVENT_TYPES.STAGE_SECONDE]: 'Stage de Seconde',
     [EVENT_TYPES.CODING_CLUB]: 'Coding Club',
   };
+
+  const campusFilterOptions = $derived([
+    { value: 'all', label: 'Tous les campus' },
+    ...data.campusNames.map((name: string) => ({ value: name, label: name })),
+  ]);
+  const typeFilterOptions = [
+    { value: 'all', label: 'Tous les types' },
+    ...Object.entries(eventTypeLabels).map(([value, label]) => ({
+      value,
+      label,
+    })),
+  ];
 
   const filteredErrors = $derived(
     data.errors.filter((e) => {
@@ -60,40 +72,21 @@
     </div>
 
     <div class="flex flex-wrap items-center gap-3">
-      <Select.Root
-        type="single"
+      <FilterSelect
+        options={campusFilterOptions}
         value={filterCampus}
-        onValueChange={(v) => (filterCampus = v ?? 'all')}
-      >
-        <Select.Trigger class="h-9 min-w-[180px] text-xs">
-          {filterCampus !== 'all' ? filterCampus : 'Tous les campus'}
-        </Select.Trigger>
-        <Select.Content>
-          <Select.Item value="all">Tous les campus</Select.Item>
-          {#each data.campusNames as name}
-            <Select.Item value={name}>{name}</Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
+        onChange={(v) => (filterCampus = v)}
+        ariaLabel="Filtrer par campus"
+        triggerClass="text-xs"
+      />
 
-      <Select.Root
-        type="single"
+      <FilterSelect
+        options={typeFilterOptions}
         value={filterType}
-        onValueChange={(v) => (filterType = v ?? 'all')}
-      >
-        <Select.Trigger class="h-9 min-w-[180px] text-xs">
-          {filterType !== 'all'
-            ? eventTypeLabels[filterType]
-            : 'Tous les types'}
-        </Select.Trigger>
-        <Select.Content>
-          <Select.Item value="all">Tous les types</Select.Item>
-          <Select.Item value={EVENT_TYPES.STAGE_SECONDE}
-            >Stage de Seconde</Select.Item
-          >
-          <Select.Item value={EVENT_TYPES.CODING_CLUB}>Coding Club</Select.Item>
-        </Select.Content>
-      </Select.Root>
+        onChange={(v) => (filterType = v)}
+        ariaLabel="Filtrer par type"
+        triggerClass="text-xs"
+      />
 
       {#if data.unresolvedCount > 0 && !isFiltered}
         <form

@@ -54,6 +54,7 @@ export async function anonymizeTalent(
     where: { id: talentId },
     select: {
       userId: true,
+      email: true,
       parentEmail: true,
       parent2Email: true,
       charterFilePath: true,
@@ -154,6 +155,8 @@ export async function anonymizeTalent(
   //      - talentSfImport / talentInterest / imageRightsDecisionRecord: the SF
   //        mirror, interest selections, and the image-rights ledger (the ledger
   //        embeds the guardian's typed signer name).
+  //      - note_TalentNote: staff notes about the minor (pedago + administratif
+  //        free text). The whole feed is removed on erasure.
   //      - interview / interviewReset: the synthesis row holds free-text staff
   //        observations about the minor; both existing wipe paths already
   //        hard-delete it. InterviewReset is a reset's audit trace + reason.
@@ -168,6 +171,31 @@ export async function anonymizeTalent(
   await tx.talentSfImport.deleteMany({ where: { talentId } });
   await tx.talentInterest.deleteMany({ where: { talentId } });
   await tx.imageRightsDecisionRecord.deleteMany({ where: { talentId } });
+  await tx.note_TalentNote.deleteMany({ where: { talentId } });
+  // feedback_Submission: the talent's bilan answers embed free-text opinions
+  // (textarea questions), identifying content, so the whole submission is
+  // removed (cascades to its answers + selected options). A public bilan response
+  // carries no talentId until reconciled, yet stores the respondent's self-typed
+  // e-mail / phone / name, so it is also matched by the talent's own e-mail and
+  // erased the same way (case-insensitive: the public form takes free input).
+  await tx.feedback_Submission.deleteMany({
+    where: {
+      OR: [
+        { talentId },
+        ...(talent.email
+          ? [
+              {
+                talentId: null,
+                respondentEmail: {
+                  equals: talent.email,
+                  mode: 'insensitive' as const,
+                },
+              },
+            ]
+          : []),
+      ],
+    },
+  });
   await tx.interview.deleteMany({ where: { talentId } });
   await tx.interviewReset.deleteMany({ where: { talentId } });
   await tx.portfolioItem.deleteMany({ where: { talentId } });

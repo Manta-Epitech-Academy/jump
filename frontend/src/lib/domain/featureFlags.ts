@@ -54,6 +54,14 @@ export const FEATURE_FLAGS = {
     description:
       "Feuille de présence par demi-journée. Activez pour les campus qui suivent la présence des talents pendant l'événement.",
   }),
+  bilan: def({
+    key: 'bilan',
+    kind: 'capability',
+    defaultEnabled: false,
+    label: 'Bilan du stage',
+    description:
+      "Suivi des réponses au formulaire de bilan d'un événement (taux de réponse, statistiques) et QR code de partage à la cohorte.",
+  }),
   staff_intervenants: def({
     key: 'staff_intervenants',
     kind: 'rollout',

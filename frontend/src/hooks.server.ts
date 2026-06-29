@@ -66,6 +66,19 @@ function setSecurityHeaders(response: Response) {
     'Strict-Transport-Security',
     'max-age=31536000; includeSubDomains',
   );
+  // Never let the browser reuse a cached HTML document without revalidating.
+  // The document references content-hashed `_app/immutable` chunks; a stale
+  // cached page points at hashes a later deploy has deleted -> 404 on boot.
+  // (The immutable assets themselves are served by adapter-node's static
+  // handler before this hook, so their long-lived caching is untouched.) Only
+  // stamp pages that haven't already set their own policy, so endpoints with
+  // explicit cache headers - e.g. the no-store diploma PDFs - keep theirs.
+  if (
+    !response.headers.has('Cache-Control') &&
+    response.headers.get('Content-Type')?.includes('text/html')
+  ) {
+    response.headers.set('Cache-Control', 'no-cache');
+  }
 }
 
 // Cuid v2 (default Prisma) is 24+ lowercase alphanumeric chars. We keep the
@@ -114,11 +127,11 @@ export const handle: Handle = async ({ event, resolve }) => {
         name: true,
         image: true,
         staffProfile: { include: { campus: true } },
-        // Omit the staff-only `note`: `locals.talent` is the talent's view of
-        // themselves and gets serialized to their browser via the root layout.
-        // Keeping it off the session object makes the leak structurally
-        // impossible rather than relying on every talent load to strip it.
-        talent: { omit: { note: true } },
+        // Staff notes about a talent live in their own table (`Note_TalentNote`),
+        // never on the Talent row, so there is nothing staff-only to strip from
+        // `locals.talent` here — the leak the old `note` column had to omit is
+        // structurally gone.
+        talent: true,
       },
     });
 
