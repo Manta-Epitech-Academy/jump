@@ -46,6 +46,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       completedInterviewCount,
       xpStory,
       noteRows,
+      eventHistory,
     ] = await Promise.all([
       db.talent.findUniqueOrThrow({
         where: { id: params.id },
@@ -127,6 +128,24 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         where: { talentId: params.id },
         orderBy: { createdAt: 'desc' },
         include: NOTE_INCLUDE,
+      }),
+      prisma.event.findMany({
+        where: {
+          date: { lte: new Date(new Date().setHours(23, 59, 59, 999)) },
+          eventPresences: {
+            some: {
+              talentId: params.id,
+              status: { in: ['present', 'late'] },
+            },
+          },
+        },
+        select: {
+          id: true,
+          titre: true,
+          date: true,
+          eventType: true,
+        },
+        orderBy: { date: 'desc' },
       }),
     ]);
 
@@ -313,6 +332,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       notes,
       xpStory,
       participations,
+      eventHistory,
       primaryComplianceParticipation,
       communications,
       firstLoginAt,

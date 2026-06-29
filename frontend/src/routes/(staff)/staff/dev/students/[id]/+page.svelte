@@ -6,7 +6,6 @@
 
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import Calendar from '@lucide/svelte/icons/calendar';
-  import { EVENT_TYPES } from '$lib/domain/event';
   import { formatDateFr } from '$lib/utils';
   import Plus from '@lucide/svelte/icons/plus';
 
@@ -37,20 +36,6 @@
     new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
   );
   const hasCodingClub = $derived(featureFlags.has('coding_club'));
-  const codingClubHistory = $derived(
-    data.participations
-      .filter(
-        (p) =>
-          p.event.eventType === EVENT_TYPES.CODING_CLUB &&
-          p.isPresent &&
-          new Date(p.event.date).setHours(0, 0, 0, 0) <=
-            new Date().setHours(23, 59, 59, 999),
-      )
-      .sort(
-        (a, b) =>
-          new Date(b.event.date).getTime() - new Date(a.event.date).getTime(),
-      ),
-  );
   const talentsHref = $derived(
     hasCodingClub ? resolve('/staff/dev/students') : undefined,
   );
@@ -197,10 +182,10 @@
           />
         </EpiSection>
 
-        {#if codingClubHistory.length > 0}
-          <EpiSection title="Historique Coding Club" accent="tomorrow">
+        {#if data.eventHistory.length > 0}
+          <EpiSection title="Historique événements" accent="tomorrow">
             <ul class="space-y-1.5">
-              {#each codingClubHistory as p (p.id)}
+              {#each data.eventHistory as ev (ev.id)}
                 <li
                   class="flex items-center gap-2.5 rounded-sm border bg-card px-3 py-2 text-sm"
                 >
@@ -208,9 +193,9 @@
                     class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
                   />
                   <span class="font-mono text-xs text-muted-foreground"
-                    >{formatDateFr(p.event.date)}</span
+                    >{formatDateFr(ev.date)}</span
                   >
-                  <span class="truncate font-medium">{p.event.titre}</span>
+                  <span class="truncate font-medium">{ev.titre}</span>
                 </li>
               {/each}
             </ul>

@@ -503,11 +503,9 @@
           </div>
         </div>
 
-        <!-- Past coding club events the talent attended. order-5 keeps it
-             last in the left column on mobile (after planning). Not gated by
-             the coding_club feature flag: a talent who attended at least one
-             past event always sees their history (see the load comment). -->
-        {#if data.pastCodingClubs.length > 0}
+        <!-- Past events the talent attended. order-5 keeps it last in the
+             left column on mobile (after planning). -->
+        {#if data.pastEvents.length > 0}
           <div
             class="order-5 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
           >
@@ -518,15 +516,15 @@
               <h2
                 class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
               >
-                Coding Club passés<span class="text-epi-teal">_</span>
+                Mes événements<span class="text-epi-teal">_</span>
               </h2>
             </div>
 
             <div class="space-y-1 px-6 pt-4 pb-2">
-              {#each data.pastCodingClubs as p (p.id)}
+              {#each data.pastEvents as ev (ev.id)}
                 <div class="flex items-center gap-3 rounded-xl px-2 py-1.5">
                   <span class="shrink-0 text-xs text-slate-400">
-                    {new Date(p.event.date).toLocaleDateString('fr-FR', {
+                    {new Date(ev.date).toLocaleDateString('fr-FR', {
                       timeZone: data.timeZone,
                       day: 'numeric',
                       month: 'short',
@@ -535,7 +533,7 @@
                   <span
                     class="truncate text-sm font-medium text-slate-700 dark:text-slate-300"
                   >
-                    {p.event.titre}
+                    {ev.titre}
                   </span>
                 </div>
               {/each}

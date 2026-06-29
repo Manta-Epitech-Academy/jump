@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { fly } from 'svelte/transition';
+  import { eventTypeLabel } from '$lib/domain/event';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import CalendarCheck from '@lucide/svelte/icons/calendar-check';
@@ -19,18 +20,18 @@
 
   let groupedMonths = $derived.by(() => {
     const map = new Map<string, (typeof data.pastEvents)[number][]>();
-    for (const p of data.pastEvents) {
+    for (const ev of data.pastEvents) {
       // Month bucket in the talent's timezone (`YYYY-MM` from the shared
       // day-key helper), so SSR on a UTC pod and the browser agree on the
       // month of a near-midnight event instead of hydrating with a flash.
-      const key = toDateKey(new Date(p.event.date), data.timeZone).slice(0, 7);
+      const key = toDateKey(new Date(ev.date), data.timeZone).slice(0, 7);
       const list = map.get(key);
-      if (list) list.push(p);
-      else map.set(key, [p]);
+      if (list) list.push(ev);
+      else map.set(key, [ev]);
     }
     const months: GroupedMonth[] = [];
     for (const [key, events] of map) {
-      const d = new Date(events[0].event.date);
+      const d = new Date(events[0].date);
       const label = d.toLocaleDateString('fr-FR', {
         timeZone: data.timeZone,
         month: 'long',
@@ -43,11 +44,11 @@
 </script>
 
 <svelte:head>
-  <title>Coding Club</title>
+  <title>Mes événements</title>
 </svelte:head>
 
 <div class="flex min-h-screen flex-col">
-  <TalentPageHeader title="Coding Club" icon={CalendarCheck} />
+  <TalentPageHeader title="Mes événements" icon={CalendarCheck} />
 
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
     <!-- Hero -->
@@ -73,10 +74,10 @@
 
         <div class="min-w-0 flex-1">
           <h2 class="text-base font-bold text-slate-900 dark:text-white">
-            Coding Club passés
+            Événements passés
           </h2>
           <p class="text-sm text-slate-500">
-            Tous les ateliers auxquels tu as participé.
+            Tous les événements auxquels tu as participé.
           </p>
         </div>
       </div>
@@ -110,7 +111,7 @@
             <div
               class="ml-[1.125rem] space-y-3 border-l border-transparent pl-8 sm:ml-[1.375rem]"
             >
-              {#each month.events as p, eventIndex (p.id)}
+              {#each month.events as ev, eventIndex (ev.id)}
                 <div
                   class="group relative overflow-hidden rounded-2xl border border-epi-blue/20 bg-white p-4 shadow-sm transition-all hover:shadow-md dark:bg-slate-900"
                   in:fly={{
@@ -132,13 +133,20 @@
                     </div>
 
                     <div class="min-w-0 flex-1">
-                      <span
-                        class="text-sm font-semibold text-slate-900 dark:text-white"
-                      >
-                        {p.event.titre}
-                      </span>
+                      <div class="flex items-center gap-2">
+                        <span
+                          class="text-sm font-semibold text-slate-900 dark:text-white"
+                        >
+                          {ev.titre}
+                        </span>
+                        <span
+                          class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800"
+                        >
+                          {eventTypeLabel(ev.eventType)}
+                        </span>
+                      </div>
                       <div class="mt-0.5 text-xs text-slate-400">
-                        {new Date(p.event.date).toLocaleDateString('fr-FR', {
+                        {new Date(ev.date).toLocaleDateString('fr-FR', {
                           timeZone: data.timeZone,
                           weekday: 'long',
                           day: 'numeric',
@@ -169,10 +177,10 @@
       >
         <CalendarCheck class="mb-4 h-8 w-8 text-slate-400" />
         <h3 class="text-lg font-bold text-slate-700 dark:text-slate-300">
-          Aucun Coding Club
+          Aucun événement
         </h3>
         <p class="mt-2 max-w-sm text-sm text-slate-500">
-          Tes participations aux Coding Club apparaîtront ici.
+          Tes participations apparaîtront ici.
         </p>
       </div>
     {/if}

@@ -3568,7 +3568,13 @@ async function seedWelcomePages(
     if (!eventId) return [];
     return [{ slug: 'welcome', eventId, updatedBy, content }];
   });
-  await prisma.cmsPage.createMany({ data: rows });
+  // cmsPage may not exist (renamed to NewsPost on feat/news-feed branch).
+  // Skip silently when the table is gone.
+  try {
+    await (prisma as any).cmsPage.createMany({ data: rows });
+  } catch {
+    // table does not exist, skip
+  }
 }
 
 // ─── Wipe ───
@@ -4457,6 +4463,26 @@ async function seedEvents(
     });
     await prisma.participationActivity.createMany({
       data: participationActivityRows,
+    });
+
+    // EventPresence rows (emargement system) for present students.
+    const presenceRows = students
+      .filter((s) => s.isPresent)
+      .flatMap((s) => {
+        const eventDate = new Date(event.date);
+        eventDate.setHours(0, 0, 0, 0);
+        return (['morning', 'afternoon'] as const).map((slot) => ({
+          talentId: s.talent.id,
+          eventId: event.id,
+          day: eventDate,
+          slot,
+          status: s.delay > 0 ? ('late' as const) : ('present' as const),
+          source: 'manual' as const,
+        }));
+      });
+    await prisma.eventPresence.createMany({
+      data: presenceRows,
+      skipDuplicates: true,
     });
 
     // Stage compliance (only for stage_seconde events). This row tracks the

@@ -3,7 +3,6 @@ import { error } from '@sveltejs/kit';
 import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
 import { getBrowserTimezone } from '$lib/server/db/scoped';
-import { EVENT_TYPES } from '$lib/domain/event';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -21,20 +20,23 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     .set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
     .toDate();
 
-  const pastEvents = await prisma.participation.findMany({
+  const pastEvents = await prisma.event.findMany({
     where: {
-      talentId: locals.talent.id,
-      isPresent: true,
-      event: {
-        eventType: EVENT_TYPES.CODING_CLUB,
-        date: { lte: filterDateEnd },
+      date: { lte: filterDateEnd },
+      eventPresences: {
+        some: {
+          talentId: locals.talent.id,
+          status: { in: ['present', 'late'] },
+        },
       },
     },
     select: {
       id: true,
-      event: { select: { titre: true, date: true } },
+      titre: true,
+      date: true,
+      eventType: true,
     },
-    orderBy: { event: { date: 'desc' } },
+    orderBy: { date: 'desc' },
   });
 
   return { pastEvents, timeZone };

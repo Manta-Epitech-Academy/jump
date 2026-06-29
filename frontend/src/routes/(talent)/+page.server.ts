@@ -150,11 +150,11 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     }
 
     // The staff-authored CMS welcome message seeds the dashboard's Actualités
-    // feed and shows for the whole stage window — this card is its only home.
-    // Distinct from the fixed pre-onboarding splash at /welcome, which owns its
-    // own copy and does not read this row.
+    // feed and shows for the whole stage window. The CmsPage table has been
+    // renamed to NewsPost on feat/news-feed; this block is kept for backward
+    // compatibility with the dev branch where CmsPage still exists.
     let welcome: { content: string } | null = null;
-    {
+    try {
       const stageParticipation = await prisma.participation.findFirst({
         where: {
           talentId: studentId,
@@ -177,7 +177,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         const { event } = stageParticipation;
         const stageEnd = stageWindowEnd(event.date, event.endDate);
         if (stageEnd >= new Date()) {
-          const welcomePage = await prisma.cmsPage.findUnique({
+          const welcomePage = await (prisma as any).cmsPage?.findUnique({
             where: { slug_eventId: { slug: 'welcome', eventId: event.id } },
             select: { content: true },
           });
@@ -194,26 +194,29 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
           }
         }
       }
+    } catch {
+      // CmsPage table may not exist (renamed to NewsPost on news-feed branch)
     }
 
-    // Past coding club events the talent attended (widget: 5 most recent).
-    // Not gated by the coding_club feature flag: a talent who attended a
-    // coding club always sees their history, even if the campus hasn't
-    // switched to the full multi-event workspace yet.
-    const pastCodingClubs = await prisma.participation.findMany({
+    // Past events the talent attended (widget: 5 most recent).
+    // Uses EventPresence (emargement system) to determine attendance.
+    const pastEvents = await prisma.event.findMany({
       where: {
-        talentId: studentId,
-        isPresent: true,
-        event: {
-          eventType: EVENT_TYPES.CODING_CLUB,
-          date: { lte: filterDateEnd },
+        date: { lte: filterDateEnd },
+        eventPresences: {
+          some: {
+            talentId: studentId,
+            status: { in: ['present', 'late'] },
+          },
         },
       },
       select: {
         id: true,
-        event: { select: { titre: true, date: true } },
+        titre: true,
+        date: true,
+        eventType: true,
       },
-      orderBy: { event: { date: 'desc' } },
+      orderBy: { date: 'desc' },
       take: 5,
     });
 
@@ -287,7 +290,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       minigameRankReward,
       onboardingArrival,
       welcome,
-      pastCodingClubs,
+      pastEvents,
       timeZone: tz,
       pendingFeedback,
     };
