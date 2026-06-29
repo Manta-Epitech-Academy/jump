@@ -845,6 +845,16 @@ model EventConfig_Template {
   name           String   @unique
   description    String?
   forEventType   String?
+  // The friendly event name the preset carries (e.g. "Coding Club"). Captured
+  // because campuses reuse one display name across every occurrence of a format
+  // (Strasbourg has "Coding Club" ×10), so a preset that doesn't pre-fill it just
+  // makes the admin retype the same string. Like the live `Event.publicName`,
+  // applying it is a point-in-time copy; `null` = the event keeps the SF `titre`.
+  publicName     String?
+  // Jump-owned arrival time-of-day the preset carries, in wall-clock minutes from
+  // local midnight (0-1439), `null` = none (the event falls back to the type
+  // default). Mirrors `Event.startMinutes`; copied onto the event on apply.
+  startMinutes   Int?
   feedbackFormId String?
   createdById    String?
   updatedById    String?

@@ -58,6 +58,8 @@
     name: string;
     description: string | null;
     forEventType: string | null;
+    publicName: string | null;
+    startTime: string;
     feedbackFormId: string | null;
     modules: EventModuleKey[];
     moduleSettings: Record<string, unknown>;
@@ -182,6 +184,11 @@
     $form.modules = [...t.modules];
     $form.moduleSettings = withDefaults(t.moduleSettings);
     $form.feedbackFormId = t.feedbackFormId ?? '';
+    // Prefilled like the rest of the preset: a wholesale copy the admin can still
+    // edit on step 2. Empty falls back as usual (publicName → SF titre, startTime
+    // → the type default).
+    $form.publicName = t.publicName ?? '';
+    $form.startTime = t.startTime ?? '';
     selectedTemplateId = t.id;
     step = 2;
   }
@@ -329,7 +336,11 @@
     JSON.stringify({
       modules: $form.modules,
       moduleSettings: $form.moduleSettings,
-      feedbackFormId: $form.feedbackFormId,
+      // Only carry the feedback form when bilan is actually on: a form id with no
+      // bilan module resolves to nothing, so snapshotting it would store dead data.
+      feedbackFormId: moduleActive('bilan') ? $form.feedbackFormId : '',
+      publicName: $form.publicName,
+      startTime: $form.startTime,
       forEventType: editing?.eventType ?? '',
     }),
   );
@@ -985,7 +996,13 @@
               name: templateName.trim(),
               description: templateDescription.trim() || null,
               forEventType: editing?.eventType ?? null,
-              feedbackFormId: $form.feedbackFormId || null,
+              publicName: $form.publicName.trim() || null,
+              startTime: $form.startTime,
+              // Mirror the snapshot's bilan gate, so the optimistic row matches
+              // what the server actually stored.
+              feedbackFormId: moduleActive('bilan')
+                ? $form.feedbackFormId || null
+                : null,
               modules: [...$form.modules] as EventModuleKey[],
               moduleSettings: { ...$form.moduleSettings },
             };

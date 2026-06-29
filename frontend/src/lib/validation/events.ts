@@ -81,6 +81,18 @@ export const eventConfigTemplateSaveSchema = z.object({
   // The SF event type the template was saved from, captured so the wizard can
   // suggest it for matching events (soft hint, not a binding).
   forEventType: z.string().default(''),
+  // The friendly event name the preset carries (e.g. "Coding Club"). Empty = the
+  // preset prefills no name (the event keeps the SF titre). Mirrors the event
+  // form's `publicName`; campuses reuse one display name across every occurrence
+  // of a format, so a preset that prefills it saves retyping it each time.
+  publicName: z.string().trim().max(120).default(''),
+  // Jump-owned arrival time-of-day the preset carries (mirrors the event form's
+  // `startTime`). Empty = none (the applied event falls back to the type default).
+  startTime: z
+    .string()
+    .regex(HHMM_PATTERN, 'Heure invalide (HH:MM).')
+    .or(z.literal(''))
+    .default(''),
   modules: z
     .array(z.enum(EVENT_MODULE_KEYS as [string, ...string[]]))
     .default([]),

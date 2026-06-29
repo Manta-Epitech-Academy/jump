@@ -10,6 +10,8 @@ CREATE TABLE "EventConfig_Template" (
     "name" TEXT NOT NULL,
     "description" TEXT,
     "forEventType" TEXT,
+    "publicName" TEXT,
+    "startMinutes" INTEGER,
     "feedbackFormId" TEXT,
     "createdById" TEXT,
     "updatedById" TEXT,

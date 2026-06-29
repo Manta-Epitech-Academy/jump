@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
+import { hhmmToMinutes, minutesToHHMM } from '$lib/domain/event';
 import {
   isEventModuleKey,
   parseModuleSettings,
@@ -23,6 +24,10 @@ export type EventConfigTemplateSummary = {
   description: string | null;
   /** Soft hint: the SF event type the wizard suggests this template for. */
   forEventType: string | null;
+  /** Friendly event name the preset prefills, or null (event keeps the SF titre). */
+  publicName: string | null;
+  /** Arrival time-of-day the preset prefills as "HH:MM", or "" when unset. */
+  startTime: string;
   /** Optional default feedback form (weak FK), prefilled when bilan is enabled. */
   feedbackFormId: string | null;
   modules: EventModuleKey[];
@@ -35,6 +40,8 @@ type TemplateRow = {
   name: string;
   description: string | null;
   forEventType: string | null;
+  publicName: string | null;
+  startMinutes: number | null;
   feedbackFormId: string | null;
   modules: { moduleKey: string; settings: Prisma.JsonValue }[];
 };
@@ -55,6 +62,8 @@ function toSummary(t: TemplateRow): EventConfigTemplateSummary {
     name: t.name,
     description: t.description,
     forEventType: t.forEventType,
+    publicName: t.publicName,
+    startTime: minutesToHHMM(t.startMinutes),
     feedbackFormId: t.feedbackFormId,
     modules: present.map((m) => m.moduleKey as EventModuleKey),
     moduleSettings,
@@ -111,6 +120,8 @@ export const EventConfigTemplateService = {
     name: string;
     description: string;
     forEventType: string;
+    publicName: string;
+    startTime: string;
     modules: string[];
     moduleSettings: Record<string, unknown>;
     feedbackFormId: string;
@@ -121,6 +132,8 @@ export const EventConfigTemplateService = {
     const feedbackFormId = await resolveFeedbackFormId(input.feedbackFormId);
     const forEventType = input.forEventType.trim() || null;
     const description = input.description.trim() || null;
+    const publicName = input.publicName.trim() || null;
+    const startMinutes = hhmmToMinutes(input.startTime);
     const moduleRows = moduleCreateRows(input.modules, input.moduleSettings);
 
     const existing = await prisma.eventConfig_Template.findUnique({
@@ -139,6 +152,8 @@ export const EventConfigTemplateService = {
           data: {
             description,
             forEventType,
+            publicName,
+            startMinutes,
             feedbackFormId,
             updatedById: input.actorId,
             modules: { create: moduleRows },
@@ -153,6 +168,8 @@ export const EventConfigTemplateService = {
         name,
         description,
         forEventType,
+        publicName,
+        startMinutes,
         feedbackFormId,
         createdById: input.actorId,
         updatedById: input.actorId,
