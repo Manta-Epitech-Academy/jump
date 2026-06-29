@@ -894,11 +894,12 @@
                         </div>
                       {:else}
                         <p
-                          class="text-[11px] leading-snug text-muted-foreground"
+                          class="flex items-start gap-1.5 text-[11px] leading-snug text-amber-600"
                         >
-                          Aucun formulaire n'est associé : cet événement ne
-                          collectera pas de feedback. Choisissez-en un
-                          ci-dessus, ou créez-en un nouveau.
+                          <TriangleAlert class="mt-px size-3 shrink-0" />
+                          Aucun formulaire publié n'est associé : tant qu'il n'y en
+                          a pas, la page Feedback n'apparaîtra pas dans l'espace dev.
+                          Choisissez-en un ci-dessus, ou créez-en un puis publiez-le.
                         </p>
                         <Button
                           href="/staff/admin/feedback-forms?create=1"

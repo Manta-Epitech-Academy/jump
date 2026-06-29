@@ -1,3 +1,4 @@
+import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { base } from '$app/paths';
 import { env } from '$env/dynamic/private';
@@ -27,6 +28,7 @@ export interface BilanCohort {
   total: number;
   /** Recommendation options in canonical best→worst order (filter + badge tier). */
   recoOptions: string[];
+  /** Aggregated answers; null when the form has no submissions yet. */
   stats: FormStats | null;
 }
 
@@ -43,9 +45,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // can read the recommendation question and its options. Dev never shows the
   // public link.
   const form = await resolvePublishedEventForm(event);
+  if (!form) {
+    // No resolvable live form: the bilan module is on but nothing answers it. The
+    // nav entry hides on the same condition (`hasFeedbackForm`); a direct URL then
+    // behaves like a missing page rather than dropping the dev on an empty shell.
+    throw error(
+      404,
+      "Aucun formulaire de feedback n'est associé à cet événement.",
+    );
+  }
 
-  const recoQ =
-    form?.questions.find((q) => q.key === RECO_QUESTION_KEY) ?? null;
+  const recoQ = form.questions.find((q) => q.key === RECO_QUESTION_KEY) ?? null;
   const recoOptions = recoQ
     ? recoQ.options.filter((o) => o.kind === 'choice').map((o) => o.label)
     : [];
@@ -61,12 +71,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
       }),
       (async () => {
-        if (!form)
-          return [] as {
-            talentId: string | null;
-            submittedAt: Date;
-            recoLabel: string | null;
-          }[];
         const subs = await prisma.feedback_Submission.findMany({
           where: {
             formId: form.id,
@@ -95,9 +99,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
           recoLabel: s.answers[0]?.selectedOptions[0]?.option.label ?? null,
         }));
       })(),
-      form
-        ? computeFormStats(form.id, { eventId: event.id })
-        : Promise.resolve(null),
+      computeFormStats(form.id, { eventId: event.id }),
     ]);
 
     const byTalent = new Map(
@@ -130,13 +132,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // the page's own origin) so the copyable URL is byte-for-byte what the QR image
   // encodes, and stays correct behind a proxy. `feedbackFormPath` is the single
   // source the QR endpoint also uses, so the two never drift.
-  const feedbackUrl = form
-    ? `${env.ORIGIN ?? ''}${base}${feedbackFormPath(event.id, form.slug)}`
-    : null;
+  const feedbackUrl = `${env.ORIGIN ?? ''}${base}${feedbackFormPath(event.id, form.slug)}`;
 
   return {
     event: { id: event.id, titre: event.titre, publicName: event.publicName },
-    form: form ? { title: form.title, url: feedbackUrl } : null,
+    form: { title: form.title, url: feedbackUrl },
     cohort,
   };
 };

@@ -211,7 +211,11 @@
           <span>Planning</span>
         </a>
       {/if}
-      {#if currentModules.has(EVENT_MODULES.BILAN)}
+      <!-- Feedback is gated on the module AND a resolvable live form (like
+           planning's data-driven gate): bilan enabled without a published form
+           would land the dev on an empty page, so the entry hides until there is
+           feedback to look at. The page 404s on the same condition. -->
+      {#if currentModules.has(EVENT_MODULES.BILAN) && ev.hasFeedbackForm}
         <a
           href={resolve(`/staff/dev/events/${ev.id}/bilan`)}
           class={navLinkClass(isActive(`/staff/dev/events/${ev.id}/bilan`))}

@@ -324,6 +324,14 @@ export type WorkspaceEventEntry = {
    * data-driven — only when there is actually a schedule to look at.
    */
   hasPlanning: boolean;
+  /**
+   * Whether the event resolves to a LIVE feedback form (its override, else the
+   * type default; published + talent-answerable). The Feedback (bilan) surface is
+   * gated on this on top of the module, mirroring `hasPlanning`: enabling bilan
+   * without a resolvable form would otherwise drop a dev on an empty page, so the
+   * nav entry only shows when there is real feedback to look at.
+   */
+  hasFeedbackForm: boolean;
 };
 
 export type WorkspaceEvents = {
@@ -351,21 +359,50 @@ export async function resolveWorkspaceEvents(
   db: ScopedPrismaClient,
   timezone: string,
 ): Promise<WorkspaceEvents> {
-  const rows = await db.event.findMany({
-    where: { devActivatedAt: { not: null }, modules: { some: {} } },
-    select: {
-      id: true,
-      titre: true,
-      publicName: true,
-      externalId: true,
-      date: true,
-      endDate: true,
-      eventType: true,
-      modules: { select: { moduleKey: true } },
-      planning: { select: { _count: { select: { timeSlots: true } } } },
-    },
-    orderBy: { date: 'desc' },
-  });
+  // The events, plus the live feedback forms, resolved in one wave. A form is
+  // "live" = published AND talent-answerable, the exact gate
+  // `resolvePublishedEventForm` applies, so the bilan nav entry (gated on
+  // `hasFeedbackForm` below) and the bilan page never disagree on whether there
+  // is a form. Forms are global (not campus-scoped), so they come off `prisma`.
+  const [rows, liveForms] = await Promise.all([
+    db.event.findMany({
+      where: { devActivatedAt: { not: null }, modules: { some: {} } },
+      select: {
+        id: true,
+        titre: true,
+        publicName: true,
+        externalId: true,
+        date: true,
+        endDate: true,
+        eventType: true,
+        feedbackFormId: true,
+        modules: { select: { moduleKey: true } },
+        planning: { select: { _count: { select: { timeSlots: true } } } },
+      },
+      orderBy: { date: 'desc' },
+    }),
+    prisma.feedback_Form.findMany({
+      where: { status: 'published', allowsAuthenticatedAccess: true },
+      select: { id: true, defaultForEventType: true },
+    }),
+  ]);
+  const liveFormIds = new Set(liveForms.map((f) => f.id));
+  const liveDefaultTypes = new Set(
+    liveForms
+      .map((f) => f.defaultForEventType)
+      .filter((t): t is string => t != null),
+  );
+  // Mirrors `eventFormWhere`/`resolveEventForm`: an explicit override is used
+  // alone (never falling back to the type default), else the type default. So a
+  // dangling override (form unpublished after it was picked) reads as "no form",
+  // exactly as the page would resolve it.
+  const eventResolvesLiveForm = (e: {
+    feedbackFormId: string | null;
+    eventType: string;
+  }) =>
+    e.feedbackFormId
+      ? liveFormIds.has(e.feedbackFormId)
+      : liveDefaultTypes.has(e.eventType);
   const bounds = getLifecycleBounds(timezone);
   const events: WorkspaceEventEntry[] = rows.map((e) => {
     // A stage synced from Salesforce has no explicit `endDate` (the SF sync
@@ -393,6 +430,7 @@ export async function resolveWorkspaceEvents(
       monthKey: toDateKey(e.date, timezone).slice(0, 7),
       modules: e.modules.map((m) => m.moduleKey).filter(isEventModuleKey),
       hasPlanning: (e.planning?._count.timeSlots ?? 0) > 0,
+      hasFeedbackForm: eventResolvesLiveForm(e),
     };
   });
 

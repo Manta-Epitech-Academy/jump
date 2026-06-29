@@ -196,7 +196,15 @@ export const load: PageServerLoad = async () => {
       orderBy: { title: 'asc' },
     }),
     prisma.feedback_Form.findMany({
-      where: { defaultForEventType: { not: null } },
+      // Only a LIVE default (published + talent-answerable) counts: it must match
+      // what the dev bilan surface actually resolves (`resolvePublishedEventForm`),
+      // so the wizard's "Par défaut (…)" label and its no-form warning don't claim
+      // a default that a draft form would never deliver.
+      where: {
+        defaultForEventType: { not: null },
+        status: 'published',
+        allowsAuthenticatedAccess: true,
+      },
       select: { id: true, defaultForEventType: true, title: true },
     }),
     EventConfigTemplateService.list(),
