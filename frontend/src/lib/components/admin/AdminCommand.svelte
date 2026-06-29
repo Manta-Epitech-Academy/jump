@@ -2,6 +2,7 @@
   import * as Command from '$lib/components/ui/command';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
   import { onMount, onDestroy } from 'svelte';
   import GraduationCap from '@lucide/svelte/icons/graduation-cap';
   import Users from '@lucide/svelte/icons/users';
@@ -223,6 +224,35 @@
 
   const ALL_PAGES = NAV_SECTIONS.flatMap((s) => s.items);
 
+  const RECENT_KEY = 'admin-recent-pages';
+  const MAX_RECENT = 4;
+
+  let recentHrefs = $state<string[]>([]);
+
+  function loadRecent(): string[] {
+    try {
+      const raw = localStorage.getItem(RECENT_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveRecent(href: string) {
+    const updated = [href, ...recentHrefs.filter((h) => h !== href)].slice(
+      0,
+      MAX_RECENT,
+    );
+    recentHrefs = updated;
+    localStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+  }
+
+  const recentPages = $derived(
+    recentHrefs
+      .map((href) => ALL_PAGES.find((p) => p.href === href))
+      .filter((p): p is NavItem => p != null),
+  );
+
   let inputValue = $state('');
   let results = $state<PersonResult[]>([]);
   let searching = $state(false);
@@ -264,14 +294,42 @@
     }
   }
   onMount(() => document.addEventListener('keydown', handleKeydown));
+
+  // Load recent pages from localStorage each time the palette opens.
+  $effect(() => {
+    if (open) recentHrefs = loadRecent();
+  });
   onDestroy(() => {
     if (typeof document !== 'undefined')
       document.removeEventListener('keydown', handleKeydown);
   });
 
+  // Track page visits automatically (not just via Ctrl+K navigation).
+  // Only writes to localStorage (no state update) to avoid re-renders.
+  // The state is loaded fresh when the palette opens.
+  if (typeof window !== 'undefined') {
+    $effect(() => {
+      const href = page.url?.pathname;
+      if (!href) return;
+      const match = ALL_PAGES.find((p) => p.href === href);
+      if (!match) return;
+      try {
+        const stored: string[] = JSON.parse(
+          localStorage.getItem(RECENT_KEY) ?? '[]',
+        );
+        const updated = [
+          match.href,
+          ...stored.filter((h) => h !== match.href),
+        ].slice(0, MAX_RECENT);
+        localStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+      } catch {}
+    });
+  }
+
   function go(url: string) {
     open = false;
     inputValue = '';
+    saveRecent(url);
     goto(url);
   }
 
@@ -359,6 +417,22 @@
         </p>
       {/if}
     </Command.Empty>
+
+    <!-- Recently visited pages (only when no search query) -->
+    {#if !query && recentPages.length > 0}
+      <Command.Group heading="Récemment visité">
+        {#each recentPages as p (p.href)}
+          {@const Icon = p.icon}
+          <Command.Item onSelect={() => go(p.href)} class="gap-2.5 px-3 py-1.5">
+            <Icon class="h-3.5 w-3.5 text-muted-foreground" />
+            <span class="text-xs font-medium">{p.label}</span>
+            <ArrowRight
+              class="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-20"
+            />
+          </Command.Item>
+        {/each}
+      </Command.Group>
+    {/if}
 
     <!-- Navigation pages grouped by category -->
     {#each matchedSections as section (section.label)}
