@@ -6,7 +6,7 @@ import {
   stageEndOrDefault,
 } from '$lib/server/services/stageContext';
 import { generateStageDiplomasPDF } from '$lib/server/services/diplomaGenerator';
-import { getStorage } from '$lib/server/infra/storage';
+import { getStorage, isObjectNotFound } from '$lib/server/infra/storage';
 import { prisma } from '$lib/server/db';
 import { formatDateFr } from '$lib/utils';
 
@@ -47,8 +47,22 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   const storage = getStorage();
   const signatories = await Promise.all(
     signatoryRows.map(async (s) => {
-      const bytes = await storage.get(s.signatureKey);
-      const imageDataUri = `data:${s.contentType};base64,${bytes.toString('base64')}`;
+      // A missing signature image must not 500 the whole sheet: render the block
+      // with the name and role over a blank signature line. This is the normal
+      // case for a DB restored without its S3 objects, and guards against a real
+      // signatory whose image was deleted. A genuine storage incident (timeout,
+      // 5xx) still throws, so we never silently ship a diploma missing a present
+      // signature.
+      let imageDataUri: string | null = null;
+      try {
+        const bytes = await storage.get(s.signatureKey);
+        imageDataUri = `data:${s.contentType};base64,${bytes.toString('base64')}`;
+      } catch (err) {
+        if (!isObjectNotFound(err)) throw err;
+        console.warn(
+          `Diploma: signature image absent for "${s.name}" (${s.signatureKey}); rendering without it.`,
+        );
+      }
       return { name: s.name, role: s.role, imageDataUri };
     }),
   );
