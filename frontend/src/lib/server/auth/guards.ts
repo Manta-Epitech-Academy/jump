@@ -6,6 +6,7 @@ import { prisma } from '$lib/server/db';
 import { can, type StaffGroup } from '$lib/domain/permissions';
 import type { FlagKey } from '$lib/domain/featureFlags';
 import { getOnboardingStep } from '$lib/domain/talentOnboarding';
+import { STAGE_DEFAULT_DURATION_DAYS } from '$lib/domain/event';
 import {
   loginUrlWithRedirect,
   onboardingFunnelUrl,
@@ -138,26 +139,34 @@ export async function applyRouteGuards(
       !currentPath.startsWith(pathTalentOnboarding) &&
       currentPath !== pathTalentLogin
     ) {
+      // Show the splash while the talent has any stage whose window is still
+      // open. "Window" = the explicit endDate, or date + default duration when
+      // none (mirrors `stageWindowEnd` so an endDate-less mini-stage doesn't
+      // lose the splash the day after it starts). Existence is enough - with
+      // several concurrent stages, any open one triggers it.
+      const now = new Date();
+      const windowLookback = new Date(
+        now.getTime() - STAGE_DEFAULT_DURATION_DAYS * 86_400_000,
+      );
       const stageParticipation = await prisma.participation.findFirst({
         where: {
           talentId: event.locals.talent.id,
-          event: { eventType: 'stage_seconde' },
+          event: {
+            eventType: 'stage_seconde',
+            OR: [
+              { endDate: { gte: now } },
+              { endDate: null, date: { gte: windowLookback } },
+            ],
+          },
         },
-        orderBy: { event: { date: 'desc' } },
-        select: { event: { select: { endDate: true, date: true } } },
+        select: { id: true },
       });
       if (stageParticipation) {
-        const stageEnd =
-          stageParticipation.event.endDate ?? stageParticipation.event.date;
-        if (stageEnd >= new Date()) {
-          return Response.redirect(
-            new URL(
-              onboardingFunnelUrl(pathTalentWelcome, event.url),
-              event.url,
-            ).href,
-            303,
-          );
-        }
+        return Response.redirect(
+          new URL(onboardingFunnelUrl(pathTalentWelcome, event.url), event.url)
+            .href,
+          303,
+        );
       }
     }
 

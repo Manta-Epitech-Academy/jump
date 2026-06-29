@@ -15,6 +15,7 @@ import { NOTE_INCLUDE, serializeNote } from '$lib/server/talentNotes';
 import { interviewConductSchema } from '$lib/validation/interviews';
 import { NOTE_FIELDS, type NoteField } from '$lib/domain/interview';
 import { EVENT_TYPES } from '$lib/domain/event';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { formatGivenName } from '$lib/domain/profile';
 import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
 import { isRulesCompliant } from '$lib/domain/stageCompliance';
@@ -30,7 +31,7 @@ import { getTalentXpStory } from '$lib/server/services/xpStoryService';
 // merge in memory, and slice the head.
 const RIGHT_RAIL_COMMS = 6;
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, url }) => {
   const campusId = getCampusId(locals);
   const db = scopedPrisma(campusId);
   const timezone = getCampusTimezone(locals);
@@ -78,6 +79,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
               date: true,
               endDate: true,
               eventType: true,
+              modules: { select: { moduleKey: true } },
             },
           },
         },
@@ -175,25 +177,41 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     );
     const communications = allCommunications.slice(0, RIGHT_RAIL_COMMS);
 
-    // The orientation interview is a 1:1 artifact of the talent's stage de
-    // seconde participation, not of the stage's calendar phase. Staff routinely
-    // type up paper interviews weeks after the stage and re-open a finalized
-    // synthesis long after, so we attach to the talent's most recent stage
-    // participation whatever its lifecycle status (upcoming/ongoing/past).
-    // `participations` is ordered `event.date desc`, so [0] is the latest stage.
+    // Compliance (charte, droits à l'image) is a stage-de-seconde artifact: it
+    // always attaches to the talent's latest stage participation, whatever event
+    // the fiche was opened from. `participations` is `event.date desc`, so [0] is
+    // the latest stage.
     const stageParticipations = participations.filter(
       (p) => p.event.eventType === EVENT_TYPES.STAGE_SECONDE,
     );
     const primaryComplianceParticipation = stageParticipations[0] ?? null;
 
-    // Interview conduct surface. The interview is 1:1 with the talent's stage
-    // participation, so we prefill the grid from any existing row (absence
-    // = "à faire"). With no stage participation there is nothing to attach to,
-    // so the fiche disables "Faire l'entretien" with a reason and the actions
-    // refuse.
-    const existingInterview = primaryComplianceParticipation
+    // Interview conduct surface. The orientation interview is 1:1 with a
+    // participation (one per person per event) and is offered on any event that
+    // exposes the `entretiens` module - not only the stage. The entretiens page
+    // links here with `?event=<id>`, so we attach to THAT event's participation;
+    // opened without context (search, deep link) we fall back to the latest
+    // interviewable one, stage first for backward-compatible behaviour. Staff
+    // routinely type up paper interviews long after, so lifecycle phase is
+    // irrelevant here. With no interviewable participation the fiche disables
+    // "Faire l'entretien" with a reason and the actions refuse.
+    const interviewable = participations.filter((p) =>
+      p.event.modules.some((m) => m.moduleKey === EVENT_MODULES.ENTRETIENS),
+    );
+    const eventParam = url.searchParams.get('event');
+    const interviewParticipation =
+      (eventParam
+        ? interviewable.find((p) => p.event.id === eventParam)
+        : null) ??
+      interviewable.find(
+        (p) => p.event.eventType === EVENT_TYPES.STAGE_SECONDE,
+      ) ??
+      interviewable[0] ??
+      null;
+
+    const existingInterview = interviewParticipation
       ? await db.interview.findUnique({
-          where: { participationId: primaryComplianceParticipation.id },
+          where: { participationId: interviewParticipation.id },
           include: {
             staff: {
               select: { user: { select: { name: true, image: true } } },
@@ -205,7 +223,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     const interviewForm = await superValidate(
       existingInterview
         ? {
-            participationId: primaryComplianceParticipation!.id,
+            participationId: interviewParticipation!.id,
             discoveryChannel: existingInterview.discoveryChannel,
             motivation: existingInterview.motivation,
             orientationTalkAtSchool: existingInterview.orientationTalkAtSchool,
@@ -233,14 +251,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             satisfactionNote: existingInterview.satisfactionNote ?? '',
             nextYearEventsNote: existingInterview.nextYearEventsNote ?? '',
           }
-        : { participationId: primaryComplianceParticipation?.id ?? '' },
+        : { participationId: interviewParticipation?.id ?? '' },
       zod4(interviewConductSchema),
     );
 
-    const canConductInterview = primaryComplianceParticipation != null;
+    const canConductInterview = interviewParticipation != null;
     const noInterviewReason = canConductInterview
       ? null
-      : "Ce stagiaire n'a aucun stage de seconde.";
+      : "Ce talent n'a aucun événement avec les entretiens activés.";
 
     // Staff correction form for the image-rights decision, prefilled with the
     // current decision + the guardian on file (the last signer, else the parent
@@ -354,14 +372,14 @@ type InterviewMode = 'start' | 'save' | 'close';
  *   - `close`  → flip to `done` (the "Clôturer l'entretien" CTA)
  * Clôture is a one-way door: a `done` interview is locked for good (guarded
  * below), so the lifecycle only ever runs null → in_progress → done.
- * Dev-only (Talent Acquisition conducts interviews), stage-gated, re-validated.
+ * Dev-only (Talent Acquisition conducts interviews); gated per participation on
+ * its event's `entretiens` module, re-validated.
  */
 async function persistInterview(
   { request, locals, params }: RequestEvent,
   mode: InterviewMode,
 ) {
   requireStaffGroup(locals, 'devMember');
-  requireFlag(locals, 'stage_seconde');
 
   const campusId = getCampusId(locals);
   const db = scopedPrisma(campusId);
@@ -369,20 +387,30 @@ async function persistInterview(
   const form = await superValidate(request, zod4(interviewConductSchema));
   if (!form.valid) return fail(400, { form });
 
+  // Gated per participation on the `entretiens` module of its event, not on the
+  // event type: any event exposing entretiens (stage, coding club…) can be
+  // interviewed, one interview per participation.
   const participation = await db.participation.findUnique({
     where: { id: form.data.participationId },
     select: {
       id: true,
       talentId: true,
       campusId: true,
-      event: { select: { eventType: true } },
+      event: {
+        select: {
+          modules: {
+            where: { moduleKey: EVENT_MODULES.ENTRETIENS },
+            select: { moduleKey: true },
+          },
+        },
+      },
     },
   });
   if (
     !participation ||
     participation.talentId !== params.id ||
     participation.campusId !== campusId ||
-    participation.event.eventType !== EVENT_TYPES.STAGE_SECONDE
+    participation.event.modules.length === 0
   ) {
     return message(form, 'Entretien impossible pour ce stagiaire.', {
       status: 400,

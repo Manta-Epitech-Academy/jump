@@ -31,7 +31,9 @@
   );
   let hasCodingClub = $derived(featureFlags.has('coding_club'));
   let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
-  let hasPlanning = $derived(featureFlags.has('planning'));
+  // Planning is a standard pedago surface now (the build tool, role-gated); no
+  // campus flag. Dev/talent visibility of the result is data-driven elsewhere.
+  const hasPlanning = true;
 
   let mobileMenuOpen = $state(false);
   let commandOpen = $state(false);

@@ -8,7 +8,6 @@
   import MonitorSmartphone from '@lucide/svelte/icons/monitor-smartphone';
   import Maximize from '@lucide/svelte/icons/maximize';
   import Minimize from '@lucide/svelte/icons/minimize';
-  import Info from '@lucide/svelte/icons/info';
   import { Input } from '$lib/components/ui/input';
   import { Button } from '$lib/components/ui/button';
   import { cn } from '$lib/utils';
@@ -352,17 +351,6 @@
       </div>
     </div>
   </div>
-
-  {#if data.event.notes}
-    <div class="focus-hide container mx-auto mt-4 max-w-4xl px-4">
-      <div
-        class="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-200"
-      >
-        <Info class="mt-0.5 h-4 w-4 shrink-0" />
-        <p class="whitespace-pre-wrap">{data.event.notes}</p>
-      </div>
-    </div>
-  {/if}
 
   <!-- BARRE DE RECHERCHE + FILTRES -->
   <div

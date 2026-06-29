@@ -12,7 +12,6 @@ import {
   pastEventWhere,
   upcomingEventWhere,
 } from '$lib/domain/eventLifecycle';
-import { hasFlag } from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const db = scopedPrisma(getCampusId(locals));
@@ -139,9 +138,13 @@ export const load: PageServerLoad = async ({ locals }) => {
     orderBy: { user: { name: 'asc' } },
   });
 
-  // Campuses with the planning feature off manage their schedule outside Jump,
-  // so the planning-prep tasks (and their dead links) must not surface.
-  const planningOn = hasFlag(locals, 'planning');
+  // No planning flag anymore: a campus "does planning" once it has built at
+  // least one schedule. Only then do the planning-prep nudges (and their links)
+  // make sense; a campus that schedules outside Jump never trips them.
+  const planningOn =
+    (await db.event.count({
+      where: { planning: { timeSlots: { some: {} } } },
+    })) > 0;
 
   const eventsMissingMantas = eventsInWeek
     .filter((ev) => ev.mantas.length === 0)

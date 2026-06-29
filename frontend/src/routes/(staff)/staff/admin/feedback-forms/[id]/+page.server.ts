@@ -27,6 +27,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
       allowsAuthenticatedAccess: graph.allowsAuthenticatedAccess,
       allowsPublicAccess: graph.allowsPublicAccess,
       dashboardNudge: graph.dashboardNudge,
+      defaultForEventType: graph.defaultForEventType,
     },
     sections: graph.sections.map((s) => ({
       id: s.id,

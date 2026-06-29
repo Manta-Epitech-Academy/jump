@@ -12,7 +12,6 @@
   import Award from '@lucide/svelte/icons/award';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import UserPlus from '@lucide/svelte/icons/user-plus';
-  import StickyNote from '@lucide/svelte/icons/sticky-note';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import CircleCheck from '@lucide/svelte/icons/circle-check';
   import UserCheck from '@lucide/svelte/icons/user-check';
@@ -32,7 +31,8 @@
   let readiness = $derived(data.readiness);
   let kpis = $derived(data.kpis);
   let status = $derived(data.status);
-  let hasPlanning = $derived(data.featureFlags.includes('planning'));
+  // Planning is a standard pedago surface now (role-gated build tool), no flag.
+  const hasPlanning = true;
 
   let presentRatio = $derived(
     kpis.participantsCount > 0
@@ -343,21 +343,6 @@
                 </Gated>
               </Card.Content>
             </Card.Root>
-          </div>
-        </section>
-      {/if}
-
-      {#if event.notes}
-        <section>
-          <div
-            class="mb-3 flex items-center gap-2 text-sm font-bold tracking-widest text-muted-foreground uppercase"
-          >
-            <StickyNote class="h-4 w-4" /> Notes pédago
-          </div>
-          <div
-            class="rounded-sm border border-blue-200 bg-blue-50 p-4 text-sm whitespace-pre-wrap text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200"
-          >
-            {event.notes}
           </div>
         </section>
       {/if}

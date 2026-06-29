@@ -1,8 +1,15 @@
 import { z } from 'zod';
+import { EVENT_TYPE_VALUES } from '$lib/domain/event';
 
 // Validation for the feedback form builder (admin). The REST endpoints parse
 // request bodies with these; the list page's create form uses the superform
 // variants.
+
+// Which event type a form is the default for (null = none). Constrained to the
+// known event types so a typo can't create an orphan default no event resolves.
+const defaultForEventTypeSchema = z
+  .enum(EVENT_TYPE_VALUES as [string, ...string[]])
+  .nullish();
 
 export const QUESTION_TYPES = [
   'single',
@@ -45,6 +52,7 @@ export const formMetaSchema = z.object({
   allowsAuthenticatedAccess: z.boolean(),
   allowsPublicAccess: z.boolean(),
   dashboardNudge: z.boolean(),
+  defaultForEventType: defaultForEventTypeSchema,
 });
 
 // Partial patch for the auto-saving builder (every field optional, edited inline).
@@ -57,6 +65,7 @@ export const formMetaPatchSchema = z.object({
   allowsAuthenticatedAccess: z.boolean().optional(),
   allowsPublicAccess: z.boolean().optional(),
   dashboardNudge: z.boolean().optional(),
+  defaultForEventType: defaultForEventTypeSchema,
 });
 
 export const sectionSchema = z.object({

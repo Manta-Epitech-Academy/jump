@@ -4,8 +4,11 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { requireFlag } from '$lib/server/auth/guards';
+import {
+  loadEventOr404,
+  requireEventModule,
+} from '$lib/server/services/stageContext';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { interviewListStatus } from '$lib/domain/interview';
 import type { InterviewRecommendation } from '@prisma/client';
 import type {
@@ -18,8 +21,8 @@ const TOP_STAFF = 5;
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
-  requireFlag(locals, 'entretiens');
   const event = await loadEventOr404(params.id, campusId);
+  requireEventModule(event, EVENT_MODULES.ENTRETIENS);
   const db = scopedPrisma(campusId);
   const timezone = getCampusTimezone(locals);
 
@@ -117,7 +120,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   })();
 
   return {
-    event: { id: event.id, titre: event.titre },
+    event: { id: event.id, titre: event.titre, publicName: event.publicName },
     timezone,
     // Lets the leaderboard highlight the acting staff member's own row so they
     // can locate themselves at a glance, whatever their rank.

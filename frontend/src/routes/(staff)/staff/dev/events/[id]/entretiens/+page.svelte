@@ -1,11 +1,10 @@
 <script lang="ts">
-  import { resolve } from '$app/paths';
+  import { eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import EntretiensResults from './components/EntretiensResults.svelte';
-  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { data }: { data: PageData } = $props();
@@ -16,19 +15,13 @@
 </script>
 
 <svelte:head>
-  <title>{STAGE_SECONDE_LABEL} — Entretiens</title>
+  <title>{eventDisplayName(data.event)} · Entretiens</title>
 </svelte:head>
 
 <div class="space-y-6 pb-10">
   {#if hasCodingClub}
     <PageBreadcrumb
-      items={[
-        {
-          label: STAGE_SECONDE_LABEL,
-          href: resolve(`/staff/dev/events/${data.event.id}`),
-        },
-        { label: 'Entretiens' },
-      ]}
+      items={[{ label: eventDisplayName(data.event) }, { label: 'Entretiens' }]}
     />
   {/if}
   <PageHeader title="Entretiens" />
@@ -38,6 +31,7 @@
   {:then cohort}
     <EntretiensResults
       {...cohort}
+      eventId={data.event.id}
       timezone={data.timezone}
       currentStaffId={data.currentStaffId}
     />

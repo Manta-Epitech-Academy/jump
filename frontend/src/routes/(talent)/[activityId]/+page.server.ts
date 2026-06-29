@@ -104,7 +104,7 @@ async function advanceGithubStep(params: {
   });
 }
 
-export const load: PageServerLoad = async ({ locals, params }) => {
+export const load: PageServerLoad = async ({ locals, params, parent }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
 
   try {
@@ -150,10 +150,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     // planning instead. Mirrors the summary dialog, which shows no "Accéder à
     // l'activité" button for these. See isActivityOpenable.
     if (!isActivityOpenable(activity)) {
-      throw redirect(
-        303,
-        locals.featureFlags.has('planning') ? '/calendar' : '/',
-      );
+      const { hasPlannedEvents } = await parent();
+      throw redirect(303, hasPlannedEvents ? '/calendar' : '/');
     }
 
     // Block access before the slot has actually started.

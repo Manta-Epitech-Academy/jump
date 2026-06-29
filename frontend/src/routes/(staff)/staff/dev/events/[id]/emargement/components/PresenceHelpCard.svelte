@@ -58,7 +58,7 @@
       <FileDown class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
       <p class="text-muted-foreground">
         <span class="font-semibold text-foreground">Tout exporter.</span>
-        Téléchargez l'émargement complet du stage (tous les créneaux) en XLSX.
+        Téléchargez tout l'émargement de l'événement (tous les créneaux) en XLSX.
       </p>
     </div>
   </Card.Content>
