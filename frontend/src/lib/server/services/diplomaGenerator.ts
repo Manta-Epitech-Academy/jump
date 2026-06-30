@@ -50,7 +50,10 @@ export async function generateStageDiplomasPDF(data: {
   startDate: string;
   endDate: string;
   todayDate: string;
-  signatories: { name: string; role: string; imageDataUri: string }[];
+  // `imageDataUri` is null when the signatory's image is absent (e.g. a DB
+  // restored without its S3 objects); the block then renders the name and role
+  // over a blank signature line.
+  signatories: { name: string; role: string; imageDataUri: string | null }[];
 }): Promise<Uint8Array<ArrayBuffer>> {
   // The logo and the signature images are referenced as CSS background images
   // declared once in the template (see stage-diploma.html), not inlined per

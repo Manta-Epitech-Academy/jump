@@ -140,7 +140,6 @@
     "dompurify": "^3.4.11",
     "js-yaml": "^4.2.0",
     "markdown-it": "^14.2.0",
-    "undici": "^7.28.0",
-    "ts-deepmerge": "^8.0.0"
+    "undici": "^7.28.0"
   }
 }

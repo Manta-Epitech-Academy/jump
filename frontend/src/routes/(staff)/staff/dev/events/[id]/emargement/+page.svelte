@@ -9,6 +9,7 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import { can } from '$lib/domain/permissions';
   import { defaultActiveSlotKey } from '$lib/domain/eventPresence';
+  import { eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import type { EmargementCohort } from './components/types';
   import QrDialog from './components/QrDialog.svelte';
@@ -23,9 +24,31 @@
   // Kept here, not in the roster, so it survives the roster re-streaming every
   // 5s and stays in sync with the header QR button. The roster's SlotNavigator
   // binds it back up.
+  //
+  // SSR seeds with a fixed hour (the server has no local clock); the client
+  // refines it to the real wall-clock half-day, and re-anchors whenever the
+  // EVENT changes (see the effect below). The bare seed alone was a bug: a
+  // client-side switch between events reuses this component, so the once-seeded
+  // key stayed pointed at the previous event's slots. Its day was then absent
+  // from the navigator, leaving the bare-dash placeholder until a full reload
+  // remounted the page.
   let activeSlotKey = $state<string>(
     untrack(() => defaultActiveSlotKey(data.slots, data.todayKey, 9)),
   );
+  // Re-anchor on the new event (client-side switch) and, on first client paint,
+  // on the real wall-clock hour. Keyed on the event id so the 5s poll (same
+  // event, fresh data) never clobbers a manually picked créneau.
+  let anchoredEventId = $state<string | null>(null);
+  $effect(() => {
+    const eventId = data.event.id;
+    if (eventId === untrack(() => anchoredEventId)) return;
+    anchoredEventId = eventId;
+    activeSlotKey = defaultActiveSlotKey(
+      data.slots,
+      data.todayKey,
+      new Date().getHours(),
+    );
+  });
   const activeSlot = $derived(
     data.slots.find((s) => s.key === activeSlotKey) ?? data.slots[0] ?? null,
   );
@@ -73,15 +96,10 @@
 
   const exportHref = $derived(`${page.url.pathname}/export`);
 
-  // Refine the active créneau to the real wall-clock half-day once mounted (SSR
-  // has no local hour), then poll so QR self-check-ins surface within seconds.
-  // Polling pauses while a dialog is open so a mid-edit form isn't resynced.
+  // Poll so QR self-check-ins surface within seconds (the active créneau is
+  // refined to the real wall-clock hour by the anchoring effect above). Polling
+  // pauses while a dialog is open so a mid-edit form isn't resynced.
   onMount(() => {
-    activeSlotKey = defaultActiveSlotKey(
-      data.slots,
-      data.todayKey,
-      new Date().getHours(),
-    );
     const id = setInterval(() => {
       if (document.visibilityState === 'visible' && !anyDialogOpen) {
         invalidate('staff:event-presence');
@@ -92,7 +110,7 @@
 </script>
 
 <svelte:head>
-  <title>Émargement — {data.event.titre}</title>
+  <title>Émargement — {eventDisplayName(data.event)}</title>
 </svelte:head>
 
 <div class="space-y-6 pb-10">
@@ -123,7 +141,7 @@
           {/snippet}
         </Tooltip.Trigger>
         <Tooltip.Content>
-          Toutes les présences du stage (tous les créneaux)
+          Toutes les présences de l'événement (tous les créneaux)
         </Tooltip.Content>
       </Tooltip.Root>
 

@@ -256,7 +256,7 @@ export const DEFAULT_PERSONA = {
  * has no known first name). Single source, like {@link DEFAULT_OUTRO}.
  */
 export const DEFAULT_INTRO =
-  'Salut ! On fait le point sur ton stage ? C’est parti. 🙌';
+  'Salut ! On prend deux minutes pour ton avis ? C’est parti. 🙌';
 
 /**
  * Closing line the persona speaks when a form sets no custom `outro`. There is

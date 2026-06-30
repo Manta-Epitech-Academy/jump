@@ -27,7 +27,8 @@
 
   let { data } = $props();
 
-  let hasPlanning = $derived(data.featureFlags.includes('planning'));
+  // Planning is a standard pedago surface now (role-gated build tool), no flag.
+  const hasPlanning = true;
 
   function formatDate(date: Date): string {
     return date.toLocaleDateString('fr-FR', {

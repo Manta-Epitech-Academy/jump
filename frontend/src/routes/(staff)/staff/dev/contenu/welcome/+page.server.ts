@@ -16,15 +16,14 @@ async function getActiveStageId(locals: App.Locals): Promise<string> {
   return stage.id;
 }
 
-export const load: PageServerLoad = async ({ locals, parent }) => {
+export const load: PageServerLoad = async ({ locals }) => {
   requireFlag(locals, 'staff_welcome_page');
   requireStaffGroup(locals, 'devMember');
-  const { activeStage } = await parent();
-  if (!activeStage) throw error(404, 'Aucun stage actif.');
+  const eventId = await getActiveStageId(locals);
   const canEdit = can('devLead', locals.staffProfile?.staffRole);
 
   const page = await prisma.cmsPage.findUnique({
-    where: { slug_eventId: { slug: SLUG, eventId: activeStage.id } },
+    where: { slug_eventId: { slug: SLUG, eventId } },
   });
 
   return { cmsContent: page?.content ?? '', canEdit };

@@ -21,7 +21,7 @@
       class="h-8 w-8 shrink-0 rounded-full object-cover"
     />
     <p class="flex-1 text-sm font-medium text-foreground">
-      Ton avis compte ! Donne ton feedback sur ton stage.
+      Ton avis compte ! Dis-nous ce que tu en as pensé, ça prend deux minutes.
     </p>
     <a
       href={resolve(`/feedback/${eventId}/${formId}`)}

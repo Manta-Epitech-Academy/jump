@@ -17,7 +17,7 @@ import {
 export type FormAudience = 'public' | 'authenticated';
 
 /**
- * Server-side data layer for the DB-backed feedback forms ("Bilan du stage").
+ * Server-side data layer for the DB-backed feedback forms.
  *
  * The chat UI is driven by the flat `FormSchema` shape (questions carry their own
  * `section`/`sectionIntro`/`options`). The DB stores that normalized
@@ -59,6 +59,97 @@ export function getFormGraphById(
     where: { id },
     include: FORM_GRAPH_INCLUDE,
   });
+}
+
+/** Minimal event shape the form resolver reads. */
+export type EventFormRef = {
+  feedbackFormId: string | null;
+  eventType: string;
+};
+
+/**
+ * The `findUnique` selector for the form an event uses: its explicit per-event
+ * override (`feedbackFormId`) if set, else the form marked default for its type.
+ * Both columns are unique, so either branch is a valid `WhereUniqueInput`. An
+ * override that points nowhere can't happen (the FK is SetNull), so a null
+ * override deterministically means "use the type default". Single-sourced here
+ * so the graph and nudge resolvers below can't drift on which form they pick.
+ */
+function eventFormWhere(
+  event: EventFormRef,
+): Prisma.Feedback_FormWhereUniqueInput {
+  return event.feedbackFormId
+    ? { id: event.feedbackFormId }
+    : { defaultForEventType: event.eventType };
+}
+
+/**
+ * The feedback form an event uses (full question graph), or null if it resolves
+ * to no form. Callers that only need scalar metadata should prefer a narrower
+ * resolver (e.g. {@link resolveEventNudgeForm}) rather than load the graph.
+ */
+export function resolveEventForm(
+  event: EventFormRef,
+): Promise<FeedbackFormGraph | null> {
+  return prisma.feedback_Form.findUnique({
+    where: eventFormWhere(event),
+    include: FORM_GRAPH_INCLUDE,
+  });
+}
+
+/**
+ * Same resolution as `resolveEventForm`, then the publication gate the dev
+ * surfaces share: a form is only live (its stats, QR and export agree) when it
+ * is published AND accepts authenticated access. A draft/archived/public-only
+ * form yields null here, exactly as a missing form would, so the three callers
+ * (page, qr.png, export) never disagree.
+ */
+export async function resolvePublishedEventForm(
+  event: EventFormRef,
+): Promise<FeedbackFormGraph | null> {
+  const graph = await resolveEventForm(event);
+  return graph &&
+    graph.status === 'published' &&
+    graph.allowsAuthenticatedAccess
+    ? graph
+    : null;
+}
+
+/** The scalar fields the dashboard feedback banner needs (no question graph). */
+const NUDGE_FORM_SELECT = {
+  id: true,
+  slug: true,
+  status: true,
+  allowsAuthenticatedAccess: true,
+  dashboardNudge: true,
+  personaIconKey: true,
+} satisfies Prisma.Feedback_FormSelect;
+
+export type EventNudgeForm = Prisma.Feedback_FormGetPayload<{
+  select: typeof NUDGE_FORM_SELECT;
+}>;
+
+/**
+ * The dashboard-nudge form an event's talent still gets reminded about. Resolved
+ * like {@link resolveEventForm} (override else type default) but selecting only
+ * the banner's scalar fields, not the full question graph the talent home never
+ * reads. Returns null unless the form is a *live nudge*: published,
+ * talent-answerable, and with the dashboard nudge on, so the banner can never
+ * 404 on click or nag for a form staff didn't relance.
+ */
+export async function resolveEventNudgeForm(
+  event: EventFormRef,
+): Promise<EventNudgeForm | null> {
+  const form = await prisma.feedback_Form.findUnique({
+    where: eventFormWhere(event),
+    select: NUDGE_FORM_SELECT,
+  });
+  return form &&
+    form.status === 'published' &&
+    form.allowsAuthenticatedAccess &&
+    form.dashboardNudge
+    ? form
+    : null;
 }
 
 function projectQuestion(q: GraphQuestion): Question {

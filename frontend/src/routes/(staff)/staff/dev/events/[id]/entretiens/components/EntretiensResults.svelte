@@ -38,9 +38,11 @@
     recoCounts,
     topStaff,
     total,
+    eventId,
     timezone,
     currentStaffId,
   }: EntretiensCohort & {
+    eventId: string;
     timezone: string;
     currentStaffId: string | null;
   } = $props();
@@ -156,7 +158,8 @@
   );
 
   const ficheHref = (r: EntretienRow) =>
-    resolve(`/staff/dev/students/${r.talentId}`) + '?interview=1';
+    resolve(`/staff/dev/students/${r.talentId}`) +
+    `?interview=1&event=${eventId}`;
 </script>
 
 {#snippet statusBadge(status: InterviewListStatus, full: boolean)}
@@ -193,7 +196,7 @@
       Aucun stagiaire inscrit
     </h3>
     <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-      Les entretiens apparaîtront ici dès que la cohorte du stage sera
+      Les entretiens apparaîtront ici dès que la cohorte de l'événement sera
       synchronisée.
     </p>
   </div>
