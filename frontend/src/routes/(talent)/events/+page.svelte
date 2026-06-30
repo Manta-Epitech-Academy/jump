@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { fly } from 'svelte/transition';
-  import { eventTypeLabel } from '$lib/domain/event';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import CalendarCheck from '@lucide/svelte/icons/calendar-check';
@@ -133,18 +132,11 @@
                     </div>
 
                     <div class="min-w-0 flex-1">
-                      <div class="flex items-center gap-2">
-                        <span
-                          class="text-sm font-semibold text-slate-900 dark:text-white"
-                        >
-                          {ev.titre}
-                        </span>
-                        <span
-                          class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800"
-                        >
-                          {eventTypeLabel(ev.eventType)}
-                        </span>
-                      </div>
+                      <span
+                        class="text-sm font-semibold text-slate-900 dark:text-white"
+                      >
+                        {ev.titre}
+                      </span>
                       <div class="mt-0.5 text-xs text-slate-400">
                         {new Date(ev.date).toLocaleDateString('fr-FR', {
                           timeZone: data.timeZone,

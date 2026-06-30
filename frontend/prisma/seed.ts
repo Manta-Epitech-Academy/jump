@@ -23,6 +23,7 @@ import {
   type ParticipationVerdict,
   type ParticipationContextTag,
   type ImageRightsDecision,
+  type PresenceStatus,
 } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { marked } from 'marked';
@@ -4268,6 +4269,66 @@ async function seedPlanningTemplate(
   });
 }
 
+// ── Émargement créneaux (mirrors $lib/domain/eventPresence) ────────────────
+// seed.ts is self-contained (see header: $lib does not resolve under
+// `prisma db seed`), so the presence-day shape is reproduced here. Keep in sync
+// with `presenceDays`/`presenceSlots`: a stage de seconde covers two working
+// weeks (10 workdays) from its start even with no endDate; every other type
+// covers its own calendar days. Days are emitted as UTC-midnight Dates to match
+// how the app stores `EventPresence.day` (a `@db.Date`) — building them from the
+// event's local Y/M/D avoids a timezone off-by-one against the émargement grid.
+const PRESENCE_SLOTS = ['morning', 'afternoon'] as const;
+type PresenceSlotName = (typeof PRESENCE_SLOTS)[number];
+const STAGE_PRESENCE_WORKDAYS = 10;
+// Émargement closes a créneau on the clock: morning at 11h, afternoon at 15h.
+const SLOT_CLOSE_HOUR: Record<PresenceSlotName, number> = {
+  morning: 11,
+  afternoon: 15,
+};
+
+function isWorkdayUTC(d: Date): boolean {
+  const dow = d.getUTCDay(); // 0 Sun … 6 Sat
+  return dow !== 0 && dow !== 6;
+}
+
+function eventDayUTC(date: Date): Date {
+  return new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
+}
+
+function presenceDayDates(
+  event: { date: Date; endDate: Date | null },
+  isStage: boolean,
+): Date[] {
+  const start = eventDayUTC(event.date);
+  const days: Date[] = [];
+  // Stage with no endDate: the canonical two working weeks from the start.
+  if (isStage && !event.endDate) {
+    const cursor = new Date(start);
+    while (days.length < STAGE_PRESENCE_WORKDAYS) {
+      if (isWorkdayUTC(cursor)) days.push(new Date(cursor));
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return days;
+  }
+  const end = eventDayUTC(event.endDate ?? event.date);
+  const cursor = new Date(start);
+  while (cursor.getTime() <= end.getTime()) {
+    if (!isStage || isWorkdayUTC(cursor)) days.push(new Date(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return days;
+}
+
+// A créneau is "decided" once its clock-close has passed; future créneaux stay
+// pending (no row), so an ongoing event is half-filled and a future one empty.
+function slotDecided(dayUTC: Date, slot: PresenceSlotName, now: Date): boolean {
+  const close = new Date(dayUTC);
+  close.setUTCHours(SLOT_CLOSE_HOUR[slot], 0, 0, 0);
+  return close.getTime() <= now.getTime();
+}
+
 async function seedEvents(
   campuses: Record<string, { id: string }>,
   staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
@@ -4465,25 +4526,50 @@ async function seedEvents(
       data: participationActivityRows,
     });
 
-    // EventPresence rows (emargement system) for present students.
-    const presenceRows = students
-      .filter((s) => s.isPresent)
-      .flatMap((s) => {
-        const eventDate = new Date(event.date);
-        eventDate.setHours(0, 0, 0, 0);
-        return (['morning', 'afternoon'] as const).map((slot) => ({
-          talentId: s.talent.id,
-          eventId: event.id,
-          day: eventDate,
-          slot,
-          status: s.delay > 0 ? ('late' as const) : ('present' as const),
-          source: 'manual' as const,
-        }));
-      });
-    await prisma.eventPresence.createMany({
-      data: presenceRows,
-      skipDuplicates: true,
+    // EventPresence rows (émargement). Reproduce what staff would have recorded
+    // for this event up to now: a present student is présent on every elapsed
+    // créneau (en retard on their first one if they arrived late), everyone else
+    // absent — with a deterministic slice excused. Créneaux that haven't closed
+    // yet get no row, so an ongoing stage is half-filled and a future event
+    // empty, like real data. Stage presence spans two working weeks; coding
+    // clubs and other types span their own calendar days.
+    const now = new Date();
+    const isStage = event.eventType === EVENT_TYPES.STAGE_SECONDE;
+    const creneauDays = presenceDayDates(event, isStage);
+    const presenceRows = students.flatMap((s) => {
+      const excused = !s.isPresent && s.i % 7 === 0;
+      let markedFirst = false;
+      return creneauDays.flatMap((dayUTC) =>
+        PRESENCE_SLOTS.flatMap((slot) => {
+          if (!slotDecided(dayUTC, slot, now)) return [];
+          let status: PresenceStatus;
+          if (!s.isPresent) {
+            status = excused ? 'excused' : 'absent';
+          } else if (s.delay > 0 && !markedFirst) {
+            status = 'late';
+          } else {
+            status = 'present';
+          }
+          markedFirst = true;
+          return [
+            {
+              talentId: s.talent.id,
+              eventId: event.id,
+              day: dayUTC,
+              slot,
+              status,
+              source: 'manual' as const,
+            },
+          ];
+        }),
+      );
     });
+    if (presenceRows.length > 0) {
+      await prisma.eventPresence.createMany({
+        data: presenceRows,
+        skipDuplicates: true,
+      });
+    }
 
     // Stage compliance (only for stage_seconde events). This row tracks the
     // event-scoped charte; the image-rights decision is a talent-level fact
