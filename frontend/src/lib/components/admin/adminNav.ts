@@ -14,6 +14,7 @@ import MailCog from '@lucide/svelte/icons/mail-warning';
 import History from '@lucide/svelte/icons/history';
 import Newspaper from '@lucide/svelte/icons/newspaper';
 import Map from '@lucide/svelte/icons/map';
+import CalendarCog from '@lucide/svelte/icons/calendar-cog';
 import Signature from '@lucide/svelte/icons/signature';
 import Users from '@lucide/svelte/icons/users';
 import GraduationCap from '@lucide/svelte/icons/graduation-cap';
@@ -165,6 +166,12 @@ export const ADMIN_NAV: AdminNavSection[] = [
         keywords: ['campus', 'feature', 'flag'],
       },
       {
+        label: 'Événements',
+        href: resolve('/staff/admin/events'),
+        icon: CalendarCog,
+        keywords: ['evenement', 'event', 'module', 'stage', 'coding', 'nom'],
+      },
+      {
         label: 'Signataires',
         href: resolve('/staff/admin/signatures'),
         icon: Signature,
@@ -231,13 +238,13 @@ export const ADMIN_NAV: AdminNavSection[] = [
         keywords: ['jeu', 'game', 'rotation'],
       },
       {
-        label: 'Formulaires de bilan',
+        label: 'Formulaires de feedback',
         href: resolve('/staff/admin/feedback-forms'),
         icon: ListChecks,
         keywords: [
           'formulaire',
-          'bilan',
           'feedback',
+          'bilan',
           'builder',
           'questionnaire',
           'reponses',

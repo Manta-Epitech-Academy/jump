@@ -175,7 +175,7 @@
           value={editor.intro ?? ''}
           rows={2}
           aria-label="Message d'accueil"
-          placeholder={'Message d’accueil (facultatif), ex. « Salut {prenom} ! Prêt pour le bilan ? »'}
+          placeholder={'Message d’accueil (facultatif), ex. « Salut {prenom} ! On y va ? »'}
           class="cursor-text resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
           oninput={introField.oninput}
           onblur={introField.onblur}
@@ -186,7 +186,7 @@
     <div class="space-y-1.5">
       <FieldLabel
         text="Message de fin"
-        info={`Dernier message de la mascotte, une fois le bilan terminé. Il y en a toujours un : laissé vide, c’est « ${DEFAULT_OUTRO} ». Vous pouvez écrire {prenom}, remplacé par le prénom du répondant.`}
+        info={`Dernier message de la mascotte, une fois le questionnaire terminé. Il y en a toujours un : laissé vide, c’est « ${DEFAULT_OUTRO} ». Vous pouvez écrire {prenom}, remplacé par le prénom du répondant.`}
       />
       <div
         class="rounded-2xl rounded-bl-sm border border-dashed border-muted-foreground/30 bg-background px-4 py-2.5 shadow-sm transition focus-within:border-solid focus-within:border-epi-pink/50 hover:border-muted-foreground/50"

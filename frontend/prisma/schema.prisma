@@ -282,6 +282,7 @@ model StaffProfile {
   newsPosts               NewsPost[]
   feedbackFormsCreated    Feedback_Form[]             @relation("Feedback_FormCreator")
   feedbackFormsUpdated    Feedback_Form[]             @relation("Feedback_FormEditor")
+  eventConfigTemplates    EventConfig_Template[]      @relation("EventConfigTemplateCreator")
 
   @@index([campusId])
 }
@@ -747,27 +748,46 @@ model ActivityTheme {
 }
 
 model Event {
-  id           String    @id @default(cuid())
-  titre        String
-  date         DateTime
+  id             String    @id @default(cuid())
+  titre          String
+  // Salesforce campaign name (`titre`) is an internal identifier, ugly to show
+  // ("Montpellier-19-06-2026-CodingClub"). `publicName` is the friendly name an
+  // admin types, surfaced in the dev switcher / talent widget / page chrome in
+  // its place. `null` falls back to `titre` (staff) or the type label (talent).
+  // Admin-set today; the worker may seed it from SF later (plain nullable field
+  // so a future no-clobber sync can write it, like the other reconciled fields).
+  publicName     String?
+  date           DateTime
   // Salesforce gives us the calendar day (`date`/`endDate`) but never a
   // start time, so the time-of-day is Jump-owned: wall-clock minutes from
   // local midnight (0–1439), `null` until staff set it. Kept separate from
   // `date` precisely so the SF sync — which rewrites `date` — can never
   // clobber it. Compose with the campus timezone for a real instant.
-  startMinutes Int?
-  endDate      DateTime?
-  eventType    String    @default("coding_club")
-  campusId     String
-  themeId      String?
-  pin          String?
-  notes        String?
-  externalId   String?   @unique
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  startMinutes   Int?
+  endDate        DateTime?
+  eventType      String    @default("coding_club")
+  campusId       String
+  themeId        String?
+  // Which feedback form this event uses (the `bilan` module reports against it,
+  // and its QR/link/export resolve through it). Null = fall back to the form
+  // marked `defaultForEventType` for this event's type (see Feedback_Form). A
+  // per-event override of that type default; SetNull so deleting a form just
+  // drops the binding back to the default rather than the event.
+  feedbackFormId String?
+  pin            String?
+  externalId     String?   @unique
+  // Explicit admin gate for the dev workspace, decoupled from modules: an event
+  // appears in the dev sidebar/switcher only once an admin activates it here.
+  // `null` = not yet validated (hidden, even when its modules are pre-configured).
+  // Modules decide WHICH surfaces show; this decides WHETHER the event shows at
+  // all. Set on activate, cleared on deactivate.
+  devActivatedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   campus              Campus                  @relation(fields: [campusId], references: [id])
   theme               Theme?                  @relation(fields: [themeId], references: [id])
+  feedbackForm        Feedback_Form?          @relation("EventFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
   mantas              EventManta[]
   participations      Participation[]
   stepsProgress       StepsProgress[]
@@ -782,8 +802,82 @@ model Event {
   eventPresences      EventPresence[]
   feedbackSubmissions Feedback_Submission[]
   talentNotes         Note_TalentNote[]
+  modules             EventConfig_Module[]
 
   @@index([campusId])
+  @@index([feedbackFormId])
+}
+
+// Per-event surface configuration for the dev workspace. A row's mere
+// presence = that module is enabled for the event (no `enabled` boolean: the
+// event's rows ARE the truth, there is no campus-wide default to override the
+// way CampusFeatureFlag has). `moduleKey` is validated in code against
+// EVENT_MODULES (mirrors how `flagKey`/`eventType` stay plain strings so a new
+// module needs no migration). Seeded from the event type's preset at creation;
+// the SF sync never touches these rows, so the per-event config is never
+// clobbered. See src/lib/domain/eventModules.ts.
+model EventConfig_Module {
+  eventId   String
+  moduleKey String
+  // Per-module sub-options (e.g. inscrits.showStatutColumn). Null = module-default
+  // settings. They are heterogeneous per module and meant to grow, so a Json bag
+  // validated app-side (per-module Zod in domain/eventModules.ts) beats a sparse
+  // wide table; FKs (like feedbackFormId) stay typed columns on Event, never here.
+  settings  Json?
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, moduleKey])
+  @@index([moduleKey])
+}
+
+// A reusable, named event-configuration preset (global, like PlanningTemplate),
+// created by staff from the config wizard ("Enregistrer comme modèle"). Applying
+// one is a point-in-time SEED: the wizard copies its modules + settings + default
+// feedback form into the event, with no live link afterwards (the event's own
+// rows stay the truth). `forEventType` is a soft hint (captured from the event a
+// template was saved from) the wizard uses to suggest a template for a matching
+// SF type, never a binding. `name` is globally unique → saving with an existing
+// name updates that template (upsert), which is how a template is edited.
+model EventConfig_Template {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  description    String?
+  forEventType   String?
+  // The friendly event name the preset carries (e.g. "Coding Club"). Captured
+  // because campuses reuse one display name across every occurrence of a format
+  // (Strasbourg has "Coding Club" ×10), so a preset that doesn't pre-fill it just
+  // makes the admin retype the same string. Like the live `Event.publicName`,
+  // applying it is a point-in-time copy; `null` = the event keeps the SF `titre`.
+  publicName     String?
+  // Jump-owned arrival time-of-day the preset carries, in wall-clock minutes from
+  // local midnight (0-1439), `null` = none (the event falls back to the type
+  // default). Mirrors `Event.startMinutes`; copied onto the event on apply.
+  startMinutes   Int?
+  feedbackFormId String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  feedbackForm Feedback_Form?               @relation("EventConfigTemplateFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
+  createdBy    StaffProfile?                @relation("EventConfigTemplateCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  modules      EventConfig_TemplateModule[]
+
+  @@index([forEventType])
+  @@index([feedbackFormId])
+}
+
+// Mirror of EventConfig_Module on the template side (presence = enabled, same
+// `settings` Json shape), so applying a template or saving one is a plain row copy.
+model EventConfig_TemplateModule {
+  templateId String
+  moduleKey  String
+  settings   Json?
+
+  template EventConfig_Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@id([templateId, moduleKey])
 }
 
 model EventManta {
@@ -957,18 +1051,18 @@ enum Feedback_SubmissionSource {
 }
 
 model Feedback_Form {
-  id          String              @id @default(cuid())
-  slug        String              @unique
-  title       String
+  id             String              @id @default(cuid())
+  slug           String              @unique
+  title          String
   // Opening bot line (interpolated, e.g. "Salut {prenom} !"). Null = the
   // engine's default greeting, mirroring `outro` below.
-  intro       String?
-  personaName String?
+  intro          String?
+  personaName    String?
   // S3 object key of the uploaded persona avatar (WebP). Null = the default
   // mascot art. Served through the public /api/feedback-forms/[id]/persona-icon
   // proxy; the key changes on every replace so the rendered ?v= URL busts cache.
   personaIconKey String?
-  status      Feedback_FormStatus @default(draft)
+  status         Feedback_FormStatus @default(draft)
 
   allowsAuthenticatedAccess Boolean @default(true)
   allowsPublicAccess        Boolean @default(false)
@@ -980,6 +1074,14 @@ model Feedback_Form {
   // "Merci {prenom} !"). Null = the engine's generic fallback.
   outro String?
 
+  // Marks this form as the default for an `Event.eventType` (e.g. 'stage_seconde').
+  // An event with no explicit `feedbackFormId` resolves to the form holding its
+  // type here, so every stage uses the bilan form with zero per-event config.
+  // @unique = at most one default form per type; reassigning clears the prior
+  // holder. Null = not a type default (the form is only used where explicitly
+  // attached or shared publicly). Plain string, mirroring `eventType`/`flagKey`.
+  defaultForEventType String? @unique
+
   // Author + last editor (rendered in the admin builder). SetNull so a staff
   // departure never deletes a form.
   createdById String?
@@ -988,11 +1090,13 @@ model Feedback_Form {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  createdBy   StaffProfile?         @relation("Feedback_FormCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy   StaffProfile?         @relation("Feedback_FormEditor", fields: [updatedById], references: [id], onDelete: SetNull)
-  sections    Feedback_Section[]
-  questions   Feedback_Question[]
-  submissions Feedback_Submission[]
+  createdBy       StaffProfile?          @relation("Feedback_FormCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy       StaffProfile?          @relation("Feedback_FormEditor", fields: [updatedById], references: [id], onDelete: SetNull)
+  sections        Feedback_Section[]
+  questions       Feedback_Question[]
+  submissions     Feedback_Submission[]
+  events          Event[]                @relation("EventFeedbackForm")
+  configTemplates EventConfig_Template[] @relation("EventConfigTemplateFeedbackForm")
 
   @@index([status])
 }
@@ -1022,7 +1126,7 @@ model Feedback_Question {
 
   prompt        String
   type          Feedback_QuestionType
-  required      Boolean               @default(true)
+  required      Boolean                 @default(true)
   // When set, this question collects one piece of respondent identity and routes
   // into the matching Feedback_Submission.respondent* column. Shown only on the
   // public form (connected talents are read from Talent), never produces a

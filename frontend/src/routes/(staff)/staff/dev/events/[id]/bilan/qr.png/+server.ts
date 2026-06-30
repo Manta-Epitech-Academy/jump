@@ -3,33 +3,32 @@ import { error } from '@sveltejs/kit';
 import QRCode from 'qrcode';
 import { env } from '$env/dynamic/private';
 import { base } from '$app/paths';
-import { prisma } from '$lib/server/db';
 import { getCampusId } from '$lib/server/db/scoped';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { requireStaffGroup, requireFlag } from '$lib/server/auth/guards';
-import { STAGE_FORM_SLUG, feedbackFormPath } from '$lib/domain/feedback';
+import {
+  loadEventOr404,
+  requireEventModule,
+} from '$lib/server/services/stageContext';
+import { requireStaffGroup } from '$lib/server/auth/guards';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
+import { feedbackFormPath } from '$lib/domain/feedback';
 
-// On-screen QR for the bilan form. Encodes the AUTHENTICATED feedback link for
-// this event, so a talent who scans logs in (if needed) and their answers are
-// tied to their Jump account. Rendered server-side and projected full-screen.
+// On-screen QR for the event's feedback form. Encodes the AUTHENTICATED feedback
+// link for this event, so a talent who scans logs in (if needed) and their
+// answers are tied to their Jump account. Rendered server-side and projected
+// full-screen.
 export const GET: RequestHandler = async ({ locals, params }) => {
   requireStaffGroup(locals, 'devMember');
-  // Same gate as the bilan page and its export: the QR is part of the bilan
-  // surface, so a flag-off campus must not be able to project it by direct URL.
-  requireFlag(locals, 'bilan');
   const campusId = getCampusId(locals);
-  // Validates the event belongs to the acting campus.
-  await loadEventOr404(params.id!, campusId);
+  // Validates the event belongs to the acting campus and exposes the bilan
+  // surface: an event with the module off must not project the QR by direct URL.
+  const event = await loadEventOr404(params.id!, campusId);
+  requireEventModule(event, EVENT_MODULES.BILAN);
 
-  const form = await prisma.feedback_Form.findFirst({
-    where: {
-      slug: STAGE_FORM_SLUG,
-      status: 'published',
-      allowsAuthenticatedAccess: true,
-    },
-    select: { slug: true },
-  });
-  if (!form) throw error(404, 'Formulaire de bilan introuvable.');
+  // Same resolution as the page/export so the QR can never point at a form they
+  // wouldn't show (override else type default, published + authenticated).
+  const form = await resolvePublishedEventForm(event);
+  if (!form) throw error(404, 'Formulaire de feedback introuvable.');
 
   const origin = env.ORIGIN;
   if (!origin) throw error(500, 'ORIGIN is not configured');

@@ -31,6 +31,8 @@ export const load: PageServerLoad = async () => {
   const createFormForm = await superValidate(zod4(formCreateSchema));
 
   const cohort: Promise<FormsCohort> = (async () => {
+    // Every form. An event-specific one (created via "Modifier pour cet
+    // événement") is just a normally-named form here, recognised by its title.
     const forms = await prisma.feedback_Form.findMany({
       orderBy: { updatedAt: 'desc' },
       select: {

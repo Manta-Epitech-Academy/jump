@@ -1,19 +1,11 @@
 import type { PageServerLoad } from './$types';
-import { error } from '@sveltejs/kit';
-import { getFormGraphBySlug, toFormSchema } from '$lib/server/feedbackForms';
+import { redirect } from '@sveltejs/kit';
+import { base } from '$app/paths';
+import { publicFormPath } from '$lib/domain/feedback';
 
-// Public, unauthenticated entry point for the bilan form, shared with campuses
-// not yet onboarded on Jump. The route lives outside every auth route group, so
-// no talent/staff session is required. Identity questions are asked (no prefill)
-// and the respondent's email is stored on the submission for later reconciliation.
+// Legacy public path. The shareable feedback link moved to /f/[slug] (neutral,
+// reads right for any form, not just a stage bilan). Kept as a permanent
+// redirect so QR codes and links already in the wild keep working.
 export const load: PageServerLoad = async ({ params }) => {
-  const graph = await getFormGraphBySlug(params.slug);
-  if (!graph || graph.status !== 'published' || !graph.allowsPublicAccess) {
-    throw error(404, 'Formulaire introuvable');
-  }
-
-  return {
-    formSchema: toFormSchema(graph, 'public'),
-    slug: params.slug,
-  };
+  throw redirect(301, `${base}${publicFormPath(params.slug)}`);
 };

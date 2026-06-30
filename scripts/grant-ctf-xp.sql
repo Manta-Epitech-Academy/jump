@@ -1,0 +1,186 @@
+-- Grant 100 XP to CTF OSINT participants via the XpGrant ledger.
+-- Matches talents by email (case-insensitive) through bauth_user.
+-- Excludes test accounts (strasbourg*, admin).
+-- Run on PROD with: psql "$DATABASE_URL" -f scripts/grant-ctf-xp.sql
+
+BEGIN;
+
+-- 1. Insert XpGrant rows (admin_adjustment, no sourceId = no dedupe)
+INSERT INTO "XpGrant" ("id", "talentId", "campusId", "source", "sourceId", "amount", "note", "createdAt", "updatedAt")
+SELECT
+  gen_random_uuid()::text,
+  t."id",
+  t."campusId",
+  'admin_adjustment',
+  NULL,
+  100,
+  'CTF OSINT Strasbourg - participation',
+  NOW(),
+  NOW()
+FROM "Talent" t
+JOIN "bauth_user" u ON u."id" = t."userId"
+WHERE LOWER(u."email") IN (
+  'loris.lonnimarchi@gmail.com',
+  'alexandre.goemaere@gmail.com',
+  'jebransohail@gmail.com',
+  'simonin.tom10@gmail.com',
+  'mael.kieffer2010@gmail.com',
+  'gregorykubach@gmail.com',
+  'mk.mathiasp@gmail.com',
+  'maramchikhi67@gmail.com',
+  'zaikar.lpo@gmail.com',
+  'flo.canevet67@gmail.com',
+  'hniniyounes@outlook.fr',
+  'amineflh21@gmail.com',
+  'idrisismailov940@gmail.com',
+  'alexandre.lejeune67@gmail.com',
+  'nilorazafindratsimba@gmail.com',
+  'alexandreulrich10@gmail.com',
+  'noahln47@gmail.com',
+  'alingheorghievici@gmail.com',
+  'mullersoeder@gmail.com',
+  'saragouyyt@gmail.com',
+  'aminadnv.ponto@gmail.com',
+  'wangelisa67@gmail.com',
+  'mourlon.adrien67@gmail.com',
+  'lele76801@gmail.com',
+  'jouneidaouadi@gmail.com',
+  'diakmariam67@gmail.com',
+  'gautierthion@gmail.com',
+  'esmeray.seker@outlook.com',
+  'jehanemd@gmail.com',
+  'maxime.scherer409@gmail.com',
+  'kenzaamine277@icloud.com',
+  'perrinmanon654@gmail.com',
+  'anushka.umg@gmail.com',
+  'albanreiff@gmail.com',
+  'm.reuther@ladoc-strasbourg.fr',
+  'djamalov.hezarali@gmail.com',
+  'marezlouis10@gmail.com',
+  'rayanchad1812@gmail.com',
+  'giuliand32@gmail.com',
+  'thevenotevan@gmail.com',
+  'matthieu.leclaire@outlook.com',
+  'nadir.benhallou67@gmail.com',
+  'souha.tej@gmail.com',
+  'abdoulla45200@gmail.com',
+  'ferreiradagnellogabrielle@gmail.com',
+  'mursalb23@gmail.com',
+  'nlevintov@gmail.com',
+  'estellemgillam@gmail.com',
+  'maxencewitz@gmail.com',
+  'samimeliani2010@gmail.com',
+  'mmarsala67000@gmail.com',
+  'redouanlamrini67200@gmail.com',
+  'adampskadam@gmail.com',
+  'bleivieloveme@gmail.com',
+  'mayar.elahwel@yahoo.com',
+  'aligatortue12@gmail.com',
+  'fauxajz@gmail.com',
+  'eliseboissot@gmail.com',
+  'elkhalifaghita4@gmail.com',
+  'raffisand@gmail.com',
+  'hermionelarghi@gmail.com',
+  'ekaterinajugy@gmail.com',
+  'nouriahadjinouria@gmail.com',
+  'paul.gadroy@gmail.com',
+  'mateea.pantiru@gmail.com',
+  'martin.resseguier@gmail.com',
+  'evan.fischer67@gmail.com',
+  'chrisnkelani0@gmail.com',
+  'hadilmachouk2@gmail.com',
+  'jhoncristophermoralesobando93@gmail.com',
+  'agarnon76@gmail.com',
+  'marcus.martin@gke.fr'
+);
+
+-- 2. Recompute cached Talent.xp for all affected talents
+UPDATE "Talent" t
+SET "xp" = COALESCE(sub.total, 0)
+FROM (
+  SELECT "talentId", SUM("amount") AS total
+  FROM "XpGrant"
+  WHERE "talentId" IN (
+    SELECT t2."id"
+    FROM "Talent" t2
+    JOIN "bauth_user" u ON u."id" = t2."userId"
+    WHERE LOWER(u."email") IN (
+      'loris.lonnimarchi@gmail.com',
+      'alexandre.goemaere@gmail.com',
+      'jebransohail@gmail.com',
+      'simonin.tom10@gmail.com',
+      'mael.kieffer2010@gmail.com',
+      'gregorykubach@gmail.com',
+      'mk.mathiasp@gmail.com',
+      'maramchikhi67@gmail.com',
+      'zaikar.lpo@gmail.com',
+      'flo.canevet67@gmail.com',
+      'hniniyounes@outlook.fr',
+      'amineflh21@gmail.com',
+      'idrisismailov940@gmail.com',
+      'alexandre.lejeune67@gmail.com',
+      'nilorazafindratsimba@gmail.com',
+      'alexandreulrich10@gmail.com',
+      'noahln47@gmail.com',
+      'alingheorghievici@gmail.com',
+      'mullersoeder@gmail.com',
+      'saragouyyt@gmail.com',
+      'aminadnv.ponto@gmail.com',
+      'wangelisa67@gmail.com',
+      'mourlon.adrien67@gmail.com',
+      'lele76801@gmail.com',
+      'jouneidaouadi@gmail.com',
+      'diakmariam67@gmail.com',
+      'gautierthion@gmail.com',
+      'esmeray.seker@outlook.com',
+      'jehanemd@gmail.com',
+      'maxime.scherer409@gmail.com',
+      'kenzaamine277@icloud.com',
+      'perrinmanon654@gmail.com',
+      'anushka.umg@gmail.com',
+      'albanreiff@gmail.com',
+      'm.reuther@ladoc-strasbourg.fr',
+      'djamalov.hezarali@gmail.com',
+      'marezlouis10@gmail.com',
+      'rayanchad1812@gmail.com',
+      'giuliand32@gmail.com',
+      'thevenotevan@gmail.com',
+      'matthieu.leclaire@outlook.com',
+      'nadir.benhallou67@gmail.com',
+      'souha.tej@gmail.com',
+      'abdoulla45200@gmail.com',
+      'ferreiradagnellogabrielle@gmail.com',
+      'mursalb23@gmail.com',
+      'nlevintov@gmail.com',
+      'estellemgillam@gmail.com',
+      'maxencewitz@gmail.com',
+      'samimeliani2010@gmail.com',
+      'mmarsala67000@gmail.com',
+      'redouanlamrini67200@gmail.com',
+      'adampskadam@gmail.com',
+      'bleivieloveme@gmail.com',
+      'mayar.elahwel@yahoo.com',
+      'aligatortue12@gmail.com',
+      'fauxajz@gmail.com',
+      'eliseboissot@gmail.com',
+      'elkhalifaghita4@gmail.com',
+      'raffisand@gmail.com',
+      'hermionelarghi@gmail.com',
+      'ekaterinajugy@gmail.com',
+      'nouriahadjinouria@gmail.com',
+      'paul.gadroy@gmail.com',
+      'mateea.pantiru@gmail.com',
+      'martin.resseguier@gmail.com',
+      'evan.fischer67@gmail.com',
+      'chrisnkelani0@gmail.com',
+      'hadilmachouk2@gmail.com',
+      'jhoncristophermoralesobando93@gmail.com',
+      'agarnon76@gmail.com',
+      'marcus.martin@gke.fr'
+    )
+  )
+  GROUP BY "talentId"
+) sub
+WHERE t."id" = sub."talentId";
+
+COMMIT;

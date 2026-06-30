@@ -53,6 +53,13 @@ const EVENT_TYPES = {
 } as const;
 type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
 
+// Dev-workspace modules a seeded stage event exposes (EventConfig_Module rows).
+// Kept in sync with src/lib/domain/eventModules.ts by hand (the seed stays free
+// of $lib imports). Stage events get the full set so every validated surface is
+// testable locally; other event types expose nothing. `planning` is not a module
+// (it is data-driven from the event's time slots), so it is not listed here.
+const STAGE_MODULE_KEYS = ['inscrits', 'emargement', 'bilan', 'entretiens'];
+
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
@@ -1949,7 +1956,6 @@ type EventBlueprint = {
   campus: 'Paris' | 'Lyon';
   theme: string;
   pin: string;
-  notes?: string | null;
   mantaKeys: string[];
   days?: DayBlueprint[]; // if multi-day
   slots?: SlotBlueprint[]; // if single day (dayOffset=0)
@@ -2021,7 +2027,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Cybersécurité',
     pin: '9999',
-    notes: 'Sujet phishing très apprécié.',
     mantaKeys: ['jules.dupont', 'laura.garcia'],
     slots: [
       standardOrgaSlot(),
@@ -2085,7 +2090,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Robotique',
     pin: '4321',
-    notes: null,
     mantaKeys: ['laura.garcia'],
     slots: [
       standardOrgaSlot(),
@@ -2135,7 +2139,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Développement Web',
     pin: '1001',
-    notes: 'Édition juin — promotion précédente. Archive pédagogique.',
     mantaKeys: ['jules.dupont', 'laura.garcia'],
     days: [
       {
@@ -2215,7 +2218,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Intelligence Artificielle',
     pin: '7777',
-    notes: null,
     mantaKeys: ['jules.dupont', 'laura.garcia'],
     slots: [
       {
@@ -2266,7 +2268,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Développement Web',
     pin: '2222',
-    notes: null,
     mantaKeys: [], // ← intentional
     slots: [
       standardOrgaSlot(),
@@ -2298,7 +2299,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Jeux Vidéo',
     pin: '3333',
-    notes: null,
     mantaKeys: ['jules.dupont'],
     slots: [], // ← intentional (empty planning)
     // Niveau mix: stage cohort (2nde) + extras from other class levels.
@@ -2317,7 +2317,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Jeux Vidéo',
     pin: '5678',
-    notes: null,
     mantaKeys: ['laura.garcia'],
     slots: [
       standardOrgaSlot(),
@@ -2348,8 +2347,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Développement Web',
     pin: '1003',
-    notes:
-      "Cohorte en plein milieu du stage. Demo Day vendredi à 14h (Amphi A).\n\n## Logistique\n\n- Repas : commande validée pour les 5 jours.\n- Mentors : 2 référents pédago disponibles tous les après-midis.\n\n## À surveiller\n\n- Retour parents sur le droit à l'image — 3 dossiers en attente de relance.",
     mantaKeys: ['jules.dupont', 'laura.garcia'],
     days: [
       // Day 0 — Lundi (déjà passé, J1)
@@ -2487,7 +2484,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Lyon',
     theme: 'Développement Web',
     pin: '6001',
-    notes: null,
     mantaKeys: ['pierre.leblanc'],
     slots: [
       standardOrgaSlot(),
@@ -2526,7 +2522,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Lyon',
     theme: 'Robotique',
     pin: '6002',
-    notes: null,
     mantaKeys: ['pierre.leblanc'],
     slots: [
       standardOrgaSlot(),
@@ -2551,7 +2546,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Lyon',
     theme: 'Développement Web',
     pin: '6003',
-    notes: null,
     mantaKeys: ['pierre.leblanc', 'jeanne.albert', 'romain.caron'],
     days: [
       {
@@ -4379,7 +4373,6 @@ async function seedEvents(
         campusId,
         themeId,
         pin: blueprint.pin,
-        notes: blueprint.notes ?? null,
         mantas: {
           create: blueprint.mantaKeys
             .map((key) => {
@@ -4387,6 +4380,13 @@ async function seedEvents(
               return staff ? { staffProfileId: staff.id } : null;
             })
             .filter((x): x is NonNullable<typeof x> => x !== null),
+        },
+        modules: {
+          create:
+            (blueprint.eventType ?? EVENT_TYPES.CODING_CLUB) ===
+            EVENT_TYPES.STAGE_SECONDE
+              ? STAGE_MODULE_KEYS.map((moduleKey) => ({ moduleKey }))
+              : [],
         },
         planning: { create: { timeSlots: { create: timeSlotData } } },
       },

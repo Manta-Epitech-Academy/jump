@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Option A - Sidebar deux niveaux</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; background: #0f172a; color: #e2e8f0; height: 100vh; overflow: hidden; }
+
+  .layout { display: flex; height: 100vh; }
+
+  /* Top header */
+  .header {
+    position: fixed; top: 0; left: 0; right: 0; height: 56px; z-index: 50;
+    background: #020617; border-bottom: 1px solid #1e293b;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 20px;
+  }
+  .header-brand { display: flex; align-items: center; gap: 12px; }
+  .header-brand .logo { font-size: 18px; font-weight: 900; color: #f472b6; letter-spacing: 2px; }
+  .header-brand .sublabel { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 3px; color: #64748b; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .header-btn { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 6px 10px; border-radius: 6px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+  .header-btn:hover { background: #1e293b; color: #e2e8f0; }
+  .header-btn kbd { background: #1e293b; border: 1px solid #334155; border-radius: 4px; padding: 1px 6px; font-size: 10px; color: #64748b; }
+  .avatar { width: 32px; height: 32px; border-radius: 6px; background: #1e293b; border: 1px solid #334155; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #f472b6; }
+
+  /* Icon rail */
+  .icon-rail {
+    width: 56px; flex-shrink: 0; background: #020617; border-right: 1px solid #1e293b;
+    display: flex; flex-direction: column; align-items: center; padding-top: 68px; gap: 4px;
+  }
+  .rail-btn {
+    width: 40px; height: 40px; border-radius: 8px; border: none; background: none;
+    color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; transition: all 0.15s;
+  }
+  .rail-btn:hover { background: #1e293b; color: #e2e8f0; }
+  .rail-btn.active { background: #f472b6/15; color: #f472b6; background: rgba(244,114,182,0.15); }
+  .rail-btn .dot { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; background: #ef4444; border-radius: 50%; }
+  .rail-sep { width: 24px; height: 1px; background: #1e293b; margin: 4px 0; }
+
+  /* Sub panel */
+  .sub-panel {
+    width: 220px; flex-shrink: 0; background: #0f172a; border-right: 1px solid #1e293b;
+    padding-top: 68px; overflow-y: auto; transition: width 0.2s;
+  }
+  .sub-panel.collapsed { width: 0; overflow: hidden; }
+  .sub-panel-title {
+    font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;
+    color: #64748b; padding: 16px 16px 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .sub-panel-title .accent { color: #f472b6; }
+  .sub-link {
+    display: flex; align-items: center; gap: 10px; padding: 7px 16px; margin: 1px 8px;
+    border-radius: 6px; color: #94a3b8; text-decoration: none; font-size: 12px; font-weight: 600;
+    transition: all 0.1s; border-left: 3px solid transparent;
+  }
+  .sub-link:hover { background: #1e293b; color: #e2e8f0; }
+  .sub-link.active { background: rgba(244,114,182,0.1); color: #f472b6; border-left-color: #f472b6; }
+  .sub-link .icon { font-size: 14px; width: 18px; text-align: center; }
+  .sub-link .badge {
+    margin-left: auto; background: #f472b6; color: white; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px; min-width: 18px; text-align: center;
+  }
+  .sub-link .badge.danger { background: #ef4444; }
+
+  /* Main content */
+  .main { flex: 1; padding-top: 56px; overflow-y: auto; background: #f8fafc; }
+  .main-inner { padding: 32px; }
+  .main h1 { font-size: 28px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
+  .main h1 .accent { color: #f472b6; }
+  .main p { color: #64748b; margin-top: 8px; font-size: 13px; }
+  .placeholder-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 24px; }
+  .placeholder-card { background: white; border-radius: 12px; padding: 24px; border: 1px solid #e2e8f0; }
+  .placeholder-card h3 { font-size: 13px; color: #334155; font-weight: 700; }
+  .placeholder-card .num { font-size: 32px; font-weight: 900; color: #0f172a; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">
+    <span class="logo">{EPITECH}</span>
+    <span class="sublabel">Admin</span>
+  </div>
+  <div class="header-right">
+    <button class="header-btn">
+      <span>&#128269;</span> Rechercher <kbd>⌘K</kbd>
+    </button>
+    <div class="avatar">&#128737;</div>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="icon-rail">
+    <button class="rail-btn active" onclick="showSection('systeme')" title="Systeme">&#9881;</button>
+    <button class="rail-btn" onclick="showSection('communication')" title="Communication">&#128227;</button>
+    <button class="rail-btn" onclick="showSection('organisation')" title="Organisation">&#127970;</button>
+    <button class="rail-btn" onclick="showSection('pedagogie')" title="Pedagogie">&#128218;</button>
+  </div>
+
+  <div class="sub-panel" id="subPanel">
+    <div id="section-systeme">
+      <div class="sub-panel-title">Systeme<span class="accent">_</span></div>
+      <a class="sub-link active" href="#"><span class="icon">&#9634;</span> Vue d'ensemble</a>
+      <a class="sub-link" href="#"><span class="icon">&#9888;</span> Erreurs de Sync</a>
+      <a class="sub-link" href="#"><span class="icon">&#8651;</span> Divergences SF <span class="badge danger">3</span></a>
+      <a class="sub-link" href="#"><span class="icon">&#128196;</span> PDF Onboarding</a>
+      <a class="sub-link" href="#"><span class="icon">&#128203;</span> PDF Entretiens</a>
+      <a class="sub-link" href="#"><span class="icon">&#127890;</span> Tickets <span class="badge">2</span></a>
+      <a class="sub-link" href="#"><span class="icon">&#128193;</span> [DEV] S3 Test</a>
+    </div>
+    <div id="section-communication" style="display:none">
+      <div class="sub-panel-title">Communication<span class="accent">_</span></div>
+      <a class="sub-link" href="#"><span class="icon">&#128227;</span> Vue d'ensemble</a>
+      <a class="sub-link" href="#"><span class="icon">&#128228;</span> Envoi en masse</a>
+      <a class="sub-link" href="#"><span class="icon">&#9993;</span> Templates</a>
+      <a class="sub-link" href="#"><span class="icon">&#128231;</span> Mails transactionnels</a>
+      <a class="sub-link" href="#"><span class="icon">&#128337;</span> Relances</a>
+      <a class="sub-link" href="#"><span class="icon">&#128682;</span> Pages d'accueil</a>
+    </div>
+    <div id="section-organisation" style="display:none">
+      <div class="sub-panel-title">Organisation<span class="accent">_</span></div>
+      <a class="sub-link" href="#"><span class="icon">&#127758;</span> Reseau Campus</a>
+      <a class="sub-link" href="#"><span class="icon">&#9997;</span> Signataires</a>
+      <a class="sub-link" href="#"><span class="icon">&#128101;</span> Membres & invitations</a>
+      <a class="sub-link" href="#"><span class="icon">&#127891;</span> Talents</a>
+      <a class="sub-link" href="#"><span class="icon">&#128221;</span> Notes</a>
+      <a class="sub-link" href="#"><span class="icon">&#128683;</span> Suppressions <span class="badge">1</span></a>
+    </div>
+    <div id="section-pedagogie" style="display:none">
+      <div class="sub-panel-title">Pedagogie<span class="accent">_</span></div>
+      <a class="sub-link" href="#"><span class="icon">&#128196;</span> Templates</a>
+      <a class="sub-link" href="#"><span class="icon">&#127991;</span> Themes</a>
+      <a class="sub-link" href="#"><span class="icon">&#10084;</span> Centres d'interet</a>
+      <a class="sub-link" href="#"><span class="icon">&#128197;</span> Modeles de Planning</a>
+      <a class="sub-link" href="#"><span class="icon">&#127918;</span> Mini-jeux</a>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="main-inner">
+      <h1>Vue d'ensemble<span class="accent">_</span></h1>
+      <p>&lt;Panneau d'administration global/&gt;</p>
+      <div class="placeholder-grid">
+        <div class="placeholder-card"><h3>Talents inscrits</h3><div class="num">247</div></div>
+        <div class="placeholder-card"><h3>Entretiens finalises</h3><div class="num">89</div></div>
+        <div class="placeholder-card"><h3>Tickets ouverts</h3><div class="num">5</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const sections = ['systeme', 'communication', 'organisation', 'pedagogie'];
+  const railBtns = document.querySelectorAll('.rail-btn');
+
+  function showSection(key) {
+    sections.forEach(s => {
+      document.getElementById('section-' + s).style.display = s === key ? 'block' : 'none';
+    });
+    railBtns.forEach((btn, i) => {
+      btn.classList.toggle('active', sections[i] === key);
+    });
+  }
+</script>
+</body>
+</html>

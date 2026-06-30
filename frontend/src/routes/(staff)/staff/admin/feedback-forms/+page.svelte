@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { untrack, onMount } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
   import { enhance as formEnhance } from '$app/forms';
   import { page } from '$app/state';
@@ -9,18 +9,30 @@
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Pencil from '@lucide/svelte/icons/pencil';
   import MessageSquare from '@lucide/svelte/icons/message-square';
+  import FilterX from '@lucide/svelte/icons/filter-x';
   import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import FormStatusSelect from '$lib/components/admin/feedback/FormStatusSelect.svelte';
+  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
+  import type {
+    ColumnDef,
+    SortDir,
+  } from '$lib/components/staff/datatable/types';
+  import SegmentedFilter, {
+    type SegmentOption,
+  } from '$lib/components/staff/SegmentedFilter.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
+  import { Badge } from '$lib/components/ui/badge';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Table from '$lib/components/ui/table';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import { FORM_STATUS_LABELS } from '$lib/domain/feedbackForms/status';
+  import { publicFormPath } from '$lib/domain/feedback';
   import { resolve } from '$app/paths';
   import type { PageData } from './$types';
   import type { FormListRow, FormsCohort } from './+page.server';
@@ -31,11 +43,18 @@
   let deleteOpen = $state(false);
   let deleteTarget = $state<FormListRow | null>(null);
 
+  // Deep-link from the event config wizard's "Créer un nouveau formulaire":
+  // land here with the create dialog already open instead of on a bare table.
+  // One-shot (onMount, not $effect) so closing the dialog doesn't reopen it.
+  onMount(() => {
+    if (page.url.searchParams.has('create')) createOpen = true;
+  });
+
   // The cohort streams in as an un-awaited promise. We resolve it into local
-  // `$state` (rather than binding `{#await}` directly) because this page now
-  // writes optimistically: a status change mutates the row in place, and the
-  // delete dialog's `update()` rebuilds `data.cohort`. The stale-promise guard
-  // swaps later resolutions in silently, so neither reflashes the whole table.
+  // `$state` (rather than binding `{#await}` directly) because this page writes
+  // optimistically: a status change mutates the row in place, and the delete
+  // dialog's `update()` rebuilds `data.cohort`. The stale-promise guard swaps
+  // later resolutions in silently, so neither reflashes the whole table.
   let cohort = $state<FormsCohort | null>(null);
   $effect(() => {
     const p = data.cohort;
@@ -52,6 +71,106 @@
       },
     },
   );
+
+  // ─── Filters + sort (in-memory over the resolved list) ────────────────────
+  let search = $state('');
+  let statusFilter = $state<'all' | string>('all');
+  let sortKey = $state('updated');
+  let sortDir = $state<SortDir>('desc');
+
+  const statusOptions: SegmentOption[] = [
+    { value: 'all', label: 'Tous' },
+    { value: 'draft', label: FORM_STATUS_LABELS.draft },
+    { value: 'published', label: FORM_STATUS_LABELS.published },
+    { value: 'archived', label: FORM_STATUS_LABELS.archived },
+  ];
+
+  // No fixed column widths: auto layout sizes to content so the status pill keeps
+  // its full label (a `w-full` title forced the others to min-width and clipped
+  // it). The title column naturally absorbs the slack as the longest content.
+  const columns: ColumnDef[] = [
+    { key: 'title', label: 'Titre', sortable: true },
+    { key: 'status', label: 'Statut' },
+    { key: 'access', label: 'Accès' },
+    {
+      key: 'questions',
+      label: 'Questions',
+      sortable: true,
+      align: 'right',
+      defaultSortDir: 'desc',
+    },
+    {
+      key: 'responses',
+      label: 'Réponses',
+      sortable: true,
+      align: 'right',
+      defaultSortDir: 'desc',
+    },
+    {
+      key: 'updated',
+      label: 'Modifié',
+      sortable: true,
+      defaultSortDir: 'desc',
+    },
+    { key: 'actions', label: '', align: 'right' },
+  ];
+
+  function toggleSort(key: string) {
+    if (sortKey === key) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortKey = key;
+      sortDir = columns.find((c) => c.key === key)?.defaultSortDir ?? 'asc';
+    }
+  }
+
+  function compareRows(a: FormListRow, b: FormListRow, key: string): number {
+    switch (key) {
+      case 'title':
+        return a.title.localeCompare(b.title, 'fr');
+      case 'questions':
+        return a.questionCount - b.questionCount;
+      case 'responses':
+        return a.submissionCount - b.submissionCount;
+      case 'updated':
+        // updatedAt is an ISO string → lexicographic compare is chronological.
+        return a.updatedAt.localeCompare(b.updatedAt);
+      default:
+        return 0;
+    }
+  }
+
+  const rows = $derived.by(() => {
+    if (!cohort) return [];
+    const q = search.trim().toLowerCase();
+    const out = cohort.rows.filter((r) => {
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        r.title.toLowerCase().includes(q) || r.slug.toLowerCase().includes(q)
+      );
+    });
+    out.sort((a, b) => {
+      const c = compareRows(a, b, sortKey);
+      return sortDir === 'asc' ? c : -c;
+    });
+    return out;
+  });
+
+  const anyFiltersApplied = $derived(
+    search.trim().length > 0 || statusFilter !== 'all',
+  );
+  function resetFilters() {
+    search = '';
+    statusFilter = 'all';
+  }
+
+  const dateFmt = new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  const fmtDate = (iso: string) => dateFmt.format(new Date(iso));
 
   /** Id of the row whose status PATCH is in flight (locks its trigger). */
   let statusPending = $state<string | null>(null);
@@ -106,10 +225,10 @@
   }
 </script>
 
-<svelte:head><title>Formulaires de bilan</title></svelte:head>
+<svelte:head><title>Formulaires de feedback</title></svelte:head>
 
 <div class="space-y-6">
-  <AdminPageHeader title="Formulaires" accent="de bilan">
+  <AdminPageHeader title="Formulaires" accent="de feedback">
     {#snippet actions()}
       <Button size="sm" class="rounded-sm" onclick={() => (createOpen = true)}>
         <Plus class="mr-1.5 h-4 w-4" /> Nouveau formulaire
@@ -126,174 +245,224 @@
       Aucun formulaire pour le moment.
     </div>
   {:else}
+    <DataTableToolbar
+      searchValue={search}
+      onSearchInput={(v) => (search = v)}
+      searchPlaceholder="Rechercher un formulaire…"
+      searchWidthClass="w-full max-w-[260px]"
+      filtersAlign="end"
+      count={rows.length}
+      countNoun="formulaire"
+      countSuffix={anyFiltersApplied ? '(filtrés)' : 'au total'}
+    >
+      {#snippet filters()}
+        <div class="flex items-center gap-2">
+          <span
+            class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
+          >
+            Statut
+          </span>
+          <SegmentedFilter
+            ariaLabel="Filtrer par statut"
+            options={statusOptions}
+            value={statusFilter}
+            onChange={(v) => (statusFilter = v)}
+          />
+        </div>
+      {/snippet}
+
+      {#snippet countActions()}
+        {#if anyFiltersApplied}
+          <Button
+            variant="ghost"
+            size="sm"
+            onclick={resetFilters}
+            class="h-7 px-2 text-muted-foreground hover:text-foreground"
+          >
+            <FilterX class="mr-1.5 h-4 w-4" />
+            Réinitialiser
+          </Button>
+        {/if}
+      {/snippet}
+    </DataTableToolbar>
+
     <Tooltip.Provider delayDuration={300}>
-      <div class="rounded-sm border bg-card shadow-sm">
-        <Table.Root>
-          <Table.Header>
-            <Table.Row>
-              <Table.Head>Titre</Table.Head>
-              <Table.Head>Statut</Table.Head>
-              <Table.Head class="text-right">Questions</Table.Head>
-              <Table.Head class="text-right">Réponses</Table.Head>
-              <Table.Head>Accès</Table.Head>
-              <Table.Head class="text-right">Actions</Table.Head>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {#each cohort.rows as row (row.id)}
-              <Table.Row>
-                <Table.Cell>
-                  <a
-                    href={resolve(`/staff/admin/feedback-forms/${row.id}`)}
-                    class="font-medium hover:underline"
-                  >
-                    {row.title}
-                  </a>
-                  {#if row.allowsPublicAccess}
-                    <!-- Public form: show the real shareable link (was a bare
-                         `/slug`, which looked like a route but wasn't one). -->
-                    <span
-                      class="mt-0.5 flex items-center gap-1 font-mono text-xs text-muted-foreground"
+      <SortableTable
+        {columns}
+        {rows}
+        {sortKey}
+        {sortDir}
+        onSort={toggleSort}
+        rowKey={(r) => r.id}
+      >
+        {#snippet row(r: FormListRow)}
+          <Table.Cell>
+            <a
+              href={resolve(`/staff/admin/feedback-forms/${r.id}`)}
+              class="font-medium hover:underline"
+            >
+              {r.title}
+            </a>
+            {#if r.allowsPublicAccess}
+              <!-- Public form: show the real shareable link. -->
+              <span
+                class="mt-0.5 flex items-center gap-1 font-mono text-xs text-muted-foreground"
+              >
+                {publicFormPath(r.slug)}
+                <CopyButton
+                  value={`${page.url.origin}${publicFormPath(r.slug)}`}
+                  label="Copier le lien public"
+                />
+              </span>
+            {:else}
+              <span class="block font-mono text-xs text-muted-foreground">
+                {r.slug}
+              </span>
+            {/if}
+          </Table.Cell>
+          <Table.Cell>
+            <FormStatusSelect
+              value={r.status}
+              onChange={(v) => setStatus(r, v)}
+              disabled={statusPending === r.id}
+            />
+          </Table.Cell>
+          <Table.Cell>
+            <Badge variant="outline" class="text-[10px] uppercase">
+              {r.allowsPublicAccess ? 'Auth + Public' : 'Auth'}
+            </Badge>
+          </Table.Cell>
+          <Table.Cell class="text-right font-mono text-sm">
+            {r.questionCount}
+          </Table.Cell>
+          <Table.Cell class="text-right font-mono text-sm">
+            {r.submissionCount}
+          </Table.Cell>
+          <Table.Cell class="text-xs whitespace-nowrap text-muted-foreground">
+            {fmtDate(r.updatedAt)}
+          </Table.Cell>
+          <Table.Cell>
+            <div class="flex items-center justify-end gap-1">
+              <Tooltip.Root>
+                <Tooltip.Trigger>
+                  {#snippet child({ props })}
+                    <Button
+                      {...props}
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8"
+                      href={resolve(
+                        `/staff/admin/feedback-forms/${r.id}/responses`,
+                      )}
                     >
-                      /bilan/{row.slug}
-                      <CopyButton
-                        value={`${page.url.origin}/bilan/${row.slug}`}
-                        label="Copier le lien public"
-                      />
-                    </span>
-                  {:else}
-                    <!-- Auth-only: the slug is an identifier, not a URL, so
-                         render it without a leading slash. -->
-                    <span class="block font-mono text-xs text-muted-foreground"
-                      >{row.slug}</span
+                      <MessageSquare class="h-4 w-4" />
+                      <span class="sr-only">Réponses</span>
+                    </Button>
+                  {/snippet}
+                </Tooltip.Trigger>
+                <Tooltip.Content>Réponses ({r.submissionCount})</Tooltip.Content
+                >
+              </Tooltip.Root>
+              <Tooltip.Root>
+                <Tooltip.Trigger>
+                  {#snippet child({ props })}
+                    <Button
+                      {...props}
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8"
+                      href={resolve(`/staff/admin/feedback-forms/${r.id}`)}
                     >
-                  {/if}
-                </Table.Cell>
-                <Table.Cell>
-                  <FormStatusSelect
-                    value={row.status}
-                    onChange={(v) => setStatus(row, v)}
-                    disabled={statusPending === row.id}
-                  />
-                </Table.Cell>
-                <Table.Cell class="text-right font-mono text-sm"
-                  >{row.questionCount}</Table.Cell
-                >
-                <Table.Cell class="text-right font-mono text-sm"
-                  >{row.submissionCount}</Table.Cell
-                >
-                <Table.Cell class="text-xs text-muted-foreground">
-                  {row.allowsPublicAccess ? 'Auth + Public' : 'Auth'}
-                </Table.Cell>
-                <Table.Cell>
-                  <div class="flex items-center justify-end gap-1">
-                    <Tooltip.Root>
-                      <Tooltip.Trigger>
-                        {#snippet child({ props })}
-                          <Button
-                            {...props}
-                            variant="ghost"
-                            size="icon"
-                            class="h-8 w-8"
-                            href={resolve(
-                              `/staff/admin/feedback-forms/${row.id}/responses`,
-                            )}
-                          >
-                            <MessageSquare class="h-4 w-4" />
-                            <span class="sr-only">Réponses</span>
-                          </Button>
-                        {/snippet}
-                      </Tooltip.Trigger>
-                      <Tooltip.Content
-                        >Réponses ({row.submissionCount})</Tooltip.Content
+                      <Pencil class="h-4 w-4" />
+                      <span class="sr-only">Modifier</span>
+                    </Button>
+                  {/snippet}
+                </Tooltip.Trigger>
+                <Tooltip.Content>Modifier</Tooltip.Content>
+              </Tooltip.Root>
+              <form
+                method="POST"
+                action="?/duplicate"
+                use:formEnhance={() =>
+                  async ({ result, update }) => {
+                    // The action redirects to the new form; toast first so the
+                    // duplication is acknowledged and persists across the nav.
+                    if (result.type === 'redirect') {
+                      toast.success('Formulaire dupliqué');
+                    }
+                    await update();
+                  }}
+              >
+                <input type="hidden" name="id" value={r.id} />
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    {#snippet child({ props })}
+                      <Button
+                        {...props}
+                        type="submit"
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8"
                       >
-                    </Tooltip.Root>
-                    <Tooltip.Root>
-                      <Tooltip.Trigger>
-                        {#snippet child({ props })}
-                          <Button
-                            {...props}
-                            variant="ghost"
-                            size="icon"
-                            class="h-8 w-8"
-                            href={resolve(
-                              `/staff/admin/feedback-forms/${row.id}`,
-                            )}
-                          >
-                            <Pencil class="h-4 w-4" />
-                            <span class="sr-only">Modifier</span>
-                          </Button>
-                        {/snippet}
-                      </Tooltip.Trigger>
-                      <Tooltip.Content>Modifier</Tooltip.Content>
-                    </Tooltip.Root>
-                    <form
-                      method="POST"
-                      action="?/duplicate"
-                      use:formEnhance={() =>
-                        async ({ result, update }) => {
-                          // The action redirects to the new form; toast first so
-                          // the duplication is acknowledged (testers weren't sure
-                          // it had happened) and persists across the navigation.
-                          if (result.type === 'redirect') {
-                            toast.success('Formulaire dupliqué');
-                          }
-                          await update();
-                        }}
-                    >
-                      <input type="hidden" name="id" value={row.id} />
-                      <Tooltip.Root>
-                        <Tooltip.Trigger>
-                          {#snippet child({ props })}
-                            <Button
-                              {...props}
-                              type="submit"
-                              variant="ghost"
-                              size="icon"
-                              class="h-8 w-8"
-                            >
-                              <Copy class="h-4 w-4" />
-                              <span class="sr-only">Dupliquer</span>
-                            </Button>
-                          {/snippet}
-                        </Tooltip.Trigger>
-                        <Tooltip.Content>Dupliquer</Tooltip.Content>
-                      </Tooltip.Root>
-                    </form>
-                    <Tooltip.Root>
-                      <Tooltip.Trigger>
-                        {#snippet child({ props })}
-                          <!-- Span wrapper so the tooltip still fires while the
-                               button is disabled (a disabled button emits no
-                               pointer events); this is the case where the hint
-                               matters most: why deletion is blocked. -->
-                          <span {...props} class="inline-flex">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              class="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              disabled={row.submissionCount > 0}
-                              onclick={() => askDelete(row)}
-                            >
-                              <Trash2 class="h-4 w-4" />
-                              <span class="sr-only">Supprimer</span>
-                            </Button>
-                          </span>
-                        {/snippet}
-                      </Tooltip.Trigger>
-                      <Tooltip.Content>
-                        {row.submissionCount > 0
-                          ? 'Ce formulaire a des réponses : passez son statut à « Archivé » pour le retirer.'
-                          : 'Supprimer'}
-                      </Tooltip.Content>
-                    </Tooltip.Root>
-                  </div>
-                </Table.Cell>
-              </Table.Row>
-            {/each}
-          </Table.Body>
-        </Table.Root>
-      </div>
+                        <Copy class="h-4 w-4" />
+                        <span class="sr-only">Dupliquer</span>
+                      </Button>
+                    {/snippet}
+                  </Tooltip.Trigger>
+                  <Tooltip.Content>Dupliquer</Tooltip.Content>
+                </Tooltip.Root>
+              </form>
+              <Tooltip.Root>
+                <Tooltip.Trigger>
+                  {#snippet child({ props })}
+                    <!-- Span wrapper so the tooltip still fires while the button
+                         is disabled (a disabled button emits no pointer events);
+                         this is the case where the hint matters most: why
+                         deletion is blocked. -->
+                    <span {...props} class="inline-flex">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        disabled={r.submissionCount > 0}
+                        onclick={() => askDelete(r)}
+                      >
+                        <Trash2 class="h-4 w-4" />
+                        <span class="sr-only">Supprimer</span>
+                      </Button>
+                    </span>
+                  {/snippet}
+                </Tooltip.Trigger>
+                <Tooltip.Content>
+                  {r.submissionCount > 0
+                    ? 'Ce formulaire a des réponses : passez son statut à « Archivé » pour le retirer.'
+                    : 'Supprimer'}
+                </Tooltip.Content>
+              </Tooltip.Root>
+            </div>
+          </Table.Cell>
+        {/snippet}
+
+        {#snippet empty()}
+          <div class="flex flex-col items-center gap-3 py-6">
+            <span
+              class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
+            >
+              Aucun formulaire ne correspond
+            </span>
+            {#if anyFiltersApplied}
+              <Button
+                variant="outline"
+                size="sm"
+                onclick={resetFilters}
+                class="rounded-sm"
+              >
+                Réinitialiser les filtres
+              </Button>
+            {/if}
+          </div>
+        {/snippet}
+      </SortableTable>
     </Tooltip.Provider>
   {/if}
 </div>

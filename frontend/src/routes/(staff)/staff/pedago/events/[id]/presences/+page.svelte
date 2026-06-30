@@ -8,7 +8,8 @@
 
   let { data }: { data: PageData } = $props();
 
-  let hasPlanning = $derived(data.featureFlags.includes('planning'));
+  // Planning is a standard pedago surface now (role-gated build tool), no flag.
+  const hasPlanning = true;
 </script>
 
 <svelte:head>

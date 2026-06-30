@@ -1,22 +1,16 @@
 <script lang="ts">
   import BrandMark from '$lib/components/layout/BrandMark.svelte';
   import LogOut from '@lucide/svelte/icons/log-out';
-  import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
   import Users from '@lucide/svelte/icons/users';
-  import Plus from '@lucide/svelte/icons/plus';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import Menu from '@lucide/svelte/icons/menu';
-  import History from '@lucide/svelte/icons/history';
   import Search from '@lucide/svelte/icons/search';
   import X from '@lucide/svelte/icons/x';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import MessageSquareText from '@lucide/svelte/icons/message-square-text';
-  import BookOpen from '@lucide/svelte/icons/book-open';
   import UserCog from '@lucide/svelte/icons/user-cog';
-  import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
-  import GraduationCap from '@lucide/svelte/icons/graduation-cap';
   import FileText from '@lucide/svelte/icons/file-text';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
@@ -35,42 +29,68 @@
   import type { FlagKey } from '$lib/domain/featureFlags';
   import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
+  import EventWorkspaceSwitcher from '$lib/components/dev/EventWorkspaceSwitcher.svelte';
+  import {
+    reachableSurfaces,
+    surfaceSegment,
+    surfaceLabel,
+    type EventSurfaceKey,
+  } from '$lib/domain/eventModules';
+  import { eventDisplayName } from '$lib/domain/event';
+
+  // Icons live with the component (Svelte components can't sit in the domain
+  // layer); order/label/reachability are single-sourced in `eventModules`.
+  const SURFACE_ICONS: Record<EventSurfaceKey, typeof Users> = {
+    inscrits: Users,
+    emargement: UserCheck,
+    planning: CalendarDays,
+    bilan: MessageSquareText,
+    entretiens: MessageSquare,
+  };
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
   let featureFlags = $derived(
     new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
   );
-  let hasCodingClub = $derived(featureFlags.has('coding_club'));
-  let hasInscrits = $derived(featureFlags.has('inscrits'));
-  let hasEntretiens = $derived(featureFlags.has('entretiens'));
-  let hasEmargement = $derived(featureFlags.has('emargement'));
-  let hasBilan = $derived(featureFlags.has('bilan'));
-  let hasIntervenants = $derived(featureFlags.has('staff_intervenants'));
   let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
   let hasNewsFeed = $derived(featureFlags.has('news_feed'));
   let hasSyncErrors = $derived(featureFlags.has('staff_sync_errors'));
-  let hasPlanning = $derived(featureFlags.has('planning'));
-  // The "Stage de Seconde" section header must not show when none of its links
-  // would: every stage surface is now individually flag-gated (Inscrits,
-  // Émargement, Entretiens, plus the coding_club / planning / intervenants /
-  // welcome surfaces). Mirrors the showManagement guard below.
-  let showStage = $derived(
-    hasInscrits ||
-      hasEmargement ||
-      hasBilan ||
-      hasEntretiens ||
-      hasPlanning ||
-      hasIntervenants ||
-      hasNewsFeed ||
-      hasCodingClub,
+  let isLead = $derived(can('devLead', data.staffProfile?.staffRole));
+
+  // The cohort workspace: the events this campus configured (those with ≥1
+  // module). The "current" event is the one in the URL when it is one of them,
+  // else the resolved default. Its module set drives which surfaces the sidebar
+  // shows; switching events re-renders the nav for the picked event.
+  let workspace = $derived(data.workspace);
+  // Remember the last event actually browsed. A talent fiche is campus-scoped, so
+  // its URL carries a talent id, not an event id; without this the sidebar would
+  // snap from the event you were in back to the resolved default the instant you
+  // open a profile. Resolution order: the event in the path, an explicit `?event=`
+  // (the entretiens fiche link sets it, so a reload or deep-link stays put), the
+  // last event browsed this session, then the resolved default.
+  let lastEventId = $state<string | null>(null);
+  $effect(() => {
+    const id = page.params.id;
+    if (id && workspace.events.some((e) => e.id === id)) lastEventId = id;
+  });
+  let currentEvent = $derived(
+    workspace.events.find((e) => e.id === page.params.id) ??
+      workspace.events.find(
+        (e) => e.id === page.url.searchParams.get('event'),
+      ) ??
+      workspace.events.find((e) => e.id === lastEventId) ??
+      workspace.current,
   );
-  // The "Gestion" section header must not show when none of its links would:
-  // Doublons SF (hasSyncErrors) or Staff du campus (hasCampusTeam, lead-only).
-  let showManagement = $derived(
-    hasSyncErrors ||
-      (hasCampusTeam && can('devLead', data.staffProfile?.staffRole)),
-  );
+  // The "Gestion" section shows when it has at least one entry: the sync-errors
+  // surface, or the lead-only "Staff du campus" (behind its flag). Event module
+  // config moved to the admin space, so there is no per-event config entry here.
+  let showManagement = $derived(hasSyncErrors || (isLead && hasCampusTeam));
+  // Student-search command palette (⌘K). Hidden for now - the feature isn't
+  // ready to ship. Flipping this back to `true` re-enables every entry point:
+  // the sidebar search button, the mobile search icon, and the GlobalCommand
+  // mount (which also owns the ⌘K global shortcut, so it goes too while hidden).
+  const STUDENT_SEARCH_ENABLED = false;
   let commandOpen = $state(false);
   let mobileMenuOpen = $state(false);
 
@@ -134,7 +154,7 @@
 {/snippet}
 
 {#snippet sidebarSearch()}
-  {#if hasCodingClub}
+  {#if STUDENT_SEARCH_ENABLED}
     <div class="px-3 pb-2">
       <button
         class="flex h-9 w-full items-center justify-between rounded-sm border border-sidebar-border bg-sidebar-hover px-3 text-sm text-sidebar-foreground-muted transition-colors hover:bg-white/10 hover:text-sidebar-foreground"
@@ -155,113 +175,38 @@
 {/snippet}
 
 {#snippet navMenu()}
-  {#if hasCodingClub}
-    <div class="sidebar-section-title">
-      Overview<span class="text-epi-orange">_</span>
+  {#if currentEvent}
+    {@const ev = currentEvent}
+    <!-- The event in view is the section heading (underscore motif). With more
+         than one workspace event, a small "go to" button beside it opens the
+         picker - the title stays the prominent label, the switcher is demoted. -->
+    <div class="sidebar-section-title flex items-center gap-1.5">
+      <span class="flex min-w-0 flex-1 items-baseline">
+        <span class="truncate">{eventDisplayName(ev)}</span>
+        <span class="text-epi-teal">_</span>
+      </span>
+      {#if workspace.events.length > 1}
+        <EventWorkspaceSwitcher events={workspace.events} currentId={ev.id} />
+      {/if}
     </div>
     <nav class="space-y-1">
-      <a
-        href={resolve('/staff/dev')}
-        class={navLinkClass(isActive('/staff/dev'))}
-      >
-        <LayoutDashboard class="h-5 w-5" />
-        <span>Tableau de bord</span>
-      </a>
-      <a
-        href={resolve('/staff/dev/students')}
-        class={navLinkClass(isActive('/staff/dev/students'))}
-      >
-        <Users class="h-5 w-5" />
-        <span>Stagiaires</span>
-      </a>
-      <a
-        href={resolve('/staff/dev/events/history')}
-        class={navLinkClass(isActive('/staff/dev/events/history'))}
-      >
-        <History class="h-5 w-5" />
-        <span>Événements passés</span>
-      </a>
-    </nav>
-  {/if}
-
-  {#if data.activeStage && showStage}
-    <div class="sidebar-section-title">
-      Stage de Seconde<span class="text-epi-teal">_</span>
-    </div>
-    <nav class="space-y-1">
-      <!-- Every stage surface is now individually flag-gated so a campus can
-           keep just the ones it uses (most want Entretiens only, no Émargement).
-           The event overview and onboarding tracker are coding_club-era surfaces,
-           kept behind that flag so that future stays intact. -->
-      {#if hasCodingClub}
+      <!-- Surfaces are per event, not campus flags, so two events on one campus
+           can expose different pages. The reachable set folds the module rows
+           with the data gates (planning needs a schedule, bilan needs a live
+           form) in one place (`reachableSurfaces`), so this nav, the event
+           switcher and the dev landing all agree on what a dev can open. Labels
+           stay event-type-agnostic, so the dev space shows coding clubs too. -->
+      {#each reachableSurfaces(ev) as key (key)}
+        {@const seg = surfaceSegment(key)}
+        {@const Icon = SURFACE_ICONS[key]}
         <a
-          href={resolve(`/staff/dev/events/${data.activeStage.id}`)}
-          class={navLinkClass(
-            isActive(`/staff/dev/events/${data.activeStage.id}`, true),
-          )}
+          href={resolve(`/staff/dev/events/${ev.id}/${seg}`)}
+          class={navLinkClass(isActive(`/staff/dev/events/${ev.id}/${seg}`))}
         >
-          <LayoutDashboard class="h-5 w-5" />
-          <span>Vue d'ensemble</span>
+          <Icon class="h-5 w-5" />
+          <span>{surfaceLabel(key)}</span>
         </a>
-        <a
-          href={resolve(`/staff/dev/events/${data.activeStage.id}/onboarding`)}
-          class={navLinkClass(
-            isActive(`/staff/dev/events/${data.activeStage.id}/onboarding`),
-          )}
-        >
-          <ClipboardCheck class="h-5 w-5" />
-          <span>Onboarding</span>
-        </a>
-      {/if}
-      <!-- Live stage surfaces, each behind its own flag: Inscrits + Entretiens
-           default on, Émargement default off. Planning / Intervenants /
-           Page d'accueil are governed per campus by their own rollout flags
-           (Planning appears once that campus's schedule is populated and the
-           flag is switched on). -->
-      {#if hasInscrits}
-        <a
-          href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
-          class={navLinkClass(
-            isActive(`/staff/dev/events/${data.activeStage.id}/inscrits`),
-          )}
-        >
-          <Users class="h-5 w-5" />
-          <span>Inscrits</span>
-        </a>
-      {/if}
-      {#if hasEmargement}
-        <a
-          href={resolve(`/staff/dev/events/${data.activeStage.id}/emargement`)}
-          class={navLinkClass(
-            isActive(`/staff/dev/events/${data.activeStage.id}/emargement`),
-          )}
-        >
-          <UserCheck class="h-5 w-5" />
-          <span>Émargement</span>
-        </a>
-      {/if}
-      {#if hasPlanning}
-        <a
-          href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
-          class={navLinkClass(
-            isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
-          )}
-        >
-          <CalendarDays class="h-5 w-5" />
-          <span>Planning</span>
-        </a>
-      {/if}
-      {#if hasIntervenants}
-        <a
-          href={resolve(`/staff/dev/events/${data.activeStage.id}/team`)}
-          class={navLinkClass(
-            isActive(`/staff/dev/events/${data.activeStage.id}/team`),
-          )}
-        >
-          <GraduationCap class="h-5 w-5" />
-          <span>Intervenants</span>
-        </a>
-      {/if}
+      {/each}
       {#if hasNewsFeed}
         <a
           href={resolve('/staff/dev/contenu/actus')}
@@ -271,43 +216,6 @@
           <span>Actualites</span>
         </a>
       {/if}
-      {#if hasEntretiens}
-        <a
-          href={resolve(`/staff/dev/events/${data.activeStage.id}/entretiens`)}
-          class={navLinkClass(
-            isActive(`/staff/dev/events/${data.activeStage.id}/entretiens`),
-          )}
-        >
-          <MessageSquare class="h-5 w-5" />
-          <span>Entretiens</span>
-        </a>
-      {/if}
-      {#if hasBilan}
-        <a
-          href={resolve(`/staff/dev/events/${data.activeStage.id}/bilan`)}
-          class={navLinkClass(
-            isActive(`/staff/dev/events/${data.activeStage.id}/bilan`),
-          )}
-        >
-          <MessageSquareText class="h-5 w-5" />
-          <span>Bilan du stage</span>
-        </a>
-      {/if}
-    </nav>
-  {/if}
-
-  {#if hasCodingClub}
-    <div class="sidebar-section-title">
-      Ressources<span class="text-epi-pink">_</span>
-    </div>
-    <nav class="space-y-1">
-      <a
-        href={resolve('/staff/dev/catalogue')}
-        class={navLinkClass(isActive('/staff/dev/catalogue'))}
-      >
-        <BookOpen class="h-5 w-5" />
-        <span>Catalogue Epitech</span>
-      </a>
     </nav>
   {/if}
 
@@ -447,20 +355,6 @@
     <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
       {@render navMenu()}
     </div>
-    <Gated group="devLead" mode="hide">
-      {#if hasCodingClub}
-        <div class="border-t border-sidebar-border p-3">
-          <Button
-            variant="outline"
-            class="w-full justify-start border-dashed border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground"
-            href={resolve('/staff/dev/events/import')}
-          >
-            <Plus class="mr-2 h-4 w-4" />
-            Importer un événement
-          </Button>
-        </div>
-      {/if}
-    </Gated>
     <ImpersonationCard />
     {@render sidebarFooter()}
   </aside>
@@ -494,7 +388,7 @@
           orientation="inline"
         />
       </div>
-      {#if hasCodingClub}
+      {#if STUDENT_SEARCH_ENABLED}
         <Button
           variant="ghost"
           size="icon"
@@ -525,19 +419,6 @@
         <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
           {@render navMenu()}
         </div>
-        {#if hasCodingClub}
-          <Gated group="devLead" mode="hide">
-            <div class="border-t border-sidebar-border p-3">
-              <Button
-                variant="outline"
-                class="w-full justify-center border-dashed border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground"
-                href={resolve('/staff/dev/events/import')}
-              >
-                <Plus class="mr-2 h-4 w-4" /> Importer un événement
-              </Button>
-            </div>
-          </Gated>
-        {/if}
         <ImpersonationCard />
         {@render sidebarFooter()}
       </aside>
@@ -549,7 +430,7 @@
   </div>
 </div>
 
-{#if hasCodingClub}
+{#if STUDENT_SEARCH_ENABLED}
   <GlobalCommand bind:open={commandOpen} basePath="/staff/dev" />
 {/if}
 

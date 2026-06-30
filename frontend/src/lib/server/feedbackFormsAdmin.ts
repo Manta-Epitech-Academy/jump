@@ -128,6 +128,7 @@ export async function updateForm(
     allowsAuthenticatedAccess?: boolean;
     allowsPublicAccess?: boolean;
     dashboardNudge?: boolean;
+    defaultForEventType?: string | null;
   },
 ): Promise<void> {
   const data = { ...patch, updatedById: staffId };
@@ -136,6 +137,23 @@ export async function updateForm(
   // authenticated access clears the nudge in the same write so the banner can
   // never point talents at a form that rejects them.
   if (patch.allowsAuthenticatedAccess === false) data.dashboardNudge = false;
+
+  // `defaultForEventType` is @unique: at most one form is the default per event
+  // type. Promoting this form to a type already held by another must release
+  // that other form in the SAME transaction, or the unique index rejects the
+  // write. Setting it to null just clears this form's default.
+  if (patch.defaultForEventType) {
+    const next = patch.defaultForEventType;
+    await prisma.$transaction(async (tx) => {
+      await tx.feedback_Form.updateMany({
+        where: { defaultForEventType: next, id: { not: id } },
+        data: { defaultForEventType: null },
+      });
+      await tx.feedback_Form.update({ where: { id }, data });
+    });
+    return;
+  }
+
   await prisma.feedback_Form.update({ where: { id }, data });
 }
 

@@ -154,11 +154,11 @@
         background-repeat: no-repeat;
         background-position: center bottom;
       }
-      <% data.signatories.forEach(function (s, i) { %>
+      <% data.signatories.forEach(function (s, i) { if (s.imageDataUri) { %>
       .sig-img-<%= i %> {
         background-image: url('<%= s.imageDataUri %>');
       }
-      <% }); %>
+      <% } }); %>
       .sig-line {
         width: 100%;
         max-width: 180px;

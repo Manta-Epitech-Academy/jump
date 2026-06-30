@@ -26,14 +26,18 @@
   const phaseOverride = $derived(
     (page.data.phaseOverride ?? null) as EventLifecycleStatus | null,
   );
+  // The real (date-derived) phase of the workspace's current event, normalized
+  // by each host layout into `page.data.realPhase` (the dev layout maps it from
+  // `workspace.current.status`). Kept layout-agnostic here so this shared card
+  // does not couple to any one space's context shape.
   const realPhase = $derived(
-    (page.data.activeStage?.realStatus ?? null) as EventLifecycleStatus | null,
+    (page.data.realPhase ?? null) as EventLifecycleStatus | null,
   );
-  // The toggle previews phase-specific UI of a stage. Show it only when the
-  // impersonated dev/superdev actually has a stage to preview — otherwise the
-  // control is dead (resolveStageContext returns null → nothing reacts).
+  // The toggle previews phase-specific UI of an event. Show it only when the
+  // impersonated dev/superdev actually has an event to preview, otherwise the
+  // control is dead (no current event → nothing reacts).
   const canOverridePhase = $derived(
-    Boolean(page.data.canOverridePhase) && Boolean(page.data.activeStage),
+    Boolean(page.data.canOverridePhase) && realPhase !== null,
   );
 
   async function stopImpersonating() {

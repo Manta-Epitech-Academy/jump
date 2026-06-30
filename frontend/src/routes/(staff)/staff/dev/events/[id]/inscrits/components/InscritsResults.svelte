@@ -23,9 +23,7 @@
     ColumnDef,
     SortDir,
   } from '$lib/components/staff/datatable/types';
-  import SegmentedFilter, {
-    type SegmentOption,
-  } from '$lib/components/staff/SegmentedFilter.svelte';
+  import type { SegmentOption } from '$lib/components/staff/SegmentedFilter.svelte';
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import SearchableSelect, {
     type SelectOption,
@@ -66,7 +64,7 @@
     countdown,
     timezone,
     event,
-    hasCodingClub,
+    showStatutColumn = true,
   }: InscritsCohort & {
     origin: {
       lycee: { nom: string } | null;
@@ -81,7 +79,10 @@
     };
     timezone: string;
     event: { id: string; titre: string; externalId: string | null };
-    hasCodingClub: boolean;
+    // Inscrits sub-option: campuses that don't onboard (e.g. Paris) hide the
+    // dossier/statut funnel column so it isn't dead noise. Gates only this column
+    // (header, filter, cells) - the talent fiche is untouched.
+    showStatutColumn?: boolean;
   } = $props();
 
   // Status tints for the dossier tooltip. The tooltip surface is bg-foreground,
@@ -161,27 +162,38 @@
   // (`w-full`) absorbs whatever track is left, truncating its values (school
   // names are the longest, most variable). The fixed widths sum well under the
   // track at the `xl` two-column breakpoint, so Lycée always keeps a usable share.
-  const columns: ColumnDef[] = [
-    { key: 'avatar', label: '', class: 'w-12' },
-    { key: 'prenom', label: 'Prénom', sortable: true, class: 'w-28' },
-    { key: 'nom', label: 'Nom', sortable: true, class: 'w-40' },
-    // XP right after the name: it's the engagement signal we want the eye to
-    // catch first, shown as a coloured pill (not flush grey data). Defaults to
-    // high-to-low so the first click surfaces the most engaged prospects.
-    {
-      key: 'xp',
-      label: 'XP',
-      sortable: true,
-      class: 'w-24',
-      defaultSortDir: 'desc',
-    },
-    { key: 'lycee', label: 'Lycée', sortable: true, class: 'w-full' },
-    { key: 'niveau', label: 'Niveau', sortable: true, class: 'w-24' },
-    { key: 'status', label: 'Statut', sortable: true, class: 'w-28' },
-  ];
+  const columns = $derived.by<ColumnDef[]>(() => {
+    const cols: ColumnDef[] = [
+      { key: 'avatar', label: '', class: 'w-12' },
+      { key: 'prenom', label: 'Prénom', sortable: true, class: 'w-28' },
+      { key: 'nom', label: 'Nom', sortable: true, class: 'w-40' },
+      // XP right after the name: it's the engagement signal we want the eye to
+      // catch first, shown as a coloured pill (not flush grey data). Defaults to
+      // high-to-low so the first click surfaces the most engaged prospects.
+      {
+        key: 'xp',
+        label: 'XP',
+        sortable: true,
+        class: 'w-24',
+        defaultSortDir: 'desc',
+      },
+      { key: 'lycee', label: 'Lycée', sortable: true, class: 'w-full' },
+      { key: 'niveau', label: 'Niveau', sortable: true, class: 'w-24' },
+    ];
+    // The dossier/statut funnel column is a sub-option (off for non-onboarding
+    // campuses). When hidden, the header, its filter and its per-row cell all go.
+    if (showStatutColumn)
+      cols.push({
+        key: 'status',
+        label: 'Statut',
+        sortable: true,
+        class: 'w-28',
+      });
+    return cols;
+  });
 
-  // Niveau is a one-click segmented filter, but only worth showing when the
-  // cohort actually spans more than one level (otherwise "Tous / 2nde" is noise).
+  // Niveau filters through a Select (matching Statut), but only worth showing when
+  // the cohort actually spans more than one level (otherwise "Tous / 2nde" is noise).
   const showNiveauFilter = $derived(availableNiveaux.length > 1);
   const niveauOptions: SegmentOption[] = $derived([
     { value: 'all', label: 'Tous' },
@@ -422,28 +434,12 @@
     >
       Aucun stagiaire inscrit
     </h3>
-    {#if hasCodingClub}
-      <p class="mt-1 text-xs font-medium text-muted-foreground">
-        Importer une cohorte via la page d'import.
-      </p>
-      <Button
-        variant="outline"
-        size="sm"
-        href={resolve('/staff/dev/events/import')}
-        class="mt-4 rounded-sm"
-      >
-        Importer
-      </Button>
-    {:else}
-      <!-- Stage-only: the cohort is synced from Salesforce by the worker, not
-           imported by hand. The CSV import page is coding_club-gated and 404s
-           here, and stage participations land via the sync anyway, so point
-           the dev at that rather than a dead "Importer" button. -->
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        Les stagiaires sont synchronisés automatiquement depuis Salesforce et
-        apparaîtront ici une fois la synchronisation effectuée.
-      </p>
-    {/if}
+    <!-- The cohort is synced from Salesforce by the worker, not imported by
+         hand, so there is no manual-import action here. -->
+    <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
+      Les stagiaires sont synchronisés automatiquement depuis Salesforce et
+      apparaîtront ici une fois la synchronisation effectuée.
+    </p>
   </div>
 {:else}
   <!-- Two-column (70/30) split is held back to `xl`: a 6-column roster plus
@@ -469,19 +465,21 @@
         {countSuffix}
       >
         {#snippet filters()}
-          <div class="flex items-center gap-2">
-            <span
-              class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
-            >
-              Statut
-            </span>
-            <FilterSelect
-              ariaLabel="Filtrer par statut de dossier"
-              options={statutOptions}
-              value={statutFilter}
-              onChange={(v) => (statutFilter = v as typeof statutFilter)}
-            />
-          </div>
+          {#if showStatutColumn}
+            <div class="flex items-center gap-2">
+              <span
+                class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
+              >
+                Statut
+              </span>
+              <FilterSelect
+                ariaLabel="Filtrer par statut de dossier"
+                options={statutOptions}
+                value={statutFilter}
+                onChange={(v) => (statutFilter = v as typeof statutFilter)}
+              />
+            </div>
+          {/if}
 
           {#if showNiveauFilter}
             <div class="flex items-center gap-2">
@@ -490,7 +488,7 @@
               >
                 Niveau
               </span>
-              <SegmentedFilter
+              <FilterSelect
                 ariaLabel="Filtrer par niveau scolaire"
                 options={niveauOptions}
                 value={niveauFilter}
@@ -660,36 +658,38 @@
                 <span class="text-sm text-muted-foreground">—</span>
               {/if}
             </Table.Cell>
-            <Table.Cell>
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  {#snippet child({ props })}
-                    {@const badge = INSCRIT_STATUS_BADGE[r.status]}
-                    {@const BadgeIcon = badge.icon}
-                    <!-- The badge IS the row link: relative z-10 lifts it above
-                         the stretched-link overlay so it both fires the tooltip
-                         on hover and navigates to the fiche on click (cmd/middle
-                         click included). tabindex=-1 keeps a single tab stop per
-                         row — the overlay link already covers keyboard nav. -->
-                    <a
-                      {...props}
-                      href={resolve(`/staff/dev/students/${r.talentId}`)}
-                      tabindex={-1}
-                      class={cn(
-                        'relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase',
-                        badge.class,
-                      )}
-                    >
-                      <BadgeIcon class="h-3 w-3" />
-                      {INSCRIT_STATUS_LABELS[r.status]}
-                    </a>
-                  {/snippet}
-                </Tooltip.Trigger>
-                <Tooltip.Content class="max-w-64">
-                  {@render statusBreakdown(r)}
-                </Tooltip.Content>
-              </Tooltip.Root>
-            </Table.Cell>
+            {#if showStatutColumn}
+              <Table.Cell>
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    {#snippet child({ props })}
+                      {@const badge = INSCRIT_STATUS_BADGE[r.status]}
+                      {@const BadgeIcon = badge.icon}
+                      <!-- The badge IS the row link: relative z-10 lifts it above
+                           the stretched-link overlay so it both fires the tooltip
+                           on hover and navigates to the fiche on click (cmd/middle
+                           click included). tabindex=-1 keeps a single tab stop per
+                           row - the overlay link already covers keyboard nav. -->
+                      <a
+                        {...props}
+                        href={resolve(`/staff/dev/students/${r.talentId}`)}
+                        tabindex={-1}
+                        class={cn(
+                          'relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase',
+                          badge.class,
+                        )}
+                      >
+                        <BadgeIcon class="h-3 w-3" />
+                        {INSCRIT_STATUS_LABELS[r.status]}
+                      </a>
+                    {/snippet}
+                  </Tooltip.Trigger>
+                  <Tooltip.Content class="max-w-64">
+                    {@render statusBreakdown(r)}
+                  </Tooltip.Content>
+                </Tooltip.Root>
+              </Table.Cell>
+            {/if}
           {/snippet}
 
           <!-- Mobile card (below lg): the fixed 6-column roster can't fit a phone,
@@ -718,15 +718,17 @@
                       <Sparkles class="h-3 w-3" />
                       {r.xp}
                     </span>
-                    <span
-                      class={cn(
-                        'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase',
-                        badge.class,
-                      )}
-                    >
-                      <BadgeIcon class="h-3 w-3" />
-                      {INSCRIT_STATUS_LABELS[r.status]}
-                    </span>
+                    {#if showStatutColumn}
+                      <span
+                        class={cn(
+                          'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase',
+                          badge.class,
+                        )}
+                      >
+                        <BadgeIcon class="h-3 w-3" />
+                        {INSCRIT_STATUS_LABELS[r.status]}
+                      </span>
+                    {/if}
                   </div>
                 </div>
                 <div class="flex items-center gap-2">

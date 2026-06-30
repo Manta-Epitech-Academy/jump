@@ -30,47 +30,10 @@ export const FEATURE_FLAGS = {
     label: 'Coding Club',
     description: "Ateliers hebdomadaires tout le reste de l'année.",
   }),
-  inscrits: def({
-    key: 'inscrits',
-    kind: 'capability',
-    defaultEnabled: true,
-    label: 'Inscrits',
-    description:
-      "Registre des inscrits d'un événement (suivi des conformités, origine des talents). Désactivez pour les campus qui n'ont pas encore onboardé leurs talents.",
-  }),
-  entretiens: def({
-    key: 'entretiens',
-    kind: 'capability',
-    defaultEnabled: true,
-    label: 'Entretiens',
-    description:
-      "Suivi des entretiens de prospection menés auprès des inscrits d'un événement.",
-  }),
-  emargement: def({
-    key: 'emargement',
-    kind: 'capability',
-    defaultEnabled: false,
-    label: 'Émargement',
-    description:
-      "Feuille de présence par demi-journée. Activez pour les campus qui suivent la présence des talents pendant l'événement.",
-  }),
-  bilan: def({
-    key: 'bilan',
-    kind: 'capability',
-    defaultEnabled: false,
-    label: 'Bilan du stage',
-    description:
-      "Suivi des réponses au formulaire de bilan d'un événement (taux de réponse, statistiques) et QR code de partage à la cohorte.",
-  }),
-  staff_intervenants: def({
-    key: 'staff_intervenants',
-    kind: 'rollout',
-    defaultEnabled: false,
-    label: 'Intervenants par événement',
-    description:
-      "Page d'assignation des mantas à un événement (/staff/dev/events/[id]/team).",
-    removeBy: new Date('2026-07-15'),
-  }),
+  // Inscrits / Entretiens / Émargement / Bilan are no longer campus flags: they
+  // are now per-event "modules" (see $lib/domain/eventModules + EventConfig_Module),
+  // so two events on the same campus can expose different surfaces. Planning stays
+  // a campus flag below because it also gates the pedago editor and talent calendar.
   staff_campus_team: def({
     key: 'staff_campus_team',
     kind: 'rollout',
@@ -97,14 +60,10 @@ export const FEATURE_FLAGS = {
       'Résolution des doublons de synchronisation Salesforce côté dev (/staff/dev/sync-errors).',
     removeBy: new Date('2026-07-15'),
   }),
-  planning: def({
-    key: 'planning',
-    kind: 'capability',
-    defaultEnabled: false,
-    label: 'Planning',
-    description:
-      'Planning des stages / coding clubs (dev, pédago, talent). Activer pour les campus qui gèrent leur emploi du temps dans Jump.',
-  }),
+  // Planning is intentionally NOT a flag: it is data-driven. The dev view and
+  // the talent calendar show wherever an event has a schedule; the pedago editor
+  // (the build tool) is gated by role (pedaLead). See $lib/domain/eventModules
+  // (planning note) and the planning loads.
 };
 
 export type FlagKey = keyof typeof FEATURE_FLAGS;

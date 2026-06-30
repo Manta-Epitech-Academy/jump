@@ -18,15 +18,14 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { fromWallClock, isDateKey, toDateKey } from '$lib/domain/planningTime';
-import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
+import { requireStaffGroup } from '$lib/server/auth/guards';
 
 type PlanningEvent = RequestEvent<{ id: string }>;
 
-// Every planning mutation needs both gates: the campus must have the planning
-// feature on, and the actor must be a workspace lead. Keeping them in one
-// helper stops the two from drifting apart across the ~10 actions below.
+// Planning is the pedago build tool (no campus flag anymore: dev/talent
+// visibility is data-driven). Mutations only require the actor to be a workspace
+// lead. Kept in one helper so the ~10 actions below can't drift apart.
 function requirePlanningLead(locals: App.Locals) {
-  requireFlag(locals, 'planning');
   requireStaffGroup(locals, 'leads');
 }
 
