@@ -72,8 +72,8 @@
     canEdit: boolean;
     /** Anchors notes created from this screen to the event (see NotesDialog). */
     eventId: string;
-    /** Event's Jump-owned cohort noun ("stagiaire" / "participant"). */
-    cohortNoun: string;
+    /** Event's Jump-owned cohort noun ("stagiaire", ...), or null when unnamed. */
+    cohortNoun: string | null;
     /** Campus IANA timezone, forwarded to the notes dialog for byline times. */
     timezone: string;
     activeSlotKey: string;
@@ -339,6 +339,7 @@
           filtersAlign="end"
           count={filtered.length}
           countNoun={noun.singular}
+          countNounPlural={noun.plural}
           {countSuffix}
         >
           {#snippet filters()}

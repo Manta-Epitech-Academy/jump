@@ -45,7 +45,7 @@
     currentStaffId,
   }: EntretiensCohort & {
     eventId: string;
-    cohortNoun: string;
+    cohortNoun: string | null;
     timezone: string;
     currentStaffId: string | null;
   } = $props();

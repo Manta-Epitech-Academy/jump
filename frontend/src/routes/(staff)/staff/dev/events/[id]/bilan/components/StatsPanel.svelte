@@ -12,7 +12,7 @@
     respondedCount: number;
     total: number;
     stats: FormStats | null;
-    cohortNoun: string;
+    cohortNoun: string | null;
   } = $props();
 
   // Event's Jump-owned cohort noun ("stagiaire" / "participant").

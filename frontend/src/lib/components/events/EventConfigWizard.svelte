@@ -23,19 +23,13 @@
   import * as Select from '$lib/components/ui/select';
   import InfoTooltip from '$lib/components/ui/info-tooltip/InfoTooltip.svelte';
   import EventModuleIcon from '$lib/components/events/EventModuleIcon.svelte';
-  import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
   import {
     EVENT_MODULE_DEFS,
     EVENT_MODULE_KEYS,
     defaultModuleSettings,
     type EventModuleKey,
   } from '$lib/domain/eventModules';
-  import {
-    COHORT_NOUNS,
-    effectiveStartMinutes,
-    minutesToHHMM,
-    suggestedCohortNoun,
-  } from '$lib/domain/event';
+  import { effectiveStartMinutes, minutesToHHMM } from '$lib/domain/event';
   import type { AdminEventForm } from '$lib/validation/events';
   import { enhance as kitEnhance, deserialize } from '$app/forms';
   import { toast } from 'svelte-sonner';
@@ -46,7 +40,7 @@
     id: string;
     titre: string;
     publicName: string;
-    cohortNoun: string;
+    cohortNoun: string | null;
     eventType: string;
     eventTypeLabel: string;
     campusName: string;
@@ -66,7 +60,7 @@
     description: string | null;
     forEventType: string | null;
     publicName: string | null;
-    cohortNoun: string;
+    cohortNoun: string | null;
     startTime: string;
     feedbackFormId: string | null;
     modules: EventModuleKey[];
@@ -138,12 +132,11 @@
   function prefill(e: EditingEvent) {
     $form.id = e.id;
     $form.publicName = e.publicName;
-    // A never-configured event's stored noun is still the neutral default, so seed
-    // it from the SF type's suggestion ("Stagiaires" for a stage) for the admin to
-    // confirm; an already-configured event keeps the value staff chose. This is the
-    // only place the SF type touches the noun.
-    $form.cohortNoun =
-      e.modules.length === 0 ? suggestedCohortNoun(e.eventType) : e.cohortNoun;
+    // The persisted noun, or '' when the event was never named (the field then
+    // shows its placeholder). The SF type is never consulted here: a per-type
+    // default rides the config template the admin starts from (the stage template
+    // carries "stagiaire"), and an event keeps whatever staff last set.
+    $form.cohortNoun = e.cohortNoun ?? '';
     $form.startTime = e.startTime;
     $form.endDate = e.endDate;
     $form.modules = [...e.modules];
@@ -202,7 +195,7 @@
     // edit on step 2. Empty falls back as usual (publicName → SF titre, startTime
     // → the type default).
     $form.publicName = t.publicName ?? '';
-    $form.cohortNoun = t.cohortNoun;
+    $form.cohortNoun = t.cohortNoun ?? '';
     $form.startTime = t.startTime ?? '';
     selectedTemplateId = t.id;
     step = 2;
@@ -627,20 +620,18 @@
             </div>
 
             <div class="space-y-2">
-              <Label class="flex items-center gap-1.5">
+              <Label for="cohortNoun" class="flex items-center gap-1.5">
                 Comment nommer les inscrits ?
                 <InfoTooltip
-                  text="Le mot employé partout dans l'espace dev pour désigner un inscrit (liste, émargement, entretiens, feedback). Indépendant du type Salesforce : à vous de le choisir, même si le type a été mal renseigné."
+                  text="Le mot employé partout dans l'espace dev pour désigner un inscrit, au singulier (liste, émargement, entretiens, feedback). Indépendant du type Salesforce : à vous de le choisir, même si le type a été mal renseigné."
                 />
               </Label>
-              <SegmentedFilter
-                ariaLabel="Nom donné aux inscrits"
-                value={$form.cohortNoun}
-                onChange={(v) => ($form.cohortNoun = v)}
-                options={[
-                  { value: COHORT_NOUNS.STAGIAIRE, label: 'Stagiaires' },
-                  { value: COHORT_NOUNS.PARTICIPANT, label: 'Participants' },
-                ]}
+              <Input
+                id="cohortNoun"
+                bind:value={$form.cohortNoun}
+                placeholder="participant, stagiaire, collégien…"
+                maxlength={40}
+                autocomplete="off"
               />
               {#if $errors.cohortNoun}<span class="text-xs text-destructive"
                   >{$errors.cohortNoun}</span
@@ -1068,7 +1059,7 @@
               description: templateDescription.trim() || null,
               forEventType: editing?.eventType ?? null,
               publicName: $form.publicName.trim() || null,
-              cohortNoun: $form.cohortNoun,
+              cohortNoun: $form.cohortNoun.trim() || null,
               startTime: $form.startTime,
               // Mirror the snapshot's bilan gate, so the optimistic row matches
               // what the server actually stored.

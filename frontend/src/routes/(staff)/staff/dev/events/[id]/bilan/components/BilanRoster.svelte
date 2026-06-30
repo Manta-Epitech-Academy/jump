@@ -26,7 +26,7 @@
     rows: BilanRow[];
     recoOptions: string[];
     eventId: string;
-    cohortNoun: string;
+    cohortNoun: string | null;
   } = $props();
 
   // Event's Jump-owned cohort noun ("stagiaire" / "participant").
@@ -184,6 +184,7 @@
     filtersAlign="end"
     count={filtered.length}
     countNoun={noun.singular}
+    countNounPlural={noun.plural}
     {countSuffix}
   >
     {#snippet filters()}

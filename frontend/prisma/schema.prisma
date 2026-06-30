@@ -751,13 +751,16 @@ model Event {
   // Admin-set today; the worker may seed it from SF later (plain nullable field
   // so a future no-clobber sync can write it, like the other reconciled fields).
   publicName     String?
-  // What one member of this event's cohort is called across the dev workspace:
-  // "stagiaire" for a stage de seconde, "participant" otherwise. Jump-owned and
-  // set in the event config wizard, NOT derived from `eventType`: the SF type is
-  // only a hint (it can be mis-entered and we can't correct it), so the noun is
-  // read straight off this column. The wizard merely SUGGESTS a default from the
-  // type (see `suggestedCohortNoun`); nothing reads `eventType` to render copy.
-  cohortNoun     String    @default("participant")
+  // What one member of this event's cohort is called across the dev workspace
+  // ("stagiaire", "participant", "collégien", ...). Jump-owned free text typed in
+  // the event config wizard, NOT derived from `eventType`: the SF type is only a
+  // hint (it can be mis-entered and we can't correct it), so the noun is read
+  // straight off this column. Nothing maps `eventType` to a noun anywhere; a
+  // per-type default rides the config template staff start from. NULL means "not
+  // named yet" (an unconfigured event): the UI falls back to the neutral default
+  // ("participant") via `cohortNounForms`, so the column never asserts an unmade
+  // choice. Past stages were backfilled to "stagiaire" (a real historical value).
+  cohortNoun     String?
   date           DateTime
   // Salesforce gives us the calendar day (`date`/`endDate`) but never a
   // start time, so the time-of-day is Jump-owned: wall-clock minutes from
@@ -852,9 +855,10 @@ model EventConfig_Template {
   // makes the admin retype the same string. Like the live `Event.publicName`,
   // applying it is a point-in-time copy; `null` = the event keeps the SF `titre`.
   publicName     String?
-  // Cohort noun the preset carries ("stagiaire" / "participant"), copied onto the
-  // event on apply like the other config fields. Mirrors `Event.cohortNoun`.
-  cohortNoun     String   @default("participant")
+  // Cohort noun the preset carries ("stagiaire", ...), copied onto the event on
+  // apply like the other config fields. Mirrors `Event.cohortNoun`; `null` = the
+  // preset names no cohort (the applied event falls back to the neutral default).
+  cohortNoun     String?
   // Jump-owned arrival time-of-day the preset carries, in wall-clock minutes from
   // local midnight (0-1439), `null` = none (the event falls back to the type
   // default). Mirrors `Event.startMinutes`; copied onto the event on apply.

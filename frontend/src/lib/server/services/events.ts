@@ -165,7 +165,9 @@ export const EventService = {
         where: { id: eventId },
         data: {
           publicName: data.publicName.trim() || null,
-          cohortNoun: data.cohortNoun,
+          // Blank → NULL ("not named yet"); the UI falls back to the neutral
+          // default, so the column never asserts an unmade choice.
+          cohortNoun: data.cohortNoun.trim() || null,
           startMinutes: hhmmToMinutes(data.startTime),
           endDate,
           devActivatedAt,

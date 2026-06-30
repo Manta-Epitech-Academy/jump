@@ -7,7 +7,7 @@
   import * as Card from '$lib/components/ui/card';
   import { cohortNounForms } from '$lib/domain/event';
 
-  let { cohortNoun }: { cohortNoun: string } = $props();
+  let { cohortNoun }: { cohortNoun: string | null } = $props();
   const noun = $derived(cohortNounForms(cohortNoun));
 
   // Static how-it-works card. Each line names the actual on-screen control

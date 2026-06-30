@@ -16,7 +16,7 @@
   }: {
     open: boolean;
     row: PresenceRow | null;
-    cohortNoun: string;
+    cohortNoun: string | null;
   } = $props();
 
   const noun = $derived(cohortNounForms(cohortNoun));

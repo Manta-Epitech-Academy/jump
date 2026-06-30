@@ -41,8 +41,8 @@ export type AdminEventVM = {
   publicName: string;
   /** What the dev space / talents see today: publicName or the SF titre. */
   displayName: string;
-  /** Jump-owned cohort noun ("stagiaire" / "participant"); set in the wizard. */
-  cohortNoun: string;
+  /** Jump-owned cohort noun ("stagiaire", ...), or null when unnamed; set in the wizard. */
+  cohortNoun: string | null;
   eventType: string;
   eventTypeLabel: string;
   campusId: string;

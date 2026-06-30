@@ -83,7 +83,7 @@
       id: string;
       titre: string;
       externalId: string | null;
-      cohortNoun: string;
+      cohortNoun: string | null;
     };
     // Inscrits sub-option: campuses that don't onboard (e.g. Paris) hide the
     // dossier/statut funnel column so it isn't dead noise. Gates only this column
@@ -472,6 +472,7 @@
         filtersAlign="end"
         count={filtered.length}
         countNoun={noun.singular}
+        countNounPlural={noun.plural}
         {countSuffix}
       >
         {#snippet filters()}
