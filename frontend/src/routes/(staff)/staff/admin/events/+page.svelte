@@ -15,6 +15,7 @@
   import * as Table from '$lib/components/ui/table';
   import EventModulesCell from '$lib/components/events/EventModulesCell.svelte';
   import EventModuleIcon from '$lib/components/events/EventModuleIcon.svelte';
+  import EventStateBadge from '$lib/components/events/EventStateBadge.svelte';
   import EventConfigWizard from '$lib/components/events/EventConfigWizard.svelte';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
@@ -34,8 +35,6 @@
     type EventModuleKey,
   } from '$lib/domain/eventModules';
   import {
-    EVENT_CONFIG_STATE_LABELS,
-    EVENT_CONFIG_STATE_HINTS,
     isEventToPrepare,
     type EventConfigState,
   } from '$lib/domain/eventReadiness';
@@ -43,7 +42,9 @@
   import type { SubmitFunction } from '@sveltejs/kit';
   import { SvelteSet } from 'svelte/reactivity';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
-  import * as Tooltip from '$lib/components/ui/tooltip';
+  import { page } from '$app/state';
+  import { replaceState } from '$app/navigation';
+  import { untrack } from 'svelte';
   import type { AdminEventVM } from './+page.server';
 
   let { data } = $props();
@@ -113,20 +114,6 @@
     ready: 1,
     shown: 2,
   };
-
-  // The État badge colour. Past events mute to grey: their config state is
-  // historical, not a to-do, so it shouldn't alarm in amber.
-  function stateBadgeClass(state: EventConfigState, isPast: boolean): string {
-    if (isPast) return 'border-border text-muted-foreground';
-    switch (state) {
-      case 'shown':
-        return 'border-emerald-500/40 text-emerald-600';
-      case 'ready':
-        return 'border-blue-500/40 text-blue-600';
-      case 'unconfigured':
-        return 'border-amber-500/50 text-amber-600';
-    }
-  }
 
   function toggleSort(key: string) {
     if (sortKey === key) {
@@ -267,6 +254,19 @@
     editing = e;
     open = true;
   }
+
+  // Deep-link from the admin dashboard: `?event=<id>` opens that event's config
+  // wizard straight away, then the param is stripped so a reload (or closing the
+  // dialog) doesn't reopen it. The dashboard's recent-events feed links here.
+  $effect(() => {
+    const id = page.url.searchParams.get('event');
+    if (!id) return;
+    const match = untrack(() => data.events.find((e) => e.id === id));
+    if (match) untrack(() => openEdit(match));
+    const url = new URL(page.url);
+    url.searchParams.delete('event');
+    replaceState(url, page.state);
+  });
 
   // ─── Bulk module edit (over the list selection) ──────────────────────────
   const selected = new SvelteSet<string>();
@@ -548,31 +548,6 @@
     </div>
   {/if}
 
-  {#snippet statusBadge(e: AdminEventVM)}
-    {@const isPast = e.status === 'past'}
-    <Tooltip.Provider delayDuration={200}>
-      <Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props })}
-            <Badge
-              {...props}
-              variant="outline"
-              class="shrink-0 text-[10px] font-normal {stateBadgeClass(
-                e.configState,
-                isPast,
-              )}"
-            >
-              {EVENT_CONFIG_STATE_LABELS[e.configState]}
-            </Badge>
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content class="max-w-56 text-xs">
-          {EVENT_CONFIG_STATE_HINTS[e.configState]}
-        </Tooltip.Content>
-      </Tooltip.Root>
-    </Tooltip.Provider>
-  {/snippet}
-
   <SortableTable
     {columns}
     {rows}
@@ -606,7 +581,9 @@
           </span>
         {/if}
       </Table.Cell>
-      <Table.Cell>{@render statusBadge(e)}</Table.Cell>
+      <Table.Cell>
+        <EventStateBadge state={e.configState} past={e.status === 'past'} />
+      </Table.Cell>
       <Table.Cell class="text-muted-foreground">{e.campusName}</Table.Cell>
       <Table.Cell class="text-xs text-muted-foreground"
         >{e.eventTypeLabel}</Table.Cell
@@ -668,7 +645,7 @@
       </div>
       <div class="mt-3 flex items-center gap-2">
         <EventModulesCell modules={e.modules} />
-        {@render statusBadge(e)}
+        <EventStateBadge state={e.configState} past={e.status === 'past'} />
         <span class="ml-auto text-xs text-muted-foreground tabular-nums">
           {e.participations} inscrits
         </span>

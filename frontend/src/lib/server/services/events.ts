@@ -1,13 +1,192 @@
 import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { hhmmToMinutes } from '$lib/domain/event';
+import {
+  eventTypeLabel,
+  hhmmToMinutes,
+  minutesToHHMM,
+} from '$lib/domain/event';
 import {
   isEventModuleKey,
   parseModuleSettings,
   type EventModuleKey,
 } from '$lib/domain/eventModules';
-import { fromWallClock } from '$lib/domain/planningTime';
+import { fromWallClock, toDateKey } from '$lib/domain/planningTime';
+import {
+  getLifecycleBounds,
+  type LifecycleBounds,
+  type EventLifecycleStatus,
+} from '$lib/domain/eventLifecycle';
+import { resolveEventStatus } from './stageContext';
+import {
+  eventConfigState,
+  type EventConfigState,
+} from '$lib/domain/eventReadiness';
+import { schoolYearOf } from '$lib/domain/schoolYear';
+
+/**
+ * The per-event view model the admin surfaces consume: the events cockpit
+ * (`/staff/admin/events`) and the admin dashboard's "recently created" feed.
+ * Both read the same shape so their badges, statuses and readiness can't drift
+ * apart - the cockpit is the authoritative renderer, the dashboard a 5-row
+ * preview of it. Built by `EventService.listAdminEvents`.
+ */
+export type AdminEventVM = {
+  id: string;
+  titre: string;
+  publicName: string;
+  /** What the dev space / talents see today: publicName or the SF titre. */
+  displayName: string;
+  /** Jump-owned cohort noun ("stagiaire", ...), or null when unnamed; set in the wizard. */
+  cohortNoun: string | null;
+  eventType: string;
+  eventTypeLabel: string;
+  campusId: string;
+  campusName: string;
+  /** "12 fév. 2026 → 26 fév. 2026" (campus tz), endDate omitted when absent. */
+  dateLabel: string;
+  /** Epoch ms of the start date, for client-side sorting on the Dates column. */
+  dateTs: number;
+  /** Epoch ms of row creation, for the dashboard's "recently created" order. */
+  createdTs: number;
+  /** Start day `YYYY-MM-DD` (campus tz): the end-date input's `min`. */
+  startDateKey: string;
+  schoolYearLabel: string;
+  schoolYearStart: number;
+  /** "HH:MM" Jump-owned start, or "" when unset (shows the type default). */
+  startTime: string;
+  /** Lifecycle bucket in the event's own campus tz: à venir / en cours / passé. */
+  status: EventLifecycleStatus;
+  /** Linked to a Salesforce campaign (`externalId`); false = admin-created. */
+  synced: boolean;
+  /**
+   * Raw activation gate (`devActivatedAt`): the admin has claimed the event for
+   * the dev cohort. This alone does NOT make it visible - that also needs >=1
+   * module, at which point `configState` becomes `shown`. Drives the wizard's
+   * visibility toggle (the page reads the state through `configState`).
+   */
+  devActivated: boolean;
+  /**
+   * The event's configuration state (à configurer / prêt à publier / visible),
+   * a pure projection of (modules, activation). Single source for the admin
+   * "État" badge and the "À préparer" cue + filter. `shown` mirrors
+   * `resolveWorkspaceEvents`' membership rule, so the admin and the dev space
+   * agree on what "in the dev space" means.
+   */
+  configState: EventConfigState;
+  /** End day `YYYY-MM-DD` (campus tz) for the form, or "" when unset. */
+  endDate: string;
+  modules: EventModuleKey[];
+  /** Per-module sub-options keyed by module key (only enabled modules carry one). */
+  moduleSettings: Record<string, unknown>;
+  /** Per-event feedback form override (id), or "" = use the type default. */
+  feedbackFormId: string;
+  participations: number;
+};
+
+// Cross-campus: admins see every campus. The dev workspace, by contrast, only
+// ever reads its own campus via scopedPrisma.
+const ADMIN_EVENT_SELECT = {
+  id: true,
+  titre: true,
+  publicName: true,
+  cohortNoun: true,
+  date: true,
+  endDate: true,
+  startMinutes: true,
+  eventType: true,
+  externalId: true,
+  devActivatedAt: true,
+  feedbackFormId: true,
+  campusId: true,
+  createdAt: true,
+  campus: { select: { name: true, timezone: true } },
+  modules: { select: { moduleKey: true, settings: true } },
+  _count: { select: { participations: true } },
+} satisfies Prisma.EventSelect;
+
+type AdminEventRow = Prisma.EventGetPayload<{
+  select: typeof ADMIN_EVENT_SELECT;
+}>;
+
+function dateRangeLabel(
+  date: Date,
+  endDate: Date | null,
+  timezone: string,
+): string {
+  const fmt = new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: timezone,
+  });
+  const start = fmt.format(date);
+  if (!endDate) return start;
+  const end = fmt.format(endDate);
+  return start === end ? start : `${start} → ${end}`;
+}
+
+function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
+  // Lifecycle bounds are timezone-dependent and the list is cross-campus, so
+  // memoize one bounds object per distinct campus tz instead of recomputing it
+  // for every row.
+  const boundsByTz = new Map<string, LifecycleBounds>();
+  const boundsFor = (tz: string): LifecycleBounds => {
+    let b = boundsByTz.get(tz);
+    if (!b) {
+      b = getLifecycleBounds(tz);
+      boundsByTz.set(tz, b);
+    }
+    return b;
+  };
+
+  return rows.map((e) => {
+    const tz = e.campus.timezone;
+    const sy = schoolYearOf(e.date, tz);
+    const startDateKey = toDateKey(e.date, tz);
+    // Same stage-default-window rule as the dev workspace (see
+    // `resolveEventStatus`): a running SF-synced stage carries no endDate and
+    // must not read `past`, so the cockpit and the dev space agree.
+    const status = resolveEventStatus(e, boundsFor(tz));
+    const present = e.modules.filter((m) => isEventModuleKey(m.moduleKey));
+    const modules = present.map((m) => m.moduleKey as EventModuleKey);
+    const moduleSettings: Record<string, unknown> = {};
+    for (const m of present) {
+      const key = m.moduleKey as EventModuleKey;
+      moduleSettings[key] = parseModuleSettings(key, m.settings);
+    }
+    return {
+      id: e.id,
+      titre: e.titre,
+      publicName: e.publicName ?? '',
+      displayName: e.publicName?.trim() || e.titre,
+      cohortNoun: e.cohortNoun,
+      eventType: e.eventType,
+      eventTypeLabel: eventTypeLabel(e.eventType),
+      campusId: e.campusId,
+      campusName: e.campus.name,
+      dateLabel: dateRangeLabel(e.date, e.endDate, tz),
+      dateTs: e.date.getTime(),
+      createdTs: e.createdAt.getTime(),
+      startDateKey,
+      schoolYearLabel: sy.label,
+      schoolYearStart: sy.startYear,
+      startTime: minutesToHHMM(e.startMinutes),
+      status,
+      synced: e.externalId != null,
+      devActivated: e.devActivatedAt != null,
+      configState: eventConfigState({
+        devActivated: e.devActivatedAt != null,
+        moduleCount: modules.length,
+      }),
+      endDate: e.endDate ? toDateKey(e.endDate, tz) : '',
+      modules,
+      moduleSettings,
+      feedbackFormId: e.feedbackFormId ?? '',
+      participations: e._count.participations,
+    };
+  });
+}
 
 /**
  * Diffs an event's `EventConfig_Module` rows against the desired set inside an
@@ -96,6 +275,20 @@ async function validateMantaIds(campusId: string, mantaIds: string[]) {
 }
 
 export const EventService = {
+  /**
+   * Every event as an `AdminEventVM`, newest start date first, cross-campus.
+   * Powers the events cockpit (full list) and the admin dashboard (which slices
+   * the most recently created off this same list and counts the "à préparer"
+   * bucket), so both read one source of truth for status + readiness.
+   */
+  async listAdminEvents(): Promise<AdminEventVM[]> {
+    const rows = await prisma.event.findMany({
+      orderBy: { date: 'desc' },
+      select: ADMIN_EVENT_SELECT,
+    });
+    return buildAdminEventVMs(rows);
+  },
+
   /**
    * Admin event configuration: the friendly `publicName`, the Jump-owned start
    * time-of-day and end date, and the dev-workspace surfaces the event exposes,
