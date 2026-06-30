@@ -352,7 +352,7 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     //    referenced by rows that fall away with it: bauth_session / bauth_account
     //    (cascade, and cleared just below) and the Talent itself (SetNull, already
     //    nulled). Every other FK onto bauth_user is staff-authored content
-    //    (TicketMessage.author, CmsPage, Broadcast, StaffInvitation,
+    //    (TicketMessage.author, NewsPost, Broadcast, StaffInvitation,
     //    MessageTemplate), so a student holds none and the delete can't trip a
     //    P2003. Note TicketMessage.author has no onDelete, so it would block this
     //    delete the moment a student authored one: revisit here if students ever

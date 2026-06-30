@@ -5,10 +5,9 @@ import { getStorage } from '$lib/server/infra/storage';
 // `/api/cms/images/<id>`. The content is the single source of truth for which
 // images are in use; an image referenced by no content is garbage.
 //
-// The sweep scans every `CmsPage` row (today that is exactly the welcome pages,
-// the only slug in use), so do not narrow it to a slug filter. Treating
-// unreferenced images as orphans is sound *because* image upload is gated to the
-// welcome editors (`CmsEditor`'s `allowImageUpload` prop, on for welcome only).
+// The sweep scans every `NewsPost` row, so do not narrow it to a slug filter.
+// Treating unreferenced images as orphans is sound *because* image upload is
+// gated to the news-post editors (`CmsEditor`'s `allowImageUpload` prop).
 // The shared editor is also mounted on activity and template surfaces, whose
 // content lives in other tables this sweep never reads; if upload is ever
 // enabled there, an uploaded image would be reclaimed as a false orphan.
@@ -25,8 +24,8 @@ export function extractCmsImageIds(html: string): string[] {
 
 /**
  * Delete CMS images that are older than `staleAfterMs` and referenced by no
- * welcome page: abandoned uploads, images edited out of a message, and rows
- * whose page was deleted. Frees both the row and the S3 object. Returns the
+ * news post: abandoned uploads, images edited out of a post, and rows
+ * whose post was deleted. Frees both the row and the S3 object. Returns the
  * number reclaimed.
  *
  * This is the one reconciliation point for CMS images, and it is necessary
@@ -46,10 +45,10 @@ export async function sweepOrphanCmsImages(
   if (stale.length === 0) return 0;
 
   // Build the set of ids still referenced anywhere, then keep only the orphans.
-  const pages = await prisma.cmsPage.findMany({ select: { content: true } });
+  const posts = await prisma.newsPost.findMany({ select: { content: true } });
   const referenced = new Set<string>();
-  for (const page of pages) {
-    for (const id of extractCmsImageIds(page.content)) referenced.add(id);
+  for (const post of posts) {
+    for (const id of extractCmsImageIds(post.content)) referenced.add(id);
   }
   const orphans = stale.filter((row) => !referenced.has(row.id));
   if (orphans.length === 0) return 0;

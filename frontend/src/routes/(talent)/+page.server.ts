@@ -15,12 +15,7 @@ import {
   getUnseenMinigameRankReward,
 } from '$lib/server/services/minigameService';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
-import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
-import {
-  stageWindowEnd,
-  STAGE_DEFAULT_DURATION_DAYS,
-  eventPublicName,
-} from '$lib/domain/event';
+import { renderNewsPost } from '$lib/domain/newsPost';
 import { pendingFeedbackForm } from '$lib/domain/feedback';
 import { resolveEventNudgeForm } from '$lib/server/feedbackForms';
 import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
@@ -155,68 +150,89 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       };
     }
 
-    // The staff-authored CMS welcome message seeds the dashboard's Actualités
-    // feed and shows for the whole stage window — this card is its only home.
-    // Distinct from the fixed pre-onboarding splash at /welcome, which owns its
-    // own copy and does not read this row.
-    let welcome: { content: string } | null = null;
+    // Recent non-expired news posts visible to this talent (up to 5 for the
+    // dashboard card; the full list lives at /actus).
+    const MAX_DASHBOARD_NEWS = 5;
+    let newsPosts: {
+      id: string;
+      title: string;
+      content: string;
+      publishedAt: string;
+      authorName: string;
+      authorImage: string | null;
+    }[] = [];
     {
-      // With several concurrent stages, prefer the ongoing one: filter to stages
-      // whose window is still open, then take the earliest-starting (an ongoing
-      // stage outranks a not-yet-started one). Window mirrors `stageWindowEnd`.
+      const talentCampusId = locals.talentCampusName
+        ? ((
+            await prisma.campus.findFirst({
+              where: { name: locals.talentCampusName },
+              select: { id: true },
+            })
+          )?.id ?? null)
+        : null;
+
       const now = new Date();
-      const windowLookback = new Date(
-        now.getTime() - STAGE_DEFAULT_DURATION_DAYS * 86_400_000,
-      );
-      const stageParticipation = await prisma.participation.findFirst({
+      const talentEventIds = await prisma.participation.findMany({
+        where: { talentId: locals.talent!.id },
+        select: { eventId: true },
+        distinct: ['eventId'],
+      });
+      const eventIdSet = new Set(talentEventIds.map((p) => p.eventId));
+
+      const posts = await prisma.newsPost.findMany({
         where: {
-          talentId: studentId,
-          event: {
-            eventType: 'stage_seconde',
-            OR: [
-              { endDate: { gte: now } },
-              { endDate: null, date: { gte: windowLookback } },
-            ],
-          },
+          AND: [
+            { OR: [{ campusId: talentCampusId }, { campusId: null }] },
+            { publishedAt: { lte: now } },
+            { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+            {
+              OR: [
+                { eventId: null },
+                ...(eventIdSet.size > 0
+                  ? [{ eventId: { in: [...eventIdSet] } }]
+                  : []),
+              ],
+            },
+          ],
         },
-        orderBy: { event: { date: 'asc' } },
+        orderBy: { publishedAt: 'desc' },
+        take: MAX_DASHBOARD_NEWS,
         select: {
+          id: true,
+          title: true,
+          content: true,
+          publishedAt: true,
+          author: {
+            select: {
+              user: { select: { name: true, image: true } },
+            },
+          },
           event: {
             select: {
-              id: true,
               titre: true,
-              publicName: true,
-              endDate: true,
-              date: true,
               campus: { select: { name: true, contactEmail: true } },
             },
           },
         },
       });
-      if (stageParticipation) {
-        const { event } = stageParticipation;
-        const stageEnd = stageWindowEnd(event.date, event.endDate);
-        if (stageEnd >= new Date()) {
-          const welcomePage = await prisma.cmsPage.findUnique({
-            where: { slug_eventId: { slug: 'welcome', eventId: event.id } },
-            select: { content: true },
-          });
-          if (welcomePage?.content) {
-            welcome = {
-              content: renderWelcomeMessage(welcomePage.content, {
-                prenom: locals.talent.prenom,
-                nom: locals.talent.nom,
-                campusName: event.campus.name,
-                campusContactEmail: event.campus.contactEmail,
-                stageName: eventPublicName({
-                  publicName: event.publicName,
-                  eventType: 'stage_seconde',
-                }),
-              }),
-            };
-          }
-        }
-      }
+
+      newsPosts = posts.map((post) => {
+        const campus = post.event?.campus;
+        return {
+          id: post.id,
+          title: post.title,
+          content: renderNewsPost(post.content, {
+            prenom: locals.talent!.prenom,
+            nom: locals.talent!.nom,
+            campusName: campus?.name ?? locals.talentCampusName ?? '',
+            campusContactEmail: campus?.contactEmail ?? null,
+            stageName: post.event?.titre ?? null,
+          }),
+          publishedAt: post.publishedAt.toISOString(),
+          authorName: post.author?.user?.name ?? 'Staff',
+          authorImage: post.author?.user?.image ?? null,
+        };
+      });
     }
 
     // Feedback banner: check if the stage_seconde event has pending feedback
@@ -287,7 +303,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       minigameReward,
       minigameRankReward,
       onboardingArrival,
-      welcome,
+      newsPosts,
       pendingFeedback,
     };
   } catch (err) {

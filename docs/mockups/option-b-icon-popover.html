@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Option B - Icones + Popover</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; background: #f8fafc; color: #0f172a; height: 100vh; overflow: hidden; }
+
+  .layout { display: flex; height: 100vh; }
+
+  /* Top header */
+  .header {
+    position: fixed; top: 0; left: 0; right: 0; height: 56px; z-index: 50;
+    background: #020617; border-bottom: 1px solid #1e293b;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 20px;
+  }
+  .header-brand { display: flex; align-items: center; gap: 12px; }
+  .header-brand .logo { font-size: 18px; font-weight: 900; color: #f472b6; letter-spacing: 2px; }
+  .header-brand .sublabel { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 3px; color: #64748b; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .header-btn { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 6px 10px; border-radius: 6px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+  .header-btn:hover { background: #1e293b; color: #e2e8f0; }
+  .header-btn kbd { background: #1e293b; border: 1px solid #334155; border-radius: 4px; padding: 1px 6px; font-size: 10px; color: #64748b; }
+  .avatar { width: 32px; height: 32px; border-radius: 6px; background: #1e293b; border: 1px solid #334155; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #f472b6; }
+
+  /* Icon rail - narrow */
+  .icon-rail {
+    width: 56px; flex-shrink: 0; background: #020617; border-right: 1px solid #1e293b;
+    display: flex; flex-direction: column; align-items: center; padding-top: 68px; gap: 2px;
+    position: relative; z-index: 40;
+  }
+  .rail-item { position: relative; }
+  .rail-btn {
+    width: 40px; height: 40px; border-radius: 8px; border: none; background: none;
+    color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; transition: all 0.15s; position: relative;
+  }
+  .rail-btn:hover { background: #1e293b; color: #e2e8f0; }
+  .rail-btn.active { color: #f472b6; background: rgba(244,114,182,0.15); }
+  .rail-btn .notif {
+    position: absolute; top: 4px; right: 4px; width: 8px; height: 8px;
+    background: #ef4444; border-radius: 50%; border: 2px solid #020617;
+  }
+  .rail-sep { width: 24px; height: 1px; background: #1e293b; margin: 6px 0; }
+  .rail-label {
+    font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    color: #475569; margin-top: -2px;
+  }
+
+  /* Popover */
+  .popover {
+    display: none; position: absolute; left: 52px; top: 0;
+    background: #0f172a; border: 1px solid #1e293b; border-radius: 10px;
+    padding: 8px 0; min-width: 220px; box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+    z-index: 100;
+  }
+  .rail-item:hover .popover { display: block; }
+  .popover-title {
+    font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;
+    color: #64748b; padding: 6px 14px 6px;
+  }
+  .popover-title .accent { color: #f472b6; }
+  .popover-link {
+    display: flex; align-items: center; gap: 8px; padding: 6px 14px; margin: 1px 6px;
+    border-radius: 6px; color: #94a3b8; text-decoration: none; font-size: 12px; font-weight: 600;
+    transition: all 0.1s; white-space: nowrap;
+  }
+  .popover-link:hover { background: #1e293b; color: #e2e8f0; }
+  .popover-link.active { color: #f472b6; }
+  .popover-link .icon { font-size: 13px; width: 16px; text-align: center; }
+  .popover-link .badge {
+    margin-left: auto; background: #f472b6; color: white; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px;
+  }
+  .popover-link .badge.danger { background: #ef4444; }
+
+  /* Main content */
+  .main { flex: 1; padding-top: 56px; overflow-y: auto; }
+  .main-inner { padding: 32px; }
+  .main h1 { font-size: 28px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
+  .main h1 .accent { color: #f472b6; }
+  .main p { color: #64748b; margin-top: 8px; font-size: 13px; }
+  .placeholder-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 24px; }
+  .placeholder-card { background: white; border-radius: 12px; padding: 24px; border: 1px solid #e2e8f0; }
+  .placeholder-card h3 { font-size: 13px; color: #334155; font-weight: 700; }
+  .placeholder-card .num { font-size: 32px; font-weight: 900; color: #0f172a; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">
+    <span class="logo">{EPITECH}</span>
+    <span class="sublabel">Admin</span>
+  </div>
+  <div class="header-right">
+    <button class="header-btn"><span>&#128269;</span> Rechercher <kbd>⌘K</kbd></button>
+    <div class="avatar">&#128737;</div>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="icon-rail">
+    <div class="rail-item">
+      <button class="rail-btn active" title="Dashboard">&#9634;</button>
+    </div>
+    <div class="rail-sep"></div>
+    <div class="rail-item">
+      <button class="rail-btn" title="Systeme">&#9881;<span class="notif"></span></button>
+      <div class="popover">
+        <div class="popover-title">Systeme<span class="accent">_</span></div>
+        <a class="popover-link" href="#"><span class="icon">&#9634;</span> Vue d'ensemble</a>
+        <a class="popover-link" href="#"><span class="icon">&#9888;</span> Erreurs de Sync</a>
+        <a class="popover-link" href="#"><span class="icon">&#8651;</span> Divergences SF <span class="badge danger">3</span></a>
+        <a class="popover-link" href="#"><span class="icon">&#128196;</span> PDF Onboarding</a>
+        <a class="popover-link" href="#"><span class="icon">&#128203;</span> PDF Entretiens</a>
+        <a class="popover-link" href="#"><span class="icon">&#127890;</span> Tickets <span class="badge">2</span></a>
+        <a class="popover-link" href="#"><span class="icon">&#128193;</span> [DEV] S3 Test</a>
+      </div>
+    </div>
+    <div class="rail-item">
+      <button class="rail-btn" title="Communication">&#128227;</button>
+      <div class="popover">
+        <div class="popover-title">Communication<span class="accent">_</span></div>
+        <a class="popover-link" href="#"><span class="icon">&#128227;</span> Vue d'ensemble</a>
+        <a class="popover-link" href="#"><span class="icon">&#128228;</span> Envoi en masse</a>
+        <a class="popover-link" href="#"><span class="icon">&#9993;</span> Templates</a>
+        <a class="popover-link" href="#"><span class="icon">&#128231;</span> Mails transactionnels</a>
+        <a class="popover-link" href="#"><span class="icon">&#128337;</span> Relances</a>
+        <a class="popover-link" href="#"><span class="icon">&#128682;</span> Pages d'accueil</a>
+      </div>
+    </div>
+    <div class="rail-item">
+      <button class="rail-btn" title="Organisation">&#127970;</button>
+      <div class="popover">
+        <div class="popover-title">Organisation<span class="accent">_</span></div>
+        <a class="popover-link" href="#"><span class="icon">&#127758;</span> Reseau Campus</a>
+        <a class="popover-link" href="#"><span class="icon">&#9997;</span> Signataires</a>
+        <a class="popover-link" href="#"><span class="icon">&#128101;</span> Membres & invitations</a>
+        <a class="popover-link" href="#"><span class="icon">&#127891;</span> Talents</a>
+        <a class="popover-link" href="#"><span class="icon">&#128221;</span> Notes</a>
+        <a class="popover-link" href="#"><span class="icon">&#128683;</span> Suppressions <span class="badge">1</span></a>
+      </div>
+    </div>
+    <div class="rail-item">
+      <button class="rail-btn" title="Pedagogie">&#128218;</button>
+      <div class="popover">
+        <div class="popover-title">Pedagogie<span class="accent">_</span></div>
+        <a class="popover-link" href="#"><span class="icon">&#128196;</span> Templates</a>
+        <a class="popover-link" href="#"><span class="icon">&#127991;</span> Themes</a>
+        <a class="popover-link" href="#"><span class="icon">&#10084;</span> Centres d'interet</a>
+        <a class="popover-link" href="#"><span class="icon">&#128197;</span> Modeles de Planning</a>
+        <a class="popover-link" href="#"><span class="icon">&#127918;</span> Mini-jeux</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="main-inner">
+      <h1>Vue d'ensemble<span class="accent">_</span></h1>
+      <p>&lt;Panneau d'administration global/&gt;</p>
+      <div class="placeholder-grid">
+        <div class="placeholder-card"><h3>Talents inscrits</h3><div class="num">247</div></div>
+        <div class="placeholder-card"><h3>Entretiens finalises</h3><div class="num">89</div></div>
+        <div class="placeholder-card"><h3>Tickets ouverts</h3><div class="num">5</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

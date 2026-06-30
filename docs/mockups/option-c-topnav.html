@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Option C - Top-nav mega-menu</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; background: #f8fafc; color: #0f172a; height: 100vh; overflow: hidden; }
+
+  /* Header bar 1: brand + user */
+  .header-top {
+    height: 48px; background: #020617; border-bottom: 1px solid #1e293b;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 20px;
+  }
+  .header-brand { display: flex; align-items: center; gap: 12px; }
+  .header-brand .logo { font-size: 18px; font-weight: 900; color: #f472b6; letter-spacing: 2px; }
+  .header-brand .sublabel { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 3px; color: #64748b; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .header-btn { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 6px 10px; border-radius: 6px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+  .header-btn:hover { background: #1e293b; color: #e2e8f0; }
+  .header-btn kbd { background: #1e293b; border: 1px solid #334155; border-radius: 4px; padding: 1px 6px; font-size: 10px; color: #64748b; }
+  .avatar { width: 32px; height: 32px; border-radius: 6px; background: #1e293b; border: 1px solid #334155; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #f472b6; }
+
+  /* Header bar 2: navigation */
+  .header-nav {
+    height: 40px; background: #0f172a; border-bottom: 1px solid #1e293b;
+    display: flex; align-items: center; padding: 0 20px; gap: 2px;
+  }
+  .nav-item { position: relative; }
+  .nav-trigger {
+    background: none; border: none; color: #94a3b8; cursor: pointer;
+    padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 5px;
+    transition: all 0.1s;
+  }
+  .nav-trigger:hover { background: #1e293b; color: #e2e8f0; }
+  .nav-trigger.active { color: #f472b6; }
+  .nav-trigger .chevron { font-size: 8px; transition: transform 0.15s; }
+  .nav-trigger .notif-dot {
+    width: 6px; height: 6px; background: #ef4444; border-radius: 50;
+    display: inline-block; margin-left: 2px;
+    width: 6px; height: 6px; background: #ef4444; border-radius: 50%;
+  }
+  .nav-home {
+    background: none; border: none; color: #64748b; cursor: pointer;
+    padding: 6px 12px; border-radius: 6px; font-size: 15px; transition: all 0.1s;
+  }
+  .nav-home:hover { background: #1e293b; color: #e2e8f0; }
+  .nav-home.active { color: #f472b6; }
+  .nav-sep { width: 1px; height: 20px; background: #1e293b; margin: 0 6px; }
+
+  /* Mega menu dropdown */
+  .mega-menu {
+    display: none; position: absolute; top: 100%; left: 0; margin-top: 4px;
+    background: #0f172a; border: 1px solid #1e293b; border-radius: 10px;
+    padding: 8px 0; min-width: 240px; box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+    z-index: 100;
+  }
+  .nav-item:hover .mega-menu { display: block; }
+  .mega-link {
+    display: flex; align-items: center; gap: 10px; padding: 7px 14px; margin: 1px 6px;
+    border-radius: 6px; color: #94a3b8; text-decoration: none; font-size: 12px; font-weight: 600;
+    transition: all 0.1s; white-space: nowrap;
+  }
+  .mega-link:hover { background: #1e293b; color: #e2e8f0; }
+  .mega-link.active { color: #f472b6; }
+  .mega-link .icon { font-size: 13px; width: 18px; text-align: center; }
+  .mega-link .badge {
+    margin-left: auto; background: #f472b6; color: white; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px;
+  }
+  .mega-link .badge.danger { background: #ef4444; }
+
+  /* Main content */
+  .main { height: calc(100vh - 88px); overflow-y: auto; }
+  .main-inner { padding: 32px; max-width: 1200px; margin: 0 auto; }
+  .main h1 { font-size: 28px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
+  .main h1 .accent { color: #f472b6; }
+  .main p { color: #64748b; margin-top: 8px; font-size: 13px; }
+  .placeholder-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 24px; }
+  .placeholder-card { background: white; border-radius: 12px; padding: 24px; border: 1px solid #e2e8f0; }
+  .placeholder-card h3 { font-size: 13px; color: #334155; font-weight: 700; }
+  .placeholder-card .num { font-size: 32px; font-weight: 900; color: #0f172a; margin-top: 4px; }
+
+  /* Breadcrumb hint */
+  .breadcrumb { font-size: 11px; color: #94a3b8; margin-bottom: 8px; }
+  .breadcrumb span { color: #64748b; }
+</style>
+</head>
+<body>
+
+<div class="header-top">
+  <div class="header-brand">
+    <span class="logo">{EPITECH}</span>
+    <span class="sublabel">Admin</span>
+  </div>
+  <div class="header-right">
+    <button class="header-btn"><span>&#128269;</span> Rechercher <kbd>⌘K</kbd></button>
+    <div class="avatar">&#128737;</div>
+  </div>
+</div>
+
+<div class="header-nav">
+  <button class="nav-home active" title="Dashboard">&#9634;</button>
+  <div class="nav-sep"></div>
+
+  <div class="nav-item">
+    <button class="nav-trigger active">
+      Systeme <span class="chevron">&#9662;</span> <span class="notif-dot"></span>
+    </button>
+    <div class="mega-menu">
+      <a class="mega-link active" href="#"><span class="icon">&#9634;</span> Vue d'ensemble</a>
+      <a class="mega-link" href="#"><span class="icon">&#9888;</span> Erreurs de Sync</a>
+      <a class="mega-link" href="#"><span class="icon">&#8651;</span> Divergences SF <span class="badge danger">3</span></a>
+      <a class="mega-link" href="#"><span class="icon">&#128196;</span> PDF Onboarding</a>
+      <a class="mega-link" href="#"><span class="icon">&#128203;</span> PDF Entretiens</a>
+      <a class="mega-link" href="#"><span class="icon">&#127890;</span> Tickets <span class="badge">2</span></a>
+      <a class="mega-link" href="#"><span class="icon">&#128193;</span> [DEV] S3 Test</a>
+    </div>
+  </div>
+
+  <div class="nav-item">
+    <button class="nav-trigger">
+      Communication <span class="chevron">&#9662;</span>
+    </button>
+    <div class="mega-menu">
+      <a class="mega-link" href="#"><span class="icon">&#128227;</span> Vue d'ensemble</a>
+      <a class="mega-link" href="#"><span class="icon">&#128228;</span> Envoi en masse</a>
+      <a class="mega-link" href="#"><span class="icon">&#9993;</span> Templates</a>
+      <a class="mega-link" href="#"><span class="icon">&#128231;</span> Mails transactionnels</a>
+      <a class="mega-link" href="#"><span class="icon">&#128337;</span> Relances</a>
+      <a class="mega-link" href="#"><span class="icon">&#128682;</span> Pages d'accueil</a>
+    </div>
+  </div>
+
+  <div class="nav-item">
+    <button class="nav-trigger">
+      Organisation <span class="chevron">&#9662;</span>
+    </button>
+    <div class="mega-menu">
+      <a class="mega-link" href="#"><span class="icon">&#127758;</span> Reseau Campus</a>
+      <a class="mega-link" href="#"><span class="icon">&#9997;</span> Signataires</a>
+      <a class="mega-link" href="#"><span class="icon">&#128101;</span> Membres & invitations</a>
+      <a class="mega-link" href="#"><span class="icon">&#127891;</span> Talents</a>
+      <a class="mega-link" href="#"><span class="icon">&#128221;</span> Notes</a>
+      <a class="mega-link" href="#"><span class="icon">&#128683;</span> Suppressions <span class="badge">1</span></a>
+    </div>
+  </div>
+
+  <div class="nav-item">
+    <button class="nav-trigger">
+      Pedagogie <span class="chevron">&#9662;</span>
+    </button>
+    <div class="mega-menu">
+      <a class="mega-link" href="#"><span class="icon">&#128196;</span> Templates</a>
+      <a class="mega-link" href="#"><span class="icon">&#127991;</span> Themes</a>
+      <a class="mega-link" href="#"><span class="icon">&#10084;</span> Centres d'interet</a>
+      <a class="mega-link" href="#"><span class="icon">&#128197;</span> Modeles de Planning</a>
+      <a class="mega-link" href="#"><span class="icon">&#127918;</span> Mini-jeux</a>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="main-inner">
+    <div class="breadcrumb">Systeme <span>/ Vue d'ensemble</span></div>
+    <h1>Vue d'ensemble<span class="accent">_</span></h1>
+    <p>&lt;Panneau d'administration global - plus de sidebar, tout l'espace pour le contenu/&gt;</p>
+    <div class="placeholder-grid">
+      <div class="placeholder-card"><h3>Talents inscrits</h3><div class="num">247</div></div>
+      <div class="placeholder-card"><h3>Entretiens finalises</h3><div class="num">89</div></div>
+      <div class="placeholder-card"><h3>Tickets ouverts</h3><div class="num">5</div></div>
+      <div class="placeholder-card"><h3>Divergences SF</h3><div class="num">12</div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

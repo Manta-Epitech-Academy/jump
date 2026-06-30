@@ -54,7 +54,7 @@
     new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
   );
   let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
-  let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
+  let hasNewsFeed = $derived(featureFlags.has('news_feed'));
   let hasSyncErrors = $derived(featureFlags.has('staff_sync_errors'));
   let isLead = $derived(can('devLead', data.staffProfile?.staffRole));
 
@@ -207,13 +207,13 @@
           <span>{surfaceLabel(key)}</span>
         </a>
       {/each}
-      {#if hasWelcomePage}
+      {#if hasNewsFeed}
         <a
-          href={resolve('/staff/dev/contenu/welcome')}
-          class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
+          href={resolve('/staff/dev/contenu/actus')}
+          class={navLinkClass(isActive('/staff/dev/contenu/actus'))}
         >
           <FileText class="h-5 w-5" />
-          <span>Page d'accueil</span>
+          <span>Actualites</span>
         </a>
       {/if}
     </nav>

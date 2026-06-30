@@ -550,13 +550,10 @@
           </div>
         </div>
 
-        {#if data.welcome}
+        {#if data.newsPosts.length > 0}
           <!-- order-2: sits right under the profile card on mobile -->
           <div class="order-2">
-            <NewsFeedCard
-              welcomeContent={data.welcome.content}
-              highlight={welcomeHighlight}
-            />
+            <NewsFeedCard posts={data.newsPosts} highlight={welcomeHighlight} />
           </div>
         {/if}
       </div>
