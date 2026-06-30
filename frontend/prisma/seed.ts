@@ -4425,6 +4425,13 @@ async function seedEvents(
         // Seeded events are all retro, so mark them validated for the dev space
         // (the gate the dev switcher and the attended-events history both use).
         devActivatedAt: eventEnd,
+        // Cohort noun mirrors what the config wizard would suggest for the type:
+        // a stage names its cohort "stagiaire", everything else "participant".
+        cohortNoun:
+          (blueprint.eventType ?? EVENT_TYPES.CODING_CLUB) ===
+          EVENT_TYPES.STAGE_SECONDE
+            ? 'stagiaire'
+            : 'participant',
         campusId,
         themeId,
         pin: blueprint.pin,

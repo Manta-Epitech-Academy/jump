@@ -358,9 +358,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       e instanceof Prisma.PrismaClientKnownRequestError &&
       e.code === 'P2025'
     ) {
-      throw error(404, 'Stagiaire introuvable');
+      throw error(404, 'Participant introuvable');
     }
-    console.error('Erreur chargement stagiaire:', e);
+    console.error('Erreur chargement participant:', e);
     throw e;
   }
 };
@@ -416,7 +416,7 @@ async function persistInterview(
     participation.campusId !== campusId ||
     participation.event.modules.length === 0
   ) {
-    return message(form, 'Entretien impossible pour ce stagiaire.', {
+    return message(form, 'Entretien impossible pour ce participant.', {
       status: 400,
     });
   }
@@ -540,7 +540,7 @@ async function correctImageRights({ request, locals, params }: RequestEvent) {
     },
   });
   if (!student) {
-    return message(form, 'Stagiaire introuvable.', { status: 404 });
+    return message(form, 'Participant introuvable.', { status: 404 });
   }
 
   const prior = student.imageRightsRecords[0];

@@ -18,6 +18,7 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import { getInitials } from '$lib/avatar';
   import { formatGivenName } from '$lib/domain/profile';
+  import { cohortNounForms } from '$lib/domain/event';
   import {
     INTERVIEW_STATUS_LABELS,
     INTERVIEW_STATUS_CHIP_CLASS,
@@ -39,13 +40,18 @@
     topStaff,
     total,
     eventId,
+    cohortNoun,
     timezone,
     currentStaffId,
   }: EntretiensCohort & {
     eventId: string;
+    cohortNoun: string;
     timezone: string;
     currentStaffId: string | null;
   } = $props();
+
+  // Event's Jump-owned cohort noun ("stagiaire" / "participant").
+  const noun = $derived(cohortNounForms(cohortNoun));
 
   const STATUS_ICON: Record<InterviewListStatus, typeof Check> = {
     todo: Circle,
@@ -193,7 +199,7 @@
     <h3
       class="mt-4 text-sm font-bold tracking-widest text-foreground uppercase"
     >
-      Aucun stagiaire inscrit
+      Aucun {noun.singular} inscrit
     </h3>
     <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
       Les entretiens apparaîtront ici dès que la cohorte de l'événement sera
@@ -208,7 +214,7 @@
       <DataTableToolbar
         searchValue={searchQuery}
         onSearchInput={(v) => (searchQuery = v)}
-        searchPlaceholder="Rechercher un stagiaire…"
+        searchPlaceholder={`Rechercher un ${noun.singular}…`}
         searchWidthClass="w-full max-w-[230px]"
         filtersAlign="end"
         count={filtered.length}

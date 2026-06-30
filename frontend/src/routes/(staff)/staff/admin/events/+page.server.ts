@@ -41,6 +41,8 @@ export type AdminEventVM = {
   publicName: string;
   /** What the dev space / talents see today: publicName or the SF titre. */
   displayName: string;
+  /** Jump-owned cohort noun ("stagiaire" / "participant"); set in the wizard. */
+  cohortNoun: string;
   eventType: string;
   eventTypeLabel: string;
   campusId: string;
@@ -111,6 +113,7 @@ export const load: PageServerLoad = async () => {
       id: true,
       titre: true,
       publicName: true,
+      cohortNoun: true,
       date: true,
       endDate: true,
       startMinutes: true,
@@ -158,6 +161,7 @@ export const load: PageServerLoad = async () => {
       titre: e.titre,
       publicName: e.publicName ?? '',
       displayName: e.publicName?.trim() || e.titre,
+      cohortNoun: e.cohortNoun,
       eventType: e.eventType,
       eventTypeLabel: eventTypeLabel(e.eventType),
       campusId: e.campusId,
@@ -263,6 +267,7 @@ export const actions: Actions = {
     try {
       await EventService.updateEventConfig(form.data.id, {
         publicName: form.data.publicName,
+        cohortNoun: form.data.cohortNoun,
         startTime: form.data.startTime,
         endDate: form.data.endDate,
         modules: form.data.modules,

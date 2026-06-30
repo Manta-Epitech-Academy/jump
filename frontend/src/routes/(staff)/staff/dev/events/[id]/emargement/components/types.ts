@@ -2,7 +2,7 @@ import type { Prisma } from '@prisma/client';
 import type { PresenceRecord } from '$lib/domain/eventPresence';
 
 // Lean roster select for the émargement table: identity, level and the contacts
-// staff need to reach a no-show (the stagiaire, then up to two guardians, each
+// staff need to reach a no-show (the member, then up to two guardians, each
 // with a phone and an email fallback). The roster is READ from Participation
 // (the Salesforce campaign-member mirror), but émargement state is stored
 // autonomously in EventPresence keyed by talentId. The server load imports this
@@ -38,7 +38,7 @@ export const PRESENCE_ROSTER_SELECT = {
   },
 } satisfies Prisma.ParticipationSelect;
 
-/** A legal guardian to reach when the stagiaire doesn't pick up. */
+/** A legal guardian to reach when the member doesn't pick up. */
 export type Guardian = {
   civilite: string | null;
   name: string | null;

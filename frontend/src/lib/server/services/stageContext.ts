@@ -202,6 +202,8 @@ export type EventRecord = {
   startMinutes: number | null;
   endDate: Date | null;
   eventType: string;
+  /** Jump-owned cohort noun ("stagiaire" / "participant"). See `cohortNounForms`. */
+  cohortNoun: string;
   campusId: string;
   externalId: string | null;
   /** Per-event feedback form override; null = use the type default. */
@@ -242,6 +244,7 @@ export async function loadEventOr404(
       startMinutes: true,
       endDate: true,
       eventType: true,
+      cohortNoun: true,
       campusId: true,
       externalId: true,
       feedbackFormId: true,

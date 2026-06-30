@@ -12,6 +12,7 @@ import {
   requireEventModule,
 } from '$lib/server/services/stageContext';
 import { requireStaffGroup } from '$lib/server/auth/guards';
+import { cohortNounForms } from '$lib/domain/event';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import {
   presenceSlots,
@@ -175,7 +176,12 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   })();
 
   return {
-    event: { id: event.id, titre: event.titre, publicName: event.publicName },
+    event: {
+      id: event.id,
+      titre: event.titre,
+      publicName: event.publicName,
+      cohortNoun: event.cohortNoun,
+    },
     timezone,
     slots,
     todayKey: toDateKey(now, timezone),
@@ -268,7 +274,7 @@ export const actions: Actions = {
 
     return message(
       form,
-      'Stagiaires sans présence enregistrée marqués présents.',
+      `${cohortNounForms(event.cohortNoun).Plural} sans présence enregistrée marqués présents.`,
     );
   },
 

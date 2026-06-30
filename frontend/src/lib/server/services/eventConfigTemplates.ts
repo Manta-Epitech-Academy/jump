@@ -26,6 +26,8 @@ export type EventConfigTemplateSummary = {
   forEventType: string | null;
   /** Friendly event name the preset prefills, or null (event keeps the SF titre). */
   publicName: string | null;
+  /** Cohort noun the preset prefills ("stagiaire" / "participant"). */
+  cohortNoun: string;
   /** Arrival time-of-day the preset prefills as "HH:MM", or "" when unset. */
   startTime: string;
   /** Optional default feedback form (weak FK), prefilled when bilan is enabled. */
@@ -41,6 +43,7 @@ type TemplateRow = {
   description: string | null;
   forEventType: string | null;
   publicName: string | null;
+  cohortNoun: string;
   startMinutes: number | null;
   feedbackFormId: string | null;
   modules: { moduleKey: string; settings: Prisma.JsonValue }[];
@@ -63,6 +66,7 @@ function toSummary(t: TemplateRow): EventConfigTemplateSummary {
     description: t.description,
     forEventType: t.forEventType,
     publicName: t.publicName,
+    cohortNoun: t.cohortNoun,
     startTime: minutesToHHMM(t.startMinutes),
     feedbackFormId: t.feedbackFormId,
     modules: present.map((m) => m.moduleKey as EventModuleKey),
@@ -121,6 +125,7 @@ export const EventConfigTemplateService = {
     description: string;
     forEventType: string;
     publicName: string;
+    cohortNoun: string;
     startTime: string;
     modules: string[];
     moduleSettings: Record<string, unknown>;
@@ -133,6 +138,7 @@ export const EventConfigTemplateService = {
     const forEventType = input.forEventType.trim() || null;
     const description = input.description.trim() || null;
     const publicName = input.publicName.trim() || null;
+    const cohortNoun = input.cohortNoun;
     const startMinutes = hhmmToMinutes(input.startTime);
     const moduleRows = moduleCreateRows(input.modules, input.moduleSettings);
 
@@ -153,6 +159,7 @@ export const EventConfigTemplateService = {
             description,
             forEventType,
             publicName,
+            cohortNoun,
             startMinutes,
             feedbackFormId,
             modules: { create: moduleRows },
@@ -168,6 +175,7 @@ export const EventConfigTemplateService = {
         description,
         forEventType,
         publicName,
+        cohortNoun,
         startMinutes,
         feedbackFormId,
         createdById: input.actorId,

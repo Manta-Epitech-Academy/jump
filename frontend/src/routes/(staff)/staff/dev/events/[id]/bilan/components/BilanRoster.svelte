@@ -6,6 +6,7 @@
   import { cn } from '$lib/utils';
   import { Button } from '$lib/components/ui/button';
   import { formatGivenName } from '$lib/domain/profile';
+  import { cohortNounForms } from '$lib/domain/event';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
@@ -20,7 +21,16 @@
     rows,
     recoOptions,
     eventId,
-  }: { rows: BilanRow[]; recoOptions: string[]; eventId: string } = $props();
+    cohortNoun,
+  }: {
+    rows: BilanRow[];
+    recoOptions: string[];
+    eventId: string;
+    cohortNoun: string;
+  } = $props();
+
+  // Event's Jump-owned cohort noun ("stagiaire" / "participant").
+  const noun = $derived(cohortNounForms(cohortNoun));
 
   // Sentinel for the "no recommendation answer" filter bucket (kept distinct from
   // any real option label).
@@ -169,11 +179,11 @@
   <DataTableToolbar
     searchValue={searchQuery}
     onSearchInput={(v) => (searchQuery = v)}
-    searchPlaceholder="Rechercher un stagiaire…"
+    searchPlaceholder={`Rechercher un ${noun.singular}…`}
     searchWidthClass="w-full max-w-[230px]"
     filtersAlign="end"
     count={filtered.length}
-    countNoun="stagiaire"
+    countNoun={noun.singular}
     {countSuffix}
   >
     {#snippet filters()}
@@ -256,7 +266,7 @@
 {/snippet}
 
 <!-- Only the avatar links to the fiche (new tab), the row and the name are inert.
-     Marking a stagiaire's recommendation should never be a click away from a full
+     Marking a member's recommendation should never be a click away from a full
      navigation; mirrors the émargement roster. -->
 {#snippet avatarLink(r: BilanRow)}
   <a

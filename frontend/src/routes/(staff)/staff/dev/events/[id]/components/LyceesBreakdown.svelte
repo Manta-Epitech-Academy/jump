@@ -23,6 +23,8 @@
   type Props = {
     eventId: string;
     breakdown: Breakdown;
+    /** Cohort-member noun [singular, plural] for the "Autres" / filter labels. */
+    itemNoun: [string, string];
     totalParticipations: number;
     /**
      * When the surrounding page is already filtered to a lycée, its row is
@@ -50,6 +52,7 @@
   let {
     eventId,
     breakdown,
+    itemNoun,
     totalParticipations,
     activeSchoolId,
     hrefFor,
@@ -82,7 +85,7 @@
   tailRows={tail}
   others={breakdown.others}
   tailNoun={{
-    item: ['stagiaire', 'stagiaires'],
+    item: itemNoun,
     category: ['lycée', 'lycées'],
   }}
   {totalParticipations}

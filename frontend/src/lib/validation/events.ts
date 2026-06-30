@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { HHMM_PATTERN } from '$lib/domain/event';
+import {
+  COHORT_NOUN_VALUES,
+  DEFAULT_COHORT_NOUN,
+  HHMM_PATTERN,
+} from '$lib/domain/event';
 import { EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
 
 /**
@@ -14,6 +18,11 @@ import { EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
 export const adminEventSchema = z.object({
   id: z.string().min(1),
   publicName: z.string().trim().max(120).default(''),
+  // What this event's cohort is called in the dev workspace ("stagiaire" /
+  // "participant"). Jump-owned; the SF type only suggests the wizard default.
+  cohortNoun: z
+    .enum(COHORT_NOUN_VALUES as [string, ...string[]])
+    .default(DEFAULT_COHORT_NOUN),
   startTime: z
     .string()
     .regex(HHMM_PATTERN, 'Heure invalide (HH:MM).')
@@ -86,6 +95,11 @@ export const eventConfigTemplateSaveSchema = z.object({
   // form's `publicName`; campuses reuse one display name across every occurrence
   // of a format, so a preset that prefills it saves retyping it each time.
   publicName: z.string().trim().max(120).default(''),
+  // Cohort noun the preset carries; copied onto the event on apply (mirrors the
+  // event form's `cohortNoun`).
+  cohortNoun: z
+    .enum(COHORT_NOUN_VALUES as [string, ...string[]])
+    .default(DEFAULT_COHORT_NOUN),
   // Jump-owned arrival time-of-day the preset carries (mirrors the event form's
   // `startTime`). Empty = none (the applied event falls back to the type default).
   startTime: z

@@ -5,16 +5,21 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import { civiliteCourtesyTitle } from '$lib/domain/profile';
+  import { cohortNounForms } from '$lib/domain/event';
   import { formatPhoneForDisplay } from '$lib/domain/phone';
   import type { PresenceRow } from './types';
 
   let {
     open = $bindable(),
     row,
+    cohortNoun,
   }: {
     open: boolean;
     row: PresenceRow | null;
+    cohortNoun: string;
   } = $props();
+
+  const noun = $derived(cohortNounForms(cohortNoun));
 </script>
 
 <!-- Courtesy title subordinated to the name, same as the profile "Coordonnées"
@@ -63,7 +68,7 @@
       <Dialog.Header>
         <Dialog.Title>Coordonnées</Dialog.Title>
         <Dialog.Description>
-          Appelez le stagiaire en priorité, puis sa famille s'il ne répond pas.
+          Appelez le {noun.singular} en priorité, puis sa famille s'il ne répond pas.
         </Dialog.Description>
       </Dialog.Header>
 

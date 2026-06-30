@@ -112,6 +112,7 @@ export const EventService = {
     eventId: string,
     data: {
       publicName: string;
+      cohortNoun: string;
       startTime: string;
       endDate: string;
       modules: string[];
@@ -164,6 +165,7 @@ export const EventService = {
         where: { id: eventId },
         data: {
           publicName: data.publicName.trim() || null,
+          cohortNoun: data.cohortNoun,
           startMinutes: hhmmToMinutes(data.startTime),
           endDate,
           devActivatedAt,

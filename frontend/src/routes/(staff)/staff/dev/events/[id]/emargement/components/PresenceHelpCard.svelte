@@ -5,6 +5,10 @@
   import Lock from '@lucide/svelte/icons/lock';
   import FileDown from '@lucide/svelte/icons/file-down';
   import * as Card from '$lib/components/ui/card';
+  import { cohortNounForms } from '$lib/domain/event';
+
+  let { cohortNoun }: { cohortNoun: string } = $props();
+  const noun = $derived(cohortNounForms(cohortNoun));
 
   // Static how-it-works card. Each line names the actual on-screen control
   // ("Afficher le QR code", "Pointage manuel", "Clôturer", "Tout exporter") so
@@ -29,7 +33,7 @@
       <QrCode class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
       <p class="text-muted-foreground">
         <span class="font-semibold text-foreground">Afficher le QR code.</span>
-        Projetez-le : les stagiaires le scannent pour pointer eux-mêmes, en direct.
+        Projetez-le : les {noun.plural} le scannent pour pointer eux-mêmes, en direct.
         Téléchargeable en PDF pour l'afficher en salle.
       </p>
     </div>

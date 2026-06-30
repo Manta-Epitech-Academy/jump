@@ -32,6 +32,72 @@ export function eventTypeLabel(eventType: string): string {
   return EVENT_TYPE_LABELS[eventType as EventType] ?? eventType;
 }
 
+// ─── Cohort noun (`Event.cohortNoun`) ──────────────────────────────────────
+// What a single member of an event's cohort is called across the dev workspace
+// ("stagiaire" for a stage de seconde, "participant" for anything else). This is
+// Jump-owned per-event config, NOT derived from `eventType`: the SF type is only
+// a hint (it can be mis-entered, and we can't fix it), so the noun is set in the
+// event config wizard and read straight off the column. `suggestedCohortNoun`
+// turns the SF type into the wizard's default selection, the ONLY place the type
+// touches the noun.
+
+export const COHORT_NOUNS = {
+  STAGIAIRE: 'stagiaire',
+  PARTICIPANT: 'participant',
+} as const;
+
+export type CohortNoun = (typeof COHORT_NOUNS)[keyof typeof COHORT_NOUNS];
+
+export const COHORT_NOUN_VALUES = Object.values(COHORT_NOUNS) as CohortNoun[];
+
+/** Neutral default: a freshly imported event names its cohort "participant". */
+export const DEFAULT_COHORT_NOUN: CohortNoun = COHORT_NOUNS.PARTICIPANT;
+
+export interface CohortNounForms {
+  /** "stagiaire" / "participant" */
+  singular: string;
+  /** "stagiaires" / "participants" */
+  plural: string;
+  /** Sentence-initial singular: "Stagiaire" / "Participant" */
+  Singular: string;
+  /** Sentence-initial plural: "Stagiaires" / "Participants" */
+  Plural: string;
+}
+
+/**
+ * Display forms for a stored cohort noun. The single place plural/capitalised
+ * forms live, so a future irregular noun is a one-line change here rather than a
+ * sweep across every call site. Both current nouns pluralise with a plain `+s`.
+ * Unknown/legacy values fall back to the neutral default.
+ */
+export function cohortNounForms(
+  value: string | null | undefined,
+): CohortNounForms {
+  const singular =
+    value === COHORT_NOUNS.STAGIAIRE
+      ? COHORT_NOUNS.STAGIAIRE
+      : DEFAULT_COHORT_NOUN;
+  const plural = `${singular}s`;
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  return {
+    singular,
+    plural,
+    Singular: cap(singular),
+    Plural: cap(plural),
+  };
+}
+
+/**
+ * The wizard's suggested cohort noun for an event's SF type. Used ONLY to
+ * pre-select the config control on a never-configured event; never read at
+ * render (the persisted column is the truth everywhere else).
+ */
+export function suggestedCohortNoun(eventType: string): CohortNoun {
+  return eventType === EVENT_TYPES.STAGE_SECONDE
+    ? COHORT_NOUNS.STAGIAIRE
+    : COHORT_NOUNS.PARTICIPANT;
+}
+
 /**
  * The event's display name: the admin-set `publicName` if any, else the raw
  * Salesforce `titre`. The single name used everywhere a human reads the event -

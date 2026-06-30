@@ -76,6 +76,7 @@
           rows={cohort.rows}
           recoOptions={cohort.recoOptions}
           eventId={data.event.id}
+          cohortNoun={data.event.cohortNoun}
         />
       </div>
       <aside class="min-w-0 xl:col-span-3">
@@ -86,6 +87,7 @@
             respondedCount={cohort.respondedCount}
             total={cohort.total}
             stats={cohort.stats}
+            cohortNoun={data.event.cohortNoun}
           />
         </div>
       </aside>
