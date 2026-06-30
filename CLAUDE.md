@@ -156,6 +156,15 @@ Model relationships and entities by their real shape. These are deliberate calls
 - **A link table *with attributes* is an associative entity — a separate decision.** A bare junction glues two keys; the moment the relationship itself carries data (a `source`, a `confirmedAt`, a quantity), that's a deliberate entity. Don't reach for it speculatively, and don't refuse it when the data genuinely belongs on the relationship.
 - **A domain entity gets its own table + FK, not loose strings/JSON.** A thing referenced repeatedly (a high school) gets a typed, deduplicated row (`School`), not `name`/`city`/`uai` columns copied onto every referrer. "Normalize later" tends to never happen.
 - **External-system data → anti-corruption mirror, kept apart from your truth.** Don't fold a third party's claims into your aggregate root. Keep what *you* believe (`Talent`) separate from what an external system *claims* (`TalentSfImport`), and reconcile explicitly (see Salesforce reconciliation).
+- **A relationship already carried by a foreign key needs no second marker.** If A already points at B via an FK, don't add an `ownerB`/`belongsToB` column that re-encodes the same link: it duplicates a tie you can already query, and it drifts. Before adding a column to bind two rows, check whether an existing FK (or a count over it) already answers the question. When the tie is incidental, don't model it at all: prefer computing the answer to storing a flag.
+
+### Default to less: coupling and surface
+
+The safe default here is the smallest thing that meets the need. Three rules, learned the hard way:
+
+- **Prefer the least coupling that works.** Reference by id over embedding or ownership. A control governs only its own surface: a per-event sub-option hides its own column, it does not reach into an unrelated screen like the talent fiche. A preset or template is a point-in-time copy applied once, not a live link. An external attribute (the Salesforce event type) is a hint, never a binding. Features that merely relate should reference each other, not interlock.
+- **When a concept is questioned as redundant or "too clever", delete the mechanism, don't refine it.** Refining coupling that should not exist only yields subtler coupling. If you cannot say what a column, flag, or abstraction buys beyond what is already expressible, remove it instead of making it cleaner.
+- **Build the minimal surface first.** Don't add a management page, a seed script, or a built-in-vs-custom distinction speculatively. Manage a thing inline (in the dialog or list that already exists) until volume genuinely justifies a dedicated surface; a catalogue is told apart by names before it needs a type filter.
 
 ### XP System
 
@@ -289,3 +298,7 @@ Always include `--name` when creating migrations:
 ```
 bunx prisma migrate dev --name descriptive_name
 ```
+
+**Name a migration for the change, not the moment:** `--name add_event_config_template`, never a pasted sentence, a chat message, or a bare `update`.
+
+**Squash a branch's dev migrations before merge.** Iterating a schema with `migrate dev` leaves a trail where a later migration drops what an earlier one added. Ship **one** clean migration per branch, never an add-then-drop trail: collapse them (rewrite the first migration's SQL to the net result, delete the rest, and reconcile the `_prisma_migrations` table so the DB still matches) before opening the PR. Never let a migration create something the same PR removes.

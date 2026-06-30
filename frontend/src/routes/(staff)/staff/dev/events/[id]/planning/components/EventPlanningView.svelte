@@ -1,12 +1,11 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { resolve } from '$app/paths';
+  import { eventDisplayName } from '$lib/domain/event';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import CalendarViewer from '$lib/components/planning/CalendarViewer.svelte';
   import WeekNavigator from '$lib/components/planning/WeekNavigator.svelte';
   import WeekViewToggle from '$lib/components/planning/WeekViewToggle.svelte';
   import ActivityPreviewDialog from '$lib/components/events/planning/ActivityPreviewDialog.svelte';
-  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import {
     pickInitialWeek,
     pickInitialWeekView,
@@ -69,13 +68,7 @@
   <div class="shrink-0 border-b pb-4">
     {#if hasCodingClub}
       <PageBreadcrumb
-        items={[
-          {
-            label: STAGE_SECONDE_LABEL,
-            href: resolve(`/staff/dev/events/${event.id}`),
-          },
-          { label: 'Planning' },
-        ]}
+        items={[{ label: eventDisplayName(event) }, { label: 'Planning' }]}
       />
     {/if}
     <div class="flex flex-wrap items-end justify-between gap-3">
@@ -86,7 +79,7 @@
         <p
           class="text-sm font-bold tracking-wider text-muted-foreground uppercase"
         >
-          {STAGE_SECONDE_LABEL} • {new Date(event.date).toLocaleDateString(
+          {eventDisplayName(event)} • {new Date(event.date).toLocaleDateString(
             'fr-FR',
             {
               day: 'numeric',

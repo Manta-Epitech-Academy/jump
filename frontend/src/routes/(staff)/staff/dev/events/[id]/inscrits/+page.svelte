@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { eventDisplayName } from '$lib/domain/event';
   import { toast } from 'svelte-sonner';
   import IdCard from '@lucide/svelte/icons/id-card';
   import Award from '@lucide/svelte/icons/award';
@@ -15,7 +15,6 @@
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import InscritsResults from './components/InscritsResults.svelte';
   import LoadingCeremony from '$lib/components/LoadingCeremony.svelte';
-  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { data }: { data: PageData } = $props();
@@ -78,7 +77,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Badges${mode === 'foldable' ? ' pliables' : ''} - ${data.event.titre}.pdf`;
+      a.download = `Badges${mode === 'foldable' ? ' pliables' : ''} - ${eventDisplayName(data.event)}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -135,7 +134,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Diplômes - ${data.event.titre}.pdf`;
+      a.download = `Diplômes - ${eventDisplayName(data.event)}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -150,19 +149,13 @@
 </script>
 
 <svelte:head>
-  <title>{STAGE_SECONDE_LABEL} — Inscrits</title>
+  <title>{eventDisplayName(data.event)} · Inscrits</title>
 </svelte:head>
 
 <div class="space-y-6 pb-10">
   {#if hasCodingClub}
     <PageBreadcrumb
-      items={[
-        {
-          label: STAGE_SECONDE_LABEL,
-          href: resolve(`/staff/dev/events/${data.event.id}`),
-        },
-        { label: 'Inscrits' },
-      ]}
+      items={[{ label: eventDisplayName(data.event) }, { label: 'Inscrits' }]}
     />
   {/if}
   <PageHeader title="Inscrits">
@@ -180,20 +173,22 @@
         Générer badges
       {/if}
     </Button>
-    <Button
-      variant="outline"
-      size="sm"
-      onclick={generateDiplomas}
-      disabled={generatingDiplomas}
-    >
-      {#if generatingDiplomas}
-        <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
-        Génération…
-      {:else}
-        <Award class="mr-1.5 h-4 w-4" />
-        Générer diplômes
-      {/if}
-    </Button>
+    {#if data.allowDiplomas}
+      <Button
+        variant="outline"
+        size="sm"
+        onclick={generateDiplomas}
+        disabled={generatingDiplomas}
+      >
+        {#if generatingDiplomas}
+          <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+          Génération…
+        {:else}
+          <Award class="mr-1.5 h-4 w-4" />
+          Générer diplômes
+        {/if}
+      </Button>
+    {/if}
     <EventSalesforceButton externalId={data.event.externalId} />
   </PageHeader>
 
@@ -206,7 +201,7 @@
       countdown={data.countdown}
       timezone={data.timezone}
       event={data.event}
-      {hasCodingClub}
+      showStatutColumn={data.showStatutColumn}
     />
   {:catch}
     <div

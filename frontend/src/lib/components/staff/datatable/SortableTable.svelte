@@ -31,6 +31,7 @@
     rowKey,
     rowHref,
     rowLabel,
+    onRowClick,
     row,
     empty,
     headerClass = 'bg-muted/50',
@@ -60,6 +61,15 @@
     rowHref?: (row: T) => string;
     /** Accessible name for the row link — the cells are not inside the anchor. */
     rowLabel?: (row: T) => string;
+    /**
+     * Mouse shortcut: clicking anywhere on the row (or mobile card) runs this.
+     * It's a convenience over a real control *inside* the row (e.g. an edit
+     * button) which stays the keyboard/AT path, so the row itself takes no
+     * role/tabindex. That inner control should `stopPropagation` so the two
+     * don't both fire. For navigation prefer `rowHref` (real anchor); use this
+     * for JS actions like opening a dialog.
+     */
+    onRowClick?: (row: T, index: number) => void;
     /** Renders the `<Table.Cell>`s for a row. */
     row: Snippet<[T, number]>;
     /** Optional custom empty state (defaults to a muted "Aucun résultat"). */
@@ -247,13 +257,16 @@
               class={cn(
                 'group/row [&>td]:transition-colors',
                 rowHref && 'relative',
+                onRowClick && 'cursor-pointer',
               )}
+              onclick={onRowClick ? () => onRowClick(r, i) : undefined}
             >
               {#if selectable}
                 <Table.Cell class="relative z-10 w-10">
                   <Checkbox
                     checked={selected?.has(rowKey(r, i)) ?? false}
                     onCheckedChange={(v) => toggleRow(rowKey(r, i), v === true)}
+                    onclick={(e) => e.stopPropagation()}
                     aria-label="Sélectionner la ligne"
                   />
                 </Table.Cell>
@@ -345,12 +358,21 @@
       </div>
     {:else}
       {#each rows as r, i (rowKey(r, i))}
-        <div class="relative rounded-sm border bg-card p-3 shadow-sm">
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div
+          class={cn(
+            'relative rounded-sm border bg-card p-3 shadow-sm',
+            onRowClick && 'cursor-pointer',
+          )}
+          onclick={onRowClick ? () => onRowClick(r, i) : undefined}
+        >
           {#if selectable}
             <div class="relative z-10 mb-2">
               <Checkbox
                 checked={selected?.has(rowKey(r, i)) ?? false}
                 onCheckedChange={(v) => toggleRow(rowKey(r, i), v === true)}
+                onclick={(e) => e.stopPropagation()}
                 aria-label="Sélectionner"
               />
             </div>

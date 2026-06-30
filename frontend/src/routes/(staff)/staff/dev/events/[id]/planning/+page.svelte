@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import EventPlanningView from './components/EventPlanningView.svelte';
+  import { eventDisplayName } from '$lib/domain/event';
 
   let { data }: { data: PageData } = $props();
 
@@ -13,7 +13,7 @@
 </script>
 
 <svelte:head>
-  <title>{STAGE_SECONDE_LABEL} — Planning</title>
+  <title>{eventDisplayName(data.event)} · Planning</title>
 </svelte:head>
 
 <!-- Keyed on the event so all per-event state (visible week, open preview)

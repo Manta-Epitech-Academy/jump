@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
-import { stageWindowEnd } from '$lib/domain/event';
+import { stageWindowEnd, STAGE_DEFAULT_DURATION_DAYS } from '$lib/domain/event';
 import { captureOnboardingReturn } from '$lib/server/auth/loginRedirect';
 
 export const load: PageServerLoad = async ({ locals, url, cookies }) => {
@@ -16,12 +16,24 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
     throw redirect(303, resolve('/'));
   }
 
+  // Prefer the ongoing stage among several: filter to still-open windows, then
+  // take the earliest-starting (mirrors the dashboard welcome card).
+  const now = new Date();
+  const windowLookback = new Date(
+    now.getTime() - STAGE_DEFAULT_DURATION_DAYS * 86_400_000,
+  );
   const stageParticipation = await prisma.participation.findFirst({
     where: {
       talentId: locals.talent.id,
-      event: { eventType: 'stage_seconde' },
+      event: {
+        eventType: 'stage_seconde',
+        OR: [
+          { endDate: { gte: now } },
+          { endDate: null, date: { gte: windowLookback } },
+        ],
+      },
     },
-    orderBy: { event: { date: 'desc' } },
+    orderBy: { event: { date: 'asc' } },
     select: {
       event: {
         select: {

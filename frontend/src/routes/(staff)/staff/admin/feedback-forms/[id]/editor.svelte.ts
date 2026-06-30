@@ -29,6 +29,8 @@ export interface FormMeta {
   allowsAuthenticatedAccess: boolean;
   allowsPublicAccess: boolean;
   dashboardNudge: boolean;
+  /** Event type this form is the default for, or null. At most one form per type. */
+  defaultForEventType: string | null;
 }
 
 export interface SectionGroup {
@@ -97,6 +99,7 @@ export class FormEditor {
   allowsAuthenticatedAccess = $state(false);
   allowsPublicAccess = $state(false);
   dashboardNudge = $state(false);
+  defaultForEventType = $state<string | null>(null);
 
   // ── Structure ──
   sections = $state<EditorSection[]>([]);

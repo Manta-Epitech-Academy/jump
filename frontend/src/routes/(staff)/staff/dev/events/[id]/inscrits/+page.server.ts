@@ -6,9 +6,11 @@ import {
 } from '$lib/server/db/scoped';
 import {
   loadEventOr404,
-  stageEndOrDefault,
+  requireEventModule,
+  eventEndOrDefault,
+  eventModuleSettings,
 } from '$lib/server/services/stageContext';
-import { requireFlag } from '$lib/server/auth/guards';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { compareNiveaux } from '$lib/domain/niveau';
 import { rulesStatus, inscritStatus } from '$lib/domain/stageCompliance';
 import { imageRightsStatus } from '$lib/domain/imageRights';
@@ -42,8 +44,8 @@ function originConditions(schoolId: string | null, interestId: string | null) {
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const campusId = getCampusId(locals);
-  requireFlag(locals, 'inscrits');
   const event = await loadEventOr404(params.id, campusId);
+  requireEventModule(event, EVENT_MODULES.INSCRITS);
   const db = scopedPrisma(campusId);
   const timezone = getCampusTimezone(locals);
 
@@ -55,7 +57,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     getEventStatus(event, bounds),
     locals.stagePhaseOverride,
   );
-  const stageEnd = stageEndOrDefault(event);
+  const eventEnd = eventEndOrDefault(event);
   const { dayN, totalDays } = stageCountdown(event, timezone, bounds.now);
   const countdown = {
     status,
@@ -65,7 +67,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       timezone,
     ),
     startMinutes: event.startMinutes,
-    endDate: stageEnd,
+    endDate: eventEnd,
     dayN,
     totalDays,
   };
@@ -172,6 +174,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     timezone,
     origin,
     countdown,
+    // Inscrits sub-option: hide the dossier/statut funnel column for events whose
+    // campus doesn't onboard. Cheap shell value, so it rides the first paint.
+    showStatutColumn: eventModuleSettings(event, EVENT_MODULES.INSCRITS)
+      .showStatutColumn,
+    // Inscrits sub-option: the internship-diploma export (Certificat de stage).
+    // Off for events that don't issue one (e.g. coding clubs). Cheap shell value.
+    allowDiplomas: eventModuleSettings(event, EVENT_MODULES.INSCRITS).diplomas,
     // Un-awaited on purpose: SvelteKit streams it so the shell paints first.
     cohort,
   };

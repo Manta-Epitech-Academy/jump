@@ -66,9 +66,8 @@
     qcmFails = 0;
   }
 
-  // When the campus runs its schedule outside Jump (planning flag off), the
-  // planning page 404s, so fall back to the event dashboard.
-  let hasPlanning = $derived(data.featureFlags.includes('planning'));
+  // Planning is a standard pedago surface now (role-gated build tool), no flag.
+  const hasPlanning = true;
   let backHref = $derived(
     hasPlanning
       ? resolve(`/staff/pedago/events/${event.id}/planning`)

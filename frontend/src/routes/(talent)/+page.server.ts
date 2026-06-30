@@ -16,8 +16,13 @@ import {
 } from '$lib/server/services/minigameService';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
-import { stageWindowEnd, EVENT_TYPES } from '$lib/domain/event';
+import {
+  stageWindowEnd,
+  STAGE_DEFAULT_DURATION_DAYS,
+  eventPublicName,
+} from '$lib/domain/event';
 import { pendingFeedbackForm } from '$lib/domain/feedback';
+import { resolveEventNudgeForm } from '$lib/server/feedbackForms';
 import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
 import { toPlanningView } from '$lib/domain/talentPlanning';
 import { buildPreviewPlanningView } from '$lib/server/talentPlanningPreview';
@@ -61,6 +66,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         select: {
           eventType: true,
           titre: true,
+          publicName: true,
           date: true,
           startMinutes: true,
         },
@@ -155,17 +161,31 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     // compatibility with the dev branch where CmsPage still exists.
     let welcome: { content: string } | null = null;
     try {
+      // With several concurrent stages, prefer the ongoing one: filter to stages
+      // whose window is still open, then take the earliest-starting (an ongoing
+      // stage outranks a not-yet-started one). Window mirrors `stageWindowEnd`.
+      const now = new Date();
+      const windowLookback = new Date(
+        now.getTime() - STAGE_DEFAULT_DURATION_DAYS * 86_400_000,
+      );
       const stageParticipation = await prisma.participation.findFirst({
         where: {
           talentId: studentId,
-          event: { eventType: 'stage_seconde' },
+          event: {
+            eventType: 'stage_seconde',
+            OR: [
+              { endDate: { gte: now } },
+              { endDate: null, date: { gte: windowLookback } },
+            ],
+          },
         },
-        orderBy: { event: { date: 'desc' } },
+        orderBy: { event: { date: 'asc' } },
         select: {
           event: {
             select: {
               id: true,
               titre: true,
+              publicName: true,
               endDate: true,
               date: true,
               campus: { select: { name: true, contactEmail: true } },
@@ -188,7 +208,10 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
                 nom: locals.talent.nom,
                 campusName: event.campus.name,
                 campusContactEmail: event.campus.contactEmail,
-                stageName: event.titre,
+                stageName: eventPublicName({
+                  publicName: event.publicName,
+                  eventType: 'stage_seconde',
+                }),
               }),
             };
           }
@@ -227,57 +250,56 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       personaIconUrl?: string;
     }> = [];
     if (locals.featureFlags?.has('stage_seconde')) {
+      // A talent can match several stage events (the welcome block above orders
+      // the same lookup for the same reason). Feedback is owed after the event,
+      // so nudge about the most recently started stage, not a DB-arbitrary one.
       const feedbackParticipation = await prisma.participation.findFirst({
         where: {
           talentId: studentId,
           event: { eventType: 'stage_seconde' },
         },
+        orderBy: { event: { date: 'desc' } },
         include: {
           event: {
-            select: { date: true },
+            select: { date: true, eventType: true, feedbackFormId: true },
           },
         },
       });
       if (feedbackParticipation) {
-        const [nudgeForms, existingSubs] = await Promise.all([
-          prisma.feedback_Form.findMany({
-            // allowsAuthenticatedAccess: a nudged form a connected talent can't
-            // answer would 404 on click, so never surface one in the banner.
-            where: {
-              status: 'published',
-              dashboardNudge: true,
-              allowsAuthenticatedAccess: true,
-            },
-            select: { id: true, slug: true, personaIconKey: true },
-          }),
-          prisma.feedback_Submission.findMany({
+        // The nudge points at THIS event's form (its override, else the type
+        // default), not at every globally-nudged form, so a talent is only ever
+        // reminded about the form their event actually uses. The resolver yields
+        // it only when it's a live nudge (published, answerable, nudge on).
+        const form = await resolveEventNudgeForm({
+          feedbackFormId: feedbackParticipation.event.feedbackFormId,
+          eventType: feedbackParticipation.event.eventType,
+        });
+        if (form) {
+          const existingSubs = await prisma.feedback_Submission.findMany({
             where: {
               talentId: studentId,
               eventId: feedbackParticipation.eventId,
             },
             select: { formId: true },
-          }),
-        ]);
-        const pending = pendingFeedbackForm(
-          feedbackParticipation.event.date,
-          new Date(),
-          nudgeForms,
-          existingSubs.map((s) => s.formId),
-        );
-        if (pending) {
-          // `pending.formId` is the form slug (the answering route param); the
-          // icon proxy is keyed by the real id, so resolve the matched row.
-          const matched = nudgeForms.find((f) => f.slug === pending.formId);
-          pendingFeedback = [
-            {
-              ...pending,
-              eventId: feedbackParticipation.eventId,
-              personaIconUrl: buildPersonaIconUrl(
-                matched?.id ?? '',
-                matched?.personaIconKey,
-              ),
-            },
-          ];
+          });
+          const pending = pendingFeedbackForm(
+            feedbackParticipation.event.date,
+            new Date(),
+            [{ id: form.id, slug: form.slug }],
+            existingSubs.map((s) => s.formId),
+          );
+          if (pending) {
+            pendingFeedback = [
+              {
+                ...pending,
+                eventId: feedbackParticipation.eventId,
+                personaIconUrl: buildPersonaIconUrl(
+                  form.id,
+                  form.personaIconKey,
+                ),
+              },
+            ];
+          }
         }
       }
     }

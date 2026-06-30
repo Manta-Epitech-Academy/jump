@@ -30,9 +30,9 @@
   let participation = $derived(data.participation);
   let portfolioItems = $derived(data.portfolioItems || []);
 
-  // The calendar 404s when the campus runs its schedule outside Jump (planning
-  // flag off), so the back button falls back to the dashboard.
-  let hasPlanning = $derived(data.featureFlags.includes('planning'));
+  // The calendar only exists when the talent has a planned event, so the back
+  // button falls back to the dashboard otherwise. Data-driven, no campus flag.
+  let hasPlanning = $derived(data.hasPlannedEvents);
   let backHref = $derived(hasPlanning ? resolve('/calendar') : resolve('/'));
   let backLabel = $derived(
     hasPlanning ? 'Retour au planning' : "Retour à l'accueil",
