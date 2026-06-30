@@ -6,6 +6,7 @@
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import Calendar from '@lucide/svelte/icons/calendar';
   import { formatDateFr } from '$lib/utils';
+  import { eventDisplayName } from '$lib/domain/event';
   import Plus from '@lucide/svelte/icons/plus';
 
   import { Button } from '$lib/components/ui/button';
@@ -167,7 +168,9 @@
                   <span class="font-mono text-xs text-muted-foreground"
                     >{formatDateFr(ev.date)}</span
                   >
-                  <span class="truncate font-medium">{ev.titre}</span>
+                  <span class="truncate font-medium"
+                    >{eventDisplayName(ev)}</span
+                  >
                 </li>
               {/each}
             </ul>

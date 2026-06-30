@@ -7,6 +7,7 @@
   import Calendar from '@lucide/svelte/icons/calendar';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import { toDateKey } from '$lib/domain/eventPresence';
+  import { eventDisplayName } from '$lib/domain/event';
 
   let { data }: { data: PageData } = $props();
 
@@ -135,7 +136,7 @@
                       <span
                         class="text-sm font-semibold text-slate-900 dark:text-white"
                       >
-                        {ev.titre}
+                        {eventDisplayName(ev)}
                       </span>
                       <div class="mt-0.5 text-xs text-slate-400">
                         {new Date(ev.date).toLocaleDateString('fr-FR', {

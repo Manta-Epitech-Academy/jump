@@ -54,12 +54,14 @@ const EVENT_TYPES = {
 } as const;
 type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
 
-// Dev-workspace modules a seeded stage event exposes (EventConfig_Module rows).
-// Kept in sync with src/lib/domain/eventModules.ts by hand (the seed stays free
-// of $lib imports). Stage events get the full set so every validated surface is
-// testable locally; other event types expose nothing. `planning` is not a module
+// Dev-workspace modules a seeded event exposes (EventConfig_Module rows). Kept
+// in sync with src/lib/domain/eventModules.ts by hand (the seed stays free of
+// $lib imports). Stage events get the full set so every validated surface is
+// testable locally; coding-club events get the registration + attendance
+// surfaces so their émargement history is reachable. `planning` is not a module
 // (it is data-driven from the event's time slots), so it is not listed here.
 const STAGE_MODULE_KEYS = ['inscrits', 'emargement', 'bilan', 'entretiens'];
+const CODING_CLUB_MODULE_KEYS = ['inscrits', 'emargement'];
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -4420,6 +4422,9 @@ async function seedEvents(
         date: eventStart,
         endDate: eventEnd,
         eventType: blueprint.eventType ?? EVENT_TYPES.CODING_CLUB,
+        // Seeded events are all retro, so mark them validated for the dev space
+        // (the gate the dev switcher and the attended-events history both use).
+        devActivatedAt: eventEnd,
         campusId,
         themeId,
         pin: blueprint.pin,
@@ -4432,11 +4437,11 @@ async function seedEvents(
             .filter((x): x is NonNullable<typeof x> => x !== null),
         },
         modules: {
-          create:
-            (blueprint.eventType ?? EVENT_TYPES.CODING_CLUB) ===
-            EVENT_TYPES.STAGE_SECONDE
-              ? STAGE_MODULE_KEYS.map((moduleKey) => ({ moduleKey }))
-              : [],
+          create: ((blueprint.eventType ?? EVENT_TYPES.CODING_CLUB) ===
+          EVENT_TYPES.STAGE_SECONDE
+            ? STAGE_MODULE_KEYS
+            : CODING_CLUB_MODULE_KEYS
+          ).map((moduleKey) => ({ moduleKey })),
         },
         planning: { create: { timeSlots: { create: timeSlotData } } },
       },

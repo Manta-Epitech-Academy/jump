@@ -33,27 +33,22 @@ export function eventTypeLabel(eventType: string): string {
 }
 
 /**
- * Staff/admin chrome name: the admin-set `publicName` if any, else the raw
- * Salesforce `titre`. Staff can read the SF identifier, so the fallback keeps
- * the event recognisable. Use in dev page titles, breadcrumbs and the switcher.
+ * The event's display name: the admin-set `publicName` if any, else the raw
+ * Salesforce `titre`. The single name used everywhere a human reads the event -
+ * staff chrome (page titles, breadcrumbs, switcher) and talent surfaces
+ * (dashboard, history, QR sheets) alike.
+ *
+ * The talent name deliberately no longer derives from `eventType`: the SF type
+ * is a hint, never a binding (a campaign miswired as the wrong type must not
+ * drive the label), and an event configured for talents already carries its own
+ * `publicName`. When it doesn't, the SF `titre` is an acceptable fallback - the
+ * staff-chosen name is shown ~most of the time anyway.
  */
 export function eventDisplayName(e: {
   publicName?: string | null;
   titre: string;
 }): string {
   return e.publicName?.trim() || e.titre;
-}
-
-/**
- * Talent-facing name: the admin-set `publicName` if any, else the friendly type
- * label ("Stage de Seconde", "Coding Club"). Never falls back to `titre` so the
- * ugly SF campaign name can't leak to students (QR sheets, dashboard widget).
- */
-export function eventPublicName(e: {
-  publicName?: string | null;
-  eventType: string;
-}): string {
-  return e.publicName?.trim() || eventTypeLabel(e.eventType);
 }
 
 /**

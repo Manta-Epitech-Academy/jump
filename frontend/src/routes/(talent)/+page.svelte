@@ -6,7 +6,7 @@
   import { fly } from 'svelte/transition';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
-  import { eventPublicName, minutesToHHMM } from '$lib/domain/event';
+  import { eventDisplayName, minutesToHHMM } from '$lib/domain/event';
   import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -85,12 +85,11 @@
   // talent actually has a planned event. Data-driven, no campus flag.
   let hasPlanning = $derived(data.hasPlannedEvents);
 
-  // Label for the planning widget: the event's admin-set public name when set,
-  // else the friendly type label ("Stage de Seconde", "Coding Club"). Never the
-  // raw Salesforce titre, which would leak the campaign identifier to talents.
-  let planningTypeLabel = $derived(
+  // Name for the planning widget: the event's admin-set public name when set,
+  // else the SF `titre` as a fallback (see `eventDisplayName`).
+  let planningEventName = $derived(
     planning.state === 'ongoing' || planning.state === 'upcoming'
-      ? eventPublicName(planning)
+      ? eventDisplayName(planning)
       : '',
   );
 
@@ -420,7 +419,7 @@
                   <CalendarClock class="h-8 w-8 text-epi-blue" />
                 </div>
                 <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                  {planningTypeLabel}
+                  {planningEventName}
                 </h3>
                 <!-- Live status: a pulsing dot so an active IRL event reads as
                      "happening now", distinct from the action button below. -->
@@ -466,7 +465,7 @@
                   <Rocket class="h-8 w-8 text-epi-blue" />
                 </div>
                 <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                  {planningTypeLabel}
+                  {planningEventName}
                 </h3>
                 <p class="mt-2 text-sm text-slate-500">
                   Ta prochaine session est prévue le<br /><strong
@@ -531,7 +530,7 @@
                   <span
                     class="truncate text-sm font-medium text-slate-700 dark:text-slate-300"
                   >
-                    {ev.titre}
+                    {eventDisplayName(ev)}
                   </span>
                 </div>
               {/each}

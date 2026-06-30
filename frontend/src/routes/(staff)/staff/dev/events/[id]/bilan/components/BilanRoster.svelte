@@ -16,8 +16,11 @@
   } from '$lib/components/staff/datatable/types';
   import type { BilanRow } from '../+page.server';
 
-  let { rows, recoOptions }: { rows: BilanRow[]; recoOptions: string[] } =
-    $props();
+  let {
+    rows,
+    recoOptions,
+    eventId,
+  }: { rows: BilanRow[]; recoOptions: string[]; eventId: string } = $props();
 
   // Sentinel for the "no recommendation answer" filter bucket (kept distinct from
   // any real option label).
@@ -257,7 +260,7 @@
      navigation; mirrors the émargement roster. -->
 {#snippet avatarLink(r: BilanRow)}
   <a
-    href={resolve(`/staff/dev/students/${r.talentId}`)}
+    href={resolve(`/staff/dev/students/${r.talentId}`) + `?event=${eventId}`}
     target="_blank"
     rel="noopener"
     class="inline-flex"

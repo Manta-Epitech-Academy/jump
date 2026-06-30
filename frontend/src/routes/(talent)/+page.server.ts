@@ -19,7 +19,7 @@ import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
 import {
   stageWindowEnd,
   STAGE_DEFAULT_DURATION_DAYS,
-  eventPublicName,
+  eventDisplayName,
 } from '$lib/domain/event';
 import { pendingFeedbackForm } from '$lib/domain/feedback';
 import { resolveEventNudgeForm } from '$lib/server/feedbackForms';
@@ -209,9 +209,9 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
                 nom: locals.talent.nom,
                 campusName: event.campus.name,
                 campusContactEmail: event.campus.contactEmail,
-                stageName: eventPublicName({
+                stageName: eventDisplayName({
                   publicName: event.publicName,
-                  eventType: 'stage_seconde',
+                  titre: event.titre,
                 }),
               }),
             };

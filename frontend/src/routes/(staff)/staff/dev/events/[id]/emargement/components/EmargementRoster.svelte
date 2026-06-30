@@ -267,9 +267,12 @@
   // The talent fiche opens in a new tab on purpose: staff stay anchored in the
   // émargement flow (presence toggles, filters, scroll position) instead of
   // navigating away mid-attendance, while still reaching the full dossier when a
-  // case needs it. Backs the row name/avatar links below.
+  // case needs it. Backs the row name/avatar links below. The `?event=` carries
+  // the current event: the fiche loads in a fresh tab with no client-side
+  // `lastEventId` to fall back on, so without it the dev sidebar would snap to
+  // the workspace default instead of this event. Mirrors the entretiens link.
   function ficheHref(talentId: string): string {
-    return resolve(`/staff/dev/students/${talentId}`);
+    return resolve(`/staff/dev/students/${talentId}`) + `?event=${eventId}`;
   }
 
   // Mark one cell straight from the inline switch. Optimistic: paint the choice

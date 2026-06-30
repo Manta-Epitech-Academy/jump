@@ -1,11 +1,21 @@
 import { now } from '@internationalized/date';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
+import { devVisibleEventWhere } from '$lib/server/services/stageContext';
 
-export type AttendedEvent = {
-  id: string;
-  titre: string;
-  date: Date;
-};
+// Single source for the attended-event row: the type below is derived from this
+// select so the two can't drift. Only the fields the history actually renders
+// (the name, via `eventDisplayName`, and the date) belong here.
+const ATTENDED_EVENT_SELECT = {
+  id: true,
+  titre: true,
+  date: true,
+  publicName: true,
+} satisfies Prisma.EventSelect;
+
+export type AttendedEvent = Prisma.EventGetPayload<{
+  select: typeof ATTENDED_EVENT_SELECT;
+}>;
 
 /**
  * Past events a talent actually attended, newest first.
@@ -16,6 +26,12 @@ export type AttendedEvent = {
  * real data and keying off it showed an empty history for everyone. "Attended"
  * means at least one présent / en-retard slot; filtering on `eventPresences.some`
  * also dedups multi-créneau events to one row per event.
+ *
+ * Only events visible in the dev workspace (`devVisibleEventWhere`) are
+ * surfaced: an attended event stays out of history until an admin activates it
+ * in the dev space, the same gate the dev event switcher uses. Callers render
+ * the name via `eventDisplayName` (the admin-set `publicName`, else the SF
+ * `titre`).
  *
  * "Past" is the end of today in `timeZone` (the talent's own zone on the
  * portal, the campus zone on the staff fiche) so an event near midnight lands
@@ -32,12 +48,13 @@ export function listAttendedEvents(
 
   return prisma.event.findMany({
     where: {
+      ...devVisibleEventWhere,
       date: { lte: until },
       eventPresences: {
         some: { talentId, status: { in: ['present', 'late'] } },
       },
     },
-    select: { id: true, titre: true, date: true },
+    select: ATTENDED_EVENT_SELECT,
     orderBy: { date: 'desc' },
     ...(take !== undefined ? { take } : {}),
   });
