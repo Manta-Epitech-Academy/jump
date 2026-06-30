@@ -189,27 +189,22 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
 }
 
 /**
- * Diffs an event's `EventConfig_Module` rows against the desired set inside an
- * open transaction: deletes removed modules, then reconciles the rest.
+ * Reconciles ONE event's `EventConfig_Module` rows to the desired set inside an
+ * open transaction: deletes the modules dropped from the set, then UPSERTs each
+ * desired module with its validated per-module sub-options (update preserves
+ * `createdAt`). The single-event wizard save is the authoritative sub-option
+ * editor, so it always (re)writes settings. The bulk list edit is a different
+ * shape - presence only, across many events - and takes the set-based path in
+ * `bulkSetModules` instead of looping this.
  *
- * `settings` carries the per-module sub-options, validated per module before any
- * write. `overwriteSettings` splits the two callers:
- *  - the single-event wizard save is the authoritative sub-option editor, so it
- *    UPSERTS every desired module with its validated settings (update preserves
- *    `createdAt`);
- *  - the bulk module edit only sets presence, so it ADDS missing modules with
- *    default settings and leaves existing rows' settings untouched - a bulk apply
- *    must never reset a campus's per-event sub-options.
- *
- * Both paths stay idempotent under concurrent saves: the bulk add uses
- * `skipDuplicates`, and the wizard upsert is naturally race-safe on the PK (two
- * admins saving the same event no longer hit a P2002 that rolls back the save).
+ * Race-safe on the PK: the upsert means two admins saving the same event no
+ * longer hit a P2002 that rolls the save back.
  */
 async function applyModuleDiff(
   tx: Prisma.TransactionClient,
   eventId: string,
   moduleKeys: string[],
-  opts: { settings?: Record<string, unknown>; overwriteSettings: boolean },
+  settings: Record<string, unknown>,
 ) {
   const desired = [
     ...new Set(moduleKeys.filter(isEventModuleKey)),
@@ -218,41 +213,25 @@ async function applyModuleDiff(
     where: { eventId },
     select: { moduleKey: true },
   });
-  const currentKeys = new Set(current.map((m) => m.moduleKey));
-
-  const toRemove = [...currentKeys].filter(
-    (k) => !desired.includes(k as EventModuleKey),
-  );
+  const toRemove = current
+    .map((m) => m.moduleKey)
+    .filter((k) => !desired.includes(k as EventModuleKey));
   if (toRemove.length > 0) {
     await tx.eventConfig_Module.deleteMany({
       where: { eventId, moduleKey: { in: toRemove } },
     });
   }
 
-  const settingsFor = (key: EventModuleKey): Prisma.InputJsonValue =>
-    parseModuleSettings(key, opts.settings?.[key]) as Prisma.InputJsonValue;
-
-  if (opts.overwriteSettings) {
-    for (const moduleKey of desired) {
-      const settings = settingsFor(moduleKey);
-      await tx.eventConfig_Module.upsert({
-        where: { eventId_moduleKey: { eventId, moduleKey } },
-        create: { eventId, moduleKey, settings },
-        update: { settings },
-      });
-    }
-  } else {
-    const toAdd = desired.filter((k) => !currentKeys.has(k));
-    if (toAdd.length > 0) {
-      await tx.eventConfig_Module.createMany({
-        data: toAdd.map((moduleKey) => ({
-          eventId,
-          moduleKey,
-          settings: settingsFor(moduleKey),
-        })),
-        skipDuplicates: true,
-      });
-    }
+  for (const moduleKey of desired) {
+    const value = parseModuleSettings(
+      moduleKey,
+      settings[moduleKey],
+    ) as Prisma.InputJsonValue;
+    await tx.eventConfig_Module.upsert({
+      where: { eventId_moduleKey: { eventId, moduleKey } },
+      create: { eventId, moduleKey, settings: value },
+      update: { settings: value },
+    });
   }
 }
 
@@ -350,10 +329,7 @@ export const EventService = {
     }
 
     await prisma.$transaction(async (tx) => {
-      await applyModuleDiff(tx, eventId, data.modules, {
-        settings: data.moduleSettings,
-        overwriteSettings: true,
-      });
+      await applyModuleDiff(tx, eventId, data.modules, data.moduleSettings);
       await tx.event.update({
         where: { id: eventId },
         data: {
@@ -371,21 +347,53 @@ export const EventService = {
   },
 
   /**
-   * Applies one exact module set to many events at once (admin list bulk edit).
-   * Overwrite semantics, same per-event diff as a single save, all in one
-   * transaction so a partial failure rolls the whole batch back. Admin-only and
-   * cross-campus like `updateEventConfig`, so no campus check: the ids are the
-   * authority. Only the module rows change; every other event field is left
-   * untouched.
+   * Makes many events expose exactly the given module set at once (admin list
+   * bulk edit). Set-based, NOT a per-event diff: two statements regardless of the
+   * selection size - one `deleteMany` to drop every module outside the target
+   * set across all selected events, one `createMany` (skipDuplicates) to add the
+   * target modules to those that lack them. A per-event read-modify-write loop
+   * here meant ~2 round-trips per event inside one interactive transaction (268
+   * events ≈ 536 serial queries, leaning on the bumped 15s tx timeout); the set
+   * form is O(1) in queries.
+   *
+   * `skipDuplicates` is what preserves per-event sub-options: an event that
+   * already has a target module keeps its row (and its `settings`) untouched, so
+   * a bulk apply never resets a campus's tuned settings - only presence changes.
+   * Wrapped in a transaction so a failed insert rolls the deletes back. Admin-
+   * only and cross-campus like `updateEventConfig`: the ids are the authority.
    */
   async bulkSetModules(eventIds: string[], modules: string[]) {
     if (eventIds.length === 0) return;
+    const desired = [
+      ...new Set(modules.filter(isEventModuleKey)),
+    ] as EventModuleKey[];
+    // Default sub-options per target module: the same value the per-event add
+    // path used, computed once instead of per (event × module) pair.
+    const defaults = new Map<EventModuleKey, Prisma.InputJsonValue>(
+      desired.map((key) => [
+        key,
+        parseModuleSettings(key, undefined) as Prisma.InputJsonValue,
+      ]),
+    );
     await prisma.$transaction(async (tx) => {
-      for (const eventId of eventIds) {
-        await applyModuleDiff(tx, eventId, modules, {
-          overwriteSettings: false,
-        });
-      }
+      await tx.eventConfig_Module.deleteMany({
+        where: {
+          eventId: { in: eventIds },
+          // Empty target set = expose nothing: drop every module (no key filter).
+          ...(desired.length ? { moduleKey: { notIn: desired } } : {}),
+        },
+      });
+      if (desired.length === 0) return;
+      await tx.eventConfig_Module.createMany({
+        data: eventIds.flatMap((eventId) =>
+          desired.map((moduleKey) => ({
+            eventId,
+            moduleKey,
+            settings: defaults.get(moduleKey),
+          })),
+        ),
+        skipDuplicates: true,
+      });
     });
   },
 
