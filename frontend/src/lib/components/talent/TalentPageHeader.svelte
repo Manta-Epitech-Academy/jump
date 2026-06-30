@@ -140,8 +140,13 @@
               <Icon class="h-6 w-6 shrink-0 text-epi-blue" />
             {/if}
             <div class="min-w-0">
+              <!-- `truncate` is overflow-hidden, and the condensed uppercase
+                   heading carries its accents (É) above the cap line, so a tight
+                   line box slices their tops. py/-my grows the clip box
+                   symmetrically while leaving the box's outer size and its
+                   vertical centring against the icon unchanged. -->
               <h1
-                class="truncate font-heading text-xl tracking-tight text-slate-900 uppercase sm:text-2xl dark:text-white"
+                class="-my-1.5 truncate py-1.5 font-heading text-xl tracking-tight text-slate-900 uppercase sm:text-2xl dark:text-white"
               >
                 {title}<span class="text-epi-teal">_</span>
               </h1>
