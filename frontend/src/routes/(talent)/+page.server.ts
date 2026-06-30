@@ -157,11 +157,11 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     }
 
     // The staff-authored CMS welcome message seeds the dashboard's Actualités
-    // feed and shows for the whole stage window. The CmsPage table has been
-    // renamed to NewsPost on feat/news-feed; this block is kept for backward
-    // compatibility with the dev branch where CmsPage still exists.
+    // feed and shows for the whole stage window; this card is its only home.
+    // Distinct from the fixed pre-onboarding splash at /welcome, which owns its
+    // own copy and does not read this row.
     let welcome: { content: string } | null = null;
-    try {
+    {
       // With several concurrent stages, prefer the ongoing one: filter to stages
       // whose window is still open, then take the earliest-starting (an ongoing
       // stage outranks a not-yet-started one). Window mirrors `stageWindowEnd`.
@@ -198,7 +198,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         const { event } = stageParticipation;
         const stageEnd = stageWindowEnd(event.date, event.endDate);
         if (stageEnd >= new Date()) {
-          const welcomePage = await (prisma as any).cmsPage?.findUnique({
+          const welcomePage = await prisma.cmsPage.findUnique({
             where: { slug_eventId: { slug: 'welcome', eventId: event.id } },
             select: { content: true },
           });
@@ -218,8 +218,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
           }
         }
       }
-    } catch {
-      // CmsPage table may not exist (renamed to NewsPost on news-feed branch)
     }
 
     // Past events the talent attended (widget: 5 most recent).
