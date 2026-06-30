@@ -1,15 +1,22 @@
-import { now } from '@internationalized/date';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { devVisibleEventWhere } from '$lib/server/services/stageContext';
+import {
+  devVisibleEventWhere,
+  resolveEventStatus,
+} from '$lib/server/services/stageContext';
+import { getLifecycleBounds } from '$lib/domain/eventLifecycle';
 
 // Single source for the attended-event row: the type below is derived from this
-// select so the two can't drift. Only the fields the history actually renders
-// (the name, via `eventDisplayName`, and the date) belong here.
+// select so the two can't drift. Beyond the fields the history renders (the
+// name, via `eventDisplayName`, and the date), the select carries `endDate` and
+// `eventType` because the "past" filter runs them through `resolveEventStatus`
+// (a running stage with no endDate must not read `past`); see below.
 const ATTENDED_EVENT_SELECT = {
   id: true,
   titre: true,
   date: true,
+  endDate: true,
+  eventType: true,
   publicName: true,
 } satisfies Prisma.EventSelect;
 
@@ -33,29 +40,33 @@ export type AttendedEvent = Prisma.EventGetPayload<{
  * the name via `eventDisplayName` (the admin-set `publicName`, else the SF
  * `titre`).
  *
- * "Past" is the end of today in `timeZone` (the talent's own zone on the
- * portal, the campus zone on the staff fiche) so an event near midnight lands
- * in the same bucket on a UTC pod and in the browser. `take` caps the result
- * for the dashboard widget; omit it for the full timeline and the fiche.
+ * "Past" is decided by `resolveEventStatus` in `timeZone` (the talent's own
+ * zone on the portal, the campus zone on the staff fiche), the same lens the
+ * dev switcher and the admin cockpit use, so the three agree on when an event
+ * is over. This matters for a stage de seconde with no `endDate`: a raw
+ * `date < now` check would surface it the day after it starts, while the talent
+ * is still mid-stage; `resolveEventStatus` gives it its ~2-week window instead.
+ * The attended-with-presence set is small (a few rows per talent), so filtering
+ * in memory rather than in the query keeps that synthesized window in one place.
+ * `take` caps the result for the dashboard widget, applied AFTER the past filter
+ * so a still-running stage can't eat a slot; omit it for the timeline and fiche.
  */
-export function listAttendedEvents(
+export async function listAttendedEvents(
   talentId: string,
   { timeZone, take }: { timeZone: string; take?: number },
 ): Promise<AttendedEvent[]> {
-  const until = now(timeZone)
-    .set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
-    .toDate();
-
-  return prisma.event.findMany({
+  const rows = await prisma.event.findMany({
     where: {
       ...devVisibleEventWhere,
-      date: { lte: until },
       eventPresences: {
         some: { talentId, status: { in: ['present', 'late'] } },
       },
     },
     select: ATTENDED_EVENT_SELECT,
     orderBy: { date: 'desc' },
-    ...(take !== undefined ? { take } : {}),
   });
+
+  const bounds = getLifecycleBounds(timeZone);
+  const past = rows.filter((e) => resolveEventStatus(e, bounds) === 'past');
+  return take === undefined ? past : past.slice(0, take);
 }
