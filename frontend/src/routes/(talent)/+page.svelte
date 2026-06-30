@@ -513,7 +513,7 @@
               <h2
                 class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
               >
-                Mes événements<span class="text-epi-teal">_</span>
+                Événements passés<span class="text-epi-teal">_</span>
               </h2>
             </div>
 

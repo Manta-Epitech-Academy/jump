@@ -157,7 +157,7 @@
 
         {#if data.eventHistory.length > 0}
           <EpiSection title="Historique événements" accent="tomorrow">
-            <ul class="space-y-1.5">
+            <ul class="max-h-[17rem] space-y-1.5 overflow-y-auto pr-1">
               {#each data.eventHistory as ev (ev.id)}
                 <li
                   class="flex items-center gap-2.5 rounded-sm border bg-card px-3 py-2 text-sm"
@@ -165,11 +165,11 @@
                   <Calendar
                     class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
                   />
-                  <span class="font-mono text-xs text-muted-foreground"
-                    >{formatDateFr(ev.date)}</span
-                  >
-                  <span class="truncate font-medium"
+                  <span class="min-w-0 flex-1 truncate font-medium"
                     >{eventDisplayName(ev)}</span
+                  >
+                  <span class="shrink-0 font-mono text-xs text-muted-foreground"
+                    >{formatDateFr(ev.date)}</span
                   >
                 </li>
               {/each}

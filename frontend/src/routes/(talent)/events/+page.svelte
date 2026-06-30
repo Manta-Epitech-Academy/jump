@@ -48,7 +48,7 @@
 </svelte:head>
 
 <div class="flex min-h-screen flex-col">
-  <TalentPageHeader title="Mes événements" icon={CalendarCheck} />
+  <TalentPageHeader title="Événements passés" icon={CalendarCheck} />
 
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
     <!-- Hero -->
@@ -73,9 +73,6 @@
         </div>
 
         <div class="min-w-0 flex-1">
-          <h2 class="text-base font-bold text-slate-900 dark:text-white">
-            Événements passés
-          </h2>
           <p class="text-sm text-slate-500">
             Tous les événements auxquels tu as participé.
           </p>
@@ -161,7 +158,9 @@
           >
             <Sparkles class="h-4 w-4 text-slate-400" />
           </div>
-          <p class="text-sm text-slate-400">Début de ton aventure Jump</p>
+          <p class="text-sm text-slate-400">
+            Début de ton aventure avec Epitech
+          </p>
         </div>
       </div>
     {:else}
