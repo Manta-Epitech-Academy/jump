@@ -263,7 +263,7 @@
     href={resolve(`/staff/dev/students/${r.talentId}`) + `?event=${eventId}`}
     target="_blank"
     rel="noopener"
-    class="inline-flex"
+    class="inline-flex align-middle"
     title="Voir la fiche"
     aria-label={`Ouvrir la fiche de ${r.prenom ?? ''} ${r.nom ?? ''} (nouvel onglet)`}
   >
