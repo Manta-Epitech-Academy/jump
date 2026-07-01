@@ -517,22 +517,25 @@
               </h2>
             </div>
 
-            <div class="space-y-1 px-6 pt-4 pb-2">
+            <!-- Date left, name right. The date column sizes to the widest date,
+                 so every name starts at the same x instead of jittering with
+                 "4 avr." vs "14 mars". -->
+            <div
+              class="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 px-6 pt-4 pb-2"
+            >
               {#each data.pastEvents as ev (ev.id)}
-                <div class="flex items-center gap-3 rounded-xl px-2 py-1.5">
-                  <span class="shrink-0 text-xs text-slate-400">
-                    {new Date(ev.date).toLocaleDateString('fr-FR', {
-                      timeZone: data.timeZone,
-                      day: 'numeric',
-                      month: 'short',
-                    })}
-                  </span>
-                  <span
-                    class="truncate text-sm font-medium text-slate-700 dark:text-slate-300"
-                  >
-                    {eventDisplayName(ev)}
-                  </span>
-                </div>
+                <span class="text-xs text-slate-400 tabular-nums">
+                  {new Date(ev.date).toLocaleDateString('fr-FR', {
+                    timeZone: data.timeZone,
+                    day: 'numeric',
+                    month: 'short',
+                  })}
+                </span>
+                <span
+                  class="min-w-0 truncate text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  {eventDisplayName(ev)}
+                </span>
               {/each}
             </div>
 

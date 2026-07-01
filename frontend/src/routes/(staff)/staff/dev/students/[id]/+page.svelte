@@ -4,9 +4,6 @@
   import { page } from '$app/state';
 
   import MessageSquare from '@lucide/svelte/icons/message-square';
-  import Calendar from '@lucide/svelte/icons/calendar';
-  import { formatDateFr } from '$lib/utils';
-  import { eventDisplayName } from '$lib/domain/event';
   import Plus from '@lucide/svelte/icons/plus';
 
   import { Button } from '$lib/components/ui/button';
@@ -15,6 +12,7 @@
   import TalentProfileHero from './components/TalentProfileHero.svelte';
   import TalentInterestChips from './components/TalentInterestChips.svelte';
   import TalentInterestQuotes from './components/TalentInterestQuotes.svelte';
+  import TalentEventHistory from './components/TalentEventHistory.svelte';
   import TalentRecommendationList from './components/TalentRecommendationList.svelte';
   import ContactCard from './components/ContactCard.svelte';
   import RightRailCard from './components/RightRailCard.svelte';
@@ -148,34 +146,20 @@
           {/if}
         </EpiSection>
 
+        <!-- New Visual Momentum section: Event History Timeline -->
+        <EpiSection title="Historique événements" accent="blue">
+          <TalentEventHistory
+            events={data.eventHistory ?? []}
+            timezone={data.timezone}
+          />
+        </EpiSection>
+
         <EpiSection title="Recommandations" accent="together">
           <TalentRecommendationList
             recommendations={data.recommendations}
             {contacts}
           />
         </EpiSection>
-
-        {#if data.eventHistory.length > 0}
-          <EpiSection title="Historique événements" accent="tomorrow">
-            <ul class="max-h-[17rem] space-y-1.5 overflow-y-auto pr-1">
-              {#each data.eventHistory as ev (ev.id)}
-                <li
-                  class="flex items-center gap-2.5 rounded-sm border bg-card px-3 py-2 text-sm"
-                >
-                  <Calendar
-                    class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-                  />
-                  <span class="min-w-0 flex-1 truncate font-medium"
-                    >{eventDisplayName(ev)}</span
-                  >
-                  <span class="shrink-0 font-mono text-xs text-muted-foreground"
-                    >{formatDateFr(ev.date)}</span
-                  >
-                </li>
-              {/each}
-            </ul>
-          </EpiSection>
-        {/if}
 
         <ContactCard student={data.student} />
       {/if}
