@@ -35,6 +35,7 @@
     type PresenceCell as PresenceCellData,
     type EventSlot,
   } from '$lib/domain/eventPresence';
+  import { cohortNounForms } from '$lib/domain/event';
   import type { PresenceRow, PresenceSortKey, EmargementCohort } from './types';
   import PresenceSwitch from './PresenceSwitch.svelte';
   import ContactDialog from './ContactDialog.svelte';
@@ -59,6 +60,7 @@
     isActivePastCutoff,
     canEdit,
     eventId,
+    cohortNoun,
     timezone,
     activeSlotKey = $bindable(),
     dialogOpen = $bindable(false),
@@ -70,11 +72,16 @@
     canEdit: boolean;
     /** Anchors notes created from this screen to the event (see NotesDialog). */
     eventId: string;
+    /** Event's Jump-owned cohort noun ("stagiaire", ...), or null when unnamed. */
+    cohortNoun: string | null;
     /** Campus IANA timezone, forwarded to the notes dialog for byline times. */
     timezone: string;
     activeSlotKey: string;
     dialogOpen?: boolean;
   } = $props();
+
+  // Single source for the cohort-member label across the roster + its dialogs.
+  const noun = $derived(cohortNounForms(cohortNoun));
 
   const presenceIndex = $derived(indexPresences(presences));
 
@@ -267,9 +274,12 @@
   // The talent fiche opens in a new tab on purpose: staff stay anchored in the
   // émargement flow (presence toggles, filters, scroll position) instead of
   // navigating away mid-attendance, while still reaching the full dossier when a
-  // case needs it. Backs the row name/avatar links below.
+  // case needs it. Backs the row name/avatar links below. The `?event=` carries
+  // the current event: the fiche loads in a fresh tab with no client-side
+  // `lastEventId` to fall back on, so without it the dev sidebar would snap to
+  // the workspace default instead of this event. Mirrors the entretiens link.
   function ficheHref(talentId: string): string {
-    return resolve(`/staff/dev/students/${talentId}`);
+    return resolve(`/staff/dev/students/${talentId}`) + `?event=${eventId}`;
   }
 
   // Mark one cell straight from the inline switch. Optimistic: paint the choice
@@ -312,10 +322,10 @@
       <h3
         class="mt-4 text-sm font-bold tracking-widest text-foreground uppercase"
       >
-        Aucun stagiaire inscrit
+        Aucun {noun.singular} inscrit
       </h3>
       <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        Les stagiaires apparaîtront ici une fois la synchronisation effectuée.
+        Les {noun.plural} apparaîtront ici une fois la synchronisation effectuée.
       </p>
     </div>
   {:else}
@@ -324,11 +334,12 @@
         <DataTableToolbar
           searchValue={searchQuery}
           onSearchInput={(v) => (searchQuery = v)}
-          searchPlaceholder="Rechercher un stagiaire…"
+          searchPlaceholder={`Rechercher un ${noun.singular}…`}
           searchWidthClass="flex-1 min-w-0 max-w-[230px]"
           filtersAlign="end"
           count={filtered.length}
-          countNoun="stagiaire"
+          countNoun={noun.singular}
+          countNounPlural={noun.plural}
           {countSuffix}
         >
           {#snippet filters()}
@@ -384,7 +395,7 @@
                 href={ficheHref(r.talentId)}
                 target="_blank"
                 rel="noopener"
-                class="inline-flex"
+                class="inline-flex align-middle"
                 title="Voir la fiche"
                 aria-label={`Ouvrir la fiche de ${r.prenom} ${r.nom} (nouvel onglet)`}
               >
@@ -619,7 +630,7 @@
               {:else}
                 <!-- The two end-of-créneau bulk actions, paired so they read as
                      a choice: mark everyone present, or clôturer (which marks the
-                     still-en-attente stagiaires absent and cuts the QR). The
+                     still-en-attente members absent and cuts the QR). The
                      caption spells out the clôture effect, the part staff missed. -->
                 <div class="@container space-y-2">
                   <!-- Side by side when the card is wide enough, stacked when
@@ -668,7 +679,7 @@
               stageRate={attendanceRate}
               footer={canEdit ? slotLifecycle : undefined}
             />
-            <PresenceHelpCard />
+            <PresenceHelpCard {cohortNoun} />
           </div>
         {/if}
       </aside>
@@ -676,8 +687,8 @@
   {/if}
 </Tooltip.Provider>
 
-<!-- Contact card: phones to reach the stagiaire, then the family if no answer -->
-<ContactDialog bind:open={contactOpen} row={contactTarget} />
+<!-- Contact card: phones to reach the member, then the family if no answer -->
+<ContactDialog bind:open={contactOpen} row={contactTarget} {cohortNoun} />
 
 <NotesDialog
   bind:open={notesOpen}
@@ -694,9 +705,9 @@
     <Dialog.Header>
       <Dialog.Title>Marquer tout le monde présent ?</Dialog.Title>
       <Dialog.Description>
-        Tous les stagiaires sans présence enregistrée sur ce créneau passeront
-        présents. Les présences déjà saisies (présent, absent, justifié, en
-        retard) ne sont pas modifiées.
+        Tous les {noun.plural} sans présence enregistrée sur ce créneau passeront
+        présents. Les présences déjà saisies (présent, absent, justifié, en retard)
+        ne sont pas modifiées.
       </Dialog.Description>
     </Dialog.Header>
     {#if activeSlot}
@@ -708,7 +719,7 @@
             await update();
             if (result.type === 'success')
               toast.success(
-                'Stagiaires sans présence enregistrée marqués présents.',
+                `${noun.Plural} sans présence enregistrée marqués présents.`,
               );
             // The bulk mark only fails now if a staff member manually closed the
             // créneau between render and submit; the 11h/15h cutoff no longer
@@ -744,9 +755,9 @@
     <Dialog.Header>
       <Dialog.Title>Clôturer et noter les absents ?</Dialog.Title>
       <Dialog.Description>
-        Tous les stagiaires encore « En attente » seront marqués absents et le
-        QR code de ce créneau cessera de fonctionner. Vous pourrez rouvrir le
-        créneau si besoin.
+        Tous les {noun.plural} encore « En attente » seront marqués absents et le
+        QR code de ce créneau cessera de fonctionner. Vous pourrez rouvrir le créneau
+        si besoin.
       </Dialog.Description>
     </Dialog.Header>
     {#if activeSlot}

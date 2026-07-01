@@ -32,6 +32,7 @@
     <EntretiensResults
       {...cohort}
       eventId={data.event.id}
+      cohortNoun={data.event.cohortNoun}
       timezone={data.timezone}
       currentStaffId={data.currentStaffId}
     />

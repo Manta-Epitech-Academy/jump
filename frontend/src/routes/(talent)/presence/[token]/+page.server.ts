@@ -3,7 +3,7 @@ import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { verifyCheckinToken } from '$lib/server/presence/checkinToken';
 import { isSlotPastCutoff } from '$lib/server/presence/slotClosure';
-import { eventPublicName } from '$lib/domain/event';
+import { eventDisplayName } from '$lib/domain/event';
 import {
   dateKeyToDbDate,
   dayLabelFr,
@@ -51,7 +51,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     prisma.event.findUnique({
       where: { id: eventId },
       select: {
-        eventType: true,
+        titre: true,
         publicName: true,
         campus: { select: { timezone: true } },
       },
@@ -67,10 +67,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   ]);
 
   if (!event) return { state: 'invalid' as CheckinState, ...empty };
-  // Short, friendly label: the event's public name when set, else the type
-  // label ("Stage de Seconde") - never the cohort `titre`.
+  // Short, friendly label: the event's public name when set, else the SF
+  // `titre` as a fallback.
   const withLabel = {
-    eventLabel: eventPublicName(event),
+    eventLabel: eventDisplayName(event),
     prenom: talent.prenom,
     ...labels,
   };

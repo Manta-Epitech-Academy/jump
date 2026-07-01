@@ -4,19 +4,17 @@
   import GraduationCap from '@lucide/svelte/icons/graduation-cap';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import * as Card from '$lib/components/ui/card';
-  import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-  } from '$lib/components/ui/table';
-  import { formatDateFr } from '$lib/utils';
+  import { Badge } from '$lib/components/ui/badge';
+  import EventStateBadge from '$lib/components/events/EventStateBadge.svelte';
+  import EventModulesCell from '$lib/components/events/EventModulesCell.svelte';
   import { resolve } from '$app/paths';
 
   let { data } = $props();
+
+  const eventsHref = resolve('/staff/admin/events');
 
   const syncTypeLabels = {
     campus_list: 'Liste des campus',
@@ -123,18 +121,31 @@
       </Card.Root>
     </a>
 
-    <Card.Root class="border-t-4 border-t-epi-pink shadow-sm">
-      <Card.Header
-        class="flex flex-row items-center justify-between space-y-0 pb-2"
+    <a href={eventsHref} class="block transition-all hover:-translate-y-1">
+      <Card.Root
+        class="h-full border-t-4 border-t-epi-pink shadow-sm hover:border-epi-pink/80"
       >
-        <Card.Title class="text-sm font-bold uppercase">Événements</Card.Title>
-        <CalendarDays class="h-4 w-4 text-muted-foreground" />
-      </Card.Header>
-      <Card.Content>
-        <div class="text-2xl font-black">{data.stats.events}</div>
-        <p class="text-xs text-muted-foreground">Organisés au total</p>
-      </Card.Content>
-    </Card.Root>
+        <Card.Header
+          class="flex flex-row items-center justify-between space-y-0 pb-2"
+        >
+          <Card.Title
+            class="text-sm font-bold uppercase transition-colors hover:text-epi-pink"
+            >Événements</Card.Title
+          >
+          <CalendarDays class="h-4 w-4 text-muted-foreground" />
+        </Card.Header>
+        <Card.Content>
+          <div class="text-2xl font-black">{data.stats.events}</div>
+          {#if data.stats.toPrepare > 0}
+            <p class="text-xs font-medium text-amber-600">
+              {data.stats.toPrepare} à préparer
+            </p>
+          {:else}
+            <p class="text-xs text-muted-foreground">Organisés au total</p>
+          {/if}
+        </Card.Content>
+      </Card.Root>
+    </a>
   </div>
 
   <!-- Worker Sync Status -->
@@ -178,36 +189,70 @@
 
   <!-- Latest Events -->
   <Card.Root>
-    <Card.Header>
+    <Card.Header
+      class="flex flex-row items-center justify-between gap-2 space-y-0"
+    >
       <Card.Title class="uppercase">Derniers événements créés</Card.Title>
+      <a
+        href={eventsHref}
+        class="flex shrink-0 items-center gap-1 text-xs font-bold text-muted-foreground uppercase transition-colors hover:text-epi-pink"
+      >
+        Tous les événements
+        <ArrowRight class="size-3.5" />
+      </a>
     </Card.Header>
     <Card.Content>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Titre</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead class="text-right">Campus</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {#each data.recentEvents as event}
-            <TableRow>
-              <TableCell class="font-bold">{event.titre}</TableCell>
-              <TableCell>{formatDateFr(event.date)}</TableCell>
-              <TableCell class="text-right text-epi-pink"
-                >{event.campus}</TableCell
-              >
-            </TableRow>
-          {:else}
-            <TableRow>
-              <TableCell colspan={3} class="text-center text-muted-foreground"
-                >Aucun événement.</TableCell
-              >
-            </TableRow>
+      {#if data.recentEvents.length}
+        <div class="space-y-2">
+          {#each data.recentEvents as event (event.id)}
+            <a
+              href="{eventsHref}?event={event.id}"
+              class="group flex items-center gap-4 rounded-sm border px-4 py-3 transition-colors hover:border-epi-pink/60 hover:bg-muted/40"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="truncate font-bold" title={event.displayName}>
+                    {event.displayName}
+                  </span>
+                  {#if !event.synced}
+                    <Badge
+                      variant="outline"
+                      class="shrink-0 text-[10px] font-normal text-muted-foreground"
+                    >
+                      Manuel
+                    </Badge>
+                  {/if}
+                  <EventStateBadge
+                    state={event.configState}
+                    past={event.status === 'past'}
+                  />
+                </div>
+                <p class="truncate text-xs text-muted-foreground">
+                  {event.campusName} · {event.eventTypeLabel} · {event.dateLabel}
+                </p>
+              </div>
+              <div class="hidden shrink-0 sm:block">
+                <EventModulesCell modules={event.modules} />
+              </div>
+              <div class="shrink-0 text-right">
+                <div class="text-sm font-bold tabular-nums">
+                  {event.participations}
+                </div>
+                <div class="text-[10px] text-muted-foreground uppercase">
+                  inscrits
+                </div>
+              </div>
+              <ChevronRight
+                class="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-epi-pink"
+              />
+            </a>
           {/each}
-        </TableBody>
-      </Table>
+        </div>
+      {:else}
+        <p class="py-6 text-center text-sm text-muted-foreground">
+          Aucun événement.
+        </p>
+      {/if}
     </Card.Content>
   </Card.Root>
 </div>

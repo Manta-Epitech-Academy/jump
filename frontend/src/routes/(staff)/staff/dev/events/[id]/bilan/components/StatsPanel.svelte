@@ -1,16 +1,22 @@
 <script lang="ts">
   import { RECO_QUESTION_KEY, RECO_VERDICT_LABEL } from '$lib/domain/feedback';
+  import { cohortNounForms } from '$lib/domain/event';
   import type { FormStats } from '$lib/server/feedbackStats';
 
   let {
     respondedCount,
     total,
     stats,
+    cohortNoun,
   }: {
     respondedCount: number;
     total: number;
     stats: FormStats | null;
+    cohortNoun: string | null;
   } = $props();
+
+  // Event's Jump-owned cohort noun ("stagiaire" / "participant").
+  const noun = $derived(cohortNounForms(cohortNoun));
 
   const pct = $derived(
     total > 0 ? Math.round((respondedCount / total) * 100) : 0,
@@ -36,7 +42,8 @@
       <p class="text-sm text-muted-foreground">
         <span class="font-mono font-bold text-foreground">{respondedCount}</span
         >
-        / {total} stagiaires
+        / {total}
+        {noun.plural}
       </p>
     </div>
     <p class="mt-2 text-3xl font-bold text-epi-blue">

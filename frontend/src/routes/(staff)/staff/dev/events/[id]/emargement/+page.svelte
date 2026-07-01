@@ -9,7 +9,7 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import { can } from '$lib/domain/permissions';
   import { defaultActiveSlotKey } from '$lib/domain/eventPresence';
-  import { eventDisplayName } from '$lib/domain/event';
+  import { cohortNounForms, eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import type { EmargementCohort } from './components/types';
   import QrDialog from './components/QrDialog.svelte';
@@ -19,6 +19,8 @@
   let { data }: { data: PageData } = $props();
 
   const canEdit = $derived(can('devMember', page.data.staffProfile?.staffRole));
+  // Event's Jump-owned cohort noun ("stagiaire" / "participant").
+  const noun = $derived(cohortNounForms(data.event.cohortNoun));
 
   // ── Active créneau (shell-owned) ─────────────────────────────────────────
   // Kept here, not in the roster, so it survives the roster re-streaming every
@@ -171,13 +173,12 @@
           </Tooltip.Trigger>
           <Tooltip.Content class="max-w-56">
             {#if !isActiveClosed}
-              Projetez le QR code : les stagiaires le scannent pour pointer
-              eux-mêmes.
+              Projetez le QR code : les {noun.plural} le scannent pour pointer eux-mêmes.
             {:else if isActivePastCutoff}
-              Ce créneau est terminé : les stagiaires ne peuvent plus pointer
-              avec le QR code.
+              Ce créneau est terminé : les {noun.plural} ne peuvent plus pointer avec
+              le QR code.
             {:else}
-              Ce créneau est clôturé : les stagiaires ne peuvent plus pointer.
+              Ce créneau est clôturé : les {noun.plural} ne peuvent plus pointer.
               Rouvrez-le pour réactiver le QR code.
             {/if}
           </Tooltip.Content>
@@ -197,6 +198,7 @@
       {isActivePastCutoff}
       {canEdit}
       eventId={data.event.id}
+      cohortNoun={data.event.cohortNoun}
       timezone={data.timezone}
       bind:activeSlotKey
       bind:dialogOpen={rosterDialogOpen}

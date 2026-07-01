@@ -6,6 +6,7 @@
   import { cn } from '$lib/utils';
   import { Button } from '$lib/components/ui/button';
   import { formatGivenName } from '$lib/domain/profile';
+  import { cohortNounForms } from '$lib/domain/event';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
@@ -16,8 +17,20 @@
   } from '$lib/components/staff/datatable/types';
   import type { BilanRow } from '../+page.server';
 
-  let { rows, recoOptions }: { rows: BilanRow[]; recoOptions: string[] } =
-    $props();
+  let {
+    rows,
+    recoOptions,
+    eventId,
+    cohortNoun,
+  }: {
+    rows: BilanRow[];
+    recoOptions: string[];
+    eventId: string;
+    cohortNoun: string | null;
+  } = $props();
+
+  // Event's Jump-owned cohort noun ("stagiaire" / "participant").
+  const noun = $derived(cohortNounForms(cohortNoun));
 
   // Sentinel for the "no recommendation answer" filter bucket (kept distinct from
   // any real option label).
@@ -166,11 +179,12 @@
   <DataTableToolbar
     searchValue={searchQuery}
     onSearchInput={(v) => (searchQuery = v)}
-    searchPlaceholder="Rechercher un stagiaire…"
+    searchPlaceholder={`Rechercher un ${noun.singular}…`}
     searchWidthClass="w-full max-w-[230px]"
     filtersAlign="end"
     count={filtered.length}
-    countNoun="stagiaire"
+    countNoun={noun.singular}
+    countNounPlural={noun.plural}
     {countSuffix}
   >
     {#snippet filters()}
@@ -253,14 +267,14 @@
 {/snippet}
 
 <!-- Only the avatar links to the fiche (new tab), the row and the name are inert.
-     Marking a stagiaire's recommendation should never be a click away from a full
+     Marking a member's recommendation should never be a click away from a full
      navigation; mirrors the émargement roster. -->
 {#snippet avatarLink(r: BilanRow)}
   <a
-    href={resolve(`/staff/dev/students/${r.talentId}`)}
+    href={resolve(`/staff/dev/students/${r.talentId}`) + `?event=${eventId}`}
     target="_blank"
     rel="noopener"
-    class="inline-flex"
+    class="inline-flex align-middle"
     title="Voir la fiche"
     aria-label={`Ouvrir la fiche de ${r.prenom ?? ''} ${r.nom ?? ''} (nouvel onglet)`}
   >

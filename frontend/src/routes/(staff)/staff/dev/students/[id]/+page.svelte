@@ -12,6 +12,7 @@
   import TalentProfileHero from './components/TalentProfileHero.svelte';
   import TalentInterestChips from './components/TalentInterestChips.svelte';
   import TalentInterestQuotes from './components/TalentInterestQuotes.svelte';
+  import TalentEventHistory from './components/TalentEventHistory.svelte';
   import TalentRecommendationList from './components/TalentRecommendationList.svelte';
   import ContactCard from './components/ContactCard.svelte';
   import RightRailCard from './components/RightRailCard.svelte';
@@ -143,6 +144,14 @@
               Aucun centre d'intérêt renseigné.
             </p>
           {/if}
+        </EpiSection>
+
+        <!-- New Visual Momentum section: Event History Timeline -->
+        <EpiSection title="Historique événements" accent="blue">
+          <TalentEventHistory
+            events={data.eventHistory ?? []}
+            timezone={data.timezone}
+          />
         </EpiSection>
 
         <EpiSection title="Recommandations" accent="together">

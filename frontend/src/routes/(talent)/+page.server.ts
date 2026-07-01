@@ -19,13 +19,14 @@ import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
 import {
   stageWindowEnd,
   STAGE_DEFAULT_DURATION_DAYS,
-  eventPublicName,
+  eventDisplayName,
 } from '$lib/domain/event';
 import { pendingFeedbackForm } from '$lib/domain/feedback';
 import { resolveEventNudgeForm } from '$lib/server/feedbackForms';
 import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
 import { toPlanningView } from '$lib/domain/talentPlanning';
 import { buildPreviewPlanningView } from '$lib/server/talentPlanningPreview';
+import { listAttendedEvents } from '$lib/server/talent/attendedEvents';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -156,7 +157,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     }
 
     // The staff-authored CMS welcome message seeds the dashboard's Actualités
-    // feed and shows for the whole stage window — this card is its only home.
+    // feed and shows for the whole stage window; this card is its only home.
     // Distinct from the fixed pre-onboarding splash at /welcome, which owns its
     // own copy and does not read this row.
     let welcome: { content: string } | null = null;
@@ -208,9 +209,9 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
                 nom: locals.talent.nom,
                 campusName: event.campus.name,
                 campusContactEmail: event.campus.contactEmail,
-                stageName: eventPublicName({
+                stageName: eventDisplayName({
                   publicName: event.publicName,
-                  eventType: 'stage_seconde',
+                  titre: event.titre,
                 }),
               }),
             };
@@ -218,6 +219,12 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         }
       }
     }
+
+    // Past events the talent attended (widget: 5 most recent).
+    const pastEvents = await listAttendedEvents(studentId, {
+      timeZone: tz,
+      take: 5,
+    });
 
     // Feedback banner: check if the stage_seconde event has pending feedback
     let pendingFeedback: Array<{
@@ -288,6 +295,8 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       minigameRankReward,
       onboardingArrival,
       welcome,
+      pastEvents,
+      timeZone: tz,
       pendingFeedback,
     };
   } catch (err) {

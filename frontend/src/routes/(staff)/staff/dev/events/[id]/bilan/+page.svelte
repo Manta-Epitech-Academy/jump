@@ -72,7 +72,12 @@
          inscrits/entretiens; no $state unwrap needed. -->
     <div class="grid gap-6 xl:grid-cols-10">
       <div class="min-w-0 xl:col-span-7">
-        <BilanRoster rows={cohort.rows} recoOptions={cohort.recoOptions} />
+        <BilanRoster
+          rows={cohort.rows}
+          recoOptions={cohort.recoOptions}
+          eventId={data.event.id}
+          cohortNoun={data.event.cohortNoun}
+        />
       </div>
       <aside class="min-w-0 xl:col-span-3">
         <div
@@ -82,6 +87,7 @@
             respondedCount={cohort.respondedCount}
             total={cohort.total}
             stats={cohort.stats}
+            cohortNoun={data.event.cohortNoun}
           />
         </div>
       </aside>

@@ -40,6 +40,7 @@
     id: string;
     titre: string;
     publicName: string;
+    cohortNoun: string | null;
     eventType: string;
     eventTypeLabel: string;
     campusName: string;
@@ -59,6 +60,7 @@
     description: string | null;
     forEventType: string | null;
     publicName: string | null;
+    cohortNoun: string | null;
     startTime: string;
     feedbackFormId: string | null;
     modules: EventModuleKey[];
@@ -130,6 +132,11 @@
   function prefill(e: EditingEvent) {
     $form.id = e.id;
     $form.publicName = e.publicName;
+    // The persisted noun, or '' when the event was never named (the field then
+    // shows its placeholder). The SF type is never consulted here: a per-type
+    // default rides the config template the admin starts from (the stage template
+    // carries "stagiaire"), and an event keeps whatever staff last set.
+    $form.cohortNoun = e.cohortNoun ?? '';
     $form.startTime = e.startTime;
     $form.endDate = e.endDate;
     $form.modules = [...e.modules];
@@ -188,6 +195,7 @@
     // edit on step 2. Empty falls back as usual (publicName → SF titre, startTime
     // → the type default).
     $form.publicName = t.publicName ?? '';
+    $form.cohortNoun = t.cohortNoun ?? '';
     $form.startTime = t.startTime ?? '';
     selectedTemplateId = t.id;
     step = 2;
@@ -346,6 +354,7 @@
       // bilan module resolves to nothing, so snapshotting it would store dead data.
       feedbackFormId: moduleActive('bilan') ? $form.feedbackFormId : '',
       publicName: $form.publicName,
+      cohortNoun: $form.cohortNoun,
       startTime: $form.startTime,
       forEventType: editing?.eventType ?? '',
     }),
@@ -607,6 +616,25 @@
               />
               {#if $errors.publicName}<span class="text-xs text-destructive"
                   >{$errors.publicName}</span
+                >{/if}
+            </div>
+
+            <div class="space-y-2">
+              <Label for="cohortNoun" class="flex items-center gap-1.5">
+                Comment nommer les inscrits ?
+                <InfoTooltip
+                  text="Le mot employé partout dans l'espace dev pour désigner un inscrit, au singulier (liste, émargement, entretiens, feedback). Indépendant du type Salesforce : à vous de le choisir, même si le type a été mal renseigné."
+                />
+              </Label>
+              <Input
+                id="cohortNoun"
+                bind:value={$form.cohortNoun}
+                placeholder="participant, stagiaire, collégien…"
+                maxlength={40}
+                autocomplete="off"
+              />
+              {#if $errors.cohortNoun}<span class="text-xs text-destructive"
+                  >{$errors.cohortNoun}</span
                 >{/if}
             </div>
 
@@ -1031,6 +1059,7 @@
               description: templateDescription.trim() || null,
               forEventType: editing?.eventType ?? null,
               publicName: $form.publicName.trim() || null,
+              cohortNoun: $form.cohortNoun.trim() || null,
               startTime: $form.startTime,
               // Mirror the snapshot's bilan gate, so the optimistic row matches
               // what the server actually stored.

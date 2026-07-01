@@ -6,7 +6,7 @@
   import { fly } from 'svelte/transition';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
-  import { eventPublicName, minutesToHHMM } from '$lib/domain/event';
+  import { eventDisplayName, minutesToHHMM } from '$lib/domain/event';
   import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -14,6 +14,7 @@
   import Coffee from '@lucide/svelte/icons/coffee';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import CalendarCheck from '@lucide/svelte/icons/calendar-check';
   import FeedbackBanner from '$lib/components/feedback/FeedbackBanner.svelte';
   import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
@@ -84,12 +85,11 @@
   // talent actually has a planned event. Data-driven, no campus flag.
   let hasPlanning = $derived(data.hasPlannedEvents);
 
-  // Label for the planning widget: the event's admin-set public name when set,
-  // else the friendly type label ("Stage de Seconde", "Coding Club"). Never the
-  // raw Salesforce titre, which would leak the campaign identifier to talents.
-  let planningTypeLabel = $derived(
+  // Name for the planning widget: the event's admin-set public name when set,
+  // else the SF `titre` as a fallback (see `eventDisplayName`).
+  let planningEventName = $derived(
     planning.state === 'ongoing' || planning.state === 'upcoming'
-      ? eventPublicName(planning)
+      ? eventDisplayName(planning)
       : '',
   );
 
@@ -419,7 +419,7 @@
                   <CalendarClock class="h-8 w-8 text-epi-blue" />
                 </div>
                 <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                  {planningTypeLabel}
+                  {planningEventName}
                 </h3>
                 <!-- Live status: a pulsing dot so an active IRL event reads as
                      "happening now", distinct from the action button below. -->
@@ -465,7 +465,7 @@
                   <Rocket class="h-8 w-8 text-epi-blue" />
                 </div>
                 <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                  {planningTypeLabel}
+                  {planningEventName}
                 </h3>
                 <p class="mt-2 text-sm text-slate-500">
                   Ta prochaine session est prévue le<br /><strong
@@ -499,6 +499,60 @@
             {/if}
           </div>
         </div>
+
+        <!-- Past events the talent attended. order-5 keeps it last in the
+             left column on mobile (after planning). -->
+        {#if data.pastEvents.length > 0}
+          <div
+            class="order-5 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+          >
+            <div
+              class="flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
+            >
+              <CalendarCheck class="h-4 w-4 shrink-0 text-epi-blue" />
+              <h2
+                class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
+              >
+                Événements passés<span class="text-epi-teal">_</span>
+              </h2>
+            </div>
+
+            <!-- Date left, name right. The date column sizes to the widest date,
+                 so every name starts at the same x instead of jittering with
+                 "4 avr." vs "14 mars". -->
+            <div
+              class="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 px-6 pt-4 pb-2"
+            >
+              {#each data.pastEvents as ev (ev.id)}
+                <span class="text-xs text-slate-400 tabular-nums">
+                  {new Date(ev.date).toLocaleDateString('fr-FR', {
+                    timeZone: data.timeZone,
+                    day: 'numeric',
+                    month: 'short',
+                  })}
+                </span>
+                <span
+                  class="min-w-0 truncate text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  {eventDisplayName(ev)}
+                </span>
+              {/each}
+            </div>
+
+            <div class="flex justify-center pb-4">
+              <a
+                href={resolve('/events')}
+                class="group inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-400 transition-all hover:bg-epi-blue/10 hover:text-epi-blue dark:bg-slate-800 dark:hover:bg-epi-blue/20"
+              >
+                <CalendarCheck class="h-3 w-3" />
+                Voir tout
+                <ArrowRight
+                  class="h-3 w-3 transition-transform group-hover:translate-x-0.5"
+                />
+              </a>
+            </div>
+          </div>
+        {/if}
       </div>
 
       <!-- RIGHT COLUMN: the day's missions (minigame first, then the event's

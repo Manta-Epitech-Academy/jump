@@ -24,6 +24,7 @@ import { recordImageRightsDecision } from '$lib/server/services/imageRightsServi
 import { imageRightsCorrectionSchema } from '$lib/validation/imageRights';
 import type { Communication } from '$lib/domain/communications';
 import { getTalentXpStory } from '$lib/server/services/xpStoryService';
+import { listAttendedEvents } from '$lib/server/talent/attendedEvents';
 
 // The scoped-down fiche keeps only the latest handful of communications, shown
 // one-line each in the sticky right rail, no pagination. Volume per talent is
@@ -47,6 +48,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       completedInterviewCount,
       xpStory,
       noteRows,
+      eventHistory,
     ] = await Promise.all([
       db.talent.findUniqueOrThrow({
         where: { id: params.id },
@@ -130,6 +132,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         orderBy: { createdAt: 'desc' },
         include: NOTE_INCLUDE,
       }),
+      listAttendedEvents(params.id, { timeZone: timezone }),
     ]);
 
     const notes = noteRows.map(serializeNote);
@@ -331,6 +334,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       notes,
       xpStory,
       participations,
+      eventHistory,
       primaryComplianceParticipation,
       communications,
       firstLoginAt,
@@ -354,9 +358,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       e instanceof Prisma.PrismaClientKnownRequestError &&
       e.code === 'P2025'
     ) {
-      throw error(404, 'Stagiaire introuvable');
+      throw error(404, 'Participant introuvable');
     }
-    console.error('Erreur chargement stagiaire:', e);
+    console.error('Erreur chargement participant:', e);
     throw e;
   }
 };
@@ -412,7 +416,7 @@ async function persistInterview(
     participation.campusId !== campusId ||
     participation.event.modules.length === 0
   ) {
-    return message(form, 'Entretien impossible pour ce stagiaire.', {
+    return message(form, 'Entretien impossible pour ce participant.', {
       status: 400,
     });
   }
@@ -536,7 +540,7 @@ async function correctImageRights({ request, locals, params }: RequestEvent) {
     },
   });
   if (!student) {
-    return message(form, 'Stagiaire introuvable.', { status: 404 });
+    return message(form, 'Participant introuvable.', { status: 404 });
   }
 
   const prior = student.imageRightsRecords[0];

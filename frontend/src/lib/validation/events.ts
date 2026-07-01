@@ -14,6 +14,12 @@ import { EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
 export const adminEventSchema = z.object({
   id: z.string().min(1),
   publicName: z.string().trim().max(120).default(''),
+  // What this event's cohort is called in the dev workspace ("stagiaire",
+  // "participant", "collégien", ...). Jump-owned free text, not derived from the
+  // SF type. Blank means "not named yet": the service stores NULL and the UI falls
+  // back to the neutral default, so an unconfigured event reads "participant"
+  // without the column claiming a choice nobody made. Capped so it stays a noun.
+  cohortNoun: z.string().trim().max(40).default(''),
   startTime: z
     .string()
     .regex(HHMM_PATTERN, 'Heure invalide (HH:MM).')
@@ -86,6 +92,9 @@ export const eventConfigTemplateSaveSchema = z.object({
   // form's `publicName`; campuses reuse one display name across every occurrence
   // of a format, so a preset that prefills it saves retyping it each time.
   publicName: z.string().trim().max(120).default(''),
+  // Cohort noun the preset carries; copied onto the event on apply (mirrors the
+  // event form's free-text `cohortNoun`). Blank → stored NULL, like the event.
+  cohortNoun: z.string().trim().max(40).default(''),
   // Jump-owned arrival time-of-day the preset carries (mirrors the event form's
   // `startTime`). Empty = none (the applied event falls back to the type default).
   startTime: z

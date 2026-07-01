@@ -32,28 +32,81 @@ export function eventTypeLabel(eventType: string): string {
   return EVENT_TYPE_LABELS[eventType as EventType] ?? eventType;
 }
 
+// ─── Cohort noun (`Event.cohortNoun`) ──────────────────────────────────────
+// What a single member of an event's cohort is called across the dev workspace
+// ("stagiaire" for a stage de seconde, "participant" for a coding club,
+// "collégien" for whatever a campus runs next). This is Jump-owned free-text
+// per-event config, NOT derived from `eventType`: the SF type is only a hint (it
+// can be mis-entered, and we can't fix it), so the noun is typed in the event
+// config wizard and read straight off the column. There is intentionally no
+// `eventType -> noun` mapping anywhere: a per-type default rides along the config
+// template the staff start from (the stage template carries "stagiaire"), so the
+// SF type never touches the rendered word.
+
+export const COHORT_NOUNS = {
+  STAGIAIRE: 'stagiaire',
+  PARTICIPANT: 'participant',
+} as const;
+
+/** Neutral fallback when an event names no cohort noun (blank column / legacy). */
+export const DEFAULT_COHORT_NOUN: string = COHORT_NOUNS.PARTICIPANT;
+
+export interface CohortNounForms {
+  /** "stagiaire" / "participant" / "collégien" */
+  singular: string;
+  /** "stagiaires" / "participants" / "collégiens" */
+  plural: string;
+  /** Sentence-initial singular: "Stagiaire" / "Participant" */
+  Singular: string;
+  /** Sentence-initial plural: "Stagiaires" / "Participants" */
+  Plural: string;
+}
+
 /**
- * Staff/admin chrome name: the admin-set `publicName` if any, else the raw
- * Salesforce `titre`. Staff can read the SF identifier, so the fallback keeps
- * the event recognisable. Use in dev page titles, breadcrumbs and the switcher.
+ * Display forms for a stored cohort noun. The single place casing/plural forms
+ * live, so any irregular handling is a one-line change here rather than a sweep
+ * across every call site.
+ *
+ * The stored value is lower-cased first, so whatever casing staff typed
+ * ("Stagiaire", "STAGIAIRE", "stagiaire") renders identically: French cohort
+ * nouns are common nouns, lower-case mid-sentence and only capitalised
+ * sentence-initial (the `Singular`/`Plural` forms). Plural is a plain `+s`,
+ * except values already ending in -s/-x/-z (invariant) - so a noun mistakenly
+ * typed in the plural at least never doubles to "...ss". We do NOT singularise
+ * (no safe rule: "souris" -> "souri"), so staff still type the singular. Blank/
+ * legacy values fall back to the neutral default.
+ */
+export function cohortNounForms(
+  value: string | null | undefined,
+): CohortNounForms {
+  const singular = (value?.trim() || DEFAULT_COHORT_NOUN).toLowerCase();
+  const plural = /[sxz]$/.test(singular) ? singular : `${singular}s`;
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  return {
+    singular,
+    plural,
+    Singular: cap(singular),
+    Plural: cap(plural),
+  };
+}
+
+/**
+ * The event's display name: the admin-set `publicName` if any, else the raw
+ * Salesforce `titre`. The single name used everywhere a human reads the event -
+ * staff chrome (page titles, breadcrumbs, switcher) and talent surfaces
+ * (dashboard, history, QR sheets) alike.
+ *
+ * The talent name deliberately no longer derives from `eventType`: the SF type
+ * is a hint, never a binding (a campaign miswired as the wrong type must not
+ * drive the label), and an event configured for talents already carries its own
+ * `publicName`. When it doesn't, the SF `titre` is an acceptable fallback - the
+ * staff-chosen name is shown ~most of the time anyway.
  */
 export function eventDisplayName(e: {
   publicName?: string | null;
   titre: string;
 }): string {
   return e.publicName?.trim() || e.titre;
-}
-
-/**
- * Talent-facing name: the admin-set `publicName` if any, else the friendly type
- * label ("Stage de Seconde", "Coding Club"). Never falls back to `titre` so the
- * ugly SF campaign name can't leak to students (QR sheets, dashboard widget).
- */
-export function eventPublicName(e: {
-  publicName?: string | null;
-  eventType: string;
-}): string {
-  return e.publicName?.trim() || eventTypeLabel(e.eventType);
 }
 
 /**

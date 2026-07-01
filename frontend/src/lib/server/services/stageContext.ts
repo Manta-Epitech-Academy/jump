@@ -16,6 +16,18 @@ import {
 import { schoolYearOf, type SchoolYear } from '$lib/domain/schoolYear';
 import { toDateKey } from '$lib/domain/planningTime';
 import { prisma } from '$lib/server/db';
+import type { Prisma } from '@prisma/client';
+
+/**
+ * An event is "visible dans l'espace dev" iff an admin activated it
+ * (`devActivatedAt`) and it carries at least one module. Single source for the
+ * dev workspace event list and any surface that must mirror that visibility
+ * (the talent / staff attended-events history).
+ */
+export const devVisibleEventWhere = {
+  devActivatedAt: { not: null },
+  modules: { some: {} },
+} satisfies Prisma.EventWhereInput;
 
 export const STAGE_DEFAULT_DURATION_DAYS = 14;
 export const STAGE_UPCOMING_WINDOW_DAYS = 60;
@@ -190,6 +202,9 @@ export type EventRecord = {
   startMinutes: number | null;
   endDate: Date | null;
   eventType: string;
+  /** Jump-owned cohort noun ("stagiaire", ...), or null when unnamed (the UI
+   * falls back to the neutral default). See `cohortNounForms`. */
+  cohortNoun: string | null;
   campusId: string;
   externalId: string | null;
   /** Per-event feedback form override; null = use the type default. */
@@ -230,6 +245,7 @@ export async function loadEventOr404(
       startMinutes: true,
       endDate: true,
       eventType: true,
+      cohortNoun: true,
       campusId: true,
       externalId: true,
       feedbackFormId: true,
@@ -390,7 +406,7 @@ export async function resolveWorkspaceEvents(
   // is a form. Forms are global (not campus-scoped), so they come off `prisma`.
   const [rows, liveForms] = await Promise.all([
     db.event.findMany({
-      where: { devActivatedAt: { not: null }, modules: { some: {} } },
+      where: devVisibleEventWhere,
       select: {
         id: true,
         titre: true,

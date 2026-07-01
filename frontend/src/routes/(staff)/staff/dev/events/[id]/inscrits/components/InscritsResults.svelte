@@ -33,6 +33,7 @@
   import LyceesBreakdown from '../../components/LyceesBreakdown.svelte';
   import InterestsCloud from '../../components/InterestsCloud.svelte';
   import { compareNiveaux, niveauLabel } from '$lib/domain/niveau';
+  import { cohortNounForms } from '$lib/domain/event';
   import { XP_EXPLAINER_FR } from '$lib/domain/xp';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import { formatGivenName } from '$lib/domain/profile';
@@ -78,12 +79,21 @@
       totalDays: number;
     };
     timezone: string;
-    event: { id: string; titre: string; externalId: string | null };
+    event: {
+      id: string;
+      titre: string;
+      externalId: string | null;
+      cohortNoun: string | null;
+    };
     // Inscrits sub-option: campuses that don't onboard (e.g. Paris) hide the
     // dossier/statut funnel column so it isn't dead noise. Gates only this column
     // (header, filter, cells) - the talent fiche is untouched.
     showStatutColumn?: boolean;
   } = $props();
+
+  // What this event calls a cohort member ("stagiaire" / "participant"), from the
+  // event's Jump-owned config. Single source for every label below.
+  const noun = $derived(cohortNounForms(event.cohortNoun));
 
   // Status tints for the dossier tooltip. The tooltip surface is bg-foreground,
   // which inverts with the theme: dark in light mode (the bright tints pop) but
@@ -432,13 +442,13 @@
     <h3
       class="mt-4 text-sm font-bold tracking-widest text-foreground uppercase"
     >
-      Aucun stagiaire inscrit
+      Aucun {noun.singular} inscrit
     </h3>
     <!-- The cohort is synced from Salesforce by the worker, not imported by
          hand, so there is no manual-import action here. -->
     <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-      Les stagiaires sont synchronisés automatiquement depuis Salesforce et
-      apparaîtront ici une fois la synchronisation effectuée.
+      Les {noun.plural} sont synchronisés automatiquement depuis Salesforce et apparaîtront
+      ici une fois la synchronisation effectuée.
     </p>
   </div>
 {:else}
@@ -457,11 +467,12 @@
       <DataTableToolbar
         searchValue={searchQuery}
         onSearchInput={(v) => (searchQuery = v)}
-        searchPlaceholder="Rechercher un stagiaire…"
+        searchPlaceholder={`Rechercher un ${noun.singular}…`}
         searchWidthClass="w-full max-w-[230px]"
         filtersAlign="end"
         count={filtered.length}
-        countNoun="stagiaire"
+        countNoun={noun.singular}
+        countNounPlural={noun.plural}
         {countSuffix}
       >
         {#snippet filters()}
@@ -558,15 +569,16 @@
                 {/snippet}
               </Tooltip.Trigger>
               <Tooltip.Content class="max-w-60 rounded-sm">
-                {@const noun = filtered.length > 1 ? 'stagiaires' : 'stagiaire'}
+                {@const exportNoun =
+                  filtered.length > 1 ? noun.plural : noun.singular}
                 <p>
                   {#if anyFiltersApplied}
                     Exporte les {filtered.length}
-                    {noun} actuellement affichés (filtres et tri appliqués), pas toute
-                    la cohorte.
+                    {exportNoun} actuellement affichés (filtres et tri appliqués),
+                    pas toute la cohorte.
                   {:else}
                     Exporte toute la cohorte ({filtered.length}
-                    {noun}).
+                    {exportNoun}).
                   {/if}
                 </p>
               </Tooltip.Content>
@@ -801,6 +813,7 @@
           <LyceesBreakdown
             eventId={event.id}
             breakdown={lyceesBreakdown}
+            itemNoun={[noun.singular, noun.plural]}
             totalParticipations={cohort.total}
             interaction="readonly"
           />

@@ -149,7 +149,7 @@
       href={isFilter && active && clearHref ? clearHref : hrefFor?.(r.id)}
       title={isFilter && active
         ? 'Retirer le filtre'
-        : `Filtrer · ${r.count} ${r.count > 1 ? 'stagiaires' : 'stagiaire'}`}
+        : `Filtrer · ${r.count} ${noun(r.count, tailNoun.item)}`}
       aria-current={active ? 'true' : undefined}
       class={cn(
         'group block rounded-sm px-3 py-2 transition-colors hover:bg-epi-blue/5',
