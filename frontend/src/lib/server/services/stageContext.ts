@@ -279,9 +279,9 @@ export async function loadStageOr404(
 }
 
 /**
- * Gate a dev-workspace surface on a per-event module (the per-event analog of
- * `requireFlag`). Throws 404 when the event does not expose the module, so a
- * direct URL to a surface the event has turned off behaves like a missing page.
+ * Gate a dev-workspace surface on a per-event module: throws 404 when the event
+ * does not expose the module, so a direct URL to a surface the event has turned
+ * off behaves like a missing page.
  */
 export function requireEventModule(
   event: { modules: Set<EventModuleKey> },

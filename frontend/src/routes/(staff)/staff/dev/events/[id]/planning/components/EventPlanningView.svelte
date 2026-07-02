@@ -1,7 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { eventDisplayName } from '$lib/domain/event';
-  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import CalendarViewer from '$lib/components/planning/CalendarViewer.svelte';
   import WeekNavigator from '$lib/components/planning/WeekNavigator.svelte';
   import WeekViewToggle from '$lib/components/planning/WeekViewToggle.svelte';
@@ -26,13 +25,11 @@
     planning,
     timezone,
     serverNow,
-    hasCodingClub,
   }: {
     event: PageData['event'];
     planning: PageData['planning'];
     timezone: PageData['timezone'];
     serverNow: PageData['serverNow'];
-    hasCodingClub: boolean;
   } = $props();
 
   let slots = $derived(planning.timeSlots as TimeSlotWithActivity[]);
@@ -66,11 +63,6 @@
 
 <div class="flex h-[calc(100vh-4rem)] flex-col bg-background">
   <div class="shrink-0 border-b pb-4">
-    {#if hasCodingClub}
-      <PageBreadcrumb
-        items={[{ label: eventDisplayName(event) }, { label: 'Planning' }]}
-      />
-    {/if}
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 class="text-2xl font-bold text-epi-blue uppercase">

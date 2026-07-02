@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **57** modèles · **34** enums · **86** relations
+- **56** modèles · **34** enums · **85** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -19,7 +19,7 @@
 | Feedback | 7 |
 | Communication & Support | 6 |
 | Contenus & Centres d'intérêt | 4 |
-| Configuration & Système | 5 |
+| Configuration & Système | 4 |
 
 ## 1 · Authentification & Profils
 
@@ -824,13 +824,6 @@ erDiagram
 
 ```mermaid
 erDiagram
-  CampusFeatureFlag {
-    String campusId PK,FK
-    String flagKey PK
-    Boolean enabled
-    DateTime createdAt
-    DateTime updatedAt
-  }
   AppSetting {
     String key PK
     String value
@@ -877,6 +870,5 @@ erDiagram
   Campus {
   }
   StaffProfile ||--o{ AdminFile : "adminFiles"
-  Campus ||--o{ CampusFeatureFlag : "featureFlags"
   Campus |o--o{ Signatory : "signatories"
 ```

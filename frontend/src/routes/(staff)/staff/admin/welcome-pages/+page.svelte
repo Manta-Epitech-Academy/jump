@@ -6,8 +6,6 @@
   import WelcomePageEditor from './WelcomePageEditor.svelte';
   import { STAGE_STATUS_META, formatStageRange } from './stageDisplay';
   import MapPin from '@lucide/svelte/icons/map-pin';
-  import Users from '@lucide/svelte/icons/users';
-  import Lock from '@lucide/svelte/icons/lock';
   import CircleCheck from '@lucide/svelte/icons/circle-check';
   import CircleDashed from '@lucide/svelte/icons/circle-dashed';
 
@@ -42,23 +40,6 @@
             <MapPin class="h-4 w-4 shrink-0 text-muted-foreground" />
             <span class="truncate text-sm font-bold">{campus.name}</span>
           </div>
-          {#if campus.flagEnabled}
-            <Badge
-              variant="outline"
-              class="shrink-0 gap-1 border-epi-teal/30 bg-epi-teal/10 text-[10px] text-epi-teal-solid"
-              title="Flag staff_welcome_page actif : l'équipe dev peut aussi éditer la page de ce campus."
-            >
-              <Users class="h-3 w-3" /> Dev aussi
-            </Badge>
-          {:else}
-            <Badge
-              variant="outline"
-              class="shrink-0 gap-1 text-[10px] text-muted-foreground"
-              title="Flag staff_welcome_page inactif : seul l'admin peut éditer ici (les talents voient quand même le contenu enregistré)."
-            >
-              <Lock class="h-3 w-3" /> Admin uniquement
-            </Badge>
-          {/if}
         </div>
 
         {#if campus.events.length === 0}

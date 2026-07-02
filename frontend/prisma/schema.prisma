@@ -569,7 +569,6 @@ model Campus {
   participations   Participation[]
   interviews       Interview[]
   invitations      StaffInvitation[]
-  featureFlags     CampusFeatureFlag[]
   broadcasts       Broadcast[]
   minigameAttempts MinigameAttempt[]
   xpGrants         XpGrant[]
@@ -727,8 +726,8 @@ model Event {
 
 // Per-event surface configuration for the dev workspace. A row's mere
 // presence = that module is enabled for the event (no `enabled` boolean: the
-// event's rows ARE the truth, there is no campus-wide default to override the
-// way CampusFeatureFlag has). `moduleKey` is validated in code against
+// event's rows ARE the truth, there is no campus-wide default to override).
+// `moduleKey` is validated in code against
 // EVENT_MODULES (mirrors how `flagKey`/`eventType` stay plain strings so a new
 // module needs no migration). Seeded from the event type's preset at creation;
 // the SF sync never touches these rows, so the per-event config is never
@@ -1255,19 +1254,6 @@ model SyncError {
   @@unique([email, attemptedExtId])
   @@index([resolved])
   @@index([lastOccurredAt])
-}
-
-model CampusFeatureFlag {
-  campusId  String
-  flagKey   String
-  enabled   Boolean
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  campus Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
-
-  @@id([campusId, flagKey])
-  @@index([flagKey])
 }
 
 model AppSetting {

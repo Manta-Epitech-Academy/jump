@@ -2,16 +2,10 @@
   import { eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import EntretiensResults from './components/EntretiensResults.svelte';
-  import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { data }: { data: PageData } = $props();
-
-  const hasCodingClub = $derived(
-    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]).has('coding_club'),
-  );
 </script>
 
 <svelte:head>
@@ -19,11 +13,6 @@
 </svelte:head>
 
 <div class="space-y-6 pb-10">
-  {#if hasCodingClub}
-    <PageBreadcrumb
-      items={[{ label: eventDisplayName(data.event) }, { label: 'Entretiens' }]}
-    />
-  {/if}
   <PageHeader title="Entretiens" />
 
   {#await data.cohort}

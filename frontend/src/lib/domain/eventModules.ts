@@ -3,16 +3,13 @@ import { z } from 'zod';
 /**
  * Per-event "modules" = the dev-workspace surfaces a single event exposes.
  *
- * This is a DIFFERENT layer from feature flags (`featureFlags.ts`). A feature
- * flag answers "is this capability available to this campus/person at all"
- * (campus-scoped, request-resolved, governance/rollout). A module answers
- * "what does THIS event expose" (per-event, resolved at route level, part of
- * the event's identity). Two events on the same campus can expose different
- * modules, which is exactly why this can't live in the campus flag set.
+ * A module answers "what does THIS event expose" (per-event, resolved at route
+ * level, part of the event's identity). Two events on the same campus can expose
+ * different modules, which is why this is per-event and not a campus-wide toggle.
  *
  * Membership: a module is enabled for an event iff an `EventConfig_Module` row
  * exists (presence = enabled). Keys stay plain strings (validated here, not a
- * DB enum) so adding a module needs no migration, mirroring `flagKey`.
+ * DB enum) so adding a module needs no migration.
  */
 // NOTE: planning is deliberately NOT a module. It is a read-only window onto
 // pedago/admin-owned schedule data, so a dev toggle would be hollow (the dev

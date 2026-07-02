@@ -4,7 +4,6 @@ import { prisma } from '$lib/server/db';
 import { applyRouteGuards } from '$lib/server/auth/guards';
 import { slideImpersonationExpiry } from '$lib/server/auth/impersonation';
 import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
-import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
 import { resolveTalentCampus } from '$lib/server/services/talentCampus';
 import { readDevPhaseOverride } from '$lib/server/devPhaseOverride';
 import { readPlanningPreview } from '$lib/server/talentPlanningPreview';
@@ -103,7 +102,6 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.session = sessionData?.session ?? null;
   event.locals.staffProfile = null;
   event.locals.talent = null;
-  event.locals.featureFlags = new Set();
   event.locals.stagePhaseOverride = null;
   event.locals.planningPreview = null;
   event.locals.impersonator = null;
@@ -141,26 +139,17 @@ export const handle: Handle = async ({ event, resolve }) => {
       event.locals.talent = record.talent;
     }
 
-    let campusId = event.locals.staffProfile?.campusId ?? null;
-    if (!campusId && event.locals.talent) {
+    if (!event.locals.staffProfile?.campusId && event.locals.talent) {
       // Talents have no direct Campus relation; their effective campus is the
-      // one from their most recent participation. Resolve it once here and reuse
-      // for both feature-flag scoping (campusId) and analytics (talentCampusName)
-      // so the root layout doesn't have to re-run the same lookup. Shared with
-      // onboarding's early-bird scope via resolveTalentCampus.
+      // one from their most recent participation. Resolve it here for analytics
+      // (talentCampusName) so the root layout doesn't re-run the same lookup.
+      // Staff carry their campus on the profile, so only talents need this.
+      // Shared with onboarding's early-bird scope via resolveTalentCampus.
       const talentCampus = await resolveTalentCampus(
         prisma,
         event.locals.talent.id,
       );
-      campusId = talentCampus.campusId;
       event.locals.talentCampusName = talentCampus.campusName;
-    }
-    if (campusId) {
-      const overrides = await prisma.campusFeatureFlag.findMany({
-        where: { campusId },
-        select: { flagKey: true, enabled: true },
-      });
-      event.locals.featureFlags = resolveEffectiveFlags(overrides);
     }
 
     // Resolve the real admin behind an impersonated session so analytics can

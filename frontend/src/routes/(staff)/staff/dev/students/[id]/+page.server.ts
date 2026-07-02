@@ -10,7 +10,7 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
-import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
+import { requireStaffGroup } from '$lib/server/auth/guards';
 import { NOTE_INCLUDE, serializeNote } from '$lib/server/talentNotes';
 import { interviewConductSchema } from '$lib/validation/interviews';
 import { NOTE_FIELDS, type NoteField } from '$lib/domain/interview';
@@ -508,12 +508,10 @@ async function persistInterview(
  * fact is stamped `staff_correction` with the acting staff id + a mandatory
  * reason, keeping it auditable and distinct from a guardian's own decision.
  *
- * Dev-only and gated to the team that runs the stage (`devMember`); the
- * decision is a stage-flow artifact, so it is also flag-gated.
+ * Dev-only and gated to the team that runs the stage (`devMember`).
  */
 async function correctImageRights({ request, locals, params }: RequestEvent) {
   requireStaffGroup(locals, 'devMember');
-  requireFlag(locals, 'stage_seconde');
 
   const form = await superValidate(request, zod4(imageRightsCorrectionSchema), {
     id: 'imageRights',

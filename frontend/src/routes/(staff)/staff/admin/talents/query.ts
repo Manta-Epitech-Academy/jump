@@ -277,7 +277,7 @@ export const TALENT_ROW_SELECT = {
   imageRightsDecidedAt: true,
   parentRulesSignedAt: true,
   // Effective campus = most-recent participation's campus, matching the
-  // resolution in hooks.server.ts that scopes `locals.featureFlags`.
+  // resolution in hooks.server.ts (talentCampusName).
   participations: {
     take: 1,
     orderBy: { event: { date: 'desc' } },

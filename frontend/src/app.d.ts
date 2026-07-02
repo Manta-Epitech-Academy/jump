@@ -1,6 +1,5 @@
 import type { User, Session } from '$lib/server/auth';
 import type { StaffProfile, Talent, Campus, StaffRole } from '@prisma/client';
-import type { FlagKey } from '$lib/domain/featureFlags';
 import type { StaffGroup } from '$lib/domain/permissions';
 import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
 import type { PlanningPreview } from '$lib/server/talentPlanningPreview';
@@ -20,12 +19,11 @@ declare global {
       /**
        * Campus name for the current talent, derived from their most recent
        * participation (talents have no direct Campus relation). Null for staff
-       * (use `staffProfile.campus.name`) and anonymous requests. Resolved
-       * alongside the feature-flag campus scope in hooks.server.ts.
+       * (use `staffProfile.campus.name`) and anonymous requests. Resolved in
+       * hooks.server.ts.
        */
       talentCampusName: string | null;
       viewMode: 'readonly' | 'edit';
-      featureFlags: Set<FlagKey>;
       /**
        * Dev-tooling override of the perceived stage phase. Only set when
        * an admin is impersonating a dev/superdev *and* on a /staff/dev

@@ -8,9 +8,7 @@
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import MessageSquareText from '@lucide/svelte/icons/message-square-text';
-  import UserCog from '@lucide/svelte/icons/user-cog';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
-  import FileText from '@lucide/svelte/icons/file-text';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -20,9 +18,6 @@
   import { fly, fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
-  import Gated from '$lib/components/auth/Gated.svelte';
-  import { can } from '$lib/domain/permissions';
-  import type { FlagKey } from '$lib/domain/featureFlags';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
   import EventWorkspaceSwitcher from '$lib/components/dev/EventWorkspaceSwitcher.svelte';
   import {
@@ -45,12 +40,6 @@
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
-  let featureFlags = $derived(
-    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
-  );
-  let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
-  let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
-  let isLead = $derived(can('devLead', data.staffProfile?.staffRole));
 
   // The cohort workspace: the events this campus configured (those with ≥1
   // module). The "current" event is the one in the URL when it is one of them,
@@ -76,10 +65,6 @@
       workspace.events.find((e) => e.id === lastEventId) ??
       workspace.current,
   );
-  // The "Gestion" section shows when it has at least one entry: the lead-only
-  // "Staff du campus" (behind its flag). Event module config moved to the admin
-  // space, so there is no per-event config entry here.
-  let showManagement = $derived(isLead && hasCampusTeam);
   let mobileMenuOpen = $state(false);
 
   const hour = new Date().getHours();
@@ -174,34 +159,6 @@
           <span>{surfaceLabel(key)}</span>
         </a>
       {/each}
-      {#if hasWelcomePage}
-        <a
-          href={resolve('/staff/dev/contenu/welcome')}
-          class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
-        >
-          <FileText class="h-5 w-5" />
-          <span>Page d'accueil</span>
-        </a>
-      {/if}
-    </nav>
-  {/if}
-
-  {#if showManagement}
-    <div class="sidebar-section-title">
-      Gestion<span class="text-epi-orange">_</span>
-    </div>
-    <nav class="space-y-1">
-      {#if hasCampusTeam}
-        <Gated group="devLead" mode="hide">
-          <a
-            href={resolve('/staff/dev/team')}
-            class={navLinkClass(isActive('/staff/dev/team'))}
-          >
-            <UserCog class="h-5 w-5" />
-            <span>Staff du campus</span>
-          </a>
-        </Gated>
-      {/if}
     </nav>
   {/if}
 {/snippet}

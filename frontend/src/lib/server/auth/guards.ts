@@ -4,7 +4,6 @@ import type { StaffRole } from '@prisma/client';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 import { prisma } from '$lib/server/db';
 import { can, type StaffGroup } from '$lib/domain/permissions';
-import type { FlagKey } from '$lib/domain/featureFlags';
 import { getOnboardingStep } from '$lib/domain/talentOnboarding';
 import { STAGE_DEFAULT_DURATION_DAYS } from '$lib/domain/event';
 import {
@@ -20,16 +19,6 @@ function forbidGroup(group: StaffGroup): never {
   });
 }
 
-export function hasFlag(locals: App.Locals, key: FlagKey): boolean {
-  return locals.featureFlags.has(key);
-}
-
-export function requireFlag(locals: App.Locals, key: FlagKey): void {
-  if (!hasFlag(locals, key)) {
-    throw error(404, 'Fonctionnalité non disponible sur ce campus.');
-  }
-}
-
 type StaffRoleGate = {
   pattern: RegExp;
   group: StaffGroup;
@@ -40,14 +29,6 @@ const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
   {
     pattern: /^\/staff\/dev\/events\/import(?:\/|$)/,
     group: 'devLead',
-  },
-  {
-    pattern: /^\/staff\/dev\/team(?:\/|$)/,
-    group: 'devLead',
-  },
-  {
-    pattern: /^\/staff\/dev\/contenu(?:\/|$)/,
-    group: 'devMember',
   },
 ];
 

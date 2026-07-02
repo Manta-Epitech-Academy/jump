@@ -232,57 +232,52 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       formId: string;
       personaIconUrl?: string;
     }> = [];
-    if (locals.featureFlags?.has('stage_seconde')) {
-      // A talent can match several stage events (the welcome block above orders
-      // the same lookup for the same reason). Feedback is owed after the event,
-      // so nudge about the most recently started stage, not a DB-arbitrary one.
-      const feedbackParticipation = await prisma.participation.findFirst({
-        where: {
-          talentId: studentId,
-          event: { eventType: 'stage_seconde' },
+    // A talent can match several stage events (the welcome block above orders
+    // the same lookup for the same reason). Feedback is owed after the event,
+    // so nudge about the most recently started stage, not a DB-arbitrary one.
+    const feedbackParticipation = await prisma.participation.findFirst({
+      where: {
+        talentId: studentId,
+        event: { eventType: 'stage_seconde' },
+      },
+      orderBy: { event: { date: 'desc' } },
+      include: {
+        event: {
+          select: { date: true, eventType: true, feedbackFormId: true },
         },
-        orderBy: { event: { date: 'desc' } },
-        include: {
-          event: {
-            select: { date: true, eventType: true, feedbackFormId: true },
-          },
-        },
+      },
+    });
+    if (feedbackParticipation) {
+      // The nudge points at THIS event's form (its override, else the type
+      // default), not at every globally-nudged form, so a talent is only ever
+      // reminded about the form their event actually uses. The resolver yields
+      // it only when it's a live nudge (published, answerable, nudge on).
+      const form = await resolveEventNudgeForm({
+        feedbackFormId: feedbackParticipation.event.feedbackFormId,
+        eventType: feedbackParticipation.event.eventType,
       });
-      if (feedbackParticipation) {
-        // The nudge points at THIS event's form (its override, else the type
-        // default), not at every globally-nudged form, so a talent is only ever
-        // reminded about the form their event actually uses. The resolver yields
-        // it only when it's a live nudge (published, answerable, nudge on).
-        const form = await resolveEventNudgeForm({
-          feedbackFormId: feedbackParticipation.event.feedbackFormId,
-          eventType: feedbackParticipation.event.eventType,
+      if (form) {
+        const existingSubs = await prisma.feedback_Submission.findMany({
+          where: {
+            talentId: studentId,
+            eventId: feedbackParticipation.eventId,
+          },
+          select: { formId: true },
         });
-        if (form) {
-          const existingSubs = await prisma.feedback_Submission.findMany({
-            where: {
-              talentId: studentId,
+        const pending = pendingFeedbackForm(
+          feedbackParticipation.event.date,
+          new Date(),
+          [{ id: form.id, slug: form.slug }],
+          existingSubs.map((s) => s.formId),
+        );
+        if (pending) {
+          pendingFeedback = [
+            {
+              ...pending,
               eventId: feedbackParticipation.eventId,
+              personaIconUrl: buildPersonaIconUrl(form.id, form.personaIconKey),
             },
-            select: { formId: true },
-          });
-          const pending = pendingFeedbackForm(
-            feedbackParticipation.event.date,
-            new Date(),
-            [{ id: form.id, slug: form.slug }],
-            existingSubs.map((s) => s.formId),
-          );
-          if (pending) {
-            pendingFeedback = [
-              {
-                ...pending,
-                eventId: feedbackParticipation.eventId,
-                personaIconUrl: buildPersonaIconUrl(
-                  form.id,
-                  form.personaIconKey,
-                ),
-              },
-            ];
-          }
+          ];
         }
       }
     }

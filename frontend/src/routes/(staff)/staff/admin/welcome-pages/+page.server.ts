@@ -2,11 +2,9 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { EVENT_TYPES, stageWindowEnd } from '$lib/domain/event';
-import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
 import { sanitizeWelcomeHtml } from '$lib/server/cms/sanitize';
 
 const SLUG = 'welcome';
-const WELCOME_FLAG = 'staff_welcome_page' as const;
 
 type StageStatus = 'ongoing' | 'upcoming' | 'past';
 
@@ -31,7 +29,6 @@ export const load: PageServerLoad = async ({ url }) => {
   const [campuses, events] = await Promise.all([
     prisma.campus.findMany({
       orderBy: { name: 'asc' },
-      include: { featureFlags: { select: { flagKey: true, enabled: true } } },
     }),
     prisma.event.findMany({
       where: { eventType: EVENT_TYPES.STAGE_SECONDE },
@@ -62,7 +59,6 @@ export const load: PageServerLoad = async ({ url }) => {
   }
 
   const campusTree = campuses.map((c) => {
-    const flagEnabled = resolveEffectiveFlags(c.featureFlags).has(WELCOME_FLAG);
     const rows = (eventsByCampus.get(c.id) ?? [])
       .map((ev) => {
         const status = statusOf(ev.date, ev.endDate, now);
@@ -93,7 +89,6 @@ export const load: PageServerLoad = async ({ url }) => {
       name: c.name,
       externalName: c.externalName,
       contactEmail: c.contactEmail,
-      flagEnabled,
       events: rows,
     };
   });
