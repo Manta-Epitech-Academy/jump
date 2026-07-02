@@ -26,7 +26,6 @@ declare global {
       talentCampusName: string | null;
       viewMode: 'readonly' | 'edit';
       featureFlags: Set<FlagKey>;
-      ticketsEnabled: boolean;
       /**
        * Dev-tooling override of the perceived stage phase. Only set when
        * an admin is impersonating a dev/superdev *and* on a /staff/dev

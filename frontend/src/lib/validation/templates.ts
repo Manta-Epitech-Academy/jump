@@ -1,8 +1,3 @@
-import { z } from 'zod';
-import { difficultes } from '$lib/domain/xp';
-
-export { difficultes };
-
 export const activityTypes = [
   'atelier',
   'conference',
@@ -69,37 +64,3 @@ export const activityTypeStyles: Record<
     accent: 'text-neutral-600 dark:text-neutral-400',
   },
 };
-
-export const templateSchema = z.object({
-  nom: z
-    .string()
-    .min(3, 'Le nom doit faire au moins 3 caractères')
-    .max(100, 'Le nom ne peut pas dépasser 100 caractères'),
-  description: z.string().optional().or(z.literal('')),
-  difficulte: z
-    .enum(difficultes, {
-      message: 'Veuillez sélectionner une difficulté valide',
-    })
-    .optional()
-    .or(z.literal('')),
-  activityType: z.enum(activityTypes, {
-    message: "Veuillez sélectionner un type d'activité",
-  }),
-  defaultDuration: z.preprocess(
-    (val) =>
-      val === '' || val === null || val === undefined ? undefined : Number(val),
-    z
-      .number({ message: 'La durée doit être un nombre' })
-      .int('La durée doit être un nombre entier')
-      .positive('La durée doit être positive')
-      .optional(),
-  ),
-  link: z
-    .url("Le format du lien n'est pas valide (https://...)")
-    .optional()
-    .or(z.literal('')),
-  themes: z.array(z.string()).default([]),
-  content: z.string().optional().or(z.literal('')),
-});
-
-export type TemplateForm = z.infer<typeof templateSchema>;

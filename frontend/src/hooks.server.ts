@@ -6,7 +6,6 @@ import { slideImpersonationExpiry } from '$lib/server/auth/impersonation';
 import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
 import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
 import { resolveTalentCampus } from '$lib/server/services/talentCampus';
-import { getTicketsEnabled } from '$lib/server/settings/tickets';
 import { readDevPhaseOverride } from '$lib/server/devPhaseOverride';
 import { readPlanningPreview } from '$lib/server/talentPlanningPreview';
 import { runWithRequestContext } from '$lib/server/requestContext';
@@ -105,7 +104,6 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.staffProfile = null;
   event.locals.talent = null;
   event.locals.featureFlags = new Set();
-  event.locals.ticketsEnabled = false;
   event.locals.stagePhaseOverride = null;
   event.locals.planningPreview = null;
   event.locals.impersonator = null;
@@ -163,10 +161,6 @@ export const handle: Handle = async ({ event, resolve }) => {
         select: { flagKey: true, enabled: true },
       });
       event.locals.featureFlags = resolveEffectiveFlags(overrides);
-    }
-
-    if (event.locals.staffProfile) {
-      event.locals.ticketsEnabled = await getTicketsEnabled();
     }
 
     // Resolve the real admin behind an impersonated session so analytics can

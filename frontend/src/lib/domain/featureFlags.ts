@@ -52,15 +52,6 @@ export const FEATURE_FLAGS = {
       "Édition CMS de la page d'accueil affichée aux talents (côté dev).",
     removeBy: new Date('2026-07-15'),
   }),
-  staff_sync_errors: def({
-    key: 'staff_sync_errors',
-    kind: 'rollout',
-    defaultEnabled: false,
-    label: 'Doublons Salesforce',
-    description:
-      'Résolution des doublons de synchronisation Salesforce côté dev (/staff/dev/sync-errors).',
-    removeBy: new Date('2026-07-15'),
-  }),
   // Planning is intentionally NOT a flag: it is data-driven. The dev view and
   // the talent calendar show wherever an event has a schedule; the schedule is
   // provisioned by script and read-only in the app. See $lib/domain/eventModules

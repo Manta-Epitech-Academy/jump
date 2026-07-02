@@ -50,7 +50,7 @@ export function getBrowserTimezone(cookies: Cookies): string {
  *   ParticipationActivity (participation → campusId)
  *
  * OR pattern (campus-specific + global where campusId is null):
- *   Theme, ActivityTemplate
+ *   Theme
  *
  * For findUnique/findUniqueOrThrow/update/delete (which only accept unique
  * fields in `where`), we use a post-query check pattern.
@@ -753,50 +753,6 @@ export function scopedPrisma(campusId: string) {
             select: { campusId: true },
           });
           if (existing.campusId !== campusId) accessDenied('Interview');
-          return query(args);
-        },
-      },
-
-      // ── ActivityTemplate (campusId nullable — null means global/official) ──
-      activityTemplate: {
-        async findMany({ args, query }) {
-          if (!args.where?.campusId) {
-            args.where = {
-              ...args.where,
-              OR: [{ campusId }, { campusId: null }],
-            };
-          }
-          return query(args);
-        },
-        async findFirst({ args, query }) {
-          if (!args.where?.campusId) {
-            args.where = {
-              ...args.where,
-              OR: [{ campusId }, { campusId: null }],
-            };
-          }
-          return query(args);
-        },
-        async findUnique({ args, query }) {
-          const existing = await prisma.activityTemplate.findUnique({
-            where: args.where,
-            select: { campusId: true },
-          });
-          if (
-            existing &&
-            existing.campusId !== null &&
-            existing.campusId !== campusId
-          )
-            accessDenied('ActivityTemplate');
-          return query(args);
-        },
-        async findUniqueOrThrow({ args, query }) {
-          const existing = await prisma.activityTemplate.findUniqueOrThrow({
-            where: args.where,
-            select: { campusId: true },
-          });
-          if (existing.campusId !== null && existing.campusId !== campusId)
-            accessDenied('ActivityTemplate');
           return query(args);
         },
       },

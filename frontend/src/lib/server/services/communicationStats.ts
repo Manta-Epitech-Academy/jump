@@ -316,7 +316,7 @@ export async function getTransactionalHealth(): Promise<TransactionalHealth> {
   };
 }
 
-// ── 5. Read-only relances mirror (OnboardingReminder) ─────────────────────────
+// ── 5. Read-only relances stats (OnboardingReminder) ──────────────────────────
 export type RelanceMirrorType = 'student' | 'parent';
 export type RelanceMirrorChannel = 'email' | 'sms';
 
@@ -379,85 +379,6 @@ export async function getRelanceStats(
     byType: types,
     uniqueTalents: distinct.length,
     lastSentAt: last?.sentAt ?? null,
-  };
-}
-
-export interface RelanceMirrorRow {
-  id: string;
-  sentAt: Date;
-  type: string;
-  channel: string;
-  subject: string | null;
-  talent: { id: string; prenom: string; nom: string };
-  sender: { name: string | null; email: string | null } | null;
-}
-
-export interface RelanceMirrorPage {
-  rows: RelanceMirrorRow[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
-export async function getRelanceMirror(opts: {
-  page?: number;
-  pageSize?: number;
-  channel?: RelanceMirrorChannel;
-  type?: RelanceMirrorType;
-}): Promise<RelanceMirrorPage> {
-  const page = Math.max(1, opts.page ?? 1);
-  const pageSize = opts.pageSize ?? 50;
-  const where = {
-    ...(opts.channel ? { channel: opts.channel } : {}),
-    ...(opts.type ? { type: opts.type } : {}),
-  };
-
-  const [total, rows] = await Promise.all([
-    prisma.onboardingReminder.count({ where }),
-    prisma.onboardingReminder.findMany({
-      where,
-      orderBy: { sentAt: 'desc' },
-      take: pageSize,
-      skip: (page - 1) * pageSize,
-      select: {
-        id: true,
-        sentAt: true,
-        type: true,
-        channel: true,
-        subject: true,
-        sentBy: true,
-        talent: { select: { id: true, prenom: true, nom: true } },
-      },
-    }),
-  ]);
-
-  // `sentBy` is a bare staff userId with no FK relation — resolve names in one
-  // extra query rather than per-row (mirrors the Dev-fiche timeline loader).
-  const senderIds = [...new Set(rows.map((r) => r.sentBy))];
-  const senders = senderIds.length
-    ? await prisma.bauth_user.findMany({
-        where: { id: { in: senderIds } },
-        select: { id: true, name: true, email: true },
-      })
-    : [];
-  const senderById = new Map(senders.map((s) => [s.id, s]));
-
-  return {
-    page,
-    pageSize,
-    total,
-    rows: rows.map((r) => {
-      const s = senderById.get(r.sentBy);
-      return {
-        id: r.id,
-        sentAt: r.sentAt,
-        type: r.type,
-        channel: r.channel,
-        subject: r.subject,
-        talent: r.talent,
-        sender: s ? { name: s.name, email: s.email } : null,
-      };
-    }),
   };
 }
 

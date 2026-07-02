@@ -7,10 +7,8 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
-import { applyStaffRoleGate, hasFlag } from '$lib/server/auth/guards';
+import { applyStaffRoleGate } from '$lib/server/auth/guards';
 import { resolveWorkspaceEvents } from '$lib/server/services/stageContext';
-import { countUnreadForAuthor } from '$lib/server/services/tickets';
-import { countCampusSyncErrors } from '$lib/server/services/syncErrors';
 import { isDevImpersonation } from '$lib/server/devPhaseOverride';
 
 export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
@@ -32,25 +30,15 @@ export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
   const db = scopedPrisma(getCampusId(locals));
   const timezone = getCampusTimezone(locals);
   const phaseOverride = locals.stagePhaseOverride;
-  // Independent shell side-effects, fired in one wave rather than stacked as
-  // three sequential round-trips on every dev navigation. `workspace` lists the
-  // campus's events (those with at least one module) for the sidebar switcher;
-  // the sync-errors guard still short-circuits to a constant when its flag is off.
-  const [workspace, ticketsUnread, syncErrorCounts] = await Promise.all([
-    resolveWorkspaceEvents(db, timezone),
-    locals.ticketsEnabled ? countUnreadForAuthor(user.id) : 0,
-    staffProfile?.campusId && hasFlag(locals, 'staff_sync_errors')
-      ? countCampusSyncErrors(staffProfile.campusId)
-      : { total: 0, urgent: 0 },
-  ]);
+  // `workspace` lists the campus's events (those with at least one module) for
+  // the sidebar switcher.
+  const workspace = await resolveWorkspaceEvents(db, timezone);
 
   return {
     user,
     staffProfile,
     timezone,
     workspace,
-    ticketsUnread,
-    syncErrorCounts,
     phaseOverride,
     canOverridePhase: isDevImpersonation(locals),
     // Real phase of the event the workspace lands on, for the impersonation

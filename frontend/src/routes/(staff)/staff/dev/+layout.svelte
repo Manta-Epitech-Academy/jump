@@ -11,8 +11,6 @@
   import UserCog from '@lucide/svelte/icons/user-cog';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import FileText from '@lucide/svelte/icons/file-text';
-  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
-  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -25,7 +23,6 @@
   import Gated from '$lib/components/auth/Gated.svelte';
   import { can } from '$lib/domain/permissions';
   import type { FlagKey } from '$lib/domain/featureFlags';
-  import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
   import EventWorkspaceSwitcher from '$lib/components/dev/EventWorkspaceSwitcher.svelte';
   import {
@@ -53,7 +50,6 @@
   );
   let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
   let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
-  let hasSyncErrors = $derived(featureFlags.has('staff_sync_errors'));
   let isLead = $derived(can('devLead', data.staffProfile?.staffRole));
 
   // The cohort workspace: the events this campus configured (those with ≥1
@@ -80,10 +76,10 @@
       workspace.events.find((e) => e.id === lastEventId) ??
       workspace.current,
   );
-  // The "Gestion" section shows when it has at least one entry: the sync-errors
-  // surface, or the lead-only "Staff du campus" (behind its flag). Event module
-  // config moved to the admin space, so there is no per-event config entry here.
-  let showManagement = $derived(hasSyncErrors || (isLead && hasCampusTeam));
+  // The "Gestion" section shows when it has at least one entry: the lead-only
+  // "Staff du campus" (behind its flag). Event module config moved to the admin
+  // space, so there is no per-event config entry here.
+  let showManagement = $derived(isLead && hasCampusTeam);
   let mobileMenuOpen = $state(false);
 
   const hour = new Date().getHours();
@@ -206,55 +202,6 @@
           </a>
         </Gated>
       {/if}
-      {#if hasSyncErrors}
-        <a
-          href={resolve('/staff/dev/sync-errors')}
-          class={navLinkClass(isActive('/staff/dev/sync-errors'))}
-        >
-          <TriangleAlert class="h-5 w-5 shrink-0" />
-          <span class="flex flex-1 items-center justify-between gap-2">
-            <span class="truncate whitespace-nowrap">Doublons Salesforce</span>
-            {#if data.syncErrorCounts.urgent > 0}
-              <span
-                class="inline-flex h-5 shrink-0 items-center justify-center gap-1 rounded-full bg-destructive px-1.5 text-[10px] font-bold whitespace-nowrap text-white"
-              >
-                <TriangleAlert class="h-3 w-3" />
-                {data.syncErrorCounts.total}
-              </span>
-            {:else if data.syncErrorCounts.total > 0}
-              <span
-                class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-white/10 px-1.5 text-[10px] font-bold whitespace-nowrap text-sidebar-foreground-muted"
-              >
-                {data.syncErrorCounts.total}
-              </span>
-            {/if}
-          </span>
-        </a>
-      {/if}
-    </nav>
-  {/if}
-
-  {#if data.ticketsEnabled}
-    <div class="sidebar-section-title">
-      Support<span class="text-epi-pink">_</span>
-    </div>
-    <nav class="space-y-1">
-      <a
-        href={resolve('/staff/dev/tickets')}
-        class={navLinkClass(isActive('/staff/dev/tickets'))}
-      >
-        <LifeBuoy class="h-5 w-5" />
-        <span class="flex flex-1 items-center justify-between">
-          <span>Tickets</span>
-          {#if data.ticketsUnread > 0}
-            <span
-              class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-epi-pink px-1.5 text-[10px] font-bold text-white"
-            >
-              {data.ticketsUnread}
-            </span>
-          {/if}
-        </span>
-      </a>
     </nav>
   {/if}
 {/snippet}
@@ -389,7 +336,3 @@
     </main>
   </div>
 </div>
-
-{#if data.ticketsEnabled}
-  <TicketsLauncher basePath="/staff/dev" unreadCount={data.ticketsUnread} />
-{/if}
