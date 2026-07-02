@@ -93,29 +93,6 @@ export async function handleDiscordCallback(
 }
 
 /**
- * Links a Discord ID to a staff profile, clearing any previous owner.
- */
-export async function linkDiscordToStaff(
-  staffProfileId: string,
-  discordId: string,
-) {
-  await prisma.$transaction([
-    prisma.staffProfile.updateMany({
-      where: { discordId, id: { not: staffProfileId } },
-      data: { discordId: null },
-    }),
-    prisma.talent.updateMany({
-      where: { discordId },
-      data: { discordId: null },
-    }),
-    prisma.staffProfile.update({
-      where: { id: staffProfileId },
-      data: { discordId },
-    }),
-  ]);
-}
-
-/**
  * Links a Discord ID to a student profile, clearing any previous owner.
  */
 export async function linkDiscordToStudent(

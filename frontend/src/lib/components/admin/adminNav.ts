@@ -6,7 +6,6 @@ import GitCompareArrows from '@lucide/svelte/icons/git-compare-arrows';
 import FileCog from '@lucide/svelte/icons/file-cog';
 import ClipboardList from '@lucide/svelte/icons/clipboard-list';
 import LifeBuoy from '@lucide/svelte/icons/life-buoy';
-import FolderOpen from '@lucide/svelte/icons/folder-open';
 import Megaphone from '@lucide/svelte/icons/megaphone';
 import Send from '@lucide/svelte/icons/send';
 import Mails from '@lucide/svelte/icons/mails';
@@ -104,12 +103,6 @@ export const ADMIN_NAV: AdminNavSection[] = [
         icon: LifeBuoy,
         keywords: ['support', 'bug', 'suggestion'],
         badge: 'tickets',
-      },
-      {
-        label: '[DEV] S3 Test',
-        href: resolve('/staff/admin/files'),
-        icon: FolderOpen,
-        keywords: ['s3', 'partage', 'fichiers', 'files'],
       },
     ],
   },
