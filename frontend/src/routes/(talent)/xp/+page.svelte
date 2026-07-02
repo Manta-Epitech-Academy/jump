@@ -60,6 +60,9 @@
       textClass: 'text-purple-500',
       borderClass: 'border-purple-500/20',
     },
+    // TODO(cleanup): remove with the activity_presence enum drop in the migration
+    // wave. Kept so legacy XpGrant rows from the retired event-XP system still get
+    // an icon until that source value and its rows are dropped.
     activity_presence: {
       icon: BookOpen,
       color: 'epi-orange',

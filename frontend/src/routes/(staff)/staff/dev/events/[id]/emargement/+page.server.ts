@@ -2,11 +2,13 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
+import { prisma } from '$lib/server/db';
 import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
+import { recomputeEventsCount } from '$lib/server/services/xpService';
 import {
   loadEventOr404,
   requireEventModule,
@@ -215,36 +217,52 @@ export const actions: Actions = {
     const campusId = getCampusId(locals);
     const event = await loadEventOr404(params.id, campusId);
     requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+    // Campus authorization for the write lands here: `loadEventOr404` scoped the
+    // event and `assertEnrolled` the talent's participation, so the raw-client
+    // write below is safe (same shape as xpService's ledger callers).
     await assertEnrolled(campusId, event.id, form.data.talentId);
-    const db = scopedPrisma(campusId);
 
     const day = dateKeyToDbDate(form.data.day);
     const { talentId, slot, status } = form.data;
 
-    if (status === 'pending') {
-      // Reset the cell back to "en attente": drop the row entirely.
-      await db.eventPresence.deleteMany({
-        where: { talentId, eventId: event.id, day, slot },
-      });
-      return message(form, 'Présence réinitialisée.');
-    }
-
-    const common = {
-      status,
-      source: 'manual' as const,
-      markedById: locals.staffProfile.id,
-      markedAt: new Date(),
-    };
-
-    await db.eventPresence.upsert({
-      where: {
-        talentId_eventId_day_slot: { talentId, eventId: event.id, day, slot },
-      },
-      create: { talentId, eventId: event.id, day, slot, ...common },
-      update: common,
+    // The presence write and the `eventsCount` projection commit together: a
+    // mark/unmark can change whether this event counts as attended, so refresh
+    // the cached count in the same transaction.
+    await prisma.$transaction(async (tx) => {
+      if (status === 'pending') {
+        // Reset the cell back to "en attente": drop the row entirely.
+        await tx.eventPresence.deleteMany({
+          where: { talentId, eventId: event.id, day, slot },
+        });
+      } else {
+        const common = {
+          status,
+          source: 'manual' as const,
+          markedById: locals.staffProfile.id,
+          markedAt: new Date(),
+        };
+        await tx.eventPresence.upsert({
+          where: {
+            talentId_eventId_day_slot: {
+              talentId,
+              eventId: event.id,
+              day,
+              slot,
+            },
+          },
+          create: { talentId, eventId: event.id, day, slot, ...common },
+          update: common,
+        });
+      }
+      await recomputeEventsCount(tx, talentId);
     });
 
-    return message(form, 'Présence enregistrée.');
+    return message(
+      form,
+      status === 'pending'
+        ? 'Présence réinitialisée.'
+        : 'Présence enregistrée.',
+    );
   },
 
   markAllPresent: async ({ request, locals, params }) => {

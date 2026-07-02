@@ -94,12 +94,6 @@ export function minigameRankBonus(rank: number, fieldSize: number): number {
   return Math.round(MINIGAME_XP_REWARD / 5);
 }
 
-export const DIFFICULTY_XP: Record<string, number> = {
-  Débutant: 20,
-  Intermédiaire: 45,
-  Avancé: 75,
-};
-
 /**
  * Talent level tiers, derived purely from XP. Single source of truth — the
  * `Talent.level` column was dropped (it was never written and always read
@@ -161,40 +155,4 @@ export function xpRangeForLevel(level: string): {
 } {
   const tier = XP_LEVEL_TIERS.find((t) => t.level === level);
   return tier ?? XP_LEVEL_TIERS[0];
-}
-
-/**
- * Calculates how much XP an activity is worth based on its difficulty.
- */
-export function getActivityXpValue(difficulte: string): number {
-  return DIFFICULTY_XP[difficulte] || 20;
-}
-
-/**
- * Extracts XP-eligible activities from a participation's activity list.
- * Filters out organisational activities (roll call) and activities the student
- * was not present for (parallel tracks they didn't attend).
- */
-export function getXpEligibleActivities<
-  T extends {
-    isPresent: boolean;
-    activity: { activityType: string; difficulte: string | null };
-  },
->(participationActivities: T[]): { difficulte: string | null }[] {
-  return participationActivities
-    .filter((pa) => pa.isPresent && pa.activity.activityType !== 'orga')
-    .map((pa) => ({ difficulte: pa.activity.difficulte }));
-}
-
-/**
- * Calculates total XP for a list of activities (or any items with a `difficulte` field).
- * Returns 20 (base attendance XP) when the list is empty — this covers students
- * who are marked present but have no non-orga activities assigned.
- */
-export function getTotalXp(items: { difficulte: string | null }[]): number {
-  if (!items || items.length === 0) return 20;
-  return items.reduce(
-    (total, item) => total + getActivityXpValue(item.difficulte ?? ''),
-    0,
-  );
 }

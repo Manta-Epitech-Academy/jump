@@ -56,17 +56,23 @@ export async function recomputeTalentXp(
 }
 
 /**
- * Recomputes `Talent.eventsCount` from present participations. Kept as a cached
- * projection (like `xp`) rather than a ledger — it is directly derivable as the
- * count of the talent's present participations. Call from presence-driven sites.
+ * Recomputes `Talent.eventsCount` from émargement attendance. Kept as a cached
+ * projection (like `xp`) rather than a ledger — it is directly derivable from the
+ * `EventPresence` rows. An event counts as attended once the talent has at least
+ * one présent/en-retard cell in it (absent/justifié don't count), so multiple
+ * half-day slots of the same stage collapse to one via `distinct` on `eventId`.
+ * Call from every site that writes an `EventPresence` row, in the same tx.
  */
 export async function recomputeEventsCount(
   tx: Prisma.TransactionClient,
   talentId: string,
 ): Promise<number> {
-  const eventsCount = await tx.participation.count({
-    where: { talentId, isPresent: true },
+  const attended = await tx.eventPresence.findMany({
+    where: { talentId, status: { in: ['present', 'late'] } },
+    distinct: ['eventId'],
+    select: { eventId: true },
   });
+  const eventsCount = attended.length;
   await tx.talent.update({ where: { id: talentId }, data: { eventsCount } });
   return eventsCount;
 }

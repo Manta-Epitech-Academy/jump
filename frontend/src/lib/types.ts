@@ -25,22 +25,6 @@ export type ParticipationWithPlanning = Prisma.ParticipationGetPayload<{
   };
 }>;
 
-/** Participation with activities→activityThemes→theme (for theme tallying). */
-export type ParticipationWithActivityThemes = Prisma.ParticipationGetPayload<{
-  include: {
-    event: true;
-    activities: {
-      include: {
-        activity: {
-          include: {
-            activityThemes: { include: { theme: true } };
-          };
-        };
-      };
-    };
-  };
-}>;
-
 /** Planning with nested time slots and their single activity. */
 export type PlanningWithSlots = Prisma.PlanningGetPayload<{
   include: {

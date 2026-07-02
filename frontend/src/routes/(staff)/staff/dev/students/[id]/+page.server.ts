@@ -70,7 +70,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         where: { talentId: params.id },
         select: {
           id: true,
-          isPresent: true,
           stageCompliance: {
             select: { charteSigned: true, updatedAt: true },
           },

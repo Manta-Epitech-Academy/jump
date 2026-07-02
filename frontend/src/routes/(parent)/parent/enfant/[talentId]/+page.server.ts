@@ -105,22 +105,6 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
     orderBy: { event: { date: 'asc' } },
   });
 
-  // Fetch past participations with activities for history
-  const participations = await prisma.participation.findMany({
-    where: { talentId, event: { date: { lt: filterDateStartDate } } },
-    include: {
-      event: { select: { id: true, titre: true, date: true } },
-      activities: {
-        include: {
-          activity: {
-            select: { id: true, nom: true, activityType: true },
-          },
-        },
-      },
-    },
-    orderBy: { event: { date: 'desc' } },
-  });
-
   const parentName = locals.user.name ?? '';
 
   return {
@@ -176,20 +160,6 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
               difficulty: slot.activity!.difficulte,
             },
           ],
-        })),
-    })),
-    participations: participations.map((p) => ({
-      id: p.id,
-      eventName: p.event.titre,
-      eventDate: p.event.date,
-      isPresent: p.isPresent,
-      delay: p.delay ?? 0,
-      activities: p.activities
-        .filter((a) => a.activity.activityType !== 'orga')
-        .map((a) => ({
-          id: a.activity.id,
-          name: a.activity.nom,
-          type: a.activity.activityType,
         })),
     })),
   };

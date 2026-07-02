@@ -5,7 +5,6 @@
  *  - dev students list filter (`staff/dev/students`)
  *  - pedago event « inscrits » filter + badges
  *  - broadcast audience targeting (`domain/broadcasts.ts`)
- *  - certificate « school level » label (`api/certificate`)
  *  - Salesforce talent sync (`server/services/syncService.ts`)
  *
  * Values match the `ClassLevel` enum emitted by **jump-sf-worker** so the sync

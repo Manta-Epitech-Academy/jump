@@ -1,4 +1,6 @@
+import { prisma } from '$lib/server/db';
 import { scopedPrisma } from '$lib/server/db/scoped';
+import { recomputeEventsCount } from '$lib/server/services/xpService';
 import type { PresenceSlot } from '$lib/domain/eventPresence';
 
 // Émargement is autonomous from Participation, but the roster of who is expected
@@ -89,19 +91,46 @@ export async function markAllPresentInSlot(
     where: { eventId },
     select: { talentId: true },
   });
+
   const now = new Date();
-  const { count } = await db.eventPresence.createMany({
-    data: roster.map((p) => ({
-      talentId: p.talentId,
-      eventId,
-      day,
-      slot,
-      status: 'present' as const,
-      source: 'manual' as const,
-      markedById,
-      markedAt: now,
-    })),
-    skipDuplicates: true,
+  const count = await prisma.$transaction(async (tx) => {
+    // Snapshot who already carries a présent/en-retard cell for this event
+    // BEFORE inserting: bulk-marking another slot can't change whether they
+    // attended, so their `eventsCount` is untouched and we skip recomputing
+    // them. Only talents who gain their first attendance here (bounded by the
+    // roster, not the campus) need the projection refreshed. `eventId` is already
+    // campus-authorized by the caller's scoped event load.
+    const alreadyAttending = new Set(
+      (
+        await tx.eventPresence.findMany({
+          where: { eventId, status: { in: ['present', 'late'] } },
+          distinct: ['talentId'],
+          select: { talentId: true },
+        })
+      ).map((r) => r.talentId),
+    );
+
+    const { count } = await tx.eventPresence.createMany({
+      data: roster.map((p) => ({
+        talentId: p.talentId,
+        eventId,
+        day,
+        slot,
+        status: 'present' as const,
+        source: 'manual' as const,
+        markedById,
+        markedAt: now,
+      })),
+      skipDuplicates: true,
+    });
+
+    for (const p of roster) {
+      if (!alreadyAttending.has(p.talentId)) {
+        await recomputeEventsCount(tx, p.talentId);
+      }
+    }
+
+    return count;
   });
 
   return { status: 'done', marked: count };
