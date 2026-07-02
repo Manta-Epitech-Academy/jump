@@ -10,10 +10,8 @@
  * What it does, per campus:
  *   - finds the campus by name and its single `stage_seconde` Event,
  *   - get-or-creates the Event's Planning,
- *   - rebuilds that Planning: deletes ALL its existing TimeSlots (cascades to
- *     their Activities, and through those to any ParticipationActivity verdict;
- *     StepsProgress / PortfolioItem detach to a null activity, not deleted) and
- *     recreates them from the schedule below.
+ *   - rebuilds that Planning: deletes ALL its existing TimeSlots (each cascades
+ *     to its one Activity) and recreates them from the schedule below.
  *
  * Idempotent and authoritative: the schedule here is the planning's source of
  * truth. Every run is a full rebuild, so re-running converges and fixing a
@@ -1250,7 +1248,6 @@ async function seedCampus(plan: CampusPlanning): Promise<void> {
           create: {
             nom: s.nom,
             activityType: s.type ?? inferActivityType(s.nom),
-            isDynamic: false,
           },
         },
       };

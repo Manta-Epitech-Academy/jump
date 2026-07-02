@@ -6,19 +6,18 @@
 
 ## Vue d'ensemble
 
-- **82** modèles · **38** enums · **137** relations
+- **57** modèles · **34** enums · **86** relations
 
 | Domaine | Modèles |
 | --- | ---: |
 | Authentification & Profils | 12 |
 | Cycle de vie talent & RGPD | 3 |
-| Événements & Participations | 12 |
-| Planning & Activités | 10 |
-| Référentiel de compétences | 15 |
-| Progression, Portfolio & XP | 3 |
+| Événements & Participations | 10 |
+| Planning & Activités | 5 |
+| Progression, Portfolio & XP | 2 |
 | Minijeux | 3 |
 | Feedback | 7 |
-| Communication & Support | 8 |
+| Communication & Support | 6 |
 | Contenus & Centres d'intérêt | 4 |
 | Configuration & Système | 5 |
 
@@ -317,20 +316,12 @@ erDiagram
     String moduleKey PK
     Json settings
   }
-  EventManta {
-    String eventId PK,FK
-    String staffProfileId PK,FK
-  }
   Participation {
     String id PK
     String talentId FK,UK
     String eventId FK,UK
     String campusId FK
-    Boolean isPresent
-    Int delay
     Boolean bringPc
-    Int camperRating
-    String camperFeedback
     DateTime createdAt
     DateTime updatedAt
   }
@@ -339,16 +330,6 @@ erDiagram
     Boolean charteSigned
     DateTime createdAt
     DateTime updatedAt
-  }
-  ParticipationActivity {
-    String participationId PK,FK
-    String activityId PK,FK
-    Boolean isPresent
-    Int delay
-    ParticipationVerdict verdict
-    ParticipationContextTag contextTag
-    String verdictAuthorId FK
-    DateTime verdictAt
   }
   Interview {
     String id PK
@@ -424,12 +405,8 @@ erDiagram
   }
   Theme {
   }
-  Activity {
-  }
   Feedback_Form {
   }
-  StaffProfile ||--o{ EventManta : "eventMantas"
-  StaffProfile |o--o{ ParticipationActivity : "verdictsAuthored"
   StaffProfile ||--o{ Interview : "interviewsConducted"
   StaffProfile |o--o{ EventPresence : "presencesMarked"
   StaffProfile |o--o{ EventPresenceClosure : "presenceClosuresMade"
@@ -443,16 +420,13 @@ erDiagram
   Campus ||--o{ Participation : "participations"
   Campus ||--o{ Interview : "interviews"
   Theme |o--o{ Event : "events"
-  Activity ||--o{ ParticipationActivity : "participationActivities"
   Feedback_Form |o--o{ Event : "events"
-  Event ||--o{ EventManta : "mantas"
   Event ||--o{ Participation : "participations"
   Event ||--o{ EventPresenceClosure : "presenceClosures"
   Event ||--o{ EventPresence : "eventPresences"
   Event ||--o{ EventConfig_Module : "modules"
   Feedback_Form |o--o{ EventConfig_Template : "configTemplates"
   EventConfig_Template ||--o{ EventConfig_TemplateModule : "modules"
-  Participation ||--o{ ParticipationActivity : "activities"
   Participation ||--|| StageCompliance : "stageCompliance"
   Participation ||--|| Interview : "interview"
 ```
@@ -481,13 +455,10 @@ erDiagram
     String description
     String difficulte
     ActivityType activityType
-    Boolean isDynamic
     String link
     String content
-    Json contentStructure
     String timeSlotId FK,UK
     String templateId
-    String subjectVersionId FK
     DateTime createdAt
     DateTime updatedAt
   }
@@ -502,268 +473,22 @@ erDiagram
     DateTime createdAt
     DateTime updatedAt
   }
-  ActivityTemplate {
-    String id PK
-    String nom
-    String description
-    String difficulte
-    ActivityType activityType
-    Boolean isDynamic
-    String campusId FK
-    String link
-    String content
-    Json contentStructure
-    Int defaultDuration
-    String subjectId FK
-    String subjectVersionId FK
-    DateTime createdAt
-    DateTime updatedAt
-  }
-  ActivityTemplateTheme {
-    String activityTemplateId PK,FK
-    String themeId PK,FK
-  }
-  PlanningTemplate {
-    String id PK
-    String nom UK
-    String description
-    Int nbDays
-    DateTime createdAt
-    DateTime updatedAt
-  }
-  PlanningTemplateDay {
-    String id PK
-    String planningTemplateId FK,UK
-    Int dayIndex UK
-    String label
-    DateTime createdAt
-    DateTime updatedAt
-  }
-  PlanningTemplateSlot {
-    String id PK
-    String planningTemplateDayId FK
-    String startTime
-    String endTime
-    Int sortOrder
-    String activityTemplateId FK
-    String nom
-    String description
-    ActivityType activityType
-    DateTime createdAt
-    DateTime updatedAt
-  }
   Campus {
-  }
-  Subject {
-  }
-  SubjectVersion {
   }
   Event {
   }
   Campus |o--o{ Theme : "themes"
-  Campus |o--o{ ActivityTemplate : "activityTemplates"
-  Theme ||--o{ ActivityTemplateTheme : "activityTemplateThemes"
   Theme ||--o{ ActivityTheme : "activityThemes"
-  ActivityTemplate ||--o{ ActivityTemplateTheme : "activityTemplateThemes"
-  ActivityTemplate |o--o{ PlanningTemplateSlot : "planningTemplateSlots"
-  Subject |o--o{ ActivityTemplate : "templates"
-  SubjectVersion |o--o{ ActivityTemplate : "templates"
   Event ||--|| Planning : "planning"
   Planning ||--o{ TimeSlot : "timeSlots"
   TimeSlot ||--|| Activity : "activity"
   Activity ||--o{ ActivityTheme : "activityThemes"
-  SubjectVersion |o--o{ Activity : "activities"
-  PlanningTemplate ||--o{ PlanningTemplateDay : "days"
-  PlanningTemplateDay ||--o{ PlanningTemplateSlot : "slots"
 ```
 
-## 5 · Référentiel de compétences
+## 5 · Progression, Portfolio & XP
 
 ```mermaid
 erDiagram
-  RefCompSnapshot {
-    String id PK
-    String commitSha UK
-    DateTime fetchedAt
-    Boolean isCurrent
-  }
-  Competence {
-    String id PK
-    String snapshotId FK,UK
-    String domain UK
-    String desc
-  }
-  Skill {
-    String id PK
-    String snapshotId FK,UK
-    String competenceId FK,UK
-    Int numericId UK
-    String shortName
-  }
-  SkillLevel {
-    String id PK
-    String snapshotId FK,UK
-    String skillId FK,UK
-    String level UK
-    String name
-    String desc
-  }
-  Observable {
-    String id PK
-    String snapshotId FK,UK
-    String projectSlug UK
-    Int externalId UK
-    String desc
-  }
-  Subject {
-    String id PK
-    String repoUrl UK
-    String slug UK
-  }
-  SubjectVersion {
-    String id PK
-    String subjectId FK,UK
-    String repoCommitSha UK
-    String refCompSnapshotId FK
-    Json metadataJson
-    DateTime importedAt
-    String importedById FK
-  }
-  Document {
-    String id PK
-    String subjectVersionId FK,UK
-    String path UK
-    String rawMd
-    String renderedHtml
-    Int sortOrder
-  }
-  Section {
-    String id PK
-    String subjectVersionId FK,UK
-    String documentId FK,UK
-    Int level
-    String anchor UK
-    String title
-    Int sortOrder
-    String htmlSlice
-  }
-  SubjectObservable {
-    String id PK
-    String subjectVersionId FK
-    String sectionId FK,UK
-    String observableId FK,UK
-    String skillLevelId FK
-  }
-  SubjectQuiz {
-    String id PK
-    String subjectVersionId FK,UK
-    String documentId FK
-    String fqn UK
-    String type
-    Int expectedCount
-    String level
-    Int externalIndex
-    String title
-    String question
-    Json options
-    Json canonicalAnswer
-  }
-  TalentObservableState {
-    String id PK
-    String talentId FK,UK
-    String eventId FK,UK
-    String observableId FK,UK
-    String sourceSectionId FK
-    String state
-    String observedById FK
-    DateTime observedAt
-    DateTime createdAt
-  }
-  TalentCompetenceState {
-    String id PK
-    String talentId FK,UK
-    String skillLevelId FK,UK
-    String state
-    DateTime certifiedAt
-    DateTime updatedAt
-  }
-  TalentQuizAttempt {
-    String id PK
-    String talentId FK
-    String quizId FK
-    String eventId FK
-    Json submitted
-    Boolean correct
-    DateTime attemptedAt
-  }
-  StepsProgress {
-    String id PK
-    String talentId FK,UK
-    String eventId FK
-    String activityId FK,UK
-    String currentStepId
-    String unlockedStepId
-    StepStatus status
-    UnlockSource lastUnlockSource
-    DateTime createdAt
-    DateTime updatedAt
-  }
-  StaffProfile {
-  }
-  Talent {
-  }
-  Activity {
-  }
-  Event {
-  }
-  StaffProfile ||--o{ SubjectVersion : "subjectVersionsImported"
-  StaffProfile |o--o{ TalentObservableState : "observableValidations"
-  Talent ||--o{ StepsProgress : "stepsProgress"
-  Talent ||--o{ TalentObservableState : "observableStates"
-  Talent ||--o{ TalentCompetenceState : "competenceStates"
-  Talent ||--o{ TalentQuizAttempt : "quizAttempts"
-  Activity |o--o{ StepsProgress : "stepsProgress"
-  Event ||--o{ StepsProgress : "stepsProgress"
-  Event ||--o{ TalentObservableState : "observableStates"
-  Event ||--o{ TalentQuizAttempt : "quizAttempts"
-  RefCompSnapshot ||--o{ Competence : "competences"
-  RefCompSnapshot ||--o{ Skill : "skills"
-  RefCompSnapshot ||--o{ SkillLevel : "skillLevels"
-  RefCompSnapshot ||--o{ Observable : "observables"
-  RefCompSnapshot ||--o{ SubjectVersion : "subjectVersions"
-  Competence ||--o{ Skill : "skills"
-  Skill ||--o{ SkillLevel : "levels"
-  SkillLevel ||--o{ SubjectObservable : "subjectObservables"
-  SkillLevel ||--o{ TalentCompetenceState : "competenceStates"
-  Observable ||--o{ SubjectObservable : "subjectObservables"
-  Observable ||--o{ TalentObservableState : "states"
-  Subject ||--o{ SubjectVersion : "versions"
-  SubjectVersion ||--o{ Document : "documents"
-  SubjectVersion ||--o{ Section : "sections"
-  SubjectVersion ||--o{ SubjectQuiz : "quizzes"
-  SubjectVersion ||--o{ SubjectObservable : "observableLinks"
-  Document ||--o{ Section : "sections"
-  Document ||--o{ SubjectQuiz : "quizzes"
-  Section ||--o{ SubjectObservable : "observableLinks"
-  Section |o--o{ TalentObservableState : "observableStateSource"
-  SubjectQuiz ||--o{ TalentQuizAttempt : "attempts"
-```
-
-## 6 · Progression, Portfolio & XP
-
-```mermaid
-erDiagram
-  PortfolioItem {
-    String id PK
-    String talentId FK
-    String eventId FK
-    String activityId FK
-    String file
-    String url
-    String caption
-    DateTime createdAt
-    DateTime updatedAt
-  }
   XpGrant {
     String id PK
     String talentId FK
@@ -789,19 +514,12 @@ erDiagram
   }
   Campus {
   }
-  Activity {
-  }
-  Event {
-  }
-  Talent ||--o{ PortfolioItem : "portfolioItems"
   Talent ||--o{ XpGrant : "xpGrants"
   Campus |o--o{ XpGrant : "xpGrants"
   Campus |o--o{ XpReward : "xpRewards"
-  Activity |o--o{ PortfolioItem : "portfolioItems"
-  Event ||--o{ PortfolioItem : "portfolioItems"
 ```
 
-## 7 · Minijeux
+## 6 · Minijeux
 
 ```mermaid
 erDiagram
@@ -851,7 +569,7 @@ erDiagram
   MinigamePublication ||--o{ MinigameAttempt : "attempts"
 ```
 
-## 8 · Feedback
+## 7 · Feedback
 
 ```mermaid
 erDiagram
@@ -954,7 +672,7 @@ erDiagram
   Feedback_Answer ||--o{ Feedback_AnswerOption : "selectedOptions"
 ```
 
-## 9 · Communication & Support
+## 8 · Communication & Support
 
 ```mermaid
 erDiagram
@@ -1030,26 +748,6 @@ erDiagram
     DateTime updatedAt
     DateTime processedAt
   }
-  Ticket {
-    String id PK
-    String authorId FK
-    String category
-    String title
-    String status
-    DateTime lastMessageAt
-    DateTime lastSeenByAuthorAt
-    DateTime lastSeenByAdminAt
-    DateTime closedAt
-    DateTime createdAt
-    DateTime updatedAt
-  }
-  TicketMessage {
-    String id PK
-    String ticketId FK
-    String authorId FK
-    String body
-    DateTime createdAt
-  }
   bauth_user {
   }
   Talent {
@@ -1058,8 +756,6 @@ erDiagram
   }
   Event {
   }
-  bauth_user ||--o{ Ticket : "ticketsAuthored"
-  bauth_user ||--o{ TicketMessage : "ticketMessages"
   bauth_user ||--o{ Broadcast : "broadcastsCreated"
   bauth_user ||--o{ MessageTemplate : "templatesCreated"
   bauth_user |o--o{ BroadcastRecipient : "broadcastsReceivedAsStaff"
@@ -1069,14 +765,13 @@ erDiagram
   Talent |o--o{ BroadcastRecipient : "broadcastsAsParent"
   Campus ||--o{ Broadcast : "broadcasts"
   Event |o--o{ Broadcast : "broadcasts"
-  Ticket ||--o{ TicketMessage : "messages"
   MessageTemplate ||--o{ Broadcast : "broadcasts"
   MessageTemplate ||--o{ EmailActionMapping : "emailActionMappings"
   Broadcast |o--o{ Broadcast : "retargets"
   Broadcast ||--o{ BroadcastRecipient : "recipients"
 ```
 
-## 10 · Contenus & Centres d'intérêt
+## 9 · Contenus & Centres d'intérêt
 
 ```mermaid
 erDiagram
@@ -1125,7 +820,7 @@ erDiagram
   Interest ||--o{ TalentInterest : "talentInterests"
 ```
 
-## 11 · Configuration & Système
+## 10 · Configuration & Système
 
 ```mermaid
 erDiagram

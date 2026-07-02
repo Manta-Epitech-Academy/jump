@@ -109,7 +109,7 @@
       {#if userKind === 'parent'}
         Progression/ Stages/ Présence/ Diplômes/
       {:else}
-        Défis/ Badges/ XP/ Portfolio/
+        Défis/ Badges/ XP/ Événements/
       {/if}
     </p>
   </LoginBrandPanel>

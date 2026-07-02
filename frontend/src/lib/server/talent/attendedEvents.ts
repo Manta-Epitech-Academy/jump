@@ -28,11 +28,9 @@ export type AttendedEvent = Prisma.EventGetPayload<{
  * Past events a talent actually attended, newest first.
  *
  * Attendance comes from `EventPresence` (the dev émargement feature), the only
- * presence source in use: `Participation.isPresent` is written solely by the
- * deprecated pedago cockpit, never exercised in prod, so it stays `false` on
- * real data and keying off it showed an empty history for everyone. "Attended"
- * means at least one présent / en-retard slot; filtering on `eventPresences.some`
- * also dedups multi-créneau events to one row per event.
+ * presence source: there is no talent-level presence flag on `Participation`.
+ * "Attended" means at least one présent / en-retard slot; filtering on
+ * `eventPresences.some` also dedups multi-créneau events to one row per event.
  *
  * Only events visible in the dev workspace (`devVisibleEventWhere`) are
  * surfaced: an attended event stays out of history until an admin activates it

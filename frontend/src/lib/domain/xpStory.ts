@@ -83,11 +83,6 @@ export function xpHistoryLabel(
       return 'Profil complété';
     case 'onboarding_early_bird':
       return 'Inscription parmi les premiers';
-    // TODO(cleanup): remove with the activity_presence enum drop in the migration
-    // wave. Kept so legacy XpGrant rows from the retired event-XP system still read
-    // sensibly until that source value and its rows are dropped.
-    case 'activity_presence':
-      return 'Participation à un atelier';
     case 'reward':
       return rewardName?.trim() || 'Activité notée';
     case 'admin_adjustment':

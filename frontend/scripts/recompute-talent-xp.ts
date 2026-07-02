@@ -9,8 +9,9 @@
  * inserted out-of-band, or a projection write that never ran).
  *
  * It reads the ACTUAL `XpGrant` table across every source (onboarding, minigame,
- * activity_presence, reward, admin_adjustment), so unlike `backfill-xp-ledger.ts`
- * it neither reconstructs the ledger nor drops reward / admin_adjustment XP. Use
+ * reward, admin_adjustment, and their bonus variants), so unlike
+ * `backfill-xp-ledger.ts` it neither reconstructs the ledger nor drops reward /
+ * admin_adjustment XP. Use
  * backfill to rebuild the ledger itself from talent state; use this to refresh
  * the cached balance from whatever the ledger currently holds.
  *

@@ -154,16 +154,14 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
  *   - the SF mirror itself (`TalentSfImport`, worker-owned);
  *   - the `Participation` rows the worker upserts per event (the talent *was*
  *     imported into those events), reset to their import defaults, with every
- *     post-import child (`ParticipationActivity` verdicts, `StageCompliance`)
- *     dropped.
+ *     post-import child (`StageCompliance`) dropped.
  *
  * Everything else a talent accrues after import is deleted: the XP ledger and
- * its cached projections (`xp`/`eventsCount` → 0), minigame attempts, quiz /
- * observable / competence state, steps progress, interviews (and their calendar
- * syncs, plus the audit trail of any admin reset), portfolio, interests,
- * reminders, PDF jobs, broadcast-recipient rows,
- * deletion requests, every onboarding/parent/image-rights/règlement column, and
- * the generated onboarding PDFs in object storage. The login identity goes too:
+ * its cached projections (`xp`/`eventsCount` → 0), minigame attempts, interviews
+ * (and the audit trail of any admin reset), interests, reminders, PDF jobs,
+ * broadcast-recipient rows, deletion requests, every
+ * onboarding/parent/image-rights/règlement column, and the generated onboarding
+ * PDFs in object storage. The login identity goes too:
  * a freshly-imported talent has no `bauth_user` (their `userId` is null until a
  * first login or impersonation), so the linked user (and any parent account
  * minted during testing that no *other* talent still references) is deleted
@@ -234,9 +232,6 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     });
     const participationIds = participations.map((p) => p.id);
     if (participationIds.length > 0) {
-      await tx.participationActivity.deleteMany({
-        where: { participationId: { in: participationIds } },
-      });
       await tx.stageCompliance.deleteMany({
         where: { participationId: { in: participationIds } },
       });
@@ -250,11 +245,6 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     // The reset-audit trail is talent-scoped too (talentId + a free-text reason);
     // it must go with the interviews it traces, matching anonymizeTalent.
     await tx.interviewReset.deleteMany({ where: { talentId } });
-    await tx.stepsProgress.deleteMany({ where: { talentId } });
-    await tx.portfolioItem.deleteMany({ where: { talentId } });
-    await tx.talentObservableState.deleteMany({ where: { talentId } });
-    await tx.talentCompetenceState.deleteMany({ where: { talentId } });
-    await tx.talentQuizAttempt.deleteMany({ where: { talentId } });
     await tx.talentInterest.deleteMany({ where: { talentId } });
     await tx.onboardingReminder.deleteMany({ where: { talentId } });
     await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
@@ -281,13 +271,7 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     //    (the worker creates them with only talent/event/campus set).
     await tx.participation.updateMany({
       where: { talentId },
-      data: {
-        isPresent: false,
-        delay: 0,
-        bringPc: false,
-        camperRating: null,
-        camperFeedback: null,
-      },
+      data: { bringPc: false },
     });
 
     // 4. Reset the Talent row. Keep externalId + email (SF identity / auth key);
@@ -352,11 +336,8 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     //    referenced by rows that fall away with it: bauth_session / bauth_account
     //    (cascade, and cleared just below) and the Talent itself (SetNull, already
     //    nulled). Every other FK onto bauth_user is staff-authored content
-    //    (TicketMessage.author, CmsPage, Broadcast, StaffInvitation,
-    //    MessageTemplate), so a student holds none and the delete can't trip a
-    //    P2003. Note TicketMessage.author has no onDelete, so it would block this
-    //    delete the moment a student authored one: revisit here if students ever
-    //    gain a staff-side affordance like opening tickets.
+    //    (CmsPage, Broadcast, StaffInvitation, MessageTemplate), so a student
+    //    holds none and the delete can't trip a P2003.
     if (talent.userId) {
       await tx.bauth_session.deleteMany({ where: { userId: talent.userId } });
       await tx.bauth_account.deleteMany({ where: { userId: talent.userId } });

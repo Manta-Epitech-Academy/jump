@@ -13,13 +13,13 @@ import {
  * deleting rows: name/contact fields are nulled or replaced with placeholders,
  * the linked auth identity is scrubbed and its sessions/accounts dropped, and
  * every talent-scoped satellite that embeds a name, a contact detail, or free
- * text (interviews, portfolio, comm + send history, the PDF-job payload) is
- * deleted outright. The generated onboarding PDFs (charte / règlement student /
+ * text (interviews, comm + send history, the PDF-job payload) is deleted
+ * outright. The generated onboarding PDFs (charte / règlement student /
  * règlement parent / droit à l'image — each embeds the student's and guardian's
  * names and a signature) are deleted from object storage, not merely
  * dereferenced. We deliberately keep the de-identified behavioural telemetry
- * (participation, progress, minigame / quiz attempts, the xp ledger) so `xp`,
- * `eventsCount` and aggregate stats survive the erasure.
+ * (participation, minigame attempts, the xp ledger) so `xp`, `eventsCount` and
+ * aggregate stats survive the erasure.
  *
  * Parents are data subjects too: their identity lives both as columns on the
  * Talent (both guardian slots, plus the guardian's typed signer name on the
@@ -148,9 +148,8 @@ export async function anonymizeTalent(
   //    a name, a contact detail, or free text, the whole row is removed rather
   //    than nulled field-by-field (drift-proof as columns are added, and the
   //    same set resetTalentToImport wipes). The anonymous behavioural telemetry
-  //    is deliberately KEPT (participation, stepsProgress, minigameAttempt,
-  //    talentQuizAttempt, xpGrant, observable / competence state): once the name
-  //    is gone those are de-identified activity backing xp / eventsCount and
+  //    is deliberately KEPT (participation, minigameAttempt, xpGrant): once the
+  //    name is gone those are de-identified activity backing xp / eventsCount and
   //    aggregate stats.
   //      - talentSfImport / talentInterest / imageRightsDecisionRecord: the SF
   //        mirror, interest selections, and the image-rights ledger (the ledger
@@ -160,7 +159,6 @@ export async function anonymizeTalent(
   //      - interview / interviewReset: the synthesis row holds free-text staff
   //        observations about the minor; both existing wipe paths already
   //        hard-delete it. InterviewReset is a reset's audit trace + reason.
-  //      - portfolioItem: student-authored content with potential PII.
   //      - onboardingPdfJob: payload snapshots the student + guardian name and
   //        city. The generated S3 PDFs are deleted post-commit; this is the DB
   //        copy of the same names.
@@ -198,7 +196,6 @@ export async function anonymizeTalent(
   });
   await tx.interview.deleteMany({ where: { talentId } });
   await tx.interviewReset.deleteMany({ where: { talentId } });
-  await tx.portfolioItem.deleteMany({ where: { talentId } });
   await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
   await tx.onboardingReminder.deleteMany({ where: { talentId } });
   await tx.broadcastRecipient.deleteMany({

@@ -49,10 +49,6 @@ const AUDIENCE_TO_STAFF_ROLE: Record<
   StaffRole
 > = {
   dev: 'dev',
-  // TODO(cleanup): remove with the enum drop in the migration wave
-  peda: 'peda',
-  // TODO(cleanup): remove with the enum drop in the migration wave
-  manta: 'manta',
   superdev: 'superdev',
 };
 

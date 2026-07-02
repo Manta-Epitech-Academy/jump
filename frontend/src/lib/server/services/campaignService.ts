@@ -232,7 +232,6 @@ export async function importCampaignData(
                 eventId: newEvent.id,
                 campusId,
                 bringPc: item.bringPc,
-                isPresent: false,
               },
             });
           }

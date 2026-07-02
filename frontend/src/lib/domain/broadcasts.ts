@@ -84,9 +84,7 @@ export interface ExcludedRecipient {
   reason: RecipientExclusionReason;
 }
 
-// Audiences a staff member can actually pick in the composer. `peda`/`manta`
-// stay in the `BroadcastAudience` enum (schema) for historical rows but are no
-// longer offered here.
+// Audiences a staff member can actually pick in the composer.
 export const BROADCAST_AUDIENCES = [
   'talent',
   'parent',
@@ -98,10 +96,6 @@ export const BROADCAST_AUDIENCE_LABELS: Record<BroadcastAudience, string> = {
   talent: 'Talents',
   parent: 'Parents',
   dev: 'Dev (recrutement)',
-  // TODO(cleanup): remove with the enum drop in the migration wave
-  peda: 'Pédago',
-  // TODO(cleanup): remove with the enum drop in the migration wave
-  manta: 'Mantas',
   superdev: 'Superdev',
 };
 

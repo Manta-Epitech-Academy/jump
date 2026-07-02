@@ -15,17 +15,6 @@ datasource db {
 // Niveau stored as plain string from the canonical catalogue in
 // `src/lib/domain/niveau.ts` (NIVEAUX); values match jump-sf-worker's ClassLevel.
 
-enum StepStatus {
-  active
-  needs_help
-  completed
-}
-
-enum UnlockSource {
-  student
-  staff
-}
-
 enum ActivityType {
   atelier
   conference
@@ -39,8 +28,6 @@ enum StaffRole {
   admin
   superdev
   dev
-  peda
-  manta
 }
 
 enum InterviewStatus {
@@ -143,17 +130,6 @@ enum InterviewRecommendation {
   pas_interesse
 }
 
-enum ParticipationVerdict {
-  comfortable
-  progressing
-  struggling
-}
-
-enum ParticipationContextTag {
-  helped_others
-  disengaged
-}
-
 // ─── Auth (BetterAuth managed) ───
 
 model bauth_user {
@@ -175,8 +151,6 @@ model bauth_user {
   talent                    Talent?
   invitationsIssued         StaffInvitation[]    @relation("StaffInvitationInvitedBy")
   cmsPages                  CmsPage[]
-  ticketsAuthored           Ticket[]             @relation("TicketAuthor")
-  ticketMessages            TicketMessage[]
   broadcastsCreated         Broadcast[]          @relation("BroadcastCreator")
   templatesCreated          MessageTemplate[]    @relation("MessageTemplateCreator")
   broadcastsReceivedAsStaff BroadcastRecipient[] @relation("BroadcastRecipientStaff")
@@ -265,24 +239,20 @@ model StaffProfile {
   createdAt                DateTime   @default(now())
   updatedAt                DateTime   @updatedAt
 
-  user                    bauth_user                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  campus                  Campus?                     @relation(fields: [campusId], references: [id])
-  eventMantas             EventManta[]
-  verdictsAuthored        ParticipationActivity[]     @relation("VerdictAuthor")
-  interviewsConducted     Interview[]
-  adminFiles              AdminFile[]
-  cmsImages               CmsImage[]
-  subjectVersionsImported SubjectVersion[]
-  observableValidations   TalentObservableState[]
-  presencesMarked         EventPresence[]
-  presenceClosuresMade    EventPresenceClosure[]
-  imageRightsCorrections  ImageRightsDecisionRecord[]
-  interviewResets         InterviewReset[]            @relation("InterviewResetBy")
-  notesAuthored           Note_TalentNote[]           @relation("Note_TalentNoteAuthor")
-  notesEdited             Note_TalentNote[]           @relation("Note_TalentNoteEditor")
-  feedbackFormsCreated    Feedback_Form[]             @relation("Feedback_FormCreator")
-  feedbackFormsUpdated    Feedback_Form[]             @relation("Feedback_FormEditor")
-  eventConfigTemplates    EventConfig_Template[]      @relation("EventConfigTemplateCreator")
+  user                   bauth_user                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campus                 Campus?                     @relation(fields: [campusId], references: [id])
+  interviewsConducted    Interview[]
+  adminFiles             AdminFile[]
+  cmsImages              CmsImage[]
+  presencesMarked        EventPresence[]
+  presenceClosuresMade   EventPresenceClosure[]
+  imageRightsCorrections ImageRightsDecisionRecord[]
+  interviewResets        InterviewReset[]            @relation("InterviewResetBy")
+  notesAuthored          Note_TalentNote[]           @relation("Note_TalentNoteAuthor")
+  notesEdited            Note_TalentNote[]           @relation("Note_TalentNoteEditor")
+  feedbackFormsCreated   Feedback_Form[]             @relation("Feedback_FormCreator")
+  feedbackFormsUpdated   Feedback_Form[]             @relation("Feedback_FormEditor")
+  eventConfigTemplates   EventConfig_Template[]      @relation("EventConfigTemplateCreator")
 
   @@index([campusId])
 }
@@ -385,12 +355,7 @@ model Talent {
 
   user                bauth_user?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
   participations      Participation[]
-  stepsProgress       StepsProgress[]
-  portfolioItems      PortfolioItem[]
   interviews          Interview[]
-  observableStates    TalentObservableState[]
-  competenceStates    TalentCompetenceState[]
-  quizAttempts        TalentQuizAttempt[]
   reminders           OnboardingReminder[]
   pdfJobs             OnboardingPdfJob[]
   minigameAttempts    MinigameAttempt[]
@@ -598,19 +563,18 @@ model Campus {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  staffProfiles     StaffProfile[]
-  events            Event[]
-  themes            Theme[]
-  participations    Participation[]
-  activityTemplates ActivityTemplate[]
-  interviews        Interview[]
-  invitations       StaffInvitation[]
-  featureFlags      CampusFeatureFlag[]
-  broadcasts        Broadcast[]
-  minigameAttempts  MinigameAttempt[]
-  xpGrants          XpGrant[]
-  xpRewards         XpReward[]
-  signatories       Signatory[]
+  staffProfiles    StaffProfile[]
+  events           Event[]
+  themes           Theme[]
+  participations   Participation[]
+  interviews       Interview[]
+  invitations      StaffInvitation[]
+  featureFlags     CampusFeatureFlag[]
+  broadcasts       Broadcast[]
+  minigameAttempts MinigameAttempt[]
+  xpGrants         XpGrant[]
+  xpRewards        XpReward[]
+  signatories      Signatory[]
 }
 
 model CmsPage {
@@ -635,49 +599,11 @@ model Theme {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  campus                 Campus?                 @relation(fields: [campusId], references: [id])
-  events                 Event[]
-  activityTemplateThemes ActivityTemplateTheme[]
-  activityThemes         ActivityTheme[]
+  campus         Campus?         @relation(fields: [campusId], references: [id])
+  events         Event[]
+  activityThemes ActivityTheme[]
 
   @@unique([nom, campusId])
-}
-
-model ActivityTemplate {
-  id               String       @id @default(cuid())
-  nom              String
-  description      String?
-  difficulte       String?
-  activityType     ActivityType
-  isDynamic        Boolean      @default(false)
-  campusId         String?
-  link             String?
-  content          String?
-  contentStructure Json?
-  defaultDuration  Int?
-  subjectId        String?
-  subjectVersionId String?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-
-  campus                 Campus?                 @relation(fields: [campusId], references: [id])
-  activityTemplateThemes ActivityTemplateTheme[]
-  planningTemplateSlots  PlanningTemplateSlot[]
-  subject                Subject?                @relation(fields: [subjectId], references: [id])
-  subjectVersion         SubjectVersion?         @relation(fields: [subjectVersionId], references: [id])
-
-  @@index([subjectId])
-  @@index([subjectVersionId])
-}
-
-model ActivityTemplateTheme {
-  activityTemplateId String
-  themeId            String
-
-  activityTemplate ActivityTemplate @relation(fields: [activityTemplateId], references: [id], onDelete: Cascade)
-  theme            Theme            @relation(fields: [themeId], references: [id], onDelete: Cascade)
-
-  @@id([activityTemplateId, themeId])
 }
 
 model Planning {
@@ -705,30 +631,22 @@ model TimeSlot {
 }
 
 model Activity {
-  id               String       @id @default(cuid())
-  nom              String
-  description      String?
-  difficulte       String?
-  activityType     ActivityType
-  isDynamic        Boolean      @default(false)
-  link             String?
-  content          String?
-  contentStructure Json?
-  timeSlotId       String       @unique
-  templateId       String?
-  subjectVersionId String?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  id           String       @id @default(cuid())
+  nom          String
+  description  String?
+  difficulte   String?
+  activityType ActivityType
+  link         String?
+  content      String?
+  timeSlotId   String       @unique
+  templateId   String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
-  timeSlot                TimeSlot                @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
-  activityThemes          ActivityTheme[]
-  participationActivities ParticipationActivity[]
-  stepsProgress           StepsProgress[]
-  portfolioItems          PortfolioItem[]
-  subjectVersion          SubjectVersion?         @relation(fields: [subjectVersionId], references: [id])
+  timeSlot       TimeSlot        @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
+  activityThemes ActivityTheme[]
 
   @@index([templateId])
-  @@index([subjectVersionId])
 }
 
 model ActivityTheme {
@@ -789,16 +707,11 @@ model Event {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  campus              Campus                  @relation(fields: [campusId], references: [id])
-  theme               Theme?                  @relation(fields: [themeId], references: [id])
-  feedbackForm        Feedback_Form?          @relation("EventFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
-  mantas              EventManta[]
+  campus              Campus                 @relation(fields: [campusId], references: [id])
+  theme               Theme?                 @relation(fields: [themeId], references: [id])
+  feedbackForm        Feedback_Form?         @relation("EventFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
   participations      Participation[]
-  stepsProgress       StepsProgress[]
-  portfolioItems      PortfolioItem[]
   planning            Planning?
-  observableStates    TalentObservableState[]
-  quizAttempts        TalentQuizAttempt[]
   cmsPages            CmsPage[]
   broadcasts          Broadcast[]
   minigameAttempts    MinigameAttempt[]
@@ -836,8 +749,8 @@ model EventConfig_Module {
   @@index([moduleKey])
 }
 
-// A reusable, named event-configuration preset (global, like PlanningTemplate),
-// created by staff from the config wizard ("Enregistrer comme modèle"). Applying
+// A reusable, named event-configuration preset (global), created by staff from
+// the config wizard ("Enregistrer comme modèle"). Applying
 // one is a point-in-time SEED: the wizard copies its modules + settings + default
 // feedback form into the event, with no live link afterwards (the event's own
 // rows stay the truth). `forEventType` is a soft hint (captured from the event a
@@ -888,34 +801,19 @@ model EventConfig_TemplateModule {
   @@id([templateId, moduleKey])
 }
 
-model EventManta {
-  eventId        String
-  staffProfileId String
-
-  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  staffProfile StaffProfile @relation(fields: [staffProfileId], references: [id], onDelete: Cascade)
-
-  @@id([eventId, staffProfileId])
-}
-
 model Participation {
-  id        String  @id @default(cuid())
-  talentId  String
-  eventId   String
-  campusId  String
-  isPresent Boolean @default(false)
-  delay     Int?    @default(0)
-  bringPc   Boolean @default(false)
+  id       String  @id @default(cuid())
+  talentId String
+  eventId  String
+  campusId String
+  bringPc  Boolean @default(false)
 
-  camperRating   Int?
-  camperFeedback String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  talent          Talent                  @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  event           Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  campus          Campus                  @relation(fields: [campusId], references: [id])
-  activities      ParticipationActivity[]
+  talent          Talent           @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  event           Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  campus          Campus           @relation(fields: [campusId], references: [id])
   stageCompliance StageCompliance?
   interview       Interview?
 
@@ -933,24 +831,6 @@ model StageCompliance {
   updatedAt       DateTime @updatedAt
 
   participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
-}
-
-model ParticipationActivity {
-  participationId String
-  activityId      String
-  isPresent       Boolean                  @default(false)
-  delay           Int                      @default(0)
-  verdict         ParticipationVerdict?
-  contextTag      ParticipationContextTag?
-  verdictAuthorId String?
-  verdictAt       DateTime?
-
-  participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
-  activity      Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  verdictAuthor StaffProfile? @relation("VerdictAuthor", fields: [verdictAuthorId], references: [id])
-
-  @@id([participationId, activityId])
-  @@index([verdictAuthorId])
 }
 
 // Administrative attendance ("émargement"), one record per half-day a talent is
@@ -1354,47 +1234,6 @@ model InterviewReset {
   @@index([talentId, createdAt])
 }
 
-model StepsProgress {
-  id               String        @id @default(cuid())
-  talentId         String
-  eventId          String
-  activityId       String?
-  currentStepId    String?
-  unlockedStepId   String?
-  status           StepStatus    @default(active)
-  lastUnlockSource UnlockSource?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-
-  talent   Talent    @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  activity Activity? @relation(fields: [activityId], references: [id])
-
-  @@unique([talentId, activityId])
-  @@index([eventId])
-  @@index([talentId])
-  @@index([activityId])
-}
-
-model PortfolioItem {
-  id         String   @id @default(cuid())
-  talentId   String
-  eventId    String
-  activityId String?
-  file       String?
-  url        String?
-  caption    String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  talent   Talent    @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  activity Activity? @relation(fields: [activityId], references: [id])
-
-  @@index([talentId])
-  @@index([eventId])
-}
-
 // ── Sync Error Logging ──
 
 model SyncError {
@@ -1416,54 +1255,6 @@ model SyncError {
   @@unique([email, attemptedExtId])
   @@index([resolved])
   @@index([lastOccurredAt])
-}
-
-// ── Planning Templates ──
-
-model PlanningTemplate {
-  id          String   @id @default(cuid())
-  nom         String   @unique
-  description String?
-  nbDays      Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  days PlanningTemplateDay[]
-}
-
-model PlanningTemplateDay {
-  id                 String   @id @default(cuid())
-  planningTemplateId String
-  dayIndex           Int
-  label              String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  planningTemplate PlanningTemplate       @relation(fields: [planningTemplateId], references: [id], onDelete: Cascade)
-  slots            PlanningTemplateSlot[]
-
-  @@unique([planningTemplateId, dayIndex])
-  @@index([planningTemplateId])
-}
-
-model PlanningTemplateSlot {
-  id                    String       @id @default(cuid())
-  planningTemplateDayId String
-  startTime             String
-  endTime               String
-  sortOrder             Int          @default(0)
-  activityTemplateId    String?
-  nom                   String?
-  description           String?
-  activityType          ActivityType @default(orga)
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
-
-  day              PlanningTemplateDay @relation(fields: [planningTemplateDayId], references: [id], onDelete: Cascade)
-  activityTemplate ActivityTemplate?   @relation(fields: [activityTemplateId], references: [id], onDelete: SetNull)
-
-  @@index([planningTemplateDayId])
-  @@index([activityTemplateId])
 }
 
 model CampusFeatureFlag {
@@ -1550,258 +1341,6 @@ model CmsImage {
   @@index([uploadedById])
 }
 
-// ─── GitHub-backed Subjects + Competence Reference ───
-
-model RefCompSnapshot {
-  id        String   @id @default(cuid())
-  commitSha String   @unique
-  fetchedAt DateTime @default(now())
-  isCurrent Boolean  @default(false)
-
-  competences     Competence[]
-  skills          Skill[]
-  skillLevels     SkillLevel[]
-  observables     Observable[]
-  subjectVersions SubjectVersion[]
-
-  @@index([isCurrent])
-}
-
-model Competence {
-  id         String @id @default(cuid())
-  snapshotId String
-  domain     String
-  desc       String
-
-  snapshot RefCompSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
-  skills   Skill[]
-
-  @@unique([snapshotId, domain])
-}
-
-model Skill {
-  id           String @id @default(cuid())
-  snapshotId   String
-  competenceId String
-  numericId    Int
-  shortName    String
-
-  snapshot   RefCompSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
-  competence Competence      @relation(fields: [competenceId], references: [id], onDelete: Cascade)
-  levels     SkillLevel[]
-
-  @@unique([snapshotId, competenceId, numericId])
-  @@index([snapshotId])
-}
-
-model SkillLevel {
-  id         String @id @default(cuid())
-  snapshotId String
-  skillId    String
-  level      String
-  name       String
-  desc       String
-
-  snapshot           RefCompSnapshot         @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
-  skill              Skill                   @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  subjectObservables SubjectObservable[]
-  competenceStates   TalentCompetenceState[]
-
-  @@unique([snapshotId, skillId, level])
-  @@index([snapshotId])
-}
-
-model Observable {
-  id          String @id @default(cuid())
-  snapshotId  String
-  projectSlug String
-  externalId  Int
-  desc        String
-
-  snapshot           RefCompSnapshot         @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
-  subjectObservables SubjectObservable[]
-  states             TalentObservableState[]
-
-  @@unique([snapshotId, projectSlug, externalId])
-  @@index([snapshotId])
-  @@index([projectSlug])
-}
-
-model Subject {
-  id      String @id @default(cuid())
-  repoUrl String @unique
-  slug    String @unique
-
-  versions  SubjectVersion[]
-  templates ActivityTemplate[]
-}
-
-model SubjectVersion {
-  id                String   @id @default(cuid())
-  subjectId         String
-  repoCommitSha     String
-  refCompSnapshotId String
-  metadataJson      Json
-  importedAt        DateTime @default(now())
-  importedById      String
-
-  subject         Subject             @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  refCompSnapshot RefCompSnapshot     @relation(fields: [refCompSnapshotId], references: [id])
-  importedBy      StaffProfile        @relation(fields: [importedById], references: [id])
-  documents       Document[]
-  sections        Section[]
-  quizzes         SubjectQuiz[]
-  observableLinks SubjectObservable[]
-  activities      Activity[]
-  templates       ActivityTemplate[]
-
-  @@unique([subjectId, repoCommitSha])
-  @@index([subjectId])
-  @@index([refCompSnapshotId])
-}
-
-model Document {
-  id               String @id @default(cuid())
-  subjectVersionId String
-  path             String
-  rawMd            String
-  renderedHtml     String
-  sortOrder        Int
-
-  subjectVersion SubjectVersion @relation(fields: [subjectVersionId], references: [id], onDelete: Cascade)
-  sections       Section[]
-  quizzes        SubjectQuiz[]
-
-  @@unique([subjectVersionId, path])
-  @@index([subjectVersionId])
-}
-
-model Section {
-  id               String  @id @default(cuid())
-  subjectVersionId String
-  documentId       String
-  level            Int
-  anchor           String
-  title            String
-  sortOrder        Int
-  // For level=1 sections, the rendered HTML between this H1 and the next.
-  // Computed at import time so the talent reader does no DOM-string surgery.
-  // Null for H2/H3, which are tracked only for observable wiring.
-  htmlSlice        String?
-
-  subjectVersion        SubjectVersion          @relation(fields: [subjectVersionId], references: [id], onDelete: Cascade)
-  document              Document                @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  observableLinks       SubjectObservable[]
-  observableStateSource TalentObservableState[] @relation("TalentObservableStateSourceSection")
-
-  @@unique([subjectVersionId, documentId, anchor])
-  @@index([subjectVersionId])
-  @@index([documentId])
-}
-
-model SubjectObservable {
-  id               String @id @default(cuid())
-  subjectVersionId String
-  sectionId        String
-  observableId     String
-  skillLevelId     String
-
-  subjectVersion SubjectVersion @relation(fields: [subjectVersionId], references: [id], onDelete: Cascade)
-  section        Section        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  observable     Observable     @relation(fields: [observableId], references: [id])
-  skillLevel     SkillLevel     @relation(fields: [skillLevelId], references: [id])
-
-  @@unique([sectionId, observableId])
-  @@index([subjectVersionId])
-  @@index([observableId])
-  @@index([skillLevelId])
-}
-
-model SubjectQuiz {
-  id               String @id @default(cuid())
-  subjectVersionId String
-  documentId       String
-  fqn              String
-  type             String
-  expectedCount    Int?
-  level            String
-  externalIndex    Int
-  title            String
-  question         String
-  options          Json
-  canonicalAnswer  Json?
-
-  subjectVersion SubjectVersion      @relation(fields: [subjectVersionId], references: [id], onDelete: Cascade)
-  document       Document            @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  attempts       TalentQuizAttempt[]
-
-  @@unique([subjectVersionId, fqn])
-  @@index([subjectVersionId])
-  @@index([documentId])
-}
-
-model TalentObservableState {
-  id              String    @id @default(cuid())
-  talentId        String
-  eventId         String
-  observableId    String
-  // Section the talent had reached when this row was created. Lets the manta
-  // validation view deep-link to the exact spot in the subject without
-  // guessing among the SubjectObservable rows linked to the observable.
-  sourceSectionId String?
-  state           String
-  observedById    String?
-  observedAt      DateTime?
-  createdAt       DateTime  @default(now())
-
-  talent        Talent        @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  event         Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  observable    Observable    @relation(fields: [observableId], references: [id])
-  observedBy    StaffProfile? @relation(fields: [observedById], references: [id])
-  sourceSection Section?      @relation("TalentObservableStateSourceSection", fields: [sourceSectionId], references: [id], onDelete: SetNull)
-
-  @@unique([talentId, eventId, observableId])
-  @@index([talentId])
-  @@index([eventId])
-  @@index([observableId])
-  @@index([state])
-  @@index([sourceSectionId])
-}
-
-model TalentCompetenceState {
-  id           String    @id @default(cuid())
-  talentId     String
-  skillLevelId String
-  state        String
-  certifiedAt  DateTime?
-  updatedAt    DateTime  @updatedAt
-
-  talent     Talent     @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  skillLevel SkillLevel @relation(fields: [skillLevelId], references: [id])
-
-  @@unique([talentId, skillLevelId])
-  @@index([talentId])
-  @@index([skillLevelId])
-}
-
-model TalentQuizAttempt {
-  id          String   @id @default(cuid())
-  talentId    String
-  quizId      String
-  eventId     String
-  submitted   Json
-  correct     Boolean
-  attemptedAt DateTime @default(now())
-
-  talent Talent      @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  quiz   SubjectQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  event  Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@index([talentId])
-  @@index([quizId])
-  @@index([eventId])
-}
-
 model OnboardingReminder {
   id       String   @id @default(cuid())
   talentId String
@@ -1840,42 +1379,6 @@ model OnboardingPdfJob {
   @@index([talentId])
 }
 
-// ── Tickets (staff → admin support) ──
-
-model Ticket {
-  id                 String    @id @default(cuid())
-  authorId           String
-  category           String // "bug" | "suggestion"
-  title              String
-  status             String    @default("open") // "open" | "closed"
-  lastMessageAt      DateTime  @default(now())
-  lastSeenByAuthorAt DateTime?
-  lastSeenByAdminAt  DateTime?
-  closedAt           DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-
-  author   bauth_user      @relation("TicketAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  messages TicketMessage[]
-
-  @@index([authorId])
-  @@index([status])
-  @@index([lastMessageAt])
-}
-
-model TicketMessage {
-  id        String   @id @default(cuid())
-  ticketId  String
-  authorId  String
-  body      String
-  createdAt DateTime @default(now())
-
-  ticket Ticket     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  author bauth_user @relation(fields: [authorId], references: [id])
-
-  @@index([ticketId])
-}
-
 // ─── Broadcasts (envoi en masse mail/SMS) ───
 
 enum BroadcastChannel {
@@ -1901,8 +1404,6 @@ enum BroadcastAudience {
   talent
   parent
   dev
-  peda
-  manta
   superdev
 }
 
@@ -2145,10 +1646,10 @@ model XpGrant {
   source    XpGrantSource
   // Stable dedupe key per source: onboarding→talentId,
   // onboarding_early_bird→talentId (distinct row from the base because `source`
-  // differs), minigame→attemptId, minigame_rank→attemptId, activity_presence→
-  // participationId, reward→`${rewardId}_${talentId}` (one grant per talent per
-  // XpReward, see XpReward below), admin_adjustment→null (never deduped: Postgres
-  // treats NULLs as distinct under the unique index).
+  // differs), minigame→attemptId, minigame_rank→attemptId,
+  // reward→`${rewardId}_${talentId}` (one grant per talent per XpReward, see
+  // XpReward below), admin_adjustment→null (never deduped: Postgres treats NULLs
+  // as distinct under the unique index).
   sourceId  String?
   amount    Int
   note      String?
@@ -2175,7 +1676,6 @@ enum XpGrantSource {
   // the moment the talent finishes (per campus). Separate fact from the flat
   // finish reward.
   minigame_rank
-  activity_presence
   // Grant tied to a named, reusable XpReward (a stage activity scored outside the
   // planning, e.g. a CTF). Its own source so it stays distinct from a raw
   // admin_adjustment correction and is queryable per category. Amount is
