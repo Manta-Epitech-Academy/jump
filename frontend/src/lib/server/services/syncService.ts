@@ -10,6 +10,7 @@ import { isNiveau, type Niveau } from '$lib/domain/niveau';
 import { normalizePhoneToE164 } from '$lib/domain/phone';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 import { autoResolveAuthIdentity } from '$lib/server/services/authIdentityRepairService';
+import { ensureTalentUser } from '$lib/server/services/talentAccount';
 
 // Salesforce ships a binary gender ('m' | 'f'); map it onto the civilité enum
 // the rest of the app uses. SF has no equivalent for 'autre', so it stays null.
@@ -308,6 +309,27 @@ export async function syncTalents(
           continue;
         }
         throw err;
+      }
+
+      // Eager-mint the login account at import so `bauth_user.email` is the
+      // identity from day one (same shape as the CSV campaign path) — no window
+      // where a Talent exists without an account. A parent/staff-owned email
+      // can't be forced into a student login (`ensureTalentUser` throws); log it
+      // and move on. The talent is still imported, just accountless until an
+      // admin resolves the collision. Emailless SF rows stay accountless.
+      if (email) {
+        try {
+          await ensureTalentUser(talentId);
+        } catch (err) {
+          await logSyncError({
+            email,
+            attemptedExtId: t.external_id,
+            existingExtId: null,
+            talentName: `${t.first_name} ${t.last_name}`,
+            eventExtId: eventExternalId,
+            message: `Compte de connexion non créé pour "${email}" : ${err instanceof Error ? err.message : 'erreur inconnue'} — à arbitrer (Divergences Salesforce › Connexion) ou réessai au prochain sync.`,
+          });
+        }
       }
     } else {
       talentId = existing.id;
