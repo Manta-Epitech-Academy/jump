@@ -28,7 +28,7 @@
     basePath,
   }: {
     tickets: Ticket[];
-    basePath: '/staff/dev' | '/staff/pedago';
+    basePath: '/staff/dev';
   } = $props();
 
   let openTickets = $derived(tickets.filter((t) => t.status === 'open'));

@@ -27,7 +27,7 @@
     basePath,
   }: {
     open?: boolean;
-    basePath: '/staff/dev' | '/staff/pedago';
+    basePath: '/staff/dev';
   } = $props();
 
   let title = $state('');

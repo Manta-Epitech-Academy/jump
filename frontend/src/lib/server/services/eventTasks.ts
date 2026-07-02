@@ -23,7 +23,6 @@ import {
 export type AlertSeverity = 'info' | 'warning' | 'danger';
 
 export type EventAlertKind =
-  | 'missing-mantas'
   | 'missing-planning'
   | 'unassigned-slots'
   | 'chartes-to-chase'
@@ -80,7 +79,6 @@ type EventForAlerts = {
 type EventFacts = {
   isStage: boolean;
   totalParticipations: number;
-  mantaCount: number;
   slotCount: number;
   unassignedSlots: number;
   chartesToChase: number;
@@ -100,21 +98,19 @@ async function loadEventFacts(
 ): Promise<EventFacts> {
   const isStage = event.eventType === EVENT_TYPES.STAGE_SECONDE;
 
-  const [mantaCount, planningWithCounts, totalParticipations] =
-    await Promise.all([
-      db.eventManta.count({ where: { eventId: event.id } }),
-      db.planning.findUnique({
-        where: { eventId: event.id },
-        select: {
-          _count: { select: { timeSlots: true } },
-          timeSlots: {
-            where: { activity: { is: null } },
-            select: { id: true },
-          },
+  const [planningWithCounts, totalParticipations] = await Promise.all([
+    db.planning.findUnique({
+      where: { eventId: event.id },
+      select: {
+        _count: { select: { timeSlots: true } },
+        timeSlots: {
+          where: { activity: { is: null } },
+          select: { id: true },
         },
-      }),
-      db.participation.count({ where: { eventId: event.id } }),
-    ]);
+      },
+    }),
+    db.participation.count({ where: { eventId: event.id } }),
+  ]);
 
   const slotCount = planningWithCounts?._count.timeSlots ?? 0;
   const unassignedSlots =
@@ -123,7 +119,6 @@ async function loadEventFacts(
   const baseFacts = {
     isStage,
     totalParticipations,
-    mantaCount,
     slotCount,
     unassignedSlots,
     chartesToChase: 0,
@@ -167,19 +162,6 @@ export async function deriveEventAlerts(
   const facts = await loadEventFacts(db, event, ctx);
   const eventBase = `${ctx.basePath}/events/${event.id}`;
   const alerts: EventAlert[] = [];
-
-  if (facts.mantaCount === 0) {
-    alerts.push({
-      key: `missing-mantas-${event.id}`,
-      kind: 'missing-mantas',
-      eventId: event.id,
-      eventTitre: event.titre,
-      title: 'Intervenants non assignés',
-      description: `${event.titre} — aucun manta`,
-      severity: 'warning',
-      href: `${eventBase}/team`,
-    });
-  }
 
   if (ctx.planningEnabled !== false) {
     if (facts.slotCount === 0) {
@@ -264,7 +246,7 @@ export async function deriveEventAlerts(
  * as the underlying count resolves. Callers render done items struck through
  * (closure feedback) and undone items as actionable rows.
  *
- * Coding-club events get only the team/planning trio — the stage-specific
+ * Coding-club events get only the planning items — the stage-specific
  * document and onboarding checks don't apply.
  */
 export async function deriveEventChecklist(
@@ -276,21 +258,7 @@ export async function deriveEventChecklist(
   const eventBase = `${ctx.basePath}/events/${event.id}`;
   const items: ChecklistItem[] = [];
 
-  // — Group: équipe & planning —
-
-  items.push({
-    key: `missing-mantas-${event.id}`,
-    kind: 'missing-mantas',
-    group: 'team',
-    title: 'Intervenants assignés',
-    meta:
-      facts.mantaCount > 0
-        ? `${facts.mantaCount} manta${facts.mantaCount > 1 ? 's' : ''} confirmé${facts.mantaCount > 1 ? 's' : ''}`
-        : 'Aucun manta — assigner depuis Intervenants',
-    done: facts.mantaCount > 0,
-    severity: 'warning',
-    href: `${eventBase}/team`,
-  });
+  // — Group: planning —
 
   if (ctx.planningEnabled !== false) {
     items.push({

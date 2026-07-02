@@ -1263,7 +1263,7 @@ const STAFF_MEMBERS = [
     email: 'sophie.bernard@epitech.eu',
     name: 'Sophie Bernard',
     campus: 'Paris',
-    role: 'peda' as const,
+    role: 'dev' as const,
     image: 'https://i.pravatar.cc/96?u=sophie.bernard@epitech.eu',
   },
   {
@@ -1271,7 +1271,7 @@ const STAFF_MEMBERS = [
     email: 'jules.dupont@epitech.eu',
     name: 'Jules Dupont',
     campus: 'Paris',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: 'https://i.pravatar.cc/96?u=jules.dupont@epitech.eu',
   },
   {
@@ -1279,7 +1279,7 @@ const STAFF_MEMBERS = [
     email: 'laura.garcia@epitech.eu',
     name: 'Laura Garcia',
     campus: 'Paris',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: null,
   },
   {
@@ -1287,7 +1287,7 @@ const STAFF_MEMBERS = [
     email: 'nathan.blanc@epitech.eu',
     name: 'Nathan Blanc',
     campus: 'Lyon',
-    role: 'peda' as const,
+    role: 'dev' as const,
     image: 'https://i.pravatar.cc/96?u=nathan.blanc@epitech.eu',
   },
   {
@@ -1295,7 +1295,7 @@ const STAFF_MEMBERS = [
     email: 'pierre.leblanc@epitech.eu',
     name: 'Pierre Leblanc',
     campus: 'Lyon',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: null,
   },
   {
@@ -1344,7 +1344,7 @@ const STAFF_MEMBERS = [
     email: 'elise.dumas@epitech.eu',
     name: 'Élise Dumas',
     campus: 'Lyon',
-    role: 'peda' as const,
+    role: 'dev' as const,
     image: 'https://i.pravatar.cc/96?u=elise.dumas@epitech.eu',
   },
   {
@@ -1352,7 +1352,7 @@ const STAFF_MEMBERS = [
     email: 'maxime.girard@epitech.eu',
     name: 'Maxime Girard',
     campus: 'Paris',
-    role: 'peda' as const,
+    role: 'dev' as const,
     image: 'https://i.pravatar.cc/96?u=maxime.girard@epitech.eu',
   },
   {
@@ -1360,7 +1360,7 @@ const STAFF_MEMBERS = [
     email: 'theo.vincent@epitech.eu',
     name: 'Théo Vincent',
     campus: 'Paris',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: null,
   },
   {
@@ -1368,7 +1368,7 @@ const STAFF_MEMBERS = [
     email: 'lena.faure@epitech.eu',
     name: 'Léna Faure',
     campus: 'Paris',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: 'https://i.pravatar.cc/96?u=lena.faure@epitech.eu',
   },
   {
@@ -1376,7 +1376,7 @@ const STAFF_MEMBERS = [
     email: 'jeanne.albert@epitech.eu',
     name: 'Jeanne Albert',
     campus: 'Lyon',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: null,
   },
   {
@@ -1384,7 +1384,7 @@ const STAFF_MEMBERS = [
     email: 'romain.caron@epitech.eu',
     name: 'Romain Caron',
     campus: 'Lyon',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: 'https://i.pravatar.cc/96?u=romain.caron@epitech.eu',
   },
   {
@@ -1392,7 +1392,7 @@ const STAFF_MEMBERS = [
     email: 'yacine.benali@epitech.eu',
     name: 'Yacine Benali',
     campus: 'Paris',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: null,
   },
   {
@@ -1400,7 +1400,7 @@ const STAFF_MEMBERS = [
     email: 'martin.ferrand@epitech.eu',
     name: 'Martin Ferrand',
     campus: 'Lyon',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: null,
   },
 ];
@@ -1959,7 +1959,6 @@ type EventBlueprint = {
   campus: 'Paris' | 'Lyon';
   theme: string;
   pin: string;
-  mantaKeys: string[];
   days?: DayBlueprint[]; // if multi-day
   slots?: SlotBlueprint[]; // if single day (dayOffset=0)
   // Participations
@@ -2030,7 +2029,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Cybersécurité',
     pin: '9999',
-    mantaKeys: ['jules.dupont', 'laura.garcia'],
     slots: [
       standardOrgaSlot(),
       {
@@ -2093,7 +2091,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Robotique',
     pin: '4321',
-    mantaKeys: ['laura.garcia'],
     slots: [
       standardOrgaSlot(),
       {
@@ -2142,7 +2139,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Développement Web',
     pin: '1001',
-    mantaKeys: ['jules.dupont', 'laura.garcia'],
     days: [
       {
         dayOffset: 0,
@@ -2221,7 +2217,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Intelligence Artificielle',
     pin: '7777',
-    mantaKeys: ['jules.dupont', 'laura.garcia'],
     slots: [
       {
         startHour: 13,
@@ -2264,14 +2259,13 @@ const EVENTS: EventBlueprint[] = [
     bringPc: (_, i) => i % 2 === 0,
   },
 
-  // 5. Task queue trigger: event in 2 days WITHOUT MANTAS
+  // 5. Upcoming event in 2 days (planning built)
   {
     titre: 'Atelier Web Débutants',
     daysOffset: 2,
     campus: 'Paris',
     theme: 'Développement Web',
     pin: '2222',
-    mantaKeys: [], // ← intentional
     slots: [
       standardOrgaSlot(),
       {
@@ -2295,14 +2289,13 @@ const EVENTS: EventBlueprint[] = [
     bringPc: () => true,
   },
 
-  // 6. Task queue trigger: event in 4 days WITHOUT PLANNING (has mantas, no slots)
+  // 6. Task queue trigger: event in 4 days WITHOUT PLANNING (no slots)
   {
     titre: 'Atelier Game Design',
     daysOffset: 4,
     campus: 'Paris',
     theme: 'Jeux Vidéo',
     pin: '3333',
-    mantaKeys: ['jules.dupont'],
     slots: [], // ← intentional (empty planning)
     // Niveau mix: stage cohort (2nde) + extras from other class levels.
     studentEmails: [
@@ -2320,7 +2313,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Jeux Vidéo',
     pin: '5678',
-    mantaKeys: ['laura.garcia'],
     slots: [
       standardOrgaSlot(),
       {
@@ -2350,7 +2342,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Paris',
     theme: 'Développement Web',
     pin: '1003',
-    mantaKeys: ['jules.dupont', 'laura.garcia'],
     days: [
       // Day 0 — Lundi (déjà passé, J1)
       {
@@ -2487,7 +2478,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Lyon',
     theme: 'Développement Web',
     pin: '6001',
-    mantaKeys: ['pierre.leblanc'],
     slots: [
       standardOrgaSlot(),
       {
@@ -2525,7 +2515,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Lyon',
     theme: 'Robotique',
     pin: '6002',
-    mantaKeys: ['pierre.leblanc'],
     slots: [
       standardOrgaSlot(),
       {
@@ -2549,7 +2538,6 @@ const EVENTS: EventBlueprint[] = [
     campus: 'Lyon',
     theme: 'Développement Web',
     pin: '6003',
-    mantaKeys: ['pierre.leblanc', 'jeanne.albert', 'romain.caron'],
     days: [
       {
         dayOffset: 0,
@@ -3595,7 +3583,6 @@ async function wipeAll() {
     prisma.messageTemplate.deleteMany(),
     prisma.participation.deleteMany(),
     prisma.interview.deleteMany(),
-    prisma.eventManta.deleteMany(),
     prisma.activityTheme.deleteMany(),
     prisma.activity.deleteMany(),
     prisma.timeSlot.deleteMany(),
@@ -4437,14 +4424,6 @@ async function seedEvents(
         campusId,
         themeId,
         pin: blueprint.pin,
-        mantas: {
-          create: blueprint.mantaKeys
-            .map((key) => {
-              const staff = staffByKey[key];
-              return staff ? { staffProfileId: staff.id } : null;
-            })
-            .filter((x): x is NonNullable<typeof x> => x !== null),
-        },
         modules: {
           create: ((blueprint.eventType ?? EVENT_TYPES.CODING_CLUB) ===
           EVENT_TYPES.STAGE_SECONDE
@@ -5041,12 +5020,6 @@ async function printSummary(parentEmail: string) {
   const alertCount = await prisma.stepsProgress.count({
     where: { status: 'needs_help' },
   });
-  const missingMantaCount = await prisma.event.count({
-    where: {
-      date: { gte: startOfToday, lte: dayAt(7, 23, 59) },
-      mantas: { none: {} },
-    },
-  });
 
   console.log('\n════════════════════════════════════════════════════════');
   console.log('                   SEED COMPLETE');
@@ -5057,9 +5030,8 @@ async function printSummary(parentEmail: string) {
     `   admin      Microsoft OAuth only — bun run scripts/add-admin-user.ts`,
   );
   console.log(`   staff      *@epitech.eu (Microsoft OAuth)`);
-  console.log(`              (pauline.marchand=superdev, marie.manta=dev,`);
-  console.log(`               sophie.bernard/nathan.blanc=peda,`);
-  console.log(`               jules.dupont/laura.garcia/pierre.leblanc=manta,`);
+  console.log(`              (pauline.marchand/hugo.lefebvre=superdev,`);
+  console.log(`               marie.manta/sophie.bernard/jules.dupont=dev,`);
   console.log(`               camille.reader=no role → "contact admin")`);
   console.log(`   students   *@mail.com (OTP via email)`);
   console.log(`   parent     ${parentEmail} (OTP via email)\n`);
@@ -5078,9 +5050,6 @@ async function printSummary(parentEmail: string) {
   console.log(`   Entretiens — finalisés:        ${doneInterviews}`);
   console.log(`   Entretiens — en cours:         ${inProgressInterviews}`);
   console.log(
-    `   Task queue — missing mantas:   ${missingMantaCount} events ≤ 7 days`,
-  );
-  console.log(
     `   Task queue — missing planning: 1 event (Atelier Game Design, +4d)`,
   );
   console.log(
@@ -5097,7 +5066,6 @@ async function printSummary(parentEmail: string) {
   console.log(`   ${origin}/staff/login                 Staff sign-in`);
   console.log(`   ${origin}/staff/admin                 Admin panel`);
   console.log(`   ${origin}/staff/dev                   Dev space`);
-  console.log(`   ${origin}/staff/pedago                Pedago / Manta space`);
   console.log(`   ${origin}/parent/login                Parent portal`);
   console.log('');
   console.log('════════════════════════════════════════════════════════\n');

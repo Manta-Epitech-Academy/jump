@@ -1,15 +1,10 @@
 <script lang="ts">
   import * as Dialog from '$lib/components/ui/dialog';
-  import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import { sanitizeActivityContent } from '$lib/sanitize';
-  import Pencil from '@lucide/svelte/icons/pencil';
-  import Trash2 from '@lucide/svelte/icons/trash-2';
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import Zap from '@lucide/svelte/icons/zap';
-  import FlaskConical from '@lucide/svelte/icons/flask-conical';
   import Clock from '@lucide/svelte/icons/clock';
-  import { resolve } from '$app/paths';
   import { cn } from '$lib/utils';
   import {
     activityTypeLabels,
@@ -18,28 +13,17 @@
   import type { TimeSlotWithActivity } from '$lib/types';
   import type { ActivityStructure } from '$lib/server/services/progressService';
 
-  // Defaults make the read-only call site clean: a viewer (e.g. the dev space)
-  // mounts it with just `slot` + `timezone` and gets no edit/train footer. The
-  // editing call site (CalendarPlanner) passes every prop explicitly, so its
-  // behaviour is unchanged.
+  // Read-only preview: the dev planning view mounts it with `slot` + `timezone`
+  // to inspect an activity. There is no edit/train footer (planning is authored
+  // elsewhere), so the dialog is purely informational.
   let {
     open = $bindable(false),
     slot,
     timezone,
-    canEdit = false,
-    canTrain = false,
-    eventId = null,
-    onEdit = () => {},
-    onDelete = () => {},
   }: {
     open?: boolean;
     slot: TimeSlotWithActivity | null;
     timezone: string;
-    canEdit?: boolean;
-    canTrain?: boolean;
-    eventId?: string | null;
-    onEdit?: () => void;
-    onDelete?: () => void;
   } = $props();
 
   let activity = $derived(slot?.activity ?? null);
@@ -204,45 +188,6 @@
           </p>
         {/if}
       </div>
-
-      <Dialog.Footer class="shrink-0 sm:justify-between">
-        <div class="flex items-center gap-1">
-          {#if canEdit}
-            <Button
-              variant="ghost"
-              size="sm"
-              onclick={() => {
-                open = false;
-                onEdit();
-              }}
-            >
-              <Pencil class="mr-1.5 h-3.5 w-3.5" /> Modifier
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              class="text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onclick={() => {
-                open = false;
-                onDelete();
-              }}
-            >
-              <Trash2 class="mr-1.5 h-3.5 w-3.5" /> Supprimer
-            </Button>
-          {/if}
-        </div>
-        {#if canTrain && activity.isDynamic && stepCount > 0 && eventId}
-          <Button
-            href={resolve(
-              `/staff/pedago/events/${eventId}/activities/${activity.id}/practice`,
-            )}
-            class="rounded-xl bg-epi-orange font-bold text-white hover:bg-epi-orange/90"
-          >
-            <FlaskConical class="mr-2 h-4 w-4" />
-            S'entraîner sur l'activité
-          </Button>
-        {/if}
-      </Dialog.Footer>
     {/if}
   </Dialog.Content>
 </Dialog.Root>

@@ -30,7 +30,7 @@ export type CreateInvitationInput = z.infer<typeof createInvitationSchema>;
 
 export const createSuperDevInvitationSchema = z.object({
   email: epitechEmail,
-  staffRole: z.enum(invitableRoles).default('manta'),
+  staffRole: z.enum(invitableRoles).default('dev'),
 });
 
 export type CreateSuperDevInvitationInput = z.infer<

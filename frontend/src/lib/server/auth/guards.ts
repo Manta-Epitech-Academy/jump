@@ -46,21 +46,8 @@ const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
     group: 'devLead',
   },
   {
-    pattern: /^\/staff\/pedago\/events\/[^/]+\/planning(?:\/|$)/,
-    group: 'pedaLead',
-    readOnlyForRest: ['manta'],
-  },
-  {
-    pattern: /^\/staff\/pedago\/events\/[^/]+\/factions(?:\/|$)/,
-    group: 'pedaLead',
-  },
-  {
     pattern: /^\/staff\/dev\/contenu(?:\/|$)/,
     group: 'devMember',
-  },
-  {
-    pattern: /^\/staff\/pedago\/contenu(?:\/|$)/,
-    group: 'pedaMember',
   },
 ];
 
@@ -85,7 +72,6 @@ export async function applyRouteGuards(
   const pathLogout = p('/logout');
   const pathApi = p('/api/');
   const pathStaffDev = p('/staff/dev');
-  const pathStaffPedago = p('/staff/pedago');
 
   const pathTalentWelcome = p('/welcome');
   const pathParentLogin = p('/login');
@@ -103,9 +89,6 @@ export async function applyRouteGuards(
     currentPath.startsWith(`${pathStaffAdmin}/`);
   const isDevPath =
     currentPath === pathStaffDev || currentPath.startsWith(`${pathStaffDev}/`);
-  const isPedagoPath =
-    currentPath === pathStaffPedago ||
-    currentPath.startsWith(`${pathStaffPedago}/`);
 
   const isPublicPath =
     currentPath.startsWith(pathLogout) || currentPath.startsWith(pathApi);
@@ -254,24 +237,6 @@ export async function applyRouteGuards(
       const role = event.locals.staffProfile?.staffRole;
       const allowed = role === 'superdev' || role === 'dev';
       if (!allowed) {
-        const correctPath = getStaffRoleRedirectPath(role);
-        if (correctPath) {
-          return Response.redirect(
-            new URL(p(correctPath), event.url).href,
-            303,
-          );
-        }
-        return Response.redirect(
-          new URL(`${pathStaffLogin}?error=NoRole`, event.url).href,
-          303,
-        );
-      }
-    }
-
-    // Pedago sub-guard: only peda or manta
-    if (isPedagoPath) {
-      const role = event.locals.staffProfile?.staffRole;
-      if (role !== 'peda' && role !== 'manta') {
         const correctPath = getStaffRoleRedirectPath(role);
         if (correctPath) {
           return Response.redirect(

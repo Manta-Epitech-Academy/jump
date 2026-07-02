@@ -9,9 +9,7 @@ import type { StaffRole } from '@prisma/client';
  *
  *   devLead    — dev workspace lead (superdev only)
  *   devMember  — dev workspace member (superdev + dev)
- *   pedaLead   — pedago workspace lead (peda only)
- *   pedaMember — pedago workspace member (peda + manta)
- *   leads      — leads across both workspaces (superdev + peda)
+ *   leads      — cross-workspace lead actions (superdev)
  *
  * Usage:
  *   • Client:  <Gated group="devLead">...</Gated>   (reads role from page state)
@@ -21,18 +19,16 @@ import type { StaffRole } from '@prisma/client';
  * UI pattern rule (pick one per site):
  *   • Hide                 — nav entries to lead-only destinations (sidebars, menus)
  *   • Disable + tooltip    — mutating controls visible on shared screens
- *   • Readonly banner      — whole-page readonly context (e.g. manta on planning)
+ *   • Readonly banner      — whole-page readonly context (readOnlyForRest gates)
  *   • Redirect / 403       — direct URL access to lead-only routes (STAFF_ROLE_GATES)
  */
 export const STAFF_GROUPS = {
   devLead: ['superdev'],
   devMember: ['superdev', 'dev'],
-  pedaLead: ['peda'],
-  pedaMember: ['peda', 'manta'],
-  leads: ['superdev', 'peda'],
+  leads: ['superdev'],
   // Roles a superdev may invite / assign on their campus. Excludes `admin`
   // (admin role is provisioned manually, not self-replicating).
-  campusManageable: ['superdev', 'dev', 'peda', 'manta'],
+  campusManageable: ['superdev', 'dev'],
   // Roles allowed to manage the dev-redirect controls on a trapped (dev/staging)
   // env: arming "real sends" (lifting the mail/SMS redirect to reach real
   // recipients — dangerous, recipients are minors) and arming a login-redirect
@@ -58,17 +54,9 @@ const STAFF_GROUP_DESCRIPTIONS: Record<StaffGroup, StaffGroupDescription> = {
     label: 'Équipe dev',
     contact: 'un dev ou un superdev de votre campus',
   },
-  pedaLead: {
-    label: 'Responsable péda',
-    contact: 'un référent péda de votre campus',
-  },
-  pedaMember: {
-    label: 'Équipe péda',
-    contact: 'un référent péda ou une manta de votre campus',
-  },
   leads: {
     label: "Responsable d'espace",
-    contact: 'un superdev ou un référent péda',
+    contact: 'un superdev',
   },
   campusManageable: {
     label: 'Membre staff',

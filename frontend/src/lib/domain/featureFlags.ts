@@ -32,8 +32,8 @@ export const FEATURE_FLAGS = {
   }),
   // Inscrits / Entretiens / Émargement / Bilan are no longer campus flags: they
   // are now per-event "modules" (see $lib/domain/eventModules + EventConfig_Module),
-  // so two events on the same campus can expose different surfaces. Planning stays
-  // a campus flag below because it also gates the pedago editor and talent calendar.
+  // so two events on the same campus can expose different surfaces. Planning is
+  // not a flag either — it is data-driven (see the note below).
   staff_campus_team: def({
     key: 'staff_campus_team',
     kind: 'rollout',
@@ -49,7 +49,7 @@ export const FEATURE_FLAGS = {
     defaultEnabled: false,
     label: "Édition page d'accueil talents",
     description:
-      "Édition CMS de la page d'accueil affichée aux talents (dev + pedago).",
+      "Édition CMS de la page d'accueil affichée aux talents (côté dev).",
     removeBy: new Date('2026-07-15'),
   }),
   staff_sync_errors: def({
@@ -62,8 +62,8 @@ export const FEATURE_FLAGS = {
     removeBy: new Date('2026-07-15'),
   }),
   // Planning is intentionally NOT a flag: it is data-driven. The dev view and
-  // the talent calendar show wherever an event has a schedule; the pedago editor
-  // (the build tool) is gated by role (pedaLead). See $lib/domain/eventModules
+  // the talent calendar show wherever an event has a schedule; the schedule is
+  // provisioned by script and read-only in the app. See $lib/domain/eventModules
   // (planning note) and the planning loads.
 };
 

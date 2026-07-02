@@ -86,7 +86,7 @@ export function pastEventWhere(b: LifecycleBounds): Prisma.EventWhereInput {
 /**
  * Events overlapping `[rangeStart, rangeEnd]`. Used for week-window task
  * derivations where a multi-day event that started earlier still needs
- * mantas/planning attention this week.
+ * planning attention this week.
  */
 export function eventOverlappingWhere(
   rangeStart: Date,

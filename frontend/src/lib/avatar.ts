@@ -13,13 +13,11 @@ export function getInitials(name: string | null | undefined): string {
 
 /**
  * Role-tinted Avatar.Fallback class for staff. Returns a generic primary tint
- * when role is unknown or outside peda/manta — used as a graceful default in
- * mixed-role surfaces.
+ * for every staff role, kept as a helper so mixed-role surfaces share one
+ * fallback style.
  */
 export function staffRoleAvatarFallbackClass(
-  role: string | null | undefined,
+  _role: string | null | undefined,
 ): string {
-  if (role === 'peda') return 'bg-epi-teal/15 text-epi-teal-solid';
-  if (role === 'manta') return 'bg-epi-blue/15 text-epi-blue';
   return 'bg-primary/10 text-primary';
 }

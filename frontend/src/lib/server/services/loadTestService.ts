@@ -234,9 +234,6 @@ export async function buildLoadManifest(sample = 50) {
     staffDev: usableStaff
       .filter((s) => s.staffRole === 'dev' || s.staffRole === 'superdev')
       .map((s) => ({ email: s.user!.email!, campusId: s.campusId })),
-    staffPeda: usableStaff
-      .filter((s) => s.staffRole === 'peda' || s.staffRole === 'manta')
-      .map((s) => ({ email: s.user!.email!, campusId: s.campusId })),
     events: events.map((e) => ({
       id: e.id,
       title: e.titre,

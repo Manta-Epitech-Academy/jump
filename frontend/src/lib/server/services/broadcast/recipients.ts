@@ -49,7 +49,9 @@ const AUDIENCE_TO_STAFF_ROLE: Record<
   StaffRole
 > = {
   dev: 'dev',
+  // TODO(cleanup): remove with the enum drop in the migration wave
   peda: 'peda',
+  // TODO(cleanup): remove with the enum drop in the migration wave
   manta: 'manta',
   superdev: 'superdev',
 };
@@ -316,14 +318,8 @@ async function resolveStaffBased(
       staffRole: role,
       campusId: spec.campusId,
       ...(userIdFilter ? { userId: userIdFilter } : {}),
-      // Mantas are assigned to events (EventManta), so when an event is chosen
-      // the manta audience narrows to that event's assignees, matching how
-      // talent/parent scope through Participation. The other staff roles
-      // (dev/peda/superdev) carry no per-event assignment, so the event is
-      // simply ignored for them.
-      ...(spec.audience === 'manta' && spec.eventId
-        ? { eventMantas: { some: { eventId: spec.eventId } } }
-        : {}),
+      // Staff audiences carry no per-event assignment, so the event is ignored
+      // when resolving them.
     },
     select: {
       campus: { select: { name: true } },

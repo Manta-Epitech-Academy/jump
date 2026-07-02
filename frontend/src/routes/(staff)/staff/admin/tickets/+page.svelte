@@ -155,11 +155,10 @@
           </p>
           <p class="text-xs text-muted-foreground">
             {#if ticketsEnabled}
-              Les dev et pédago peuvent envoyer suggestions et bugs depuis leur
-              espace.
+              Les dev peuvent envoyer suggestions et bugs depuis leur espace.
             {:else}
-              Les dev et pédago ne peuvent plus créer de nouveau ticket. Les
-              tickets existants restent visibles ici.
+              Les dev ne peuvent plus créer de nouveau ticket. Les tickets
+              existants restent visibles ici.
             {/if}
           </p>
         </div>

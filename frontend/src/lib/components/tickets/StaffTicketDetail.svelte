@@ -42,7 +42,7 @@
       createdAt: string;
       messages: Message[];
     };
-    basePath: '/staff/dev' | '/staff/pedago';
+    basePath: '/staff/dev';
   } = $props();
 
   let body = $state('');

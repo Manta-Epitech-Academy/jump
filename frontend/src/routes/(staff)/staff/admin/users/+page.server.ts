@@ -194,7 +194,7 @@ export const actions: Actions = {
     }
 
     const validRole: StaffRole | null = staffRole
-      ? staffRoles.includes(staffRole as StaffRole)
+      ? (staffRoles as readonly string[]).includes(staffRole)
         ? (staffRole as StaffRole)
         : null
       : null;

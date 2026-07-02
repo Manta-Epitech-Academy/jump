@@ -6,7 +6,7 @@
     basePath,
     unreadCount = 0,
   }: {
-    basePath: '/staff/dev' | '/staff/pedago';
+    basePath: '/staff/dev';
     unreadCount?: number;
   } = $props();
 </script>

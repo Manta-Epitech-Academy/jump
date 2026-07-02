@@ -6,10 +6,7 @@ import {
   type TicketStatus,
 } from '$lib/domain/tickets';
 
-const STAFF_AUTHOR_ROLES = [
-  ...rolesIn('devMember'),
-  ...rolesIn('pedaMember'),
-] as const;
+const STAFF_AUTHOR_ROLES = [...rolesIn('devMember')] as const;
 
 export function isStaffAuthor(role: string | null | undefined): boolean {
   return !!role && (STAFF_AUTHOR_ROLES as readonly string[]).includes(role);

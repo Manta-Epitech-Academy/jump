@@ -16,9 +16,9 @@
   //    round-trip), so ⌘K doubles as a page menu.
   //  - People: talents + parents + staff, searched globally server-side, each
   //    jumping to the relevant admin list pre-filtered via `?q=`.
-  // Deliberately separate from the dev/pedago GlobalCommand: that one is
-  // campus-scoped, talent-only and navigates to /students/[id] cockpits — none
-  // of which fit the admin space. Reuses the same ui/command kit.
+  // Admin-specific by design: cross-campus, spanning talents + parents + staff
+  // and jumping to admin lists — not a campus-scoped, talent-only palette.
+  // Reuses the same ui/command kit.
   let { open = $bindable(false) }: { open?: boolean } = $props();
 
   type PersonResult = {

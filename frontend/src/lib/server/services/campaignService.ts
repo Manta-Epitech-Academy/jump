@@ -142,7 +142,6 @@ export async function importCampaignData(
   importList: ImportAction[],
   eventName: string,
   eventDateStr: string,
-  mantas: string[],
   campusId: string,
 ) {
   // 1. Create Event
@@ -152,9 +151,6 @@ export async function importCampaignData(
       date: new Date(eventDateStr),
       campusId,
       pin: generatePin(),
-      mantas: {
-        create: mantas.map((staffProfileId) => ({ staffProfileId })),
-      },
       planning: { create: {} },
     },
   });

@@ -25,9 +25,8 @@
     leur tableau de bord, pendant toute la durée du stage. Vous éditez ici la
     page de <strong>n'importe quel campus</strong> et de
     <strong>n'importe quel stage</strong> — au-delà du seul stage en cours
-    accessible aux équipes dev et pédago. Insérez des <strong>variables</strong> (prénom,
-    campus, email de contact…) ; elles sont remplacées par les valeurs réelles de
-    chaque talent.
+    accessible à l'équipe dev. Insérez des <strong>variables</strong> (prénom, campus,
+    email de contact…) ; elles sont remplacées par les valeurs réelles de chaque talent.
   </p>
 </div>
 
@@ -47,9 +46,9 @@
             <Badge
               variant="outline"
               class="shrink-0 gap-1 border-epi-teal/30 bg-epi-teal/10 text-[10px] text-epi-teal-solid"
-              title="Flag staff_welcome_page actif : les équipes dev et pédago peuvent aussi éditer la page de ce campus."
+              title="Flag staff_welcome_page actif : l'équipe dev peut aussi éditer la page de ce campus."
             >
-              <Users class="h-3 w-3" /> Dev & pédago aussi
+              <Users class="h-3 w-3" /> Dev aussi
             </Badge>
           {:else}
             <Badge
