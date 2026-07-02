@@ -6,11 +6,6 @@ import { templateSchema } from '$lib/validation/templates';
 import { prisma } from '$lib/server/db';
 import { sanitizeRichHtml } from '$lib/server/sanitize';
 import { processOfficialThemes } from '$lib/server/services/themes';
-import {
-  importSubject,
-  ImportSubjectError,
-} from '$lib/server/services/subjectImporter';
-import { importErrorToHttpStatus } from '$lib/server/services/subjectImportErrors';
 
 export const load: PageServerLoad = async () => {
   const [templates, themes] = await Promise.all([
@@ -19,8 +14,6 @@ export const load: PageServerLoad = async () => {
       orderBy: { createdAt: 'desc' },
       include: {
         activityTemplateThemes: { include: { theme: true } },
-        subject: true,
-        subjectVersion: { select: { repoCommitSha: true, importedAt: true } },
       },
     }),
     prisma.theme.findMany({
@@ -34,89 +27,16 @@ export const load: PageServerLoad = async () => {
   return { templates, themes, form };
 };
 
-type SubjectBindResult =
-  | {
-      ok: true;
-      subjectId: string;
-      subjectVersionId: string;
-      commitSha: string;
-      warnings: number;
-    }
-  | { ok: false; status: 400 | 409 | 422 | 500; message: string };
-
-async function resolveSubjectBinding(
-  contentSource: 'inline_json' | 'github',
-  repoUrl: string | undefined,
-  ref: string | undefined,
-  importedByStaffProfileId: string,
-): Promise<SubjectBindResult | null> {
-  if (contentSource !== 'github') return null;
-  if (!repoUrl) {
-    return {
-      ok: false,
-      status: 400,
-      message: "L'URL du repo GitHub est requise",
-    };
-  }
-  try {
-    const result = await importSubject({
-      repoUrl,
-      ref: ref || undefined,
-      importedByStaffProfileId,
-    });
-    return {
-      ok: true,
-      subjectId: result.subjectId,
-      subjectVersionId: result.subjectVersionId,
-      commitSha: result.commitSha,
-      warnings: result.warnings.length,
-    };
-  } catch (err) {
-    if (err instanceof ImportSubjectError) {
-      return {
-        ok: false,
-        status: importErrorToHttpStatus(err.kind),
-        message: err.message,
-      };
-    }
-    console.error('[Subject import] failed:', err);
-    return {
-      ok: false,
-      status: 500,
-      message: err instanceof Error ? err.message : 'Erreur inconnue',
-    };
-  }
-}
-
 export const actions: Actions = {
-  create: async ({ request, locals }) => {
+  create: async ({ request }) => {
     const form = await superValidate(request, zod4(templateSchema));
     if (!form.valid) return fail(400, { form });
 
     try {
       const themeIds = await processOfficialThemes(form.data.themes);
-      const isDynamic = form.data.isDynamic as boolean;
-      const contentSource = form.data.contentSource;
-      const isGithub = isDynamic && contentSource === 'github';
-
-      const binding = await resolveSubjectBinding(
-        isDynamic ? contentSource : 'inline_json',
-        form.data.repoUrl,
-        form.data.ref,
-        locals.staffProfile!.id,
-      );
-      if (binding && !binding.ok) {
-        return message(form, binding.message, { status: binding.status });
-      }
-
-      const contentStructure =
-        isDynamic && !isGithub && form.data.contentStructure
-          ? JSON.parse(form.data.contentStructure)
-          : null;
-      const content =
-        !isDynamic && form.data.content
-          ? sanitizeRichHtml(form.data.content)
-          : null;
+      const content = form.data.content
+        ? sanitizeRichHtml(form.data.content)
+        : null;
 
       await prisma.activityTemplate.create({
         data: {
@@ -124,13 +44,9 @@ export const actions: Actions = {
           description: form.data.description || null,
           difficulte: form.data.difficulte || null,
           activityType: form.data.activityType,
-          isDynamic,
           defaultDuration: form.data.defaultDuration || null,
           link: form.data.link || null,
           content,
-          contentStructure,
-          subjectId: binding?.ok ? binding.subjectId : null,
-          subjectVersionId: binding?.ok ? binding.subjectVersionId : null,
           campusId: null,
           activityTemplateThemes: {
             create: themeIds.map((themeId) => ({ themeId })),
@@ -138,17 +54,14 @@ export const actions: Actions = {
         },
       });
 
-      const successMessage = binding?.ok
-        ? `Template officiel publié ! (commit ${binding.commitSha.slice(0, 7)}${binding.warnings > 0 ? `, ${binding.warnings} référence${binding.warnings > 1 ? 's' : ''} non résolue${binding.warnings > 1 ? 's' : ''}` : ''})`
-        : 'Template officiel publié !';
-      return message(form, successMessage);
+      return message(form, 'Template officiel publié !');
     } catch (err) {
       console.error(err);
       return message(form, 'Erreur lors de la création', { status: 500 });
     }
   },
 
-  update: async ({ request, locals }) => {
+  update: async ({ request }) => {
     const formData = await request.formData();
     const form = await superValidate(formData, zod4(templateSchema));
     const id = formData.get('id') as string;
@@ -157,28 +70,9 @@ export const actions: Actions = {
 
     try {
       const themeIds = await processOfficialThemes(form.data.themes);
-      const isDynamic = form.data.isDynamic as boolean;
-      const contentSource = form.data.contentSource;
-      const isGithub = isDynamic && contentSource === 'github';
-
-      const binding = await resolveSubjectBinding(
-        isDynamic ? contentSource : 'inline_json',
-        form.data.repoUrl,
-        form.data.ref,
-        locals.staffProfile!.id,
-      );
-      if (binding && !binding.ok) {
-        return message(form, binding.message, { status: binding.status });
-      }
-
-      const contentStructure =
-        isDynamic && !isGithub && form.data.contentStructure
-          ? JSON.parse(form.data.contentStructure)
-          : null;
-      const content =
-        !isDynamic && form.data.content
-          ? sanitizeRichHtml(form.data.content)
-          : null;
+      const content = form.data.content
+        ? sanitizeRichHtml(form.data.content)
+        : null;
 
       await prisma.activityTemplate.update({
         where: { id },
@@ -187,13 +81,9 @@ export const actions: Actions = {
           description: form.data.description || null,
           difficulte: form.data.difficulte || null,
           activityType: form.data.activityType,
-          isDynamic,
           defaultDuration: form.data.defaultDuration || null,
           link: form.data.link || null,
           content,
-          contentStructure,
-          subjectId: binding?.ok ? binding.subjectId : null,
-          subjectVersionId: binding?.ok ? binding.subjectVersionId : null,
           activityTemplateThemes: {
             deleteMany: {},
             create: themeIds.map((themeId) => ({ themeId })),
@@ -201,10 +91,7 @@ export const actions: Actions = {
         },
       });
 
-      const successMessage = binding?.ok
-        ? `Template officiel mis à jour ! (commit ${binding.commitSha.slice(0, 7)}${binding.warnings > 0 ? `, ${binding.warnings} référence${binding.warnings > 1 ? 's' : ''} non résolue${binding.warnings > 1 ? 's' : ''}` : ''})`
-        : 'Template officiel mis à jour !';
-      return message(form, successMessage);
+      return message(form, 'Template officiel mis à jour !');
     } catch (err) {
       console.error(err);
       return message(form, 'Erreur lors de la modification', { status: 500 });

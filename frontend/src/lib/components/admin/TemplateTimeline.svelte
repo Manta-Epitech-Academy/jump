@@ -1,7 +1,6 @@
 <script lang="ts">
   import { cn } from '$lib/utils';
   import { Badge } from '$lib/components/ui/badge';
-  import Zap from '@lucide/svelte/icons/zap';
   import FileText from '@lucide/svelte/icons/file-text';
   import {
     activityTypeLabels,
@@ -21,7 +20,6 @@
     nom: string | null;
     activityTemplate: {
       nom: string;
-      isDynamic: boolean;
       difficulte: string | null;
       activityType: string;
     } | null;
@@ -236,11 +234,7 @@
           </div>
           <div class="mt-0.5 flex items-center gap-1.5">
             {#if slot.activityTemplate}
-              {#if slot.activityTemplate.isDynamic}
-                <Zap class="h-3 w-3 shrink-0 text-epi-orange" />
-              {:else}
-                <FileText class="h-3 w-3 shrink-0 text-muted-foreground" />
-              {/if}
+              <FileText class="h-3 w-3 shrink-0 text-muted-foreground" />
             {/if}
             <span class="truncate text-xs font-bold">{name}</span>
           </div>

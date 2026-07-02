@@ -43,7 +43,6 @@
 
   let previewSlot = $state<Slot | null>(null);
   let previewOpen = $state(false);
-  let previewHasStarted = $state(false);
   $effect(() => {
     if (!previewOpen) previewSlot = null;
   });
@@ -54,7 +53,7 @@
     return Math.round(ms / (7 * 86_400_000));
   }
 
-  function openPreview(slot: Slot, hasStarted: boolean) {
+  function openPreview(slot: Slot) {
     const startTime = new Date(slot.startTime).getTime();
     const daysFromNow = Math.round((startTime - Date.now()) / 86_400_000);
     track('calendar_slot_previewed', {
@@ -62,7 +61,6 @@
       daysFromNow,
     });
     previewSlot = slot;
-    previewHasStarted = hasStarted;
     previewOpen = true;
   }
 </script>
@@ -125,8 +123,4 @@
   </div>
 </div>
 
-<ActivitySummaryDialog
-  bind:open={previewOpen}
-  slot={previewSlot}
-  hasStarted={previewHasStarted}
-/>
+<ActivitySummaryDialog bind:open={previewOpen} slot={previewSlot} />

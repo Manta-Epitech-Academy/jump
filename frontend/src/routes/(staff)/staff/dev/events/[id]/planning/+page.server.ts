@@ -32,11 +32,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 };
 
 /**
- * The dev planning page is read-only: it loads the planning (slots + activities
- * + subject-section counts) and nothing that powered editing (no template
- * catalogues, no form validations, no actions). The event itself is loaded and
- * module-gated by the caller. A missing planning row (Prisma P2025) becomes a
- * 404; any other error propagates as a 500.
+ * The dev planning page is read-only: it loads the planning (slots + activities)
+ * and nothing that powered editing (no template catalogues, no form validations,
+ * no actions). The event itself is loaded and module-gated by the caller. A
+ * missing planning row (Prisma P2025) becomes a 404; any other error propagates
+ * as a 500.
  */
 async function loadPlanning(db: ScopedPrismaClient, eventId: string) {
   try {
@@ -45,20 +45,7 @@ async function loadPlanning(db: ScopedPrismaClient, eventId: string) {
       include: {
         timeSlots: {
           orderBy: { startTime: 'asc' },
-          include: {
-            activity: {
-              include: {
-                subjectVersion: {
-                  select: {
-                    id: true,
-                    _count: {
-                      select: { sections: { where: { level: 1 } } },
-                    },
-                  },
-                },
-              },
-            },
-          },
+          include: { activity: true },
         },
       },
     });

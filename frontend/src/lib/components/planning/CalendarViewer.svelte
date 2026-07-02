@@ -12,14 +12,12 @@
     activity: {
       nom: string;
       activityType: string;
-      isDynamic: boolean;
     } | null;
   };
 </script>
 
 <script lang="ts" generics="S extends ViewerSlot">
   import { onMount, untrack } from 'svelte';
-  import Zap from '@lucide/svelte/icons/zap';
   import { cn } from '$lib/utils';
   import { activityTypeStyles } from '$lib/validation/templates';
   import {
@@ -339,9 +337,6 @@
                 <div
                   class="flex items-center gap-1 text-[9px] font-medium text-muted-foreground"
                 >
-                  {#if activity.isDynamic}
-                    <Zap class="h-2.5 w-2.5 text-epi-orange" />
-                  {/if}
                   <span>
                     {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
                   </span>

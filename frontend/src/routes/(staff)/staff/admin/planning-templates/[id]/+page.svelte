@@ -9,7 +9,6 @@
   import Copy from '@lucide/svelte/icons/copy';
   import Search from '@lucide/svelte/icons/search';
   import Clock from '@lucide/svelte/icons/clock';
-  import Zap from '@lucide/svelte/icons/zap';
   import FileText from '@lucide/svelte/icons/file-text';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
@@ -369,11 +368,7 @@
                 class="mb-3 flex items-center justify-between rounded-md border bg-muted/30 p-3"
               >
                 <div class="flex items-center gap-2">
-                  {#if tpl.isDynamic}
-                    <Zap class="h-4 w-4 text-epi-orange" />
-                  {:else}
-                    <FileText class="h-4 w-4 text-muted-foreground" />
-                  {/if}
+                  <FileText class="h-4 w-4 text-muted-foreground" />
                   <span class="text-sm font-bold">{tpl.nom}</span>
                   <Badge variant="outline" class="text-[10px]">
                     {activityTypeLabels[tpl.activityType]}
@@ -433,13 +428,9 @@
                       class="flex w-full cursor-pointer items-center gap-2 rounded-md border bg-card p-2 text-left shadow-sm transition-colors hover:border-epi-blue hover:bg-muted/50 dark:shadow-none"
                       onclick={() => selectTemplate(template.id, template.nom)}
                     >
-                      {#if template.isDynamic}
-                        <Zap class="h-3.5 w-3.5 shrink-0 text-epi-orange" />
-                      {:else}
-                        <FileText
-                          class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-                        />
-                      {/if}
+                      <FileText
+                        class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                      />
                       <span class="flex-1 truncate text-sm font-medium"
                         >{template.nom}</span
                       >

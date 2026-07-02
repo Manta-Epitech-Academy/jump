@@ -39,8 +39,8 @@ export interface EventModuleDef {
   label: string;
   /** Help text shown in the event-config dialog. */
   description: string;
-  /** URL sub-path under `/staff/dev/events/[id]/`. */
-  segment: string;
+  /** URL sub-path under `/staff/dev/events/[id]/` (a module's route folder name). */
+  segment: EventModuleKey;
 }
 
 const def = (d: EventModuleDef): EventModuleDef => d;
@@ -242,8 +242,12 @@ export function firstReachableSurface(
   return reachableSurfaces(gates)[0] ?? null;
 }
 
-/** URL sub-path under `/staff/dev/events/[id]/` for a surface. */
-export function surfaceSegment(key: EventSurfaceKey): string {
+/**
+ * URL sub-path under `/staff/dev/events/[id]/` for a surface. Returns the literal
+ * segment union (not a bare `string`) so `resolve()` at the call sites can verify
+ * the built `/staff/dev/events/[id]/<segment>` path against the real route tree.
+ */
+export function surfaceSegment(key: EventSurfaceKey): EventSurfaceKey {
   return key === 'planning' ? 'planning' : EVENT_MODULE_DEFS[key].segment;
 }
 

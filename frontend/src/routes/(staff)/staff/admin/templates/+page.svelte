@@ -7,8 +7,6 @@
   import Copy from '@lucide/svelte/icons/copy';
   import FileText from '@lucide/svelte/icons/file-text';
   import ExternalLink from '@lucide/svelte/icons/external-link';
-  import Globe from '@lucide/svelte/icons/globe';
-  import Zap from '@lucide/svelte/icons/zap';
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
@@ -16,7 +14,6 @@
   import { Label } from '$lib/components/ui/label';
   import CmsEditor from '$lib/components/cms/CmsEditor.svelte';
   import { Badge } from '$lib/components/ui/badge';
-  import { Switch } from '$lib/components/ui/switch';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Table from '$lib/components/ui/table';
   import * as Select from '$lib/components/ui/select';
@@ -142,13 +139,8 @@
     reset();
     $form.difficulte = '';
     $form.activityType = 'atelier';
-    $form.isDynamic = false;
     $form.themes = [];
     $form.content = '';
-    $form.contentStructure = '';
-    $form.contentSource = 'github';
-    $form.repoUrl = '';
-    $form.ref = '';
     $form.defaultDuration = undefined;
     $form.link = '';
     $form.description = '';
@@ -163,18 +155,11 @@
     $form.description = template.description || '';
     $form.difficulte = (template.difficulte || '') as typeof $form.difficulte;
     $form.activityType = template.activityType as typeof $form.activityType;
-    $form.isDynamic = template.isDynamic;
     $form.defaultDuration = template.defaultDuration ?? undefined;
     $form.link = template.link || '';
     $form.themes =
       template.activityTemplateThemes?.map((att) => att.theme.nom) || [];
     $form.content = template.content || '';
-    $form.contentStructure = template.contentStructure
-      ? JSON.stringify(template.contentStructure, null, 2)
-      : '';
-    $form.contentSource = template.subjectVersionId ? 'github' : 'inline_json';
-    $form.repoUrl = template.subject?.repoUrl ?? '';
-    $form.ref = '';
     isEditing = true;
     editId = template.id;
     open = true;
@@ -274,9 +259,6 @@
       <Table.Root>
         <Table.Header>
           <Table.Row>
-            <Table.Head class="w-12 text-center">
-              <Globe class="mx-auto h-4 w-4 text-epi-pink" />
-            </Table.Head>
             <Table.Head>Template</Table.Head>
             <Table.Head>Type</Table.Head>
             <Table.Head>Thèmes</Table.Head>
@@ -287,13 +269,6 @@
         <Table.Body>
           {#each filteredTemplates as template}
             <Table.Row>
-              <Table.Cell class="text-center">
-                {#if template.isDynamic}
-                  <Zap class="mx-auto h-4 w-4 text-epi-teal-solid" />
-                {:else}
-                  <FileText class="mx-auto h-4 w-4 text-muted-foreground" />
-                {/if}
-              </Table.Cell>
               <Table.Cell>
                 <div class="font-bold">
                   {#if template.link}
@@ -518,26 +493,6 @@
         {/if}
         <input type="hidden" name="difficulte" value={$form.difficulte || ''} />
 
-        <div class="flex items-center gap-3">
-          <Switch
-            checked={$form.isDynamic}
-            onCheckedChange={(v) => {
-              $form.isDynamic = v;
-              if (v) {
-                $form.content = '';
-              } else {
-                $form.contentStructure = '';
-              }
-            }}
-          />
-          <Label>Activité dynamique (avec étapes)</Label>
-          <input
-            type="hidden"
-            name="isDynamic"
-            value={$form.isDynamic?.toString()}
-          />
-        </div>
-
         <div class="grid gap-2">
           <Label>Support (Lien URL)</Label>
           <Input name="link" bind:value={$form.link} />
@@ -569,107 +524,19 @@
           {/if}
         </div>
 
-        {#if $form.isDynamic}
-          <div class="grid gap-3 rounded-md border p-3">
-            <div class="flex flex-wrap items-center gap-3">
-              <Label>Source du contenu</Label>
-              <div class="flex gap-2">
-                <Button
-                  type="button"
-                  variant={$form.contentSource === 'inline_json'
-                    ? 'default'
-                    : 'outline'}
-                  size="sm"
-                  onclick={() => {
-                    $form.contentSource = 'inline_json';
-                    $form.repoUrl = '';
-                    $form.ref = '';
-                  }}
-                >
-                  Structure JSON
-                </Button>
-                <Button
-                  type="button"
-                  variant={$form.contentSource === 'github'
-                    ? 'default'
-                    : 'outline'}
-                  size="sm"
-                  onclick={() => {
-                    $form.contentSource = 'github';
-                    $form.contentStructure = '';
-                  }}
-                >
-                  Repo GitHub
-                </Button>
-              </div>
-              <input
-                type="hidden"
-                name="contentSource"
-                value={$form.contentSource}
-              />
-            </div>
-
-            {#if $form.contentSource === 'github'}
-              <div class="grid gap-2">
-                <Label>URL du repo GitHub</Label>
-                <Input
-                  name="repoUrl"
-                  bind:value={$form.repoUrl}
-                  placeholder="https://github.com/Manta-Epitech-Academy/pypong_new"
-                />
-                {#if $errors.repoUrl}
-                  <span class="text-xs text-destructive">
-                    {$errors.repoUrl}
-                  </span>
-                {/if}
-              </div>
-              <div class="grid gap-2">
-                <Label>Référence (branche, tag ou SHA — optionnel)</Label>
-                <Input name="ref" bind:value={$form.ref} placeholder="main" />
-                {#if $errors.ref}
-                  <span class="text-xs text-destructive">{$errors.ref}</span>
-                {/if}
-              </div>
-              {#if isEditing}
-                <p class="text-xs text-muted-foreground">
-                  Soumettre re-importera le sujet depuis le commit courant et
-                  liera le template à la nouvelle version.
-                </p>
-              {/if}
-            {:else}
-              <div class="grid gap-2">
-                <Label>Structure du contenu (JSON)</Label>
-                <Textarea
-                  name="contentStructure"
-                  bind:value={$form.contentStructure}
-                  class="h-40 font-mono text-sm"
-                  placeholder={'[\n  { "titre": "Étape 1", "type": "auto_qcm" },\n  { "titre": "Étape 2", "type": "manual_manta" }\n]'}
-                />
-                {#if $errors.contentStructure}
-                  <span class="text-xs text-destructive">
-                    {$errors.contentStructure}
-                  </span>
-                {/if}
-              </div>
-            {/if}
-          </div>
-        {:else}
-          <div class="grid gap-2">
-            <Label>Contenu</Label>
-            <input type="hidden" name="content" value={$form.content} />
-            <CmsEditor
-              bind:content={
-                () => $form.content ?? '', (v) => ($form.content = v)
-              }
-              placeholder="Rédigez le contenu de l'activité..."
-            />
-            {#if $errors.content}
-              <span class="text-xs text-destructive">
-                {$errors.content}
-              </span>
-            {/if}
-          </div>
-        {/if}
+        <div class="grid gap-2">
+          <Label>Contenu</Label>
+          <input type="hidden" name="content" value={$form.content} />
+          <CmsEditor
+            bind:content={() => $form.content ?? '', (v) => ($form.content = v)}
+            placeholder="Rédigez le contenu de l'activité..."
+          />
+          {#if $errors.content}
+            <span class="text-xs text-destructive">
+              {$errors.content}
+            </span>
+          {/if}
+        </div>
 
         <Dialog.Footer>
           <Button

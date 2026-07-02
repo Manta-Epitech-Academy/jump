@@ -84,11 +84,8 @@ export async function applyPlanningTemplate(
               description: at.description,
               difficulte: at.difficulte,
               activityType: at.activityType,
-              isDynamic: at.isDynamic,
               link: at.link,
               content: at.content,
-              contentStructure: at.contentStructure ?? undefined,
-              subjectVersionId: at.subjectVersionId,
               templateId: at.id,
               timeSlotId: timeSlot.id,
               activityThemes:
@@ -107,7 +104,6 @@ export async function applyPlanningTemplate(
               nom: slot.nom || 'Pause',
               description: slot.description,
               activityType: slot.activityType,
-              isDynamic: false,
               timeSlotId: timeSlot.id,
             },
           });

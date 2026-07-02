@@ -1,9 +1,7 @@
 <script lang="ts">
   import * as Dialog from '$lib/components/ui/dialog';
-  import { Badge } from '$lib/components/ui/badge';
   import { sanitizeActivityContent } from '$lib/sanitize';
   import ExternalLink from '@lucide/svelte/icons/external-link';
-  import Zap from '@lucide/svelte/icons/zap';
   import Clock from '@lucide/svelte/icons/clock';
   import { cn } from '$lib/utils';
   import {
@@ -11,7 +9,6 @@
     activityTypeStyles,
   } from '$lib/validation/templates';
   import type { TimeSlotWithActivity } from '$lib/types';
-  import type { ActivityStructure } from '$lib/server/services/progressService';
 
   // Read-only preview: the dev planning view mounts it with `slot` + `timezone`
   // to inspect an activity. There is no edit/train footer (planning is authored
@@ -42,20 +39,8 @@
       : '',
   );
 
-  let structure = $derived(
-    activity?.isDynamic
-      ? ((activity.contentStructure as ActivityStructure | null) ?? null)
-      : null,
-  );
-  let isGithubBacked = $derived(!!activity?.subjectVersion);
-  let stepCount = $derived(
-    isGithubBacked
-      ? (activity?.subjectVersion?._count?.sections ?? 0)
-      : (structure?.steps?.length ?? 0),
-  );
-
   let staticHtml = $derived(
-    activity && !activity.isDynamic && activity.content
+    activity && activity.content
       ? sanitizeActivityContent(activity.content)
       : '',
   );
@@ -116,14 +101,6 @@
               >
                 {typeLabel}
               </span>
-              {#if activity.isDynamic}
-                <Badge
-                  variant="outline"
-                  class="gap-1 border-epi-orange text-[10px] text-epi-orange"
-                >
-                  <Zap class="h-3 w-3" /> Dynamique
-                </Badge>
-              {/if}
               {#if activity.difficulte}
                 <span
                   class={cn(
@@ -151,32 +128,7 @@
       </Dialog.Header>
 
       <div class="min-h-0 flex-1 overflow-y-auto pt-2">
-        {#if activity.isDynamic}
-          <div
-            class="flex items-center gap-3 rounded-xl border border-epi-orange/30 bg-epi-orange/5 p-4"
-          >
-            <Zap class="h-5 w-5 shrink-0 text-epi-orange" />
-            <div class="flex flex-col">
-              <span class="text-sm font-bold text-epi-orange">
-                Activité dynamique
-              </span>
-              <span class="text-xs text-muted-foreground">
-                {#if stepCount > 0}
-                  Contenu progressif en {stepCount} étape{stepCount > 1
-                    ? 's'
-                    : ''}.
-                {:else}
-                  Aucune étape configurée.
-                {/if}
-              </span>
-            </div>
-          </div>
-          {#if activity.description}
-            <p class="mt-4 text-sm text-muted-foreground">
-              {activity.description}
-            </p>
-          {/if}
-        {:else if staticHtml}
+        {#if staticHtml}
           <div
             class="prose max-w-none text-sm leading-relaxed prose-slate dark:prose-invert"
           >
