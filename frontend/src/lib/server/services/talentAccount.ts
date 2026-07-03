@@ -143,11 +143,14 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
  * (and the audit trail of any admin reset), interests, reminders, PDF jobs,
  * broadcast-recipient rows, deletion requests, every
  * onboarding/parent/image-rights/règlement column, and the generated onboarding
- * PDFs in object storage. The login identity goes too:
- * a freshly-imported talent has no `bauth_user` (their `userId` is null until a
- * first login or impersonation), so the linked user (and any parent account
- * minted during testing that no *other* talent still references) is deleted
- * along with its sessions/accounts.
+ * PDFs in object storage. The login *history* goes too: sessions and any linked
+ * OAuth/credential accounts are cleared so the talent is back to
+ * never-having-logged-in. The `bauth_user` identity itself is kept, though:
+ * eager mint gives every fresh SF import a login account from day one, so
+ * reproducing import state means keeping it, not deleting it (dropping it would
+ * lock the talent out of OTP login, which routes by `bauth_user`). Any parent
+ * account minted during testing that no *other* talent still references is
+ * deleted (step 6).
  *
  * Contrast with `anonymizeTalent`: it scrubs identity to placeholders for RGPD
  * erasure but deliberately keeps the XP/stats and the account; this keeps the
@@ -296,28 +299,27 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         setupDescription: null,
         interestsFreeText: null,
         // Activity projections: a fresh-import talent has never logged in, so
-        // both the first-login and last-active facts are dropped alongside the
-        // account itself (userId null + bauth_user deleted below).
+        // both the first-login and last-active facts are dropped. The login
+        // identity itself is kept (step 5 clears only its history), so `userId`
+        // stays linked.
         lastActiveAt: null,
         firstLoginAt: null,
-        userId: null,
       },
     });
 
-    // 5. Delete the talent's login identity outright: a freshly-imported talent
-    //    has no bauth_user. (userId was just nulled above; the captured value
-    //    still points at the row to drop.)
-    //
-    //    Hard-deleting the bauth_user is safe because a *student* user is only
-    //    referenced by rows that fall away with it: bauth_session / bauth_account
-    //    (cascade, and cleared just below) and the Talent itself (SetNull, already
-    //    nulled). Every other FK onto bauth_user is staff-authored content
-    //    (CmsPage, Broadcast, StaffInvitation, MessageTemplate), so a student
-    //    holds none and the delete can't trip a P2003.
+    // 5. Clear the login *history* but keep the identity. Eager mint gives every
+    //    fresh Salesforce import a bauth_user from day one (see syncService), so
+    //    the state "the worker leaves them in on first import" now includes a
+    //    login account: reset restores that state, it does not delete it.
+    //    Dropping the account would leave the talent unable to request an OTP
+    //    (login routes by bauth_user) until an admin re-impersonated them. So we
+    //    wipe only the sessions and any linked OAuth/credential accounts, the
+    //    never-logged-in state, and keep the bauth_user linked (userId is left
+    //    intact above). Its email already tracks the SF address through the
+    //    sync's identity reconcile, so there is nothing to realign here.
     if (talent.userId) {
       await tx.bauth_session.deleteMany({ where: { userId: talent.userId } });
       await tx.bauth_account.deleteMany({ where: { userId: talent.userId } });
-      await tx.bauth_user.delete({ where: { id: talent.userId } });
     }
 
     // 6. Delete parent bauth_user(s) minted during testing, but only ones no
@@ -325,9 +327,8 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     //    login. The sibling + role guard lives in findUnreferencedParentAccount
     //    (shared with anonymizeTalent); here we delete rather than scrub since
     //    the goal is "as if never created". The role === 'parent' check inside
-    //    the guard also keeps the FK-safety from step 5: it never hard-deletes a
-    //    staff user who happens to share the email (and who could hold blocking
-    //    ticket/CMS rows).
+    //    the guard keeps this delete FK-safe: it never hard-deletes a staff user
+    //    who happens to share the email (and who could hold blocking CMS rows).
     for (const email of new Set(parentEmails)) {
       const orphan = await findUnreferencedParentAccount(tx, email, talentId);
       if (orphan) await deleteParentAccountCascade(tx, orphan.id);

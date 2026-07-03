@@ -201,6 +201,33 @@ export async function syncTalents(
   // Canonical School per distinct UAI, resolved once for the whole batch.
   const schoolIdByUai = await resolveSchools(talents);
 
+  // Ensure the talent's login identity exists, logging a failure the way a
+  // first-sight mint does. The eager-mint invariant (every SF talent carries a
+  // bauth_user minted from its SF email) must hold whether we just created the
+  // talent or found an existing one whose account went missing (a transient
+  // first-sight failure, or a factory reset), so both branches funnel through
+  // here rather than minting on first sight only.
+  const mintLoginIdentity = async (
+    talentId: string,
+    sf: { external_id: string; first_name: string; last_name: string },
+    loginEmail: string,
+  ) => {
+    try {
+      await ensureTalentUser(talentId);
+    } catch (err) {
+      await logSyncError({
+        email: loginEmail,
+        attemptedExtId: sf.external_id,
+        existingExtId: null,
+        talentName: `${sf.first_name} ${sf.last_name}`,
+        eventExtId: eventExternalId,
+        message: `Compte de connexion non créé pour "${loginEmail}" : ${
+          err instanceof Error ? err.message : 'erreur inconnue'
+        } — à arbitrer (Divergences Salesforce › Connexion) ou réessai au prochain sync.`,
+      });
+    }
+  };
+
   for (const t of talents) {
     if (!t.external_id || !t.first_name || !t.last_name)
       return {
@@ -315,20 +342,7 @@ export async function syncTalents(
       // can't be forced into a student login (`ensureTalentUser` throws); log it
       // and move on. The talent is still imported, just accountless until an
       // admin resolves the collision. Emailless SF rows stay accountless.
-      if (email) {
-        try {
-          await ensureTalentUser(talentId);
-        } catch (err) {
-          await logSyncError({
-            email,
-            attemptedExtId: t.external_id,
-            existingExtId: null,
-            talentName: `${t.first_name} ${t.last_name}`,
-            eventExtId: eventExternalId,
-            message: `Compte de connexion non créé pour "${email}" : ${err instanceof Error ? err.message : 'erreur inconnue'} — à arbitrer (Divergences Salesforce › Connexion) ou réessai au prochain sync.`,
-          });
-        }
-      }
+      if (email) await mintLoginIdentity(talentId, t, email);
     } else {
       talentId = existing.id;
 
@@ -404,7 +418,13 @@ export async function syncTalents(
       // Divergences Salesforce › Connexion for an admin. SF is an unreliable
       // source, so inversions/exposures are never auto-forced.
       const linkedEmail = existing.user?.email?.toLowerCase().trim() ?? null;
-      if (existing.userId && email && email !== linkedEmail) {
+      if (email && !existing.userId) {
+        // The account went missing on an existing talent: a first-sight mint
+        // that failed transiently, or a factory reset. Re-mint it so OTP login
+        // works again. This is the "réessai au prochain sync" the create branch
+        // promises when its own mint fails.
+        await mintLoginIdentity(existing.id, t, email);
+      } else if (existing.userId && email && email !== linkedEmail) {
         try {
           await changeUserEmail(existing.userId, email);
         } catch (err) {
