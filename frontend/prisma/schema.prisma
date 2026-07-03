@@ -315,10 +315,8 @@ model Talent {
   // Free-text fallback used only when the talent's lycée has no UAI (so no
   // canonical `School` row exists). When `schoolId` is set this stays null.
   highSchoolNameManual        String?
-  charterFilePath             String?
   rulesFilePath               String?
   imageRightsFilePath         String?
-  badges                      Json?
   parentEmail                 String?
   parentNom                   String?
   parentPrenom                String?
@@ -338,7 +336,6 @@ model Talent {
   equipmentValidatedAt        DateTime?
   interestsFreeText           String?
   externalId                  String?              @unique
-  lastSyncedAt                DateTime?
   lastActiveAt                DateTime?
   // First real (non-impersonated) login, stamped once in hooks.server.ts and
   // never cleared. A durable projection of "has this talent ever connected" —
@@ -614,19 +611,12 @@ model TimeSlot {
 model Activity {
   id           String       @id @default(cuid())
   nom          String
-  description  String?
-  difficulte   String?
   activityType ActivityType
-  link         String?
-  content      String?
   timeSlotId   String       @unique
-  templateId   String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  timeSlot       TimeSlot        @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
-
-  @@index([templateId])
+  timeSlot TimeSlot @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
 }
 
 model Event {
@@ -665,7 +655,6 @@ model Event {
   // per-event override of that type default; SetNull so deleting a form just
   // drops the binding back to the default rather than the event.
   feedbackFormId String?
-  pin            String?
   externalId     String?   @unique
   // Explicit admin gate for the dev workspace, decoupled from modules: an event
   // appears in the dev sidebar/switcher only once an admin activates it here.
@@ -1592,7 +1581,6 @@ model XpGrant {
   // as distinct under the unique index).
   sourceId  String?
   amount    Int
-  note      String?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 

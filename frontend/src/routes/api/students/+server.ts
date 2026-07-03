@@ -9,7 +9,6 @@ const STUDENT_SELECT = {
   niveau: true,
   eventsCount: true,
   xp: true,
-  badges: true,
 } as const;
 
 export const GET: RequestHandler = async ({ url, locals }) => {

@@ -168,7 +168,6 @@ export function clearOnboardingTimestamps(): Record<
  * is dropped here and regenerated when either signer next commits.
  */
 export const TALENT_ONBOARDING_ARTIFACT_FIELDS = [
-  'charterFilePath',
   'rulesFilePath',
   'rulesSignedCity',
 ] as const;

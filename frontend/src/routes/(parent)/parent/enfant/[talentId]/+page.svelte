@@ -32,15 +32,6 @@
     special: 'Spécial',
   };
 
-  const difficultyColors: Record<string, string> = {
-    Débutant:
-      'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    Intermédiaire:
-      'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    Avancé:
-      'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-  };
-
   function formatTime(dateString: string | Date | undefined) {
     if (!dateString) return '';
     return new Date(dateString).toLocaleTimeString('fr-FR', {
@@ -233,15 +224,6 @@
                         >
                           {activity.name}
                         </span>
-                        {#if activity.difficulty}
-                          <span
-                            class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
-                              activity.difficulty
-                            ] ?? ''}"
-                          >
-                            {activity.difficulty}
-                          </span>
-                        {/if}
                       </div>
                     {/each}
                   </div>
@@ -372,15 +354,6 @@
                                   >
                                     {activity.name}
                                   </span>
-                                  {#if activity.difficulty}
-                                    <span
-                                      class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
-                                        activity.difficulty
-                                      ] ?? ''}"
-                                    >
-                                      {activity.difficulty}
-                                    </span>
-                                  {/if}
                                 </div>
                               {/each}
                             </div>

@@ -1,7 +1,5 @@
 <script lang="ts">
   import * as Dialog from '$lib/components/ui/dialog';
-  import { sanitizeActivityContent } from '$lib/sanitize';
-  import ExternalLink from '@lucide/svelte/icons/external-link';
   import Clock from '@lucide/svelte/icons/clock';
   import { cn } from '$lib/utils';
   import {
@@ -39,12 +37,6 @@
       : '',
   );
 
-  let staticHtml = $derived(
-    activity && activity.content
-      ? sanitizeActivityContent(activity.content)
-      : '',
-  );
-
   function formatTime(date: Date | string): string {
     return new Date(date).toLocaleTimeString('fr-FR', {
       hour: '2-digit',
@@ -61,15 +53,6 @@
       timeZone: timezone,
     });
   }
-
-  const difficultyColors: Record<string, string> = {
-    Débutant:
-      'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    Intermédiaire:
-      'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    Avancé:
-      'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-  };
 </script>
 
 <Dialog.Root bind:open>
@@ -101,45 +84,10 @@
               >
                 {typeLabel}
               </span>
-              {#if activity.difficulte}
-                <span
-                  class={cn(
-                    'rounded-full px-2 py-0.5 text-[10px] font-bold',
-                    difficultyColors[activity.difficulte] ?? '',
-                  )}
-                >
-                  {activity.difficulte}
-                </span>
-              {/if}
-              {#if activity.link}
-                <a
-                  href={activity.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="ml-auto inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-epi-blue"
-                >
-                  <ExternalLink class="h-3 w-3" />
-                  Support externe
-                </a>
-              {/if}
             </div>
           </div>
         </div>
       </Dialog.Header>
-
-      <div class="min-h-0 flex-1 overflow-y-auto pt-2">
-        {#if staticHtml}
-          <div
-            class="prose max-w-none text-sm leading-relaxed prose-slate dark:prose-invert"
-          >
-            {@html staticHtml}
-          </div>
-        {:else}
-          <p class="text-sm text-muted-foreground italic">
-            Aucun contenu texte renseigné pour cette activité.
-          </p>
-        {/if}
-      </div>
     {/if}
   </Dialog.Content>
 </Dialog.Root>

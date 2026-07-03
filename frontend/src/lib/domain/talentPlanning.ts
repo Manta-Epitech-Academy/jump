@@ -102,9 +102,7 @@ export type CalendarParticipation = {
         activity: {
           id: string;
           nom: string;
-          description: string | null;
           activityType: string;
-          difficulte: string | null;
         } | null;
       }>;
     } | null;
@@ -123,9 +121,7 @@ export type CalendarSlot = {
   activity: {
     id: string;
     nom: string;
-    description: string | null;
     activityType: string;
-    difficulte: string | null;
   } | null;
   event: { id: string; titre: string };
 };
@@ -169,9 +165,7 @@ export function toCalendarPlanning(
           ? {
               id: a.id,
               nom: a.nom,
-              description: a.description,
               activityType: a.activityType,
-              difficulte: a.difficulte,
             }
           : null,
         event: {

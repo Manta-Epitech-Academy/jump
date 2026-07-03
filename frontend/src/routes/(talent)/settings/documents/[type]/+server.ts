@@ -26,7 +26,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   // keep handing back a stale PDF after the signature is voided (e.g. an admin
   // onboarding reset nulls `rulesSignedAt`), serving a document the rest of the
   // app already treats as unsigned.
-  const filePath = locals.talent[descriptor.filePathField];
+  const filePath = descriptor.filePathField
+    ? locals.talent[descriptor.filePathField]
+    : null;
   if (!locals.talent[descriptor.signedAtField] || !filePath) {
     throw error(404, 'Document indisponible');
   }

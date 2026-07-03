@@ -16,8 +16,11 @@ export type OnboardingDocumentType = 'charter' | 'rules' | 'image-rights';
 interface OnboardingDocumentDescriptor {
   /** French title — shared by the PDF header and the talent-facing list. */
   label: string;
-  /** Talent column holding the S3 key of the generated PDF. */
-  filePathField: 'charterFilePath' | 'rulesFilePath' | 'imageRightsFilePath';
+  /**
+   * Talent column holding the S3 key of the generated PDF. Absent for the
+   * charte, which is a checkbox acceptance with no generated document.
+   */
+  filePathField?: 'rulesFilePath' | 'imageRightsFilePath';
   /** Talent column timestamping the signature this document attests. */
   signedAtField: 'charterAcceptedAt' | 'rulesSignedAt' | 'imageRightsDecidedAt';
   /** Lowercase ASCII slug used as the first segment of the download filename. */
@@ -30,7 +33,6 @@ export const ONBOARDING_DOCUMENTS: Record<
 > = {
   charter: {
     label: 'Charte Informatique et Éthique',
-    filePathField: 'charterFilePath',
     signedAtField: 'charterAcceptedAt',
     downloadSlug: 'charter',
   },
@@ -340,6 +342,8 @@ export function projectTalentDocument(
     type,
     label: descriptor.label,
     signedAt: talent[descriptor.signedAtField],
-    ready: talent[descriptor.filePathField] !== null,
+    ready: descriptor.filePathField
+      ? talent[descriptor.filePathField] !== null
+      : false,
   };
 }

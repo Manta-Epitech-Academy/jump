@@ -1,5 +1,4 @@
 import { parseEventImportCsv, type CsvStudent } from '$lib/domain/csv';
-import { generatePin } from '$lib/utils';
 import { prisma } from '$lib/server/db';
 
 export type ImportAction = {
@@ -150,7 +149,6 @@ export async function importCampaignData(
       titre: eventName,
       date: new Date(eventDateStr),
       campusId,
-      pin: generatePin(),
       planning: { create: {} },
     },
   });

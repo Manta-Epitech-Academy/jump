@@ -28,7 +28,6 @@ export interface GrantXpInput {
   sourceId: string | null;
   amount: number;
   campusId?: string | null;
-  note?: string | null;
 }
 
 export interface RevokeXpInput {
@@ -99,7 +98,6 @@ export async function grantXp(
         sourceId: null,
         amount: input.amount,
         campusId: input.campusId ?? null,
-        note: input.note ?? null,
       },
     });
   } else {
@@ -110,7 +108,6 @@ export async function grantXp(
       update: {
         amount: input.amount,
         campusId: input.campusId ?? null,
-        note: input.note ?? null,
       },
       create: {
         talentId: input.talentId,
@@ -118,7 +115,6 @@ export async function grantXp(
         sourceId: input.sourceId,
         amount: input.amount,
         campusId: input.campusId ?? null,
-        note: input.note ?? null,
       },
     });
   }

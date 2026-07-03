@@ -160,7 +160,9 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
     await prisma.$transaction([
       prisma.talent.update({
         where: { id: job.talentId },
-        data: { [filePathField]: key },
+        // Only rules / image-rights carry a file-path column; the charte has no
+        // generated PDF, so a charter job (which is never enqueued) is a no-op.
+        data: filePathField ? { [filePathField]: key } : {},
       }),
       prisma.onboardingPdfJob.update({
         where: { id: job.id },

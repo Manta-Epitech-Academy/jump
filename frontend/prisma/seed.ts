@@ -24,7 +24,6 @@ import {
   type PresenceStatus,
 } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { marked } from 'marked';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 import {
@@ -106,546 +105,106 @@ function mockSalesforceLeadId(seed: number): string {
 
 type ActivityDef = {
   nom: string;
-  description: string;
-  difficulte: 'Débutant' | 'Intermédiaire' | 'Avancé';
   activityType: ActivityType;
   defaultDuration: number;
   campus?: 'Paris' | 'Lyon' | 'Marseille';
-  content?: string;
-  link?: string;
 };
 
 const activityDefs: ActivityDef[] = [
   {
     nom: 'Ma première page HTML',
-    description:
-      'Découvre les bases du HTML et crée ta toute première page web.',
-    difficulte: 'Débutant',
     activityType: 'atelier',
     defaultDuration: 120,
   },
   {
     nom: 'CSS : Styliser sa page',
-    description: 'Apprends à colorer et mettre en forme ta page web avec CSS.',
-    difficulte: 'Débutant',
     activityType: 'atelier',
     defaultDuration: 120,
   },
   {
     nom: 'JavaScript : Premiers pas',
-    description: 'Variables, conditions, interactions avec la page.',
-    difficulte: 'Intermédiaire',
     activityType: 'atelier',
     defaultDuration: 150,
   },
   {
     nom: 'Construis ton robot',
-    description: 'Assemble et programme un petit robot.',
-    difficulte: 'Débutant',
     activityType: 'atelier',
     defaultDuration: 180,
   },
   {
     nom: 'Capteurs et actionneurs',
-    description: 'Utilise capteurs et moteurs pour rendre ton robot autonome.',
-    difficulte: 'Intermédiaire',
     activityType: 'atelier',
     defaultDuration: 150,
   },
   {
     nom: 'Crée ton jeu Scratch',
-    description: 'Conçois un jeu interactif avec Scratch.',
-    difficulte: 'Débutant',
     activityType: 'atelier',
     defaultDuration: 120,
   },
   {
     nom: 'Game Design avancé',
-    description: 'Mécaniques, niveaux, boucle de gameplay.',
-    difficulte: 'Avancé',
     activityType: 'atelier',
     defaultDuration: 180,
   },
   {
     nom: 'Initiation à la cybersécurité',
-    description: 'Mots de passe, phishing, bonnes pratiques.',
-    difficulte: 'Débutant',
     activityType: 'atelier',
     defaultDuration: 120,
   },
   {
     nom: 'Cryptographie : les secrets du code',
-    description: 'Chiffre César, Vigenère, bases de la crypto moderne.',
-    difficulte: 'Intermédiaire',
     activityType: 'atelier',
     defaultDuration: 120,
   },
   {
     nom: "L'IA et moi",
-    description: "Découvre l'IA à travers des exemples concrets.",
-    difficulte: 'Débutant',
     activityType: 'atelier',
     defaultDuration: 90,
   },
   {
     nom: 'Entraîne ton modèle',
-    description: "Entraîne un modèle d'IA avec Teachable Machine.",
-    difficulte: 'Intermédiaire',
     activityType: 'atelier',
     defaultDuration: 150,
   },
   {
     nom: 'Poster numérique',
-    description: 'Crée une affiche numérique percutante avec Canva.',
-    difficulte: 'Débutant',
     activityType: 'atelier',
     defaultDuration: 120,
   },
   // ─── Static templates: official (campus-less) ───
   {
     nom: 'Conférence : Les métiers de la tech',
-    description:
-      'Panorama des métiers du numérique présenté par un·e intervenant·e externe.',
-    difficulte: 'Débutant',
     activityType: 'conference',
     defaultDuration: 90,
-    content: `# Les métiers de la tech
-
-> « Il n'y a pas **un** métier de la tech, il y en a des dizaines. »
->
-> *Intervenant·e invité·e*
-
-Le numérique n'est pas réservé aux personnes qui « codent toute la journée ». Derrière chaque application, chaque site, chaque jeu, il y a une équipe aux profils très variés : des personnes qui imaginent, qui conçoivent, qui sécurisent, qui testent, qui accompagnent les utilisateurs. Cette session te donne une carte de ce paysage pour que tu puisses y repérer ce qui te ressemble.
-
-## Objectifs de la session
-
-- Découvrir la **diversité** des rôles dans le numérique, au-delà du seul développement.
-- Comprendre les **compétences clés** de chaque grande famille de métiers.
-- Mettre des mots sur ce qui t'attire : créer, résoudre, protéger, transmettre.
-- Poser des questions concrètes à un·e professionnel·le en activité.
-
-## Déroulé (90 min)
-
-| Temps  | Séquence                       | Format      |
-| ------ | ------------------------------ | ----------- |
-| 10 min | Accueil et brise-glace         | Plénière    |
-| 30 min | Présentation des 4 familles    | Talk        |
-| 20 min | Témoignages vidéo              | Projection  |
-| 25 min | Questions et réponses          | Interactif  |
-| 5 min  | Synthèse et ressources         | Plénière    |
-
-## Les 4 grandes familles
-
-### 1. Développement
-
-On construit le produit : interfaces, logique métier, applications mobiles, systèmes embarqués.
-
-- **Front-end** : ce que voit l'utilisateur (HTML, CSS, JavaScript).
-- **Back-end** : la logique côté serveur et les bases de données.
-- **Mobile** : applications iOS et Android.
-- **Embarqué** : le logiciel qui pilote des objets physiques (robots, capteurs).
-
-### 2. Data et IA
-
-On fait parler les données et on entraîne des modèles.
-
-- **Data analyst** : lire les données pour aider à décider.
-- **Data scientist** : modéliser et prédire.
-- **ML engineer** : mettre les modèles en production à grande échelle.
-
-### 3. Cybersécurité
-
-On protège les systèmes et les données.
-
-- **Pentester** : attaquer un système (légalement) pour révéler ses failles.
-- **Analyste SOC** : surveiller et réagir aux incidents en temps réel.
-- **RSSI** : définir la stratégie de sécurité de toute une organisation.
-
-### 4. Produit et Design
-
-On décide quoi construire, et comment le rendre agréable.
-
-- **Product manager / owner** : prioriser ce qui apporte le plus de valeur.
-- **UX / UI designer** : concevoir des parcours clairs et des écrans soignés.
-- **Ops** : garantir que tout reste disponible et fiable.
-
-### Exemple de stack côté web
-
-\`\`\`ts
-// Un·e même dev peut toucher plusieurs couches au cours d'un projet
-const stack = {
-  front: ['Svelte', 'React', 'Vue'],
-  back: ['Node', 'Go', 'Rust'],
-  data: ['Postgres', 'Redis', 'Kafka'],
-};
-\`\`\`
-
-## Quelles compétences pour quel métier ?
-
-| Famille          | Compétence cœur            | Une qualité utile      |
-| ---------------- | -------------------------- | ---------------------- |
-| Développement    | Logique et rigueur         | Curiosité technique    |
-| Data et IA       | Maths et statistiques      | Esprit critique        |
-| Cybersécurité    | Compréhension des systèmes | Sens du détail         |
-| Produit / Design | Empathie utilisateur       | Communication          |
-
-## Idées reçues à tordre
-
-> « Il faut être un génie des maths pour travailler dans la tech. »
-
-Faux pour la majorité des métiers : la rigueur et l'envie d'apprendre comptent bien plus que le don.
-
-> « La tech, c'est un métier solitaire. »
-
-Faux : presque tout se construit en équipe, avec beaucoup d'échanges.
-
-## Questions à préparer pour l'intervenant·e
-
-- [ ] Quel a été votre parcours, et qu'est-ce qui vous a décidé ?
-- [ ] À quoi ressemble une journée type dans votre métier ?
-- [ ] Qu'est-ce qui vous plaît le plus, et le moins ?
-- [ ] Quel conseil donneriez-vous à un·e élève de seconde curieux·se ?
-
-## Ressources officielles
-
-- Fiches métiers : [Onisep, le numérique](https://www.onisep.fr/metiers/des-metiers-par-secteur/les-metiers-de-l-informatique)
-- Rapport annuel *Numeum* sur l'emploi tech
-- Podcasts recommandés : **IfThisThenDev**, **Underscore_**
-
----
-
-*Support à projeter en 16:9. Prévoir des enceintes pour les vidéos témoignages.*`,
   },
   {
     nom: 'Pause déjeuner',
-    description: 'Temps de repas commun.',
-    difficulte: 'Débutant',
     activityType: 'orga',
     defaultDuration: 60,
-    content: `# Pause déjeuner
-
-Un temps de repas commun, mais aussi un moment clé de la journée : c'est souvent autour de la table que se créent les liens entre élèves et que remontent les retours les plus sincères sur la matinée.
-
-> ⚠️ *Aucun·e élève ne quitte l'établissement sans accompagnant·e.*
-
-## Déroulé indicatif (60 min)
-
-| Temps  | Séquence                          |
-| ------ | --------------------------------- |
-| 5 min  | Rassemblement et comptage         |
-| 40 min | Repas                             |
-| 10 min | Temps libre encadré               |
-| 5 min  | Rappel des consignes de reprise   |
-
-## Points de vigilance
-
-- [ ] **Allergies** et régimes spéciaux signalés en amont à l'équipe.
-- [ ] Repas **halal et végétarien** disponibles pour qui en a besoin.
-- [ ] Eau et snacks accessibles en libre-service.
-- [ ] Rappel des **horaires de reprise** en fin de pause.
-- [ ] Comptage des élèves avant et après la pause.
-
-## Gestion des allergies
-
-> En cas de doute sur un plat, on s'abstient et on propose une alternative. La trousse de premiers secours et la liste des contacts d'urgence restent à portée de main.
-
-## Astuce encadrant·e
-
-Profite de la pause pour **échanger de façon informelle** avec les élèves : une question simple comme « qu'est-ce qui t'a surpris ce matin ? » ouvre souvent des conversations utiles pour ajuster l'après-midi.
-
-## Avant de reprendre
-
-- [ ] Salle rangée, tables nettoyées.
-- [ ] Tout le monde est présent (re-comptage).
-- [ ] Matériel de l'après-midi prêt et distribué.`,
   },
   {
     nom: 'Restitution finale',
-    description:
-      'Présentation des projets devant le groupe et remise des diplômes.',
-    difficulte: 'Intermédiaire',
     activityType: 'conference',
     defaultDuration: 120,
-    content: `# Restitution finale
-
-> « La restitution n'est pas une note, c'est une **célébration** du chemin parcouru. »
-
-C'est le dernier temps fort du stage : chaque équipe présente ce qu'elle a construit, devant ses pairs, l'équipe pédagogique et parfois les familles. L'objectif n'est pas de juger, mais de **valoriser** le travail accompli et de donner confiance.
-
-## Format officiel
-
-| Séquence                       | Durée       | Responsable          |
-| ------------------------------ | ----------- | -------------------- |
-| Mot d'accueil                  | 5 min       | Responsable pédago   |
-| Pitchs par équipe (5 min par groupe) | ~60 min | Élèves               |
-| Questions et réponses          | 15 min      | Jury et public       |
-| Délibération rapide            | 10 min      | Jury                 |
-| Remise des diplômes            | 20 min      | Directeur·rice       |
-| Photo de groupe et pot         | 10 min      | Tout le monde        |
-
-## Trame de pitch conseillée
-
-1. **Le problème** qu'on a voulu résoudre.
-2. **La solution** et ses choix techniques.
-3. **Une démo**, en vidéo ou en direct.
-4. **Ce qu'on a appris**, techniquement et humainement.
-5. **Ce qu'on ferait ensuite** avec plus de temps.
-
-> 💡 *Un bon pitch tient en 5 minutes : mieux vaut montrer une chose qui marche que dix idées non abouties.*
-
-### Conseils pour bien présenter
-
-- Se répartir la parole : chaque membre dit au moins une phrase.
-- Regarder le public, pas l'écran.
-- Assumer les bugs : expliquer ce qu'on aurait fait avec plus de temps.
-- Terminer par une phrase claire : « voilà ce dont on est fier·ères. »
-
-## Check-list technique avant restitution
-
-- [ ] HDMI et adaptateur USB-C testés sur la machine de présentation.
-- [ ] Micros sans fil chargés.
-- [ ] Démos ouvertes et prêtes dans les onglets.
-- [ ] Diplômes imprimés et signés.
-- [ ] Photographe ou référent·e photo désigné·e.
-
-## Critères de jury (à communiquer avant)
-
-| Critère                                   | Poids |
-| ----------------------------------------- | ----- |
-| **Clarté** du pitch                       | 30 %  |
-| **Qualité** de la réalisation             | 30 %  |
-| **Originalité** et prise de risque        | 20 %  |
-| **Esprit d'équipe** visible à l'oral      | 20 %  |
-
-## Après la restitution
-
-- Récupérer les retours des élèves « à chaud ».
-- Partager les photos (avec accord pour le droit à l'image).
-- Rappeler les prochaines étapes : clubs, événements, contacts.
-
----
-
-*Prévoir un plan B audio en cas de panne : enceinte bluetooth et câble jack 3.5 mm.*`,
   },
   // ─── Static templates: local (campus-scoped) ───
   {
     nom: 'Visite du campus Epitech Paris',
-    description: 'Découverte des locaux et rencontre des équipes pédagogiques.',
-    difficulte: 'Débutant',
     activityType: 'conference',
     defaultDuration: 60,
     campus: 'Paris',
-    link: 'https://www.epitech.eu/campus/paris/',
-    content: `# Visite du campus : Paris Kremlin-Bicêtre
-
-> 📍 **Adresse** : 14-16 rue Voltaire, 94270 Le Kremlin-Bicêtre
-> 🚇 Métro **7**, station *Le Kremlin-Bicêtre* (sortie rue Voltaire)
-
-Une heure pour découvrir un campus Epitech de l'intérieur : pas une salle de classe figée, mais un lieu vivant où l'on apprend en faisant. L'idée n'est pas de tout retenir, mais de **se projeter** : « Est-ce que je me vois travailler ici dans deux ou trois ans ? »
-
-## Itinéraire conseillé (60 min)
-
-1. **Accueil et hall principal** : présentation rapide de l'école et de son histoire.
-2. **Salles de cours et amphi** : comment se déroule une journée, comment naissent les projets.
-3. **Hub et espace communautaire** : vie associative, clubs techniques, entraide entre promos.
-4. **Labs et salles serveur** : le côté infra, réseau et hardware, souvent invisible mais essentiel.
-5. **Cafétéria et coin détente** : clôture informelle, moment pour poser ses dernières questions.
-
-> 💡 *Garde le groupe ensemble entre deux étapes : les couloirs sont fréquentés en journée.*
-
-## Points à mettre en avant
-
-- La **pédagogie par projet** : pas de cours magistraux classiques, on apprend en construisant.
-- L'**autonomie** accompagnée : on cherche, on se trompe, on recommence, jamais seul·e.
-- La **communauté alumni** très présente, qui ouvre des portes vers l'emploi.
-- Les **partenariats entreprises** : stages, alternances, hackathons toute l'année.
-
-## Les clubs à présenter (au moins 2 parmi)
-
-| Club              | Thème                          | Pour qui ?                    |
-| ----------------- | ------------------------------ | ----------------------------- |
-| **EpiGames**      | Jeu vidéo, game design         | Celles et ceux qui créent     |
-| **HackademINT**   | Cybersécurité, CTF             | Les curieux·ses de la faille  |
-| **Epitech.eu AI** | Intelligence artificielle      | Les amateur·rices de data     |
-| **WebAcademie**   | Développement web, open-source | Les bâtisseur·ses du web      |
-
-## Une journée type (à raconter)
-
-| Moment         | Ce qu'il s'y passe                          |
-| -------------- | ------------------------------------------- |
-| Matin          | Travail sur les projets en autonomie        |
-| Midi           | Pause partagée, échanges informels          |
-| Après-midi     | Entraide, revues de code, ateliers          |
-| Fin de journée | Soutenances, vie associative, clubs         |
-
-## Questions fréquentes des élèves
-
-> « Faut-il déjà savoir coder pour entrer ? »
-
-Non : beaucoup d'élèves démarrent sans aucune expérience. C'est la motivation qui compte.
-
-> « On travaille seul·e ou en groupe ? »
-
-Les deux, mais le travail en équipe est central : on progresse beaucoup au contact des autres.
-
-## Consignes sécurité
-
-- [ ] Vérifier les **badges visiteurs** à l'entrée et les garder visibles.
-- [ ] **Pas de photos** dans les salles serveur.
-- [ ] Respecter les **issues de secours** balisées et rester avec le groupe.
-- [ ] Signaler tout incident à l'encadrant·e référent·e.
-
----
-
-Plus d'infos : [epitech.eu/campus/paris](https://www.epitech.eu/campus/paris/)`,
   },
   {
     nom: 'Rencontre alumni Lyon',
-    description:
-      'Échange avec des ancien·ne·s du campus lyonnais autour de leur parcours.',
-    difficulte: 'Débutant',
     activityType: 'conference',
     defaultDuration: 90,
     campus: 'Lyon',
-    content: `# Rencontre alumni : Campus Lyon
-
-> *« J'ai commencé Epitech sans savoir coder une ligne. Aujourd'hui je travaille sur des modèles d'IA chez un éditeur lyonnais. »*
->
-> **Sarah**, promo 2019
-
-Rien ne parle mieux d'un métier que quelqu'un qui l'exerce. Cette table ronde donne la parole à d'ancien·ne·s élèves : leur parcours, leurs doutes, leurs réussites. Pour les élèves de seconde, c'est l'occasion de voir un futur possible incarné par des personnes réelles, pas par une brochure.
-
-## Format : table ronde
-
-- **3 alumni** aux parcours volontairement différents.
-- **1 modérateur·rice** (un encadrant) qui relance et distribue la parole.
-- Public : élèves, plus quelques parents invités.
-
-## Profils d'alumni invités
-
-| Profil                    | Entreprise type            | Années d'expérience |
-| ------------------------- | -------------------------- | ------------------- |
-| Développeur·se full-stack | Scale-up lyonnaise         | 3 à 5 ans           |
-| Data ou ML engineer       | Grand groupe bancaire      | 5 ans et plus       |
-| Entrepreneur·e tech       | Start-up SaaS autofinancée | 2 à 4 ans           |
-
-## Déroulé (90 min)
-
-| Temps  | Séquence                          |
-| ------ | --------------------------------- |
-| 10 min | Présentation des intervenant·e·s  |
-| 40 min | Échange guidé par le·la modérateur·rice |
-| 25 min | Questions ouvertes du public      |
-| 15 min | Mot de clôture et networking      |
-
-## Trame de questions
-
-1. **Pourquoi Epitech** plutôt qu'une autre formation ?
-2. Votre **premier stage** : comment l'avez-vous trouvé ?
-3. À quoi ressemble une **journée type** dans votre métier actuel ?
-4. Quel conseil donneriez-vous à votre **vous d'il y a 10 ans** ?
-5. Comment la **communauté alumni** vous aide-t-elle aujourd'hui ?
-
-> 💡 *Prévoir 20 à 25 minutes de questions ouvertes en fin de session.*
-
-## Faire participer le public
-
-- Distribuer des post-it pour écrire les questions timides.
-- Inviter un·e élève à reformuler un conseil entendu.
-- Garder une question « pour la route » si le temps le permet.
-
-## À distribuer aux élèves
-
-- Lien LinkedIn des **intervenant·e·s** (avec leur accord).
-- Flyer du réseau **Epitech Alumni Lyon**.
-- QR code du **Discord** d'entraide local.
-
----
-
-*Tournage autorisé uniquement avec l'accord explicite des alumni présent·e·s.*`,
   },
   {
     nom: 'Atelier partenaires Marseille',
-    description:
-      "Atelier animé par un partenaire local autour d'un cas concret.",
-    difficulte: 'Intermédiaire',
     activityType: 'atelier',
     defaultDuration: 150,
     campus: 'Marseille',
-    content: `# Atelier partenaire : analyse de logs et détection d'incidents
-
-> Atelier animé par un·e **analyste SOC** d'un partenaire local (éditeur cyber marseillais).
-
-Pendant 2 h 30, les élèves se glissent dans la peau d'un·e analyste sécurité. Pas de théorie abstraite : un vrai extrait de logs, un incident à élucider, et une méthode pour passer d'une montagne de lignes illisibles à un récit clair de ce qui s'est passé.
-
-## Contexte du cas pratique
-
-Un serveur web expose une API publique. Sur les **dernières 24 h**, on soupçonne une activité malveillante. La tâche des élèves : **identifier** les requêtes suspectes et **reconstruire** le scénario d'attaque, étape par étape.
-
-### Environnement fourni
-
-- Extrait de logs \`access.log\` (format *Apache Combined*).
-- Accès navigateur à une instance **Kibana** en lecture seule.
-- Fiche *cheat-sheet* avec les expressions régulières usuelles.
-
-## Étapes (150 min)
-
-1. **Briefing** du cas (15 min).
-2. **Exploration** des logs en binôme (45 min).
-3. **Point d'étape** collectif (15 min).
-4. **Construction** de la timeline d'attaque (45 min).
-5. **Restitution** et débrief partenaire (30 min).
-
-### Exemple de ligne à analyser
-
-\`\`\`
-203.0.113.42 - - [14/Mar/2026:03:12:44 +0100] "GET /admin/../etc/passwd HTTP/1.1" 404 162 "-" "sqlmap/1.7"
-\`\`\`
-
-**Indices à repérer** :
-
-- User-Agent suspect : \`sqlmap/1.7\` (outil d'attaque automatisé).
-- Tentative de *path traversal* : \`../etc/passwd\`.
-- Horaire atypique : **3 h du matin**.
-
-### Anatomie d'une ligne de log
-
-| Champ        | Exemple                       | Ce qu'il dit               |
-| ------------ | ----------------------------- | -------------------------- |
-| IP source    | \`203.0.113.42\`              | Qui fait la requête        |
-| Horodatage   | \`14/Mar/2026:03:12:44\`      | Quand                      |
-| Requête      | \`GET /admin/../etc/passwd\`  | Ce qui est demandé         |
-| Code HTTP    | \`404\`                       | Comment le serveur répond  |
-| User-Agent   | \`sqlmap/1.7\`                | Avec quel outil            |
-
-## Méthode conseillée
-
-1. Filtrer par **code d'erreur** (4xx et 5xx) pour repérer les tentatives ratées.
-2. Trier par **IP** pour voir qui insiste.
-3. Chercher les **motifs suspects** dans les URL (\`../\`, \`SELECT\`, \`<script>\`).
-4. Recouper avec l'**heure** : une rafale à 3 h du matin n'est pas un·e utilisateur·rice normal·e.
-
-## Pré-requis
-
-- [ ] Avoir fait l'activité *Initiation à la cybersécurité*.
-- [ ] Laptop avec terminal (macOS, Linux ou WSL).
-- [ ] Connaissance basique des **codes HTTP** (200, 301, 404, 500).
-
-## Livrables attendus
-
-| Livrable                          | Format      | Qui ?               |
-| --------------------------------- | ----------- | ------------------- |
-| Liste des IP suspectes            | \`.txt\`    | Chaque binôme       |
-| Timeline de l'attaque             | Slide ou doc | Chaque binôme      |
-| 3 recommandations de mitigation   | Oral        | Un binôme au hasard |
-
-## Pour aller plus loin
-
-> Une fois l'attaque reconstituée, demande-toi : qu'est-ce qui aurait empêché ça ? Pare-feu applicatif, limitation du débit, validation des entrées ? C'est là que l'analyse devient défense.
-
----
-
-*Contact partenaire confidentiel : voir la fiche coordonnées côté pédago.*`,
   },
 ];
 
@@ -1367,7 +926,6 @@ type EventBlueprint = {
   daysOffset: number; // event date offset from today
   durationDays?: number; // >1 for multi-day events
   campus: 'Paris' | 'Lyon';
-  pin: string;
   days?: DayBlueprint[]; // if multi-day
   slots?: SlotBlueprint[]; // if single day (dayOffset=0)
   // Participations
@@ -1426,7 +984,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Cybersécurité',
     daysOffset: -14,
     campus: 'Paris',
-    pin: '9999',
     slots: [
       standardOrgaSlot(),
       {
@@ -1463,7 +1020,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Robotique Découverte',
     daysOffset: -7,
     campus: 'Paris',
-    pin: '4321',
     slots: [
       standardOrgaSlot(),
       {
@@ -1498,7 +1054,6 @@ const EVENTS: EventBlueprint[] = [
     daysOffset: PAST_PARIS_STAGE_OFFSET,
     durationDays: STAGE_DURATION_DAYS,
     campus: 'Paris',
-    pin: '1001',
     days: [
       {
         dayOffset: 0,
@@ -1567,7 +1122,6 @@ const EVENTS: EventBlueprint[] = [
     titre: "Atelier IA : L'intelligence artificielle",
     daysOffset: 0,
     campus: 'Paris',
-    pin: '7777',
     slots: [
       {
         startHour: 13,
@@ -1609,7 +1163,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Web Débutants',
     daysOffset: 2,
     campus: 'Paris',
-    pin: '2222',
     slots: [
       standardOrgaSlot(),
       {
@@ -1638,7 +1191,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Game Design',
     daysOffset: 4,
     campus: 'Paris',
-    pin: '3333',
     slots: [], // ← intentional (empty planning)
     // Niveau mix: stage cohort (2nde) + extras from other class levels.
     studentEmails: [
@@ -1654,7 +1206,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Scratch : Crée ton jeu',
     daysOffset: 7,
     campus: 'Paris',
-    pin: '5678',
     slots: [
       standardOrgaSlot(),
       {
@@ -1682,7 +1233,6 @@ const EVENTS: EventBlueprint[] = [
     daysOffset: ONGOING_PARIS_STAGE_OFFSET,
     durationDays: STAGE_DURATION_DAYS,
     campus: 'Paris',
-    pin: '1003',
     days: [
       // Day 0 — Lundi (déjà passé, J1)
       {
@@ -1817,7 +1367,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Web Lyon',
     daysOffset: -10,
     campus: 'Lyon',
-    pin: '6001',
     slots: [
       standardOrgaSlot(),
       {
@@ -1847,7 +1396,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Robotique Lyon',
     daysOffset: 10,
     campus: 'Lyon',
-    pin: '6002',
     slots: [
       standardOrgaSlot(),
       {
@@ -1869,7 +1417,6 @@ const EVENTS: EventBlueprint[] = [
     daysOffset: FUTURE_LYON_STAGE_OFFSET,
     durationDays: STAGE_DURATION_DAYS,
     campus: 'Lyon',
-    pin: '6003',
     days: [
       {
         dayOffset: 0,
@@ -3101,15 +2648,7 @@ async function seedEvents(
             activity: {
               create: {
                 nom: act.nom,
-                description: blueprintDef?.description ?? null,
-                difficulte: blueprintDef?.difficulte ?? null,
                 activityType,
-                // Activities render `activity.content` directly (see the talent
-                // `[activityId]` page), so seed the rendered markdown inline
-                // instead of leaving the row content-less.
-                content: blueprintDef?.content
-                  ? (marked.parse(blueprintDef.content) as string)
-                  : undefined,
               },
             },
           };
@@ -3136,7 +2675,6 @@ async function seedEvents(
             ? 'stagiaire'
             : null,
         campusId,
-        pin: blueprint.pin,
         modules: {
           create: ((blueprint.eventType ?? EVENT_TYPES.CODING_CLUB) ===
           EVENT_TYPES.STAGE_SECONDE

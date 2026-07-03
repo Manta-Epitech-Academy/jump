@@ -57,7 +57,6 @@ export async function anonymizeTalent(
       email: true,
       parentEmail: true,
       parent2Email: true,
-      charterFilePath: true,
       rulesFilePath: true,
       imageRightsFilePath: true,
     },
@@ -73,7 +72,6 @@ export async function anonymizeTalent(
   // S3 keys of the generated onboarding PDFs, captured before the update nulls
   // the columns. Returned to the caller, which deletes the objects post-commit.
   const documentKeys = [
-    talent.charterFilePath,
     talent.rulesFilePath,
     talent.imageRightsFilePath,
   ].filter((k): k is string => !!k);
@@ -137,8 +135,6 @@ export async function anonymizeTalent(
       parent2Email: null,
       parent2Phone: null,
       niveau: null,
-      badges: Prisma.DbNull,
-      lastSyncedAt: null,
     },
   });
 

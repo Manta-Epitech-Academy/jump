@@ -10,9 +10,7 @@
   type ActivityLike = {
     id: string;
     nom: string;
-    description?: string | null;
     activityType: string;
-    difficulte?: string | null;
   };
 
   type SlotLike = {
@@ -62,15 +60,6 @@
       month: 'long',
     });
   }
-
-  const difficultyColors: Record<string, string> = {
-    Débutant:
-      'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    Intermédiaire:
-      'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    Avancé:
-      'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-  };
 </script>
 
 <ResponsiveDialog.Root bind:open>
@@ -108,23 +97,7 @@
           >
             {typeLabel}
           </span>
-          {#if activity.difficulte}
-            <span
-              class={cn(
-                'rounded-full px-2 py-0.5 text-[10px] font-bold',
-                difficultyColors[activity.difficulte] ?? '',
-              )}
-            >
-              {activity.difficulte}
-            </span>
-          {/if}
         </div>
-
-        {#if activity.description}
-          <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-            {activity.description}
-          </p>
-        {/if}
       </ResponsiveDialog.Body>
     {/if}
   </ResponsiveDialog.Content>

@@ -1,5 +1,3 @@
-export const difficultes = ['Débutant', 'Intermédiaire', 'Avancé'] as const;
-
 /**
  * One-off XP granted when a talent finishes onboarding (the arrival
  * celebration shown on the dashboard). Granted in

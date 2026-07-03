@@ -34,9 +34,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
                     select: {
                       id: true,
                       nom: true,
-                      description: true,
                       activityType: true,
-                      difficulte: true,
                     },
                   },
                 },

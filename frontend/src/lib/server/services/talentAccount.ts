@@ -185,7 +185,6 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         userId: true,
         parentEmail: true,
         parent2Email: true,
-        charterFilePath: true,
         rulesFilePath: true,
         imageRightsFilePath: true,
         // The worker's source for the seed columns. When present, re-seeding the
@@ -219,7 +218,6 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
       (e): e is string => !!e,
     );
     const documentKeys = [
-      talent.charterFilePath,
       talent.rulesFilePath,
       talent.imageRightsFilePath,
     ].filter((k): k is string => !!k);
@@ -315,8 +313,6 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         hasLaptop: false,
         setupDescription: null,
         interestsFreeText: null,
-        badges: Prisma.DbNull,
-        lastSyncedAt: null,
         // Activity projections: a fresh-import talent has never logged in, so
         // both the first-login and last-active facts are dropped alongside the
         // account itself (userId null + bauth_user deleted below).

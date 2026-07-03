@@ -140,10 +140,8 @@ erDiagram
     DateTime processingCompletedAt
     String schoolId FK
     String highSchoolNameManual
-    String charterFilePath
     String rulesFilePath
     String imageRightsFilePath
-    Json badges
     String parentEmail
     String parentNom
     String parentPrenom
@@ -163,7 +161,6 @@ erDiagram
     DateTime equipmentValidatedAt
     String interestsFreeText
     String externalId UK
-    DateTime lastSyncedAt
     DateTime lastActiveAt
     DateTime firstLoginAt
     DateTime welcomeSeenAt
@@ -283,7 +280,6 @@ erDiagram
     String eventType
     String campusId FK
     String feedbackFormId FK
-    String pin
     String externalId UK
     DateTime devActivatedAt
     DateTime createdAt
@@ -446,13 +442,8 @@ erDiagram
   Activity {
     String id PK
     String nom
-    String description
-    String difficulte
     ActivityType activityType
-    String link
-    String content
     String timeSlotId FK,UK
-    String templateId
     DateTime createdAt
     DateTime updatedAt
   }
@@ -474,7 +465,6 @@ erDiagram
     XpGrantSource source UK
     String sourceId UK
     Int amount
-    String note
     DateTime createdAt
     DateTime updatedAt
   }
