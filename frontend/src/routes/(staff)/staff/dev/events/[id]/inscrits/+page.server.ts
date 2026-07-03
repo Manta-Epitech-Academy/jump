@@ -147,7 +147,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         rulesStatus: rules,
         imageStatus: image,
         studentSigned: t.rulesSignedAt != null,
-        email: t.email,
+        email: t.user?.email ?? null,
         parentEmail: t.parentEmail,
       };
     });

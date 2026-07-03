@@ -103,7 +103,7 @@ export const NOTE_ROW_SELECT = {
       id: true,
       prenom: true,
       nom: true,
-      email: true,
+      user: { select: { email: true } },
       civilite: true,
       // Effective campus = most-recent participation's campus, same as the
       // other admin talent views; disambiguates same-name talents. Its timezone
@@ -138,7 +138,7 @@ export function projectNoteRow(n: NoteRow) {
       id: n.talent.id,
       prenom: n.talent.prenom,
       nom: n.talent.nom,
-      email: n.talent.email,
+      email: n.talent.user?.email ?? null,
       civilite: n.talent.civilite,
     },
     campus: n.talent.participations[0]?.campus?.name ?? null,

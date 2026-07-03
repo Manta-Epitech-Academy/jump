@@ -50,7 +50,7 @@ export async function changeParentEmail(
     where: { id: talentId },
     select: {
       id: true,
-      email: true,
+      user: { select: { email: true } },
       prenom: true,
       parentEmail: true,
       parentNom: true,
@@ -60,7 +60,7 @@ export async function changeParentEmail(
 
   // Refuse the student's own address: a parent logging in there would resolve to
   // the talent identity, and provisioning refuses to repurpose it anyway.
-  if (newEmail && newEmail === norm(talent.email)) {
+  if (newEmail && newEmail === norm(talent.user?.email ?? null)) {
     return { ok: false, reason: 'same_as_student' };
   }
 

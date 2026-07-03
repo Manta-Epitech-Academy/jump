@@ -124,7 +124,7 @@ export async function fulfillTalentDeletion(
       where: { id: requestId },
       select: {
         talentId: true,
-        talent: { select: { email: true, prenom: true } },
+        talent: { select: { prenom: true, user: { select: { email: true } } } },
       },
     });
     const documentKeys = await anonymizeTalent(tx, request.talentId);
@@ -138,8 +138,8 @@ export async function fulfillTalentDeletion(
   // erased, so neither a storage nor a mail failure may undo it (one logs, the
   // other returns rather than throwing).
   await deleteAnonymizedDocuments(result.documentKeys);
-  if (result.contact.email) {
-    await sendActionEmail('account_deletion_done', result.contact.email, {
+  if (result.contact.user?.email) {
+    await sendActionEmail('account_deletion_done', result.contact.user.email, {
       prenom: result.contact.prenom,
     });
   }
@@ -173,13 +173,19 @@ export async function rejectTalentDeletion(
   // alone only reaches them if they happen to log back in. Best-effort send.
   const request = await prisma.talentDeletionRequest.findUnique({
     where: { id: requestId },
-    select: { talent: { select: { email: true, prenom: true } } },
+    select: {
+      talent: { select: { prenom: true, user: { select: { email: true } } } },
+    },
   });
-  if (request?.talent.email) {
-    await sendActionEmail('account_deletion_refused', request.talent.email, {
-      prenom: request.talent.prenom,
-      deletion_reason: reason ?? '',
-    });
+  if (request?.talent.user?.email) {
+    await sendActionEmail(
+      'account_deletion_refused',
+      request.talent.user.email,
+      {
+        prenom: request.talent.prenom,
+        deletion_reason: reason ?? '',
+      },
+    );
   }
   return true;
 }

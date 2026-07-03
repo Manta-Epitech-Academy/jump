@@ -15,7 +15,6 @@ export const PRESENCE_ROSTER_SELECT = {
       prenom: true,
       niveau: true,
       civilite: true,
-      email: true,
       phone: true,
       // Not the bodies (lazy-loaded by the dialog): the count drives the hover
       // tooltip, and each note's stored créneau anchor (presenceDay + presenceSlot)

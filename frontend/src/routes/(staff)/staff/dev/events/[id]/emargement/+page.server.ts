@@ -128,8 +128,8 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
         nom: t.nom,
         prenom: t.prenom,
         civilite: t.civilite,
-        // Prefer the login email (authoritative) over the imported SF address.
-        email: t.user?.email ?? t.email,
+        // The talent's login-account email (bauth_user), the source of truth.
+        email: t.user?.email ?? null,
         phone: t.phone,
         noteCount: t._count.notes,
         // The distinct créneaux this talent carries a note for, from each note's

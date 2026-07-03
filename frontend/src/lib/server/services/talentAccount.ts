@@ -1,6 +1,9 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { isParentOrStaffEmail } from '$lib/server/auth/emailIdentity';
+import {
+  changeUserEmail,
+  EmailChangeConflict,
+} from '$lib/server/services/userEmail';
 import { deleteAnonymizedDocuments } from '$lib/server/services/anonymizationService';
 import {
   findUnreferencedParentAccount,
@@ -33,45 +36,24 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
       email: true,
       prenom: true,
       nom: true,
-      user: { select: { email: true } },
     },
   });
 
-  // Already linked: reconcile the login email before returning. Salesforce can
-  // change Talent.email after the link was made; the linked bauth_user.email
-  // then goes stale and the student logs in "into the void" (BetterAuth resolves
-  // OTP by bauth_user.email, while the dashboard loads by the linked account).
-  // Realign it to Talent.email so the next OTP lands on this account. If another
-  // account already holds the new email (P2002 — an orphan the student made via
-  // direct OTP, or a Salesforce inversion), DON'T force it: leave the link as-is
-  // for the admin auth-conflicts tool to arbitrate, and still return the current
-  // id so this call never blocks a login.
+  // Already linked: realign the login email through the single write path, then
+  // return. Salesforce can change Talent.email after the link was made; the
+  // linked bauth_user.email then goes stale and the student logs in "into the
+  // void" (BetterAuth resolves OTP by bauth_user.email). `changeUserEmail`
+  // renames it, guarding against a parent/staff address and surfacing a
+  // collision (an orphan the student made, or an SF inversion). In either
+  // conflict case we leave the link as-is for the admin auth-conflicts tool and
+  // still return the current id so a login is never blocked.
   if (talent.userId) {
     const wanted = talent.email?.toLowerCase().trim();
-    const current = talent.user?.email?.toLowerCase().trim();
-    if (wanted && current && wanted !== current) {
-      // Guard before realigning: `Talent.email` pointing at a parent or staff
-      // address is bad SF data (a minor onboarded with a parent's email), NOT an
-      // email change. Renaming the student's account onto it would steal that
-      // parent/staff identity. Skip the rename and leave it for the admin
-      // auth-conflicts tool, which surfaces it as PARENT_HOLDER / STAFF_HOLDER
-      // (escalate, never force) — same stance as the adopt branch below.
-      if (!(await isParentOrStaffEmail(wanted))) {
-        try {
-          await prisma.bauth_user.update({
-            where: { id: talent.userId },
-            data: { email: wanted },
-          });
-        } catch (err) {
-          if (
-            !(
-              err instanceof Prisma.PrismaClientKnownRequestError &&
-              err.code === 'P2002'
-            )
-          )
-            throw err;
-          // Collision → leave for manual resolution (see authIdentityService).
-        }
+    if (wanted) {
+      try {
+        await changeUserEmail(talent.userId, wanted);
+      } catch (err) {
+        if (!(err instanceof EmailChangeConflict)) throw err;
       }
     }
     return talent.userId;

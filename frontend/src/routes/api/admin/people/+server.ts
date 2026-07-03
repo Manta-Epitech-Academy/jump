@@ -35,7 +35,13 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       },
       orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
       take: LIMIT,
-      select: { id: true, nom: true, prenom: true, email: true, niveau: true },
+      select: {
+        id: true,
+        nom: true,
+        prenom: true,
+        user: { select: { email: true } },
+        niveau: true,
+      },
     }),
     // Parent-1 only — the active guardian flow (parent-2 accounts are action-less).
     prisma.talent.findMany({
@@ -52,7 +58,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         id: true,
         nom: true,
         prenom: true,
-        email: true,
+        user: { select: { email: true } },
         parentEmail: true,
         parentNom: true,
         parentPrenom: true,
@@ -81,9 +87,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       type: 'talent' as const,
       id: t.id,
       name: fullName(t.prenom, t.nom),
-      email: t.email,
+      email: t.user?.email ?? null,
       sub: t.niveau ? niveauLabel(t.niveau) : null,
-      navQ: t.email || fullName(t.prenom, t.nom),
+      navQ: t.user?.email || fullName(t.prenom, t.nom),
     })),
     ...parents.map((t) => ({
       type: 'parent' as const,
@@ -92,7 +98,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       email: t.parentEmail,
       sub: `Parent de ${fullName(t.prenom, t.nom)}`,
       // A parent isn't a row of its own — jump to the child in the directory.
-      navQ: t.email || fullName(t.prenom, t.nom),
+      navQ: t.user?.email || fullName(t.prenom, t.nom),
     })),
     ...staff.map((s) => ({
       type: 'staff' as const,

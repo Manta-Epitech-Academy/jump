@@ -79,7 +79,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
       IMAGE_RIGHTS_DISPLAY_LABELS[
         imageRightsDisplayStatus(image, t.rulesSignedAt != null)
       ],
-      t.email ?? '',
+      t.user?.email ?? '',
       t.phone ?? '',
       parentName,
       t.parentEmail ?? '',

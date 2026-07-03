@@ -75,33 +75,30 @@ export const actions: Actions = {
     }
 
     try {
-      // Check if this email belongs to a talent or a parent
-      const talent = await prisma.talent.findUnique({
+      // Route by the login identity (bauth_user) — the single source of truth.
+      // Every talent has an account from import (eager mint); a talent whose
+      // mint hit a conflict has no account and correctly can't sign in until an
+      // admin resolves it.
+      const user = await prisma.bauth_user.findUnique({
         where: { email: normalizedEmail },
-        select: { id: true },
+        select: { role: true, talent: { select: { id: true } } },
       });
 
       let userKind: 'talent' | 'parent' = 'talent';
 
-      if (talent) {
-        await ensureTalentUser(talent.id);
+      if (user?.talent) {
+        await ensureTalentUser(user.talent.id);
+      } else if (user?.role === 'parent') {
+        userKind = 'parent';
       } else {
-        const parentUser = await prisma.bauth_user.findUnique({
-          where: { email: normalizedEmail },
-        });
-
-        if (parentUser?.role === 'parent') {
-          userKind = 'parent';
-        } else {
-          return message(
-            emailForm,
-            {
-              type: 'error',
-              text: 'Aucun compte trouvé avec cette adresse email.',
-            },
-            { status: 404 },
-          );
-        }
+        return message(
+          emailForm,
+          {
+            type: 'error',
+            text: 'Aucun compte trouvé avec cette adresse email.',
+          },
+          { status: 404 },
+        );
       }
 
       await auth.api.sendVerificationOTP({

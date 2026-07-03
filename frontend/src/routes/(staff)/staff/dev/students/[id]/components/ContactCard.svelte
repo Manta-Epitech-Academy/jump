@@ -8,7 +8,6 @@
     prenom?: string | null;
     nom?: string | null;
     civilite?: string | null;
-    email?: string | null;
     user?: { email?: string | null } | null;
     phone?: string | null;
     parentCivilite?: string | null;
@@ -20,12 +19,12 @@
 
   let { student }: { student: Student } = $props();
 
-  // The account email wins over the raw Salesforce one when present.
+  // The talent's login-account email (bauth_user), the source of truth.
   const eleve = $derived<ContactPerson>({
     civilite: student.civilite,
     prenom: student.prenom,
     nom: student.nom,
-    email: student.user?.email || student.email,
+    email: student.user?.email ?? null,
     phone: student.phone,
   });
 

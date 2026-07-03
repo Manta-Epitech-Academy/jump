@@ -27,7 +27,9 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     where: buildSubmissionWhere(graph.id, scope),
     orderBy: { submittedAt: 'asc' },
     include: {
-      talent: { select: { prenom: true, nom: true, email: true } },
+      talent: {
+        select: { prenom: true, nom: true, user: { select: { email: true } } },
+      },
       event: {
         select: {
           titre: true,
@@ -69,7 +71,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
       isPublic ? 'Public' : 'Authentifié',
       eventName,
       sub.event?.campus.name ?? sub.respondentCampusLabel ?? '',
-      sub.talent?.email ?? sub.respondentEmail ?? '',
+      sub.talent?.user?.email ?? sub.respondentEmail ?? '',
       sub.talent?.prenom ?? sub.respondentFirstName ?? '',
       sub.talent?.nom ?? sub.respondentLastName ?? '',
       ...answerCells(sub.answers, columns),

@@ -57,7 +57,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     return [
       row.nom,
       row.prenom,
-      row.email ?? '',
+      row.user?.email ?? '',
       row.phone ?? '',
       civiliteLabel(row.civilite),
       row.niveau ? niveauLabel(row.niveau) : '',

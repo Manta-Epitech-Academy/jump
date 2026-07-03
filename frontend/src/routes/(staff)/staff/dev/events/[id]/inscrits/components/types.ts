@@ -17,7 +17,7 @@ export const INSCRIT_TALENT_SELECT = {
   // joins the shared select. The events count stays off here: the dense roster
   // shows XP alone, the fiche carries the fuller breakdown.
   xp: true,
-  email: true,
+  user: { select: { email: true } },
   parentEmail: true,
   // Dossier inputs — feed the statut badge and its per-document tooltip
   // (see rulesStatus / imageRightsStatus). `rulesSignedAt` distinguishes the

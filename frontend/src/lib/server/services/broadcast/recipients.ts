@@ -89,7 +89,7 @@ async function resolveTalentBased(
       id: true,
       prenom: true,
       nom: true,
-      email: true,
+      user: { select: { email: true } },
       phone: true,
       parentEmail: true,
       parentPhone: true,
@@ -131,7 +131,7 @@ async function resolveTalentBased(
       continue;
     }
 
-    const email = isParent ? t.parentEmail : t.email;
+    const email = isParent ? t.parentEmail : (t.user?.email ?? null);
     const phone = isParent ? t.parentPhone : t.phone;
     const prenom = isParent ? (t.parentPrenom ?? '') : t.prenom;
     const nom = isParent ? (t.parentNom ?? '') : t.nom;
