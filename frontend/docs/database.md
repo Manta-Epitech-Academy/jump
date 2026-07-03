@@ -94,7 +94,6 @@ erDiagram
     String userId FK,UK
     String campusId FK
     StaffRole staffRole
-    String discordId UK
     String[] devRedirectEmails
     String[] devRedirectPhones
     DateTime onboardingDocsExportedAt
@@ -163,7 +162,6 @@ erDiagram
     String setupDescription
     DateTime equipmentValidatedAt
     String interestsFreeText
-    String discordId UK
     String externalId UK
     DateTime lastSyncedAt
     DateTime lastActiveAt

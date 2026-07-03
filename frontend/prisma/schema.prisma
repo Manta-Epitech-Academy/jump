@@ -209,7 +209,6 @@ model StaffProfile {
   userId                   String     @unique
   campusId                 String?
   staffRole                StaffRole?
-  discordId                String?    @unique
   // Personal dev-redirect destinations: on a trapped (non-prod) env, mail/SMS
   // attributed to this staff member (sends they trigger, or talents they
   // impersonate) is rerouted here instead of the shared `*_DEV_RECIPIENTS`
@@ -338,7 +337,6 @@ model Talent {
   setupDescription            String?
   equipmentValidatedAt        DateTime?
   interestsFreeText           String?
-  discordId                   String?              @unique
   externalId                  String?              @unique
   lastSyncedAt                DateTime?
   lastActiveAt                DateTime?

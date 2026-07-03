@@ -96,7 +96,6 @@ export async function anonymizeTalent(
       schoolId: null,
       interestsFreeText: null,
       setupDescription: null,
-      discordId: null,
       // Image-rights decision: the guardian's typed signer name is their PII,
       // and decision/decidedAt move with it (the trio is one signed fact — see
       // domain/imageRights). Sever the PDF references too; the objects are

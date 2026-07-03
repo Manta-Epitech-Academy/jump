@@ -43,7 +43,7 @@ const CSP_HEADER = [
   `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${CRISP_HOST}`,
   "img-src 'self' data: https:",
   `font-src 'self' https://fonts.gstatic.com ${CRISP_HOST}`,
-  `connect-src 'self' https://discord.com ${UMAMI_HOST} ${CRISP_HOST} ${CRISP_RELAY}`,
+  `connect-src 'self' ${UMAMI_HOST} ${CRISP_HOST} ${CRISP_RELAY}`,
   "frame-ancestors 'none'",
   `frame-src 'self' https://*.epiboost.eu https://*.epiboost.fr${GAMES_FRAME_SRC ? ` ${GAMES_FRAME_SRC}` : ''}`,
   "object-src 'none'",

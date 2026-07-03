@@ -316,7 +316,6 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         hasLaptop: false,
         setupDescription: null,
         interestsFreeText: null,
-        discordId: null,
         badges: Prisma.DbNull,
         lastSyncedAt: null,
         // Activity projections: a fresh-import talent has never logged in, so
