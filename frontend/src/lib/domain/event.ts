@@ -132,16 +132,6 @@ export function stageWindowEnd(date: Date, endDate: Date | null): Date {
   return end;
 }
 
-/**
- * Whether an event type carries a transversal theme. Allow-list: a stage
- * cohort has no single theme (activities span many), only year-round
- * coding-club sessions do. New event types default to no-theme until they
- * explicitly opt in here.
- */
-export function eventTypeHasTheme(type: string): boolean {
-  return type === EVENT_TYPES.CODING_CLUB;
-}
-
 // ─── Start time-of-day (`Event.startMinutes`) ──────────────────────────────
 // Jump-owned wall-clock minutes from local midnight (see schema). These pure
 // helpers convert to/from the "HH:MM" form the time picker and form use; the

@@ -109,7 +109,6 @@ type ActivityDef = {
   description: string;
   difficulte: 'Débutant' | 'Intermédiaire' | 'Avancé';
   activityType: ActivityType;
-  themes: string[];
   defaultDuration: number;
   campus?: 'Paris' | 'Lyon' | 'Marseille';
   content?: string;
@@ -123,7 +122,6 @@ const activityDefs: ActivityDef[] = [
       'Découvre les bases du HTML et crée ta toute première page web.',
     difficulte: 'Débutant',
     activityType: 'atelier',
-    themes: ['Développement Web'],
     defaultDuration: 120,
   },
   {
@@ -131,7 +129,6 @@ const activityDefs: ActivityDef[] = [
     description: 'Apprends à colorer et mettre en forme ta page web avec CSS.',
     difficulte: 'Débutant',
     activityType: 'atelier',
-    themes: ['Développement Web', 'Design & Création'],
     defaultDuration: 120,
   },
   {
@@ -139,7 +136,6 @@ const activityDefs: ActivityDef[] = [
     description: 'Variables, conditions, interactions avec la page.',
     difficulte: 'Intermédiaire',
     activityType: 'atelier',
-    themes: ['Développement Web'],
     defaultDuration: 150,
   },
   {
@@ -147,7 +143,6 @@ const activityDefs: ActivityDef[] = [
     description: 'Assemble et programme un petit robot.',
     difficulte: 'Débutant',
     activityType: 'atelier',
-    themes: ['Robotique'],
     defaultDuration: 180,
   },
   {
@@ -155,7 +150,6 @@ const activityDefs: ActivityDef[] = [
     description: 'Utilise capteurs et moteurs pour rendre ton robot autonome.',
     difficulte: 'Intermédiaire',
     activityType: 'atelier',
-    themes: ['Robotique'],
     defaultDuration: 150,
   },
   {
@@ -163,7 +157,6 @@ const activityDefs: ActivityDef[] = [
     description: 'Conçois un jeu interactif avec Scratch.',
     difficulte: 'Débutant',
     activityType: 'atelier',
-    themes: ['Jeux Vidéo'],
     defaultDuration: 120,
   },
   {
@@ -171,7 +164,6 @@ const activityDefs: ActivityDef[] = [
     description: 'Mécaniques, niveaux, boucle de gameplay.',
     difficulte: 'Avancé',
     activityType: 'atelier',
-    themes: ['Jeux Vidéo', 'Design & Création'],
     defaultDuration: 180,
   },
   {
@@ -179,7 +171,6 @@ const activityDefs: ActivityDef[] = [
     description: 'Mots de passe, phishing, bonnes pratiques.',
     difficulte: 'Débutant',
     activityType: 'atelier',
-    themes: ['Cybersécurité'],
     defaultDuration: 120,
   },
   {
@@ -187,7 +178,6 @@ const activityDefs: ActivityDef[] = [
     description: 'Chiffre César, Vigenère, bases de la crypto moderne.',
     difficulte: 'Intermédiaire',
     activityType: 'atelier',
-    themes: ['Cybersécurité'],
     defaultDuration: 120,
   },
   {
@@ -195,7 +185,6 @@ const activityDefs: ActivityDef[] = [
     description: "Découvre l'IA à travers des exemples concrets.",
     difficulte: 'Débutant',
     activityType: 'atelier',
-    themes: ['Intelligence Artificielle'],
     defaultDuration: 90,
   },
   {
@@ -203,7 +192,6 @@ const activityDefs: ActivityDef[] = [
     description: "Entraîne un modèle d'IA avec Teachable Machine.",
     difficulte: 'Intermédiaire',
     activityType: 'atelier',
-    themes: ['Intelligence Artificielle'],
     defaultDuration: 150,
   },
   {
@@ -211,7 +199,6 @@ const activityDefs: ActivityDef[] = [
     description: 'Crée une affiche numérique percutante avec Canva.',
     difficulte: 'Débutant',
     activityType: 'atelier',
-    themes: ['Design & Création'],
     defaultDuration: 120,
   },
   // ─── Static templates: official (campus-less) ───
@@ -221,7 +208,6 @@ const activityDefs: ActivityDef[] = [
       'Panorama des métiers du numérique présenté par un·e intervenant·e externe.',
     difficulte: 'Débutant',
     activityType: 'conference',
-    themes: ['Développement Web', 'Cybersécurité', 'Intelligence Artificielle'],
     defaultDuration: 90,
     content: `# Les métiers de la tech
 
@@ -335,7 +321,6 @@ Faux : presque tout se construit en équipe, avec beaucoup d'échanges.
     description: 'Temps de repas commun.',
     difficulte: 'Débutant',
     activityType: 'orga',
-    themes: [],
     defaultDuration: 60,
     content: `# Pause déjeuner
 
@@ -380,7 +365,6 @@ Profite de la pause pour **échanger de façon informelle** avec les élèves : 
       'Présentation des projets devant le groupe et remise des diplômes.',
     difficulte: 'Intermédiaire',
     activityType: 'conference',
-    themes: ['Design & Création'],
     defaultDuration: 120,
     content: `# Restitution finale
 
@@ -449,7 +433,6 @@ C'est le dernier temps fort du stage : chaque équipe présente ce qu'elle a con
     description: 'Découverte des locaux et rencontre des équipes pédagogiques.',
     difficulte: 'Débutant',
     activityType: 'conference',
-    themes: ['Développement Web'],
     defaultDuration: 60,
     campus: 'Paris',
     link: 'https://www.epitech.eu/campus/paris/',
@@ -522,7 +505,6 @@ Plus d'infos : [epitech.eu/campus/paris](https://www.epitech.eu/campus/paris/)`,
       'Échange avec des ancien·ne·s du campus lyonnais autour de leur parcours.',
     difficulte: 'Débutant',
     activityType: 'conference',
-    themes: ['Développement Web', 'Intelligence Artificielle'],
     defaultDuration: 90,
     campus: 'Lyon',
     content: `# Rencontre alumni : Campus Lyon
@@ -588,7 +570,6 @@ Rien ne parle mieux d'un métier que quelqu'un qui l'exerce. Cette table ronde d
       "Atelier animé par un partenaire local autour d'un cas concret.",
     difficulte: 'Intermédiaire',
     activityType: 'atelier',
-    themes: ['Cybersécurité'],
     defaultDuration: 150,
     campus: 'Marseille',
     content: `# Atelier partenaire : analyse de logs et détection d'incidents
@@ -1386,7 +1367,6 @@ type EventBlueprint = {
   daysOffset: number; // event date offset from today
   durationDays?: number; // >1 for multi-day events
   campus: 'Paris' | 'Lyon';
-  theme: string;
   pin: string;
   days?: DayBlueprint[]; // if multi-day
   slots?: SlotBlueprint[]; // if single day (dayOffset=0)
@@ -1446,7 +1426,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Cybersécurité',
     daysOffset: -14,
     campus: 'Paris',
-    theme: 'Cybersécurité',
     pin: '9999',
     slots: [
       standardOrgaSlot(),
@@ -1484,7 +1463,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Robotique Découverte',
     daysOffset: -7,
     campus: 'Paris',
-    theme: 'Robotique',
     pin: '4321',
     slots: [
       standardOrgaSlot(),
@@ -1520,7 +1498,6 @@ const EVENTS: EventBlueprint[] = [
     daysOffset: PAST_PARIS_STAGE_OFFSET,
     durationDays: STAGE_DURATION_DAYS,
     campus: 'Paris',
-    theme: 'Développement Web',
     pin: '1001',
     days: [
       {
@@ -1590,7 +1567,6 @@ const EVENTS: EventBlueprint[] = [
     titre: "Atelier IA : L'intelligence artificielle",
     daysOffset: 0,
     campus: 'Paris',
-    theme: 'Intelligence Artificielle',
     pin: '7777',
     slots: [
       {
@@ -1633,7 +1609,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Web Débutants',
     daysOffset: 2,
     campus: 'Paris',
-    theme: 'Développement Web',
     pin: '2222',
     slots: [
       standardOrgaSlot(),
@@ -1663,7 +1638,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Game Design',
     daysOffset: 4,
     campus: 'Paris',
-    theme: 'Jeux Vidéo',
     pin: '3333',
     slots: [], // ← intentional (empty planning)
     // Niveau mix: stage cohort (2nde) + extras from other class levels.
@@ -1680,7 +1654,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Scratch : Crée ton jeu',
     daysOffset: 7,
     campus: 'Paris',
-    theme: 'Jeux Vidéo',
     pin: '5678',
     slots: [
       standardOrgaSlot(),
@@ -1709,7 +1682,6 @@ const EVENTS: EventBlueprint[] = [
     daysOffset: ONGOING_PARIS_STAGE_OFFSET,
     durationDays: STAGE_DURATION_DAYS,
     campus: 'Paris',
-    theme: 'Développement Web',
     pin: '1003',
     days: [
       // Day 0 — Lundi (déjà passé, J1)
@@ -1845,7 +1817,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Web Lyon',
     daysOffset: -10,
     campus: 'Lyon',
-    theme: 'Développement Web',
     pin: '6001',
     slots: [
       standardOrgaSlot(),
@@ -1876,7 +1847,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Robotique Lyon',
     daysOffset: 10,
     campus: 'Lyon',
-    theme: 'Robotique',
     pin: '6002',
     slots: [
       standardOrgaSlot(),
@@ -1899,7 +1869,6 @@ const EVENTS: EventBlueprint[] = [
     daysOffset: FUTURE_LYON_STAGE_OFFSET,
     durationDays: STAGE_DURATION_DAYS,
     campus: 'Lyon',
-    theme: 'Développement Web',
     pin: '6003',
     days: [
       {
@@ -2580,14 +2549,8 @@ async function main() {
   await assignTalentInterests();
   console.log('✓  Talent interest assignments');
 
-  // 4. Themes
-  const themesByKey = await seedThemes(campuses);
-  console.log(
-    `✓  Themes (${Object.keys(themesByKey).length} campus-scoped + 6 official)`,
-  );
-
-  // 5. Events + planning + participations + émargement + compliance
-  const eventIds = await seedEvents(campuses, talentByEmail, themesByKey);
+  // 4. Events + planning + participations + émargement + compliance
+  const eventIds = await seedEvents(campuses, talentByEmail);
   console.log(`✓  Events (${eventIds.length})`);
 
   // 6. XP ledger + projections (onboarding grants + émargement eventsCount)
@@ -2683,12 +2646,10 @@ async function wipeAll() {
     prisma.messageTemplate.deleteMany(),
     prisma.participation.deleteMany(),
     prisma.interview.deleteMany(),
-    prisma.activityTheme.deleteMany(),
     prisma.activity.deleteMany(),
     prisma.timeSlot.deleteMany(),
     prisma.planning.deleteMany(),
     prisma.event.deleteMany(),
-    prisma.theme.deleteMany(),
     prisma.talentInterest.deleteMany(),
     prisma.interest.deleteMany(),
     prisma.talent.deleteMany(),
@@ -3203,56 +3164,6 @@ async function seedParents(
   return realParentEmail;
 }
 
-async function seedThemes(campuses: Record<string, { id: string }>) {
-  const themeNames = [
-    'Développement Web',
-    'Robotique',
-    'Jeux Vidéo',
-    'Cybersécurité',
-    'Intelligence Artificielle',
-    'Design & Création',
-  ];
-
-  const lyonThemes = [
-    'Développement Web',
-    'Robotique',
-    'Intelligence Artificielle',
-  ];
-
-  // Official (campus-less), Paris (all), Lyon (web/robotics/IA only) in one
-  // insert. Each row carries the prefix used to rebuild the lookup key, and is
-  // remapped by (campusId, nom) since createManyAndReturn order isn't ordered.
-  const themeData = [
-    ...themeNames.map((nom) => ({ nom, campusId: null, prefix: 'official' })),
-    ...themeNames.map((nom) => ({
-      nom,
-      campusId: campuses.Paris.id,
-      prefix: 'Paris',
-    })),
-    ...lyonThemes.map((nom) => ({
-      nom,
-      campusId: campuses.Lyon.id,
-      prefix: 'Lyon',
-    })),
-  ];
-  const prefixByCampusId = new Map<string | null, string>([
-    [null, 'official'],
-    [campuses.Paris.id, 'Paris'],
-    [campuses.Lyon.id, 'Lyon'],
-  ]);
-
-  const created = await prisma.theme.createManyAndReturn({
-    data: themeData.map(({ nom, campusId }) => ({ nom, campusId })),
-    select: { id: true, nom: true, campusId: true },
-  });
-
-  const byKey: Record<string, { id: string }> = {};
-  for (const t of created) {
-    byKey[`${prefixByCampusId.get(t.campusId)}:${t.nom}`] = { id: t.id };
-  }
-  return byKey;
-}
-
 // ── Émargement créneaux (mirrors $lib/domain/eventPresence) ────────────────
 // seed.ts is self-contained (see header: $lib does not resolve under
 // `prisma db seed`), so the presence-day shape is reproduced here. Keep in sync
@@ -3316,16 +3227,11 @@ function slotDecided(dayUTC: Date, slot: PresenceSlotName, now: Date): boolean {
 async function seedEvents(
   campuses: Record<string, { id: string }>,
   talentByEmail: Record<string, { id: string; nom: string; prenom: string }>,
-  themesByKey: Record<string, { id: string }>,
 ) {
   const eventIds: string[] = [];
 
   for (const blueprint of EVENTS) {
     const campusId = campuses[blueprint.campus].id;
-    const themeId =
-      themesByKey[`${blueprint.campus}:${blueprint.theme}`]?.id ??
-      themesByKey[`Paris:${blueprint.theme}`]?.id ??
-      null;
 
     const eventStart = dayAt(blueprint.daysOffset, 13, 0);
     const eventEnd =
@@ -3338,8 +3244,8 @@ async function seedEvents(
       blueprint.days ??
       (blueprint.slots ? [{ dayOffset: 0, slots: blueprint.slots }] : []);
 
-    // Whole planning skeleton — timeSlots → activity → activityThemes — built
-    // as nested-create input so the entire event ships in one round trip.
+    // Whole planning skeleton (timeSlots -> activity), built as nested-create
+    // input so the entire event ships in one round trip.
     // 1 activity = 1 slot; multi-activity blueprints write as parallel slots
     // at the same time.
     const timeSlotData = dayList.flatMap((day) =>
@@ -3358,13 +3264,6 @@ async function seedEvents(
           const blueprintDef = activityDefs.find((d) => d.nom === act.nom);
           const activityType: ActivityType =
             act.activityType ?? blueprintDef?.activityType ?? 'atelier';
-          const themeRows = (blueprintDef?.themes ?? [])
-            .map(
-              (themeName) =>
-                themesByKey[`${blueprint.campus}:${themeName}`]?.id,
-            )
-            .filter((id): id is string => Boolean(id))
-            .map((themeId) => ({ themeId }));
           return {
             startTime: slotStart,
             endTime: slotEnd,
@@ -3380,7 +3279,6 @@ async function seedEvents(
                 content: blueprintDef?.content
                   ? (marked.parse(blueprintDef.content) as string)
                   : undefined,
-                activityThemes: { create: themeRows },
               },
             },
           };
@@ -3407,7 +3305,6 @@ async function seedEvents(
             ? 'stagiaire'
             : null,
         campusId,
-        themeId,
         pin: blueprint.pin,
         modules: {
           create: ((blueprint.eventType ?? EVENT_TYPES.CODING_CLUB) ===

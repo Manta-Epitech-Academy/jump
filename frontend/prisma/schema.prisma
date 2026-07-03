@@ -563,7 +563,6 @@ model Campus {
 
   staffProfiles    StaffProfile[]
   events           Event[]
-  themes           Theme[]
   participations   Participation[]
   interviews       Interview[]
   invitations      StaffInvitation[]
@@ -587,20 +586,6 @@ model CmsPage {
 
   @@unique([slug, eventId])
   @@index([eventId])
-}
-
-model Theme {
-  id        String   @id @default(cuid())
-  nom       String
-  campusId  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  campus         Campus?         @relation(fields: [campusId], references: [id])
-  events         Event[]
-  activityThemes ActivityTheme[]
-
-  @@unique([nom, campusId])
 }
 
 model Planning {
@@ -641,19 +626,8 @@ model Activity {
   updatedAt    DateTime     @updatedAt
 
   timeSlot       TimeSlot        @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
-  activityThemes ActivityTheme[]
 
   @@index([templateId])
-}
-
-model ActivityTheme {
-  activityId String
-  themeId    String
-
-  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  theme    Theme    @relation(fields: [themeId], references: [id], onDelete: Cascade)
-
-  @@id([activityId, themeId])
 }
 
 model Event {
@@ -686,7 +660,6 @@ model Event {
   endDate        DateTime?
   eventType      String    @default("coding_club")
   campusId       String
-  themeId        String?
   // Which feedback form this event uses (the `bilan` module reports against it,
   // and its QR/link/export resolve through it). Null = fall back to the form
   // marked `defaultForEventType` for this event's type (see Feedback_Form). A
@@ -705,7 +678,6 @@ model Event {
   updatedAt      DateTime  @updatedAt
 
   campus              Campus                 @relation(fields: [campusId], references: [id])
-  theme               Theme?                 @relation(fields: [themeId], references: [id])
   feedbackForm        Feedback_Form?         @relation("EventFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
   participations      Participation[]
   planning            Planning?

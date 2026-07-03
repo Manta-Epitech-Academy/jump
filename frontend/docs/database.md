@@ -6,14 +6,14 @@
 
 ## Vue d'ensemble
 
-- **56** modèles · **34** enums · **85** relations
+- **54** modèles · **34** enums · **81** relations
 
 | Domaine | Modèles |
 | --- | ---: |
 | Authentification & Profils | 12 |
 | Cycle de vie talent & RGPD | 3 |
 | Événements & Participations | 10 |
-| Planning & Activités | 5 |
+| Planning & Activités | 3 |
 | Progression, Portfolio & XP | 2 |
 | Minijeux | 3 |
 | Feedback | 7 |
@@ -282,7 +282,6 @@ erDiagram
     DateTime endDate
     String eventType
     String campusId FK
-    String themeId FK
     String feedbackFormId FK
     String pin
     String externalId UK
@@ -401,8 +400,6 @@ erDiagram
   }
   Campus {
   }
-  Theme {
-  }
   Feedback_Form {
   }
   StaffProfile ||--o{ Interview : "interviewsConducted"
@@ -417,7 +414,6 @@ erDiagram
   Campus ||--o{ Event : "events"
   Campus ||--o{ Participation : "participations"
   Campus ||--o{ Interview : "interviews"
-  Theme |o--o{ Event : "events"
   Feedback_Form |o--o{ Event : "events"
   Event ||--o{ Participation : "participations"
   Event ||--o{ EventPresenceClosure : "presenceClosures"
@@ -460,27 +456,11 @@ erDiagram
     DateTime createdAt
     DateTime updatedAt
   }
-  ActivityTheme {
-    String activityId PK,FK
-    String themeId PK,FK
-  }
-  Theme {
-    String id PK
-    String nom UK
-    String campusId FK,UK
-    DateTime createdAt
-    DateTime updatedAt
-  }
-  Campus {
-  }
   Event {
   }
-  Campus |o--o{ Theme : "themes"
-  Theme ||--o{ ActivityTheme : "activityThemes"
   Event ||--|| Planning : "planning"
   Planning ||--o{ TimeSlot : "timeSlots"
   TimeSlot ||--|| Activity : "activity"
-  Activity ||--o{ ActivityTheme : "activityThemes"
 ```
 
 ## 5 · Progression, Portfolio & XP

@@ -48,9 +48,6 @@ export function getBrowserTimezone(cookies: Cookies): string {
  *   TimeSlot (planning → event → campusId)
  *   Activity (timeSlot → planning → event → campusId)
  *
- * OR pattern (campus-specific + global where campusId is null):
- *   Theme
- *
  * For findUnique/findUniqueOrThrow/update/delete (which only accept unique
  * fields in `where`), we use a post-query check pattern.
  */
@@ -691,32 +688,6 @@ export function scopedPrisma(campusId: string) {
             select: { campusId: true },
           });
           if (existing.campusId !== campusId) accessDenied('Interview');
-          return query(args);
-        },
-      },
-
-      // ── Theme (campusId nullable — null means global/official) ──
-      theme: {
-        async findMany({ args, query }) {
-          if (!args.where?.campusId) {
-            args.where = {
-              ...args.where,
-              OR: [{ campusId }, { campusId: null }],
-            };
-          }
-          return query(args);
-        },
-        async findFirst({ args, query }) {
-          if (!args.where?.campusId) {
-            args.where = {
-              ...args.where,
-              OR: [{ campusId }, { campusId: null }],
-            };
-          }
-          return query(args);
-        },
-        async create({ args, query }) {
-          args.data = { ...args.data, campusId } as any;
           return query(args);
         },
       },
