@@ -54,7 +54,7 @@ export async function anonymizeTalent(
     where: { id: talentId },
     select: {
       userId: true,
-      email: true,
+      user: { select: { email: true } },
       parentEmail: true,
       parent2Email: true,
       rulesFilePath: true,
@@ -86,7 +86,6 @@ export async function anonymizeTalent(
       ...clearOnboardingTimestamps(),
       nom: 'Anonymisé',
       prenom: 'Anonymisé',
-      email: null,
       externalId: null,
       phone: null,
       civilite: null,
@@ -174,12 +173,12 @@ export async function anonymizeTalent(
     where: {
       OR: [
         { talentId },
-        ...(talent.email
+        ...(talent.user?.email
           ? [
               {
                 talentId: null,
                 respondentEmail: {
-                  equals: talent.email,
+                  equals: talent.user.email,
                   mode: 'insensitive' as const,
                 },
               },

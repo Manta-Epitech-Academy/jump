@@ -7,7 +7,6 @@
  */
 
 export type AuthConflictVerdict =
-  | 'SIMPLE_DRIFT'
   | 'ORPHAN_HOLDER'
   | 'SYMMETRIC_INVERSION'
   | 'DEGRADED_INVERSION'
@@ -55,11 +54,12 @@ export interface AuthConflict {
   externalId: string | null;
   prenom: string;
   nom: string;
-  /** The email the student should log in with (Talent.email), normalized. */
+  /** The email SF says the student should log in with (TalentSfImport.sfEmail), normalized. */
   targetEmail: string;
   /** The account the Talent points to today, carrying the stale email. */
   linked: AuthAccountSummary;
-  /** The account that already holds `targetEmail`, if any. null → SIMPLE_DRIFT. */
+  /** The account that already holds `targetEmail` (always set: a no-holder drift
+   * is auto-realigned by the sync via changeUserEmail, so it is never listed). */
   holder: AuthAccountSummary | null;
   verdict: AuthConflictVerdict;
   /** What the holder account is (orphan / staff / parent / other talent). null
@@ -77,11 +77,10 @@ export interface AuthConflict {
 }
 
 /** The repair operation a verdict maps to. `null` verdicts are escalate-only. */
-export type AuthRepairAction = 'repointDrop' | 'rename' | 'swap' | 'sever';
+export type AuthRepairAction = 'repointDrop' | 'swap' | 'sever';
 
 /** French label per verdict, for the admin table. */
 export const VERDICT_LABELS: Record<AuthConflictVerdict, string> = {
-  SIMPLE_DRIFT: 'Dérive simple',
   ORPHAN_HOLDER: 'Orphelin actif',
   SYMMETRIC_INVERSION: 'Inversion symétrique',
   DEGRADED_INVERSION: 'Inversion dégradée',
@@ -95,8 +94,6 @@ export function actionForVerdict(
   verdict: AuthConflictVerdict,
 ): AuthRepairAction | null {
   switch (verdict) {
-    case 'SIMPLE_DRIFT':
-      return 'rename';
     case 'ORPHAN_HOLDER':
       return 'repointDrop';
     case 'SYMMETRIC_INVERSION':
@@ -110,7 +107,6 @@ export function actionForVerdict(
  * dialog. */
 export const ACTION_LABELS: Record<AuthRepairAction, string> = {
   repointDrop: 'Basculer + supprimer l’ancien',
-  rename: 'Renommer le compte',
   swap: 'Échanger les deux comptes',
   sever: 'Couper le lien',
 };

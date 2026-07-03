@@ -164,7 +164,7 @@ export function buildTalentWhere(f: TalentFilters): {
       OR: [
         { nom: { contains: sanitized, mode: 'insensitive' } },
         { prenom: { contains: sanitized, mode: 'insensitive' } },
-        { email: { contains: sanitized, mode: 'insensitive' } },
+        { user: { email: { contains: sanitized, mode: 'insensitive' } } },
       ],
     });
   }

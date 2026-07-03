@@ -113,7 +113,6 @@ erDiagram
   Talent {
     String id PK
     String userId FK,UK
-    String email UK
     String nom
     String prenom
     String niveau
@@ -182,6 +181,7 @@ erDiagram
     String talentId PK,FK
     String nom
     String prenom
+    String sfEmail
     String phone
     String civilite
     String niveau

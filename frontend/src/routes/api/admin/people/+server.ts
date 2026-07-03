@@ -31,7 +31,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   const [talents, parents, staff] = await Promise.all([
     prisma.talent.findMany({
       where: {
-        OR: [{ nom: contains }, { prenom: contains }, { email: contains }],
+        OR: [
+          { nom: contains },
+          { prenom: contains },
+          { user: { email: contains } },
+        ],
       },
       orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
       take: LIMIT,

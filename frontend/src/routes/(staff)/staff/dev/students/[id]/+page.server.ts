@@ -282,6 +282,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
     const recommendations = deriveTalentRecommendations({
       ...student,
+      email: student.user?.email ?? null,
       prenom: formatGivenName(student.prenom),
       appUrl,
       connected: firstLoginAt != null,

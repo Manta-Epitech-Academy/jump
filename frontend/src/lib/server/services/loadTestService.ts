@@ -98,7 +98,6 @@ export async function seedLoadTalents(
 
     const fields = {
       userId: user.id,
-      email,
       nom: `LoadTest${i}`,
       prenom: 'Test',
       civilite: 'Mr' as const,
@@ -160,7 +159,7 @@ export async function seedLoadTalents(
 export async function buildLoadManifest(sample = 50) {
   const [talents, staff, events, publications] = await Promise.all([
     prisma.talent.findMany({
-      select: { id: true, email: true, userId: true },
+      select: { id: true, user: { select: { email: true } } },
       take: sample * 4,
       orderBy: { lastActiveAt: 'desc' },
     }),
@@ -215,19 +214,19 @@ export async function buildLoadManifest(sample = 50) {
   });
 
   const loadTestRows = await prisma.talent.findMany({
-    where: { email: { endsWith: DOMAIN } },
-    select: { id: true, email: true },
-    orderBy: { email: 'asc' },
+    where: { user: { email: { endsWith: DOMAIN } } },
+    select: { id: true, user: { select: { email: true } } },
+    orderBy: { user: { email: 'asc' } },
   });
 
   const usableTalents = talents
-    .filter((t) => t.email && t.userId && !t.email.endsWith(DOMAIN))
+    .filter((t) => t.user?.email && !t.user.email.endsWith(DOMAIN))
     .slice(0, sample);
   const usableStaff = staff.filter((s) => s.staffRole && s.user?.email);
 
   return {
     generatedAt: new Date().toISOString(),
-    talents: usableTalents.map((t) => ({ id: t.id, email: t.email! })),
+    talents: usableTalents.map((t) => ({ id: t.id, email: t.user!.email })),
     staffAdmin: usableStaff
       .filter((s) => s.staffRole === 'admin')
       .map((s) => ({ email: s.user!.email!, campusId: s.campusId })),
@@ -258,7 +257,10 @@ export async function buildLoadManifest(sample = 50) {
       game: p.game,
       publishedAt: p.publishedAt.toISOString(),
     })),
-    loadTestTalents: loadTestRows.map((r) => ({ id: r.id, email: r.email! })),
+    loadTestTalents: loadTestRows.map((r) => ({
+      id: r.id,
+      email: r.user!.email,
+    })),
   };
 }
 
@@ -267,7 +269,7 @@ export async function buildLoadManifest(sample = 50) {
  *
  * Order matters: Talent -> bauth_user is `onDelete: SetNull` (NOT Cascade), so
  * deleting the user only nulls Talent.userId and leaves an orphan Talent row.
- * Delete Talents by their own (unique) email FIRST -- that cascades to their
+ * Delete Talents by their linked account's email FIRST -- that cascades to their
  * children (XpGrant, OnboardingPdfJob, participations, etc., all `onDelete:
  * Cascade`) -- then delete the users.
  */
@@ -276,7 +278,7 @@ export async function cleanupLoadTest(): Promise<{
   deletedUsers: number;
 }> {
   const talents = await prisma.talent.deleteMany({
-    where: { email: { endsWith: DOMAIN } },
+    where: { user: { email: { endsWith: DOMAIN } } },
   });
   const users = await prisma.bauth_user.deleteMany({
     where: { email: { endsWith: DOMAIN } },

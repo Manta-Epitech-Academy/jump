@@ -47,7 +47,7 @@ async function main() {
     process.exit(1);
   }
 
-  const talent = await prisma.talent.findUnique({ where: { email } });
+  const talent = await prisma.talent.findFirst({ where: { user: { email } } });
   if (!talent) {
     console.error(`Aucun talent trouvé pour ${email}.`);
     process.exit(1);
@@ -82,7 +82,7 @@ async function main() {
     },
   });
 
-  console.log(`\n✓ Onboarding skippé pour ${updated.email}`);
+  console.log(`\n✓ Onboarding skippé pour ${email}`);
   console.log(
     `  - infoValidatedAt:     ${updated.infoValidatedAt?.toISOString()}`,
   );

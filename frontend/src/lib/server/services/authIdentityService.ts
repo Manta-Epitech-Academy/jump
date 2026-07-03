@@ -22,13 +22,13 @@ export type {
  *
  * `reconciliationService` diffs the *data* layer (`Talent` vs the
  * `TalentSfImport` mirror). This service diffs the *identity* layer: the
- * `bauth_user` a talent is linked to (`Talent.userId`) versus the email that
- * talent should log in with (`Talent.email`).
+ * `bauth_user` a talent is linked to (`Talent.userId`) versus the email SF says
+ * that talent should log in with (`TalentSfImport.sfEmail`).
  *
  * The single invariant that makes login work:
  *
  *   the `bauth_user` pointed to by `Talent.userId` must carry the same email as
- *   `Talent.email` (normalized).
+ *   `TalentSfImport.sfEmail` (normalized).
  *
  * Why: a student types `Talent.email`, BetterAuth opens a session on whatever
  * `bauth_user` holds that email, and the talent dashboard only renders if THAT
@@ -53,9 +53,6 @@ const norm = (email: string | null | undefined): string | null =>
   email?.toLowerCase().trim() || null;
 
 // Verdict semantics (types live in `$lib/domain/authIdentity`):
-//  - SIMPLE_DRIFT        nobody holds `Talent.email`. The linked account can be
-//                        renamed to it (rename). The root-cause fix to
-//                        `ensureTalentUser` targets this class at next login.
 //  - ORPHAN_HOLDER       held by an account with no talent/staff/parent link.
 //                        Repoint the Talent onto it (the live sessions are
 //                        there) and drop the stale account (repoint+drop).
@@ -74,7 +71,14 @@ const ACCOUNT_SELECT = {
   name: true,
   createdAt: true,
   staffProfile: { select: { id: true } },
-  talent: { select: { id: true, prenom: true, nom: true, email: true } },
+  talent: {
+    select: {
+      id: true,
+      prenom: true,
+      nom: true,
+      sfImport: { select: { sfEmail: true } },
+    },
+  },
   _count: { select: { sessions: true } },
 } satisfies Prisma.bauth_userSelect;
 
@@ -107,8 +111,9 @@ export async function countAuthIdentityConflicts(): Promise<number> {
     SELECT count(*)::int AS count
     FROM "Talent" t
     JOIN "bauth_user" u ON u.id = t."userId"
-    WHERE t.email IS NOT NULL
-      AND lower(btrim(t.email)) <> lower(btrim(u.email))
+    JOIN "TalentSfImport" sf ON sf."talentId" = t."id"
+    WHERE sf."sfEmail" IS NOT NULL
+      AND lower(btrim(sf."sfEmail")) <> lower(btrim(u.email))
   `;
   return rows[0]?.count ?? 0;
 }
@@ -125,20 +130,23 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
   //    (a DB-side case-insensitive compare can't be expressed across the
   //    relation as cleanly, and the set is tiny).
   const candidates = await prisma.talent.findMany({
-    where: { userId: { not: null }, email: { not: null } },
+    where: { userId: { not: null }, sfImport: { sfEmail: { not: null } } },
     select: {
       id: true,
       externalId: true,
       prenom: true,
       nom: true,
-      email: true,
+      sfImport: { select: { sfEmail: true } },
       user: { select: ACCOUNT_SELECT },
     },
     orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
   });
 
   const drifted = candidates.filter(
-    (t) => t.user && norm(t.email) && norm(t.email) !== norm(t.user.email),
+    (t) =>
+      t.user &&
+      norm(t.sfImport?.sfEmail) &&
+      norm(t.sfImport?.sfEmail) !== norm(t.user.email),
   );
   if (drifted.length === 0) return [];
 
@@ -148,7 +156,7 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
   //    sign-in / link path, so an `in` over normalized values matches them.
   const lookupEmails = new Set<string>();
   for (const t of drifted) {
-    const target = norm(t.email);
+    const target = norm(t.sfImport?.sfEmail);
     const stale = norm(t.user!.email);
     if (target) lookupEmails.add(target);
     if (stale) lookupEmails.add(stale);
@@ -168,7 +176,7 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
       id: true,
       prenom: true,
       nom: true,
-      email: true,
+      sfImport: { select: { sfEmail: true } },
       parentEmail: true,
       parent2Email: true,
     },
@@ -178,7 +186,7 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
   const parentEmailToTalent = new Map<string, Person>();
   for (const t of allTalents) {
     const person: Person = { id: t.id, prenom: t.prenom, nom: t.nom };
-    const e = norm(t.email);
+    const e = norm(t.sfImport?.sfEmail);
     if (e && !talentByEmail.has(e)) talentByEmail.set(e, person);
     for (const pe of [norm(t.parentEmail), norm(t.parent2Email)])
       if (pe && !parentEmailToTalent.has(pe))
@@ -247,7 +255,7 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
   const out: AuthConflict[] = [];
   for (const t of drifted) {
     const linkedRow = t.user!;
-    const targetEmail = norm(t.email)!;
+    const targetEmail = norm(t.sfImport?.sfEmail)!;
     const staleEmail = norm(linkedRow.email)!;
     const holderRow = accountByEmail.get(targetEmail) ?? null;
 
@@ -255,9 +263,10 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
     let verdict: AuthConflictVerdict;
     let partnerTalentId: string | null = null;
 
-    if (!holderRow) {
-      verdict = 'SIMPLE_DRIFT';
-    } else if (holderRow.staffProfile !== null) {
+    // No account holds the target email → the sync realigns the linked account
+    // itself (changeUserEmail), so this is never a standing conflict. Skip it.
+    if (!holderRow) continue;
+    if (holderRow.staffProfile !== null) {
       verdict = 'STAFF_HOLDER';
     } else if (
       holderRow.role === 'parent' ||
@@ -268,7 +277,7 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
       // Held by another Talent B. Symmetric inversion ⇔ B's own email is the
       // stale email this talent is squatting (they are each other's), i.e. a
       // clean two-sided swap. Otherwise it is degraded and needs manual care.
-      const symmetric = norm(holderRow.talent.email) === staleEmail;
+      const symmetric = norm(holderRow.talent.sfImport?.sfEmail) === staleEmail;
       verdict = symmetric ? 'SYMMETRIC_INVERSION' : 'DEGRADED_INVERSION';
       partnerTalentId = holderRow.talent.id;
     } else {
@@ -312,7 +321,6 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
     PARENT_HOLDER: 2,
     SYMMETRIC_INVERSION: 3,
     ORPHAN_HOLDER: 4,
-    SIMPLE_DRIFT: 5,
   };
   out.sort(
     (a, b) =>

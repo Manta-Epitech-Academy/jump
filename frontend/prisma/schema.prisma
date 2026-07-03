@@ -273,7 +273,6 @@ model StaffInvitation {
 model Talent {
   id                          String               @id @default(cuid())
   userId                      String?              @unique
-  email                       String?              @unique
   nom                         String
   prenom                      String
   niveau                      String?
@@ -402,6 +401,11 @@ model TalentSfImport {
   talentId   String   @id
   nom        String?
   prenom     String?
+  // SF's claimed login email. SF-owned (never talent-editable), so it is the
+  // "desired" login identity the sync drives `bauth_user.email` toward via
+  // `changeUserEmail`. Not a reconciled field (like `niveau`): a divergence from
+  // `bauth_user.email` is an auth-identity conflict, surfaced in the AUTH tab.
+  sfEmail    String?
   phone      String?
   civilite   String?
   niveau     String?

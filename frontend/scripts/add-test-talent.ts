@@ -92,35 +92,57 @@ async function main() {
     console.log(`  Using existing stage event: ${event.titre}`);
   }
 
-  // Create or update the test talent
-  const talent = await prisma.talent.upsert({
-    where: { email },
-    update: {
-      infoValidatedAt: new Date(),
-      rulesSignedAt: null,
-      charterAcceptedAt: null,
-      imageRightsDecision: null,
-      imageRightsDecidedAt: null,
-      parentEmail: email,
-      parentNom: 'Test',
-      parentPrenom: 'Parent',
-    },
-    create: {
-      email,
-      nom: 'Test',
-      prenom: 'Talent',
-      niveau: '3eme',
-      infoValidatedAt: new Date(),
-      rulesSignedAt: null,
-      charterAcceptedAt: null,
-      imageRightsDecision: null,
-      imageRightsDecidedAt: null,
-      parentEmail: email,
-      parentNom: 'Test',
-      parentPrenom: 'Parent',
-      parentPhone: '0600000000',
-    },
+  // Create or update the test talent, keyed by its linked login account. The
+  // student's login email now lives only on the linked bauth_user, so a fresh
+  // talent must mint that account first, then reference it (mirrors
+  // ensureTalentUser). Re-runs find the existing talent via its account.
+  const existing = await prisma.talent.findFirst({
+    where: { user: { email } },
+    select: { id: true },
   });
+
+  let talent: { id: string };
+  if (existing) {
+    talent = await prisma.talent.update({
+      where: { id: existing.id },
+      data: {
+        infoValidatedAt: new Date(),
+        rulesSignedAt: null,
+        charterAcceptedAt: null,
+        imageRightsDecision: null,
+        imageRightsDecidedAt: null,
+        parentEmail: email,
+        parentNom: 'Test',
+        parentPrenom: 'Parent',
+      },
+      select: { id: true },
+    });
+  } else {
+    const user = await prisma.bauth_user.upsert({
+      where: { email },
+      update: {},
+      create: { email, role: 'student', name: 'Talent Test' },
+      select: { id: true },
+    });
+    talent = await prisma.talent.create({
+      data: {
+        userId: user.id,
+        nom: 'Test',
+        prenom: 'Talent',
+        niveau: '3eme',
+        infoValidatedAt: new Date(),
+        rulesSignedAt: null,
+        charterAcceptedAt: null,
+        imageRightsDecision: null,
+        imageRightsDecidedAt: null,
+        parentEmail: email,
+        parentNom: 'Test',
+        parentPrenom: 'Parent',
+        parentPhone: '0600000000',
+      },
+      select: { id: true },
+    });
+  }
 
   // Ensure participation exists on this specific stage event
   const existingParticipation = await prisma.participation.findFirst({

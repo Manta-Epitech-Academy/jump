@@ -63,7 +63,6 @@ export async function analyzeCampaignFile(file: File) {
                   id: true,
                   nom: true,
                   prenom: true,
-                  email: true,
                   niveau: true,
                 },
               },
@@ -104,7 +103,6 @@ export async function analyzeCampaignFile(file: File) {
             id: true,
             nom: true,
             prenom: true,
-            email: true,
             niveau: true,
           },
         });
@@ -192,7 +190,6 @@ export async function importCampaignData(
                 create: {
                   prenom: item.csvData.prenom,
                   nom: item.csvData.nom,
-                  email: item.csvData.email,
                   niveau: item.csvData.niveau || null,
                   xp: 0,
                   eventsCount: 0,

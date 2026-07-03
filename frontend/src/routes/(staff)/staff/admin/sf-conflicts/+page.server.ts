@@ -53,7 +53,6 @@ function readDiffTarget(data: FormData) {
 
 const AUTH_ACTIONS: readonly AuthRepairAction[] = [
   'repointDrop',
-  'rename',
   'swap',
   'sever',
 ];

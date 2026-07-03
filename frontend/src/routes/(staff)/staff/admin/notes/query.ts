@@ -51,7 +51,7 @@ export function buildNoteWhere(
             OR: [
               { nom: { contains: f.q, mode: 'insensitive' } },
               { prenom: { contains: f.q, mode: 'insensitive' } },
-              { email: { contains: f.q, mode: 'insensitive' } },
+              { user: { email: { contains: f.q, mode: 'insensitive' } } },
             ],
           },
         },

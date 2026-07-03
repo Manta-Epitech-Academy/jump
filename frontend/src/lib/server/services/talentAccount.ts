@@ -33,7 +33,7 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
     select: {
       id: true,
       userId: true,
-      email: true,
+      sfImport: { select: { sfEmail: true } },
       prenom: true,
       nom: true,
     },
@@ -48,7 +48,7 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
   // conflict case we leave the link as-is for the admin auth-conflicts tool and
   // still return the current id so a login is never blocked.
   if (talent.userId) {
-    const wanted = talent.email?.toLowerCase().trim();
+    const wanted = talent.sfImport?.sfEmail?.toLowerCase().trim();
     if (wanted) {
       try {
         await changeUserEmail(talent.userId, wanted);
@@ -59,10 +59,10 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
     return talent.userId;
   }
 
-  const email = talent.email?.toLowerCase().trim();
+  const email = talent.sfImport?.sfEmail?.toLowerCase().trim();
   if (!email) {
     throw new Error(
-      "Le talent n'a pas d'adresse email — impossible de créer un compte de connexion.",
+      "Le talent n'a pas d'adresse email SF — impossible de créer un compte de connexion.",
     );
   }
 

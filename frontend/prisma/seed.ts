@@ -2353,7 +2353,6 @@ async function seedStudents(): Promise<
 
     const talent = {
       userId: hasAccount ? (userIdByEmail.get(s.email) ?? null) : null,
-      email: s.email,
       nom: s.nom,
       prenom: s.prenom,
       phone: toStoredPhone(s.phone),
@@ -2415,29 +2414,33 @@ async function seedStudents(): Promise<
       schoolId: sfSchoolId,
     };
 
-    return { talent, sf, signCity: s.campus };
+    return { talent, sf, signCity: s.campus, email: s.email };
   });
 
   const talentData = seeded.map((x) => x.talent);
 
+  // createManyAndReturn doesn't guarantee row order (see seedStaff), and the
+  // login email now lives only on the linked bauth_user - so map the returned
+  // rows back to their source by each talent's unique SF externalId, not email.
   const talents = await prisma.talent.createManyAndReturn({
     data: talentData,
-    select: { id: true, email: true, nom: true, prenom: true },
+    select: { id: true, externalId: true },
   });
-  for (const t of talents) {
-    // email is nullable in the schema but always set here — guard for the type.
-    if (t.email) byEmail[t.email] = { id: t.id, nom: t.nom, prenom: t.prenom };
+  const talentIdByExternalId = new Map(
+    talents.map((t) => [t.externalId, t.id]),
+  );
+  for (const x of seeded) {
+    const id = talentIdByExternalId.get(x.talent.externalId);
+    if (id)
+      byEmail[x.email] = { id, nom: x.talent.nom, prenom: x.talent.prenom };
   }
 
   // SF mirror per talent — every seeded talent is an SF lead, so each gets one.
   // It holds what SF sent (null where SF had nothing); a few confirmed talents'
   // values diverge from it, surfacing on the reconciliation page.
-  const talentIdByEmail = new Map(talents.map((t) => [t.email, t.id]));
   const sfImportData = seeded
     .map((x) => {
-      const talentId = x.talent.email
-        ? talentIdByEmail.get(x.talent.email)
-        : undefined;
+      const talentId = talentIdByExternalId.get(x.talent.externalId);
       if (!talentId) return null;
       return {
         talentId,
@@ -2461,9 +2464,7 @@ async function seedStudents(): Promise<
   // PDF with a blank "Fait à …" place, the gap real onboarding never produces.
   const imageRightsRecordData = seeded
     .map((x) => {
-      const talentId = x.talent.email
-        ? talentIdByEmail.get(x.talent.email)
-        : undefined;
+      const talentId = talentIdByExternalId.get(x.talent.externalId);
       if (
         !talentId ||
         !x.talent.imageRightsDecision ||

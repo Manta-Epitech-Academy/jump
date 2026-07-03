@@ -39,7 +39,7 @@
   const contacts = $derived({
     parentEmail: data.student.parentEmail,
     parentPhone: data.student.parentPhone,
-    studentEmail: data.student.user?.email ?? data.student.email,
+    studentEmail: data.student.user?.email ?? null,
     studentPhone: data.student.phone,
   });
 
