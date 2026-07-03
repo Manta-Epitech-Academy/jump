@@ -1,11 +1,11 @@
 /**
- * Add a test talent with incomplete onboarding for testing reminders.
+ * Add a test talent with incomplete onboarding.
  *
  * Creates a talent with:
  * - infoValidatedAt set (student info done)
  * - rulesSignedAt NULL (règlement not signed)
  * - imageRightsDecision NULL (droit à l'image undecided)
- * - parentEmail set to the provided email so both reminder types can be tested
+ * - parentEmail set to the provided email (exercises the parent flow)
  * - Linked to Paris campus via a Participation on the first available event
  *
  * Run: bun run scripts/add-test-talent.ts

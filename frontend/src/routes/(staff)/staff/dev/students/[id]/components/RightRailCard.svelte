@@ -106,16 +106,14 @@
   }
 
   // Show the template the message was sent from rather than its subject line.
-  // Reminders (1:1 relances) carry no template, so they read as "Relance".
   function commLabel(c: Communication): string {
-    if (c.kind === 'reminder') return 'Relance';
     return c.broadcast.templateName || c.broadcast.name || 'Communication';
   }
 
-  // Open tracking only exists for broadcast emails (reminders/SMS carry none),
-  // so the badge shows opened/not only there and stays silent otherwise.
+  // Open tracking only exists for broadcast emails (SMS carry none), so the
+  // badge shows opened/not only there and stays silent otherwise.
   function openState(c: Communication): 'opened' | 'unopened' | null {
-    if (c.kind !== 'broadcast' || c.channel !== 'mail') return null;
+    if (c.channel !== 'mail') return null;
     return c.openedAt ? 'opened' : 'unopened';
   }
 

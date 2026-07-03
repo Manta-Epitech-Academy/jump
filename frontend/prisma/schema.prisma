@@ -354,7 +354,6 @@ model Talent {
   user                bauth_user?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
   participations      Participation[]
   interviews          Interview[]
-  reminders           OnboardingReminder[]
   pdfJobs             OnboardingPdfJob[]
   minigameAttempts    MinigameAttempt[]
   interests           TalentInterest[]
@@ -1295,21 +1294,6 @@ model CmsImage {
   uploadedBy StaffProfile? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([uploadedById])
-}
-
-model OnboardingReminder {
-  id       String   @id @default(cuid())
-  talentId String
-  type     String // "student" | "parent"
-  channel  String   @default("email") // "email" | "sms" — SMS is the escalation step
-  subject  String? // captured at send time (email only — SMS has no subject)
-  body     String? // captured at send time, for audit + comm history
-  sentAt   DateTime @default(now())
-  sentBy   String // staff userId
-
-  talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
-
-  @@index([talentId])
 }
 
 /// Tracking record for generating an onboarding PDF (charter/rules/image-rights)

@@ -1,21 +1,14 @@
 /**
  * Communication analytics — read-only projections over existing rows.
  *
- * Spans the three outbound surfaces of the admin Communication hub: bulk
- * broadcasts (`Broadcast`/`BroadcastRecipient`), transactional mail mappings
- * (`EmailActionMapping`), and the read-only relances mirror
- * (`OnboardingReminder`). It owns no state: every figure is a read-time
+ * Spans two outbound surfaces of the admin Communication hub: bulk broadcasts
+ * (`Broadcast`/`BroadcastRecipient`) and transactional mail mappings
+ * (`EmailActionMapping`). It owns no state: every figure is a read-time
  * projection via `groupBy`/`count` (the facts-as-rows convention — see
  * CLAUDE.md), so there is nothing to keep in sync and no migration.
  *
  * Admin space is cross-campus by design ("global system overview"), so this
  * service aggregates globally rather than scoping to one campus.
- *
- * `OnboardingReminder` carries no campus and `Talent` has no campus FK (a
- * talent's campus is only reachable through participations → events), so the
- * relances views are intentionally not campus-dimensioned — that join would be
- * ambiguous and expensive for no real payoff here. Drill into the Dev-workspace
- * talent fiche for per-talent context.
  */
 import { prisma } from '$lib/server/db';
 import type { BroadcastChannel, BroadcastStatus } from '@prisma/client';
@@ -316,87 +309,18 @@ export async function getTransactionalHealth(): Promise<TransactionalHealth> {
   };
 }
 
-// ── 5. Read-only relances stats (OnboardingReminder) ──────────────────────────
-export type RelanceMirrorType = 'student' | 'parent';
-export type RelanceMirrorChannel = 'email' | 'sms';
-
-export interface RelanceStats {
-  window: CommWindow;
-  total: number;
-  byChannel: Record<RelanceMirrorChannel, number>;
-  byType: Record<RelanceMirrorType, number>;
-  uniqueTalents: number;
-  lastSentAt: Date | null;
-}
-
-export async function getRelanceStats(
-  win?: Partial<CommWindow>,
-): Promise<RelanceStats> {
-  const window = resolveWindow(win);
-  const where = { sentAt: { gte: window.since, lte: window.until } };
-
-  const [byChannel, byType, total, distinct, last] = await Promise.all([
-    prisma.onboardingReminder.groupBy({
-      by: ['channel'],
-      where,
-      _count: { _all: true },
-    }),
-    prisma.onboardingReminder.groupBy({
-      by: ['type'],
-      where,
-      _count: { _all: true },
-    }),
-    prisma.onboardingReminder.count({ where }),
-    prisma.onboardingReminder.findMany({
-      where,
-      distinct: ['talentId'],
-      select: { talentId: true },
-    }),
-    prisma.onboardingReminder.findFirst({
-      where,
-      orderBy: { sentAt: 'desc' },
-      select: { sentAt: true },
-    }),
-  ]);
-
-  const channels: Record<RelanceMirrorChannel, number> = { email: 0, sms: 0 };
-  for (const c of byChannel) {
-    if (c.channel === 'email' || c.channel === 'sms') {
-      channels[c.channel] = c._count._all;
-    }
-  }
-  const types: Record<RelanceMirrorType, number> = { student: 0, parent: 0 };
-  for (const t of byType) {
-    if (t.type === 'student' || t.type === 'parent') {
-      types[t.type] = t._count._all;
-    }
-  }
-
-  return {
-    window,
-    total,
-    byChannel: channels,
-    byType: types,
-    uniqueTalents: distinct.length,
-    lastSentAt: last?.sentAt ?? null,
-  };
-}
-
-// ── 6. One-shot overview aggregate ────────────────────────────────────────────
+// ── 5. One-shot overview aggregate ────────────────────────────────────────────
 export interface CommunicationOverview {
   broadcasts: BroadcastStats;
   recentBroadcasts: RecentBroadcast[];
   transactional: TransactionalHealth;
-  relances: RelanceStats;
 }
 
 export async function getCommunicationOverview(): Promise<CommunicationOverview> {
-  const [broadcasts, recentBroadcasts, transactional, relances] =
-    await Promise.all([
-      getBroadcastStats(),
-      getRecentBroadcasts(),
-      getTransactionalHealth(),
-      getRelanceStats(),
-    ]);
-  return { broadcasts, recentBroadcasts, transactional, relances };
+  const [broadcasts, recentBroadcasts, transactional] = await Promise.all([
+    getBroadcastStats(),
+    getRecentBroadcasts(),
+    getTransactionalHealth(),
+  ]);
+  return { broadcasts, recentBroadcasts, transactional };
 }

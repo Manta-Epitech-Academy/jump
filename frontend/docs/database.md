@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **54** modèles · **34** enums · **81** relations
+- **53** modèles · **34** enums · **80** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -17,7 +17,7 @@
 | Progression, Portfolio & XP | 2 |
 | Minijeux | 3 |
 | Feedback | 7 |
-| Communication & Support | 6 |
+| Communication & Support | 5 |
 | Contenus & Centres d'intérêt | 4 |
 | Configuration & Système | 4 |
 
@@ -704,16 +704,6 @@ erDiagram
     String templateId FK
     DateTime updatedAt
   }
-  OnboardingReminder {
-    String id PK
-    String talentId FK
-    String type
-    String channel
-    String subject
-    String body
-    DateTime sentAt
-    String sentBy
-  }
   OnboardingPdfJob {
     String id PK
     String talentId FK
@@ -737,7 +727,6 @@ erDiagram
   bauth_user ||--o{ Broadcast : "broadcastsCreated"
   bauth_user ||--o{ MessageTemplate : "templatesCreated"
   bauth_user |o--o{ BroadcastRecipient : "broadcastsReceivedAsStaff"
-  Talent ||--o{ OnboardingReminder : "reminders"
   Talent ||--o{ OnboardingPdfJob : "pdfJobs"
   Talent |o--o{ BroadcastRecipient : "broadcastsReceived"
   Talent |o--o{ BroadcastRecipient : "broadcastsAsParent"

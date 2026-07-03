@@ -161,7 +161,6 @@ export async function anonymizeTalent(
   //      - onboardingPdfJob: payload snapshots the student + guardian name and
   //        city. The generated S3 PDFs are deleted post-commit; this is the DB
   //        copy of the same names.
-  //      - onboardingReminder: captured subject / body of relance mail + SMS.
   //      - broadcastRecipient: the talent's and the parent's email / phone per
   //        send, matched on both slots (SetNull relations, so deleted here, not
   //        left orphaned). The parent is a data subject too.
@@ -196,7 +195,6 @@ export async function anonymizeTalent(
   await tx.interview.deleteMany({ where: { talentId } });
   await tx.interviewReset.deleteMany({ where: { talentId } });
   await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
-  await tx.onboardingReminder.deleteMany({ where: { talentId } });
   await tx.broadcastRecipient.deleteMany({
     where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
   });

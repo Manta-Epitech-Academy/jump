@@ -2070,170 +2070,6 @@ const INTERVIEWS: InterviewBlueprint[] = [
   },
 ];
 
-// ─── Reminder blueprints ───
-//
-// Onboarding relances envoyées depuis /staff/dev/events/[id]/onboarding. Visible
-// dans "Historique des relances" sur la fiche talent. Cible : élèves en cours
-// d'onboarding (signatures incomplètes), avec une vraie cadence (J-10 puis J-3
-// par exemple) plutôt que des dates uniformes.
-
-type ReminderBlueprint = {
-  studentEmail: string;
-  type: 'student' | 'parent';
-  // 'email' is the primary nudge; 'sms' is the link-free escalation. Defaults
-  // to 'email' when omitted.
-  channel?: 'email' | 'sms';
-  staffKey: string;
-  daysOffset: number; // negative = past
-  hour?: number;
-  // Optional archived copy of what was sent. When absent the fiche shows the
-  // "contenu non archivé" placeholder — keep a few that way so devs see both
-  // states in the timeline. SMS reminders carry no subject.
-  subject?: string;
-  body?: string;
-};
-
-const REMINDERS: ReminderBlueprint[] = [
-  // Cohorte en cours — 4 dossiers partiels (parisStudents 14–17). Pauline
-  // (devLead) et Marie (dev) ont relancé à plusieurs reprises avant le démarrage.
-  {
-    studentEmail: parisStudents[14],
-    type: 'student',
-    staffKey: 'pauline.marchand',
-    daysOffset: -10,
-    hour: 9,
-    subject: 'Ton stage de seconde — derniers documents à signer',
-    body: `Bonjour,
-
-Le stage commence dans une dizaine de jours et il manque encore ta
-convention signée pour finaliser ton inscription.
-
-Tu peux la récupérer directement depuis ton espace Jump (rubrique
-Documents) puis nous la renvoyer signée par tes parents.
-
-N'hésite pas à me répondre si tu rencontres la moindre difficulté.
-
-Bonne journée,
-Pauline — Epitech Academy Paris`,
-  },
-  {
-    studentEmail: parisStudents[14],
-    type: 'parent',
-    staffKey: 'pauline.marchand',
-    daysOffset: -3,
-    hour: 11,
-    subject: 'Stage de seconde — rappel signature convention',
-    body: `Bonjour,
-
-Nous accueillons votre enfant dans 3 jours pour son stage de seconde
-à Epitech Paris. Pour pouvoir le recevoir, il nous manque encore la
-convention de stage signée.
-
-Pourriez-vous nous la retourner avant vendredi soir ? Le document
-est disponible dans l'espace Jump de votre enfant.
-
-Bien cordialement,
-Pauline Marchand — Talent Acquisition`,
-  },
-  {
-    studentEmail: parisStudents[15],
-    type: 'parent',
-    staffKey: 'marie.manta',
-    daysOffset: -4,
-    hour: 14,
-  },
-  {
-    studentEmail: parisStudents[16],
-    type: 'student',
-    staffKey: 'marie.manta',
-    daysOffset: -12,
-    hour: 10,
-    subject: 'Rappel — autorisation parentale',
-    body: `Salut,
-
-Petit rappel : il nous faut l'autorisation parentale signée par
-l'un de tes parents pour que tu puisses participer au stage.
-
-Le document se trouve sur ton espace Jump > Documents. Une fois
-signé, dépose-le au même endroit ou renvoie-le moi par mail.
-
-À très vite,
-Marie`,
-  },
-  {
-    studentEmail: parisStudents[16],
-    type: 'parent',
-    staffKey: 'pauline.marchand',
-    daysOffset: -5,
-    hour: 9,
-  },
-  {
-    studentEmail: parisStudents[17],
-    type: 'parent',
-    staffKey: 'pauline.marchand',
-    daysOffset: -2,
-    hour: 16,
-  },
-  // Talents hors stage avec onboarding incomplet — relances génériques pour
-  // alimenter les fiches profils en dehors du contexte stage.
-  {
-    studentEmail: parisStudents[20],
-    type: 'student',
-    staffKey: 'antoine.roux',
-    daysOffset: -15,
-    hour: 11,
-  },
-  {
-    studentEmail: parisStudents[25],
-    type: 'parent',
-    staffKey: 'clara.noel',
-    daysOffset: -7,
-    hour: 14,
-  },
-  // Lyon — stage de seconde Lyon a 5 dossiers partiels (lyonStudents 5–9).
-  // Hugo (Lyon devLead) et Sarah (Lyon dev) gèrent les relances.
-  {
-    studentEmail: lyonStudents[5],
-    type: 'parent',
-    staffKey: 'hugo.lefebvre',
-    daysOffset: -6,
-    hour: 10,
-  },
-  {
-    studentEmail: lyonStudents[6],
-    type: 'student',
-    staffKey: 'sarah.moreau',
-    daysOffset: -8,
-    hour: 15,
-  },
-  {
-    studentEmail: lyonStudents[6],
-    type: 'parent',
-    staffKey: 'hugo.lefebvre',
-    daysOffset: -4,
-    hour: 9,
-  },
-  {
-    studentEmail: lyonStudents[8],
-    type: 'parent',
-    staffKey: 'sarah.moreau',
-    daysOffset: -3,
-    hour: 11,
-  },
-  // SMS escalation — the email relances to parisStudents[14] above went
-  // unanswered, so Pauline escalates with a link-free text pointing back to
-  // the inbox. Drives the "Relance · SMS" badge in the fiche timeline.
-  {
-    studentEmail: parisStudents[14],
-    type: 'student',
-    channel: 'sms',
-    staffKey: 'pauline.marchand',
-    daysOffset: -1,
-    hour: 10,
-    body: "Salut, plus que 5 jours avant ton stage à Epitech ! Finalise vite ton inscription : on t'a envoyé un mail. - Epitech Paris",
-  },
-];
-
 // ─── Broadcast blueprints ───
 //
 // Mass campaigns (mail + SMS) targeting talents or their parents. Visible
@@ -2565,10 +2401,6 @@ async function main() {
   );
   console.log(`✓  Interviews (${interviewCount})`);
 
-  // 8. Reminders (1:1 staff → talent / parent)
-  const reminderCount = await seedReminders(staffByKey, talentByEmail);
-  console.log(`✓  Reminders (${reminderCount})`);
-
   // 8b. Broadcasts (mass mail / SMS campaigns) — feed the unified
   //      communications timeline on the fiche talent.
   const broadcastRecipientCount = await seedBroadcasts(
@@ -2636,7 +2468,6 @@ async function wipeAll() {
   // order is the FK dependency order — keep it.
   await prisma.$transaction([
     prisma.stageCompliance.deleteMany(),
-    prisma.onboardingReminder.deleteMany(),
     prisma.note_TalentNote.deleteMany(),
     // Broadcasts + email-action mappings — dropped before staff so the
     // `MessageTemplate.createdById` FK doesn't block.
@@ -3540,30 +3371,6 @@ async function seedInterviews(
   return rows.length;
 }
 
-async function seedReminders(
-  staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
-  talentByEmail: Record<string, { id: string }>,
-): Promise<number> {
-  const rows = REMINDERS.flatMap((r) => {
-    const talent = talentByEmail[r.studentEmail];
-    const staff = staffByKey[r.staffKey];
-    if (!talent || !staff) return [];
-    return [
-      {
-        talentId: talent.id,
-        type: r.type,
-        channel: r.channel ?? 'email',
-        subject: r.subject ?? null,
-        body: r.body ?? null,
-        sentAt: dayAt(r.daysOffset, r.hour ?? 10, 0),
-        sentBy: staff.userId,
-      },
-    ];
-  });
-  await prisma.onboardingReminder.createMany({ data: rows });
-  return rows.length;
-}
-
 // ─── Broadcasts ───
 
 /**
@@ -3731,10 +3538,6 @@ async function printSummary(parentEmail: string) {
   );
   console.log(
     '   Stage compliance:              3 stage_seconde events with mixed signed/unsigned',
-  );
-  const reminderTotal = await prisma.onboardingReminder.count();
-  console.log(
-    `   Onboarding reminders:          ${reminderTotal} relances envoyées (CommHistoryList)`,
   );
   console.log('');
 

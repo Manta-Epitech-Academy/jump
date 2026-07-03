@@ -43,7 +43,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     const [
       student,
       participations,
-      reminderRows,
       broadcastRows,
       completedInterviewCount,
       xpStory,
@@ -86,19 +85,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         },
         orderBy: { event: { date: 'desc' } },
       }),
-      prisma.onboardingReminder.findMany({
-        where: { talentId: params.id },
-        orderBy: { sentAt: 'desc' },
-        select: {
-          id: true,
-          type: true,
-          channel: true,
-          subject: true,
-          body: true,
-          sentAt: true,
-          sentBy: true,
-        },
-      }),
       prisma.broadcastRecipient.findMany({
         where: broadcastsWhere,
         orderBy: { createdAt: 'desc' },
@@ -136,29 +122,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
     const notes = noteRows.map(serializeNote);
 
-    const senderIds = Array.from(new Set(reminderRows.map((r) => r.sentBy)));
-    const senders = senderIds.length
-      ? await prisma.bauth_user.findMany({
-          where: { id: { in: senderIds } },
-          select: { id: true, name: true, email: true },
-        })
-      : [];
-    const senderById = new Map(senders.map((s) => [s.id, s]));
-
-    // Merge both sources into one chronological stream. `sentAt` is the
-    // canonical timestamp for the talent ("when did this land"); broadcasts
-    // fall back to the broadcast's createdAt when the recipient row has not
-    // been stamped yet (queued/pending).
-    const reminderComms: Communication[] = reminderRows.map((r) => ({
-      kind: 'reminder',
-      id: r.id,
-      sentAt: r.sentAt,
-      audience: r.type as 'student' | 'parent',
-      channel: r.channel as 'email' | 'sms',
-      subject: r.subject,
-      body: r.body,
-      sender: senderById.get(r.sentBy) ?? null,
-    }));
+    // `sentAt` is the canonical timestamp for the talent ("when did this land");
+    // broadcasts fall back to the broadcast's createdAt when the recipient row
+    // has not been stamped yet (queued/pending).
     const broadcastComms: Communication[] = broadcastRows.map((b) => ({
       kind: 'broadcast',
       id: b.id,
@@ -174,7 +140,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         templateName: b.broadcast.template.name,
       },
     }));
-    const allCommunications = [...reminderComms, ...broadcastComms].sort(
+    const allCommunications = [...broadcastComms].sort(
       (a, b) => b.sentAt.getTime() - a.sentAt.getTime(),
     );
     const communications = allCommunications.slice(0, RIGHT_RAIL_COMMS);

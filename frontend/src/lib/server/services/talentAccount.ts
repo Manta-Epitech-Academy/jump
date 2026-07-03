@@ -246,7 +246,6 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     // it must go with the interviews it traces, matching anonymizeTalent.
     await tx.interviewReset.deleteMany({ where: { talentId } });
     await tx.talentInterest.deleteMany({ where: { talentId } });
-    await tx.onboardingReminder.deleteMany({ where: { talentId } });
     await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
     await tx.minigameAttempt.deleteMany({ where: { talentId } });
     await tx.xpGrant.deleteMany({ where: { talentId } });
