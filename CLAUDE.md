@@ -157,6 +157,7 @@ Model relationships and entities by their real shape. These are deliberate calls
 - **A domain entity gets its own table + FK, not loose strings/JSON.** A thing referenced repeatedly (a high school) gets a typed, deduplicated row (`School`), not `name`/`city`/`uai` columns copied onto every referrer. "Normalize later" tends to never happen.
 - **External-system data → anti-corruption mirror, kept apart from your truth.** Don't fold a third party's claims into your aggregate root. Keep what *you* believe (`Talent`) separate from what an external system *claims* (`TalentSfImport`), and reconcile explicitly (see Salesforce reconciliation).
 - **A relationship already carried by a foreign key needs no second marker.** If A already points at B via an FK, don't add an `ownerB`/`belongsToB` column that re-encodes the same link: it duplicates a tie you can already query, and it drifts. Before adding a column to bind two rows, check whether an existing FK (or a count over it) already answers the question. When the tie is incidental, don't model it at all: prefer computing the answer to storing a flag.
+- **New models are prefixed by feature group: `Prefix_ModelName`.** A model belonging to a feature area carries a `Feature_` prefix in its **Prisma model name** (e.g. `Note_TalentNote`, `EventConfig_Module`, `Feedback_Form`), not a `@@map`. This namespaces the schema by feature so related tables sort and read together.
 
 ### Default to less: coupling and surface
 
@@ -301,4 +302,10 @@ bunx prisma migrate dev --name descriptive_name
 
 **Name a migration for the change, not the moment:** `--name add_event_config_template`, never a pasted sentence, a chat message, or a bare `update`.
 
+**Put one-shot backfills in the migration SQL, not a script.** When a schema change needs existing rows updated (a new non-null column, a split, a projection recompute), write the `UPDATE`/`INSERT` directly in the generated migration so the data change ships atomically with the schema and every environment applies it exactly once. Fall back to a standalone script only when the backfill is large or batched (needs chunking to avoid a long lock) or needs application logic raw SQL can't express. For rolling deploys, split a destructive drop into a later migration so old pods don't break mid-rollout.
+
 **Squash a branch's dev migrations before merge.** Iterating a schema with `migrate dev` leaves a trail where a later migration drops what an earlier one added. Ship **one** clean migration per branch, never an add-then-drop trail: collapse them (rewrite the first migration's SQL to the net result, delete the rest, and reconcile the `_prisma_migrations` table so the DB still matches) before opening the PR. Never let a migration create something the same PR removes.
+
+## Commits
+
+Conventional Commits (`type(scope): subject`), matching the existing history (`fix(events):`, `feat(...)`). **Keep the subject line under 72 characters including the `type(scope):` prefix.** Trim wording to fit and push detail into the body rather than a long subject; one logical change per commit.
