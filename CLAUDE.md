@@ -188,20 +188,17 @@ Talent profile fields have two sources — the worker sync (Salesforce) and onbo
 ### Key Server Services (`src/lib/server/`)
 
 - **`auth.ts`** — BetterAuth config (Prisma adapter, Microsoft OAuth, email OTP, admin plugin with impersonation)
-- **`services/campaignService.ts`** — bulk CSV import with conflict detection (NEW/MERGE/CONFLICT/SIBLING)
-- **`services/progressService.ts`** — learning progress validation (QCM, PINs, step advancement)
 - **`services/diplomaGenerator.ts`** — PDF generation via Puppeteer with HTML templates in `server/templates/`
 - **`services/syncService.ts`** — Salesforce worker sync → seeds `Talent` + upserts the `TalentSfImport` mirror (no-clobber; see Salesforce reconciliation)
 - **`services/reconciliationService.ts`** — computes `Talent` ↔ `TalentSfImport` conflicts; accept/reject + CSV for `/staff/admin/sf-conflicts`
 - **`services/schoolService.ts`** / **`annuaire.ts`** — lazy `School` resolution from UAI via the éducation-nationale annuaire
 - **`services/anonymizationService.ts`** — RGPD anonymization job
 - **`infra/browserPool.ts`** — pooled Puppeteer instances (max 5 concurrent, 60s idle timeout)
-- **`infra/contentCache.ts`** — in-memory cache for content
 - **`db/scoped.ts`** — campus-scoped DB query helpers
 
 ### Client Libraries (`src/lib/`)
 
-- **`domain/`** — business logic (CSV parsing in `csv.ts`, XP calculation in `xp.ts`)
+- **`domain/`** — business logic (XP calculation in `xp.ts`, event lifecycle in `eventLifecycle.ts`)
 - **`validation/`** — Zod schemas for forms (auth, events, students, templates, planning)
 - **`components/ui/`** — Bits UI primitives (shadcn pattern)
 - **`utils.ts`** — `cn()` helper (clsx + twMerge) for conditional classes
