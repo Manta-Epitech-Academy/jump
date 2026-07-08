@@ -48,7 +48,6 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   return {
-    parentName: locals.user.name,
     children: undecidedChildren,
   };
 };

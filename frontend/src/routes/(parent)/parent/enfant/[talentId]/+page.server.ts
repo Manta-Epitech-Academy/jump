@@ -104,11 +104,8 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
     orderBy: { event: { date: 'asc' } },
   });
 
-  const parentName = locals.user.name ?? '';
-
   return {
-    parentName,
-    parentLastName: getParentLastName(parentName),
+    parentLastName: getParentLastName(locals.user.name),
     hasMultipleChildren: siblingCount > 1,
     todayPlanning: todayParticipation
       ? {
