@@ -26,7 +26,7 @@ export type OnboardingStep =
   | 'processing'
   | 'rules';
 
-export const ONBOARDING_STEP_ORDER: readonly OnboardingStep[] = [
+const ONBOARDING_STEP_ORDER: readonly OnboardingStep[] = [
   'identity',
   'school',
   'parents',
@@ -115,7 +115,7 @@ export function deriveOnboardingStatus(
  *   - `charterAcceptedAt` is separate from the steps but part of
  *     `TalentOnboardingFields` and the dashboard guard.
  */
-export const ONBOARDING_TIMESTAMP_FIELDS = [
+const ONBOARDING_TIMESTAMP_FIELDS = [
   'welcomeSeenAt',
   'infoValidatedAt',
   'highSchoolValidatedAt',
@@ -167,8 +167,7 @@ export function clearOnboardingTimestamps(): Record<
  * voiding the talent's signature already invalidates the current render, so it
  * is dropped here and regenerated when either signer next commits.
  */
-export const TALENT_ONBOARDING_ARTIFACT_FIELDS = [
-  'charterFilePath',
+const TALENT_ONBOARDING_ARTIFACT_FIELDS = [
   'rulesFilePath',
   'rulesSignedCity',
 ] as const;

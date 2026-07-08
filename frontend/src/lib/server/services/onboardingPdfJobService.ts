@@ -160,7 +160,9 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
     await prisma.$transaction([
       prisma.talent.update({
         where: { id: job.talentId },
-        data: { [filePathField]: key },
+        // Only rules / image-rights carry a file-path column; the charte has no
+        // generated PDF, so a charter job (which is never enqueued) is a no-op.
+        data: filePathField ? { [filePathField]: key } : {},
       }),
       prisma.onboardingPdfJob.update({
         where: { id: job.id },
@@ -207,7 +209,7 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
  * job is retried anyway, {@link runOnboardingPdfJob} is idempotent (same
  * signature-keyed S3 object), so the worst case is one wasted generation.
  */
-export const STRANDED_AFTER_MS = 5 * 60_000;
+const STRANDED_AFTER_MS = 5 * 60_000;
 
 /**
  * Whether the admin page should offer a manual "Relancer" for a job. `error` and

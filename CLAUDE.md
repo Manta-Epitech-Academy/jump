@@ -49,12 +49,12 @@ No test framework is configured — there are no automated tests.
 
 The app splits into four workspaces, each serving a distinct audience and business goal:
 
-| Workspace  | Path             | Audience          | Objective                                                 |
-| ---------- | ---------------- | ----------------- | --------------------------------------------------------- |
-| **Dev**    | `/staff/dev/`    | `superdev`, `dev` | Talent Acquisition & Recruitment (admissions pipeline)    |
-| **Pedago** | `/staff/pedago/` | `peda`, `manta`   | Knowledge transmission & academic management              |
-| **Admin**  | `/staff/admin/`  | `admin`           | Global system overview; account impersonation             |
-| **Talent** | `(talent)/`      | students          | Student experience — gamification, progression, portfolio |
+| Workspace  | Path             | Audience          | Objective                                              |
+| ---------- | ---------------- | ----------------- | ------------------------------------------------------ |
+| **Dev**    | `/staff/dev/`    | `superdev`, `dev` | Talent Acquisition & Recruitment (admissions pipeline) |
+| **Admin**  | `/staff/admin/`  | `admin`           | Global system overview; account impersonation          |
+| **Talent** | `(talent)/`      | students          | Student experience: gamification, progression          |
+| **Parent** | `(parent)/`      | legal guardians   | Règlement co-signature, image-rights decision          |
 
 **Terminology:** "Dev" is short for **Business Development / Admissions / Talent Acquisition** — not software engineers. Keep this in mind when reading code: a `dev` role or `/dev/` route refers to the recruitment team.
 
@@ -67,13 +67,12 @@ Uses **BetterAuth** (`src/lib/server/auth.ts`) with two methods:
 
 Route guards in `src/lib/server/auth/guards.ts` enforce role-based access. Session data is loaded in `hooks.server.ts` into `event.locals` (user, session, staffProfile, talent).
 
-Staff are routed by `StaffProfile.staffRole` (Prisma `StaffRole` enum: `admin`, `superdev`, `dev`, `peda`, `manta`). After login, staff redirect to their role-specific space. Guards block cross-space access and redirect to correct space. Role-to-path mapping lives in `src/lib/domain/staff.ts` (`getStaffRoleRedirectPath`).
+Staff are routed by `StaffProfile.staffRole` (Prisma `StaffRole` enum: `admin`, `superdev`, `dev`). After login, staff redirect to their role-specific space. Guards block cross-space access and redirect to correct space. Role-to-path mapping lives in `src/lib/domain/staff.ts` (`getStaffRoleRedirectPath`).
 
 | StaffRole         | Space                                |
 | ----------------- | ------------------------------------ |
 | `admin`           | `/staff/admin/`                      |
 | `superdev`, `dev` | `/staff/dev/`                        |
-| `peda`, `manta`   | `/staff/pedago/`                     |
 | `null`            | blocked, shown "contact admin" error |
 
 Client-side auth at `src/lib/auth-client.ts` (browser-side BetterAuth).
@@ -82,48 +81,44 @@ Client-side auth at `src/lib/auth-client.ts` (browser-side BetterAuth).
 
 Inside a workspace, role-based gating goes through **one table** of named role groups in `src/lib/domain/permissions.ts`:
 
-| Group          | Roles                     | Use for                                                                            |
-| -------------- | ------------------------- | ---------------------------------------------------------------------------------- |
-| `devLead`      | `superdev`                | Dev workspace lead-only mutations (delete, import, update)                         |
-| `devMember`    | `superdev`, `dev`         | Dev workspace daily ops (participants, interviews, update)                         |
-| `pedaLead`     | `peda`                    | Pedago workspace lead-only (planning page, factions)                               |
-| `pedaMember`   | `peda`, `manta`           | Pedago workspace field ops (cockpit mutations)                                     |
-| `leads`        | `superdev`, `peda`        | Actions shared across both workspace leads                                         |
+| Group            | Roles             | Use for                                                    |
+| ---------------- | ----------------- | ---------------------------------------------------------- |
+| `devMember`      | `superdev`, `dev` | Dev workspace daily ops (participants, interviews, update) |
+| `realSendArmers` | `admin`           | Arming real outbound sends / login-redirect pin            |
 
-- **Client:** `<Gated group="devLead">...</Gated>` — reads role from page state, hides or disables with tooltip. Import: `$lib/components/auth/Gated.svelte`.
-- **Server:** `requireStaffGroup(locals, 'devLead')` in every mutating action. Import: `$lib/server/auth/guards`.
-- **Routes:** `STAFF_ROLE_GATES` in `guards.ts` gates whole URLs by group; use `readOnlyForRest` to degrade instead of redirect (e.g. manta on planning sees `locals.viewMode === 'readonly'`).
+- **Client:** `const canEdit = $derived(can('devMember', page.data.staffProfile?.staffRole))`, then apply one of the UI patterns below. Import: `$lib/domain/permissions`.
+- **Server:** `requireStaffGroup(locals, 'devMember')`. Import: `$lib/server/auth/guards`. Call it in every mutating action, or at the top of a `load` to gate a whole route.
+
+**There is no superdev-only group today.** `superdev` and `dev` are permission-identical; the only thing the enum still separates is which roles a superdev may invite (`INVITABLE_STAFF_ROLES`, a catalogue, not a gate). Add a group back to `STAFF_GROUPS` the day a lead-only action exists. Never inline a `['superdev']` array at a call site.
 
 **UI pattern rule — pick one per site, do not mix:**
 
-| Pattern           | When                                                         |
-| ----------------- | ------------------------------------------------------------ |
-| Hide              | Nav entries to lead-only destinations (sidebar, menus)       |
-| Disable + tooltip | Mutating controls visible on shared screens                  |
-| Readonly banner   | Whole-page readonly context (e.g. manta on planning)         |
-| Redirect / 403    | Direct URL access to lead-only routes (via STAFF_ROLE_GATES) |
+| Pattern           | When                                                       |
+| ----------------- | ---------------------------------------------------------- |
+| Hide              | Nav entries to restricted destinations (sidebar, menus)    |
+| Disable + tooltip | Mutating controls visible on shared screens                |
+| Redirect / 403    | Direct URL access, via `requireStaffGroup` in the `load`   |
 
-Never inline a `['superdev']` array at a call site.
+### Event modules
 
-### Feature Flags
+Dev surfaces are enabled **per event**, not per campus. There is no feature-flag
+subsystem: the per-campus `CampusFeatureFlag` table, `domain/featureFlags.ts`,
+`requireFlag` and `locals.featureFlags` were all removed in favour of this.
 
-Per-campus feature toggles defined in `src/lib/domain/featureFlags.ts`. Each flag has a `key`, `kind` (`capability` | `rollout`), `defaultEnabled`, and optional `removeBy` date.
+- **Catalogue:** `EVENT_MODULES` / `EVENT_MODULE_DEFS` in `src/lib/domain/eventModules.ts`.
+- **Storage:** one `EventConfig_Module` row per `(eventId, moduleKey)`, with an optional `settings` Json bag validated app-side by a per-module Zod schema. Typed FKs (e.g. `Event.feedbackFormId`) stay columns on `Event`, never in the bag.
+- **Presets:** `EventConfig_Template` is a named, point-in-time seed applied by the config wizard. Applying one copies modules + settings; there is no live link afterwards.
+- **Routing:** `reachableSurfaces` / `firstReachableSurface` decide which surface the dev dashboard lands on.
 
-- **Catalogue:** `FEATURE_FLAGS` object — edit here to add/remove flags. Current: `stage_seconde` (on by default), `coding_club` (off by default).
-- **Overrides:** `CampusFeatureFlag` table stores per-campus `{flagKey, enabled}` rows. Missing rows fall back to `defaultEnabled`. Resolved via `resolveEffectiveFlags()`.
-- **Runtime:** `hooks.server.ts` hydrates `locals.featureFlags: Set<FlagKey>` per request from the campus scope.
-- **Server guard:** `requireFlag(locals, key)` throws 404 if disabled. Use in page loads / actions when a whole feature is gated.
-- **Event types:** `EVENT_TYPE_TO_FLAG` maps `EventType` → `FlagKey`. Creating/listing events of a type requires the flag.
-- **Admin UI:** `/staff/admin/campuses` toggles overrides per campus.
-
-Don't hardcode flag strings.
+Don't hardcode module keys.
 
 ### Route Groups
 
-- `(staff)/` — all staff routes: login, OAuth, onboarding, and role-gated spaces (`staff/admin/`, `staff/dev/`, `staff/pedago/`)
+- `(staff)/` — all staff routes: login, OAuth, and role-gated spaces (`staff/admin/`, `staff/dev/`)
 - `(talent)/` — student portal (login, OTP, charter, dashboard)
+- `(parent)/` : guardian portal (fastlogin, règlement co-signature, image rights)
 - `api/` — API endpoints (auth, students, certificates, diplomas, jobs, worker)
-- `p/` — public portfolio view
+- `f/`, `bilan/` : public feedback forms
 - `logout/` — universal logout
 - `register/` — student registration
 
@@ -132,16 +127,16 @@ Don't hardcode flag strings.
 Prisma schema at `frontend/prisma/schema.prisma`. Key models:
 
 - **Auth:** `bauth_user`, `bauth_session`, `bauth_account`, `bauth_verification` (managed by BetterAuth)
-- **Profiles:** `StaffProfile` (userId, campusId, avatar, discordId), `Talent` (student identity, XP, badges, `schoolId` FK), `TalentSfImport` (1:1 Salesforce-claim mirror)
+- **Profiles:** `StaffProfile` (userId, campusId, avatar, devRedirect emails/phones), `Talent` (student identity, XP, badges, `schoolId` FK, `parent*` guardian columns), `TalentSfImport` (1:1 Salesforce-claim mirror)
 - **Event structure:** `Event` → `Planning` → `TimeSlot` → `Activity`. Events can optionally link to Salesforce via `externalId`.
-- **Templates:** `ActivityTemplate` (clonable activity definitions), `PlanningTemplate` → `PlanningTemplateDay` → `PlanningTemplateSlot` → `PlanningTemplateSlotItem`
-- **Domain:** `Campus`, `Theme` (transversal tags across activities), `Participation`, `ParticipationActivity`, `StepsProgress`, `PortfolioItem`, `EventManta`, `School` (canonical UAI-keyed high-school directory)
+- **Event config:** `EventConfig_Module`, `EventConfig_Template`, `EventConfig_TemplateModule`
+- **Domain:** `Campus`, `Participation`, `EventPresence` / `EventPresenceClosure`, `School` (canonical UAI-keyed high-school directory)
 
-Data is campus-scoped. Themes tag activities across days without creating extra hierarchy.
+Data is campus-scoped.
 
 ### Data modeling: facts as rows, state as projection
 
-Several domain tables are append-only fact/log records — `MinigameAttempt`, `TalentQuizAttempt`, `TalentObservableState`, `BroadcastRecipient`, `OnboardingReminder`, `XpGrant`. Current values that derive from them are **cached projections** recomputed transactionally on each write, not independently mutated (e.g. `Talent.xp` = `SUM(XpGrant.amount)`).
+Several domain tables are append-only fact/log records — `MinigameAttempt`, `BroadcastRecipient`, `XpGrant`, `ImageRightsDecisionRecord`. Current values that derive from them are **cached projections** recomputed transactionally on each write, not independently mutated (e.g. `Talent.xp` = `SUM(XpGrant.amount)`).
 
 When persisting a new domain fact, follow this shape rather than a mutable counter or a `Json` blob: the fact gets a row, and any aggregate is a projection refreshed in the same transaction. A bare counter is lossy — you can't explain, audit, or timestamp the value, and ad-hoc `Math.max(0, x - n)` adjustments drift. The XP ledger is the reference implementation (see below).
 
@@ -173,7 +168,7 @@ XP follows the ledger pattern above. Each granting fact is one `XpGrant` row (un
 
 - **Never mutate `Talent.xp` directly.** It's a cached projection of `XpGrant`; go through `xpService` so the recompute stays atomic.
 - Activity difficulty → XP: Débutant=20, Intermédiaire=45, Avancé=75 (`src/lib/domain/xp.ts`).
-- **Level is derived, not stored** (`Talent.level` was dropped). Use `computeLevel(xp)` / `levelLabelFr(xp)` (tiers: Novice 0–199, Apprentice 200–499, Expert 500+). `JUMP_LEVELS` is canonical in `domain/xp.ts`; the broadcast filter maps a tier to an `xp` range.
+- **Level is derived, not stored** (`Talent.level` was dropped). Use `computeLevel(xp)` (tiers: Novice 0–199, Apprentice 200–499, Expert 500+). `JUMP_LEVELS` is canonical in `domain/xp.ts`; `xpRangeForLevel` maps a tier back to an `xp` range for the broadcast filter. No level tier is surfaced in the dev workspace, so there is no French label helper.
 - Backfill/repair: `scripts/backfill-xp-ledger.ts` (idempotent, `--dry-run`).
 
 ### Salesforce reconciliation
@@ -189,20 +184,17 @@ Talent profile fields have two sources — the worker sync (Salesforce) and onbo
 ### Key Server Services (`src/lib/server/`)
 
 - **`auth.ts`** — BetterAuth config (Prisma adapter, Microsoft OAuth, email OTP, admin plugin with impersonation)
-- **`services/campaignService.ts`** — bulk CSV import with conflict detection (NEW/MERGE/CONFLICT/SIBLING)
-- **`services/progressService.ts`** — learning progress validation (QCM, PINs, step advancement)
 - **`services/diplomaGenerator.ts`** — PDF generation via Puppeteer with HTML templates in `server/templates/`
 - **`services/syncService.ts`** — Salesforce worker sync → seeds `Talent` + upserts the `TalentSfImport` mirror (no-clobber; see Salesforce reconciliation)
 - **`services/reconciliationService.ts`** — computes `Talent` ↔ `TalentSfImport` conflicts; accept/reject + CSV for `/staff/admin/sf-conflicts`
 - **`services/schoolService.ts`** / **`annuaire.ts`** — lazy `School` resolution from UAI via the éducation-nationale annuaire
 - **`services/anonymizationService.ts`** — RGPD anonymization job
 - **`infra/browserPool.ts`** — pooled Puppeteer instances (max 5 concurrent, 60s idle timeout)
-- **`infra/contentCache.ts`** — in-memory cache for content
 - **`db/scoped.ts`** — campus-scoped DB query helpers
 
 ### Client Libraries (`src/lib/`)
 
-- **`domain/`** — business logic (CSV parsing in `csv.ts`, XP calculation in `xp.ts`)
+- **`domain/`** — business logic (XP calculation in `xp.ts`, event lifecycle in `eventLifecycle.ts`)
 - **`validation/`** — Zod schemas for forms (auth, events, students, templates, planning)
 - **`components/ui/`** — Bits UI primitives (shadcn pattern)
 - **`utils.ts`** — `cn()` helper (clsx + twMerge) for conditional classes
@@ -223,7 +215,7 @@ The dev stage-seconde pages (`inscrits`, `émargement`, `entretiens`) and admin 
 ## Coding Conventions
 
 - **Language:** All UI text and user-facing strings are in **French**. Code identifiers (functions, variables) are in English.
-- **Register (vous / tu):** Pick by who reads the string. **Staff-facing copy uses _vous_** (dev, pedago, admin spaces: buttons, tooltips, help cards, confirms). **Talent-facing copy uses _tu_** (the student portal and anything a talent reads, e.g. the QR check-in page). A single feature often spans both: the émargement staff page vouvoie the staff, while its talent check-in page tutoie the student. Match the surrounding screen's register, don't mix within one audience.
+- **Register (vous / tu):** Pick by who reads the string. **Staff-facing copy uses _vous_** (dev and admin spaces: buttons, tooltips, help cards, confirms). **Talent-facing copy uses _tu_** (the student portal and anything a talent reads, e.g. the QR check-in page). A single feature often spans both: the émargement staff page vouvoie the staff, while its talent check-in page tutoie the student. Match the surrounding screen's register, don't mix within one audience.
 - **Forms:** Use sveltekit-superforms with Zod validation. Never use raw `<form>` handling.
 - **DB access:** Import `prisma` from `$lib/server/db`. Never pass the Prisma client as a function parameter — it's a singleton. Always scope queries by `campusId` for staff/student data.
 - **Auth checks:** Don't call BetterAuth directly in page server loads; `hooks.server.ts` already hydrates `locals.{user, staffProfile, talent}`.
@@ -251,7 +243,7 @@ The dev stage-seconde pages (`inscrits`, `émargement`, `entretiens`) and admin 
 
 ## Environment Variables
 
-See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OAuth credentials (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`), and mail provider keys per `MAIL_PROVIDER` (`RESEND_API_KEY` for `resend`, or `MAILJET_API_KEY` + `MAILJET_API_SECRET` for `mailjet`). Optional: `DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET`, `CRON_SECRET`, `WORKER_API_TOKEN`, `MAIL_PROVIDER`, `MAIL_FROM`, `SMS_PROVIDER` (+ `BREVO_API_KEY`, `SMS_SENDER`, `SMS_DEV_RECIPIENTS`), `OUTBOUND_MODE` (the outbound gate — set `=real` in prod only; fail-safe to `redirect` otherwise), `EMAIL_DEV_RECIPIENTS`.
+See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OAuth credentials (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`), and mail provider keys per `MAIL_PROVIDER` (`RESEND_API_KEY` for `resend`, or `MAILJET_API_KEY` + `MAILJET_API_SECRET` for `mailjet`). Optional: `CRON_SECRET`, `WORKER_API_TOKEN`, `MAIL_PROVIDER`, `MAIL_FROM`, `SMS_PROVIDER` (+ `BREVO_API_KEY`, `SMS_SENDER`, `SMS_DEV_RECIPIENTS`), `OUTBOUND_MODE` (the outbound gate — set `=real` in prod only; fail-safe to `redirect` otherwise), `EMAIL_DEV_RECIPIENTS`.
 
 ### `MAIL_PROVIDER`
 
@@ -274,14 +266,14 @@ Picks the transactional mail backend. Lives behind a façade in `$lib/server/ema
   3. **`string[]`** (per-send) → those addresses. Bulk broadcasts pass their **creator**'s configured list (or login email), resolved from the row so a worker-run send still lands with the right tester. (Bulk SMS has no such route — staff carry no phone — so it falls through to the env fallback.)
   4. **The acting staff member's personal list** — admins set their own dev-redirect emails + phones in the settings dialog (`StaffProfile.devRedirect{Emails,Phones}`). With no explicit control, the trap routes to the human driving the request (`requestContext.ts` `AsyncLocalStorage`, captured in `hooks.server.ts`): the **impersonator** when impersonating, else the logged-in staff. So an admin testing talent onboarding by impersonating gets the parent / image-rights mail in *their own* inbox.
   5. **The acting human's login email** (mail only) — default when no personal list is set.
-  6. **The `*_DEV_RECIPIENTS` env fallback** — for sends with no request actor (cron relances, anonymization, logged-out OTP).
+  6. **The `*_DEV_RECIPIENTS` env fallback** — for sends with no request actor (cron jobs, anonymization, logged-out OTP).
   7. **`drop`** — trapped but none of the above resolved → the send is **suppressed**, surfaced as a permanent failure (`reason: 'dev_redirect_dropped'`), never leaked to the real recipient.
 
 `SendOptions.devRedirect` is applied in the façade before the provider sees the payload, so it works uniformly across backends. **Recipients are minors (RGPD).** The gate (`OUTBOUND_MODE`) is the floor; set the `*_DEV_RECIPIENTS` fallbacks on any non-prod env that sends with no actor (cron/OTP) so those don't `drop`.
 
 ### `SMS_PROVIDER`
 
-Picks the transactional SMS backend. Lives behind a façade in `$lib/server/sms/` (mirrors `$lib/server/email/`) — flipping the env swaps the active provider with no code change. Powers the **SMS escalation** step of onboarding relances and the SMS broadcast channel.
+Picks the transactional SMS backend. Lives behind a façade in `$lib/server/sms/` (mirrors `$lib/server/email/`) — flipping the env swaps the active provider with no code change. Powers the SMS broadcast channel.
 
 | Value           | Behavior                                                                                                                                                            |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -290,7 +282,7 @@ Picks the transactional SMS backend. Lives behind a façade in `$lib/server/sms/
 
 `SMS_DEV_RECIPIENTS` is the SMS **fallback destination** (comma-separated; every listed number gets a copy), mirroring `EMAIL_DEV_RECIPIENTS`. It is **not** the gate — the gate is `OUTBOUND_MODE`, shared with mail (see the dev-redirect note above for the gate/destination split).
 
-**SMS escalation (relances).** `email` is the primary onboarding nudge; `sms` is the escalation. The SMS carries **no action link** — it names the recipient's own mailbox (`{{email}}`) and tells them to check it. A talent is only SMS-eligible once an **email** relance has already been sent (`noPriorEmail` skip otherwise) and a usable phone exists (`noPhone` skip). Each channel has its own cooldown track. The body is a fixed default (`RELANCE_SMS_DEFAULTS`, editable in the compose dialog), not an admin `EmailActionMapping` template. Phone numbers are normalized to Brevo's format by `$lib/domain/phone` → `toBrevoRecipient`.
+**SMS broadcasts.** SMS is a broadcast channel alongside mail (`services/broadcast/providers/sms.ts`). An SMS carries **no action link**: it names the recipient's own mailbox and tells them to check it. A recipient needs a usable phone (`noPhone` skip otherwise); numbers are normalized to Brevo's format by `$lib/domain/phone` → `toBrevoRecipient`. The onboarding relance escalation this channel was first built for is gone, so "relance" now survives only as broadcast-audience wording ("relancer les parents bloqués").
 
 ## Prisma Migrations
 

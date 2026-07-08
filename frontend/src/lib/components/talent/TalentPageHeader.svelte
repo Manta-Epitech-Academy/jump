@@ -27,7 +27,7 @@
     icon      icon shown left of the title.
     backHref  back-button target (default the dashboard, '/').
     backLabel accessible label for the back button (default 'Retour').
-    actions   page controls on the right of the second row (week nav, portfolio…).
+    actions   page controls on the right of the second row (week nav, etc.).
     lead      home greeting shown in the first row.
 -->
 <script lang="ts">

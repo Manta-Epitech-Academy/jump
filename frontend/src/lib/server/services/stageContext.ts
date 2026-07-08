@@ -29,119 +29,8 @@ export const devVisibleEventWhere = {
   modules: { some: {} },
 } satisfies Prisma.EventWhereInput;
 
-export const STAGE_DEFAULT_DURATION_DAYS = 14;
-export const STAGE_UPCOMING_WINDOW_DAYS = 60;
-
+const STAGE_DEFAULT_DURATION_DAYS = 14;
 const MS_PER_DAY = 86_400_000;
-
-/**
- * Stages are surfaced when ongoing or upcoming; `past` only appears when a
- * dev-tooling phase override is applied (see `devPhaseOverride.ts`). Sharing
- * `EventLifecycleStatus` keeps the override and the per-event status on the
- * same vocabulary.
- */
-export type StageStatus = EventLifecycleStatus;
-
-export type StageContext = {
-  id: string;
-  titre: string;
-  /**
-   * Phase the UI should display. Equals `realStatus` unless a dev phase
-   * override is in effect, in which case it reflects the override.
-   */
-  status: StageStatus;
-  /**
-   * Underlying phase derived purely from event dates, ignoring any override.
-   * Surfaced separately so the override toggle can mark which option is the
-   * "real" one without losing the effective `status` semantics.
-   */
-  realStatus: StageStatus;
-  startDate: Date;
-  endDate: Date;
-  startsInDays: number;
-};
-
-export type ResolveStageContextOptions = {
-  now?: Date;
-  /**
-   * Forces the returned `status` (the candidate stage is still selected from
-   * real data — only the perceived phase changes). Used by the dev override.
-   */
-  phaseOverride?: EventLifecycleStatus | null;
-};
-
-/**
- * Resolves the stage the workspace should surface: an ongoing stage takes
- * precedence; otherwise the next stage starting within STAGE_UPCOMING_WINDOW_DAYS.
- *
- * Candidates include any stage that either (a) has an explicit endDate still
- * in the future — ongoing regardless of start — or (b) has no endDate but
- * started within the default duration window, or (c) starts within the
- * lookahead window.
- */
-export async function resolveStageContext(
-  db: ScopedPrismaClient,
-  options: ResolveStageContextOptions = {},
-): Promise<StageContext | null> {
-  const now = options.now ?? new Date();
-  const override = options.phaseOverride ?? null;
-  const implicitLookback = addDays(now, -STAGE_DEFAULT_DURATION_DAYS);
-  const lookahead = addDays(now, STAGE_UPCOMING_WINDOW_DAYS);
-
-  const candidates = await db.event.findMany({
-    where: {
-      eventType: EVENT_TYPES.STAGE_SECONDE,
-      date: { lte: lookahead },
-      OR: [
-        { endDate: { gte: now } },
-        { endDate: null, date: { gte: implicitLookback } },
-      ],
-    },
-    select: { id: true, titre: true, date: true, endDate: true },
-    orderBy: { date: 'asc' },
-  });
-
-  let nextUpcoming: (typeof candidates)[number] | null = null;
-
-  for (const event of candidates) {
-    const endDate =
-      event.endDate ?? addDays(event.date, STAGE_DEFAULT_DURATION_DAYS);
-    const hasStarted = event.date.getTime() <= now.getTime();
-    const hasEnded = endDate.getTime() < now.getTime();
-
-    if (hasStarted && !hasEnded) {
-      return {
-        id: event.id,
-        titre: event.titre,
-        status: override ?? 'ongoing',
-        realStatus: 'ongoing',
-        startDate: event.date,
-        endDate,
-        startsInDays: 0,
-      };
-    }
-
-    if (!hasStarted && !nextUpcoming) {
-      nextUpcoming = event;
-    }
-  }
-
-  if (!nextUpcoming) return null;
-
-  const endDate =
-    nextUpcoming.endDate ??
-    addDays(nextUpcoming.date, STAGE_DEFAULT_DURATION_DAYS);
-
-  return {
-    id: nextUpcoming.id,
-    titre: nextUpcoming.titre,
-    status: override ?? 'upcoming',
-    realStatus: 'upcoming',
-    startDate: nextUpcoming.date,
-    endDate,
-    startsInDays: daysUntil(nextUpcoming.date, now),
-  };
-}
 
 /**
  * Whole days from `now` to `date`, clamped at 0 (a date today or in the past
@@ -152,39 +41,6 @@ export async function resolveStageContext(
  */
 export function daysUntil(date: Date, now: Date = new Date()): number {
   return Math.max(0, Math.ceil((date.getTime() - now.getTime()) / MS_PER_DAY));
-}
-
-/**
- * Days until the talent's soonest stage de seconde that hasn't ended yet, or
- * null when they have none. Drives `{{jours_restants}}` on the student fiche,
- * where (unlike the event onboarding page) the relevant stage isn't pinned by
- * the URL. Shared by the page load (preview) and the send action so both show
- * the same number. Candidate filter mirrors `resolveStageContext`: multi-day
- * stages still running, plus single-day ones within their default duration.
- */
-export async function daysUntilTalentStage(
-  db: ScopedPrismaClient,
-  talentId: string,
-  now: Date = new Date(),
-): Promise<number | null> {
-  const next = await db.participation.findFirst({
-    where: {
-      talentId,
-      event: {
-        eventType: EVENT_TYPES.STAGE_SECONDE,
-        OR: [
-          { endDate: { gte: now } },
-          {
-            endDate: null,
-            date: { gte: addDays(now, -STAGE_DEFAULT_DURATION_DAYS) },
-          },
-        ],
-      },
-    },
-    orderBy: { event: { date: 'asc' } },
-    select: { event: { select: { date: true } } },
-  });
-  return next ? daysUntil(next.event.date, now) : null;
 }
 
 function addDays(d: Date, days: number): Date {
@@ -266,22 +122,10 @@ export async function loadEventOr404(
   };
 }
 
-export async function loadStageOr404(
-  eventId: string,
-  campusId: string,
-  notFoundMessage = 'Cette page est réservée aux stages de seconde.',
-): Promise<EventRecord> {
-  const event = await loadEventOr404(eventId, campusId);
-  if (event.eventType !== EVENT_TYPES.STAGE_SECONDE) {
-    throw error(404, notFoundMessage);
-  }
-  return event;
-}
-
 /**
- * Gate a dev-workspace surface on a per-event module (the per-event analog of
- * `requireFlag`). Throws 404 when the event does not expose the module, so a
- * direct URL to a surface the event has turned off behaves like a missing page.
+ * Gate a dev-workspace surface on a per-event module: throws 404 when the event
+ * does not expose the module, so a direct URL to a surface the event has turned
+ * off behaves like a missing page.
  */
 export function requireEventModule(
   event: { modules: Set<EventModuleKey> },

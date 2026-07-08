@@ -1,44 +1,7 @@
 import ejs from 'ejs';
 import { withBrowser } from '../infra/browserPool';
 import { epitechLogoSvg } from '../templates/epitechLogo';
-import diplomaTemplate from '../templates/diploma.html?raw';
-import certificateTemplate from '../templates/certificate.html?raw';
 import stageDiplomaTemplate from '../templates/stage-diploma.html?raw';
-
-export async function generateDiplomaPDF(data: {
-  studentName: string;
-  activityName: string;
-  eventTitle: string;
-  eventDate: string;
-  todayDate: string;
-}): Promise<Uint8Array<ArrayBuffer>> {
-  return await generatePDF(
-    diplomaTemplate,
-    { ...data, logoSvg: epitechLogoSvg },
-    { width: '1123px', height: '794px' },
-  );
-}
-
-export async function generateCertificatePDF(data: {
-  studentName: string;
-  campus: string;
-  schoolLevel: string;
-  xp: number;
-  hours: number;
-  eventsAttended: number;
-  activitiesCompleted: number;
-  level: string;
-  topThemes: { name: string; count: number; label: string }[];
-  activities: { name: string; eventDate: string; difficulty: string }[];
-  todayDate: string;
-  images: string[];
-}): Promise<Uint8Array<ArrayBuffer>> {
-  return await generatePDF(
-    certificateTemplate,
-    { ...data, logoSvg: epitechLogoSvg },
-    { width: '794px', height: '1123px' },
-  );
-}
 
 // Internship certificate ("Certificat de stage"): one A4 landscape page per
 // student, all sharing the same signatory blocks (one global Director General

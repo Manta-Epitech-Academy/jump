@@ -78,10 +78,9 @@
       Sécurité des données
     </h2>
     <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-      On collecte ton nom, ton prénom et ta progression pédagogique (étapes
-      complétées, compétences validées, XP, badges, créations de ton portfolio)
-      pour suivre ton parcours, générer tes certifications et te permettre de
-      partager ton portfolio. Ces données sont conservées {DATA_RETENTION_MONTHS}
+      On collecte ton nom, ton prénom et ta progression (participations aux
+      événements, présence, XP) pour suivre ton parcours et générer tes
+      certifications. Ces données sont conservées {DATA_RETENTION_MONTHS}
       mois après ta dernière activité, puis automatiquement anonymisées. Tu peux à
       tout moment les consulter, les modifier ou les supprimer depuis ton espace personnel,
       et demander la suppression complète de ton compte. Tout est stocké en France,

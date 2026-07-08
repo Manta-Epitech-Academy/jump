@@ -37,7 +37,7 @@ export function formatGivenName(value: string | null | undefined): string {
  * written back. Use formatGivenName instead where the surname sits in a
  * salutation rather than a list ("Bonjour Mr/Mme Dupont,", not "DUPONT").
  */
-export function formatFamilyName(value: string | null | undefined): string {
+function formatFamilyName(value: string | null | undefined): string {
   return value ? value.toLocaleUpperCase('fr') : '';
 }
 

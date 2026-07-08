@@ -7,7 +7,7 @@
  * the SvelteKit `src/` tree isn't packaged (and the `$lib` alias doesn't resolve
  * outside Vite), but the whole `prisma/` dir ships, so relative sibling imports
  * are safe. Any domain logic needed here is re-stated locally and tagged
- * "mirrors src/lib/domain/…" so it stays in sync by inspection (see `XP_MAP`,
+ * "mirrors src/lib/domain/…" so it stays in sync by inspection (see
  * `WELCOME_XP_BONUS`, `toStoredPhone` below).
  */
 
@@ -20,13 +20,10 @@ import {
   PrismaClient,
   Prisma,
   type ActivityType,
-  type ParticipationVerdict,
-  type ParticipationContextTag,
   type ImageRightsDecision,
   type PresenceStatus,
 } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { marked } from 'marked';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 import {
@@ -66,14 +63,6 @@ const CODING_CLUB_MODULE_KEYS = ['inscrits', 'emargement'];
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
-// ─── XP mapping (matches src/lib/domain/xp.ts) ───
-
-const XP_MAP: Record<string, number> = {
-  Débutant: 20,
-  Intermédiaire: 45,
-  Avancé: 75,
-};
-
 // Onboarding arrival bonus — mirrors WELCOME_XP_BONUS in src/lib/domain/xp.ts.
 const WELCOME_XP_BONUS = 200;
 
@@ -112,1130 +101,110 @@ function mockSalesforceLeadId(seed: number): string {
   return `00Q5j${tail}`;
 }
 
-// ─── Activity step content (dynamic activity checkpoints) ───
-
-type StepDef = {
-  id: string;
-  title: string;
-  content_markdown: string;
-  type: 'theory' | 'exercise' | 'checkpoint';
-  validation?: {
-    type: 'auto_qcm' | 'manual_manta';
-    qcm_data?: {
-      question: string;
-      options: string[];
-      correct_index: number;
-    };
-    unlock_code?: string;
-  };
-};
-
-const steps = (s: StepDef[]) => ({ steps: s });
-
-const contentStructures: Record<string, ReturnType<typeof steps>> = {
-  'Ma première page HTML': steps([
-    {
-      id: 'html-1',
-      title: "Qu'est-ce que le HTML ?",
-      content_markdown: `# Titre de niveau 1
-
-## Titre de niveau 2
-
-### Titre de niveau 3
-
-#### Titre de niveau 4
-
-##### Titre de niveau 5
-
-###### Titre de niveau 6
-
----
-
-## Texte et mise en forme
-
-Ceci est un paragraphe normal. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-
-Texte en **gras**, en *italique*, en ***gras et italique***, en ~~barré~~ et du \`code inline\` dans une phrase.
-
-Un deuxième paragraphe pour montrer l'espacement entre les blocs. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-
----
-
-## Listes
-
-Liste à puces :
-- Premier élément
-- Deuxième élément
-  - Sous-élément A
-  - Sous-élément B
-    - Encore plus profond
-- Troisième élément
-
-Liste numérotée :
-1. Première étape
-2. Deuxième étape
-   1. Sous-étape 2.1
-   2. Sous-étape 2.2
-3. Troisième étape
-
----
-
-## Checklist
-
-- [x] Tâche terminée
-- [x] Autre tâche terminée
-- [ ] Tâche en cours
-- [ ] Tâche à faire
-
----
-
-## Citations
-
-> Ceci est une citation simple sur une ligne.
-
-> Ceci est une citation plus longue qui s'étend sur plusieurs lignes pour montrer comment le rendu gère les blocs de texte dans les blockquotes.
->
-> Elle contient même un deuxième paragraphe.
-
----
-
-## Tableau
-
-| Nom | Âge | Ville | Rôle |
-|-----|-----|-------|------|
-| Alice | 14 | Paris | Élève |
-| Bob | 15 | Lyon | Élève |
-| Charlie | 13 | Marseille | Élève |
-| Diana | 16 | Bordeaux | Mentore |
-
----
-
-## Code
-
-Code inline : la fonction \`renderMarkdown()\` retourne une \`string\`.
-
-Bloc JavaScript :
-\`\`\`javascript
-function fibonacci(n) {
-  if (n <= 1) return n;
-  return fibonacci(n - 1) + fibonacci(n - 2);
-}
-
-console.log(fibonacci(10)); // 55
-\`\`\`
-
-Bloc HTML :
-\`\`\`html
-<section class="container">
-  <h1>Bienvenue</h1>
-  <p>Un paragraphe avec un <a href="#">lien</a>.</p>
-</section>
-\`\`\`
-
-Bloc CSS :
-\`\`\`css
-.container {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  background: linear-gradient(135deg, #013afb, #00ff97);
-}
-\`\`\`
-
-Bloc sans langage :
-\`\`\`
-Ceci est un bloc de code sans langage spécifié.
-Il est affiché tel quel.
-\`\`\`
-
----
-
-## Liens
-
-Voici un [lien vers Google](https://www.google.com) et un autre vers [GitHub](https://github.com).
-
----
-
-## Image
-
-![Paysage de montagne](https://picsum.photos/600/300)
-
----
-
-## Ligne de séparation
-
-Les trois lignes ci-dessous sont des séparateurs horizontaux (hr) :
-
----
-
-***
-
-___
-
-## Texte long
-
-Ce paragraphe sert à montrer le rendu d'un texte plus long. Dans un contexte pédagogique, les activités contiennent souvent des descriptions détaillées avec des explications sur plusieurs lignes. Il est important que la typographie soit agréable à lire, avec un bon espacement entre les lignes, un contraste suffisant et une largeur de colonne qui ne fatigue pas les yeux. Le but est d'avoir un rendu propre, aéré et moderne — comme sur Notion.`,
-      type: 'theory',
-    },
-    {
-      id: 'html-2',
-      title: 'Ta première balise',
-      content_markdown:
-        'Crée un fichier `index.html` et écris :\n```html\n<h1>Bonjour le monde !</h1>\n<p>Je suis en train d\u2019apprendre le HTML.</p>\n```',
-      type: 'exercise',
-    },
-    {
-      id: 'html-3',
-      title: 'Quiz HTML',
-      content_markdown: 'Vérifie tes connaissances.',
-      type: 'checkpoint',
-      validation: {
-        type: 'auto_qcm',
-        qcm_data: {
-          question: 'Quelle balise affiche un titre principal ?',
-          options: ['<p>', '<h1>', '<img>', '<div>'],
-          correct_index: 1,
-        },
-      },
-    },
-    {
-      id: 'html-4',
-      title: 'Validation Manta',
-      content_markdown: 'Montre ta page HTML à ton Manta.',
-      type: 'checkpoint',
-      validation: { type: 'manual_manta' },
-    },
-  ]),
-  'CSS : Styliser sa page': steps([
-    {
-      id: 'css-1',
-      title: 'Introduction au CSS',
-      content_markdown:
-        'Le **CSS** ajoute du style (couleurs, polices, dispositions) à tes pages HTML.',
-      type: 'theory',
-    },
-    {
-      id: 'css-2',
-      title: 'Tes premières propriétés',
-      content_markdown:
-        '```css\nh1 { color: #e74c3c; font-family: Arial; }\nbody { background: #f0f0f0; }\n```',
-      type: 'exercise',
-    },
-    {
-      id: 'css-3',
-      title: 'Quiz CSS',
-      content_markdown: 'Teste tes connaissances.',
-      type: 'checkpoint',
-      validation: {
-        type: 'auto_qcm',
-        qcm_data: {
-          question: 'Quelle propriété change la couleur du texte ?',
-          options: ['background-color', 'font-size', 'color', 'margin'],
-          correct_index: 2,
-        },
-      },
-    },
-  ]),
-  'JavaScript : Premiers pas': steps([
-    {
-      id: 'js-1',
-      title: "C'est quoi JavaScript ?",
-      content_markdown:
-        'JavaScript rend les pages interactives — il réagit aux clics, modifie la page, appelle des serveurs.',
-      type: 'theory',
-    },
-    {
-      id: 'js-2',
-      title: 'Variables & conditions',
-      content_markdown:
-        "```js\nlet age = 14;\nif (age >= 13) console.log('Ok');\n```",
-      type: 'exercise',
-    },
-    {
-      id: 'js-3',
-      title: 'Quiz JavaScript',
-      content_markdown: 'Vérifie tes connaissances.',
-      type: 'checkpoint',
-      validation: {
-        type: 'auto_qcm',
-        qcm_data: {
-          question: 'Comment déclare-t-on une variable moderne en JS ?',
-          options: ['var x = 1', 'let x = 1', 'int x = 1', 'x := 1'],
-          correct_index: 1,
-        },
-      },
-    },
-    {
-      id: 'js-4',
-      title: 'Validation finale',
-      content_markdown: 'Montre ton mini-projet interactif à ton Manta.',
-      type: 'checkpoint',
-      validation: { type: 'manual_manta' },
-    },
-  ]),
-  'Construis ton robot': steps([
-    {
-      id: 'robot-1',
-      title: 'Les composants de base',
-      content_markdown:
-        'Un robot = microcontrôleur + moteurs + capteurs + batterie.',
-      type: 'theory',
-    },
-    {
-      id: 'robot-2',
-      title: 'Assemblage',
-      content_markdown: 'Assemble le châssis, connecte les moteurs.',
-      type: 'exercise',
-    },
-    {
-      id: 'robot-3',
-      title: 'Premier programme',
-      content_markdown:
-        '```python\nrobot.avancer(50)\nrobot.attendre(2)\nrobot.stop()\n```',
-      type: 'exercise',
-    },
-    {
-      id: 'robot-4',
-      title: 'Validation du robot',
-      content_markdown: 'Fais rouler ton robot devant ton Manta.',
-      type: 'checkpoint',
-      validation: { type: 'manual_manta' },
-    },
-  ]),
-  'Capteurs et actionneurs': steps([
-    {
-      id: 'capteur-1',
-      title: 'Types de capteurs',
-      content_markdown:
-        'Ultrason (distance), infrarouge (obstacles), lumière, gyroscope.',
-      type: 'theory',
-    },
-    {
-      id: 'capteur-2',
-      title: "Évitement d'obstacles",
-      content_markdown:
-        '```python\nwhile True:\n  if robot.ultrason() < 15: robot.stop()\n  else: robot.avancer(40)\n```',
-      type: 'exercise',
-    },
-    {
-      id: 'capteur-3',
-      title: 'Quiz capteurs',
-      content_markdown: 'Teste tes connaissances.',
-      type: 'checkpoint',
-      validation: {
-        type: 'auto_qcm',
-        qcm_data: {
-          question: 'Quel capteur mesure la distance ?',
-          options: ['Infrarouge', 'Gyroscope', 'Ultrason', 'Photorésistance'],
-          correct_index: 2,
-        },
-      },
-    },
-  ]),
-  'Crée ton jeu Scratch': steps([
-    {
-      id: 'scratch-1',
-      title: "L'interface Scratch",
-      content_markdown:
-        'Ouvre [scratch.mit.edu](https://scratch.mit.edu). Découvre scène, sprites, blocs.',
-      type: 'theory',
-    },
-    {
-      id: 'scratch-2',
-      title: 'Ton premier sprite',
-      content_markdown:
-        'Fais bouger ton personnage avec les flèches du clavier.',
-      type: 'exercise',
-    },
-    {
-      id: 'scratch-3',
-      title: 'Validation',
-      content_markdown: 'Montre ton jeu à ton Manta.',
-      type: 'checkpoint',
-      validation: { type: 'manual_manta' },
-    },
-  ]),
-  'Initiation à la cybersécurité': steps([
-    {
-      id: 'cyber-1',
-      title: "C'est quoi la cybersécurité ?",
-      content_markdown:
-        'Protège les systèmes informatiques. 3 piliers : Confidentialité, Intégrité, Disponibilité.',
-      type: 'theory',
-    },
-    {
-      id: 'cyber-2',
-      title: 'Les mots de passe',
-      content_markdown:
-        '≥ 12 caractères, majuscules, chiffres, symboles. Évalue tes mots de passe sur [howsecureismypassword.net](https://howsecureismypassword.net).',
-      type: 'exercise',
-    },
-    {
-      id: 'cyber-3',
-      title: 'Quiz cybersécurité',
-      content_markdown: 'Teste tes connaissances.',
-      type: 'checkpoint',
-      validation: {
-        type: 'auto_qcm',
-        qcm_data: {
-          question: "Qu'est-ce que le phishing ?",
-          options: [
-            'Un virus',
-            'Une technique pour voler des identifiants',
-            'Un pare-feu',
-            'Un mot de passe fort',
-          ],
-          correct_index: 1,
-        },
-      },
-    },
-  ]),
-  "L'IA et moi": steps([
-    {
-      id: 'ia-1',
-      title: "Qu'est-ce que l'IA ?",
-      content_markdown:
-        "L'IA permet aux machines d'apprendre. Exemples : reconnaissance d'images, assistants vocaux, recommandations.",
-      type: 'theory',
-    },
-    {
-      id: 'ia-2',
-      title: 'IA au quotidien',
-      content_markdown: "Liste 5 usages d'IA dans ta journée.",
-      type: 'exercise',
-    },
-    {
-      id: 'ia-3',
-      title: 'Quiz IA',
-      content_markdown: 'Vérifie tes connaissances.',
-      type: 'checkpoint',
-      validation: {
-        type: 'auto_qcm',
-        qcm_data: {
-          question: 'Comment une IA apprend-elle à partir de données ?',
-          options: [
-            'Le codage',
-            "L'apprentissage automatique",
-            'La compilation',
-            'Le débogage',
-          ],
-          correct_index: 1,
-        },
-      },
-    },
-  ]),
-  'Entraîne ton modèle': steps([
-    {
-      id: 'ml-1',
-      title: 'Teachable Machine',
-      content_markdown:
-        'Ouvre [teachablemachine.withgoogle.com](https://teachablemachine.withgoogle.com). Choisis **Image Project**.',
-      type: 'theory',
-    },
-    {
-      id: 'ml-2',
-      title: 'Collecte tes données',
-      content_markdown: "Crée 3 classes d'images, 30 images chacune.",
-      type: 'exercise',
-    },
-    {
-      id: 'ml-3',
-      title: 'Entraîne et teste',
-      content_markdown:
-        'Clique **Train Model**. Teste en temps réel avec ta webcam.',
-      type: 'exercise',
-    },
-    {
-      id: 'ml-4',
-      title: 'Validation Manta',
-      content_markdown: 'Montre ton modèle entraîné à ton Manta.',
-      type: 'checkpoint',
-      validation: { type: 'manual_manta' },
-    },
-  ]),
-  'Poster numérique': steps([
-    {
-      id: 'poster-1',
-      title: 'Les bases du design',
-      content_markdown:
-        '4 principes : Contraste, Alignement, Répétition, Proximité.',
-      type: 'theory',
-    },
-    {
-      id: 'poster-2',
-      title: 'Crée ton poster',
-      content_markdown:
-        'Utilise [Canva](https://canva.com). Titre + image + appel à l\u2019action.',
-      type: 'exercise',
-    },
-    {
-      id: 'poster-3',
-      title: 'Validation finale',
-      content_markdown: 'Présente ton poster à ton Manta.',
-      type: 'checkpoint',
-      validation: { type: 'manual_manta' },
-    },
-  ]),
-  'Game Design avancé': steps([
-    {
-      id: 'gd-1',
-      title: 'La boucle de gameplay',
-      content_markdown:
-        'Action → Récompense → Progression. Exemple Mario : sauter → pièces → niveaux suivants.',
-      type: 'theory',
-    },
-    {
-      id: 'gd-2',
-      title: 'Game Design Document',
-      content_markdown:
-        'Rédige : concept, mécaniques, boucle, 3 niveaux de difficulté.',
-      type: 'exercise',
-    },
-    {
-      id: 'gd-3',
-      title: 'Prototype papier',
-      content_markdown: 'Dessine ton premier niveau, fais-le tester.',
-      type: 'exercise',
-    },
-    {
-      id: 'gd-4',
-      title: 'Quiz Game Design',
-      content_markdown: 'Teste tes connaissances.',
-      type: 'checkpoint',
-      validation: {
-        type: 'auto_qcm',
-        qcm_data: {
-          question: "Qu'est-ce que la boucle de gameplay ?",
-          options: [
-            'Le menu principal',
-            "Le cycle d'actions répétées par le joueur",
-            'La boucle de rendu',
-            'Le code source',
-          ],
-          correct_index: 1,
-        },
-      },
-    },
-  ]),
-  'Cryptographie : les secrets du code': steps([
-    {
-      id: 'crypto-1',
-      title: "L'histoire de la cryptographie",
-      content_markdown:
-        'Chiffre de César, Enigma, RSA. Rendre un message illisible sauf pour son destinataire.',
-      type: 'theory',
-    },
-    {
-      id: 'crypto-2',
-      title: 'Le chiffre de César',
-      content_markdown:
-        '`JUMP EST GENIAL` avec décalage 3 → `MXPS HVW JHQLDO`. Déchiffre `EUDYR` (décalage 3).',
-      type: 'exercise',
-    },
-    {
-      id: 'crypto-3',
-      title: 'Quiz Crypto',
-      content_markdown: 'Teste tes connaissances.',
-      type: 'checkpoint',
-      validation: {
-        type: 'auto_qcm',
-        qcm_data: {
-          question: 'Principe du chiffre de César ?',
-          options: [
-            'Remplacer chaque lettre par un symbole',
-            "Décaler chaque lettre d'un nombre fixe",
-            'Inverser le message',
-            'Supprimer les voyelles',
-          ],
-          correct_index: 1,
-        },
-      },
-    },
-  ]),
-};
-
 // ─── Activity template blueprints ───
 
 type ActivityDef = {
   nom: string;
-  description: string;
-  difficulte: 'Débutant' | 'Intermédiaire' | 'Avancé';
   activityType: ActivityType;
-  isDynamic: boolean;
-  themes: string[];
   defaultDuration: number;
   campus?: 'Paris' | 'Lyon' | 'Marseille';
-  content?: string;
-  link?: string;
 };
 
 const activityDefs: ActivityDef[] = [
   {
     nom: 'Ma première page HTML',
-    description:
-      'Découvre les bases du HTML et crée ta toute première page web.',
-    difficulte: 'Débutant',
     activityType: 'atelier',
-    isDynamic: true,
-    themes: ['Développement Web'],
     defaultDuration: 120,
   },
   {
     nom: 'CSS : Styliser sa page',
-    description: 'Apprends à colorer et mettre en forme ta page web avec CSS.',
-    difficulte: 'Débutant',
     activityType: 'atelier',
-    isDynamic: true,
-    themes: ['Développement Web', 'Design & Création'],
     defaultDuration: 120,
   },
   {
     nom: 'JavaScript : Premiers pas',
-    description: 'Variables, conditions, interactions avec la page.',
-    difficulte: 'Intermédiaire',
     activityType: 'atelier',
-    isDynamic: true,
-    themes: ['Développement Web'],
     defaultDuration: 150,
   },
   {
     nom: 'Construis ton robot',
-    description: 'Assemble et programme un petit robot.',
-    difficulte: 'Débutant',
     activityType: 'atelier',
-    isDynamic: true,
-    themes: ['Robotique'],
     defaultDuration: 180,
   },
   {
     nom: 'Capteurs et actionneurs',
-    description: 'Utilise capteurs et moteurs pour rendre ton robot autonome.',
-    difficulte: 'Intermédiaire',
     activityType: 'atelier',
-    isDynamic: true,
-    themes: ['Robotique'],
     defaultDuration: 150,
   },
   {
     nom: 'Crée ton jeu Scratch',
-    description: 'Conçois un jeu interactif avec Scratch.',
-    difficulte: 'Débutant',
     activityType: 'atelier',
-    isDynamic: true,
-    themes: ['Jeux Vidéo'],
     defaultDuration: 120,
   },
   {
     nom: 'Game Design avancé',
-    description: 'Mécaniques, niveaux, boucle de gameplay.',
-    difficulte: 'Avancé',
     activityType: 'atelier',
-    isDynamic: true,
-    themes: ['Jeux Vidéo', 'Design & Création'],
     defaultDuration: 180,
   },
   {
     nom: 'Initiation à la cybersécurité',
-    description: 'Mots de passe, phishing, bonnes pratiques.',
-    difficulte: 'Débutant',
     activityType: 'atelier',
-    isDynamic: true,
-    themes: ['Cybersécurité'],
     defaultDuration: 120,
   },
   {
     nom: 'Cryptographie : les secrets du code',
-    description: 'Chiffre César, Vigenère, bases de la crypto moderne.',
-    difficulte: 'Intermédiaire',
     activityType: 'atelier',
-    isDynamic: true,
-    themes: ['Cybersécurité'],
     defaultDuration: 120,
   },
   {
     nom: "L'IA et moi",
-    description: "Découvre l'IA à travers des exemples concrets.",
-    difficulte: 'Débutant',
     activityType: 'atelier',
-    isDynamic: true,
-    themes: ['Intelligence Artificielle'],
     defaultDuration: 90,
   },
   {
     nom: 'Entraîne ton modèle',
-    description: "Entraîne un modèle d'IA avec Teachable Machine.",
-    difficulte: 'Intermédiaire',
     activityType: 'atelier',
-    isDynamic: true,
-    themes: ['Intelligence Artificielle'],
     defaultDuration: 150,
   },
   {
     nom: 'Poster numérique',
-    description: 'Crée une affiche numérique percutante avec Canva.',
-    difficulte: 'Débutant',
     activityType: 'atelier',
-    isDynamic: true,
-    themes: ['Design & Création'],
     defaultDuration: 120,
   },
   // ─── Static templates: official (campus-less) ───
   {
     nom: 'Conférence : Les métiers de la tech',
-    description:
-      'Panorama des métiers du numérique présenté par un·e intervenant·e externe.',
-    difficulte: 'Débutant',
     activityType: 'conference',
-    isDynamic: false,
-    themes: ['Développement Web', 'Cybersécurité', 'Intelligence Artificielle'],
     defaultDuration: 90,
-    content: `# Les métiers de la tech
-
-> « Il n'y a pas **un** métier de la tech, il y en a des dizaines. »
->
-> *Intervenant·e invité·e*
-
-Le numérique n'est pas réservé aux personnes qui « codent toute la journée ». Derrière chaque application, chaque site, chaque jeu, il y a une équipe aux profils très variés : des personnes qui imaginent, qui conçoivent, qui sécurisent, qui testent, qui accompagnent les utilisateurs. Cette session te donne une carte de ce paysage pour que tu puisses y repérer ce qui te ressemble.
-
-## Objectifs de la session
-
-- Découvrir la **diversité** des rôles dans le numérique, au-delà du seul développement.
-- Comprendre les **compétences clés** de chaque grande famille de métiers.
-- Mettre des mots sur ce qui t'attire : créer, résoudre, protéger, transmettre.
-- Poser des questions concrètes à un·e professionnel·le en activité.
-
-## Déroulé (90 min)
-
-| Temps  | Séquence                       | Format      |
-| ------ | ------------------------------ | ----------- |
-| 10 min | Accueil et brise-glace         | Plénière    |
-| 30 min | Présentation des 4 familles    | Talk        |
-| 20 min | Témoignages vidéo              | Projection  |
-| 25 min | Questions et réponses          | Interactif  |
-| 5 min  | Synthèse et ressources         | Plénière    |
-
-## Les 4 grandes familles
-
-### 1. Développement
-
-On construit le produit : interfaces, logique métier, applications mobiles, systèmes embarqués.
-
-- **Front-end** : ce que voit l'utilisateur (HTML, CSS, JavaScript).
-- **Back-end** : la logique côté serveur et les bases de données.
-- **Mobile** : applications iOS et Android.
-- **Embarqué** : le logiciel qui pilote des objets physiques (robots, capteurs).
-
-### 2. Data et IA
-
-On fait parler les données et on entraîne des modèles.
-
-- **Data analyst** : lire les données pour aider à décider.
-- **Data scientist** : modéliser et prédire.
-- **ML engineer** : mettre les modèles en production à grande échelle.
-
-### 3. Cybersécurité
-
-On protège les systèmes et les données.
-
-- **Pentester** : attaquer un système (légalement) pour révéler ses failles.
-- **Analyste SOC** : surveiller et réagir aux incidents en temps réel.
-- **RSSI** : définir la stratégie de sécurité de toute une organisation.
-
-### 4. Produit et Design
-
-On décide quoi construire, et comment le rendre agréable.
-
-- **Product manager / owner** : prioriser ce qui apporte le plus de valeur.
-- **UX / UI designer** : concevoir des parcours clairs et des écrans soignés.
-- **Ops** : garantir que tout reste disponible et fiable.
-
-### Exemple de stack côté web
-
-\`\`\`ts
-// Un·e même dev peut toucher plusieurs couches au cours d'un projet
-const stack = {
-  front: ['Svelte', 'React', 'Vue'],
-  back: ['Node', 'Go', 'Rust'],
-  data: ['Postgres', 'Redis', 'Kafka'],
-};
-\`\`\`
-
-## Quelles compétences pour quel métier ?
-
-| Famille          | Compétence cœur            | Une qualité utile      |
-| ---------------- | -------------------------- | ---------------------- |
-| Développement    | Logique et rigueur         | Curiosité technique    |
-| Data et IA       | Maths et statistiques      | Esprit critique        |
-| Cybersécurité    | Compréhension des systèmes | Sens du détail         |
-| Produit / Design | Empathie utilisateur       | Communication          |
-
-## Idées reçues à tordre
-
-> « Il faut être un génie des maths pour travailler dans la tech. »
-
-Faux pour la majorité des métiers : la rigueur et l'envie d'apprendre comptent bien plus que le don.
-
-> « La tech, c'est un métier solitaire. »
-
-Faux : presque tout se construit en équipe, avec beaucoup d'échanges.
-
-## Questions à préparer pour l'intervenant·e
-
-- [ ] Quel a été votre parcours, et qu'est-ce qui vous a décidé ?
-- [ ] À quoi ressemble une journée type dans votre métier ?
-- [ ] Qu'est-ce qui vous plaît le plus, et le moins ?
-- [ ] Quel conseil donneriez-vous à un·e élève de seconde curieux·se ?
-
-## Ressources officielles
-
-- Fiches métiers : [Onisep, le numérique](https://www.onisep.fr/metiers/des-metiers-par-secteur/les-metiers-de-l-informatique)
-- Rapport annuel *Numeum* sur l'emploi tech
-- Podcasts recommandés : **IfThisThenDev**, **Underscore_**
-
----
-
-*Support à projeter en 16:9. Prévoir des enceintes pour les vidéos témoignages.*`,
   },
   {
     nom: 'Pause déjeuner',
-    description: 'Temps de repas commun.',
-    difficulte: 'Débutant',
     activityType: 'orga',
-    isDynamic: false,
-    themes: [],
     defaultDuration: 60,
-    content: `# Pause déjeuner
-
-Un temps de repas commun, mais aussi un moment clé de la journée : c'est souvent autour de la table que se créent les liens entre élèves et que remontent les retours les plus sincères sur la matinée.
-
-> ⚠️ *Aucun·e élève ne quitte l'établissement sans accompagnant·e.*
-
-## Déroulé indicatif (60 min)
-
-| Temps  | Séquence                          |
-| ------ | --------------------------------- |
-| 5 min  | Rassemblement et comptage         |
-| 40 min | Repas                             |
-| 10 min | Temps libre encadré               |
-| 5 min  | Rappel des consignes de reprise   |
-
-## Points de vigilance
-
-- [ ] **Allergies** et régimes spéciaux signalés en amont à l'équipe.
-- [ ] Repas **halal et végétarien** disponibles pour qui en a besoin.
-- [ ] Eau et snacks accessibles en libre-service.
-- [ ] Rappel des **horaires de reprise** en fin de pause.
-- [ ] Comptage des élèves avant et après la pause.
-
-## Gestion des allergies
-
-> En cas de doute sur un plat, on s'abstient et on propose une alternative. La trousse de premiers secours et la liste des contacts d'urgence restent à portée de main.
-
-## Astuce encadrant·e
-
-Profite de la pause pour **échanger de façon informelle** avec les élèves : une question simple comme « qu'est-ce qui t'a surpris ce matin ? » ouvre souvent des conversations utiles pour ajuster l'après-midi.
-
-## Avant de reprendre
-
-- [ ] Salle rangée, tables nettoyées.
-- [ ] Tout le monde est présent (re-comptage).
-- [ ] Matériel de l'après-midi prêt et distribué.`,
   },
   {
     nom: 'Restitution finale',
-    description:
-      'Présentation des projets devant le groupe et remise des diplômes.',
-    difficulte: 'Intermédiaire',
     activityType: 'conference',
-    isDynamic: false,
-    themes: ['Design & Création'],
     defaultDuration: 120,
-    content: `# Restitution finale
-
-> « La restitution n'est pas une note, c'est une **célébration** du chemin parcouru. »
-
-C'est le dernier temps fort du stage : chaque équipe présente ce qu'elle a construit, devant ses pairs, l'équipe pédagogique et parfois les familles. L'objectif n'est pas de juger, mais de **valoriser** le travail accompli et de donner confiance.
-
-## Format officiel
-
-| Séquence                       | Durée       | Responsable          |
-| ------------------------------ | ----------- | -------------------- |
-| Mot d'accueil                  | 5 min       | Responsable pédago   |
-| Pitchs par équipe (5 min par groupe) | ~60 min | Élèves               |
-| Questions et réponses          | 15 min      | Jury et public       |
-| Délibération rapide            | 10 min      | Jury                 |
-| Remise des diplômes            | 20 min      | Directeur·rice       |
-| Photo de groupe et pot         | 10 min      | Tout le monde        |
-
-## Trame de pitch conseillée
-
-1. **Le problème** qu'on a voulu résoudre.
-2. **La solution** et ses choix techniques.
-3. **Une démo**, en vidéo ou en direct.
-4. **Ce qu'on a appris**, techniquement et humainement.
-5. **Ce qu'on ferait ensuite** avec plus de temps.
-
-> 💡 *Un bon pitch tient en 5 minutes : mieux vaut montrer une chose qui marche que dix idées non abouties.*
-
-### Conseils pour bien présenter
-
-- Se répartir la parole : chaque membre dit au moins une phrase.
-- Regarder le public, pas l'écran.
-- Assumer les bugs : expliquer ce qu'on aurait fait avec plus de temps.
-- Terminer par une phrase claire : « voilà ce dont on est fier·ères. »
-
-## Check-list technique avant restitution
-
-- [ ] HDMI et adaptateur USB-C testés sur la machine de présentation.
-- [ ] Micros sans fil chargés.
-- [ ] Démos ouvertes et prêtes dans les onglets.
-- [ ] Diplômes imprimés et signés.
-- [ ] Photographe ou référent·e photo désigné·e.
-
-## Critères de jury (à communiquer avant)
-
-| Critère                                   | Poids |
-| ----------------------------------------- | ----- |
-| **Clarté** du pitch                       | 30 %  |
-| **Qualité** de la réalisation             | 30 %  |
-| **Originalité** et prise de risque        | 20 %  |
-| **Esprit d'équipe** visible à l'oral      | 20 %  |
-
-## Après la restitution
-
-- Récupérer les retours des élèves « à chaud ».
-- Partager les photos (avec accord pour le droit à l'image).
-- Rappeler les prochaines étapes : clubs, événements, contacts.
-
----
-
-*Prévoir un plan B audio en cas de panne : enceinte bluetooth et câble jack 3.5 mm.*`,
   },
   // ─── Static templates: local (campus-scoped) ───
   {
     nom: 'Visite du campus Epitech Paris',
-    description: 'Découverte des locaux et rencontre des équipes pédagogiques.',
-    difficulte: 'Débutant',
     activityType: 'conference',
-    isDynamic: false,
-    themes: ['Développement Web'],
     defaultDuration: 60,
     campus: 'Paris',
-    link: 'https://www.epitech.eu/campus/paris/',
-    content: `# Visite du campus : Paris Kremlin-Bicêtre
-
-> 📍 **Adresse** : 14-16 rue Voltaire, 94270 Le Kremlin-Bicêtre
-> 🚇 Métro **7**, station *Le Kremlin-Bicêtre* (sortie rue Voltaire)
-
-Une heure pour découvrir un campus Epitech de l'intérieur : pas une salle de classe figée, mais un lieu vivant où l'on apprend en faisant. L'idée n'est pas de tout retenir, mais de **se projeter** : « Est-ce que je me vois travailler ici dans deux ou trois ans ? »
-
-## Itinéraire conseillé (60 min)
-
-1. **Accueil et hall principal** : présentation rapide de l'école et de son histoire.
-2. **Salles de cours et amphi** : comment se déroule une journée, comment naissent les projets.
-3. **Hub et espace communautaire** : vie associative, clubs techniques, entraide entre promos.
-4. **Labs et salles serveur** : le côté infra, réseau et hardware, souvent invisible mais essentiel.
-5. **Cafétéria et coin détente** : clôture informelle, moment pour poser ses dernières questions.
-
-> 💡 *Garde le groupe ensemble entre deux étapes : les couloirs sont fréquentés en journée.*
-
-## Points à mettre en avant
-
-- La **pédagogie par projet** : pas de cours magistraux classiques, on apprend en construisant.
-- L'**autonomie** accompagnée : on cherche, on se trompe, on recommence, jamais seul·e.
-- La **communauté alumni** très présente, qui ouvre des portes vers l'emploi.
-- Les **partenariats entreprises** : stages, alternances, hackathons toute l'année.
-
-## Les clubs à présenter (au moins 2 parmi)
-
-| Club              | Thème                          | Pour qui ?                    |
-| ----------------- | ------------------------------ | ----------------------------- |
-| **EpiGames**      | Jeu vidéo, game design         | Celles et ceux qui créent     |
-| **HackademINT**   | Cybersécurité, CTF             | Les curieux·ses de la faille  |
-| **Epitech.eu AI** | Intelligence artificielle      | Les amateur·rices de data     |
-| **WebAcademie**   | Développement web, open-source | Les bâtisseur·ses du web      |
-
-## Une journée type (à raconter)
-
-| Moment         | Ce qu'il s'y passe                          |
-| -------------- | ------------------------------------------- |
-| Matin          | Travail sur les projets en autonomie        |
-| Midi           | Pause partagée, échanges informels          |
-| Après-midi     | Entraide, revues de code, ateliers          |
-| Fin de journée | Soutenances, vie associative, clubs         |
-
-## Questions fréquentes des élèves
-
-> « Faut-il déjà savoir coder pour entrer ? »
-
-Non : beaucoup d'élèves démarrent sans aucune expérience. C'est la motivation qui compte.
-
-> « On travaille seul·e ou en groupe ? »
-
-Les deux, mais le travail en équipe est central : on progresse beaucoup au contact des autres.
-
-## Consignes sécurité
-
-- [ ] Vérifier les **badges visiteurs** à l'entrée et les garder visibles.
-- [ ] **Pas de photos** dans les salles serveur.
-- [ ] Respecter les **issues de secours** balisées et rester avec le groupe.
-- [ ] Signaler tout incident à l'encadrant·e référent·e.
-
----
-
-Plus d'infos : [epitech.eu/campus/paris](https://www.epitech.eu/campus/paris/)`,
   },
   {
     nom: 'Rencontre alumni Lyon',
-    description:
-      'Échange avec des ancien·ne·s du campus lyonnais autour de leur parcours.',
-    difficulte: 'Débutant',
     activityType: 'conference',
-    isDynamic: false,
-    themes: ['Développement Web', 'Intelligence Artificielle'],
     defaultDuration: 90,
     campus: 'Lyon',
-    content: `# Rencontre alumni : Campus Lyon
-
-> *« J'ai commencé Epitech sans savoir coder une ligne. Aujourd'hui je travaille sur des modèles d'IA chez un éditeur lyonnais. »*
->
-> **Sarah**, promo 2019
-
-Rien ne parle mieux d'un métier que quelqu'un qui l'exerce. Cette table ronde donne la parole à d'ancien·ne·s élèves : leur parcours, leurs doutes, leurs réussites. Pour les élèves de seconde, c'est l'occasion de voir un futur possible incarné par des personnes réelles, pas par une brochure.
-
-## Format : table ronde
-
-- **3 alumni** aux parcours volontairement différents.
-- **1 modérateur·rice** (pédago ou manta) qui relance et distribue la parole.
-- Public : élèves, plus quelques parents invités.
-
-## Profils d'alumni invités
-
-| Profil                    | Entreprise type            | Années d'expérience |
-| ------------------------- | -------------------------- | ------------------- |
-| Développeur·se full-stack | Scale-up lyonnaise         | 3 à 5 ans           |
-| Data ou ML engineer       | Grand groupe bancaire      | 5 ans et plus       |
-| Entrepreneur·e tech       | Start-up SaaS autofinancée | 2 à 4 ans           |
-
-## Déroulé (90 min)
-
-| Temps  | Séquence                          |
-| ------ | --------------------------------- |
-| 10 min | Présentation des intervenant·e·s  |
-| 40 min | Échange guidé par le·la modérateur·rice |
-| 25 min | Questions ouvertes du public      |
-| 15 min | Mot de clôture et networking      |
-
-## Trame de questions
-
-1. **Pourquoi Epitech** plutôt qu'une autre formation ?
-2. Votre **premier stage** : comment l'avez-vous trouvé ?
-3. À quoi ressemble une **journée type** dans votre métier actuel ?
-4. Quel conseil donneriez-vous à votre **vous d'il y a 10 ans** ?
-5. Comment la **communauté alumni** vous aide-t-elle aujourd'hui ?
-
-> 💡 *Prévoir 20 à 25 minutes de questions ouvertes en fin de session.*
-
-## Faire participer le public
-
-- Distribuer des post-it pour écrire les questions timides.
-- Inviter un·e élève à reformuler un conseil entendu.
-- Garder une question « pour la route » si le temps le permet.
-
-## À distribuer aux élèves
-
-- Lien LinkedIn des **intervenant·e·s** (avec leur accord).
-- Flyer du réseau **Epitech Alumni Lyon**.
-- QR code du **Discord** d'entraide local.
-
----
-
-*Tournage autorisé uniquement avec l'accord explicite des alumni présent·e·s.*`,
   },
   {
     nom: 'Atelier partenaires Marseille',
-    description:
-      "Atelier animé par un partenaire local autour d'un cas concret.",
-    difficulte: 'Intermédiaire',
     activityType: 'atelier',
-    isDynamic: false,
-    themes: ['Cybersécurité'],
     defaultDuration: 150,
     campus: 'Marseille',
-    content: `# Atelier partenaire : analyse de logs et détection d'incidents
-
-> Atelier animé par un·e **analyste SOC** d'un partenaire local (éditeur cyber marseillais).
-
-Pendant 2 h 30, les élèves se glissent dans la peau d'un·e analyste sécurité. Pas de théorie abstraite : un vrai extrait de logs, un incident à élucider, et une méthode pour passer d'une montagne de lignes illisibles à un récit clair de ce qui s'est passé.
-
-## Contexte du cas pratique
-
-Un serveur web expose une API publique. Sur les **dernières 24 h**, on soupçonne une activité malveillante. La tâche des élèves : **identifier** les requêtes suspectes et **reconstruire** le scénario d'attaque, étape par étape.
-
-### Environnement fourni
-
-- Extrait de logs \`access.log\` (format *Apache Combined*).
-- Accès navigateur à une instance **Kibana** en lecture seule.
-- Fiche *cheat-sheet* avec les expressions régulières usuelles.
-
-## Étapes (150 min)
-
-1. **Briefing** du cas (15 min).
-2. **Exploration** des logs en binôme (45 min).
-3. **Point d'étape** collectif (15 min).
-4. **Construction** de la timeline d'attaque (45 min).
-5. **Restitution** et débrief partenaire (30 min).
-
-### Exemple de ligne à analyser
-
-\`\`\`
-203.0.113.42 - - [14/Mar/2026:03:12:44 +0100] "GET /admin/../etc/passwd HTTP/1.1" 404 162 "-" "sqlmap/1.7"
-\`\`\`
-
-**Indices à repérer** :
-
-- User-Agent suspect : \`sqlmap/1.7\` (outil d'attaque automatisé).
-- Tentative de *path traversal* : \`../etc/passwd\`.
-- Horaire atypique : **3 h du matin**.
-
-### Anatomie d'une ligne de log
-
-| Champ        | Exemple                       | Ce qu'il dit               |
-| ------------ | ----------------------------- | -------------------------- |
-| IP source    | \`203.0.113.42\`              | Qui fait la requête        |
-| Horodatage   | \`14/Mar/2026:03:12:44\`      | Quand                      |
-| Requête      | \`GET /admin/../etc/passwd\`  | Ce qui est demandé         |
-| Code HTTP    | \`404\`                       | Comment le serveur répond  |
-| User-Agent   | \`sqlmap/1.7\`                | Avec quel outil            |
-
-## Méthode conseillée
-
-1. Filtrer par **code d'erreur** (4xx et 5xx) pour repérer les tentatives ratées.
-2. Trier par **IP** pour voir qui insiste.
-3. Chercher les **motifs suspects** dans les URL (\`../\`, \`SELECT\`, \`<script>\`).
-4. Recouper avec l'**heure** : une rafale à 3 h du matin n'est pas un·e utilisateur·rice normal·e.
-
-## Pré-requis
-
-- [ ] Avoir fait l'activité *Initiation à la cybersécurité*.
-- [ ] Laptop avec terminal (macOS, Linux ou WSL).
-- [ ] Connaissance basique des **codes HTTP** (200, 301, 404, 500).
-
-## Livrables attendus
-
-| Livrable                          | Format      | Qui ?               |
-| --------------------------------- | ----------- | ------------------- |
-| Liste des IP suspectes            | \`.txt\`    | Chaque binôme       |
-| Timeline de l'attaque             | Slide ou doc | Chaque binôme      |
-| 3 recommandations de mitigation   | Oral        | Un binôme au hasard |
-
-## Pour aller plus loin
-
-> Une fois l'attaque reconstituée, demande-toi : qu'est-ce qui aurait empêché ça ? Pare-feu applicatif, limitation du débit, validation des entrées ? C'est là que l'analyse devient défense.
-
----
-
-*Contact partenaire confidentiel : voir la fiche coordonnées côté pédago.*`,
   },
 ];
 
@@ -1263,7 +232,7 @@ const STAFF_MEMBERS = [
     email: 'sophie.bernard@epitech.eu',
     name: 'Sophie Bernard',
     campus: 'Paris',
-    role: 'peda' as const,
+    role: 'dev' as const,
     image: 'https://i.pravatar.cc/96?u=sophie.bernard@epitech.eu',
   },
   {
@@ -1271,7 +240,7 @@ const STAFF_MEMBERS = [
     email: 'jules.dupont@epitech.eu',
     name: 'Jules Dupont',
     campus: 'Paris',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: 'https://i.pravatar.cc/96?u=jules.dupont@epitech.eu',
   },
   {
@@ -1279,7 +248,7 @@ const STAFF_MEMBERS = [
     email: 'laura.garcia@epitech.eu',
     name: 'Laura Garcia',
     campus: 'Paris',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: null,
   },
   {
@@ -1287,7 +256,7 @@ const STAFF_MEMBERS = [
     email: 'nathan.blanc@epitech.eu',
     name: 'Nathan Blanc',
     campus: 'Lyon',
-    role: 'peda' as const,
+    role: 'dev' as const,
     image: 'https://i.pravatar.cc/96?u=nathan.blanc@epitech.eu',
   },
   {
@@ -1295,7 +264,7 @@ const STAFF_MEMBERS = [
     email: 'pierre.leblanc@epitech.eu',
     name: 'Pierre Leblanc',
     campus: 'Lyon',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: null,
   },
   {
@@ -1344,7 +313,7 @@ const STAFF_MEMBERS = [
     email: 'elise.dumas@epitech.eu',
     name: 'Élise Dumas',
     campus: 'Lyon',
-    role: 'peda' as const,
+    role: 'dev' as const,
     image: 'https://i.pravatar.cc/96?u=elise.dumas@epitech.eu',
   },
   {
@@ -1352,7 +321,7 @@ const STAFF_MEMBERS = [
     email: 'maxime.girard@epitech.eu',
     name: 'Maxime Girard',
     campus: 'Paris',
-    role: 'peda' as const,
+    role: 'dev' as const,
     image: 'https://i.pravatar.cc/96?u=maxime.girard@epitech.eu',
   },
   {
@@ -1360,7 +329,7 @@ const STAFF_MEMBERS = [
     email: 'theo.vincent@epitech.eu',
     name: 'Théo Vincent',
     campus: 'Paris',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: null,
   },
   {
@@ -1368,7 +337,7 @@ const STAFF_MEMBERS = [
     email: 'lena.faure@epitech.eu',
     name: 'Léna Faure',
     campus: 'Paris',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: 'https://i.pravatar.cc/96?u=lena.faure@epitech.eu',
   },
   {
@@ -1376,7 +345,7 @@ const STAFF_MEMBERS = [
     email: 'jeanne.albert@epitech.eu',
     name: 'Jeanne Albert',
     campus: 'Lyon',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: null,
   },
   {
@@ -1384,7 +353,7 @@ const STAFF_MEMBERS = [
     email: 'romain.caron@epitech.eu',
     name: 'Romain Caron',
     campus: 'Lyon',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: 'https://i.pravatar.cc/96?u=romain.caron@epitech.eu',
   },
   {
@@ -1392,7 +361,7 @@ const STAFF_MEMBERS = [
     email: 'yacine.benali@epitech.eu',
     name: 'Yacine Benali',
     campus: 'Paris',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: null,
   },
   {
@@ -1400,7 +369,7 @@ const STAFF_MEMBERS = [
     email: 'martin.ferrand@epitech.eu',
     name: 'Martin Ferrand',
     campus: 'Lyon',
-    role: 'manta' as const,
+    role: 'dev' as const,
     image: null,
   },
 ];
@@ -1957,25 +926,12 @@ type EventBlueprint = {
   daysOffset: number; // event date offset from today
   durationDays?: number; // >1 for multi-day events
   campus: 'Paris' | 'Lyon';
-  theme: string;
-  pin: string;
-  mantaKeys: string[];
   days?: DayBlueprint[]; // if multi-day
   slots?: SlotBlueprint[]; // if single day (dayOffset=0)
   // Participations
   studentEmails: string[];
   presentEmails?: string[]; // subset of studentEmails
   delays?: Record<string, number>; // email -> delay minutes
-  verdicts_by_email?: Record<
-    string,
-    {
-      verdict: ParticipationVerdict;
-      contextTag?: ParticipationContextTag;
-      authorKey: string;
-    }
-  >;
-  ratings?: Record<string, number>;
-  feedback?: Record<string, string>;
   bringPc?: (email: string, index: number) => boolean;
   // Stage compliance: only for stage_seconde events
   stageSigned?: string[]; // emails with fully signed compliance
@@ -2028,9 +984,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Cybersécurité',
     daysOffset: -14,
     campus: 'Paris',
-    theme: 'Cybersécurité',
-    pin: '9999',
-    mantaKeys: ['jules.dupont', 'laura.garcia'],
     slots: [
       standardOrgaSlot(),
       {
@@ -2059,30 +1012,6 @@ const EVENTS: EventBlueprint[] = [
       parisStudents[21],
     ], // 10/11 attended
     delays: { [parisStudents[3]]: 10 },
-    verdicts_by_email: {
-      [parisStudents[0]]: {
-        verdict: 'comfortable',
-        authorKey: 'jules.dupont',
-      },
-      [parisStudents[4]]: {
-        verdict: 'comfortable',
-        contextTag: 'helped_others',
-        authorKey: 'laura.garcia',
-      },
-    },
-    ratings: {
-      [parisStudents[0]]: 3,
-      [parisStudents[1]]: 3,
-      [parisStudents[2]]: 2,
-      [parisStudents[3]]: 3,
-      [parisStudents[4]]: 3,
-      [parisStudents[5]]: 2,
-      [parisStudents[6]]: 3,
-    },
-    feedback: {
-      [parisStudents[0]]: "J'ai adoré le challenge César !",
-      [parisStudents[4]]: 'On veut plus de crypto !',
-    },
     bringPc: (_, i) => i % 3 !== 0,
   },
 
@@ -2091,9 +1020,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Robotique Découverte',
     daysOffset: -7,
     campus: 'Paris',
-    theme: 'Robotique',
-    pin: '4321',
-    mantaKeys: ['laura.garcia'],
     slots: [
       standardOrgaSlot(),
       {
@@ -2118,18 +1044,6 @@ const EVENTS: EventBlueprint[] = [
       parisStudents[24],
     ], // 11/13 attended
     delays: { [parisStudents[1]]: 10, [parisStudents[5]]: 5 },
-    ratings: {
-      [parisStudents[0]]: 3,
-      [parisStudents[1]]: 3,
-      [parisStudents[2]]: 2,
-      [parisStudents[3]]: 3,
-      [parisStudents[4]]: 2,
-      [parisStudents[5]]: 3,
-      [parisStudents[6]]: 3,
-      [parisStudents[7]]: 2,
-      [parisStudents[8]]: 3,
-    },
-    feedback: { [parisStudents[1]]: 'Le robot était trop cool !' },
     bringPc: () => false,
   },
 
@@ -2140,9 +1054,6 @@ const EVENTS: EventBlueprint[] = [
     daysOffset: PAST_PARIS_STAGE_OFFSET,
     durationDays: STAGE_DURATION_DAYS,
     campus: 'Paris',
-    theme: 'Développement Web',
-    pin: '1001',
-    mantaKeys: ['jules.dupont', 'laura.garcia'],
     days: [
       {
         dayOffset: 0,
@@ -2201,14 +1112,6 @@ const EVENTS: EventBlueprint[] = [
     ],
     studentEmails: parisStudents.slice(0, 6),
     presentEmails: parisStudents.slice(0, 6), // all attended
-    ratings: {
-      [parisStudents[0]]: 3,
-      [parisStudents[1]]: 3,
-      [parisStudents[2]]: 3,
-      [parisStudents[3]]: 3,
-      [parisStudents[4]]: 3,
-      [parisStudents[5]]: 2,
-    },
     bringPc: () => true,
     stageSigned: parisStudents.slice(0, 3), // 3 fully signed
     stageUnsigned: parisStudents.slice(3, 6), // 3 partial
@@ -2219,9 +1122,6 @@ const EVENTS: EventBlueprint[] = [
     titre: "Atelier IA : L'intelligence artificielle",
     daysOffset: 0,
     campus: 'Paris',
-    theme: 'Intelligence Artificielle',
-    pin: '7777',
-    mantaKeys: ['jules.dupont', 'laura.garcia'],
     slots: [
       {
         startHour: 13,
@@ -2255,23 +1155,14 @@ const EVENTS: EventBlueprint[] = [
     ],
     presentEmails: parisStudents.slice(0, 6), // 6 already checked in
     delays: { [parisStudents[4]]: 15 },
-    verdicts_by_email: {
-      [parisStudents[2]]: {
-        verdict: 'progressing',
-        authorKey: 'jules.dupont',
-      },
-    },
     bringPc: (_, i) => i % 2 === 0,
   },
 
-  // 5. Task queue trigger: event in 2 days WITHOUT MANTAS
+  // 5. Upcoming event in 2 days (planning built)
   {
     titre: 'Atelier Web Débutants',
     daysOffset: 2,
     campus: 'Paris',
-    theme: 'Développement Web',
-    pin: '2222',
-    mantaKeys: [], // ← intentional
     slots: [
       standardOrgaSlot(),
       {
@@ -2295,14 +1186,11 @@ const EVENTS: EventBlueprint[] = [
     bringPc: () => true,
   },
 
-  // 6. Task queue trigger: event in 4 days WITHOUT PLANNING (has mantas, no slots)
+  // 6. Task queue trigger: event in 4 days WITHOUT PLANNING (no slots)
   {
     titre: 'Atelier Game Design',
     daysOffset: 4,
     campus: 'Paris',
-    theme: 'Jeux Vidéo',
-    pin: '3333',
-    mantaKeys: ['jules.dupont'],
     slots: [], // ← intentional (empty planning)
     // Niveau mix: stage cohort (2nde) + extras from other class levels.
     studentEmails: [
@@ -2318,9 +1206,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Scratch : Crée ton jeu',
     daysOffset: 7,
     campus: 'Paris',
-    theme: 'Jeux Vidéo',
-    pin: '5678',
-    mantaKeys: ['laura.garcia'],
     slots: [
       standardOrgaSlot(),
       {
@@ -2348,9 +1233,6 @@ const EVENTS: EventBlueprint[] = [
     daysOffset: ONGOING_PARIS_STAGE_OFFSET,
     durationDays: STAGE_DURATION_DAYS,
     campus: 'Paris',
-    theme: 'Développement Web',
-    pin: '1003',
-    mantaKeys: ['jules.dupont', 'laura.garcia'],
     days: [
       // Day 0 — Lundi (déjà passé, J1)
       {
@@ -2485,9 +1367,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Web Lyon',
     daysOffset: -10,
     campus: 'Lyon',
-    theme: 'Développement Web',
-    pin: '6001',
-    mantaKeys: ['pierre.leblanc'],
     slots: [
       standardOrgaSlot(),
       {
@@ -2509,12 +1388,6 @@ const EVENTS: EventBlueprint[] = [
       lyonStudents[10],
       lyonStudents[11],
     ],
-    ratings: {
-      [lyonStudents[0]]: 3,
-      [lyonStudents[1]]: 3,
-      [lyonStudents[2]]: 2,
-      [lyonStudents[3]]: 3,
-    },
     bringPc: () => true,
   },
 
@@ -2523,9 +1396,6 @@ const EVENTS: EventBlueprint[] = [
     titre: 'Atelier Robotique Lyon',
     daysOffset: 10,
     campus: 'Lyon',
-    theme: 'Robotique',
-    pin: '6002',
-    mantaKeys: ['pierre.leblanc'],
     slots: [
       standardOrgaSlot(),
       {
@@ -2547,9 +1417,6 @@ const EVENTS: EventBlueprint[] = [
     daysOffset: FUTURE_LYON_STAGE_OFFSET,
     durationDays: STAGE_DURATION_DAYS,
     campus: 'Lyon',
-    theme: 'Développement Web',
-    pin: '6003',
-    mantaKeys: ['pierre.leblanc', 'jeanne.albert', 'romain.caron'],
     days: [
       {
         dayOffset: 0,
@@ -2750,170 +1617,6 @@ const INTERVIEWS: InterviewBlueprint[] = [
   },
 ];
 
-// ─── Reminder blueprints ───
-//
-// Onboarding relances envoyées depuis /staff/dev/events/[id]/onboarding. Visible
-// dans "Historique des relances" sur la fiche talent. Cible : élèves en cours
-// d'onboarding (signatures incomplètes), avec une vraie cadence (J-10 puis J-3
-// par exemple) plutôt que des dates uniformes.
-
-type ReminderBlueprint = {
-  studentEmail: string;
-  type: 'student' | 'parent';
-  // 'email' is the primary nudge; 'sms' is the link-free escalation. Defaults
-  // to 'email' when omitted.
-  channel?: 'email' | 'sms';
-  staffKey: string;
-  daysOffset: number; // negative = past
-  hour?: number;
-  // Optional archived copy of what was sent. When absent the fiche shows the
-  // "contenu non archivé" placeholder — keep a few that way so devs see both
-  // states in the timeline. SMS reminders carry no subject.
-  subject?: string;
-  body?: string;
-};
-
-const REMINDERS: ReminderBlueprint[] = [
-  // Cohorte en cours — 4 dossiers partiels (parisStudents 14–17). Pauline
-  // (devLead) et Marie (dev) ont relancé à plusieurs reprises avant le démarrage.
-  {
-    studentEmail: parisStudents[14],
-    type: 'student',
-    staffKey: 'pauline.marchand',
-    daysOffset: -10,
-    hour: 9,
-    subject: 'Ton stage de seconde — derniers documents à signer',
-    body: `Bonjour,
-
-Le stage commence dans une dizaine de jours et il manque encore ta
-convention signée pour finaliser ton inscription.
-
-Tu peux la récupérer directement depuis ton espace Jump (rubrique
-Documents) puis nous la renvoyer signée par tes parents.
-
-N'hésite pas à me répondre si tu rencontres la moindre difficulté.
-
-Bonne journée,
-Pauline — Epitech Academy Paris`,
-  },
-  {
-    studentEmail: parisStudents[14],
-    type: 'parent',
-    staffKey: 'pauline.marchand',
-    daysOffset: -3,
-    hour: 11,
-    subject: 'Stage de seconde — rappel signature convention',
-    body: `Bonjour,
-
-Nous accueillons votre enfant dans 3 jours pour son stage de seconde
-à Epitech Paris. Pour pouvoir le recevoir, il nous manque encore la
-convention de stage signée.
-
-Pourriez-vous nous la retourner avant vendredi soir ? Le document
-est disponible dans l'espace Jump de votre enfant.
-
-Bien cordialement,
-Pauline Marchand — Talent Acquisition`,
-  },
-  {
-    studentEmail: parisStudents[15],
-    type: 'parent',
-    staffKey: 'marie.manta',
-    daysOffset: -4,
-    hour: 14,
-  },
-  {
-    studentEmail: parisStudents[16],
-    type: 'student',
-    staffKey: 'marie.manta',
-    daysOffset: -12,
-    hour: 10,
-    subject: 'Rappel — autorisation parentale',
-    body: `Salut,
-
-Petit rappel : il nous faut l'autorisation parentale signée par
-l'un de tes parents pour que tu puisses participer au stage.
-
-Le document se trouve sur ton espace Jump > Documents. Une fois
-signé, dépose-le au même endroit ou renvoie-le moi par mail.
-
-À très vite,
-Marie`,
-  },
-  {
-    studentEmail: parisStudents[16],
-    type: 'parent',
-    staffKey: 'pauline.marchand',
-    daysOffset: -5,
-    hour: 9,
-  },
-  {
-    studentEmail: parisStudents[17],
-    type: 'parent',
-    staffKey: 'pauline.marchand',
-    daysOffset: -2,
-    hour: 16,
-  },
-  // Talents hors stage avec onboarding incomplet — relances génériques pour
-  // alimenter les fiches profils en dehors du contexte stage.
-  {
-    studentEmail: parisStudents[20],
-    type: 'student',
-    staffKey: 'antoine.roux',
-    daysOffset: -15,
-    hour: 11,
-  },
-  {
-    studentEmail: parisStudents[25],
-    type: 'parent',
-    staffKey: 'clara.noel',
-    daysOffset: -7,
-    hour: 14,
-  },
-  // Lyon — stage de seconde Lyon a 5 dossiers partiels (lyonStudents 5–9).
-  // Hugo (Lyon devLead) et Sarah (Lyon dev) gèrent les relances.
-  {
-    studentEmail: lyonStudents[5],
-    type: 'parent',
-    staffKey: 'hugo.lefebvre',
-    daysOffset: -6,
-    hour: 10,
-  },
-  {
-    studentEmail: lyonStudents[6],
-    type: 'student',
-    staffKey: 'sarah.moreau',
-    daysOffset: -8,
-    hour: 15,
-  },
-  {
-    studentEmail: lyonStudents[6],
-    type: 'parent',
-    staffKey: 'hugo.lefebvre',
-    daysOffset: -4,
-    hour: 9,
-  },
-  {
-    studentEmail: lyonStudents[8],
-    type: 'parent',
-    staffKey: 'sarah.moreau',
-    daysOffset: -3,
-    hour: 11,
-  },
-  // SMS escalation — the email relances to parisStudents[14] above went
-  // unanswered, so Pauline escalates with a link-free text pointing back to
-  // the inbox. Drives the "Relance · SMS" badge in the fiche timeline.
-  {
-    studentEmail: parisStudents[14],
-    type: 'student',
-    channel: 'sms',
-    staffKey: 'pauline.marchand',
-    daysOffset: -1,
-    hour: 10,
-    body: "Salut, plus que 5 jours avant ton stage à Epitech ! Finalise vite ton inscription : on t'a envoyé un mail. - Epitech Paris",
-  },
-];
-
 // ─── Broadcast blueprints ───
 //
 // Mass campaigns (mail + SMS) targeting talents or their parents. Visible
@@ -2957,7 +1660,7 @@ const BROADCASTS: BroadcastBlueprint[] = [
   // not opened" variants in the fiche timeline. Event-scoped to the
   // ongoing Paris stage (eventIds[7]).
   {
-    name: 'Bienvenue au stage de seconde 🚀',
+    name: 'Bienvenue au stage de seconde',
     channel: 'mail',
     audience: 'talent',
     campus: 'Paris',
@@ -3126,243 +1829,6 @@ L'équipe Epitech Academy`,
   },
 ];
 
-// ─── Portfolio items ───
-
-// Portfolio livrables — populated for talents that have already been
-// marked present at a past or ongoing event. New talents (no presence
-// history) stay empty so the "premier livrable" empty state remains
-// reachable in QA.
-const PORTFOLIO: {
-  studentEmail: string;
-  eventIndex: number;
-  url?: string;
-  caption: string;
-}[] = [
-  // ── eventIndex 0 — Atelier Cybersécurité (-14d) ──
-  {
-    studentEmail: parisStudents[0],
-    eventIndex: 0,
-    caption: 'Affiche cyberhygiène pour ma classe',
-  },
-  {
-    studentEmail: parisStudents[1],
-    eventIndex: 0,
-    caption: 'Quiz cybersécurité — 9/10',
-  },
-  {
-    studentEmail: parisStudents[2],
-    eventIndex: 0,
-    url: 'https://example.com/phishing-poster',
-    caption: 'Affiche phishing en équipe',
-  },
-  {
-    studentEmail: parisStudents[3],
-    eventIndex: 0,
-    caption: 'Notes — comment fabriquer un mot de passe solide',
-  },
-  {
-    studentEmail: parisStudents[4],
-    eventIndex: 0,
-    url: 'https://example.com/crypto-challenge',
-    caption: 'Défi de cryptographie César résolu',
-  },
-  {
-    studentEmail: parisStudents[5],
-    eventIndex: 0,
-    caption: 'Démo chiffrement César',
-  },
-  {
-    studentEmail: parisStudents[6],
-    eventIndex: 0,
-    caption: 'Quiz cybersécurité complété',
-  },
-  {
-    studentEmail: parisStudents[19],
-    eventIndex: 0,
-    caption: 'Notes sur la cyberhygiène',
-  },
-  {
-    studentEmail: parisStudents[20],
-    eventIndex: 0,
-    caption: "Schéma d'un phishing reconstitué",
-  },
-  {
-    studentEmail: parisStudents[21],
-    eventIndex: 0,
-    url: 'https://example.com/phishing-spotted',
-    caption: 'Site phishing repéré et décortiqué',
-  },
-
-  // ── eventIndex 1 — Atelier Robotique (-7d) ──
-  {
-    studentEmail: parisStudents[0],
-    eventIndex: 1,
-    caption: 'Robot assemblé avec Emma',
-  },
-  {
-    studentEmail: parisStudents[1],
-    eventIndex: 1,
-    caption: 'Mon robot évite les obstacles',
-  },
-  {
-    studentEmail: parisStudents[2],
-    eventIndex: 1,
-    caption: 'Robot terminé et fonctionnel',
-  },
-  {
-    studentEmail: parisStudents[3],
-    eventIndex: 1,
-    caption: 'Capteur de distance calibré',
-  },
-  {
-    studentEmail: parisStudents[4],
-    eventIndex: 1,
-    caption: 'Photo de mon robot ramasseur',
-  },
-  {
-    studentEmail: parisStudents[5],
-    eventIndex: 1,
-    caption: 'Robot suiveur de ligne',
-  },
-  {
-    studentEmail: parisStudents[6],
-    eventIndex: 1,
-    caption: 'Programmation moteur — premiers pas',
-  },
-  {
-    studentEmail: parisStudents[7],
-    eventIndex: 1,
-    caption: 'Vidéo du robot en action',
-  },
-  {
-    studentEmail: parisStudents[8],
-    eventIndex: 1,
-    caption: 'Croquis du robot avant assemblage',
-  },
-  {
-    studentEmail: parisStudents[22],
-    eventIndex: 1,
-    caption: "Plan d'assemblage du robot",
-  },
-  {
-    studentEmail: parisStudents[24],
-    eventIndex: 1,
-    caption: 'Mon premier programme robot',
-  },
-
-  // ── eventIndex 2 — Past Stage de seconde (-338d, promotion précédente) ──
-  {
-    studentEmail: parisStudents[0],
-    eventIndex: 2,
-    url: 'https://codepen.io/example/first-page',
-    caption: 'Ma toute première page web (stage)',
-  },
-  {
-    studentEmail: parisStudents[1],
-    eventIndex: 2,
-    url: 'https://codepen.io/example/lucas-site',
-    caption: 'Mon site CSS perso',
-  },
-  {
-    studentEmail: parisStudents[2],
-    eventIndex: 2,
-    url: 'https://codepen.io/example/css-page',
-    caption: 'Ma page CSS colorée',
-  },
-  {
-    studentEmail: parisStudents[3],
-    eventIndex: 2,
-    caption: 'Modèle IA entraîné sur images de chats',
-  },
-  {
-    studentEmail: parisStudents[4],
-    eventIndex: 2,
-    caption: 'Robot soccer du stage',
-  },
-  {
-    studentEmail: parisStudents[5],
-    eventIndex: 2,
-    caption: 'Photo de la démo finale du stage',
-  },
-
-  // ── eventIndex 7 — Ongoing stage (J3 of 14): J1/J2 livrables ──
-  {
-    studentEmail: parisStudents[6],
-    eventIndex: 7,
-    url: 'https://codepen.io/example/chloe-html',
-    caption: 'Page HTML — J1 du stage',
-  },
-  {
-    studentEmail: parisStudents[7],
-    eventIndex: 7,
-    caption: 'CSS J1 — palette pastel',
-  },
-  {
-    studentEmail: parisStudents[8],
-    eventIndex: 7,
-    caption: 'Modèle IA J2 — reconnaissance images',
-  },
-  {
-    studentEmail: parisStudents[9],
-    eventIndex: 7,
-    url: 'https://codepen.io/example/louis-html',
-    caption: 'Site HTML J1',
-  },
-  {
-    studentEmail: parisStudents[10],
-    eventIndex: 7,
-    caption: 'Modèle IA J2 — chiffres manuscrits',
-  },
-  {
-    studentEmail: parisStudents[11],
-    eventIndex: 7,
-    caption: 'Page HTML J1',
-  },
-  {
-    studentEmail: parisStudents[12],
-    eventIndex: 7,
-    caption: 'Modèle IA J2 — entraîné en équipe',
-  },
-  {
-    studentEmail: parisStudents[13],
-    eventIndex: 7,
-    caption: 'CSS J1 — page de présentation',
-  },
-
-  // ── eventIndex 8 — Past Atelier Web Lyon (-10d) ──
-  {
-    studentEmail: lyonStudents[0],
-    eventIndex: 8,
-    url: 'https://codepen.io/example/eliot-html',
-    caption: 'Première page HTML Lyon',
-  },
-  {
-    studentEmail: lyonStudents[1],
-    eventIndex: 8,
-    caption: 'Page CSS avec mes couleurs préférées',
-  },
-  {
-    studentEmail: lyonStudents[2],
-    eventIndex: 8,
-    caption: 'Site portfolio HTML',
-  },
-  {
-    studentEmail: lyonStudents[3],
-    eventIndex: 8,
-    caption: 'Mes premiers tags HTML',
-  },
-  {
-    studentEmail: lyonStudents[10],
-    eventIndex: 8,
-    caption: 'Page web personnelle',
-  },
-  {
-    studentEmail: lyonStudents[11],
-    eventIndex: 8,
-    caption: 'Démo HTML présentée en classe',
-  },
-];
-
 // ─── Main ───
 
 /**
@@ -3466,39 +1932,15 @@ async function main() {
   await assignTalentInterests();
   console.log('✓  Talent interest assignments');
 
-  // 4. Themes
-  const themesByKey = await seedThemes(campuses);
-  console.log(
-    `✓  Themes (${Object.keys(themesByKey).length} campus-scoped + 6 official)`,
-  );
-
-  // 5. Activity templates
-  const templatesByName = await seedActivityTemplates(themesByKey, campuses);
-  console.log(`✓  Activity templates (${Object.keys(templatesByName).length})`);
-
-  // 6. Planning template (multi-day stage)
-  await seedPlanningTemplate(templatesByName);
-  console.log('✓  Planning template (Stage de seconde — 5 jours)');
-
-  // 7. Events + planning + participations + compliance
-  const eventIds = await seedEvents(
-    campuses,
-    staffByKey,
-    talentByEmail,
-    themesByKey,
-    templatesByName,
-  );
+  // 4. Events + planning + participations + émargement + compliance
+  const eventIds = await seedEvents(campuses, talentByEmail);
   console.log(`✓  Events (${eventIds.length})`);
 
-  // 8. Steps progress (live event alerts + past event completions)
-  const alertCount = await seedStepsProgress(talentByEmail, eventIds);
-  console.log(`✓  StepsProgress (live event needs_help: ${alertCount} alerts)`);
-
-  // 9. XP & levels (computed from participations)
+  // 6. XP ledger + projections (onboarding grants + émargement eventsCount)
   const updated = await recomputeXp();
-  console.log(`✓  XP & levels (${updated} students updated)`);
+  console.log(`✓  XP (${updated} students updated)`);
 
-  // 10. Interviews
+  // 7. Interviews
   const interviewCount = await seedInterviews(
     staffByKey,
     talentByEmail,
@@ -3506,15 +1948,7 @@ async function main() {
   );
   console.log(`✓  Interviews (${interviewCount})`);
 
-  // 11. Portfolio
-  const portfolioCount = await seedPortfolio(talentByEmail, eventIds);
-  console.log(`✓  Portfolio (${portfolioCount} items)`);
-
-  // 12. Reminders (1:1 staff → talent / parent)
-  const reminderCount = await seedReminders(staffByKey, talentByEmail);
-  console.log(`✓  Reminders (${reminderCount})`);
-
-  // 12b. Broadcasts (mass mail / SMS campaigns) — feed the unified
+  // 8b. Broadcasts (mass mail / SMS campaigns) — feed the unified
   //      communications timeline on the fiche talent.
   const broadcastRecipientCount = await seedBroadcasts(
     staffByKey,
@@ -3524,11 +1958,11 @@ async function main() {
   );
   console.log(`✓  Broadcasts (${broadcastRecipientCount} recipient rows)`);
 
-  // 12c. Staff notes on talents (multi-note feed)
+  // 8c. Staff notes on talents (multi-note feed)
   const talentNoteCount = await seedTalentNotes(staffByKey, talentByEmail);
   console.log(`✓  Notes talent (${talentNoteCount})`);
 
-  // 13. CMS welcome pages for stage_seconde events
+  // 9. CMS welcome pages for stage_seconde events
   await seedWelcomePages(eventIds, staffByKey);
   console.log('✓  CMS welcome pages');
 
@@ -3546,18 +1980,17 @@ async function seedWelcomePages(
   const stageEventIndices = [2, 7, 10];
   const updatedBy = Object.values(staffByKey)[0].userId;
 
-  const content = `<h2>Bienvenue sur Jump ! 🚀</h2>
+  const content = `<h2>Bienvenue sur Jump ! 🙌</h2>
 <p>Salut, et <strong>bienvenue dans l'aventure !</strong> Tu viens de rejoindre Jump, la plateforme de ton stage de seconde à Epitech. Pendant ces quelques jours, découvre l'univers du <strong>code</strong>, de la <strong>tech</strong> et de la <strong>création numérique</strong> en <em>construisant</em> tes propres projets.</p>
 <h3>Ce qui t'attend</h3>
 <ul>
   <li>🧩 <strong>Des ateliers concrets :</strong> tu vas coder, créer, recommencer — c'est comme ça qu'on apprend.</li>
   <li>🏆 <strong>Des XP et des niveaux :</strong> gagne de l'expérience à chaque activité pour grimper de Novice à <em>Expert</em> !</li>
   <li>🎮 <strong>Un mini-jeu par jour :</strong> un défi quotidien pour des XP bonus.</li>
-  <li>💼 <strong>Ton portfolio :</strong> repars avec une vraie trace de ce que tu as accompli.</li>
 </ul>
 <img src="https://placehold.co/600x400/blue/white?text=Photo%20du%20campus" alt="Bannière bleue: Photo du campus à venir" />
 <h3>Comment ça marche</h3>
-<p>Chaque jour, retrouve ta <strong>mission du jour</strong> sur ton tableau de bord. Clique, suis les étapes, et gagne tes XP. Si tu bloques, <strong>pas de panique</strong> — les Mantas (tes encadrants) sont là pour t'aider.</p>
+<p>Chaque jour, retrouve tes <strong>activités</strong> sur ton tableau de bord. Participe et gagne tes XP. Si tu bloques, <strong>pas de panique</strong> — l'équipe est là pour t'aider.</p>
 <blockquote><p>« Ne cherche pas à tout réussir du premier coup. Le code, c'est essayer, se tromper, et recommencer. »</p></blockquote>`;
 
   const rows = stageEventIndices.flatMap((idx) => {
@@ -3582,10 +2015,6 @@ async function wipeAll() {
   // order is the FK dependency order — keep it.
   await prisma.$transaction([
     prisma.stageCompliance.deleteMany(),
-    prisma.participationActivity.deleteMany(),
-    prisma.portfolioItem.deleteMany(),
-    prisma.stepsProgress.deleteMany(),
-    prisma.onboardingReminder.deleteMany(),
     prisma.note_TalentNote.deleteMany(),
     // Broadcasts + email-action mappings — dropped before staff so the
     // `MessageTemplate.createdById` FK doesn't block.
@@ -3595,26 +2024,13 @@ async function wipeAll() {
     prisma.messageTemplate.deleteMany(),
     prisma.participation.deleteMany(),
     prisma.interview.deleteMany(),
-    prisma.eventManta.deleteMany(),
-    prisma.activityTheme.deleteMany(),
     prisma.activity.deleteMany(),
     prisma.timeSlot.deleteMany(),
     prisma.planning.deleteMany(),
     prisma.event.deleteMany(),
-    prisma.activityTemplateTheme.deleteMany(),
-    prisma.planningTemplateSlot.deleteMany(),
-    prisma.planningTemplateDay.deleteMany(),
-    prisma.planningTemplate.deleteMany(),
-    prisma.activityTemplate.deleteMany(),
-    prisma.theme.deleteMany(),
     prisma.talentInterest.deleteMany(),
     prisma.interest.deleteMany(),
     prisma.talent.deleteMany(),
-    // Subject hierarchy must drop before StaffProfile: SubjectVersion.importedBy
-    // is a required FK with default RESTRICT, so live versions block the delete.
-    prisma.subjectVersion.deleteMany(),
-    prisma.subject.deleteMany(),
-    prisma.refCompSnapshot.deleteMany(),
     prisma.staffProfile.deleteMany(),
     prisma.campus.deleteMany(),
     prisma.syncError.deleteMany(),
@@ -3725,22 +2141,27 @@ async function seedStaff(
 }
 
 /**
- * The talent admissions/onboarding funnel, as a single per-student state. It
- * drives BOTH whether a `bauth_user` exists and how far onboarding got, so the
- * two axes the admin talents list reads — account (`never`) vs onboarding
- * progress (`pending`/`active`) — stay consistent:
+ * The talent admissions/onboarding funnel, as a single per-student state.
+ * Since eager mint, every emailful lead carries a `bauth_user` from import —
+ * so the axis this drives is no longer whether an account exists, but whether
+ * the talent ever logged in (`lastActiveAt`, email verification) and how far
+ * onboarding got:
  *
- *   - `imported`    → SF lead, no account yet (`userId = null`, status `never`);
- *                     impersonation bootstraps the account on the fly.
+ *   - `imported`    → SF lead, account eager-minted at import, never logged in
+ *                     (`lastActiveAt = null`, email unverified), onboarding
+ *                     untouched.
  *   - `fresh`       → logged in once, onboarding untouched (status `pending`,
  *                     "Non démarré").
- *   - `in-progress` → account, stalled mid-funnel at a varied step.
- *   - `onboarded`   → account, all 7 steps done (status `active`).
+ *   - `in-progress` → stalled mid-funnel at a varied step.
+ *   - `onboarded`   → all 7 steps done (status `active`).
  *
- * Skewed early on purpose: a freshly-imported cohort is mostly leads with no
- * account or a fresh login, which is also the most useful state to exercise
+ * Skewed early on purpose: a freshly-imported cohort is mostly leads that never
+ * or barely logged in, which is also the most useful state to exercise
  * (impersonate → walk the full parcours). `skipOnboarding` fixtures pin the
- * extremes so there are always ready-to-test accounts.
+ * extremes so there are always ready-to-test accounts. The admin "Jamais
+ * connecté" filter (`userId = null`) is fed separately by the anchored
+ * mint-conflict talent in `seedStudents` — the only accountless state eager
+ * mint leaves behind.
  */
 type StudentLifecycle = 'imported' | 'fresh' | 'in-progress' | 'onboarded';
 
@@ -3786,11 +2207,27 @@ async function seedStudents(): Promise<
   // default (a real stage student can already be fully onboarded), so those
   // still resolve through studentLifecycle.
   const ongoingStageEmails = new Set(parisStudents.slice(6, 18));
+
+  // One talent whose SF-claimed email belongs to a staff account: the worker's
+  // eager mint refuses to adopt it ("never hand a student login to a
+  // parent/staff address", see ensureTalentUser), so the talent stays
+  // accountless — the only way a lead lacks a `bauth_user` since eager mint.
+  // Feeds the admin "Jamais connecté" filter and the impersonation conflict
+  // path. Anchored on an event-free student so no émargement/compliance
+  // fixture depends on her; the claimed address is a stable STAFF_MEMBERS
+  // fixture. Accountless ⟹ never logged in ⟹ the lifecycle below is forced to
+  // `imported` (any onboarding progress would be unreachable without a login).
+  const mintConflictSfEmails = new Map([
+    ['zoe.dubois@mail.com', 'nathan.blanc@epitech.eu'],
+  ]);
+
   const lifecycles = STUDENTS.map(
     (s, i): StudentLifecycle =>
-      s.skipOnboarding !== true && ongoingStageEmails.has(s.email)
-        ? 'fresh'
-        : studentLifecycle(s, i),
+      mintConflictSfEmails.has(s.email)
+        ? 'imported'
+        : s.skipOnboarding !== true && ongoingStageEmails.has(s.email)
+          ? 'fresh'
+          : studentLifecycle(s, i),
   );
 
   // Talents deliberately routed to a different School than Salesforce claims, so
@@ -3803,18 +2240,38 @@ async function seedStudents(): Promise<
   // these emails are forced to carry an `sfSchoolId`.
   const schoolConflictEmails = new Set(['eliot.amanieu@epitech.eu']);
 
-  // Accounts only for students who've logged in at least once — `imported`
-  // leads stay account-less (their talent row carries `userId = null`). Users
-  // first, then talents referencing them; both batched. Talent rows map back to
-  // their user by email (createManyAndReturn order isn't guaranteed), which is
-  // also the talent's own unique key.
+  // Two talents whose SF-claimed emails are swapped — the classic Salesforce
+  // inversion, the recurring root cause of auth-identity drift (see
+  // authIdentityService). Each linked account still carries the talent's own
+  // address while the mirror claims the other one's, which the sync refuses to
+  // auto-force (the holder is another talent's login). Surfaces as a
+  // SYMMETRIC_INVERSION pair in Divergences Salesforce › Connexion and lights
+  // the admin badge, which would otherwise seed to zero.
+  const authInversionSfEmails = new Map([
+    ['leon.marin@mail.com', 'anais.vasseur@mail.com'],
+    ['anais.vasseur@mail.com', 'leon.marin@mail.com'],
+  ]);
+
+  // Eager mint, as the worker does at import: every emailful lead gets a
+  // `bauth_user` from day one — `imported` leads included (they simply never
+  // logged in, so their email is still unverified). The one exception is the
+  // anchored mint-conflict talent above. Users first, then talents referencing
+  // them; both batched. Talent rows map back to their user by email
+  // (createManyAndReturn order isn't guaranteed), which is also the account's
+  // own unique key.
   const users = await prisma.bauth_user.createManyAndReturn({
-    data: STUDENTS.filter((_, i) => lifecycles[i] !== 'imported').map((s) => ({
-      email: s.email,
-      name: `${s.prenom} ${s.nom}`,
-      role: 'student',
-      emailVerified: true,
-    })),
+    data: STUDENTS.flatMap((s, i) =>
+      mintConflictSfEmails.has(s.email)
+        ? []
+        : [
+            {
+              email: s.email,
+              name: `${s.prenom} ${s.nom}`,
+              role: 'student',
+              emailVerified: lifecycles[i] !== 'imported',
+            },
+          ],
+    ),
     select: { id: true, email: true },
   });
   const userIdByEmail = new Map(users.map((u) => [u.email, u.id]));
@@ -3856,11 +2313,11 @@ async function seedStudents(): Promise<
   // reconciliation page realistically.
   const seeded = STUDENTS.map((s, i) => {
     const lifecycle = lifecycles[i];
-    const hasAccount = lifecycle !== 'imported';
+    const loggedIn = lifecycle !== 'imported';
 
-    // No account → never logged in. Otherwise dated per StudentDef.
+    // Never logged in → no activity dates. Otherwise dated per StudentDef.
     const lastActiveAt =
-      !hasAccount || s.lastActiveDaysAgo === null
+      !loggedIn || s.lastActiveDaysAgo === null
         ? null
         : new Date(now.getTime() - s.lastActiveDaysAgo * 86400000);
 
@@ -3936,8 +2393,9 @@ async function seedStudents(): Promise<
       : null;
 
     const talent = {
-      userId: hasAccount ? (userIdByEmail.get(s.email) ?? null) : null,
-      email: s.email,
+      // Eager mint: every emailful lead is linked from import. The map only
+      // misses the mint-conflict anchor, whose account was never created.
+      userId: userIdByEmail.get(s.email) ?? null,
       nom: s.nom,
       prenom: s.prenom,
       phone: toStoredPhone(s.phone),
@@ -3989,44 +2447,59 @@ async function seedStudents(): Promise<
       equipmentValidatedAt: equipmentConfirmed ? ts : null,
       interestsFreeText: null,
       lastActiveAt,
+      // The hooks stamp firstLoginAt on the first session; anyone with
+      // activity necessarily has it (first ≤ last, collapsed to one date
+      // here — the seed doesn't model a login history).
+      firstLoginAt: lastActiveAt,
       externalId: mockSalesforceLeadId(i),
     };
 
     // ── Salesforce mirror (the SF claim, as the worker would have written it) ──
     const sf = {
+      // SF's claimed login email — the student's own address, except for the
+      // two anchored anomalies (mint conflict, inversion pair).
+      sfEmail:
+        mintConflictSfEmails.get(s.email) ??
+        authInversionSfEmails.get(s.email) ??
+        s.email,
       phone: toStoredPhone(phoneDiverges ? '+33 6 99 99 99 99' : s.phone),
       civilite: sfCivilite,
       schoolId: sfSchoolId,
     };
 
-    return { talent, sf, signCity: s.campus };
+    return { talent, sf, signCity: s.campus, email: s.email };
   });
 
   const talentData = seeded.map((x) => x.talent);
 
+  // createManyAndReturn doesn't guarantee row order (see seedStaff), and the
+  // login email now lives only on the linked bauth_user - so map the returned
+  // rows back to their source by each talent's unique SF externalId, not email.
   const talents = await prisma.talent.createManyAndReturn({
     data: talentData,
-    select: { id: true, email: true, nom: true, prenom: true },
+    select: { id: true, externalId: true },
   });
-  for (const t of talents) {
-    // email is nullable in the schema but always set here — guard for the type.
-    if (t.email) byEmail[t.email] = { id: t.id, nom: t.nom, prenom: t.prenom };
+  const talentIdByExternalId = new Map(
+    talents.map((t) => [t.externalId, t.id]),
+  );
+  for (const x of seeded) {
+    const id = talentIdByExternalId.get(x.talent.externalId);
+    if (id)
+      byEmail[x.email] = { id, nom: x.talent.nom, prenom: x.talent.prenom };
   }
 
   // SF mirror per talent — every seeded talent is an SF lead, so each gets one.
   // It holds what SF sent (null where SF had nothing); a few confirmed talents'
   // values diverge from it, surfacing on the reconciliation page.
-  const talentIdByEmail = new Map(talents.map((t) => [t.email, t.id]));
   const sfImportData = seeded
     .map((x) => {
-      const talentId = x.talent.email
-        ? talentIdByEmail.get(x.talent.email)
-        : undefined;
+      const talentId = talentIdByExternalId.get(x.talent.externalId);
       if (!talentId) return null;
       return {
         talentId,
         nom: x.talent.nom,
         prenom: x.talent.prenom,
+        sfEmail: x.sf.sfEmail,
         phone: x.sf.phone,
         civilite: x.sf.civilite,
         niveau: x.talent.niveau,
@@ -4045,9 +2518,7 @@ async function seedStudents(): Promise<
   // PDF with a blank "Fait à …" place, the gap real onboarding never produces.
   const imageRightsRecordData = seeded
     .map((x) => {
-      const talentId = x.talent.email
-        ? talentIdByEmail.get(x.talent.email)
-        : undefined;
+      const talentId = talentIdByExternalId.get(x.talent.externalId);
       if (
         !talentId ||
         !x.talent.imageRightsDecision ||
@@ -4126,151 +2597,6 @@ async function seedParents(
   return realParentEmail;
 }
 
-async function seedThemes(campuses: Record<string, { id: string }>) {
-  const themeNames = [
-    'Développement Web',
-    'Robotique',
-    'Jeux Vidéo',
-    'Cybersécurité',
-    'Intelligence Artificielle',
-    'Design & Création',
-  ];
-
-  const lyonThemes = [
-    'Développement Web',
-    'Robotique',
-    'Intelligence Artificielle',
-  ];
-
-  // Official (campus-less), Paris (all), Lyon (web/robotics/IA only) in one
-  // insert. Each row carries the prefix used to rebuild the lookup key, and is
-  // remapped by (campusId, nom) since createManyAndReturn order isn't ordered.
-  const themeData = [
-    ...themeNames.map((nom) => ({ nom, campusId: null, prefix: 'official' })),
-    ...themeNames.map((nom) => ({
-      nom,
-      campusId: campuses.Paris.id,
-      prefix: 'Paris',
-    })),
-    ...lyonThemes.map((nom) => ({
-      nom,
-      campusId: campuses.Lyon.id,
-      prefix: 'Lyon',
-    })),
-  ];
-  const prefixByCampusId = new Map<string | null, string>([
-    [null, 'official'],
-    [campuses.Paris.id, 'Paris'],
-    [campuses.Lyon.id, 'Lyon'],
-  ]);
-
-  const created = await prisma.theme.createManyAndReturn({
-    data: themeData.map(({ nom, campusId }) => ({ nom, campusId })),
-    select: { id: true, nom: true, campusId: true },
-  });
-
-  const byKey: Record<string, { id: string }> = {};
-  for (const t of created) {
-    byKey[`${prefixByCampusId.get(t.campusId)}:${t.nom}`] = { id: t.id };
-  }
-  return byKey;
-}
-
-async function seedActivityTemplates(
-  themesByKey: Record<string, { id: string }>,
-  campuses: Record<string, { id: string }>,
-) {
-  // Each template carries a nested activityTemplateThemes create, which
-  // createMany can't express — so fire the per-template creates concurrently
-  // instead. The set is small (one row per activityDef), well within the pool.
-  const created = await Promise.all(
-    activityDefs.map((def) => {
-      const campusId = def.campus ? (campuses[def.campus]?.id ?? null) : null;
-      return prisma.activityTemplate.create({
-        data: {
-          nom: def.nom,
-          description: def.description,
-          difficulte: def.difficulte,
-          activityType: def.activityType,
-          isDynamic: def.isDynamic,
-          contentStructure: def.isDynamic
-            ? (contentStructures[def.nom] ?? undefined)
-            : undefined,
-          content: def.content
-            ? (marked.parse(def.content) as string)
-            : undefined,
-          link: def.link,
-          defaultDuration: def.defaultDuration,
-          campusId,
-          activityTemplateThemes: {
-            create: def.themes
-              .map((themeName) => {
-                const themeId =
-                  (def.campus &&
-                    themesByKey[`${def.campus}:${themeName}`]?.id) ||
-                  themesByKey[`official:${themeName}`]?.id;
-                return themeId ? { themeId } : null;
-              })
-              .filter((x): x is NonNullable<typeof x> => x !== null),
-          },
-        },
-        select: { id: true, nom: true },
-      });
-    }),
-  );
-
-  const byName: Record<string, { id: string }> = {};
-  for (const tpl of created) byName[tpl.nom] = { id: tpl.id };
-  return byName;
-}
-
-async function seedPlanningTemplate(
-  templatesByName: Record<string, { id: string }>,
-) {
-  const byDay: [string, string][] = [
-    ['Ma première page HTML', 'CSS : Styliser sa page'],
-    ['Construis ton robot', 'Capteurs et actionneurs'],
-    ["L'IA et moi", 'Entraîne ton modèle'],
-    ['Initiation à la cybersécurité', 'Cryptographie : les secrets du code'],
-    ['Crée ton jeu Scratch', 'Game Design avancé'],
-  ];
-
-  // Whole template (days → appel + atelier slots) as one nested create.
-  await prisma.planningTemplate.create({
-    data: {
-      nom: 'Stage de seconde — 5 jours',
-      description:
-        'Modèle de planning sur 5 jours avec accueil/appel + ateliers thématiques par jour.',
-      nbDays: 5,
-      days: {
-        create: byDay.map((actNames, i) => ({
-          dayIndex: i,
-          label: `Jour ${i + 1}`,
-          slots: {
-            create: [
-              {
-                startTime: '13:00',
-                endTime: '13:30',
-                sortOrder: 0,
-                nom: 'Appel',
-                activityType: 'orga' as ActivityType,
-              },
-              ...actNames.map((actName, j) => ({
-                startTime: '13:45',
-                endTime: '16:30',
-                sortOrder: 1 + j,
-                activityTemplateId: templatesByName[actName]?.id ?? null,
-                nom: templatesByName[actName] ? null : actName,
-                activityType: 'atelier' as ActivityType,
-              })),
-            ],
-          },
-        })),
-      },
-    },
-  });
-}
-
 // ── Émargement créneaux (mirrors $lib/domain/eventPresence) ────────────────
 // seed.ts is self-contained (see header: $lib does not resolve under
 // `prisma db seed`), so the presence-day shape is reproduced here. Keep in sync
@@ -4333,19 +2659,12 @@ function slotDecided(dayUTC: Date, slot: PresenceSlotName, now: Date): boolean {
 
 async function seedEvents(
   campuses: Record<string, { id: string }>,
-  staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
   talentByEmail: Record<string, { id: string; nom: string; prenom: string }>,
-  themesByKey: Record<string, { id: string }>,
-  templatesByName: Record<string, { id: string }>,
 ) {
   const eventIds: string[] = [];
 
   for (const blueprint of EVENTS) {
     const campusId = campuses[blueprint.campus].id;
-    const themeId =
-      themesByKey[`${blueprint.campus}:${blueprint.theme}`]?.id ??
-      themesByKey[`Paris:${blueprint.theme}`]?.id ??
-      null;
 
     const eventStart = dayAt(blueprint.daysOffset, 13, 0);
     const eventEnd =
@@ -4358,8 +2677,8 @@ async function seedEvents(
       blueprint.days ??
       (blueprint.slots ? [{ dayOffset: 0, slots: blueprint.slots }] : []);
 
-    // Whole planning skeleton — timeSlots → activity → activityThemes — built
-    // as nested-create input so the entire event ships in one round trip.
+    // Whole planning skeleton (timeSlots -> activity), built as nested-create
+    // input so the entire event ships in one round trip.
     // 1 activity = 1 slot; multi-activity blueprints write as parallel slots
     // at the same time.
     const timeSlotData = dayList.flatMap((day) =>
@@ -4378,37 +2697,13 @@ async function seedEvents(
           const blueprintDef = activityDefs.find((d) => d.nom === act.nom);
           const activityType: ActivityType =
             act.activityType ?? blueprintDef?.activityType ?? 'atelier';
-          const isDynamic = blueprintDef?.isDynamic ?? false;
-          const themeRows = (blueprintDef?.themes ?? [])
-            .map(
-              (themeName) =>
-                themesByKey[`${blueprint.campus}:${themeName}`]?.id,
-            )
-            .filter((id): id is string => Boolean(id))
-            .map((themeId) => ({ themeId }));
           return {
             startTime: slotStart,
             endTime: slotEnd,
             activity: {
               create: {
                 nom: act.nom,
-                description: blueprintDef?.description ?? null,
-                difficulte: blueprintDef?.difficulte ?? null,
                 activityType,
-                isDynamic,
-                // Static activities render `activity.content` directly (see the
-                // talent `[activityId]` page); production copies it off the
-                // template on instantiation (planningActions), so the seed does
-                // the same instead of leaving the row content-less.
-                content: blueprintDef?.content
-                  ? (marked.parse(blueprintDef.content) as string)
-                  : undefined,
-                contentStructure:
-                  isDynamic && contentStructures[act.nom]
-                    ? contentStructures[act.nom]
-                    : undefined,
-                templateId: templatesByName[act.nom]?.id ?? null,
-                activityThemes: { create: themeRows },
               },
             },
           };
@@ -4435,16 +2730,6 @@ async function seedEvents(
             ? 'stagiaire'
             : null,
         campusId,
-        themeId,
-        pin: blueprint.pin,
-        mantas: {
-          create: blueprint.mantaKeys
-            .map((key) => {
-              const staff = staffByKey[key];
-              return staff ? { staffProfileId: staff.id } : null;
-            })
-            .filter((x): x is NonNullable<typeof x> => x !== null),
-        },
         modules: {
           create: ((blueprint.eventType ?? EVENT_TYPES.CODING_CLUB) ===
           EVENT_TYPES.STAGE_SECONDE
@@ -4454,91 +2739,41 @@ async function seedEvents(
         },
         planning: { create: { timeSlots: { create: timeSlotData } } },
       },
-      include: {
-        planning: { include: { timeSlots: { include: { activity: true } } } },
-      },
     });
     eventIds.push(event.id);
 
-    const activitiesCreated = (event.planning?.timeSlots ?? [])
-      .map((ts) => ts.activity)
-      .filter((a): a is NonNullable<typeof a> => a !== null);
-
     // Per-student context, derived once and reused across participation,
-    // participationActivity and stageCompliance rows.
+    // émargement and stageCompliance rows. `isPresent`/`delay` are blueprint
+    // attendance hints (from presentEmails/delays) that drive the EventPresence
+    // status below — attendance no longer lives on Participation.
     const students = blueprint.studentEmails
       .map((email, i) => {
         const talent = talentByEmail[email];
         if (!talent) return null;
-        const verdictEntry = blueprint.verdicts_by_email?.[email];
-        const verdictAuthor = verdictEntry
-          ? staffByKey[verdictEntry.authorKey]
-          : undefined;
         return {
           email,
           i,
           talent,
           isPresent: blueprint.presentEmails?.includes(email) ?? false,
           delay: blueprint.delays?.[email] ?? 0,
-          verdictEntry,
-          verdictAuthor,
         };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
 
-    // Participations — batched, then mapped back by talentId (unique per
-    // event) to wire up the activity + compliance child rows.
+    // Participations (pure enrollment) — batched, then mapped back by talentId
+    // (unique per event) to wire up the compliance child row.
     const participations = await prisma.participation.createManyAndReturn({
       data: students.map((s) => ({
         talentId: s.talent.id,
         eventId: event.id,
         campusId,
-        isPresent: s.isPresent,
-        delay: s.delay,
         bringPc: blueprint.bringPc ? blueprint.bringPc(s.email, s.i) : false,
-        camperRating: s.isPresent
-          ? (blueprint.ratings?.[s.email] ?? null)
-          : null,
-        camperFeedback: s.isPresent
-          ? (blueprint.feedback?.[s.email] ?? null)
-          : null,
       })),
       select: { id: true, talentId: true },
     });
     const participationIdByTalent = new Map(
       participations.map((p) => [p.talentId, p.id]),
     );
-
-    // Cockpit attaches verdicts at the orga (roll-call) slot, so seed mirrors
-    // that on the event's orga activity.
-    const verdictTargetId = activitiesCreated.find(
-      (a) => a.activityType === 'orga',
-    )?.id;
-
-    const participationActivityRows = students.flatMap((s) => {
-      const participationId = participationIdByTalent.get(s.talent.id)!;
-      return activitiesCreated.map((activity) => {
-        const isVerdictTarget =
-          s.verdictEntry && s.verdictAuthor && activity.id === verdictTargetId;
-        return {
-          participationId,
-          activityId: activity.id,
-          isPresent: s.isPresent,
-          delay: s.delay,
-          ...(isVerdictTarget
-            ? {
-                verdict: s.verdictEntry!.verdict,
-                contextTag: s.verdictEntry!.contextTag ?? null,
-                verdictAuthorId: s.verdictAuthor!.id,
-                verdictAt: new Date(),
-              }
-            : {}),
-        };
-      });
-    });
-    await prisma.participationActivity.createMany({
-      data: participationActivityRows,
-    });
 
     // EventPresence rows (émargement). Reproduce what staff would have recorded
     // for this event up to now: a present student is présent on every elapsed
@@ -4611,142 +2846,26 @@ async function seedEvents(
   return eventIds;
 }
 
-async function seedStepsProgress(
-  talentByEmail: Record<string, { id: string }>,
-  eventIds: string[],
-): Promise<number> {
-  const liveEvent = EVENTS.find((e) => e.daysOffset === 0);
-  if (!liveEvent) return 0;
-
-  const liveEventId = eventIds[EVENTS.indexOf(liveEvent)];
-  const activities = await prisma.activity.findMany({
-    where: {
-      timeSlot: { planning: { eventId: liveEventId } },
-      isDynamic: true,
-    },
-  });
-  if (activities.length === 0) return 0;
-
-  // Use the first dynamic activity for alerts
-  const targetActivity = activities[0];
-  const cs = contentStructures[targetActivity.nom];
-  const firstStep = cs?.steps[0]?.id;
-  const midStep = cs?.steps[Math.floor((cs?.steps.length ?? 1) / 2)]?.id;
-  const lastStep = cs?.steps[cs.steps.length - 1]?.id;
-
-  let alertCount = 0;
-  const presentEmails = liveEvent.presentEmails ?? [];
-  const liveRows = presentEmails.flatMap((email, i) => {
-    const talent = talentByEmail[email];
-    if (!talent || !firstStep) return [];
-
-    // Distribution on 6 present students: 2 completed, 1 active, 3 needs_help
-    let status: 'active' | 'needs_help' | 'completed';
-    let stepId = firstStep;
-    if (i < 2) {
-      status = 'completed';
-      stepId = lastStep ?? firstStep;
-    } else if (i < 3) {
-      status = 'active';
-      stepId = midStep ?? firstStep;
-    } else {
-      status = 'needs_help';
-      stepId = midStep ?? firstStep;
-      alertCount++;
-    }
-
-    return [
-      {
-        talentId: talent.id,
-        eventId: liveEventId,
-        activityId: targetActivity.id,
-        currentStepId: stepId,
-        unlockedStepId: stepId,
-        status,
-        lastUnlockSource: 'student' as const,
-      },
-    ];
-  });
-  await prisma.stepsProgress.createMany({ data: liveRows });
-
-  // Past event completions for XP / progress history. Fetch every past
-  // event's dynamic activities in one query, then build all rows.
-  const pastEvents = EVENTS.filter((e) => e.daysOffset < 0);
-  const pastEventIds = pastEvents.map((e) => eventIds[EVENTS.indexOf(e)]);
-  const pastActivities = await prisma.activity.findMany({
-    where: {
-      timeSlot: { planning: { eventId: { in: pastEventIds } } },
-      isDynamic: true,
-    },
-    select: {
-      id: true,
-      nom: true,
-      timeSlot: { select: { planning: { select: { eventId: true } } } },
-    },
-  });
-
-  const pastRows = pastActivities.flatMap((activity) => {
-    const acs = contentStructures[activity.nom];
-    const last = acs?.steps[acs.steps.length - 1]?.id;
-    const evtId = activity.timeSlot.planning.eventId;
-    const evt = pastEvents.find((e) => eventIds[EVENTS.indexOf(e)] === evtId);
-    if (!last || !evt) return [];
-
-    return (evt.presentEmails ?? []).flatMap((email) => {
-      const talent = talentByEmail[email];
-      if (!talent) return [];
-      return [
-        {
-          talentId: talent.id,
-          eventId: evtId,
-          activityId: activity.id,
-          currentStepId: last,
-          unlockedStepId: last,
-          status: 'completed' as const,
-          lastUnlockSource: 'staff' as const,
-        },
-      ];
-    });
-  });
-  // skipDuplicates absorbs the (talentId, activityId) unique collisions the
-  // old per-row .catch() swallowed.
-  await prisma.stepsProgress.createMany({
-    data: pastRows,
-    skipDuplicates: true,
-  });
-
-  return alertCount;
-}
-
 async function recomputeXp(): Promise<number> {
   // Rebuild the XP ledger the way the app does (XpGrant rows), then set the
   // cached projections (Talent.xp / eventsCount) to match — so seeded talents
-  // stay consistent with the ledger and survive any later recompute
-  // (mark-present, onboarding reset) instead of getting zeroed. Two grant
-  // sources, mirroring production:
-  //   - `onboarding`        → WELCOME_XP_BONUS, one per talent who signed rules.
-  //   - `activity_presence` → one per present participation; amount = sum of
-  //     present non-orga difficulties, or a 20-XP base when present with no
-  //     eligible activity (matches getTotalXp on an empty list — so a staff
-  //     mark-present recompute reproduces this number instead of changing it).
-  const [participations, onboarded] = await Promise.all([
-    prisma.participation.findMany({
-      where: { isPresent: true },
-      select: {
-        id: true,
-        talentId: true,
-        campusId: true,
-        activities: {
-          select: {
-            isPresent: true,
-            activity: { select: { activityType: true, difficulte: true } },
-          },
-        },
-      },
-    }),
+  // stay consistent with the ledger and survive any later recompute (onboarding
+  // reset, émargement edit) instead of getting zeroed.
+  //   - XP    → a single `onboarding` grant (WELCOME_XP_BONUS) per talent who
+  //             signed the rules. Presence no longer grants XP.
+  //   - events → derived from émargement, mirroring recomputeEventsCount in
+  //             services/xpService.ts: an event counts once a talent has a
+  //             présent/en-retard cell, so multiple slots collapse to one via a
+  //             distinct (talentId, eventId).
+  const [onboarded, attendance] = await Promise.all([
     prisma.talent.findMany({
       where: { rulesSignedAt: { not: null } },
       select: { id: true },
+    }),
+    prisma.eventPresence.findMany({
+      where: { status: { in: ['present', 'late'] } },
+      distinct: ['talentId', 'eventId'],
+      select: { talentId: true },
     }),
   ]);
 
@@ -4764,25 +2883,8 @@ async function recomputeXp(): Promise<number> {
     xpByTalent[t.id] = (xpByTalent[t.id] ?? 0) + WELCOME_XP_BONUS;
   }
 
-  for (const p of participations) {
-    eventsByTalent[p.talentId] = (eventsByTalent[p.talentId] ?? 0) + 1;
-    const eligible = p.activities.filter(
-      (pa) => pa.isPresent && pa.activity.activityType !== 'orga',
-    );
-    const amount = eligible.length
-      ? eligible.reduce(
-          (sum, pa) => sum + (XP_MAP[pa.activity.difficulte ?? ''] ?? 20),
-          0,
-        )
-      : 20; // base attendance XP (matches getTotalXp on an empty list)
-    grants.push({
-      talentId: p.talentId,
-      source: 'activity_presence',
-      sourceId: p.id,
-      amount,
-      campusId: p.campusId,
-    });
-    xpByTalent[p.talentId] = (xpByTalent[p.talentId] ?? 0) + amount;
+  for (const a of attendance) {
+    eventsByTalent[a.talentId] = (eventsByTalent[a.talentId] ?? 0) + 1;
   }
 
   await prisma.xpGrant.createMany({ data: grants, skipDuplicates: true });
@@ -4859,46 +2961,6 @@ async function seedInterviews(
   });
 
   await prisma.interview.createMany({ data: rows });
-  return rows.length;
-}
-
-async function seedPortfolio(
-  talentByEmail: Record<string, { id: string }>,
-  eventIds: string[],
-): Promise<number> {
-  const rows = PORTFOLIO.flatMap((p) => {
-    const talent = talentByEmail[p.studentEmail];
-    const eventId = eventIds[p.eventIndex];
-    if (!talent || !eventId) return [];
-    return [
-      { talentId: talent.id, eventId, url: p.url ?? null, caption: p.caption },
-    ];
-  });
-  await prisma.portfolioItem.createMany({ data: rows });
-  return rows.length;
-}
-
-async function seedReminders(
-  staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
-  talentByEmail: Record<string, { id: string }>,
-): Promise<number> {
-  const rows = REMINDERS.flatMap((r) => {
-    const talent = talentByEmail[r.studentEmail];
-    const staff = staffByKey[r.staffKey];
-    if (!talent || !staff) return [];
-    return [
-      {
-        talentId: talent.id,
-        type: r.type,
-        channel: r.channel ?? 'email',
-        subject: r.subject ?? null,
-        body: r.body ?? null,
-        sentAt: dayAt(r.daysOffset, r.hour ?? 10, 0),
-        sentBy: staff.userId,
-      },
-    ];
-  });
-  await prisma.onboardingReminder.createMany({ data: rows });
   return rows.length;
 }
 
@@ -5038,15 +3100,6 @@ async function printSummary(parentEmail: string) {
   const inProgressInterviews = await prisma.interview.count({
     where: { status: 'in_progress' },
   });
-  const alertCount = await prisma.stepsProgress.count({
-    where: { status: 'needs_help' },
-  });
-  const missingMantaCount = await prisma.event.count({
-    where: {
-      date: { gte: startOfToday, lte: dayAt(7, 23, 59) },
-      mantas: { none: {} },
-    },
-  });
 
   console.log('\n════════════════════════════════════════════════════════');
   console.log('                   SEED COMPLETE');
@@ -5057,9 +3110,8 @@ async function printSummary(parentEmail: string) {
     `   admin      Microsoft OAuth only — bun run scripts/add-admin-user.ts`,
   );
   console.log(`   staff      *@epitech.eu (Microsoft OAuth)`);
-  console.log(`              (pauline.marchand=superdev, marie.manta=dev,`);
-  console.log(`               sophie.bernard/nathan.blanc=peda,`);
-  console.log(`               jules.dupont/laura.garcia/pierre.leblanc=manta,`);
+  console.log(`              (pauline.marchand/hugo.lefebvre=superdev,`);
+  console.log(`               marie.manta/sophie.bernard/jules.dupont=dev,`);
   console.log(`               camille.reader=no role → "contact admin")`);
   console.log(`   students   *@mail.com (OTP via email)`);
   console.log(`   parent     ${parentEmail} (OTP via email)\n`);
@@ -5072,23 +3124,13 @@ async function printSummary(parentEmail: string) {
   console.log('');
 
   console.log('🎯 Feature trigger points');
-  console.log(
-    `   Live alerts (cockpit):         ${alertCount} needs_help entries on today's event`,
-  );
   console.log(`   Entretiens — finalisés:        ${doneInterviews}`);
   console.log(`   Entretiens — en cours:         ${inProgressInterviews}`);
-  console.log(
-    `   Task queue — missing mantas:   ${missingMantaCount} events ≤ 7 days`,
-  );
   console.log(
     `   Task queue — missing planning: 1 event (Atelier Game Design, +4d)`,
   );
   console.log(
     '   Stage compliance:              3 stage_seconde events with mixed signed/unsigned',
-  );
-  const reminderTotal = await prisma.onboardingReminder.count();
-  console.log(
-    `   Onboarding reminders:          ${reminderTotal} relances envoyées (CommHistoryList)`,
   );
   console.log('');
 
@@ -5097,7 +3139,6 @@ async function printSummary(parentEmail: string) {
   console.log(`   ${origin}/staff/login                 Staff sign-in`);
   console.log(`   ${origin}/staff/admin                 Admin panel`);
   console.log(`   ${origin}/staff/dev                   Dev space`);
-  console.log(`   ${origin}/staff/pedago                Pedago / Manta space`);
   console.log(`   ${origin}/parent/login                Parent portal`);
   console.log('');
   console.log('════════════════════════════════════════════════════════\n');

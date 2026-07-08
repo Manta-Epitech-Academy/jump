@@ -84,12 +84,11 @@ export interface ExcludedRecipient {
   reason: RecipientExclusionReason;
 }
 
+// Audiences a staff member can actually pick in the composer.
 export const BROADCAST_AUDIENCES = [
   'talent',
   'parent',
   'dev',
-  'peda',
-  'manta',
   'superdev',
 ] as const satisfies readonly BroadcastAudience[];
 
@@ -97,26 +96,22 @@ export const BROADCAST_AUDIENCE_LABELS: Record<BroadcastAudience, string> = {
   talent: 'Talents',
   parent: 'Parents',
   dev: 'Dev (recrutement)',
-  peda: 'Pédago',
-  manta: 'Mantas',
   superdev: 'Superdev',
 };
 
 /**
  * Audiences for which picking an event narrows the recipient set:
- * - `talent`/`parent` scope through `Participation` (the event's students),
- * - `manta` scopes through `EventManta` (the event's assigned mantas).
+ * `talent`/`parent` scope through `Participation` (the event's students).
  *
- * For every other audience (`dev`/`peda`/`superdev`) the event is meaningless
- * (they have no per-event assignment), so the composer hides the event picker.
+ * For every other audience (`dev`/`superdev`) the event is meaningless (they
+ * have no per-event assignment), so the composer hides the event picker.
  *
  * The event stays optional even for these audiences: an empty event means the
- * whole campus (all of its talents / all of its mantas), not "send nothing".
+ * whole campus (all of its talents), not "send nothing".
  */
 export const EVENT_SCOPED_AUDIENCES: readonly BroadcastAudience[] = [
   'talent',
   'parent',
-  'manta',
 ];
 
 export type BroadcastVariableKey =
@@ -267,10 +262,6 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     contextual: true,
   },
 ] as const;
-
-export const BROADCAST_VARIABLE_TOKENS = BROADCAST_VARIABLES.map(
-  (v) => v.token,
-);
 
 // Canonical level catalogue lives in domain/xp.ts (derived from XP_LEVEL_TIERS),
 // re-exported here so broadcast filter consumers keep their import path.

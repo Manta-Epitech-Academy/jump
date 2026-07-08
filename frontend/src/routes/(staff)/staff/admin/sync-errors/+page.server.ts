@@ -35,8 +35,9 @@ export const load: PageServerLoad = async () => {
   ].sort();
 
   return {
-    // An error is about one event, so its category is that event's type — see
-    // countCampusSyncErrors for why the talents involved can't supply it.
+    // An error is about one event, so its category is that event's type: when a
+    // collision is logged neither talent yet has a participation on that event,
+    // so the event's own eventType is the authoritative signal.
     errors: errors.map((e: (typeof errors)[number]) => {
       const event = e.eventExtId ? eventMap.get(e.eventExtId) : null;
       return {

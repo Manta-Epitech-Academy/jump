@@ -75,24 +75,31 @@ export const actions: Actions = {
     }
 
     try {
-      // Check if this email belongs to a talent or a parent
-      const talent = await prisma.talent.findUnique({
+      // Route by the login identity (bauth_user) — the single source of truth.
+      // Every talent has an account from import (eager mint); a talent whose
+      // mint hit a conflict has no account and correctly can't sign in until an
+      // admin resolves it.
+      const user = await prisma.bauth_user.findUnique({
         where: { email: normalizedEmail },
-        select: { id: true },
+        select: { role: true, talent: { select: { id: true } } },
       });
 
       let userKind: 'talent' | 'parent' = 'talent';
 
-      if (talent) {
-        await ensureTalentUser(talent.id);
-      } else {
-        const parentUser = await prisma.bauth_user.findUnique({
-          where: { email: normalizedEmail },
+      if (user?.talent) {
+        const userId = await ensureTalentUser(user.talent.id);
+        // ensureTalentUser may have just realigned the login email to SF's
+        // current claim — meaning the address the student typed is one SF has
+        // disowned. BetterAuth's OTP send silently succeeds for an email that
+        // matches no account (anti-enumeration + disableSignUp), so without
+        // this re-check the student would see "Code envoyé" and never receive
+        // a code. Answer what the next sync pass would have made true anyway:
+        // no account under that address.
+        const account = await prisma.bauth_user.findUnique({
+          where: { id: userId },
+          select: { email: true },
         });
-
-        if (parentUser?.role === 'parent') {
-          userKind = 'parent';
-        } else {
+        if (account && account.email.toLowerCase().trim() !== normalizedEmail) {
           return message(
             emailForm,
             {
@@ -102,6 +109,17 @@ export const actions: Actions = {
             { status: 404 },
           );
         }
+      } else if (user?.role === 'parent') {
+        userKind = 'parent';
+      } else {
+        return message(
+          emailForm,
+          {
+            type: 'error',
+            text: 'Aucun compte trouvé avec cette adresse email.',
+          },
+          { status: 404 },
+        );
       }
 
       await auth.api.sendVerificationOTP({

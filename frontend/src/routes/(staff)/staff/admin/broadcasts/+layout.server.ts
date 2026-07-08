@@ -8,7 +8,7 @@ import {
 import { outboundTrapped } from '$lib/server/outbound';
 
 /** Where a trapped *bulk* send on one channel lands, for the broadcast banner. */
-export type DevRedirect =
+type DevRedirect =
   | {
       channel: BroadcastChannel;
       /** Trapped copies are redirected to a debug destination. */

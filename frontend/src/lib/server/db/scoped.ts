@@ -47,10 +47,6 @@ export function getBrowserTimezone(cookies: Cookies): string {
  *   Planning (event → campusId)
  *   TimeSlot (planning → event → campusId)
  *   Activity (timeSlot → planning → event → campusId)
- *   ParticipationActivity (participation → campusId)
- *
- * OR pattern (campus-specific + global where campusId is null):
- *   Theme, ActivityTemplate
  *
  * For findUnique/findUniqueOrThrow/update/delete (which only accept unique
  * fields in `where`), we use a post-query check pattern.
@@ -321,67 +317,6 @@ export function scopedPrisma(campusId: string) {
             select: { campusId: true },
           });
           if (existing.campusId !== campusId) accessDenied('StaffProfile');
-          return query(args);
-        },
-      },
-
-      // ── ParticipationActivity (scoped through participation.campusId) ──
-      participationActivity: {
-        async findMany({ args, query }) {
-          args.where = {
-            ...args.where,
-            participation: {
-              ...((args.where as any)?.participation ?? {}),
-              campusId,
-            },
-          };
-          return query(args);
-        },
-        async findFirst({ args, query }) {
-          args.where = {
-            ...args.where,
-            participation: {
-              ...((args.where as any)?.participation ?? {}),
-              campusId,
-            },
-          };
-          return query(args);
-        },
-        async findUniqueOrThrow({ args, query }) {
-          const result = await query(args);
-          const participation = await prisma.participation.findUniqueOrThrow({
-            where: { id: result.participationId },
-            select: { campusId: true },
-          });
-          if (participation.campusId !== campusId)
-            accessDenied('ParticipationActivity');
-          return result;
-        },
-        async createMany({ args, query }) {
-          return query(args);
-        },
-        async update({ args, query }) {
-          const where = args.where as any;
-          if (where.participationId_activityId) {
-            const participation = await prisma.participation.findUniqueOrThrow({
-              where: { id: where.participationId_activityId.participationId },
-              select: { campusId: true },
-            });
-            if (participation.campusId !== campusId)
-              accessDenied('ParticipationActivity');
-          }
-          return query(args);
-        },
-        async delete({ args, query }) {
-          const where = args.where as any;
-          if (where.participationId_activityId) {
-            const participation = await prisma.participation.findUniqueOrThrow({
-              where: { id: where.participationId_activityId.participationId },
-              select: { campusId: true },
-            });
-            if (participation.campusId !== campusId)
-              accessDenied('ParticipationActivity');
-          }
           return query(args);
         },
       },
@@ -753,76 +688,6 @@ export function scopedPrisma(campusId: string) {
             select: { campusId: true },
           });
           if (existing.campusId !== campusId) accessDenied('Interview');
-          return query(args);
-        },
-      },
-
-      // ── ActivityTemplate (campusId nullable — null means global/official) ──
-      activityTemplate: {
-        async findMany({ args, query }) {
-          if (!args.where?.campusId) {
-            args.where = {
-              ...args.where,
-              OR: [{ campusId }, { campusId: null }],
-            };
-          }
-          return query(args);
-        },
-        async findFirst({ args, query }) {
-          if (!args.where?.campusId) {
-            args.where = {
-              ...args.where,
-              OR: [{ campusId }, { campusId: null }],
-            };
-          }
-          return query(args);
-        },
-        async findUnique({ args, query }) {
-          const existing = await prisma.activityTemplate.findUnique({
-            where: args.where,
-            select: { campusId: true },
-          });
-          if (
-            existing &&
-            existing.campusId !== null &&
-            existing.campusId !== campusId
-          )
-            accessDenied('ActivityTemplate');
-          return query(args);
-        },
-        async findUniqueOrThrow({ args, query }) {
-          const existing = await prisma.activityTemplate.findUniqueOrThrow({
-            where: args.where,
-            select: { campusId: true },
-          });
-          if (existing.campusId !== null && existing.campusId !== campusId)
-            accessDenied('ActivityTemplate');
-          return query(args);
-        },
-      },
-
-      // ── Theme (campusId nullable — null means global/official) ──
-      theme: {
-        async findMany({ args, query }) {
-          if (!args.where?.campusId) {
-            args.where = {
-              ...args.where,
-              OR: [{ campusId }, { campusId: null }],
-            };
-          }
-          return query(args);
-        },
-        async findFirst({ args, query }) {
-          if (!args.where?.campusId) {
-            args.where = {
-              ...args.where,
-              OR: [{ campusId }, { campusId: null }],
-            };
-          }
-          return query(args);
-        },
-        async create({ args, query }) {
-          args.data = { ...args.data, campusId } as any;
           return query(args);
         },
       },

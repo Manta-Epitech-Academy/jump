@@ -68,8 +68,6 @@
           danger: true,
           title: `${data.authConflictsPending} conflit(s) d'identité de connexion à résoudre`,
         };
-      case 'tickets':
-        return { count: data.ticketsUnread, danger: false };
       case 'deletions':
         return { count: data.deletionRequestsPending, danger: false };
     }

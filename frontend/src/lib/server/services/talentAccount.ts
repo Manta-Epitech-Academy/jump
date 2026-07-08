@@ -1,6 +1,9 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { isParentOrStaffEmail } from '$lib/server/auth/emailIdentity';
+import {
+  changeUserEmail,
+  EmailChangeConflict,
+} from '$lib/server/services/userEmail';
 import { deleteAnonymizedDocuments } from '$lib/server/services/anonymizationService';
 import {
   findUnreferencedParentAccount,
@@ -30,63 +33,48 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
     select: {
       id: true,
       userId: true,
-      email: true,
+      sfImport: { select: { sfEmail: true } },
       prenom: true,
       nom: true,
-      user: { select: { email: true } },
     },
   });
 
-  // Already linked: reconcile the login email before returning. Salesforce can
-  // change Talent.email after the link was made; the linked bauth_user.email
-  // then goes stale and the student logs in "into the void" (BetterAuth resolves
-  // OTP by bauth_user.email, while the dashboard loads by the linked account).
-  // Realign it to Talent.email so the next OTP lands on this account. If another
-  // account already holds the new email (P2002 — an orphan the student made via
-  // direct OTP, or a Salesforce inversion), DON'T force it: leave the link as-is
-  // for the admin auth-conflicts tool to arbitrate, and still return the current
-  // id so this call never blocks a login.
+  // Already linked: realign the login email through the single write path, then
+  // return. Salesforce can change its claimed email (`TalentSfImport.sfEmail`)
+  // after the link was made; the linked bauth_user.email then goes stale and
+  // the student logs in "into the void" (BetterAuth resolves OTP by
+  // bauth_user.email). `changeUserEmail`
+  // renames it, guarding against a parent/staff address and surfacing a
+  // collision (an orphan the student made, or an SF inversion). In either
+  // conflict case we leave the link as-is for the admin auth-conflicts tool and
+  // still return the current id so a login is never blocked.
   if (talent.userId) {
-    const wanted = talent.email?.toLowerCase().trim();
-    const current = talent.user?.email?.toLowerCase().trim();
-    if (wanted && current && wanted !== current) {
-      // Guard before realigning: `Talent.email` pointing at a parent or staff
-      // address is bad SF data (a minor onboarded with a parent's email), NOT an
-      // email change. Renaming the student's account onto it would steal that
-      // parent/staff identity. Skip the rename and leave it for the admin
-      // auth-conflicts tool, which surfaces it as PARENT_HOLDER / STAFF_HOLDER
-      // (escalate, never force) — same stance as the adopt branch below.
-      if (!(await isParentOrStaffEmail(wanted))) {
-        try {
-          await prisma.bauth_user.update({
-            where: { id: talent.userId },
-            data: { email: wanted },
-          });
-        } catch (err) {
-          if (
-            !(
-              err instanceof Prisma.PrismaClientKnownRequestError &&
-              err.code === 'P2002'
-            )
-          )
-            throw err;
-          // Collision → leave for manual resolution (see authIdentityService).
-        }
+    const wanted = talent.sfImport?.sfEmail?.toLowerCase().trim();
+    if (wanted) {
+      try {
+        await changeUserEmail(talent.userId, wanted);
+      } catch (err) {
+        if (!(err instanceof EmailChangeConflict)) throw err;
       }
     }
     return talent.userId;
   }
 
-  const email = talent.email?.toLowerCase().trim();
+  const email = talent.sfImport?.sfEmail?.toLowerCase().trim();
   if (!email) {
     throw new Error(
-      "Le talent n'a pas d'adresse email — impossible de créer un compte de connexion.",
+      "Le talent n'a pas d'adresse email SF — impossible de créer un compte de connexion.",
     );
   }
 
   const existing = await prisma.bauth_user.findUnique({
     where: { email },
-    select: { id: true, role: true, staffProfile: { select: { id: true } } },
+    select: {
+      id: true,
+      role: true,
+      staffProfile: { select: { id: true } },
+      talent: { select: { externalId: true } },
+    },
   });
   let userId: string;
   if (existing) {
@@ -97,6 +85,16 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
     if (existing.staffProfile || existing.role === 'parent') {
       throw new Error(
         "L'adresse du talent correspond à un compte parent ou staff — résolution manuelle requise (conflit d'identité).",
+      );
+    }
+    // Nor an account already linked to another talent: two SF records sharing
+    // one email (a Salesforce duplicate). The link below would trip
+    // `Talent.userId`'s unique constraint anyway; surface the real conflict
+    // instead of a raw P2002 so the sync error names the holder and an admin
+    // can resolve it.
+    if (existing.talent) {
+      throw new Error(
+        `L'adresse du talent est déjà utilisée par le talent externalId="${existing.talent.externalId}" — résolution manuelle requise (conflit d'identité).`,
       );
     }
     userId = existing.id;
@@ -146,7 +144,7 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
  * play minigames, onboard, upload, sign → wipe it all).
  *
  * What the worker import establishes, and what this keeps:
- *   - the `Talent` row's SF identity (`externalId`, `email`) and the columns the
+ *   - the `Talent` row's SF identity (`externalId`) and the columns the
  *     worker seeds from Salesforce (`nom`, `prenom`, `phone`, `civilite`,
  *     `niveau`, `schoolId`), re-seeded here from the `TalentSfImport` mirror,
  *     which is exactly what the worker would seed on a fresh create, so an
@@ -154,20 +152,24 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
  *   - the SF mirror itself (`TalentSfImport`, worker-owned);
  *   - the `Participation` rows the worker upserts per event (the talent *was*
  *     imported into those events), reset to their import defaults, with every
- *     post-import child (`ParticipationActivity` verdicts, `StageCompliance`)
- *     dropped.
+ *     post-import child (`StageCompliance`) dropped.
  *
  * Everything else a talent accrues after import is deleted: the XP ledger and
- * its cached projections (`xp`/`eventsCount` → 0), minigame attempts, quiz /
- * observable / competence state, steps progress, interviews (and their calendar
- * syncs, plus the audit trail of any admin reset), portfolio, interests,
- * reminders, PDF jobs, broadcast-recipient rows,
- * deletion requests, every onboarding/parent/image-rights/règlement column, and
- * the generated onboarding PDFs in object storage. The login identity goes too:
- * a freshly-imported talent has no `bauth_user` (their `userId` is null until a
- * first login or impersonation), so the linked user (and any parent account
- * minted during testing that no *other* talent still references) is deleted
- * along with its sessions/accounts.
+ * its cached projections (`xp`/`eventsCount` → 0), the émargement marks
+ * (`EventPresence` — the source `eventsCount` projects from, so the zeroed
+ * count stays consistent and a later presence write can't resurrect it),
+ * minigame attempts, interviews
+ * (and the audit trail of any admin reset), interests, reminders, PDF jobs,
+ * broadcast-recipient rows, deletion requests, every
+ * onboarding/parent/image-rights/règlement column, and the generated onboarding
+ * PDFs in object storage. The login *history* goes too: sessions and any linked
+ * OAuth/credential accounts are cleared so the talent is back to
+ * never-having-logged-in. The `bauth_user` identity itself is kept, though:
+ * eager mint gives every fresh SF import a login account from day one, so
+ * reproducing import state means keeping it, not deleting it (dropping it would
+ * lock the talent out of OTP login, which routes by `bauth_user`). Any parent
+ * account minted during testing that no *other* talent still references is
+ * deleted (step 6).
  *
  * Contrast with `anonymizeTalent`: it scrubs identity to placeholders for RGPD
  * erasure but deliberately keeps the XP/stats and the account; this keeps the
@@ -187,7 +189,6 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         userId: true,
         parentEmail: true,
         parent2Email: true,
-        charterFilePath: true,
         rulesFilePath: true,
         imageRightsFilePath: true,
         // The worker's source for the seed columns. When present, re-seeding the
@@ -221,7 +222,6 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
       (e): e is string => !!e,
     );
     const documentKeys = [
-      talent.charterFilePath,
       talent.rulesFilePath,
       talent.imageRightsFilePath,
     ].filter((k): k is string => !!k);
@@ -234,9 +234,6 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     });
     const participationIds = participations.map((p) => p.id);
     if (participationIds.length > 0) {
-      await tx.participationActivity.deleteMany({
-        where: { participationId: { in: participationIds } },
-      });
       await tx.stageCompliance.deleteMany({
         where: { participationId: { in: participationIds } },
       });
@@ -250,16 +247,11 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     // The reset-audit trail is talent-scoped too (talentId + a free-text reason);
     // it must go with the interviews it traces, matching anonymizeTalent.
     await tx.interviewReset.deleteMany({ where: { talentId } });
-    await tx.stepsProgress.deleteMany({ where: { talentId } });
-    await tx.portfolioItem.deleteMany({ where: { talentId } });
-    await tx.talentObservableState.deleteMany({ where: { talentId } });
-    await tx.talentCompetenceState.deleteMany({ where: { talentId } });
-    await tx.talentQuizAttempt.deleteMany({ where: { talentId } });
     await tx.talentInterest.deleteMany({ where: { talentId } });
-    await tx.onboardingReminder.deleteMany({ where: { talentId } });
     await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
     await tx.minigameAttempt.deleteMany({ where: { talentId } });
     await tx.xpGrant.deleteMany({ where: { talentId } });
+    await tx.eventPresence.deleteMany({ where: { talentId } });
     await tx.imageRightsDecisionRecord.deleteMany({ where: { talentId } });
     await tx.broadcastRecipient.deleteMany({
       where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
@@ -281,16 +273,11 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     //    (the worker creates them with only talent/event/campus set).
     await tx.participation.updateMany({
       where: { talentId },
-      data: {
-        isPresent: false,
-        delay: 0,
-        bringPc: false,
-        camperRating: null,
-        camperFeedback: null,
-      },
+      data: { bringPc: false },
     });
 
-    // 4. Reset the Talent row. Keep externalId + email (SF identity / auth key);
+    // 4. Reset the Talent row. Keep externalId (the SF identity; the login
+    //    email lives on the linked bauth_user, kept in step 5);
     //    re-seed the SF-owned columns from the mirror; null everything onboarding
     //    and the parent flows wrote; zero the cached XP projections.
     await tx.talent.update({
@@ -332,35 +319,28 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         hasLaptop: false,
         setupDescription: null,
         interestsFreeText: null,
-        discordId: null,
-        badges: Prisma.DbNull,
-        lastSyncedAt: null,
         // Activity projections: a fresh-import talent has never logged in, so
-        // both the first-login and last-active facts are dropped alongside the
-        // account itself (userId null + bauth_user deleted below).
+        // both the first-login and last-active facts are dropped. The login
+        // identity itself is kept (step 5 clears only its history), so `userId`
+        // stays linked.
         lastActiveAt: null,
         firstLoginAt: null,
-        userId: null,
       },
     });
 
-    // 5. Delete the talent's login identity outright: a freshly-imported talent
-    //    has no bauth_user. (userId was just nulled above; the captured value
-    //    still points at the row to drop.)
-    //
-    //    Hard-deleting the bauth_user is safe because a *student* user is only
-    //    referenced by rows that fall away with it: bauth_session / bauth_account
-    //    (cascade, and cleared just below) and the Talent itself (SetNull, already
-    //    nulled). Every other FK onto bauth_user is staff-authored content
-    //    (TicketMessage.author, CmsPage, Broadcast, StaffInvitation,
-    //    MessageTemplate), so a student holds none and the delete can't trip a
-    //    P2003. Note TicketMessage.author has no onDelete, so it would block this
-    //    delete the moment a student authored one: revisit here if students ever
-    //    gain a staff-side affordance like opening tickets.
+    // 5. Clear the login *history* but keep the identity. Eager mint gives every
+    //    fresh Salesforce import a bauth_user from day one (see syncService), so
+    //    the state "the worker leaves them in on first import" now includes a
+    //    login account: reset restores that state, it does not delete it.
+    //    Dropping the account would leave the talent unable to request an OTP
+    //    (login routes by bauth_user) until an admin re-impersonated them. So we
+    //    wipe only the sessions and any linked OAuth/credential accounts, the
+    //    never-logged-in state, and keep the bauth_user linked (userId is left
+    //    intact above). Its email already tracks the SF address through the
+    //    sync's identity reconcile, so there is nothing to realign here.
     if (talent.userId) {
       await tx.bauth_session.deleteMany({ where: { userId: talent.userId } });
       await tx.bauth_account.deleteMany({ where: { userId: talent.userId } });
-      await tx.bauth_user.delete({ where: { id: talent.userId } });
     }
 
     // 6. Delete parent bauth_user(s) minted during testing, but only ones no
@@ -368,9 +348,8 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     //    login. The sibling + role guard lives in findUnreferencedParentAccount
     //    (shared with anonymizeTalent); here we delete rather than scrub since
     //    the goal is "as if never created". The role === 'parent' check inside
-    //    the guard also keeps the FK-safety from step 5: it never hard-deletes a
-    //    staff user who happens to share the email (and who could hold blocking
-    //    ticket/CMS rows).
+    //    the guard keeps this delete FK-safe: it never hard-deletes a staff user
+    //    who happens to share the email (and who could hold blocking CMS rows).
     for (const email of new Set(parentEmails)) {
       const orphan = await findUnreferencedParentAccount(tx, email, talentId);
       if (orphan) await deleteParentAccountCascade(tx, orphan.id);

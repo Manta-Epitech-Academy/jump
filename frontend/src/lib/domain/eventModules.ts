@@ -3,16 +3,13 @@ import { z } from 'zod';
 /**
  * Per-event "modules" = the dev-workspace surfaces a single event exposes.
  *
- * This is a DIFFERENT layer from feature flags (`featureFlags.ts`). A feature
- * flag answers "is this capability available to this campus/person at all"
- * (campus-scoped, request-resolved, governance/rollout). A module answers
- * "what does THIS event expose" (per-event, resolved at route level, part of
- * the event's identity). Two events on the same campus can expose different
- * modules, which is exactly why this can't live in the campus flag set.
+ * A module answers "what does THIS event expose" (per-event, resolved at route
+ * level, part of the event's identity). Two events on the same campus can expose
+ * different modules, which is why this is per-event and not a campus-wide toggle.
  *
  * Membership: a module is enabled for an event iff an `EventConfig_Module` row
  * exists (presence = enabled). Keys stay plain strings (validated here, not a
- * DB enum) so adding a module needs no migration, mirroring `flagKey`.
+ * DB enum) so adding a module needs no migration.
  */
 // NOTE: planning is deliberately NOT a module. It is a read-only window onto
 // pedago/admin-owned schedule data, so a dev toggle would be hollow (the dev
@@ -39,8 +36,8 @@ export interface EventModuleDef {
   label: string;
   /** Help text shown in the event-config dialog. */
   description: string;
-  /** URL sub-path under `/staff/dev/events/[id]/`. */
-  segment: string;
+  /** URL sub-path under `/staff/dev/events/[id]/` (a module's route folder name). */
+  segment: EventModuleKey;
 }
 
 const def = (d: EventModuleDef): EventModuleDef => d;
@@ -102,7 +99,7 @@ export function isEventModuleKey(value: string): value is EventModuleKey {
  * with no sub-options uses the empty schema. FKs (the bilan feedback form) stay
  * typed columns on `Event`, never in here.
  */
-export const inscritsModuleSettingsSchema = z.object({
+const inscritsModuleSettingsSchema = z.object({
   // Show the dossier/statut funnel column (connexion, règlement, droit à l'image)
   // on the Inscrits table for this event. Opt-in: defaults off, an admin turns it
   // on per event from the config wizard (onboarding campuses want it; others, e.g.
@@ -119,7 +116,7 @@ export const inscritsModuleSettingsSchema = z.object({
 
 const emptyModuleSettingsSchema = z.object({});
 
-export const EVENT_MODULE_SETTINGS_SCHEMAS = {
+const EVENT_MODULE_SETTINGS_SCHEMAS = {
   [EVENT_MODULES.INSCRITS]: inscritsModuleSettingsSchema,
   [EVENT_MODULES.EMARGEMENT]: emptyModuleSettingsSchema,
   [EVENT_MODULES.BILAN]: emptyModuleSettingsSchema,
@@ -153,21 +150,8 @@ export function defaultModuleSettings<K extends EventModuleKey>(
   return parseModuleSettings(key, {});
 }
 
-/** Whether a module exposes any sub-options (drives the advanced section in the wizard). */
-export function moduleHasSettings(key: EventModuleKey): boolean {
-  return (
-    Object.keys(
-      (EVENT_MODULE_SETTINGS_SCHEMAS[key] as z.ZodObject<z.ZodRawShape>).shape,
-    ).length > 0
-  );
-}
-
-export function eventModuleLabel(key: string): string {
-  return EVENT_MODULE_DEFS[key as EventModuleKey]?.label ?? key;
-}
-
 /** Whether a module is enabled, given a resolved set/list of an event's modules. */
-export function eventHasModule(
+function eventHasModule(
   modules: ReadonlySet<string> | readonly string[],
   key: EventModuleKey,
 ): boolean {
@@ -199,7 +183,7 @@ export type EventSurfaceKey = EventModuleKey | 'planning';
  * `planning` pseudo-surface is interleaved where the nav shows it (between
  * émargement and bilan).
  */
-export const EVENT_SURFACE_ORDER: EventSurfaceKey[] = [
+const EVENT_SURFACE_ORDER: EventSurfaceKey[] = [
   EVENT_MODULES.INSCRITS,
   EVENT_MODULES.EMARGEMENT,
   'planning',
@@ -217,7 +201,7 @@ export interface EventSurfaceGates {
 }
 
 /** Whether a dev can actually reach a surface, module presence + data gates. */
-export function isSurfaceReachable(
+function isSurfaceReachable(
   key: EventSurfaceKey,
   gates: EventSurfaceGates,
 ): boolean {
@@ -242,8 +226,12 @@ export function firstReachableSurface(
   return reachableSurfaces(gates)[0] ?? null;
 }
 
-/** URL sub-path under `/staff/dev/events/[id]/` for a surface. */
-export function surfaceSegment(key: EventSurfaceKey): string {
+/**
+ * URL sub-path under `/staff/dev/events/[id]/` for a surface. Returns the literal
+ * segment union (not a bare `string`) so `resolve()` at the call sites can verify
+ * the built `/staff/dev/events/[id]/<segment>` path against the real route tree.
+ */
+export function surfaceSegment(key: EventSurfaceKey): EventSurfaceKey {
   return key === 'planning' ? 'planning' : EVENT_MODULE_DEFS[key].segment;
 }
 

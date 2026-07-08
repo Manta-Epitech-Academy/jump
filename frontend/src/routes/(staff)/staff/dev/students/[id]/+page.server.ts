@@ -10,7 +10,7 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
-import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
+import { requireStaffGroup } from '$lib/server/auth/guards';
 import { NOTE_INCLUDE, serializeNote } from '$lib/server/talentNotes';
 import { interviewConductSchema } from '$lib/validation/interviews';
 import { NOTE_FIELDS, type NoteField } from '$lib/domain/interview';
@@ -43,7 +43,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     const [
       student,
       participations,
-      reminderRows,
       broadcastRows,
       completedInterviewCount,
       xpStory,
@@ -70,7 +69,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         where: { talentId: params.id },
         select: {
           id: true,
-          isPresent: true,
           stageCompliance: {
             select: { charteSigned: true, updatedAt: true },
           },
@@ -86,19 +84,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
           },
         },
         orderBy: { event: { date: 'desc' } },
-      }),
-      prisma.onboardingReminder.findMany({
-        where: { talentId: params.id },
-        orderBy: { sentAt: 'desc' },
-        select: {
-          id: true,
-          type: true,
-          channel: true,
-          subject: true,
-          body: true,
-          sentAt: true,
-          sentBy: true,
-        },
       }),
       prisma.broadcastRecipient.findMany({
         where: broadcastsWhere,
@@ -137,29 +122,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
     const notes = noteRows.map(serializeNote);
 
-    const senderIds = Array.from(new Set(reminderRows.map((r) => r.sentBy)));
-    const senders = senderIds.length
-      ? await prisma.bauth_user.findMany({
-          where: { id: { in: senderIds } },
-          select: { id: true, name: true, email: true },
-        })
-      : [];
-    const senderById = new Map(senders.map((s) => [s.id, s]));
-
-    // Merge both sources into one chronological stream. `sentAt` is the
-    // canonical timestamp for the talent ("when did this land"); broadcasts
-    // fall back to the broadcast's createdAt when the recipient row has not
-    // been stamped yet (queued/pending).
-    const reminderComms: Communication[] = reminderRows.map((r) => ({
-      kind: 'reminder',
-      id: r.id,
-      sentAt: r.sentAt,
-      audience: r.type as 'student' | 'parent',
-      channel: r.channel as 'email' | 'sms',
-      subject: r.subject,
-      body: r.body,
-      sender: senderById.get(r.sentBy) ?? null,
-    }));
+    // `sentAt` is the canonical timestamp for the talent ("when did this land");
+    // broadcasts fall back to the broadcast's createdAt when the recipient row
+    // has not been stamped yet (queued/pending).
     const broadcastComms: Communication[] = broadcastRows.map((b) => ({
       kind: 'broadcast',
       id: b.id,
@@ -175,7 +140,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         templateName: b.broadcast.template.name,
       },
     }));
-    const allCommunications = [...reminderComms, ...broadcastComms].sort(
+    const allCommunications = [...broadcastComms].sort(
       (a, b) => b.sentAt.getTime() - a.sentAt.getTime(),
     );
     const communications = allCommunications.slice(0, RIGHT_RAIL_COMMS);
@@ -317,6 +282,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
     const recommendations = deriveTalentRecommendations({
       ...student,
+      email: student.user?.email ?? null,
       prenom: formatGivenName(student.prenom),
       appUrl,
       connected: firstLoginAt != null,
@@ -509,12 +475,10 @@ async function persistInterview(
  * fact is stamped `staff_correction` with the acting staff id + a mandatory
  * reason, keeping it auditable and distinct from a guardian's own decision.
  *
- * Dev-only and gated to the team that runs the stage (`devMember`); the
- * decision is a stage-flow artifact, so it is also flag-gated.
+ * Dev-only and gated to the team that runs the stage (`devMember`).
  */
 async function correctImageRights({ request, locals, params }: RequestEvent) {
   requireStaffGroup(locals, 'devMember');
-  requireFlag(locals, 'stage_seconde');
 
   const form = await superValidate(request, zod4(imageRightsCorrectionSchema), {
     id: 'imageRights',

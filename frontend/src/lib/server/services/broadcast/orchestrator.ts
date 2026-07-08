@@ -217,7 +217,7 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
         talent: {
           select: {
             id: true,
-            email: true,
+            user: { select: { email: true } },
             prenom: true,
             nom: true,
           },
@@ -293,7 +293,7 @@ type RecipientWithRelations = Awaited<
         talent: {
           select: {
             id: true;
-            email: true;
+            user: { select: { email: true } };
             prenom: true;
             nom: true;
           };
@@ -714,7 +714,7 @@ async function buildPersonalization(
   // The email of whichever account this mail signs into. Falls back to the
   // stored recipient address (set from the same source at resolve time).
   const talentEmail = talent
-    ? (talent.email ?? recipient.recipientEmail)
+    ? (talent.user?.email ?? recipient.recipientEmail)
     : null;
   const parentEmail = parentOf
     ? (parentOf.parentEmail ?? recipient.recipientEmail)

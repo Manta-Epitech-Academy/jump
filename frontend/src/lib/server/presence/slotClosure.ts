@@ -9,7 +9,7 @@ import {
  * Wall-clock cutoff per half-day, minutes from local midnight (campus tz):
  * a morning créneau closes at 11h00, an afternoon one at 15h00.
  */
-export const SLOT_CUTOFF_MINUTES: Record<PresenceSlot, number> = {
+const SLOT_CUTOFF_MINUTES: Record<PresenceSlot, number> = {
   morning: 11 * 60, // 11h00
   afternoon: 15 * 60, // 15h00
 };
@@ -19,7 +19,7 @@ export const SLOT_CUTOFF_MINUTES: Record<PresenceSlot, number> = {
  * créneau's calendar-day key directly (not a `Date`) so the cutoff lands on the
  * right local day in every zone, including negative-offset campuses.
  */
-export function slotCutoffInstant(
+function slotCutoffInstant(
   dayKey: DateKey,
   slot: PresenceSlot,
   timezone: string,

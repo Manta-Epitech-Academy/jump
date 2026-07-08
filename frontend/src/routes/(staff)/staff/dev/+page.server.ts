@@ -31,7 +31,6 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
   }
 
   return {
-    userName: locals.user.name || 'Utilisateur',
     campusName: locals.staffProfile?.campus?.name || 'votre campus',
   };
 };

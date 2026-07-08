@@ -1,13 +1,7 @@
 import type { StaffRole } from '@prisma/client';
 import type { StaffGroup } from './permissions';
 
-export const staffRoles = [
-  'admin',
-  'superdev',
-  'dev',
-  'peda',
-  'manta',
-] as const;
+export const staffRoles = ['admin', 'superdev', 'dev'] as const;
 
 export const STAFF_ROLES: readonly {
   value: StaffRole;
@@ -32,40 +26,13 @@ export const STAFF_ROLES: readonly {
     description:
       'Membre dev du campus. Opérations quotidiennes : participants, entretiens, mises à jour.',
   },
-  {
-    value: 'peda',
-    label: 'Référent Pédago',
-    description:
-      'Lead de l’espace pédago. Gère le planning, les factions, et supervise les mantas.',
-  },
-  {
-    value: 'manta',
-    label: 'Manta',
-    description:
-      'Accompagnement terrain côté pédago. Cockpit, suivi élèves. Planning en lecture seule.',
-  },
 ];
 
 export function getStaffRoleLabel(role: string | null | undefined): string {
   return STAFF_ROLES.find((r) => r.value === role)?.label ?? 'Aucun rôle';
 }
 
-export function getStaffRoleCampusSuffix(
-  role: string | null | undefined,
-  campusName: string | null | undefined,
-): string {
-  if (!role || !campusName) return '';
-  if (!STAFF_ROLES.some((r) => r.value === role)) return '';
-  return ` du campus de ${campusName}`;
-}
-
-export function getStaffRoleDescription(
-  role: string | null | undefined,
-): string {
-  return STAFF_ROLES.find((r) => r.value === role)?.description ?? '';
-}
-
-export type StaffSpacePath = '/staff/admin' | '/staff/dev' | '/staff/pedago';
+export type StaffSpacePath = '/staff/admin' | '/staff/dev';
 
 export function getStaffRoleRedirectPath(
   staffRole: StaffRole | null | undefined,
@@ -76,9 +43,6 @@ export function getStaffRoleRedirectPath(
     case 'superdev':
     case 'dev':
       return '/staff/dev';
-    case 'peda':
-    case 'manta':
-      return '/staff/pedago';
     default:
       return null;
   }
@@ -88,21 +52,17 @@ export function getStaffRoleRedirectPath(
  * The campus-scoped staff spaces an admin can drop into to see a campus as its
  * own team does (admin is excluded on purpose: it isn't campus-scoped). `group`
  * is the role set that can stand in for the campus in that space; when
- * resolving a representative member to impersonate, prefer the lead
- * (superdev/peda outrank dev/manta, see `staffRoles` order) so the admin lands
- * with the fullest view. Reuses the permissions groups rather than inlining
- * role arrays.
+ * resolving a representative member to impersonate, prefer the lead (superdev
+ * outranks dev, see `staffRoles` order) so the admin lands with the fullest
+ * view. Reuses the permissions groups rather than inlining role arrays.
  */
-export type StaffSpaceId = 'dev' | 'pedago';
+export type StaffSpaceId = 'dev';
 
 export const STAFF_SPACES: readonly {
   id: StaffSpaceId;
   label: string;
   group: StaffGroup;
-}[] = [
-  { id: 'dev', label: 'Dev', group: 'devMember' },
-  { id: 'pedago', label: 'Pédago', group: 'pedaMember' },
-];
+}[] = [{ id: 'dev', label: 'Dev', group: 'devMember' }];
 
 /**
  * StaffProfile.staffRole is the source of truth for what a user can do inside

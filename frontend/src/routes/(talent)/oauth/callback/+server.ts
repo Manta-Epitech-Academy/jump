@@ -35,26 +35,16 @@ export const GET: RequestHandler = async ({ locals }) => {
   });
 
   if (!linkedProfile) {
-    // Check for an unlinked profile matching this email (e.g. created by worker API)
-    const unlinkedProfile = await prisma.talent.findUnique({
-      where: { email: locals.user.email },
+    // Brand-new @epitech.eu person with no talent profile yet. An SF talent
+    // already carries a login account from import, and account-linking merges a
+    // same-email Microsoft login onto it, so it would already be linked above.
+    await prisma.talent.create({
+      data: {
+        userId: locals.user.id,
+        nom: locals.user.name?.split(' ').slice(-1)[0] || '_pending',
+        prenom: locals.user.name?.split(' ')[0] || '_pending',
+      },
     });
-
-    if (unlinkedProfile) {
-      await prisma.talent.update({
-        where: { id: unlinkedProfile.id },
-        data: { userId: locals.user.id },
-      });
-    } else {
-      await prisma.talent.create({
-        data: {
-          userId: locals.user.id,
-          email: locals.user.email,
-          nom: locals.user.name?.split(' ').slice(-1)[0] || '_pending',
-          prenom: locals.user.name?.split(' ')[0] || '_pending',
-        },
-      });
-    }
   }
 
   throw redirect(303, resolve('/'));

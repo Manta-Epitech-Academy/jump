@@ -7,7 +7,6 @@
   import Send from '@lucide/svelte/icons/send';
   import Eye from '@lucide/svelte/icons/eye';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-  import History from '@lucide/svelte/icons/history';
   import CircleCheckBig from '@lucide/svelte/icons/circle-check-big';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
@@ -55,16 +54,6 @@
   </Button>
 {/snippet}
 
-{#snippet relanceMeta()}
-  <Button
-    variant="ghost"
-    size="sm"
-    href={resolve('/staff/admin/communication/relances')}
-  >
-    Voir tout <ArrowRight class="ml-1 h-3.5 w-3.5" />
-  </Button>
-{/snippet}
-
 <div class="space-y-6">
   <AdminPageHeader
     title="Communication"
@@ -97,14 +86,6 @@
       sub="30 derniers jours"
       icon={TriangleAlert}
       tone="orange"
-    />
-    <KpiTile
-      label="Relances"
-      value={data.relances.total}
-      sub="30 derniers jours"
-      icon={History}
-      tone="pink"
-      href={resolve('/staff/admin/communication/relances')}
     />
   </div>
 
@@ -209,60 +190,5 @@
         </Table.Root>
       </div>
     {/if}
-  </EpiSection>
-
-  <!-- Relances (read-only mirror) -->
-  <EpiSection
-    overline="Onboarding"
-    title="Relances"
-    accent="tomorrow"
-    meta={relanceMeta}
-  >
-    <p class="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
-      <History class="h-3.5 w-3.5" />
-      Composées depuis l'espace Dev ; vue consolidée en lecture seule.
-    </p>
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      <div class="rounded-sm border bg-muted/30 p-3">
-        <p
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Total (30j)
-        </p>
-        <p class="text-2xl font-black">{data.relances.total}</p>
-      </div>
-      <div class="rounded-sm border bg-muted/30 p-3">
-        <p
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Email / SMS
-        </p>
-        <p class="text-2xl font-black">
-          {data.relances.byChannel.email}<span class="text-muted-foreground"
-            >/{data.relances.byChannel.sms}</span
-          >
-        </p>
-      </div>
-      <div class="rounded-sm border bg-muted/30 p-3">
-        <p
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Étudiant / Parent
-        </p>
-        <p class="text-2xl font-black">
-          {data.relances.byType.student}<span class="text-muted-foreground"
-            >/{data.relances.byType.parent}</span
-          >
-        </p>
-      </div>
-      <div class="rounded-sm border bg-muted/30 p-3">
-        <p
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Talents touchés
-        </p>
-        <p class="text-2xl font-black">{data.relances.uniqueTalents}</p>
-      </div>
-    </div>
   </EpiSection>
 </div>

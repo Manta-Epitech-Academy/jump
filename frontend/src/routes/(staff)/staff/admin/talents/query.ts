@@ -107,7 +107,7 @@ export function parseTalentFilters(
  * so no event sits on the boundary where the campus timezone could shift it
  * into the adjacent year.
  */
-export function stageSecondeThisYearEventFilter(): Prisma.EventWhereInput {
+function stageSecondeThisYearEventFilter(): Prisma.EventWhereInput {
   const year = new Date().getUTCFullYear();
   return {
     eventType: EVENT_TYPES.STAGE_SECONDE,
@@ -164,7 +164,7 @@ export function buildTalentWhere(f: TalentFilters): {
       OR: [
         { nom: { contains: sanitized, mode: 'insensitive' } },
         { prenom: { contains: sanitized, mode: 'insensitive' } },
-        { email: { contains: sanitized, mode: 'insensitive' } },
+        { user: { email: { contains: sanitized, mode: 'insensitive' } } },
       ],
     });
   }
@@ -243,7 +243,7 @@ export const TALENT_ROW_SELECT = {
   id: true,
   nom: true,
   prenom: true,
-  email: true,
+  user: { select: { email: true } },
   niveau: true,
   userId: true,
   xp: true,
@@ -277,7 +277,7 @@ export const TALENT_ROW_SELECT = {
   imageRightsDecidedAt: true,
   parentRulesSignedAt: true,
   // Effective campus = most-recent participation's campus, matching the
-  // resolution in hooks.server.ts that scopes `locals.featureFlags`.
+  // resolution in hooks.server.ts (talentCampusName).
   participations: {
     take: 1,
     orderBy: { event: { date: 'desc' } },
@@ -351,7 +351,7 @@ export function projectTalentRow(row: TalentRow) {
     id: t.id,
     nom: t.nom,
     prenom: t.prenom,
-    email: t.email,
+    email: t.user?.email ?? null,
     phone: t.phone,
     civilite: t.civilite,
     niveau: t.niveau,

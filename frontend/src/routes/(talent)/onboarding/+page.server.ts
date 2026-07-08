@@ -22,10 +22,7 @@ import {
   countCampusEarlyBirdPosition,
 } from '$lib/server/services/talentCampus';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
-import {
-  getOnboardingStep,
-  type OnboardingStep,
-} from '$lib/domain/talentOnboarding';
+import { getOnboardingStep } from '$lib/domain/talentOnboarding';
 import {
   enqueueOnboardingPdfJob,
   runOnboardingPdfJob,
@@ -35,9 +32,6 @@ import {
   consumeOnboardingReturn,
 } from '$lib/server/auth/loginRedirect';
 import { signalArrivalCelebration } from '$lib/server/talent/arrivalCelebration';
-
-// Re-exported for the `./$types`-typed action handlers that key off the step.
-export type { OnboardingStep };
 
 type ParentContact = { email: string; prenom: string; nom: string };
 

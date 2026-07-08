@@ -4,30 +4,20 @@
   import Users from '@lucide/svelte/icons/users';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import Menu from '@lucide/svelte/icons/menu';
-  import Search from '@lucide/svelte/icons/search';
   import X from '@lucide/svelte/icons/x';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import MessageSquareText from '@lucide/svelte/icons/message-square-text';
-  import UserCog from '@lucide/svelte/icons/user-cog';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
-  import FileText from '@lucide/svelte/icons/file-text';
-  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
-  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
-  import GlobalCommand from '$lib/components/GlobalCommand.svelte';
   import { track, secondsBetween } from '$lib/analytics';
   import { fly, fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
-  import Gated from '$lib/components/auth/Gated.svelte';
-  import { can } from '$lib/domain/permissions';
-  import type { FlagKey } from '$lib/domain/featureFlags';
-  import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
   import EventWorkspaceSwitcher from '$lib/components/dev/EventWorkspaceSwitcher.svelte';
   import {
@@ -50,13 +40,6 @@
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
-  let featureFlags = $derived(
-    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
-  );
-  let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
-  let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
-  let hasSyncErrors = $derived(featureFlags.has('staff_sync_errors'));
-  let isLead = $derived(can('devLead', data.staffProfile?.staffRole));
 
   // The cohort workspace: the events this campus configured (those with ≥1
   // module). The "current" event is the one in the URL when it is one of them,
@@ -82,16 +65,6 @@
       workspace.events.find((e) => e.id === lastEventId) ??
       workspace.current,
   );
-  // The "Gestion" section shows when it has at least one entry: the sync-errors
-  // surface, or the lead-only "Staff du campus" (behind its flag). Event module
-  // config moved to the admin space, so there is no per-event config entry here.
-  let showManagement = $derived(hasSyncErrors || (isLead && hasCampusTeam));
-  // Student-search command palette (⌘K). Hidden for now - the feature isn't
-  // ready to ship. Flipping this back to `true` re-enables every entry point:
-  // the sidebar search button, the mobile search icon, and the GlobalCommand
-  // mount (which also owns the ⌘K global shortcut, so it goes too while hidden).
-  const STUDENT_SEARCH_ENABLED = false;
-  let commandOpen = $state(false);
   let mobileMenuOpen = $state(false);
 
   const hour = new Date().getHours();
@@ -153,27 +126,6 @@
   />
 {/snippet}
 
-{#snippet sidebarSearch()}
-  {#if STUDENT_SEARCH_ENABLED}
-    <div class="px-3 pb-2">
-      <button
-        class="flex h-9 w-full items-center justify-between rounded-sm border border-sidebar-border bg-sidebar-hover px-3 text-sm text-sidebar-foreground-muted transition-colors hover:bg-white/10 hover:text-sidebar-foreground"
-        onclick={() => (commandOpen = true)}
-      >
-        <span class="flex items-center gap-2">
-          <Search class="h-4 w-4" />
-          <span class="text-xs font-medium">Rechercher un participant...</span>
-        </span>
-        <kbd
-          class="pointer-events-none flex h-5 items-center gap-1 rounded border border-sidebar-border bg-white/10 px-1.5 font-mono text-[10px] font-medium select-none"
-        >
-          <span class="text-xs">⌘</span>K
-        </kbd>
-      </button>
-    </div>
-  {/if}
-{/snippet}
-
 {#snippet navMenu()}
   {#if currentEvent}
     {@const ev = currentEvent}
@@ -207,83 +159,6 @@
           <span>{surfaceLabel(key)}</span>
         </a>
       {/each}
-      {#if hasWelcomePage}
-        <a
-          href={resolve('/staff/dev/contenu/welcome')}
-          class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
-        >
-          <FileText class="h-5 w-5" />
-          <span>Page d'accueil</span>
-        </a>
-      {/if}
-    </nav>
-  {/if}
-
-  {#if showManagement}
-    <div class="sidebar-section-title">
-      Gestion<span class="text-epi-orange">_</span>
-    </div>
-    <nav class="space-y-1">
-      {#if hasCampusTeam}
-        <Gated group="devLead" mode="hide">
-          <a
-            href={resolve('/staff/dev/team')}
-            class={navLinkClass(isActive('/staff/dev/team'))}
-          >
-            <UserCog class="h-5 w-5" />
-            <span>Staff du campus</span>
-          </a>
-        </Gated>
-      {/if}
-      {#if hasSyncErrors}
-        <a
-          href={resolve('/staff/dev/sync-errors')}
-          class={navLinkClass(isActive('/staff/dev/sync-errors'))}
-        >
-          <TriangleAlert class="h-5 w-5 shrink-0" />
-          <span class="flex flex-1 items-center justify-between gap-2">
-            <span class="truncate whitespace-nowrap">Doublons Salesforce</span>
-            {#if data.syncErrorCounts.urgent > 0}
-              <span
-                class="inline-flex h-5 shrink-0 items-center justify-center gap-1 rounded-full bg-destructive px-1.5 text-[10px] font-bold whitespace-nowrap text-white"
-              >
-                <TriangleAlert class="h-3 w-3" />
-                {data.syncErrorCounts.total}
-              </span>
-            {:else if data.syncErrorCounts.total > 0}
-              <span
-                class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-white/10 px-1.5 text-[10px] font-bold whitespace-nowrap text-sidebar-foreground-muted"
-              >
-                {data.syncErrorCounts.total}
-              </span>
-            {/if}
-          </span>
-        </a>
-      {/if}
-    </nav>
-  {/if}
-
-  {#if data.ticketsEnabled}
-    <div class="sidebar-section-title">
-      Support<span class="text-epi-pink">_</span>
-    </div>
-    <nav class="space-y-1">
-      <a
-        href={resolve('/staff/dev/tickets')}
-        class={navLinkClass(isActive('/staff/dev/tickets'))}
-      >
-        <LifeBuoy class="h-5 w-5" />
-        <span class="flex flex-1 items-center justify-between">
-          <span>Tickets</span>
-          {#if data.ticketsUnread > 0}
-            <span
-              class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-epi-pink px-1.5 text-[10px] font-bold text-white"
-            >
-              {data.ticketsUnread}
-            </span>
-          {/if}
-        </span>
-      </a>
     </nav>
   {/if}
 {/snippet}
@@ -351,7 +226,6 @@
     <div class="border-b border-sidebar-border">
       {@render sidebarBrand()}
     </div>
-    {@render sidebarSearch()}
     <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
       {@render navMenu()}
     </div>
@@ -388,15 +262,6 @@
           orientation="inline"
         />
       </div>
-      {#if STUDENT_SEARCH_ENABLED}
-        <Button
-          variant="ghost"
-          size="icon"
-          onclick={() => (commandOpen = true)}
-        >
-          <Search class="h-5 w-5" />
-        </Button>
-      {/if}
     </header>
 
     {#if mobileMenuOpen}
@@ -415,7 +280,6 @@
         <div class="border-b border-sidebar-border">
           {@render sidebarBrand()}
         </div>
-        {@render sidebarSearch()}
         <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
           {@render navMenu()}
         </div>
@@ -429,11 +293,3 @@
     </main>
   </div>
 </div>
-
-{#if STUDENT_SEARCH_ENABLED}
-  <GlobalCommand bind:open={commandOpen} basePath="/staff/dev" />
-{/if}
-
-{#if data.ticketsEnabled}
-  <TicketsLauncher basePath="/staff/dev" unreadCount={data.ticketsUnread} />
-{/if}

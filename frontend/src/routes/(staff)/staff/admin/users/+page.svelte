@@ -216,13 +216,13 @@
   );
 
   const roleRank = (role: StaffRole | null | undefined) => {
-    const i = staffRoles.indexOf(role as StaffRole);
+    const i = (staffRoles as readonly string[]).indexOf(role ?? '');
     return i === -1 ? staffRoles.length : i;
   };
 
-  // campusId -> representative member per space. Lead-first (superdev/peda
-  // outrank dev/manta via staffRoles order), ties broken by name so the pick is
-  // stable across reloads.
+  // campusId -> representative member per space. Lead-first (superdev outranks
+  // dev via staffRoles order), ties broken by name so the pick is stable across
+  // reloads.
   const campusReps = $derived.by(() => {
     const map = new Map<string, Partial<Record<StaffSpaceId, MemberRow>>>();
     for (const campus of data.campuses) {

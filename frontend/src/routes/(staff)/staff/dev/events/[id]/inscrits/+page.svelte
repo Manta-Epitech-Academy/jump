@@ -10,21 +10,12 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import type { PageData } from './$types';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import InscritsResults from './components/InscritsResults.svelte';
   import LoadingCeremony from '$lib/components/LoadingCeremony.svelte';
-  import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { data }: { data: PageData } = $props();
-
-  // Navigation is flat in stage-only mode (we land here, click into a profile),
-  // so the breadcrumb is pure noise. It only earns its keep once coding_club
-  // adds depth to the workspace.
-  const hasCodingClub = $derived(
-    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]).has('coding_club'),
-  );
 
   let generatingBadges = $state(false);
   let badgeModeOpen = $state(false);
@@ -153,11 +144,6 @@
 </svelte:head>
 
 <div class="space-y-6 pb-10">
-  {#if hasCodingClub}
-    <PageBreadcrumb
-      items={[{ label: eventDisplayName(data.event) }, { label: 'Inscrits' }]}
-    />
-  {/if}
   <PageHeader title="Inscrits">
     <Button
       variant="outline"

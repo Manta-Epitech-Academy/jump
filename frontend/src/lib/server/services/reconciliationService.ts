@@ -4,16 +4,11 @@ import { civiliteLabel, parentTypeLabel } from '$lib/domain/profile';
 import { normalizePhoneToE164 } from '$lib/domain/phone';
 import type { DiffField } from '$lib/domain/reconciliation';
 
-// The field catalogue (DIFF_FIELDS, DiffField, isDiffField, FIELD_LABELS) is
-// pure domain data and lives in `$lib/domain/reconciliation` so the client page
-// can import it too. Re-exported here for the server-side callers that reach
-// for it alongside the reconciliation queries below.
-export {
-  DIFF_FIELDS,
-  isDiffField,
-  FIELD_LABELS,
-  type DiffField,
-} from '$lib/domain/reconciliation';
+// The field catalogue lives in `$lib/domain/reconciliation` (pure domain data,
+// so the client page can import it too). `isDiffField` is re-exported here for
+// the server-side callers that reach for it alongside the reconciliation
+// queries below; everything else they import from the domain module directly.
+export { isDiffField } from '$lib/domain/reconciliation';
 
 /**
  * Diff between the talent's confirmed profile (Jump truth, on `Talent`) and what
@@ -113,7 +108,7 @@ export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
       externalId: true,
       nom: true,
       prenom: true,
-      email: true,
+      user: { select: { email: true } },
       phone: true,
       civilite: true,
       schoolId: true,
@@ -216,7 +211,7 @@ export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
         externalId: t.externalId,
         nom: t.nom,
         prenom: t.prenom,
-        email: t.email,
+        email: t.user?.email ?? null,
         diffs,
         confirmedAt: latestConfirmedAt(
           t.infoValidatedAt,
@@ -325,7 +320,7 @@ type EnrichmentFieldDef = {
   format?: (value: string) => string;
 };
 
-export const ENRICHMENT_FIELDS: readonly EnrichmentFieldDef[] = [
+const ENRICHMENT_FIELDS: readonly EnrichmentFieldDef[] = [
   { key: 'parentType', label: 'Parent 1 — Lien', format: parentTypeLabel },
   {
     key: 'parentCivilite',
@@ -367,7 +362,7 @@ export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
       externalId: true,
       nom: true,
       prenom: true,
-      email: true,
+      user: { select: { email: true } },
       parentType: true,
       parentCivilite: true,
       parentNom: true,
@@ -432,7 +427,7 @@ export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
         externalId: t.externalId,
         nom: t.nom,
         prenom: t.prenom,
-        email: t.email,
+        email: t.user?.email ?? null,
         fields,
         confirmedAt: latestConfirmedAt(
           t.infoValidatedAt,

@@ -8,8 +8,8 @@ import { toDateKey } from './planningTime';
  * admin events page group by it. Derived from `Event.date` in the campus
  * timezone, never stored, so it can't drift from the date.
  */
-export const SCHOOL_YEAR_START_MONTH = 7; // July (1-based)
-export const SCHOOL_YEAR_START_DAY = 31;
+const SCHOOL_YEAR_START_MONTH = 7; // July (1-based)
+const SCHOOL_YEAR_START_DAY = 31;
 
 export type SchoolYear = {
   /** The July year the cycle opens on (a June 2026 event → 2025). */

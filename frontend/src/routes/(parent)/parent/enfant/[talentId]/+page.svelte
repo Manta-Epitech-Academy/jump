@@ -3,7 +3,6 @@
   import * as Collapsible from '$lib/components/ui/collapsible';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
-  import Check from '@lucide/svelte/icons/check';
   import X from '@lucide/svelte/icons/x';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import FileCheck from '@lucide/svelte/icons/file-check';
@@ -12,7 +11,6 @@
   import LogOut from '@lucide/svelte/icons/log-out';
   import Clock from '@lucide/svelte/icons/clock';
   import MapPin from '@lucide/svelte/icons/map-pin';
-  import History from '@lucide/svelte/icons/history';
   import Settings from '@lucide/svelte/icons/settings';
   import { Button } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
@@ -34,48 +32,12 @@
     special: 'Spécial',
   };
 
-  const difficultyColors: Record<string, string> = {
-    Débutant:
-      'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    Intermédiaire:
-      'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    Avancé:
-      'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-  };
-
   function formatTime(dateString: string | Date | undefined) {
     if (!dateString) return '';
     return new Date(dateString).toLocaleTimeString('fr-FR', {
       hour: '2-digit',
       minute: '2-digit',
     });
-  }
-
-  function statusLabel(
-    isPresent: boolean,
-    delay: number,
-  ): { icon: typeof Check; color: string; text: string } {
-    if (!isPresent) {
-      return {
-        icon: X,
-        color: 'text-red-600 bg-red-50 dark:bg-red-950/30 dark:text-red-400',
-        text: 'Absent(e)',
-      };
-    }
-    if (delay > 0) {
-      return {
-        icon: Clock,
-        color:
-          'text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400',
-        text: `En retard — ${delay} min`,
-      };
-    }
-    return {
-      icon: Check,
-      color:
-        'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-400',
-      text: 'Présent(e)',
-    };
   }
 </script>
 
@@ -262,15 +224,6 @@
                         >
                           {activity.name}
                         </span>
-                        {#if activity.difficulty}
-                          <span
-                            class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
-                              activity.difficulty
-                            ] ?? ''}"
-                          >
-                            {activity.difficulty}
-                          </span>
-                        {/if}
                       </div>
                     {/each}
                   </div>
@@ -401,15 +354,6 @@
                                   >
                                     {activity.name}
                                   </span>
-                                  {#if activity.difficulty}
-                                    <span
-                                      class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
-                                        activity.difficulty
-                                      ] ?? ''}"
-                                    >
-                                      {activity.difficulty}
-                                    </span>
-                                  {/if}
                                 </div>
                               {/each}
                             </div>
@@ -433,117 +377,5 @@
         </div>
       </div>
     {/if}
-
-    <!-- Event history -->
-    <div in:fly={{ y: 20, duration: 400, delay: 400 }}>
-      <h2
-        class="mb-4 flex items-center gap-2 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
-      >
-        <History class="h-5 w-5 text-epi-blue" />
-        Événements passés<span class="text-epi-teal">_</span>
-      </h2>
-
-      {#if data.participations.length === 0}
-        <div
-          class="flex min-h-40 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-6 text-center dark:border-slate-800 dark:bg-slate-900/50"
-        >
-          <p class="text-sm font-bold text-slate-400 uppercase">
-            Aucun événement passé pour le moment
-          </p>
-        </div>
-      {:else}
-        <div class="space-y-3">
-          {#each data.participations as participation}
-            {@const status = statusLabel(
-              participation.isPresent,
-              participation.delay,
-            )}
-            <Collapsible.Root>
-              <div
-                class="overflow-hidden rounded-2xl bg-white shadow-md shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-              >
-                <Collapsible.Trigger class="w-full">
-                  <div class="flex items-center justify-between p-4">
-                    <div class="flex items-center gap-3 text-left">
-                      <div
-                        class="flex h-10 min-w-20 items-center justify-center rounded-xl px-3 {status.color}"
-                      >
-                        <span class="text-xs font-bold">{status.text}</span>
-                      </div>
-                      <div>
-                        <p class="font-bold text-slate-900 dark:text-white">
-                          {participation.eventName}
-                        </p>
-                        <p class="text-xs font-bold text-slate-400">
-                          {new Date(participation.eventDate).toLocaleDateString(
-                            'fr-FR',
-                            {
-                              day: 'numeric',
-                              month: 'long',
-                              year: 'numeric',
-                            },
-                          )}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                      {#if participation.activities.length > 0}
-                        <Badge variant="outline" class="text-[10px] font-bold">
-                          {participation.activities.length} activité{participation
-                            .activities.length !== 1
-                            ? 's'
-                            : ''}
-                        </Badge>
-                      {/if}
-                      <ChevronDown
-                        class="h-4 w-4 text-slate-400 transition-transform [[data-state=open]_&]:rotate-180"
-                      />
-                    </div>
-                  </div>
-                </Collapsible.Trigger>
-
-                <Collapsible.Content>
-                  {#if participation.activities.length > 0}
-                    <div
-                      class="border-t border-slate-100 px-4 py-3 dark:border-slate-800"
-                    >
-                      <div class="space-y-2">
-                        {#each participation.activities as activity}
-                          <div
-                            class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2.5 dark:bg-slate-800/50"
-                          >
-                            <span
-                              class="text-sm font-semibold text-slate-700 dark:text-slate-300"
-                            >
-                              {activity.name}
-                            </span>
-                            <Badge
-                              variant="outline"
-                              class="text-[10px] font-bold"
-                            >
-                              {activityTypeLabels[activity.type] ??
-                                activity.type}
-                            </Badge>
-                          </div>
-                        {/each}
-                      </div>
-                    </div>
-                  {:else}
-                    <div
-                      class="border-t border-slate-100 px-4 py-3 dark:border-slate-800"
-                    >
-                      <p class="text-xs text-slate-400">
-                        Aucune activité enregistrée
-                      </p>
-                    </div>
-                  {/if}
-                </Collapsible.Content>
-              </div>
-            </Collapsible.Root>
-          {/each}
-        </div>
-      {/if}
-    </div>
   </div>
 </div>

@@ -16,7 +16,7 @@ import { cn } from '$lib/utils';
  * builder's existing "dashed = editable" language, since an underline doesn't fit
  * a multi-line bubble.
  */
-export const EDITABLE_INLINE =
+const EDITABLE_INLINE =
   'cursor-text border-b border-border bg-transparent outline-none transition-colors hover:border-muted-foreground focus:border-foreground';
 
 /** `EDITABLE_INLINE` merged with field-specific classes (size, width, weight). */

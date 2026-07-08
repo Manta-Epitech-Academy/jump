@@ -4,7 +4,6 @@ import { resolve } from '$app/paths';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
-import { countUnreadForAdmin } from '$lib/server/services/tickets';
 import { countAuthIdentityConflicts } from '$lib/server/services/authIdentityService';
 import { staffDevRedirectSchema } from '$lib/validation/staffSettings';
 import { outboundTrapped } from '$lib/server/outbound';
@@ -18,28 +17,22 @@ export const load: LayoutServerLoad = async ({ parent, locals }) => {
     throw redirect(302, resolve('/staff/login'));
   }
 
-  const [
-    ticketsUnread,
-    deletionRequestsPending,
-    authConflictsPending,
-    settingsForm,
-  ] = await Promise.all([
-    countUnreadForAdmin(),
-    prisma.talentDeletionRequest.count({ where: { status: 'pending' } }),
-    countAuthIdentityConflicts(),
-    superValidate(
-      {
-        devRedirectEmails: staffProfile.devRedirectEmails.join('\n'),
-        devRedirectPhones: staffProfile.devRedirectPhones.join('\n'),
-      },
-      zod4(staffDevRedirectSchema),
-    ),
-  ]);
+  const [deletionRequestsPending, authConflictsPending, settingsForm] =
+    await Promise.all([
+      prisma.talentDeletionRequest.count({ where: { status: 'pending' } }),
+      countAuthIdentityConflicts(),
+      superValidate(
+        {
+          devRedirectEmails: staffProfile.devRedirectEmails.join('\n'),
+          devRedirectPhones: staffProfile.devRedirectPhones.join('\n'),
+        },
+        zod4(staffDevRedirectSchema),
+      ),
+    ]);
 
   return {
     user,
     staffProfile,
-    ticketsUnread,
     deletionRequestsPending,
     authConflictsPending,
     // Powers the settings dialog opened from the profile dropdown. The

@@ -4,7 +4,6 @@ import type { StaffRole } from '@prisma/client';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 import { prisma } from '$lib/server/db';
 import { can, type StaffGroup } from '$lib/domain/permissions';
-import type { FlagKey } from '$lib/domain/featureFlags';
 import { getOnboardingStep } from '$lib/domain/talentOnboarding';
 import { STAGE_DEFAULT_DURATION_DAYS } from '$lib/domain/event';
 import {
@@ -20,57 +19,11 @@ function forbidGroup(group: StaffGroup): never {
   });
 }
 
-export function hasFlag(locals: App.Locals, key: FlagKey): boolean {
-  return locals.featureFlags.has(key);
-}
-
-export function requireFlag(locals: App.Locals, key: FlagKey): void {
-  if (!hasFlag(locals, key)) {
-    throw error(404, 'Fonctionnalité non disponible sur ce campus.');
-  }
-}
-
-type StaffRoleGate = {
-  pattern: RegExp;
-  group: StaffGroup;
-  readOnlyForRest?: readonly StaffRole[];
-};
-
-const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
-  {
-    pattern: /^\/staff\/dev\/events\/import(?:\/|$)/,
-    group: 'devLead',
-  },
-  {
-    pattern: /^\/staff\/dev\/team(?:\/|$)/,
-    group: 'devLead',
-  },
-  {
-    pattern: /^\/staff\/pedago\/events\/[^/]+\/planning(?:\/|$)/,
-    group: 'pedaLead',
-    readOnlyForRest: ['manta'],
-  },
-  {
-    pattern: /^\/staff\/pedago\/events\/[^/]+\/factions(?:\/|$)/,
-    group: 'pedaLead',
-  },
-  {
-    pattern: /^\/staff\/dev\/contenu(?:\/|$)/,
-    group: 'devMember',
-  },
-  {
-    pattern: /^\/staff\/pedago\/contenu(?:\/|$)/,
-    group: 'pedaMember',
-  },
-];
-
 export async function applyRouteGuards(
   event: RequestEvent,
 ): Promise<Response | null> {
   const currentPath = event.url.pathname;
   const routeId = event.route.id || '';
-
-  event.locals.viewMode = 'edit';
 
   const p = (path: string) =>
     new URL(resolvePath(path as any), event.url).pathname;
@@ -85,7 +38,6 @@ export async function applyRouteGuards(
   const pathLogout = p('/logout');
   const pathApi = p('/api/');
   const pathStaffDev = p('/staff/dev');
-  const pathStaffPedago = p('/staff/pedago');
 
   const pathTalentWelcome = p('/welcome');
   const pathParentLogin = p('/login');
@@ -103,9 +55,6 @@ export async function applyRouteGuards(
     currentPath.startsWith(`${pathStaffAdmin}/`);
   const isDevPath =
     currentPath === pathStaffDev || currentPath.startsWith(`${pathStaffDev}/`);
-  const isPedagoPath =
-    currentPath === pathStaffPedago ||
-    currentPath.startsWith(`${pathStaffPedago}/`);
 
   const isPublicPath =
     currentPath.startsWith(pathLogout) || currentPath.startsWith(pathApi);
@@ -249,11 +198,10 @@ export async function applyRouteGuards(
       }
     }
 
-    // Dev sub-guard: only superdev or dev.
+    // Dev sub-guard: only the dev workspace's members.
     if (isDevPath) {
       const role = event.locals.staffProfile?.staffRole;
-      const allowed = role === 'superdev' || role === 'dev';
-      if (!allowed) {
+      if (!can('devMember', role)) {
         const correctPath = getStaffRoleRedirectPath(role);
         if (correctPath) {
           return Response.redirect(
@@ -267,27 +215,6 @@ export async function applyRouteGuards(
         );
       }
     }
-
-    // Pedago sub-guard: only peda or manta
-    if (isPedagoPath) {
-      const role = event.locals.staffProfile?.staffRole;
-      if (role !== 'peda' && role !== 'manta') {
-        const correctPath = getStaffRoleRedirectPath(role);
-        if (correctPath) {
-          return Response.redirect(
-            new URL(p(correctPath), event.url).href,
-            303,
-          );
-        }
-        return Response.redirect(
-          new URL(`${pathStaffLogin}?error=NoRole`, event.url).href,
-          303,
-        );
-      }
-    }
-
-    // Per-feature sub-role gates run from (staff)/+layout.server.ts via
-    // applyStaffRoleGate — errors thrown in handle bypass +error.svelte.
   }
 
   // --- Parent Guards ---
@@ -353,24 +280,11 @@ export async function applyRouteGuards(
   return null;
 }
 
-export function applyStaffRoleGate(locals: App.Locals, pathname: string): void {
-  const role = locals.staffProfile?.staffRole;
-  if (!role) return;
-
-  for (const gate of STAFF_ROLE_GATES) {
-    if (!gate.pattern.test(pathname)) continue;
-    if (can(gate.group, role)) {
-      locals.viewMode = 'edit';
-      return;
-    }
-    if (gate.readOnlyForRest?.includes(role)) {
-      locals.viewMode = 'readonly';
-      return;
-    }
-    forbidGroup(gate.group);
-  }
-}
-
+/**
+ * Gate a route or an action on a role group. Throws 403 with the group name so
+ * `(staff)/+error.svelte` can name who to ask. Call it at the top of a `load`
+ * to gate a whole route, or in an action to gate one mutation.
+ */
 export function requireStaffGroup(
   locals: App.Locals,
   group: StaffGroup,

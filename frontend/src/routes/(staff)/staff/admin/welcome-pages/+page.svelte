@@ -6,8 +6,6 @@
   import WelcomePageEditor from './WelcomePageEditor.svelte';
   import { STAGE_STATUS_META, formatStageRange } from './stageDisplay';
   import MapPin from '@lucide/svelte/icons/map-pin';
-  import Users from '@lucide/svelte/icons/users';
-  import Lock from '@lucide/svelte/icons/lock';
   import CircleCheck from '@lucide/svelte/icons/circle-check';
   import CircleDashed from '@lucide/svelte/icons/circle-dashed';
 
@@ -25,9 +23,8 @@
     leur tableau de bord, pendant toute la durée du stage. Vous éditez ici la
     page de <strong>n'importe quel campus</strong> et de
     <strong>n'importe quel stage</strong> — au-delà du seul stage en cours
-    accessible aux équipes dev et pédago. Insérez des <strong>variables</strong> (prénom,
-    campus, email de contact…) ; elles sont remplacées par les valeurs réelles de
-    chaque talent.
+    accessible à l'équipe dev. Insérez des <strong>variables</strong> (prénom, campus,
+    email de contact…) ; elles sont remplacées par les valeurs réelles de chaque talent.
   </p>
 </div>
 
@@ -43,23 +40,6 @@
             <MapPin class="h-4 w-4 shrink-0 text-muted-foreground" />
             <span class="truncate text-sm font-bold">{campus.name}</span>
           </div>
-          {#if campus.flagEnabled}
-            <Badge
-              variant="outline"
-              class="shrink-0 gap-1 border-epi-teal/30 bg-epi-teal/10 text-[10px] text-epi-teal-solid"
-              title="Flag staff_welcome_page actif : les équipes dev et pédago peuvent aussi éditer la page de ce campus."
-            >
-              <Users class="h-3 w-3" /> Dev & pédago aussi
-            </Badge>
-          {:else}
-            <Badge
-              variant="outline"
-              class="shrink-0 gap-1 text-[10px] text-muted-foreground"
-              title="Flag staff_welcome_page inactif : seul l'admin peut éditer ici (les talents voient quand même le contenu enregistré)."
-            >
-              <Lock class="h-3 w-3" /> Admin uniquement
-            </Badge>
-          {/if}
         </div>
 
         {#if campus.events.length === 0}

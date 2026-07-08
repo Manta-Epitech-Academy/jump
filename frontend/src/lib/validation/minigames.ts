@@ -21,6 +21,3 @@ export const forcePublicationSchema = z.object({
   game: z.string().min(1, 'Jeu requis'),
   level: z.coerce.number().int().min(1, 'Niveau ≥ 1'),
 });
-
-export type GameConfigForm = z.infer<typeof gameConfigSchema>;
-export type ForcePublicationForm = z.infer<typeof forcePublicationSchema>;

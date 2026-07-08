@@ -71,7 +71,6 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
                     id: true,
                     nom: true,
                     activityType: true,
-                    difficulte: true,
                   },
                 },
               },
@@ -105,27 +104,8 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
     orderBy: { event: { date: 'asc' } },
   });
 
-  // Fetch past participations with activities for history
-  const participations = await prisma.participation.findMany({
-    where: { talentId, event: { date: { lt: filterDateStartDate } } },
-    include: {
-      event: { select: { id: true, titre: true, date: true } },
-      activities: {
-        include: {
-          activity: {
-            select: { id: true, nom: true, activityType: true },
-          },
-        },
-      },
-    },
-    orderBy: { event: { date: 'desc' } },
-  });
-
-  const parentName = locals.user.name ?? '';
-
   return {
-    parentName,
-    parentLastName: getParentLastName(parentName),
+    parentLastName: getParentLastName(locals.user.name),
     hasMultipleChildren: siblingCount > 1,
     todayPlanning: todayParticipation
       ? {
@@ -144,7 +124,6 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
                   id: slot.activity!.id,
                   name: slot.activity!.nom,
                   type: slot.activity!.activityType,
-                  difficulty: slot.activity!.difficulte,
                 },
               ],
             })),
@@ -173,23 +152,8 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
               id: slot.activity!.id,
               name: slot.activity!.nom,
               type: slot.activity!.activityType,
-              difficulty: slot.activity!.difficulte,
             },
           ],
-        })),
-    })),
-    participations: participations.map((p) => ({
-      id: p.id,
-      eventName: p.event.titre,
-      eventDate: p.event.date,
-      isPresent: p.isPresent,
-      delay: p.delay ?? 0,
-      activities: p.activities
-        .filter((a) => a.activity.activityType !== 'orga')
-        .map((a) => ({
-          id: a.activity.id,
-          name: a.activity.nom,
-          type: a.activity.activityType,
         })),
     })),
   };

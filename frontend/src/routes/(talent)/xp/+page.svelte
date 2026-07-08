@@ -9,7 +9,6 @@
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import Medal from '@lucide/svelte/icons/medal';
-  import BookOpen from '@lucide/svelte/icons/book-open';
   import Award from '@lucide/svelte/icons/award';
   import Wrench from '@lucide/svelte/icons/wrench';
   import PartyPopper from '@lucide/svelte/icons/party-popper';
@@ -59,13 +58,6 @@
       bgClass: 'bg-purple-500/10 dark:bg-purple-500/20',
       textClass: 'text-purple-500',
       borderClass: 'border-purple-500/20',
-    },
-    activity_presence: {
-      icon: BookOpen,
-      color: 'epi-orange',
-      bgClass: 'bg-epi-orange/10 dark:bg-epi-orange/20',
-      textClass: 'text-epi-orange',
-      borderClass: 'border-epi-orange/20',
     },
     reward: {
       icon: Award,

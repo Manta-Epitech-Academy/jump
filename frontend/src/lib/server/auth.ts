@@ -42,6 +42,13 @@ export const auth = betterAuth({
         }
         await sendOtpEmail(email, otp, user?.name ?? undefined);
       },
+      // Never auto-create an account for an unknown email. Talent and parent
+      // accounts are provisioned upstream (SF sync / CSV import / onboarding);
+      // a login is only ever a sign-IN against an existing `bauth_user`. Without
+      // this, emailOTP defaults to sign-up-enabled, so any path that minted an
+      // OTP for an unminted email would silently create an orphan account.
+      // Defence in depth on top of the login route's 404 on an unknown email.
+      disableSignUp: true,
       otpLength: 6,
       expiresIn: 600,
       // Resending within the 10-min window re-sends the SAME code and refreshes

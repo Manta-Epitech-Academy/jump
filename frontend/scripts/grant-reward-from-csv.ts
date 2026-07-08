@@ -432,15 +432,29 @@ async function main() {
   const campusByCity = new Map<string, Campus>();
   for (const c of campuses) campusByCity.set(normalizeCity(c.name), c);
 
-  // Cohort = every talent with an email. Matching is global (the reward is
-  // national); the CSV city column tags each grant's campus, it does not scope.
+  // Cohort = every talent with a login account (the email now lives on the
+  // linked bauth_user). Matching is global (the reward is national); the CSV
+  // city column tags each grant's campus, it does not scope.
   const cohort = await prisma.talent.findMany({
-    where: { email: { not: null } },
-    select: { id: true, email: true, nom: true, prenom: true },
+    where: { userId: { not: null } },
+    select: {
+      id: true,
+      nom: true,
+      prenom: true,
+      user: { select: { email: true } },
+    },
   });
   const byEmail = new Map<string, Talent>();
-  for (const t of cohort)
-    byEmail.set(t.email!.toLowerCase(), { ...t, email: t.email! });
+  for (const t of cohort) {
+    const email = t.user?.email;
+    if (!email) continue;
+    byEmail.set(email.toLowerCase(), {
+      id: t.id,
+      email,
+      nom: t.nom,
+      prenom: t.prenom,
+    });
+  }
 
   const parsed = readScoreboard(csvPath!);
   const aliases = mapPath ? readAliases(mapPath) : new Map<string, string>();

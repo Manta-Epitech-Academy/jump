@@ -38,8 +38,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   const date = new Date().toISOString().slice(0, 10);
   const filename = `destinataires-${date}.csv`;
 
-  const audience = BROADCAST_AUDIENCES.includes(
-    audienceRaw as BroadcastAudience,
+  const audience = (BROADCAST_AUDIENCES as readonly string[]).includes(
+    audienceRaw,
   )
     ? (audienceRaw as BroadcastAudience)
     : null;

@@ -22,7 +22,7 @@ import type { DevRedirectControl, MailMessage } from './types';
  * The intended recipient is prepended to the subject so the developer can tell
  * who would have received it in prod.
  */
-export function parseDevRecipients(): string[] | null {
+function parseDevRecipients(): string[] | null {
   const raw = env.EMAIL_DEV_RECIPIENTS?.trim();
   if (!raw) return null;
   const list = raw

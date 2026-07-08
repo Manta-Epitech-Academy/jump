@@ -327,8 +327,8 @@
       >
         Ta demande sera transmise à l'équipe. Ton compte
         <strong class="text-slate-700 dark:text-slate-300">reste actif</strong>
-        jusqu'à son traitement, puis ton profil, tes participations, ta progression
-        et ton portfolio seront
+        jusqu'à son traitement, puis ton profil, tes participations et ta progression
+        seront
         <strong class="text-slate-700 dark:text-slate-300"
           >définitivement anonymisés</strong
         >. Tu pourras annuler tant que la demande n'a pas été traitée.

@@ -235,24 +235,6 @@ async function applyModuleDiff(
   }
 }
 
-async function validateMantaIds(campusId: string, mantaIds: string[]) {
-  if (mantaIds.length === 0) return;
-  const uniqueIds = [...new Set(mantaIds)];
-  const validCount = await prisma.staffProfile.count({
-    where: {
-      id: { in: uniqueIds },
-      campusId,
-      staffRole: { in: ['manta', 'peda'] },
-    },
-  });
-  if (validCount !== uniqueIds.length) {
-    throw error(
-      400,
-      'Rôle ou campus invalide : tous les mantas doivent appartenir à ce campus et avoir le rôle manta ou peda.',
-    );
-  }
-}
-
 export const EventService = {
   /**
    * Every event as an `AdminEventVM`, newest start date first, cross-campus.
@@ -437,78 +419,5 @@ export const EventService = {
       activated: eligibleIds.length,
       skipped: eventIds.length - eligibleIds.length,
     };
-  },
-
-  /**
-   * Replaces an event's assigned mantas.
-   */
-  async assignMantas(eventId: string, campusId: string, mantaIds: string[]) {
-    const currentEvent = await prisma.event.findUniqueOrThrow({
-      where: { id: eventId },
-      select: { campusId: true },
-    });
-    if (currentEvent.campusId !== campusId) {
-      throw error(
-        403,
-        'Accès refusé : cet événement appartient à un autre campus.',
-      );
-    }
-
-    await validateMantaIds(campusId, mantaIds);
-
-    await prisma.$transaction(async (tx) => {
-      await tx.eventManta.deleteMany({ where: { eventId } });
-      if (mantaIds.length > 0) {
-        await tx.eventManta.createMany({
-          data: mantaIds.map((staffProfileId) => ({
-            eventId,
-            staffProfileId,
-          })),
-        });
-      }
-    });
-  },
-
-  async addEventStaff(
-    eventId: string,
-    campusId: string,
-    staffProfileId: string,
-  ) {
-    const event = await prisma.event.findUniqueOrThrow({
-      where: { id: eventId },
-      select: { campusId: true },
-    });
-    if (event.campusId !== campusId) {
-      throw error(
-        403,
-        'Accès refusé : cet événement appartient à un autre campus.',
-      );
-    }
-    await validateMantaIds(campusId, [staffProfileId]);
-    await prisma.eventManta.upsert({
-      where: { eventId_staffProfileId: { eventId, staffProfileId } },
-      create: { eventId, staffProfileId },
-      update: {},
-    });
-  },
-
-  async removeEventStaff(
-    eventId: string,
-    campusId: string,
-    staffProfileId: string,
-  ) {
-    const event = await prisma.event.findUniqueOrThrow({
-      where: { id: eventId },
-      select: { campusId: true },
-    });
-    if (event.campusId !== campusId) {
-      throw error(
-        403,
-        'Accès refusé : cet événement appartient à un autre campus.',
-      );
-    }
-    await prisma.eventManta.deleteMany({
-      where: { eventId, staffProfileId },
-    });
   },
 };

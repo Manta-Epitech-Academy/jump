@@ -11,16 +11,16 @@ const defaultForEventTypeSchema = z
   .enum(EVENT_TYPE_VALUES as [string, ...string[]])
   .nullish();
 
-export const QUESTION_TYPES = [
+const QUESTION_TYPES = [
   'single',
   'multiple',
   'scale',
   'text',
   'textarea',
 ] as const;
-export const INPUT_KINDS = ['email', 'tel', 'name', 'text'] as const;
-export const OPTION_KINDS = ['choice', 'extra'] as const;
-export const IDENTITY_FIELDS = [
+const INPUT_KINDS = ['email', 'tel', 'name', 'text'] as const;
+const OPTION_KINDS = ['choice', 'extra'] as const;
+const IDENTITY_FIELDS = [
   'email',
   'phone',
   'firstName',
@@ -28,7 +28,7 @@ export const IDENTITY_FIELDS = [
   'civility',
   'campus',
 ] as const;
-export const FORM_STATUSES = ['draft', 'published', 'archived'] as const;
+const FORM_STATUSES = ['draft', 'published', 'archived'] as const;
 
 // A respondent column holds a single value, so an identity field answered as a
 // `multiple` choice would silently keep only the first selection and skip the
@@ -41,18 +41,6 @@ export const formCreateSchema = z.object({
   title: z.string().trim().min(1).max(200),
   // Optional, like outro: an empty intro falls back to the default greeting.
   intro: z.string().trim().max(2000).nullish(),
-});
-
-export const formMetaSchema = z.object({
-  title: z.string().trim().min(1).max(200),
-  intro: z.string().trim().max(2000).nullish(),
-  outro: z.string().trim().max(2000).nullish(),
-  personaName: z.string().trim().max(100).nullish(),
-  status: z.enum(FORM_STATUSES),
-  allowsAuthenticatedAccess: z.boolean(),
-  allowsPublicAccess: z.boolean(),
-  dashboardNudge: z.boolean(),
-  defaultForEventType: defaultForEventTypeSchema,
 });
 
 // Partial patch for the auto-saving builder (every field optional, edited inline).

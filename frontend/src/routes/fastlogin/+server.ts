@@ -39,15 +39,15 @@ export const GET: RequestHandler = async ({ url, request, cookies }) => {
 
   const email = payload.email.toLowerCase().trim();
 
-  const talent = await prisma.talent.findFirst({
+  const user = await prisma.bauth_user.findUnique({
     where: { email },
-    select: { id: true },
+    select: { talent: { select: { id: true } } },
   });
-  if (!talent) throw error(404, 'Profil introuvable.');
+  if (!user?.talent) throw error(404, 'Profil introuvable.');
 
-  // Bootstrap / link the bauth_user on first fastlogin if the talent was
-  // seeded or imported but never went through `/login` to create one.
-  await ensureTalentUser(talent.id);
+  // Realign the login email if Salesforce changed it since the link was made
+  // (defensive; the account already exists from import).
+  await ensureTalentUser(user.talent.id);
 
   await establishOtpSession({ email, request, cookies });
   throw redirect(303, resolve('/'));

@@ -10,7 +10,7 @@
  * 70/segment; we don't model that, so the count drifts if such chars are pasted.)
  */
 export const SMS_SINGLE_SEGMENT_CHARS = 160;
-export const SMS_MULTIPART_SEGMENT_CHARS = 153;
+const SMS_MULTIPART_SEGMENT_CHARS = 153;
 
 /**
  * Sanity ceiling for a *broadcast* SMS, expressed in segments. Multipart is

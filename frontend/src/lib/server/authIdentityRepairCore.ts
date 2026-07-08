@@ -21,7 +21,7 @@ import { Prisma } from '@prisma/client';
  * world moved, `plan*` throws and the transaction rolls back untouched.
  */
 
-export type AuthRepairKind = 'repoint_drop' | 'rename' | 'swap' | 'sever';
+type AuthRepairKind = 'repoint_drop' | 'swap' | 'sever';
 
 const norm = (e: string | null | undefined): string | null =>
   e?.toLowerCase().trim() || null;
@@ -33,7 +33,7 @@ const HOLDER_SELECT = {
   email: true,
   role: true,
   staffProfile: { select: { id: true } },
-  talent: { select: { id: true, email: true } },
+  talent: { select: { id: true, sfImport: { select: { sfEmail: true } } } },
 } satisfies Prisma.bauth_userSelect;
 
 /** Is `email` a parent contact on any talent? (parent accounts must never be
@@ -65,7 +65,7 @@ async function emailBelongsToOther(
   const otherTalent = await db.talent.findFirst({
     where: {
       id: { not: exceptTalentId },
-      email: { equals: email, mode: 'insensitive' },
+      sfImport: { sfEmail: { equals: email, mode: 'insensitive' } },
     },
     select: { id: true },
   });
@@ -91,7 +91,7 @@ async function loadDriftedTalent(
       id: true,
       prenom: true,
       nom: true,
-      email: true,
+      sfImport: { select: { sfEmail: true } },
       user: { select: { id: true, email: true } },
     },
   });
@@ -100,8 +100,8 @@ async function loadDriftedTalent(
     throw new Error(
       'Talent has no linked account (userId null) — nothing to repair.',
     );
-  if (!talent.email) throw new Error('Talent has no email.');
-  const targetEmail = norm(talent.email)!;
+  if (!talent.sfImport?.sfEmail) throw new Error('Talent has no SF email.');
+  const targetEmail = norm(talent.sfImport.sfEmail)!;
   const staleEmail = norm(talent.user.email)!;
   if (targetEmail === staleEmail)
     throw new Error('Link is already aligned (no conflict).');
@@ -136,7 +136,7 @@ export async function planRepointAndDrop(
   });
   if (!holder)
     throw new Error(
-      `Verdict is SIMPLE_DRIFT (nobody holds ${t.targetEmail}); use rename, not repoint+drop.`,
+      `Nobody holds ${t.targetEmail} — the sync realigns the account itself (changeUserEmail), no manual repair needed.`,
     );
   if (holder.staffProfile)
     throw new Error(
@@ -207,72 +207,6 @@ export async function applyRepointAndDrop(
   return plan;
 }
 
-// ── rename (SIMPLE_DRIFT) ──────────────────────────────────────────────────
-
-export interface RenamePlan {
-  talentId: string;
-  talentName: string;
-  linkedUserId: string;
-  staleEmail: string;
-  targetEmail: string;
-}
-
-export async function planRename(
-  db: Prisma.TransactionClient,
-  talentId: string,
-): Promise<RenamePlan> {
-  const t = await loadDriftedTalent(db, talentId);
-  const holder = await db.bauth_user.findFirst({
-    where: { email: { equals: t.targetEmail, mode: 'insensitive' } },
-    select: { id: true },
-  });
-  if (holder)
-    throw new Error(
-      'Target email is already held by another account — not SIMPLE_DRIFT; use repoint+drop or swap.',
-    );
-  // Even with no account on it, a parent-contact email must not be renamed onto:
-  // it is bad SF data (a minor with a parent's address in the student record),
-  // a PARENT_HOLDER to escalate, never a drift to auto-fix. (A staff email
-  // always has an account, so the holder check above already covers staff.)
-  if (await isParentEmail(db, t.targetEmail))
-    throw new Error(
-      'Target email is a parent contact (PARENT_HOLDER) — escalate, do not force.',
-    );
-  return {
-    talentId,
-    talentName: t.name,
-    linkedUserId: t.linkedUserId,
-    staleEmail: t.staleEmail,
-    targetEmail: t.targetEmail,
-  };
-}
-
-export async function applyRename(
-  db: Prisma.TransactionClient,
-  talentId: string,
-  resolvedBy: string,
-): Promise<RenamePlan> {
-  const plan = await planRename(db, talentId);
-  // May still race a concurrent account creation → P2002; the caller's tx rolls
-  // back and the row reverts to a collision case on the next classification.
-  await db.bauth_user.update({
-    where: { id: plan.linkedUserId },
-    data: { email: plan.targetEmail },
-  });
-  await db.authIdentityRepair.create({
-    data: {
-      talentId,
-      kind: 'rename' satisfies AuthRepairKind,
-      toUserId: plan.linkedUserId,
-      fromUserId: plan.linkedUserId,
-      fromEmail: plan.staleEmail,
-      toEmail: plan.targetEmail,
-      resolvedBy,
-    },
-  });
-  return plan;
-}
-
 // ── swap (SYMMETRIC_INVERSION) ─────────────────────────────────────────────
 
 export interface SwapPlan {
@@ -286,7 +220,7 @@ export interface SwapPlan {
   bTargetEmail: string;
 }
 
-export async function planSwap(
+async function planSwap(
   db: Prisma.TransactionClient,
   talentId: string,
 ): Promise<SwapPlan> {
@@ -300,7 +234,7 @@ export async function planSwap(
       'Target email is not held by another talent — not an inversion.',
     );
   const bTalentId = holder.talent.id;
-  const bTargetEmail = norm(holder.talent.email);
+  const bTargetEmail = norm(holder.talent.sfImport?.sfEmail);
   const bStaleEmail = norm(holder.email);
   // Symmetric ⇔ B's own target email is exactly A's stale email, i.e. each side
   // holds the other's email. Anything else is a degraded inversion (no safe
@@ -379,7 +313,7 @@ export interface SeverPlan {
   fromEmail: string;
 }
 
-export async function planSever(
+async function planSever(
   db: Prisma.TransactionClient,
   talentId: string,
 ): Promise<SeverPlan> {

@@ -288,8 +288,6 @@
     switch (t.action) {
       case 'repointDrop':
         return `Basculer ${who} sur le compte « ${c.holder?.email} » (où sont ses ${c.holder?.sessions ?? 0} sessions actives) puis supprimer l'ancien compte « ${c.linked.email} ». Les sessions vivantes sont conservées.`;
-      case 'rename':
-        return `Renommer le compte de connexion de ${who} : « ${c.linked.email} » → « ${c.targetEmail} ».`;
       case 'swap':
         return `Échanger les emails des deux comptes (inversion symétrique) : ${who} et le talent lié récupèrent chacun le bon email de connexion.`;
       case 'sever':

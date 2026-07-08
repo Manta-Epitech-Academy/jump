@@ -597,7 +597,7 @@
                 </h3>
                 <p class="mt-2 max-w-sm text-sm text-slate-500">
                   Aucune mission pour aujourd'hui. Profites-en pour souffler ou
-                  revoir tes anciens projets dans ton portfolio !
+                  tenter un mini-jeu !
                 </p>
               </div>
             {/if}

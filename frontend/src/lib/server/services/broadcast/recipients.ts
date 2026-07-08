@@ -49,8 +49,6 @@ const AUDIENCE_TO_STAFF_ROLE: Record<
   StaffRole
 > = {
   dev: 'dev',
-  peda: 'peda',
-  manta: 'manta',
   superdev: 'superdev',
 };
 
@@ -91,7 +89,7 @@ async function resolveTalentBased(
       id: true,
       prenom: true,
       nom: true,
-      email: true,
+      user: { select: { email: true } },
       phone: true,
       parentEmail: true,
       parentPhone: true,
@@ -133,7 +131,7 @@ async function resolveTalentBased(
       continue;
     }
 
-    const email = isParent ? t.parentEmail : t.email;
+    const email = isParent ? t.parentEmail : (t.user?.email ?? null);
     const phone = isParent ? t.parentPhone : t.phone;
     const prenom = isParent ? (t.parentPrenom ?? '') : t.prenom;
     const nom = isParent ? (t.parentNom ?? '') : t.nom;
@@ -316,14 +314,8 @@ async function resolveStaffBased(
       staffRole: role,
       campusId: spec.campusId,
       ...(userIdFilter ? { userId: userIdFilter } : {}),
-      // Mantas are assigned to events (EventManta), so when an event is chosen
-      // the manta audience narrows to that event's assignees, matching how
-      // talent/parent scope through Participation. The other staff roles
-      // (dev/peda/superdev) carry no per-event assignment, so the event is
-      // simply ignored for them.
-      ...(spec.audience === 'manta' && spec.eventId
-        ? { eventMantas: { some: { eventId: spec.eventId } } }
-        : {}),
+      // Staff audiences carry no per-event assignment, so the event is ignored
+      // when resolving them.
     },
     select: {
       campus: { select: { name: true } },

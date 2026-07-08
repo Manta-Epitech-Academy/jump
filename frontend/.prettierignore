@@ -15,3 +15,6 @@ build/
 
 # Paraglide auto-generated
 src/lib/paraglide/
+
+# Auto-generated DB map (produced by `bun run db:erd`)
+docs/database.md

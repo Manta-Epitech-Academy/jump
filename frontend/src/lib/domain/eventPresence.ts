@@ -92,7 +92,7 @@ export function dbDateToKey(value: Date): DateKey {
 }
 
 /** Monday-Friday. Weekends are excluded from stage de seconde créneaux. */
-export function isWorkday(key: DateKey): boolean {
+function isWorkday(key: DateKey): boolean {
   const dow = dateKeyToDbDate(key).getUTCDay(); // 0 Sun ... 6 Sat
   return dow !== 0 && dow !== 6;
 }
@@ -103,7 +103,7 @@ export function isWorkday(key: DateKey): boolean {
  * seconde runs Monday-Friday) the weekends are dropped, so a 2-week stage yields
  * 10 days, not 14.
  */
-export function eventDays(
+function eventDays(
   event: { date: Date; endDate: Date | null },
   timezone: string,
   opts: { workdaysOnly?: boolean } = {},
@@ -134,25 +134,14 @@ export function slotKey(day: DateKey, slot: PresenceSlot): string {
   return `${day}|${slot}`;
 }
 
-/** The ordered list of créneaux (≈20 over a 2-week stage): each working day × 2. */
-export function eventSlots(
-  event: { date: Date; endDate: Date | null },
-  timezone: string,
-  opts: { workdaysOnly?: boolean } = {},
-): EventSlot[] {
-  return eventDays(event, timezone, opts).flatMap((day) =>
-    PRESENCE_SLOTS.map((slot) => ({ day, slot, key: slotKey(day, slot) })),
-  );
-}
-
 /**
  * Canonical shape of a Stage de Seconde for émargement: two working weeks,
  * Monday-Friday twice, i.e. 10 working days (20 half-day créneaux). It is a
  * domain invariant of the stage, not a per-event field, so the grid can exist
  * in full before anyone fills `endDate` or populates the planning.
  */
-export const STAGE_PRESENCE_WEEKS = 2;
-export const STAGE_PRESENCE_WORKDAYS = STAGE_PRESENCE_WEEKS * 5; // Mon-Fri × 2
+const STAGE_PRESENCE_WEEKS = 2;
+const STAGE_PRESENCE_WORKDAYS = STAGE_PRESENCE_WEEKS * 5; // Mon-Fri × 2
 
 /** The first `count` working days from a start key (inclusive), weekends skipped. */
 function workdaysFrom(startKey: DateKey, count: number): DateKey[] {
@@ -267,7 +256,7 @@ export function dayLabelFr(key: DateKey): string {
 }
 
 /** "lun. 9 juin" compact variant. */
-export function dayShortLabelFr(key: DateKey): string {
+function dayShortLabelFr(key: DateKey): string {
   return dateKeyToDbDate(key).toLocaleDateString('fr-FR', {
     weekday: 'short',
     day: 'numeric',
@@ -284,7 +273,7 @@ export interface PresenceCell {
   source: PresenceSource | null;
 }
 
-export const PENDING_CELL: PresenceCell = {
+const PENDING_CELL: PresenceCell = {
   status: 'pending',
   source: null,
 };
@@ -354,7 +343,7 @@ export interface SlotStats {
   handledPct: number;
 }
 
-export function emptySlotStats(): SlotStats {
+function emptySlotStats(): SlotStats {
   return {
     present: 0,
     late: 0,

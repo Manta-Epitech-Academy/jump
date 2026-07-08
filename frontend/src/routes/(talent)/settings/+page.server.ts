@@ -126,24 +126,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  unlinkDiscord: async ({ locals }) => {
-    if (!locals.talent || !locals.user) {
-      return fail(401, { message: 'Non autorisé' });
-    }
-
-    try {
-      await prisma.talent.update({
-        where: { id: locals.talent.id },
-        data: { discordId: null },
-      });
-    } catch (err) {
-      console.error('Error unlinking Discord:', err);
-      return fail(500, { message: 'Erreur lors de la déconnexion de Discord' });
-    }
-
-    return { discordUnlinked: true };
-  },
-
   // A talent can't wipe their own account on the spot — a stage de seconde
   // cohort depends on these accounts and GDPR allows a fulfilment window. This
   // opens a pending deletion request that staff fulfil (→ anonymisation) or

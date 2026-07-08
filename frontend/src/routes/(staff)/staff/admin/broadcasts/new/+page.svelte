@@ -162,8 +162,8 @@
       $form.sourceFilter = 'all';
     }
   });
-  // Only talent/parent/manta are narrowed by an event; for the other staff
-  // audiences the event does nothing, so we hide the picker entirely.
+  // Only talent/parent are narrowed by an event; for the staff audiences the
+  // event does nothing, so we hide the picker entirely.
   const eventScoped = $derived(
     $form.audience ? EVENT_SCOPED_AUDIENCES.includes($form.audience) : false,
   );

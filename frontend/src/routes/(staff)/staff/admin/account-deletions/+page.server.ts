@@ -11,7 +11,7 @@ const talentSelect = {
   id: true,
   nom: true,
   prenom: true,
-  email: true,
+  user: { select: { email: true } },
   xp: true,
   eventsCount: true,
   // Effective campus = most-recent participation's campus, matching the
@@ -54,7 +54,7 @@ export const load: PageServerLoad = async () => {
       // <TalentName> (NOM uppercased + Prénom) — same format as /admin/talents.
       nom: r.talent.nom,
       prenom: r.talent.prenom,
-      email: r.talent.email,
+      email: r.talent.user?.email ?? null,
       xp: r.talent.xp,
       eventsCount: r.talent.eventsCount,
       campus: r.talent.participations[0]?.campus?.name ?? null,

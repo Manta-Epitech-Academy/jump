@@ -55,11 +55,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     }),
   );
 
-  const parentName = locals.user.name ?? '';
-
   return {
-    parentName,
-    parentLastName: getParentLastName(parentName),
+    parentLastName: getParentLastName(locals.user.name),
     children: childrenWithEvents,
   };
 };

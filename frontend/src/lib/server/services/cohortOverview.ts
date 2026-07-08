@@ -12,7 +12,7 @@ import { prisma } from '$lib/server/db';
  */
 
 /** Default cap for the dashboard's side-by-side breakdown cards. */
-export const BREAKDOWN_TOP_N = 10;
+const BREAKDOWN_TOP_N = 10;
 
 export type LyceeStat = { schoolId: string; name: string; count: number };
 export type InterestStat = {
@@ -31,9 +31,6 @@ export type InterestStat = {
 export type BreakdownTail = { count: number; categories: number };
 
 export type Breakdown<T> = { rows: T[]; others: BreakdownTail | null };
-
-export type LyceesBreakdown = Breakdown<LyceeStat>;
-export type InterestsBreakdown = Breakdown<InterestStat>;
 
 /**
  * Splits a full ranking into the visible top-N plus a summarised tail. Pure —
@@ -132,20 +129,4 @@ export async function rankInterestsByCohort(
       { interestId: i.id, nom: i.nom, emoji: i.emoji, count: g._count._all },
     ];
   });
-}
-
-/** Convenience: full lycée ranking capped to the dashboard's top-N card. */
-export async function loadLyceesBreakdown(
-  db: ScopedPrismaClient,
-  eventId: string,
-): Promise<LyceesBreakdown> {
-  return toBreakdown(await rankLyceesByCohort(db, eventId));
-}
-
-/** Convenience: full interest ranking capped to the dashboard's top-N card. */
-export async function loadInterestsCloud(
-  db: ScopedPrismaClient,
-  eventId: string,
-): Promise<InterestsBreakdown> {
-  return toBreakdown(await rankInterestsByCohort(db, eventId));
 }

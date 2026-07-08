@@ -5,7 +5,6 @@
  *  - dev students list filter (`staff/dev/students`)
  *  - pedago event « inscrits » filter + badges
  *  - broadcast audience targeting (`domain/broadcasts.ts`)
- *  - certificate « school level » label (`api/certificate`)
  *  - Salesforce talent sync (`server/services/syncService.ts`)
  *
  * Values match the `ClassLevel` enum emitted by **jump-sf-worker** so the sync
@@ -35,7 +34,7 @@ export const NIVEAUX = [
 export type Niveau = (typeof NIVEAUX)[number];
 
 /** Human-facing French label for each level. */
-export const NIVEAU_LABELS: Record<Niveau, string> = {
+const NIVEAU_LABELS: Record<Niveau, string> = {
   '6eme': '6ème',
   '5eme': '5ème',
   '4eme': '4ème',

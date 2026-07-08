@@ -35,7 +35,7 @@ function toOutcome(result: Awaited<ReturnType<typeof sendEmail>>): SendOutcome {
   };
 }
 
-export const transactionalMailProvider: MailProvider = {
+const transactionalMailProvider: MailProvider = {
   async sendMail({ to, subject, html, text }, opts): Promise<SendOutcome> {
     return toOutcome(
       await sendEmail(

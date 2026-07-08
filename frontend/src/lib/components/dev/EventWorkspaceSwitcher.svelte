@@ -132,8 +132,11 @@
   function targetFor(e: SwitcherEvent): string {
     const seg = currentSegment();
     const segments = reachableSurfaces(e).map(surfaceSegment);
-    if (seg && segments.includes(seg)) {
-      return resolve(`/staff/dev/events/${e.id}/${seg}`);
+    // Keep the currently open surface if the target event also exposes it. Match
+    // against the typed segment list so the resolved path stays a known route.
+    const match = segments.find((s) => s === seg);
+    if (match) {
+      return resolve(`/staff/dev/events/${e.id}/${match}`);
     }
     return segments.length
       ? resolve(`/staff/dev/events/${e.id}/${segments[0]}`)

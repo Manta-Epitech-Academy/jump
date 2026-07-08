@@ -7,7 +7,7 @@ import type { ImageRightsStatus } from '$lib/domain/imageRights';
 // must not drag the full Talent row (Salesforce-mirror columns) or full Interest
 // rows. The server load imports this select so the query and the row type can
 // never drift.
-export const INSCRIT_TALENT_SELECT = {
+const INSCRIT_TALENT_SELECT = {
   id: true,
   nom: true,
   prenom: true,
@@ -17,7 +17,7 @@ export const INSCRIT_TALENT_SELECT = {
   // joins the shared select. The events count stays off here: the dense roster
   // shows XP alone, the fiche carries the fuller breakdown.
   xp: true,
-  email: true,
+  user: { select: { email: true } },
   parentEmail: true,
   // Dossier inputs — feed the statut badge and its per-document tooltip
   // (see rulesStatus / imageRightsStatus). `rulesSignedAt` distinguishes the
@@ -51,10 +51,6 @@ export const INSCRIT_PARTICIPATION_SELECT = {
   // joins the status computation alongside the talent's online co-signature.
   stageCompliance: { select: { charteSigned: true } },
 } satisfies Prisma.ParticipationSelect;
-
-export type ParticipationInscrit = Prisma.ParticipationGetPayload<{
-  select: typeof INSCRIT_PARTICIPATION_SELECT;
-}>;
 
 /** One projected table row. `id` is the participation id (stable row key). */
 export type InscritRow = {

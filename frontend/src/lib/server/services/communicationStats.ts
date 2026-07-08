@@ -1,21 +1,14 @@
 /**
  * Communication analytics — read-only projections over existing rows.
  *
- * Spans the three outbound surfaces of the admin Communication hub: bulk
- * broadcasts (`Broadcast`/`BroadcastRecipient`), transactional mail mappings
- * (`EmailActionMapping`), and the read-only relances mirror
- * (`OnboardingReminder`). It owns no state: every figure is a read-time
+ * Spans two outbound surfaces of the admin Communication hub: bulk broadcasts
+ * (`Broadcast`/`BroadcastRecipient`) and transactional mail mappings
+ * (`EmailActionMapping`). It owns no state: every figure is a read-time
  * projection via `groupBy`/`count` (the facts-as-rows convention — see
  * CLAUDE.md), so there is nothing to keep in sync and no migration.
  *
  * Admin space is cross-campus by design ("global system overview"), so this
  * service aggregates globally rather than scoping to one campus.
- *
- * `OnboardingReminder` carries no campus and `Talent` has no campus FK (a
- * talent's campus is only reachable through participations → events), so the
- * relances views are intentionally not campus-dimensioned — that join would be
- * ambiguous and expensive for no real payoff here. Drill into the Dev-workspace
- * talent fiche for per-talent context.
  */
 import { prisma } from '$lib/server/db';
 import type { BroadcastChannel, BroadcastStatus } from '@prisma/client';
@@ -229,9 +222,7 @@ export interface RecentBroadcast {
   opened: number;
 }
 
-export async function getRecentBroadcasts(
-  limit = 8,
-): Promise<RecentBroadcast[]> {
+async function getRecentBroadcasts(limit = 8): Promise<RecentBroadcast[]> {
   const rows = await prisma.broadcast.findMany({
     orderBy: { createdAt: 'desc' },
     take: limit,
@@ -283,7 +274,7 @@ export interface TransactionalHealth {
   healthy: boolean;
 }
 
-export async function getTransactionalHealth(): Promise<TransactionalHealth> {
+async function getTransactionalHealth(): Promise<TransactionalHealth> {
   const mappings = await prisma.emailActionMapping.findMany({
     select: {
       actionKey: true,
@@ -316,166 +307,18 @@ export async function getTransactionalHealth(): Promise<TransactionalHealth> {
   };
 }
 
-// ── 5. Read-only relances mirror (OnboardingReminder) ─────────────────────────
-export type RelanceMirrorType = 'student' | 'parent';
-export type RelanceMirrorChannel = 'email' | 'sms';
-
-export interface RelanceStats {
-  window: CommWindow;
-  total: number;
-  byChannel: Record<RelanceMirrorChannel, number>;
-  byType: Record<RelanceMirrorType, number>;
-  uniqueTalents: number;
-  lastSentAt: Date | null;
-}
-
-export async function getRelanceStats(
-  win?: Partial<CommWindow>,
-): Promise<RelanceStats> {
-  const window = resolveWindow(win);
-  const where = { sentAt: { gte: window.since, lte: window.until } };
-
-  const [byChannel, byType, total, distinct, last] = await Promise.all([
-    prisma.onboardingReminder.groupBy({
-      by: ['channel'],
-      where,
-      _count: { _all: true },
-    }),
-    prisma.onboardingReminder.groupBy({
-      by: ['type'],
-      where,
-      _count: { _all: true },
-    }),
-    prisma.onboardingReminder.count({ where }),
-    prisma.onboardingReminder.findMany({
-      where,
-      distinct: ['talentId'],
-      select: { talentId: true },
-    }),
-    prisma.onboardingReminder.findFirst({
-      where,
-      orderBy: { sentAt: 'desc' },
-      select: { sentAt: true },
-    }),
-  ]);
-
-  const channels: Record<RelanceMirrorChannel, number> = { email: 0, sms: 0 };
-  for (const c of byChannel) {
-    if (c.channel === 'email' || c.channel === 'sms') {
-      channels[c.channel] = c._count._all;
-    }
-  }
-  const types: Record<RelanceMirrorType, number> = { student: 0, parent: 0 };
-  for (const t of byType) {
-    if (t.type === 'student' || t.type === 'parent') {
-      types[t.type] = t._count._all;
-    }
-  }
-
-  return {
-    window,
-    total,
-    byChannel: channels,
-    byType: types,
-    uniqueTalents: distinct.length,
-    lastSentAt: last?.sentAt ?? null,
-  };
-}
-
-export interface RelanceMirrorRow {
-  id: string;
-  sentAt: Date;
-  type: string;
-  channel: string;
-  subject: string | null;
-  talent: { id: string; prenom: string; nom: string };
-  sender: { name: string | null; email: string | null } | null;
-}
-
-export interface RelanceMirrorPage {
-  rows: RelanceMirrorRow[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
-export async function getRelanceMirror(opts: {
-  page?: number;
-  pageSize?: number;
-  channel?: RelanceMirrorChannel;
-  type?: RelanceMirrorType;
-}): Promise<RelanceMirrorPage> {
-  const page = Math.max(1, opts.page ?? 1);
-  const pageSize = opts.pageSize ?? 50;
-  const where = {
-    ...(opts.channel ? { channel: opts.channel } : {}),
-    ...(opts.type ? { type: opts.type } : {}),
-  };
-
-  const [total, rows] = await Promise.all([
-    prisma.onboardingReminder.count({ where }),
-    prisma.onboardingReminder.findMany({
-      where,
-      orderBy: { sentAt: 'desc' },
-      take: pageSize,
-      skip: (page - 1) * pageSize,
-      select: {
-        id: true,
-        sentAt: true,
-        type: true,
-        channel: true,
-        subject: true,
-        sentBy: true,
-        talent: { select: { id: true, prenom: true, nom: true } },
-      },
-    }),
-  ]);
-
-  // `sentBy` is a bare staff userId with no FK relation — resolve names in one
-  // extra query rather than per-row (mirrors the Dev-fiche timeline loader).
-  const senderIds = [...new Set(rows.map((r) => r.sentBy))];
-  const senders = senderIds.length
-    ? await prisma.bauth_user.findMany({
-        where: { id: { in: senderIds } },
-        select: { id: true, name: true, email: true },
-      })
-    : [];
-  const senderById = new Map(senders.map((s) => [s.id, s]));
-
-  return {
-    page,
-    pageSize,
-    total,
-    rows: rows.map((r) => {
-      const s = senderById.get(r.sentBy);
-      return {
-        id: r.id,
-        sentAt: r.sentAt,
-        type: r.type,
-        channel: r.channel,
-        subject: r.subject,
-        talent: r.talent,
-        sender: s ? { name: s.name, email: s.email } : null,
-      };
-    }),
-  };
-}
-
-// ── 6. One-shot overview aggregate ────────────────────────────────────────────
+// ── 5. One-shot overview aggregate ────────────────────────────────────────────
 export interface CommunicationOverview {
   broadcasts: BroadcastStats;
   recentBroadcasts: RecentBroadcast[];
   transactional: TransactionalHealth;
-  relances: RelanceStats;
 }
 
 export async function getCommunicationOverview(): Promise<CommunicationOverview> {
-  const [broadcasts, recentBroadcasts, transactional, relances] =
-    await Promise.all([
-      getBroadcastStats(),
-      getRecentBroadcasts(),
-      getTransactionalHealth(),
-      getRelanceStats(),
-    ]);
-  return { broadcasts, recentBroadcasts, transactional, relances };
+  const [broadcasts, recentBroadcasts, transactional] = await Promise.all([
+    getBroadcastStats(),
+    getRecentBroadcasts(),
+    getTransactionalHealth(),
+  ]);
+  return { broadcasts, recentBroadcasts, transactional };
 }

@@ -13,13 +13,13 @@ import {
  * deleting rows: name/contact fields are nulled or replaced with placeholders,
  * the linked auth identity is scrubbed and its sessions/accounts dropped, and
  * every talent-scoped satellite that embeds a name, a contact detail, or free
- * text (interviews, portfolio, comm + send history, the PDF-job payload) is
- * deleted outright. The generated onboarding PDFs (charte / règlement student /
+ * text (interviews, comm + send history, the PDF-job payload) is deleted
+ * outright. The generated onboarding PDFs (charte / règlement student /
  * règlement parent / droit à l'image — each embeds the student's and guardian's
  * names and a signature) are deleted from object storage, not merely
  * dereferenced. We deliberately keep the de-identified behavioural telemetry
- * (participation, progress, minigame / quiz attempts, the xp ledger) so `xp`,
- * `eventsCount` and aggregate stats survive the erasure.
+ * (participation, minigame attempts, the xp ledger) so `xp`, `eventsCount` and
+ * aggregate stats survive the erasure.
  *
  * Parents are data subjects too: their identity lives both as columns on the
  * Talent (both guardian slots, plus the guardian's typed signer name on the
@@ -54,10 +54,9 @@ export async function anonymizeTalent(
     where: { id: talentId },
     select: {
       userId: true,
-      email: true,
+      user: { select: { email: true } },
       parentEmail: true,
       parent2Email: true,
-      charterFilePath: true,
       rulesFilePath: true,
       imageRightsFilePath: true,
     },
@@ -73,7 +72,6 @@ export async function anonymizeTalent(
   // S3 keys of the generated onboarding PDFs, captured before the update nulls
   // the columns. Returned to the caller, which deletes the objects post-commit.
   const documentKeys = [
-    talent.charterFilePath,
     talent.rulesFilePath,
     talent.imageRightsFilePath,
   ].filter((k): k is string => !!k);
@@ -88,7 +86,6 @@ export async function anonymizeTalent(
       ...clearOnboardingTimestamps(),
       nom: 'Anonymisé',
       prenom: 'Anonymisé',
-      email: null,
       externalId: null,
       phone: null,
       civilite: null,
@@ -96,7 +93,6 @@ export async function anonymizeTalent(
       schoolId: null,
       interestsFreeText: null,
       setupDescription: null,
-      discordId: null,
       // Image-rights decision: the guardian's typed signer name is their PII,
       // and decision/decidedAt move with it (the trio is one signed fact — see
       // domain/imageRights). Sever the PDF references too; the objects are
@@ -138,8 +134,6 @@ export async function anonymizeTalent(
       parent2Email: null,
       parent2Phone: null,
       niveau: null,
-      badges: Prisma.DbNull,
-      lastSyncedAt: null,
     },
   });
 
@@ -148,9 +142,8 @@ export async function anonymizeTalent(
   //    a name, a contact detail, or free text, the whole row is removed rather
   //    than nulled field-by-field (drift-proof as columns are added, and the
   //    same set resetTalentToImport wipes). The anonymous behavioural telemetry
-  //    is deliberately KEPT (participation, stepsProgress, minigameAttempt,
-  //    talentQuizAttempt, xpGrant, observable / competence state): once the name
-  //    is gone those are de-identified activity backing xp / eventsCount and
+  //    is deliberately KEPT (participation, minigameAttempt, xpGrant): once the
+  //    name is gone those are de-identified activity backing xp / eventsCount and
   //    aggregate stats.
   //      - talentSfImport / talentInterest / imageRightsDecisionRecord: the SF
   //        mirror, interest selections, and the image-rights ledger (the ledger
@@ -160,11 +153,9 @@ export async function anonymizeTalent(
   //      - interview / interviewReset: the synthesis row holds free-text staff
   //        observations about the minor; both existing wipe paths already
   //        hard-delete it. InterviewReset is a reset's audit trace + reason.
-  //      - portfolioItem: student-authored content with potential PII.
   //      - onboardingPdfJob: payload snapshots the student + guardian name and
   //        city. The generated S3 PDFs are deleted post-commit; this is the DB
   //        copy of the same names.
-  //      - onboardingReminder: captured subject / body of relance mail + SMS.
   //      - broadcastRecipient: the talent's and the parent's email / phone per
   //        send, matched on both slots (SetNull relations, so deleted here, not
   //        left orphaned). The parent is a data subject too.
@@ -182,12 +173,12 @@ export async function anonymizeTalent(
     where: {
       OR: [
         { talentId },
-        ...(talent.email
+        ...(talent.user?.email
           ? [
               {
                 talentId: null,
                 respondentEmail: {
-                  equals: talent.email,
+                  equals: talent.user.email,
                   mode: 'insensitive' as const,
                 },
               },
@@ -198,9 +189,7 @@ export async function anonymizeTalent(
   });
   await tx.interview.deleteMany({ where: { talentId } });
   await tx.interviewReset.deleteMany({ where: { talentId } });
-  await tx.portfolioItem.deleteMany({ where: { talentId } });
   await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
-  await tx.onboardingReminder.deleteMany({ where: { talentId } });
   await tx.broadcastRecipient.deleteMany({
     where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
   });

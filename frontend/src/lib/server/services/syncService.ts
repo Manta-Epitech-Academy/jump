@@ -10,6 +10,11 @@ import { isNiveau, type Niveau } from '$lib/domain/niveau';
 import { normalizePhoneToE164 } from '$lib/domain/phone';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 import { autoResolveAuthIdentity } from '$lib/server/services/authIdentityRepairService';
+import { ensureTalentUser } from '$lib/server/services/talentAccount';
+import {
+  changeUserEmail,
+  EmailChangeConflict,
+} from '$lib/server/services/userEmail';
 
 // Salesforce ships a binary gender ('m' | 'f'); map it onto the civilité enum
 // the rest of the app uses. SF has no equivalent for 'autre', so it stays null.
@@ -196,6 +201,33 @@ export async function syncTalents(
   // Canonical School per distinct UAI, resolved once for the whole batch.
   const schoolIdByUai = await resolveSchools(talents);
 
+  // Ensure the talent's login identity exists, logging a failure the way a
+  // first-sight mint does. The eager-mint invariant (every SF talent carries a
+  // bauth_user minted from its SF email) must hold whether we just created the
+  // talent or found an existing one whose account went missing (a transient
+  // first-sight failure, or a factory reset), so both branches funnel through
+  // here rather than minting on first sight only.
+  const mintLoginIdentity = async (
+    talentId: string,
+    sf: { external_id: string; first_name: string; last_name: string },
+    loginEmail: string,
+  ) => {
+    try {
+      await ensureTalentUser(talentId);
+    } catch (err) {
+      await logSyncError({
+        email: loginEmail,
+        attemptedExtId: sf.external_id,
+        existingExtId: null,
+        talentName: `${sf.first_name} ${sf.last_name}`,
+        eventExtId: eventExternalId,
+        message: `Compte de connexion non créé pour "${loginEmail}" : ${
+          err instanceof Error ? err.message : 'erreur inconnue'
+        } — à arbitrer (Divergences Salesforce › Connexion) ou réessai au prochain sync.`,
+      });
+    }
+  };
+
   for (const t of talents) {
     if (!t.external_id || !t.first_name || !t.last_name)
       return {
@@ -224,10 +256,7 @@ export async function syncTalents(
         userId: true,
         prenom: true,
         nom: true,
-        email: true,
-        // Linked login account email, to detect (in memory) an auth-identity
-        // divergence and auto-reconcile it below — covers both a fresh email
-        // change this pass and a pre-existing backlog divergence.
+        // Linked login account email, to skip the reconcile when already aligned.
         user: { select: { email: true } },
         phone: true,
         civilite: true,
@@ -239,6 +268,7 @@ export async function syncTalents(
           select: {
             nom: true,
             prenom: true,
+            sfEmail: true,
             phone: true,
             civilite: true,
             niveau: true,
@@ -263,7 +293,6 @@ export async function syncTalents(
             externalId: t.external_id,
             prenom: t.first_name,
             nom: t.last_name,
-            email,
             phone,
             niveau,
             civilite,
@@ -274,6 +303,7 @@ export async function syncTalents(
               create: {
                 nom: t.last_name,
                 prenom: t.first_name,
+                sfEmail: email,
                 phone,
                 civilite,
                 niveau,
@@ -289,26 +319,30 @@ export async function syncTalents(
           err instanceof Prisma.PrismaClientKnownRequestError &&
           err.code === 'P2002'
         ) {
-          const conflicting = email
-            ? await prisma.talent.findUnique({
-                where: { email },
-                select: { id: true, externalId: true },
-              })
-            : null;
-          await logSyncError({
-            email: email ?? 'unknown',
-            attemptedExtId: t.external_id,
-            existingExtId: conflicting?.externalId ?? null,
-            talentName: `${t.first_name} ${t.last_name}`,
-            eventExtId: eventExternalId,
-            message: `Création impossible : l'email "${email}" est déjà utilisé par le talent externalId="${conflicting?.externalId ?? '?'}"`,
+          // Only `externalId` is unique on create now (Talent.email is gone) — a
+          // concurrent pass created the same SF record. Adopt the winner's row
+          // and fall through: the participation upsert below must still run
+          // (and the id must land in `syncedTalentIds`), or the end-of-sync
+          // prune would sweep the participation the other pass just created.
+          const winner = await prisma.talent.findUnique({
+            where: { externalId: t.external_id },
+            select: { id: true },
           });
-          if (conflicting) syncedTalentIds.push(conflicting.id);
+          if (!winner) throw err;
+          talentId = winner.id;
           skipped++;
-          continue;
+        } else {
+          throw err;
         }
-        throw err;
       }
+
+      // Eager-mint the login account at import so `bauth_user.email` is the
+      // identity from day one (same shape as the CSV campaign path) — no window
+      // where a Talent exists without an account. A parent/staff-owned email
+      // can't be forced into a student login (`ensureTalentUser` throws); log it
+      // and move on. The talent is still imported, just accountless until an
+      // admin resolves the collision. Emailless SF rows stay accountless.
+      if (email) await mintLoginIdentity(talentId, t, email);
     } else {
       talentId = existing.id;
 
@@ -320,6 +354,7 @@ export async function syncTalents(
         !m ||
         m.nom !== t.last_name ||
         m.prenom !== t.first_name ||
+        m.sfEmail !== email ||
         m.phone !== phone ||
         m.civilite !== civilite ||
         m.niveau !== niveau ||
@@ -331,6 +366,7 @@ export async function syncTalents(
             talentId,
             nom: t.last_name,
             prenom: t.first_name,
+            sfEmail: email,
             phone,
             civilite,
             niveau,
@@ -339,6 +375,7 @@ export async function syncTalents(
           update: {
             nom: t.last_name,
             prenom: t.first_name,
+            sfEmail: email,
             phone,
             civilite,
             niveau,
@@ -351,8 +388,6 @@ export async function syncTalents(
       //    field while the talent hasn't confirmed it. Once confirmed, SF stops
       //    touching it and a divergence is left to surface as a conflict.
       const patch: Prisma.TalentUncheckedUpdateInput = {};
-      // email is the auth identity (not talent-editable) → always synced.
-      if (existing.email !== email) patch.email = email;
       // niveau is SF-owned (onboarding never sets it) → always synced, but never
       // wiped by a blank/unknown SF value.
       if (niveau !== null && existing.niveau !== niveau) patch.niveau = niveau;
@@ -368,76 +403,53 @@ export async function syncTalents(
 
       const hasPatch = Object.keys(patch).length > 0;
       if (hasPatch) {
-        try {
-          // Talent.email follows SF (the mirror's truth). The linked login
-          // account is reconciled separately, just below, so a colliding login
-          // email no longer rolls back the rest of the patch.
-          await prisma.talent.update({
-            where: { externalId: t.external_id },
-            data: patch,
-          });
-        } catch (err) {
-          if (
-            err instanceof Prisma.PrismaClientKnownRequestError &&
-            err.code === 'P2002'
-          ) {
-            // Collision on `Talent.email` itself: another talent already owns it
-            // (an SF duplicate). Not an auth-identity case — log and skip.
-            const conflicting = email
-              ? await prisma.talent.findUnique({
-                  where: { email },
-                  select: { externalId: true },
-                })
-              : null;
-            await logSyncError({
-              email: email ?? 'unknown',
-              attemptedExtId: t.external_id,
-              existingExtId: conflicting?.externalId ?? null,
-              talentName: `${t.first_name} ${t.last_name}`,
-              eventExtId: eventExternalId,
-              message: conflicting
-                ? `Mise à jour impossible : l'email "${email}" est déjà utilisé par le talent externalId="${conflicting.externalId}"`
-                : `Mise à jour impossible : l'email "${email}" est déjà utilisé par un autre talent`,
-            });
-            skipped++;
-            continue;
-          }
-          throw err;
-        }
+        // The patch touches only non-unique confirmable fields now (email moved
+        // to bauth_user), so it can't collide — no P2002 handling needed.
+        await prisma.talent.update({
+          where: { externalId: t.external_id },
+          data: patch,
+        });
       }
 
-      // Auto-reconcile the login identity whenever Talent.email and the linked
-      // account diverge — a fresh SF email change OR a pre-existing backlog
-      // divergence. The sync self-heals only the SAFE cases on its own:
-      //   orphan holder → repoint the talent onto it + drop the stale account;
-      //   simple drift  → rename the linked account to the new email.
-      // Parent/staff holders, inversions and exposures are NEVER auto-forced
-      // (SF is the unreliable source; auto-swapping login identities on its
-      // say-so could thrash and expose minors' accounts). Those stay a conflict
-      // in Divergences Salesforce › Connexion for an admin to arbitrate.
+      // Drive the login identity toward SF's claimed email through the single
+      // write path. A clean rename succeeds silently; a collision (another
+      // account holds it, or it's a parent/staff address) is auto-healed only for
+      // the safe orphan case (repoint) and otherwise left as a conflict in
+      // Divergences Salesforce › Connexion for an admin. SF is an unreliable
+      // source, so inversions/exposures are never auto-forced.
       const linkedEmail = existing.user?.email?.toLowerCase().trim() ?? null;
-      if (existing.userId && email && email !== linkedEmail) {
+      if (email && !existing.userId) {
+        // The account went missing on an existing talent: a first-sight mint
+        // that failed transiently, or a factory reset. Re-mint it so OTP login
+        // works again. This is the "réessai au prochain sync" the create branch
+        // promises when its own mint fails.
+        await mintLoginIdentity(existing.id, t, email);
+      } else if (existing.userId && email && email !== linkedEmail) {
         try {
-          const outcome = await autoResolveAuthIdentity(existing.id, 'sync');
-          if (outcome === 'skipped') {
+          await changeUserEmail(existing.userId, email);
+        } catch (err) {
+          if (!(err instanceof EmailChangeConflict)) {
             await logSyncError({
               email,
               attemptedExtId: t.external_id,
               existingExtId: null,
               talentName: `${t.first_name} ${t.last_name}`,
               eventExtId: eventExternalId,
-              message: `Divergence d'identité de connexion non auto-résoluble pour "${email}" — à arbitrer dans Divergences Salesforce › Connexion.`,
+              message: `Réconciliation de l'identité de connexion échouée pour "${email}" : ${err instanceof Error ? err.message : 'erreur inconnue'} (réessai au prochain sync).`,
             });
+          } else {
+            const outcome = await autoResolveAuthIdentity(existing.id, 'sync');
+            if (outcome === 'skipped') {
+              await logSyncError({
+                email,
+                attemptedExtId: t.external_id,
+                existingExtId: null,
+                talentName: `${t.first_name} ${t.last_name}`,
+                eventExtId: eventExternalId,
+                message: `Divergence d'identité de connexion non auto-résoluble pour "${email}" — à arbitrer dans Divergences Salesforce › Connexion.`,
+              });
+            }
           }
-        } catch (err) {
-          await logSyncError({
-            email,
-            attemptedExtId: t.external_id,
-            existingExtId: null,
-            talentName: `${t.first_name} ${t.last_name}`,
-            eventExtId: eventExternalId,
-            message: `Réconciliation de l'identité de connexion échouée pour "${email}" : ${err instanceof Error ? err.message : 'erreur inconnue'} (réessai au prochain sync).`,
-          });
         }
       }
       if (mirrorChanged || hasPatch) updated++;

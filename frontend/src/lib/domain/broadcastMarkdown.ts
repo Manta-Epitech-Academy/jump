@@ -190,7 +190,7 @@ const SANITIZE_CONFIG = {
   ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|tel:|about:blank$)/i,
 };
 
-export function renderBroadcastBodyHtml(markdown: string): string {
+function renderBroadcastBodyHtml(markdown: string): string {
   const raw = marked.parse(markdown) as string;
   return DOMPurify.sanitize(raw, SANITIZE_CONFIG);
 }
@@ -230,7 +230,7 @@ function shellClose(): string {
   ].join('');
 }
 
-export function wrapBroadcastHtml(innerHtml: string, baseUrl = ''): string {
+function wrapBroadcastHtml(innerHtml: string, baseUrl = ''): string {
   return `${shellOpen(baseUrl)}${innerHtml}${shellClose()}`;
 }
 
@@ -254,7 +254,7 @@ export function renderBroadcastMail(markdown: string, baseUrl = ''): string {
  * keep the fragment ({@link renderBroadcastMail}) because a full document
  * injected via `{@html}` would nest `<html>`/`<body>` inside the live DOM.
  */
-export function wrapEmailDocument(shellHtml: string, subject = ''): string {
+function wrapEmailDocument(shellHtml: string, subject = ''): string {
   const title = subject ? `<title>${escapeHtml(subject)}</title>` : '';
   return [
     '<!DOCTYPE html>',
@@ -385,7 +385,7 @@ function blockTokensToText(tokens: Tokens.Generic[] | undefined): string {
  * per-recipient tracking rewrite (`rewriteSmsLinks`, which scans for bare
  * URLs) still reaches them.
  */
-export function renderBroadcastText(markdown: string): string {
+function renderBroadcastText(markdown: string): string {
   return blockTokensToText(marked.lexer(markdown))
     .replace(/\n{3,}/g, '\n\n')
     .trim();

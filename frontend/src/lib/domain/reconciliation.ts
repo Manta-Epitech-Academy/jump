@@ -5,13 +5,7 @@
  * client-side admin page.
  */
 
-export const DIFF_FIELDS = [
-  'nom',
-  'prenom',
-  'phone',
-  'civilite',
-  'school',
-] as const;
+const DIFF_FIELDS = ['nom', 'prenom', 'phone', 'civilite', 'school'] as const;
 export type DiffField = (typeof DIFF_FIELDS)[number];
 
 export function isDiffField(value: unknown): value is DiffField {

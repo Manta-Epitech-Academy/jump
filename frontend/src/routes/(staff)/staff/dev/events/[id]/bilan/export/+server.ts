@@ -31,7 +31,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     where: buildSubmissionWhere(graph.id, { eventId: event.id }),
     orderBy: { submittedAt: 'asc' },
     include: {
-      talent: { select: { prenom: true, nom: true, email: true } },
+      talent: {
+        select: { prenom: true, nom: true, user: { select: { email: true } } },
+      },
       answers: {
         select: {
           questionId: true,
@@ -48,7 +50,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   const rows = submissions.map((sub) => [
     sub.talent?.prenom ?? sub.respondentFirstName ?? '',
     sub.talent?.nom ?? sub.respondentLastName ?? '',
-    sub.talent?.email ?? sub.respondentEmail ?? '',
+    sub.talent?.user?.email ?? sub.respondentEmail ?? '',
     ...answerCells(sub.answers, columns),
   ]);
 

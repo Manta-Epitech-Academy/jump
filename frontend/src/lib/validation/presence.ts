@@ -8,10 +8,10 @@ const dayKey = z
   .string()
   .regex(dateKeyRegex, 'Format de date invalide (YYYY-MM-DD)');
 
-export const presenceSlots = ['morning', 'afternoon'] as const;
+const presenceSlots = ['morning', 'afternoon'] as const;
 // Four exclusive states; `pending` is a settable target meaning "clear this
 // cell" (delete the row), the other four are stored statuses.
-export const presenceStatuses = [
+const presenceStatuses = [
   'present',
   'late',
   'absent',
@@ -46,5 +46,3 @@ export const reopenSlotSchema = z.object({
   day: dayKey,
   slot,
 });
-
-export type SetPresenceInput = z.infer<typeof setPresenceSchema>;

@@ -29,8 +29,6 @@ export const broadcastFiltersSchema = z
   })
   .strict();
 
-export type BroadcastFiltersForm = z.infer<typeof broadcastFiltersSchema>;
-
 export const messageTemplateSchema = z
   .object({
     name: z
@@ -118,5 +116,3 @@ export const broadcastSchema = z
       });
     }
   });
-
-export type BroadcastForm = z.infer<typeof broadcastSchema>;
