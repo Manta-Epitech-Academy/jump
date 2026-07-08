@@ -4,9 +4,11 @@
 -- `StaffProfile`. This ends the two-column duplication that generated the
 -- auth-identity drift/lockout class of bugs.
 --
--- Precondition (met by the earlier `backfill_talent_accounts` migration + the
--- eager mint in the sync): every talent with an email has a `bauth_user`, so the
--- login identity survives the drop.
+-- Invariant after steps 1-3: every talent email survives the drop somewhere —
+-- as the linked `bauth_user.email` (the backfill migration + the sync's eager
+-- mint) and/or as `TalentSfImport.sfEmail` (steps 2-3, step 3 creating the
+-- mirror rows pre-mirror-era anomalies never got). Nothing is lost when
+-- step 4 removes the column.
 
 -- 1. Add the SF-claimed email to the mirror (its true home — email is SF-owned).
 ALTER TABLE "TalentSfImport" ADD COLUMN "sfEmail" TEXT;
@@ -19,27 +21,25 @@ SET "sfEmail" = t."email"
 FROM "Talent" t
 WHERE t."id" = sf."talentId" AND t."email" IS NOT NULL;
 
--- 3. Guard the drop: a talent still carrying an email must keep either a way to
---    log in (a linked `bauth_user`) or the address itself (the sfEmail backfill
---    above — which only reaches talents that HAVE a mirror row). A row with
---    neither (a pre-mirror-era legacy anomaly) would lose its email
---    irrecoverably; fail loud so a human resolves it, instead of the drop
---    silently destroying a login identity.
-DO $$
-DECLARE
-  lossy int;
-BEGIN
-  SELECT count(*) INTO lossy
-  FROM "Talent" t
-  WHERE t."email" IS NOT NULL
-    AND t."userId" IS NULL
-    AND NOT EXISTS (
-      SELECT 1 FROM "TalentSfImport" sf WHERE sf."talentId" = t."id"
-    );
-  IF lossy > 0 THEN
-    RAISE EXCEPTION 'drop Talent.email: % talent(s) carry an email but have no login account and no SF mirror — their email would be lost. Resolve them by hand, then re-run.', lossy;
-  END IF;
-END $$;
+-- 3. Preserve the email of pre-mirror-era anomalies instead of dropping it. A
+--    talent with an email, no login account and no mirror row (e.g. a legacy
+--    test lead carrying a staff address, which the account backfill correctly
+--    refused to adopt) would otherwise lose its email irrecoverably — and that
+--    address is exactly what an admin needs to arbitrate the anomaly. For this
+--    set the email is by construction SF's last claim (only the pre-mirror
+--    sync ever wrote it on accountless talents; OAuth-created talents always
+--    carry a userId), so creating the mirror row it never got — claims-only,
+--    every other field NULL = "unknown at the time" — is honest, not
+--    fabrication. These rows then surface post-deploy as accountless
+--    anomalies, arbitrated from the app at leisure; no deploy-time human gate.
+INSERT INTO "TalentSfImport" ("talentId", "sfEmail", "syncedAt")
+SELECT t."id", t."email", now()
+FROM "Talent" t
+WHERE t."email" IS NOT NULL
+  AND t."userId" IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM "TalentSfImport" sf WHERE sf."talentId" = t."id"
+  );
 
 -- 4. Drop the redundant column. Its unique index (`Talent_email_key`) is dropped
 --    with it by Postgres.
