@@ -12,7 +12,7 @@ import type { StaffRole } from '@prisma/client';
  *   leads      — cross-workspace lead actions (superdev)
  *
  * Usage:
- *   • Client:  <Gated group="devLead">...</Gated>   (reads role from page state)
+ *   • Client:  can('devLead', page.data.staffProfile?.staffRole)  in a $derived
  *   • Server:  requireStaffGroup(locals, 'devLead')  in $lib/server/auth/guards
  *   • Routes:  STAFF_ROLE_GATES entries reference a group name in guards.ts
  *

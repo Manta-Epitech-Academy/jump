@@ -90,7 +90,7 @@ Inside a workspace, role-based gating goes through **one table** of named role g
 | `pedaMember`   | `peda`, `manta`           | Pedago workspace field ops (cockpit mutations)                                     |
 | `leads`        | `superdev`, `peda`        | Actions shared across both workspace leads                                         |
 
-- **Client:** `<Gated group="devLead">...</Gated>` — reads role from page state, hides or disables with tooltip. Import: `$lib/components/auth/Gated.svelte`.
+- **Client:** `const canEdit = $derived(can('devLead', page.data.staffProfile?.staffRole))`, then apply one of the UI patterns below. Import: `$lib/domain/permissions`.
 - **Server:** `requireStaffGroup(locals, 'devLead')` in every mutating action. Import: `$lib/server/auth/guards`.
 - **Routes:** `STAFF_ROLE_GATES` in `guards.ts` gates whole URLs by group; use `readOnlyForRest` to degrade instead of redirect (e.g. manta on planning sees `locals.viewMode === 'readonly'`).
 
