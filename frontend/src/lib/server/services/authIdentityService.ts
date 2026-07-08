@@ -21,18 +21,20 @@ import type {
  *   the `bauth_user` pointed to by `Talent.userId` must carry the same email as
  *   `TalentSfImport.sfEmail` (normalized).
  *
- * Why: a student types `Talent.email`, BetterAuth opens a session on whatever
- * `bauth_user` holds that email, and the talent dashboard only renders if THAT
- * `bauth_user` is the one the Talent points to (`hooks.server.ts` loads
+ * Why: a student types their login email, BetterAuth opens a session on
+ * whatever `bauth_user` holds that email, and the talent dashboard only renders
+ * if THAT `bauth_user` is the one the Talent points to (`hooks.server.ts` loads
  * `locals.talent` from `bauth_user.talent`, i.e. by the *session* account, not
- * by email). When the two emails diverge the student logs in "into the void".
+ * by email). When the linked account's email has drifted from SF's claim, the
+ * address the student knows is either dead or someone else's session.
  *
- * How divergence happens: Salesforce changes a talent's email; the sync updates
- * `Talent.email` but its paired `bauth_user.email` update collides (P2002) with
- * an account that already holds the new email (one the student created by
- * logging in with it directly via OTP). `ensureTalentUser` then early-returns
- * forever on the now-stale link and never reconciles. An email *inversion* on
- * the Salesforce side (two records swapped) is the recurring root cause.
+ * How divergence happens: Salesforce changes a talent's email; the sync drives
+ * the linked `bauth_user.email` toward it (`changeUserEmail`), but the rename
+ * collides (P2002) with an account that already holds the new address (one the
+ * student created by logging in with it directly via OTP, before eager mint
+ * closed that hole). The link then stays on the stale account until an admin
+ * repoints it. An email *inversion* on the Salesforce side (two records
+ * swapped) is the recurring root cause.
  *
  * This module only CLASSIFIES (read-only). It mirrors the convention from
  * `reconciliationService`: conflicts are computed on demand, never stored. The
@@ -111,7 +113,7 @@ export async function countAuthIdentityConflicts(): Promise<number> {
 
 /**
  * Full classification of every talent whose linked account email has drifted
- * from `Talent.email`. Read-only. Bounded work: the drift set is small (a
+ * from `TalentSfImport.sfEmail`. Read-only. Bounded work: the drift set is small (a
  * handful), and the supporting indexes are loaded once in memory rather than
  * per-row.
  */

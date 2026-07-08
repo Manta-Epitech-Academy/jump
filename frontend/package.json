@@ -34,7 +34,7 @@
     "@internationalized/date": "^3.12.2",
     "@lucide/svelte": "^1.21.0",
     "@playwright/test": "^1.61.0",
-    "@prisma/internals": "7.8.0",
+    "@prisma/internals": "^7.8.0",
     "@sveltejs/adapter-node": "^5.5.4",
     "@sveltejs/kit": "^2.66.0",
     "@sveltejs/vite-plugin-svelte": "^6.2.4",

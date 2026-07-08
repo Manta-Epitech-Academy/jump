@@ -6,7 +6,7 @@ import { niveauLabel } from '$lib/domain/niveau';
 
 // Global "find a person" typeahead for the admin command palette. Admin is
 // campus-agnostic, so this is intentionally un-scoped (unlike /api/students,
-// which scopes to the dev/pedago caller's campus). Three kinds in one call:
+// which scopes to the dev caller's campus). Three kinds in one call:
 // talents, their parent-1 contacts, and staff members. Each result carries the
 // `navQ` to drop into the destination list's `?q=` so the palette stays dumb.
 const LIMIT = 6;

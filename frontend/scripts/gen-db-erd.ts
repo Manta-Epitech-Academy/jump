@@ -18,6 +18,7 @@
  */
 import { getDMMF } from '@prisma/internals';
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { dirname } from 'path';
 
 // Structural types derived from Prisma's own parser output, so we depend on no
 // separate `@prisma/generator-helper` package for the shapes.
@@ -349,7 +350,7 @@ rendered.forEach((s, i) => {
   out += `\n## ${i + 1} · ${s.title}\n\n\`\`\`mermaid\nerDiagram\n${[...entities, ...extBlocks].join('\n')}\n${edgeLines.join('\n')}\n\`\`\`\n`;
 });
 
-mkdirSync('docs', { recursive: true });
+mkdirSync(dirname(OUT_PATH), { recursive: true });
 writeFileSync(OUT_PATH, out);
 console.log(
   `✓ ${OUT_PATH}: ${models.length} models, ${dmmf.datamodel.enums.length} enums, ${relCount} relations across ${rendered.length} domains`,
