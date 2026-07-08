@@ -1,6 +1,6 @@
 import { prisma } from '$lib/server/db';
 import { scopedPrisma } from '$lib/server/db/scoped';
-import { recomputeEventsCount } from '$lib/server/services/xpService';
+import { recomputeEventsCountBulk } from '$lib/server/services/xpService';
 import type { PresenceSlot } from '$lib/domain/eventPresence';
 
 // Émargement is autonomous from Participation, but the roster of who is expected
@@ -124,11 +124,10 @@ export async function markAllPresentInSlot(
       skipDuplicates: true,
     });
 
-    for (const p of roster) {
-      if (!alreadyAttending.has(p.talentId)) {
-        await recomputeEventsCount(tx, p.talentId);
-      }
-    }
+    await recomputeEventsCountBulk(
+      tx,
+      roster.map((p) => p.talentId).filter((id) => !alreadyAttending.has(id)),
+    );
 
     return count;
   });

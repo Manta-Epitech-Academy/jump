@@ -1,4 +1,5 @@
-import type { Prisma, XpGrantSource } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { XpGrantSource } from '@prisma/client';
 
 /**
  * XP ledger service.
@@ -73,6 +74,31 @@ export async function recomputeEventsCount(
   const eventsCount = attended.length;
   await tx.talent.update({ where: { id: talentId }, data: { eventsCount } });
   return eventsCount;
+}
+
+/**
+ * Bulk variant of {@link recomputeEventsCount} for roster-scale writes (the
+ * émargement "tout présent" mark): one correlated UPDATE instead of two round
+ * trips per talent, so a ~200-talent créneau doesn't hold the interactive
+ * transaction — and its `Talent` row locks — open across hundreds of
+ * sequential queries. Same projection semantics as the single variant:
+ * distinct events with at least one présent/en-retard cell.
+ */
+export async function recomputeEventsCountBulk(
+  tx: Prisma.TransactionClient,
+  talentIds: string[],
+): Promise<void> {
+  if (talentIds.length === 0) return;
+  await tx.$executeRaw`
+    UPDATE "Talent" t
+    SET "eventsCount" = (
+      SELECT COUNT(DISTINCT ep."eventId")::int
+      FROM "EventPresence" ep
+      WHERE ep."talentId" = t."id"
+        AND ep."status" IN ('present', 'late')
+    )
+    WHERE t."id" IN (${Prisma.join(talentIds)})
+  `;
 }
 
 /**
