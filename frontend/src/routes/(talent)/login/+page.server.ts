@@ -87,7 +87,28 @@ export const actions: Actions = {
       let userKind: 'talent' | 'parent' = 'talent';
 
       if (user?.talent) {
-        await ensureTalentUser(user.talent.id);
+        const userId = await ensureTalentUser(user.talent.id);
+        // ensureTalentUser may have just realigned the login email to SF's
+        // current claim — meaning the address the student typed is one SF has
+        // disowned. BetterAuth's OTP send silently succeeds for an email that
+        // matches no account (anti-enumeration + disableSignUp), so without
+        // this re-check the student would see "Code envoyé" and never receive
+        // a code. Answer what the next sync pass would have made true anyway:
+        // no account under that address.
+        const account = await prisma.bauth_user.findUnique({
+          where: { id: userId },
+          select: { email: true },
+        });
+        if (account && account.email.toLowerCase().trim() !== normalizedEmail) {
+          return message(
+            emailForm,
+            {
+              type: 'error',
+              text: 'Aucun compte trouvé avec cette adresse email.',
+            },
+            { status: 404 },
+          );
+        }
       } else if (user?.role === 'parent') {
         userKind = 'parent';
       } else {
