@@ -23,7 +23,6 @@ declare global {
        * hooks.server.ts.
        */
       talentCampusName: string | null;
-      viewMode: 'readonly' | 'edit';
       /**
        * Dev-tooling override of the perceived stage phase. Only set when
        * an admin is impersonating a dev/superdev *and* on a /staff/dev

@@ -19,7 +19,6 @@ import type { StaffRole } from '@prisma/client';
  * UI pattern rule (pick one per site):
  *   • Hide                 — nav entries to lead-only destinations (sidebars, menus)
  *   • Disable + tooltip    — mutating controls visible on shared screens
- *   • Readonly banner      — whole-page readonly context (readOnlyForRest gates)
  *   • Redirect / 403       — direct URL access to lead-only routes (STAFF_ROLE_GATES)
  */
 export const STAFF_GROUPS = {

@@ -22,23 +22,24 @@ function forbidGroup(group: StaffGroup): never {
 type StaffRoleGate = {
   pattern: RegExp;
   group: StaffGroup;
-  readOnlyForRest?: readonly StaffRole[];
 };
 
-const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
-  {
-    pattern: /^\/staff\/dev\/events\/import(?:\/|$)/,
-    group: 'devLead',
-  },
-];
+/**
+ * URL-level role gates for the dev space, applied by `applyStaffRoleGate`.
+ *
+ * Empty today: the last entry gated `/staff/dev/events/import`, a route that
+ * went away with the per-event modules rework. Every dev surface is now
+ * reachable by any dev, and the lead-only *actions* inside them are gated
+ * server-side by `requireStaffGroup`. Kept as the extension point for the next
+ * whole-route gate.
+ */
+const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [];
 
 export async function applyRouteGuards(
   event: RequestEvent,
 ): Promise<Response | null> {
   const currentPath = event.url.pathname;
   const routeId = event.route.id || '';
-
-  event.locals.viewMode = 'edit';
 
   const p = (path: string) =>
     new URL(resolvePath(path as any), event.url).pathname;
@@ -305,15 +306,8 @@ export function applyStaffRoleGate(locals: App.Locals, pathname: string): void {
 
   for (const gate of STAFF_ROLE_GATES) {
     if (!gate.pattern.test(pathname)) continue;
-    if (can(gate.group, role)) {
-      locals.viewMode = 'edit';
-      return;
-    }
-    if (gate.readOnlyForRest?.includes(role)) {
-      locals.viewMode = 'readonly';
-      return;
-    }
-    forbidGroup(gate.group);
+    if (!can(gate.group, role)) forbidGroup(gate.group);
+    return;
   }
 }
 
