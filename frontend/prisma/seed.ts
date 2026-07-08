@@ -2141,22 +2141,27 @@ async function seedStaff(
 }
 
 /**
- * The talent admissions/onboarding funnel, as a single per-student state. It
- * drives BOTH whether a `bauth_user` exists and how far onboarding got, so the
- * two axes the admin talents list reads — account (`never`) vs onboarding
- * progress (`pending`/`active`) — stay consistent:
+ * The talent admissions/onboarding funnel, as a single per-student state.
+ * Since eager mint, every emailful lead carries a `bauth_user` from import —
+ * so the axis this drives is no longer whether an account exists, but whether
+ * the talent ever logged in (`lastActiveAt`, email verification) and how far
+ * onboarding got:
  *
- *   - `imported`    → SF lead, no account yet (`userId = null`, status `never`);
- *                     impersonation bootstraps the account on the fly.
+ *   - `imported`    → SF lead, account eager-minted at import, never logged in
+ *                     (`lastActiveAt = null`, email unverified), onboarding
+ *                     untouched.
  *   - `fresh`       → logged in once, onboarding untouched (status `pending`,
  *                     "Non démarré").
- *   - `in-progress` → account, stalled mid-funnel at a varied step.
- *   - `onboarded`   → account, all 7 steps done (status `active`).
+ *   - `in-progress` → stalled mid-funnel at a varied step.
+ *   - `onboarded`   → all 7 steps done (status `active`).
  *
- * Skewed early on purpose: a freshly-imported cohort is mostly leads with no
- * account or a fresh login, which is also the most useful state to exercise
+ * Skewed early on purpose: a freshly-imported cohort is mostly leads that never
+ * or barely logged in, which is also the most useful state to exercise
  * (impersonate → walk the full parcours). `skipOnboarding` fixtures pin the
- * extremes so there are always ready-to-test accounts.
+ * extremes so there are always ready-to-test accounts. The admin "Jamais
+ * connecté" filter (`userId = null`) is fed separately by the anchored
+ * mint-conflict talent in `seedStudents` — the only accountless state eager
+ * mint leaves behind.
  */
 type StudentLifecycle = 'imported' | 'fresh' | 'in-progress' | 'onboarded';
 
@@ -2202,11 +2207,27 @@ async function seedStudents(): Promise<
   // default (a real stage student can already be fully onboarded), so those
   // still resolve through studentLifecycle.
   const ongoingStageEmails = new Set(parisStudents.slice(6, 18));
+
+  // One talent whose SF-claimed email belongs to a staff account: the worker's
+  // eager mint refuses to adopt it ("never hand a student login to a
+  // parent/staff address", see ensureTalentUser), so the talent stays
+  // accountless — the only way a lead lacks a `bauth_user` since eager mint.
+  // Feeds the admin "Jamais connecté" filter and the impersonation conflict
+  // path. Anchored on an event-free student so no émargement/compliance
+  // fixture depends on her; the claimed address is a stable STAFF_MEMBERS
+  // fixture. Accountless ⟹ never logged in ⟹ the lifecycle below is forced to
+  // `imported` (any onboarding progress would be unreachable without a login).
+  const mintConflictSfEmails = new Map([
+    ['zoe.dubois@mail.com', 'nathan.blanc@epitech.eu'],
+  ]);
+
   const lifecycles = STUDENTS.map(
     (s, i): StudentLifecycle =>
-      s.skipOnboarding !== true && ongoingStageEmails.has(s.email)
-        ? 'fresh'
-        : studentLifecycle(s, i),
+      mintConflictSfEmails.has(s.email)
+        ? 'imported'
+        : s.skipOnboarding !== true && ongoingStageEmails.has(s.email)
+          ? 'fresh'
+          : studentLifecycle(s, i),
   );
 
   // Talents deliberately routed to a different School than Salesforce claims, so
@@ -2219,18 +2240,38 @@ async function seedStudents(): Promise<
   // these emails are forced to carry an `sfSchoolId`.
   const schoolConflictEmails = new Set(['eliot.amanieu@epitech.eu']);
 
-  // Accounts only for students who've logged in at least once — `imported`
-  // leads stay account-less (their talent row carries `userId = null`). Users
-  // first, then talents referencing them; both batched. Talent rows map back to
-  // their user by email (createManyAndReturn order isn't guaranteed), which is
-  // also the talent's own unique key.
+  // Two talents whose SF-claimed emails are swapped — the classic Salesforce
+  // inversion, the recurring root cause of auth-identity drift (see
+  // authIdentityService). Each linked account still carries the talent's own
+  // address while the mirror claims the other one's, which the sync refuses to
+  // auto-force (the holder is another talent's login). Surfaces as a
+  // SYMMETRIC_INVERSION pair in Divergences Salesforce › Connexion and lights
+  // the admin badge, which would otherwise seed to zero.
+  const authInversionSfEmails = new Map([
+    ['leon.marin@mail.com', 'anais.vasseur@mail.com'],
+    ['anais.vasseur@mail.com', 'leon.marin@mail.com'],
+  ]);
+
+  // Eager mint, as the worker does at import: every emailful lead gets a
+  // `bauth_user` from day one — `imported` leads included (they simply never
+  // logged in, so their email is still unverified). The one exception is the
+  // anchored mint-conflict talent above. Users first, then talents referencing
+  // them; both batched. Talent rows map back to their user by email
+  // (createManyAndReturn order isn't guaranteed), which is also the account's
+  // own unique key.
   const users = await prisma.bauth_user.createManyAndReturn({
-    data: STUDENTS.filter((_, i) => lifecycles[i] !== 'imported').map((s) => ({
-      email: s.email,
-      name: `${s.prenom} ${s.nom}`,
-      role: 'student',
-      emailVerified: true,
-    })),
+    data: STUDENTS.flatMap((s, i) =>
+      mintConflictSfEmails.has(s.email)
+        ? []
+        : [
+            {
+              email: s.email,
+              name: `${s.prenom} ${s.nom}`,
+              role: 'student',
+              emailVerified: lifecycles[i] !== 'imported',
+            },
+          ],
+    ),
     select: { id: true, email: true },
   });
   const userIdByEmail = new Map(users.map((u) => [u.email, u.id]));
@@ -2272,11 +2313,11 @@ async function seedStudents(): Promise<
   // reconciliation page realistically.
   const seeded = STUDENTS.map((s, i) => {
     const lifecycle = lifecycles[i];
-    const hasAccount = lifecycle !== 'imported';
+    const loggedIn = lifecycle !== 'imported';
 
-    // No account → never logged in. Otherwise dated per StudentDef.
+    // Never logged in → no activity dates. Otherwise dated per StudentDef.
     const lastActiveAt =
-      !hasAccount || s.lastActiveDaysAgo === null
+      !loggedIn || s.lastActiveDaysAgo === null
         ? null
         : new Date(now.getTime() - s.lastActiveDaysAgo * 86400000);
 
@@ -2352,7 +2393,9 @@ async function seedStudents(): Promise<
       : null;
 
     const talent = {
-      userId: hasAccount ? (userIdByEmail.get(s.email) ?? null) : null,
+      // Eager mint: every emailful lead is linked from import. The map only
+      // misses the mint-conflict anchor, whose account was never created.
+      userId: userIdByEmail.get(s.email) ?? null,
       nom: s.nom,
       prenom: s.prenom,
       phone: toStoredPhone(s.phone),
@@ -2404,11 +2447,21 @@ async function seedStudents(): Promise<
       equipmentValidatedAt: equipmentConfirmed ? ts : null,
       interestsFreeText: null,
       lastActiveAt,
+      // The hooks stamp firstLoginAt on the first session; anyone with
+      // activity necessarily has it (first ≤ last, collapsed to one date
+      // here — the seed doesn't model a login history).
+      firstLoginAt: lastActiveAt,
       externalId: mockSalesforceLeadId(i),
     };
 
     // ── Salesforce mirror (the SF claim, as the worker would have written it) ──
     const sf = {
+      // SF's claimed login email — the student's own address, except for the
+      // two anchored anomalies (mint conflict, inversion pair).
+      sfEmail:
+        mintConflictSfEmails.get(s.email) ??
+        authInversionSfEmails.get(s.email) ??
+        s.email,
       phone: toStoredPhone(phoneDiverges ? '+33 6 99 99 99 99' : s.phone),
       civilite: sfCivilite,
       schoolId: sfSchoolId,
@@ -2446,6 +2499,7 @@ async function seedStudents(): Promise<
         talentId,
         nom: x.talent.nom,
         prenom: x.talent.prenom,
+        sfEmail: x.sf.sfEmail,
         phone: x.sf.phone,
         civilite: x.sf.civilite,
         niveau: x.talent.niveau,
