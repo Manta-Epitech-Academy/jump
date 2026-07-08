@@ -320,20 +320,20 @@ export async function syncTalents(
           err.code === 'P2002'
         ) {
           // Only `externalId` is unique on create now (Talent.email is gone) — a
-          // concurrent pass created the same SF record. Log and skip; the row the
-          // other pass created stands.
-          await logSyncError({
-            email: email ?? 'unknown',
-            attemptedExtId: t.external_id,
-            existingExtId: t.external_id,
-            talentName: `${t.first_name} ${t.last_name}`,
-            eventExtId: eventExternalId,
-            message: `Création ignorée : le talent externalId="${t.external_id}" existe déjà (course de synchronisation).`,
+          // concurrent pass created the same SF record. Adopt the winner's row
+          // and fall through: the participation upsert below must still run
+          // (and the id must land in `syncedTalentIds`), or the end-of-sync
+          // prune would sweep the participation the other pass just created.
+          const winner = await prisma.talent.findUnique({
+            where: { externalId: t.external_id },
+            select: { id: true },
           });
+          if (!winner) throw err;
+          talentId = winner.id;
           skipped++;
-          continue;
+        } else {
+          throw err;
         }
-        throw err;
       }
 
       // Eager-mint the login account at import so `bauth_user.email` is the
