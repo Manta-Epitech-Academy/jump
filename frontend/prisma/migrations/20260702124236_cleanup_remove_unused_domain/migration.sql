@@ -1,7 +1,7 @@
 -- ── Domain cleanup: data reassignment + backfill ──────────────────────────
--- PASTE THIS AT THE VERY TOP of the generated migration.sql, BEFORE any
--- DROP TABLE / ALTER TYPE, so the enum recreations + table drops don't fail
--- on existing rows.
+-- This block must stay BEFORE any DROP TABLE / ALTER TYPE below: it rewrites
+-- the rows still referencing the retired enum values and tables, so the enum
+-- recreations + drops don't fail on existing data.
 
 -- 1. Retire the peda/manta staff roles -> dev (all staff run as dev now).
 UPDATE "StaffProfile"    SET "staffRole" = 'dev' WHERE "staffRole" IN ('peda', 'manta');
