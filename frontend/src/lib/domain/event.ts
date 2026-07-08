@@ -12,7 +12,7 @@ export const EVENT_TYPE_VALUES = Object.values(EVENT_TYPES) as EventType[];
  * instead of the per-event `titre` field so cohort identifiers (dates,
  * suffixes) don't leak into page titles, breadcrumbs and hero headings.
  */
-export const STAGE_SECONDE_LABEL = 'Stage de Seconde';
+const STAGE_SECONDE_LABEL = 'Stage de Seconde';
 
 /**
  * Human label per event type, for talent-facing copy where the per-event
@@ -43,13 +43,13 @@ export function eventTypeLabel(eventType: string): string {
 // template the staff start from (the stage template carries "stagiaire"), so the
 // SF type never touches the rendered word.
 
-export const COHORT_NOUNS = {
+const COHORT_NOUNS = {
   STAGIAIRE: 'stagiaire',
   PARTICIPANT: 'participant',
 } as const;
 
 /** Neutral fallback when an event names no cohort noun (blank column / legacy). */
-export const DEFAULT_COHORT_NOUN: string = COHORT_NOUNS.PARTICIPANT;
+const DEFAULT_COHORT_NOUN: string = COHORT_NOUNS.PARTICIPANT;
 
 export interface CohortNounForms {
   /** "stagiaire" / "participant" / "collégien" */

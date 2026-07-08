@@ -26,7 +26,7 @@ export type FormAudience = 'public' | 'authenticated';
  * the source moved from JSON to the database.
  */
 
-export const FORM_GRAPH_INCLUDE = {
+const FORM_GRAPH_INCLUDE = {
   sections: { orderBy: { position: 'asc' } },
   questions: {
     orderBy: { position: 'asc' },
@@ -88,7 +88,7 @@ function eventFormWhere(
  * to no form. Callers that only need scalar metadata should prefer a narrower
  * resolver (e.g. {@link resolveEventNudgeForm}) rather than load the graph.
  */
-export function resolveEventForm(
+function resolveEventForm(
   event: EventFormRef,
 ): Promise<FeedbackFormGraph | null> {
   return prisma.feedback_Form.findUnique({

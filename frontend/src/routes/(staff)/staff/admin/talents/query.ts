@@ -107,7 +107,7 @@ export function parseTalentFilters(
  * so no event sits on the boundary where the campus timezone could shift it
  * into the adjacent year.
  */
-export function stageSecondeThisYearEventFilter(): Prisma.EventWhereInput {
+function stageSecondeThisYearEventFilter(): Prisma.EventWhereInput {
   const year = new Date().getUTCFullYear();
   return {
     eventType: EVENT_TYPES.STAGE_SECONDE,

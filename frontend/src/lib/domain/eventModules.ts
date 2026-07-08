@@ -99,7 +99,7 @@ export function isEventModuleKey(value: string): value is EventModuleKey {
  * with no sub-options uses the empty schema. FKs (the bilan feedback form) stay
  * typed columns on `Event`, never in here.
  */
-export const inscritsModuleSettingsSchema = z.object({
+const inscritsModuleSettingsSchema = z.object({
   // Show the dossier/statut funnel column (connexion, règlement, droit à l'image)
   // on the Inscrits table for this event. Opt-in: defaults off, an admin turns it
   // on per event from the config wizard (onboarding campuses want it; others, e.g.
@@ -116,7 +116,7 @@ export const inscritsModuleSettingsSchema = z.object({
 
 const emptyModuleSettingsSchema = z.object({});
 
-export const EVENT_MODULE_SETTINGS_SCHEMAS = {
+const EVENT_MODULE_SETTINGS_SCHEMAS = {
   [EVENT_MODULES.INSCRITS]: inscritsModuleSettingsSchema,
   [EVENT_MODULES.EMARGEMENT]: emptyModuleSettingsSchema,
   [EVENT_MODULES.BILAN]: emptyModuleSettingsSchema,
@@ -164,7 +164,7 @@ export function eventModuleLabel(key: string): string {
 }
 
 /** Whether a module is enabled, given a resolved set/list of an event's modules. */
-export function eventHasModule(
+function eventHasModule(
   modules: ReadonlySet<string> | readonly string[],
   key: EventModuleKey,
 ): boolean {
@@ -196,7 +196,7 @@ export type EventSurfaceKey = EventModuleKey | 'planning';
  * `planning` pseudo-surface is interleaved where the nav shows it (between
  * émargement and bilan).
  */
-export const EVENT_SURFACE_ORDER: EventSurfaceKey[] = [
+const EVENT_SURFACE_ORDER: EventSurfaceKey[] = [
   EVENT_MODULES.INSCRITS,
   EVENT_MODULES.EMARGEMENT,
   'planning',
@@ -214,7 +214,7 @@ export interface EventSurfaceGates {
 }
 
 /** Whether a dev can actually reach a surface, module presence + data gates. */
-export function isSurfaceReachable(
+function isSurfaceReachable(
   key: EventSurfaceKey,
   gates: EventSurfaceGates,
 ): boolean {

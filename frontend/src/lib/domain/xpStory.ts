@@ -34,7 +34,7 @@ export type XpHistoryEntry = {
  * the base reward is retuned. The exact rank-at-finish is not persisted, so the
  * bonus amount is the only durable signal of how high they placed.
  */
-export function podiumTierFromBonus(amount: number): 1 | 2 | 3 | 'top' {
+function podiumTierFromBonus(amount: number): 1 | 2 | 3 | 'top' {
   if (amount >= MINIGAME_XP_REWARD * 2) return 1;
   if (amount >= MINIGAME_XP_REWARD) return 2;
   if (amount >= Math.round(MINIGAME_XP_REWARD / 2)) return 3;

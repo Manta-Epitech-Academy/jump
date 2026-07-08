@@ -11,16 +11,16 @@ const defaultForEventTypeSchema = z
   .enum(EVENT_TYPE_VALUES as [string, ...string[]])
   .nullish();
 
-export const QUESTION_TYPES = [
+const QUESTION_TYPES = [
   'single',
   'multiple',
   'scale',
   'text',
   'textarea',
 ] as const;
-export const INPUT_KINDS = ['email', 'tel', 'name', 'text'] as const;
-export const OPTION_KINDS = ['choice', 'extra'] as const;
-export const IDENTITY_FIELDS = [
+const INPUT_KINDS = ['email', 'tel', 'name', 'text'] as const;
+const OPTION_KINDS = ['choice', 'extra'] as const;
+const IDENTITY_FIELDS = [
   'email',
   'phone',
   'firstName',
@@ -28,7 +28,7 @@ export const IDENTITY_FIELDS = [
   'civility',
   'campus',
 ] as const;
-export const FORM_STATUSES = ['draft', 'published', 'archived'] as const;
+const FORM_STATUSES = ['draft', 'published', 'archived'] as const;
 
 // A respondent column holds a single value, so an identity field answered as a
 // `multiple` choice would silently keep only the first selection and skip the

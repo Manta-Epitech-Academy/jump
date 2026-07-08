@@ -29,7 +29,7 @@ import { env } from '$env/dynamic/private';
  */
 export type OutboundMode = 'real' | 'redirect';
 
-export function outboundMode(): OutboundMode {
+function outboundMode(): OutboundMode {
   return env.OUTBOUND_MODE?.trim().toLowerCase() === 'real'
     ? 'real'
     : 'redirect';

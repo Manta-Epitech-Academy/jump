@@ -19,11 +19,11 @@ export type WallClock = string;
 const DATE_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const WALL_CLOCK_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-export function isDateKey(value: string): value is DateKey {
+function isDateKey(value: string): value is DateKey {
   return DATE_KEY_REGEX.test(value);
 }
 
-export function isWallClock(value: string): value is WallClock {
+function isWallClock(value: string): value is WallClock {
   return WALL_CLOCK_REGEX.test(value);
 }
 

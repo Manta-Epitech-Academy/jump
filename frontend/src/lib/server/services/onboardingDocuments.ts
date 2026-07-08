@@ -115,7 +115,7 @@ const FINISHED_RULES_WHERE: Prisma.TalentWhereInput = {
   rulesFilePath: { not: null },
 };
 
-export const FINISHED_ONBOARDING_DOCS_WHERE: Prisma.TalentWhereInput = {
+const FINISHED_ONBOARDING_DOCS_WHERE: Prisma.TalentWhereInput = {
   OR: [FINISHED_IMAGE_RIGHTS_WHERE, FINISHED_RULES_WHERE],
 };
 
@@ -181,7 +181,7 @@ export interface FinishedOnboardingDocTime {
  * projection (it also resolves the règlement's max-of-two-signatures instant,
  * which the SQL gate can't express). Keep the two in step.
  */
-export function finishedOnboardingDocsOf(
+function finishedOnboardingDocsOf(
   t: TalentFinishedFields,
 ): FinishedOnboardingDocTime[] {
   const out: FinishedOnboardingDocTime[] = [];

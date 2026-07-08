@@ -222,9 +222,7 @@ export interface RecentBroadcast {
   opened: number;
 }
 
-export async function getRecentBroadcasts(
-  limit = 8,
-): Promise<RecentBroadcast[]> {
+async function getRecentBroadcasts(limit = 8): Promise<RecentBroadcast[]> {
   const rows = await prisma.broadcast.findMany({
     orderBy: { createdAt: 'desc' },
     take: limit,
@@ -276,7 +274,7 @@ export interface TransactionalHealth {
   healthy: boolean;
 }
 
-export async function getTransactionalHealth(): Promise<TransactionalHealth> {
+async function getTransactionalHealth(): Promise<TransactionalHealth> {
   const mappings = await prisma.emailActionMapping.findMany({
     select: {
       actionKey: true,

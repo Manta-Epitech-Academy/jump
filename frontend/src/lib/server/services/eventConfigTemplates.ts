@@ -18,7 +18,7 @@ import {
  * `EventConfig_Module` (presence + `settings`), so both directions are a plain
  * row copy. See src/lib/domain/eventModules.ts.
  */
-export type EventConfigTemplateSummary = {
+type EventConfigTemplateSummary = {
   id: string;
   name: string;
   description: string | null;

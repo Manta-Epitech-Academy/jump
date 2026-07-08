@@ -13,7 +13,7 @@ export function startOfDay(d: Date): Date {
 }
 
 /** The Monday (00:00) of the week containing `d`. */
-export function startOfWeek(d: Date): Date {
+function startOfWeek(d: Date): Date {
   const x = startOfDay(d);
   // Monday = 1 ... Sunday = 0; shift so Monday is the first day.
   const dow = (x.getDay() + 6) % 7;

@@ -209,7 +209,7 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
  * job is retried anyway, {@link runOnboardingPdfJob} is idempotent (same
  * signature-keyed S3 object), so the worst case is one wasted generation.
  */
-export const STRANDED_AFTER_MS = 5 * 60_000;
+const STRANDED_AFTER_MS = 5 * 60_000;
 
 /**
  * Whether the admin page should offer a manual "Relancer" for a job. `error` and

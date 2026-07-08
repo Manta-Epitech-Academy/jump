@@ -21,7 +21,7 @@ import { Prisma } from '@prisma/client';
  * world moved, `plan*` throws and the transaction rolls back untouched.
  */
 
-export type AuthRepairKind = 'repoint_drop' | 'swap' | 'sever';
+type AuthRepairKind = 'repoint_drop' | 'swap' | 'sever';
 
 const norm = (e: string | null | undefined): string | null =>
   e?.toLowerCase().trim() || null;
@@ -220,7 +220,7 @@ export interface SwapPlan {
   bTargetEmail: string;
 }
 
-export async function planSwap(
+async function planSwap(
   db: Prisma.TransactionClient,
   talentId: string,
 ): Promise<SwapPlan> {
@@ -313,7 +313,7 @@ export interface SeverPlan {
   fromEmail: string;
 }
 
-export async function planSever(
+async function planSever(
   db: Prisma.TransactionClient,
   talentId: string,
 ): Promise<SeverPlan> {

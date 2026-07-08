@@ -9,11 +9,11 @@
  */
 const SF_TENANT_BASE = 'https://epitech.lightning.force.com';
 
-export function salesforceContactUrl(externalId: string): string {
+function salesforceContactUrl(externalId: string): string {
   return `${SF_TENANT_BASE}/lightning/r/Lead/${externalId}/view`;
 }
 
-export function salesforceCampaignUrl(externalId: string): string {
+function salesforceCampaignUrl(externalId: string): string {
   return `${SF_TENANT_BASE}/lightning/r/Campaign/${externalId}/view`;
 }
 

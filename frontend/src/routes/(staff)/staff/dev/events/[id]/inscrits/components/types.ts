@@ -7,7 +7,7 @@ import type { ImageRightsStatus } from '$lib/domain/imageRights';
 // must not drag the full Talent row (Salesforce-mirror columns) or full Interest
 // rows. The server load imports this select so the query and the row type can
 // never drift.
-export const INSCRIT_TALENT_SELECT = {
+const INSCRIT_TALENT_SELECT = {
   id: true,
   nom: true,
   prenom: true,

@@ -1,4 +1,4 @@
-export const activityTypes = [
+const activityTypes = [
   'atelier',
   'conference',
   'quiz',

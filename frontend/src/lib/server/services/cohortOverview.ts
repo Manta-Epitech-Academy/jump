@@ -12,7 +12,7 @@ import { prisma } from '$lib/server/db';
  */
 
 /** Default cap for the dashboard's side-by-side breakdown cards. */
-export const BREAKDOWN_TOP_N = 10;
+const BREAKDOWN_TOP_N = 10;
 
 export type LyceeStat = { schoolId: string; name: string; count: number };
 export type InterestStat = {

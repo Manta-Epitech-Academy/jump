@@ -22,7 +22,7 @@ function isRetryableFailure(failure: SendSmsFailure): boolean {
   return code === 429 || (code >= 500 && code < 600);
 }
 
-export const transactionalSmsProvider: SmsProvider = {
+const transactionalSmsProvider: SmsProvider = {
   async sendSms({ to, body }, opts): Promise<SendOutcome> {
     // Recipients carry the raw, French-entered phone; the façade expects an
     // already-normalized number. An unparseable value can never succeed —

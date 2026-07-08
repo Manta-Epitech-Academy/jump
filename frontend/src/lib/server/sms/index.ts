@@ -29,9 +29,8 @@ export type {
   SendSmsResult,
   SendSmsFailure,
   SendOptions,
-  DevRedirectControl,
 } from './types';
-export { isSmsEnabled, smsProviderKind, SMS_SENDER } from './config';
+export { isSmsEnabled } from './config';
 
 const provider: SmsProvider =
   smsProviderKind === 'brevo' ? brevoSmsProvider : nullSmsProvider;

@@ -24,7 +24,7 @@ export const DEV_PHASE_OVERRIDE_COOKIE = 'dev_phase_override';
  * (`./staff/dev`) under SvelteKit's default `paths.relative = true`, which
  * fails to match `event.url.pathname` (always absolute).
  */
-export const DEV_WORKSPACE_PATH = '/staff/dev';
+const DEV_WORKSPACE_PATH = '/staff/dev';
 
 const VALID_OVERRIDES = ['upcoming', 'ongoing', 'past'] as const;
 
@@ -41,7 +41,7 @@ export function isDevImpersonation(locals: App.Locals): boolean {
   return role === 'superdev' || role === 'dev';
 }
 
-export function isDevWorkspacePath(pathname: string): boolean {
+function isDevWorkspacePath(pathname: string): boolean {
   return (
     pathname === DEV_WORKSPACE_PATH ||
     pathname.startsWith(`${DEV_WORKSPACE_PATH}/`)

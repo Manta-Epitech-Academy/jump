@@ -339,7 +339,7 @@ export async function assertKeyAvailable(
  * would silently overwrite the first at submit time, breaking the no-anonymity
  * guarantee (email collected exactly once). Mirrors {@link assertKeyAvailable}.
  */
-export async function assertIdentityFieldAvailable(
+async function assertIdentityFieldAvailable(
   formId: string,
   identityField: Feedback_IdentityField,
   exceptId?: string,
@@ -561,7 +561,7 @@ export async function duplicateQuestion(
  * options sharing a label would collide there and silently misattribute answers.
  * Mirrors {@link assertKeyAvailable}; `exceptId` excludes the option being renamed.
  */
-export async function assertOptionLabelAvailable(
+async function assertOptionLabelAvailable(
   questionId: string,
   label: string,
   exceptId?: string,

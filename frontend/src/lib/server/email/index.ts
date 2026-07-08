@@ -25,14 +25,12 @@ import type {
 } from './types';
 
 export type {
-  MailAttachment,
   MailMessage,
   SendEmailFailure,
   SendEmailResult,
   SendOptions,
-  DevRedirectControl,
 } from './types';
-export { MAIL_FROM, mailProviderKind } from './config';
+export { MAIL_FROM } from './config';
 
 const provider: MailProvider =
   mailProviderKind === 'mailjet' ? mailjetProvider : resendProvider;
@@ -83,21 +81,4 @@ export async function sendEmailBatch(
       ? payloads.map((p) => applyDevRedirect(p, routing.to))
       : payloads;
   return provider.sendBatch(finalPayloads);
-}
-
-/**
- * Throw-on-failure variant for call sites whose contract is "this email
- * must go out or the calling action fails" (OTP delivery, parent welcome
- * from the onboarding flow). Keeps per-callsite ergonomics while
- * preserving the failure signal.
- */
-export async function sendEmailOrThrow(
-  payload: MailMessage,
-  opts?: SendOptions,
-): Promise<string> {
-  const result = await sendEmail(payload, opts);
-  if (!result.ok) {
-    throw new Error(`Mail ${result.reason}: ${result.message}`);
-  }
-  return result.id;
 }

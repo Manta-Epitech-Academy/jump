@@ -22,7 +22,7 @@ export interface BilanRow {
   recoLabel: string | null;
 }
 
-export interface BilanCohort {
+interface BilanCohort {
   rows: BilanRow[];
   respondedCount: number;
   total: number;

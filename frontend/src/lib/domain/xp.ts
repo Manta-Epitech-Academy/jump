@@ -50,7 +50,7 @@ export function onboardingEarlyBirdBonus(position: number): number {
  * with no roster lookup: the denominator is exactly the board the rank is
  * measured against. 0.1 is roughly the top ten at a full stage cohort.
  */
-export const MINIGAME_RANK_BONUS_FRACTION = 0.1;
+const MINIGAME_RANK_BONUS_FRACTION = 0.1;
 
 /**
  * Floor on the pool, so the three podium tiers below always pay out even on a
@@ -58,7 +58,7 @@ export const MINIGAME_RANK_BONUS_FRACTION = 0.1;
  * ~26 the fraction already rounds to this floor, so the small campus keeps its
  * top-3 podium while a 100-strong one opens up to ~10 slots.
  */
-export const MINIGAME_RANK_BONUS_MIN_LIMIT = 3;
+const MINIGAME_RANK_BONUS_MIN_LIMIT = 3;
 
 /**
  * How many top finishers earn a rank bonus, given the size of the field they
@@ -102,7 +102,7 @@ export function minigameRankBonus(rank: number, fieldSize: number): number {
 export const JUMP_LEVELS = ['Novice', 'Apprentice', 'Expert'] as const;
 export type JumpLevel = (typeof JUMP_LEVELS)[number];
 
-export const XP_LEVEL_TIERS: {
+const XP_LEVEL_TIERS: {
   level: JumpLevel;
   min: number;
   maxExclusive: number | null;
@@ -122,7 +122,7 @@ export function computeLevel(xp: number): JumpLevel {
 }
 
 /** French display labels for the talent-facing UI. */
-export const LEVEL_LABELS_FR: Record<JumpLevel, string> = {
+const LEVEL_LABELS_FR: Record<JumpLevel, string> = {
   Novice: 'Novice',
   Apprentice: 'Apprenti',
   Expert: 'Expert ✦',

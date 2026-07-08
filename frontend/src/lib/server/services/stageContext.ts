@@ -29,8 +29,8 @@ export const devVisibleEventWhere = {
   modules: { some: {} },
 } satisfies Prisma.EventWhereInput;
 
-export const STAGE_DEFAULT_DURATION_DAYS = 14;
-export const STAGE_UPCOMING_WINDOW_DAYS = 60;
+const STAGE_DEFAULT_DURATION_DAYS = 14;
+const STAGE_UPCOMING_WINDOW_DAYS = 60;
 
 const MS_PER_DAY = 86_400_000;
 

@@ -33,7 +33,7 @@ export const TALENT_PLANNING_PREVIEW_COOKIE = 'talent_planning_preview';
  * vs Coding Club), the two variants the PR screenshots call out, so they're
  * distinct options. `upcoming` and `none` map 1:1 to their branches.
  */
-export const PLANNING_PREVIEW_VALUES = [
+const PLANNING_PREVIEW_VALUES = [
   'active_stage',
   'active_club',
   'upcoming',

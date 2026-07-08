@@ -40,7 +40,7 @@ export interface RevokeXpInput {
  * Recomputes `Talent.xp` from the ledger. Call after any grant/revoke; runs
  * inside the caller's transaction.
  */
-export async function recomputeTalentXp(
+async function recomputeTalentXp(
   tx: Prisma.TransactionClient,
   talentId: string,
 ): Promise<number> {

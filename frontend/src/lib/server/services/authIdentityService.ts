@@ -8,15 +8,6 @@ import type {
   AccountNature,
 } from '$lib/domain/authIdentity';
 
-// Re-exported so existing server callers can keep importing these from the
-// service; the canonical definitions live in the shared domain module.
-export type {
-  AuthConflict,
-  AuthConflictVerdict,
-  AuthAccountSummary,
-  ExposureKind,
-} from '$lib/domain/authIdentity';
-
 /**
  * Auth-identity conflicts: the login-layer sibling of `reconciliationService`.
  *

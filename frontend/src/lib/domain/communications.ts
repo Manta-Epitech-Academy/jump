@@ -4,7 +4,7 @@
  * so staff just want to know "quand ce talent a été contacté, et par quoi".
  */
 
-export type CommunicationAudience = 'student' | 'parent';
+type CommunicationAudience = 'student' | 'parent';
 
 type CommunicationBase = {
   id: string;

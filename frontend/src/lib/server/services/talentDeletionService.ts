@@ -23,7 +23,7 @@ import { sendActionEmail } from '$lib/server/email/actionMail';
 
 // GDPR: an erasure request must be honoured within one month. Past this many
 // days a pending request is "overdue" and the admin queue flags it red.
-export const DELETION_OVERDUE_DAYS = 21;
+const DELETION_OVERDUE_DAYS = 21;
 
 export function isDeletionRequestOverdue(
   requestedAt: Date,
@@ -34,7 +34,7 @@ export function isDeletionRequestOverdue(
 }
 
 /** The talent's current open request, if any — drives the settings UI state. */
-export function getPendingDeletionRequest(
+function getPendingDeletionRequest(
   talentId: string,
 ): Promise<TalentDeletionRequest | null> {
   return prisma.talentDeletionRequest.findFirst({

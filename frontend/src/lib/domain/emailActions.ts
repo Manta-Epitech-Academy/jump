@@ -11,7 +11,7 @@
 
 import type { BroadcastVariableKey } from './broadcasts';
 
-export interface EmailAction {
+interface EmailAction {
   key: string;
   label: string;
   description: string;

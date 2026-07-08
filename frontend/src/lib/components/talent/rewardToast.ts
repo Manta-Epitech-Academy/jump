@@ -17,7 +17,7 @@ const REWARD_TOAST_DURATION_MS = 6000;
 // reported the 6s default vanished before they finished reading it.
 const WELCOME_TOAST_DURATION_MS = 7000;
 
-export function rewardToast(
+function rewardToast(
   title: string,
   description: string,
   durationMs: number = REWARD_TOAST_DURATION_MS,
