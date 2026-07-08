@@ -3,8 +3,8 @@ import DOMPurify from 'isomorphic-dompurify';
 /**
  * Sanitize the welcome-message HTML before persisting it.
  *
- * Same baseline guarantees as `sanitizeRichHtml` (scripts, event handlers and
- * `javascript:` URIs are stripped), plus one addition: the rich-text editor
+ * Baseline DOMPurify guarantees (scripts, event handlers and `javascript:`
+ * URIs are stripped), plus one addition: the rich-text editor
  * persists the author-chosen display size of an image as an inline
  * `style="width: NNpx"` (see `components/cms/extensions/ResizableImage.ts`), and
  * that style must survive so the image renders at the intended size.
