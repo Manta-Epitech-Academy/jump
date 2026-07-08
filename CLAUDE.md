@@ -81,27 +81,23 @@ Client-side auth at `src/lib/auth-client.ts` (browser-side BetterAuth).
 
 Inside a workspace, role-based gating goes through **one table** of named role groups in `src/lib/domain/permissions.ts`:
 
-| Group             | Roles               | Use for                                                    |
-| ----------------- | ------------------- | ---------------------------------------------------------- |
-| `devLead`         | `superdev`          | Dev workspace lead-only mutations (delete, import, update) |
-| `devMember`       | `superdev`, `dev`   | Dev workspace daily ops (participants, interviews, update) |
-| `leads`           | `superdev`          | Workspace-lead actions                                     |
-| `campusManageable`| `superdev`, `dev`   | Roles a superdev may invite / assign on their campus       |
-| `realSendArmers`  | `admin`             | Arming real outbound sends / login-redirect pin            |
+| Group            | Roles             | Use for                                                    |
+| ---------------- | ----------------- | ---------------------------------------------------------- |
+| `devMember`      | `superdev`, `dev` | Dev workspace daily ops (participants, interviews, update) |
+| `realSendArmers` | `admin`           | Arming real outbound sends / login-redirect pin            |
 
-- **Client:** `const canEdit = $derived(can('devLead', page.data.staffProfile?.staffRole))`, then apply one of the UI patterns below. Import: `$lib/domain/permissions`.
-- **Server:** `requireStaffGroup(locals, 'devLead')` in every mutating action. Import: `$lib/server/auth/guards`.
-- **Routes:** `STAFF_ROLE_GATES` in `guards.ts` gates whole URLs by group. Currently empty: every dev surface is reachable by any dev, and the lead-only actions inside them are gated by `requireStaffGroup`.
+- **Client:** `const canEdit = $derived(can('devMember', page.data.staffProfile?.staffRole))`, then apply one of the UI patterns below. Import: `$lib/domain/permissions`.
+- **Server:** `requireStaffGroup(locals, 'devMember')`. Import: `$lib/server/auth/guards`. Call it in every mutating action, or at the top of a `load` to gate a whole route.
+
+**There is no superdev-only group today.** `superdev` and `dev` are permission-identical; the only thing the enum still separates is which roles a superdev may invite (`INVITABLE_STAFF_ROLES`, a catalogue, not a gate). Add a group back to `STAFF_GROUPS` the day a lead-only action exists. Never inline a `['superdev']` array at a call site.
 
 **UI pattern rule — pick one per site, do not mix:**
 
-| Pattern           | When                                                         |
-| ----------------- | ------------------------------------------------------------ |
-| Hide              | Nav entries to lead-only destinations (sidebar, menus)       |
-| Disable + tooltip | Mutating controls visible on shared screens                  |
-| Redirect / 403    | Direct URL access to lead-only routes (via STAFF_ROLE_GATES) |
-
-Never inline a `['superdev']` array at a call site.
+| Pattern           | When                                                       |
+| ----------------- | ---------------------------------------------------------- |
+| Hide              | Nav entries to restricted destinations (sidebar, menus)    |
+| Disable + tooltip | Mutating controls visible on shared screens                |
+| Redirect / 403    | Direct URL access, via `requireStaffGroup` in the `load`   |
 
 ### Event modules
 

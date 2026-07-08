@@ -7,11 +7,11 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
-import { applyStaffRoleGate } from '$lib/server/auth/guards';
+import { can } from '$lib/domain/permissions';
 import { resolveWorkspaceEvents } from '$lib/server/services/stageContext';
 import { isDevImpersonation } from '$lib/server/devPhaseOverride';
 
-export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
+export const load: LayoutServerLoad = async ({ parent, locals }) => {
   const { user, staffProfile } = await parent();
 
   if (!user) {
@@ -20,12 +20,10 @@ export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
 
   const role = staffProfile?.staffRole;
 
-  if (role !== 'superdev' && role !== 'dev') {
+  if (!can('devMember', role)) {
     const target = getStaffRoleRedirectPath(role);
     throw redirect(302, resolve(target ?? '/staff/login'));
   }
-
-  applyStaffRoleGate(locals, url.pathname);
 
   const db = scopedPrisma(getCampusId(locals));
   const timezone = getCampusTimezone(locals);

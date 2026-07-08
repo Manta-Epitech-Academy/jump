@@ -19,22 +19,6 @@ function forbidGroup(group: StaffGroup): never {
   });
 }
 
-type StaffRoleGate = {
-  pattern: RegExp;
-  group: StaffGroup;
-};
-
-/**
- * URL-level role gates for the dev space, applied by `applyStaffRoleGate`.
- *
- * Empty today: the last entry gated `/staff/dev/events/import`, a route that
- * went away with the per-event modules rework. Every dev surface is now
- * reachable by any dev, and the lead-only *actions* inside them are gated
- * server-side by `requireStaffGroup`. Kept as the extension point for the next
- * whole-route gate.
- */
-const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [];
-
 export async function applyRouteGuards(
   event: RequestEvent,
 ): Promise<Response | null> {
@@ -214,11 +198,10 @@ export async function applyRouteGuards(
       }
     }
 
-    // Dev sub-guard: only superdev or dev.
+    // Dev sub-guard: only the dev workspace's members.
     if (isDevPath) {
       const role = event.locals.staffProfile?.staffRole;
-      const allowed = role === 'superdev' || role === 'dev';
-      if (!allowed) {
+      if (!can('devMember', role)) {
         const correctPath = getStaffRoleRedirectPath(role);
         if (correctPath) {
           return Response.redirect(
@@ -232,9 +215,6 @@ export async function applyRouteGuards(
         );
       }
     }
-
-    // Per-feature sub-role gates run from (staff)/+layout.server.ts via
-    // applyStaffRoleGate — errors thrown in handle bypass +error.svelte.
   }
 
   // --- Parent Guards ---
@@ -300,17 +280,11 @@ export async function applyRouteGuards(
   return null;
 }
 
-export function applyStaffRoleGate(locals: App.Locals, pathname: string): void {
-  const role = locals.staffProfile?.staffRole;
-  if (!role) return;
-
-  for (const gate of STAFF_ROLE_GATES) {
-    if (!gate.pattern.test(pathname)) continue;
-    if (!can(gate.group, role)) forbidGroup(gate.group);
-    return;
-  }
-}
-
+/**
+ * Gate a route or an action on a role group. Throws 403 with the group name so
+ * `(staff)/+error.svelte` can name who to ask. Call it at the top of a `load`
+ * to gate a whole route, or in an action to gate one mutation.
+ */
 export function requireStaffGroup(
   locals: App.Locals,
   group: StaffGroup,

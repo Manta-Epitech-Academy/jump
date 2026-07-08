@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { timingSafeEqual } from 'node:crypto';
 import { env } from '$env/dynamic/private';
+import { can } from '$lib/domain/permissions';
 import { prisma } from '$lib/server/db';
 
 /**
@@ -231,7 +232,7 @@ export async function buildLoadManifest(sample = 50) {
       .filter((s) => s.staffRole === 'admin')
       .map((s) => ({ email: s.user!.email!, campusId: s.campusId })),
     staffDev: usableStaff
-      .filter((s) => s.staffRole === 'dev' || s.staffRole === 'superdev')
+      .filter((s) => can('devMember', s.staffRole))
       .map((s) => ({ email: s.user!.email!, campusId: s.campusId })),
     events: events.map((e) => ({
       id: e.id,

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { STAFF_GROUPS } from '$lib/domain/permissions';
+import { INVITABLE_STAFF_ROLES } from '$lib/domain/permissions';
 
 const epitechEmail = z
   .email('Adresse email invalide')
@@ -7,7 +7,7 @@ const epitechEmail = z
     message: 'Doit être une adresse @epitech.eu',
   });
 
-const invitableRoles = STAFF_GROUPS.campusManageable;
+const invitableRoles = INVITABLE_STAFF_ROLES;
 
 export const createAdminInvitationSchema = z
   .object({
