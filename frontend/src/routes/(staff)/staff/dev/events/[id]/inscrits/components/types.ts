@@ -52,10 +52,6 @@ export const INSCRIT_PARTICIPATION_SELECT = {
   stageCompliance: { select: { charteSigned: true } },
 } satisfies Prisma.ParticipationSelect;
 
-export type ParticipationInscrit = Prisma.ParticipationGetPayload<{
-  select: typeof INSCRIT_PARTICIPATION_SELECT;
-}>;
-
 /** One projected table row. `id` is the participation id (stable row key). */
 export type InscritRow = {
   id: string;

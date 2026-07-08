@@ -46,5 +46,3 @@ export const reopenSlotSchema = z.object({
   day: dayKey,
   slot,
 });
-
-export type SetPresenceInput = z.infer<typeof setPresenceSchema>;

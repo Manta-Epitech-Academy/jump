@@ -89,15 +89,6 @@ export function bucketBytes(bytes: number | null | undefined): string | null {
   return '>100M';
 }
 
-/** Bucket text lengths (chars) for low-cardinality stats. */
-export function bucketLength(len: number | null | undefined): string | null {
-  if (len == null) return null;
-  if (len < 500) return '<500';
-  if (len < 2_000) return '500-2k';
-  if (len < 10_000) return '2k-10k';
-  return '>10k';
-}
-
 /**
  * Normalize free text into a stable, low-cardinality slug: lowercased,
  * accent-stripped, non-alphanumerics collapsed to `_`, capped in length.

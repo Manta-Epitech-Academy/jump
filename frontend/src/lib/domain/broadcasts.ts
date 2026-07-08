@@ -263,10 +263,6 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
   },
 ] as const;
 
-export const BROADCAST_VARIABLE_TOKENS = BROADCAST_VARIABLES.map(
-  (v) => v.token,
-);
-
 // Canonical level catalogue lives in domain/xp.ts (derived from XP_LEVEL_TIERS),
 // re-exported here so broadcast filter consumers keep their import path.
 export { JUMP_LEVELS, type JumpLevel };

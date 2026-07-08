@@ -43,18 +43,6 @@ export const formCreateSchema = z.object({
   intro: z.string().trim().max(2000).nullish(),
 });
 
-export const formMetaSchema = z.object({
-  title: z.string().trim().min(1).max(200),
-  intro: z.string().trim().max(2000).nullish(),
-  outro: z.string().trim().max(2000).nullish(),
-  personaName: z.string().trim().max(100).nullish(),
-  status: z.enum(FORM_STATUSES),
-  allowsAuthenticatedAccess: z.boolean(),
-  allowsPublicAccess: z.boolean(),
-  dashboardNudge: z.boolean(),
-  defaultForEventType: defaultForEventTypeSchema,
-});
-
 // Partial patch for the auto-saving builder (every field optional, edited inline).
 export const formMetaPatchSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),

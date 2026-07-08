@@ -27,7 +27,7 @@ import { env } from '$env/dynamic/private';
  * numbers if you set one var and forgot the other. Those lists are now pure
  * *fallback destinations* (where a trapped copy lands), never the gate.
  */
-export type OutboundMode = 'real' | 'redirect';
+type OutboundMode = 'real' | 'redirect';
 
 function outboundMode(): OutboundMode {
   return env.OUTBOUND_MODE?.trim().toLowerCase() === 'real'

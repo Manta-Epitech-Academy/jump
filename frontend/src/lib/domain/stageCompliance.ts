@@ -1,10 +1,9 @@
-import type { ImageRightsDecision, ImageRightsStatus } from './imageRights';
+import type { ImageRightsStatus } from './imageRights';
 
 /**
  * Shared predicates for stage-de-seconde dossier compliance. One module so
- * the cohort funnel, the per-event onboarding table, the per-student dossier
- * banner and the matching server filters in `$lib/server/db/stageCompliance`
- * never drift on what counts as "compliant".
+ * the cohort funnel, the per-event onboarding table and the per-student
+ * dossier banner never drift on what counts as "compliant".
  *
  * Bare positional args (not a participation shape) so the predicates work
  * uniformly across the two call shapes that exist:
@@ -27,16 +26,6 @@ export function isRulesCompliant(
   charteSigned: boolean | null | undefined,
 ): boolean {
   return parentRulesSignedAt != null || charteSigned === true;
-}
-
-/**
- * Image-rights compliance: a *settled* decision — `accepted` or `refused` —
- * counts as done. A refusal is the guardian acting, not a missing doc.
- */
-export function isImageRightsCompliant(
-  imageRightsDecision: ImageRightsDecision | null | undefined,
-): boolean {
-  return imageRightsDecision != null;
 }
 
 /** The three display states a règlement intérieur signature can be in. */

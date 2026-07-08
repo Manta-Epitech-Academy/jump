@@ -121,18 +121,6 @@ export function computeLevel(xp: number): JumpLevel {
   return 'Novice';
 }
 
-/** French display labels for the talent-facing UI. */
-const LEVEL_LABELS_FR: Record<JumpLevel, string> = {
-  Novice: 'Novice',
-  Apprentice: 'Apprenti',
-  Expert: 'Expert ✦',
-};
-
-/** Convenience: the French label for a given XP total. */
-export function levelLabelFr(xp: number): string {
-  return LEVEL_LABELS_FR[computeLevel(xp)];
-}
-
 /**
  * Staff-facing one-liner explaining what XP means, shown as the hover tooltip
  * wherever the dev workspace surfaces a talent's XP (cohort table, directory,

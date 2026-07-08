@@ -150,19 +150,6 @@ export function defaultModuleSettings<K extends EventModuleKey>(
   return parseModuleSettings(key, {});
 }
 
-/** Whether a module exposes any sub-options (drives the advanced section in the wizard). */
-export function moduleHasSettings(key: EventModuleKey): boolean {
-  return (
-    Object.keys(
-      (EVENT_MODULE_SETTINGS_SCHEMAS[key] as z.ZodObject<z.ZodRawShape>).shape,
-    ).length > 0
-  );
-}
-
-export function eventModuleLabel(key: string): string {
-  return EVENT_MODULE_DEFS[key as EventModuleKey]?.label ?? key;
-}
-
 /** Whether a module is enabled, given a resolved set/list of an event's modules. */
 function eventHasModule(
   modules: ReadonlySet<string> | readonly string[],

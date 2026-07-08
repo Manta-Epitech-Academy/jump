@@ -9,12 +9,6 @@ const epitechEmail = z
 
 const invitableRoles = STAFF_GROUPS.campusManageable;
 
-const createInvitationSchema = z.object({
-  email: epitechEmail,
-  campusId: z.string().min(1, 'Campus requis'),
-  staffRole: z.enum(invitableRoles).default('superdev'),
-});
-
 export const createAdminInvitationSchema = z
   .object({
     email: epitechEmail,
@@ -25,21 +19,3 @@ export const createAdminInvitationSchema = z
     message: 'Campus requis',
     path: ['campusId'],
   });
-
-export type CreateInvitationInput = z.infer<typeof createInvitationSchema>;
-
-const createSuperDevInvitationSchema = z.object({
-  email: epitechEmail,
-  staffRole: z.enum(invitableRoles).default('dev'),
-});
-
-export type CreateSuperDevInvitationInput = z.infer<
-  typeof createSuperDevInvitationSchema
->;
-
-const updateMemberRoleSchema = z.object({
-  userId: z.string().min(1),
-  staffRole: z.enum(invitableRoles),
-});
-
-export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;

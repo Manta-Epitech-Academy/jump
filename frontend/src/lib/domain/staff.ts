@@ -32,21 +32,6 @@ export function getStaffRoleLabel(role: string | null | undefined): string {
   return STAFF_ROLES.find((r) => r.value === role)?.label ?? 'Aucun rôle';
 }
 
-export function getStaffRoleCampusSuffix(
-  role: string | null | undefined,
-  campusName: string | null | undefined,
-): string {
-  if (!role || !campusName) return '';
-  if (!STAFF_ROLES.some((r) => r.value === role)) return '';
-  return ` du campus de ${campusName}`;
-}
-
-export function getStaffRoleDescription(
-  role: string | null | undefined,
-): string {
-  return STAFF_ROLES.find((r) => r.value === role)?.description ?? '';
-}
-
 export type StaffSpacePath = '/staff/admin' | '/staff/dev';
 
 export function getStaffRoleRedirectPath(

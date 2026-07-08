@@ -189,10 +189,6 @@ export const parentsSchema = z
     },
   );
 
-export type IdentityForm = z.infer<typeof identitySchema>;
-export type SchoolForm = z.infer<typeof schoolSchema>;
-export type ParentsForm = z.infer<typeof parentsSchema>;
-
 // --- Étape 4 & 5 : Intérêts et Matériel ---
 export const interestsSchema = z.object({
   // IDs are internal cuid v1 keys, but the action count-checks each against the

@@ -134,17 +134,6 @@ export function slotKey(day: DateKey, slot: PresenceSlot): string {
   return `${day}|${slot}`;
 }
 
-/** The ordered list of créneaux (≈20 over a 2-week stage): each working day × 2. */
-export function eventSlots(
-  event: { date: Date; endDate: Date | null },
-  timezone: string,
-  opts: { workdaysOnly?: boolean } = {},
-): EventSlot[] {
-  return eventDays(event, timezone, opts).flatMap((day) =>
-    PRESENCE_SLOTS.map((slot) => ({ day, slot, key: slotKey(day, slot) })),
-  );
-}
-
 /**
  * Canonical shape of a Stage de Seconde for émargement: two working weeks,
  * Monday-Friday twice, i.e. 10 working days (20 half-day créneaux). It is a

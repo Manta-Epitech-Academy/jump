@@ -11,6 +11,3 @@ export const camperOtpSchema = z.object({
     .regex(/^\d+$/, 'Le code ne doit contenir que des chiffres')
     .length(6, 'Le code doit contenir 6 chiffres'),
 });
-
-export type CamperEmailInput = z.infer<typeof camperEmailSchema>;
-export type CamperOtpInput = z.infer<typeof camperOtpSchema>;

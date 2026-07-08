@@ -327,22 +327,3 @@ export async function getEventResponseBreakdown(
 
   return { events: eventBuckets, publicCount, total };
 }
-
-/** Talent ids that submitted the form for a given event (dev roster join). */
-export async function getRespondedTalentIds(
-  formId: string,
-  eventId: string,
-): Promise<Set<string>> {
-  const rows = await prisma.feedback_Submission.findMany({
-    where: {
-      formId,
-      eventId,
-      source: 'authenticated',
-      talentId: { not: null },
-    },
-    select: { talentId: true },
-  });
-  return new Set(
-    rows.map((r) => r.talentId).filter((id): id is string => !!id),
-  );
-}

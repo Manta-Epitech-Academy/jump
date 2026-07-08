@@ -76,10 +76,6 @@ export function can(
   return (STAFF_GROUPS[group] as readonly StaffRole[]).includes(role);
 }
 
-export function rolesIn(group: StaffGroup): readonly StaffRole[] {
-  return STAFF_GROUPS[group];
-}
-
 export function describeGroup(group: StaffGroup): StaffGroupDescription {
   return STAFF_GROUP_DESCRIPTIONS[group];
 }

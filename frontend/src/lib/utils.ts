@@ -64,10 +64,6 @@ export function getStartOfDay(timezone: string): string {
   return startOfDay.toDate().toISOString().replace('T', ' ');
 }
 
-export function generatePin(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString();
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type WithoutChild<T> = T extends { child?: any } ? Omit<T, 'child'> : T;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
