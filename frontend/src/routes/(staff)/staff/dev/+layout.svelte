@@ -3,12 +3,16 @@
   import LogOut from '@lucide/svelte/icons/log-out';
   import Users from '@lucide/svelte/icons/users';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Menu from '@lucide/svelte/icons/menu';
   import X from '@lucide/svelte/icons/x';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import MessageSquareText from '@lucide/svelte/icons/message-square-text';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import CalendarRange from '@lucide/svelte/icons/calendar-range';
+  import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
+  import School from '@lucide/svelte/icons/school';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -18,6 +22,7 @@
   import { fly, fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
+  import { goto } from '$app/navigation';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
   import EventWorkspaceSwitcher from '$lib/components/dev/EventWorkspaceSwitcher.svelte';
   import {
@@ -41,17 +46,7 @@
   let { children, data } = $props();
   let user = $derived(data.user as any);
 
-  // The cohort workspace: the events this campus configured (those with ≥1
-  // module). The "current" event is the one in the URL when it is one of them,
-  // else the resolved default. Its module set drives which surfaces the sidebar
-  // shows; switching events re-renders the nav for the picked event.
   let workspace = $derived(data.workspace);
-  // Remember the last event actually browsed. A talent fiche is campus-scoped, so
-  // its URL carries a talent id, not an event id; without this the sidebar would
-  // snap from the event you were in back to the resolved default the instant you
-  // open a profile. Resolution order: the event in the path, an explicit `?event=`
-  // (the entretiens fiche link sets it, so a reload or deep-link stays put), the
-  // last event browsed this session, then the resolved default.
   let lastEventId = $state<string | null>(null);
   $effect(() => {
     const id = page.params.id;
@@ -65,7 +60,98 @@
       workspace.events.find((e) => e.id === lastEventId) ??
       workspace.current,
   );
+
+  let selectedSchoolYear = $state('');
+
+  // Sync state with URL search param or current event's year
+  $effect(() => {
+    const param = page.url.searchParams.get('year');
+    if (param) {
+      selectedSchoolYear = param;
+    } else if (currentEvent) {
+      selectedSchoolYear = currentEvent.schoolYear.label;
+    } else {
+      // Calculate current actual school year as fallback
+      const now = new Date();
+      const y = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+      selectedSchoolYear = `${y}/${y + 1}`;
+    }
+  });
+
+  const schoolYears = $derived.by(() => {
+    const seen = new Set<string>();
+    for (const e of workspace.events) {
+      seen.add(e.schoolYear.label);
+    }
+    if (seen.size === 0) {
+      const now = new Date();
+      const y = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+      seen.add(`${y}/${y + 1}`);
+    }
+    return [...seen].sort((a, b) => b.localeCompare(a));
+  });
+
+  function changeSchoolYear(year: string) {
+    const url = new URL(page.url);
+    url.searchParams.set('year', year);
+    // If we are currently viewing an event, and that event doesn't belong to the chosen year, we redirect back to stats
+    if (currentEvent && currentEvent.schoolYear.label !== year) {
+      goto(resolve(`/staff/dev/stats?year=${year}`));
+    } else {
+      goto(url.pathname + url.search);
+    }
+  }
+
+  let eventSearchQuery = $state('');
+
+  let filteredYearEvents = $derived(
+    workspace.events.filter((e) => {
+      // Filter by selected school year
+      if (e.schoolYear.label !== selectedSchoolYear) return false;
+      // Filter by search query
+      const query = eventSearchQuery.toLowerCase();
+      return (
+        e.titre.toLowerCase().includes(query) ||
+        (e.publicName && e.publicName.toLowerCase().includes(query))
+      );
+    }),
+  );
+
+  const monthYearSidebarFmt = new Intl.DateTimeFormat('fr-FR', {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  let groupedYearEvents = $derived.by(() => {
+    const map = new Map<
+      string,
+      { label: string; events: typeof workspace.events }
+    >();
+    for (const e of filteredYearEvents) {
+      const d = new Date(e.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const monthLabel = monthYearSidebarFmt.format(d);
+      const entry = map.get(key) ?? { label: monthLabel, events: [] };
+      entry.events.push(e);
+      map.set(key, entry);
+    }
+    return [...map.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([_, entry]) => entry);
+  });
+
+  const isActiveEvent = $derived(
+    Boolean(page.params.id) ||
+      (page.url.pathname.includes('/events/') &&
+        !page.url.pathname.endsWith('/events')),
+  );
+
   let mobileMenuOpen = $state(false);
+
+  const dateFmt = new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+  });
 
   const hour = new Date().getHours();
   let baseGreeting = 'Bonjour';
@@ -127,37 +213,128 @@
 {/snippet}
 
 {#snippet navMenu()}
-  {#if currentEvent}
-    {@const ev = currentEvent}
-    <!-- The event in view is the section heading (underscore motif). With more
-         than one workspace event, a small "go to" button beside it opens the
-         picker - the title stays the prominent label, the switcher is demoted. -->
-    <div class="sidebar-section-title flex items-center gap-1.5">
-      <span class="flex min-w-0 flex-1 items-baseline">
-        <span class="truncate">{eventDisplayName(ev)}</span>
-        <span class="text-epi-teal">_</span>
-      </span>
-      {#if workspace.events.length > 1}
-        <EventWorkspaceSwitcher events={workspace.events} currentId={ev.id} />
-      {/if}
+  <div class="sidebar-section-title">
+    Vue Globale<span class="text-epi-blue">_</span>
+  </div>
+  <nav class="mb-4 space-y-1">
+    <a
+      href={resolve(`/staff/dev/stats?year=${selectedSchoolYear}`)}
+      class={navLinkClass(isActive('/staff/dev/stats'))}
+    >
+      <LayoutDashboard class="h-4 w-4" />
+      <span>Tableau de bord</span>
+    </a>
+    <a
+      href={resolve(`/staff/dev/calendar?year=${selectedSchoolYear}`)}
+      class={navLinkClass(isActive('/staff/dev/calendar'))}
+    >
+      <CalendarRange class="h-4 w-4" />
+      <span>Planning annuel</span>
+    </a>
+  </nav>
+
+  {#if isActiveEvent && currentEvent}
+    <div class="sidebar-section-title flex items-center justify-between">
+      <span>Événement Actif</span>
+      <span class="text-epi-teal">_</span>
     </div>
-    <nav class="space-y-1">
-      <!-- Surfaces are per event, not campus flags, so two events on one campus
-           can expose different pages. The reachable set folds the module rows
-           with the data gates (planning needs a schedule, bilan needs a live
-           form) in one place (`reachableSurfaces`), so this nav, the event
-           switcher and the dev landing all agree on what a dev can open. Labels
-           stay event-type-agnostic, so the dev space shows coding clubs too. -->
-      {#each reachableSurfaces(ev) as key (key)}
+    <div
+      class="mb-3 rounded-sm border border-sidebar-border bg-sidebar-hover/20 p-3 text-xs"
+    >
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex min-w-0 flex-1 flex-col">
+          <span
+            class="truncate font-semibold text-sidebar-foreground"
+            title={eventDisplayName(currentEvent)}
+          >
+            {eventDisplayName(currentEvent)}
+          </span>
+          <span class="mt-0.5 text-[10px] text-sidebar-foreground-muted">
+            {dateFmt.format(new Date(currentEvent.date))}
+          </span>
+        </div>
+        {#if workspace.events.filter((e) => e.schoolYear.label === selectedSchoolYear).length > 1}
+          <EventWorkspaceSwitcher
+            events={workspace.events}
+            currentId={currentEvent.id}
+          />
+        {/if}
+      </div>
+    </div>
+    <nav class="ml-2 space-y-1 border-l border-sidebar-border/30 pl-2">
+      {#each reachableSurfaces(currentEvent) as key (key)}
         {@const seg = surfaceSegment(key)}
         {@const Icon = SURFACE_ICONS[key]}
         <a
-          href={resolve(`/staff/dev/events/${ev.id}/${seg}`)}
-          class={navLinkClass(isActive(`/staff/dev/events/${ev.id}/${seg}`))}
+          href={resolve(`/staff/dev/events/${currentEvent.id}/${seg}`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${currentEvent.id}/${seg}`),
+          )}
         >
-          <Icon class="h-5 w-5" />
+          <Icon class="h-4 w-4" />
           <span>{surfaceLabel(key)}</span>
         </a>
+      {/each}
+    </nav>
+  {:else}
+    <div class="sidebar-section-title flex items-center justify-between">
+      <span>Événements {selectedSchoolYear}</span>
+      <span
+        class="rounded-full bg-sidebar-border px-1.5 py-0.5 font-mono text-[9px] text-sidebar-foreground"
+      >
+        {filteredYearEvents.length}
+      </span>
+    </div>
+
+    {#if workspace.events.filter((e) => e.schoolYear.label === selectedSchoolYear).length > 5}
+      <div class="px-3 pb-2">
+        <input
+          type="text"
+          placeholder="Rechercher..."
+          bind:value={eventSearchQuery}
+          class="w-full rounded-sm border border-sidebar-border/60 bg-sidebar-hover/30 px-2 py-1.5 text-xs text-sidebar-foreground transition-colors outline-none placeholder:text-sidebar-foreground-muted/60 focus:border-sidebar-border"
+        />
+      </div>
+    {/if}
+
+    <nav class="mb-6 max-h-[340px] space-y-3 overflow-y-auto pr-1">
+      {#each groupedYearEvents as group}
+        <div class="space-y-1">
+          <div
+            class="px-3 text-[9px] font-bold tracking-wider text-sidebar-foreground-muted/50 capitalize uppercase select-none"
+          >
+            {group.label}
+          </div>
+          {#each group.events as e (e.id)}
+            <a
+              href={resolve(
+                `/staff/dev/events/${e.id}/${surfaceSegment(reachableSurfaces(e)[0])}`,
+              )}
+              class="group flex items-center gap-3 rounded-sm px-3 py-2 text-xs font-bold text-sidebar-foreground-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground"
+            >
+              <div class="flex min-w-0 flex-1 flex-col">
+                <span
+                  class="truncate font-semibold text-sidebar-foreground group-hover:text-sidebar-foreground"
+                  >{eventDisplayName(e)}</span
+                >
+                <span class="mt-0.5 text-[9px] text-muted-foreground"
+                  >{dateFmt.format(new Date(e.date))}</span
+                >
+              </div>
+              <ChevronRight
+                class="h-3.5 w-3.5 shrink-0 text-sidebar-foreground-muted transition-transform group-hover:translate-x-0.5 group-hover:text-sidebar-foreground"
+              />
+            </a>
+          {/each}
+        </div>
+      {:else}
+        <div class="px-3 py-6 text-center text-xs text-muted-foreground">
+          {#if workspace.events.filter((e) => e.schoolYear.label === selectedSchoolYear).length === 0}
+            Aucun événement cette année.
+          {:else}
+            Aucun résultat pour "{eventSearchQuery}".
+          {/if}
+        </div>
       {/each}
     </nav>
   {/if}
@@ -234,6 +411,110 @@
   </aside>
 
   <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+    <!-- Desktop Header -->
+    <header
+      class="hidden h-14 w-full shrink-0 items-center justify-between border-b border-border bg-card px-8 md:flex"
+    >
+      <!-- Breadcrumbs -->
+      <div
+        class="flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+      >
+        <span class="text-epi-blue">Espace dev</span>
+        <span class="text-muted-foreground/40">/</span>
+        {#if isActiveEvent && currentEvent}
+          <span class="max-w-[200px] truncate text-epi-teal"
+            >{eventDisplayName(currentEvent)}</span
+          >
+        {:else}
+          <span class="text-epi-teal">Vue Globale</span>
+        {/if}
+      </div>
+
+      <!-- Context Selectors -->
+      <div class="flex items-center gap-3">
+        <!-- Campus Badge -->
+        <div
+          class="flex h-9 items-center gap-2 rounded-sm border border-border bg-background px-3 text-xs font-bold text-foreground select-none"
+        >
+          <School class="h-4 w-4 text-muted-foreground" />
+          <span>{data.staffProfile?.campus?.name || 'Marseille'}</span>
+        </div>
+
+        <!-- Academic Year Dropdown -->
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger
+            class="flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-border bg-background px-3 text-xs font-bold text-foreground hover:bg-muted/50"
+          >
+            <CalendarDays class="h-4 w-4 text-muted-foreground" />
+            <span>{selectedSchoolYear}</span>
+            <ChevronDown class="h-3.5 w-3.5 text-muted-foreground" />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content align="end" class="w-48 rounded-sm">
+            <DropdownMenu.Label>Année Scolaire</DropdownMenu.Label>
+            <DropdownMenu.Separator />
+            {#each schoolYears as year}
+              <DropdownMenu.Item
+                class="cursor-pointer text-xs {selectedSchoolYear === year
+                  ? 'bg-accent font-bold'
+                  : ''}"
+                onclick={() => changeSchoolYear(year)}
+              >
+                {year}
+              </DropdownMenu.Item>
+            {/each}
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+
+        <!-- User Profile Dropdown -->
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger
+            class="flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-border bg-background pr-3 pl-2 text-xs font-bold text-foreground hover:bg-muted/50"
+          >
+            <Avatar.Root class="h-6 w-6 rounded-full bg-muted">
+              <Avatar.Image
+                src={user?.image ?? undefined}
+                alt={user?.name ?? ''}
+                class="object-cover"
+              />
+              <Avatar.Fallback
+                class="bg-transparent text-[10px] font-bold uppercase"
+              >
+                {getInitials(data.user)}
+              </Avatar.Fallback>
+            </Avatar.Root>
+            <span class="max-w-[120px] truncate"
+              >{user?.name || user?.username}</span
+            >
+            <ChevronDown class="h-3.5 w-3.5 text-muted-foreground" />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content align="end" class="w-48 rounded-sm">
+            <DropdownMenu.Label>Mon Profil ADM</DropdownMenu.Label>
+            <DropdownMenu.Separator />
+            <form
+              action={resolve('/logout')}
+              method="POST"
+              onsubmit={() =>
+                track('logout', {
+                  kind: 'dev',
+                  sessionDurationSec: secondsBetween(
+                    page.data.session?.createdAt as Date | string | undefined,
+                  ),
+                })}
+            >
+              <button type="submit" class="w-full cursor-pointer">
+                <DropdownMenu.Item class="cursor-pointer text-destructive"
+                  ><LogOut class="mr-2 h-4 w-4" /> Déconnexion</DropdownMenu.Item
+                >
+              </button>
+            </form>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+
+        <ModeToggle />
+      </div>
+    </header>
+
+    <!-- Mobile Header -->
     <header
       class="z-40 flex h-14 w-full shrink-0 items-center justify-between border-b border-border bg-background px-4 md:hidden"
     >
@@ -260,6 +541,7 @@
           href={resolve('/staff/dev')}
           tone="auto"
           orientation="inline"
+          campus={data.staffProfile?.campus?.name}
         />
       </div>
     </header>
