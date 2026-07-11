@@ -254,9 +254,8 @@
   </nav>
 
   {#if isActiveEvent && currentEvent}
-    <div class="sidebar-section-title flex items-center justify-between">
-      <span>Événement Actif</span>
-      <span class="text-epi-teal">_</span>
+    <div class="sidebar-section-title">
+      Événement Actif<span class="text-epi-teal">_</span>
     </div>
     <div
       class="mb-3 rounded-sm border border-sidebar-border bg-sidebar-hover/20 p-3 text-xs"
