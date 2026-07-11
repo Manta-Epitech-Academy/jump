@@ -226,7 +226,7 @@
     class="flex items-center gap-2.5 px-4 py-4.5 text-white transition-opacity hover:opacity-95"
   >
     <EpitechLogo tone="dark" class="h-7 w-auto shrink-0" />
-    <span class="font-heading text-lg leading-none font-bold tracking-tight">
+    <span class="font-heading text-lg leading-none">
       Jump<span class="text-epi-teal">_</span>
     </span>
   </a>
