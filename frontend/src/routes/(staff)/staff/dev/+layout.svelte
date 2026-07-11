@@ -1,5 +1,6 @@
 <script lang="ts">
   import BrandMark from '$lib/components/layout/BrandMark.svelte';
+  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
   import LogOut from '@lucide/svelte/icons/log-out';
   import Users from '@lucide/svelte/icons/users';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -220,10 +221,15 @@
 </script>
 
 {#snippet sidebarBrand()}
-  <BrandMark
+  <a
     href={resolve('/staff/dev')}
-    tagline="Gestion des stages et du coding club"
-  />
+    class="flex items-center gap-2.5 px-4 py-4.5 text-white transition-opacity hover:opacity-95"
+  >
+    <EpitechLogo tone="dark" class="h-7 w-auto shrink-0" />
+    <span class="font-heading text-lg leading-none font-bold tracking-tight">
+      Jump<span class="text-epi-teal">_</span>
+    </span>
+  </a>
 {/snippet}
 
 {#snippet navMenu()}
