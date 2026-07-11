@@ -71,7 +71,7 @@
 <div class="space-y-6 pb-10" in:fly={{ y: 15, duration: 300 }}>
   <PageHeader
     title="Planning annuel"
-    subtitle="Année Scolaire {selectedYear}"
+    subtitle="Chronologie et calendrier des sessions"
   />
 
   {#if events.length > 0}

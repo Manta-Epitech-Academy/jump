@@ -44,7 +44,7 @@
 <div class="space-y-6 pb-10" in:fly={{ y: 15, duration: 300 }}>
   <PageHeader
     title="Tableau de bord"
-    subtitle="Année Scolaire {selectedYear}"
+    subtitle="Vue d'ensemble des indicateurs de recrutement"
   />
 
   <!-- Key Metrics Grid -->
@@ -125,9 +125,7 @@
   <!-- Detailed Events Table -->
   <div class="rounded-sm border bg-card shadow-sm">
     <div class="border-b p-4">
-      <h3 class="text-sm font-semibold">
-        Détails des événements ({selectedYear})
-      </h3>
+      <h3 class="text-sm font-semibold">Détails des événements</h3>
       <p class="text-xs text-muted-foreground">
         Statistiques individuelles et statut de chaque session.
       </p>

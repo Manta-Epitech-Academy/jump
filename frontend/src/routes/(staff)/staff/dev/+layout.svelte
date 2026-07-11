@@ -223,7 +223,6 @@
   <BrandMark
     href={resolve('/staff/dev')}
     tagline="Gestion des stages et du coding club"
-    campus={data.staffProfile?.campus?.name}
   />
 {/snippet}
 
@@ -293,7 +292,7 @@
     </nav>
   {:else}
     <div class="sidebar-section-title flex items-center justify-between">
-      <span>Événements {selectedSchoolYear}</span>
+      <span>Événements</span>
       <span
         class="rounded-full bg-sidebar-border px-1.5 py-0.5 font-mono text-[9px] text-sidebar-foreground"
       >
@@ -422,7 +421,6 @@
       {@render navMenu()}
     </div>
     <ImpersonationCard />
-    {@render sidebarFooter()}
   </aside>
 
   <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
