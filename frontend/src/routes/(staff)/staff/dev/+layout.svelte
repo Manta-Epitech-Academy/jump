@@ -428,40 +428,18 @@
     <header
       class="hidden h-14 w-full shrink-0 items-center justify-between border-b border-border bg-card px-8 md:flex"
     >
-      <!-- Breadcrumbs -->
+      <!-- Left Context (Campus) -->
       <div
-        class="flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+        class="flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase select-none"
       >
-        <span class="text-epi-blue">Espace dev</span>
-        <span class="text-muted-foreground/40">/</span>
-        {#if isActiveEvent && currentEvent}
-          <a
-            href={resolve(
-              `/staff/dev/events/${currentEvent.id}/${surfaceSegment(reachableSurfaces(currentEvent)[0])}`,
-            )}
-            class="max-w-[200px] truncate text-muted-foreground transition-colors hover:text-epi-blue hover:underline"
-          >
-            {eventDisplayName(currentEvent)}
-          </a>
-          {#if activeSurfaceLabel}
-            <span class="text-muted-foreground/40">/</span>
-            <span class="text-epi-teal">{activeSurfaceLabel}</span>
-          {/if}
-        {:else}
-          <span class="text-epi-teal">Vue Globale</span>
-        {/if}
+        <School class="h-4 w-4 text-epi-blue" />
+        <span class="font-bold text-epi-blue">
+          {data.staffProfile?.campus?.name || 'Marseille'}
+        </span>
       </div>
 
       <!-- Context Selectors -->
       <div class="flex items-center gap-3">
-        <!-- Campus Badge -->
-        <div
-          class="flex h-9 items-center gap-2 rounded-sm border border-border bg-background px-3 text-xs font-bold text-foreground select-none"
-        >
-          <School class="h-4 w-4 text-muted-foreground" />
-          <span>{data.staffProfile?.campus?.name || 'Marseille'}</span>
-        </div>
-
         <!-- Academic Year Dropdown -->
         <DropdownMenu.Root>
           <DropdownMenu.Trigger
