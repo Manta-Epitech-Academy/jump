@@ -179,6 +179,21 @@
     }
   });
 
+  const SURFACE_LABELS: Record<string, string> = {
+    inscrits: 'Inscrits',
+    emargement: 'Présences',
+    planning: 'Planning',
+    bilan: 'Bilan',
+    entretiens: 'Entretiens',
+  };
+
+  const activeSurfaceLabel = $derived.by(() => {
+    const pathname = page.url.pathname;
+    const parts = pathname.split('/');
+    const last = parts[parts.length - 1];
+    return SURFACE_LABELS[last] || null;
+  });
+
   function isActive(path: string, exact = false) {
     const basePath = resolve('/').replace(/\/$/, '');
     const fullPath = `${basePath}${path}`;
@@ -422,9 +437,18 @@
         <span class="text-epi-blue">Espace dev</span>
         <span class="text-muted-foreground/40">/</span>
         {#if isActiveEvent && currentEvent}
-          <span class="max-w-[200px] truncate text-epi-teal"
-            >{eventDisplayName(currentEvent)}</span
+          <a
+            href={resolve(
+              `/staff/dev/events/${currentEvent.id}/${surfaceSegment(reachableSurfaces(currentEvent)[0])}`,
+            )}
+            class="max-w-[200px] truncate text-muted-foreground transition-colors hover:text-epi-blue hover:underline"
           >
+            {eventDisplayName(currentEvent)}
+          </a>
+          {#if activeSurfaceLabel}
+            <span class="text-muted-foreground/40">/</span>
+            <span class="text-epi-teal">{activeSurfaceLabel}</span>
+          {/if}
         {:else}
           <span class="text-epi-teal">Vue Globale</span>
         {/if}
