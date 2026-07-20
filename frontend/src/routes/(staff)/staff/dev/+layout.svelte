@@ -90,13 +90,29 @@
     return [...seen].sort((a, b) => b.localeCompare(a));
   });
 
-  // The year is purely a filter over the sidebar's Événements list: switch it and
-  // the list re-scopes. We keep you on the current page (the Événement Actif block
-  // still shows where you are); pick an event from the new year to move on.
+  // Switching the year is a context jump, not just a filter. If the event in view
+  // already belongs to the picked year we stay put and only sync the param;
+  // otherwise we land on that year's first event (its first reachable surface) so
+  // the picker never leaves you on a page unrelated to the year you chose. Carry
+  // `?year=` through so the sidebar list stays scoped to the new year.
   function changeSchoolYear(year: string) {
-    const url = new URL(page.url);
-    url.searchParams.set('year', year);
-    goto(url.pathname + url.search, { keepFocus: true, noScroll: true });
+    if (currentEvent?.schoolYear.label === year) {
+      const url = new URL(page.url);
+      url.searchParams.set('year', year);
+      goto(url.pathname + url.search, { keepFocus: true, noScroll: true });
+      return;
+    }
+    const target = workspace.events
+      .filter((e) => e.schoolYear.label === year && reachableSurfaces(e).length)
+      .sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      )[0];
+    if (target) {
+      const seg = surfaceSegment(reachableSurfaces(target)[0]);
+      goto(`${resolve(`/staff/dev/events/${target.id}/${seg}`)}?year=${year}`);
+    } else {
+      goto(`${resolve('/staff/dev')}?year=${year}`);
+    }
   }
 
   let eventSearchQuery = $state('');
@@ -215,43 +231,27 @@
 
 {#snippet navMenu()}
   {#if isActiveEvent && currentEvent}
-    <div class="sidebar-section-title">
-      Événement Actif<span class="text-epi-teal">_</span>
+    {@const ev = currentEvent}
+    <!-- The event in view is the section heading (underscore motif). The switcher
+         sits inline to its right, demoted: the event name stays the label. -->
+    <div class="sidebar-section-title flex items-center gap-1.5">
+      <span class="flex min-w-0 flex-1 items-baseline">
+        <span class="truncate">{eventDisplayName(ev)}</span>
+        <span class="text-epi-teal">_</span>
+      </span>
+      {#if workspace.events.length > 1}
+        <EventWorkspaceSwitcher events={workspace.events} currentId={ev.id} />
+      {/if}
     </div>
-    <div
-      class="mb-3 rounded-sm border border-sidebar-border bg-sidebar-hover/20 p-3 text-xs"
-    >
-      <div class="flex items-start justify-between gap-2">
-        <div class="flex min-w-0 flex-1 flex-col">
-          <span
-            class="truncate font-semibold text-sidebar-foreground"
-            title={eventDisplayName(currentEvent)}
-          >
-            {eventDisplayName(currentEvent)}
-          </span>
-          <span class="mt-0.5 text-[10px] text-sidebar-foreground-muted">
-            {dateFmt.format(new Date(currentEvent.date))}
-          </span>
-        </div>
-        {#if workspace.events.filter((e) => e.schoolYear.label === selectedSchoolYear).length > 1}
-          <EventWorkspaceSwitcher
-            events={workspace.events}
-            currentId={currentEvent.id}
-          />
-        {/if}
-      </div>
-    </div>
-    <nav class="ml-2 space-y-1 border-l border-sidebar-border/30 pl-2">
-      {#each reachableSurfaces(currentEvent) as key (key)}
+    <nav class="space-y-1">
+      {#each reachableSurfaces(ev) as key (key)}
         {@const seg = surfaceSegment(key)}
         {@const Icon = SURFACE_ICONS[key]}
         <a
-          href={resolve(`/staff/dev/events/${currentEvent.id}/${seg}`)}
-          class={navLinkClass(
-            isActive(`/staff/dev/events/${currentEvent.id}/${seg}`),
-          )}
+          href={resolve(`/staff/dev/events/${ev.id}/${seg}`)}
+          class={navLinkClass(isActive(`/staff/dev/events/${ev.id}/${seg}`))}
         >
-          <Icon class="h-4 w-4" />
+          <Icon class="h-5 w-5" />
           <span>{surfaceLabel(key)}</span>
         </a>
       {/each}
