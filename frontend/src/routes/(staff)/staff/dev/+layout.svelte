@@ -4,7 +4,6 @@
   import LogOut from '@lucide/svelte/icons/log-out';
   import Users from '@lucide/svelte/icons/users';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
-  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Menu from '@lucide/svelte/icons/menu';
   import X from '@lucide/svelte/icons/x';
   import MessageSquare from '@lucide/svelte/icons/message-square';
@@ -31,6 +30,7 @@
     type EventSurfaceKey,
   } from '$lib/domain/eventModules';
   import { eventDisplayName } from '$lib/domain/event';
+  import { schoolYearOf } from '$lib/domain/schoolYear';
 
   // Icons live with the component (Svelte components can't sit in the domain
   // layer); order/label/reachability are single-sourced in `eventModules`.
@@ -60,22 +60,14 @@
       workspace.current,
   );
 
-  let selectedSchoolYear = $state('');
-
-  // Sync state with URL search param or current event's year
-  $effect(() => {
-    const param = page.url.searchParams.get('year');
-    if (param) {
-      selectedSchoolYear = param;
-    } else if (currentEvent) {
-      selectedSchoolYear = currentEvent.schoolYear.label;
-    } else {
-      // Calculate current actual school year as fallback
-      const now = new Date();
-      const y = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
-      selectedSchoolYear = `${y}/${y + 1}`;
-    }
-  });
+  // The academic year shown in the header: a context readout of the event in
+  // view, falling back to the live school year only when the campus has no
+  // events. Single-sourced through `schoolYearOf` so the label format matches
+  // the events' own `schoolYear.label`.
+  const selectedSchoolYear = $derived(
+    currentEvent?.schoolYear.label ??
+      schoolYearOf(new Date(), data.timezone).label,
+  );
 
   const schoolYears = $derived.by(() => {
     const seen = new Set<string>();
@@ -83,88 +75,26 @@
       seen.add(e.schoolYear.label);
     }
     if (seen.size === 0) {
-      const now = new Date();
-      const y = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
-      seen.add(`${y}/${y + 1}`);
+      seen.add(schoolYearOf(new Date(), data.timezone).label);
     }
     return [...seen].sort((a, b) => b.localeCompare(a));
   });
 
-  // Switching the year is a context jump, not just a filter. If the event in view
-  // already belongs to the picked year we stay put and only sync the param;
-  // otherwise we land on that year's first event (its first reachable surface) so
-  // the picker never leaves you on a page unrelated to the year you chose. Carry
-  // `?year=` through so the sidebar list stays scoped to the new year.
+  // Picking a year is a context jump: land on that year's first event (its first
+  // reachable surface). A year with no reachable event leaves you where you are.
   function changeSchoolYear(year: string) {
-    if (currentEvent?.schoolYear.label === year) {
-      const url = new URL(page.url);
-      url.searchParams.set('year', year);
-      goto(url.pathname + url.search, { keepFocus: true, noScroll: true });
-      return;
-    }
+    if (currentEvent?.schoolYear.label === year) return;
     const target = workspace.events
       .filter((e) => e.schoolYear.label === year && reachableSurfaces(e).length)
       .sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
       )[0];
-    if (target) {
-      const seg = surfaceSegment(reachableSurfaces(target)[0]);
-      goto(`${resolve(`/staff/dev/events/${target.id}/${seg}`)}?year=${year}`);
-    } else {
-      goto(`${resolve('/staff/dev')}?year=${year}`);
-    }
+    if (!target) return;
+    const seg = surfaceSegment(reachableSurfaces(target)[0]);
+    goto(resolve(`/staff/dev/events/${target.id}/${seg}`));
   }
 
-  let eventSearchQuery = $state('');
-
-  let filteredYearEvents = $derived(
-    workspace.events.filter((e) => {
-      // Filter by selected school year
-      if (e.schoolYear.label !== selectedSchoolYear) return false;
-      // Filter by search query
-      const query = eventSearchQuery.toLowerCase();
-      return (
-        e.titre.toLowerCase().includes(query) ||
-        (e.publicName && e.publicName.toLowerCase().includes(query))
-      );
-    }),
-  );
-
-  const monthYearSidebarFmt = new Intl.DateTimeFormat('fr-FR', {
-    month: 'long',
-    year: 'numeric',
-  });
-
-  let groupedYearEvents = $derived.by(() => {
-    const map = new Map<
-      string,
-      { label: string; events: typeof workspace.events }
-    >();
-    for (const e of filteredYearEvents) {
-      const d = new Date(e.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const monthLabel = monthYearSidebarFmt.format(d);
-      const entry = map.get(key) ?? { label: monthLabel, events: [] };
-      entry.events.push(e);
-      map.set(key, entry);
-    }
-    return [...map.entries()]
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([_, entry]) => entry);
-  });
-
-  const isActiveEvent = $derived(
-    Boolean(page.params.id) ||
-      (page.url.pathname.includes('/events/') &&
-        !page.url.pathname.endsWith('/events')),
-  );
-
   let mobileMenuOpen = $state(false);
-
-  const dateFmt = new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-  });
 
   const hour = new Date().getHours();
   let baseGreeting = 'Bonjour';
@@ -230,7 +160,7 @@
 {/snippet}
 
 {#snippet navMenu()}
-  {#if isActiveEvent && currentEvent}
+  {#if currentEvent}
     {@const ev = currentEvent}
     <!-- The event in view is the section heading (underscore motif). The switcher
          sits inline to its right, demoted: the event name stays the label. -->
@@ -254,67 +184,6 @@
           <Icon class="h-5 w-5" />
           <span>{surfaceLabel(key)}</span>
         </a>
-      {/each}
-    </nav>
-  {:else}
-    <div class="sidebar-section-title flex items-center justify-between">
-      <span>Événements</span>
-      <span
-        class="rounded-full bg-sidebar-border px-1.5 py-0.5 font-mono text-[9px] text-sidebar-foreground"
-      >
-        {filteredYearEvents.length}
-      </span>
-    </div>
-
-    {#if workspace.events.filter((e) => e.schoolYear.label === selectedSchoolYear).length > 5}
-      <div class="px-3 pb-2">
-        <input
-          type="text"
-          placeholder="Rechercher..."
-          bind:value={eventSearchQuery}
-          class="w-full rounded-sm border border-sidebar-border/60 bg-sidebar-hover/30 px-2 py-1.5 text-xs text-sidebar-foreground transition-colors outline-none placeholder:text-sidebar-foreground-muted/60 focus:border-sidebar-border"
-        />
-      </div>
-    {/if}
-
-    <nav class="mb-6 space-y-3 pr-1">
-      {#each groupedYearEvents as group}
-        <div class="space-y-1">
-          <div
-            class="px-3 text-[9px] font-bold tracking-wider text-sidebar-foreground-muted/50 capitalize uppercase select-none"
-          >
-            {group.label}
-          </div>
-          {#each group.events as e (e.id)}
-            <a
-              href={resolve(
-                `/staff/dev/events/${e.id}/${surfaceSegment(reachableSurfaces(e)[0])}`,
-              )}
-              class="group flex items-center gap-3 rounded-sm px-3 py-2 text-xs font-bold text-sidebar-foreground-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground"
-            >
-              <div class="flex min-w-0 flex-1 flex-col">
-                <span
-                  class="truncate font-semibold text-sidebar-foreground group-hover:text-sidebar-foreground"
-                  >{eventDisplayName(e)}</span
-                >
-                <span class="mt-0.5 text-[9px] text-muted-foreground"
-                  >{dateFmt.format(new Date(e.date))}</span
-                >
-              </div>
-              <ChevronRight
-                class="h-3.5 w-3.5 shrink-0 text-sidebar-foreground-muted transition-transform group-hover:translate-x-0.5 group-hover:text-sidebar-foreground"
-              />
-            </a>
-          {/each}
-        </div>
-      {:else}
-        <div class="px-3 py-6 text-center text-xs text-muted-foreground">
-          {#if workspace.events.filter((e) => e.schoolYear.label === selectedSchoolYear).length === 0}
-            Aucun événement cette année.
-          {:else}
-            Aucun résultat pour "{eventSearchQuery}".
-          {/if}
-        </div>
       {/each}
     </nav>
   {/if}
@@ -420,7 +289,7 @@
             <ChevronDown class="h-3.5 w-3.5 text-muted-foreground" />
           </DropdownMenu.Trigger>
           <DropdownMenu.Content align="end" class="w-48 rounded-sm">
-            <DropdownMenu.Label>Année Scolaire</DropdownMenu.Label>
+            <DropdownMenu.Label>Année scolaire</DropdownMenu.Label>
             <DropdownMenu.Separator />
             {#each schoolYears as year}
               <DropdownMenu.Item
