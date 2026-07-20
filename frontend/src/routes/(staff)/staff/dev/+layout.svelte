@@ -11,8 +11,6 @@
   import UserCheck from '@lucide/svelte/icons/user-check';
   import MessageSquareText from '@lucide/svelte/icons/message-square-text';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
-  import CalendarRange from '@lucide/svelte/icons/calendar-range';
-  import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
   import School from '@lucide/svelte/icons/school';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
@@ -92,15 +90,13 @@
     return [...seen].sort((a, b) => b.localeCompare(a));
   });
 
+  // The year is purely a filter over the sidebar's Événements list: switch it and
+  // the list re-scopes. We keep you on the current page (the Événement Actif block
+  // still shows where you are); pick an event from the new year to move on.
   function changeSchoolYear(year: string) {
     const url = new URL(page.url);
     url.searchParams.set('year', year);
-    // If we are currently viewing an event, and that event doesn't belong to the chosen year, we redirect back to stats
-    if (currentEvent && currentEvent.schoolYear.label !== year) {
-      goto(resolve(`/staff/dev/stats?year=${year}`));
-    } else {
-      goto(url.pathname + url.search);
-    }
+    goto(url.pathname + url.search, { keepFocus: true, noScroll: true });
   }
 
   let eventSearchQuery = $state('');
@@ -180,21 +176,6 @@
     }
   });
 
-  const SURFACE_LABELS: Record<string, string> = {
-    inscrits: 'Inscrits',
-    emargement: 'Présences',
-    planning: 'Planning',
-    bilan: 'Bilan',
-    entretiens: 'Entretiens',
-  };
-
-  const activeSurfaceLabel = $derived.by(() => {
-    const pathname = page.url.pathname;
-    const parts = pathname.split('/');
-    const last = parts[parts.length - 1];
-    return SURFACE_LABELS[last] || null;
-  });
-
   function isActive(path: string, exact = false) {
     const basePath = resolve('/').replace(/\/$/, '');
     const fullPath = `${basePath}${path}`;
@@ -233,26 +214,6 @@
 {/snippet}
 
 {#snippet navMenu()}
-  <div class="sidebar-section-title">
-    Vue Globale<span class="text-epi-blue">_</span>
-  </div>
-  <nav class="mb-4 space-y-1">
-    <a
-      href={resolve(`/staff/dev/stats?year=${selectedSchoolYear}`)}
-      class={navLinkClass(isActive('/staff/dev/stats'))}
-    >
-      <LayoutDashboard class="h-4 w-4" />
-      <span>Tableau de bord</span>
-    </a>
-    <a
-      href={resolve(`/staff/dev/calendar?year=${selectedSchoolYear}`)}
-      class={navLinkClass(isActive('/staff/dev/calendar'))}
-    >
-      <CalendarRange class="h-4 w-4" />
-      <span>Planning annuel</span>
-    </a>
-  </nav>
-
   {#if isActiveEvent && currentEvent}
     <div class="sidebar-section-title">
       Événement Actif<span class="text-epi-teal">_</span>
@@ -316,7 +277,7 @@
       </div>
     {/if}
 
-    <nav class="mb-6 max-h-[340px] space-y-3 overflow-y-auto pr-1">
+    <nav class="mb-6 space-y-3 pr-1">
       {#each groupedYearEvents as group}
         <div class="space-y-1">
           <div
@@ -389,7 +350,7 @@
           <ChevronDown class="h-4 w-4 shrink-0 opacity-50" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Content align="end" side="top" class="w-48 rounded-sm">
-          <DropdownMenu.Label>Mon Profil ADM</DropdownMenu.Label>
+          <DropdownMenu.Label>Mon profil</DropdownMenu.Label>
           <DropdownMenu.Separator />
           <form
             action={resolve('/logout')}
@@ -434,14 +395,18 @@
       class="hidden h-14 w-full shrink-0 items-center justify-between border-b border-border bg-card px-8 md:flex"
     >
       <!-- Left Context (Campus) -->
-      <div
-        class="flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase select-none"
-      >
-        <School class="h-4 w-4 text-epi-blue" />
-        <span class="font-bold text-epi-blue">
-          {data.staffProfile?.campus?.name || 'Marseille'}
-        </span>
-      </div>
+      {#if data.staffProfile?.campus?.name}
+        <div
+          class="flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase select-none"
+        >
+          <School class="h-4 w-4 text-epi-blue" />
+          <span class="font-bold text-epi-blue">
+            {data.staffProfile.campus.name}
+          </span>
+        </div>
+      {:else}
+        <div></div>
+      {/if}
 
       <!-- Context Selectors -->
       <div class="flex items-center gap-3">
@@ -493,7 +458,7 @@
             <ChevronDown class="h-3.5 w-3.5 text-muted-foreground" />
           </DropdownMenu.Trigger>
           <DropdownMenu.Content align="end" class="w-48 rounded-sm">
-            <DropdownMenu.Label>Mon Profil ADM</DropdownMenu.Label>
+            <DropdownMenu.Label>Mon profil</DropdownMenu.Label>
             <DropdownMenu.Separator />
             <form
               action={resolve('/logout')}
