@@ -9,7 +9,6 @@ import {
 } from '$lib/domain/eventModules';
 import {
   type EventLifecycleStatus,
-  type LifecycleBounds,
   getEventStatus,
   getLifecycleBounds,
 } from '$lib/domain/eventLifecycle';
@@ -128,31 +127,22 @@ export function requireEventModule(
 }
 
 /**
- * Effective end of an event: its explicit `endDate`, else the start `date`
- * (single-day). A multi-day event carries an explicit `endDate` (config wizard or
- * planning template); nothing is synthesised from a type. Thin server-side alias
- * of the domain `eventWindowEnd`, kept for the object-shaped call sites here.
+ * Effective end of an event for DISPLAY: its explicit `endDate`, else the start
+ * `date` (single-day). A multi-day event carries an explicit `endDate` (config
+ * wizard or planning template); nothing is synthesised from a type. Thin
+ * server-side alias of the domain `eventWindowEnd`, kept for the object-shaped
+ * call sites here.
+ *
+ * NOT for lifecycle status: collapsing a null `endDate` to `date` makes a
+ * single-day event read `past` the instant its start passes. Feed the raw
+ * (nullable) `endDate` straight to `getEventStatus` instead, which treats a null
+ * `endDate` as a whole-day window.
  */
 export function eventEndOrDefault(event: {
   date: Date;
   endDate: Date | null;
 }): Date {
   return eventWindowEnd(event.date, event.endDate);
-}
-
-/**
- * Lifecycle status of an event. Uses the explicit `endDate` (else the single-day
- * start) so the dev workspace and the admin events cockpit can't disagree on
- * whether a running event is `ongoing`.
- */
-export function resolveEventStatus(
-  event: { date: Date; endDate: Date | null },
-  bounds: LifecycleBounds,
-): EventLifecycleStatus {
-  return getEventStatus(
-    { date: event.date, endDate: eventEndOrDefault(event) },
-    bounds,
-  );
 }
 
 export type WorkspaceEventEntry = {
@@ -263,10 +253,10 @@ export async function resolveWorkspaceEvents(
       externalId: e.externalId,
       date: e.date,
       // Effective end for display: explicit endDate, else the single-day start.
-      // `resolveEventStatus` applies the same rule for the lifecycle bucket, so
-      // the two never disagree.
       endDate: eventEndOrDefault(e),
-      status: resolveEventStatus(e, bounds),
+      // Lifecycle bucket from the raw (nullable) endDate: a single-day event is
+      // "ongoing" for its whole day, a multi-day one until its endDate.
+      status: getEventStatus(e, bounds),
       schoolYear: schoolYearOf(e.date, timezone),
       monthKey: toDateKey(e.date, timezone).slice(0, 7),
       modules: e.modules.map((m) => m.moduleKey).filter(isEventModuleKey),

@@ -9,11 +9,11 @@ import {
 } from '$lib/domain/eventModules';
 import { fromWallClock, toDateKey } from '$lib/domain/planningTime';
 import {
+  getEventStatus,
   getLifecycleBounds,
   type LifecycleBounds,
   type EventLifecycleStatus,
 } from '$lib/domain/eventLifecycle';
-import { resolveEventStatus } from './stageContext';
 import {
   eventConfigState,
   type EventConfigState,
@@ -137,10 +137,10 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
     const tz = e.campus.timezone;
     const sy = schoolYearOf(e.date, tz);
     const startDateKey = toDateKey(e.date, tz);
-    // Same window rule as the dev workspace (see `resolveEventStatus`): the
-    // explicit endDate (else the single-day start) decides the bucket, so the
-    // cockpit and the dev space agree.
-    const status = resolveEventStatus(e, boundsFor(tz));
+    // Same window rule as the dev workspace (both call `getEventStatus`): the
+    // raw endDate (null = single-day, a whole-day window) decides the bucket, so
+    // the cockpit and the dev space agree.
+    const status = getEventStatus(e, boundsFor(tz));
     const present = e.modules.filter((m) => isEventModuleKey(m.moduleKey));
     const modules = present.map((m) => m.moduleKey as EventModuleKey);
     const moduleSettings: Record<string, unknown> = {};
