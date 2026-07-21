@@ -4,31 +4,42 @@ description: Generate branch name, commit message, and PR title/description for 
 disable-model-invocation: true
 ---
 
-Look at the current uncommitted/staged changes (run `git diff` and `git diff --staged`) and the conversation context to understand what was done.
+Figure out what's being shipped, then write the artifacts.
+
+## Scope the diff
+
+`/ship` is almost always preparing a PR, so the payload is **every commit on the feature branch plus any uncommitted changes**, not just the working tree. Default to whole-branch scope; only narrow when the user explicitly says so.
+
+1. **Pick the base.** Parse the user's args first — `From <branch> onto <base>`, `onto <base>`, and `--base <base>` all set the base explicitly. Otherwise infer: if the repo has a `dev` branch and the current branch was cut from it, prefer `dev`; otherwise fall back to `gh repo view --json defaultBranchRef` (or `main`).
+2. **Fetch and survey the branch.** `git fetch origin <base>`, then `git log --oneline origin/<base>..HEAD` and `git diff --name-status origin/<base>...HEAD`. If a wrapping shell swallows large diff output, redirect with `--output=/tmp/<file>` and read that.
+3. **Check uncommitted work separately.** `git status` + `git diff` + `git diff --staged`. If anything is uncommitted, call it out and ask whether to ship in the same PR or split — don't quietly fold it into the branch summary.
+4. **For long branches (10+ commits), group before writing.** Read every commit subject, cluster them into themes, then write the PR body from the themes. For short branches (1–2 commits), summarizing from `git log` alone is fine.
 
 ## Generate
 
-1. **Branch name** — `type/short-kebab-description` (e.g. `feat/per-campus-timezone`, `fix/auth-token-expiry`)
-2. **Commit message** — Conventional Commits format matching this repo's style: `type(scope): short description` with an optional body explaining *why*, not *what*. Keep subject under 50 chars.
-3. **PR title** — `type: short human-readable title` (under 70 chars)
-4. **PR description** — Markdown with `## Summary` (3-5 bullet points), `## Context` (1-2 sentences on *why*), and `## Test plan` (checklist)
+1. **Branch name** — `type/short-kebab-description` (e.g. `feat/per-campus-timezone`, `fix/auth-token-expiry`). If you're already on the feature branch, reuse its name.
+2. **Commit message** — Conventional Commits matching the repo's existing style (check `git log --oneline -10`): `type(scope): short description`, subject under 50 chars, optional body explaining *why*.
+3. **PR title** — `type: short human-readable title` (under 70 chars).
+4. **PR description** — Markdown with `## Summary` (3–5 bullets), `## Context` (1–2 sentences on *why*), `## Test plan` (checklist). For branches with new migrations or env vars, add `## Migrations` and/or `## Env vars` sections so reviewers don't miss them.
 
 ## Write artifacts
 
-Use the `Write` tool to create these files at the **repo root** (run `git rev-parse --show-toplevel` to find it):
+Write these files at the **repo root** (find it with `git rev-parse --show-toplevel`). If `.ship/` already holds artifacts from a previous run, `rm -f .ship/*` first — the Write tool refuses to overwrite existing files it hasn't Read, and retrying the same Write won't fix that.
 
-- `.ship/branch.txt` — branch name only, no trailing newline issues
-- `.ship/commit.txt` — full commit message (subject + blank line + body)
-- `.ship/pr-title.txt` — PR title
-- `.ship/pr-body.md` — PR description markdown
+- `.ship/branch.txt` — branch name, single line, nothing else.
+- `.ship/commit.txt` — full commit message (subject + blank line + body).
+- `.ship/pr-title.txt` — PR title, single line.
+- `.ship/pr-body.md` — PR description markdown.
 
-This avoids the user having to copy multi-line markdown from the terminal (line breaks get mangled). `git commit -F` and `gh pr create --body-file` consume these files verbatim, preserving formatting exactly.
+`git commit -F` and `gh pr create --body-file` render these files verbatim. The whole reason this skill exists is to avoid copy-pasting multi-line markdown through the terminal where newlines and bullets get mangled.
+
+**Do not hard-wrap paragraphs or bullets in `commit.txt` or `pr-body.md`.** One bullet = one line, however long. One paragraph = one line. Don't insert manual line breaks at ~72 cols — that re-introduces the exact mangling the file workflow is built to prevent. The consumer (`git commit -F`, `gh pr create --body-file`, GitHub's renderer) handles wrapping. Hard newlines only between distinct paragraphs / list items / sections.
 
 If `.ship/` is not already in `.gitignore`, mention it to the user once.
 
 ## Output to user
 
-After writing, output a short summary block:
+Print a short summary block:
 
 ```
 Branch:  <name>
@@ -36,24 +47,24 @@ Title:   <pr title>
 Files:   .ship/{branch,commit,pr-title,pr-body}.{txt,md}
 ```
 
-Then a fenced `sh` block with ready-to-run commands. Detect the PR base branch from context (default `main`, or whatever the user specified — e.g. for a stacked PR). Example:
+Then a fenced `sh` block with the commands to run. Skip `git checkout -b` when the user is already on the feature branch (call this out explicitly). Skeleton:
 
 ```sh
-git checkout -b "$(cat .ship/branch.txt)"
-git add -A && git commit -F .ship/commit.txt
+git checkout -b "$(cat .ship/branch.txt)"   # omit if already on the branch
+git add <explicit paths>                     # see note below
+git commit -F .ship/commit.txt
 git push -u origin "$(cat .ship/branch.txt)"
 gh pr create --base <base> \
   --title "$(cat .ship/pr-title.txt)" \
   --body-file .ship/pr-body.md
 ```
 
-If the user is already on a feature branch (not `main`/`dev`), skip the `git checkout -b` line and note it.
+Prefer explicit paths over `git add -A` whenever `git status` shows untracked files that aren't part of the change (scratch notes, summary dumps, screenshots). Surface them to the user so they can decide.
 
 ## Rules
 
-- Match the repo's existing commit style (check `git log --oneline -10`)
-- Be specific — reference actual models, files, features changed
-- PR description should be scannable, not verbose
-- Do NOT run any git commands beyond read-only ones (status, diff, log, rev-parse)
-- Do NOT create commits, branches, or PRs — only write metadata files and output commands for the user to run
- 
+- Match the repo's existing commit style — check `git log --oneline -10` before writing the subject.
+- Reference actual symbols, models, files, routes — never generic phrases like "various improvements".
+- **Never hard-wrap lines inside `commit.txt` or `pr-body.md`.** One line per bullet / paragraph / section.
+- Default scope is the whole branch vs the base branch. Only narrow when the user explicitly asks for a working-tree-only summary.
+- Read-only git only: `status`, `diff`, `log`, `rev-parse`, `fetch`, `merge-base`, `show`. Never `commit`, `checkout`, `branch`, `push`, `reset`, `rebase`. The user runs the write commands themselves.

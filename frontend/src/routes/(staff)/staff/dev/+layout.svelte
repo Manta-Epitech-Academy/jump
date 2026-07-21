@@ -1,5 +1,6 @@
 <script lang="ts">
   import BrandMark from '$lib/components/layout/BrandMark.svelte';
+  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
   import LogOut from '@lucide/svelte/icons/log-out';
   import Users from '@lucide/svelte/icons/users';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -9,6 +10,7 @@
   import UserCheck from '@lucide/svelte/icons/user-check';
   import MessageSquareText from '@lucide/svelte/icons/message-square-text';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import School from '@lucide/svelte/icons/school';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -18,6 +20,7 @@
   import { fly, fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
+  import { goto } from '$app/navigation';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
   import EventWorkspaceSwitcher from '$lib/components/dev/EventWorkspaceSwitcher.svelte';
   import {
@@ -27,6 +30,7 @@
     type EventSurfaceKey,
   } from '$lib/domain/eventModules';
   import { eventDisplayName } from '$lib/domain/event';
+  import { schoolYearOf } from '$lib/domain/schoolYear';
 
   // Icons live with the component (Svelte components can't sit in the domain
   // layer); order/label/reachability are single-sourced in `eventModules`.
@@ -41,17 +45,7 @@
   let { children, data } = $props();
   let user = $derived(data.user as any);
 
-  // The cohort workspace: the events this campus configured (those with ≥1
-  // module). The "current" event is the one in the URL when it is one of them,
-  // else the resolved default. Its module set drives which surfaces the sidebar
-  // shows; switching events re-renders the nav for the picked event.
   let workspace = $derived(data.workspace);
-  // Remember the last event actually browsed. A talent fiche is campus-scoped, so
-  // its URL carries a talent id, not an event id; without this the sidebar would
-  // snap from the event you were in back to the resolved default the instant you
-  // open a profile. Resolution order: the event in the path, an explicit `?event=`
-  // (the entretiens fiche link sets it, so a reload or deep-link stays put), the
-  // last event browsed this session, then the resolved default.
   let lastEventId = $state<string | null>(null);
   $effect(() => {
     const id = page.params.id;
@@ -65,6 +59,41 @@
       workspace.events.find((e) => e.id === lastEventId) ??
       workspace.current,
   );
+
+  // The academic year shown in the header: a context readout of the event in
+  // view, falling back to the live school year only when the campus has no
+  // events. Single-sourced through `schoolYearOf` so the label format matches
+  // the events' own `schoolYear.label`.
+  const selectedSchoolYear = $derived(
+    currentEvent?.schoolYear.label ??
+      schoolYearOf(new Date(), data.timezone).label,
+  );
+
+  const schoolYears = $derived.by(() => {
+    const seen = new Set<string>();
+    for (const e of workspace.events) {
+      seen.add(e.schoolYear.label);
+    }
+    if (seen.size === 0) {
+      seen.add(schoolYearOf(new Date(), data.timezone).label);
+    }
+    return [...seen].sort((a, b) => b.localeCompare(a));
+  });
+
+  // Picking a year is a context jump: land on that year's first event (its first
+  // reachable surface). A year with no reachable event leaves you where you are.
+  function changeSchoolYear(year: string) {
+    if (currentEvent?.schoolYear.label === year) return;
+    const target = workspace.events
+      .filter((e) => e.schoolYear.label === year && reachableSurfaces(e).length)
+      .sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      )[0];
+    if (!target) return;
+    const seg = surfaceSegment(reachableSurfaces(target)[0]);
+    goto(resolve(`/staff/dev/events/${target.id}/${seg}`));
+  }
+
   let mobileMenuOpen = $state(false);
 
   const hour = new Date().getHours();
@@ -119,19 +148,22 @@
 </script>
 
 {#snippet sidebarBrand()}
-  <BrandMark
+  <a
     href={resolve('/staff/dev')}
-    tagline="Gestion des stages et du coding club"
-    campus={data.staffProfile?.campus?.name}
-  />
+    class="flex items-center gap-2.5 px-4 py-4.5 text-white transition-opacity hover:opacity-95"
+  >
+    <EpitechLogo tone="dark" class="h-7 w-auto shrink-0" />
+    <span class="font-heading text-lg leading-none">
+      Jump<span class="text-epi-teal">_</span>
+    </span>
+  </a>
 {/snippet}
 
 {#snippet navMenu()}
   {#if currentEvent}
     {@const ev = currentEvent}
-    <!-- The event in view is the section heading (underscore motif). With more
-         than one workspace event, a small "go to" button beside it opens the
-         picker - the title stays the prominent label, the switcher is demoted. -->
+    <!-- The event in view is the section heading (underscore motif). The switcher
+         sits inline to its right, demoted: the event name stays the label. -->
     <div class="sidebar-section-title flex items-center gap-1.5">
       <span class="flex min-w-0 flex-1 items-baseline">
         <span class="truncate">{eventDisplayName(ev)}</span>
@@ -142,12 +174,6 @@
       {/if}
     </div>
     <nav class="space-y-1">
-      <!-- Surfaces are per event, not campus flags, so two events on one campus
-           can expose different pages. The reachable set folds the module rows
-           with the data gates (planning needs a schedule, bilan needs a live
-           form) in one place (`reachableSurfaces`), so this nav, the event
-           switcher and the dev landing all agree on what a dev can open. Labels
-           stay event-type-agnostic, so the dev space shows coding clubs too. -->
       {#each reachableSurfaces(ev) as key (key)}
         {@const seg = surfaceSegment(key)}
         {@const Icon = SURFACE_ICONS[key]}
@@ -193,7 +219,7 @@
           <ChevronDown class="h-4 w-4 shrink-0 opacity-50" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Content align="end" side="top" class="w-48 rounded-sm">
-          <DropdownMenu.Label>Mon Profil ADM</DropdownMenu.Label>
+          <DropdownMenu.Label>Mon profil</DropdownMenu.Label>
           <DropdownMenu.Separator />
           <form
             action={resolve('/logout')}
@@ -230,10 +256,104 @@
       {@render navMenu()}
     </div>
     <ImpersonationCard />
-    {@render sidebarFooter()}
   </aside>
 
   <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+    <!-- Desktop Header -->
+    <header
+      class="hidden h-14 w-full shrink-0 items-center justify-between border-b border-border bg-card px-8 md:flex"
+    >
+      <!-- Left Context (Campus) -->
+      {#if data.staffProfile?.campus?.name}
+        <div
+          class="flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase select-none"
+        >
+          <School class="h-4 w-4 text-epi-blue" />
+          <span class="font-bold text-epi-blue">
+            {data.staffProfile.campus.name}
+          </span>
+        </div>
+      {:else}
+        <div></div>
+      {/if}
+
+      <!-- Context Selectors -->
+      <div class="flex items-center gap-3">
+        <!-- Academic Year Dropdown -->
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger
+            class="flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-border bg-background px-3 text-xs font-bold text-foreground hover:bg-muted/50"
+          >
+            <CalendarDays class="h-4 w-4 text-muted-foreground" />
+            <span>{selectedSchoolYear}</span>
+            <ChevronDown class="h-3.5 w-3.5 text-muted-foreground" />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content align="end" class="w-48 rounded-sm">
+            <DropdownMenu.Label>Année scolaire</DropdownMenu.Label>
+            <DropdownMenu.Separator />
+            {#each schoolYears as year}
+              <DropdownMenu.Item
+                class="cursor-pointer text-xs {selectedSchoolYear === year
+                  ? 'bg-accent font-bold'
+                  : ''}"
+                onclick={() => changeSchoolYear(year)}
+              >
+                {year}
+              </DropdownMenu.Item>
+            {/each}
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+
+        <!-- User Profile Dropdown -->
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger
+            class="flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-border bg-background pr-3 pl-2 text-xs font-bold text-foreground hover:bg-muted/50"
+          >
+            <Avatar.Root class="h-6 w-6 rounded-full bg-muted">
+              <Avatar.Image
+                src={user?.image ?? undefined}
+                alt={user?.name ?? ''}
+                class="object-cover"
+              />
+              <Avatar.Fallback
+                class="bg-transparent text-[10px] font-bold uppercase"
+              >
+                {getInitials(data.user)}
+              </Avatar.Fallback>
+            </Avatar.Root>
+            <span class="max-w-[120px] truncate"
+              >{user?.name || user?.username}</span
+            >
+            <ChevronDown class="h-3.5 w-3.5 text-muted-foreground" />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content align="end" class="w-48 rounded-sm">
+            <DropdownMenu.Label>Mon profil</DropdownMenu.Label>
+            <DropdownMenu.Separator />
+            <form
+              action={resolve('/logout')}
+              method="POST"
+              onsubmit={() =>
+                track('logout', {
+                  kind: 'dev',
+                  sessionDurationSec: secondsBetween(
+                    page.data.session?.createdAt as Date | string | undefined,
+                  ),
+                })}
+            >
+              <button type="submit" class="w-full cursor-pointer">
+                <DropdownMenu.Item class="cursor-pointer text-destructive"
+                  ><LogOut class="mr-2 h-4 w-4" /> Déconnexion</DropdownMenu.Item
+                >
+              </button>
+            </form>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+
+        <ModeToggle />
+      </div>
+    </header>
+
+    <!-- Mobile Header -->
     <header
       class="z-40 flex h-14 w-full shrink-0 items-center justify-between border-b border-border bg-background px-4 md:hidden"
     >
@@ -260,6 +380,7 @@
           href={resolve('/staff/dev')}
           tone="auto"
           orientation="inline"
+          campus={data.staffProfile?.campus?.name}
         />
       </div>
     </header>
