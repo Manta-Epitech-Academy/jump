@@ -29,6 +29,7 @@ import {
 import { INSCRIT_PARTICIPATION_SELECT } from './components/types';
 import type { InscritRow, InscritsCohort } from './components/types';
 import { stageCountdown } from '$lib/domain/eventPresence';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 
 // The sidebar cards are narrower than the dashboard's side-by-side breakdowns,
 // so they show a shorter head with the tail folded into "Autres".
@@ -100,7 +101,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     activeInterest?.id ?? null,
   );
 
-  const scopedAnd = [{ eventId: event.id }, ...originAnd];
+  const scopedAnd = [
+    { eventId: event.id },
+    visibleParticipationWhere,
+    ...originAnd,
+  ];
   const where = scopedAnd.length === 1 ? scopedAnd[0] : { AND: scopedAnd };
 
   // Stream the cohort: the page shell (header + countdown + rail skeleton) paints
@@ -122,7 +127,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         // The interests sidebar shows only tech interests (the recruitment
         // signal); the lycée breakdown stays the full origin picture.
         rankInterestsByCohort(db, event.id, { techOnly: true }),
-        db.participation.count({ where: { eventId: event.id } }),
+        db.participation.count({
+          where: { eventId: event.id, ...visibleParticipationWhere },
+        }),
       ]);
 
     const rows: InscritRow[] = participations.map((p) => {
@@ -149,6 +156,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         studentSigned: t.rulesSignedAt != null,
         email: t.user?.email ?? null,
         parentEmail: t.parentEmail,
+        sfMemberStatus: p.sfMemberStatus,
       };
     });
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Database from '@lucide/svelte/icons/database';
   import Pencil from '@lucide/svelte/icons/pencil';
   import FilterX from '@lucide/svelte/icons/filter-x';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
@@ -17,6 +18,7 @@
   import EventModuleIcon from '$lib/components/events/EventModuleIcon.svelte';
   import EventStateBadge from '$lib/components/events/EventStateBadge.svelte';
   import EventConfigWizard from '$lib/components/events/EventConfigWizard.svelte';
+  import AdminSfStatusInspectorDialog from '$lib/components/events/AdminSfStatusInspectorDialog.svelte';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
@@ -91,7 +93,7 @@
       defaultSortDir: 'desc',
       class: 'w-24',
     },
-    { key: 'actions', label: '', align: 'right', class: 'w-16' },
+    { key: 'actions', label: '', align: 'right', class: 'w-24' },
   ];
 
   // Sort "État" most-work-first: à configurer, then prêt à publier, then visible.
@@ -233,6 +235,17 @@
   function openEdit(e: AdminEventVM) {
     editing = e;
     open = true;
+  }
+
+  // ─── Inspector dialog ───────────────────────────────────────────────────
+  let inspectorOpen = $state(false);
+  let inspectingEventId = $state<string | null>(null);
+  let inspectingEventTitle = $state<string>('');
+
+  function openInspector(e: AdminEventVM) {
+    inspectingEventId = e.id;
+    inspectingEventTitle = e.displayName;
+    inspectorOpen = true;
   }
 
   // Deep-link from the admin dashboard: `?event=<id>` opens that event's config
@@ -566,18 +579,33 @@
       <Table.Cell class="text-right tabular-nums">{e.participations}</Table.Cell
       >
       <Table.Cell class="text-right">
-        <Button
-          variant="ghost"
-          size="icon"
-          class="text-muted-foreground opacity-60 transition-opacity group-hover/row:opacity-100"
-          onclick={(ev) => {
-            ev.stopPropagation();
-            openEdit(e);
-          }}
-          aria-label="Configurer {e.displayName}"
-        >
-          <Pencil class="h-4 w-4" />
-        </Button>
+        <div class="flex items-center justify-end gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            class="text-muted-foreground opacity-60 transition-opacity group-hover/row:opacity-100"
+            onclick={(ev) => {
+              ev.stopPropagation();
+              openInspector(e);
+            }}
+            title="Inspecter les statuts Salesforce de cet événement"
+            aria-label="Inspecter les statuts Salesforce de {e.displayName}"
+          >
+            <Database class="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="text-muted-foreground opacity-60 transition-opacity group-hover/row:opacity-100"
+            onclick={(ev) => {
+              ev.stopPropagation();
+              openEdit(e);
+            }}
+            aria-label="Configurer {e.displayName}"
+          >
+            <Pencil class="h-4 w-4" />
+          </Button>
+        </div>
       </Table.Cell>
     {/snippet}
 
@@ -599,18 +627,33 @@
             {e.campusName} · {e.dateLabel}
           </p>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="relative z-10 shrink-0 text-muted-foreground"
-          onclick={(ev) => {
-            ev.stopPropagation();
-            openEdit(e);
-          }}
-          aria-label="Configurer {e.displayName}"
-        >
-          <Pencil class="h-4 w-4" />
-        </Button>
+        <div class="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            class="relative z-10 shrink-0 text-muted-foreground"
+            onclick={(ev) => {
+              ev.stopPropagation();
+              openInspector(e);
+            }}
+            title="Inspecter les statuts Salesforce"
+            aria-label="Inspecter les statuts Salesforce de {e.displayName}"
+          >
+            <Database class="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="relative z-10 shrink-0 text-muted-foreground"
+            onclick={(ev) => {
+              ev.stopPropagation();
+              openEdit(e);
+            }}
+            aria-label="Configurer {e.displayName}"
+          >
+            <Pencil class="h-4 w-4" />
+          </Button>
+        </div>
       </div>
       <div class="mt-3 flex items-center gap-2">
         <EventModulesCell modules={e.modules} />
@@ -649,6 +692,12 @@
     feedbackForms={data.feedbackForms}
     formPreviews={data.formPreviews}
     templates={data.templates}
+  />
+
+  <AdminSfStatusInspectorDialog
+    bind:open={inspectorOpen}
+    eventId={inspectingEventId}
+    eventTitle={inspectingEventTitle}
   />
 
   <Dialog.Root bind:open={bulkOpen}>

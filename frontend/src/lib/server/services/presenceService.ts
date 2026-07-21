@@ -2,6 +2,7 @@ import { prisma } from '$lib/server/db';
 import { scopedPrisma } from '$lib/server/db/scoped';
 import { recomputeEventsCountBulk } from '$lib/server/services/xpService';
 import type { PresenceSlot } from '$lib/domain/eventPresence';
+import { SF_VISIBLE_STATUSES } from '$lib/domain/sfMemberStatus';
 
 // Émargement is autonomous from Participation, but the roster of who is expected
 // is still read from Participation (the Salesforce campaign-member mirror).
@@ -88,7 +89,13 @@ export async function markAllPresentInSlot(
   if (manualClosure) return { status: 'closed' };
 
   const roster = await db.participation.findMany({
-    where: { eventId },
+    where: {
+      eventId,
+      OR: [
+        { sfMemberStatus: { in: [...SF_VISIBLE_STATUSES] } },
+        { sfMemberStatus: null },
+      ],
+    },
     select: { talentId: true },
   });
 

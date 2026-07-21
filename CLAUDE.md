@@ -21,13 +21,14 @@ All commands run from `frontend/` using **Bun**. The shell's cwd often already I
 | Lint (check only)      | `bun run lint`        |
 | Generate Prisma client | `bun run db:generate` |
 | Run migrations         | `bun run db:migrate`  |
-| Prisma Studio          | `bun run db:studio`   |
+| Unit & Integration tests | `bun run test`        |
+| E2E Browser tests     | `bun run test:e2e`    |
 
 **Docker** (from repo root): `docker-compose up` starts PostgreSQL + SvelteKit.
 
 **Git worktrees:** a freshly-added worktree has no `.env` (untracked) and no `node_modules`. The `.githooks/post-checkout` hook auto-provisions it on creation — links `.env` from the main checkout and runs `bun install`. If your editor adds worktrees without firing git hooks, run `bun run setup:worktree` once to do the same.
 
-No test framework is configured — there are no automated tests.
+**Testing Philosophy:** Prefer high-value, critical-path tests over sheer test volume. Never create redundant or useless placeholder tests. Focus exclusively on core domain logic, security & role permissions, bug-regression edge cases, and critical end-to-end user flows.
 
 **When a `package.json` script exists for the task, use `bun run <script>` rather than invoking the tool directly.** The scripts often set env vars (`KIT_OUTDIR=.svelte-kit-check`) or flags (`--tsconfig ./tsconfig.check.json`) that a bare `bun svelte-check` or `bunx svelte-check` will silently skip — leading to types being written to the default `.svelte-kit/` dir or the wrong strictness. For one-shots without a matching script, `bun <tool>` is fine; reach for `bunx` only when the tool isn't installed locally.
 

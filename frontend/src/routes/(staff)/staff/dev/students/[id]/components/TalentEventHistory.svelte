@@ -1,20 +1,22 @@
 <script lang="ts">
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import { formatDateFr } from '$lib/utils';
-  import { eventDisplayName } from '$lib/domain/event';
+  import { presenceLabel } from '$lib/domain/sfMemberStatus';
 
-  export type PastEvent = {
+  // Past events only, resolved server-side (name + présent/absent already
+  // decided): this component just paints the list.
+  export type TalentEventHistoryEntry = {
     id: string;
-    titre: string;
-    publicName?: string | null;
+    name: string;
     date: string | Date;
+    presence: 'present' | 'absent' | null;
   };
 
   let {
     events = [],
     timezone,
   }: {
-    events: PastEvent[];
+    events: TalentEventHistoryEntry[];
     timezone: string;
   } = $props();
 </script>
@@ -39,10 +41,20 @@
        une colonne nette à droite. -->
   <ul class="max-h-64 space-y-2 overflow-y-auto pr-1 text-sm">
     {#each events as ev (ev.id)}
-      <li class="flex items-baseline gap-4">
+      <li class="flex items-center gap-4">
         <span class="min-w-0 flex-1 truncate font-medium text-foreground">
-          {eventDisplayName(ev)}
+          {ev.name}
         </span>
+        {#if ev.presence}
+          <span
+            class="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium {ev.presence ===
+            'present'
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
+              : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'}"
+          >
+            {presenceLabel(ev.presence)}
+          </span>
+        {/if}
         <span
           class="shrink-0 font-mono text-xs text-muted-foreground tabular-nums"
         >

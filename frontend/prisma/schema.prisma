@@ -755,11 +755,12 @@ model EventConfig_TemplateModule {
 }
 
 model Participation {
-  id       String  @id @default(cuid())
-  talentId String
-  eventId  String
-  campusId String
-  bringPc  Boolean @default(false)
+  id             String  @id @default(cuid())
+  talentId       String
+  eventId        String
+  campusId       String
+  bringPc        Boolean @default(false)
+  sfMemberStatus String? // raw Salesforce CampaignMember status, e.g. CONNECTED/READY/MEET/DESISTED
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -772,6 +773,7 @@ model Participation {
 
   @@unique([talentId, eventId])
   @@index([eventId])
+  @@index([eventId, sfMemberStatus])
   @@index([campusId])
   @@index([talentId])
   @@index([talentId, campusId])

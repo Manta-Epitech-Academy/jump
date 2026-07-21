@@ -149,7 +149,7 @@
         <!-- New Visual Momentum section: Event History Timeline -->
         <EpiSection title="Historique événements" accent="blue">
           <TalentEventHistory
-            events={data.eventHistory ?? []}
+            events={data.eventHistory}
             timezone={data.timezone}
           />
         </EpiSection>

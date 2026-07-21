@@ -23,7 +23,12 @@ import { recordImageRightsDecision } from '$lib/server/services/imageRightsServi
 import { imageRightsCorrectionSchema } from '$lib/validation/imageRights';
 import type { Communication } from '$lib/domain/communications';
 import { getTalentXpStory } from '$lib/server/services/xpStoryService';
-import { listAttendedEvents } from '$lib/server/talent/attendedEvents';
+import {
+  visibleParticipationWhere,
+  pastEventPresence,
+} from '$lib/domain/sfMemberStatus';
+import { eventDisplayName } from '$lib/domain/event';
+import { getLifecycleBounds, getEventStatus } from '$lib/domain/eventLifecycle';
 
 // The scoped-down fiche keeps only the latest handful of communications, shown
 // one-line each in the sticky right rail, no pagination. Volume per talent is
@@ -46,7 +51,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       completedInterviewCount,
       xpStory,
       noteRows,
-      eventHistory,
     ] = await Promise.all([
       db.talent.findUniqueOrThrow({
         where: { id: params.id },
@@ -65,9 +69,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         },
       }),
       db.participation.findMany({
-        where: { talentId: params.id },
+        where: { talentId: params.id, ...visibleParticipationWhere },
         select: {
           id: true,
+          sfMemberStatus: true,
           stageCompliance: {
             select: { charteSigned: true, updatedAt: true },
           },
@@ -75,6 +80,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
             select: {
               id: true,
               titre: true,
+              publicName: true,
               date: true,
               endDate: true,
               modules: { select: { moduleKey: true } },
@@ -115,7 +121,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         orderBy: { createdAt: 'desc' },
         include: NOTE_INCLUDE,
       }),
-      listAttendedEvents(params.id, { timeZone: timezone }),
     ]);
 
     const notes = noteRows.map(serializeNote);
@@ -148,6 +153,26 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     // shows it under). `participations` is `event.date desc`, so [0] is the
     // latest one the talent attended.
     const primaryComplianceParticipation = participations[0] ?? null;
+
+    // "Historique événements" is a past-only view (Plan 01, phase E): keep the
+    // events already over, newest first (participations are `event.date desc`),
+    // and resolve each SF status to a présent/absent outcome here so the raw
+    // Salesforce vocabulary never reaches the view.
+    const historyBounds = getLifecycleBounds(timezone);
+    const eventHistory = participations
+      .filter(
+        (p) =>
+          getEventStatus(
+            { date: p.event.date, endDate: p.event.endDate },
+            historyBounds,
+          ) === 'past',
+      )
+      .map((p) => ({
+        id: p.event.id,
+        name: eventDisplayName(p.event),
+        date: p.event.date,
+        presence: pastEventPresence(p.sfMemberStatus),
+      }));
 
     // Interview conduct surface. The orientation interview is 1:1 with a
     // participation (one per person per event) and is offered on any event that
@@ -291,7 +316,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       student,
       notes,
       xpStory,
-      participations,
       eventHistory,
       primaryComplianceParticipation,
       communications,

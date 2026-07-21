@@ -85,6 +85,8 @@
 
   const presenceIndex = $derived(indexPresences(presences));
 
+  const isSingleDayEvent = $derived(slots.length <= 2);
+
   function cell(row: PresenceRow): PresenceCellData {
     if (!activeSlot) return cellOf(presenceIndex, row.talentId, '', 'morning');
     const c = cellOf(
@@ -94,7 +96,11 @@
       activeSlot.slot,
     );
     // Unmarked talent in a closed créneau reads as absent (projection, not a row).
-    const status = effectiveStatus(c.status, isActiveClosed);
+    // For single-day events with no manual Jump mark, SF MEET status falls back to present.
+    const status = effectiveStatus(c.status, isActiveClosed, {
+      sfMemberStatus: row.sfMemberStatus,
+      isSingleDayEvent,
+    });
     return status === c.status ? c : { status, source: c.source };
   }
 

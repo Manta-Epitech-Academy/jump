@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm, type SuperValidated } from 'sveltekit-superforms';
+  import Database from '@lucide/svelte/icons/database';
   import CalendarCog from '@lucide/svelte/icons/calendar-cog';
   import LayoutTemplate from '@lucide/svelte/icons/layout-template';
   import Bookmark from '@lucide/svelte/icons/bookmark';
@@ -23,6 +24,7 @@
   import * as Select from '$lib/components/ui/select';
   import InfoTooltip from '$lib/components/ui/info-tooltip/InfoTooltip.svelte';
   import EventModuleIcon from '$lib/components/events/EventModuleIcon.svelte';
+  import AdminSfStatusInspectorDialog from '$lib/components/events/AdminSfStatusInspectorDialog.svelte';
   import {
     EVENT_MODULE_DEFS,
     EVENT_MODULE_KEYS,
@@ -50,6 +52,7 @@
     moduleSettings: Record<string, unknown>;
     devActivated: boolean;
     feedbackFormId: string;
+    participations: number;
   };
 
   type TemplateVM = {
@@ -108,6 +111,7 @@
   // another event (it would reappear only on a full reload).
   let workingTemplates = $state<TemplateVM[]>(untrack(() => [...templates]));
   let confirmingDeleteId = $state<string | null>(null);
+  let inspectorOpen = $state(false);
 
   // Fill all module keys with their defaults, merged over any saved/template
   // values, so a freshly-toggled module already has a typed settings object.
@@ -140,6 +144,7 @@
     $form.feedbackFormId = e.feedbackFormId;
     selectedTemplateId = null;
     confirmingDeleteId = null;
+    dismissHighCount = false;
     // The catalogue mirrors (workingTemplates / workingForms / workingPreviews)
     // are NOT reseeded here: they are seeded once at mount and kept across opens
     // so an optimistic save/duplicate survives switching to another event.
@@ -223,8 +228,15 @@
   // promise that silently does nothing. The displayed state is the EFFECTIVE
   // visibility (gate AND >=1 module), so toggling the last module off reads as
   // not-visible immediately, matching what the dev space will show.
-  const canActivate = $derived($form.modules.length > 0);
+  const canActivate = $derived(
+    $form.modules.length > 0 &&
+      $form.publicName.trim().length > 0 &&
+      $form.endDate !== '',
+  );
   const effectivelyVisible = $derived($form.devActivated && canActivate);
+
+  // Local state for participant count warning
+  let dismissHighCount = $state(false);
 
   // ─── Feedback form picker (bilan sub-option) ─────────────────────────────
   const NO_FORM = 'default';
@@ -537,6 +549,31 @@
         class="flex min-h-0 flex-1 flex-col"
       >
         <div class="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:px-6">
+          {#if editing && editing.participations > 100 && !dismissHighCount}
+            <div
+              class="flex items-start gap-3 rounded-sm border border-amber-500/40 bg-amber-500/5 p-3 text-amber-600"
+            >
+              <TriangleAlert class="mt-0.5 size-4 shrink-0" />
+              <div class="flex-1 space-y-1">
+                <p class="text-xs font-medium">
+                  Nombre de participants inhabituellement élevé ({editing.participations}).
+                </p>
+                <p class="text-[11px] text-amber-700/80">
+                  Vérifiez que la campagne Salesforce est bien celle de
+                  l'événement.
+                </p>
+              </div>
+              <button
+                type="button"
+                class="shrink-0 text-amber-600 hover:text-amber-800"
+                onclick={() => (dismissHighCount = true)}
+                aria-label="Ignorer l'avertissement"
+              >
+                <X class="size-4" />
+              </button>
+            </div>
+          {/if}
+
           <div class="space-y-4">
             <div class="space-y-2">
               <Label for="publicName" class="flex items-center gap-1.5">
@@ -901,11 +938,23 @@
                   </span>
                 {:else}
                   <span
-                    class="flex items-center gap-1.5 text-[11px] font-medium text-amber-600"
+                    class="flex flex-col items-start gap-1 text-[11px] font-medium text-amber-600"
                   >
-                    <TriangleAlert class="size-3.5 shrink-0" />
-                    Activez au moins une section ci-dessus pour rendre l'événement
-                    visible.
+                    <span class="flex items-center gap-1.5">
+                      <TriangleAlert class="size-3.5 shrink-0" />
+                      Pour rendre l'événement visible, il faut :
+                    </span>
+                    <ul class="list-disc pl-5">
+                      {#if $form.modules.length === 0}
+                        <li>Activer au moins une section</li>
+                      {/if}
+                      {#if $form.publicName.trim().length === 0}
+                        <li>Renseigner un nom public</li>
+                      {/if}
+                      {#if $form.endDate === ''}
+                        <li>Renseigner une date de fin</li>
+                      {/if}
+                    </ul>
                   </span>
                 {/if}
               </div>
@@ -923,16 +972,29 @@
         <Dialog.Footer
           class="flex-col gap-2 border-t px-4 py-4 sm:flex-row sm:items-center sm:px-6"
         >
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            class="sm:mr-auto"
-            onclick={openSaveTemplate}
-          >
-            <Bookmark class="mr-1.5 h-4 w-4" />
-            Enregistrer comme modèle…
-          </Button>
+          <div class="flex flex-wrap items-center gap-2 sm:mr-auto">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onclick={openSaveTemplate}
+            >
+              <Bookmark class="mr-1.5 h-4 w-4" />
+              Enregistrer comme modèle…
+            </Button>
+            {#if editing}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onclick={() => (inspectorOpen = true)}
+                title="Inspecter tous les membres Salesforce et leurs statuts"
+              >
+                <Database class="mr-1.5 h-4 w-4 text-epi-blue" />
+                Membres Salesforce…
+              </Button>
+            {/if}
+          </div>
           <Button
             type="button"
             variant="outline"
@@ -952,6 +1014,14 @@
     {/if}
   </Dialog.Content>
 </Dialog.Root>
+
+{#if editing}
+  <AdminSfStatusInspectorDialog
+    bind:open={inspectorOpen}
+    eventId={editing.id}
+    eventTitle={editing.publicName || editing.titre}
+  />
+{/if}
 
 <!-- Save-as-template sub-dialog (separate so its form isn't nested in the config
      form). Snapshots the current modules + sub-options + default feedback form;

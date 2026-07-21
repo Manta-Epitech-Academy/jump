@@ -75,6 +75,16 @@ export const actions: Actions = {
     const form = await superValidate(request, zod4(adminEventSchema));
     if (!form.valid) return fail(400, { form });
 
+    if (form.data.devActivated) {
+      if (!form.data.publicName.trim() || !form.data.endDate) {
+        return message(
+          form,
+          "L'activation nécessite un nom public et une date de fin.",
+          { status: 400 },
+        );
+      }
+    }
+
     try {
       await EventService.updateEventConfig(form.data.id, {
         publicName: form.data.publicName,

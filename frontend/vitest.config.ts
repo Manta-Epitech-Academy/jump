@@ -6,6 +6,7 @@ export default defineConfig({
   test: {
     projects: [
       {
+        plugins: [sveltekit()],
         test: {
           name: 'unit',
           include: ['src/**/*.test.ts'],
@@ -13,6 +14,7 @@ export default defineConfig({
         },
       },
       {
+        plugins: [sveltekit()],
         test: {
           name: 'integration',
           include: ['src/**/__integration__/**/*.integration.test.ts'],
