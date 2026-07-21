@@ -1,4 +1,3 @@
-import type { EventType } from './event';
 import { startOfDay } from './calendarWeek';
 
 /**
@@ -15,15 +14,13 @@ export type PlanningView =
   | {
       /** Talent is inside an event whose date range covers today. */
       state: 'ongoing';
-      eventType: EventType;
       titre: string;
-      /** Admin-set friendly name; talent-facing copy prefers it over the type. */
+      /** Admin-set friendly name; talent-facing copy prefers it over `titre`. */
       publicName: string | null;
     }
   | {
       /** No active event, but a future one is scheduled. */
       state: 'upcoming';
-      eventType: EventType;
       titre: string;
       publicName: string | null;
       date: Date;
@@ -42,7 +39,6 @@ export type PlanningView =
  */
 export type PlanningParticipation = {
   event: {
-    eventType: string;
     titre: string;
     publicName: string | null;
     date: Date;
@@ -62,7 +58,6 @@ export function toPlanningView(
   if (active?.event) {
     return {
       state: 'ongoing',
-      eventType: active.event.eventType as EventType,
       titre: active.event.titre,
       publicName: active.event.publicName,
     };
@@ -70,7 +65,6 @@ export function toPlanningView(
   if (upcoming?.event) {
     return {
       state: 'upcoming',
-      eventType: upcoming.event.eventType as EventType,
       titre: upcoming.event.titre,
       publicName: upcoming.event.publicName,
       date: upcoming.event.date,

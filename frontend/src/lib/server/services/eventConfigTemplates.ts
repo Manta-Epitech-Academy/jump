@@ -22,8 +22,6 @@ type EventConfigTemplateSummary = {
   id: string;
   name: string;
   description: string | null;
-  /** Soft hint: the SF event type the wizard suggests this template for. */
-  forEventType: string | null;
   /** Friendly event name the preset prefills, or null (event keeps the SF titre). */
   publicName: string | null;
   /** Cohort noun the preset prefills ("stagiaire", ...), or null when unnamed. */
@@ -41,7 +39,6 @@ type TemplateRow = {
   id: string;
   name: string;
   description: string | null;
-  forEventType: string | null;
   publicName: string | null;
   cohortNoun: string | null;
   startMinutes: number | null;
@@ -64,7 +61,6 @@ function toSummary(t: TemplateRow): EventConfigTemplateSummary {
     id: t.id,
     name: t.name,
     description: t.description,
-    forEventType: t.forEventType,
     publicName: t.publicName,
     cohortNoun: t.cohortNoun,
     startTime: minutesToHHMM(t.startMinutes),
@@ -117,13 +113,10 @@ export const EventConfigTemplateService = {
    * Snapshot the current wizard config as a template. UPSERT by name: a new name
    * creates one, an existing name replaces that template's config in place (its
    * id stays), so re-saving under the same name is how staff edit a template.
-   * `forEventType` is captured from the event so the template is later suggested
-   * for events of the same type.
    */
   async saveTemplate(input: {
     name: string;
     description: string;
-    forEventType: string;
     publicName: string;
     cohortNoun: string;
     startTime: string;
@@ -135,7 +128,6 @@ export const EventConfigTemplateService = {
     const name = input.name.trim();
     if (!name) throw error(400, 'Nom de modèle requis.');
     const feedbackFormId = await resolveFeedbackFormId(input.feedbackFormId);
-    const forEventType = input.forEventType.trim() || null;
     const description = input.description.trim() || null;
     const publicName = input.publicName.trim() || null;
     const cohortNoun = input.cohortNoun.trim() || null;
@@ -157,7 +149,6 @@ export const EventConfigTemplateService = {
           where: { id: existing.id },
           data: {
             description,
-            forEventType,
             publicName,
             cohortNoun,
             startMinutes,
@@ -173,7 +164,6 @@ export const EventConfigTemplateService = {
       data: {
         name,
         description,
-        forEventType,
         publicName,
         cohortNoun,
         startMinutes,

@@ -1,11 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import {
-  eventTypeLabel,
-  hhmmToMinutes,
-  minutesToHHMM,
-} from '$lib/domain/event';
+import { hhmmToMinutes, minutesToHHMM } from '$lib/domain/event';
 import {
   isEventModuleKey,
   parseModuleSettings,
@@ -39,8 +35,6 @@ export type AdminEventVM = {
   displayName: string;
   /** Jump-owned cohort noun ("stagiaire", ...), or null when unnamed; set in the wizard. */
   cohortNoun: string | null;
-  eventType: string;
-  eventTypeLabel: string;
   campusId: string;
   campusName: string;
   /** "12 fév. 2026 → 26 fév. 2026" (campus tz), endDate omitted when absent. */
@@ -94,7 +88,6 @@ const ADMIN_EVENT_SELECT = {
   date: true,
   endDate: true,
   startMinutes: true,
-  eventType: true,
   externalId: true,
   devActivatedAt: true,
   feedbackFormId: true,
@@ -144,9 +137,9 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
     const tz = e.campus.timezone;
     const sy = schoolYearOf(e.date, tz);
     const startDateKey = toDateKey(e.date, tz);
-    // Same stage-default-window rule as the dev workspace (see
-    // `resolveEventStatus`): a running SF-synced stage carries no endDate and
-    // must not read `past`, so the cockpit and the dev space agree.
+    // Same window rule as the dev workspace (see `resolveEventStatus`): the
+    // explicit endDate (else the single-day start) decides the bucket, so the
+    // cockpit and the dev space agree.
     const status = resolveEventStatus(e, boundsFor(tz));
     const present = e.modules.filter((m) => isEventModuleKey(m.moduleKey));
     const modules = present.map((m) => m.moduleKey as EventModuleKey);
@@ -161,8 +154,6 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
       publicName: e.publicName ?? '',
       displayName: e.publicName?.trim() || e.titre,
       cohortNoun: e.cohortNoun,
-      eventType: e.eventType,
-      eventTypeLabel: eventTypeLabel(e.eventType),
       campusId: e.campusId,
       campusName: e.campus.name,
       dateLabel: dateRangeLabel(e.date, e.endDate, tz),
@@ -256,11 +247,11 @@ export const EventService = {
    * all in one transaction. Admin-only (the
    * `/staff/admin/events` page is admin-gated and admins are cross-campus, so
    * there is no campus check here; the event id is the authority). The start
-   * `date`, `titre` and `eventType` stay Salesforce-owned. `endDate` is NOT
-   * sent by Salesforce, so Jump owns it here (like the start time): a
-   * `YYYY-MM-DD` campus-tz day, stored at end-of-day so the last day still
-   * reads as "ongoing"; empty clears it back to the type default span. Note an
-   * applied planning template also rewrites `endDate` (its last day wins).
+   * `date` and `titre` stay Salesforce-owned. `endDate` is NOT sent by
+   * Salesforce, so Jump owns it here (like the start time): a `YYYY-MM-DD`
+   * campus-tz day, stored at end-of-day so the last day still reads as
+   * "ongoing"; empty clears it back to a single-day event. Note an applied
+   * planning template also rewrites `endDate` (its last day wins).
    */
   async updateEventConfig(
     eventId: string,

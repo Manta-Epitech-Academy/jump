@@ -41,8 +41,6 @@
     titre: string;
     publicName: string;
     cohortNoun: string | null;
-    eventType: string;
-    eventTypeLabel: string;
     campusName: string;
     dateLabel: string;
     startDateKey: string;
@@ -58,7 +56,6 @@
     id: string;
     name: string;
     description: string | null;
-    forEventType: string | null;
     publicName: string | null;
     cohortNoun: string | null;
     startTime: string;
@@ -72,7 +69,6 @@
     editing,
     formData,
     feedbackForms,
-    defaultFormByType,
     formPreviews,
     templates,
   }: {
@@ -80,7 +76,6 @@
     editing: EditingEvent | null;
     formData: SuperValidated<AdminEventForm>;
     feedbackForms: { value: string; label: string }[];
-    defaultFormByType: Record<string, { id: string; title: string }>;
     /** Per-form ordered question prompts, for the inline read-only preview. */
     formPreviews: Record<string, string[]>;
     templates: TemplateVM[];
@@ -169,23 +164,11 @@
   });
 
   // ─── Templates (step 1) ──────────────────────────────────────────────────
-  // SF only tells us the type; templates saved from an event of that type are
-  // grouped first under a heading, but the admin can pick any or none.
-  const isSuggested = (t: TemplateVM) =>
-    editing != null &&
-    t.forEventType != null &&
-    t.forEventType === editing.eventType;
+  // A flat, alphabetical catalogue: the admin picks any template or none. There
+  // is no per-kind grouping (events no longer carry a type to match against).
   const byName = (a: TemplateVM, b: TemplateVM) =>
     a.name.localeCompare(b.name, 'fr');
-  // Type match is a set, not a winner: every template saved from a same-type
-  // event carries that type. So we name the group once with a heading rather
-  // than stamping a "Suggéré" badge on each (which would dilute to noise).
-  const suggestedTemplates = $derived(
-    workingTemplates.filter(isSuggested).sort(byName),
-  );
-  const otherTemplates = $derived(
-    workingTemplates.filter((t) => !isSuggested(t)).sort(byName),
-  );
+  const sortedTemplates = $derived(workingTemplates.slice().sort(byName));
 
   function applyTemplate(t: TemplateVM) {
     $form.modules = [...t.modules];
@@ -256,41 +239,23 @@
     untrack(() => ({ ...formPreviews })),
   );
   let duplicatingForm = $state(false);
-  const defaultForm = $derived(
-    editing ? defaultFormByType[editing.eventType] : undefined,
-  );
-  const feedbackDefaultLabel = $derived(
-    defaultForm
-      ? `Par défaut (${defaultForm.title})`
-      : 'Par défaut (aucun formulaire pour ce type)',
-  );
+  // No feedback form picked yet: the event's Feedback surface stays hidden until
+  // an admin selects one. There is no per-kind default anymore.
+  const NO_FORM_LABEL = 'Aucun formulaire';
   const feedbackTriggerLabel = $derived(
     $form.feedbackFormId
       ? (workingForms.find((f) => f.value === $form.feedbackFormId)?.label ??
           'Formulaire inconnu')
-      : feedbackDefaultLabel,
+      : NO_FORM_LABEL,
   );
-  // The form this event resolves to right now: the override, else the type
-  // default. Drives the preview + "open in editor" deep-link; empty = nothing.
-  const effectiveFormId = $derived(
-    $form.feedbackFormId || defaultForm?.id || '',
-  );
+  // The form this event resolves to right now: its explicit feedbackFormId.
+  // Drives the preview + "open in editor" deep-link; empty = nothing.
+  const effectiveFormId = $derived($form.feedbackFormId || '');
   // Ordered question prompts of the resolved form, for the inline preview.
   const effectivePreview = $derived(workingPreviews[effectiveFormId] ?? []);
   // Cap the inline preview so a long form doesn't blow out the dialog; the rest
   // is summarized as "+ N autres questions" (no nested scroll area).
   const PREVIEW_LIMIT = 8;
-
-  // Editing the resolved form in place edits the SHARED catalogue form. The
-  // provable-shared case is the type default with no per-event override: a change
-  // there hits every event of that type. We surface that consequence so
-  // "Modifier" never silently edits the shared default - the safe per-event path
-  // is "Dupliquer et personnaliser".
-  const editingSharedDefault = $derived(
-    !$form.feedbackFormId &&
-      !!defaultForm &&
-      effectiveFormId === defaultForm.id,
-  );
 
   // "Dupliquer pour cet événement": branch the resolved form into a fresh copy.
   // Posted via fetch (not an enhanced <form>) because this lives inside the main
@@ -335,9 +300,7 @@
   }
 
   const defaultStartTime = $derived(
-    editing
-      ? minutesToHHMM(effectiveStartMinutes(editing.eventType, null))
-      : '',
+    editing ? minutesToHHMM(effectiveStartMinutes(null)) : '',
   );
 
   // ─── Save current config as a template (upsert by name) ──────────────────
@@ -356,7 +319,6 @@
       publicName: $form.publicName,
       cohortNoun: $form.cohortNoun,
       startTime: $form.startTime,
-      forEventType: editing?.eventType ?? '',
     }),
   );
 
@@ -390,7 +352,7 @@
       </Dialog.Title>
       {#if editing}
         <Dialog.Description>
-          {editing.campusName} · {editing.eventTypeLabel} · {editing.dateLabel}
+          {editing.campusName} · {editing.dateLabel}
         </Dialog.Description>
       {/if}
       <!-- The stepper IS the navigation: clicking a step moves there, so step 2
@@ -546,35 +508,10 @@
             Enregistrer comme modèle » pour le réutiliser plus tard.
           </div>
         {:else}
-          <div class="space-y-4">
-            {#if suggestedTemplates.length > 0}
-              <div class="space-y-2">
-                {#if otherTemplates.length > 0}
-                  <p
-                    class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
-                  >
-                    Suggérés pour ce type d'événement
-                  </p>
-                {/if}
-                {#each suggestedTemplates as t (t.id)}
-                  {@render templateCard(t)}
-                {/each}
-              </div>
-            {/if}
-            {#if otherTemplates.length > 0}
-              <div class="space-y-2">
-                {#if suggestedTemplates.length > 0}
-                  <p
-                    class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
-                  >
-                    Autres modèles
-                  </p>
-                {/if}
-                {#each otherTemplates as t (t.id)}
-                  {@render templateCard(t)}
-                {/each}
-              </div>
-            {/if}
+          <div class="space-y-2">
+            {#each sortedTemplates as t (t.id)}
+              {@render templateCard(t)}
+            {/each}
           </div>
         {/if}
       </div>
@@ -788,7 +725,7 @@
                       >
                         Formulaire de feedback
                         <InfoTooltip
-                          text="Le formulaire que les jeunes remplissent pour cet événement. « Par défaut » utilise le formulaire associé au type d'événement."
+                          text="Le formulaire que les jeunes remplissent pour cet événement. Sans formulaire, la page Feedback n'apparaît pas dans l'espace dev."
                         />
                       </span>
                       <Select.Root
@@ -802,7 +739,7 @@
                         </Select.Trigger>
                         <Select.Content>
                           <Select.Item value={NO_FORM}>
-                            {feedbackDefaultLabel}
+                            {NO_FORM_LABEL}
                           </Select.Item>
                           {#each workingForms as opt (opt.value)}
                             <Select.Item value={opt.value}>
@@ -903,22 +840,11 @@
                               Créer un nouveau formulaire
                             </Button>
                           </div>
-                          {#if editingSharedDefault}
-                            <p
-                              class="flex items-start gap-1.5 text-[11px] text-amber-600"
-                            >
-                              <TriangleAlert class="mt-px size-3 shrink-0" />
-                              « Modifier » change le formulaire par défaut de ce type,
-                              pour tous ses événements. Dupliquez-le pour n'adapter
-                              que celui-ci.
-                            </p>
-                          {:else}
-                            <p class="text-[11px] text-muted-foreground/70">
-                              « Modifier » agit sur le formulaire partagé ; «
-                              Dupliquer » en crée une copie propre à cet
-                              événement.
-                            </p>
-                          {/if}
+                          <p class="text-[11px] text-muted-foreground/70">
+                            « Modifier » agit sur le formulaire partagé ; «
+                            Dupliquer » en crée une copie propre à cet
+                            événement.
+                          </p>
                         </div>
                       {:else}
                         <p
@@ -1057,7 +983,6 @@
               id,
               name: templateName.trim(),
               description: templateDescription.trim() || null,
-              forEventType: editing?.eventType ?? null,
               publicName: $form.publicName.trim() || null,
               cohortNoun: $form.cohortNoun.trim() || null,
               startTime: $form.startTime,

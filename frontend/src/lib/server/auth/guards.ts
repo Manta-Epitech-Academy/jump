@@ -5,7 +5,6 @@ import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 import { prisma } from '$lib/server/db';
 import { can, type StaffGroup } from '$lib/domain/permissions';
 import { getOnboardingStep } from '$lib/domain/talentOnboarding';
-import { STAGE_DEFAULT_DURATION_DAYS } from '$lib/domain/event';
 import {
   loginUrlWithRedirect,
   onboardingFunnelUrl,
@@ -76,47 +75,25 @@ export async function applyRouteGuards(
       return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
 
-    // Welcome guard: first-time stage talents see the welcome splash before
-    // onboarding. `markSeen` sets `welcomeSeenAt` and hands off to onboarding,
-    // so this short-circuits on every later request. The splash content is
-    // fixed and owned by the page itself — it is NOT gated on the CMS `welcome`
-    // row, which now feeds only the dashboard's Actualités card.
+    // Welcome guard: a fresh talent sees the welcome splash once, before
+    // onboarding. `markSeen` sets `welcomeSeenAt` and hands off to onboarding, so
+    // this short-circuits on every later request. Gated purely on talent state
+    // (never seen it AND still has onboarding to do), not on any event: the
+    // splash copy is generic and owned by the page. The CMS `welcome` row feeds
+    // only the dashboard's Actualités card, a separate surface.
     if (
       event.locals.talent &&
       !event.locals.talent.welcomeSeenAt &&
+      getOnboardingStep(event.locals.talent) !== null &&
       currentPath !== pathTalentWelcome &&
       !currentPath.startsWith(pathTalentOnboarding) &&
       currentPath !== pathTalentLogin
     ) {
-      // Show the splash while the talent has any stage whose window is still
-      // open. "Window" = the explicit endDate, or date + default duration when
-      // none (mirrors `stageWindowEnd` so an endDate-less mini-stage doesn't
-      // lose the splash the day after it starts). Existence is enough - with
-      // several concurrent stages, any open one triggers it.
-      const now = new Date();
-      const windowLookback = new Date(
-        now.getTime() - STAGE_DEFAULT_DURATION_DAYS * 86_400_000,
+      return Response.redirect(
+        new URL(onboardingFunnelUrl(pathTalentWelcome, event.url), event.url)
+          .href,
+        303,
       );
-      const stageParticipation = await prisma.participation.findFirst({
-        where: {
-          talentId: event.locals.talent.id,
-          event: {
-            eventType: 'stage_seconde',
-            OR: [
-              { endDate: { gte: now } },
-              { endDate: null, date: { gte: windowLookback } },
-            ],
-          },
-        },
-        select: { id: true },
-      });
-      if (stageParticipation) {
-        return Response.redirect(
-          new URL(onboardingFunnelUrl(pathTalentWelcome, event.url), event.url)
-            .href,
-          303,
-        );
-      }
     }
 
     // Onboarding guard: redirect until every step of the canonical ladder is

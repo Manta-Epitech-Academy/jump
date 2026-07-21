@@ -1,11 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { computeLevel } from '$lib/domain/xp';
 import {
-  EVENT_TYPES,
-  EVENT_TYPE_VALUES,
-  type EventType,
-} from '$lib/domain/event';
-import {
   deriveOnboardingStatus,
   describeOnboardingProgress,
   ONBOARDING_STEP_LABELS,
@@ -45,7 +40,6 @@ export type TalentFilters = {
   /** Multi-select: every campus the admin scoped the directory to (empty = all). */
   campusIds: string[];
   parentStatus: ParentStatusFilter;
-  type: EventType | '';
   sort: TalentSortKey | '';
   dir: 'asc' | 'desc';
   page: number;
@@ -70,7 +64,6 @@ export function parseTalentFilters(
   const statusParam = (searchParams.get('status') || 'all') as StatusFilter;
   const parentParam = (searchParams.get('parentStatus') ||
     'all') as ParentStatusFilter;
-  const typeParam = searchParams.get('type') || '';
   const sortParam = (searchParams.get('sort') || '') as TalentSortKey;
   const campusIds = (searchParams.get('campus') || '')
     .split(',')
@@ -85,9 +78,6 @@ export function parseTalentFilters(
     parentStatus: PARENT_STATUS_VALUES.includes(parentParam)
       ? parentParam
       : 'all',
-    type: (EVENT_TYPE_VALUES as string[]).includes(typeParam)
-      ? (typeParam as EventType)
-      : '',
     sort: SORT_VALUES.includes(sortParam) ? sortParam : '',
     dir: searchParams.get('dir') === 'asc' ? 'asc' : 'desc',
     page: Math.max(1, Number(searchParams.get('page')) || 1),
@@ -95,28 +85,6 @@ export function parseTalentFilters(
 }
 
 // ---- where building -------------------------------------------------------
-
-/**
- * "Stagiaire" = this year's cohort, not anyone who ever attended a stage. The
- * stage de seconde runs once a year, so the population the admin tracks —
- * arriving for the upcoming stage, currently in it, or recently finished — is
- * exactly the stage-seconde events dated in the current calendar year. A bare
- * "≥1 stage participation ever" kept every past cohort in the count forever.
- *
- * Calendar-year bounds in UTC are exact enough: a stage never starts on Jan 1,
- * so no event sits on the boundary where the campus timezone could shift it
- * into the adjacent year.
- */
-function stageSecondeThisYearEventFilter(): Prisma.EventWhereInput {
-  const year = new Date().getUTCFullYear();
-  return {
-    eventType: EVENT_TYPES.STAGE_SECONDE,
-    date: {
-      gte: new Date(Date.UTC(year, 0, 1)),
-      lt: new Date(Date.UTC(year + 1, 0, 1)),
-    },
-  };
-}
 
 /**
  * Prisma predicate for a talent who has fully cleared platform onboarding —
@@ -170,21 +138,12 @@ export function buildTalentWhere(f: TalentFilters): {
   }
   if (f.niveau) scope.push({ niveau: f.niveau });
 
-  // Campus and type narrow the same relation, so one `some` carries both:
-  // "a stagiaire *at* campus X" is one participation that is both, not two
-  // separate matches. A talent's campus isn't a column — `some` matches any
-  // campus they've attended, the useful net for "anyone tied to campus X". The
-  // stage-seconde filter is scoped to this year's cohort; coding-club, being
-  // year-round, is not.
-  if (f.campusIds.length || f.type) {
-    const participation: Prisma.ParticipationWhereInput = {};
-    if (f.campusIds.length) participation.campusId = { in: f.campusIds };
-    if (f.type === EVENT_TYPES.STAGE_SECONDE) {
-      participation.event = stageSecondeThisYearEventFilter();
-    } else if (f.type) {
-      participation.event = { eventType: f.type };
-    }
-    scope.push({ participations: { some: participation } });
+  // A talent's campus isn't a column — `some` matches any campus they've
+  // attended, the useful net for "anyone tied to campus X".
+  if (f.campusIds.length) {
+    scope.push({
+      participations: { some: { campusId: { in: f.campusIds } } },
+    });
   }
 
   const scopeWhere: Prisma.TalentWhereInput = scope.length

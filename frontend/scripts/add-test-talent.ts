@@ -52,35 +52,30 @@ async function main() {
     process.exit(1);
   }
 
-  // Find the active stage_seconde event on Paris campus
+  // Find an ongoing multi-day (stage-like) event on Paris campus: one whose
+  // window is still open.
   const now = new Date();
   const lookaheadDays = 60;
   const lookahead = new Date(now);
   lookahead.setDate(lookahead.getDate() + lookaheadDays);
   const defaultDuration = 14;
-  const implicitLookback = new Date(now);
-  implicitLookback.setDate(implicitLookback.getDate() - defaultDuration);
 
   let event = await prisma.event.findFirst({
     where: {
       campusId: paris.id,
-      eventType: 'stage_seconde',
       date: { lte: lookahead },
-      OR: [
-        { endDate: { gte: now } },
-        { endDate: null, date: { gte: implicitLookback } },
-      ],
+      endDate: { gte: now },
     },
     select: { id: true, titre: true },
     orderBy: { date: 'asc' },
   });
 
   if (!event) {
-    // Fallback: create a stage_seconde event starting today
+    // Fallback: create a stage-like event running from today for two weeks.
     event = await prisma.event.create({
       data: {
         titre: 'Stage de Seconde – Test',
-        eventType: 'stage_seconde',
+        cohortNoun: 'stagiaire',
         date: now,
         endDate: new Date(now.getTime() + defaultDuration * 86_400_000),
         campusId: paris.id,

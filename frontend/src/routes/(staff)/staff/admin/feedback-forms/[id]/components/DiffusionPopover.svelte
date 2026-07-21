@@ -15,12 +15,7 @@
     FORM_STATUS_OPTIONS,
   } from '$lib/domain/feedbackForms/status';
   import { publicFormPath } from '$lib/domain/feedback';
-  import { EVENT_TYPE_VALUES, eventTypeLabel } from '$lib/domain/event';
   import FieldLabel from './FieldLabel.svelte';
-
-  // Sentinel for "not a default" in the select (bits-ui Select wants a non-empty
-  // value); mapped back to null on the way to the patch.
-  const NO_DEFAULT = 'none';
   import type { FormEditor, FormMeta, FormStatus } from '../editor.svelte';
 
   let { editor }: { editor: FormEditor } = $props();
@@ -178,38 +173,6 @@
         />
       </label>
     {/if}
-
-    <!-- Default form for an event type: events of that type auto-use this form
-         (their Bilan tab, QR and export resolve to it) unless a specific form is
-         chosen for the event. At most one form per type, so picking it here
-         releases whatever form held it before. -->
-    <div class="space-y-1.5">
-      <FieldLabel
-        text="Formulaire par défaut pour"
-        info="Les événements de ce type utilisent ce formulaire par défaut (sauf si un autre formulaire est choisi pour l'événement). Un seul formulaire par défaut par type : le choisir ici le retire du formulaire qui l'avait."
-      />
-      <Select.Root
-        type="single"
-        value={editor.defaultForEventType ?? NO_DEFAULT}
-        onValueChange={(v) => {
-          const next = v === NO_DEFAULT ? null : v;
-          if (next !== editor.defaultForEventType)
-            editor.patchForm({ defaultForEventType: next });
-        }}
-      >
-        <Select.Trigger class="h-9 w-full rounded-sm">
-          {editor.defaultForEventType
-            ? eventTypeLabel(editor.defaultForEventType)
-            : 'Aucun'}
-        </Select.Trigger>
-        <Select.Content>
-          <Select.Item value={NO_DEFAULT}>Aucun</Select.Item>
-          {#each EVENT_TYPE_VALUES as t (t)}
-            <Select.Item value={t}>{eventTypeLabel(t)}</Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
-    </div>
 
     {#if editor.allowsPublicAccess}
       {#if editor.publicMissingEmail}

@@ -23,9 +23,7 @@
     ColumnDef,
     SortDir,
   } from '$lib/components/staff/datatable/types';
-  import SegmentedFilter, {
-    type SegmentOption,
-  } from '$lib/components/staff/SegmentedFilter.svelte';
+  import { type SegmentOption } from '$lib/components/staff/SegmentedFilter.svelte';
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import SearchableSelect from '$lib/components/staff/SearchableSelect.svelte';
   import { toast } from 'svelte-sonner';
@@ -55,7 +53,6 @@
   let search = $state('');
   let campusFilter = $state('all');
   let yearFilter = $state('all');
-  let typeFilter = $state('all');
   // Default to the forward-looking view: across hundreds of events the admin's
   // job is preparing what's coming, not scrolling the past graveyard.
   let statusFilter = $state<StatusFilter>('upcoming');
@@ -80,21 +77,10 @@
     return [{ value: 'all', label: 'Toutes les années' }, ...years];
   });
 
-  const typeOptions = $derived.by<SegmentOption[]>(() => {
-    const seen = new Map<string, string>();
-    for (const e of data.events) seen.set(e.eventType, e.eventTypeLabel);
-    const types = [...seen]
-      .sort((a, b) => a[1].localeCompare(b[1], 'fr'))
-      .map(([value, label]) => ({ value, label }));
-    return [{ value: 'all', label: 'Tous' }, ...types];
-  });
-  const showTypeFilter = $derived(typeOptions.length > 2);
-
   const columns: ColumnDef[] = [
     { key: 'name', label: 'Événement', sortable: true, class: 'w-full' },
     { key: 'state', label: 'État', sortable: true, class: 'w-36' },
     { key: 'campus', label: 'Campus', sortable: true, class: 'w-40' },
-    { key: 'type', label: 'Type', class: 'w-32' },
     { key: 'date', label: 'Dates', sortable: true, class: 'w-44' },
     { key: 'modules', label: 'Modules', class: 'w-60' },
     {
@@ -146,7 +132,7 @@
   }
 
   // Everything except the status filter: drives both the KPI tile counts (each
-  // tile shows its bucket within the current campus/year/type/search scope) and,
+  // tile shows its bucket within the current campus/year/search scope) and,
   // once status is applied, the table rows.
   const baseFiltered = $derived.by(() => {
     const q = search.trim().toLowerCase();
@@ -154,13 +140,11 @@
       if (campusFilter !== 'all' && e.campusId !== campusFilter) return false;
       if (yearFilter !== 'all' && e.schoolYearLabel !== yearFilter)
         return false;
-      if (typeFilter !== 'all' && e.eventType !== typeFilter) return false;
       if (!q) return true;
       return (
         e.displayName.toLowerCase().includes(q) ||
         e.titre.toLowerCase().includes(q) ||
-        e.campusName.toLowerCase().includes(q) ||
-        e.eventTypeLabel.toLowerCase().includes(q)
+        e.campusName.toLowerCase().includes(q)
       );
     });
   });
@@ -224,10 +208,7 @@
     all: 'au total',
   };
   const scopeFiltersApplied = $derived(
-    search.trim().length > 0 ||
-      campusFilter !== 'all' ||
-      yearFilter !== 'all' ||
-      typeFilter !== 'all',
+    search.trim().length > 0 || campusFilter !== 'all' || yearFilter !== 'all',
   );
   const anyFiltersApplied = $derived(
     scopeFiltersApplied || statusFilter !== 'upcoming',
@@ -240,7 +221,6 @@
     search = '';
     campusFilter = 'all';
     yearFilter = 'all';
-    typeFilter = 'all';
     statusFilter = 'upcoming';
   }
 
@@ -449,14 +429,6 @@
         value={yearFilter}
         onChange={(v) => (yearFilter = v)}
       />
-      {#if showTypeFilter}
-        <SegmentedFilter
-          ariaLabel="Filtrer par type d'événement"
-          options={typeOptions}
-          value={typeFilter}
-          onChange={(v) => (typeFilter = v)}
-        />
-      {/if}
     {/snippet}
 
     {#snippet countActions()}
@@ -585,9 +557,6 @@
         <EventStateBadge state={e.configState} past={e.status === 'past'} />
       </Table.Cell>
       <Table.Cell class="text-muted-foreground">{e.campusName}</Table.Cell>
-      <Table.Cell class="text-xs text-muted-foreground"
-        >{e.eventTypeLabel}</Table.Cell
-      >
       <Table.Cell class="text-xs text-muted-foreground">
         {e.dateLabel}{e.startTime ? ` · ${e.startTime}` : ''}
       </Table.Cell>
@@ -627,7 +596,7 @@
             {/if}
           </div>
           <p class="truncate text-xs text-muted-foreground">
-            {e.campusName} · {e.eventTypeLabel} · {e.dateLabel}
+            {e.campusName} · {e.dateLabel}
           </p>
         </div>
         <Button
@@ -678,7 +647,6 @@
     {editing}
     formData={data.form}
     feedbackForms={data.feedbackForms}
-    defaultFormByType={data.defaultFormByType}
     formPreviews={data.formPreviews}
     templates={data.templates}
   />

@@ -7,7 +7,6 @@
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Ellipsis from '@lucide/svelte/icons/ellipsis';
   import { getInitials } from '$lib/avatar';
-  import { eventTypeLabel } from '$lib/domain/event';
   import { cn } from '$lib/utils';
   import type { SerializedNote } from '$lib/domain/talentNotes';
 
@@ -104,9 +103,8 @@
         {note.author ? (note.author.name ?? 'Staff') : 'Auteur inconnu'}
       </span>
       <span class="shrink-0 whitespace-nowrap">
-        {SEP}{when(note.createdAt)}{#if note.event}{SEP}{eventTypeLabel(
-            note.event.type,
-          )}{/if}{#if note.edited}{SEP}<Tooltip.Root>
+        {SEP}{when(note.createdAt)}{#if note.event}{SEP}{note.event
+            .name}{/if}{#if note.edited}{SEP}<Tooltip.Root>
             <Tooltip.Trigger>
               {#snippet child({ props })}
                 <span

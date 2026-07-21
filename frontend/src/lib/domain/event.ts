@@ -1,47 +1,11 @@
-export const EVENT_TYPES = {
-  CODING_CLUB: 'coding_club',
-  STAGE_SECONDE: 'stage_seconde',
-} as const;
-
-export type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
-
-export const EVENT_TYPE_VALUES = Object.values(EVENT_TYPES) as EventType[];
-
-/**
- * Display label for the Stage de Seconde across the dev space. Surfaced
- * instead of the per-event `titre` field so cohort identifiers (dates,
- * suffixes) don't leak into page titles, breadcrumbs and hero headings.
- */
-const STAGE_SECONDE_LABEL = 'Stage de Seconde';
-
-/**
- * Human label per event type, for talent-facing copy where the per-event
- * `titre` (which carries cohort dates/suffixes) would be noise.
- */
-export const EVENT_TYPE_LABELS: Record<EventType, string> = {
-  [EVENT_TYPES.STAGE_SECONDE]: STAGE_SECONDE_LABEL,
-  [EVENT_TYPES.CODING_CLUB]: 'Coding Club',
-};
-
-/**
- * Human label for a raw `Event.eventType` string (Prisma types it as `string`),
- * falling back to the raw value for any unknown type. Use this for talent-facing
- * copy and QR sheets so the per-event `titre` (cohort dates/suffixes) never leaks.
- */
-export function eventTypeLabel(eventType: string): string {
-  return EVENT_TYPE_LABELS[eventType as EventType] ?? eventType;
-}
-
 // ─── Cohort noun (`Event.cohortNoun`) ──────────────────────────────────────
 // What a single member of an event's cohort is called across the dev workspace
 // ("stagiaire" for a stage de seconde, "participant" for a coding club,
 // "collégien" for whatever a campus runs next). This is Jump-owned free-text
-// per-event config, NOT derived from `eventType`: the SF type is only a hint (it
-// can be mis-entered, and we can't fix it), so the noun is typed in the event
-// config wizard and read straight off the column. There is intentionally no
-// `eventType -> noun` mapping anywhere: a per-type default rides along the config
-// template the staff start from (the stage template carries "stagiaire"), so the
-// SF type never touches the rendered word.
+// per-event config: the noun is typed in the event config wizard and read
+// straight off the column. A per-format default rides along the config template
+// the staff start from (the stage template carries "stagiaire"), so nothing has
+// to infer the word from what kind of event it is.
 
 const COHORT_NOUNS = {
   STAGIAIRE: 'stagiaire',
@@ -94,13 +58,9 @@ export function cohortNounForms(
  * The event's display name: the admin-set `publicName` if any, else the raw
  * Salesforce `titre`. The single name used everywhere a human reads the event -
  * staff chrome (page titles, breadcrumbs, switcher) and talent surfaces
- * (dashboard, history, QR sheets) alike.
- *
- * The talent name deliberately no longer derives from `eventType`: the SF type
- * is a hint, never a binding (a campaign miswired as the wrong type must not
- * drive the label), and an event configured for talents already carries its own
- * `publicName`. When it doesn't, the SF `titre` is an acceptable fallback - the
- * staff-chosen name is shown ~most of the time anyway.
+ * (dashboard, history, QR sheets) alike. An event configured for talents already
+ * carries its own `publicName`; when it doesn't, the SF `titre` is an acceptable
+ * fallback - the staff-chosen name is shown ~most of the time anyway.
  */
 export function eventDisplayName(e: {
   publicName?: string | null;
@@ -110,26 +70,14 @@ export function eventDisplayName(e: {
 }
 
 /**
- * Default span of a Stage de Seconde when an event carries no explicit
- * `endDate`. Seconde internships run ~2 weeks, and we rarely populate
- * `endDate`, so this default is what actually drives "is the stage still
- * running?" almost everywhere.
+ * Effective end of an event's active window: its explicit `endDate`, or the
+ * start `date` when none is set (a single-day event). Single source of truth so
+ * the talent welcome/feedback surfaces and the admin picker's ongoing/past badge
+ * stay in lockstep. A multi-day event carries an explicit `endDate` (set in the
+ * config wizard or a planning template); nothing is synthesised from a type.
  */
-export const STAGE_DEFAULT_DURATION_DAYS = 14;
-
-/**
- * Effective end of a stage's active window: its explicit `endDate`, or
- * `date + STAGE_DEFAULT_DURATION_DAYS` when none is set. Single source of
- * truth so the talent welcome message (which lives for the whole stage
- * window) and the admin picker's ongoing/past badge stay in lockstep —
- * otherwise a stage with no `endDate` looks "ongoing" to staff while talents
- * already lost the message the day after it started.
- */
-export function stageWindowEnd(date: Date, endDate: Date | null): Date {
-  if (endDate) return endDate;
-  const end = new Date(date);
-  end.setDate(end.getDate() + STAGE_DEFAULT_DURATION_DAYS);
-  return end;
+export function eventWindowEnd(date: Date, endDate: Date | null): Date {
+  return endDate ?? date;
 }
 
 // ─── Start time-of-day (`Event.startMinutes`) ──────────────────────────────
@@ -160,25 +108,17 @@ export function hhmmToMinutes(value: string | null | undefined): number | null {
   return Number(match[1]) * 60 + Number(match[2]);
 }
 
-/**
- * Sensible default start time per event type, used until a human confirms one.
- * Stages open mid-morning (10:00); coding clubs run after class (14:00).
- */
-export const DEFAULT_START_MINUTES: Record<EventType, number> = {
-  [EVENT_TYPES.STAGE_SECONDE]: 10 * 60,
-  [EVENT_TYPES.CODING_CLUB]: 14 * 60,
-};
+/** Default start time (10:00) shown until a human confirms one. */
+const DEFAULT_START_MINUTES = 10 * 60;
 
 /**
- * The time we actually show: the confirmed `startMinutes` if set, else the
- * type default. So talents never see "00:00" even before staff touch it —
+ * The time we actually show: the confirmed `startMinutes` if set, else a single
+ * default (10:00). So talents never see "00:00" even before staff touch it —
  * `startMinutes === null` means "unconfirmed, showing the default" (staff are
  * nudged to validate), a non-null value means a human set it.
  */
 export function effectiveStartMinutes(
-  eventType: string,
   startMinutes: number | null | undefined,
 ): number {
-  if (startMinutes != null) return startMinutes;
-  return DEFAULT_START_MINUTES[eventType as EventType] ?? 10 * 60;
+  return startMinutes ?? DEFAULT_START_MINUTES;
 }

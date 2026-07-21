@@ -76,13 +76,12 @@ export const EVENT_MODULE_DEFS: Record<EventModuleKey, EventModuleDef> = {
 /**
  * Modules seeded onto a new event at creation. The event type is only a starting
  * point: after creation the per-event module rows are the truth and are edited
- * independently (changing the type never rebinds an existing event). Every type
- * (stage, coding club, anything the worker imports) starts with all four surfaces
- * on; admins trim per event from the admin event-config page. There is no
- * per-type table because no type's default actually differs today - branch on
- * `eventType` here the day one does.
+ * independently. Every event (stage, coding club, anything the worker imports)
+ * starts with all four surfaces on; admins trim per event from the admin
+ * event-config page. There is no per-kind table because no default actually
+ * differs today - take a parameter and branch here the day one does.
  */
-export function presetModulesForType(_eventType: string): EventModuleKey[] {
+export function defaultEventModules(): EventModuleKey[] {
   return [...EVENT_MODULE_KEYS];
 }
 
@@ -109,8 +108,8 @@ const inscritsModuleSettingsSchema = z.object({
   // Show the "Générer diplômes" export (the internship Certificat de stage) on the
   // Inscrits header. Opt-in: defaults off, so nothing stage-specific surfaces until
   // an admin enables it (a coding club issues no certificate; even a stage turns it
-  // on explicitly). Gating goes through this sub-option, never an eventType check
-  // at the call site.
+  // on explicitly). Gating goes through this sub-option, never inferred from what
+  // kind of event it is.
   diplomas: z.boolean().default(false),
 });
 

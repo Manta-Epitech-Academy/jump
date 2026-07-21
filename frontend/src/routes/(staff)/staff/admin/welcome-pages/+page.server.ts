@@ -1,23 +1,23 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import { EVENT_TYPES, stageWindowEnd } from '$lib/domain/event';
+import { eventWindowEnd } from '$lib/domain/event';
 import { sanitizeWelcomeHtml } from '$lib/server/cms/sanitize';
 
 const SLUG = 'welcome';
 
-type StageStatus = 'ongoing' | 'upcoming' | 'past';
+type EventStatus = 'ongoing' | 'upcoming' | 'past';
 
-function statusOf(date: Date, endDate: Date | null, now: Date): StageStatus {
+function statusOf(date: Date, endDate: Date | null, now: Date): EventStatus {
   if (date.getTime() > now.getTime()) return 'upcoming';
-  if (stageWindowEnd(date, endDate).getTime() < now.getTime()) return 'past';
+  if (eventWindowEnd(date, endDate).getTime() < now.getTime()) return 'past';
   return 'ongoing';
 }
 
-// Order used both to pick the default-selected stage and to sort the picker:
-// an ongoing stage is what staff care about first, then the next upcoming one,
-// then archived stages that still carry content.
-const STATUS_RANK: Record<StageStatus, number> = {
+// Order used both to pick the default-selected event and to sort the picker:
+// an ongoing event is what staff care about first, then the next upcoming one,
+// then archived events that still carry content.
+const STATUS_RANK: Record<EventStatus, number> = {
   ongoing: 0,
   upcoming: 1,
   past: 2,
@@ -31,7 +31,6 @@ export const load: PageServerLoad = async ({ url }) => {
       orderBy: { name: 'asc' },
     }),
     prisma.event.findMany({
-      where: { eventType: EVENT_TYPES.STAGE_SECONDE },
       orderBy: { date: 'desc' },
       select: {
         id: true,
@@ -68,15 +67,15 @@ export const load: PageServerLoad = async ({ url }) => {
           id: ev.id,
           titre: ev.titre,
           date: ev.date.toISOString(),
-          endDate: stageWindowEnd(ev.date, ev.endDate).toISOString(),
+          endDate: eventWindowEnd(ev.date, ev.endDate).toISOString(),
           status,
           hasContent,
           updatedAt: page?.updatedAt.toISOString() ?? null,
           updatedByName: page?.user.name ?? page?.user.email ?? null,
         };
       })
-      // Keep current/upcoming stages plus any archived stage that still has a
-      // welcome page worth reviewing — drop empty past stages to cut clutter.
+      // Keep current/upcoming events plus any archived event that still has a
+      // welcome page worth reviewing — drop empty past events to cut clutter.
       .filter((r) => r.status !== 'past' || r.hasContent)
       .sort(
         (a, b) =>
@@ -93,8 +92,8 @@ export const load: PageServerLoad = async ({ url }) => {
     };
   });
 
-  // Resolve the selected stage: explicit `?event=` if valid, else the most
-  // relevant stage overall (first ongoing, then upcoming, then a content-bearing
+  // Resolve the selected event: explicit `?event=` if valid, else the most
+  // relevant event overall (first ongoing, then upcoming, then a content-bearing
   // archive), so the editor always opens on something useful.
   const requested = url.searchParams.get('event');
   const flat = campusTree.flatMap((c) =>
@@ -135,10 +134,10 @@ export const actions: Actions = {
 
     const event = await prisma.event.findUnique({
       where: { id: eventId },
-      select: { eventType: true },
+      select: { id: true },
     });
-    if (!event || event.eventType !== EVENT_TYPES.STAGE_SECONDE) {
-      return fail(404, { error: 'Stage introuvable.' });
+    if (!event) {
+      return fail(404, { error: 'Événement introuvable.' });
     }
 
     const content = sanitizeWelcomeHtml(rawContent);

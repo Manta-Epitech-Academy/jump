@@ -63,7 +63,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     status,
     openDate: composeEventStartInstant(
       event.date,
-      effectiveStartMinutes(event.eventType, event.startMinutes),
+      effectiveStartMinutes(event.startMinutes),
       timezone,
     ),
     startMinutes: event.startMinutes,

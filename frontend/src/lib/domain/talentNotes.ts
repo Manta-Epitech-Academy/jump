@@ -20,7 +20,7 @@ export type SerializedNote = {
    *  null for a general note (fiche) with no créneau. Lets the émargement dialog
    *  group "Ce créneau" on the stored anchor rather than the note's clock time. */
   presenceSlotKey: string | null;
-  /** The event the note was taken at: `type` drives the condensed metadata label
-   *  ("Stage de Seconde"), `titre` is kept for any future detail view. */
-  event: { id: string; titre: string; type: string } | null;
+  /** The event the note was taken at: `name` is its display name (publicName
+   *  else the SF titre), shown as the condensed metadata label. */
+  event: { id: string; name: string } | null;
 };

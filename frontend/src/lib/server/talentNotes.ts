@@ -3,13 +3,14 @@ import type { Prisma } from '@prisma/client';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { dbDateToKey, slotKey } from '$lib/domain/eventPresence';
+import { eventDisplayName } from '$lib/domain/event';
 import type { SerializedNote } from '$lib/domain/talentNotes';
 
 /** Author/editor identity + optional event anchor, for rendering the feed. */
 export const NOTE_INCLUDE = {
   author: { select: { user: { select: { name: true, image: true } } } },
   editedBy: { select: { user: { select: { name: true, image: true } } } },
-  event: { select: { id: true, titre: true, eventType: true } },
+  event: { select: { id: true, titre: true, publicName: true } },
 } satisfies Prisma.Note_TalentNoteInclude;
 
 type NoteWithRelations = Prisma.Note_TalentNoteGetPayload<{
@@ -38,8 +39,7 @@ export function serializeNote(note: NoteWithRelations): SerializedNote {
     event: note.event
       ? {
           id: note.event.id,
-          titre: note.event.titre,
-          type: note.event.eventType,
+          name: eventDisplayName(note.event),
         }
       : null,
   };

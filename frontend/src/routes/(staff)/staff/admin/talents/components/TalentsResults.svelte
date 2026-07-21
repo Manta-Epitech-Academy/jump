@@ -41,7 +41,6 @@
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
   import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
-  import { EVENT_TYPES, EVENT_TYPE_LABELS } from '$lib/domain/event';
   import { formatPersonName, civiliteCourtesyTitle } from '$lib/domain/profile';
   import { TALENT_STATUS_LABELS, PARENT_STATUS_LABELS } from '../labels';
   import { track } from '$lib/analytics';
@@ -244,20 +243,6 @@
     `${page.url.pathname}/export?${page.url.searchParams.toString()}`,
   );
 
-  // Two independent filter dimensions, each a one-click segmented radio. They
-  // compose freely (e.g. "stagiaires" + "jamais connectés") because they write
-  // separate URL params — the whole point of splitting them off the tiles.
-  const typeOptions: SegmentOption[] = [
-    { value: 'all', label: 'Tous' },
-    {
-      value: EVENT_TYPES.STAGE_SECONDE,
-      label: EVENT_TYPE_LABELS[EVENT_TYPES.STAGE_SECONDE],
-    },
-    {
-      value: EVENT_TYPES.CODING_CLUB,
-      label: EVENT_TYPE_LABELS[EVENT_TYPES.CODING_CLUB],
-    },
-  ];
   // Mirrors the three states of the table's Statut column, so filtering and the
   // badge speak the same language: complete onboarding, mid-onboarding, no account.
   const statutOptions: SegmentOption[] = [
@@ -281,10 +266,7 @@
   // when inactive (campus is a multi-select id list).
   const hasActiveFilters = $derived(
     Boolean(
-      filterState.q ||
-      filterState.type ||
-      filterState.niveau ||
-      filterState.campusIds.length,
+      filterState.q || filterState.niveau || filterState.campusIds.length,
     ) ||
       filterState.status !== 'all' ||
       filterState.parentStatus !== 'all',
@@ -397,20 +379,6 @@
     {countSuffix}
   >
     {#snippet filters()}
-      <div class="flex items-center gap-2">
-        <span
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Type
-        </span>
-        <SegmentedFilter
-          ariaLabel="Filtrer par type d'événement"
-          options={typeOptions}
-          value={filterState.type || 'all'}
-          onChange={(v) => navigateWithParams({ type: v === 'all' ? '' : v })}
-        />
-      </div>
-
       <div class="flex items-center gap-2">
         <span
           class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
