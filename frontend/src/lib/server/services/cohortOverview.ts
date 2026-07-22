@@ -1,5 +1,6 @@
 import type { ScopedPrismaClient } from '$lib/server/db/scoped';
 import { prisma } from '$lib/server/db';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 
 /**
  * Origin breakdowns for a stage cohort — "where do these inscrits come from"
@@ -68,7 +69,7 @@ export async function rankLyceesByCohort(
     by: ['schoolId'],
     where: {
       schoolId: { not: null },
-      participations: { some: { eventId } },
+      participations: { some: { eventId, ...visibleParticipationWhere } },
     },
     _count: { _all: true },
     orderBy: { _count: { id: 'desc' } },
@@ -108,7 +109,9 @@ export async function rankInterestsByCohort(
   const grouped = await db.talentInterest.groupBy({
     by: ['interestId'],
     where: {
-      talent: { participations: { some: { eventId } } },
+      talent: {
+        participations: { some: { eventId, ...visibleParticipationWhere } },
+      },
       ...(techOnly ? { interest: { kind: 'tech' } } : {}),
     },
     _count: { _all: true },

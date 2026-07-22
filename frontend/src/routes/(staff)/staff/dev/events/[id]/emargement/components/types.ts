@@ -9,6 +9,7 @@ import type { PresenceRecord } from '$lib/domain/eventPresence';
 // so the query and the row type can never drift.
 export const PRESENCE_ROSTER_SELECT = {
   talentId: true,
+  sfMemberStatus: true,
   talent: {
     select: {
       nom: true,
@@ -48,6 +49,7 @@ export type Guardian = {
 /** One projected roster row. `talentId` is the stable row key. */
 export type PresenceRow = {
   talentId: string;
+  sfMemberStatus: string | null;
   nom: string;
   prenom: string;
   civilite: string | null;

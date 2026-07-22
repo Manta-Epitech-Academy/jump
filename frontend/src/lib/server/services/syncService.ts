@@ -10,6 +10,7 @@ import {
   changeUserEmail,
   EmailChangeConflict,
 } from '$lib/server/services/userEmail';
+import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
 
 // Salesforce ships a binary gender ('m' | 'f'); map it onto the civilité enum
 // the rest of the app uses. SF has no equivalent for 'autre', so it stays null.
@@ -157,6 +158,7 @@ export async function syncTalents(
     school?: string | null;
     school_uai?: string | null;
     class_level?: string | null;
+    status?: string | null;
   }[],
 ) {
   const event = await prisma.event.findUnique({
@@ -426,10 +428,16 @@ export async function syncTalents(
       if (mirrorChanged || hasPatch) updated++;
     }
 
+    const normalizedStatus = normalizeSfStatus(t.status);
     await prisma.participation.upsert({
       where: { talentId_eventId: { talentId, eventId: event.id } },
-      create: { talentId, eventId: event.id, campusId: event.campusId! },
-      update: {},
+      create: {
+        talentId,
+        eventId: event.id,
+        campusId: event.campusId!,
+        sfMemberStatus: normalizedStatus,
+      },
+      update: { sfMemberStatus: normalizedStatus },
     });
     syncedTalentIds.push(talentId);
   }

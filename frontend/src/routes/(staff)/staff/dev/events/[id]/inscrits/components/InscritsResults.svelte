@@ -49,6 +49,7 @@
     imageRightsDisplayStatus,
     type ImageRightsDisplayStatus,
   } from '$lib/domain/imageRights';
+
   import type { InscritRow, SortKey, InscritsCohort } from './types';
 
   // The streamed cohort payload plus the cheap shell values the table/rail need.
@@ -199,6 +200,7 @@
         sortable: true,
         class: 'w-28',
       });
+
     return cols;
   });
 
@@ -447,8 +449,8 @@
     <!-- The cohort is synced from Salesforce by the worker, not imported by
          hand, so there is no manual-import action here. -->
     <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-      Les {noun.plural} sont synchronisés automatiquement depuis Salesforce et apparaîtront
-      ici une fois la synchronisation effectuée.
+      Personne pour l'instant. Les inscrits apparaissent ici dès qu'ils sont
+      marqués prêts dans Salesforce.
     </p>
   </div>
 {:else}

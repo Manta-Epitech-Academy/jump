@@ -89,11 +89,13 @@ export const GET: RequestHandler = async ({ params, locals }) => {
       t.phone ?? '',
       t.parentPhone ?? '',
     ];
+    const isSingleDayEvent = slots.length <= 2;
     const slotCells = slots.map((s) =>
       statusLabelFr(
         effectiveStatus(
           stored.get(`${p.talentId}|${s.day}|${s.slot}`) ?? 'pending',
           closed.has(s.key),
+          { sfMemberStatus: p.sfMemberStatus, isSingleDayEvent },
         ),
       ),
     );

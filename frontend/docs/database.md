@@ -313,6 +313,7 @@ erDiagram
     String eventId FK,UK
     String campusId FK
     Boolean bringPc
+    String sfMemberStatus
     DateTime createdAt
     DateTime updatedAt
   }

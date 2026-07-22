@@ -50,6 +50,7 @@ export const INSCRIT_PARTICIPATION_SELECT = {
   // The offline-attested règlement signature lives on the participation, so it
   // joins the status computation alongside the talent's online co-signature.
   stageCompliance: { select: { charteSigned: true } },
+  sfMemberStatus: true,
 } satisfies Prisma.ParticipationSelect;
 
 /** One projected table row. `id` is the participation id (stable row key). */
@@ -80,6 +81,7 @@ export type InscritRow = {
   // Search haystack extras (not shown as columns).
   email: string | null;
   parentEmail: string | null;
+  sfMemberStatus: string | null;
 };
 
 export type SortKey = 'prenom' | 'nom' | 'lycee' | 'niveau' | 'xp' | 'status';

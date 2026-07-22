@@ -19,6 +19,7 @@ import {
   type EventConfigState,
 } from '$lib/domain/eventReadiness';
 import { schoolYearOf } from '$lib/domain/schoolYear';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 
 /**
  * The per-event view model the admin surfaces consume: the events cockpit
@@ -95,7 +96,11 @@ const ADMIN_EVENT_SELECT = {
   createdAt: true,
   campus: { select: { name: true, timezone: true } },
   modules: { select: { moduleKey: true, settings: true } },
-  _count: { select: { participations: true } },
+  _count: {
+    select: {
+      participations: { where: visibleParticipationWhere },
+    },
+  },
 } satisfies Prisma.EventSelect;
 
 type AdminEventRow = Prisma.EventGetPayload<{
@@ -396,7 +401,12 @@ export const EventService = {
       return { activated: eventIds.length, skipped: 0 };
     }
     const eligible = await prisma.event.findMany({
-      where: { id: { in: eventIds }, modules: { some: {} } },
+      where: {
+        id: { in: eventIds },
+        modules: { some: {} },
+        endDate: { not: null },
+        NOT: [{ publicName: null }, { publicName: '' }],
+      },
       select: { id: true },
     });
     const eligibleIds = eligible.map((e) => e.id);
