@@ -78,10 +78,9 @@ des phases) est généré localement dans `docs/plans/` et référencé dans l'i
 GitHub. Ce dossier est gitignored : les plans sont éphémères, ils guident
 l'implémentation puis vivent dans l'item GitHub.
 
-### Étape 4 — Branche et implémentation
+### Étape 4 -- Branche et implémentation
 
-On branche depuis `dev` (ou `main` selon le projet au moment du travail — voir la
-section Branches ci-dessous).
+On branche toujours depuis `dev`, pas depuis `main`.
 
 ```bash
 git checkout dev && git pull origin dev
@@ -146,8 +145,14 @@ Avant d'ouvrir la PR, passer la checklist :
 
 ## Branches
 
-On utilise `dev` comme branche d'intégration courante. Chaque feature branche
-depuis `dev` et y revient après validation. `main` = production stable.
+**`dev` est le tronc de ce repo. `main` est la branche de release (production).**
+
+Dans ce repo, `main` ne représente pas l'état courant du développement -- il
+représente la dernière release stable (tagée). `dev` est l'endroit où tout le
+travail en cours est intégré et c'est la source de vérité du code actuel.
+
+Règle : **toujours partir de `dev`, toujours merger dans `dev`.** `main` ne reçoit
+des commits que lors d'une release (via un merge de `dev` dans `main`).
 
 Nommage des branches :
 

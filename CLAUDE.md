@@ -61,12 +61,12 @@ All commands run from `frontend/` using **Bun**. The shell's cwd often already I
 
 The app splits into four workspaces, each serving a distinct audience and business goal:
 
-| Workspace  | Path             | Audience          | Objective                                              |
-| ---------- | ---------------- | ----------------- | ------------------------------------------------------ |
-| **Dev**    | `/staff/dev/`    | `superdev`, `dev` | Talent Acquisition & Recruitment (admissions pipeline) |
-| **Admin**  | `/staff/admin/`  | `admin`           | Global system overview; account impersonation          |
-| **Talent** | `(talent)/`      | students          | Student experience: gamification, progression          |
-| **Parent** | `(parent)/`      | legal guardians   | Règlement co-signature, image-rights decision          |
+| Workspace  | Path           | Audience          | Objective                                              |
+| ---------- | -------------- | ----------------- | ------------------------------------------------------ |
+| **Dev**    | `/staff/dev/`  | `superdev`, `dev` | Talent Acquisition & Recruitment (admissions pipeline) |
+| **Admin**  | `/staff/admin/`| `admin`           | Global system overview; account impersonation          |
+| **Talent** | `(talent)/`    | students          | Student experience: gamification, progression          |
+| **Parent** | `(parent)/`    | legal guardians   | Règlement co-signature, image-rights decision          |
 
 **Terminology:** See [`JARGON.md`](./JARGON.md) for shared vocabulary. Critical for reading this codebase: `dev` roles and `/dev/` routes refer to the recruitment team (Business Development), not software engineers.
 
