@@ -15,12 +15,13 @@ une PR ou une story.
 | Terme dans Jump       | Ce que ça désigne                                                                                  | Terme Salesforce           | Terme Auth / DB             |
 | --------------------- | -------------------------------------------------------------------------------------------------- | -------------------------- | --------------------------- |
 | **Talent**            | Un lycéen suivi par Epitech Academy (prospect ou inscrit à un événement)                           | `Contact`                  | `Talent` (modèle Prisma)    |
-| **Stagiaire**         | Un talent inscrit à un stage (événement de type stage). Terme UI staff dev uniquement.             | `CampaignMember`           | —                           |
-| **Participant**       | Terme générique pour un talent inscrit à n'importe quel type d'événement. Valeur par défaut de `cohortNoun`. | `CampaignMember`  | —                           |
-| **Staff**             | Membre de l'équipe Epitech qui utilise `/staff/`. Regroupe admin, superdev et dev.                 | —                          | `StaffProfile`              |
-| **Dev** (rôle)        | **Pas un développeur logiciel.** Rôle Business Development / Admissions / Talent Acquisition. Accède à `/staff/dev/`. | — | `StaffRole.dev` / `StaffRole.superdev` |
-| **Admin**             | Staff avec accès global au système. Accède à `/staff/admin/`.                                      | —                          | `StaffRole.admin`           |
-| **Parent**            | Tuteur légal d'un talent. Accède à `/parent/` pour co-signer le règlement et statuer sur le droit à l'image. | — | champs `parentEmail`, `parentPhone` sur `Talent` |
+| **Stagiaire**         | Un talent inscrit à un stage (événement de type stage). Terme UI staff dev uniquement.             | `CampaignMember`           | --                           |
+| **Participant**       | Terme générique pour un talent inscrit à n'importe quel type d'événement. Valeur par défaut de `cohortNoun`. | `CampaignMember`  | --                           |
+| **Staff**             | Membre de l'équipe Epitech qui utilise `/staff/`. Regroupe tous les rôles staff.                   | --                          | `StaffProfile`              |
+| **Dev** (rôle)        | **Pas un développeur logiciel.** Rôle Business Development / Admissions / Talent Acquisition. Accède à `/staff/dev/`. | -- | `StaffRole.dev` / `StaffRole.superdev` |
+| **Pedago** (rôle)    | Equipe pédagogique. Accède à `/staff/pedago/`. Deux niveaux : `peda` (lead) et `manta` (terrain). | -- | `StaffRole.peda` / `StaffRole.manta` |
+| **Admin**             | Staff avec accès global au système. Accède à `/staff/admin/`.                                      | --                          | `StaffRole.admin`           |
+| **Parent**            | Tuteur légal d'un talent. Accède à l'app via un lien dédié (pas un espace staff) pour co-signer le règlement et statuer sur le droit à l'image. | -- | champs `parentEmail`, `parentPhone` sur `Talent` |
 
 ---
 
@@ -69,12 +70,13 @@ ou les conversations.
 
 ## Espaces et audiences
 
-| Espace             | Route              | Audience                  | Ton de la copie UI         |
-| ------------------ | ------------------ | ------------------------- | -------------------------- |
-| **Dev**            | `/staff/dev/`      | Staff dev / superdev       | `vous`, sobre, fonctionnel |
-| **Admin**          | `/staff/admin/`    | Staff admin                | `vous`, stats, pratique    |
-| **Talent**         | `(talent)/`        | Lycéens                    | `tu`, chaleureux, ludique  |
-| **Parent**         | `(parent)/`        | Tuteurs légaux             | `vous`, formel             |
+| Espace             | Route              | Audience                     | Ton de la copie UI              |
+| ------------------ | ------------------ | ---------------------------- | ------------------------------- |
+| **Dev**            | `/staff/dev/`      | Staff dev / superdev          | `vous`, sobre, fonctionnel      |
+| **Pedago**         | `/staff/pedago/`   | Staff peda / manta            | `vous`, pédagogique             |
+| **Admin**          | `/staff/admin/`    | Staff admin                   | `vous`, stats, pratique         |
+| **Talent**         | `(talent)/`        | Lycéens                       | `tu`, chaleureux, ludique       |
+| **Parent (lien)**  | liens dédiés       | Tuteurs légaux (pas un espace staff) | `vous`, formel, rassurant |
 
 ---
 
@@ -86,3 +88,4 @@ ou les conversations.
 | « Participant » pour un stagiaire spécifique | Le `cohortNoun` de l'événement | Le nom de la cohorte dépend du type d'événement et est configurable |
 | « Statut » tout seul            | « Statut SF » ou « statut de dossier »      | Deux statuts coexistent : le statut Salesforce et le statut de complétion du dossier talent (règlement, droit à l'image) |
 | « Synchronisation » sans contexte | « Sync Salesforce » ou « sync worker »    | Il y a plusieurs types de sync (talents, events, campus)         |
+| « Pedago » pour l'espace        | « Espace pedago » ou « `/staff/pedago/` »   | Pedago est aussi le nom d'un rôle (`peda`) - préciser le contexte |

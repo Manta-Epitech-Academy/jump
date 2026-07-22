@@ -68,7 +68,7 @@ The app splits into four workspaces, each serving a distinct audience and busine
 | **Talent** | `(talent)/`      | students          | Student experience: gamification, progression          |
 | **Parent** | `(parent)/`      | legal guardians   | Règlement co-signature, image-rights decision          |
 
-**Terminology:** "Dev" is short for **Business Development / Admissions / Talent Acquisition** — not software engineers. Keep this in mind when reading code: a `dev` role or `/dev/` route refers to the recruitment team.
+**Terminology:** See [`JARGON.md`](./JARGON.md) for shared vocabulary. Critical for reading this codebase: `dev` roles and `/dev/` routes refer to the recruitment team (Business Development), not software engineers.
 
 ### Auth System
 

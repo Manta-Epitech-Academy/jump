@@ -179,14 +179,27 @@ importants à vérifier en review :
 
 ## Travailler avec l'IA
 
-Les skills du repo vivent dans `.claude/skills/` et sont disponibles pour tous.
-Ils encodent la façon de faire et permettent de reproduire le flow :
+**Capacités natives de l'agent** (disponibles sans configuration, utilisables
+dans n'importe quel projet) :
 
-| Skill              | Usage                                                          |
-| ------------------ | -------------------------------------------------------------- |
-| `/ship`            | Génère la copie de commit + PR dans `.ship/`, prête à coller  |
-| `/align-migrations`| Range les migrations après un merge conflictuel               |
-| `/database-design` | Cadrage d'un modèle de données avant de coder                 |
+| Commande   | Usage                                                                        |
+| ---------- | ---------------------------------------------------------------------------- |
+| `/plan`    | Recherche le codebase, produit un plan d'implémentation et attend l'approbation avant d'exécuter |
+| `/review`  | Relit un diff ou une PR, identifie les points critiques, propose des corrections |
+
+> 💡 Au début d'un cadrage avec `/plan`, préciser *"On est en phase de
+> brainstorming, ne génère aucun code pour l'instant"* force une réflexion
+> d'architecture propre avant de passer à l'exécution.
+
+**Skills custom du repo** (`.claude/skills/`) — encodent la façon de faire
+propre à Jump, reproductibles par tous les devs du projet :
+
+| Skill               | Usage                                                           |
+| ------------------- | --------------------------------------------------------------- |
+| `/ship`             | Génère la copie de commit + PR dans `.ship/`, prête à coller   |
+| `/align-migrations` | Range les migrations après un merge conflictuel                 |
+| `/database-design`  | Cadrage d'un modèle de données avant de coder                  |
 
 L'utilisation de l'IA est encouragée mais reste un choix personnel. Ce document
 décrit le pipeline ; l'IA est un outil parmi d'autres pour l'exécuter.
+
