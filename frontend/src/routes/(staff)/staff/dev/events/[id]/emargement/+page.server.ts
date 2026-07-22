@@ -39,7 +39,7 @@ import {
   closeSlotSchema,
   reopenSlotSchema,
 } from '$lib/validation/presence';
-import { SF_VISIBLE_STATUSES } from '$lib/domain/sfMemberStatus';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import {
   PRESENCE_ROSTER_SELECT,
   type PresenceRow,
@@ -85,22 +85,16 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
     .map((s) => s.key);
   const closedSet = new Set(closedKeys);
 
-  // Only visible SF statuses (READY, MEET) plus legacy null rows: the
-  // émargement roster mirrors the inscrits filter - CONNECTED/DESISTED members
-  // never appear. For a past event, a READY member with no EventPresence row
-  // reads as absent in every closed slot (effectiveStatus projects pending →
-  // absent), which is exactly right: "said they would come, did not."
-  const sfStatusWhere = {
-    OR: [
-      { sfMemberStatus: { in: [...SF_VISIBLE_STATUSES] } },
-      { sfMemberStatus: null },
-    ],
-  };
-
   const cohort: Promise<EmargementCohort> = (async () => {
     const [participations, presenceRows] = await Promise.all([
       db.participation.findMany({
-        where: { eventId: event.id, ...sfStatusWhere },
+        // Only visible SF statuses (READY, MEET) plus legacy null rows: the
+        // émargement roster mirrors the inscrits filter - CONNECTED/DESISTED
+        // members never appear. For a past event, a READY member with no
+        // EventPresence row reads as absent in every closed slot
+        // (effectiveStatus projects pending → absent): "said they would come,
+        // did not."
+        where: { eventId: event.id, ...visibleParticipationWhere },
         select: PRESENCE_ROSTER_SELECT,
         orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
       }),

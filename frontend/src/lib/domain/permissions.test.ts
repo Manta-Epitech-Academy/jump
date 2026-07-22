@@ -3,13 +3,16 @@ import { can, describeGroup, INVITABLE_STAFF_ROLES } from './permissions';
 
 describe('Staff Group Permissions Domain Logic', () => {
   describe('can helper', () => {
-    it('grants devMember access to dev, superdev, and admin roles', () => {
+    it('grants devMember access to dev and superdev roles', () => {
       expect(can('devMember', 'dev')).toBe(true);
       expect(can('devMember', 'superdev')).toBe(true);
-      expect(can('devMember', 'admin')).toBe(true);
     });
 
-    it('denies devMember access to student and null roles', () => {
+    it('denies devMember access to admin, student, and null roles', () => {
+      // Admins carry no campus, so they reach the dev space only by
+      // impersonating a dev (that session resolves to role 'dev'), never with
+      // their own session — see STAFF_GROUPS.devMember in permissions.ts.
+      expect(can('devMember', 'admin')).toBe(false);
       expect(can('devMember', 'student' as any)).toBe(false);
       expect(can('devMember', 'parent' as any)).toBe(false);
       expect(can('devMember', null)).toBe(false);

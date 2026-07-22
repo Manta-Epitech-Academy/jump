@@ -21,8 +21,9 @@ All commands run from `frontend/` using **Bun**. The shell's cwd often already I
 | Lint (check only)      | `bun run lint`        |
 | Generate Prisma client | `bun run db:generate` |
 | Run migrations         | `bun run db:migrate`  |
-| Unit & Integration tests | `bun run test`        |
-| E2E Browser tests     | `bun run test:e2e`    |
+| Unit tests             | `bun run test`        |
+| Integration tests      | `bun run test:integration` (needs the test DB, see `TESTING.md`) |
+| E2E Browser tests      | `bun run test:e2e`    |
 
 **Docker** (from repo root): `docker-compose up` starts PostgreSQL + SvelteKit.
 

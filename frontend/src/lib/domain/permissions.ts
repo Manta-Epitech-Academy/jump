@@ -27,7 +27,7 @@ import type { StaffRole } from '@prisma/client';
  *   • Redirect / 403       — direct URL access, via requireStaffGroup in the load
  */
 const STAFF_GROUPS = {
-  devMember: ['superdev', 'dev', 'admin'],
+  devMember: ['superdev', 'dev'],
   // Roles allowed to manage the dev-redirect controls on a trapped (dev/staging)
   // env: arming "real sends" (lifting the mail/SMS redirect to reach real
   // recipients — dangerous, recipients are minors) and arming a login-redirect

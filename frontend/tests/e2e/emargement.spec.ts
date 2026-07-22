@@ -1,40 +1,14 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Émargement Roster E2E Component Interaction', () => {
-  test('renders émargement roster, slots, stats card, and presence switches', async ({
+// The dev émargement surface is staff-only. An unauthenticated request must be
+// redirected to the staff login by the route guard (hooks.server.ts). This is a
+// thin, deterministic smoke test of that guard: no seeded data, no auth, and it
+// does not depend on any specific event existing.
+test.describe('Émargement access guard', () => {
+  test('redirects an unauthenticated visitor to the staff login', async ({
     page,
   }) => {
-    // Navigate to émargement page for Strasbourg test event
-    await page.goto('/staff/dev/events/cmrc9iocz01lw01fteb11jmkc/emargement');
-
-    // If redirected to login, verify page structure or login flow
-    if (page.url().includes('/staff/login')) {
-      await expect(page.locator('body')).toBeVisible();
-      return;
-    }
-
-    // Verify main page header
-    await expect(page.locator('h1')).toContainText('Émargement');
-
-    // Verify émargement table is visible
-    const table = page.locator('table');
-    await expect(table).toBeVisible();
-
-    // Verify stats card on the right rail
-    const statsCard = page.locator('aside');
-    await expect(statsCard).toBeVisible();
-
-    // Verify presence switches are rendered and enabled
-    const presenceGroup = page
-      .locator('[role="group"][aria-label*="Présence"]')
-      .first();
-    if (await presenceGroup.isVisible()) {
-      const presentBtn = presenceGroup.locator('button', {
-        hasText: 'Présent',
-      });
-      await expect(presentBtn).toBeEnabled();
-      await presentBtn.click();
-      await expect(presentBtn).toHaveAttribute('aria-pressed', 'true');
-    }
+    await page.goto('/staff/dev/events/nonexistent-event/emargement');
+    await expect(page).toHaveURL(/\/staff\/login/);
   });
 });
