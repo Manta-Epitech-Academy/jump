@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { ScopedPrismaClient } from '$lib/server/db/scoped';
-import { EVENT_TYPES } from '$lib/domain/event';
+import { eventWindowEnd } from '$lib/domain/event';
 import {
   type EventModuleKey,
   type EventModuleSettings,
@@ -9,7 +9,6 @@ import {
 } from '$lib/domain/eventModules';
 import {
   type EventLifecycleStatus,
-  type LifecycleBounds,
   getEventStatus,
   getLifecycleBounds,
 } from '$lib/domain/eventLifecycle';
@@ -29,7 +28,6 @@ export const devVisibleEventWhere = {
   modules: { some: {} },
 } satisfies Prisma.EventWhereInput;
 
-const STAGE_DEFAULT_DURATION_DAYS = 14;
 const MS_PER_DAY = 86_400_000;
 
 /**
@@ -43,12 +41,6 @@ export function daysUntil(date: Date, now: Date = new Date()): number {
   return Math.max(0, Math.ceil((date.getTime() - now.getTime()) / MS_PER_DAY));
 }
 
-function addDays(d: Date, days: number): Date {
-  const out = new Date(d);
-  out.setDate(out.getDate() + days);
-  return out;
-}
-
 export type EventRecord = {
   id: string;
   titre: string;
@@ -57,13 +49,12 @@ export type EventRecord = {
   date: Date;
   startMinutes: number | null;
   endDate: Date | null;
-  eventType: string;
   /** Jump-owned cohort noun ("stagiaire", ...), or null when unnamed (the UI
    * falls back to the neutral default). See `cohortNounForms`. */
   cohortNoun: string | null;
   campusId: string;
   externalId: string | null;
-  /** Per-event feedback form override; null = use the type default. */
+  /** Per-event feedback form; null = no feedback form on this event. */
   feedbackFormId: string | null;
   /** The dev-workspace surfaces this event exposes (presence = enabled). */
   modules: Set<EventModuleKey>;
@@ -100,7 +91,6 @@ export async function loadEventOr404(
       date: true,
       startMinutes: true,
       endDate: true,
-      eventType: true,
       cohortNoun: true,
       campusId: true,
       externalId: true,
@@ -137,43 +127,22 @@ export function requireEventModule(
 }
 
 /**
- * Effective end of an event. An explicit `endDate` always wins. Otherwise only a
- * stage de seconde falls back to the default-duration window: a SF-synced stage
- * carries no endDate (only an applied planning template sets one) yet runs ~2
- * weeks. Every other type with no endDate is a single-day event - its start is
- * returned - so a one-afternoon coding club isn't treated as a two-week run.
+ * Effective end of an event for DISPLAY: its explicit `endDate`, else the start
+ * `date` (single-day). A multi-day event carries an explicit `endDate` (config
+ * wizard or planning template); nothing is synthesised from a type. Thin
+ * server-side alias of the domain `eventWindowEnd`, kept for the object-shaped
+ * call sites here.
+ *
+ * NOT for lifecycle status: collapsing a null `endDate` to `date` makes a
+ * single-day event read `past` the instant its start passes. Feed the raw
+ * (nullable) `endDate` straight to `getEventStatus` instead, which treats a null
+ * `endDate` as a whole-day window.
  */
 export function eventEndOrDefault(event: {
   date: Date;
   endDate: Date | null;
-  eventType: string;
 }): Date {
-  if (event.endDate) return event.endDate;
-  if (event.eventType === EVENT_TYPES.STAGE_SECONDE) {
-    return addDays(event.date, STAGE_DEFAULT_DURATION_DAYS);
-  }
-  return event.date;
-}
-
-/**
- * Lifecycle status of an event, accounting for the stage default-duration
- * window. A stage de seconde synced from Salesforce carries no `endDate` yet
- * runs ~2 weeks, so feeding the raw row to `getEventStatus` would read `past`
- * the day after it starts; only a stage gets the synthesized window. Every other
- * type keeps its real (possibly null) `endDate` and uses the standard
- * single-day rule (a one-afternoon coding club is not "ongoing" for two weeks).
- * Single-sourced so the dev workspace and the admin events cockpit can't disagree
- * on whether a running stage is `ongoing`.
- */
-export function resolveEventStatus(
-  event: { date: Date; endDate: Date | null; eventType: string },
-  bounds: LifecycleBounds,
-): EventLifecycleStatus {
-  const endDate =
-    event.eventType === EVENT_TYPES.STAGE_SECONDE
-      ? eventEndOrDefault(event)
-      : event.endDate;
-  return getEventStatus({ date: event.date, endDate }, bounds);
+  return eventWindowEnd(event.date, event.endDate);
 }
 
 export type WorkspaceEventEntry = {
@@ -185,8 +154,8 @@ export type WorkspaceEventEntry = {
   externalId: string | null;
   date: Date;
   /**
-   * Effective end: explicit endDate, else the stage default-duration window, else
-   * (any other type) the start date (single-day). See `eventEndOrDefault`.
+   * Effective end: explicit endDate, else the start date (single-day). See
+   * `eventEndOrDefault`.
    */
   endDate: Date;
   status: EventLifecycleStatus;
@@ -207,11 +176,11 @@ export type WorkspaceEventEntry = {
    */
   hasPlanning: boolean;
   /**
-   * Whether the event resolves to a LIVE feedback form (its override, else the
-   * type default; published + talent-answerable). The Feedback (bilan) surface is
-   * gated on this on top of the module, mirroring `hasPlanning`: enabling bilan
-   * without a resolvable form would otherwise drop a dev on an empty page, so the
-   * nav entry only shows when there is real feedback to look at.
+   * Whether the event resolves to a LIVE feedback form (its `feedbackFormId`,
+   * published + talent-answerable). The Feedback (bilan) surface is gated on this
+   * on top of the module, mirroring `hasPlanning`: enabling bilan without a
+   * resolvable form would otherwise drop a dev on an empty page, so the nav entry
+   * only shows when there is real feedback to look at.
    */
   hasFeedbackForm: boolean;
 };
@@ -258,7 +227,6 @@ export async function resolveWorkspaceEvents(
         externalId: true,
         date: true,
         endDate: true,
-        eventType: true,
         feedbackFormId: true,
         modules: { select: { moduleKey: true } },
         planning: { select: { _count: { select: { timeSlots: true } } } },
@@ -267,26 +235,15 @@ export async function resolveWorkspaceEvents(
     }),
     prisma.feedback_Form.findMany({
       where: { status: 'published', allowsAuthenticatedAccess: true },
-      select: { id: true, defaultForEventType: true },
+      select: { id: true },
     }),
   ]);
   const liveFormIds = new Set(liveForms.map((f) => f.id));
-  const liveDefaultTypes = new Set(
-    liveForms
-      .map((f) => f.defaultForEventType)
-      .filter((t): t is string => t != null),
-  );
-  // Mirrors `eventFormWhere`/`resolveEventForm`: an explicit override is used
-  // alone (never falling back to the type default), else the type default. So a
-  // dangling override (form unpublished after it was picked) reads as "no form",
-  // exactly as the page would resolve it.
-  const eventResolvesLiveForm = (e: {
-    feedbackFormId: string | null;
-    eventType: string;
-  }) =>
-    e.feedbackFormId
-      ? liveFormIds.has(e.feedbackFormId)
-      : liveDefaultTypes.has(e.eventType);
+  // Mirrors `eventFormWhere`/`resolveEventForm`: the event resolves a form iff its
+  // `feedbackFormId` points at a live one. A dangling reference (form unpublished
+  // after it was picked) reads as "no form", exactly as the page would resolve it.
+  const eventResolvesLiveForm = (e: { feedbackFormId: string | null }) =>
+    e.feedbackFormId ? liveFormIds.has(e.feedbackFormId) : false;
   const bounds = getLifecycleBounds(timezone);
   const events: WorkspaceEventEntry[] = rows.map((e) => {
     return {
@@ -295,11 +252,11 @@ export async function resolveWorkspaceEvents(
       publicName: e.publicName,
       externalId: e.externalId,
       date: e.date,
-      // Effective end for display: the stage default-duration window, else the
-      // real (possibly null) endDate. `resolveEventStatus` applies the same rule
-      // for the lifecycle bucket, so the two never disagree.
+      // Effective end for display: explicit endDate, else the single-day start.
       endDate: eventEndOrDefault(e),
-      status: resolveEventStatus(e, bounds),
+      // Lifecycle bucket from the raw (nullable) endDate: a single-day event is
+      // "ongoing" for its whole day, a multi-day one until its endDate.
+      status: getEventStatus(e, bounds),
       schoolYear: schoolYearOf(e.date, timezone),
       monthKey: toDateKey(e.date, timezone).slice(0, 7),
       modules: e.modules.map((m) => m.moduleKey).filter(isEventModuleKey),

@@ -14,8 +14,6 @@
  * column (which Prisma round-trips as a UTC-midnight Date).
  */
 
-import { EVENT_TYPES } from '$lib/domain/event';
-
 export type PresenceSlot = 'morning' | 'afternoon';
 export type PresenceStatus = 'present' | 'late' | 'absent' | 'excused';
 export type PresenceSource = 'qr' | 'manual' | 'system';
@@ -135,65 +133,34 @@ export function slotKey(day: DateKey, slot: PresenceSlot): string {
 }
 
 /**
- * Canonical shape of a Stage de Seconde for émargement: two working weeks,
- * Monday-Friday twice, i.e. 10 working days (20 half-day créneaux). It is a
- * domain invariant of the stage, not a per-event field, so the grid can exist
- * in full before anyone fills `endDate` or populates the planning.
- */
-const STAGE_PRESENCE_WEEKS = 2;
-const STAGE_PRESENCE_WORKDAYS = STAGE_PRESENCE_WEEKS * 5; // Mon-Fri × 2
-
-/** The first `count` working days from a start key (inclusive), weekends skipped. */
-function workdaysFrom(startKey: DateKey, count: number): DateKey[] {
-  const days: DateKey[] = [];
-  // Iterate in UTC like `eventDays`: each step is exactly 24h on a UTC-midnight date.
-  const cursor = dateKeyToDbDate(startKey);
-  while (days.length < count) {
-    const key = dbDateToKey(cursor);
-    if (isWorkday(key)) days.push(key);
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-  return days;
-}
-
-/**
  * The calendar days émargement covers for an event. The single source of truth
  * for the créneau grid, the XLSX export and the QR check-in day validation, so
  * the three can never disagree on which day belongs to the event.
  *
- * Decoupled from the planning: a Stage de Seconde always yields its full window
- * even with an empty planning. When `endDate` is set a human picked the span, so
- * it wins (working days only); when it isn't (the common case — staff rarely
- * fill it and Salesforce never does) the window defaults to the canonical two
- * working weeks. This default is distinct from `stageWindowEnd` (event.ts) on
- * purpose: that one answers "is the stage still running?" for talent messaging
- * and is deliberately generous (`date + 14` calendar days), whereas this needs
- * the exact créneaux to émarger, no phantom trailing day.
+ * A multi-day event (explicit `endDate`) yields its working days only (a 2-week
+ * stage runs Monday-Friday twice = 10 days, never 14); a single-day event (no
+ * `endDate`) yields exactly its own day, whatever weekday that is. Decoupled from
+ * the planning: the grid exists in full from the window alone.
  */
 export function presenceDays(
-  event: { date: Date; endDate: Date | null; eventType: string },
+  event: { date: Date; endDate: Date | null },
   timezone: string,
 ): DateKey[] {
-  if (event.eventType !== EVENT_TYPES.STAGE_SECONDE) {
-    // Coding clubs and other types: their own calendar window, all days.
-    return eventDays(event, timezone);
-  }
-  if (event.endDate) {
-    return eventDays(event, timezone, { workdaysOnly: true });
-  }
-  return workdaysFrom(toDateKey(event.date, timezone), STAGE_PRESENCE_WORKDAYS);
+  return event.endDate
+    ? eventDays(event, timezone, { workdaysOnly: true })
+    : eventDays(event, timezone);
 }
 
 /**
- * Day index + total for the "J{n}/{total}" stage countdown, counting **working
- * days only** (a Stage de Seconde runs Monday-Friday twice = 10 days, never 12
- * or 14). Shares `presenceDays` so the countdown, the émargement grid and the
- * XLSX export can never disagree on the stage shape. `dayN` is today's position
- * in that window (the count of working days elapsed through today, clamped into
- * [1, total]); on a weekend mid-stage it holds the last working day reached.
+ * Day index + total for the "J{n}/{total}" countdown, counting **working days
+ * only** (a 2-week stage runs Monday-Friday twice = 10 days, never 12 or 14).
+ * Shares `presenceDays` so the countdown, the émargement grid and the XLSX export
+ * can never disagree on the shape. `dayN` is today's position in that window (the
+ * count of working days elapsed through today, clamped into [1, total]); on a
+ * weekend mid-window it holds the last working day reached.
  */
 export function stageCountdown(
-  event: { date: Date; endDate: Date | null; eventType: string },
+  event: { date: Date; endDate: Date | null },
   timezone: string,
   now: Date,
 ): { dayN: number; totalDays: number } {
@@ -207,7 +174,7 @@ export function stageCountdown(
 
 /** The ordered list of émargement créneaux (each `presenceDays` day × morning/afternoon). */
 export function presenceSlots(
-  event: { date: Date; endDate: Date | null; eventType: string },
+  event: { date: Date; endDate: Date | null },
   timezone: string,
 ): EventSlot[] {
   return presenceDays(event, timezone).flatMap((day) =>

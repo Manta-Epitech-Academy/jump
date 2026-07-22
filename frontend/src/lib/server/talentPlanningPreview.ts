@@ -1,9 +1,4 @@
 import type { RequestEvent } from '@sveltejs/kit';
-import {
-  DEFAULT_START_MINUTES,
-  EVENT_TYPES,
-  EVENT_TYPE_LABELS,
-} from '$lib/domain/event';
 import type { PlanningView } from '$lib/domain/talentPlanning';
 
 /**
@@ -29,7 +24,7 @@ export const TALENT_PLANNING_PREVIEW_COOKIE = 'talent_planning_preview';
 
 /**
  * The four previewable states. `active_stage`/`active_club` both land on the
- * widget's "ongoing" branch but differ in event-type label (Stage de Seconde
+ * widget's "ongoing" branch but differ in the event name shown (Stage de Seconde
  * vs Coding Club), the two variants the PR screenshots call out, so they're
  * distinct options. `upcoming` and `none` map 1:1 to their branches.
  */
@@ -79,15 +74,13 @@ export function buildPreviewPlanningView(
     case 'active_stage':
       return {
         state: 'ongoing',
-        eventType: EVENT_TYPES.STAGE_SECONDE,
-        titre: EVENT_TYPE_LABELS[EVENT_TYPES.STAGE_SECONDE],
+        titre: 'Stage de Seconde',
         publicName: null,
       };
     case 'active_club':
       return {
         state: 'ongoing',
-        eventType: EVENT_TYPES.CODING_CLUB,
-        titre: EVENT_TYPE_LABELS[EVENT_TYPES.CODING_CLUB],
+        titre: 'Coding Club',
         publicName: null,
       };
     case 'upcoming': {
@@ -95,11 +88,10 @@ export function buildPreviewPlanningView(
       date.setDate(date.getDate() + PREVIEW_UPCOMING_LEAD_DAYS);
       return {
         state: 'upcoming',
-        eventType: EVENT_TYPES.CODING_CLUB,
-        titre: EVENT_TYPE_LABELS[EVENT_TYPES.CODING_CLUB],
+        titre: 'Coding Club',
         publicName: null,
-        // A confirmed time so the "à HH:MM" line is exercised too.
-        startMinutes: DEFAULT_START_MINUTES[EVENT_TYPES.CODING_CLUB],
+        // A confirmed time (14:00) so the "à HH:MM" line is exercised too.
+        startMinutes: 14 * 60,
         date,
       };
     }

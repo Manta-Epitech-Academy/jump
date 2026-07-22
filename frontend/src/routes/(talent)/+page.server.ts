@@ -16,11 +16,7 @@ import {
 } from '$lib/server/services/minigameService';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
-import {
-  stageWindowEnd,
-  STAGE_DEFAULT_DURATION_DAYS,
-  eventDisplayName,
-} from '$lib/domain/event';
+import { eventWindowEnd, eventDisplayName } from '$lib/domain/event';
 import { pendingFeedbackForm } from '$lib/domain/feedback';
 import { resolveEventNudgeForm } from '$lib/server/feedbackForms';
 import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
@@ -65,7 +61,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     const eventSelect = {
       event: {
         select: {
-          eventType: true,
           titre: true,
           publicName: true,
           date: true,
@@ -157,26 +152,24 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     }
 
     // The staff-authored CMS welcome message seeds the dashboard's Actualités
-    // feed and shows for the whole stage window; this card is its only home.
-    // Distinct from the fixed pre-onboarding splash at /welcome, which owns its
-    // own copy and does not read this row.
+    // feed and shows while the event's window is open; this card is its only
+    // home. Distinct from the fixed pre-onboarding splash at /welcome, which owns
+    // its own copy. Content-existence is the gate: any event carrying a `welcome`
+    // CMS page shows the card - no event type involved.
     let welcome: { content: string } | null = null;
     {
-      // With several concurrent stages, prefer the ongoing one: filter to stages
-      // whose window is still open, then take the earliest-starting (an ongoing
-      // stage outranks a not-yet-started one). Window mirrors `stageWindowEnd`.
+      // Prefer the earliest-starting event whose window is still open AND that
+      // has a welcome page (an ongoing event outranks a not-yet-started one). A
+      // single-day event (no endDate) is "open" on its own day.
       const now = new Date();
-      const windowLookback = new Date(
-        now.getTime() - STAGE_DEFAULT_DURATION_DAYS * 86_400_000,
-      );
-      const stageParticipation = await prisma.participation.findFirst({
+      const participation = await prisma.participation.findFirst({
         where: {
           talentId: studentId,
           event: {
-            eventType: 'stage_seconde',
+            cmsPages: { some: { slug: 'welcome' } },
             OR: [
               { endDate: { gte: now } },
-              { endDate: null, date: { gte: windowLookback } },
+              { endDate: null, date: { gte: startOfDay } },
             ],
           },
         },
@@ -184,39 +177,32 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         select: {
           event: {
             select: {
-              id: true,
               titre: true,
               publicName: true,
-              endDate: true,
-              date: true,
               campus: { select: { name: true, contactEmail: true } },
+              cmsPages: {
+                where: { slug: 'welcome' },
+                select: { content: true },
+              },
             },
           },
         },
       });
-      if (stageParticipation) {
-        const { event } = stageParticipation;
-        const stageEnd = stageWindowEnd(event.date, event.endDate);
-        if (stageEnd >= new Date()) {
-          const welcomePage = await prisma.cmsPage.findUnique({
-            where: { slug_eventId: { slug: 'welcome', eventId: event.id } },
-            select: { content: true },
-          });
-          if (welcomePage?.content) {
-            welcome = {
-              content: renderWelcomeMessage(welcomePage.content, {
-                prenom: locals.talent.prenom,
-                nom: locals.talent.nom,
-                campusName: event.campus.name,
-                campusContactEmail: event.campus.contactEmail,
-                stageName: eventDisplayName({
-                  publicName: event.publicName,
-                  titre: event.titre,
-                }),
-              }),
-            };
-          }
-        }
+      const content = participation?.event.cmsPages[0]?.content;
+      if (participation && content) {
+        const { event } = participation;
+        welcome = {
+          content: renderWelcomeMessage(content, {
+            prenom: locals.talent.prenom,
+            nom: locals.talent.nom,
+            campusName: event.campus.name,
+            campusContactEmail: event.campus.contactEmail,
+            stageName: eventDisplayName({
+              publicName: event.publicName,
+              titre: event.titre,
+            }),
+          }),
+        };
       }
     }
 
@@ -226,35 +212,34 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       take: 5,
     });
 
-    // Feedback banner: check if the stage_seconde event has pending feedback
+    // Feedback banner: nudge about the event whose feedback form still awaits
+    // this talent's answer.
     let pendingFeedback: Array<{
       eventId: string;
       formId: string;
       personaIconUrl?: string;
     }> = [];
-    // A talent can match several stage events (the welcome block above orders
-    // the same lookup for the same reason). Feedback is owed after the event,
-    // so nudge about the most recently started stage, not a DB-arbitrary one.
+    // A talent can match several events with a form; feedback is owed after the
+    // event, so nudge about the most recently started one, not a DB-arbitrary
+    // one. Only events carrying a feedback form qualify.
     const feedbackParticipation = await prisma.participation.findFirst({
       where: {
         talentId: studentId,
-        event: { eventType: 'stage_seconde' },
+        event: { feedbackFormId: { not: null } },
       },
       orderBy: { event: { date: 'desc' } },
       include: {
         event: {
-          select: { date: true, eventType: true, feedbackFormId: true },
+          select: { date: true, feedbackFormId: true },
         },
       },
     });
     if (feedbackParticipation) {
-      // The nudge points at THIS event's form (its override, else the type
-      // default), not at every globally-nudged form, so a talent is only ever
-      // reminded about the form their event actually uses. The resolver yields
-      // it only when it's a live nudge (published, answerable, nudge on).
+      // The nudge points at THIS event's form, so a talent is only ever reminded
+      // about the form their event actually uses. The resolver yields it only
+      // when it's a live nudge (published, answerable, nudge on).
       const form = await resolveEventNudgeForm({
         feedbackFormId: feedbackParticipation.event.feedbackFormId,
-        eventType: feedbackParticipation.event.eventType,
       });
       if (form) {
         const existingSubs = await prisma.feedback_Submission.findMany({

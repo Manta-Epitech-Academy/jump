@@ -228,7 +228,7 @@
                   />
                 </div>
                 <p class="truncate text-xs text-muted-foreground">
-                  {event.campusName} · {event.eventTypeLabel} · {event.dateLabel}
+                  {event.campusName} · {event.dateLabel}
                 </p>
               </div>
               <div class="hidden shrink-0 sm:block">

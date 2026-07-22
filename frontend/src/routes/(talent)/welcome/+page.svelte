@@ -14,7 +14,6 @@
 
   onMount(() => {
     track('welcome_seen', {
-      eventId: data.eventId,
       daysSinceInvite: daysBetween(data.talentCreatedAt),
     });
   });
@@ -59,14 +58,9 @@
         class="space-y-4 text-center text-sm leading-relaxed text-slate-600 dark:text-slate-300"
       >
         <p>
-          Tu viens de poser un pied chez <strong>Epitech</strong>. Dans quelques
-          jours, tu rejoindras une promo de stagiaires curieux et motivés comme
-          toi pour découvrir la tech et ce qu'on fait dans une école
-          d'informatique.
-        </p>
-        <p>
-          D'ici là, on fait connaissance ? Quelques minutes sur
-          <strong>Jump</strong>, et tout sera prêt.
+          Tu viens de poser un pied chez <strong>Epitech</strong>. On fait
+          connaissance ? Quelques minutes sur <strong>Jump</strong>, et tout
+          sera prêt.
         </p>
       </div>
 
@@ -77,7 +71,6 @@
           use:enhance={() => {
             return async ({ update }) => {
               track('welcome_dismissed', {
-                eventId: data.eventId,
                 daysSinceInvite: daysBetween(data.talentCreatedAt),
                 secondsOnPage: secondsBetween(seenAt),
               });

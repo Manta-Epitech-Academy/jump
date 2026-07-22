@@ -25,10 +25,9 @@ export const load: PageServerLoad = async () => {
   const events = await EventService.listAdminEvents();
 
   // The feedback-form picker in the edit dialog: the published, talent-answerable
-  // forms an event can be bound to, plus the title of the form that resolves by
-  // default per event type (shown as the "Par défaut (…)" sentinel). One query
-  // each, cross-event (the dialog reuses them for whichever row is opened).
-  const [publishedForms, typeDefaults, templates] = await Promise.all([
+  // forms an event can be bound to. One query, cross-event (the dialog reuses them
+  // for whichever row is opened).
+  const [publishedForms, templates] = await Promise.all([
     prisma.feedback_Form.findMany({
       // Any published, talent-answerable form is pickable for an event (forms are
       // not owned by events - an event-specific one is just a normally-named form).
@@ -36,31 +35,12 @@ export const load: PageServerLoad = async () => {
       select: { id: true, title: true },
       orderBy: { title: 'asc' },
     }),
-    prisma.feedback_Form.findMany({
-      // Only a LIVE default (published + talent-answerable) counts: it must match
-      // what the dev bilan surface actually resolves (`resolvePublishedEventForm`),
-      // so the wizard's "Par défaut (…)" label and its no-form warning don't claim
-      // a default that a draft form would never deliver.
-      where: {
-        defaultForEventType: { not: null },
-        status: 'published',
-        allowsAuthenticatedAccess: true,
-      },
-      select: { id: true, defaultForEventType: true, title: true },
-    }),
     EventConfigTemplateService.list(),
   ]);
   const feedbackForms = publishedForms.map((f) => ({
     value: f.id,
     label: f.title,
   }));
-  // The form an event type resolves to when it sets no override: its id (to deep-
-  // link the editor) + title (for the "Par défaut (…)" picker label).
-  const defaultFormByType: Record<string, { id: string; title: string }> = {};
-  for (const f of typeDefaults) {
-    if (f.defaultForEventType)
-      defaultFormByType[f.defaultForEventType] = { id: f.id, title: f.title };
-  }
 
   // A compact, read-only preview of each pickable form (ordered question
   // prompts) so the wizard shows "what's in this form" inline before it's
@@ -68,12 +48,7 @@ export const load: PageServerLoad = async () => {
   // small curated catalogue, so previewing them all up front is cheap and saves
   // a per-select round-trip. Identity questions (email/name capture) are
   // omitted: the preview is about the form's actual content.
-  const previewIds = [
-    ...new Set([
-      ...publishedForms.map((f) => f.id),
-      ...typeDefaults.map((f) => f.id),
-    ]),
-  ];
+  const previewIds = [...new Set(publishedForms.map((f) => f.id))];
   const previewQuestions = await prisma.feedback_Question.findMany({
     where: { formId: { in: previewIds }, identityField: null },
     select: { formId: true, prompt: true },
@@ -90,7 +65,6 @@ export const load: PageServerLoad = async () => {
     events,
     form,
     feedbackForms,
-    defaultFormByType,
     templates,
     formPreviews,
   };

@@ -14,7 +14,6 @@ import { requireStaffGroup } from '$lib/server/auth/guards';
 import { NOTE_INCLUDE, serializeNote } from '$lib/server/talentNotes';
 import { interviewConductSchema } from '$lib/validation/interviews';
 import { NOTE_FIELDS, type NoteField } from '$lib/domain/interview';
-import { EVENT_TYPES } from '$lib/domain/event';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { formatGivenName } from '$lib/domain/profile';
 import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
@@ -78,7 +77,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
               titre: true,
               date: true,
               endDate: true,
-              eventType: true,
               modules: { select: { moduleKey: true } },
             },
           },
@@ -145,24 +143,21 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     );
     const communications = allCommunications.slice(0, RIGHT_RAIL_COMMS);
 
-    // Compliance (charte, droits à l'image) is a stage-de-seconde artifact: it
-    // always attaches to the talent's latest stage participation, whatever event
-    // the fiche was opened from. `participations` is `event.date desc`, so [0] is
-    // the latest stage.
-    const stageParticipations = participations.filter(
-      (p) => p.event.eventType === EVENT_TYPES.STAGE_SECONDE,
-    );
-    const primaryComplianceParticipation = stageParticipations[0] ?? null;
+    // Compliance (charte, droits à l'image) is a Talent-level artifact; the
+    // participation only supplies display context (which event/campus the fiche
+    // shows it under). `participations` is `event.date desc`, so [0] is the
+    // latest one the talent attended.
+    const primaryComplianceParticipation = participations[0] ?? null;
 
     // Interview conduct surface. The orientation interview is 1:1 with a
     // participation (one per person per event) and is offered on any event that
-    // exposes the `entretiens` module - not only the stage. The entretiens page
-    // links here with `?event=<id>`, so we attach to THAT event's participation;
-    // opened without context (search, deep link) we fall back to the latest
-    // interviewable one, stage first for backward-compatible behaviour. Staff
-    // routinely type up paper interviews long after, so lifecycle phase is
-    // irrelevant here. With no interviewable participation the fiche disables
-    // "Faire l'entretien" with a reason and the actions refuse.
+    // exposes the `entretiens` module. The entretiens page links here with
+    // `?event=<id>`, so we attach to THAT event's participation; opened without
+    // context (search, deep link) we fall back to the latest interviewable one
+    // (`participations` is `event.date desc`). Staff routinely type up paper
+    // interviews long after, so lifecycle phase is irrelevant here. With no
+    // interviewable participation the fiche disables "Faire l'entretien" with a
+    // reason and the actions refuse.
     const interviewable = participations.filter((p) =>
       p.event.modules.some((m) => m.moduleKey === EVENT_MODULES.ENTRETIENS),
     );
@@ -171,9 +166,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       (eventParam
         ? interviewable.find((p) => p.event.id === eventParam)
         : null) ??
-      interviewable.find(
-        (p) => p.event.eventType === EVENT_TYPES.STAGE_SECONDE,
-      ) ??
       interviewable[0] ??
       null;
 

@@ -45,7 +45,6 @@
         allowsAuthenticatedAccess: d.form.allowsAuthenticatedAccess,
         allowsPublicAccess: d.form.allowsPublicAccess,
         dashboardNudge: d.form.dashboardNudge,
-        defaultForEventType: d.form.defaultForEventType,
       },
       sections: d.sections.map((s) => ({
         id: s.id,

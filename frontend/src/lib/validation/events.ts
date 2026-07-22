@@ -84,9 +84,6 @@ export const bulkEventActivationSchema = z.object({
 export const eventConfigTemplateSaveSchema = z.object({
   name: z.string().trim().min(1, 'Nom requis.').max(80),
   description: z.string().trim().max(280).default(''),
-  // The SF event type the template was saved from, captured so the wizard can
-  // suggest it for matching events (soft hint, not a binding).
-  forEventType: z.string().default(''),
   // The friendly event name the preset carries (e.g. "Coding Club"). Empty = the
   // preset prefills no name (the event keeps the SF titre). Mirrors the event
   // form's `publicName`; campuses reuse one display name across every occurrence

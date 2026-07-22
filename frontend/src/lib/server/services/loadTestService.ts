@@ -176,7 +176,6 @@ export async function buildLoadManifest(sample = 50) {
       select: {
         id: true,
         titre: true,
-        eventType: true,
         date: true,
         campus: { select: { id: true, name: true } },
       },
@@ -237,7 +236,6 @@ export async function buildLoadManifest(sample = 50) {
     events: events.map((e) => ({
       id: e.id,
       title: e.titre,
-      type: e.eventType,
       date: e.date.toISOString(),
       campusName: e.campus?.name ?? null,
     })),

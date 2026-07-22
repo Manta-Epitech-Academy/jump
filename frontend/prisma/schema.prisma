@@ -629,19 +629,18 @@ model Event {
   // Salesforce campaign name (`titre`) is an internal identifier, ugly to show
   // ("Montpellier-19-06-2026-CodingClub"). `publicName` is the friendly name an
   // admin types, surfaced in the dev switcher / talent widget / page chrome in
-  // its place. `null` falls back to `titre` (staff) or the type label (talent).
+  // its place. `null` falls back to `titre` everywhere (see `eventDisplayName`).
   // Admin-set today; the worker may seed it from SF later (plain nullable field
   // so a future no-clobber sync can write it, like the other reconciled fields).
   publicName     String?
   // What one member of this event's cohort is called across the dev workspace
   // ("stagiaire", "participant", "collégien", ...). Jump-owned free text typed in
-  // the event config wizard, NOT derived from `eventType`: the SF type is only a
-  // hint (it can be mis-entered and we can't correct it), so the noun is read
-  // straight off this column. Nothing maps `eventType` to a noun anywhere; a
-  // per-type default rides the config template staff start from. NULL means "not
-  // named yet" (an unconfigured event): the UI falls back to the neutral default
-  // ("participant") via `cohortNounForms`, so the column never asserts an unmade
-  // choice. Past stages were backfilled to "stagiaire" (a real historical value).
+  // the event config wizard and read straight off this column; nothing infers it
+  // from what kind of event it is. A per-format default rides the config template
+  // staff start from. NULL means "not named yet" (an unconfigured event): the UI
+  // falls back to the neutral default ("participant") via `cohortNounForms`, so
+  // the column never asserts an unmade choice. Past stages were backfilled to
+  // "stagiaire" (a real historical value).
   cohortNoun     String?
   date           DateTime
   // Salesforce gives us the calendar day (`date`/`endDate`) but never a
@@ -651,13 +650,11 @@ model Event {
   // clobber it. Compose with the campus timezone for a real instant.
   startMinutes   Int?
   endDate        DateTime?
-  eventType      String    @default("coding_club")
   campusId       String
   // Which feedback form this event uses (the `bilan` module reports against it,
-  // and its QR/link/export resolve through it). Null = fall back to the form
-  // marked `defaultForEventType` for this event's type (see Feedback_Form). A
-  // per-event override of that type default; SetNull so deleting a form just
-  // drops the binding back to the default rather than the event.
+  // and its QR/link/export resolve through it). Null = no feedback form on this
+  // event (the bilan surface stays hidden). SetNull so deleting a form just drops
+  // the binding rather than the event.
   feedbackFormId String?
   externalId     String?   @unique
   // Explicit admin gate for the dev workspace, decoupled from modules: an event
@@ -690,10 +687,9 @@ model Event {
 // presence = that module is enabled for the event (no `enabled` boolean: the
 // event's rows ARE the truth, there is no campus-wide default to override).
 // `moduleKey` is validated in code against
-// EVENT_MODULES (mirrors how `flagKey`/`eventType` stay plain strings so a new
-// module needs no migration). Seeded from the event type's preset at creation;
-// the SF sync never touches these rows, so the per-event config is never
-// clobbered. See src/lib/domain/eventModules.ts.
+// EVENT_MODULES (a plain string so a new module needs no migration). Seeded with
+// every module on at creation; the SF sync never touches these rows, so the
+// per-event config is never clobbered. See src/lib/domain/eventModules.ts.
 model EventConfig_Module {
   eventId   String
   moduleKey String
@@ -714,15 +710,12 @@ model EventConfig_Module {
 // the config wizard ("Enregistrer comme modèle"). Applying
 // one is a point-in-time SEED: the wizard copies its modules + settings + default
 // feedback form into the event, with no live link afterwards (the event's own
-// rows stay the truth). `forEventType` is a soft hint (captured from the event a
-// template was saved from) the wizard uses to suggest a template for a matching
-// SF type, never a binding. `name` is globally unique → saving with an existing
+// rows stay the truth). `name` is globally unique → saving with an existing
 // name updates that template (upsert), which is how a template is edited.
 model EventConfig_Template {
   id             String   @id @default(cuid())
   name           String   @unique
   description    String?
-  forEventType   String?
   // The friendly event name the preset carries (e.g. "Coding Club"). Captured
   // because campuses reuse one display name across every occurrence of a format
   // (Strasbourg has "Coding Club" ×10), so a preset that doesn't pre-fill it just
@@ -734,7 +727,7 @@ model EventConfig_Template {
   // preset names no cohort (the applied event falls back to the neutral default).
   cohortNoun     String?
   // Jump-owned arrival time-of-day the preset carries, in wall-clock minutes from
-  // local midnight (0-1439), `null` = none (the event falls back to the type
+  // local midnight (0-1439), `null` = none (the event falls back to the single
   // default). Mirrors `Event.startMinutes`; copied onto the event on apply.
   startMinutes   Int?
   feedbackFormId String?
@@ -746,7 +739,6 @@ model EventConfig_Template {
   createdBy    StaffProfile?                @relation("EventConfigTemplateCreator", fields: [createdById], references: [id], onDelete: SetNull)
   modules      EventConfig_TemplateModule[]
 
-  @@index([forEventType])
   @@index([feedbackFormId])
 }
 
@@ -922,14 +914,6 @@ model Feedback_Form {
   // Closing bot line emitted once the conversation ends (interpolated, e.g.
   // "Merci {prenom} !"). Null = the engine's generic fallback.
   outro String?
-
-  // Marks this form as the default for an `Event.eventType` (e.g. 'stage_seconde').
-  // An event with no explicit `feedbackFormId` resolves to the form holding its
-  // type here, so every stage uses the bilan form with zero per-event config.
-  // @unique = at most one default form per type; reassigning clears the prior
-  // holder. Null = not a type default (the form is only used where explicitly
-  // attached or shared publicly). Plain string, mirroring `eventType`/`flagKey`.
-  defaultForEventType String? @unique
 
   // Author + last editor (rendered in the admin builder). SetNull so a staff
   // departure never deletes a form.

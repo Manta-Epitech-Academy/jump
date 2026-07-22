@@ -2666,11 +2666,21 @@ async function seedEvents(
   for (const blueprint of EVENTS) {
     const campusId = campuses[blueprint.campus].id;
 
+    // The blueprint's `eventType` is a seed-time classification only (it is never
+    // written to the DB - `Event.eventType` was retired). It materialises here as
+    // concrete data: a stage carries an explicit ~2-week `endDate` (what the app
+    // used to synthesise from the type), names its cohort "stagiaire", and gets
+    // the full module set.
+    const isStage =
+      (blueprint.eventType ?? EVENT_TYPES.CODING_CLUB) ===
+      EVENT_TYPES.STAGE_SECONDE;
     const eventStart = dayAt(blueprint.daysOffset, 13, 0);
     const eventEnd =
       blueprint.durationDays && blueprint.durationDays > 1
         ? dayAt(blueprint.daysOffset + blueprint.durationDays - 1, 23, 59)
-        : null;
+        : isStage
+          ? dayAt(blueprint.daysOffset + 14, 23, 59)
+          : null;
 
     // Normalise single-day vs multi-day into a loop (empty when no slots/days)
     const dayList: DayBlueprint[] =
@@ -2716,26 +2726,18 @@ async function seedEvents(
         titre: blueprint.titre,
         date: eventStart,
         endDate: eventEnd,
-        eventType: blueprint.eventType ?? EVENT_TYPES.CODING_CLUB,
         // Seeded events are all retro, so mark them validated for the dev space
         // (the gate the dev switcher and the attended-events history both use).
         devActivatedAt: eventEnd,
-        // Faithful state for the type this blueprint stands in for: a stage
-        // historically named its cohort "stagiaire" (materialised); anything else
-        // is left unnamed (null) and reads "participant" via the fallback, exactly
-        // like an unconfigured event. Render reads this column, never the type.
-        cohortNoun:
-          (blueprint.eventType ?? EVENT_TYPES.CODING_CLUB) ===
-          EVENT_TYPES.STAGE_SECONDE
-            ? 'stagiaire'
-            : null,
+        // A stage historically named its cohort "stagiaire" (materialised);
+        // anything else is left unnamed (null) and reads "participant" via the
+        // fallback, exactly like an unconfigured event.
+        cohortNoun: isStage ? 'stagiaire' : null,
         campusId,
         modules: {
-          create: ((blueprint.eventType ?? EVENT_TYPES.CODING_CLUB) ===
-          EVENT_TYPES.STAGE_SECONDE
-            ? STAGE_MODULE_KEYS
-            : CODING_CLUB_MODULE_KEYS
-          ).map((moduleKey) => ({ moduleKey })),
+          create: (isStage ? STAGE_MODULE_KEYS : CODING_CLUB_MODULE_KEYS).map(
+            (moduleKey) => ({ moduleKey }),
+          ),
         },
         planning: { create: { timeSlots: { create: timeSlotData } } },
       },
@@ -2783,7 +2785,6 @@ async function seedEvents(
     // empty, like real data. Stage presence spans two working weeks; coding
     // clubs and other types span their own calendar days.
     const now = new Date();
-    const isStage = event.eventType === EVENT_TYPES.STAGE_SECONDE;
     const creneauDays = presenceDayDates(event, isStage);
     const presenceRows = students.flatMap((s) => {
       const excused = !s.isPresent && s.i % 7 === 0;
@@ -2820,11 +2821,11 @@ async function seedEvents(
       });
     }
 
-    // Stage compliance (only for stage_seconde events). This row tracks the
+    // Stage compliance (only for stage events). This row tracks the
     // event-scoped charte; the image-rights decision is a talent-level fact
     // seeded with the onboarding ladder (see seedStudents), because the parent
     // mail that drives it fires at the parents step — independent of any event.
-    if (blueprint.eventType === EVENT_TYPES.STAGE_SECONDE) {
+    if (isStage) {
       const complianceRows: {
         participationId: string;
         charteSigned: boolean;

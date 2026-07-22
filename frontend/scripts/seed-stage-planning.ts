@@ -49,8 +49,6 @@ import { CalendarDateTime, parseDate } from '@internationalized/date';
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
-const EVENT_TYPE = 'stage_seconde';
-
 // ─── Wall-clock → UTC instant ────────────────────────────────────────────────
 // Inlined from src/lib/domain/planningTime.ts (`fromWallClock`). Resolves a
 // campus-local `YYYY-MM-DD` + `HH:MM` to the absolute instant stored in the DB,
@@ -1215,14 +1213,16 @@ async function seedCampus(plan: CampusPlanning): Promise<void> {
   });
   if (!campus) throw new Error(`Campus "${plan.campus}" not found.`);
 
+  // The stage is the campus's multi-day event (it carries an explicit endDate;
+  // single-day coding clubs don't). Earliest first.
   const event = await prisma.event.findFirst({
-    where: { campusId: campus.id, eventType: EVENT_TYPE },
+    where: { campusId: campus.id, endDate: { not: null } },
     orderBy: { date: 'asc' },
     include: { planning: true },
   });
   if (!event) {
     throw new Error(
-      `No ${EVENT_TYPE} event for ${plan.campus}. Create the stage event first.`,
+      `No multi-day stage event for ${plan.campus}. Create the stage event (with an end date) first.`,
     );
   }
 

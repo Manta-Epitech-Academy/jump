@@ -93,7 +93,7 @@
     "hono": "^4.12.26",
     "isomorphic-dompurify": "^3.18.0",
     "jose": "^6.2.3",
-    "js-yaml": "^4.2.0",
+    "js-yaml": "^4.3.0",
     "libphonenumber-js": "^1.13.7",
     "markdown-it": "^14.2.0",
     "marked": "^17.0.6",
@@ -121,7 +121,7 @@
     "cookie": "^0.7.0",
     "@hono/node-server": "^1.19.13",
     "hono": "^4.12.25",
-    "brace-expansion": "^5.0.5",
+    "brace-expansion": "^5.0.7",
     "fast-uri": "^3.1.2",
     "fast-xml-builder": "^1.2.0",
     "fast-xml-parser": "^5.7.0",
@@ -136,7 +136,7 @@
     "vite": "^7.3.5",
     "ws": "^8.21.0",
     "dompurify": "^3.4.11",
-    "js-yaml": "^4.2.0",
+    "js-yaml": "^4.3.0",
     "markdown-it": "^14.2.0",
     "undici": "^7.28.0"
   }

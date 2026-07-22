@@ -11,36 +11,21 @@
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import * as Table from '$lib/components/ui/table';
   import { formatDateTimeFr } from '$lib/utils';
-  import { EVENT_TYPES } from '$lib/domain/event';
   import { toast } from 'svelte-sonner';
   import { track, daysBetween } from '$lib/analytics';
 
   let { data } = $props();
 
   let filterCampus = $state<string>('all');
-  let filterType = $state<string>('all');
-
-  const eventTypeLabels: Record<string, string> = {
-    [EVENT_TYPES.STAGE_SECONDE]: 'Stage de Seconde',
-    [EVENT_TYPES.CODING_CLUB]: 'Coding Club',
-  };
 
   const campusFilterOptions = $derived([
     { value: 'all', label: 'Tous les campus' },
     ...data.campusNames.map((name: string) => ({ value: name, label: name })),
   ]);
-  const typeFilterOptions = [
-    { value: 'all', label: 'Tous les types' },
-    ...Object.entries(eventTypeLabels).map(([value, label]) => ({
-      value,
-      label,
-    })),
-  ];
 
   const filteredErrors = $derived(
     data.errors.filter((e) => {
       if (filterCampus !== 'all' && e.campusName !== filterCampus) return false;
-      if (filterType !== 'all' && e.eventType !== filterType) return false;
       return true;
     }),
   );
@@ -48,7 +33,7 @@
   // "Tout résoudre" clears every unresolved row in the DB, not just the ones
   // on screen — only offer it on the unfiltered view so a narrowed list can't
   // mislead an admin into a global wipe.
-  const isFiltered = $derived(filterCampus !== 'all' || filterType !== 'all');
+  const isFiltered = $derived(filterCampus !== 'all');
   // When filtered, the active filter *is* the selection: resolve exactly the
   // unresolved rows currently on screen.
   const filteredUnresolved = $derived(
@@ -80,14 +65,6 @@
         triggerClass="text-xs"
       />
 
-      <FilterSelect
-        options={typeFilterOptions}
-        value={filterType}
-        onChange={(v) => (filterType = v)}
-        ariaLabel="Filtrer par type"
-        triggerClass="text-xs"
-      />
-
       {#if data.unresolvedCount > 0 && !isFiltered}
         <form
           method="POST"
@@ -96,15 +73,11 @@
             async ({ result, update }) => {
               if (result.type === 'success') {
                 const unresolved = data.errors.filter((e) => !e.resolved);
-                const urgentCount = unresolved.filter(
-                  (e) => e.eventType === EVENT_TYPES.STAGE_SECONDE,
-                ).length;
                 const oldestDaysOpen = unresolved
                   .map((e) => daysBetween(e.createdAt) ?? 0)
                   .reduce((max, d) => (d > max ? d : max), 0);
                 track('sync_errors_resolved_all', {
                   count: data.unresolvedCount,
-                  urgentCount,
                   oldestDaysOpen,
                 });
                 toast.success('Toutes les erreurs ont été résolues');
@@ -243,8 +216,6 @@
                           return async ({ result, update }) => {
                             if (result.type === 'success') {
                               track('sync_error_rebound', {
-                                isStage:
-                                  error.eventType === EVENT_TYPES.STAGE_SECONDE,
                                 occurrenceCount: error.occurrenceCount,
                                 daysOpen: daysBetween(error.createdAt),
                               });
@@ -282,8 +253,6 @@
                         async ({ result, update }) => {
                           if (result.type === 'success') {
                             track('sync_error_resolved', {
-                              isStage:
-                                error.eventType === EVENT_TYPES.STAGE_SECONDE,
                               occurrenceCount: error.occurrenceCount,
                               daysOpen: daysBetween(error.createdAt),
                               surface: 'admin',

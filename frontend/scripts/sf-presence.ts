@@ -51,8 +51,6 @@ export type PresenceSlot = 'morning' | 'afternoon';
 export type PresenceStatus = 'present' | 'late' | 'absent' | 'excused';
 
 const DEFAULT_TIMEZONE = 'Europe/Paris';
-const STAGE_SECONDE = 'stage_seconde';
-const STAGE_PRESENCE_WORKDAYS = 10; // Mon-Fri x 2 weeks, see domain/eventPresence.ts
 /** Minute-of-day boundary: an event starting before noon is a morning créneau. */
 const MORNING_END_MINUTES = 12 * 60;
 
@@ -95,28 +93,14 @@ function eventDays(
   return days;
 }
 
-function workdaysFrom(startKey: DateKey, count: number): DateKey[] {
-  const days: DateKey[] = [];
-  const cursor = dateKeyToDbDate(startKey);
-  while (days.length < count) {
-    const key = dbDateToKey(cursor);
-    if (isWorkday(key)) days.push(key);
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-  return days;
-}
-
 function presenceDays(
-  event: { date: Date; endDate: Date | null; eventType: string },
+  event: { date: Date; endDate: Date | null },
   timezone: string,
 ): DateKey[] {
-  if (event.eventType !== STAGE_SECONDE) {
-    return eventDays(event, timezone);
-  }
-  if (event.endDate) {
-    return eventDays(event, timezone, { workdaysOnly: true });
-  }
-  return workdaysFrom(toDateKey(event.date, timezone), STAGE_PRESENCE_WORKDAYS);
+  // Multi-day (explicit endDate): working days only. Single-day: that day.
+  return event.endDate
+    ? eventDays(event, timezone, { workdaysOnly: true })
+    : eventDays(event, timezone);
 }
 
 /**
@@ -184,7 +168,6 @@ export async function applyPresence(
       id: true,
       date: true,
       endDate: true,
-      eventType: true,
       startMinutes: true,
       campus: { select: { timezone: true } },
     },

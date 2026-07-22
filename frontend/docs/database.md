@@ -277,7 +277,6 @@ erDiagram
     DateTime date
     Int startMinutes
     DateTime endDate
-    String eventType
     String campusId FK
     String feedbackFormId FK
     String externalId UK
@@ -295,7 +294,6 @@ erDiagram
     String id PK
     String name UK
     String description
-    String forEventType
     String publicName
     String cohortNoun
     Int startMinutes
@@ -553,7 +551,6 @@ erDiagram
     Boolean allowsPublicAccess
     Boolean dashboardNudge
     String outro
-    String defaultForEventType UK
     String createdById FK
     String updatedById FK
     DateTime createdAt

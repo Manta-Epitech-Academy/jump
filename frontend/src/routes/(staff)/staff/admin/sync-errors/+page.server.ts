@@ -21,7 +21,6 @@ export const load: PageServerLoad = async () => {
         select: {
           externalId: true,
           titre: true,
-          eventType: true,
           campus: { select: { name: true } },
         },
       })
@@ -35,16 +34,12 @@ export const load: PageServerLoad = async () => {
   ].sort();
 
   return {
-    // An error is about one event, so its category is that event's type: when a
-    // collision is logged neither talent yet has a participation on that event,
-    // so the event's own eventType is the authoritative signal.
     errors: errors.map((e: (typeof errors)[number]) => {
       const event = e.eventExtId ? eventMap.get(e.eventExtId) : null;
       return {
         ...e,
         eventName: event?.titre ?? null,
         campusName: event?.campus?.name ?? null,
-        eventType: event?.eventType ?? null,
         createdAt: e.createdAt.toISOString(),
         updatedAt: e.updatedAt.toISOString(),
         lastOccurredAt: e.lastOccurredAt.toISOString(),
