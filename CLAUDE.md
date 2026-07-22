@@ -6,6 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Jump — an internal Epitech Academy platform for managing training events, student progress, and certifications. French-language UI. Built with SvelteKit + Prisma + PostgreSQL.
 
+## Philosophy
+
+**Cleanest, not quickest.** Always prefer the cleanest, most maintainable solution over the fastest shortcut. A local hotfix or a duplicated component that "works" is an anti-pattern here. Take the time to do it right.
+
+**Modularity before optimisation.** Don't optimise prematurely. Code must first be clear and well-decomposed; optimise only when a measurable need justifies it.
+
+**DRY everywhere.** No repetitions in code, no repetitions in documentation. If something is true in two places, it must live in one.
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the full feature pipeline and Definition of Done, and [`JARGON.md`](./JARGON.md) for shared vocabulary.
+
 ## Commands
 
 All commands run from `frontend/` using **Bun**. The shell's cwd often already IS `frontend/` (it persists between commands), so a reflexive `cd frontend` fails with "No such file or directory". Anchor on the repo root instead: `cd "$(git rev-parse --show-toplevel)/frontend"` works from anywhere, including worktrees.
