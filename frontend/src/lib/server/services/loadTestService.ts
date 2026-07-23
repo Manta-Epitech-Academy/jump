@@ -37,9 +37,6 @@ function safeEqual(a: string, b: string): boolean {
  * Call first in every handler so the gate lives in exactly one place.
  */
 export function assertLoadTestAuth(request: Request): void {
-  if (process.env.NODE_ENV === 'production') {
-    throw error(404, 'Not Found');
-  }
   const secret = env.LOAD_TEST_SECRET;
   if (!secret) throw error(404, 'Not Found');
   const token =
