@@ -2,9 +2,9 @@
 
 This file provides guidance to Gemini AI / Antigravity when working with code in this repository.
 
-See [`AGENTS.md`](./AGENTS.md) for the primary, vendor-neutral repository instructions, technical architecture, commands, and coding conventions.
+See [`.github/AGENTS.md`](./.github/AGENTS.md) for the primary, vendor-neutral repository instructions, technical architecture, commands, and coding conventions.
 
-All instructions in [`AGENTS.md`](./AGENTS.md), [`CONTRIBUTING.md`](./CONTRIBUTING.md), and [`JARGON.md`](./JARGON.md) apply to Gemini / Antigravity.
+All instructions in [`.github/AGENTS.md`](./.github/AGENTS.md), [`.github/CONTRIBUTING.md`](./.github/CONTRIBUTING.md), and [`.github/JARGON.md`](./.github/JARGON.md) apply to Gemini / Antigravity.
 
 ## Antigravity CLI Behavioral Directives
 
