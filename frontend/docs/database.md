@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **53** modèles · **34** enums · **80** relations
+- **55** modèles · **34** enums · **82** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -20,6 +20,7 @@
 | Communication & Support | 5 |
 | Contenus & Centres d'intérêt | 4 |
 | Configuration & Système | 4 |
+| Autres | 2 |
 
 ## 1 · Authentification & Profils
 
@@ -826,4 +827,34 @@ erDiagram
   }
   StaffProfile ||--o{ AdminFile : "adminFiles"
   Campus |o--o{ Signatory : "signatories"
+```
+
+## 11 · Autres
+
+```mermaid
+erDiagram
+  Audit_ImpersonationEvent {
+    String id PK
+    String adminUserId
+    String targetUserId
+    String targetKind
+    DateTime startedAt
+    DateTime endedAt
+  }
+  Schooling_YearRecord {
+    String id PK
+    String talentId FK,UK
+    String schoolYear UK
+    String niveau
+    String schoolId FK
+    String source
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  Talent {
+  }
+  School {
+  }
+  Talent ||--o{ Schooling_YearRecord : "schoolingRecords"
+  School |o--o{ Schooling_YearRecord : "schoolingRecords"
 ```

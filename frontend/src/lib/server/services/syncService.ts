@@ -11,6 +11,8 @@ import {
   EmailChangeConflict,
 } from '$lib/server/services/userEmail';
 import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
+import { schoolYearOf } from '$lib/domain/schoolYear';
+import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
 
 // Salesforce ships a binary gender ('m' | 'f'); map it onto the civilité enum
 // the rest of the app uses. SF has no equivalent for 'autre', so it stays null.
@@ -170,6 +172,7 @@ export async function syncTalents(
   let updated = 0;
   let skipped = 0;
   const syncedTalentIds: string[] = [];
+  const currentSchoolYear = schoolYearOf(new Date(), 'Europe/Paris').label;
 
   // Canonical School per distinct UAI, resolved once for the whole batch.
   const schoolIdByUai = await resolveSchools(talents);
@@ -272,6 +275,14 @@ export async function syncTalents(
             schoolId: sfSchoolId,
             xp: 0,
             eventsCount: 0,
+            schoolingRecords: {
+              create: {
+                schoolYear: currentSchoolYear,
+                niveau,
+                schoolId: sfSchoolId,
+                source: 'sync',
+              },
+            },
             sfImport: {
               create: {
                 nom: t.last_name,
@@ -376,8 +387,21 @@ export async function syncTalents(
 
       const hasPatch = Object.keys(patch).length > 0;
       if (hasPatch) {
-        // The patch touches only non-unique confirmable fields now (email moved
-        // to bauth_user), so it can't collide — no P2002 handling needed.
+        if (patch.niveau !== undefined || patch.schoolId !== undefined) {
+          await upsertSchoolingYearRecord(prisma, {
+            talentId,
+            schoolYear: currentSchoolYear,
+            niveau:
+              patch.niveau !== undefined
+                ? (patch.niveau as string)
+                : existing.niveau,
+            schoolId:
+              patch.schoolId !== undefined
+                ? (patch.schoolId as string)
+                : existing.schoolId,
+            source: 'sync',
+          });
+        }
         await prisma.talent.update({
           where: { externalId: t.external_id },
           data: patch,

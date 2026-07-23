@@ -161,6 +161,7 @@ export async function anonymizeTalent(
   //        left orphaned). The parent is a data subject too.
   await tx.talentSfImport.deleteMany({ where: { talentId } });
   await tx.talentInterest.deleteMany({ where: { talentId } });
+  await tx.schooling_YearRecord.deleteMany({ where: { talentId } });
   await tx.imageRightsDecisionRecord.deleteMany({ where: { talentId } });
   await tx.note_TalentNote.deleteMany({ where: { talentId } });
   // feedback_Submission: the talent's bilan answers embed free-text opinions
