@@ -18,7 +18,6 @@ const INSCRIT_TALENT_SELECT = {
   // shows XP alone, the fiche carries the fuller breakdown.
   xp: true,
   user: { select: { email: true } },
-  parentEmail: true,
   // Dossier inputs — feed the statut badge and its per-document tooltip
   // (see rulesStatus / imageRightsStatus). `rulesSignedAt` distinguishes the
   // "waiting on the parent co-signature" state from "nothing signed yet".
@@ -53,6 +52,16 @@ export const INSCRIT_PARTICIPATION_SELECT = {
   sfMemberStatus: true,
 } satisfies Prisma.ParticipationSelect;
 
+export const INSCRIT_EXPORT_PARTICIPATION_SELECT = {
+  ...INSCRIT_PARTICIPATION_SELECT,
+  talent: {
+    select: {
+      ...INSCRIT_TALENT_SELECT,
+      parentEmail: true,
+    },
+  },
+} satisfies Prisma.ParticipationSelect;
+
 /** One projected table row. `id` is the participation id (stable row key). */
 export type InscritRow = {
   id: string;
@@ -80,7 +89,6 @@ export type InscritRow = {
   studentSigned: boolean;
   // Search haystack extras (not shown as columns).
   email: string | null;
-  parentEmail: string | null;
   sfMemberStatus: string | null;
 };
 

@@ -18,7 +18,7 @@ import {
   type CellStatus,
 } from '$lib/domain/eventPresence';
 import { isSlotPastCutoff } from '$lib/server/presence/slotClosure';
-import { PRESENCE_ROSTER_SELECT } from '../components/types';
+import { PRESENCE_EXPORT_SELECT } from '../components/types';
 
 /**
  * Full-period émargement export: one row per enrolled talent, one column per
@@ -40,7 +40,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   const [participations, presenceRows, closureRows] = await Promise.all([
     db.participation.findMany({
       where: { eventId: event.id },
-      select: PRESENCE_ROSTER_SELECT,
+      select: PRESENCE_EXPORT_SELECT,
       orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
     }),
     db.eventPresence.findMany({
