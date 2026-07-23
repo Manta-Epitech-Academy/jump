@@ -29,6 +29,7 @@ export async function startImpersonation(
   target: ImpersonationTarget,
   request: Request,
   cookies: Cookies,
+  adminUserId: string,
 ): Promise<ImpersonationResult> {
   let userId: string;
   let redirect: string;
@@ -59,6 +60,24 @@ export async function startImpersonation(
     asResponse: true,
   });
   if (!res.ok) return { ok: false, reason: 'failed' };
+
+  // BetterAuth has no explicit "impersonation ended" server callback we can
+  // trust from all exit paths. Keep a single open window per admin as a
+  // best-effort trail: close any previous open rows before opening this one.
+  const now = new Date();
+  await prisma.$transaction([
+    prisma.audit_ImpersonationEvent.updateMany({
+      where: { adminUserId, endedAt: null },
+      data: { endedAt: now },
+    }),
+    prisma.audit_ImpersonationEvent.create({
+      data: {
+        adminUserId,
+        targetUserId: userId,
+        targetKind: target.kind,
+      },
+    }),
+  ]);
 
   forwardAuthCookies(res, cookies);
   return { ok: true, redirect };

@@ -170,6 +170,21 @@ model bauth_session {
   user bauth_user @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+/// Audit trail of impersonation sessions started by admins. Stores only user ids
+/// (actor + target) so the facts survive account scrubs/deletions without
+/// copying direct PII.
+model Audit_ImpersonationEvent {
+  id           String   @id @default(cuid())
+  adminUserId  String
+  targetUserId String
+  targetKind   String
+  startedAt    DateTime @default(now())
+  endedAt      DateTime?
+
+  @@index([adminUserId, startedAt])
+  @@index([targetUserId])
+}
+
 model bauth_account {
   id                    String    @id @default(cuid())
   userId                String
