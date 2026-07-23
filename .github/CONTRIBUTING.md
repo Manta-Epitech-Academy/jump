@@ -4,23 +4,16 @@ This document formalises how features are built on Jump — from the PO's initia
 need to the merged PR. Objective: enable any developer or AI agent to execute
 tasks with the exact same standard of quality.
 
-See also: [`JARGON.md`](./JARGON.md) for shared domain vocabulary, and
-[`CLAUDE.md`](./CLAUDE.md) for technical directives and coding standards.
+See also: [`AGENTS.md`](./AGENTS.md) for the philosophy, architecture, and coding
+standards, and [`JARGON.md`](./JARGON.md) for shared domain vocabulary.
 
 ---
 
 ## Engineering Philosophy
 
-**Cleanest, not quickest.** We do not take shortcuts. We always choose the cleanest,
-most modular, and maintainable solution — even if it requires more upfront work.
-Local hotfixes or duplicated components that merely "do the job" are anti-patterns.
-
-**Modularity before optimization.** Do not optimize prematurely. Code must first be
-clear and well-decomposed; optimize only when a measurable performance requirement
-justifies it.
-
-**DRY everywhere.** No repetition in code, no repetition in documentation. If a rule
-or fact applies in multiple places, it must have a single source of truth.
+The engineering philosophy, **cleanest not quickest**, **modularity before optimisation**,
+and **DRY everywhere**, is defined once in [`AGENTS.md`](./AGENTS.md#philosophy).
+Read it there before contributing.
 
 ---
 
@@ -94,7 +87,7 @@ bun run lint    # Formatting & linting (Prettier/ESLint)
 bun run test    # Unit tests
 ```
 
-For branches with schema updates, ensure migrations are cleanly named and squashed into a single migration per branch (see [`CLAUDE.md`](./CLAUDE.md#prisma-migrations)).
+For branches with schema updates, ensure migrations are cleanly named and squashed into a single migration per branch (see [`AGENTS.md`](./AGENTS.md#prisma-migrations)).
 
 ### Step 6 — Visual Review & Definition of Done
 
