@@ -110,7 +110,7 @@ Before submitting a PR, verify the full Definition of Done:
 ### Step 7 — PR, Self-Review & Merge
 
 1. Write Conventional Commits (`type(scope): subject` ≤ 72 chars).
-2. Use the `/ship` skill to generate commit and PR copy in `.ship/`.
+2. Use the `/ship` skill to generate commit and PR copy in `.ship/`. Always include `Closes #<issue_number>` in `.ship/pr-body.md` under `## Context` so GitHub links and auto-closes the corresponding issue on merge.
 3. Open the PR as a **Draft** first.
 4. Perform a self-review: inspect your diff as if reviewing someone else's work.
 5. Mark as Ready for Review, assign a reviewer if available.
