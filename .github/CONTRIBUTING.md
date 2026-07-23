@@ -87,13 +87,14 @@ bun run lint    # Formatting & linting (Prettier/ESLint)
 bun run test    # Unit tests
 ```
 
-For branches with schema updates, ensure migrations are cleanly named and squashed into a single migration per branch (see [`AGENTS.md`](./AGENTS.md#prisma-migrations)).
+For branches with schema updates, ensure migrations are cleanly named and squashed into a single migration per branch (see [`AGENTS.md`](./AGENTS.md#prisma-migrations)). Since unit tests (`bun run test`) mock the database layer, branches modifying Prisma schema or tables MUST also be verified against a real PostgreSQL database (via `bunx prisma db push` or `bun run test:integration`) before declaring the feature complete.
 
 ### Step 6 — Visual Review & Definition of Done
 
 Before submitting a PR, verify the full Definition of Done:
 
 - [ ] **Technical:** `check` 0/0, `lint` clean, migration named & squashed.
+- [ ] **Automated Testing:** prefer creating automated tests (unit, integration, or Playwright E2E) for new behaviors rather than relying solely on manual testing. Human verification is welcomed for visual polish and UX, but core functional contracts must have automated test coverage.
 - [ ] **Space Conventions:** rounded corners, title colors, button placements; square dialogs (dev) vs rounded (talent); `cursor-pointer` on all interactive elements; reuse existing UI components.
 - [ ] **User Audience:**
   - Admin space = stats/operational, clean and direct
