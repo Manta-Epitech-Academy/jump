@@ -1,210 +1,177 @@
-# Contribuer à Jump
+# Contributing to Jump
 
-Ce document formalise la façon dont on construit une feature sur Jump — du besoin
-du PO au merge. Objectif : qu'une tâche puisse être confiée à quelqu'un d'autre
-que Mateo, avec le même niveau de qualité.
+This document formalises how features are built on Jump — from the PO's initial
+need to the merged PR. Objective: enable any developer or AI agent to execute
+tasks with the exact same standard of quality.
 
-Voir aussi : [`JARGON.md`](./JARGON.md) pour le vocabulaire partagé,
-[`CLAUDE.md`](./CLAUDE.md) pour les directives techniques.
-
----
-
-## Philosophie
-
-**Cleanest, not quickest.** On ne cherche pas le raccourci. On cherche la solution
-la plus propre, modulaire, et maintenable — même si ça prend plus de temps. Un
-hotfix local ou un doublon de composant qui « fait le job » est un anti-pattern
-ici.
-
-**Modularité avant optimisation.** On n'optimise pas en avance de phase. Le code
-doit d'abord être clair et découpé ; on optimise seulement quand un besoin mesurable
-le justifie.
-
-**DRY partout.** Pas de répétitions dans le code, pas de répétitions dans la doc.
-Si quelque chose est vrai à deux endroits, il doit vivre à un seul.
+See also: [`JARGON.md`](./JARGON.md) for shared domain vocabulary, and
+[`CLAUDE.md`](./CLAUDE.md) for technical directives and coding standards.
 
 ---
 
-## Pipeline d'une feature
+## Engineering Philosophy
 
-### Étape 0 — Cadrage PO
+**Cleanest, not quickest.** We do not take shortcuts. We always choose the cleanest,
+most modular, and maintainable solution — even if it requires more upfront work.
+Local hotfixes or duplicated components that merely "do the job" are anti-patterns.
 
-Avant d'écrire quoi que ce soit : un échange avec le PO pour capter la vision, le
-besoin utilisateur, et les règles métier. Ses idées d'implémentation sont de la
-matière à challenger, pas des spécifications. On part du besoin, pas de la solution.
+**Modularity before optimization.** Do not optimize prematurely. Code must first be
+clear and well-decomposed; optimize only when a measurable performance requirement
+justifies it.
 
-### Étape 1 — User Stories dans l'Issue GitHub
+**DRY everywhere.** No repetition in code, no repetition in documentation. If a rule
+or fact applies in multiple places, it must have a single source of truth.
 
-On exprime le besoin sous forme de User Stories dans l'item GitHub Projects. Format
-simple :
+---
+
+## Feature Pipeline
+
+### Step 0 — PO Alignment
+
+Before writing any code or specifications, talk with the Product Owner (PO) to grasp
+the core user need and business requirements. The PO's implementation suggestions are
+inputs to challenge, not fixed specifications. Start from the user problem, not the technical solution.
+
+### Step 1 — User Stories in GitHub Issues
+
+Express requirements as User Stories within the corresponding GitHub Projects item. Format:
 
 ```
-En tant que [rôle], je veux [action] afin de [bénéfice].
+As a [role], I want to [action] so that [benefit].
 ```
 
-Chaque story est accompagnée de ses critères d'acceptation (`Si X, alors Y`). Le PO
-relit et valide avant qu'on passe à l'étape suivante. C'est le contrat : si la story
-est validée et qu'on l'a bien réalisée, c'est bon.
+Each story must include clear acceptance criteria (`Given X, when Y, then Z`).
+The PO reviews and validates these criteria before moving forward. Acceptance criteria
+directly serve as the foundation for tests (unit, integration, E2E).
 
-Les critères d'acceptation servent directement de base aux tests (unitaires,
-intégration, E2E).
+### Step 2 — Functional Plan (No-Code Context)
 
-### Étape 2 — Plan fonctionnel (contexte sans code)
+Before opening a branch, generate a functional plan with the AI assistant. This plan outlines:
 
-Avant d'ouvrir une branche, on génère un plan fonctionnel avec l'assistant IA. Ce
-plan décrit :
+- Business context and decided rules
+- Target entities and impacted data flows
+- Edge cases and identified risks
+- Explicitly out-of-scope items
 
-- le contexte métier et les règles décidées
-- les entités et flux concernés
-- les risques et cas limites identifiés
-- ce qui est explicitement hors scope
+**No code snippets at this step.** The goal is ensuring requirements are fully understood
+before technical execution begins.
 
-**Pas de snippets de code à cette étape.** L'objectif est de s'assurer qu'on a bien
-compris le besoin avant de coder.
+This plan is pasted into the GitHub Projects item description (or as a comment) for post-mortem
+traceability.
 
-Ce plan est copié dans la description de l'item GitHub Projects (ou en commentaire)
-pour servir de trace en cas de post-mortem : si quelque chose déraille, on peut
-remonter à l'origine — besoin mal exprimé, plan mal interprété, ou simple bug
-d'implémentation.
+> 💡 **AI Prompting Tip:** At the start of scoping, instructing the AI *"We are in a
+> brainstorming phase, do not generate any code for now"* forces clean architectural reflection
+> before execution.
 
-> 💡 **Conseil prompt IA :** Au début d'un cadrage, préciser à l'assistant
-> *"On est en phase de brainstorming, ne génère aucun code pour l'instant"* force
-> une réflexion d'architecture propre avant de passer à l'exécution.
+### Step 3 — Technical Execution Plan
 
-### Étape 3 — Plan d'exécution technique
+The detailed technical plan (DB schemas, function signatures, migrations, implementation phases)
+is generated locally under `docs/plans/` using `/plan` and referenced in the GitHub item.
+This directory is `gitignored`: plans are working documents that guide execution and live in the GitHub item.
 
-Le plan technique détaillé (schéma DB, signatures de fonctions, migrations, ordre
-des phases) est généré localement dans `docs/plans/` et référencé dans l'item
-GitHub. Ce dossier est gitignored : les plans sont éphémères, ils guident
-l'implémentation puis vivent dans l'item GitHub.
+### Step 4 — Branching & Implementation
 
-### Étape 4 -- Branche et implémentation
-
-On branche toujours depuis `dev`, pas depuis `main`.
+Always branch off `dev` (never from `main`):
 
 ```bash
 git checkout dev && git pull origin dev
-git checkout -b feat/nom-court-descriptif
+git checkout -b feat/short-descriptive-name
 ```
 
-Pendant l'implémentation :
-- Refacto et util partagé si le code existe ailleurs — jamais de duplication locale.
-- Le PO est impliqué au fil de l'eau (screenshots, questions) : un aller-retour tôt
-  vaut mieux qu'une feature à refaire.
-- Si une décision technique change par rapport au plan, on l'acte dans l'item.
+During implementation:
+- Refactor and share existing utilities — never duplicate logic locally.
+- Keep the PO in the loop during development (screenshots, questions): an early feedback loop prevents costly rework.
+- If a technical decision diverges from the initial plan, update the GitHub item accordingly.
 
-### Étape 5 — Gate technique
+### Step 5 — Technical Gate
 
-Avant tout commit ou PR :
+Before any commit or PR, verify that all static checks pass cleanly:
 
 ```bash
 cd "$(git rev-parse --show-toplevel)/frontend"
-bun run check   # 0 erreur, 0 warning TypeScript/Svelte
-bun run lint    # Prettier
-bun run test    # Tests unitaires
+bun run check   # 0 errors, 0 warnings (TypeScript & Svelte)
+bun run lint    # Formatting & linting (Prettier/ESLint)
+bun run test    # Unit tests
 ```
 
-Pour les branches avec des changements de schéma, s'assurer que la migration est
-nommée proprement et squashée (une seule migration nette par branche — voir
-[`CLAUDE.md`](./CLAUDE.md#prisma-migrations)).
+For branches with schema updates, ensure migrations are cleanly named and squashed into a single migration per branch (see [`CLAUDE.md`](./CLAUDE.md#prisma-migrations)).
 
-### Étape 6 — Revue visuelle et Definition of Done
+### Step 6 — Visual Review & Definition of Done
 
-Avant d'ouvrir la PR, passer la checklist :
+Before submitting a PR, verify the full Definition of Done:
 
-- [ ] **Technique :** `check` 0/0, `lint` OK, migration nommée et squashée
-- [ ] **Conventions de l'espace :** arrondis, couleurs de titres, disposition des
-      boutons ; dialog carré (dev) vs arrondi (talent) ; `cursor-pointer` partout ;
-      réutilisation des composants existants (ex : inscrits)
-- [ ] **Cible utilisateur :**
-  - Admin = stats/pratique, pas de fioritures
-  - Dev = sobre, pas de tiers XP ni confetti
-  - Talent = chaleureux, ludique, `tu`
-- [ ] **Copie :** `vous` staff / `tu` talent, pas de jargon dev dans l'UI, pas
-      d'em-dash (`—`)
-- [ ] **Pas de jargon ambigu** : un terme qu'on utilise entre nous ne ressort pas
-      tel quel à l'écran
-- [ ] **Responsive :** testé sur son écran, un laptop moyen, un smartphone
-- [ ] **Contrôles de liste longue :** campus / lycées / listes typables →
-      `SearchableSelect`, jamais un `<select>` basique
-- [ ] **Pas de doublon d'UI :** réutiliser un composant existant plutôt que d'en
-      créer un presque identique
-- [ ] **Décisions métier saines :** aucune décision technique ne casse un besoin
-      réel (ex : rate-limit par IP sur un réseau partagé par un campus entier)
+- [ ] **Technical:** `check` 0/0, `lint` clean, migration named & squashed.
+- [ ] **Space Conventions:** rounded corners, title colors, button placements; square dialogs (dev) vs rounded (talent); `cursor-pointer` on all interactive elements; reuse existing UI components.
+- [ ] **User Audience:**
+  - Admin space = stats/operational, clean and direct
+  - Dev space = clean, functional, no XP tiers or confetti
+  - Talent space = welcoming, gamified, using the French *_tu_* register
+- [ ] **Copy:** *_vous_* for staff / *_tu_* for talents, no developer jargon in UI strings, no em-dashes (`—`).
+- [ ] **No Ambiguous Jargon:** internal dev slang must not bleed into UI strings (refer to [`JARGON.md`](./JARGON.md)).
+- [ ] **Responsive Design:** tested across desktop, average laptop, and mobile screens.
+- [ ] **List Filter Controls:** campuses / high-schools / long typeable lists → `SearchableSelect`, never a plain `<select>`.
+- [ ] **No UI Duplication:** reuse existing components rather than cloning near-identical variants.
+- [ ] **Sound Domain Decisions:** technical choices must never violate real-world business needs (e.g. avoid IP-based rate limiting on shared campus networks).
 
-### Étape 7 — PR, self-review, merge
+### Step 7 — PR, Self-Review & Merge
 
-1. Commits en Conventional Commits (`feat(scope): sujet ≤ 72 chars`).
-2. Utiliser le skill `/ship` pour générer la copie de commit et de PR dans `.ship/`.
-3. Ouvrir la PR en **draft** d'abord.
-4. Self-review : relire son propre diff comme si c'était celui d'un autre.
-5. Passer en ready, assigner un reviewer si disponible.
-6. Merge dans `dev` une fois approuvé (ou auto-merge si on est en solo).
+1. Write Conventional Commits (`type(scope): subject` ≤ 72 chars).
+2. Use the `/ship` skill to generate commit and PR copy in `.ship/`.
+3. Open the PR as a **Draft** first.
+4. Perform a self-review: inspect your diff as if reviewing someone else's work.
+5. Mark as Ready for Review, assign a reviewer if available.
+6. Merge into `dev` once approved (or auto-merge if working solo).
 
 ---
 
-## Branches
+## Branching Strategy
 
-**`dev` est le tronc de ce repo. `main` est la branche de release (production).**
+**`dev` is the trunk of this repository. `main` is the release branch (production).**
 
-Dans ce repo, `main` ne représente pas l'état courant du développement -- il
-représente la dernière release stable (tagée). `dev` est l'endroit où tout le
-travail en cours est intégré et c'est la source de vérité du code actuel.
+In this repository, `main` represents the latest tagged stable release. `dev` is where all ongoing work is integrated and is the single source of truth for active development.
 
-Règle : **toujours partir de `dev`, toujours merger dans `dev`.** `main` ne reçoit
-des commits que lors d'une release (via un merge de `dev` dans `main`).
+Rule: **Always branch off `dev`, always merge into `dev`.** `main` only receives commits during formal releases (via a merge from `dev` to `main`).
 
-Nommage des branches :
+Branch naming conventions:
 
-| Type              | Préfixe           | Exemple                           |
-| ----------------- | ----------------- | --------------------------------- |
-| Nouvelle feature  | `feat/`           | `feat/sf-member-status`           |
-| Correctif         | `fix/`            | `fix/emargement-export`           |
-| Refactoring       | `refactor/`       | `refactor/retire-event-type`      |
-| Documentation     | `docs/`           | `docs/contributing-and-jargon`    |
+| Type             | Prefix      | Example                        |
+| ---------------- | ----------- | ------------------------------ |
+| New feature      | `feat/`     | `feat/sf-member-status`        |
+| Bug fix          | `fix/`      | `fix/emargement-export`        |
+| Refactoring      | `refactor/` | `refactor/retire-event-type`   |
+| Documentation    | `docs/`     | `docs/contributing-and-jargon` |
 
 ---
 
-## Review d'une PR
+## PR Review Protocol
 
-On commence par rejouer les cases du **Test Plan** dans le body de la PR. Si ça
-ne se reproduit pas, on s'arrête là.
+When reviewing a PR, start by testing the **Test Plan** checkboxes in the PR description. If the test plan fails, stop the review there.
 
-Ensuite, la Definition of Done ci-dessus appliquée au diff. Points particulièrement
-importants à vérifier en review :
+Next, evaluate the Definition of Done checklist against the diff. Key points to double-check:
 
-- **Le besoin métier tient** : relire les User Stories de l'item et vérifier que
-  l'implémentation y répond exactement — ni plus, ni moins.
-- **Les migrations** : nommées, une seule nette, backfill en SQL si besoin.
-- **La copie** : vous/tu selon le lecteur, pas de jargon, pas d'em-dash.
-- **Les conventions de l'espace** : cible, arrondis, cursor-pointer, composants
-  réutilisés.
+- **Business Alignment:** compare the diff against the issue's User Stories to verify it fulfills the exact requirement — no more, no less.
+- **Database Migrations:** cleanly named, squashed into one, atomic SQL backfill included if needed.
+- **Copy & Tone:** correct *_vous_* / *_tu_* register, no dev jargon, no em-dashes.
+- **Space Integrity:** audience targets, border radii, `cursor-pointer`, component reuse.
 
 ---
 
-## Travailler avec l'IA
+## Working with AI
 
-**Capacités natives de l'agent** (disponibles sans configuration, utilisables
-dans n'importe quel projet) :
+**Native Agent Capabilities** (built-in commands available in any workspace):
 
-| Commande   | Usage                                                                        |
-| ---------- | ---------------------------------------------------------------------------- |
-| `/plan`    | Recherche le codebase, produit un plan d'implémentation et attend l'approbation avant d'exécuter |
-| `/review`  | Relit un diff ou une PR, identifie les points critiques, propose des corrections |
+| Command  | Usage                                                                          |
+| -------- | ------------------------------------------------------------------------------ |
+| `/plan`  | Researches the codebase, generates a detailed plan, and waits for user approval |
+| `/review`| Reviews a diff or PR, highlights critical issues, and proposes clean fixes     |
 
-> 💡 Au début d'un cadrage avec `/plan`, préciser *"On est en phase de
-> brainstorming, ne génère aucun code pour l'instant"* force une réflexion
-> d'architecture propre avant de passer à l'exécution.
+> 💡 At the start of a scoping session with `/plan`, specifying *"We are in a
+> brainstorming phase, do not generate any code for now"* encourages deeper architectural analysis.
 
-**Skills custom du repo** (`.claude/skills/`) — encodent la façon de faire
-propre à Jump, reproductibles par tous les devs du projet :
+**Custom Repository Skills** (`.claude/skills/`) — encode Jump-specific workflows:
 
-| Skill               | Usage                                                           |
-| ------------------- | --------------------------------------------------------------- |
-| `/ship`             | Génère la copie de commit + PR dans `.ship/`, prête à coller   |
-| `/align-migrations` | Range les migrations après un merge conflictuel                 |
-| `/database-design`  | Cadrage d'un modèle de données avant de coder                  |
-
-L'utilisation de l'IA est encouragée mais reste un choix personnel. Ce document
-décrit le pipeline ; l'IA est un outil parmi d'autres pour l'exécuter.
-
+| Skill               | Usage                                                         |
+| ------------------- | ------------------------------------------------------------- |
+| `/ship`             | Generates standardized commit & PR copy in `.ship/`           |
+| `/align-migrations` | Re-orders and squashes migrations following merge conflicts   |
+| `/database-design`  | Data modeling and schema design before code implementation    |
