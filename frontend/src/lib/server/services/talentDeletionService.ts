@@ -116,6 +116,8 @@ export async function fulfillTalentDeletion(
         status: 'fulfilled',
         resolvedAt: new Date(),
         resolvedBy: adminUserId,
+        reason: null,
+        resolutionNote: null,
       },
     });
     if (claimed.count === 0) return null;

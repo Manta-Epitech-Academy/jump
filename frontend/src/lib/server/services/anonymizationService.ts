@@ -18,7 +18,7 @@ import {
  * règlement parent / droit à l'image — each embeds the student's and guardian's
  * names and a signature) are deleted from object storage, not merely
  * dereferenced. We deliberately keep the de-identified behavioural telemetry
- * (participation, minigame attempts, the xp ledger) so `xp`, `eventsCount` and
+ * (participation, EventPresence, minigame attempts, the xp ledger) so `xp`, `eventsCount` and
  * aggregate stats survive the erasure.
  *
  * Parents are data subjects too: their identity lives both as columns on the
@@ -192,6 +192,24 @@ export async function anonymizeTalent(
   await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
   await tx.broadcastRecipient.deleteMany({
     where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
+  });
+
+  // Scrub residual PII fields in operational audit logs for this talent:
+  //   - AuthIdentityRepair: retains fromEmail/toEmail; replace with anonymized placeholders.
+  //   - TalentDeletionRequest: retains reason and resolutionNote; set both to null.
+  await tx.authIdentityRepair.updateMany({
+    where: { talentId },
+    data: {
+      fromEmail: 'anonyme@anonyme.invalid',
+      toEmail: 'anonyme@anonyme.invalid',
+    },
+  });
+  await tx.talentDeletionRequest.updateMany({
+    where: { talentId },
+    data: {
+      reason: null,
+      resolutionNote: null,
+    },
   });
 
   // 3. Scrub the linked BetterAuth user and revoke its access — only if linked.
