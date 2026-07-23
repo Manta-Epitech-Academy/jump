@@ -15,7 +15,7 @@ import {
   IMAGE_RIGHTS_DISPLAY_LABELS,
 } from '$lib/domain/imageRights';
 import { buildXlsx } from '$lib/server/xlsx';
-import { INSCRIT_PARTICIPATION_SELECT } from '../components/types';
+import { INSCRIT_EXPORT_PARTICIPATION_SELECT } from '../components/types';
 
 /**
  * Filtered-cohort XLSX export. The inscrits page filters/sorts ~200 rows client
@@ -44,7 +44,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
   const participations = talentIds.length
     ? await db.participation.findMany({
         where: { eventId: event.id, talentId: { in: talentIds } },
-        select: INSCRIT_PARTICIPATION_SELECT,
+        select: INSCRIT_EXPORT_PARTICIPATION_SELECT,
       })
     : [];
 

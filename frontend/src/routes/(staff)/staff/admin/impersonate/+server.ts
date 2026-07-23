@@ -8,7 +8,7 @@ import { startImpersonation } from '$lib/server/auth/impersonate';
 // role when minting the session). Returns the redirect target so the caller does
 // a full-page navigation, letting the new session cookie be read fresh.
 export const POST: RequestHandler = async ({ request, cookies, locals }) => {
-  if (locals.staffProfile?.staffRole !== 'admin') {
+  if (locals.staffProfile?.staffRole !== 'admin' || !locals.user) {
     error(403, 'Réservé aux administrateurs.');
   }
 
@@ -26,7 +26,12 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
     error(400, 'Requête invalide.');
   }
 
-  const result = await startImpersonation({ kind, id }, request, cookies);
+  const result = await startImpersonation(
+    { kind, id },
+    request,
+    cookies,
+    locals.user.id,
+  );
   if (!result.ok) {
     error(
       result.reason === 'no_email' ? 400 : 500,

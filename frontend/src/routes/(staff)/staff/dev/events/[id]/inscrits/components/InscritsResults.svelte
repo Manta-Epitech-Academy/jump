@@ -266,14 +266,7 @@
 
   function makeHaystack(r: InscritRow): string {
     return norm(
-      [
-        r.nom,
-        r.prenom,
-        niveauLabel(r.niveau),
-        r.schoolName,
-        r.email,
-        r.parentEmail,
-      ]
+      [r.nom, r.prenom, niveauLabel(r.niveau), r.schoolName, r.email]
         .filter(Boolean)
         .join(' '),
     );

@@ -138,17 +138,7 @@
     s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
   function haystack(r: PresenceRow): string {
-    return norm(
-      [
-        r.nom,
-        r.prenom,
-        r.phone,
-        r.email,
-        ...r.guardians.flatMap((g) => [g.name, g.phone, g.email]),
-      ]
-        .filter(Boolean)
-        .join(' '),
-    );
+    return norm([r.nom, r.prenom].join(' '));
   }
 
   function compareRows(a: PresenceRow, b: PresenceRow): number {
@@ -463,27 +453,23 @@
                (not display:none) so it stays tappable on a touch device where
                there is no hover, which is how émargement is run on the floor. -->
             <Table.Cell class="text-right">
-              {#if r.phone || r.email || r.guardians.length}
-                <Tooltip.Root>
-                  <Tooltip.Trigger>
-                    {#snippet child({ props })}
-                      <Button
-                        {...props}
-                        variant="ghost"
-                        size="icon"
-                        class="h-8 w-8 rounded-sm text-muted-foreground/40 transition-colors group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
-                        onclick={() => openContact(r)}
-                        aria-label={`Coordonnées de ${r.prenom} ${r.nom}`}
-                      >
-                        <Phone class="h-4 w-4" />
-                      </Button>
-                    {/snippet}
-                  </Tooltip.Trigger>
-                  <Tooltip.Content>Coordonnées</Tooltip.Content>
-                </Tooltip.Root>
-              {:else}
-                <span class="text-sm text-muted-foreground/40">—</span>
-              {/if}
+              <Tooltip.Root>
+                <Tooltip.Trigger>
+                  {#snippet child({ props })}
+                    <Button
+                      {...props}
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8 rounded-sm text-muted-foreground/40 transition-colors group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
+                      onclick={() => openContact(r)}
+                      aria-label={`Coordonnées de ${r.prenom} ${r.nom}`}
+                    >
+                      <Phone class="h-4 w-4" />
+                    </Button>
+                  {/snippet}
+                </Tooltip.Trigger>
+                <Tooltip.Content>Coordonnées</Tooltip.Content>
+              </Tooltip.Root>
             </Table.Cell>
           {/snippet}
 
@@ -524,17 +510,15 @@
                 >
                   <NotebookPen class="h-4 w-4" />
                 </Button>
-                {#if r.phone || r.email || r.guardians.length}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-8 w-8 shrink-0 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
-                    onclick={() => openContact(r)}
-                    aria-label={`Coordonnées de ${r.prenom} ${r.nom}`}
-                  >
-                    <Phone class="h-4 w-4" />
-                  </Button>
-                {/if}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8 shrink-0 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
+                  onclick={() => openContact(r)}
+                  aria-label={`Coordonnées de ${r.prenom} ${r.nom}`}
+                >
+                  <Phone class="h-4 w-4" />
+                </Button>
               </div>
               <PresenceSwitch
                 block
@@ -694,7 +678,12 @@
 </Tooltip.Provider>
 
 <!-- Contact card: phones to reach the member, then the family if no answer -->
-<ContactDialog bind:open={contactOpen} row={contactTarget} {cohortNoun} />
+<ContactDialog
+  bind:open={contactOpen}
+  row={contactTarget}
+  {cohortNoun}
+  {eventId}
+/>
 
 <NotesDialog
   bind:open={notesOpen}

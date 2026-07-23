@@ -112,33 +112,12 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 
     const rows: PresenceRow[] = participations.map((p) => {
       const t = p.talent;
-      // Both guardians in priority order; drop any with no contact info at all so
-      // the dialog never shows an empty "Responsable légal".
-      const guardians = [
-        {
-          civilite: t.parentCivilite,
-          name: [t.parentPrenom, t.parentNom].filter(Boolean).join(' ') || null,
-          email: t.parentEmail,
-          phone: t.parentPhone,
-        },
-        {
-          civilite: t.parent2Civilite,
-          name:
-            [t.parent2Prenom, t.parent2Nom].filter(Boolean).join(' ') || null,
-          email: t.parent2Email,
-          phone: t.parent2Phone,
-        },
-      ].filter((g) => g.name || g.phone || g.email);
 
       return {
         talentId: p.talentId,
         sfMemberStatus: p.sfMemberStatus,
         nom: t.nom,
         prenom: t.prenom,
-        civilite: t.civilite,
-        // The talent's login-account email (bauth_user), the source of truth.
-        email: t.user?.email ?? null,
-        phone: t.phone,
         noteCount: t._count.notes,
         // The distinct créneaux this talent carries a note for, from each note's
         // stored anchor (notes without one — fiche notes — never light a trigger).
@@ -151,7 +130,6 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
               ),
           ),
         ],
-        guardians,
       };
     });
 
