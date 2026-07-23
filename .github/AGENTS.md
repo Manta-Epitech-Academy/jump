@@ -2,6 +2,9 @@
 
 This document is the primary entrypoint and source of truth for all AI coding agents (Claude Code, Gemini, Cursor, Copilot, etc.) working in this repository.
 
+@.github/CONTRIBUTING.md
+@.github/JARGON.md
+
 ---
 
 ## Project Overview
