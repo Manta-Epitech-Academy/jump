@@ -2,6 +2,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { civiliteLabel, parentTypeLabel } from '$lib/domain/profile';
 import { normalizePhoneToE164 } from '$lib/domain/phone';
+import { schoolYearOf } from '$lib/domain/schoolYear';
+import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
 import type { DiffField } from '$lib/domain/reconciliation';
 
 // The field catalogue lives in `$lib/domain/reconciliation` (pure domain data,
@@ -264,6 +266,20 @@ export async function adoptSalesforceField(
     },
   });
 
+  // schoolId is the cached projection of Schooling_YearRecord (schoolingService),
+  // never written to Talent directly - otherwise the current year's ledger row
+  // goes stale the moment staff adopt Salesforce's claimed school over Jump's.
+  if (field === 'school') {
+    const currentSchoolYear = schoolYearOf(new Date(), 'Europe/Paris').label;
+    await upsertSchoolingYearRecord(prisma, {
+      talentId,
+      schoolYear: currentSchoolYear,
+      schoolId: m.sfSchoolId,
+      source: 'staff',
+    });
+    return;
+  }
+
   const data: Prisma.TalentUncheckedUpdateInput = {};
   switch (field) {
     case 'nom':
@@ -277,9 +293,6 @@ export async function adoptSalesforceField(
       break;
     case 'civilite':
       data.civilite = m.civilite;
-      break;
-    case 'school':
-      data.schoolId = m.sfSchoolId;
       break;
   }
 

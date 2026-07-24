@@ -90,10 +90,13 @@ export async function upsertSchoolingYearRecord(
  * have a record in year N+1. Creates the N+1 record with `niveau` advanced one step
  * (via `advanceNiveau`) and carried-over `schoolId`.
  *
- * Idempotent: safe to run multiple times.
+ * Idempotent: safe to run multiple times. One transaction per talent (mirroring
+ * anonymizeInactiveStudents), not one transaction for the whole population - the
+ * full talent base can run past the interactive-tx timeout, and a single failure
+ * must not roll back everyone already processed in the same run.
  */
 export async function rolloverSchoolYear(
-  clientOrTx: Prisma.TransactionClient | typeof prisma = prisma,
+  prismaClient: typeof prisma = prisma,
   now: Date = new Date(),
   timezone: string = 'Europe/Paris',
 ): Promise<{ processedCount: number; createdCount: number }> {
@@ -101,55 +104,53 @@ export async function rolloverSchoolYear(
   const currentSchoolYearLabel = currentSY.label;
   const previousSchoolYearLabel = `${currentSY.startYear - 1}-${currentSY.startYear}`;
 
-  const run = async (tx: Prisma.TransactionClient) => {
-    const previousRecords = await tx.schooling_YearRecord.findMany({
-      where: { schoolYear: previousSchoolYearLabel },
-    });
+  const previousRecords = await prismaClient.schooling_YearRecord.findMany({
+    where: { schoolYear: previousSchoolYearLabel },
+  });
 
-    const currentRecords = await tx.schooling_YearRecord.findMany({
-      where: { schoolYear: currentSchoolYearLabel },
-      select: { talentId: true },
-    });
-    const existingTalentIds = new Set(currentRecords.map((r) => r.talentId));
+  const currentRecords = await prismaClient.schooling_YearRecord.findMany({
+    where: { schoolYear: currentSchoolYearLabel },
+    select: { talentId: true },
+  });
+  const existingTalentIds = new Set(currentRecords.map((r) => r.talentId));
 
-    let createdCount = 0;
+  let createdCount = 0;
 
-    for (const prevRecord of previousRecords) {
-      if (existingTalentIds.has(prevRecord.talentId)) {
-        continue;
-      }
-
-      const nextNiveau = advanceNiveau(prevRecord.niveau);
-
-      await tx.schooling_YearRecord.create({
-        data: {
-          talentId: prevRecord.talentId,
-          schoolYear: currentSchoolYearLabel,
-          niveau: nextNiveau,
-          schoolId: prevRecord.schoolId,
-          source: 'rollover',
-        },
-      });
-
-      await tx.talent.update({
-        where: { id: prevRecord.talentId },
-        data: {
-          niveau: nextNiveau,
-          schoolId: prevRecord.schoolId,
-        },
-      });
-
-      createdCount++;
+  for (const prevRecord of previousRecords) {
+    if (existingTalentIds.has(prevRecord.talentId)) {
+      continue;
     }
 
-    return {
-      processedCount: previousRecords.length,
-      createdCount,
-    };
-  };
+    const nextNiveau = advanceNiveau(prevRecord.niveau);
 
-  if ('$transaction' in clientOrTx) {
-    return (clientOrTx as typeof prisma).$transaction(run);
+    try {
+      await prismaClient.$transaction(async (tx) => {
+        await tx.schooling_YearRecord.create({
+          data: {
+            talentId: prevRecord.talentId,
+            schoolYear: currentSchoolYearLabel,
+            niveau: nextNiveau,
+            schoolId: prevRecord.schoolId,
+            source: 'rollover',
+          },
+        });
+
+        await tx.talent.update({
+          where: { id: prevRecord.talentId },
+          data: {
+            niveau: nextNiveau,
+            schoolId: prevRecord.schoolId,
+          },
+        });
+      });
+      createdCount++;
+    } catch (e) {
+      console.error(`Failed to roll over talent ${prevRecord.talentId}:`, e);
+    }
   }
-  return run(clientOrTx as Prisma.TransactionClient);
+
+  return {
+    processedCount: previousRecords.length,
+    createdCount,
+  };
 }

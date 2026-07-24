@@ -4,6 +4,7 @@ import {
   rolloverSchoolYear,
 } from './schoolingService';
 import type { Prisma } from '@prisma/client';
+import type { prisma } from '$lib/server/db';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 
 describe('schoolingService', () => {
@@ -86,7 +87,19 @@ describe('schoolingService', () => {
       { talentId: 'talent_3' }, // talent_3 already rolled over
     ];
 
+    // rolloverSchoolYear runs one `$transaction` per talent (not one for the
+    // whole batch), so the mock's `$transaction` invokes the callback against a
+    // shared `mockTx` and every per-talent write lands on it.
     const mockTx = {
+      schooling_YearRecord: {
+        create: vi.fn().mockResolvedValue({}),
+      },
+      talent: {
+        update: vi.fn().mockResolvedValue({}),
+      },
+    };
+
+    const mockPrisma = {
       schooling_YearRecord: {
         findMany: vi.fn().mockImplementation(({ where }) => {
           if (where.schoolYear === prevLabel)
@@ -95,17 +108,20 @@ describe('schoolingService', () => {
             return Promise.resolve(currentRecords);
           return Promise.resolve([]);
         }),
-        create: vi.fn().mockResolvedValue({}),
       },
-      talent: {
-        update: vi.fn().mockResolvedValue({}),
-      },
-    } as unknown as Prisma.TransactionClient;
+      $transaction: vi.fn().mockImplementation((run) => run(mockTx)),
+    } as unknown as typeof prisma;
 
-    const result = await rolloverSchoolYear(mockTx, fixedNow, 'Europe/Paris');
+    const result = await rolloverSchoolYear(
+      mockPrisma,
+      fixedNow,
+      'Europe/Paris',
+    );
 
     expect(result.processedCount).toBe(3);
     expect(result.createdCount).toBe(2);
+    // talent_3 already has a current-year record, so only 2 transactions run.
+    expect(mockPrisma.$transaction).toHaveBeenCalledTimes(2);
 
     // talent_1: 2nde -> 1ere
     expect(mockTx.schooling_YearRecord.create).toHaveBeenCalledWith({

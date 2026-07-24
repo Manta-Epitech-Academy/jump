@@ -27,16 +27,20 @@ ALTER TABLE "Schooling_YearRecord" ADD CONSTRAINT "Schooling_YearRecord_talentId
 -- AddForeignKey
 ALTER TABLE "Schooling_YearRecord" ADD CONSTRAINT "Schooling_YearRecord_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- Data Backfill: Populate Schooling_YearRecord for existing talents with a niveau or schoolId
+-- Data Backfill: Populate Schooling_YearRecord for existing talents with a niveau or schoolId.
+-- Hardcoded to '2025-2026', NOT derived from CURRENT_DATE: this migration is a one-shot
+-- snapshot of data that has never been through an automated rollover, so it is always
+-- last completed school year's truth regardless of which day the migration actually runs
+-- on. Deriving it from CURRENT_DATE would mislabel it as the *new* year on any deploy
+-- that lands on or after the 31 July cutover (e.g. a mid-August rollout), which would make
+-- rolloverSchoolYear see a current-year record already present for every talent and skip
+-- the real advancement entirely. Run rolloverSchoolYear once after this migration lands to
+-- perform the actual 2025-2026 -> 2026-2027 advance.
 INSERT INTO "Schooling_YearRecord" ("id", "talentId", "schoolYear", "niveau", "schoolId", "source", "createdAt", "updatedAt")
 SELECT
   gen_random_uuid()::text,
   "id",
-  CASE 
-    WHEN EXTRACT(month FROM CURRENT_DATE) >= 8 OR (EXTRACT(month FROM CURRENT_DATE) = 7 AND EXTRACT(day FROM CURRENT_DATE) >= 31)
-    THEN EXTRACT(year FROM CURRENT_DATE)::text || '-' || (EXTRACT(year FROM CURRENT_DATE) + 1)::text
-    ELSE (EXTRACT(year FROM CURRENT_DATE) - 1)::text || '-' || EXTRACT(year FROM CURRENT_DATE)::text
-  END AS "schoolYear",
+  '2025-2026',
   "niveau",
   "schoolId",
   'sync',

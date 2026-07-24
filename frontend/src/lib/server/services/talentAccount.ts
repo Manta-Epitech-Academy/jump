@@ -13,6 +13,8 @@ import {
   clearOnboardingTimestamps,
   clearTalentOnboardingArtifacts,
 } from '$lib/domain/talentOnboarding';
+import { schoolYearOf } from '$lib/domain/schoolYear';
+import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
 
 /**
  * Ensure a talent has a linked `bauth_user` and return its id.
@@ -289,8 +291,6 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         prenom: sf?.prenom ?? talent.prenom,
         phone: sf?.phone ?? null,
         civilite: sf?.civilite ?? null,
-        niveau: sf?.niveau ?? null,
-        schoolId: sf?.sfSchoolId ?? null,
         xp: 0,
         eventsCount: 0,
         imageRightsDecision: null,
@@ -326,6 +326,18 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         lastActiveAt: null,
         firstLoginAt: null,
       },
+    });
+
+    // niveau/schoolId are the cached projection of Schooling_YearRecord
+    // (schoolingService), not written on Talent directly here - otherwise the
+    // current year's ledger row goes stale the moment a reset diverges from what
+    // sync last wrote there.
+    await upsertSchoolingYearRecord(tx, {
+      talentId,
+      schoolYear: schoolYearOf(new Date(), 'Europe/Paris').label,
+      niveau: sf?.niveau ?? null,
+      schoolId: sf?.sfSchoolId ?? null,
+      source: 'staff',
     });
 
     // 5. Clear the login *history* but keep the identity. Eager mint gives every
