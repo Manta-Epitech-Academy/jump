@@ -27,15 +27,16 @@ ALTER TABLE "Schooling_YearRecord" ADD CONSTRAINT "Schooling_YearRecord_talentId
 -- AddForeignKey
 ALTER TABLE "Schooling_YearRecord" ADD CONSTRAINT "Schooling_YearRecord_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- Data Backfill: Populate Schooling_YearRecord for existing talents with a niveau or schoolId.
--- Hardcoded to '2025-2026', NOT derived from CURRENT_DATE: this migration is a one-shot
--- snapshot of data that has never been through an automated rollover, so it is always
--- last completed school year's truth regardless of which day the migration actually runs
--- on. Deriving it from CURRENT_DATE would mislabel it as the *new* year on any deploy
--- that lands on or after the 31 July cutover (e.g. a mid-August rollout), which would make
--- rolloverSchoolYear see a current-year record already present for every talent and skip
--- the real advancement entirely. Run rolloverSchoolYear once after this migration lands to
--- perform the actual 2025-2026 -> 2026-2027 advance.
+-- Data Backfill: snapshot each existing talent's niveau/schoolId into a
+-- Schooling_YearRecord so the ledger captures this year's schooling before a later
+-- change (a school correction, or Salesforce advancing class_level) moves
+-- Talent.niveau/schoolId forward and overwrites it - without this row that prior
+-- year would be lost the moment a talent advances.
+-- Hardcoded to '2025-2026' (the last completed school year), NOT derived from
+-- CURRENT_DATE: this is pre-feature data that belongs to the year that produced it
+-- and must be labelled as history, not as the new year that opens on the 31 July
+-- cutover (a mid-August deploy still lands last year's data). From here the record
+-- is maintained by the normal write paths (sync, onboarding, staff), not a job.
 INSERT INTO "Schooling_YearRecord" ("id", "talentId", "schoolYear", "niveau", "schoolId", "source", "createdAt", "updatedAt")
 SELECT
   gen_random_uuid()::text,

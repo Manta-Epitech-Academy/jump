@@ -1,53 +1,52 @@
 import { prisma } from '$lib/server/db';
 import { Prisma } from '@prisma/client';
-import { advanceNiveau } from '$lib/domain/niveau';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 
-export type SchoolingSource = 'sync' | 'onboarding' | 'rollover' | 'staff';
+export type SchoolingSource = 'sync' | 'onboarding' | 'staff';
 
 export interface UpsertSchoolingYearRecordInput {
   talentId: string;
   schoolYear: string; // e.g. "2026-2027"
   niveau?: string | null;
   schoolId?: string | null;
-  source: SchoolingSource | string;
+  source: SchoolingSource;
 }
 
 /**
- * Recomputes `Talent.niveau` and `Talent.schoolId` projections for the active
- * current school year. If the updated record belongs to the current school year,
- * it refreshes the projection on `Talent` atomically in the same transaction.
+ * Refreshes the `Talent.niveau` / `Talent.schoolId` cached projections from a
+ * just-written record, but only when that record is the *current* school year's -
+ * older years are history and must never move the projection. Takes the upserted
+ * record so it doesn't re-read the row it was just handed.
  */
 async function refreshTalentSchoolingProjection(
   tx: Prisma.TransactionClient,
-  talentId: string,
-  targetSchoolYear: string,
+  record: {
+    talentId: string;
+    schoolYear: string;
+    niveau: string | null;
+    schoolId: string | null;
+  },
   timezone: string = 'Europe/Paris',
 ): Promise<void> {
   const currentSchoolYear = schoolYearOf(new Date(), timezone).label;
-  if (targetSchoolYear !== currentSchoolYear) {
-    return;
-  }
+  if (record.schoolYear !== currentSchoolYear) return;
 
-  const currentRecord = await tx.schooling_YearRecord.findUnique({
-    where: { talentId_schoolYear: { talentId, schoolYear: currentSchoolYear } },
+  await tx.talent.update({
+    where: { id: record.talentId },
+    data: { niveau: record.niveau, schoolId: record.schoolId },
   });
-
-  if (currentRecord) {
-    await tx.talent.update({
-      where: { id: talentId },
-      data: {
-        niveau: currentRecord.niveau,
-        schoolId: currentRecord.schoolId,
-      },
-    });
-  }
 }
 
 /**
- * Upserts a student's `Schooling_YearRecord` for a specific school year and
- * transactionally updates `Talent.niveau`/`Talent.schoolId` cached projections if
- * the record matches the current active school year.
+ * Upserts a student's `Schooling_YearRecord` for a given school year and, when
+ * that year is the current one, refreshes the `Talent.niveau`/`Talent.schoolId`
+ * projections in the same transaction.
+ *
+ * On create, a field the caller omits is carried forward from the talent's
+ * current value rather than defaulting to null: a partial upsert (e.g. onboarding
+ * writing only `schoolId`) must never blank the other projected field. The
+ * `update` branch already leaves omitted fields untouched. Pass `null` explicitly
+ * to clear a field (what `resetTalentToImport` does).
  */
 export async function upsertSchoolingYearRecord(
   clientOrTx: Prisma.TransactionClient | typeof prisma,
@@ -57,13 +56,20 @@ export async function upsertSchoolingYearRecord(
   const { talentId, schoolYear, source } = input;
 
   const run = async (tx: Prisma.TransactionClient) => {
+    // Carry-forward source for any field the caller didn't supply on create.
+    const talent = await tx.talent.findUniqueOrThrow({
+      where: { id: talentId },
+      select: { niveau: true, schoolId: true },
+    });
+
     const record = await tx.schooling_YearRecord.upsert({
       where: { talentId_schoolYear: { talentId, schoolYear } },
       create: {
         talentId,
         schoolYear,
-        niveau: input.niveau !== undefined ? input.niveau : null,
-        schoolId: input.schoolId !== undefined ? input.schoolId : null,
+        niveau: input.niveau !== undefined ? input.niveau : talent.niveau,
+        schoolId:
+          input.schoolId !== undefined ? input.schoolId : talent.schoolId,
         source,
       },
       update: {
@@ -73,7 +79,7 @@ export async function upsertSchoolingYearRecord(
       },
     });
 
-    await refreshTalentSchoolingProjection(tx, talentId, schoolYear, timezone);
+    await refreshTalentSchoolingProjection(tx, record, timezone);
 
     return record;
   };
@@ -82,75 +88,4 @@ export async function upsertSchoolingYearRecord(
     return (clientOrTx as typeof prisma).$transaction(run);
   }
   return run(clientOrTx as Prisma.TransactionClient);
-}
-
-/**
- * Annual school-year rollover job.
- * Finds all talents with a `Schooling_YearRecord` in previous year N who do not yet
- * have a record in year N+1. Creates the N+1 record with `niveau` advanced one step
- * (via `advanceNiveau`) and carried-over `schoolId`.
- *
- * Idempotent: safe to run multiple times. One transaction per talent (mirroring
- * anonymizeInactiveStudents), not one transaction for the whole population - the
- * full talent base can run past the interactive-tx timeout, and a single failure
- * must not roll back everyone already processed in the same run.
- */
-export async function rolloverSchoolYear(
-  prismaClient: typeof prisma = prisma,
-  now: Date = new Date(),
-  timezone: string = 'Europe/Paris',
-): Promise<{ processedCount: number; createdCount: number }> {
-  const currentSY = schoolYearOf(now, timezone);
-  const currentSchoolYearLabel = currentSY.label;
-  const previousSchoolYearLabel = `${currentSY.startYear - 1}-${currentSY.startYear}`;
-
-  const previousRecords = await prismaClient.schooling_YearRecord.findMany({
-    where: { schoolYear: previousSchoolYearLabel },
-  });
-
-  const currentRecords = await prismaClient.schooling_YearRecord.findMany({
-    where: { schoolYear: currentSchoolYearLabel },
-    select: { talentId: true },
-  });
-  const existingTalentIds = new Set(currentRecords.map((r) => r.talentId));
-
-  let createdCount = 0;
-
-  for (const prevRecord of previousRecords) {
-    if (existingTalentIds.has(prevRecord.talentId)) {
-      continue;
-    }
-
-    const nextNiveau = advanceNiveau(prevRecord.niveau);
-
-    try {
-      await prismaClient.$transaction(async (tx) => {
-        await tx.schooling_YearRecord.create({
-          data: {
-            talentId: prevRecord.talentId,
-            schoolYear: currentSchoolYearLabel,
-            niveau: nextNiveau,
-            schoolId: prevRecord.schoolId,
-            source: 'rollover',
-          },
-        });
-
-        await tx.talent.update({
-          where: { id: prevRecord.talentId },
-          data: {
-            niveau: nextNiveau,
-            schoolId: prevRecord.schoolId,
-          },
-        });
-      });
-      createdCount++;
-    } catch (e) {
-      console.error(`Failed to roll over talent ${prevRecord.talentId}:`, e);
-    }
-  }
-
-  return {
-    processedCount: previousRecords.length,
-    createdCount,
-  };
 }

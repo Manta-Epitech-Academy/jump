@@ -1,25 +1,20 @@
 import { describe, it, expect, vi } from 'vitest';
-import {
-  upsertSchoolingYearRecord,
-  rolloverSchoolYear,
-} from './schoolingService';
+import { upsertSchoolingYearRecord } from './schoolingService';
 import type { Prisma } from '@prisma/client';
-import type { prisma } from '$lib/server/db';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 
 describe('schoolingService', () => {
-  it('upsertSchoolingYearRecord creates/updates record and refreshes Talent projection if current school year', async () => {
+  it('upsertSchoolingYearRecord upserts the record and refreshes the Talent projection for the current school year', async () => {
     const currentSY = schoolYearOf(new Date(), 'Europe/Paris').label;
 
     const mockTx = {
+      talent: {
+        findUniqueOrThrow: vi
+          .fn()
+          .mockResolvedValue({ niveau: '2nde', schoolId: 'school_abc' }),
+        update: vi.fn().mockResolvedValue({}),
+      },
       schooling_YearRecord: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'rec_1',
-          talentId: 'talent_123',
-          schoolYear: currentSY,
-          niveau: '2nde',
-          schoolId: 'school_abc',
-        }),
         upsert: vi.fn().mockResolvedValue({
           id: 'rec_1',
           talentId: 'talent_123',
@@ -28,9 +23,6 @@ describe('schoolingService', () => {
           schoolId: 'school_abc',
           source: 'sync',
         }),
-      },
-      talent: {
-        update: vi.fn().mockResolvedValue({}),
       },
     } as unknown as Prisma.TransactionClient;
 
@@ -46,107 +38,57 @@ describe('schoolingService', () => {
     expect(mockTx.schooling_YearRecord.upsert).toHaveBeenCalled();
     expect(mockTx.talent.update).toHaveBeenCalledWith({
       where: { id: 'talent_123' },
-      data: {
-        niveau: '2nde',
-        schoolId: 'school_abc',
-      },
+      data: { niveau: '2nde', schoolId: 'school_abc' },
     });
   });
 
-  it('rolloverSchoolYear advances previous year records into current year', async () => {
-    const fixedNow = new Date('2026-08-01T10:00:00Z');
-    const currentSY = schoolYearOf(fixedNow, 'Europe/Paris');
-    const prevLabel = `${currentSY.startYear - 1}-${currentSY.startYear}`;
-    const currLabel = currentSY.label;
+  it('upsertSchoolingYearRecord carries the talent niveau forward on create when only schoolId is supplied (never nulls the projection)', async () => {
+    const currentSY = schoolYearOf(new Date(), 'Europe/Paris').label;
 
-    const previousRecords = [
-      {
-        id: 'rec_1',
-        talentId: 'talent_1',
-        schoolYear: prevLabel,
-        niveau: '2nde',
-        schoolId: 'school_1',
-      },
-      {
-        id: 'rec_2',
-        talentId: 'talent_2',
-        schoolYear: prevLabel,
-        niveau: 'terminale',
-        schoolId: 'school_2',
-      },
-      {
-        id: 'rec_3',
-        talentId: 'talent_3',
-        schoolYear: prevLabel,
-        niveau: 'bac_5',
-        schoolId: null,
-      },
-    ];
-
-    const currentRecords: { talentId: string }[] = [
-      { talentId: 'talent_3' }, // talent_3 already rolled over
-    ];
-
-    // rolloverSchoolYear runs one `$transaction` per talent (not one for the
-    // whole batch), so the mock's `$transaction` invokes the callback against a
-    // shared `mockTx` and every per-talent write lands on it.
     const mockTx = {
-      schooling_YearRecord: {
-        create: vi.fn().mockResolvedValue({}),
-      },
       talent: {
+        findUniqueOrThrow: vi
+          .fn()
+          .mockResolvedValue({ niveau: '2nde', schoolId: 'old_school' }),
         update: vi.fn().mockResolvedValue({}),
       },
-    };
-
-    const mockPrisma = {
       schooling_YearRecord: {
-        findMany: vi.fn().mockImplementation(({ where }) => {
-          if (where.schoolYear === prevLabel)
-            return Promise.resolve(previousRecords);
-          if (where.schoolYear === currLabel)
-            return Promise.resolve(currentRecords);
-          return Promise.resolve([]);
+        // Echo back what the create branch persists, so the projection reads the
+        // carried-forward niveau rather than a null.
+        upsert: vi.fn().mockImplementation(({ create }) =>
+          Promise.resolve({
+            id: 'rec_2',
+            talentId: create.talentId,
+            schoolYear: create.schoolYear,
+            niveau: create.niveau,
+            schoolId: create.schoolId,
+            source: create.source,
+          }),
+        ),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const record = await upsertSchoolingYearRecord(mockTx, {
+      talentId: 'talent_123',
+      schoolYear: currentSY,
+      schoolId: 'new_school',
+      source: 'onboarding',
+    });
+
+    // niveau carried from the talent (2nde), NOT wiped to null; schoolId from input.
+    expect(mockTx.schooling_YearRecord.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          niveau: '2nde',
+          schoolId: 'new_school',
         }),
-      },
-      $transaction: vi.fn().mockImplementation((run) => run(mockTx)),
-    } as unknown as typeof prisma;
-
-    const result = await rolloverSchoolYear(
-      mockPrisma,
-      fixedNow,
-      'Europe/Paris',
+      }),
     );
-
-    expect(result.processedCount).toBe(3);
-    expect(result.createdCount).toBe(2);
-    // talent_3 already has a current-year record, so only 2 transactions run.
-    expect(mockPrisma.$transaction).toHaveBeenCalledTimes(2);
-
-    // talent_1: 2nde -> 1ere
-    expect(mockTx.schooling_YearRecord.create).toHaveBeenCalledWith({
-      data: {
-        talentId: 'talent_1',
-        schoolYear: currLabel,
-        niveau: '1ere',
-        schoolId: 'school_1',
-        source: 'rollover',
-      },
-    });
+    expect(record.niveau).toBe('2nde');
+    expect(record.schoolId).toBe('new_school');
     expect(mockTx.talent.update).toHaveBeenCalledWith({
-      where: { id: 'talent_1' },
-      data: { niveau: '1ere', schoolId: 'school_1' },
-    });
-
-    // talent_2: terminale -> bac_1
-    expect(mockTx.schooling_YearRecord.create).toHaveBeenCalledWith({
-      data: {
-        talentId: 'talent_2',
-        schoolYear: currLabel,
-        niveau: 'bac_1',
-        schoolId: 'school_2',
-        source: 'rollover',
-      },
+      where: { id: 'talent_123' },
+      data: { niveau: '2nde', schoolId: 'new_school' },
     });
   });
 });
