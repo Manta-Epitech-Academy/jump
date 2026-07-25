@@ -11,6 +11,8 @@ import {
   EmailChangeConflict,
 } from '$lib/server/services/userEmail';
 import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
+import { schoolYearOf } from '$lib/domain/schoolYear';
+import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
 
 // Salesforce ships a binary gender ('m' | 'f'); map it onto the civilité enum
 // the rest of the app uses. SF has no equivalent for 'autre', so it stays null.
@@ -170,6 +172,7 @@ export async function syncTalents(
   let updated = 0;
   let skipped = 0;
   const syncedTalentIds: string[] = [];
+  const currentSchoolYear = schoolYearOf(new Date(), 'Europe/Paris').label;
 
   // Canonical School per distinct UAI, resolved once for the whole batch.
   const schoolIdByUai = await resolveSchools(talents);
@@ -237,6 +240,14 @@ export async function syncTalents(
         schoolId: true,
         infoValidatedAt: true,
         highSchoolValidatedAt: true,
+        // The current school year's ledger row, to decide below whether Jump's
+        // belief about *this year* moved. Rides the lookup that already runs
+        // per talent, so it costs no extra query.
+        schoolingRecords: {
+          where: { schoolYear: currentSchoolYear },
+          take: 1,
+          select: { niveau: true, schoolId: true },
+        },
         sfImport: {
           select: {
             nom: true,
@@ -272,6 +283,14 @@ export async function syncTalents(
             schoolId: sfSchoolId,
             xp: 0,
             eventsCount: 0,
+            schoolingRecords: {
+              create: {
+                schoolYear: currentSchoolYear,
+                niveau,
+                schoolId: sfSchoolId,
+                source: 'sync',
+              },
+            },
             sfImport: {
               create: {
                 nom: t.last_name,
@@ -360,24 +379,56 @@ export async function syncTalents(
       // 2. Patch the Talent row under the no-clobber rule: SF only re-seeds a
       //    field while the talent hasn't confirmed it. Once confirmed, SF stops
       //    touching it and a divergence is left to surface as a conflict.
+      //    `niveau` and `schoolId` are deliberately absent from this patch: they
+      //    are the projection of Schooling_YearRecord, written only through
+      //    schoolingService just below, so the ledger is the single write path
+      //    for both columns here as it already is in onboarding and
+      //    reconciliation.
       const patch: Prisma.TalentUncheckedUpdateInput = {};
-      // niveau is SF-owned (onboarding never sets it) → always synced, but never
-      // wiped by a blank/unknown SF value.
-      if (niveau !== null && existing.niveau !== niveau) patch.niveau = niveau;
       if (!existing.infoValidatedAt) {
         if (existing.prenom !== t.first_name) patch.prenom = t.first_name;
         if (existing.nom !== t.last_name) patch.nom = t.last_name;
         if (existing.phone !== phone) patch.phone = phone;
         if (existing.civilite !== civilite) patch.civilite = civilite;
       }
-      if (!existing.highSchoolValidatedAt && existing.schoolId !== sfSchoolId) {
-        patch.schoolId = sfSchoolId;
+
+      // 3. Jump's belief about this talent's schooling *for the current school
+      //    year*, under that same no-clobber rule: niveau is SF-owned
+      //    (onboarding never sets it) but a blank/unknown SF value never wipes
+      //    it, and SF re-seeds the school only until the talent confirms their
+      //    own.
+      const yearNiveau = niveau ?? existing.niveau;
+      const yearSchoolId = existing.highSchoolValidatedAt
+        ? existing.schoolId
+        : sfSchoolId;
+
+      // Gate the ledger write on whether the belief *for that year* moved, not
+      // on whether the Talent projection changed. Those differ: a talent whose
+      // level is unchanged year-over-year (a redoublant, or every talent on the
+      // first sync after the 31 July cutover) still has a schooling fact for the
+      // new year, and gating on the projection would drop it silently, leaving
+      // the year permanently unrecorded while Talent.niveau kept projecting a
+      // year that has no row.
+      const yearRecord = existing.schoolingRecords[0];
+      const schoolingChanged =
+        !yearRecord ||
+        yearRecord.niveau !== yearNiveau ||
+        yearRecord.schoolId !== yearSchoolId;
+
+      if (schoolingChanged) {
+        await prisma.$transaction((tx) =>
+          upsertSchoolingYearRecord(tx, {
+            talentId,
+            schoolYear: currentSchoolYear,
+            niveau: yearNiveau,
+            schoolId: yearSchoolId,
+            source: 'sync',
+          }),
+        );
       }
 
       const hasPatch = Object.keys(patch).length > 0;
       if (hasPatch) {
-        // The patch touches only non-unique confirmable fields now (email moved
-        // to bauth_user), so it can't collide — no P2002 handling needed.
         await prisma.talent.update({
           where: { externalId: t.external_id },
           data: patch,
@@ -425,7 +476,7 @@ export async function syncTalents(
           }
         }
       }
-      if (mirrorChanged || hasPatch) updated++;
+      if (mirrorChanged || hasPatch || schoolingChanged) updated++;
     }
 
     const normalizedStatus = normalizeSfStatus(t.status);

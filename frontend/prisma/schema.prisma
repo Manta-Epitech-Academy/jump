@@ -378,6 +378,7 @@ model Talent {
   imageRightsRecords  ImageRightsDecisionRecord[]
   feedbackSubmissions Feedback_Submission[]
   interviewResets     InterviewReset[]
+  schoolingRecords    Schooling_YearRecord[]
   notes               Note_TalentNote[]
 
   @@index([xp])
@@ -402,8 +403,30 @@ model School {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  talents     Talent[]
-  sfClaimedBy TalentSfImport[]
+  talents          Talent[]
+  sfClaimedBy      TalentSfImport[]
+  schoolingRecords Schooling_YearRecord[]
+}
+
+/// Per-school-year record of a student's class level and school attendance.
+/// Stores per-year facts for each school year cycle (opening July 31). `Talent.niveau`
+/// and `Talent.schoolId` are cached projections of the current school year's record,
+/// updated transactionally via schoolingService.
+model Schooling_YearRecord {
+  id         String   @id @default(cuid())
+  talentId   String
+  talent     Talent   @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  schoolYear String   // e.g. "2026-2027", canonical format from domain/schoolYear.ts
+  niveau     String?  // catalogue in domain/niveau.ts
+  schoolId   String?
+  school     School?  @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  source     String   // vocabulary in code as `SchoolingSource` (schoolingService)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([talentId, schoolYear])
+  @@index([schoolYear, schoolId])
+  @@index([schoolYear, niveau])
 }
 
 /// 1:1 mirror of what Salesforce last claimed for a talent — the anti-corruption

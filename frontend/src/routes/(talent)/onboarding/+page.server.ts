@@ -22,6 +22,8 @@ import {
   countCampusEarlyBirdPosition,
 } from '$lib/server/services/talentCampus';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
+import { schoolYearOf } from '$lib/domain/schoolYear';
+import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
 import { getOnboardingStep } from '$lib/domain/talentOnboarding';
 import {
   enqueueOnboardingPdfJob,
@@ -236,13 +238,27 @@ export const actions: Actions = {
       ? await resolveSchoolByUai(result.data.schoolUai, result.data.schoolName)
       : null;
 
-    await prisma.talent.update({
-      where: { id: locals.talent.id },
-      data: {
+    const talentId = locals.talent.id;
+    const currentSchoolYear = schoolYearOf(new Date(), 'Europe/Paris').label;
+
+    await prisma.$transaction(async (tx) => {
+      // schoolId is the cached projection of Schooling_YearRecord (schoolingService),
+      // never written to Talent directly - otherwise the current year's ledger row
+      // goes stale the moment the talent corrects their SF-claimed school.
+      await upsertSchoolingYearRecord(tx, {
+        talentId,
+        schoolYear: currentSchoolYear,
         schoolId,
-        highSchoolNameManual: schoolId ? null : result.data.schoolName,
-        highSchoolValidatedAt: new Date(),
-      },
+        source: 'onboarding',
+      });
+
+      await tx.talent.update({
+        where: { id: talentId },
+        data: {
+          highSchoolNameManual: schoolId ? null : result.data.schoolName,
+          highSchoolValidatedAt: new Date(),
+        },
+      });
     });
 
     return { success: true };

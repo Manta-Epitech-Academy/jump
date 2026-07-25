@@ -12,6 +12,8 @@ bun.lockb
 .svelte-kit/
 .svelte-kit-check/
 build/
+coverage/
+test-results/
 
 # Paraglide auto-generated
 src/lib/paraglide/
