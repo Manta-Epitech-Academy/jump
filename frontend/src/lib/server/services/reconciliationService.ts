@@ -271,12 +271,14 @@ export async function adoptSalesforceField(
   // goes stale the moment staff adopt Salesforce's claimed school over Jump's.
   if (field === 'school') {
     const currentSchoolYear = schoolYearOf(new Date(), 'Europe/Paris').label;
-    await upsertSchoolingYearRecord(prisma, {
-      talentId,
-      schoolYear: currentSchoolYear,
-      schoolId: m.sfSchoolId,
-      source: 'staff',
-    });
+    await prisma.$transaction((tx) =>
+      upsertSchoolingYearRecord(tx, {
+        talentId,
+        schoolYear: currentSchoolYear,
+        schoolId: m.sfSchoolId,
+        source: 'staff',
+      }),
+    );
     return;
   }
 

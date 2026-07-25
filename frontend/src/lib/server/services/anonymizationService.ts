@@ -140,14 +140,19 @@ export async function anonymizeTalent(
   // 2. Delete every talent-scoped satellite row that carries identifying
   //    content. Counterpart to the in-place scrub above: where a record embeds
   //    a name, a contact detail, or free text, the whole row is removed rather
-  //    than nulled field-by-field (drift-proof as columns are added, and the
-  //    same set resetTalentToImport wipes). The anonymous behavioural telemetry
+  //    than nulled field-by-field (drift-proof as columns are added, and very
+  //    nearly the same set resetTalentToImport wipes: schooling_YearRecord is
+  //    the one row erased here but kept there, see below). The anonymous
+  //    behavioural telemetry
   //    is deliberately KEPT (participation, minigameAttempt, xpGrant): once the
   //    name is gone those are de-identified activity backing xp / eventsCount and
   //    aggregate stats.
   //      - talentSfImport / talentInterest / imageRightsDecisionRecord: the SF
   //        mirror, interest selections, and the image-rights ledger (the ledger
   //        embeds the guardian's typed signer name).
+  //      - schooling_YearRecord: which lycée a named minor attended, year by
+  //        year. Erasure is total here (all years), unlike resetTalentToImport,
+  //        which keeps the history (a re-onboard is not an erasure).
   //      - note_TalentNote: staff notes about the minor (pedago + administratif
   //        free text). The whole feed is removed on erasure.
   //      - interview / interviewReset: the synthesis row holds free-text staff

@@ -332,6 +332,12 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     // (schoolingService), not written on Talent directly here - otherwise the
     // current year's ledger row goes stale the moment a reset diverges from what
     // sync last wrote there.
+    //
+    // Only the *current* year is realigned to the mirror. Earlier years are
+    // deliberately KEPT, like the worker-created Participation rows in step 3
+    // and for the same reason: they are import-derived schooling history, not
+    // onboarding output, and a re-onboard is not an erasure. anonymizeTalent is
+    // the path that drops every year (see its step 2).
     await upsertSchoolingYearRecord(tx, {
       talentId,
       schoolYear: schoolYearOf(new Date(), 'Europe/Paris').label,

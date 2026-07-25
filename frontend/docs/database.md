@@ -11,7 +11,7 @@
 | Domaine | Modèles |
 | --- | ---: |
 | Authentification & Profils | 12 |
-| Cycle de vie talent & RGPD | 3 |
+| Cycle de vie talent & RGPD | 5 |
 | Événements & Participations | 10 |
 | Planning & Activités | 3 |
 | Progression, Portfolio & XP | 2 |
@@ -20,7 +20,6 @@
 | Communication & Support | 5 |
 | Contenus & Centres d'intérêt | 4 |
 | Configuration & Système | 4 |
-| Autres | 2 |
 
 ## 1 · Authentification & Profils
 
@@ -251,9 +250,29 @@ erDiagram
     DateTime createdAt
     DateTime updatedAt
   }
+  Schooling_YearRecord {
+    String id PK
+    String talentId FK,UK
+    String schoolYear UK
+    String niveau
+    String schoolId FK
+    String source
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  Audit_ImpersonationEvent {
+    String id PK
+    String adminUserId
+    String targetUserId
+    String targetKind
+    DateTime startedAt
+    DateTime endedAt
+  }
   StaffProfile {
   }
   Talent {
+  }
+  School {
   }
   Event {
   }
@@ -262,7 +281,9 @@ erDiagram
   StaffProfile |o--o{ Note_TalentNote : "notesEdited"
   Talent ||--o{ TalentDeletionRequest : "deletionRequests"
   Talent ||--o{ ImageRightsDecisionRecord : "imageRightsRecords"
+  Talent ||--o{ Schooling_YearRecord : "schoolingRecords"
   Talent ||--o{ Note_TalentNote : "notes"
+  School |o--o{ Schooling_YearRecord : "schoolingRecords"
   Event |o--o{ Note_TalentNote : "talentNotes"
 ```
 
@@ -827,34 +848,4 @@ erDiagram
   }
   StaffProfile ||--o{ AdminFile : "adminFiles"
   Campus |o--o{ Signatory : "signatories"
-```
-
-## 11 · Autres
-
-```mermaid
-erDiagram
-  Audit_ImpersonationEvent {
-    String id PK
-    String adminUserId
-    String targetUserId
-    String targetKind
-    DateTime startedAt
-    DateTime endedAt
-  }
-  Schooling_YearRecord {
-    String id PK
-    String talentId FK,UK
-    String schoolYear UK
-    String niveau
-    String schoolId FK
-    String source
-    DateTime createdAt
-    DateTime updatedAt
-  }
-  Talent {
-  }
-  School {
-  }
-  Talent ||--o{ Schooling_YearRecord : "schoolingRecords"
-  School |o--o{ Schooling_YearRecord : "schoolingRecords"
 ```

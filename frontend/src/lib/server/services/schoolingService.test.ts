@@ -91,4 +91,40 @@ describe('schoolingService', () => {
       data: { niveau: '2nde', schoolId: 'new_school' },
     });
   });
+
+  it('upsertSchoolingYearRecord leaves the Talent projection alone when the record is a past school year', async () => {
+    const pastSY = '2019-2020';
+
+    const mockTx = {
+      talent: {
+        findUniqueOrThrow: vi
+          .fn()
+          .mockResolvedValue({ niveau: 'Terminale', schoolId: 'school_now' }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      schooling_YearRecord: {
+        upsert: vi.fn().mockResolvedValue({
+          id: 'rec_3',
+          talentId: 'talent_123',
+          schoolYear: pastSY,
+          niveau: '3eme',
+          schoolId: 'school_then',
+          source: 'staff',
+        }),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await upsertSchoolingYearRecord(mockTx, {
+      talentId: 'talent_123',
+      schoolYear: pastSY,
+      niveau: '3eme',
+      schoolId: 'school_then',
+      source: 'staff',
+    });
+
+    // Correcting history must not drag the talent back to a level they left:
+    // the row is written, the projection is untouched.
+    expect(mockTx.schooling_YearRecord.upsert).toHaveBeenCalled();
+    expect(mockTx.talent.update).not.toHaveBeenCalled();
+  });
 });

@@ -1,4 +1,3 @@
-import { prisma } from '$lib/server/db';
 import { Prisma } from '@prisma/client';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 
@@ -47,45 +46,42 @@ async function refreshTalentSchoolingProjection(
  * writing only `schoolId`) must never blank the other projected field. The
  * `update` branch already leaves omitted fields untouched. Pass `null` explicitly
  * to clear a field (what `resetTalentToImport` does).
+ *
+ * Takes a `Prisma.TransactionClient` and never opens its own transaction: the
+ * record and the projection it feeds must land together, so the caller owns the
+ * boundary (same contract as `xpService`). Callers holding the bare client wrap
+ * in `prisma.$transaction` themselves.
  */
 export async function upsertSchoolingYearRecord(
-  clientOrTx: Prisma.TransactionClient | typeof prisma,
+  tx: Prisma.TransactionClient,
   input: UpsertSchoolingYearRecordInput,
   timezone: string = 'Europe/Paris',
 ) {
   const { talentId, schoolYear, source } = input;
 
-  const run = async (tx: Prisma.TransactionClient) => {
-    // Carry-forward source for any field the caller didn't supply on create.
-    const talent = await tx.talent.findUniqueOrThrow({
-      where: { id: talentId },
-      select: { niveau: true, schoolId: true },
-    });
+  // Carry-forward source for any field the caller didn't supply on create.
+  const talent = await tx.talent.findUniqueOrThrow({
+    where: { id: talentId },
+    select: { niveau: true, schoolId: true },
+  });
 
-    const record = await tx.schooling_YearRecord.upsert({
-      where: { talentId_schoolYear: { talentId, schoolYear } },
-      create: {
-        talentId,
-        schoolYear,
-        niveau: input.niveau !== undefined ? input.niveau : talent.niveau,
-        schoolId:
-          input.schoolId !== undefined ? input.schoolId : talent.schoolId,
-        source,
-      },
-      update: {
-        ...(input.niveau !== undefined ? { niveau: input.niveau } : {}),
-        ...(input.schoolId !== undefined ? { schoolId: input.schoolId } : {}),
-        source,
-      },
-    });
+  const record = await tx.schooling_YearRecord.upsert({
+    where: { talentId_schoolYear: { talentId, schoolYear } },
+    create: {
+      talentId,
+      schoolYear,
+      niveau: input.niveau !== undefined ? input.niveau : talent.niveau,
+      schoolId: input.schoolId !== undefined ? input.schoolId : talent.schoolId,
+      source,
+    },
+    update: {
+      ...(input.niveau !== undefined ? { niveau: input.niveau } : {}),
+      ...(input.schoolId !== undefined ? { schoolId: input.schoolId } : {}),
+      source,
+    },
+  });
 
-    await refreshTalentSchoolingProjection(tx, record, timezone);
+  await refreshTalentSchoolingProjection(tx, record, timezone);
 
-    return record;
-  };
-
-  if ('$transaction' in clientOrTx) {
-    return (clientOrTx as typeof prisma).$transaction(run);
-  }
-  return run(clientOrTx as Prisma.TransactionClient);
+  return record;
 }

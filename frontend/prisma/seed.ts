@@ -94,6 +94,20 @@ function formatStageSecondeTitle(
   return `STAGE - ${campus} - ${y}/${m}/${d} - stage seconde`;
 }
 
+// Mirrors `schoolYearOf` in src/lib/domain/schoolYear.ts: the Epitech school
+// year opens on 31 July, so 30 Jul 2026 still belongs to 2025-2026 while
+// 31 Jul 2026 opens 2026-2027. Resolved in the campus timezone, like the app.
+function currentSchoolYearLabel(): string {
+  // `en-CA` renders as YYYY-MM-DD, the same key shape `toDateKey` produces.
+  const key = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+  const year = Number(key.slice(0, 4));
+  const month = Number(key.slice(5, 7));
+  const day = Number(key.slice(8, 10));
+  const afterCutoff = month > 7 || (month === 7 && day >= 31);
+  const startYear = afterCutoff ? year : year - 1;
+  return `${startYear}-${startYear + 1}`;
+}
+
 // Fake 18-char Salesforce Lead id (`00Q…`). Real prefix for Lead is `00Q`;
 // the trailing 3 chars are normally a checksum we don't bother computing.
 function mockSalesforceLeadId(seed: number): string {
@@ -2545,6 +2559,29 @@ async function seedStudents(): Promise<
   await prisma.imageRightsDecisionRecord.createMany({
     data: imageRightsRecordData,
   });
+
+  // Schooling ledger: `Talent.niveau` / `Talent.schoolId` are projections of the
+  // current school year's Schooling_YearRecord, so a seeded talent carrying
+  // those columns with no backing row is a state the runtime can't reach: sync
+  // writes the row on first sight, for every talent, nulls included. Same
+  // reasoning as the image-rights ledger above and the XP one below. `source`
+  // follows the write path each seeded state implies: a confirmed lycée came
+  // from the talent at onboarding, everything else from the worker.
+  const schoolYear = currentSchoolYearLabel();
+  const schoolingRecordData = seeded
+    .map((x) => {
+      const talentId = talentIdByExternalId.get(x.talent.externalId);
+      if (!talentId) return null;
+      return {
+        talentId,
+        schoolYear,
+        niveau: x.talent.niveau,
+        schoolId: x.talent.schoolId,
+        source: x.talent.highSchoolValidatedAt ? 'onboarding' : 'sync',
+      };
+    })
+    .filter((d): d is NonNullable<typeof d> => d !== null);
+  await prisma.schooling_YearRecord.createMany({ data: schoolingRecordData });
 
   return byEmail;
 }
