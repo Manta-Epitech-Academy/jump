@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **55** modèles · **34** enums · **82** relations
+- **57** modèles · **34** enums · **84** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -19,7 +19,7 @@
 | Feedback | 7 |
 | Communication & Support | 5 |
 | Contenus & Centres d'intérêt | 4 |
-| Configuration & Système | 4 |
+| Configuration & Système | 6 |
 
 ## 1 · Authentification & Profils
 
@@ -842,10 +842,32 @@ erDiagram
     DateTime createdAt
     DateTime updatedAt
   }
+  AdminApi_Token {
+    String id PK
+    String staffUserId FK
+    String label
+    String tokenHash UK
+    DateTime createdAt
+    DateTime lastUsedAt
+    DateTime revokedAt
+  }
+  AdminApi_Call {
+    String id PK
+    String tokenId FK
+    String actorUserId
+    String operation
+    Json params
+    Int status
+    DateTime createdAt
+  }
+  bauth_user {
+  }
   StaffProfile {
   }
   Campus {
   }
+  bauth_user ||--o{ AdminApi_Token : "adminApiTokens"
   StaffProfile ||--o{ AdminFile : "adminFiles"
   Campus |o--o{ Signatory : "signatories"
+  AdminApi_Token |o--o{ AdminApi_Call : "calls"
 ```

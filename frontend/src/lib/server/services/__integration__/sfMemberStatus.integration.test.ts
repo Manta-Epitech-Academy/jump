@@ -2,23 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { syncTalents } from '../syncService';
 import { isVisibleInDevSpace } from '$lib/domain/sfMemberStatus';
-
-// Integration tests run against the disposable Postgres from
-// docker-compose.test.yml (see TESTING.md), NEVER the dev or prod database.
-// This guard makes that structural: if the configured database is not
-// obviously the test one, we throw before writing anything, so a careless
-// `DATABASE_URL` can never inject test talents into a real cohort.
-function assertTestDatabase(): void {
-  const url = process.env.DATABASE_URL ?? '';
-  const isTestDb = url.includes('jump_test') || url.includes(':5434/');
-  if (!isTestDb) {
-    throw new Error(
-      `Refusing to run integration tests against a non-test database ` +
-        `(DATABASE_URL=${url || '(unset)'}). Start docker-compose.test.yml and ` +
-        `run \`bun run test:integration\`, which loads .env.test.`,
-    );
-  }
-}
+import { assertTestDatabase } from './testDatabase';
 
 describe('Salesforce member status sync (integration)', () => {
   // Unique per run so re-runs never collide and cleanup targets exactly what

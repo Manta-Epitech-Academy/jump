@@ -198,9 +198,42 @@ Talent profile fields have two sources — the worker sync (Salesforce) and onbo
 - **No-clobber rule:** before a field is talent-confirmed (its `*ValidatedAt` is set), sync re-seeds it on `Talent`; after, sync writes **only the mirror**. Never let SF overwrite a confirmed value. (This fixed a real bug where every sync overwrote the talent's confirmed phone/name.)
 - **Conflict** = field is talent-confirmed **AND** `Talent` ≠ `TalentSfImport` (school compared by FK). Computed in `reconciliationService`, never stored. Surfaced at `/staff/admin/sf-conflicts` (list + accept/reject + CSV export); `acceptJump` realigns the mirror optimistically. `niveau` is SF-owned (onboarding never sets it) → always synced, never a conflict.
 
+### Curated admin API and MCP
+
+The admin space **stops growing UI**. New admin capabilities ship as curated named API operations, consumable over HTTP and as MCP tools (July 2026 seminar). Tier 1 = the Academy core team; campus staff and talents never get MCP.
+
+Four rules, all non-negotiable (they come from the team's own Salesforce-MCP failure analysis):
+
+- **The LLM formats, it never computes.** Every figure is returned wrapped with its own French definition (`adminApi/metrics.ts` → `metric(value, definition)`), so it can be quoted but not re-derived. The instruction to quote rather than compute is declared **once**, as the MCP server's `instructions`; a definition itself is owned by whatever owns the rule it states (the visible-cohort clause lives with `visibleParticipationWhere` in `domain/sfMemberStatus.ts`), never spelled out again in a tool description or a second aggregate.
+- **Curated named operations only.** `adminApi/operations.ts` is the single catalogue: HTTP endpoints, MCP tool names and audit `operation` values all read from it. Adding a question means adding an entry; there is no generic query surface. Each entry carries **one** strict schema used by both consumers, so an unknown filter is a refusal over HTTP *and* over MCP (hand the SDK a raw shape instead and it silently strips the key, which answers a wider question than the one asked).
+- **An unknown scope is a refusal, never a zero.** Filters name things the caller can actually see: a campus is its unique `Campus.name`, not a cuid no operation returns. `adminApi/scope.ts` checks every campus, event and school year exists before anything is counted, and the refusal lists the values that would have worked. Skipping that check is how `campus: "Lile"` came back as `{ campus: "Lile", events: 0 }`, a confident zero with the echoed filter confirming it.
+- **Zero talent PII in this tier.** Aggregates and configuration state only. Don't add a select of `nom` / `prenom` / `email` / `phone` under `adminStats/`; if a question needs a person's name, it is not an operation for this tier.
+- **Hard caps + audit.** Every list is capped, every token is quota-limited per 24h, and **every** call (success or refusal) writes an `AdminApi_Call` row. Audit replaces up-front restriction, so nothing may bypass it.
+
+Pieces:
+
+| Concern | Where |
+| --- | --- |
+| Tokens (mint / verify / revoke, sha256-hashed, secret shown once) | `adminApi/tokens.ts`, minted from `StaffApiTokensDialog` via the action-only `/staff/api-tokens` route |
+| Auth (bearer token, else admin session) + quota | `adminApi/guard.ts` |
+| Audit rows + retention purge | `adminApi/audit.ts`, `POST /api/jobs/gc-api-audit` |
+| Operation catalogue (one strict schema per entry) | `adminApi/operations.ts` |
+| Scope resolution + refusals (campus by name, event by id, school year) | `adminApi/scope.ts` |
+| HTTP endpoints (one line each) | `adminApi/route.ts` → `src/routes/api/admin/**` |
+| MCP tools (stateless, `@hono/mcp` transport) | `adminApi/mcpServer.ts` → `POST /api/mcp` |
+| Aggregation services | `services/adminStats/*` (reuse `EventService.listAdminEvents`, `visibleParticipationWhere`, the onboarding ladder, `infra/syncStatus`) |
+
+The weekly PO digest (`services/adminDigest.ts`, `POST /api/jobs/admin-digest`) reads those same services, so an inbox figure and an asked figure can't disagree.
+
 ### Key Server Services (`src/lib/server/`)
 
 - **`auth.ts`** — BetterAuth config (Prisma adapter, Microsoft OAuth, email OTP, admin plugin with impersonation)
+- **`adminApi/`** — curated admin API: token auth, per-token quota, audit log, operation catalogue, MCP server (see above)
+- **`services/adminStats/`** — the curated aggregates (events overview, onboarding funnel, unconfigured events, sync health), each figure carrying its definition
+- **`services/adminDigest.ts`** — weekly French digest to every admin-role login, built on `adminStats/`
+- **`services/staffAdminService.ts`** — staff roster writes for `/staff/admin/users` (the role change moves `StaffProfile.staffRole` + `bauth_user.role` in one transaction)
+- **`services/syncErrorService.ts`** — admin remediation of sync errors, including the extId rebind and its refusal branches
+- **`services/onboardingService.ts`** — the onboarding transactions: parent-1 account provisioning, interest swap, rules signature (timestamps + XP facts + PDF job)
 - **`services/diplomaGenerator.ts`** — PDF generation via Puppeteer with HTML templates in `server/templates/`
 - **`services/syncService.ts`** — Salesforce worker sync → seeds `Talent` + upserts the `TalentSfImport` mirror (no-clobber; see Salesforce reconciliation)
 - **`services/reconciliationService.ts`** — computes `Talent` ↔ `TalentSfImport` conflicts; accept/reject + CSV for `/staff/admin/sf-conflicts`
@@ -232,6 +265,10 @@ The dev stage-seconde pages (`inscrits`, `émargement`, `entretiens`) and admin 
 ## Coding Conventions
 
 - **Language:** All UI text and user-facing strings are in **French**. Code identifiers (functions, variables) are in English.
+
+  For a string no human reads *directly*, the test is **relay, not audience**: does it reach a French-speaking human, even through a machine? A cron job's `'Unauthorized: Invalid or missing token'` dies in a pod log, so it stays English, and so does anything a model reads as *instruction* rather than content (MCP tool descriptions, Zod `.describe()`, validation messages, the server-level MCP instructions). But an API error an MCP client paraphrases to an admin is French, and a `metric()` definition is French without exception: it is quoted verbatim into a chat answer and into the weekly digest, and English there would make the model translate before quoting, which is a re-derived definition, the one thing that tier exists to prevent.
+
+  Being machine-facing is also not a licence to use our own vocabulary. "Operation" is what `operations.ts` calls a catalogue entry; an admin reading a dialog thinks "les chiffres et l'état de configuration". And the reverse trap is real: **`token` stays `token`** on an ops surface. The no-jargon rule says name what the person experiences, and what they experience is a credential they paste after `Authorization: Bearer`; "jeton" makes them translate back to the word they actually type. Talent-facing copy is where jargon gets replaced, not the admin token dialog.
 - **Register (vous / tu):** Pick by who reads the string. **Staff-facing copy uses _vous_** (dev and admin spaces: buttons, tooltips, help cards, confirms). **Talent-facing copy uses _tu_** (the student portal and anything a talent reads, e.g. the QR check-in page). A single feature often spans both: the émargement staff page vouvoie the staff, while its talent check-in page tutoie the student. Match the surrounding screen's register, don't mix within one audience.
 - **Forms:** Use sveltekit-superforms with Zod validation. Never use raw `<form>` handling.
 - **DB access:** Import `prisma` from `$lib/server/db`. Never pass the Prisma client as a function parameter — it's a singleton. Always scope queries by `campusId` for staff/student data.

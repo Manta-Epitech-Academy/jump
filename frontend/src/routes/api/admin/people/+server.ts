@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { prisma } from '$lib/server/db';
+import { requireAdminSession } from '$lib/server/auth/guards';
 import { getStaffRoleLabel } from '$lib/domain/staff';
 import { niveauLabel } from '$lib/domain/niveau';
 
@@ -15,9 +16,7 @@ const fullName = (prenom: string | null, nom: string | null) =>
   `${prenom ?? ''} ${nom ?? ''}`.trim();
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-  if (locals.staffProfile?.staffRole !== 'admin') {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  requireAdminSession(locals);
 
   // Same sanitization as the talents directory search (keeps `@` and `.` so an
   // email query survives).

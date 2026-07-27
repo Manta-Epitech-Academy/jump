@@ -4,6 +4,7 @@
   import ShieldAlert from '@lucide/svelte/icons/shield-alert';
   import LogOut from '@lucide/svelte/icons/log-out';
   import Settings from '@lucide/svelte/icons/settings';
+  import KeyRound from '@lucide/svelte/icons/key-round';
   import Menu from '@lucide/svelte/icons/menu';
   import X from '@lucide/svelte/icons/x';
   import Search from '@lucide/svelte/icons/search';
@@ -13,6 +14,7 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import StaffSettingsDialog from '$lib/components/layout/StaffSettingsDialog.svelte';
+  import StaffApiTokensDialog from '$lib/components/layout/StaffApiTokensDialog.svelte';
   import AdminCommand from '$lib/components/admin/AdminCommand.svelte';
   import {
     ADMIN_NAV,
@@ -26,6 +28,7 @@
 
   let mobileMenuOpen = $state(false);
   let settingsOpen = $state(false);
+  let apiTokensOpen = $state(false);
   let commandOpen = $state(false);
 
   // Close the mobile menu on page navigation
@@ -217,6 +220,13 @@
               <Settings class="mr-2 h-4 w-4" />
               Paramètres
             </DropdownMenu.Item>
+            <DropdownMenu.Item
+              class="cursor-pointer"
+              onSelect={() => (apiTokensOpen = true)}
+            >
+              <KeyRound class="mr-2 h-4 w-4" />
+              Accès API
+            </DropdownMenu.Item>
             <form
               action="{resolve('/logout')}?type=admin"
               method="POST"
@@ -249,6 +259,13 @@
           armedRealSendsUntil={data.armedRealSendsUntil}
           devRedirectPin={data.devRedirectPin}
           devRedirectPinTo={data.devRedirectPinTo}
+        />
+
+        <StaffApiTokensDialog
+          bind:open={apiTokensOpen}
+          form={data.apiTokenForm}
+          tokens={data.apiTokens}
+          dailyQuota={data.apiTokenDailyQuota}
         />
       </div>
     </div>

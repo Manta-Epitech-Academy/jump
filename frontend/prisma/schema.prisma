@@ -154,6 +154,7 @@ model bauth_user {
   broadcastsCreated         Broadcast[]          @relation("BroadcastCreator")
   templatesCreated          MessageTemplate[]    @relation("MessageTemplateCreator")
   broadcastsReceivedAsStaff BroadcastRecipient[] @relation("BroadcastRecipientStaff")
+  adminApiTokens            AdminApi_Token[]
 }
 
 model bauth_session {
@@ -1714,4 +1715,66 @@ model AuthIdentityRepair {
 
   @@index([talentId])
   @@index([resolvedAt])
+}
+
+/// A nominative, revocable bearer credential an admin mints for a machine caller
+/// (the MCP server, a script) so it can reach the curated admin API without
+/// borrowing a browser session. The secret is displayed once at creation and
+/// persisted only as a hash, so a database dump carries no usable credential.
+model AdminApi_Token {
+  id          String    @id @default(cuid())
+  /// `bauth_user.id` of the owning admin. Cascade on purpose: a token is that
+  /// human's own credential and must never outlive their account.
+  staffUserId String
+  /// Human label typed at creation ("Copilot Edouard", "script rapport
+  /// mensuel"), so a token can be told apart before being revoked.
+  label       String
+  /// sha256 hex of the secret. Unique, so verifying a bearer is one indexed
+  /// lookup instead of a scan-and-compare over every row.
+  tokenHash   String    @unique
+  createdAt   DateTime  @default(now())
+  /// Stamped on every accepted call, so a token nobody uses is visible before
+  /// someone has to guess whether cutting it breaks something.
+  lastUsedAt  DateTime?
+  /// Revocation is a timestamp, not a delete: the call log keeps pointing at the
+  /// token that produced it.
+  revokedAt   DateTime?
+
+  staffUser bauth_user      @relation(fields: [staffUserId], references: [id], onDelete: Cascade)
+  calls     AdminApi_Call[]
+
+  @@index([staffUserId])
+}
+
+/// Append-only log of every curated-admin-API call, by token or by admin
+/// session. Facts as rows, no projection and no UI: the seminar's design rule is
+/// that audit replaces up-front restriction, and that reading what people
+/// actually ask for is free product research. Also the source of the per-token
+/// daily quota (counted, not stored).
+model AdminApi_Call {
+  id          String   @id @default(cuid())
+  /// Null when an admin session drove the call (same operations, browser
+  /// caller), and null once the owning account is deleted. `actorUserId` still
+  /// answers "who".
+  tokenId     String?
+  /// `bauth_user.id` of the human behind the call. Plain `String` (no FK), like
+  /// `AuthIdentityRepair.resolvedBy`, so the fact survives that account's own
+  /// later deletion.
+  actorUserId String
+  /// Operation name, the same vocabulary as the MCP tool names
+  /// (`stats_events_overview`, ...). A plain String so a new operation needs no
+  /// migration; the catalogue lives in `$lib/server/adminApi/operations.ts`.
+  operation   String
+  /// The validated query params. PII-free by construction: this tier serves
+  /// aggregates and configuration state, so its params are ids and school years.
+  params      Json?
+  /// Status the caller got (200, 403, 429, ...), so refusals are auditable too,
+  /// not just successes.
+  status      Int
+  createdAt   DateTime @default(now())
+
+  token AdminApi_Token? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+
+  @@index([tokenId, createdAt])
+  @@index([createdAt])
 }

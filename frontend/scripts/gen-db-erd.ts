@@ -163,6 +163,8 @@ const DOMAINS: { title: string; models: string[] }[] = [
       'Signatory',
       'AdminFile',
       'SyncError',
+      'AdminApi_Token',
+      'AdminApi_Call',
     ],
   },
 ];

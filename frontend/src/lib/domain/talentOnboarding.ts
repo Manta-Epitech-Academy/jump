@@ -26,7 +26,12 @@ export type OnboardingStep =
   | 'processing'
   | 'rules';
 
-const ONBOARDING_STEP_ORDER: readonly OnboardingStep[] = [
+/**
+ * The ladder, in order. Exported because the onboarding-funnel aggregate walks
+ * it rung by rung (`server/services/adminStats/onboardingFunnel.ts`): a second
+ * hardcoded list there would silently stop counting a step added here.
+ */
+export const ONBOARDING_STEP_ORDER: readonly OnboardingStep[] = [
   'identity',
   'school',
   'parents',
