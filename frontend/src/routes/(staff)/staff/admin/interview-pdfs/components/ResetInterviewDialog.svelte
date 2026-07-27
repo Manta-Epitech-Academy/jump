@@ -39,9 +39,7 @@
 <AlertDialog.Root bind:open>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title class="font-heading text-xl tracking-tight uppercase">
-        Réinitialiser l'entretien
-      </AlertDialog.Title>
+      <AlertDialog.Title>Réinitialiser l'entretien</AlertDialog.Title>
       <AlertDialog.Description>
         Cette action supprime définitivement l'entretien finalisé et sa
         synthèse. Le talent repassera en « à faire » et un nouvel entretien

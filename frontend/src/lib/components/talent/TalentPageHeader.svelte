@@ -146,7 +146,7 @@
                    symmetrically while leaving the box's outer size and its
                    vertical centring against the icon unchanged. -->
               <h1
-                class="-my-1.5 truncate py-1.5 font-heading text-xl tracking-tight text-slate-900 uppercase sm:text-2xl dark:text-white"
+                class="-my-1.5 truncate py-1.5 font-heading text-xl tracking-wider text-slate-900 uppercase sm:text-2xl dark:text-white"
               >
                 {title}<span class="text-epi-teal">_</span>
               </h1>

@@ -32,7 +32,9 @@
     class="top-0 left-0 flex h-screen max-h-screen w-screen max-w-none translate-x-0 translate-y-0 flex-col items-center justify-center gap-8 rounded-none border-0 bg-background p-8 sm:max-w-none"
   >
     <Dialog.Header class="items-center gap-1 text-center sm:text-center">
-      <Dialog.Title class="font-heading text-2xl tracking-wide uppercase">
+      <!-- Full-screen projected display, not modal chrome: styled like a page
+           heading (AdminPageHeader et al.), not the plain Dialog.Title default. -->
+      <Dialog.Title class="font-heading text-2xl tracking-wider uppercase">
         {title}
       </Dialog.Title>
       <Dialog.Description class="text-base">

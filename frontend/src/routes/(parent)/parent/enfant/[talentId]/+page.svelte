@@ -59,7 +59,7 @@
       {/if}
       <div class="flex-1">
         <h1
-          class="font-heading text-3xl tracking-tight text-slate-900 uppercase sm:text-4xl dark:text-white"
+          class="font-heading text-3xl tracking-wider text-slate-900 uppercase sm:text-4xl dark:text-white"
         >
           Bonjour, <span class="text-epi-blue"
             >M./Mme {data.parentLastName}</span

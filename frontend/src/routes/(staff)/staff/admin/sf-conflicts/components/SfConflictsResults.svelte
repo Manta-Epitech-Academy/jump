@@ -724,9 +724,7 @@
 <AlertDialog.Root bind:open={adoptOpen}>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title class="font-heading text-xl tracking-tight uppercase">
-        Adopter la valeur Salesforce
-      </AlertDialog.Title>
+      <AlertDialog.Title>Adopter la valeur Salesforce</AlertDialog.Title>
       <AlertDialog.Description>
         La valeur
         <strong>{adoptTarget ? FIELD_LABELS[adoptTarget.field] : ''}</strong>
@@ -784,7 +782,7 @@
 <AlertDialog.Root bind:open={authOpen}>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title class="font-heading text-xl tracking-tight uppercase">
+      <AlertDialog.Title>
         {authTarget ? ACTION_LABELS[authTarget.action] : ''}
       </AlertDialog.Title>
       <AlertDialog.Description>

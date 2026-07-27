@@ -166,7 +166,7 @@
   <TalentPageHeader>
     {#snippet lead()}
       <h1
-        class="truncate font-heading text-xl tracking-tight text-slate-900 uppercase sm:text-2xl dark:text-white"
+        class="truncate font-heading text-xl tracking-wider text-slate-900 uppercase sm:text-2xl dark:text-white"
       >
         Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
       </h1>

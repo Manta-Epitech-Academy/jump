@@ -246,9 +246,7 @@
 <AlertDialog.Root bind:open={deleteOpen}>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title class="font-heading text-xl tracking-tight uppercase">
-        Supprimer la note ?
-      </AlertDialog.Title>
+      <AlertDialog.Title>Supprimer la note ?</AlertDialog.Title>
       <AlertDialog.Description>
         Cette note sera définitivement supprimée. Cette action est irréversible.
       </AlertDialog.Description>

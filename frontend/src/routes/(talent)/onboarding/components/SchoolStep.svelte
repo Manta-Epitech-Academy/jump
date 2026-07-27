@@ -101,7 +101,7 @@
     <School class="h-7 w-7" />
   </div>
   <h1
-    class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
+    class="font-heading text-2xl tracking-wider text-epi-blue uppercase dark:text-epi-blue"
   >
     De quel lycée viens-tu ?
   </h1>

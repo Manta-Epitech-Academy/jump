@@ -24,7 +24,7 @@
         class="rounded-2xl border border-slate-200/60 bg-white/80 px-6 py-8 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
       >
         <h1
-          class="mb-4 font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
+          class="mb-4 font-heading text-2xl tracking-wider text-epi-blue uppercase dark:text-epi-blue"
         >
           Merci pour votre confiance !
         </h1>
