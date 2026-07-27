@@ -1,7 +1,6 @@
 <script lang="ts">
   import { superForm, type SuperValidated } from 'sveltekit-superforms';
   import type { Infer } from 'sveltekit-superforms';
-  import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { createApiTokenSchema } from '$lib/validation/adminApiToken';
   import { Button } from '$lib/components/ui/button';
@@ -10,6 +9,7 @@
   import { Checkbox } from '$lib/components/ui/checkbox';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import * as Dialog from '$lib/components/ui/dialog';
+  import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import KeyRound from '@lucide/svelte/icons/key-round';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
 
@@ -45,6 +45,14 @@
   $effect(() => {
     if (!open) minted = null;
   });
+
+  let revokeDialogOpen = $state(false);
+  let tokenToRevoke = $state<TokenRow | null>(null);
+
+  const askRevoke = (token: TokenRow) => {
+    tokenToRevoke = token;
+    revokeDialogOpen = true;
+  };
 
   // svelte-ignore state_referenced_locally
   const {
@@ -206,32 +214,15 @@
                     </p>
                   </div>
                   {#if !token.revokedAt}
-                    <form
-                      method="POST"
-                      action="/staff/api-tokens?/revoke"
-                      use:enhance={() =>
-                        async ({ result, update }) => {
-                          if (result.type === 'failure') {
-                            toast.error(
-                              (result.data?.message as string | undefined) ??
-                                'Échec de la révocation.',
-                            );
-                          } else {
-                            toast.success('Token révoqué.');
-                          }
-                          await update();
-                        }}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      class="cursor-pointer"
+                      onclick={() => askRevoke(token)}
                     >
-                      <input type="hidden" name="id" value={token.id} />
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        size="sm"
-                        class="cursor-pointer"
-                      >
-                        Révoquer
-                      </Button>
-                    </form>
+                      Révoquer
+                    </Button>
                   {/if}
                 </li>
               {/each}
@@ -242,3 +233,14 @@
     </div>
   </Dialog.Content>
 </Dialog.Root>
+
+<ConfirmDeleteDialog
+  bind:open={revokeDialogOpen}
+  action="/staff/api-tokens?/revoke&id={tokenToRevoke?.id}"
+  title="Révoquer ce token ?"
+  description={tokenToRevoke
+    ? `Le token « ${tokenToRevoke.label} » cessera immédiatement de fonctionner. Un outil qui l'utilise encore perdra l'accès sur-le-champ ; cette action est irréversible.`
+    : ''}
+  buttonText="Révoquer"
+  onSuccess={() => (tokenToRevoke = null)}
+/>

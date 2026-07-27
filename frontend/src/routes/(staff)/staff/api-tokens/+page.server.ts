@@ -33,14 +33,15 @@ export const actions: Actions = {
     });
   },
 
-  revoke: async ({ request, locals }) => {
+  revoke: async ({ url, locals }) => {
     requireAdminSession(locals);
     const userId = locals.user?.id;
     if (!userId) throw redirect(303, '/staff/login');
 
-    const data = await request.formData();
-    const id = data.get('id');
-    if (typeof id !== 'string' || !id) return fail(400);
+    // id arrives as an action query param (?/revoke&id=…) because the shared
+    // ConfirmDeleteDialog renders no hidden field.
+    const id = url.searchParams.get('id');
+    if (!id) return fail(400);
 
     // Scoped to the owner inside the service: an id from someone else's list is
     // simply not a valid target here.
