@@ -11,7 +11,7 @@
  * quoted straight into a chat answer or a digest).
  */
 
-import { EventService, type AdminEventVM } from '$lib/server/services/events';
+import type { AdminEventVM } from '$lib/server/services/events';
 import {
   EVENT_CONFIG_STATE_LABELS,
   EVENT_CONFIG_STATE_HINTS,
@@ -24,7 +24,8 @@ import {
 } from '$lib/domain/eventModules';
 import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
-import { assertKnownSchoolYear, type Scope } from '$lib/server/adminApi/scope';
+import type { Scope } from '$lib/server/adminApi/scope';
+import { scopedEvents } from './cohort';
 
 export type CampusRow = {
   campus: string;
@@ -62,20 +63,7 @@ const countState = (events: AdminEventVM[], state: EventConfigState) =>
 export async function getEventsOverview(
   scope: Scope = {},
 ): Promise<EventsOverview> {
-  const all = await EventService.listAdminEvents();
-
-  const availableSchoolYears = [
-    ...new Set(all.map((e) => e.schoolYearLabel)),
-  ].sort((a, b) => b.localeCompare(a));
-  // A year with no event would report zeros everywhere and read as a fact, so
-  // it is refused here, where the set of real years is already in hand.
-  assertKnownSchoolYear(scope.schoolYear, availableSchoolYears);
-
-  const events = all.filter(
-    (e) =>
-      (!scope.schoolYear || e.schoolYearLabel === scope.schoolYear) &&
-      (!scope.campus || e.campusId === scope.campus.id),
-  );
+  const { events, availableSchoolYears } = await scopedEvents(scope);
 
   const campuses = new Map<string, AdminEventVM[]>();
   for (const event of events) {

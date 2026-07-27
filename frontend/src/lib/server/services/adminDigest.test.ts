@@ -3,6 +3,8 @@ import { metric } from '$lib/server/adminApi/metrics';
 
 const getUnconfiguredEvents = vi.fn();
 const getSyncHealth = vi.fn();
+const getPdfJobsHealth = vi.fn();
+const getAccountDeletionQueue = vi.fn();
 
 vi.mock('$lib/server/services/adminStats/unconfiguredEvents', () => ({
   getUnconfiguredEvents: () => getUnconfiguredEvents(),
@@ -11,6 +13,10 @@ vi.mock('$lib/server/services/adminStats/unconfiguredEvents', () => ({
 vi.mock('$lib/server/services/adminStats/syncHealth', () => ({
   getSyncHealth: () => getSyncHealth(),
   SYNC_STALE_AFTER_HOURS: 3,
+}));
+vi.mock('$lib/server/services/adminStats/opsQueues', () => ({
+  getPdfJobsHealth: () => getPdfJobsHealth(),
+  getAccountDeletionQueue: () => getAccountDeletionQueue(),
 }));
 
 const { buildAdminDigest } = await import('./adminDigest');
@@ -71,9 +77,35 @@ function syncPayload(over: { unresolved?: number; ageHours?: number } = {}) {
   };
 }
 
+function pdfJobsPayload(failed = 0) {
+  return {
+    pending: metric(0, 'def'),
+    processing: metric(0, 'def'),
+    failed: metric(failed, 'def'),
+    succeeded: metric(0, 'def'),
+    retryable: metric(failed, 'def'),
+    oldestRetryableAgeMinutes: metric(null, 'def'),
+    jobs: metric([], 'def'),
+    truncated: false,
+  };
+}
+
+function deletionsPayload(over: { pending?: number; overdue?: number } = {}) {
+  return {
+    pending: metric(over.pending ?? 0, 'def'),
+    overdue: metric(over.overdue ?? 0, 'def'),
+    oldestPendingAgeDays: metric(null, 'def'),
+    fulfilledLast30Days: metric(0, 'def'),
+    rejectedLast30Days: metric(0, 'def'),
+  };
+}
+
 beforeEach(() => {
   getUnconfiguredEvents.mockReset();
   getSyncHealth.mockReset();
+  // Quiet queues by default, so a test that cares about them says so.
+  getPdfJobsHealth.mockReset().mockResolvedValue(pdfJobsPayload());
+  getAccountDeletionQueue.mockReset().mockResolvedValue(deletionsPayload());
 });
 
 describe('buildAdminDigest', () => {
@@ -104,6 +136,32 @@ describe('buildAdminDigest', () => {
       eventsToPrepare: 1,
       unresolvedSyncErrors: 2,
       lastSyncAgeHours: 0.5,
+      failedPdfJobs: 0,
+      overdueDeletionRequests: 0,
+    });
+  });
+
+  it('names the stuck queues, and says so plainly when there are none', async () => {
+    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload());
+
+    const quiet = await buildAdminDigest();
+    expect(quiet.html).toContain('Aucune file en attente');
+
+    getPdfJobsHealth.mockResolvedValue(pdfJobsPayload(3));
+    getAccountDeletionQueue.mockResolvedValue(
+      deletionsPayload({ pending: 4, overdue: 2 }),
+    );
+
+    const busy = await buildAdminDigest();
+    expect(busy.html).toContain('3');
+    expect(busy.html).toContain('documents non générés');
+    // An overdue erasure request is the one figure here with a legal clock on
+    // it, so it has to be named rather than folded into "4 en attente".
+    expect(busy.html).toContain('dépassé');
+    expect(busy.summary).toMatchObject({
+      failedPdfJobs: 3,
+      overdueDeletionRequests: 2,
     });
   });
 

@@ -1,18 +1,30 @@
 /**
- * Turns a catalogue entry into a SvelteKit `GET` handler.
+ * Turns a catalogue entry into a SvelteKit handler.
  *
- * Authentication, param validation, the audit row and the error shaping all live
- * here, so each endpoint file under `src/routes/api/admin/` is one line. That is
- * not just brevity: it makes the audit row structurally unskippable. An endpoint
- * cannot forget to log, because logging is not something an endpoint does.
+ * Authentication, param validation and response shaping live here; authorising,
+ * running and recording the call are `executeOperation`'s, shared with the MCP
+ * consumer. Either way each endpoint file under `src/routes/api/admin/` stays one
+ * line, and that is not just brevity: it makes the audit row structurally
+ * unskippable. An endpoint cannot forget to log, because logging is not
+ * something an endpoint does.
+ *
+ * Two entry points rather than one, because a read and a write differ in more
+ * than a verb: the params arrive from different places (query string vs JSON
+ * body) and a write also has a change to record. Each asserts the catalogue's
+ * `kind` when the module is first imported, so mounting a write under `GET` is a
+ * startup error rather than a surprise in production.
  */
 
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json, type RequestEvent, type RequestHandler } from '@sveltejs/kit';
 import { z } from 'zod';
 import { authenticateAdminApi } from './guard';
 import { recordAdminApiCall } from './audit';
-import { UnknownScopeError } from './scope';
-import { ADMIN_API_OPERATIONS, type AdminApiOperationName } from './operations';
+import { executeOperation } from './execute';
+import {
+  ADMIN_API_OPERATIONS,
+  type AdminApiOperation,
+  type AdminApiOperationName,
+} from './operations';
 
 /** Only the params the caller actually sent, so `.optional()` behaves. */
 function queryObject(url: URL): Record<string, string> {
@@ -23,9 +35,31 @@ function queryObject(url: URL): Record<string, string> {
   return out;
 }
 
-export function adminApiRoute(name: AdminApiOperationName): RequestHandler {
-  const operation = ADMIN_API_OPERATIONS[name];
+/**
+ * A JSON object body, or `{}` for an empty one (an operation whose params are
+ * all optional is legitimately called with no body). Anything else is a caller
+ * bug and is refused by the schema below, not swallowed here.
+ */
+async function bodyObject(request: Request): Promise<unknown> {
+  const raw = await request.text();
+  if (!raw.trim()) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
 
+/**
+ * What both handlers share on this transport: identify the caller, validate the
+ * params, answer. Authorising, running and recording are `executeOperation`'s.
+ * `readParams` is what differs between a read and a write.
+ */
+function handlerFor(
+  name: AdminApiOperationName,
+  operation: AdminApiOperation,
+  readParams: (event: RequestEvent) => Promise<unknown>,
+): RequestHandler {
   return async (event) => {
     const auth = await authenticateAdminApi(event);
     if (!auth.ok) {
@@ -37,9 +71,12 @@ export function adminApiRoute(name: AdminApiOperationName): RequestHandler {
       return json({ error: auth.message }, { status: auth.status });
     }
 
-    // The catalogue's schema is strict: an unknown query param is a caller bug
-    // (or a probe for a filter we do not offer), never silently ignored.
-    const parsed = operation.schema.safeParse(queryObject(event.url));
+    // The catalogue's schema is strict: an unknown param is a caller bug (or a
+    // probe for a filter we do not offer), never silently ignored. Refused here
+    // rather than in `executeOperation`, because answering a malformed request
+    // is transport-specific: this one can afford the machine-readable detail of
+    // which param was wrong.
+    const parsed = operation.schema.safeParse(await readParams(event));
     if (!parsed.success) {
       await recordAdminApiCall({
         caller: auth.caller,
@@ -55,33 +92,43 @@ export function adminApiRoute(name: AdminApiOperationName): RequestHandler {
       );
     }
 
-    try {
-      const data = await operation.run(parsed.data);
-      await recordAdminApiCall({
-        caller: auth.caller,
-        operation: name,
-        params: parsed.data,
-        status: 200,
-      });
-      return json(data);
-    } catch (err) {
-      // A scope nobody knows is a caller mistake, not a fault: answer 400 with
-      // the message naming the values that would have worked, never zeros.
-      const status = err instanceof UnknownScopeError ? 400 : 500;
-      if (status === 500) console.error(`[adminApi] ${name} failed:`, err);
-      await recordAdminApiCall({
-        caller: auth.caller,
-        operation: name,
-        params: parsed.data,
-        status,
-      });
-      return json(
-        {
-          error:
-            err instanceof UnknownScopeError ? err.message : 'Erreur interne.',
-        },
-        { status },
-      );
-    }
+    const outcome = await executeOperation({
+      name,
+      operation,
+      credential: auth,
+      params: parsed.data,
+    });
+    return outcome.ok
+      ? json(outcome.data)
+      : json({ error: outcome.message }, { status: outcome.status });
   };
+}
+
+function operationOfKind(
+  name: AdminApiOperationName,
+  kind: AdminApiOperation['kind'],
+): AdminApiOperation {
+  const operation = ADMIN_API_OPERATIONS[name];
+  if (operation.kind !== kind) {
+    // Thrown at import time, so the mistake surfaces when the app boots rather
+    // than the first time somebody calls the endpoint.
+    throw new Error(
+      `Operation "${name}" is a ${operation.kind}; mount it with adminApi${
+        operation.kind === 'read' ? 'Read' : 'Write'
+      } instead.`,
+    );
+  }
+  return operation;
+}
+
+/** Mount a read operation as `GET`. Params come from the query string. */
+export function adminApiRead(name: AdminApiOperationName): RequestHandler {
+  const operation = operationOfKind(name, 'read');
+  return handlerFor(name, operation, async (event) => queryObject(event.url));
+}
+
+/** Mount a write operation as `POST`. Params come from the JSON body. */
+export function adminApiWrite(name: AdminApiOperationName): RequestHandler {
+  const operation = operationOfKind(name, 'write');
+  return handlerFor(name, operation, (event) => bodyObject(event.request));
 }

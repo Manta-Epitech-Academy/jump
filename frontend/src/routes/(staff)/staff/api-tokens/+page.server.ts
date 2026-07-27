@@ -22,7 +22,11 @@ export const actions: Actions = {
     const form = await superValidate(request, zod4(createApiTokenSchema));
     if (!form.valid) return fail(400, { form });
 
-    const token = await mintToken(userId, form.data.label);
+    const token = await mintToken(userId, {
+      label: form.data.label,
+      tier: form.data.tier,
+      writeEnabled: form.data.writeEnabled,
+    });
 
     // The plaintext secret travels back exactly once, in this response, and is
     // never stored in that form. The dialog shows it until it is dismissed.

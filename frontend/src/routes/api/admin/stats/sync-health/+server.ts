@@ -1,3 +1,3 @@
-import { adminApiRoute } from '$lib/server/adminApi/route';
+import { adminApiRead } from '$lib/server/adminApi/route';
 
-export const GET = adminApiRoute('stats_sync_health');
+export const GET = adminApiRead('stats_sync_health');

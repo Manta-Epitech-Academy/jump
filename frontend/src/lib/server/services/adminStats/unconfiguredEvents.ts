@@ -9,14 +9,14 @@
  * configurer" means what the screen means.
  */
 
-import { EventService } from '$lib/server/services/events';
 import {
   EVENT_CONFIG_STATE_LABELS,
   isEventToPrepare,
   type EventConfigState,
 } from '$lib/domain/eventReadiness';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
-import { assertKnownSchoolYear, type Scope } from '$lib/server/adminApi/scope';
+import type { Scope } from '$lib/server/adminApi/scope';
+import { scopedEvents } from './cohort';
 
 /** Hard cap on the returned list, whatever the filters. */
 export const UNCONFIGURED_EVENTS_LIMIT = 100;
@@ -52,18 +52,9 @@ export type UnconfiguredEvents = {
 export async function getUnconfiguredEvents(
   scope: Scope = {},
 ): Promise<UnconfiguredEvents> {
-  const all = await EventService.listAdminEvents();
+  const { events: inScope } = await scopedEvents(scope);
 
-  assertKnownSchoolYear(scope.schoolYear, [
-    ...new Set(all.map((e) => e.schoolYearLabel)),
-  ]);
-
-  const candidates = all
-    .filter(
-      (e) =>
-        (!scope.schoolYear || e.schoolYearLabel === scope.schoolYear) &&
-        (!scope.campus || e.campusId === scope.campus.id),
-    )
+  const candidates = inScope
     // Only what still needs action: a past event needs nothing, and an event
     // already visible is done. Same rule as the cockpit's "À préparer" cue.
     .filter(isEventToPrepare)

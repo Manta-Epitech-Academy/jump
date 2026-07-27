@@ -1,9 +1,14 @@
+-- CreateEnum
+CREATE TYPE "AdminApi_TokenTier" AS ENUM ('core', 'leadership');
+
 -- CreateTable
 CREATE TABLE "AdminApi_Token" (
     "id" TEXT NOT NULL,
     "staffUserId" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "tokenHash" TEXT NOT NULL,
+    "tier" "AdminApi_TokenTier" NOT NULL DEFAULT 'core',
+    "writeEnabled" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lastUsedAt" TIMESTAMP(3),
     "revokedAt" TIMESTAMP(3),
@@ -19,6 +24,8 @@ CREATE TABLE "AdminApi_Call" (
     "operation" TEXT NOT NULL,
     "params" JSONB,
     "status" INTEGER NOT NULL,
+    "before" JSONB,
+    "after" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AdminApi_Call_pkey" PRIMARY KEY ("id")

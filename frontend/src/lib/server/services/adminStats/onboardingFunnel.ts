@@ -19,12 +19,10 @@ import {
   ONBOARDING_STEP_LABELS,
   type OnboardingStep,
 } from '$lib/domain/talentOnboarding';
-import {
-  visibleParticipationWhere,
-  VISIBLE_PARTICIPATION_DEFINITION,
-} from '$lib/domain/sfMemberStatus';
+import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
+import { cohortWhere, ONBOARDING_COMPLETE_WHERE, scopeLabels } from './cohort';
 
 const isSet = { not: null };
 
@@ -79,19 +77,6 @@ const RUNG_WHERE: Record<OnboardingStep, Prisma.TalentWhereInput> = {
   },
 };
 
-/** Onboarding complete: every rung's timestamp set, charter accepted. */
-const COMPLETED_WHERE: Prisma.TalentWhereInput = {
-  infoValidatedAt: isSet,
-  highSchoolValidatedAt: isSet,
-  parentsValidatedAt: isSet,
-  techInterestsValidatedAt: isSet,
-  generalInterestsValidatedAt: isSet,
-  equipmentValidatedAt: isSet,
-  processingCompletedAt: isSet,
-  rulesSignedAt: isSet,
-  charterAcceptedAt: isSet,
-};
-
 export type FunnelRung = {
   step: OnboardingStep;
   label: string;
@@ -99,39 +84,23 @@ export type FunnelRung = {
 };
 
 export type OnboardingFunnel = {
-  filters: { event: string; campus: string };
+  filters: { event: string; campus: string; schoolYear: string };
   cohort: Metric;
   completed: Metric;
   inProgress: Metric;
   rungs: Metric<FunnelRung[]>;
 };
 
-/**
- * Cohort scope. Both filters go through `visibleParticipationWhere`, so "the
- * cohort" means the same set of people the dev workspace shows, not every row
- * Salesforce ever sent.
- */
-function cohortWhere(scope: Scope): Prisma.TalentWhereInput {
-  if (!scope.event && !scope.campus) return {};
-  return {
-    participations: {
-      some: {
-        ...visibleParticipationWhere,
-        ...(scope.event ? { eventId: scope.event.id } : {}),
-        ...(scope.campus ? { event: { campusId: scope.campus.id } } : {}),
-      },
-    },
-  };
-}
-
 export async function getOnboardingFunnel(
   scope: Scope = {},
 ): Promise<OnboardingFunnel> {
-  const where = cohortWhere(scope);
+  const where = await cohortWhere(scope);
 
   const [cohort, completed, ...blockedCounts] = await Promise.all([
     prisma.talent.count({ where }),
-    prisma.talent.count({ where: { AND: [where, COMPLETED_WHERE] } }),
+    prisma.talent.count({
+      where: { AND: [where, ONBOARDING_COMPLETE_WHERE] },
+    }),
     ...ONBOARDING_STEP_ORDER.map((step) =>
       prisma.talent.count({ where: { AND: [where, RUNG_WHERE[step]] } }),
     ),
@@ -144,13 +113,10 @@ export async function getOnboardingFunnel(
   }));
 
   return {
-    filters: {
-      event: scope.event?.label ?? 'tous',
-      campus: scope.campus?.name ?? 'tous',
-    },
+    filters: scopeLabels(scope),
     cohort: metric(
       cohort,
-      scope.event || scope.campus
+      scope.event || scope.campus || scope.schoolYear
         ? `Talents du périmètre demandé, ${VISIBLE_PARTICIPATION_DEFINITION}.`
         : 'Tous les talents enregistrés dans Jump, tous événements confondus.',
     ),

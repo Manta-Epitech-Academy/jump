@@ -10,7 +10,11 @@ import { createApiTokenSchema } from '$lib/validation/adminApiToken';
 import { outboundTrapped } from '$lib/server/outbound';
 import { canArmRealSends } from '$lib/server/armRealSends';
 import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
-import { listTokens, DAILY_CALL_QUOTA } from '$lib/server/adminApi/tokens';
+import {
+  listTokens,
+  DAILY_CALL_QUOTA,
+  WRITE_CALL_QUOTA,
+} from '$lib/server/adminApi/tokens';
 
 export const load: LayoutServerLoad = async ({ parent, locals }) => {
   const { user, staffProfile } = await parent();
@@ -53,6 +57,7 @@ export const load: LayoutServerLoad = async ({ parent, locals }) => {
     apiTokenForm,
     apiTokens: listTokens(user.id),
     apiTokenDailyQuota: DAILY_CALL_QUOTA,
+    apiTokenWriteQuota: WRITE_CALL_QUOTA,
     outboundTrapped: outboundTrapped(),
     canArmRealSends: canArmRealSends(locals),
     armedRealSends: locals.armedRealSends,

@@ -200,36 +200,55 @@ Talent profile fields have two sources — the worker sync (Salesforce) and onbo
 
 ### Curated admin API and MCP
 
-The admin space **stops growing UI**. New admin capabilities ship as curated named API operations, consumable over HTTP and as MCP tools (July 2026 seminar). Tier 1 = the Academy core team; campus staff and talents never get MCP.
+The admin space **stops growing UI**. New admin capabilities ship as curated named API operations, consumable over HTTP and as MCP tools (July 2026 seminar). Campus staff and talents never get MCP.
 
-Four rules, all non-negotiable (they come from the team's own Salesforce-MCP failure analysis):
+Rules, all non-negotiable (they come from the team's own Salesforce-MCP failure analysis):
 
-- **The LLM formats, it never computes.** Every figure is returned wrapped with its own French definition (`adminApi/metrics.ts` → `metric(value, definition)`), so it can be quoted but not re-derived. The instruction to quote rather than compute is declared **once**, as the MCP server's `instructions`; a definition itself is owned by whatever owns the rule it states (the visible-cohort clause lives with `visibleParticipationWhere` in `domain/sfMemberStatus.ts`), never spelled out again in a tool description or a second aggregate.
+- **The LLM formats, it never computes.** Every figure is returned wrapped with its own French definition (`adminApi/metrics.ts` → `metric(value, definition)`), so it can be quoted but not re-derived. This extends to ratios: `share()` exists because returning two counts and no percentage just moves the division downstream, where the consumer picks its own denominator and its own wording. Any proportion a human would ask for is a figure the API returns. The instruction to quote rather than compute is declared **once**, as the MCP server's `instructions`; a definition itself is owned by whatever owns the rule it states (the visible-cohort clause lives with `visibleParticipationWhere` in `domain/sfMemberStatus.ts`), never spelled out again in a tool description or a second aggregate.
 - **Curated named operations only.** `adminApi/operations.ts` is the single catalogue: HTTP endpoints, MCP tool names and audit `operation` values all read from it. Adding a question means adding an entry; there is no generic query surface. Each entry carries **one** strict schema used by both consumers, so an unknown filter is a refusal over HTTP *and* over MCP (hand the SDK a raw shape instead and it silently strips the key, which answers a wider question than the one asked).
 - **An unknown scope is a refusal, never a zero.** Filters name things the caller can actually see: a campus is its unique `Campus.name`, not a cuid no operation returns. `adminApi/scope.ts` checks every campus, event and school year exists before anything is counted, and the refusal lists the values that would have worked. Skipping that check is how `campus: "Lile"` came back as `{ campus: "Lile", events: 0 }`, a confident zero with the echoed filter confirming it.
-- **Zero talent PII in this tier.** Aggregates and configuration state only. Don't add a select of `nom` / `prenom` / `email` / `phone` under `adminStats/`; if a question needs a person's name, it is not an operation for this tier.
-- **Hard caps + audit.** Every list is capped, every token is quota-limited per 24h, and **every** call (success or refusal) writes an `AdminApi_Call` row. Audit replaces up-front restriction, so nothing may bypass it.
+- **No talent identity, at any tier.** No answer carries a `nom`, `prenom`, `email` or `phone`, and none may. What a core-tier answer *may* carry beyond aggregates: row ids that a write needs (an event, a PDF job), operational internals, and the verbatim student testimonials from `stats_interview_testimonials`, which are unattributed and were collected explicitly to be quoted. Everything else free-text (interview notes, the team verdict, feedback answers) stays out and is only counted. Enforced by running it: `adminApiNoPii.integration.test.ts` seeds a talent, calls every read, and fails on the identity.
+- **Hard caps + audit.** Every list is capped, every token is quota-limited per 24h, and **every** call (success or refusal) writes an `AdminApi_Call` row. Audit replaces up-front restriction, so nothing may bypass it. Including what a transport refuses on its own: the MCP SDK rejects an unknown tool name and validates arguments before a tool handler runs, so `mcpServer.ts` reads the envelope first (`auditUnreachedToolCalls`) and logs those refusals, which are exactly the ones that show a model probing.
+- **Say what the figures cannot answer.** Jump holds no admission outcome, so nothing here is a conversion rate. `stats_school_year_review` returns a `limites` field saying so in French, because a consumer handed only good figures fills the gap itself.
+
+**Two tiers, one catalogue.** An entry declares `leadership: true` to be reachable by a tier-2 token; the default is core-team only, so `core ⊇ leadership` holds by construction and the leadership surface only ever grows by an explicit opt-in. What qualifies is a figure or a ranking (cohort make-up, school reach, attendance, interview answers, the school-year review); what does not is anything `ops_*` or `config_*`, anything returning row ids, and free text. Enforced in `guard.ts` (which refuses) and mirrored in `mcpServer.ts` (which does not register the tool, so a model never tries). A leadership token is minted by an admin for someone with no Jump account, so `AdminApi_Call.actorUserId` names the *issuer* and the token label names the holder.
+
+**Reads and writes.** An entry's `kind` decides the HTTP verb (`adminApiRead` → `GET`, `adminApiWrite` → `POST`, each asserting the catalogue at import), whether the token needs `writeEnabled`, which quota applies, and whether the answer lands on the audit row as `before` / `after`. Three classes govern what may become a write at all:
+
+| Class | Test | Treatment |
+| --- | --- | --- |
+| **A - direct** | Bounded to named rows, reversible, internal (sends no message) | A tool. Applies immediately, audited with before/after, description states whether repeating is safe |
+| **B - two-step** | Touches many rows | Mandatory dry run returning the exact rows that would change plus a `planDigest`, then an apply echoing it (`adminApi/plan.ts`) |
+| **C - never a tool** | Irreversible, outbound, identity-bearing or PII-bearing | Human action. Every `delete`, every broadcast send or retry, `users/invite`, `impersonate`, `talents/resetToImport`, the RGPD erasure fulfilment |
+
+Two things follow that are easy to get wrong. **Writes are token-only**: an admin browser session reads but never mutates, so every change is attributable to a credential somebody deliberately minted, and a cookie-carrying cross-origin POST is not a threat model this endpoint has to reason about. And **the two-step contract holds no state**: the apply recomputes the plan and compares digests rather than looking up a stored one, which also catches the world moving between the two calls, and needs no table on horizontally-scaled pods.
 
 Pieces:
 
 | Concern | Where |
 | --- | --- |
-| Tokens (mint / verify / revoke, sha256-hashed, secret shown once) | `adminApi/tokens.ts`, minted from `StaffApiTokensDialog` via the action-only `/staff/api-tokens` route |
-| Auth (bearer token, else admin session) + quota | `adminApi/guard.ts` |
-| Audit rows + retention purge | `adminApi/audit.ts`, `POST /api/jobs/gc-api-audit` |
-| Operation catalogue (one strict schema per entry) | `adminApi/operations.ts` |
+| Tokens (mint / verify / revoke, sha256-hashed, secret shown once, tier + write capability fixed at mint) | `adminApi/tokens.ts`, minted from `StaffApiTokensDialog` via the action-only `/staff/api-tokens` route |
+| Auth, tier, write capability, both quotas - every refusal in one place | `adminApi/guard.ts` |
+| Caller-facing errors (`OperationRefusedError`, and which failures explain themselves) | `adminApi/errors.ts` |
+| Authorise, run, record: the one step both consumers share, so an answer and its audit row can't depend on the transport | `adminApi/execute.ts` |
+| Audit rows with before/after + retention purge | `adminApi/audit.ts`, `POST /api/jobs/gc-api-audit` |
+| Operation catalogue (one strict schema per entry, `kind` / `leadership` / `twoStep`) | `adminApi/operations.ts` |
 | Scope resolution + refusals (campus by name, event by id, school year) | `adminApi/scope.ts` |
+| Dry-run digest and the two-step contract | `adminApi/plan.ts` |
+| Write implementations | `adminApi/writes/{events,ops,bulk}.ts` |
 | HTTP endpoints (one line each) | `adminApi/route.ts` → `src/routes/api/admin/**` |
-| MCP tools (stateless, `@hono/mcp` transport) | `adminApi/mcpServer.ts` → `POST /api/mcp` |
-| Aggregation services | `services/adminStats/*` (reuse `EventService.listAdminEvents`, `visibleParticipationWhere`, the onboarding ladder, `infra/syncStatus`) |
+| MCP tools (stateless, `@hono/mcp` transport, tool list built per credential) | `adminApi/mcpServer.ts` → `POST /api/mcp` |
+| Aggregation services | `services/adminStats/*` (reuse `EventService.listAdminEvents`, `cohort.ts`'s shared scope, `cohortOverview`'s rankings, the onboarding ladder, `infra/syncStatus`) |
+
+`services/adminStats/cohort.ts` is where "the cohort in scope" is defined once, for every aggregate: an operation states what it measured, never who it measured it over.
 
 The weekly PO digest (`services/adminDigest.ts`, `POST /api/jobs/admin-digest`) reads those same services, so an inbox figure and an asked figure can't disagree.
 
 ### Key Server Services (`src/lib/server/`)
 
 - **`auth.ts`** — BetterAuth config (Prisma adapter, Microsoft OAuth, email OTP, admin plugin with impersonation)
-- **`adminApi/`** — curated admin API: token auth, per-token quota, audit log, operation catalogue, MCP server (see above)
-- **`services/adminStats/`** — the curated aggregates (events overview, onboarding funnel, unconfigured events, sync health), each figure carrying its definition
+- **`adminApi/`** — curated admin API: token auth (tier + write capability), quotas, audit log with before/after, operation catalogue, write implementations, two-step plan digest, MCP server (see above)
+- **`services/adminStats/`** — the curated aggregates (cohort profile, school reach, attendance, interview insights and testimonials, feedback results, engagement, onboarding funnel and velocity, compliance, the operational queues, configuration state, the school-year review), each figure carrying its definition
 - **`services/adminDigest.ts`** — weekly French digest to every admin-role login, built on `adminStats/`
 - **`services/staffAdminService.ts`** — staff roster writes for `/staff/admin/users` (the role change moves `StaffProfile.staffRole` + `bauth_user.role` in one transaction)
 - **`services/syncErrorService.ts`** — admin remediation of sync errors, including the extId rebind and its refusal branches

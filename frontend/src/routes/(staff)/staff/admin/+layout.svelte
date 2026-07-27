@@ -266,6 +266,7 @@
           form={data.apiTokenForm}
           tokens={data.apiTokens}
           dailyQuota={data.apiTokenDailyQuota}
+          writeQuota={data.apiTokenWriteQuota}
         />
       </div>
     </div>

@@ -23,7 +23,28 @@ function isDateKey(value: string): value is DateKey {
   return DATE_KEY_REGEX.test(value);
 }
 
-function isWallClock(value: string): value is WallClock {
+/**
+ * A real calendar day, not merely the right shape.
+ *
+ * The shape check alone is not enough for anything that accepts a day from
+ * outside (a form, an API parameter): `2026-06-31` matches the regex, and the
+ * built-in parser silently rolls it over to 1 July, so a caller who mistyped a
+ * month length would get a confident answer about the wrong day. The strict
+ * parser this module already uses rejects it instead, and this is the predicate
+ * that lets a validator ask before {@link fromWallClock} has to throw.
+ */
+export function isCalendarDay(value: string): value is DateKey {
+  if (!isDateKey(value)) return false;
+  try {
+    parseDate(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Time of day, `HH:MM` on a 24h clock. Exported so validators share the rule. */
+export function isWallClock(value: string): value is WallClock {
   return WALL_CLOCK_REGEX.test(value);
 }
 

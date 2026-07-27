@@ -15,6 +15,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import type { AdminApi_TokenTier } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 
 const SECRET_BYTES = 32;
@@ -27,6 +28,17 @@ const SECRET_PREFIX = 'jump_';
  * `AdminApi_Call`, so there is no counter to keep in sync.
  */
 export const DAILY_CALL_QUOTA = 500;
+
+/**
+ * Max mutating calls per token per rolling 24h, counted off the same rows.
+ *
+ * Much lower than the read quota because the failure modes are not comparable:
+ * a looping reader wastes CPU, a looping writer rewrites configuration. Fifty is
+ * far above any real day of admin work (the whole point is that these are
+ * one-off repairs) and far below what a runaway agent would do before anyone
+ * noticed.
+ */
+export const WRITE_CALL_QUOTA = 50;
 
 const QUOTA_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -64,6 +76,8 @@ function generateSecret(): string {
 export type MintedToken = {
   id: string;
   label: string;
+  tier: AdminApi_TokenTier;
+  writeEnabled: boolean;
   createdAt: Date;
   /** Shown once, then unrecoverable. Never persisted in this form. */
   secret: string;
@@ -72,15 +86,42 @@ export type MintedToken = {
 /**
  * Mint a token for an admin. The caller is responsible for showing `secret`
  * exactly once and for never logging it.
+ *
+ * Capabilities are fixed here and never edited afterwards: re-scoping a
+ * credential that is already sitting in somebody's config file is how a narrow
+ * token quietly becomes a wide one. Widening means minting a new token and
+ * revoking the old one, which is visible in the list and in the log.
+ *
+ * `writeEnabled` is refused outright on a leadership token rather than silently
+ * ignored: tier 2 is read-only by construction, and a caller who asked for the
+ * combination has misunderstood something worth failing loudly over.
  */
 export async function mintToken(
   staffUserId: string,
-  label: string,
+  input: { label: string; tier?: AdminApi_TokenTier; writeEnabled?: boolean },
 ): Promise<MintedToken> {
+  const tier = input.tier ?? 'core';
+  const writeEnabled = input.writeEnabled ?? false;
+  if (tier === 'leadership' && writeEnabled) {
+    throw new Error('A leadership token cannot be granted write access.');
+  }
+
   const secret = generateSecret();
   const row = await prisma.adminApi_Token.create({
-    data: { staffUserId, label: label.trim(), tokenHash: hashSecret(secret) },
-    select: { id: true, label: true, createdAt: true },
+    data: {
+      staffUserId,
+      label: input.label.trim(),
+      tier,
+      writeEnabled,
+      tokenHash: hashSecret(secret),
+    },
+    select: {
+      id: true,
+      label: true,
+      tier: true,
+      writeEnabled: true,
+      createdAt: true,
+    },
   });
   return { ...row, secret };
 }
@@ -104,6 +145,8 @@ export async function revokeToken(
 export type TokenSummary = {
   id: string;
   label: string;
+  tier: AdminApi_TokenTier;
+  writeEnabled: boolean;
   createdAt: Date;
   lastUsedAt: Date | null;
   revokedAt: Date | null;
@@ -119,6 +162,8 @@ export async function listTokens(staffUserId: string): Promise<TokenSummary[]> {
     select: {
       id: true,
       label: true,
+      tier: true,
+      writeEnabled: true,
       createdAt: true,
       lastUsedAt: true,
       revokedAt: true,
@@ -131,7 +176,12 @@ export async function listTokens(staffUserId: string): Promise<TokenSummary[]> {
   }));
 }
 
-export type VerifiedToken = { tokenId: string; staffUserId: string };
+export type VerifiedToken = {
+  tokenId: string;
+  staffUserId: string;
+  tier: AdminApi_TokenTier;
+  writeEnabled: boolean;
+};
 
 /**
  * Resolve a bearer secret to its live token, stamping `lastUsedAt`.
@@ -151,7 +201,13 @@ export async function verifyToken(
 
   const row = await prisma.adminApi_Token.findUnique({
     where: { tokenHash: hashSecret(secret) },
-    select: { id: true, staffUserId: true, revokedAt: true },
+    select: {
+      id: true,
+      staffUserId: true,
+      tier: true,
+      writeEnabled: true,
+      revokedAt: true,
+    },
   });
   if (!row || row.revokedAt) return null;
 
@@ -160,12 +216,39 @@ export async function verifyToken(
     data: { lastUsedAt: new Date() },
   });
 
-  return { tokenId: row.id, staffUserId: row.staffUserId };
+  return {
+    tokenId: row.id,
+    staffUserId: row.staffUserId,
+    tier: row.tier,
+    writeEnabled: row.writeEnabled,
+  };
 }
 
 /** Calls charged to a token in the rolling quota window (see `quotaWindowWhere`). */
 export async function countRecentCalls(tokenId: string): Promise<number> {
   return prisma.adminApi_Call.count({
     where: { tokenId, ...quotaWindowWhere() },
+  });
+}
+
+/**
+ * Mutating calls charged to a token in the same window. Separate ceiling, same
+ * rows, no second counter to keep in sync and no `kind` column on the log.
+ *
+ * The write names are passed in rather than imported: this module is about
+ * credentials, and the catalogue is the guard's business. Keeping the arrow
+ * pointing that way also keeps the token dialog's import graph from dragging in
+ * every aggregation service behind the catalogue.
+ */
+export async function countRecentWriteCalls(
+  tokenId: string,
+  writeOperationNames: string[],
+): Promise<number> {
+  return prisma.adminApi_Call.count({
+    where: {
+      tokenId,
+      operation: { in: writeOperationNames },
+      ...quotaWindowWhere(),
+    },
   });
 }

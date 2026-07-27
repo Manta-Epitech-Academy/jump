@@ -21,7 +21,23 @@ import { Hono } from 'hono';
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { authenticateAdminApi } from '$lib/server/adminApi/guard';
 import { recordAdminApiCall } from '$lib/server/adminApi/audit';
-import { buildAdminMcpServer } from '$lib/server/adminApi/mcpServer';
+import {
+  buildAdminMcpServer,
+  auditUnreachedToolCalls,
+} from '$lib/server/adminApi/mcpServer';
+
+/**
+ * The request body as JSON, or null for a body that is absent (GET, DELETE) or
+ * unparseable. A malformed envelope is the transport's to reject, not ours.
+ */
+async function readJson(request: Request): Promise<unknown> {
+  try {
+    const raw = await request.text();
+    return raw.trim() ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
 const handle: RequestHandler = async (event) => {
   const auth = await authenticateAdminApi(event);
@@ -34,7 +50,21 @@ const handle: RequestHandler = async (event) => {
     return json({ error: auth.message }, { status: auth.status });
   }
 
-  const server = buildAdminMcpServer(auth.caller);
+  // The credential, not just the caller: it decides which tools get registered
+  // (tier, write capability) and is re-checked on every tool call for the parts
+  // that cannot be settled once, like the quotas.
+  const credential = { caller: auth.caller, writeEnabled: auth.writeEnabled };
+
+  // Read off a clone, so the transport still receives an unread body. This
+  // endpoint already logs what never reaches a tool (an unauthenticated request,
+  // above); a tool call the protocol layer is about to refuse belongs to the
+  // same job, and the SDK settles those before our handler could log them.
+  await auditUnreachedToolCalls(
+    await readJson(event.request.clone()),
+    credential,
+  );
+
+  const server = buildAdminMcpServer(credential);
   const transport = new StreamableHTTPTransport({
     sessionIdGenerator: undefined,
   });

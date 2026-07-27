@@ -1717,6 +1717,22 @@ model AuthIdentityRepair {
   @@index([resolvedAt])
 }
 
+/// Which half of the curated catalogue a token may call.
+///
+///   core        the Academy core team: every operation, and writes when the
+///               token was minted with `writeEnabled`.
+///   leadership  national leadership (tier 2): only the operations that opt in
+///               (`leadership: true` in the catalogue), read-only by
+///               construction. Figures and rankings, never rows with ids,
+///               never an operational internal.
+///
+/// core ⊇ leadership, so widening leadership is always an explicit opt-in on an
+/// operation and never a side effect of adding one.
+enum AdminApi_TokenTier {
+  core
+  leadership
+}
+
 /// A nominative, revocable bearer credential an admin mints for a machine caller
 /// (the MCP server, a script) so it can reach the curated admin API without
 /// borrowing a browser session. The secret is displayed once at creation and
@@ -1725,10 +1741,24 @@ model AdminApi_Token {
   id          String    @id @default(cuid())
   /// `bauth_user.id` of the owning admin. Cascade on purpose: a token is that
   /// human's own credential and must never outlive their account.
+  ///
+  /// A leadership token is minted by an admin FOR someone with no Jump account
+  /// (national leadership has none), so this names the admin who issued it and
+  /// stays accountable for it; `label` names the human actually holding it.
   staffUserId String
   /// Human label typed at creation ("Copilot Edouard", "script rapport
-  /// mensuel"), so a token can be told apart before being revoked.
+  /// mensuel"), so a token can be told apart before being revoked. On a
+  /// leadership token it must name the holder, since `staffUserId` cannot.
   label       String
+  /// What this token may call. Fixed at mint: re-scoping a credential already
+  /// handed out is how a narrow token quietly becomes a wide one.
+  tier        AdminApi_TokenTier @default(core)
+  /// Whether this token may call mutating operations. One boolean, not a scope
+  /// vocabulary: there are two classes of caller today and a speculative scope
+  /// array would be surface without a user. A read token stays read-only for
+  /// life; writing needs a token minted for it. Never true on a leadership
+  /// token (tier 2 is read-only by construction).
+  writeEnabled Boolean  @default(false)
   /// sha256 hex of the secret. Unique, so verifying a bearer is one indexed
   /// lookup instead of a scan-and-compare over every row.
   tokenHash   String    @unique
@@ -1765,12 +1795,23 @@ model AdminApi_Call {
   /// (`stats_events_overview`, ...). A plain String so a new operation needs no
   /// migration; the catalogue lives in `$lib/server/adminApi/operations.ts`.
   operation   String
-  /// The validated query params. PII-free by construction: this tier serves
+  /// The validated params. PII-free by construction: this tier serves
   /// aggregates and configuration state, so its params are ids and school years.
   params      Json?
   /// Status the caller got (200, 403, 429, ...), so refusals are auditable too,
   /// not just successes.
   status      Int
+  /// State of what the call changed, before and after. Written by mutating
+  /// operations only (null on every read), which is what turns this log from a
+  /// request trail into a change history. Same table, because a write IS a
+  /// call and one log is the whole point.
+  ///
+  /// Never the raw row: each write decides what to record, and anything
+  /// carrying a talent's own words is reduced to a non-identifying summary
+  /// first (see the interview reset), so the retention window cannot become a
+  /// back door around the tier's PII rule.
+  before      Json?
+  after       Json?
   createdAt   DateTime @default(now())
 
   token AdminApi_Token? @relation(fields: [tokenId], references: [id], onDelete: SetNull)

@@ -6,7 +6,9 @@
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
+  import { Badge } from '$lib/components/ui/badge';
   import { Checkbox } from '$lib/components/ui/checkbox';
+  import * as RadioGroup from '$lib/components/ui/radio-group';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import * as Dialog from '$lib/components/ui/dialog';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
@@ -16,6 +18,8 @@
   type TokenRow = {
     id: string;
     label: string;
+    tier: 'core' | 'leadership';
+    writeEnabled: boolean;
     createdAt: Date | string;
     lastUsedAt: Date | string | null;
     revokedAt: Date | string | null;
@@ -28,6 +32,7 @@
     /** Streamed from the admin layout load, so no navigation waits on it. */
     tokens: Promise<TokenRow[]>;
     dailyQuota: number;
+    writeQuota: number;
   };
 
   let {
@@ -35,6 +40,7 @@
     form: formData,
     tokens,
     dailyQuota,
+    writeQuota,
   }: Props = $props();
 
   // The freshly minted secret. Held here, OUTSIDE the awaited token list, so the
@@ -78,6 +84,15 @@
     },
   });
 
+  const isDirection = $derived($form.tier === 'leadership');
+
+  // A direction token is read-only, so switching to it clears the modification
+  // box rather than leaving a ticked control that the server will refuse.
+  const onTierChange = (value: string) => {
+    $form.tier = value as 'core' | 'leadership';
+    if (value === 'leadership') $form.writeEnabled = false;
+  };
+
   const dateLabel = (value: Date | string | null) =>
     value
       ? new Date(value).toLocaleDateString('fr-FR', {
@@ -93,10 +108,11 @@
     <Dialog.Header>
       <Dialog.Title>Accès API</Dialog.Title>
       <Dialog.Description>
-        Un token permet à un outil (client IA, script) de consulter les chiffres
-        agrégés et l'état de configuration des événements sans passer par votre
-        session. Aucune donnée personnelle de talent n'est accessible par ce
-        biais : ni nom, ni email, ni téléphone.
+        Un token permet à un outil (client IA, script) d'interroger Jump sans
+        passer par votre session. Aucun nom, email ni téléphone de talent n'est
+        accessible par ce biais. Certaines réponses reprennent des phrases
+        écrites par des élèves sur un événement, sans jamais indiquer qui les a
+        écrites.
       </Dialog.Description>
     </Dialog.Header>
 
@@ -136,16 +152,86 @@
             id="tokenLabel"
             name="label"
             bind:value={$form.label}
-            placeholder="Claude Desktop"
+            placeholder={isDirection
+              ? 'Direction - Claire Martin'
+              : 'Claude Desktop'}
             aria-invalid={$errors.label ? 'true' : undefined}
           />
           <p class="text-xs text-muted-foreground">
-            Pour le reconnaître plus tard, avant de le révoquer.
+            {#if isDirection}
+              Nommez la personne qui l'utilisera : elle n'a pas de compte Jump,
+              ce nom est la seule trace de son identité dans le journal.
+            {:else}
+              Pour le reconnaître plus tard, avant de le révoquer.
+            {/if}
           </p>
           {#if $errors.label}
             <p class="text-sm text-destructive">{$errors.label}</p>
           {/if}
         </div>
+
+        <fieldset class="space-y-2">
+          <legend class="pb-2 text-sm font-medium">Ce que le token voit</legend>
+          <RadioGroup.Root
+            name="tier"
+            value={$form.tier}
+            onValueChange={onTierChange}
+            class="gap-2"
+          >
+            <Label
+              class="cursor-pointer items-start gap-3 rounded-sm border p-3 font-normal hover:bg-accent"
+            >
+              <RadioGroup.Item value="core" class="mt-0.5 cursor-pointer" />
+              <span class="space-y-1">
+                <span class="block font-medium">Équipe Academy</span>
+                <span class="block text-xs text-muted-foreground">
+                  Tout : chiffres, état de configuration des événements, files
+                  d'attente et erreurs à traiter.
+                </span>
+              </span>
+            </Label>
+            <Label
+              class="cursor-pointer items-start gap-3 rounded-sm border p-3 font-normal hover:bg-accent"
+            >
+              <RadioGroup.Item
+                value="leadership"
+                class="mt-0.5 cursor-pointer"
+              />
+              <span class="space-y-1">
+                <span class="block font-medium">Direction</span>
+                <span class="block text-xs text-muted-foreground">
+                  Chiffres de pilotage seulement, en lecture : cohortes, lycées
+                  d'origine, présence réelle, retours des élèves. Rien
+                  d'opérationnel.
+                </span>
+              </span>
+            </Label>
+          </RadioGroup.Root>
+        </fieldset>
+
+        {#if !isDirection}
+          <div class="space-y-2 rounded-md border border-border p-3">
+            <label class="flex cursor-pointer items-start gap-2">
+              <Checkbox
+                name="writeEnabled"
+                bind:checked={$form.writeEnabled}
+                class="mt-0.5 cursor-pointer"
+              />
+              <span class="text-sm font-medium">
+                Autoriser les modifications
+              </span>
+            </label>
+            <p class="text-xs text-muted-foreground">
+              Configuration d'un événement, relance d'un document, résolution
+              d'erreurs de synchronisation. Chaque modification est journalisée
+              avec son avant/après, et limitée à {writeQuota} sur 24 h. Ce choix est
+              définitif : un token créé en lecture seule le reste.
+            </p>
+            {#if $errors.writeEnabled}
+              <p class="text-sm text-destructive">{$errors.writeEnabled}</p>
+            {/if}
+          </div>
+        {/if}
 
         <div
           class="space-y-2 rounded-md border border-border p-3 text-xs text-muted-foreground"
@@ -156,7 +242,8 @@
           <p>
             Ce token ne doit être utilisé qu'avec un outil validé par
             l'établissement. Chaque appel est journalisé (token, requête, date)
-            et limité à {dailyQuota} appels sur 24 h.
+            et limité à {dailyQuota} appels sur 24 h. Vous restez responsable de son
+            usage, y compris lorsque vous le confiez à quelqu'un d'autre.
           </p>
           <label class="flex cursor-pointer items-start gap-2 pt-1">
             <Checkbox
@@ -193,11 +280,17 @@
               {#each rows as token (token.id)}
                 <li class="flex flex-wrap items-center gap-3 p-3 text-sm">
                   <div class="min-w-0 flex-1">
-                    <p class="truncate font-medium">
-                      {token.label}
+                    <p class="flex flex-wrap items-center gap-2">
+                      <span class="truncate font-medium">{token.label}</span>
+                      {#if token.tier === 'leadership'}
+                        <Badge variant="secondary">Direction</Badge>
+                      {/if}
+                      {#if token.writeEnabled}
+                        <Badge variant="outline">Modifications</Badge>
+                      {/if}
                       {#if token.revokedAt}
                         <span class="text-xs font-normal text-muted-foreground">
-                          · révoqué le {dateLabel(token.revokedAt)}
+                          révoqué le {dateLabel(token.revokedAt)}
                         </span>
                       {/if}
                     </p>

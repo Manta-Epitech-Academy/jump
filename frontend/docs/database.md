@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **57** modèles · **34** enums · **84** relations
+- **57** modèles · **35** enums · **84** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -846,6 +846,8 @@ erDiagram
     String id PK
     String staffUserId FK
     String label
+    AdminApi_TokenTier tier
+    Boolean writeEnabled
     String tokenHash UK
     DateTime createdAt
     DateTime lastUsedAt
@@ -858,6 +860,8 @@ erDiagram
     String operation
     Json params
     Int status
+    Json before
+    Json after
     DateTime createdAt
   }
   bauth_user {

@@ -24,6 +24,7 @@ import { composeEventStartInstant } from '$lib/server/eventTime';
 import {
   rankLyceesByCohort,
   rankInterestsByCohort,
+  eventCohortWhere,
   toBreakdown,
 } from '$lib/server/services/cohortOverview';
 import { INSCRIT_PARTICIPATION_SELECT } from './components/types';
@@ -123,10 +124,12 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
           select: INSCRIT_PARTICIPATION_SELECT,
           orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
         }),
-        rankLyceesByCohort(db, event.id),
+        rankLyceesByCohort(db, eventCohortWhere(event.id)),
         // The interests sidebar shows only tech interests (the recruitment
         // signal); the lycée breakdown stays the full origin picture.
-        rankInterestsByCohort(db, event.id, { techOnly: true }),
+        rankInterestsByCohort(db, eventCohortWhere(event.id), {
+          techOnly: true,
+        }),
         db.participation.count({
           where: { eventId: event.id, ...visibleParticipationWhere },
         }),

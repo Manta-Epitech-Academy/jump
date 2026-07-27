@@ -11,7 +11,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import type { Prisma } from '@prisma/client';
+import type { AdminApi_TokenTier, Prisma } from '@prisma/client';
 
 /**
  * The validated params of a curated operation, as they go into the `params`
@@ -30,7 +30,23 @@ export type AdminApiCallParams = Record<string, unknown>;
 export type AdminApiCaller = {
   actorUserId: string;
   tokenId: string | null;
+  /**
+   * Which half of the catalogue this caller may reach. Always `core` for a
+   * browser session (an admin is core team by definition) and for a call refused
+   * before identification.
+   */
+  tier: AdminApi_TokenTier;
 };
+
+/**
+ * What a mutating operation changed, as it lands on the audit row.
+ *
+ * Each write decides what to record: never blindly the whole row. Anything
+ * carrying a talent's own words is reduced to a non-identifying summary first,
+ * so the retention window cannot become a back door around this tier's rule
+ * that no personal data leaves it.
+ */
+export type AdminApiCallChange = { before: unknown; after: unknown };
 
 /** Sentinel actor for a call refused before identification (cf. `AuthIdentityRepair.resolvedBy = 'sync'`). */
 export const ANONYMOUS_ACTOR = 'anonymous';
@@ -40,6 +56,8 @@ export async function recordAdminApiCall(input: {
   operation: string;
   params?: AdminApiCallParams;
   status: number;
+  /** Writes only, and only when something actually changed. */
+  change?: AdminApiCallChange;
 }): Promise<void> {
   try {
     await prisma.adminApi_Call.create({
@@ -51,6 +69,8 @@ export async function recordAdminApiCall(input: {
         // lives here rather than at every call site (see `AdminApiCallParams`).
         params: input.params as Prisma.InputJsonValue | undefined,
         status: input.status,
+        before: input.change?.before as Prisma.InputJsonValue | undefined,
+        after: input.change?.after as Prisma.InputJsonValue | undefined,
       },
     });
   } catch (err) {

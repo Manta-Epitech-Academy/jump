@@ -19,6 +19,10 @@ import { prisma } from '$lib/server/db';
 import { sendEmail, MAIL_FROM } from '$lib/server/email';
 import { getUnconfiguredEvents } from '$lib/server/services/adminStats/unconfiguredEvents';
 import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
+import {
+  getPdfJobsHealth,
+  getAccountDeletionQueue,
+} from '$lib/server/services/adminStats/opsQueues';
 
 /** How many events to list in the mail before deferring to the cockpit. */
 const LISTED_EVENTS = 15;
@@ -32,6 +36,8 @@ export type AdminDigest = {
     eventsToPrepare: number;
     unresolvedSyncErrors: number;
     lastSyncAgeHours: number | null;
+    failedPdfJobs: number;
+    overdueDeletionRequests: number;
   };
 };
 
@@ -45,9 +51,11 @@ const esc = (value: string) =>
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 export async function buildAdminDigest(): Promise<AdminDigest> {
-  const [events, sync] = await Promise.all([
+  const [events, sync, pdfJobs, deletions] = await Promise.all([
     getUnconfiguredEvents(),
     getSyncHealth(),
+    getPdfJobsHealth(),
+    getAccountDeletionQueue(),
   ]);
 
   const toPrepare = events.toPrepare.value;
@@ -110,14 +118,38 @@ export async function buildAdminDigest(): Promise<AdminDigest> {
       }
     </p>`;
 
+  // Two queues nothing else chases. A failed document means a talent has no
+  // règlement to download; an overdue erasure request is a legal exposure with
+  // a clock on it, and until now it only surfaced if somebody opened the page.
+  const failedPdfJobs = pdfJobs.failed.value;
+  const overdueDeletions = deletions.overdue.value;
+  const pendingDeletions = deletions.pending.value;
+  const queueLines = [
+    failedPdfJobs > 0
+      ? `<strong>${failedPdfJobs}</strong> ${plural(failedPdfJobs, 'document non généré', 'documents non générés')} : ${plural(failedPdfJobs, 'le talent concerné ne peut pas le télécharger', 'les talents concernés ne peuvent pas les télécharger')}.`
+      : '',
+    overdueDeletions > 0
+      ? `<strong>${overdueDeletions}</strong> ${plural(overdueDeletions, 'demande de suppression de compte a dépassé', 'demandes de suppression de compte ont dépassé')} le délai que nous nous imposons.`
+      : pendingDeletions > 0
+        ? `${pendingDeletions} ${plural(pendingDeletions, 'demande de suppression de compte est en attente', 'demandes de suppression de compte sont en attente')}, encore dans les délais.`
+        : '',
+  ].filter(Boolean);
+
+  const queueSection = queueLines.length
+    ? `<ul style="margin:0 0 16px;padding-left:18px;">${queueLines.map((line) => `<li>${line}</li>`).join('')}</ul>`
+    : `<p style="margin:0 0 16px;">Aucune file en attente : documents générés, aucune demande de suppression en retard.</p>`;
+
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111827;line-height:1.5;">
       <h1 style="font-size:18px;margin:0 0 4px;">Jump - point hebdomadaire</h1>
       <p style="margin:0 0 16px;color:#6b7280;font-size:13px;">
-        Préparation des événements et santé de la synchronisation Salesforce.
+        Préparation des événements, files en attente et santé de la
+        synchronisation Salesforce.
       </p>
       <h2 style="font-size:15px;margin:0 0 8px;">Événements à préparer</h2>
       ${eventsSection}
+      <h2 style="font-size:15px;margin:0 0 8px;">Files en attente</h2>
+      ${queueSection}
       <h2 style="font-size:15px;margin:0 0 8px;">Synchronisation</h2>
       ${syncSection}
       <p style="margin:24px 0 0;color:#6b7280;font-size:12px;">
@@ -135,6 +167,9 @@ export async function buildAdminDigest(): Promise<AdminDigest> {
     ),
     remaining > 0 ? `  ... et ${remaining} autre(s).` : '',
     '',
+    `Documents non générés : ${failedPdfJobs}`,
+    `Demandes de suppression en attente : ${pendingDeletions}${overdueDeletions > 0 ? ` (dont ${overdueDeletions} hors délai)` : ''}`,
+    '',
     last
       ? `Dernière synchronisation Salesforce : il y a ${last.ageHours} h${last.stale ? ' (à vérifier)' : ''}.`
       : 'Aucune synchronisation Salesforce enregistrée.',
@@ -149,6 +184,8 @@ export async function buildAdminDigest(): Promise<AdminDigest> {
       eventsToPrepare: toPrepare,
       unresolvedSyncErrors: sync.unresolvedErrors.value,
       lastSyncAgeHours: last?.ageHours ?? null,
+      failedPdfJobs,
+      overdueDeletionRequests: overdueDeletions,
     },
   };
 }

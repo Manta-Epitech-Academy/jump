@@ -21,3 +21,21 @@ export type Metric<T = number> = {
 export function metric<T>(value: T, definition: string): Metric<T> {
   return { value, definition };
 }
+
+/**
+ * A percentage, computed here so that nobody downstream has to.
+ *
+ * This is the same rule as {@link metric}, one step further. Returning only
+ * counts reads as safe, but "combien de filles" and "quelle proportion de
+ * filles" are the same question, so a consumer handed two counts will divide
+ * them - and it will pick its own denominator, its own rounding, and its own
+ * wording for what the ratio means. Any ratio a human would actually ask for is
+ * therefore a figure this tier returns, with its own definition.
+ *
+ * Null, never zero, when there is nothing to divide: 0 % of an empty cohort is a
+ * statement about the cohort that is not true.
+ */
+export function share(numerator: number, denominator: number): number | null {
+  if (denominator <= 0) return null;
+  return Math.round((numerator / denominator) * 1000) / 10;
+}

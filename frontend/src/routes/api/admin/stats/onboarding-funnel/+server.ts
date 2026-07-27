@@ -1,3 +1,3 @@
-import { adminApiRoute } from '$lib/server/adminApi/route';
+import { adminApiRead } from '$lib/server/adminApi/route';
 
-export const GET = adminApiRoute('stats_onboarding_funnel');
+export const GET = adminApiRead('stats_onboarding_funnel');

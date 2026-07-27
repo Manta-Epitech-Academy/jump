@@ -1,3 +1,3 @@
-import { adminApiRoute } from '$lib/server/adminApi/route';
+import { adminApiRead } from '$lib/server/adminApi/route';
 
-export const GET = adminApiRoute('config_unconfigured_events');
+export const GET = adminApiRead('config_unconfigured_events');

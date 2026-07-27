@@ -9,12 +9,19 @@ import {
   hashSecret,
   DAILY_CALL_QUOTA,
 } from '$lib/server/adminApi/tokens';
-import { authenticateAdminApi } from '$lib/server/adminApi/guard';
+import {
+  authenticateAdminApi,
+  authorizeOperation,
+} from '$lib/server/adminApi/guard';
+import { ADMIN_API_OPERATIONS } from '$lib/server/adminApi/operations';
 import {
   recordAdminApiCall,
   purgeAdminApiCalls,
   ANONYMOUS_ACTOR,
 } from '$lib/server/adminApi/audit';
+
+/** Any core read; the quota rules do not depend on which one. */
+const READ_OPERATION = ADMIN_API_OPERATIONS.stats_sync_health;
 
 /** A request carrying (or not) a bearer, which is all the guard reads. */
 function requestWith(secret?: string) {
@@ -61,7 +68,7 @@ describe('admin API tokens (integration)', () => {
   });
 
   it('stores only a hash, and the secret verifies exactly once it exists', async () => {
-    const minted = await mintToken(adminUserId, '  Client IA  ');
+    const minted = await mintToken(adminUserId, { label: '  Client IA  ' });
 
     expect(minted.secret.startsWith('jump_')).toBe(true);
     expect(minted.label).toBe('Client IA'); // trimmed
@@ -78,6 +85,10 @@ describe('admin API tokens (integration)', () => {
     expect(verified).toEqual({
       tokenId: minted.id,
       staffUserId: adminUserId,
+      // Capabilities travel with the verified token, so the guard settles tier
+      // and write access without a second lookup.
+      tier: 'core',
+      writeEnabled: false,
     });
     // Verifying stamps usage, so an unused token is visible as such.
     expect(
@@ -87,7 +98,7 @@ describe('admin API tokens (integration)', () => {
   });
 
   it('rejects a revoked token, a garbage token and a foreign revocation attempt', async () => {
-    const minted = await mintToken(adminUserId, 'À révoquer');
+    const minted = await mintToken(adminUserId, { label: 'À révoquer' });
 
     // Another admin cannot revoke it by id: the list is per owner.
     expect(await revokeToken(minted.id, otherAdminUserId)).toEqual({
@@ -136,10 +147,14 @@ describe('admin API tokens (integration)', () => {
   });
 
   it('lets a live token through and cuts it off at the daily quota', async () => {
-    const minted = await mintToken(adminUserId, 'Quota');
+    const minted = await mintToken(adminUserId, { label: 'Quota' });
 
-    const first = await authenticateAdminApi(requestWith(minted.secret));
-    expect(first).toMatchObject({ ok: true });
+    const credential = await authenticateAdminApi(requestWith(minted.secret));
+    expect(credential).toMatchObject({ ok: true });
+    if (!credential.ok) throw new Error('unreachable');
+    expect(await authorizeOperation(credential, READ_OPERATION)).toEqual({
+      ok: true,
+    });
 
     // Fill the window. Rows are the counter, so there is no separate state to
     // fake here.
@@ -152,11 +167,10 @@ describe('admin API tokens (integration)', () => {
       })),
     });
 
-    const throttled = await authenticateAdminApi(requestWith(minted.secret));
-    expect(throttled).toMatchObject({ ok: false, status: 429 });
-    if (!throttled.ok) {
-      expect(throttled.caller.tokenId).toBe(minted.id);
-    }
+    expect(await authorizeOperation(credential, READ_OPERATION)).toMatchObject({
+      ok: false,
+      status: 429,
+    });
 
     // A call older than the window does not count against it.
     await prisma.adminApi_Call.deleteMany({ where: { tokenId: minted.id } });
@@ -169,9 +183,9 @@ describe('admin API tokens (integration)', () => {
         createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
       },
     });
-    expect(
-      await authenticateAdminApi(requestWith(minted.secret)),
-    ).toMatchObject({ ok: true });
+    expect(await authorizeOperation(credential, READ_OPERATION)).toEqual({
+      ok: true,
+    });
   });
 
   it("lists an owner's tokens with their recent usage, newest first", async () => {
@@ -190,7 +204,7 @@ describe('admin API tokens (integration)', () => {
   });
 
   it('purges call rows past the retention window and keeps recent ones', async () => {
-    const minted = await mintToken(adminUserId, 'Retention');
+    const minted = await mintToken(adminUserId, { label: 'Retention' });
     await prisma.adminApi_Call.createMany({
       data: [
         {
