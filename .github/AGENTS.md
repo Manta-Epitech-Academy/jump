@@ -25,20 +25,7 @@ See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the full feature pipeline and Def
 
 All commands run from `frontend/` using **Bun**. The shell's cwd often already IS `frontend/` (it persists between commands), so a reflexive `cd frontend` fails with "No such file or directory". Anchor on the repo root instead: `cd "$(git rev-parse --show-toplevel)/frontend"` works from anywhere, including worktrees.
 
-| Task                   | Command               |
-| ---------------------- | --------------------- |
-| Install deps           | `bun install`         |
-| Provision a worktree   | `bun run setup:worktree` |
-| Dev server             | `bun run dev`         |
-| Production build       | `bun run build`       |
-| Type check             | `bun run check`       |
-| Format (write)         | `bun run format`      |
-| Lint (check only)      | `bun run lint`        |
-| Generate Prisma client | `bun run db:generate` |
-| Run migrations         | `bun run db:migrate`  |
-| Unit tests             | `bun run test`        |
-| Integration tests      | `bun run test:integration` (needs the test DB, see `TESTING.md`) |
-| E2E Browser tests      | `bun run test:e2e`    |
+Task-to-script mapping lives in `frontend/package.json`. Integration tests additionally need the test DB, see `frontend/TESTING.md`.
 
 **Docker** (from repo root): `docker-compose up` starts PostgreSQL + SvelteKit.
 
@@ -47,18 +34,6 @@ All commands run from `frontend/` using **Bun**. The shell's cwd often already I
 **Testing Philosophy:** Prefer high-value, critical-path tests over sheer test volume. Never create redundant or useless placeholder tests. Focus exclusively on core domain logic, security & role permissions, bug-regression edge cases, and critical end-to-end user flows.
 
 **When a `package.json` script exists for the task, use `bun run <script>` rather than invoking the tool directly.** The scripts often set env vars (`KIT_OUTDIR=.svelte-kit-check`) or flags (`--tsconfig ./tsconfig.check.json`) that a bare `bun svelte-check` or `bunx svelte-check` will silently skip — leading to types being written to the default `.svelte-kit/` dir or the wrong strictness. For one-shots without a matching script, `bun <tool>` is fine; reach for `bunx` only when the tool isn't installed locally.
-
-## Tech Stack
-
-- **SvelteKit 2** (Svelte 5) with `adapter-node`
-- **Bun** runtime
-- **Prisma 7** ORM with **PostgreSQL**
-- **BetterAuth** for authentication (sessions, OAuth, OTP)
-- **Tailwind CSS 4** with Bits UI components (shadcn-style)
-- **Superforms + Zod** for server-side form validation
-- **Resend** for transactional email (OTP codes)
-- **Puppeteer** for PDF generation (diplomas, certificates)
-- **TypeScript** in strict mode
 
 ## Architecture
 
@@ -129,27 +104,9 @@ subsystem: the per-campus `CampusFeatureFlag` table, `domain/featureFlags.ts`,
 
 Don't hardcode module keys.
 
-### Route Groups
-
-- `(staff)/` — all staff routes: login, OAuth, and role-gated spaces (`staff/admin/`, `staff/dev/`)
-- `(talent)/` — student portal (login, OTP, charter, dashboard)
-- `(parent)/` : guardian portal (fastlogin, règlement co-signature, image rights)
-- `api/` — API endpoints (auth, students, certificates, diplomas, jobs, worker)
-- `f/`, `bilan/` : public feedback forms
-- `logout/` — universal logout
-- `register/` — student registration
-
 ### Data Layer
 
-Prisma schema at `frontend/prisma/schema.prisma`. Key models:
-
-- **Auth:** `bauth_user`, `bauth_session`, `bauth_account`, `bauth_verification` (managed by BetterAuth)
-- **Profiles:** `StaffProfile` (userId, campusId, avatar, devRedirect emails/phones), `Talent` (student identity, XP, badges, `schoolId` FK, `parent*` guardian columns), `TalentSfImport` (1:1 Salesforce-claim mirror)
-- **Event structure:** `Event` → `Planning` → `TimeSlot` → `Activity`. Events can optionally link to Salesforce via `externalId`.
-- **Event config:** `EventConfig_Module`, `EventConfig_Template`, `EventConfig_TemplateModule`
-- **Domain:** `Campus`, `Participation`, `EventPresence` / `EventPresenceClosure`, `School` (canonical UAI-keyed high-school directory)
-
-Data is campus-scoped.
+Prisma schema at `frontend/prisma/schema.prisma`. Data is campus-scoped.
 
 ### Data modeling: facts as rows, state as projection
 
@@ -268,18 +225,12 @@ The weekly PO digest (`services/adminDigest.ts`, `POST /api/jobs/admin-digest`) 
 - **`components/ui/`** — Bits UI primitives (shadcn pattern)
 - **`utils.ts`** — `cn()` helper (clsx + twMerge) for conditional classes
 
-### Streaming heavy staff tables
+### Staff cohort tables
 
-The dev stage-seconde pages (`inscrits`, `émargement`, `entretiens`) and admin `sf-conflicts` stream their cohort. The `load` awaits only cheap shell data (event, countdown, filter chips) and returns the heavy cohort as a single **un-awaited promise**; the page renders its shell instantly and resolves the results region from that promise, showing the shared `ResultsSkeleton` (`$lib/components/staff/ResultsSkeleton.svelte`) until it lands. Follow this for any new staff table over cohort volume (~200 rows): do not `await` the heavy query in `load`, or you block the client navigation on it (the felt-2s "dead click").
-
-- **Plain `{#await data.cohort}`** for read-only pages (inscrits, entretiens, sf-conflicts).
-- **Resolve the promise into `$state` instead** when the page polls or writes optimistically (émargement). Binding `{#await}` directly there means every `invalidate` / optimistic write builds a fresh promise, which reflashes the skeleton and remounts the child, wiping its local state (search, optimistic overrides). Resolve `data.cohort` into a `$state` with a stale-promise guard (`if (data.cohort === p)`) so later polls swap data silently with the child still mounted.
-- **Keep SSR on.** Streaming renders the shell server-side and flushes the cohort over the same response; the win is a fast first paint of the chrome, not a blank-until-JS page. Do not reach for `export const ssr = false` to "simplify" - it regresses first paint and buys nothing here.
-- `ResultsSkeleton` is **delay-gated** (held invisible ~180ms, height reserved) so warm navigations swap straight to content without a skeleton flash; only genuinely slow loads fade it in. Reuse it, do not hand-roll per-page pending markup.
-
-### SortableTable renders one layout
-
-`SortableTable` (`$lib/components/staff/datatable/`) renders **either** the desktop table **or** the `mobileRow` cards, gated by a `MediaQuery` (lg seam) plus a mount guard, never both at once. Do not reintroduce a CSS-toggled (`hidden lg:block` / `lg:hidden`) dual render: it builds and hydrates every row twice (2x DOM nodes, 2x `avatar.vercel.sh` requests) and was the main client-side render cost on these tables. Pages without a `mobileRow` snippet always render the desktop table (unchanged).
+Two performance contracts govern staff list pages over cohort volume (~200 rows): the streaming
+`load` shape, and `SortableTable` rendering one layout rather than a CSS-toggled dual render. Both
+are regressions that shipped once. Read `frontend/src/lib/components/staff/CLAUDE.md` before adding
+or reworking a staff list page.
 
 ## Coding Conventions
 
@@ -318,49 +269,19 @@ The dev stage-seconde pages (`inscrits`, `émargement`, `entretiens`) and admin 
 - **Salesforce:** `Event.externalId` optionally links events to Salesforce campaigns.
 - **Scale:** typical stage de seconde event = ~200 students. Cohort-wide views (origin breakdowns, interest distributions, attendance lists) hit this volume — keep it in mind when designing layouts and queries.
 - **Stateless pods:** SvelteKit pods scale horizontally on kube. Don't put source-of-truth state in process memory; each replica would carry its own and a pod restart would wipe it.
+- **Outbound sends:** mail and SMS are trapped unless `OUTBOUND_MODE=real`, and prod is the only environment that sets it. Never widen that gate to debug a send, and never arm real sends from a non-prod environment: recipients are minors (RGPD).
 
 ## Environment Variables
 
 See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OAuth credentials (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`), and mail provider keys per `MAIL_PROVIDER` (`RESEND_API_KEY` for `resend`, or `MAILJET_API_KEY` + `MAILJET_API_SECRET` for `mailjet`). Optional: `CRON_SECRET`, `WORKER_API_TOKEN`, `MAIL_PROVIDER`, `MAIL_FROM`, `SMS_PROVIDER` (+ `BREVO_API_KEY`, `SMS_SENDER`, `SMS_DEV_RECIPIENTS`), `OUTBOUND_MODE` (the outbound gate — set `=real` in prod only; fail-safe to `redirect` otherwise), `EMAIL_DEV_RECIPIENTS`.
 
-### `MAIL_PROVIDER`
+### Outbound: `MAIL_PROVIDER` / `SMS_PROVIDER`
 
-Picks the transactional mail backend. Lives behind a façade in `$lib/server/email/` — flipping the env swaps the active provider with no code change.
-
-| Value              | Behavior                                                                                                |
-| ------------------ | ------------------------------------------------------------------------------------------------------- |
-| `resend` (default) | Send via the official Resend SDK. Batch cap = 100/call.                                                 |
-| `mailjet`          | Send via Mailjet's REST v3.1 Send API (fetch, no SDK). Batch cap = 50/call (provider chunks transparently). |
-
-`MAIL_FROM` is the sender address used regardless of provider; `RESEND_FROM_EMAIL` is kept as a fallback alias during the migration.
-
-**Dev-redirect.** Two concerns kept apart: the **gate** (`$lib/server/outbound.ts`) and the **destination** (`$lib/server/{email,sms}/dev-redirect.ts`).
-
-- **The gate — `OUTBOUND_MODE` (`outboundTrapped()`).** One env var for **both** channels, **fail-safe**: only `OUTBOUND_MODE=real` reaches real recipients; anything else (unset, blank, typo) means `redirect` (trapped). So a forgotten var never mails/texts a minor — worst case is real users not getting mail, never the reverse. **Prod is the only place that sets `real`.** It's an env var, not a DB flag, on purpose: it's the one signal bound to the *environment* not the *data*, so it can't ride a `pg_dump` from prod into staging, and the running app can't flip it. (This replaced the old design where `EMAIL_DEV_RECIPIENTS`/`SMS_DEV_RECIPIENTS` each gated their own channel — set one, forget the other, and that channel quietly went live. Those vars are now pure fallback destinations, see below.)
-
-- **The destination** — `resolveMailRouting` / `resolveSmsRouting` return a tagged `OutboundRouting` (`real` | `redirect` | `drop`), only consulted once trapped. Priority order:
-  1. **`'bypass'`** (per-send `SendOptions.devRedirect`) → the real recipient. A single, explicit, human-typed **test-send** (the "Tester" button) — a real preview from dev/staging without a redeploy.
-  2. **Armed real sends** (`$lib/server/armRealSends.ts`) → the real recipient. An **admin** (`realSendArmers` = `['admin']`) can **arm** real sends from the **settings dialog** (`StaffSettingsDialog`, opened from the admin profile dropdown — there is no standalone `/staff/settings` page; the route is action-only). While armed, every send *their own session* drives bypasses the trap. Gun safety: per-user (a signed cookie bound to their id — never another session or a cookieless background cron), auto-expiring (15 min), role-gated, loud (red banner via root layout, disarm button). Endpoint `POST /api/dev/real-sends`.
-  3. **`string[]`** (per-send) → those addresses. Bulk broadcasts pass their **creator**'s configured list (or login email), resolved from the row so a worker-run send still lands with the right tester. (Bulk SMS has no such route — staff carry no phone — so it falls through to the env fallback.)
-  4. **The acting staff member's personal list** — admins set their own dev-redirect emails + phones in the settings dialog (`StaffProfile.devRedirect{Emails,Phones}`). With no explicit control, the trap routes to the human driving the request (`requestContext.ts` `AsyncLocalStorage`, captured in `hooks.server.ts`): the **impersonator** when impersonating, else the logged-in staff. So an admin testing talent onboarding by impersonating gets the parent / image-rights mail in *their own* inbox.
-  5. **The acting human's login email** (mail only) — default when no personal list is set.
-  6. **The `*_DEV_RECIPIENTS` env fallback** — for sends with no request actor (cron jobs, anonymization, logged-out OTP).
-  7. **`drop`** — trapped but none of the above resolved → the send is **suppressed**, surfaced as a permanent failure (`reason: 'dev_redirect_dropped'`), never leaked to the real recipient.
-
-`SendOptions.devRedirect` is applied in the façade before the provider sees the payload, so it works uniformly across backends. **Recipients are minors (RGPD).** The gate (`OUTBOUND_MODE`) is the floor; set the `*_DEV_RECIPIENTS` fallbacks on any non-prod env that sends with no actor (cron/OTP) so those don't `drop`.
-
-### `SMS_PROVIDER`
-
-Picks the transactional SMS backend. Lives behind a façade in `$lib/server/sms/` (mirrors `$lib/server/email/`) — flipping the env swaps the active provider with no code change. Powers the SMS broadcast channel.
-
-| Value           | Behavior                                                                                                                                                            |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `null` (default) | No provider wired. Sends fail loud and non-retryably, so an unconfigured prod surfaces "0 envoyés / N échecs" instead of a silent success. The relance UI disables the SMS channel and explains why. |
-| `brevo`         | Brevo (ex-Sendinblue) transactional SMS via REST (fetch, no SDK). Requires `BREVO_API_KEY`. `SMS_SENDER` is the alphanumeric sender shown on the handset (Brevo caps it at 11 chars; default `Epitech`). |
-
-`SMS_DEV_RECIPIENTS` is the SMS **fallback destination** (comma-separated; every listed number gets a copy), mirroring `EMAIL_DEV_RECIPIENTS`. It is **not** the gate — the gate is `OUTBOUND_MODE`, shared with mail (see the dev-redirect note above for the gate/destination split).
-
-**SMS broadcasts.** SMS is a broadcast channel alongside mail (`services/broadcast/providers/sms.ts`). An SMS carries **no action link**: it names the recipient's own mailbox and tells them to check it. A recipient needs a usable phone (`noPhone` skip otherwise); numbers are normalized to Brevo's format by `$lib/domain/phone` → `toBrevoRecipient`. The onboarding relance escalation this channel was first built for is gone, so "relance" now survives only as broadcast-audience wording ("relancer les parents bloqués").
+Both are provider façades (`$lib/server/email/`, `$lib/server/sms/`) fronted by one fail-safe gate,
+`OUTBOUND_MODE` (see Constraints). Provider tables, the gate/destination split, and the full
+dev-redirect priority order live in `.claude/skills/outbound-messaging/SKILL.md` (Claude Code loads it
+as the `/outbound-messaging` skill; other agents read the file). Read it before touching any code path
+that sends.
 
 ## Prisma Migrations
 
