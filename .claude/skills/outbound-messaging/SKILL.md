@@ -42,7 +42,7 @@ Picks the transactional SMS backend. Lives behind a façade in `$lib/server/sms/
 
 | Value           | Behavior                                                                                                                                                            |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `null` (default) | No provider wired. Sends fail loud and non-retryably, so an unconfigured prod surfaces "0 envoyés / N échecs" instead of a silent success. The relance UI disables the SMS channel and explains why. |
+| `null` (default) | No provider wired. Sends fail loud and non-retryably, so an unconfigured prod surfaces "0 envoyés / N échecs" instead of a silent success. The broadcast composer disables the SMS channel and explains why (`isSmsEnabled()` → `smsEnabled`). |
 | `brevo`         | Brevo (ex-Sendinblue) transactional SMS via REST (fetch, no SDK). Requires `BREVO_API_KEY`. `SMS_SENDER` is the alphanumeric sender shown on the handset (Brevo caps it at 11 chars; default `Epitech`). |
 
 `SMS_DEV_RECIPIENTS` is the SMS **fallback destination** (comma-separated; every listed number gets a copy), mirroring `EMAIL_DEV_RECIPIENTS`. It is **not** the gate — the gate is `OUTBOUND_MODE`, shared with mail (see the dev-redirect note above for the gate/destination split).

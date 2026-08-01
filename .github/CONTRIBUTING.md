@@ -162,10 +162,7 @@ Next, evaluate the Definition of Done checklist against the diff. Key points to 
 > 💡 At the start of a scoping session with `/plan`, specifying *"We are in a
 > brainstorming phase, do not generate any code for now"* encourages deeper architectural analysis.
 
-**Custom Repository Skills** (`.claude/skills/`) — encode Jump-specific workflows:
-
-| Skill               | Usage                                                         |
-| ------------------- | ------------------------------------------------------------- |
-| `/ship`             | Generates standardized commit & PR copy in `.ship/`           |
-| `/align-migrations` | Re-orders and squashes migrations following merge conflicts   |
-| `/database-design`  | Data modeling and schema design before code implementation    |
+**Custom Repository Skills** encode Jump-specific workflows. They live in `.claude/skills/`, one
+directory per skill, and each `SKILL.md` opens with a `description` front-matter line stating what it
+does and when to reach for it. Read the directory rather than a table here: a table drifts the moment a
+skill is added or renamed, and the front-matter is what agents actually match on.

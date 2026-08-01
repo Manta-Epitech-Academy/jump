@@ -205,8 +205,9 @@ See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OA
 
 Both are provider façades (`$lib/server/email/`, `$lib/server/sms/`) fronted by one fail-safe gate,
 `OUTBOUND_MODE` (see Constraints). Provider tables, the gate/destination split, and the full
-dev-redirect priority order live in the `/outbound-messaging` skill. Read it before touching any code
-path that sends.
+dev-redirect priority order live in `.claude/skills/outbound-messaging/SKILL.md` (Claude Code loads it
+as the `/outbound-messaging` skill; other agents read the file). Read it before touching any code path
+that sends.
 
 ## Prisma Migrations
 
