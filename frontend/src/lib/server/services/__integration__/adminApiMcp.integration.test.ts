@@ -17,6 +17,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
+import { createAdminAccount } from './adminApiAccount';
 import { mintToken } from '$lib/server/adminApi/tokens';
 import { authenticateAdminApi } from '$lib/server/adminApi/guard';
 import { buildAdminMcpServer } from '$lib/server/adminApi/mcpServer';
@@ -62,9 +63,7 @@ describe('the admin MCP server (integration)', () => {
 
   beforeAll(async () => {
     assertTestDatabase();
-    const admin = await prisma.bauth_user.create({
-      data: { email: `mcp.admin.${stamp}@epitech.eu`, role: 'admin' },
-    });
+    const admin = await createAdminAccount(`mcp.admin.${stamp}@epitech.eu`);
     adminUserId = admin.id;
 
     readSecret = (await mintToken(adminUserId, { label: 'MCP lecture' }))
@@ -144,7 +143,7 @@ describe('the admin MCP server (integration)', () => {
 
   // Not registered for this credential, so the protocol answers "unknown tool"
   // rather than running it. The refusal an admin can read is logged by the
-  // endpoint's `auditUnreachedToolCalls`, which has its own unit test.
+  // endpoint's `auditUnreachedToolCall`, which has its own unit test.
   it('does not let a read-only token call a write tool by name', async () => {
     const result = await (
       await clientFor(readSecret)

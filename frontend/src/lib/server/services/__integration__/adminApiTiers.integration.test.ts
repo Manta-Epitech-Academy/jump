@@ -10,6 +10,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
+import { createAdminAccount } from './adminApiAccount';
 import { mintToken, WRITE_CALL_QUOTA } from '$lib/server/adminApi/tokens';
 import {
   authenticateAdminApi,
@@ -54,9 +55,7 @@ describe('admin API tiers and write capability (integration)', () => {
 
   beforeAll(async () => {
     assertTestDatabase();
-    const admin = await prisma.bauth_user.create({
-      data: { email: `tiers.admin.${stamp}@epitech.eu`, role: 'admin' },
-    });
+    const admin = await createAdminAccount(`tiers.admin.${stamp}@epitech.eu`);
     adminUserId = admin.id;
   });
 

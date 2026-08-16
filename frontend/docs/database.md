@@ -852,6 +852,7 @@ erDiagram
     DateTime createdAt
     DateTime lastUsedAt
     DateTime revokedAt
+    String revokedByUserId
   }
   AdminApi_Call {
     String id PK

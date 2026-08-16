@@ -12,6 +12,7 @@ CREATE TABLE "AdminApi_Token" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lastUsedAt" TIMESTAMP(3),
     "revokedAt" TIMESTAMP(3),
+    "revokedByUserId" TEXT,
 
     CONSTRAINT "AdminApi_Token_pkey" PRIMARY KEY ("id")
 );

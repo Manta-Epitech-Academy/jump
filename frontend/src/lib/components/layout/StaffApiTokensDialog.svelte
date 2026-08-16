@@ -23,6 +23,7 @@
     createdAt: Date | string;
     lastUsedAt: Date | string | null;
     revokedAt: Date | string | null;
+    owner: { id: string; name: string };
     callsToday: number;
   };
 
@@ -31,6 +32,8 @@
     form: SuperValidated<Infer<typeof createApiTokenSchema>>;
     /** Streamed from the admin layout load, so no navigation waits on it. */
     tokens: Promise<TokenRow[]>;
+    /** Whose tokens are "mine": the list covers every admin's. */
+    currentUserId: string;
     dailyQuota: number;
     writeQuota: number;
   };
@@ -39,9 +42,12 @@
     open = $bindable(false),
     form: formData,
     tokens,
+    currentUserId,
     dailyQuota,
     writeQuota,
   }: Props = $props();
+
+  const isMine = (token: TokenRow) => token.owner.id === currentUserId;
 
   // The freshly minted secret. Held here, OUTSIDE the awaited token list, so the
   // list refreshing after the mint cannot wipe the one copy the owner will ever
@@ -267,6 +273,11 @@
         <h3 class="flex items-center gap-2 text-sm font-semibold">
           <KeyRound class="h-4 w-4" /> Tokens
         </h3>
+        <p class="text-xs text-muted-foreground">
+          Tous les tokens créés par l'équipe admin, et vous pouvez révoquer
+          n'importe lequel. Un token confié à une direction ne peut être coupé
+          que d'ici : la personne qui l'utilise n'a pas de compte Jump.
+        </p>
 
         {#await tokens}
           <p class="text-xs text-muted-foreground">Chargement…</p>
@@ -295,7 +306,9 @@
                       {/if}
                     </p>
                     <p class="text-xs text-muted-foreground">
-                      Créé le {dateLabel(token.createdAt)} ·
+                      Créé le {dateLabel(token.createdAt)}{isMine(token)
+                        ? ''
+                        : ` par ${token.owner.name}`} ·
                       {#if token.lastUsedAt}
                         dernier appel le {dateLabel(token.lastUsedAt)} ·
                         {token.callsToday} appel{token.callsToday > 1
@@ -332,7 +345,9 @@
   action="/staff/api-tokens?/revoke&id={tokenToRevoke?.id}"
   title="Révoquer ce token ?"
   description={tokenToRevoke
-    ? `Le token « ${tokenToRevoke.label} » cessera immédiatement de fonctionner. Un outil qui l'utilise encore perdra l'accès sur-le-champ ; cette action est irréversible.`
+    ? `Le token « ${tokenToRevoke.label} »${
+        isMine(tokenToRevoke) ? '' : `, créé par ${tokenToRevoke.owner.name},`
+      } cessera immédiatement de fonctionner. Un outil qui l'utilise encore perdra l'accès sur-le-champ ; cette action est irréversible.`
     : ''}
   buttonText="Révoquer"
   onSuccess={() => (tokenToRevoke = null)}

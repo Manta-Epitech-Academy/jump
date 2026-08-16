@@ -47,8 +47,9 @@ export const actions: Actions = {
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
 
-    // Scoped to the owner inside the service: an id from someone else's list is
-    // simply not a valid target here.
+    // Any admin may cut any token, including one they did not mint (the holder
+    // of a leadership token has no Jump account and no way to cut it himself).
+    // The actor is stamped on the row, so the act stays attributable.
     const result = await revokeToken(id, userId);
     if (!result.ok) {
       return fail(404, {

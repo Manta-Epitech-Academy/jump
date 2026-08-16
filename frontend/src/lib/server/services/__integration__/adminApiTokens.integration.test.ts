@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
+import { createAdminAccount } from './adminApiAccount';
 import {
   mintToken,
   verifyToken,
@@ -37,31 +38,33 @@ describe('admin API tokens (integration)', () => {
   const stamp = Date.now();
   let adminUserId = '';
   let otherAdminUserId = '';
+  /** Kept apart: demoting an owner would cut the tokens the other tests use. */
+  let demotedUserId = '';
+
+  const admin = (slug: string) =>
+    createAdminAccount(`token.${slug}.${stamp}@epitech.eu`);
 
   beforeAll(async () => {
     assertTestDatabase();
-    const [admin, other] = await Promise.all([
-      prisma.bauth_user.create({
-        data: { email: `token.admin.${stamp}@epitech.eu`, role: 'admin' },
-      }),
-      prisma.bauth_user.create({
-        data: { email: `token.other.${stamp}@epitech.eu`, role: 'admin' },
-      }),
+    const [owner, other, demoted] = await Promise.all([
+      admin('admin'),
+      admin('other'),
+      admin('demoted'),
     ]);
-    adminUserId = admin.id;
+    adminUserId = owner.id;
     otherAdminUserId = other.id;
+    demotedUserId = demoted.id;
   });
 
   afterAll(async () => {
     try {
-      // Tokens cascade with the account; call rows keep `actorUserId` but drop
-      // their FK, so clear them explicitly.
+      const ids = [adminUserId, otherAdminUserId, demotedUserId];
+      // Tokens and staff profiles cascade with the account; call rows keep
+      // `actorUserId` but drop their FK, so clear them explicitly.
       await prisma.adminApi_Call.deleteMany({
-        where: { actorUserId: { in: [adminUserId, otherAdminUserId] } },
+        where: { actorUserId: { in: ids } },
       });
-      await prisma.bauth_user.deleteMany({
-        where: { id: { in: [adminUserId, otherAdminUserId] } },
-      });
+      await prisma.bauth_user.deleteMany({ where: { id: { in: ids } } });
     } catch {
       // ignore - the test database is disposable
     }
@@ -97,29 +100,57 @@ describe('admin API tokens (integration)', () => {
     ).not.toBeNull();
   });
 
-  it('rejects a revoked token, a garbage token and a foreign revocation attempt', async () => {
+  it('rejects a revoked token and a garbage one, and lets any admin cut any token', async () => {
     const minted = await mintToken(adminUserId, { label: 'À révoquer' });
 
-    // Another admin cannot revoke it by id: the list is per owner.
+    // Cut by an admin who does not own it. That is the point of the shared
+    // inventory: a leadership token's holder has no Jump account, so waiting for
+    // its issuer to be reachable is not a revocation path.
     expect(await revokeToken(minted.id, otherAdminUserId)).toEqual({
-      ok: false,
+      ok: true,
     });
-    expect(await verifyToken(minted.secret)).not.toBeNull();
 
-    expect(await revokeToken(minted.id, adminUserId)).toEqual({ ok: true });
     // Unknown and revoked look identical from outside, so nobody can probe which.
     expect(await verifyToken(minted.secret)).toBeNull();
     expect(await verifyToken('jump_not-a-real-token')).toBeNull();
     expect(await verifyToken('not-even-prefixed')).toBeNull();
 
-    // Revocation is a timestamp, not a delete: the trail survives.
-    expect(
-      (await prisma.adminApi_Token.findUnique({ where: { id: minted.id } }))
-        ?.revokedAt,
-    ).not.toBeNull();
+    const row = await prisma.adminApi_Token.findUnique({
+      where: { id: minted.id },
+    });
+    // Revocation is a timestamp, not a delete: the trail survives, and it names
+    // who cut it rather than only who owned it.
+    expect(row?.revokedAt).not.toBeNull();
+    expect(row?.revokedByUserId).toBe(otherAdminUserId);
 
     // Re-revoking is a no-op rather than an error.
     expect(await revokeToken(minted.id, adminUserId)).toEqual({ ok: false });
+  });
+
+  it('stops resolving a token once its owner is no longer an admin', async () => {
+    const minted = await mintToken(demotedUserId, { label: 'Rétrogradé' });
+    expect(await verifyToken(minted.secret)).not.toBeNull();
+    const usedAt = (
+      await prisma.adminApi_Token.findUnique({ where: { id: minted.id } })
+    )?.lastUsedAt;
+
+    // What `/staff/admin/users` does when somebody moves to the dev team. It has
+    // no business knowing this table exists, so the credential is what asks.
+    await prisma.staffProfile.update({
+      where: { userId: demotedUserId },
+      data: { staffRole: 'dev' },
+    });
+
+    expect(await verifyToken(minted.secret)).toBeNull();
+
+    const row = await prisma.adminApi_Token.findUnique({
+      where: { id: minted.id },
+    });
+    // Nothing was revoked: the authority behind the token went away, which is a
+    // different fact and stays visible as one in the list.
+    expect(row?.revokedAt).toBeNull();
+    // And a token that no longer resolves was not used, it was presented.
+    expect(row?.lastUsedAt).toEqual(usedAt);
   });
 
   it('answers 401 for a bad bearer and 403 for no credentials at all, logging both', async () => {
@@ -188,17 +219,23 @@ describe('admin API tokens (integration)', () => {
     });
   });
 
-  it("lists an owner's tokens with their recent usage, newest first", async () => {
-    const tokens = await listTokens(adminUserId);
+  it('lists every admin token with its owner and recent usage, newest first', async () => {
+    const tokens = await listTokens();
+    const mine = tokens.filter((token) => token.owner.id === adminUserId);
 
-    expect(tokens.length).toBeGreaterThanOrEqual(3);
+    expect(mine.length).toBeGreaterThanOrEqual(3);
     expect(tokens[0].createdAt.getTime()).toBeGreaterThanOrEqual(
       tokens[tokens.length - 1].createdAt.getTime(),
     );
+    // Another admin's token is in the same list, or nobody could cut it.
+    expect(tokens.some((token) => token.owner.id === demotedUserId)).toBe(true);
+    // These accounts carry no display name, so the owner falls back to the email
+    // rather than to an empty label nobody can act on.
+    expect(mine[0].owner.name).toContain('@epitech.eu');
     // The 48h-old row above is outside the window, so it is not counted.
-    expect(tokens.find((t) => t.label === 'Quota')?.callsToday).toBe(0);
-    // Revoked tokens stay listed: the owner needs to see what was cut.
-    expect(tokens.some((t) => t.revokedAt !== null)).toBe(true);
+    expect(mine.find((token) => token.label === 'Quota')?.callsToday).toBe(0);
+    // Revoked tokens stay listed: the trail is what an incident is read from.
+    expect(mine.some((token) => token.revokedAt !== null)).toBe(true);
     // No token list ever carries a usable secret.
     expect(JSON.stringify(tokens)).not.toContain('jump_');
   });

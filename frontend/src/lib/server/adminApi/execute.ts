@@ -14,7 +14,7 @@
  * Params arrive already validated against the operation's own schema. That check
  * stays with the consumer because only it knows how to answer a malformed
  * request, and because the MCP SDK performs it itself before a tool handler is
- * reached (see `auditUnreachedToolCalls`).
+ * reached (see `auditUnreachedToolCall`).
  */
 
 import { authorizeOperation, type AdminApiCredential } from './guard';

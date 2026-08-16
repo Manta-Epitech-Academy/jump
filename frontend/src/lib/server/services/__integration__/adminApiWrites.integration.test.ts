@@ -12,6 +12,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { RequestEvent, RequestHandler } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
+import { createAdminAccount } from './adminApiAccount';
 import { mintToken } from '$lib/server/adminApi/tokens';
 import { adminApiWrite } from '$lib/server/adminApi/route';
 import { planDigest } from '$lib/server/adminApi/plan';
@@ -51,9 +52,7 @@ describe('admin API writes (integration)', () => {
 
   beforeAll(async () => {
     assertTestDatabase();
-    const admin = await prisma.bauth_user.create({
-      data: { email: `writes.admin.${stamp}@epitech.eu`, role: 'admin' },
-    });
+    const admin = await createAdminAccount(`writes.admin.${stamp}@epitech.eu`);
     adminUserId = admin.id;
 
     writeSecret = (

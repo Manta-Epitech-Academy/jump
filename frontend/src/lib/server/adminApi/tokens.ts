@@ -127,17 +127,21 @@ export async function mintToken(
 }
 
 /**
- * Revoke a token. Scoped to its owner: the dialog manages "my tokens", so an id
- * from elsewhere is not a valid target. Revocation stamps a timestamp instead of
- * deleting, so the call log keeps pointing at a token that still exists.
+ * Revoke a token, from any admin's dialog.
+ *
+ * Scoped to a live token rather than to its owner (see {@link listTokens} for
+ * why the inventory is shared), and stamping who did it: cutting somebody else's
+ * credential is exactly the act that has to stay attributable. Revocation is a
+ * timestamp rather than a delete, so the call log keeps pointing at a token that
+ * still exists.
  */
 export async function revokeToken(
   id: string,
-  staffUserId: string,
+  revokedByUserId: string,
 ): Promise<{ ok: boolean }> {
   const { count } = await prisma.adminApi_Token.updateMany({
-    where: { id, staffUserId, revokedAt: null },
-    data: { revokedAt: new Date() },
+    where: { id, revokedAt: null },
+    data: { revokedAt: new Date(), revokedByUserId },
   });
   return { ok: count === 1 };
 }
@@ -150,14 +154,26 @@ export type TokenSummary = {
   createdAt: Date;
   lastUsedAt: Date | null;
   revokedAt: Date | null;
+  /** The admin who minted it, so a token nobody recognises still has a name on it. */
+  owner: { id: string; name: string };
   /** Calls counted against the quota in the rolling 24h window (see `quotaWindowWhere`). */
   callsToday: number;
 };
 
-/** An admin's own tokens, newest first, revoked ones included (for the trail). */
-export async function listTokens(staffUserId: string): Promise<TokenSummary[]> {
+/**
+ * Every token, newest first, revoked ones included (for the trail).
+ *
+ * Not scoped to the admin looking, on purpose. A leadership token is minted by
+ * an admin FOR someone who has no Jump account, so its holder cannot cut it
+ * either: a per-owner list left a token unrevocable by anyone the day its issuer
+ * was unreachable, which is precisely the day it matters. Every admin already
+ * reaches the same operations, and `revokedByUserId` records who cut what.
+ *
+ * Who owns a row is returned rather than decided here: the viewer is the
+ * dialog's business, not this module's.
+ */
+export async function listTokens(): Promise<TokenSummary[]> {
   const rows = await prisma.adminApi_Token.findMany({
-    where: { staffUserId },
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
@@ -167,11 +183,13 @@ export async function listTokens(staffUserId: string): Promise<TokenSummary[]> {
       createdAt: true,
       lastUsedAt: true,
       revokedAt: true,
+      staffUser: { select: { id: true, name: true, email: true } },
       _count: { select: { calls: { where: quotaWindowWhere() } } },
     },
   });
-  return rows.map(({ _count, ...token }) => ({
+  return rows.map(({ _count, staffUser, ...token }) => ({
     ...token,
+    owner: { id: staffUser.id, name: staffUser.name || staffUser.email },
     callsToday: _count.calls,
   }));
 }
@@ -191,8 +209,17 @@ export type VerifiedToken = {
  * `safeTokenEquals`), there is no known secret to compare against byte by byte
  * here, and an index probe on a sha256 digest leaks nothing about the plaintext.
  *
- * Returns null for unknown and for revoked tokens alike: the caller must not be
- * able to tell "never existed" from "cut this morning".
+ * The owner's role is read here, not trusted from mint time. A departure was
+ * already covered - `deleteStaffUser` deletes the `bauth_user` row and the FK
+ * cascades the tokens away - but a demotion was not: `updateStaffRole` moves
+ * `StaffProfile.staffRole` and `bauth_user.role` and has no business knowing
+ * this table exists. So the credential asks, on every call, whether the human
+ * behind it is still an admin. This holds for a leadership token too, whose
+ * `staffUserId` is the admin who issued it.
+ *
+ * Returns null for a token that is unknown, revoked, or whose owner is no longer
+ * an admin: the caller must not be able to tell "never existed" from "cut this
+ * morning" from "issued by someone who changed jobs".
  */
 export async function verifyToken(
   secret: string,
@@ -207,9 +234,13 @@ export async function verifyToken(
       tier: true,
       writeEnabled: true,
       revokedAt: true,
+      staffUser: { select: { staffProfile: { select: { staffRole: true } } } },
     },
   });
   if (!row || row.revokedAt) return null;
+  // Before `lastUsedAt`: a token that no longer resolves was not used, it was
+  // presented.
+  if (row.staffUser.staffProfile?.staffRole !== 'admin') return null;
 
   await prisma.adminApi_Token.update({
     where: { id: row.id },

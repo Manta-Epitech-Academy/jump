@@ -55,7 +55,9 @@ export const load: LayoutServerLoad = async ({ parent, locals }) => {
     // than awaited: nothing in the admin chrome needs it, so a page must not
     // wait on it to paint. The dialog awaits it when it opens.
     apiTokenForm,
-    apiTokens: listTokens(user.id),
+    // Every admin's tokens, not just this one's: see `listTokens`. The dialog
+    // tells them apart with `user.id`, which it already has.
+    apiTokens: listTokens(),
     apiTokenDailyQuota: DAILY_CALL_QUOTA,
     apiTokenWriteQuota: WRITE_CALL_QUOTA,
     outboundTrapped: outboundTrapped(),

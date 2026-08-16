@@ -265,6 +265,7 @@
           bind:open={apiTokensOpen}
           form={data.apiTokenForm}
           tokens={data.apiTokens}
+          currentUserId={data.user.id}
           dailyQuota={data.apiTokenDailyQuota}
           writeQuota={data.apiTokenWriteQuota}
         />

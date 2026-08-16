@@ -1769,6 +1769,11 @@ model AdminApi_Token {
   /// Revocation is a timestamp, not a delete: the call log keeps pointing at the
   /// token that produced it.
   revokedAt   DateTime?
+  /// `bauth_user.id` of the admin who revoked it, null while it is live. Plain
+  /// `String` (no FK), like `AdminApi_Call.actorUserId`, so the fact survives
+  /// that admin's own account being deleted. Recorded because the inventory is
+  /// shared by every admin: a revocation is not necessarily the owner's own.
+  revokedByUserId String?
 
   staffUser bauth_user      @relation(fields: [staffUserId], references: [id], onDelete: Cascade)
   calls     AdminApi_Call[]

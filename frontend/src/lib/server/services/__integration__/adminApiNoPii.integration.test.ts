@@ -34,6 +34,26 @@ const IDENTITY = {
 /** Keys that must not appear anywhere in a payload, at any depth. */
 const FORBIDDEN_KEYS = ['nom', 'prenom', 'email', 'phone', 'talentId'];
 
+/** Seeded as a student's own sentence, and quoted back by the exception below. */
+const SELF_NAMING_QUOTE = `Semaine géniale, merci à tous. ${IDENTITY.prenom} ${IDENTITY.nom}`;
+
+/**
+ * The one operation allowed to carry a talent's own words, and therefore the one
+ * exempted from the string search below.
+ *
+ * `stats_interview_testimonials` returns what a student wrote about an event,
+ * verbatim and unattributed, because that question exists to collect a quotable
+ * line. Verbatim means unfiltered: a student who signs his own sentence is
+ * republished signing it. That residual risk was weighed and accepted rather
+ * than overlooked, and it is pinned by its own test at the bottom of this file.
+ *
+ * The structural check still applies to this operation, so a `nom` reappearing
+ * in its select fails here like anywhere else. Only the free text is exempt.
+ */
+const VERBATIM_OPERATIONS = new Set<AdminApiOperationName>([
+  'stats_interview_testimonials',
+]);
+
 function offendingKeys(value: unknown, path = ''): string[] {
   if (Array.isArray(value)) {
     return value.flatMap((item, i) => offendingKeys(item, `${path}[${i}]`));
@@ -54,8 +74,12 @@ describe('no read operation leaks a talent identity (integration)', () => {
   let campusId = '';
   let talentId = '';
   let userId = '';
-  /** Values the parameterised operations are exercised with. */
-  const seeded = { eventId: '', formId: '', schoolYear: '' };
+  let staffUserId = '';
+  /**
+   * Values the parameterised operations are exercised with, plus the interview
+   * id no read may hand out (see the assertion that hunts for it).
+   */
+  const seeded = { eventId: '', formId: '', schoolYear: '', interviewId: '' };
 
   beforeAll(async () => {
     assertTestDatabase();
@@ -107,7 +131,7 @@ describe('no read operation leaks a talent identity (integration)', () => {
     // reason that has nothing to do with identities.
     seeded.schoolYear = schoolYearOf(event.date, TIMEZONE).label;
 
-    await prisma.participation.create({
+    const participation = await prisma.participation.create({
       data: {
         talentId: talent.id,
         eventId: event.id,
@@ -115,6 +139,36 @@ describe('no read operation leaks a talent identity (integration)', () => {
         sfMemberStatus: 'MEET',
       },
     });
+
+    // A conducted interview, so the two operations that read one are exercised
+    // on real rows instead of passing over an empty list, which is how the only
+    // free-text answer in this catalogue used to assert nothing at all.
+    const staff = await prisma.bauth_user.create({
+      data: {
+        email: `pii.staff.${stamp}@epitech.eu`,
+        staffProfile: { create: { staffRole: 'dev', campusId } },
+      },
+      select: { id: true, staffProfile: { select: { id: true } } },
+    });
+    staffUserId = staff.id;
+
+    const interview = await prisma.interview.create({
+      data: {
+        talentId: talent.id,
+        staffId: staff.staffProfile!.id,
+        campusId,
+        participationId: participation.id,
+        status: 'done',
+        recommendation: 'bon_profil',
+        satisfactionStars: 5,
+        oneSentence: SELF_NAMING_QUOTE,
+        // Staff prose about a named minor, which no tier may ever read. Seeded
+        // precisely so the string search has something to catch if it does.
+        verdictNote: `Très bon échange avec ${IDENTITY.prenom}.`,
+      },
+    });
+    seeded.interviewId = interview.id;
+
     // A response from the seeded talent, so the feedback answer has a real
     // submission to aggregate rather than an empty one that could not leak.
     await prisma.feedback_Submission.create({
@@ -134,7 +188,11 @@ describe('no read operation leaks a talent identity (integration)', () => {
       });
       await prisma.participation.deleteMany({ where: { talentId } });
       await prisma.talent.deleteMany({ where: { id: talentId } });
-      await prisma.bauth_user.deleteMany({ where: { id: userId } });
+      // The staff account too: its profile, and the interview hanging off it,
+      // cascade away with it.
+      await prisma.bauth_user.deleteMany({
+        where: { id: { in: [userId, staffUserId] } },
+      });
       await prisma.event.deleteMany({ where: { campusId } });
       await prisma.campus.deleteMany({ where: { id: campusId } });
       await prisma.feedback_Form.deleteMany({ where: { id: seeded.formId } });
@@ -149,8 +207,11 @@ describe('no read operation leaks a talent identity (integration)', () => {
     ([, operation]) => operation.kind === 'read',
   ) as [AdminApiOperationName, AdminApiOperation][];
 
-  it('has reads to check, so an empty catalogue cannot pass silently', () => {
+  it('has reads to check and rows to find, so nothing here passes vacuously', () => {
     expect(reads.length).toBeGreaterThan(15);
+    // An empty needle is found in every haystack, which would turn the interview
+    // assertion below into a permanent, baffling failure.
+    expect(seeded.interviewId).not.toBe('');
   });
 
   for (const [name, operation] of reads) {
@@ -170,12 +231,26 @@ describe('no read operation leaks a talent identity (integration)', () => {
         offendingKeys(answer),
         `${name} exposes an identity field`,
       ).toEqual([]);
-      for (const [field, value] of Object.entries(IDENTITY)) {
-        expect(
-          serialized.includes(value),
-          `${name} leaked the seeded ${field}`,
-        ).toBe(false);
+      if (!VERBATIM_OPERATIONS.has(name)) {
+        for (const [field, value] of Object.entries(IDENTITY)) {
+          expect(
+            serialized.includes(value),
+            `${name} leaked the seeded ${field}`,
+          ).toBe(false);
+        }
       }
+
+      // A different rule from the identity ones, and it holds for every read,
+      // exempt or not. `ops_reset_interview` is an irreversible delete and is
+      // allowed to be a tool for exactly one reason: no read hands out an
+      // interview id, so a model can carry out a reset on an id a human gave it
+      // and can never choose the target itself. That was doctrine with nothing
+      // enforcing it, so an id slipped into a select would have quietly moved
+      // the write into "never a tool" (see the class C table in AGENTS.md).
+      expect(
+        serialized.includes(seeded.interviewId),
+        `${name} returns an interview id, which only an irreversible write can spend`,
+      ).toBe(false);
 
       // Checked here rather than in a unit test because it is the composition in
       // `defineOperation` that has to hold, on every entry, for real answers: a
@@ -189,6 +264,21 @@ describe('no read operation leaks a talent identity (integration)', () => {
       }
     });
   }
+
+  // Pinned rather than left implicit. This is the single hole in "no identity at
+  // any tier", it was opened knowingly, and it also proves the seeded interview
+  // reaches this operation: the check above is exempt here, so without this the
+  // one answer carrying free text would be asserting on an empty list again.
+  it('returns a self-naming testimonial whole, the one documented exception', async () => {
+    const answer = (await ADMIN_API_OPERATIONS.stats_interview_testimonials.run(
+      {},
+      { tier: 'leadership', actorUserId: 'test' },
+    )) as { testimonials: { value: { quote: string }[] } };
+
+    expect(answer.testimonials.value.map((row) => row.quote)).toContain(
+      SELF_NAMING_QUOTE,
+    );
+  });
 });
 
 /**
