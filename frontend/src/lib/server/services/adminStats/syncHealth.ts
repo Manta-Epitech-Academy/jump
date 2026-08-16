@@ -3,17 +3,23 @@
  *
  * Reads the same `AppSetting` row the worker stamps (`infra/syncStatus`) plus the
  * `SyncError` backlog. The staleness threshold is stated in the answer rather
- * than judged here: the worker runs about every 30 minutes, so "no sync for
- * hours" is the signal, and a consumer should quote the age, not invent a
- * verdict.
+ * than judged here: a consumer should quote the age, not invent a verdict.
+ *
+ * What "old" means, and the worker's cadence, belong to `dataFreshness.ts` and are
+ * imported: every leadership answer carries that same judgement, and two wordings
+ * of one threshold is how an ops screen and a steering figure end up disagreeing
+ * about whether the platform is up to date. What this file adds is the part only an
+ * operator needs - what the last run actually did, and the backlog it left.
  */
 
 import { prisma } from '$lib/server/db';
 import { getLastSync } from '$lib/server/infra/syncStatus';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
-
-/** Beyond this, the last sync is old enough to be worth mentioning. */
-export const SYNC_STALE_AFTER_HOURS = 3;
+import {
+  SYNC_STALE_AFTER_HOURS,
+  SYNC_CADENCE_NOTE,
+  hoursSince,
+} from './dataFreshness';
 
 export type SyncHealth = {
   lastSync: Metric<{
@@ -29,9 +35,6 @@ export type SyncHealth = {
   errorsByType: Metric<{ errorType: string; count: number }[]>;
   oldestUnresolvedAgeDays: Metric<number | null>;
 };
-
-const hoursSince = (date: Date) =>
-  Math.round(((Date.now() - date.getTime()) / 3_600_000) * 10) / 10;
 
 export async function getSyncHealth(): Promise<SyncHealth> {
   const [last, unresolved, grouped, oldest] = await Promise.all([
@@ -63,7 +66,7 @@ export async function getSyncHealth(): Promise<SyncHealth> {
             skipped: last.skipped ?? null,
           }
         : null,
-      `Dernière synchronisation Salesforce reçue par Jump (le worker tourne environ toutes les 30 minutes). « ageHours » est son ancienneté en heures ; « stale » vaut vrai au-delà de ${SYNC_STALE_AFTER_HOURS} h, ce qui mérite une vérification. Vaut null si aucune synchronisation n'a jamais été enregistrée.`,
+      `Dernière synchronisation Salesforce reçue par Jump (${SYNC_CADENCE_NOTE}). « ageHours » est son ancienneté en heures ; « stale » vaut vrai au-delà de ${SYNC_STALE_AFTER_HOURS} h, ce qui mérite une vérification. « created », « updated » et « skipped » sont ce que cette dernière passe a fait. Vaut null si aucune synchronisation n'a jamais été enregistrée.`,
     ),
     unresolvedErrors: metric(
       unresolved,

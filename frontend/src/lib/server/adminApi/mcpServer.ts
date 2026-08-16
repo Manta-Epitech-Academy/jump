@@ -34,6 +34,7 @@ import {
   ADMIN_API_OPERATIONS,
   operationsOfferedTo,
   type AdminApiOperationName,
+  type AdminApiTier,
 } from './operations';
 import { recordAdminApiCall, type AdminApiCallParams } from './audit';
 import { executeOperation } from './execute';
@@ -64,16 +65,24 @@ const SHARED_INSTRUCTIONS = [
   'combine, extrapolate or convert figures, and do not translate a definition:',
   'they are written for the French-speaking staff who read your answer.',
   '',
+  'That extends to anything you might be tempted to work out yourself. A share, a',
+  'ranking and a year-on-year movement are figures these tools return already',
+  'computed: rank nothing, subtract nothing, and if the comparison you need is not',
+  'in an answer, look for the tool that returns it rather than doing the',
+  'arithmetic.',
+  '',
+  'Some answers carry verbatim, unattributed quotes written by students about an',
+  'event; quote them as they are, never edit them, and never guess who said one.',
+  '',
   'A campus is named ("Lille"), never given as an id. If a campus, event or',
   'school year is refused, the refusal lists the values that exist: ask again with',
-  'one of them rather than reporting zero.',
+  'one of them rather than reporting zero. meta_scope lists them up front, so',
+  'prefer calling it over guessing a name.',
 ];
 
 const CORE_INSTRUCTIONS = [
   'Curated reporting and configuration for the Jump admin team. No talent name,',
-  'email or phone exists in any answer, so do not offer to look a person up. Some',
-  'answers do carry verbatim, unattributed quotes written by students about an',
-  'event; quote them as they are and never guess who said one.',
+  'email or phone exists in any answer, so do not offer to look a person up.',
   '',
   ...SHARED_INSTRUCTIONS,
   '',
@@ -93,19 +102,35 @@ const LEADERSHIP_INSTRUCTIONS = [
   '',
   ...SHARED_INSTRUCTIONS,
   '',
+  'Every answer carries "fraicheur", the age of the data it was computed on. Read',
+  'it before you quote anything: when its "stale" field is true, the figures',
+  'describe the platform as of that timestamp, and say so alongside them. It is',
+  'null when no synchronisation was ever recorded, in which case nothing',
+  'guarantees the figures are current.',
+  '',
   'Jump records who attended and what they said, never whether they later enrolled',
   'at Epitech. Do not present any figure here as a conversion or admission rate.',
 ];
 
+/**
+ * The standing instructions for a tier, as the server declares them.
+ *
+ * Exported so the rules that only exist as prose can be asserted: they are the
+ * one place a model is guaranteed to read, and nothing fails at runtime when one
+ * of them is dropped in an edit.
+ */
+export function adminMcpInstructions(tier: AdminApiTier): string {
+  return (
+    tier === 'leadership' ? LEADERSHIP_INSTRUCTIONS : CORE_INSTRUCTIONS
+  ).join('\n');
+}
+
 export function buildAdminMcpServer(credential: AdminApiCredential): McpServer {
   const { caller, writeEnabled } = credential;
-  const instructions = (
-    caller.tier === 'leadership' ? LEADERSHIP_INSTRUCTIONS : CORE_INSTRUCTIONS
-  ).join('\n');
 
   const server = new McpServer(
     { name: MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
-    { instructions },
+    { instructions: adminMcpInstructions(caller.tier) },
   );
 
   for (const [name, operation] of operationsOfferedTo({

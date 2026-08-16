@@ -64,6 +64,23 @@ export type ScopeParams = {
 
 const list = (values: string[]) => values.join(', ');
 
+/**
+ * Every campus name, alphabetically: the vocabulary the `campus` filter accepts.
+ *
+ * Read both by the refusal below and by the `meta_scope` operation, on purpose.
+ * Telling a caller which values exist only when it gets one wrong made a
+ * deliberate error the way to discover the vocabulary, which is a strange thing to
+ * ask of a tier whose founding rule is that an unknown scope is a refusal. Two
+ * separate queries for one list would also be free to drift.
+ */
+export async function listCampusNames(): Promise<string[]> {
+  const all = await prisma.campus.findMany({
+    orderBy: { name: 'asc' },
+    select: { name: true },
+  });
+  return all.map((campus) => campus.name);
+}
+
 async function resolveCampus(name: string): Promise<ResolvedCampus> {
   const found = await prisma.campus.findFirst({
     where: { name: { equals: name, mode: 'insensitive' } },
@@ -74,12 +91,8 @@ async function resolveCampus(name: string): Promise<ResolvedCampus> {
   // The refusal names every campus rather than saying "inconnu": the caller
   // cannot list them itself, and a bare rejection would only invite a second
   // guess.
-  const all = await prisma.campus.findMany({
-    orderBy: { name: 'asc' },
-    select: { name: true },
-  });
   throw new UnknownScopeError(
-    `Campus « ${name} » inconnu. Campus disponibles : ${list(all.map((c) => c.name))}.`,
+    `Campus « ${name} » inconnu. Campus disponibles : ${list(await listCampusNames())}.`,
   );
 }
 

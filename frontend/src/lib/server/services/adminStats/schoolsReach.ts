@@ -20,7 +20,7 @@ import {
   toBreakdown,
   type LyceeStat,
 } from '$lib/server/services/cohortOverview';
-import { departementOf } from '$lib/domain/school';
+import { departementOf, academieOf } from '$lib/domain/school';
 import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
@@ -28,6 +28,14 @@ import { cohortWhere, scopeLabels } from './cohort';
 
 /** Lycées listed by name before the tail is summarised. */
 export const SCHOOLS_TOP_N = 25;
+
+/**
+ * What "un lycée touché" counts, owned here and imported by the campus comparison
+ * and the churn answer. The UAI clause is the load-bearing half: a lycée Jump only
+ * knows by a hand-typed name is invisible to every figure built on this rule.
+ */
+export const DISTINCT_SCHOOLS_RULE =
+  "Nombre de lycées distincts d'où vient au moins un talent. Ne comptent que les lycées identifiés par leur code UAI officiel : un lycée connu seulement par un nom saisi à la main n'y figure pas.";
 
 export type SchoolRow = {
   name: string;
@@ -44,6 +52,12 @@ export type DepartementRow = {
   talents: number;
 };
 
+export type AcademieRow = {
+  academie: string;
+  schools: number;
+  talents: number;
+};
+
 export type SchoolsReach = {
   filters: { schoolYear: string; campus: string; event: string };
   cohort: Metric;
@@ -52,6 +66,7 @@ export type SchoolsReach = {
   topSchools: Metric<SchoolRow[]>;
   otherSchools: Metric<{ talents: number; schools: number } | null>;
   byDepartement: Metric<DepartementRow[]>;
+  byAcademie: Metric<AcademieRow[]>;
   withoutResolvedSchool: Metric;
   withoutResolvedSchoolShare: Metric<number | null>;
 };
@@ -75,6 +90,7 @@ export async function getSchoolsReach(
   const breakdown = toBreakdown(ranking, SCHOOLS_TOP_N);
 
   const byDepartement = new Map<string, DepartementRow>();
+  const byAcademie = new Map<string, AcademieRow>();
   for (const row of ranking) {
     const departement = details.get(row.schoolId)?.departement;
     if (!departement) continue;
@@ -86,6 +102,20 @@ export async function getSchoolsReach(
     bucket.schools += 1;
     bucket.talents += row.count;
     byDepartement.set(departement, bucket);
+
+    // Rolled up from the département rather than looked up per school: the
+    // académie is a function of the département, so deriving it twice would be
+    // two chances to disagree.
+    const academie = academieOf(departement);
+    if (!academie) continue;
+    const academieBucket = byAcademie.get(academie) ?? {
+      academie,
+      schools: 0,
+      talents: 0,
+    };
+    academieBucket.schools += 1;
+    academieBucket.talents += row.count;
+    byAcademie.set(academie, academieBucket);
   }
 
   return {
@@ -96,7 +126,7 @@ export async function getSchoolsReach(
     ),
     schools: metric(
       ranking.length,
-      "Nombre de lycées distincts d'où vient au moins un talent du périmètre. Ne comptent que les lycées identifiés par leur code UAI officiel.",
+      `${DISTINCT_SCHOOLS_RULE} Porte ici sur les talents du périmètre.`,
     ),
     departements: metric(
       byDepartement.size,
@@ -124,6 +154,10 @@ export async function getSchoolsReach(
     byDepartement: metric(
       [...byDepartement.values()].sort((a, b) => b.talents - a.talents),
       "Répartition par département, du plus au moins représenté : nombre de lycées et nombre de talents. C'est la couverture territoriale du périmètre.",
+    ),
+    byAcademie: metric(
+      [...byAcademie.values()].sort((a, b) => b.talents - a.talents),
+      "Mêmes lycées regroupés par académie, du plus au moins représenté. L'académie est l'échelon avec lequel un partenariat se négocie, là où le département décrit seulement la provenance. Les lycées d'un territoire relevant d'un vice-rectorat sans académie nommée (Saint-Pierre-et-Miquelon, TAAF) ne sont dans aucune ligne : le total des talents peut donc être inférieur à celui de la répartition par département.",
     ),
     withoutResolvedSchool: metric(
       cohort - attributed,

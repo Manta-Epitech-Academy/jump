@@ -176,6 +176,17 @@ describe('no read operation leaks a talent identity (integration)', () => {
           `${name} leaked the seeded ${field}`,
         ).toBe(false);
       }
+
+      // Checked here rather than in a unit test because it is the composition in
+      // `defineOperation` that has to hold, on every entry, for real answers: a
+      // leadership reader cannot open the sync page, so a figure that does not
+      // say how old it is lets them quote last week's platform as today's.
+      if (operation.leadership) {
+        expect(
+          answer,
+          `${name} answers without its data freshness`,
+        ).toHaveProperty('fraicheur.definition');
+      }
     });
   }
 });
@@ -188,15 +199,23 @@ describe('no read operation leaks a talent identity (integration)', () => {
  */
 function requiredArgsFor(
   name: AdminApiOperationName,
-  seeded: { eventId: string; formId: string; schoolYear: string },
+  seeded: { eventId: string; schoolYear: string },
 ): Record<string, unknown> {
   switch (name) {
     case 'config_event_detail':
       return { eventId: seeded.eventId };
-    case 'stats_feedback_results':
-      return { formId: seeded.formId };
     case 'stats_school_year_review':
       return { schoolYear: seeded.schoolYear };
+    case 'stats_campus_comparison':
+      return { schoolYear: seeded.schoolYear };
+    // Compared against itself: only one school year is seeded, and an unknown one
+    // is refused. Every lycée then reads as retained, which is a fine answer for a
+    // test about identities and keeps the churn path exercised end to end.
+    case 'stats_schools_churn':
+      return {
+        schoolYear: seeded.schoolYear,
+        compareTo: seeded.schoolYear,
+      };
     default:
       throw new Error(
         `${name} requires parameters this guard does not know how to supply. ` +

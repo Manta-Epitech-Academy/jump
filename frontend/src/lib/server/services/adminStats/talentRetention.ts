@@ -21,6 +21,18 @@ import { participationWhere, scopeLabels } from './cohort';
 /** Everything at or above this many events is one bucket. */
 const LAST_BUCKET = 3;
 
+/**
+ * The returning rule, and the caveat that has to travel with it.
+ *
+ * Owned here, imported by the campus comparison. The second sentence exists because
+ * this figure is the one most certain to be misquoted: a stage de seconde is not a
+ * repeatable event, so on most périmètres the value is structurally near zero, and
+ * a steering reader handed a bare 2 % reads "on a un problème de fidélisation"
+ * where the programme simply offers each talent one event.
+ */
+export const RETURNING_SHARE_RULE =
+  "Part des talents inscrits à plus d'un événement du périmètre, en pourcentage : ceux qui sont revenus. Une valeur basse peut signifier que le périmètre n'offre qu'un seul événement par talent, ce qui est le cas d'un stage non répétable, et non que les talents se désengagent ; le nombre d'événements du périmètre est à lire avec elle.";
+
 export type RetentionBucket = {
   /** Number of events, or `LAST_BUCKET` meaning "that many or more". */
   events: number;
@@ -104,7 +116,7 @@ export async function getTalentRetention(
     ),
     returningShare: metric(
       share(returning, talents),
-      "Part des talents du périmètre inscrits à plus d'un événement, en pourcentage. Vaut null si le périmètre ne compte aucun talent.",
+      `${RETURNING_SHARE_RULE} Vaut null si le périmètre ne compte aucun talent.`,
     ),
     averageEventsPerTalent: metric(
       talents > 0 ? Math.round((enrolments / talents) * 100) / 100 : null,

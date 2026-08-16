@@ -109,19 +109,22 @@ async function refusalOf(
 }
 
 /**
- * Arguments an operation cannot be called without. Explicit and exhaustive on
- * purpose (as in `adminApiNoPii`): a new operation with a required parameter
- * throws here until somebody supplies one, rather than dropping out of cover.
+ * Arguments an operation cannot be called without. Explicit on purpose (as in
+ * `adminApiNoPii`): a new operation with a required parameter fails loudly on the
+ * schema parse above, under its own name, until somebody supplies one here, rather
+ * than dropping out of cover.
  *
  * The values need not exist: scope resolution runs before an operation looks
- * anything else up, so the campus or event is what gets refused.
+ * anything else up, so the campus or event is what gets refused. That is also why
+ * an optional parameter belongs nowhere in this list, `formId` included - supplying
+ * one would exercise a narrower path than the sweep is about.
  */
 function requiredArgsFor(name: AdminApiOperationName): Record<string, unknown> {
   switch (name) {
-    case 'stats_feedback_results':
-      return { formId: `form-${stamp}` };
     case 'stats_school_year_review':
       return { schoolYear: '2026-2027' };
+    case 'stats_schools_churn':
+      return { schoolYear: '2026-2027', compareTo: '2025-2026' };
     case 'config_event_detail':
       // Takes an event id as its subject rather than as a filter, so it is
       // covered by the eventId sweep with no extra argument.

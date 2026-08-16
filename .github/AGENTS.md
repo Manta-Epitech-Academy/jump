@@ -168,7 +168,15 @@ Rules, all non-negotiable (they come from the team's own Salesforce-MCP failure 
 - **Hard caps + audit.** Every list is capped, every token is quota-limited per 24h, and **every** call (success or refusal) writes an `AdminApi_Call` row. Audit replaces up-front restriction, so nothing may bypass it. Including what a transport refuses on its own: the MCP SDK rejects an unknown tool name and validates arguments before a tool handler runs, so `mcpServer.ts` reads the envelope first (`auditUnreachedToolCalls`) and logs those refusals, which are exactly the ones that show a model probing.
 - **Say what the figures cannot answer.** Jump holds no admission outcome, so nothing here is a conversion rate. `stats_school_year_review` returns a `limites` field saying so in French, because a consumer handed only good figures fills the gap itself.
 
-**Two tiers, one catalogue.** An entry declares `leadership: true` to be reachable by a tier-2 token; the default is core-team only, so `core ⊇ leadership` holds by construction and the leadership surface only ever grows by an explicit opt-in. What qualifies is a figure or a ranking (cohort make-up, school reach, attendance, interview answers, the school-year review); what does not is anything `ops_*` or `config_*`, anything returning row ids, and free text. Enforced in `guard.ts` (which refuses) and mirrored in `mcpServer.ts` (which does not register the tool, so a model never tries). A leadership token is minted by an admin for someone with no Jump account, so `AdminApi_Call.actorUserId` names the *issuer* and the token label names the holder.
+**Two tiers, one catalogue.** An entry declares `leadership: true` to be reachable by a tier-2 token; the default is core-team only, so `core ⊇ leadership` holds by construction and the leadership surface only ever grows by an explicit opt-in. What qualifies is a figure or a ranking (cohort make-up, school reach, attendance, the cross-campus comparison, lycée churn, interview answers, the school-year review), plus the unattributed student testimonials, which were collected to be quoted and whose first reader is this tier. What does not is anything `ops_*` or `config_*` and any free text somebody wrote *about* a student. Enforced in `guard.ts` (which refuses) and mirrored in `mcpServer.ts` (which does not register the tool, so a model never tries). A leadership token is minted by an admin for someone with no Jump account, so `AdminApi_Call.actorUserId` names the *issuer* and the token label names the holder.
+
+Three rules keep that surface honest, and each closed a hole that shipped once:
+
+- **Ids are judged by what they are, not by being ids.** Never one that identifies a person, and never one only a write could spend. An event id is a périmètre key five leadership reads already accept, so withholding it would leave the tier holding a parameter it cannot obtain; `stats_attendance_rate` is where it comes from.
+- **A leadership answer carries `fraicheur`.** Composed once in `defineOperation`, for every `leadership: true` entry, because its reader can call neither `stats_sync_health` nor the admin sync page: a dead worker would otherwise let them quote last week's platform as today's. "An unknown scope is a refusal, never a zero" has this sibling, and `dataFreshness.ts` owns the threshold for both tiers.
+- **Nothing the tier would otherwise compute is left to it.** Any proportion, *any ranking, and any year-on-year movement* is returned already computed: hence `stats_campus_comparison` (ranked server-side, ties sharing a rank, unmeasurable values unranked rather than last) and `compareTo` on `stats_school_year_review` (`metrics.variation`, which withholds the relative gap on a rate because 20 % to 30 % is +10 points, not +50 %). Handing back two years and letting the consumer subtract them means the growth figure, the one actually quoted, is computed downstream in its own wording.
+
+**The tier names a usage, not a job title.** Every national director gets a leadership token, including the Directeur des Opérations, whose operational questions stay with the internal admin team rather than becoming an `ops_*` exception. Configuring Jump is the core team's job, so `leadership` grants reads only (asserted in `operations.test.ts`).
 
 **Reads and writes.** An entry's `kind` decides the HTTP verb (`adminApiRead` → `GET`, `adminApiWrite` → `POST`, each asserting the catalogue at import), whether the token needs `writeEnabled`, which quota applies, and whether the answer lands on the audit row as `before` / `after`. Three classes govern what may become a write at all:
 
@@ -190,7 +198,9 @@ Pieces:
 | Authorise, run, record: the one step both consumers share, so an answer and its audit row can't depend on the transport | `adminApi/execute.ts` |
 | Audit rows with before/after + retention purge | `adminApi/audit.ts`, `POST /api/jobs/gc-api-audit` |
 | Operation catalogue (one strict schema per entry, `kind` / `leadership` / `twoStep`) | `adminApi/operations.ts` |
-| Scope resolution + refusals (campus by name, event by id, school year) | `adminApi/scope.ts` |
+| Scope resolution + refusals (campus by name, event by id, school year); the campus list a refusal and `meta_scope` share | `adminApi/scope.ts` |
+| Data age carried by every leadership answer, and the staleness threshold both tiers read | `services/adminStats/dataFreshness.ts` |
+| The vocabulary the filters accept (campus names, school years), so discovery is not a deliberate error | `services/adminStats/scopeVocabulary.ts` |
 | Dry-run digest and the two-step contract | `adminApi/plan.ts` |
 | Write implementations | `adminApi/writes/{events,ops,bulk}.ts` |
 | HTTP endpoints (one line each) | `adminApi/route.ts` → `src/routes/api/admin/**` |
@@ -205,7 +215,7 @@ The weekly PO digest (`services/adminDigest.ts`, `POST /api/jobs/admin-digest`) 
 
 - **`auth.ts`** — BetterAuth config (Prisma adapter, Microsoft OAuth, email OTP, admin plugin with impersonation)
 - **`adminApi/`** — curated admin API: token auth (tier + write capability), quotas, audit log with before/after, operation catalogue, write implementations, two-step plan digest, MCP server (see above)
-- **`services/adminStats/`** — the curated aggregates (cohort profile, school reach, attendance, interview insights and testimonials, feedback results, engagement, onboarding funnel and velocity, compliance, the operational queues, configuration state, the school-year review), each figure carrying its definition
+- **`services/adminStats/`** — the curated aggregates (cohort profile, school reach and lycée churn, attendance, the cross-campus comparison, interview insights and testimonials, feedback results, engagement, onboarding funnel and velocity, compliance, the operational queues, configuration state, the school-year review), each figure carrying its definition
 - **`services/adminDigest.ts`** — weekly French digest to every admin-role login, built on `adminStats/`
 - **`services/staffAdminService.ts`** — staff roster writes for `/staff/admin/users` (the role change moves `StaffProfile.staffRole` + `bauth_user.role` in one transaction)
 - **`services/syncErrorService.ts`** — admin remediation of sync errors, including the extId rebind and its refusal branches

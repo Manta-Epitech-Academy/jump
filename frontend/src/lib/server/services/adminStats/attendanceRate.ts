@@ -35,6 +35,14 @@ import { scopedEvents, scopeLabels } from './cohort';
 /** Events detailed one by one before the answer stops listing them. */
 export const ATTENDANCE_EVENTS_LIMIT = 60;
 
+/**
+ * The show-up rule, owned here and imported by the campus comparison, which ranks
+ * campuses on it. Stating the denominator is the whole point: the rate is over the
+ * enrolments whose status concludes something, never over every enrolment.
+ */
+export const SHOW_UP_RATE_RULE =
+  'Part des inscriptions exploitables qui ont donné lieu à une présence, en pourcentage, sur les événements déjà terminés. Une inscription est exploitable quand son statut Salesforce conclut sur la venue : MEET (venue) ou READY (pas venue). Celles sans statut exploitable sont exclues du calcul plutôt que comptées comme des absences.';
+
 export type EventAttendance = {
   eventId: string;
   event: string;
@@ -153,7 +161,7 @@ export async function getAttendanceRate(
     ),
     showUpRate: metric(
       share(present, enrolled),
-      'Part des inscriptions exploitables qui ont donné lieu à une présence, en pourcentage, sur tous les événements passés du périmètre. Vaut null si aucune inscription exploitable.',
+      `${SHOW_UP_RATE_RULE} Porte ici sur tous les événements passés du périmètre. Vaut null si aucune inscription exploitable.`,
     ),
     perEvent: metric(
       perEvent.slice(0, ATTENDANCE_EVENTS_LIMIT),

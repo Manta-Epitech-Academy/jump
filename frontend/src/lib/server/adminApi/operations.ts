@@ -27,9 +27,18 @@
  *     lands on the audit row as a before/after.
  *   - `leadership` grants an entry to tier-2 tokens (national leadership). The
  *     default is core-team-only, so the leadership surface only ever grows by an
- *     explicit opt-in here. What qualifies: a figure or a ranking. What does
- *     not: rows carrying ids, operational internals (queues, sync errors, this
- *     API's own log), and free text.
+ *     explicit opt-in here. What qualifies: a figure or a ranking, plus the
+ *     verbatim student testimonials, which were collected to be quoted and whose
+ *     first reader is precisely this tier. What does not: operational internals
+ *     (queues, sync errors, this API's own log), configuration state, and any
+ *     free text somebody wrote ABOUT a student.
+ *
+ *     Ids are judged by what they are, not by being ids. Never one that
+ *     identifies a person, and never one only a write could spend; an event id is
+ *     a périmètre key five of these reads accept, so withholding it would leave
+ *     them with a parameter this tier cannot obtain. A leadership answer
+ *     additionally carries `fraicheur` (see `defineOperation`), because its reader
+ *     cannot go and check whether the sync is alive.
  *
  * Both are enforced in `guard.ts`, and mirrored in `mcpServer.ts` by simply not
  * registering the tool. The guard is the fence; the filtered tool list is what
@@ -60,6 +69,13 @@ import {
   UNCONFIGURED_EVENTS_LIMIT,
 } from '$lib/server/services/adminStats/unconfiguredEvents';
 import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
+import { getDataFreshness } from '$lib/server/services/adminStats/dataFreshness';
+import { getScopeVocabulary } from '$lib/server/services/adminStats/scopeVocabulary';
+import { getCampusComparison } from '$lib/server/services/adminStats/campusComparison';
+import {
+  getSchoolChurn,
+  CHURN_SCHOOLS_LIMIT,
+} from '$lib/server/services/adminStats/schoolChurn';
 import {
   getApiUsage,
   API_USAGE_DEFAULT_DAYS,
@@ -82,7 +98,10 @@ import {
   TESTIMONIALS_DEFAULT_LIMIT,
   TESTIMONIALS_MAX_LIMIT,
 } from '$lib/server/services/adminStats/interviewTestimonials';
-import { getFeedbackResults } from '$lib/server/services/adminStats/feedbackResults';
+import {
+  getFeedbackResults,
+  FEEDBACK_FORMS_LIMIT,
+} from '$lib/server/services/adminStats/feedbackResults';
 import {
   getOnboardingVelocity,
   VELOCITY_DEFAULT_DAYS,
@@ -136,9 +155,14 @@ import {
   ATTENDANCE_EVENTS_LIMIT,
 } from '$lib/server/services/adminStats/attendanceRate';
 
-const schoolYear = z
+// One format check, two arities. The operations that compare or rank across
+// campuses require a year rather than defaulting to all of them, so the required
+// form is not an inlined copy of the regex.
+const requiredSchoolYear = z
   .string()
-  .regex(/^\d{4}-\d{4}$/, 'School year must be formatted as 2026-2027.')
+  .regex(/^\d{4}-\d{4}$/, 'School year must be formatted as 2026-2027.');
+
+const schoolYear = requiredSchoolYear
   .optional()
   .describe('School year, e.g. "2026-2027". Omit for every year.');
 
@@ -152,12 +176,15 @@ const campus = z
     'Campus name as it appears in the answers, e.g. "Lille". Omit for every campus.',
   );
 
+// Both sources are named on purpose. Pointing only at config_unconfigured_events
+// left the parameter unusable for a leadership token, which is offered five reads
+// that accept it and no configuration answer to obtain one from.
 const eventId = z
   .string()
   .min(1)
   .optional()
   .describe(
-    'Event id, as returned by config_unconfigured_events. Omit for every event.',
+    'Event id, as returned by stats_attendance_rate for a past event or by config_unconfigured_events for an upcoming one. Omit for every event.',
   );
 
 /**
@@ -225,14 +252,43 @@ function defineOperation<Shape extends z.ZodRawShape>(op: {
     ctx: OperationContext,
   ) => Promise<unknown>;
 }): AdminApiOperation {
+  const leadership = op.leadership ?? false;
   return {
     description: op.description,
     schema: z.strictObject(op.shape),
     kind: 'read',
-    leadership: op.leadership ?? false,
+    leadership,
     twoStep: false,
-    run: (params, ctx) => op.run(params as z.output<z.ZodObject<Shape>>, ctx),
+    run: async (params, ctx) => {
+      const answer = await op.run(params as z.output<z.ZodObject<Shape>>, ctx);
+      return leadership ? withDataFreshness(answer) : answer;
+    },
   };
+}
+
+/**
+ * Stamp a leadership answer with the age of the data behind it.
+ *
+ * Granted here rather than in each aggregate, and only for the leadership tier,
+ * because the two facts are the same fact: what makes an answer reachable by
+ * national leadership is exactly what obliges it to carry its own freshness. A
+ * core caller can open `stats_sync_health` or the admin sync page; a leadership
+ * token can call neither, so a dead worker would let it read last week's platform
+ * with no cue at all. Doing it in the helper also makes it impossible to forget on
+ * a future leadership entry, the same reason `defineWrite` refuses `leadership`
+ * rather than trusting an author to remember the rule.
+ *
+ * Throws rather than skipping quietly on an answer that is not a plain object: the
+ * integration test runs every read, so a shape this cannot stamp fails there
+ * instead of shipping an answer that silently lost its caveat.
+ */
+async function withDataFreshness(answer: unknown): Promise<unknown> {
+  if (!answer || typeof answer !== 'object' || Array.isArray(answer)) {
+    throw new Error(
+      'A leadership operation must answer with an object, so its freshness can travel with it.',
+    );
+  }
+  return { ...answer, fraicheur: await getDataFreshness() };
 }
 
 /**
@@ -329,20 +385,59 @@ export const ADMIN_API_OPERATIONS = {
   stats_school_year_review: defineOperation({
     leadership: true,
     description:
-      'One school year summarised for a steering review: events run, cohort size and make-up, high-school and territorial reach, real show-up rate, whether talents came back, and what they said in their interviews. Also returns "limites", stating in French what these figures cannot be read as. The school year is required.',
+      'One school year summarised for a steering review: events run, cohort size and make-up, high-school and territorial reach, real show-up rate, whether talents came back, and what they said in their interviews. Pass compareTo to also get every headline figure as a movement against another year, already computed. Also returns "limites", stating in French what these figures cannot be read as. The school year is required.',
     shape: {
-      schoolYear: z
-        .string()
-        .regex(/^\d{4}-\d{4}$/, 'School year must be formatted as 2026-2027.')
+      schoolYear: requiredSchoolYear.describe(
+        'School year, e.g. "2026-2027". Required for this operation.',
+      ),
+      compareTo: requiredSchoolYear
+        .optional()
         .describe(
-          'School year, e.g. "2026-2027". Required for this operation.',
+          'Another school year to measure against, e.g. "2025-2026". Omit for no comparison.',
         ),
       campus,
     },
-    run: async (params) => {
-      const scope = await resolveScope(params);
-      return getSchoolYearReview({ ...scope, schoolYear: params.schoolYear });
+    run: async ({ schoolYear, compareTo, ...rest }) => {
+      const scope = await resolveScope(rest);
+      return getSchoolYearReview({ ...scope, schoolYear }, { compareTo });
     },
+  }),
+
+  stats_campus_comparison: defineOperation({
+    leadership: true,
+    description:
+      'The same figure across every campus, already ranked: cohort size, share of women, completed sign-ups, real show-up rate, how many high schools each one reaches, and whether talents came back. One ranking per figure, sorted highest first, so nothing has to be ordered or divided afterwards. The school year is required and no campus filter exists: this operation IS the cross-campus view, narrow it and you get one row.',
+    shape: {
+      schoolYear: requiredSchoolYear.describe(
+        'School year, e.g. "2026-2027". Required: comparing campuses across every year folds the programme growth into the comparison.',
+      ),
+    },
+    run: async ({ schoolYear }) =>
+      getCampusComparison({ ...(await resolveScope({})), schoolYear }),
+  }),
+
+  stats_schools_churn: defineOperation({
+    leadership: true,
+    description: `Which high schools are new, which came back and which sent nobody this year, between two school years. Names the schools, most-represented first, capped at ${CHURN_SCHOOLS_LIMIT} per list. Both school years are required; there is no implicit previous year.`,
+    shape: {
+      schoolYear: requiredSchoolYear.describe(
+        'The school year being looked at, e.g. "2026-2027".',
+      ),
+      compareTo: requiredSchoolYear.describe(
+        'The school year it is measured against, e.g. "2025-2026".',
+      ),
+      campus,
+    },
+    run: async ({ schoolYear, compareTo, ...rest }) =>
+      getSchoolChurn(await resolveScope(rest), { schoolYear, compareTo }),
+  }),
+
+  meta_scope: defineOperation({
+    leadership: true,
+    description:
+      'The values the campus and schoolYear filters accept: every campus name with how many events it has, and every school year that has events, newest first. Call it before a filtered question rather than guessing a name, since an unknown one is refused, not answered. Takes no parameter.',
+    shape: {},
+    run: () => getScopeVocabulary(),
   }),
 
   // ── Writes ─────────────────────────────────────────────────────────────────
@@ -725,6 +820,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   stats_interview_testimonials: defineOperation({
+    leadership: true,
     description: `Sentences students wrote about the event, word for word, from the interview question "le stage en une phrase". Most recent first, no student identified. Default ${TESTIMONIALS_DEFAULT_LIMIT}, ${TESTIMONIALS_MAX_LIMIT} maximum.`,
     shape: {
       schoolYear,
@@ -745,18 +841,22 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   stats_feedback_results: defineOperation({
-    description:
-      'Results of one feedback form: how many responses, how many came from a Jump account against the public link, the response rate over the enrolments of the events it is attached to, and the distribution of every closed question. Free-text answers are counted, never returned. The form id comes from config_feedback_forms.',
+    leadership: true,
+    description: `How the feedback forms of a périmètre were answered: per questionnaire, how many responses, how many came from a Jump account against the public link, the response rate over the enrolments of the events it is attached to, and the distribution of every closed question. Free-text answers are counted, never returned. Omit formId to get every questionnaire used in the périmètre, capped at ${FEEDBACK_FORMS_LIMIT}; pass one to narrow to it.`,
     shape: {
       formId: z
         .string()
         .min(1)
-        .describe('Form id, as returned by config_feedback_forms.'),
+        .optional()
+        .describe(
+          'Narrow to one questionnaire, by the id this operation returns for each of them. Omit for all of them.',
+        ),
+      schoolYear,
       campus,
       eventId,
     },
     run: async ({ formId, ...scope }) =>
-      getFeedbackResults(formId, await resolveScope(scope)),
+      getFeedbackResults(await resolveScope(scope), { formId }),
   }),
 
   stats_attendance_rate: defineOperation({

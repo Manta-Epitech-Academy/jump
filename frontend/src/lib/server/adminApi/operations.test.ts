@@ -63,6 +63,16 @@ describe('the operation catalogue', () => {
     }
   });
 
+  // The tier names a usage, not a job title: a directeur des opérations holds a
+  // leadership token like every other national director, and his operational
+  // questions stay with the internal admin team. So this rule cannot be relaxed
+  // "just for one person", and the assertion above is what says so.
+  it('grants leadership only to reads', () => {
+    for (const [name, operation] of operationsForTier('leadership')) {
+      expect(operation.kind, name).toBe('read');
+    }
+  });
+
   it('states in every write description whether repeating it is safe', () => {
     for (const [name, operation] of entries) {
       if (operation.kind !== 'write') continue;
@@ -135,12 +145,18 @@ describe('what a credential is offered as tools', () => {
 
   // Belt and braces with the catalogue rule: even a leadership token that
   // somehow carried the write capability is offered nothing that mutates.
+  //
+  // Asserted as "nothing that mutates" rather than as a list of allowed prefixes:
+  // the earlier version enumerated `stats_` plus the one `meta_` entry that
+  // existed, so adding a second meta entry failed a test about writes.
   it('never shows a leadership token a write, whatever its capability says', () => {
     for (const writeEnabled of [false, true]) {
       const offered = names({ tier: 'leadership', writeEnabled });
-      expect(
-        offered.every((n) => n.startsWith('stats_') || n === 'meta_operations'),
-      ).toBe(true);
+      expect(offered.length).toBeGreaterThan(0);
+      for (const name of offered) {
+        expect(name.startsWith('write_'), name).toBe(false);
+        expect(name.startsWith('bulk_'), name).toBe(false);
+      }
     }
   });
 });

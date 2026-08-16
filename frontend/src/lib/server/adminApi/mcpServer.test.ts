@@ -17,7 +17,8 @@ vi.mock('./audit', () => ({
   ANONYMOUS_ACTOR: 'anonymous',
 }));
 
-const { auditUnreachedToolCalls } = await import('./mcpServer');
+const { auditUnreachedToolCalls, adminMcpInstructions } =
+  await import('./mcpServer');
 
 /** A core token that may write: everything in the catalogue is offered to it. */
 const coreWriter = {
@@ -146,5 +147,43 @@ describe('auditUnreachedToolCalls', () => {
       operation: string;
     };
     expect(logged.operation.length).toBe(100);
+  });
+});
+
+/**
+ * The standing rules exist only as prose, and prose is what an edit drops without
+ * anything failing. Each assertion below is a design rule of the tier that has no
+ * other enforcement point.
+ */
+describe('the standing instructions', () => {
+  it('tells both tiers to quote rather than compute, ranks and deltas included', () => {
+    for (const tier of ['core', 'leadership'] as const) {
+      const instructions = adminMcpInstructions(tier);
+      expect(instructions).toContain('definition');
+      expect(instructions).toMatch(/rank nothing, subtract nothing/i);
+      // Discovery is an operation, not a deliberate refusal.
+      expect(instructions).toContain('meta_scope');
+    }
+  });
+
+  it('warns both tiers about the student quotes they now both receive', () => {
+    for (const tier of ['core', 'leadership'] as const) {
+      expect(adminMcpInstructions(tier)).toMatch(/never guess who said one/i);
+    }
+  });
+
+  it('tells leadership to read the data age before quoting a figure', () => {
+    const instructions = adminMcpInstructions('leadership');
+    expect(instructions).toContain('fraicheur');
+    expect(instructions).toContain('stale');
+  });
+
+  it('keeps the two tiers describing different jobs', () => {
+    expect(adminMcpInstructions('core')).toMatch(/configuration/i);
+    expect(adminMcpInstructions('leadership')).toMatch(/read-only/i);
+    // The one figure this platform structurally cannot produce.
+    expect(adminMcpInstructions('leadership')).toMatch(
+      /conversion or admission rate/i,
+    );
   });
 });

@@ -12,7 +12,6 @@ vi.mock('$lib/server/services/adminStats/unconfiguredEvents', () => ({
 }));
 vi.mock('$lib/server/services/adminStats/syncHealth', () => ({
   getSyncHealth: () => getSyncHealth(),
-  SYNC_STALE_AFTER_HOURS: 3,
 }));
 vi.mock('$lib/server/services/adminStats/opsQueues', () => ({
   getPdfJobsHealth: () => getPdfJobsHealth(),

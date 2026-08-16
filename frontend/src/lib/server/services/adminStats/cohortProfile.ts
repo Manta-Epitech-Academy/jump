@@ -22,6 +22,18 @@ import { cohortWhere, ONBOARDING_COMPLETE_WHERE, scopeLabels } from './cohort';
 /** How an absent value is named in every breakdown here. */
 const UNKNOWN_LABEL = 'Non renseigné';
 
+/**
+ * The counting rules of the two figures the campus comparison re-ranks, stated
+ * here because this is the file that owns them, and imported there rather than
+ * retyped. Each site appends its own null clause: "vaut null sur le périmètre" and
+ * "vaut null sur ce campus" are the same rule read at two altitudes, and only the
+ * rule has to be single-sourced.
+ */
+export const WOMEN_SHARE_RULE = `Part de femmes parmi les talents dont la civilité est renseignée, en pourcentage : le dénominateur exclut les talents sans civilité (« ${UNKNOWN_LABEL} »), pour ne pas sous-estimer la proportion.`;
+
+export const ONBOARDING_COMPLETED_SHARE_RULE =
+  "Part des talents ayant terminé l'intégralité de leur parcours d'inscription en ligne, charte de données comprise, en pourcentage de la cohorte.";
+
 export type BreakdownRow = {
   /** Stored value, or null for the "not filled in" bucket. */
   value: string | null;
@@ -125,7 +137,7 @@ export async function getCohortProfile(
     ),
     womenShare: metric(
       share(women, genderKnown),
-      `Part de femmes parmi les talents dont la civilité est renseignée, en pourcentage (le dénominateur exclut donc les « ${UNKNOWN_LABEL} », pour ne pas sous-estimer la proportion). Vaut null si aucune civilité n'est renseignée sur le périmètre.`,
+      `${WOMEN_SHARE_RULE} Vaut null si aucune civilité n'est renseignée sur le périmètre.`,
     ),
     genderKnownShare: metric(
       share(genderKnown, cohort),
@@ -141,7 +153,7 @@ export async function getCohortProfile(
     ),
     onboardingCompletedShare: metric(
       share(completed, cohort),
-      "Part des talents du périmètre ayant terminé leur parcours d'inscription en ligne, en pourcentage de la cohorte. Vaut null si la cohorte est vide.",
+      `${ONBOARDING_COMPLETED_SHARE_RULE} Vaut null si la cohorte du périmètre est vide.`,
     ),
     connected: metric(
       connected,
