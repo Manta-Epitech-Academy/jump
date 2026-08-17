@@ -69,7 +69,9 @@
 </script>
 
 <Dialog.Root bind:open>
-  <Dialog.Content class="max-w-md gap-0 rounded-sm p-0">
+  <Dialog.Content
+    class="max-h-[90svh] max-w-md gap-0 overflow-y-auto rounded-sm p-0"
+  >
     <Dialog.Header class="border-b px-5 py-4">
       <Dialog.Title
         class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
@@ -216,7 +218,10 @@
         >
           Historique des décisions
         </h4>
-        <ul class="space-y-2.5">
+        <!-- `ImageRightsDecisionRecord` is append-only and every staff
+             correction adds one, so this log only ever grows: it scrolls in its
+             own box rather than pushing the form off the dialog. -->
+        <ul class="max-h-[40svh] space-y-2.5 overflow-y-auto pr-1">
           {#each records as r (r.id)}
             <li class="flex gap-2 text-xs">
               {#if r.decision === 'accepted'}

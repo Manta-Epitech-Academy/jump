@@ -276,6 +276,16 @@ or reworking a staff list page.
 
   This is the most-repeated review finding on staff dialogs and admin pages: prose accumulates one well-meant clarification at a time, and nobody deletes any of it. `StaffApiTokensDialog` is the worked example (header, tier cards, write toggle, conditions, list).
 
+- **A list whose length comes from data scrolls in its own box.** Any `{#each}` over rows the database decides the count of gets a bounded, scrollable region: `max-h-[40svh] overflow-y-auto` on the list, and the dialog or card keeps its own `max-h-[90svh] overflow-y-auto` as the floor for short viewports. Viewport-relative, not a pixel cap, so the box grows with the screen instead of leaving a letterbox on a laptop.
+
+  The tell is not "is it long today", it is **who decides how many rows there are**. A fixed catalogue rendered from a constant is bounded by the code and needs nothing. A ledger, an append-only log, an inventory, a feed or anything with a revoked/archived tail is bounded by nothing and only ever grows, so it is already wrong the day it ships even while it looks fine.
+
+  This bites hardest in a dialog, which is why it is worth stating: a dialog is centred and translated, so a list that outgrows the viewport does not simply push the page down, it pushes its own form and buttons off both edges where nothing can reach them. Scrolling **the list** rather than the whole dialog is what keeps the form on screen; scrolling the whole dialog only stops the clipping.
+
+  Precedents to copy rather than re-invent: `TalentXpDetailDialog` (cap on the `<ul>`), `TalentNotesFeed` (the cap as a prop, so the host screen sets it), `AdminSfStatusInspectorDialog` (`flex flex-col` + `min-h-0 flex-1 overflow-y-auto` when the dialog is a full-height shell with its own header and footer).
+
+  Pagination, search or a dedicated page are a different decision and belong to volume, not to this rule: bound the region first, and reach for those only when the count genuinely justifies them.
+
 - **Layout canon:** the dev-space **inscrits** page (`/staff/dev/events/[id]/inscrits`) is the reference for staff list pages: its filter row, table, spacing, and empty states. New staff pages mirror it unless told otherwise.
 - **Epitech Design System:** a local copy lives at `~/Downloads/Epitech Design System` (fonts, logos, colors). Use it for brand assets instead of approximating.
 - **Component naming:** PascalCase, domain-scoped in subfolders (`components/events/`, `components/students/`).

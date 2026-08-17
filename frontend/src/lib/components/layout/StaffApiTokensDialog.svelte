@@ -303,7 +303,12 @@
               Aucun token pour le moment.
             </p>
           {:else}
-            <ul class="divide-y divide-border rounded-md border border-border">
+            <!-- Revoked tokens are kept for the trail, so this list only ever
+                 grows. It scrolls in its own box rather than stretching the
+                 dialog, which keeps the creation form on screen. -->
+            <ul
+              class="max-h-[40svh] divide-y divide-border overflow-y-auto rounded-md border border-border"
+            >
               {#each rows as token (token.id)}
                 <li class="flex flex-wrap items-center gap-3 p-3 text-sm">
                   <div class="min-w-0 flex-1">
