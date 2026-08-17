@@ -262,6 +262,10 @@ or reworking a staff list page.
 - **Styling:** Tailwind utility classes only, no inline styles.
 - **UI components:** always use the shadcn-style components in `src/lib/components/ui/` (Tooltip, Select, Breadcrumb, Dialog...) instead of native HTML equivalents (`title=` attributes, bare `<select>`). If a needed component isn't there yet, add it via shadcn-svelte rather than hand-rolling one.
 - **Cursor affordance:** every clickable element gets `cursor-pointer`, including items inside custom selects, dropdowns, and date pickers. This is the most-missed detail in reviews; check it before presenting UI work.
+- **UI & Interaction Skills:** Optional design skills live in `.claude/skills/`:
+  - `impeccable` (`.claude/skills/impeccable/SKILL.md`): UX audit, spacing, contrast, and anti-slop review.
+  - `emil-design-eng` (`.claude/skills/emil-design-eng/SKILL.md`): interaction design, spring physics, and micro-animations.
+  The Epitech Design System and existing shadcn-svelte components in `src/lib/components/ui/` remain the absolute source of truth: skills must never introduce out-of-palette colors or ad-hoc raw HTML replacements for standard UI components.
 - **User-facing copy:** no developer jargon in strings a talent or staff member reads. "Scan", "QR", "flag", "mini games" and similar are implementation vocabulary; describe what the person experiences instead. (Register rules: see the vous/tu bullet above.)
 - **Layout canon:** the dev-space **inscrits** page (`/staff/dev/events/[id]/inscrits`) is the reference for staff list pages: its filter row, table, spacing, and empty states. New staff pages mirror it unless told otherwise.
 - **Epitech Design System:** a local copy lives at `~/Downloads/Epitech Design System` (fonts, logos, colors). Use it for brand assets instead of approximating.
