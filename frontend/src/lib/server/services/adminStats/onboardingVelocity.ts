@@ -14,7 +14,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { metric, type Metric } from '$lib/server/adminApi/metrics';
+import { metric, median, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
 import { cohortWhere, ONBOARDING_COMPLETE_WHERE, scopeLabels } from './cohort';
 
@@ -90,15 +90,4 @@ export async function getOnboardingVelocity(
       "Durée médiane, en jours, entre l'enregistrement du talent dans Jump et la fin de son parcours d'inscription. La médiane plutôt que la moyenne : quelques talents qui finissent des mois plus tard tireraient une moyenne vers le haut sans rien dire du cas courant. Vaut null si personne n'a terminé sur la période.",
     ),
   };
-}
-
-function median(values: number[]): number | null {
-  if (values.length === 0) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  const value =
-    sorted.length % 2 === 0
-      ? (sorted[middle - 1] + sorted[middle]) / 2
-      : sorted[middle];
-  return Math.round(value * 10) / 10;
 }

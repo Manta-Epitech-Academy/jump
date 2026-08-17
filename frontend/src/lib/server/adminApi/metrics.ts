@@ -41,6 +41,30 @@ export function share(numerator: number, denominator: number): number | null {
 }
 
 /**
+ * The middle value of a set, for the figures that quote a median rather than a
+ * mean (a duration, an XP total) because a long tail would drag an average away
+ * from the common case.
+ *
+ * Here rather than in each aggregate for the same reason as {@link share}: it was
+ * written twice, and the two spellings disagreed. An even-sized set returns the
+ * mean of its two middle values, which is what "médiane" says; picking the upper
+ * one instead reads as a real figure while being consistently biased upwards.
+ *
+ * Null, never zero, on an empty set: there is no middle of nothing.
+ */
+export function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  const value =
+    sorted.length % 2 === 0
+      ? (sorted[middle - 1] + sorted[middle]) / 2
+      : sorted[middle];
+  // Rounded like `share`, so two answers cannot report one middle differently.
+  return Math.round(value * 10) / 10;
+}
+
+/**
  * How a figure moved between two périmètres, most often two school years.
  *
  * The same rule as {@link share}, applied to time. Returning this year's figure

@@ -14,7 +14,12 @@
 
 import { prisma } from '$lib/server/db';
 import { JUMP_LEVELS, xpRangeForLevel } from '$lib/domain/xp';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
+import {
+  metric,
+  share,
+  median,
+  type Metric,
+} from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
 import { cohortWhere, scopeLabels } from './cohort';
 
@@ -138,7 +143,7 @@ export async function getEngagement(scope: Scope = {}): Promise<Engagement> {
       "Part du périmètre ayant gagné au moins un point d'expérience, en pourcentage.",
     ),
     medianXp: metric(
-      xpRows.length > 0 ? xpRows[Math.floor(xpRows.length / 2)].xp : null,
+      median(xpRows.map((row) => row.xp)),
       "XP médians parmi les talents qui en ont gagné au moins un. La médiane plutôt que la moyenne : quelques joueurs très assidus tireraient la moyenne loin du cas courant. Vaut null si personne n'en a gagné.",
     ),
     byLevel: metric(

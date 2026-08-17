@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { share, variation } from './metrics';
+import { share, median, variation } from './metrics';
 
 describe('share', () => {
   it('rounds to one decimal', () => {
@@ -16,6 +16,32 @@ describe('share', () => {
 
   it('is null, never zero, when there is nothing to divide', () => {
     expect(share(0, 0)).toBeNull();
+  });
+});
+
+describe('median', () => {
+  it('takes the middle of an odd-sized set', () => {
+    expect(median([30, 10, 20])).toBe(20);
+  });
+
+  // The reason this helper is shared: the inline version it replaced returned the
+  // upper of the two middles, so it read as a real figure while sitting one order
+  // statistic high on every even-sized cohort.
+  it('averages the two middle values of an even-sized set', () => {
+    expect(median([10, 20, 30, 40])).toBe(25);
+  });
+
+  it('does not depend on the caller having sorted anything', () => {
+    expect(median([40, 10, 30, 20])).toBe(25);
+  });
+
+  it('is null, never zero, on an empty set', () => {
+    expect(median([])).toBeNull();
+  });
+
+  it('rounds like a share, to one decimal', () => {
+    expect(median([1, 2])).toBe(1.5);
+    expect(median([0, 1, 1, 1, 1, 1, 8])).toBe(1);
   });
 });
 
