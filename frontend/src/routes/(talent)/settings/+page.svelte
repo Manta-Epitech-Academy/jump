@@ -317,9 +317,7 @@
       >
         <Trash2 class="h-7 w-7 text-red-500" />
       </div>
-      <AlertDialog.Title
-        class="font-heading text-xl tracking-tight text-slate-900 uppercase dark:text-white"
-      >
+      <AlertDialog.Title class="text-slate-900 dark:text-white">
         Supprimer mon compte
       </AlertDialog.Title>
       <AlertDialog.Description

@@ -27,9 +27,7 @@
 <AlertDialog.Root bind:open>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title class="font-heading text-xl tracking-tight uppercase"
-        >{title}</AlertDialog.Title
-      >
+      <AlertDialog.Title>{title}</AlertDialog.Title>
       <AlertDialog.Description>{description}</AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>

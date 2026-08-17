@@ -690,9 +690,7 @@
 <AlertDialog.Root bind:open={wipeOpen}>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title class="font-heading text-xl tracking-tight uppercase">
-        Réinitialiser complètement
-      </AlertDialog.Title>
+      <AlertDialog.Title>Réinitialiser complètement</AlertDialog.Title>
       <AlertDialog.Description>
         <strong>{wipeTarget?.name}</strong> revient à l'état exact d'un import
         Salesforce. Tout ce qui a été accumulé après l'import est

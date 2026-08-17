@@ -35,7 +35,7 @@
           <span class="sr-only">Retour</span>
         </Button>
         <h1
-          class="font-heading text-3xl tracking-tight text-slate-900 uppercase dark:text-white"
+          class="font-heading text-3xl tracking-wider text-slate-900 uppercase dark:text-white"
         >
           Paramètres<span class="text-epi-teal">_</span>
         </h1>

@@ -1,0 +1,255 @@
+/**
+ * The same figure across every campus, ranked.
+ *
+ * The gap this closes: every other aggregate in this folder takes a campus as a
+ * *filter* and answers for one périmètre. Comparing fifteen campuses on the share
+ * of women or the show-up rate therefore meant fifteen calls and a ranking done by
+ * the consumer, which is the one thing this tier exists to prevent. Arbitrating
+ * between campuses is the daily work of the people this tier was built for, so the
+ * comparison is a figure the platform returns, sorted, not an exercise it sets.
+ *
+ * The school year is required. Comparing campuses across every year folds the
+ * programme's own growth into the comparison (a campus that opened last year would
+ * rank last on a cumulative count and read as underperforming), and it bounds the
+ * volume this file loads. A campus filter is deliberately NOT accepted: narrowing a
+ * comparison to one campus leaves a one-row ranking, which is `stats_cohort_profile`
+ * with extra steps.
+ *
+ * Three narrow queries, not fifteen times N. The trick is that `scopedEvents`
+ * already returns every event with its campus name, so the grouping key is the
+ * event and the fold into campuses happens in memory. Per-campus counts are derived
+ * from id sets rather than re-queried, which is also what keeps "les talents de
+ * Lille" meaning the same thing here as in `cohort.ts`: a talent belongs to a
+ * campus because they enrolled in one of its events, never by a profile attribute,
+ * so a talent who attended two campuses is counted in both.
+ *
+ * Definitions are imported from the service that owns each rule, never retyped.
+ * This answer only adds the framing of its own axis.
+ */
+
+import { prisma } from '$lib/server/db';
+import {
+  pastEventPresence,
+  VISIBLE_PARTICIPATION_DEFINITION,
+} from '$lib/domain/sfMemberStatus';
+import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
+import type { Scope } from '$lib/server/adminApi/scope';
+import {
+  scopedEvents,
+  participationWhere,
+  cohortWhere,
+  ONBOARDING_COMPLETE_WHERE,
+} from './cohort';
+import {
+  WOMEN_SHARE_RULE,
+  ONBOARDING_COMPLETED_SHARE_RULE,
+} from './cohortProfile';
+import { SHOW_UP_RATE_RULE } from './attendanceRate';
+import { DISTINCT_SCHOOLS_RULE } from './schoolsReach';
+import { RETURNING_SHARE_RULE } from './talentRetention';
+
+/**
+ * One campus's value for one figure.
+ *
+ * `rank` is null exactly when `value` is: a campus the figure cannot be computed
+ * for has no position in the ordering, and giving it the last rank would read as
+ * "worst" instead of "unknown". Equal values share a rank, so a tie never looks
+ * like an ordering.
+ */
+export type CampusFigure = {
+  campus: string;
+  value: number | null;
+  rank: number | null;
+};
+
+export type CampusComparison = {
+  filters: { schoolYear: string };
+  campuses: Metric<number>;
+  rankings: {
+    cohort: Metric<CampusFigure[]>;
+    womenShare: Metric<CampusFigure[]>;
+    onboardingCompletedShare: Metric<CampusFigure[]>;
+    showUpRate: Metric<CampusFigure[]>;
+    schools: Metric<CampusFigure[]>;
+    returningShare: Metric<CampusFigure[]>;
+  };
+};
+
+/** What every ranking's definition says about the axis, stated once. */
+const AXIS_NOTE =
+  "Un campus par ligne, du plus au moins élevé, « rank » étant sa position. Les campus dont la valeur ne peut pas être calculée valent null, sont placés en fin de liste et n'ont pas de rang : ce n'est pas un mauvais résultat, c'est une absence de mesure. Deux campus à égalité partagent le même rang.";
+
+/** Per-campus tallies, filled in one pass over the rows loaded below. */
+type Tally = {
+  talents: Set<string>;
+  /** Enrolments per talent, for "came back more than once". */
+  enrolments: Map<string, number>;
+  present: number;
+  /** Enrolments whose Salesforce status concludes on attendance. */
+  conclusive: number;
+};
+
+const emptyTally = (): Tally => ({
+  talents: new Set(),
+  enrolments: new Map(),
+  present: 0,
+  conclusive: 0,
+});
+
+export async function getCampusComparison(
+  scope: Scope & { schoolYear: string },
+): Promise<CampusComparison> {
+  const { events } = await scopedEvents(scope);
+
+  const campusOf = new Map(events.map((e) => [e.id, e.campusName]));
+  const pastEventIds = new Set(
+    events.filter((e) => e.status === 'past').map((e) => e.id),
+  );
+
+  const [enrolments, talents, completedRows] = await Promise.all([
+    prisma.participation.findMany({
+      where: await participationWhere(scope),
+      select: { talentId: true, eventId: true, sfMemberStatus: true },
+    }),
+    prisma.talent.findMany({
+      where: await cohortWhere(scope),
+      select: { id: true, civilite: true, schoolId: true },
+    }),
+    prisma.talent.findMany({
+      where: { AND: [await cohortWhere(scope), ONBOARDING_COMPLETE_WHERE] },
+      select: { id: true },
+    }),
+  ]);
+
+  const profileOf = new Map(talents.map((t) => [t.id, t]));
+  const completed = new Set(completedRows.map((t) => t.id));
+
+  // Every campus with an event in scope appears, even one whose events drew
+  // nobody: a campus missing from the ranking would read as "not asked about".
+  const tallies = new Map<string, Tally>();
+  for (const campus of campusOf.values()) {
+    if (!tallies.has(campus)) tallies.set(campus, emptyTally());
+  }
+
+  for (const row of enrolments) {
+    const campus = campusOf.get(row.eventId);
+    if (!campus) continue;
+    const tally = tallies.get(campus);
+    if (!tally) continue;
+
+    tally.talents.add(row.talentId);
+    tally.enrolments.set(
+      row.talentId,
+      (tally.enrolments.get(row.talentId) ?? 0) + 1,
+    );
+
+    // Presence is only a question on an event that has happened, and only for a
+    // status that concludes something - the same two exclusions `attendanceRate`
+    // makes, read off the same domain rule.
+    if (!pastEventIds.has(row.eventId)) continue;
+    const presence = pastEventPresence(row.sfMemberStatus);
+    if (presence === 'present') {
+      tally.present += 1;
+      tally.conclusive += 1;
+    } else if (presence === 'absent') {
+      tally.conclusive += 1;
+    }
+  }
+
+  const figure = (pick: (tally: Tally) => number | null): CampusFigure[] =>
+    rank(
+      [...tallies.entries()].map(([campus, tally]) => ({
+        campus,
+        value: pick(tally),
+      })),
+    );
+
+  const cohortSize = (tally: Tally) => tally.talents.size;
+
+  return {
+    filters: { schoolYear: scope.schoolYear },
+    campuses: metric(
+      tallies.size,
+      "Nombre de campus ayant au moins un événement enregistré sur l'année scolaire demandée. Chaque classement ci-dessous compte exactement ce nombre de lignes.",
+    ),
+    rankings: {
+      cohort: metric(
+        figure((t) => cohortSize(t)),
+        `Talents distincts inscrits à au moins un événement du campus, ${VISIBLE_PARTICIPATION_DEFINITION}. Un talent inscrit sur deux campus est compté dans les deux, donc la somme des lignes peut dépasser la cohorte nationale. ${AXIS_NOTE}`,
+      ),
+      womenShare: metric(
+        figure((t) => {
+          const known = [...t.talents].filter(
+            (id) => profileOf.get(id)?.civilite != null,
+          );
+          const women = known.filter(
+            (id) => profileOf.get(id)?.civilite === 'femme',
+          );
+          return share(women.length, known.length);
+        }),
+        `${WOMEN_SHARE_RULE} Calculée sur les talents du campus ; vaut null quand aucune civilité n'y est renseignée. ${AXIS_NOTE}`,
+      ),
+      onboardingCompletedShare: metric(
+        figure((t) => {
+          const done = [...t.talents].filter((id) => completed.has(id));
+          return share(done.length, cohortSize(t));
+        }),
+        `${ONBOARDING_COMPLETED_SHARE_RULE} Rapportée ici à la cohorte du campus ; vaut null quand le campus n'a aucun talent. ${AXIS_NOTE}`,
+      ),
+      showUpRate: metric(
+        figure((t) => share(t.present, t.conclusive)),
+        `${SHOW_UP_RATE_RULE} Porte ici sur les événements terminés du campus ; vaut null quand le campus n'a aucune inscription exploitable, notamment quand aucun de ses événements n'est encore passé. ${AXIS_NOTE}`,
+      ),
+      schools: metric(
+        figure(
+          (t) =>
+            new Set(
+              [...t.talents]
+                .map((id) => profileOf.get(id)?.schoolId)
+                .filter((schoolId): schoolId is string => schoolId != null),
+            ).size,
+        ),
+        `${DISTINCT_SCHOOLS_RULE} Compté ici sur les talents du campus : c'est l'étendue de son réseau de lycées. ${AXIS_NOTE}`,
+      ),
+      returningShare: metric(
+        figure((t) => {
+          const returning = [...t.enrolments.values()].filter(
+            (count) => count > 1,
+          ).length;
+          return share(returning, cohortSize(t));
+        }),
+        `${RETURNING_SHARE_RULE} Comptée ici sur les événements du campus : un talent revenu sur un autre campus ne compte pas comme revenu ici. ${AXIS_NOTE}`,
+      ),
+    },
+  };
+}
+
+/**
+ * Sorts descending and stamps positions, so the consumer never orders anything.
+ *
+ * Nulls last and unranked, ties sharing a rank, and campus name as the tie-break
+ * so the same data always comes back in the same order (a ranking that reshuffles
+ * between two calls reads as a change).
+ */
+function rank(
+  rows: { campus: string; value: number | null }[],
+): CampusFigure[] {
+  const sorted = [...rows].sort((a, b) => {
+    if (a.value === null || b.value === null) {
+      if (a.value === b.value) return a.campus.localeCompare(b.campus, 'fr');
+      return a.value === null ? 1 : -1;
+    }
+    return b.value - a.value || a.campus.localeCompare(b.campus, 'fr');
+  });
+
+  let lastValue: number | null = null;
+  let lastRank = 0;
+  return sorted.map((row, index) => {
+    if (row.value === null) return { ...row, rank: null };
+    if (row.value !== lastValue) {
+      lastRank = index + 1;
+      lastValue = row.value;
+    }
+    return { ...row, rank: lastRank };
+  });
+}

@@ -757,9 +757,7 @@
 <AlertDialog.Root bind:open={confirmEnqueueOpen}>
   <AlertDialog.Content class="rounded-sm">
     <AlertDialog.Header>
-      <AlertDialog.Title
-        class="font-heading text-lg tracking-tight text-destructive uppercase"
-      >
+      <AlertDialog.Title class="text-destructive">
         Démarrer les envois ?
       </AlertDialog.Title>
       <AlertDialog.Description class="text-sm font-medium">

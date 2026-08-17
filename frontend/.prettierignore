@@ -8,9 +8,8 @@ bun.lockb
 # Miscellaneous
 /static/
 
-# SvelteKit auto-generated
-.svelte-kit/
-.svelte-kit-check/
+# SvelteKit auto-generated (one dir per command, see vitest.config.ts)
+.svelte-kit*/
 build/
 coverage/
 test-results/

@@ -11,78 +11,21 @@ import {
   rulesSchema,
 } from '$lib/validation/onboarding';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
-import {
-  WELCOME_XP_BONUS,
-  onboardingEarlyBirdBonus,
-  ONBOARDING_EARLY_BIRD_LIMIT,
-} from '$lib/domain/xp';
-import { grantXp } from '$lib/server/services/xpService';
-import {
-  resolveTalentCampus,
-  countCampusEarlyBirdPosition,
-} from '$lib/server/services/talentCampus';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
 import { getOnboardingStep } from '$lib/domain/talentOnboarding';
+import { runOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobService';
 import {
-  enqueueOnboardingPdfJob,
-  runOnboardingPdfJob,
-} from '$lib/server/services/onboardingPdfJobService';
+  ensureParentAccount,
+  validateTalentInterests,
+  signOnboardingRules,
+} from '$lib/server/services/onboardingService';
 import {
   captureOnboardingReturn,
   consumeOnboardingReturn,
 } from '$lib/server/auth/loginRedirect';
 import { signalArrivalCelebration } from '$lib/server/talent/arrivalCelebration';
-
-type ParentContact = { email: string; prenom: string; nom: string };
-
-type EnsureParentResult = 'created' | 'refreshed' | 'refused';
-
-/**
- * Ensure parent-1's `bauth_user` exists (role `parent`, verified) and carries
- * the latest name. Awaited by the parents step: a validated address must always
- * end up with a working login, so this can't be fire-and-forget. The name upsert
- * always runs so a corrected name still propagates.
- *
- * Returns `'refused'` when the address already belongs to a NON-parent login (a
- * student's or staff member's account). One email = one `bauth_user` = one role,
- * so we can't also mint a parent login there; repurposing theirs would pollute
- * their identity, and the welcome magic link would be rejected anyway
- * (`/parent/fastlogin` filters by `role: 'parent'`). This function is the only
- * gate for that collision: the parents step runs no up-front email-availability
- * check, so `'refused'` is an ordinary, if uncommon, outcome (a family sharing
- * one inbox that already backs another student's login, or a parent who is also
- * Epitech staff), not a race.
- *
- * The caller rejects the step on `'refused'` and asks the talent for another
- * address instead of persisting and advancing. The parent portal carries the
- * règlement co-signature and the image-rights decision (an RGPD / legal step),
- * so a parent left with no account is a silently broken flow, not a cosmetic
- * gap. This replaces an earlier silent pass that only logged a warning and
- * stranded the parent until the shared address was fixed at source.
- */
-async function ensureParentAccount(
-  parent: ParentContact,
-): Promise<EnsureParentResult> {
-  const name = `${parent.prenom} ${parent.nom}`.trim();
-  const existing = await prisma.bauth_user.findUnique({
-    where: { email: parent.email },
-    select: { id: true, role: true },
-  });
-  if (existing && existing.role !== 'parent') return 'refused';
-  if (!existing) {
-    await prisma.bauth_user.create({
-      data: { email: parent.email, name, role: 'parent', emailVerified: true },
-    });
-    return 'created';
-  }
-  await prisma.bauth_user.update({
-    where: { id: existing.id },
-    data: { name },
-  });
-  return 'refreshed';
-}
 
 export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   if (!locals.talent) {
@@ -376,54 +319,21 @@ export const actions: Actions = {
       });
     }
 
-    const [techCount, generalCount] = await Promise.all([
-      prisma.interest.count({
-        where: { id: { in: result.data.techInterestIds }, kind: 'tech' },
-      }),
-      prisma.interest.count({
-        where: { id: { in: result.data.generalInterestIds }, kind: 'general' },
-      }),
-    ]);
+    const saved = await validateTalentInterests(locals.talent.id, {
+      techInterestIds: result.data.techInterestIds,
+      generalInterestIds: result.data.generalInterestIds,
+      freeText: result.data.freeText,
+    });
 
-    if (techCount !== result.data.techInterestIds.length) {
+    if (!saved.ok) {
       return fail(400, {
         step: 'interests' as const,
-        error: "Certains domaines tech sélectionnés n'existent plus.",
+        error:
+          saved.reason === 'stale_tech'
+            ? "Certains domaines tech sélectionnés n'existent plus."
+            : "Certains centres d'intérêt sélectionnés n'existent plus.",
       });
     }
-    if (generalCount !== result.data.generalInterestIds.length) {
-      return fail(400, {
-        step: 'interests' as const,
-        error: "Certains centres d'intérêt sélectionnés n'existent plus.",
-      });
-    }
-
-    const now = new Date();
-    const allIds = [
-      ...result.data.techInterestIds,
-      ...result.data.generalInterestIds,
-    ];
-
-    await prisma.$transaction([
-      prisma.talentInterest.deleteMany({
-        where: { talentId: locals.talent.id },
-      }),
-      prisma.talentInterest.createMany({
-        data: allIds.map((interestId) => ({
-          talentId: locals.talent!.id,
-          interestId,
-        })),
-      }),
-      prisma.talent.update({
-        where: { id: locals.talent.id },
-        data: {
-          techInterestsValidatedAt: now,
-          generalInterestsValidatedAt: now,
-          interestsRecapSeenAt: now,
-          interestsFreeText: result.data.freeText || null,
-        },
-      }),
-    ]);
 
     return { success: true };
   },
@@ -526,71 +436,16 @@ export const actions: Actions = {
       });
     }
 
-    const { city } = result.data;
-    const now = new Date();
-    const talentId = locals.talent.id;
-    const studentName = `${locals.talent.prenom} ${locals.talent.nom}`;
-
-    // Set timestamps, grant XP, and enqueue the PDF job atomically — all fast
-    // DB writes, so the redirect below is instant.
-    const job = await prisma.$transaction(async (tx) => {
-      // Resolve the talent's campus (most-recent participation) and their
-      // 0-based position among completers in that campus, BEFORE stamping this
-      // talent's own rulesSignedAt below — so the count is "those who finished
-      // before me". The position query holds a per-campus advisory lock for the
-      // rest of this transaction, so concurrent completions can't tie for the
-      // same tier. A campus-less talent (no participation yet) earns no
-      // early-bird: you can't be Nth in a campus you don't have, and with no
-      // campus there's nothing to serialize on.
-      const { campusId } = await resolveTalentCampus(tx, talentId);
-      const earlyBirdBonus = campusId
-        ? onboardingEarlyBirdBonus(
-            await countCampusEarlyBirdPosition(
-              tx,
-              campusId,
-              ONBOARDING_EARLY_BIRD_LIMIT,
-            ),
-          )
-        : 0;
-
-      await tx.talent.update({
-        where: { id: talentId },
-        data: {
-          rulesSignedAt: now,
-          rulesSignedCity: city,
-          charterAcceptedAt: now,
-        },
-      });
-      await grantXp(tx, {
-        talentId,
-        source: 'onboarding',
-        sourceId: talentId,
-        amount: WELCOME_XP_BONUS,
-        campusId,
-      });
-      // Layered bonus fact for the earliest finishers in the campus — separate
-      // from the base so the arrival reward stays explainable and the tier is
-      // auditable. Idempotent on (onboarding_early_bird, talentId).
-      if (earlyBirdBonus > 0) {
-        await grantXp(tx, {
-          talentId,
-          source: 'onboarding_early_bird',
-          sourceId: talentId,
-          amount: earlyBirdBonus,
-          campusId,
-        });
-      }
-      return enqueueOnboardingPdfJob(tx, {
-        talentId,
-        documentType: 'rules',
-        payload: { studentName, city, signedAt: now.toISOString() },
-      });
+    const { jobId } = await signOnboardingRules({
+      talentId: locals.talent.id,
+      studentName: `${locals.talent.prenom} ${locals.talent.nom}`,
+      city: result.data.city,
     });
 
     // Generate the PDF + upload to S3 in the background — NOT awaited, so the
     // student reaches the dashboard immediately and the file lands a few seconds
     // later. Failures are visible and re-runnable at /staff/admin/onboarding-pdfs.
-    void runOnboardingPdfJob(job.id);
+    void runOnboardingPdfJob(jobId);
 
     // Arm the arrival celebration (fired on the next dashboard load), then resume
     // the page the talent was heading for when onboarding interrupted them (e.g.

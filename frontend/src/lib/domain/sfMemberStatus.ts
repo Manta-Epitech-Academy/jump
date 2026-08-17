@@ -31,6 +31,23 @@ export const visibleParticipationWhere = {
 } satisfies Prisma.ParticipationWhereInput;
 
 /**
+ * The same cohort rule in French, for the figures that travel with their own
+ * definition (`adminApi/metrics.ts`, the weekly digest).
+ *
+ * It lives here, next to the `where` it describes, because it was written out by
+ * hand in two aggregates at once: two copies of one rule, and both said "READY ou
+ * MEET" while the filter also keeps legacy rows synced before the status column
+ * existed. A definition that undersells what it counts is worse than no
+ * definition, since it gets quoted verbatim to an admin.
+ *
+ * Reads as a clause, so a definition can compose it: "Participations aux
+ * événements du périmètre, ${VISIBLE_PARTICIPATION_DEFINITION}."
+ */
+export const VISIBLE_PARTICIPATION_DEFINITION =
+  'en ne comptant que les inscriptions visibles dans Jump (statut Salesforce ' +
+  "READY ou MEET, plus les inscriptions importées avant l'ajout du statut)";
+
+/**
  * Whether a participation should appear in the dev workspace.
  * Null = legacy row synced before the status column existed: keep visible.
  */

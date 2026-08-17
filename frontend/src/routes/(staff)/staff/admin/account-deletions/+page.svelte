@@ -247,9 +247,7 @@
 >
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title class="font-heading text-xl tracking-tight uppercase">
-        Supprimer le compte
-      </AlertDialog.Title>
+      <AlertDialog.Title>Supprimer le compte</AlertDialog.Title>
       <AlertDialog.Description>
         Le compte de <strong
           >{#if fulfillTarget}<TalentName
@@ -330,9 +328,7 @@
       }}
     >
       <Dialog.Header>
-        <Dialog.Title class="font-heading text-xl tracking-tight uppercase">
-          Refuser la demande
-        </Dialog.Title>
+        <Dialog.Title>Refuser la demande</Dialog.Title>
         <Dialog.Description>
           Le compte de <strong
             >{#if rejectTarget}<TalentName

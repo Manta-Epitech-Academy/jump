@@ -1,8 +1,6 @@
-# SvelteKit
-.svelte-kit/
-.svelte-kit/**/*
-.svelte-kit-check/
-.svelte-kit-check/**/*
+# SvelteKit: the dev server's generated dir, plus the one each other command
+# owns so it never writes into a live one (`KIT_OUTDIR`, see vitest.config.ts)
+.svelte-kit*/
 build/
 dist/
 .output/

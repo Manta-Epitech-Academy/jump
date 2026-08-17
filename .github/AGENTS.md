@@ -33,6 +33,8 @@ Task-to-script mapping lives in `frontend/package.json`. Integration tests addit
 
 **Testing Philosophy:** Prefer high-value, critical-path tests over sheer test volume. Never create redundant or useless placeholder tests. Focus exclusively on core domain logic, security & role permissions, bug-regression edge cases, and critical end-to-end user flows.
 
+**`.svelte-kit/` belongs to the dev server, and to nothing else.** Anything that loads the SvelteKit vite plugin regenerates that directory when it runs, `generated/root.svelte` and `generated/client/app.js` included, so doing it while a dev server is live blanks the page in the browser until that server is restarted. Every other command therefore gets its own directory through `KIT_OUTDIR`, which `svelte.config.js` reads: `bun run check` uses `.svelte-kit-check/` (set in the script, since `svelte-check` has no config file of its own), and vitest uses `.svelte-kit-test/` (set in `vitest.config.ts`, so an editor's test runner obeys it too). A new command that touches the plugin needs the same treatment, plus an entry in `server.watch.ignored`.
+
 **When a `package.json` script exists for the task, use `bun run <script>` rather than invoking the tool directly.** The scripts often set env vars (`KIT_OUTDIR=.svelte-kit-check`) or flags (`--tsconfig ./tsconfig.check.json`) that a bare `bun svelte-check` or `bunx svelte-check` will silently skip — leading to types being written to the default `.svelte-kit/` dir or the wrong strictness. For one-shots without a matching script, `bun <tool>` is fine; reach for `bunx` only when the tool isn't installed locally.
 
 ## Architecture
@@ -155,6 +157,92 @@ Talent profile fields have two sources — the worker sync (Salesforce) and onbo
 - **No-clobber rule:** before a field is talent-confirmed (its `*ValidatedAt` is set), sync re-seeds it on `Talent`; after, sync writes **only the mirror**. Never let SF overwrite a confirmed value. (This fixed a real bug where every sync overwrote the talent's confirmed phone/name.)
 - **Conflict** = field is talent-confirmed **AND** `Talent` ≠ `TalentSfImport` (school compared by FK). Computed in `reconciliationService`, never stored. Surfaced at `/staff/admin/sf-conflicts` (list + accept/reject + CSV export); `acceptJump` realigns the mirror optimistically. `niveau` is SF-owned (onboarding never sets it) → always synced, never a conflict.
 
+### Curated admin API and MCP
+
+The admin space **stops growing UI**. New admin capabilities ship as curated named API operations, consumable over HTTP and as MCP tools (July 2026 seminar). Campus staff and talents never get MCP.
+
+Rules, all non-negotiable (they come from the team's own Salesforce-MCP failure analysis):
+
+- **The LLM formats, it never computes.** Every figure is returned wrapped with its own French definition (`adminApi/metrics.ts` → `metric(value, definition)`), so it can be quoted but not re-derived. This extends to ratios: `share()` exists because returning two counts and no percentage just moves the division downstream, where the consumer picks its own denominator and its own wording. Any proportion a human would ask for is a figure the API returns. The instruction to quote rather than compute is declared **once**, as the MCP server's `instructions`; a definition itself is owned by whatever owns the rule it states (the visible-cohort clause lives with `visibleParticipationWhere` in `domain/sfMemberStatus.ts`), never spelled out again in a tool description or a second aggregate.
+- **Curated named operations only.** `adminApi/operations.ts` is the single catalogue: HTTP endpoints, MCP tool names and audit `operation` values all read from it. Adding a question means adding an entry; there is no generic query surface. Each entry carries **one** strict schema used by both consumers, so an unknown filter is a refusal over HTTP *and* over MCP (hand the SDK a raw shape instead and it silently strips the key, which answers a wider question than the one asked).
+- **An unknown scope is a refusal, never a zero.** Filters name things the caller can actually see: a campus is its unique `Campus.name`, not a cuid no operation returns. `adminApi/scope.ts` checks every campus, event and school year exists before anything is counted, and the refusal lists the values that would have worked. Skipping that check is how `campus: "Lile"` came back as `{ campus: "Lile", events: 0 }`, a confident zero with the echoed filter confirming it.
+- **No talent identity, at any tier.** No answer carries a `nom`, `prenom`, `email` or `phone`, and none may. What a core-tier answer *may* carry beyond aggregates: row ids that a write needs (an event, a PDF job), operational internals, and the verbatim student testimonials from `stats_interview_testimonials`, which are unattributed and were collected explicitly to be quoted. Everything else free-text (interview notes, the team verdict, feedback answers) stays out and is only counted. Enforced by running it: `adminApiNoPii.integration.test.ts` seeds a talent, conducts an interview on him, calls every read, and fails on the identity.
+
+  Testimonials are the one exception, and it is stated rather than implied: unattributed is not the same as non-identifying, because a student can sign his own sentence and verbatim means it goes out signed. Screening a quote against its author's name was weighed and turned down (what makes the answer worth having is that it is what was written), so the French definition says so and the test pins the behaviour. Only that operation is exempt from the string search, never from the structural one: a `nom` reappearing in its select still fails.
+- **Hard caps + audit.** Every list is capped, every token is quota-limited per 24h, and **every** call (success or refusal) writes an `AdminApi_Call` row. Audit replaces up-front restriction, so nothing may bypass it. Including what a transport refuses on its own: the MCP SDK rejects an unknown tool name and validates arguments before a tool handler runs, so `mcpServer.ts` reads the envelope first (`auditUnreachedToolCall`) and logs those refusals, which are exactly the ones that show a model probing.
+
+  Two consequences of "a row per call", both load-bearing. **One call per MCP request**: a JSON-RPC batch is refused (`envelopeRefusal`), because quota, plan digest and audit row are all spent per call, so a batch lets one HTTP request spend N of them ahead of the authorisation that guards them. And **the endpoint assumes a rate limit at the edge**: a refused call writes its row like any other, so unauthenticated traffic is unauthenticated *writes*, at request rate. That control belongs at Cloudflare, which fronts prod, and specifically not on the Traefik ingress: traffic reaches the cluster through a `cloudflared` tunnel, so Traefik sees the tunnel pods as the source and a per-IP rule there would put every caller in one bucket, which is worse than none because it reads as protection. The zone's bot mitigation is not that control either, and is the easy thing to mistake for it: it classifies traffic instead of bounding a rate, and an unauthenticated `curl` POST does reach the app. The rule is scoped to the `/api/admin` and `/api/mcp` prefixes, which every endpoint of this tier lives under today, so one mounted anywhere else leaves the protection behind with nothing failing to say so. None of this is checkable from the app, which is why it is written down here.
+- **Say what the figures cannot answer.** Jump holds no admission outcome, so nothing here is a conversion rate. `stats_school_year_review` returns a `limites` field saying so in French, because a consumer handed only good figures fills the gap itself.
+
+**Two tiers, one catalogue.** An entry declares `leadership: true` to be reachable by a tier-2 token; the default is core-team only, so `core ⊇ leadership` holds by construction and the leadership surface only ever grows by an explicit opt-in. What qualifies is a figure or a ranking (cohort make-up, school reach, attendance, the cross-campus comparison, lycée churn, interview answers, the school-year review), plus the unattributed student testimonials, which were collected to be quoted and whose first reader is this tier. What does not is anything `ops_*` or `config_*` and any free text somebody wrote *about* a student. Enforced in `guard.ts` (which refuses) and mirrored in `mcpServer.ts` (which does not register the tool, so a model never tries). A leadership token is minted by an admin for someone with no Jump account, so `AdminApi_Call.actorUserId` names the *issuer* and the token label names the holder.
+
+Three rules keep that surface honest, and each closed a hole that shipped once:
+
+- **Ids are judged by what they are, not by being ids.** Never one that identifies a person, and never one only a write could spend. An event id is a périmètre key five leadership reads already accept, so withholding it would leave the tier holding a parameter it cannot obtain; `stats_attendance_rate` is where it comes from.
+- **A leadership answer carries `fraicheur`.** Composed once in `defineOperation`, for every `leadership: true` entry, because its reader can call neither `stats_sync_health` nor the admin sync page: a dead worker would otherwise let them quote last week's platform as today's. "An unknown scope is a refusal, never a zero" has this sibling, and `dataFreshness.ts` owns the threshold for both tiers.
+- **Nothing the tier would otherwise compute is left to it.** Any proportion, *any ranking, and any year-on-year movement* is returned already computed: hence `stats_campus_comparison` (ranked server-side, ties sharing a rank, unmeasurable values unranked rather than last) and `compareTo` on `stats_school_year_review` (`metrics.variation`, which withholds the relative gap on a rate because 20 % to 30 % is +10 points, not +50 %). Handing back two years and letting the consumer subtract them means the growth figure, the one actually quoted, is computed downstream in its own wording.
+
+**The tier names a usage, not a job title.** Every national director gets a leadership token, including the Directeur des Opérations, whose operational questions stay with the internal admin team rather than becoming an `ops_*` exception. Configuring Jump is the core team's job, so `leadership` grants reads only (asserted in `operations.test.ts`).
+
+**Reads and writes.** An entry's `kind` decides the HTTP verb (`adminApiRead` → `GET`, `adminApiWrite` → `POST`, each asserting the catalogue at import), whether the token needs `writeEnabled`, which quota applies, and whether the answer lands on the audit row as `before` / `after`. Three classes govern what may become a write at all:
+
+| Class | Test | Treatment |
+| --- | --- | --- |
+| **A - direct** | Bounded to named rows, reversible, internal (sends no message) | A tool. Applies immediately, audited with before/after, description states whether repeating is safe |
+| **B - two-step** | Touches many rows | Mandatory dry run returning the exact rows that would change plus a `planDigest`, then an apply echoing it (`adminApi/plan.ts`) |
+| **C - never a tool** | Irreversible, outbound, identity-bearing or PII-bearing | Human action. Every broadcast send or retry, `users/invite`, `impersonate`, `talents/resetToImport`, the RGPD erasure fulfilment, and every `delete` a model could aim on its own |
+
+The qualifier on that last one is the whole test, and `ops_reset_interview` is what it was written for: an interview reset is a hard delete, irreversible, and it is still a tool. What makes it one is that **no read in the catalogue returns an `interviewId`** (check `ANSWER_SELECT` in `interviewInsights.ts` and the testimonial select), so a model cannot pick a victim, only carry out a reset on an id a human read off the admin interviews page and handed over. Add an id to a read and you have silently promoted the delete into class C, so before returning any row id, ask which write could spend it.
+
+Three things follow that are easy to get wrong. **Writes are token-only**: an admin browser session reads but never mutates, so every change is attributable to a credential somebody deliberately minted, and a cookie-carrying cross-origin POST is not a threat model this endpoint has to reason about. **The two-step contract holds no state**: the apply recomputes the plan and compares digests rather than looking up a stored one, which also catches the world moving between the two calls, and needs no table on horizontally-scaled pods. And **a token is only as alive as its owner's role**: `verifyToken` re-reads `StaffProfile.staffRole` on every call, so a demotion cuts the credential the way a departure already did through the FK cascade, and `updateStaffRole` never has to learn that this table exists. Its inventory is shared for the same reason it is audited: every admin sees and can revoke every token, because a leadership token's holder has no Jump account and no way to cut his own.
+
+Pieces:
+
+| Concern | Where |
+| --- | --- |
+| Tokens (mint / verify / revoke, sha256-hashed, secret shown once, tier + write capability fixed at mint, owner's admin role re-read on every call, one shared inventory) | `adminApi/tokens.ts`, minted from `StaffApiTokensDialog` via the action-only `/staff/api-tokens` route |
+| Auth, tier, write capability, both quotas - every refusal in one place | `adminApi/guard.ts` |
+| Caller-facing errors (`OperationRefusedError`, and which failures explain themselves) | `adminApi/errors.ts` |
+| Authorise, run, record: the one step both consumers share, so an answer and its audit row can't depend on the transport | `adminApi/execute.ts` |
+| Audit rows with before/after + retention purge | `adminApi/audit.ts`, `POST /api/jobs/gc-api-audit` |
+| Operation catalogue (one strict schema per entry, `kind` / `leadership` / `twoStep`) | `adminApi/operations.ts` |
+| Scope resolution + refusals (campus by name, event by id, school year); the campus list a refusal and `meta_scope` share | `adminApi/scope.ts` |
+| Data age carried by every leadership answer, and the staleness threshold both tiers read | `services/adminStats/dataFreshness.ts` |
+| The vocabulary the filters accept (campus names, school years), so discovery is not a deliberate error | `services/adminStats/scopeVocabulary.ts` |
+| Dry-run digest and the two-step contract | `adminApi/plan.ts` |
+| Write implementations | `adminApi/writes/{events,ops,bulk}.ts` |
+| HTTP endpoints (one line each) | `adminApi/route.ts` → `src/routes/api/admin/**` |
+| MCP tools (stateless, `@hono/mcp` transport, tool list built per credential) | `adminApi/mcpServer.ts` → `POST /api/mcp` |
+| Aggregation services | `services/adminStats/*` (reuse `EventService.listAdminEvents`, `cohort.ts`'s shared scope, `cohortOverview`'s rankings, the onboarding ladder, `infra/syncStatus`) |
+
+`services/adminStats/cohort.ts` is where "the cohort in scope" is defined once, for every aggregate: an operation states what it measured, never who it measured it over.
+
+The weekly PO digest (`services/adminDigest.ts`, `POST /api/jobs/admin-digest`) reads those same services, so an inbox figure and an asked figure can't disagree.
+
+### Key Server Services (`src/lib/server/`)
+
+- **`auth.ts`** — BetterAuth config (Prisma adapter, Microsoft OAuth, email OTP, admin plugin with impersonation)
+- **`adminApi/`** — curated admin API: token auth (tier + write capability), quotas, audit log with before/after, operation catalogue, write implementations, two-step plan digest, MCP server (see above)
+- **`services/adminStats/`** — the curated aggregates (cohort profile, school reach and lycée churn, attendance, the cross-campus comparison, interview insights and testimonials, feedback results, engagement, onboarding funnel and velocity, compliance, the operational queues, configuration state, the school-year review), each figure carrying its definition
+- **`services/adminDigest.ts`** — weekly French digest to every admin-role login, built on `adminStats/`
+- **`services/staffAdminService.ts`** — staff roster writes for `/staff/admin/users` (the role change moves `StaffProfile.staffRole` + `bauth_user.role` in one transaction)
+- **`services/syncErrorService.ts`** — admin remediation of sync errors, including the extId rebind and its refusal branches
+- **`services/onboardingService.ts`** — the onboarding transactions: parent-1 account provisioning, interest swap, rules signature (timestamps + XP facts + PDF job)
+- **`services/diplomaGenerator.ts`** — PDF generation via Puppeteer with HTML templates in `server/templates/`
+- **`services/syncService.ts`** — Salesforce worker sync → seeds `Talent` + upserts the `TalentSfImport` mirror (no-clobber; see Salesforce reconciliation)
+- **`services/reconciliationService.ts`** — computes `Talent` ↔ `TalentSfImport` conflicts; accept/reject + CSV for `/staff/admin/sf-conflicts`
+- **`services/schoolService.ts`** / **`annuaire.ts`** — lazy `School` resolution from UAI via the éducation-nationale annuaire
+- **`services/anonymizationService.ts`** — RGPD anonymization job
+- **`infra/browserPool.ts`** — pooled Puppeteer instances (max 5 concurrent, 60s idle timeout)
+- **`db/scoped.ts`** — campus-scoped DB query helpers
+
+### Client Libraries (`src/lib/`)
+
+- **`domain/`** — business logic (XP calculation in `xp.ts`, event lifecycle in `eventLifecycle.ts`)
+- **`validation/`** — Zod schemas for forms (auth, events, students, templates, planning)
+- **`components/ui/`** — Bits UI primitives (shadcn pattern)
+- **`utils.ts`** — `cn()` helper (clsx + twMerge) for conditional classes
+
 ### Staff cohort tables
 
 Two performance contracts govern staff list pages over cohort volume (~200 rows): the streaming
@@ -165,6 +253,10 @@ or reworking a staff list page.
 ## Coding Conventions
 
 - **Language:** All UI text and user-facing strings are in **French**. Code identifiers (functions, variables) are in English.
+
+  For a string no human reads *directly*, the test is **relay, not audience**: does it reach a French-speaking human, even through a machine? A cron job's `'Unauthorized: Invalid or missing token'` dies in a pod log, so it stays English, and so does anything a model reads as *instruction* rather than content (MCP tool descriptions, Zod `.describe()`, validation messages, the server-level MCP instructions). But an API error an MCP client paraphrases to an admin is French, and a `metric()` definition is French without exception: it is quoted verbatim into a chat answer and into the weekly digest, and English there would make the model translate before quoting, which is a re-derived definition, the one thing that tier exists to prevent.
+
+  Being machine-facing is also not a licence to use our own vocabulary. "Operation" is what `operations.ts` calls a catalogue entry; an admin reading a dialog thinks "les chiffres et l'état de configuration". And the reverse trap is real: **`token` stays `token`** on an ops surface. The no-jargon rule says name what the person experiences, and what they experience is a credential they paste after `Authorization: Bearer`; "jeton" makes them translate back to the word they actually type. Talent-facing copy is where jargon gets replaced, not the admin token dialog.
 - **Register (vous / tu):** Pick by who reads the string. **Staff-facing copy uses _vous_** (dev and admin spaces: buttons, tooltips, help cards, confirms). **Talent-facing copy uses _tu_** (the student portal and anything a talent reads, e.g. the QR check-in page). A single feature often spans both: the émargement staff page vouvoie the staff, while its talent check-in page tutoie the student. Match the surrounding screen's register, don't mix within one audience.
 - **Forms:** Use sveltekit-superforms with Zod validation. Never use raw `<form>` handling.
 - **DB access:** Import `prisma` from `$lib/server/db`. Never pass the Prisma client as a function parameter — it's a singleton. Always scope queries by `campusId` for staff/student data.
@@ -172,7 +264,30 @@ or reworking a staff list page.
 - **Styling:** Tailwind utility classes only, no inline styles.
 - **UI components:** always use the shadcn-style components in `src/lib/components/ui/` (Tooltip, Select, Breadcrumb, Dialog...) instead of native HTML equivalents (`title=` attributes, bare `<select>`). If a needed component isn't there yet, add it via shadcn-svelte rather than hand-rolling one.
 - **Cursor affordance:** every clickable element gets `cursor-pointer`, including items inside custom selects, dropdowns, and date pickers. This is the most-missed detail in reviews; check it before presenting UI work.
+- **UI & Interaction Skills:** Optional design skills live in `.claude/skills/`:
+  - `impeccable` (`.claude/skills/impeccable/SKILL.md`): UX audit, spacing, contrast, and anti-slop review.
+  - `emil-design-eng` (`.claude/skills/emil-design-eng/SKILL.md`): interaction design, spring physics, and micro-animations.
+  The Epitech Design System and existing shadcn-svelte components in `src/lib/components/ui/` remain the absolute source of truth: skills must never introduce out-of-palette colors or ad-hoc raw HTML replacements for standard UI components.
 - **User-facing copy:** no developer jargon in strings a talent or staff member reads. "Scan", "QR", "flag", "mini games" and similar are implementation vocabulary; describe what the person experiences instead. (Register rules: see the vous/tu bullet above.)
+- **Copy density: a control gets one line, the rest goes behind a ⓘ.** A screen is read to be acted on, so a sentence that does not change what the person clicks pushes the control that does further down, and past a few of those they stop reading the ones that mattered too. The order to apply, in this order:
+
+  1. **Cut.** An enumeration that only illustrates a choice its own title already makes ("Chiffres de pilotage seulement, en lecture" does not need four examples) is deleted, not relocated. Hiding noise still costs the reader a hover to find out it was noise.
+  2. **One visible line.** Whatever is left on a control is the single fact that changes the decision at the moment it is taken, typically an irreversibility ("Choix définitif : un token créé en lecture seule le reste.").
+  3. **`InfoTooltip` for the rest** (`$lib/components/ui/info-tooltip`, ⓘ next to the label it belongs to): rationale, quotas, audit guarantees, "why we ask". Reachable when wanted, invisible otherwise. `KpiTile`'s `helpText` on `/staff/admin/events` is the reference use.
+  4. **`Collapsible`, never a tooltip, for text somebody must be able to read and re-read**: terms a checkbox commits to, the consequences of a destructive action. Hover is not a reading surface, and it is not a place to put something a person is agreeing to.
+
+  This is the most-repeated review finding on staff dialogs and admin pages: prose accumulates one well-meant clarification at a time, and nobody deletes any of it. `StaffApiTokensDialog` is the worked example (header, tier cards, write toggle, conditions, list).
+
+- **A list whose length comes from data scrolls in its own box.** Any `{#each}` over rows the database decides the count of gets a bounded, scrollable region: `max-h-[40svh] overflow-y-auto` on the list, and the dialog or card keeps its own `max-h-[90svh] overflow-y-auto` as the floor for short viewports. Viewport-relative, not a pixel cap, so the box grows with the screen instead of leaving a letterbox on a laptop.
+
+  The tell is not "is it long today", it is **who decides how many rows there are**. A fixed catalogue rendered from a constant is bounded by the code and needs nothing. A ledger, an append-only log, an inventory, a feed or anything with a revoked/archived tail is bounded by nothing and only ever grows, so it is already wrong the day it ships even while it looks fine.
+
+  This bites hardest in a dialog, which is why it is worth stating: a dialog is centred and translated, so a list that outgrows the viewport does not simply push the page down, it pushes its own form and buttons off both edges where nothing can reach them. Scrolling **the list** rather than the whole dialog is what keeps the form on screen; scrolling the whole dialog only stops the clipping.
+
+  Precedents to copy rather than re-invent: `TalentXpDetailDialog` (cap on the `<ul>`), `TalentNotesFeed` (the cap as a prop, so the host screen sets it), `AdminSfStatusInspectorDialog` (`flex flex-col` + `min-h-0 flex-1 overflow-y-auto` when the dialog is a full-height shell with its own header and footer).
+
+  Pagination, search or a dedicated page are a different decision and belong to volume, not to this rule: bound the region first, and reach for those only when the count genuinely justifies them.
+
 - **Layout canon:** the dev-space **inscrits** page (`/staff/dev/events/[id]/inscrits`) is the reference for staff list pages: its filter row, table, spacing, and empty states. New staff pages mirror it unless told otherwise.
 - **Epitech Design System:** a local copy lives at `~/Downloads/Epitech Design System` (fonts, logos, colors). Use it for brand assets instead of approximating.
 - **Component naming:** PascalCase, domain-scoped in subfolders (`components/events/`, `components/students/`).

@@ -1,3 +1,4 @@
+import type { Prisma, PrismaClient } from '@prisma/client';
 import type { ScopedPrismaClient } from '$lib/server/db/scoped';
 import { prisma } from '$lib/server/db';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
@@ -34,6 +35,20 @@ export type BreakdownTail = { count: number; categories: number };
 export type Breakdown<T> = { rows: T[]; others: BreakdownTail | null };
 
 /**
+ * The client a ranking runs on: the dev workspace hands in its campus-scoped one
+ * (which enforces "my campus only" inside the query), the admin API hands in the
+ * plain one, because admins are cross-campus by design.
+ *
+ * The two are the same object at runtime and expose the same delegates; only
+ * their generic parameters differ, so neither is assignable to the other. Rather
+ * than duplicate a ranking per client, the union is narrowed once, here, by
+ * `asCohortClient`. The queries below use nothing the extension changes.
+ */
+export type CohortClient = PrismaClient | ScopedPrismaClient;
+
+const asCohortClient = (db: CohortClient) => db as PrismaClient;
+
+/**
  * Splits a full ranking into the visible top-N plus a summarised tail. Pure —
  * callers fetch the ranking once (e.g. to feed both a filter dropdown and a
  * capped card) and slice it as needed. Tail `count` sums the per-row counts,
@@ -56,21 +71,33 @@ export function toBreakdown<T extends { count: number }>(
 }
 
 /**
+ * The talents of one event, as a `Talent` filter: enrolled, and visible in Jump.
+ *
+ * Exported so a caller states which cohort it wants without restating the
+ * status rule. The rankings below take an arbitrary filter rather than an event
+ * id, because the admin API ranks over a campus or a whole school year using
+ * the same two groupBys; keeping one ranking and varying the cohort is what
+ * stops the two surfaces drifting on how a lycée is counted.
+ */
+export function eventCohortWhere(eventId: string): Prisma.TalentWhereInput {
+  return {
+    participations: { some: { eventId, ...visibleParticipationWhere } },
+  };
+}
+
+/**
  * Full lycée ranking for the cohort, most-represented first. Talents with a
  * free-text lycée (no UAI → no `School` row) aren't grouped here: the breakdown
  * covers resolved establishments only. `School` is a global reference table
  * (not campus-scoped), so names are read off the unscoped client.
  */
 export async function rankLyceesByCohort(
-  db: ScopedPrismaClient,
-  eventId: string,
+  db: CohortClient,
+  cohort: Prisma.TalentWhereInput,
 ): Promise<LyceeStat[]> {
-  const grouped = await db.talent.groupBy({
+  const grouped = await asCohortClient(db).talent.groupBy({
     by: ['schoolId'],
-    where: {
-      schoolId: { not: null },
-      participations: { some: { eventId, ...visibleParticipationWhere } },
-    },
+    where: { AND: [cohort, { schoolId: { not: null } }] },
     _count: { _all: true },
     orderBy: { _count: { id: 'desc' } },
   });
@@ -102,16 +129,14 @@ export async function rankLyceesByCohort(
  * dev staff recruit on (the non-tech "general" interests are dropped).
  */
 export async function rankInterestsByCohort(
-  db: ScopedPrismaClient,
-  eventId: string,
+  db: CohortClient,
+  cohort: Prisma.TalentWhereInput,
   { techOnly = false }: { techOnly?: boolean } = {},
 ): Promise<InterestStat[]> {
-  const grouped = await db.talentInterest.groupBy({
+  const grouped = await asCohortClient(db).talentInterest.groupBy({
     by: ['interestId'],
     where: {
-      talent: {
-        participations: { some: { eventId, ...visibleParticipationWhere } },
-      },
+      talent: cohort,
       ...(techOnly ? { interest: { kind: 'tech' } } : {}),
     },
     _count: { _all: true },
@@ -120,7 +145,7 @@ export async function rankInterestsByCohort(
 
   if (grouped.length === 0) return [];
 
-  const interests = await db.interest.findMany({
+  const interests = await asCohortClient(db).interest.findMany({
     where: { id: { in: grouped.map((g) => g.interestId) } },
   });
   const byId = new Map(interests.map((i) => [i.id, i]));

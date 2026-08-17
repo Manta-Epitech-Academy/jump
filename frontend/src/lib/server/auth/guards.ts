@@ -273,3 +273,30 @@ export function requireStaffGroup(
   if (can(group, locals.staffProfile?.staffRole)) return;
   forbidGroup(group);
 }
+
+/**
+ * Gate on an admin session. Throws 403 otherwise.
+ *
+ * `applyRouteGuards` already bounces non-admins off `/staff/admin/*`, but it
+ * deliberately skips `/api/*` (those routes authenticate themselves) and it
+ * cannot cover an action-only route posted to directly. This is the one spelling
+ * for "the caller must be an admin", so the admin endpoints and dialog-backing
+ * actions stop each inlining their own `staffRole !== 'admin'` check.
+ *
+ * Not a `STAFF_GROUPS` entry: a group named after this gate would only
+ * re-encode `staffRole === 'admin'`, and `realSendArmers` (the existing
+ * admin-shaped group) is about arming outbound sends, not about being an admin.
+ */
+export function requireAdminSession(
+  locals: App.Locals,
+): asserts locals is App.Locals & {
+  staffProfile: NonNullable<App.Locals['staffProfile']> & {
+    staffRole: 'admin';
+  };
+} {
+  if (locals.staffProfile?.staffRole === 'admin') return;
+  // No `code`: the admin gate has no "contact your superdev" nuance to pass to
+  // `(staff)/+error.svelte`, so its generic 403 copy is the right one. Adding a
+  // second gating code would only give the error page a branch that says less.
+  throw error(403, 'Action réservée.');
+}

@@ -154,6 +154,7 @@ model bauth_user {
   broadcastsCreated         Broadcast[]          @relation("BroadcastCreator")
   templatesCreated          MessageTemplate[]    @relation("MessageTemplateCreator")
   broadcastsReceivedAsStaff BroadcastRecipient[] @relation("BroadcastRecipientStaff")
+  adminApiTokens            AdminApi_Token[]
 }
 
 model bauth_session {
@@ -1714,4 +1715,112 @@ model AuthIdentityRepair {
 
   @@index([talentId])
   @@index([resolvedAt])
+}
+
+/// Which half of the curated catalogue a token may call.
+///
+///   core        the Academy core team: every operation, and writes when the
+///               token was minted with `writeEnabled`.
+///   leadership  national leadership (tier 2): only the operations that opt in
+///               (`leadership: true` in the catalogue), read-only by
+///               construction. Figures and rankings, never rows with ids,
+///               never an operational internal.
+///
+/// core ⊇ leadership, so widening leadership is always an explicit opt-in on an
+/// operation and never a side effect of adding one.
+enum AdminApi_TokenTier {
+  core
+  leadership
+}
+
+/// A nominative, revocable bearer credential an admin mints for a machine caller
+/// (the MCP server, a script) so it can reach the curated admin API without
+/// borrowing a browser session. The secret is displayed once at creation and
+/// persisted only as a hash, so a database dump carries no usable credential.
+model AdminApi_Token {
+  id          String    @id @default(cuid())
+  /// `bauth_user.id` of the owning admin. Cascade on purpose: a token is that
+  /// human's own credential and must never outlive their account.
+  ///
+  /// A leadership token is minted by an admin FOR someone with no Jump account
+  /// (national leadership has none), so this names the admin who issued it and
+  /// stays accountable for it; `label` names the human actually holding it.
+  staffUserId String
+  /// Human label typed at creation ("Copilot Edouard", "script rapport
+  /// mensuel"), so a token can be told apart before being revoked. On a
+  /// leadership token it must name the holder, since `staffUserId` cannot.
+  label       String
+  /// What this token may call. Fixed at mint: re-scoping a credential already
+  /// handed out is how a narrow token quietly becomes a wide one.
+  tier        AdminApi_TokenTier @default(core)
+  /// Whether this token may call mutating operations. One boolean, not a scope
+  /// vocabulary: there are two classes of caller today and a speculative scope
+  /// array would be surface without a user. A read token stays read-only for
+  /// life; writing needs a token minted for it. Never true on a leadership
+  /// token (tier 2 is read-only by construction).
+  writeEnabled Boolean  @default(false)
+  /// sha256 hex of the secret. Unique, so verifying a bearer is one indexed
+  /// lookup instead of a scan-and-compare over every row.
+  tokenHash   String    @unique
+  createdAt   DateTime  @default(now())
+  /// Stamped on every accepted call, so a token nobody uses is visible before
+  /// someone has to guess whether cutting it breaks something.
+  lastUsedAt  DateTime?
+  /// Revocation is a timestamp, not a delete: the call log keeps pointing at the
+  /// token that produced it.
+  revokedAt   DateTime?
+  /// `bauth_user.id` of the admin who revoked it, null while it is live. Plain
+  /// `String` (no FK), like `AdminApi_Call.actorUserId`, so the fact survives
+  /// that admin's own account being deleted. Recorded because the inventory is
+  /// shared by every admin: a revocation is not necessarily the owner's own.
+  revokedByUserId String?
+
+  staffUser bauth_user      @relation(fields: [staffUserId], references: [id], onDelete: Cascade)
+  calls     AdminApi_Call[]
+
+  @@index([staffUserId])
+}
+
+/// Append-only log of every curated-admin-API call, by token or by admin
+/// session. Facts as rows, no projection and no UI: the seminar's design rule is
+/// that audit replaces up-front restriction, and that reading what people
+/// actually ask for is free product research. Also the source of the per-token
+/// daily quota (counted, not stored).
+model AdminApi_Call {
+  id          String   @id @default(cuid())
+  /// Null when an admin session drove the call (same operations, browser
+  /// caller), and null once the owning account is deleted. `actorUserId` still
+  /// answers "who".
+  tokenId     String?
+  /// `bauth_user.id` of the human behind the call. Plain `String` (no FK), like
+  /// `AuthIdentityRepair.resolvedBy`, so the fact survives that account's own
+  /// later deletion.
+  actorUserId String
+  /// Operation name, the same vocabulary as the MCP tool names
+  /// (`stats_events_overview`, ...). A plain String so a new operation needs no
+  /// migration; the catalogue lives in `$lib/server/adminApi/operations.ts`.
+  operation   String
+  /// The validated params. PII-free by construction: this tier serves
+  /// aggregates and configuration state, so its params are ids and school years.
+  params      Json?
+  /// Status the caller got (200, 403, 429, ...), so refusals are auditable too,
+  /// not just successes.
+  status      Int
+  /// State of what the call changed, before and after. Written by mutating
+  /// operations only (null on every read), which is what turns this log from a
+  /// request trail into a change history. Same table, because a write IS a
+  /// call and one log is the whole point.
+  ///
+  /// Never the raw row: each write decides what to record, and anything
+  /// carrying a talent's own words is reduced to a non-identifying summary
+  /// first (see the interview reset), so the retention window cannot become a
+  /// back door around the tier's PII rule.
+  before      Json?
+  after       Json?
+  createdAt   DateTime @default(now())
+
+  token AdminApi_Token? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+
+  @@index([tokenId, createdAt])
+  @@index([createdAt])
 }
