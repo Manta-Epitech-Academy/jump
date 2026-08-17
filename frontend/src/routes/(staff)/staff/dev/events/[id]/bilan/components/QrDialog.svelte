@@ -24,9 +24,8 @@
 
 <Dialog.Root bind:open>
   <!-- Don't auto-focus into the content on open: this is a projected QR, nothing
-       here needs focus, and the first focusable child is the copy button, whose
-       tooltip would otherwise pop open unprompted. Focus stays on the trigger and
-       the dialog still traps Tab + closes on Escape. -->
+       here needs focus. Focus stays on the trigger and the dialog still traps
+       Tab + closes on Escape. -->
   <Dialog.Content
     onOpenAutoFocus={(e) => e.preventDefault()}
     class="top-0 left-0 flex h-screen max-h-screen w-screen max-w-none translate-x-0 translate-y-0 flex-col items-center justify-center gap-8 rounded-none border-0 bg-background p-8 sm:max-w-none"

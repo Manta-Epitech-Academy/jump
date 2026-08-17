@@ -25,6 +25,7 @@
           {...props}
           role="button"
           tabindex={0}
+          data-hint
           aria-label={label}
           onclick={(e) => {
             e.stopPropagation();
