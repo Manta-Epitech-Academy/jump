@@ -18,6 +18,7 @@ import { adminApiWrite } from '$lib/server/adminApi/route';
 import { planDigest } from '$lib/server/adminApi/plan';
 
 const postConfig = adminApiWrite('write_event_config');
+const postFeedbackForm = adminApiWrite('write_event_feedback_form');
 const postBulkModules = adminApiWrite('bulk_event_modules');
 
 /** Calls a handler the way SvelteKit would, with a bearer and a JSON body. */
@@ -159,6 +160,32 @@ describe('admin API writes (integration)', () => {
 
     expect(status).toBe(400);
     expect(String(payload.error)).toContain('emargements');
+  });
+
+  // The same class of mistake as the section above, except the judgement comes
+  // from a service this tier shares with the admin pages, which says "your
+  // request is at fault" with `error(400, ...)` rather than with one of this
+  // tier's own refusals. That used to reach the caller as "Erreur interne",
+  // leaving a model nothing to correct and booking an ordinary stale id as a Jump
+  // bug in the log, where `ops_api_usage` reports 5xx as something to go and look
+  // at. Nothing is mutated on this path, so the fixture survives it.
+  it('hands back a missing feedback form as a refusal, not an internal error', async () => {
+    const { status, payload } = await call(postFeedbackForm, writeSecret, {
+      eventId,
+      formId: `form-does-not-exist-${stamp}`,
+    });
+
+    expect(status).toBe(400);
+    expect(String(payload.error)).toContain('Formulaire');
+
+    const row = await prisma.adminApi_Call.findFirst({
+      where: {
+        actorUserId: adminUserId,
+        operation: 'write_event_feedback_form',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(row?.status).toBe(400);
   });
 
   it('plans a bulk change before applying it, and applies it on the digest', async () => {

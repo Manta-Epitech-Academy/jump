@@ -19,7 +19,7 @@
 
 import { authorizeOperation, type AdminApiCredential } from './guard';
 import { recordAdminApiCall, type AdminApiCallParams } from './audit';
-import { isCallerError, statusForCallerError } from './errors';
+import { callerFacingError } from './errors';
 import { auditChangeOf } from './plan';
 import type { AdminApiOperation, AdminApiOperationName } from './operations';
 
@@ -76,16 +76,16 @@ export async function executeOperation(input: {
     return { ok: true, data };
   } catch (err) {
     // A caller error answers with its own message, which names what to do
-    // instead (the campus that exists, the fresh plan digest). Anything else is
-    // ours: opaque to the caller, loud in the pod logs.
-    const callerError = isCallerError(err);
-    const status = callerError ? statusForCallerError(err) : 500;
-    if (!callerError) console.error(`[adminApi] ${name} failed:`, err);
+    // instead (the campus that exists, the form that does, the fresh plan
+    // digest). Anything else is ours: opaque to the caller, loud in the pod logs.
+    const refusal = callerFacingError(err);
+    if (!refusal) console.error(`[adminApi] ${name} failed:`, err);
+    const status = refusal?.status ?? 500;
     await recordAdminApiCall({ caller, operation: name, params, status });
     return {
       ok: false,
       status,
-      message: callerError ? err.message : `Erreur interne (${name}).`,
+      message: refusal?.message ?? `Erreur interne (${name}).`,
     };
   }
 }
