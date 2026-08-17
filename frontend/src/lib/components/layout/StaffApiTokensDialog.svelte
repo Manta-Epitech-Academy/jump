@@ -9,11 +9,13 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import * as RadioGroup from '$lib/components/ui/radio-group';
+  import * as Collapsible from '$lib/components/ui/collapsible';
+  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import * as Dialog from '$lib/components/ui/dialog';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import KeyRound from '@lucide/svelte/icons/key-round';
-  import ShieldCheck from '@lucide/svelte/icons/shield-check';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
 
   type TokenRow = {
     id: string;
@@ -60,6 +62,10 @@
 
   let revokeDialogOpen = $state(false);
   let tokenToRevoke = $state<TokenRow | null>(null);
+
+  // Collapsed, not hidden: the terms are what the checkbox below commits to, so
+  // they stay readable on click rather than living behind a hover.
+  let conditionsOpen = $state(false);
 
   const askRevoke = (token: TokenRow) => {
     tokenToRevoke = token;
@@ -115,10 +121,7 @@
       <Dialog.Title>Accès API</Dialog.Title>
       <Dialog.Description>
         Un token permet à un outil (client IA, script) d'interroger Jump sans
-        passer par votre session. Aucun nom, email ni téléphone de talent n'est
-        accessible par ce biais. Certaines réponses reprennent des phrases
-        écrites par des élèves sur un événement, sans jamais indiquer qui les a
-        écrites.
+        passer par votre session.
       </Dialog.Description>
     </Dialog.Header>
 
@@ -140,8 +143,7 @@
             <CopyButton value={minted.secret} label="Copier le token" />
           </div>
           <p class="text-xs text-emerald-900/80 dark:text-emerald-200/80">
-            Copiez-le maintenant : il ne sera plus affiché. Si vous le perdez,
-            révoquez ce token et créez-en un autre.
+            Copiez-le maintenant : il ne sera plus affiché.
           </p>
         </div>
       {/if}
@@ -153,7 +155,12 @@
         class="space-y-4"
       >
         <div class="space-y-2">
-          <Label for="tokenLabel">Nom du token</Label>
+          <div class="flex items-center gap-1.5">
+            <Label for="tokenLabel">Nom du token</Label>
+            <InfoTooltip
+              text="Sert à le reconnaître plus tard, avant de le révoquer. Pour un accès direction, nommez la personne qui l'utilisera : elle n'a pas de compte Jump, ce nom est la seule trace de son identité dans le journal."
+            />
+          </div>
           <Input
             id="tokenLabel"
             name="label"
@@ -163,21 +170,18 @@
               : 'Claude Desktop'}
             aria-invalid={$errors.label ? 'true' : undefined}
           />
-          <p class="text-xs text-muted-foreground">
-            {#if isDirection}
-              Nommez la personne qui l'utilisera : elle n'a pas de compte Jump,
-              ce nom est la seule trace de son identité dans le journal.
-            {:else}
-              Pour le reconnaître plus tard, avant de le révoquer.
-            {/if}
-          </p>
           {#if $errors.label}
             <p class="text-sm text-destructive">{$errors.label}</p>
           {/if}
         </div>
 
         <fieldset class="space-y-2">
-          <legend class="pb-2 text-sm font-medium">Ce que le token voit</legend>
+          <legend class="flex items-center gap-1.5 pb-2 text-sm font-medium">
+            Ce que le token voit
+            <InfoTooltip
+              text="Aucun nom, email ni téléphone de talent n'est accessible par ce biais. Certaines réponses reprennent des phrases écrites par des élèves sur un événement, sans jamais indiquer qui les a écrites."
+            />
+          </legend>
           <RadioGroup.Root
             name="tier"
             value={$form.tier}
@@ -191,8 +195,8 @@
               <span class="space-y-1">
                 <span class="block font-medium">Équipe Academy</span>
                 <span class="block text-xs text-muted-foreground">
-                  Tout : chiffres, état de configuration des événements, files
-                  d'attente et erreurs à traiter.
+                  Tout : chiffres, configuration des événements, files à
+                  traiter.
                 </span>
               </span>
             </Label>
@@ -206,9 +210,7 @@
               <span class="space-y-1">
                 <span class="block font-medium">Direction</span>
                 <span class="block text-xs text-muted-foreground">
-                  Chiffres de pilotage seulement, en lecture : cohortes, lycées
-                  d'origine, présence réelle, retours des élèves. Rien
-                  d'opérationnel.
+                  Chiffres de pilotage seulement, en lecture.
                 </span>
               </span>
             </Label>
@@ -216,22 +218,24 @@
         </fieldset>
 
         {#if !isDirection}
-          <div class="space-y-2 rounded-md border border-border p-3">
-            <label class="flex cursor-pointer items-start gap-2">
-              <Checkbox
-                name="writeEnabled"
-                bind:checked={$form.writeEnabled}
-                class="mt-0.5 cursor-pointer"
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-1.5">
+              <label class="flex cursor-pointer items-center gap-2">
+                <Checkbox
+                  name="writeEnabled"
+                  bind:checked={$form.writeEnabled}
+                  class="cursor-pointer"
+                />
+                <span class="text-sm font-medium">
+                  Autoriser les modifications
+                </span>
+              </label>
+              <InfoTooltip
+                text="Configuration d'un événement, relance d'un document, résolution d'erreurs de synchronisation. Chaque modification est journalisée avec son avant/après, et limitée à {writeQuota} sur 24 h."
               />
-              <span class="text-sm font-medium">
-                Autoriser les modifications
-              </span>
-            </label>
-            <p class="text-xs text-muted-foreground">
-              Configuration d'un événement, relance d'un document, résolution
-              d'erreurs de synchronisation. Chaque modification est journalisée
-              avec son avant/après, et limitée à {writeQuota} sur 24 h. Ce choix est
-              définitif : un token créé en lecture seule le reste.
+            </div>
+            <p class="pl-6 text-xs text-muted-foreground">
+              Choix définitif : un token créé en lecture seule le reste.
             </p>
             {#if $errors.writeEnabled}
               <p class="text-sm text-destructive">{$errors.writeEnabled}</p>
@@ -239,26 +243,40 @@
           </div>
         {/if}
 
-        <div
-          class="space-y-2 rounded-md border border-border p-3 text-xs text-muted-foreground"
-        >
-          <p class="flex items-center gap-2 font-semibold text-foreground">
-            <ShieldCheck class="h-4 w-4" /> Conditions d'utilisation
-          </p>
-          <p>
-            Ce token ne doit être utilisé qu'avec un outil validé par
-            l'établissement. Chaque appel est journalisé (token, requête, date)
-            et limité à {dailyQuota} appels sur 24 h. Vous restez responsable de son
-            usage, y compris lorsque vous le confiez à quelqu'un d'autre.
-          </p>
-          <label class="flex cursor-pointer items-start gap-2 pt-1">
+        <div class="space-y-1.5">
+          <label class="flex cursor-pointer items-center gap-2">
             <Checkbox
               name="conditionsAccepted"
               bind:checked={$form.conditionsAccepted}
               class="cursor-pointer"
             />
-            <span class="text-foreground">J'accepte ces conditions.</span>
+            <span class="text-sm font-medium">
+              J'accepte les conditions d'utilisation.
+            </span>
           </label>
+          <Collapsible.Root
+            open={conditionsOpen}
+            onOpenChange={(o) => (conditionsOpen = o)}
+          >
+            <Collapsible.Trigger
+              class="flex cursor-pointer items-center gap-1 pl-6 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ChevronRight
+                class="h-3 w-3 transition-transform {conditionsOpen
+                  ? 'rotate-90'
+                  : ''}"
+              />
+              {conditionsOpen ? 'Masquer' : 'Lire'} les conditions
+            </Collapsible.Trigger>
+            <Collapsible.Content
+              class="pt-1.5 pl-6 text-xs text-muted-foreground"
+            >
+              Ce token ne doit être utilisé qu'avec un outil validé par
+              l'établissement. Chaque appel est journalisé (token, requête,
+              date) et limité à {dailyQuota} appels sur 24 h. Vous restez responsable
+              de son usage, y compris lorsque vous le confiez à quelqu'un d'autre.
+            </Collapsible.Content>
+          </Collapsible.Root>
           {#if $errors.conditionsAccepted}
             <p class="text-sm text-destructive">
               {$errors.conditionsAccepted}
@@ -272,12 +290,10 @@
       <div class="space-y-2">
         <h3 class="flex items-center gap-2 text-sm font-semibold">
           <KeyRound class="h-4 w-4" /> Tokens
+          <InfoTooltip
+            text="La liste couvre les tokens créés par toute l'équipe admin, et vous pouvez révoquer n'importe lequel. Un token confié à une direction ne peut être coupé que d'ici : la personne qui l'utilise n'a pas de compte Jump."
+          />
         </h3>
-        <p class="text-xs text-muted-foreground">
-          Tous les tokens créés par l'équipe admin, et vous pouvez révoquer
-          n'importe lequel. Un token confié à une direction ne peut être coupé
-          que d'ici : la personne qui l'utilise n'a pas de compte Jump.
-        </p>
 
         {#await tokens}
           <p class="text-xs text-muted-foreground">Chargement…</p>
