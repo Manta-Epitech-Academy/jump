@@ -72,6 +72,7 @@ git checkout -b feat/short-descriptive-name
 ```
 
 During implementation:
+- Move the issue to **In Progress** on the [Jump Roadmap & Releases](https://github.com/orgs/Manta-Epitech-Academy/projects/1) board, as the first thing you do. Nothing moves it for you.
 - Refactor and share existing utilities — never duplicate logic locally.
 - Keep the PO in the loop during development (screenshots, questions): an early feedback loop prevents costly rework.
 - If a technical decision diverges from the initial plan, update the GitHub item accordingly.
@@ -110,11 +111,12 @@ Before submitting a PR, verify the full Definition of Done:
 ### Step 7 — PR, Self-Review & Merge
 
 1. Write Conventional Commits (`type(scope): subject` ≤ 72 chars).
-2. Use the `/ship` skill to generate commit and PR copy in `.ship/`. Always include `Closes #<issue_number>` in `.ship/pr-body.md` under `## Context` so GitHub links and auto-closes the corresponding issue on merge.
+2. Use the `/ship` skill to generate commit and PR copy in `.ship/`. Always include `Closes #<issue_number>` in `.ship/pr-body.md` under `## Context` so GitHub links the PR to its issue.
 3. Open the PR as a **Draft** first.
 4. Perform a self-review: inspect your diff as if reviewing someone else's work.
 5. Mark as Ready for Review, assign a reviewer if available.
 6. Merge into `dev` once approved (or auto-merge if working solo).
+7. **Move the issue to `Done` on the board, by hand.** The board's own workflow closes the issue from there, so `Done` is the single action, not two. `Closes #N` never fires here: GitHub only applies closing keywords when a PR merges into the **default branch**, and every feature PR targets `dev`. The keyword still earns its place, it is what links the two and what a reviewer follows, but it will not move or close anything, and the later `dev` → `main` promotion carries no keyword either, so nothing closes the issue afterwards. An issue left open in a stale column is the normal outcome of forgetting this, not an edge case.
 
 ---
 
