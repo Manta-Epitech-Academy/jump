@@ -114,11 +114,13 @@ export async function getOnboardingFunnel(
 
   return {
     filters: scopeLabels(scope),
+    // One sentence, not one per scope: `cohortWhere` counts the same population
+    // whether or not a filter was passed, so the definition no longer has to
+    // branch to stay true (it used to say "tous les talents enregistrés dans
+    // Jump" on an empty scope, which is what the short-circuit made it count).
     cohort: metric(
       cohort,
-      scope.event || scope.campus || scope.schoolYear
-        ? `Talents du périmètre demandé, ${VISIBLE_PARTICIPATION_DEFINITION}.`
-        : 'Tous les talents enregistrés dans Jump, tous événements confondus.',
+      `Talents inscrits à au moins un événement du périmètre, ${VISIBLE_PARTICIPATION_DEFINITION}.`,
     ),
     completed: metric(
       completed,

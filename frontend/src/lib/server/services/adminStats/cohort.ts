@@ -53,17 +53,28 @@ export async function scopedEvents(scope: Scope): Promise<ScopedEvents> {
 
 /**
  * Prisma filter for the talents in scope: those with at least one participation
- * Jump shows, in an event the scope selects. An empty scope is every talent.
+ * Jump shows, in an event the scope selects.
  *
  * Note what this deliberately is not: a talent is in scope because they enrolled
  * in a matching event, never because of a profile attribute. "Les talents de
  * Lille" therefore means "les talents inscrits à un événement de Lille", which
  * is the only definition the data supports (a talent belongs to no campus).
+ *
+ * An empty scope is every talent Jump shows, which is NOT every `Talent` row.
+ * This used to short-circuit to `{}` for that case, and the difference is a
+ * population no scoped answer ever counts: someone whose only enrolment came back
+ * `désisté`, and someone the sync pruned out of every campaign (it deletes the
+ * participation and keeps the talent). So an unfiltered figure counted them while
+ * its own definition said, verbatim, that it had not - to the tier that quotes
+ * definitions rather than re-deriving them. The cohort is one population at every
+ * scope, or the sentence travelling with it is only true at some of them.
+ *
+ * Costs nothing on the empty scope: `participationWhere({})` is the status filter
+ * alone, so there is no event list to load and no year to resolve.
  */
 export async function cohortWhere(
   scope: Scope,
 ): Promise<Prisma.TalentWhereInput> {
-  if (!scope.event && !scope.campus && !scope.schoolYear) return {};
   return { participations: { some: await participationWhere(scope) } };
 }
 
