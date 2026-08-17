@@ -16,6 +16,7 @@ import { prisma } from '$lib/server/db';
 import {
   rankInterestsByCohort,
   toBreakdown,
+  type BreakdownTail,
   type InterestStat,
 } from '$lib/server/services/cohortOverview';
 import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
@@ -34,12 +35,16 @@ export type InterestRow = {
   cohortShare: number | null;
 };
 
+/** What the interests past the cap represent together, or null if there are none. */
+export type InterestTail = { declarations: number; interests: number } | null;
+
 export type InterestsBreakdown = {
   filters: { schoolYear: string; campus: string; event: string };
   cohort: Metric;
   tech: Metric<InterestRow[]>;
+  otherTech: Metric<InterestTail>;
   general: Metric<InterestRow[]>;
-  otherTech: Metric<{ declarations: number; interests: number } | null>;
+  otherGeneral: Metric<InterestTail>;
 };
 
 export async function getInterestsBreakdown(
@@ -55,13 +60,27 @@ export async function getInterestsBreakdown(
 
   const techIds = new Set(tech.map((i) => i.interestId));
   const general = all.filter((i) => !techIds.has(i.interestId));
+  // Both rankings capped the same way, and both reporting what the cap left out.
+  // Only tech used to: the general list was sliced bare, and it is the one that
+  // actually overflows (the catalogue ships 9 tech interests against 25 general
+  // ones, and staff add to it from /staff/admin/interests), so the side that
+  // silently dropped rows was the side with no tail figure.
   const techBreakdown = toBreakdown(tech, INTERESTS_TOP_N);
+  const generalBreakdown = toBreakdown(general, INTERESTS_TOP_N);
 
   const row = (stat: InterestStat): InterestRow => ({
     interest: stat.nom,
     declarations: stat.count,
     cohortShare: share(stat.count, cohort),
   });
+
+  const tail = (others: BreakdownTail | null): InterestTail =>
+    others
+      ? { declarations: others.count, interests: others.categories }
+      : null;
+
+  const tailDefinition = (kind: string) =>
+    `Ce que représentent, ensemble, les centres d'intérêt ${kind} au-delà des ${INTERESTS_TOP_N} premiers. Vaut null quand il n'y en a pas.`;
 
   return {
     filters: scopeLabels(scope),
@@ -71,20 +90,16 @@ export async function getInterestsBreakdown(
     ),
     tech: metric(
       techBreakdown.rows.map(row),
-      `Centres d'intérêt tech déclarés par les talents du périmètre, du plus au moins cité, limité aux ${INTERESTS_TOP_N} premiers. « declarations » compte les talents qui l'ont coché : un talent qui en coche trois apparaît dans trois lignes, donc la somme des lignes dépasse la taille de la cohorte.`,
+      `Centres d'intérêt tech déclarés par les talents du périmètre, du plus au moins cité, limité aux ${INTERESTS_TOP_N} premiers ; « otherTech » dit ce que pèse le reste. « declarations » compte les talents qui l'ont coché : un talent qui en coche trois apparaît dans trois lignes, donc la somme des lignes dépasse la taille de la cohorte.`,
     ),
+    otherTech: metric(tail(techBreakdown.others), tailDefinition('tech')),
     general: metric(
-      general.slice(0, INTERESTS_TOP_N).map(row),
-      `Centres d'intérêt non tech déclarés par les talents du périmètre, du plus au moins cité, limité aux ${INTERESTS_TOP_N} premiers. Même mode de comptage que ci-dessus : ce sont des déclarations, pas des personnes.`,
+      generalBreakdown.rows.map(row),
+      `Centres d'intérêt non tech déclarés par les talents du périmètre, du plus au moins cité, limité aux ${INTERESTS_TOP_N} premiers ; « otherGeneral » dit ce que pèse le reste. Même mode de comptage que ci-dessus : ce sont des déclarations, pas des personnes.`,
     ),
-    otherTech: metric(
-      techBreakdown.others
-        ? {
-            declarations: techBreakdown.others.count,
-            interests: techBreakdown.others.categories,
-          }
-        : null,
-      `Ce que représentent, ensemble, les centres d'intérêt tech au-delà des ${INTERESTS_TOP_N} premiers. Vaut null quand il n'y en a pas.`,
+    otherGeneral: metric(
+      tail(generalBreakdown.others),
+      tailDefinition('non tech'),
     ),
   };
 }
