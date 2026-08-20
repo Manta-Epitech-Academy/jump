@@ -138,7 +138,7 @@
     if (rules === 'awaiting_parent') {
       return {
         label,
-        colorClass: 'text-amber-600 dark:text-amber-500',
+        colorClass: 'text-warning',
         icon: Clock,
         tooltip:
           'Le stagiaire a signé le règlement intérieur, la co-signature du parent est en cours.',
@@ -187,7 +187,7 @@
     if (imageDisplay === 'awaiting_parent') {
       return {
         label: IMAGE_RIGHTS_DISPLAY_LABELS.awaiting_parent,
-        colorClass: 'text-amber-600 dark:text-amber-500',
+        colorClass: 'text-warning',
         icon: Clock,
         tooltip:
           "En attente de la décision des parents sur le droit à l'image.",

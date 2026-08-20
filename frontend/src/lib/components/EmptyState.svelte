@@ -34,7 +34,7 @@
       class="absolute inset-0 animate-ping rounded-full bg-epi-blue/10"
     ></div>
     <div
-      class="relative flex h-20 w-20 items-center justify-center rounded-full bg-background shadow-sm"
+      class="relative flex h-20 w-20 items-center justify-center rounded-full bg-background shadow-raised"
     >
       <Icon class="h-10 w-10 text-muted-foreground/70" />
     </div>
@@ -53,14 +53,14 @@
       {#if actionLink}
         <Button
           href={actionLink}
-          class="bg-epi-blue text-white shadow-lg transition-transform hover:scale-105 hover:bg-epi-blue/90"
+          class="bg-epi-blue text-white shadow-raised transition-transform hover:scale-105 hover:bg-epi-blue/90"
         >
           {actionLabel}
         </Button>
       {:else if actionCallback}
         <Button
           onclick={actionCallback}
-          class="bg-epi-blue text-white shadow-lg transition-transform hover:scale-105 hover:bg-epi-blue/90"
+          class="bg-epi-blue text-white shadow-raised transition-transform hover:scale-105 hover:bg-epi-blue/90"
         >
           {actionLabel}
         </Button>

@@ -42,16 +42,16 @@
 
 <div
   class={cn(
-    'overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 transition-shadow dark:bg-slate-900 dark:shadow-none',
+    'overflow-hidden rounded-xl border border-border bg-card shadow-raised transition-shadow',
     highlight &&
       'ring-2 ring-epi-tech/70 ring-offset-2 ring-offset-slate-50 dark:ring-offset-slate-950',
   )}
 >
   <div
-    class="flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
+    class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
   >
     <Newspaper class="h-4 w-4 shrink-0 text-epi-blue" />
-    <h2 class="font-heading text-display-s text-slate-800 dark:text-slate-200">
+    <h2 class="font-heading text-display-s text-foreground">
       Actualités<TitleCursor />
     </h2>
     {#if highlight}
@@ -63,12 +63,12 @@
     {/if}
   </div>
 
-  <div
-    class="max-h-[40rem] divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800"
-  >
+  <div class="max-h-[40rem] divide-y divide-border overflow-y-auto">
     {#if welcomeContent}
       <article class="p-6">
-        <div class="mb-2 flex items-center gap-1.5 epi-overline text-slate-400">
+        <div
+          class="mb-2 flex items-center gap-1.5 epi-overline text-muted-foreground"
+        >
           <Mail class="h-3.5 w-3.5" />
           Message de bienvenue
         </div>
@@ -77,14 +77,14 @@
         <div class="relative max-h-[20rem] overflow-hidden">
           <WelcomeMessageBody content={welcomeContent} class="prose-sm" />
           <div
-            class="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white to-transparent dark:from-slate-900"
+            class="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-card to-transparent"
           ></div>
         </div>
 
         <Button
           variant="outline"
           onclick={() => (open = true)}
-          class="mt-4 w-full gap-2 rounded-xl border-slate-200 transition-colors hover:border-epi-blue hover:bg-epi-blue hover:text-white dark:border-slate-800 dark:hover:border-epi-blue dark:hover:bg-epi-blue dark:hover:text-white"
+          class="mt-4 w-full gap-2 rounded-xl border-border transition-colors hover:border-epi-blue hover:bg-epi-blue hover:text-white dark:hover:border-epi-blue dark:hover:bg-epi-blue dark:hover:text-white"
         >
           Lire le message <ArrowRight class="h-4 w-4" />
         </Button>

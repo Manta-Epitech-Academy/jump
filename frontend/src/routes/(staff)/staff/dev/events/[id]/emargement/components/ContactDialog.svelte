@@ -87,7 +87,7 @@
       class="group flex flex-1 items-center gap-2 text-sm transition-colors hover:text-epi-blue"
     >
       <Phone class="h-4 w-4 shrink-0 text-muted-foreground" />
-      <span class="">{display}</span>
+      <span>{display}</span>
     </a>
     <CopyButton value={display} label={copyLabel} />
   </div>

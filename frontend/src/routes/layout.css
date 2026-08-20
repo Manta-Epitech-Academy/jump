@@ -87,6 +87,13 @@
   --accent-space: var(--epi-blue);
   --accent-space-ink: var(--epi-blue);
 
+  /* The blueprint grid's line colour: --epi-blue at 6%.
+     Spelled out rather than composed with `color-mix()`, because Lightning CSS
+     emits a legacy fallback for a mix whose `var()` it cannot resolve, and that
+     fallback drops the percentage: the grid came out as solid brand-blue lines.
+     `contract.test.ts` asserts these channels still match --epi-blue. */
+  --blueprint-line: rgb(1 58 251 / 0.06);
+
   --border: var(--epi-grey-200);
   --input: var(--epi-grey-200);
   --ring: var(--epi-blue);
@@ -161,6 +168,8 @@
   --primary: #809dfd; /* 7.09:1 on --card */
   --primary-foreground: #0c0e13;
   --ring: var(--primary);
+
+  --blueprint-line: rgb(255 255 255 / 0.045);
 
   /* A drop shadow is invisible on a dark surface; the border does the work. */
   --elevation-raised: 0 0 rgb(0 0 0 / 0);
@@ -280,6 +289,12 @@
 
   --ease-standard: var(--motion-ease-standard);
   --ease-emphatic: var(--motion-ease-emphatic);
+
+  /* Every bare `transition-*` in the product picks these up, so the charte's
+     timing is the default rather than something each call site restates.
+     Tailwind ships 150ms and its own curve. */
+  --default-transition-duration: var(--dur-base);
+  --default-transition-timing-function: var(--motion-ease-standard);
 }
 
 @theme {
@@ -365,21 +380,28 @@
   }
 }
 
+/* The interactive-state transition. Names the properties it animates, unlike
+   `transition-all`, which also animates layout ones: a width or a top that
+   animates is a jank source and never what the author meant. */
+@utility transition-ui {
+  transition-property:
+    color, background-color, border-color, outline-color, text-decoration-color,
+    box-shadow, transform, opacity, filter;
+  transition-timing-function: var(--motion-ease-standard);
+  transition-duration: var(--dur-base);
+}
+
 /* Engineering-grid texture. 48px cells per the charte, brand blue on light and
    white on dark, both low enough to stay a texture rather than a pattern. */
 @utility blueprint-grid {
   background-image:
-    linear-gradient(
-      color-mix(in oklab, var(--epi-blue) 6%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      90deg,
-      color-mix(in oklab, var(--epi-blue) 6%, transparent) 1px,
-      transparent 1px
-    );
+    linear-gradient(var(--blueprint-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--blueprint-line) 1px, transparent 1px);
   background-size: 48px 48px;
 }
+
+/* Same texture on a surface that is dark in both themes, where the theme class
+   never reaches. */
 @utility blueprint-grid-inverse {
   background-image:
     linear-gradient(rgb(255 255 255 / 0.045) 1px, transparent 1px),
@@ -398,13 +420,12 @@
   /* Anton, uppercase only, single weight. Tracking is NOT set here: it travels
      with the display size token, so a title cannot pick a size and a tracking
      that disagree. Never `font-bold` on this: Anton has one weight, so a
-     browser fakes it by smearing the glyphs.
+     browser fakes it by smearing the glyphs, which is what an `h1` in the dev
+     space did on every page until a heading had to say `font-heading` out loud.
 
-     The bare `h1` selector is a holdover, and a footgun: it silently Anton-ises
-     any heading, which is how a `font-bold` on one went unnoticed for months.
-     It comes out once the talent and parent headings name their display token
-     explicitly; until then those two spaces rely on it. */
-  h1:not(.prose *),
+     There is deliberately no bare `h1` selector here. One used to Anton-ise any
+     heading silently, which is exactly how that faux weight went unnoticed. A
+     display face is a choice a heading states. */
   .font-heading {
     @apply font-heading leading-[1.1] font-normal uppercase;
   }

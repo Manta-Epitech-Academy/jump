@@ -10,6 +10,7 @@
   import Home from '@lucide/svelte/icons/home';
   import Info from '@lucide/svelte/icons/info';
   import { minigameRankBonus, minigameRankBonusLimit } from '$lib/domain/xp';
+  import { cn } from '$lib/utils';
 
   let { data }: { data: PageData } = $props();
 
@@ -58,10 +59,10 @@
   // Gold / silver / bronze tint for the three podium positions; everyone else
   // stays neutral. A cue to the current standing only, never a bonus claim.
   function rankColor(rank: number): string {
-    if (rank === 1) return 'text-amber-500';
-    if (rank === 2) return 'text-slate-400 dark:text-slate-300';
-    if (rank === 3) return 'text-amber-700 dark:text-amber-600';
-    return 'text-slate-700 dark:text-slate-300';
+    if (rank === 1) return 'text-warning';
+    if (rank === 2) return 'text-muted-foreground';
+    if (rank === 3) return 'text-warning';
+    return 'text-foreground-secondary';
   }
 </script>
 
@@ -72,16 +73,14 @@
 <div class="flex min-h-screen flex-col">
   <TalentPageHeader title="Classement" />
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
-    <div
-      class="rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-    >
+    <div class="rounded-xl border border-border bg-card p-6 shadow-raised">
       <div class="mb-4 flex items-center gap-3">
         <Trophy class="h-6 w-6 text-epi-together" />
         <div>
-          <h1 class="text-xl font-bold">
+          <h1 class="font-heading text-display-s">
             {data.publication.gameName} · niveau {data.publication.level}
           </h1>
-          <p class="text-xs text-slate-500 dark:text-slate-400">
+          <p class="text-xs text-muted-foreground">
             {data.campusName
               ? `Classement de ${data.campusName}`
               : 'Classement général'}
@@ -90,7 +89,7 @@
       </div>
 
       <p
-        class="mb-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-800/50 dark:text-slate-400"
+        class="mb-2 rounded-lg bg-background px-3 py-2 text-xs text-muted-foreground"
       >
         {rankingRule}
       </p>
@@ -109,7 +108,7 @@
              validate their run is absent from it. Say so plainly, otherwise an
              empty/short board reads as "nobody played" when they just did. -->
         <p
-          class="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400"
+          class="mb-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning"
         >
           <Info class="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>
@@ -120,25 +119,30 @@
       {/if}
 
       {#if data.rows.length === 0}
-        <p class="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+        <p class="py-8 text-center text-sm text-muted-foreground">
           Personne n'a encore réussi le défi.
         </p>
       {:else}
         <table class="w-full text-sm">
           <thead>
-            <tr class="border-b border-slate-100 dark:border-slate-800">
-              <th class="py-2 text-left font-bold text-slate-400 uppercase"
+            <tr class="border-b border-border">
+              <th
+                class="py-2 text-left font-bold text-muted-foreground uppercase"
                 >#</th
               >
-              <th class="py-2 text-left font-bold text-slate-400 uppercase"
+              <th
+                class="py-2 text-left font-bold text-muted-foreground uppercase"
                 >Joueur</th
               >
               {#if isScore}
-                <th class="py-2 text-right font-bold text-slate-400 uppercase"
+                <th
+                  class="py-2 text-right font-bold text-muted-foreground uppercase"
                   >Score</th
                 >
               {/if}
-              <th class="py-2 text-right font-bold text-slate-400 uppercase">
+              <th
+                class="py-2 text-right font-bold text-muted-foreground uppercase"
+              >
                 Chrono{#if isScore}<span class="font-normal normal-case"
                     >&nbsp;· départage</span
                   >{/if}
@@ -148,9 +152,12 @@
           <tbody>
             {#each data.rows as row}
               <tr
-                class="border-b border-slate-50 dark:border-slate-800/50"
-                class:bg-orange-50={row.talentId === data.currentTalentId}
-                class:dark:bg-orange-950={row.talentId === data.currentTalentId}
+                class={cn(
+                  'border-b border-border',
+                  // "This is you" is not a warning, so it takes the space's own
+                  // accent rather than the amber it used to borrow.
+                  row.talentId === data.currentTalentId && 'bg-accent-space/10',
+                )}
               >
                 <td class="py-2 font-bold {rankColor(row.rank)}">
                   <span class="inline-flex items-center gap-1.5">
@@ -169,22 +176,20 @@
                     {/if}
                   </span>
                 </td>
-                <td class="py-2 text-slate-700 dark:text-slate-300">
+                <td class="py-2 text-foreground-secondary">
                   {displayName(row.prenom, row.nom)}
                   {#if row.talentId === data.currentTalentId}
                     <span class="ml-1 text-xs text-epi-together">(toi)</span>
                   {/if}
                 </td>
                 {#if isScore}
-                  <td
-                    class="py-2 text-right font-semibold text-slate-900 dark:text-white"
-                  >
+                  <td class="py-2 text-right font-semibold text-foreground">
                     {row.score ?? '—'}
                   </td>
                 {/if}
                 <td
                   class="py-2 text-right {isScore
-                    ? 'text-slate-400 dark:text-slate-500'
+                    ? 'text-muted-foreground'
                     : ''}"
                 >
                   {formatChrono(row.chrono)}

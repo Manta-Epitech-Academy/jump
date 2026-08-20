@@ -254,7 +254,8 @@
     }).format(new Date(d));
 
   function verdictBadgeClass(c: AuthConflict): string {
-    if (c.exposureRisk) return 'border-red-500/50 bg-red-500/10 text-red-600';
+    if (c.exposureRisk)
+      return 'border-destructive/50 bg-destructive/10 text-destructive';
     switch (c.verdict) {
       case 'DEGRADED_INVERSION':
       case 'PARENT_HOLDER':
@@ -317,7 +318,7 @@
       </div>
       <div>Nature : <span class="font-medium">{natureText}</span></div>
       {#if exposureNote}
-        <div class="font-medium text-red-600">{exposureNote}</div>
+        <div class="font-medium text-destructive">{exposureNote}</div>
       {/if}
     {:else}
       <div class="text-muted-foreground italic">
@@ -339,7 +340,7 @@
       Connexion / identité
       {#if authExposureCount > 0}
         <span
-          class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white"
+          class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-bold text-white"
           title="{authExposureCount} risque(s) d'exposition entre comptes"
         >
           {authCount}
@@ -552,7 +553,7 @@
       Le compte de connexion d'un talent ne porte plus l'email avec lequel il se
       connecte (changement / inversion Salesforce). Chaque ligne propose la
       <strong>seule résolution sûre pour son verdict</strong>. Une ligne en
-      <span class="font-medium text-red-600">rouge</span> est un risque d'exposition
+      <span class="font-medium text-destructive">rouge</span> est un risque d'exposition
       entre comptes (RGPD) : à traiter en priorité.
     </p>
 
@@ -582,7 +583,7 @@
             <Table.Body>
               {#each pagedAuth as c (c.talentId)}
                 {@const primary = actionForVerdict(c.verdict)}
-                <Table.Row class={c.exposureRisk ? 'bg-red-500/5' : ''}>
+                <Table.Row class={c.exposureRisk ? 'bg-destructive/5' : ''}>
                   <Table.Cell>
                     <div class="flex items-start gap-2">
                       <button
@@ -621,7 +622,7 @@
                       {VERDICT_LABELS[c.verdict]}
                     </Badge>
                     {#if c.exposureRisk}
-                      <div class="mt-1 text-xs text-red-600">
+                      <div class="mt-1 text-xs text-destructive">
                         email obsolète = {c.exposureKind === 'parent'
                           ? 'un parent'
                           : c.exposureKind === 'staff'
@@ -666,7 +667,7 @@
                         <Button
                           variant="ghost"
                           size="sm"
-                          class="gap-1.5 text-red-600 hover:text-red-700"
+                          class="gap-1.5 text-destructive hover:text-destructive"
                           onclick={() => askAuth(c, 'sever')}
                         >
                           <Link2Off class="h-3.5 w-3.5" />

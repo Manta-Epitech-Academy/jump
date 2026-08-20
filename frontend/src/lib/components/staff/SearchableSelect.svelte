@@ -131,7 +131,7 @@
         {disabled}
         aria-expanded={open}
         class={cn(
-          'flex h-9 cursor-pointer items-center justify-between gap-2 rounded-sm border border-input bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-colors select-none hover:bg-accent/40 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 dark:hover:bg-input/50',
+          'flex h-9 cursor-pointer items-center justify-between gap-2 rounded-sm border border-input bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-raised transition-colors select-none hover:bg-accent/40 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 dark:hover:bg-input/50',
           triggerClass,
         )}
       >

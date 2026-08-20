@@ -59,11 +59,12 @@
       class="h-8 w-8"
       disabled={!canGoPrev}
       onclick={prevWeek}
+      aria-label="Semaine précédente"
     >
       <ChevronLeft class="h-4 w-4" />
     </Button>
     <span
-      class="min-w-40 text-center text-xs font-bold text-slate-600 uppercase dark:text-slate-300"
+      class="min-w-40 text-center text-xs font-bold text-foreground-secondary uppercase"
     >
       {weekLabel(labelDays)}
     </span>
@@ -73,6 +74,7 @@
       class="h-8 w-8"
       disabled={!canGoNext}
       onclick={nextWeek}
+      aria-label="Semaine suivante"
     >
       <ChevronRight class="h-4 w-4" />
     </Button>

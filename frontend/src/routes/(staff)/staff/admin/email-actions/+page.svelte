@@ -68,9 +68,9 @@
     </div>
   {:else}
     <div
-      class="flex items-start gap-3 rounded-sm border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-900 dark:text-emerald-200"
+      class="flex items-start gap-3 rounded-sm border border-success/40 bg-success/10 p-4 text-sm text-success"
     >
-      <CheckCircle2 class="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+      <CheckCircle2 class="mt-0.5 h-5 w-5 shrink-0 text-success" />
       <p>
         Toutes les actions sont configurées. Les emails transactionnels partent
         normalement.

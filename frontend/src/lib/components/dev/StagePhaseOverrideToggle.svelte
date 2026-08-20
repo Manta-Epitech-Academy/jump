@@ -73,11 +73,11 @@
 </script>
 
 <div
-  class="flex w-full items-center gap-1 rounded-sm border border-amber-400/50 bg-amber-50/95 px-1 py-0.5 text-xs shadow-sm dark:border-amber-500/40 dark:bg-amber-950/60"
+  class="flex w-full items-center gap-1 rounded-sm border border-warning/50 bg-warning/95 px-1 py-0.5 text-xs shadow-raised"
   title="Aperçu phase stage (impersonation uniquement). Clique sur l'option active pour revenir au réel."
 >
   <span
-    class="flex shrink-0 items-center gap-1 px-1.5 epi-overline text-amber-900 dark:text-amber-100"
+    class="flex shrink-0 items-center gap-1 px-1.5 epi-overline text-warning"
   >
     <FlaskConical class="h-3 w-3" />
     Phase
@@ -96,16 +96,16 @@
           ? 'Phase réelle actuelle'
           : `Prévisualiser la phase « ${opt.label} »`}
       class="relative flex-1 cursor-pointer rounded-sm px-1 py-1 text-center font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 {isOverride
-        ? 'bg-amber-500 text-white shadow-sm'
-        : 'text-amber-900 hover:bg-amber-200/70 dark:text-amber-100 dark:hover:bg-amber-900/50'}"
+        ? 'bg-warning text-white shadow-raised'
+        : 'text-warning hover:bg-warning/70'}"
     >
       {opt.label}
       {#if isReal}
         <span
           aria-hidden="true"
           class="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full ring-2 {isOverride
-            ? 'bg-white ring-amber-500'
-            : 'bg-amber-600 ring-amber-50 dark:bg-amber-300 dark:ring-amber-950'}"
+            ? 'bg-card ring-warning'
+            : 'bg-warning ring-warning'}"
         ></span>
         <span class="sr-only">(phase réelle)</span>
       {/if}

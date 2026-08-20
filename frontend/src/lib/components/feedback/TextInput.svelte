@@ -40,15 +40,13 @@
   };
 </script>
 
-<div
-  class="flex items-end gap-2 border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800"
->
+<div class="flex items-end gap-2 border-t border-border bg-card px-4 py-3">
   {#if isTextarea}
     <textarea
       bind:value
       placeholder={question.placeholder ?? 'Ta réponse...'}
       rows={3}
-      class="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm transition-colors outline-none focus:border-epi-blue focus:ring-1 focus:ring-epi-blue dark:border-slate-700 dark:bg-slate-900"
+      class="flex-1 resize-none rounded-xl border border-border bg-background px-4 py-2.5 text-sm transition-colors outline-none focus:border-epi-blue focus:ring-1 focus:ring-epi-blue"
       {onkeydown}
     ></textarea>
   {:else}
@@ -56,7 +54,7 @@
       type={inputKindMap[question.inputKind ?? 'text'] ?? 'text'}
       bind:value
       placeholder={question.placeholder ?? 'Ta réponse...'}
-      class="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm transition-colors outline-none focus:border-epi-blue focus:ring-1 focus:ring-epi-blue dark:border-slate-700 dark:bg-slate-900"
+      class="flex-1 rounded-xl border border-border bg-background px-4 py-2.5 text-sm transition-colors outline-none focus:border-epi-blue focus:ring-1 focus:ring-epi-blue"
       {onkeydown}
     />
   {/if}
@@ -83,6 +81,7 @@
       )}
       disabled={!canSubmit}
       onclick={submit}
+      aria-label="Envoyer ma réponse"
     >
       <Send size={18} />
     </button>

@@ -495,6 +495,6 @@ export const INTERVIEW_STATUS_LABELS: Record<InterviewListStatus, string> = {
 export const INTERVIEW_STATUS_CHIP_CLASS: Record<InterviewListStatus, string> =
   {
     todo: 'border-border bg-muted text-muted-foreground',
-    in_progress: 'border-amber-500/30 bg-amber-500/10 text-amber-600',
+    in_progress: 'border-warning/30 bg-warning/10 text-warning',
     done: 'border-epi-tech/30 bg-epi-tech/10 text-epi-tech-ink',
   };

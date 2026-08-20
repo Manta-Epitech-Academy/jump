@@ -100,7 +100,7 @@
   );
   const interviewDotClass = $derived(
     interviewStatus === 'in_progress'
-      ? 'bg-amber-500'
+      ? 'bg-warning'
       : interviewStatus === 'done'
         ? 'bg-epi-tech-ink'
         : 'bg-muted-foreground/40',
@@ -235,7 +235,7 @@
             <span
               aria-hidden="true"
               class={cn(
-                'inline-flex h-6 w-10 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-colors',
+                'inline-flex h-6 w-10 shrink-0 items-center rounded-full border border-transparent shadow-raised transition-colors',
                 interviewMode ? 'bg-primary' : 'bg-input dark:bg-input/80',
               )}
             >
@@ -270,7 +270,7 @@
             </div>
             <span
               aria-hidden="true"
-              class="inline-flex h-6 w-10 shrink-0 items-center rounded-full border border-transparent bg-input shadow-xs dark:bg-input/80"
+              class="inline-flex h-6 w-10 shrink-0 items-center rounded-full border border-transparent bg-input shadow-raised dark:bg-input/80"
             >
               <span
                 class="block size-5 translate-x-0 rounded-full bg-background dark:bg-foreground"

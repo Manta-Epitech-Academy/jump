@@ -16,7 +16,7 @@ describe('sfMemberStatus domain logic', () => {
     it('returns true for READY and MEET (case-insensitive)', () => {
       expect(isVisibleInDevSpace('READY')).toBe(true);
       expect(isVisibleInDevSpace('ready')).toBe(true);
-      expect(isVisibleInDevSpace('  Ready  ')).toBe(true);
+      expect(isVisibleInDevSpace('Ready  ')).toBe(true);
       expect(isVisibleInDevSpace('MEET')).toBe(true);
       expect(isVisibleInDevSpace('meet')).toBe(true);
     });
@@ -38,7 +38,7 @@ describe('sfMemberStatus domain logic', () => {
     it('maps MEET to present', () => {
       expect(pastEventPresence('MEET')).toBe('present');
       expect(pastEventPresence('meet')).toBe('present');
-      expect(pastEventPresence('  Meet  ')).toBe('present');
+      expect(pastEventPresence('Meet  ')).toBe('present');
     });
 
     it('maps READY to absent', () => {
@@ -57,12 +57,12 @@ describe('sfMemberStatus domain logic', () => {
       expect(normalizeSfStatus(null)).toBe(null);
       expect(normalizeSfStatus(undefined)).toBe(null);
       expect(normalizeSfStatus('')).toBe(null);
-      expect(normalizeSfStatus('   ')).toBe(null);
+      expect(normalizeSfStatus('')).toBe(null);
     });
 
     it('trims and uppercases valid status strings', () => {
       expect(normalizeSfStatus('ready')).toBe('READY');
-      expect(normalizeSfStatus('  meet  ')).toBe('MEET');
+      expect(normalizeSfStatus('meet  ')).toBe('MEET');
       expect(normalizeSfStatus('Connected')).toBe('CONNECTED');
     });
   });

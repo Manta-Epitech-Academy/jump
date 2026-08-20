@@ -167,7 +167,7 @@
 </script>
 
 {#if showDesktop}
-  <div class="rounded-sm border bg-card shadow-sm">
+  <div class="rounded-sm border bg-card shadow-raised">
     <Table.Root
       class={layout === 'fixed' ? 'table-fixed' : undefined}
       containerClass={stickyHeader ? 'lg:overflow-visible' : undefined}
@@ -347,7 +347,7 @@
     {/if}
 
     {#if rows.length === 0}
-      <div class="rounded-sm border bg-card p-6 text-center shadow-sm">
+      <div class="rounded-sm border bg-card p-6 text-center shadow-raised">
         {#if empty}
           {@render empty()}
         {:else}
@@ -360,7 +360,7 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div
           class={cn(
-            'relative rounded-sm border bg-card p-3 shadow-sm',
+            'relative rounded-sm border bg-card p-3 shadow-raised',
             onRowClick && 'cursor-pointer',
           )}
           onclick={onRowClick ? () => onRowClick(r, i) : undefined}

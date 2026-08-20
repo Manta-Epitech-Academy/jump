@@ -54,10 +54,10 @@
   <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
     <a
       href={resolve('/staff/admin/campuses')}
-      class="block transition-all hover:-translate-y-1"
+      class="block transition-ui hover:-translate-y-1"
     >
       <Card.Root
-        class="h-full border-t-4 border-t-epi-tomorrow shadow-sm hover:border-epi-tomorrow/80"
+        class="h-full border-t-4 border-t-epi-tomorrow shadow-raised hover:border-epi-tomorrow/80"
       >
         <Card.Header
           class="flex flex-row items-center justify-between space-y-0 pb-2"
@@ -77,10 +77,10 @@
 
     <a
       href={resolve('/staff/admin/users')}
-      class="block transition-all hover:-translate-y-1"
+      class="block transition-ui hover:-translate-y-1"
     >
       <Card.Root
-        class="h-full border-t-4 border-t-epi-tomorrow shadow-sm hover:border-epi-tomorrow/80"
+        class="h-full border-t-4 border-t-epi-tomorrow shadow-raised hover:border-epi-tomorrow/80"
       >
         <Card.Header
           class="flex flex-row items-center justify-between space-y-0 pb-2"
@@ -100,10 +100,10 @@
 
     <a
       href={resolve('/staff/admin/talents')}
-      class="block transition-all hover:-translate-y-1"
+      class="block transition-ui hover:-translate-y-1"
     >
       <Card.Root
-        class="h-full border-t-4 border-t-epi-tomorrow shadow-sm hover:border-epi-tomorrow/80"
+        class="h-full border-t-4 border-t-epi-tomorrow shadow-raised hover:border-epi-tomorrow/80"
       >
         <Card.Header
           class="flex flex-row items-center justify-between space-y-0 pb-2"
@@ -121,9 +121,9 @@
       </Card.Root>
     </a>
 
-    <a href={eventsHref} class="block transition-all hover:-translate-y-1">
+    <a href={eventsHref} class="block transition-ui hover:-translate-y-1">
       <Card.Root
-        class="h-full border-t-4 border-t-epi-tomorrow shadow-sm hover:border-epi-tomorrow/80"
+        class="h-full border-t-4 border-t-epi-tomorrow shadow-raised hover:border-epi-tomorrow/80"
       >
         <Card.Header
           class="flex flex-row items-center justify-between space-y-0 pb-2"
@@ -137,7 +137,7 @@
         <Card.Content>
           <div class="text-2xl font-bold">{data.stats.events}</div>
           {#if data.stats.toPrepare > 0}
-            <p class="text-xs font-medium text-amber-600">
+            <p class="text-xs font-medium text-warning">
               {data.stats.toPrepare} à préparer
             </p>
           {:else}

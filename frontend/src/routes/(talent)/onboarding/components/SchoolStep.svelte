@@ -10,6 +10,7 @@
   import PenLine from '@lucide/svelte/icons/pen-line';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import ContinueButton from './ContinueButton.svelte';
+  import { fieldInput } from './fieldSkin';
 
   type Lycee = { uai: string; nom: string; ville: string };
 
@@ -35,14 +36,11 @@
   let searched = $state(false);
   let debounceTimer: ReturnType<typeof setTimeout>;
 
-  const fieldInput =
-    'rounded-lg border-slate-300 bg-white/80 text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600 focus-visible:outline-none';
-  const fieldLabel =
-    'mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400';
+  const fieldLabel = 'mb-1 block text-xs font-medium text-muted-foreground';
   // Secondary toggles (free-text / back-to-search): given real button chrome
   // so they read as tappable, not as static helper text.
   const toggleButton =
-    'inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white/60 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-epi-blue/40 hover:bg-epi-blue/5 hover:text-epi-blue dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:bg-epi-blue/10';
+    'inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground-secondary transition-colors hover:border-epi-blue/40 hover:bg-epi-blue/5 hover:text-epi-blue dark:hover:bg-epi-blue/10';
 
   async function searchLycee(q: string) {
     if (q.length < 2) {
@@ -96,11 +94,11 @@
 
 <div class="mb-6 text-center">
   <div
-    class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
+    class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-epi-blue text-white shadow-raised"
   >
     <School class="h-7 w-7" />
   </div>
-  <h1 class="font-heading text-display-m text-epi-blue dark:text-epi-blue">
+  <h1 class="font-heading text-display-m text-epi-blue">
     De quel lycée viens-tu ?
   </h1>
 </div>
@@ -118,11 +116,11 @@
   <div class="space-y-3">
     {#if freeTextMode}
       <div
-        class="grid grid-cols-2 gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+        class="grid grid-cols-2 gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
       >
         <div>
           <Label for="free-lycee-name" class={fieldLabel}
-            >Nom du lycée <span class="text-red-500">*</span></Label
+            >Nom du lycée <span class="text-destructive">*</span></Label
           >
           <Input
             id="free-lycee-name"
@@ -168,14 +166,13 @@
             <span class="block text-sm font-medium text-epi-blue"
               >{selectedNom}</span
             >
-            {#if selectedVille}<span
-                class="block text-xs text-slate-500 dark:text-slate-400"
+            {#if selectedVille}<span class="block text-xs text-muted-foreground"
                 >{selectedVille}</span
               >{/if}
           </span>
         </span>
         <span
-          class="shrink-0 text-xs font-medium text-slate-500 underline-offset-2 transition-colors group-hover:text-epi-blue group-hover:underline dark:text-slate-400"
+          class="shrink-0 text-xs font-medium text-muted-foreground underline-offset-2 transition-colors group-hover:text-epi-blue group-hover:underline"
         >
           Changer
         </span>
@@ -183,13 +180,13 @@
     {:else}
       <Command.Root
         shouldFilter={false}
-        class="overflow-hidden rounded-xl border border-slate-200 bg-white/70 shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/80"
+        class="overflow-hidden rounded-xl border border-border bg-card shadow-raised"
       >
         <Command.Input
           placeholder="Rechercher par nom ou ville..."
           bind:value={query}
           oninput={handleLyceeInput}
-          class="text-slate-900 placeholder:text-slate-300 dark:text-white dark:placeholder:text-slate-600"
+          class="text-foreground placeholder:text-muted-foreground"
         />
         <Command.List class="max-h-72">
           {#if loading}
@@ -212,17 +209,17 @@
             <Command.Item
               value={s.uai}
               onSelect={() => selectLycee(s)}
-              class="group cursor-pointer gap-3 rounded-none border-t border-slate-100 px-4 py-3 transition-all first:border-t-0 hover:bg-epi-blue/5 hover:pl-5 aria-selected:bg-epi-blue/5 dark:border-slate-800 dark:hover:bg-epi-blue/10 dark:aria-selected:bg-epi-blue/10"
+              class="group cursor-pointer gap-3 rounded-none border-t border-border px-4 py-3 transition-ui first:border-t-0 hover:bg-epi-blue/5 hover:pl-5 aria-selected:bg-epi-blue/5 dark:hover:bg-epi-blue/10 dark:aria-selected:bg-epi-blue/10"
             >
               <School
-                class="h-4 w-4 shrink-0 text-slate-400 transition-colors group-hover:text-epi-blue"
+                class="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-epi-blue"
               />
               <span
-                class="font-bold text-slate-700 transition-colors group-hover:text-epi-blue dark:text-slate-200"
+                class="font-bold text-foreground-secondary transition-colors group-hover:text-epi-blue"
                 >{s.nom}</span
               >
               <span
-                class="ml-auto shrink-0 text-sm font-semibold text-slate-400 transition-colors group-hover:text-epi-blue/70 dark:text-slate-500"
+                class="ml-auto shrink-0 text-sm font-semibold text-muted-foreground transition-colors group-hover:text-epi-blue/70"
                 >{s.ville}</span
               >
             </Command.Item>

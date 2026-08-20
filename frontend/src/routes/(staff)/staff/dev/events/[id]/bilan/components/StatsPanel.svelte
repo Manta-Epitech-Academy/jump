@@ -51,9 +51,7 @@
     </p>
     <!-- Progress bar so the hero stat fills the (now wider) card instead of a lone
          number leaving the strip looking empty. -->
-    <div
-      class="mt-2 h-2 overflow-hidden rounded-sm bg-slate-100 dark:bg-slate-800"
-    >
+    <div class="mt-2 h-2 overflow-hidden rounded-sm bg-muted">
       <div class="h-full rounded-sm bg-epi-blue/80" style="width: {pct}%"></div>
     </div>
   </section>
@@ -86,9 +84,7 @@
                   >{/if}
               </span>
             </div>
-            <div
-              class="h-2 overflow-hidden rounded-sm bg-slate-100 dark:bg-slate-800"
-            >
+            <div class="h-2 overflow-hidden rounded-sm bg-muted">
               <div
                 class="h-full rounded-sm bg-epi-blue/80"
                 style="width: {optPct}%"

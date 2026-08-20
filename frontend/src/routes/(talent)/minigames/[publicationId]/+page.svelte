@@ -190,9 +190,7 @@
       <!-- No card chrome here: the game paints its own Talent-style page (slate
            background + white/slate-900 cards) inside the frame, so wrapping it
            in another card would double up. -->
-      <div
-        class="overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800"
-      >
+      <div class="overflow-hidden rounded-xl border border-border">
         <iframe
           bind:this={iframeEl}
           onload={() => {
@@ -214,10 +212,10 @@
            inside the frame, so there's no chrome to add out here. -->
     {:else}
       <div
-        class="flex flex-col items-center gap-4 rounded-3xl bg-white p-10 text-center shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+        class="flex flex-col items-center gap-4 rounded-xl border border-border bg-card p-10 text-center shadow-raised"
       >
         {#if failed}
-          <p class="text-sm text-slate-500 dark:text-slate-400">
+          <p class="text-sm text-muted-foreground">
             Impossible de lancer l'entraînement pour le moment.
           </p>
           <Button href={resolve('/')} variant="outline">
@@ -225,7 +223,7 @@
           </Button>
         {:else}
           <Loader2 class="h-8 w-8 animate-spin text-epi-blue" />
-          <p class="text-sm text-slate-500 dark:text-slate-400">
+          <p class="text-sm text-muted-foreground">
             Préparation de ton entraînement…
           </p>
         {/if}

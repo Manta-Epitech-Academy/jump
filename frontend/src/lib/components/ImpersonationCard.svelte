@@ -73,9 +73,7 @@
           {user?.name || user?.email || 'utilisateur'}
         </p>
         {#if user?.name && user?.email}
-          <p
-            class="truncate text-xs leading-tight text-chrome-foreground-muted"
-          >
+          <p class="truncate text-xs leading-tight text-muted-foreground">
             {user.email}
           </p>
         {/if}
@@ -87,7 +85,7 @@
         type="button"
         onclick={stopImpersonating}
         disabled={busy}
-        class="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-sm bg-epi-together px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-epi-together/90 disabled:cursor-not-allowed disabled:opacity-60"
+        class="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-sm bg-epi-together-ink px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-epi-together-ink/90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <LogOut class="h-3.5 w-3.5" />
         Revenir au compte admin

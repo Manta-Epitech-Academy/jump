@@ -73,7 +73,7 @@
     <Phone class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
     <a
       href={`tel:${phone.replace(/\s+/g, '')}`}
-      class=" transition-colors hover:text-epi-blue"
+      class="transition-colors hover:text-epi-blue"
     >
       {display}
     </a>

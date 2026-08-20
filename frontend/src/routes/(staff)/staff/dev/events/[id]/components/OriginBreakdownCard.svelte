@@ -135,7 +135,7 @@
     class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted dark:bg-muted/30"
   >
     <div
-      class="h-full bg-epi-blue transition-[width] duration-700 ease-out"
+      class="h-full bg-epi-blue transition-[width] duration-320 ease-out"
       style="width: {pct}%"
     ></div>
   </div>
@@ -165,7 +165,7 @@
   {/if}
 {/snippet}
 
-<Card.Root class="rounded-sm shadow-sm dark:shadow-none">
+<Card.Root class="rounded-sm shadow-raised">
   <div
     class="flex flex-row items-center gap-2 border-b bg-muted/30 px-6 pt-4 pb-3"
   >

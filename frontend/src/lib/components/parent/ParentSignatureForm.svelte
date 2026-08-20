@@ -130,7 +130,7 @@
 
     {#if error}
       <p
-        class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
+        class="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
       >
         {error}
       </p>
@@ -147,7 +147,7 @@
           placeholder="Prénom"
           required
           autocomplete="given-name"
-          class="inline-block w-32 rounded-xl border border-slate-300 bg-white px-2 py-1 text-center text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
+          class="inline-block w-32 rounded-xl border border-border bg-card px-2 py-1 text-center text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:border-epi-blue/40 focus:ring-0"
         />
         <input
           name="signerNom"
@@ -156,18 +156,18 @@
           placeholder="Nom"
           required
           autocomplete="family-name"
-          class="inline-block w-32 rounded-xl border border-slate-300 bg-white px-2 py-1 text-center text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
+          class="inline-block w-32 rounded-xl border border-border bg-card px-2 py-1 text-center text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:border-epi-blue/40 focus:ring-0"
         />
         agissant en qualité de
         <input type="hidden" name="relationship" value={relationship} />
         <Select.Root type="single" bind:value={relationship}>
           <Select.Trigger
-            class="inline-flex h-auto w-auto gap-1 rounded-xl border-slate-300 bg-white px-2 py-1 align-middle text-sm font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            class="inline-flex h-auto w-auto gap-1 rounded-xl border-border bg-card px-2 py-1 align-middle text-sm font-semibold text-foreground"
           >
             {#if relationship}
               {relationship}
             {:else}
-              <span class="text-slate-400">(choisir)</span>
+              <span class="text-muted-foreground">(choisir)</span>
             {/if}
           </Select.Trigger>
           <Select.Content>
@@ -184,10 +184,10 @@
 
     <!-- Place + date -->
     <div
-      class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
     >
       <span
-        class="text-sm font-medium whitespace-nowrap text-slate-700 dark:text-slate-300"
+        class="text-sm font-medium whitespace-nowrap text-foreground-secondary"
         >Fait à</span
       >
       <input
@@ -196,10 +196,10 @@
         bind:value={city}
         placeholder="Ville"
         required
-        class="w-40 min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
+        class="w-40 min-w-0 rounded-xl border border-border bg-card px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-epi-blue/40 focus:ring-0"
       />
       <span
-        class="text-sm font-medium whitespace-nowrap text-slate-700 dark:text-slate-300"
+        class="text-sm font-medium whitespace-nowrap text-foreground-secondary"
         >, le {today}</span
       >
     </div>

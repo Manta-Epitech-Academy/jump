@@ -189,6 +189,30 @@ describe('design contract palette discipline', () => {
     expect(inDark).toBe(light);
   });
 
+  it('should keep the blueprint line on the brand blue', () => {
+    // Arrange: the grid's line colour spells its channels out rather than
+    // composing a color-mix(), because the minifier mangles that. This is the
+    // check that keeps the two from drifting.
+    const brand = resolveToken('--epi-blue', root, root)!;
+    const line = resolveToken('--blueprint-line', root, root)!;
+
+    // Act
+    const channels = /rgb\(\s*(\d+)\s+(\d+)\s+(\d+)\s*\//.exec(line);
+    const asHex =
+      '#' +
+      channels!
+        .slice(1)
+        .map((c) => Number(c).toString(16).padStart(2, '0'))
+        .join('');
+
+    // Assert
+    expect(
+      channels,
+      `--blueprint-line is not an rgb() with an alpha: ${line}`,
+    ).not.toBeNull();
+    expect(asHex).toBe(brand.toLowerCase());
+  });
+
   it('should not leave an off-palette colour family in layout.css', () => {
     // Arrange
     const css = [...Object.values(root), ...Object.values(dark)].join(' ');

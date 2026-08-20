@@ -45,7 +45,7 @@
 </script>
 
 <!-- Full-width section banner that owns the question block beneath it. -->
-<div class="overflow-hidden rounded-sm border bg-card shadow-sm">
+<div class="overflow-hidden rounded-sm border bg-card shadow-raised">
   <div class="h-1.5 bg-epi-tech/70"></div>
   <div class="flex items-start gap-3 p-4">
     <div class="min-w-0 flex-1 space-y-1.5">
@@ -66,7 +66,7 @@
         rows={1}
         aria-label="Description de la section"
         placeholder="Description (optionnelle)"
-        class="cursor-text resize-none border-0 border-b border-border px-0 text-sm text-muted-foreground shadow-none transition-colors hover:border-muted-foreground focus-visible:outline-none"
+        class="cursor-text resize-none border-0 border-b border-border px-0 text-sm text-muted-foreground shadow-none transition-colors hover:border-muted-foreground focus-visible:border-foreground focus-visible:outline-none"
         oninput={introField.oninput}
         onblur={introField.onblur}
       />

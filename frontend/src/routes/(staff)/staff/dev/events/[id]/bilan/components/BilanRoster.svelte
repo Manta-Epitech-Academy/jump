@@ -78,11 +78,9 @@
   }
 
   const recoBadgeClass: Record<RecoTier, string> = {
-    positive:
-      'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
-    neutral:
-      'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
-    negative: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400',
+    positive: 'bg-success/10 text-success',
+    neutral: 'bg-warning/10 text-warning',
+    negative: 'bg-destructive/10 text-destructive',
   };
 
   function toggleSort(key: string) {
@@ -233,13 +231,13 @@
 {#snippet statutBadge(r: BilanRow)}
   {#if r.respondedAt}
     <span
-      class="inline-flex items-center gap-1 rounded-sm bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+      class="inline-flex items-center gap-1 rounded-sm bg-success/10 px-2 py-0.5 text-xs font-medium text-success"
     >
       <Check class="h-3 w-3" /> Répondu
     </span>
   {:else}
     <span
-      class="inline-flex items-center gap-1 rounded-sm bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-800"
+      class="inline-flex items-center gap-1 rounded-sm bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
     >
       <Clock class="h-3 w-3" /> En attente
     </span>

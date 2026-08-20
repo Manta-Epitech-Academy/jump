@@ -71,7 +71,7 @@
      so an author can tell a conversation message apart from the title at a glance
      (previously three unlabeled gray fields stacked with no cue which was which).
      Auto-saves live while typing, flushing on blur. -->
-<div class="overflow-hidden rounded-sm border bg-card shadow-sm">
+<div class="overflow-hidden rounded-sm border bg-card shadow-raised">
   <div class="h-2.5 bg-epi-tomorrow"></div>
 
   <div class="p-5">
@@ -128,7 +128,7 @@
                   type="button"
                   onclick={() => editor.removePersonaIcon()}
                   aria-label="Rétablir l’icône par défaut"
-                  class="absolute -top-1.5 -right-1.5 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border border-background bg-foreground text-background shadow-sm transition hover:bg-foreground/80"
+                  class="absolute -top-1.5 -right-1.5 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border border-background bg-foreground text-background shadow-raised transition hover:bg-foreground/80"
                 >
                   <X class="h-2.5 w-2.5" />
                 </button>
@@ -169,8 +169,10 @@
         info={`Premier message de la mascotte, avant la première question. Il y en a toujours un : laissé vide, c’est « ${DEFAULT_INTRO} ». Vous pouvez écrire {prenom}, remplacé par le prénom du répondant.`}
       />
       <div
-        class="rounded-2xl rounded-bl-sm border border-dashed border-muted-foreground/30 bg-background px-4 py-2.5 shadow-sm transition focus-within:border-solid focus-within:border-epi-tomorrow/50 hover:border-muted-foreground/50"
+        class="rounded-xl rounded-bl-sm border border-dashed border-muted-foreground/30 bg-background px-4 py-2.5 shadow-raised transition focus-within:border-solid focus-within:border-epi-tomorrow/50 hover:border-muted-foreground/50"
       >
+        <!-- design-lint-ignore: the dashed wrapper draws the focus edge with
+             focus-within, so the textarea suppressing its own is correct. -->
         <Textarea
           value={editor.intro ?? ''}
           rows={2}
@@ -189,8 +191,10 @@
         info={`Dernier message de la mascotte, une fois le questionnaire terminé. Il y en a toujours un : laissé vide, c’est « ${DEFAULT_OUTRO} ». Vous pouvez écrire {prenom}, remplacé par le prénom du répondant.`}
       />
       <div
-        class="rounded-2xl rounded-bl-sm border border-dashed border-muted-foreground/30 bg-background px-4 py-2.5 shadow-sm transition focus-within:border-solid focus-within:border-epi-tomorrow/50 hover:border-muted-foreground/50"
+        class="rounded-xl rounded-bl-sm border border-dashed border-muted-foreground/30 bg-background px-4 py-2.5 shadow-raised transition focus-within:border-solid focus-within:border-epi-tomorrow/50 hover:border-muted-foreground/50"
       >
+        <!-- design-lint-ignore: the dashed wrapper draws the focus edge with
+             focus-within, so the textarea suppressing its own is correct. -->
         <Textarea
           value={editor.outro ?? ''}
           rows={2}

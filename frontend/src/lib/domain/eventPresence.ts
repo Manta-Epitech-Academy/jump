@@ -44,13 +44,10 @@ export function statusLabelFr(status: CellStatus): string {
 /** Badge classes per status, light + dark, matching the staff datatable tone. */
 const STATUS_TONES: Record<CellStatus, string> = {
   pending: 'bg-muted text-muted-foreground border-transparent',
-  present:
-    'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/25',
-  late: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/25',
-  absent:
-    'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/25',
-  excused:
-    'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/25',
+  present: 'bg-success/10 text-success border-success/30',
+  late: 'bg-warning/10 text-warning border-warning/30',
+  absent: 'bg-destructive/10 text-destructive border-destructive/30',
+  excused: 'bg-primary/10 text-primary border-primary/30',
 };
 
 export function statusTone(status: CellStatus): string {

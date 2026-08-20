@@ -106,7 +106,7 @@
     <!-- Pixel overlays — offset squares, the brand signature. -->
     <div aria-hidden="true" class="absolute inset-0">
       <div
-        class="absolute top-[16%] right-[20%] h-16 w-24 bg-white/10 motion-safe:animate-pulse"
+        class="absolute top-[16%] right-[20%] h-16 w-24 bg-card motion-safe:animate-pulse"
       ></div>
       <div
         class="absolute top-[22%] right-[11%] h-20 w-16 bg-white/[0.06]"

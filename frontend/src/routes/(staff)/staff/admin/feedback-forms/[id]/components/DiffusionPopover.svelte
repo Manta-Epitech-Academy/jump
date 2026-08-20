@@ -69,7 +69,7 @@
     {#snippet child({ props })}
       <Button {...props} variant="outline" size="sm" class="rounded-sm">
         {#if hasAlert}
-          <TriangleAlert class="mr-1.5 h-4 w-4 text-amber-600" />
+          <TriangleAlert class="mr-1.5 h-4 w-4 text-warning" />
         {:else}
           <Send class="mr-1.5 h-4 w-4" />
         {/if}
@@ -122,7 +122,7 @@
 
     {#if editor.publishedButUnreachable}
       <div
-        class="flex items-start gap-2 rounded-sm border border-amber-300 bg-amber-50 p-2.5 text-xs leading-snug text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+        class="flex items-start gap-2 rounded-sm border border-warning/30 bg-warning/10 p-2.5 text-xs leading-snug text-warning"
       >
         <TriangleAlert class="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <p class="min-w-0 flex-1">
@@ -177,7 +177,7 @@
     {#if editor.allowsPublicAccess}
       {#if editor.publicMissingEmail}
         <div
-          class="flex items-start gap-2 rounded-sm border border-amber-300 bg-amber-50 p-2.5 text-xs leading-snug text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+          class="flex items-start gap-2 rounded-sm border border-warning/30 bg-warning/10 p-2.5 text-xs leading-snug text-warning"
         >
           <TriangleAlert class="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <p class="min-w-0 flex-1">

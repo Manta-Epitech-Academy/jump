@@ -250,7 +250,13 @@
                     };
                   }}
                 >
-                  <Button {...props} type="submit" variant="ghost" size="icon">
+                  <Button
+                    {...props}
+                    type="submit"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Télécharger le fichier"
+                  >
                     <Download class="h-4 w-4" />
                   </Button>
                 </form>

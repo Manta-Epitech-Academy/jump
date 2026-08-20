@@ -287,16 +287,26 @@ correct, not debt: the format has no notion of a second theme, so the eight
 governed by prose rules (fills, display text, elevation) rather than by a
 component property the format allows. Do not delete a token to silence a warning.
 
-A repo-local test does the work the format cannot:
+Two repo-local guards do the work the format cannot:
 
 ```bash
-cd frontend && bun run test   # src/lib/design/contract.test.ts
+cd frontend
+bun run test         # src/lib/design/contract.test.ts
+bun run lint:design  # scripts/lint-design.ts
 ```
 
-It parses this file's front matter and `frontend/src/routes/layout.css` and fails
-when they disagree, so the tokens above cannot quietly become a second source of
-truth. It also asserts every pair in the Colors tables against its floor, which
-is the check that `--muted-foreground` at 3.15:1 needed and did not have.
+The **contract test** is numeric: it parses this file's front matter and
+`frontend/src/routes/layout.css` and fails when they disagree, so the tokens
+above cannot quietly become a second source of truth. It also asserts every pair
+in the Colors tables against its floor, which is the check that
+`--muted-foreground` at 3.15:1 needed and did not have.
+
+The **design lint** is lexical: an off-palette colour family, an arbitrary pixel
+font size, a forbidden effect, a focus indicator removed without a replacement.
+An exception is declared on the spot, above the element, and has to carry its
+reason; there is no exemptions file, because a central list becomes a debt nobody
+re-reads while a written reason next to the code can be judged. Its rule table is
+in `frontend/scripts/LINT-DESIGN.md`.
 
 The charte is a **print and campaign** charte. It was written for posters and
 roll-ups, not for a table of 200 students that staff read for eight hours. Every
@@ -509,7 +519,9 @@ Flat-first. Depth comes from a 1px border and a surface change, not from a shado
 - **No `shadow-lg`, `shadow-xl`, `shadow-2xl`.** Three levels is the whole scale.
 - **No colored shadows.** `shadow-epi-blue/20` and `shadow-slate-200/50` are glows; the charte handles glow photographically, not with `box-shadow`.
 - **No `backdrop-blur`, anywhere.** The brand prefers hard edges. A sticky header over scrolling content gets an opaque `card` surface and a 1px bottom border, which is what the staff spaces already do and it works.
-- **No gradient backgrounds and no blurred color blobs.** Where a surface needs texture, the charte's own answer is better and cheaper to paint: the blueprint grid plus a few half-opacity pixel squares in `epiBlue` or white.
+- **No gradient backgrounds and no blurred color blobs.** Where a surface needs texture, the charte's own answer is better and cheaper to paint: the blueprint grid plus a few half-opacity pixel squares in `epiBlue` or white (`BrandBackdrop` composes both).
+
+  A gradient that fades content to reveal truncation, or a scrim behind a modal, is not a background: it is a mask doing a job no solid colour can. Those stay, and they fade to a token rather than to `white`.
 
 ## Shapes
 
@@ -651,7 +663,7 @@ Short, direct, purposeful. The brand is flat and confident: it does not bounce.
 | `ease-emphatic` | `cubic-bezier(0.2, 0, 0.2, 1.2)` |
 
 - **320ms is the ceiling for a state transition.** `duration-500` and `duration-700` are in the code today and read as lag. A one-shot celebration animation is a different thing and states its own duration (the XP float runs 2.2s on purpose); the ceiling governs anything that answers an interaction.
-- Name the properties you animate. `transition-all` animates layout properties too.
+- Name the properties you animate: `transition-ui` is the interactive-state transition and carries the standard easing and duration with it. `transition-all` animates layout properties too, and a width or a top that animates is a jank source nobody asked for.
 - Fades and 8px to 16px slides. No parallax, no spring, no scale on press.
 - `ease-emphatic` is for brand reveals only: the XP float, the diploma ceremony, the first-login welcome. These are the talent space's licence to overshoot, and they stay rare.
 - Every non-trivial animation respects `prefers-reduced-motion`.

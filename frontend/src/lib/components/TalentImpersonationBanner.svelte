@@ -65,12 +65,12 @@
   <div class="pointer-events-none fixed bottom-3 left-3 z-[60]">
     <div
       in:fly={{ y: 80, duration: 320, opacity: 0 }}
-      class="pointer-events-auto flex max-w-xs flex-col gap-2 rounded-2xl border border-black/5 bg-white/85 p-2.5 opacity-65 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl transition-opacity duration-200 focus-within:opacity-100 hover:opacity-100 dark:border-white/10 dark:bg-slate-900/85 dark:ring-white/10"
+      class="pointer-events-auto flex max-w-xs flex-col gap-2 rounded-xl border border-black/5 bg-card p-2.5 opacity-65 shadow-raised ring-1 ring-black/5 transition-opacity duration-200 focus-within:opacity-100 hover:opacity-100 dark:border-white/10 dark:ring-white/10"
       role="alert"
     >
       <div class="flex items-center gap-3">
         <div
-          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-epi-together text-white"
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-epi-together-ink text-white"
         >
           <UserCheck class="h-[18px] w-[18px]" />
         </div>
@@ -86,7 +86,7 @@
           type="button"
           onclick={stopImpersonating}
           disabled={busy}
-          class="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-epi-together px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-epi-together/90 disabled:cursor-not-allowed disabled:opacity-60"
+          class="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-epi-together-ink px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-epi-together-ink/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <LogOut class="h-3.5 w-3.5" />
           Revenir

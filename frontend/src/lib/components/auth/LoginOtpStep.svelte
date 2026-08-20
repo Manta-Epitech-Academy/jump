@@ -75,7 +75,7 @@
   {#if $otpMessage}
     <Alert
       variant="destructive"
-      class="mb-6 rounded-xl border-red-100 bg-red-50 text-red-800 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300"
+      class="mb-6 rounded-xl border-destructive/30 bg-destructive/10 text-destructive"
     >
       <CircleAlert class="h-4 w-4" />
       <AlertDescription class="text-xs font-medium"
@@ -84,8 +84,10 @@
     </Alert>
   {/if}
 
-  <div class="mb-6 rounded-xl bg-slate-50 p-4 text-center dark:bg-slate-950">
-    <p class="text-xs font-bold text-slate-500 uppercase">Code envoyé à</p>
+  <div class="mb-6 rounded-xl bg-background p-4 text-center">
+    <p class="text-xs font-bold text-muted-foreground uppercase">
+      Code envoyé à
+    </p>
     <p class="font-bold text-epi-blue">{$otpForm.email}</p>
   </div>
 
@@ -117,10 +119,8 @@
             onkeydown={(e) => handleDigitKeydown(i, e)}
             onpaste={handleDigitPaste}
             class={cn(
-              'otp-digit h-14 w-12 rounded-xl border-2 bg-white text-center font-mono text-2xl font-bold text-slate-900 shadow-sm transition-all duration-200 focus-visible:outline-none dark:bg-slate-950 dark:text-white',
-              digits[i]?.trim()
-                ? 'border-epi-tech shadow-epi-tech/10'
-                : 'border-slate-200 dark:border-slate-800',
+              'otp-digit h-14 w-12 rounded-xl border-2 bg-card text-center font-mono text-2xl font-bold text-foreground shadow-raised transition-ui duration-200 focus-visible:outline-none',
+              digits[i]?.trim() ? 'border-epi-tech' : 'border-border',
               'focus:border-epi-blue focus:ring-2 focus:ring-epi-blue/20',
             )}
           />
@@ -128,7 +128,7 @@
       </div>
 
       {#if $otpErrors.password}<span
-          class="block text-center text-xs font-bold text-red-500"
+          class="block text-center text-xs font-bold text-destructive"
           >{$otpErrors.password}</span
         >{/if}
     </div>
@@ -137,7 +137,7 @@
       <Button
         type="submit"
         disabled={$otpDelayed || !otpComplete}
-        class="h-12 w-full rounded-xl bg-epi-tech text-base font-bold text-slate-950 shadow-md transition-all hover:bg-epi-tech/90 active:scale-[0.98] disabled:opacity-50"
+        class="h-12 w-full rounded-xl bg-epi-tech text-base font-bold text-foreground shadow-raised transition-ui hover:bg-epi-tech/90 active:scale-[0.98] disabled:opacity-50"
       >
         {#if $otpDelayed}
           Connexion...
@@ -149,7 +149,7 @@
       <Button
         type="button"
         variant="ghost"
-        class="h-10 w-full rounded-xl text-xs font-bold text-slate-400 uppercase hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+        class="h-10 w-full rounded-xl text-xs font-bold text-muted-foreground uppercase hover:bg-muted hover:text-foreground-secondary"
         onclick={goBack}
         disabled={$otpDelayed}
       >

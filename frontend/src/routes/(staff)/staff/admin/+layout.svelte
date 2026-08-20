@@ -78,11 +78,11 @@
   }
 
   const navLinkClass = (active: boolean) => `
-		flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-all rounded-r-md cursor-pointer
+		flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-ui rounded-r-md cursor-pointer
 		${
       active
         ? 'bg-accent-space/10 text-accent-space-ink border-l-4 border-accent-space'
-        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-l-4 border-transparent'
+        : 'text-muted-foreground hover:bg-epi-dark hover:text-chrome-foreground-muted border-l-4 border-transparent'
     }
 	`;
 </script>
@@ -101,7 +101,7 @@
         {#if badge.count > 0}
           <span
             class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold text-white {badge.danger
-              ? 'bg-red-500'
+              ? 'bg-destructive'
               : 'bg-accent-space'}"
             title={badge.title}
           >
@@ -117,7 +117,7 @@
 
 {#snippet navMenu()}
   {#each ADMIN_NAV as section, i (section.title)}
-    <div class="mb-2 px-6 epi-overline text-slate-500">
+    <div class="mb-2 px-6 epi-overline text-muted-foreground">
       {section.title}<TitleCursor />
     </div>
     <nav class="space-y-1 {i < ADMIN_NAV.length - 1 ? 'mb-8' : ''}">
@@ -139,16 +139,16 @@
       <Button
         variant="ghost"
         size="icon"
-        class="relative h-10 w-10 text-slate-300 hover:bg-slate-800 hover:text-white md:hidden"
+        class="relative h-10 w-10 text-chrome-foreground-muted hover:bg-epi-dark hover:text-white md:hidden"
         onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
       >
         <Menu
-          class="absolute h-6 w-6 transition-all duration-300 {mobileMenuOpen
+          class="absolute h-6 w-6 transition-ui duration-300 {mobileMenuOpen
             ? 'scale-0 opacity-0'
             : 'scale-100 opacity-100'}"
         />
         <X
-          class="absolute h-6 w-6 transition-all duration-300 {mobileMenuOpen
+          class="absolute h-6 w-6 transition-ui duration-300 {mobileMenuOpen
             ? 'scale-100 rotate-0 opacity-100'
             : 'scale-0 -rotate-90 opacity-0'}"
         />
@@ -167,14 +167,14 @@
       <Button
         variant="ghost"
         size="sm"
-        class="h-9 gap-2 rounded-sm text-slate-300 hover:bg-slate-800 hover:text-white"
+        class="h-9 gap-2 rounded-sm text-chrome-foreground-muted hover:bg-epi-dark hover:text-white"
         onclick={() => (commandOpen = true)}
         aria-label="Rechercher une personne"
       >
         <Search class="h-4 w-4" />
         <span class="hidden text-xs sm:inline">Rechercher</span>
         <kbd
-          class="hidden rounded border border-slate-700 bg-slate-800 px-1.5 text-xs text-slate-400 sm:inline"
+          class="hidden rounded border border-border bg-epi-dark px-1.5 text-xs text-muted-foreground sm:inline"
           >⌘K</kbd
         >
       </Button>
@@ -187,15 +187,15 @@
             class="flex cursor-pointer items-center gap-3 transition-opacity hover:opacity-80"
           >
             <div class="hidden flex-col items-end md:flex">
-              <span class="epi-overline font-bold text-slate-500">
+              <span class="epi-overline font-bold text-muted-foreground">
                 Superuser
               </span>
-              <span class="text-sm font-bold text-slate-200"
+              <span class="text-sm font-bold text-chrome-foreground-muted"
                 >{data.user?.email}</span
               >
             </div>
             <Avatar.Root
-              class="h-9 w-9 rounded-sm border border-slate-700 bg-slate-900"
+              class="h-9 w-9 rounded-sm border border-border bg-epi-dark"
             >
               <Avatar.Image
                 src={data.user?.image ?? undefined}
@@ -289,7 +289,7 @@
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
-        class="absolute inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden"
+        class="absolute inset-0 z-40 bg-black/80 md:hidden"
         transition:fade={{ duration: 200 }}
         onclick={() => (mobileMenuOpen = false)}
       ></div>

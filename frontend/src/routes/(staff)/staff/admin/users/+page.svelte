@@ -817,6 +817,7 @@
                           variant="ghost"
                           size="icon"
                           class="text-destructive hover:bg-destructive/10"
+                          aria-label="Annuler l'invitation"
                         >
                           <X class="h-4 w-4" />
                         </Button>

@@ -25,9 +25,9 @@
 >
   <div
     class={cn(
-      'rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm',
+      'rounded-xl px-4 py-2.5 text-sm leading-relaxed shadow-raised',
       isBot
-        ? 'rounded-bl-sm border border-slate-200 bg-white text-foreground dark:border-slate-700 dark:bg-slate-800'
+        ? 'rounded-bl-sm border border-border bg-card text-foreground'
         : 'rounded-br-sm bg-epi-blue text-white',
     )}
   >

@@ -460,7 +460,7 @@
 
   {#if selected.size > 0}
     <div
-      class="flex flex-wrap items-center gap-3 rounded-sm border bg-card px-4 py-2 shadow-sm"
+      class="flex flex-wrap items-center gap-3 rounded-sm border bg-card px-4 py-2 shadow-raised"
     >
       <span class="text-sm font-bold">
         {selected.size} événement{selected.size > 1 ? 's' : ''} sélectionné{selected.size >
@@ -521,7 +521,7 @@
       </Button>
       {#if selectedNoModules > 0}
         <span
-          class="flex w-full items-center gap-1.5 text-xs font-medium text-amber-600"
+          class="flex w-full items-center gap-1.5 text-xs font-medium text-warning"
         >
           <TriangleAlert class="h-3.5 w-3.5 shrink-0" />
           {selectedNoModules} sans section ne {selectedNoModules > 1

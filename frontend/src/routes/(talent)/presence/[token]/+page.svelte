@@ -29,8 +29,8 @@
     already: {
       Icon: CalendarCheck,
       title: 'Déjà enregistré',
-      badge: 'bg-sky-100 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300',
-      blob: 'bg-sky-400/20',
+      badge: 'bg-primary/10 text-primary',
+      blob: 'bg-primary/20',
       celebrate: false,
       ctaLabel: 'Retour à mon espace',
       ctaTo: '/',
@@ -38,9 +38,8 @@
     closed: {
       Icon: Clock,
       title: 'Créneau clôturé',
-      badge:
-        'bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300',
-      blob: 'bg-amber-400/20',
+      badge: 'bg-warning/10 text-warning',
+      blob: 'bg-warning/20',
       celebrate: false,
       ctaLabel: 'Retour à mon espace',
       ctaTo: '/',
@@ -48,8 +47,8 @@
     not_registered: {
       Icon: UserX,
       title: 'Compte non rattaché',
-      badge: 'bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-300',
-      blob: 'bg-red-400/15',
+      badge: 'bg-destructive/10 text-destructive',
+      blob: 'bg-destructive/15',
       celebrate: false,
       ctaLabel: 'Retour à mon espace',
       ctaTo: '/',
@@ -121,7 +120,7 @@
   </div>
 
   <div class="rise relative max-w-sm space-y-2">
-    <h1 class="text-2xl font-bold tracking-tight">{headline}</h1>
+    <h1 class="font-heading text-display-m">{headline}</h1>
     <p class="text-pretty text-muted-foreground">
       {#if data.state === 'present'}
         Tu es bien noté présent pour le

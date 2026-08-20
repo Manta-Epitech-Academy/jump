@@ -42,26 +42,22 @@
   in:fly={{ y: 20, duration: 400, delay: 200 }}
 >
   <!-- Profile Info (read-only) -->
-  <div
-    class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-  >
+  <div class="rounded-xl border border-border bg-card p-5 shadow-raised">
     <h2
-      class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
+      class="mb-3 text-base font-bold tracking-widest text-muted-foreground uppercase"
     >
       Mon compte
     </h2>
     <div class="space-y-3">
       <div class="flex items-center gap-3">
         <div
-          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30"
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10"
         >
           <User class="h-4 w-4 text-epi-blue" />
         </div>
         <div class="min-w-0">
-          <p class="epi-overline text-slate-400">Nom</p>
-          <p
-            class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
-          >
+          <p class="epi-overline text-muted-foreground">Nom</p>
+          <p class="truncate text-sm font-bold text-foreground">
             {student?.prenom}
             {student?.nom}
           </p>
@@ -69,15 +65,13 @@
       </div>
       <div class="flex items-center gap-3">
         <div
-          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30"
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10"
         >
           <Mail class="h-4 w-4 text-epi-blue" />
         </div>
         <div class="min-w-0">
-          <p class="epi-overline text-slate-400">Email</p>
-          <p
-            class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
-          >
+          <p class="epi-overline text-muted-foreground">Email</p>
+          <p class="truncate text-sm font-bold text-foreground">
             {data.user?.email}
           </p>
         </div>
@@ -86,23 +80,21 @@
   </div>
 
   <!-- Appearance -->
-  <div
-    class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-  >
+  <div class="rounded-xl border border-border bg-card p-5 shadow-raised">
     <h2
-      class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
+      class="mb-3 text-base font-bold tracking-widest text-muted-foreground uppercase"
     >
       Apparence
     </h2>
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div
-          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30"
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-epi-together-ink/10"
         >
           <Sun class="h-4 w-4 text-epi-together dark:hidden" />
           <Moon class="hidden h-4 w-4 text-epi-together dark:block" />
         </div>
-        <span class="text-sm font-bold text-slate-700 dark:text-slate-300"
+        <span class="text-sm font-bold text-foreground-secondary"
           >Thème sombre</span
         >
       </div>
@@ -112,11 +104,9 @@
 
   <!-- Signed documents -->
   {#if documents.length > 0}
-    <div
-      class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-    >
+    <div class="rounded-xl border border-border bg-card p-5 shadow-raised">
       <h2
-        class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
+        class="mb-3 text-base font-bold tracking-widest text-muted-foreground uppercase"
       >
         Mes documents
       </h2>
@@ -124,17 +114,15 @@
         {#each documents as doc (doc.type)}
           <li class="flex items-center gap-3">
             <div
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/30"
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-success/10"
             >
               <FileText class="h-4 w-4 text-epi-tech-ink" />
             </div>
             <div class="min-w-0 flex-1">
-              <p
-                class="text-sm leading-tight font-bold text-slate-800 dark:text-slate-200"
-              >
+              <p class="text-sm leading-tight font-bold text-foreground">
                 {doc.label}
               </p>
-              <p class="epi-overline text-slate-400">
+              <p class="epi-overline text-muted-foreground">
                 {#if doc.signerName}
                   Signé par {doc.signerName} le {formatDateFr(doc.signedAt)}
                 {:else}
@@ -142,7 +130,7 @@
                 {/if}
               </p>
               {#if doc.coSigner}
-                <p class="epi-overline text-slate-400">
+                <p class="epi-overline text-muted-foreground">
                   Co-signé par {doc.coSigner.name} le {formatDateFr(
                     doc.coSigner.signedAt,
                   )}
@@ -163,14 +151,14 @@
               </Button>
             {:else if doc.status === 'generating'}
               <span
-                class="flex shrink-0 items-center gap-1 epi-overline text-slate-400"
+                class="flex shrink-0 items-center gap-1 epi-overline text-muted-foreground"
               >
                 <Loader class="h-3.5 w-3.5 animate-spin" />
                 Génération…
               </span>
             {:else}
               <span
-                class="flex shrink-0 items-center gap-1 epi-overline text-amber-600 dark:text-amber-500"
+                class="flex shrink-0 items-center gap-1 epi-overline text-warning"
                 title="La génération de ce document a échoué. Notre équipe peut le relancer, réessaie plus tard ou contacte-la."
               >
                 <AlertTriangle class="h-3.5 w-3.5" />
@@ -185,15 +173,11 @@
 
   <!-- Danger Zone -->
   {#if deletion?.status === 'pending'}
-    <div
-      class="rounded-3xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/40 dark:bg-amber-950/20"
-    >
-      <h2 class="mb-1 text-sm font-bold text-amber-700 dark:text-amber-400">
+    <div class="rounded-xl border border-warning/30 bg-warning/10 p-5">
+      <h2 class="mb-1 text-sm font-bold text-warning">
         Demande de suppression en cours
       </h2>
-      <p
-        class="text-xs leading-relaxed text-amber-700/80 dark:text-amber-400/70"
-      >
+      <p class="text-xs leading-relaxed text-warning/80">
         Ta demande du {formatDateFr(deletion.at)} a été transmise à l'équipe. Ton
         compte reste actif tant qu'elle n'a pas été traitée. Tu peux l'annuler tant
         que ce n'est pas fait.
@@ -217,32 +201,28 @@
           variant="outline"
           size="sm"
           disabled={cancelling}
-          class="mt-3 h-9 rounded-xl border-amber-300 bg-transparent text-xs font-bold text-amber-700 hover:bg-amber-100 dark:border-amber-900/50 dark:text-amber-400 dark:hover:bg-amber-950/40"
+          class="mt-3 h-9 rounded-xl border-warning/30 bg-transparent text-xs font-bold text-warning hover:bg-warning/10"
         >
           {cancelling ? 'Annulation…' : 'Annuler ma demande'}
         </Button>
       </form>
     </div>
   {:else if deletion?.status === 'rejected'}
-    <div
-      class="rounded-3xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900/40"
-    >
-      <h2 class="mb-1 text-sm font-bold text-slate-700 dark:text-slate-300">
+    <div class="rounded-xl border border-border bg-background p-5">
+      <h2 class="mb-1 text-sm font-bold text-foreground-secondary">
         Demande de suppression refusée
       </h2>
-      <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+      <p class="text-xs leading-relaxed text-muted-foreground">
         Ta demande du {formatDateFr(deletion.at)} n'a pas été acceptée par l'équipe.
       </p>
       {#if deletion.note}
         <blockquote
-          class="mt-2 border-l-2 border-slate-300 pl-3 text-xs leading-relaxed text-slate-700 dark:border-slate-700 dark:text-slate-300"
+          class="mt-2 border-l-2 border-border pl-3 text-xs leading-relaxed text-foreground-secondary"
         >
           {deletion.note}
         </blockquote>
       {/if}
-      <p
-        class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400"
-      >
+      <p class="mt-2 text-xs leading-relaxed text-muted-foreground">
         Tu peux refaire une demande ou contacter l'équipe pour en savoir plus.
       </p>
       <div class="mt-3 flex flex-wrap gap-2">
@@ -286,7 +266,7 @@
             variant="ghost"
             size="sm"
             disabled={acknowledging}
-            class="h-9 rounded-xl text-xs font-bold text-slate-500"
+            class="h-9 rounded-xl text-xs font-bold text-muted-foreground"
           >
             {acknowledging ? '…' : 'J’ai compris'}
           </Button>
@@ -299,7 +279,7 @@
         variant="link"
         size="sm"
         onclick={() => (deleteDialogOpen = true)}
-        class="h-auto p-0 text-xs font-normal text-slate-400 decoration-dotted underline-offset-4 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400"
+        class="h-auto p-0 text-xs font-normal text-muted-foreground decoration-dotted underline-offset-4 hover:text-destructive"
       >
         Supprimer mon compte
       </Button>
@@ -309,25 +289,25 @@
 
 <AlertDialog.Root bind:open={deleteDialogOpen}>
   <AlertDialog.Content
-    class="fixed top-[50%] left-[50%] z-50 w-[calc(100%-2rem)] max-w-sm translate-x-[-50%] translate-y-[-50%] rounded-3xl border-0 bg-white p-8 shadow-2xl shadow-slate-300/50 duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 dark:bg-slate-900 dark:shadow-none"
+    class="fixed top-[50%] left-[50%] z-50 w-[calc(100%-2rem)] max-w-sm translate-x-[-50%] translate-y-[-50%] rounded-xl border-0 bg-card p-8 shadow-raised duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
   >
     <div class="flex flex-col items-center text-center">
       <div
-        class="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 dark:bg-red-950/30"
+        class="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10"
       >
-        <Trash2 class="h-7 w-7 text-red-500" />
+        <Trash2 class="h-7 w-7 text-destructive" />
       </div>
-      <AlertDialog.Title class="text-slate-900 dark:text-white">
+      <AlertDialog.Title class="text-foreground">
         Supprimer mon compte
       </AlertDialog.Title>
       <AlertDialog.Description
-        class="mt-3 text-sm leading-relaxed text-slate-500"
+        class="mt-3 text-sm leading-relaxed text-muted-foreground"
       >
         Ta demande sera transmise à l'équipe. Ton compte
-        <strong class="text-slate-700 dark:text-slate-300">reste actif</strong>
+        <strong class="text-foreground-secondary">reste actif</strong>
         jusqu'à son traitement, puis ton profil, tes participations et ta progression
         seront
-        <strong class="text-slate-700 dark:text-slate-300"
+        <strong class="text-foreground-secondary"
           >définitivement anonymisés</strong
         >. Tu pourras annuler tant que la demande n'a pas été traitée.
       </AlertDialog.Description>
@@ -356,7 +336,7 @@
         <Button
           type="submit"
           disabled={requesting}
-          class="h-12 w-full rounded-2xl bg-red-500 tracking-normal text-white normal-case shadow-lg shadow-red-500/20 transition-all hover:scale-[1.02] hover:bg-red-600 active:scale-[0.98]"
+          class="h-12 w-full rounded-xl bg-destructive tracking-normal text-white normal-case shadow-raised transition-ui hover:scale-[1.02] hover:bg-destructive active:scale-[0.98]"
         >
           {#if requesting}
             Envoi en cours…
@@ -366,7 +346,7 @@
         </Button>
       </form>
       <AlertDialog.Cancel
-        class="h-12 w-full rounded-2xl border border-slate-200 bg-transparent text-sm font-bold text-slate-600 transition-all hover:bg-slate-50 active:scale-[0.98] dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+        class="h-12 w-full rounded-xl border border-border bg-transparent text-sm font-bold text-foreground-secondary transition-ui hover:bg-background active:scale-[0.98]"
       >
         Annuler
       </AlertDialog.Cancel>

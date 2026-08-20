@@ -88,7 +88,7 @@ function nowLabel(): string {
 }
 
 function formatAnswer(value: AnswerValue): string {
-  if (Array.isArray(value)) return value.join('  ·  ');
+  if (Array.isArray(value)) return value.join('·  ');
   return value;
 }
 

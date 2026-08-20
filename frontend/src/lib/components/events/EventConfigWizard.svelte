@@ -548,21 +548,21 @@
         <div class="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:px-6">
           {#if editing && editing.participations > 100 && !dismissHighCount}
             <div
-              class="flex items-start gap-3 rounded-sm border border-amber-500/40 bg-amber-500/5 p-3 text-amber-600"
+              class="flex items-start gap-3 rounded-sm border border-warning/40 bg-warning/5 p-3 text-warning"
             >
               <TriangleAlert class="mt-0.5 size-4 shrink-0" />
               <div class="flex-1 space-y-1">
                 <p class="text-xs font-medium">
                   Nombre de participants inhabituellement élevé ({editing.participations}).
                 </p>
-                <p class="text-xs text-amber-700/80">
+                <p class="text-xs text-warning/80">
                   Vérifiez que la campagne Salesforce est bien celle de
                   l'événement.
                 </p>
               </div>
               <button
                 type="button"
-                class="shrink-0 text-amber-600 hover:text-amber-800"
+                class="shrink-0 text-warning hover:text-warning"
                 onclick={() => (dismissHighCount = true)}
                 aria-label="Ignorer l'avertissement"
               >
@@ -621,7 +621,7 @@
                   {#if !$form.startTime}
                     <Badge
                       variant="outline"
-                      class="border-amber-500/50 text-xs leading-none font-normal text-amber-600"
+                      class="border-warning/50 text-xs leading-none font-normal text-warning"
                     >
                       À confirmer
                     </Badge>
@@ -878,7 +878,7 @@
                         </div>
                       {:else}
                         <p
-                          class="flex items-start gap-1.5 text-xs leading-snug text-amber-600"
+                          class="flex items-start gap-1.5 text-xs leading-snug text-warning"
                         >
                           <TriangleAlert class="mt-px size-3 shrink-0" />
                           Aucun formulaire publié n'est associé : tant qu'il n'y en
@@ -914,7 +914,7 @@
                 ? 'border-epi-tomorrow/40 bg-epi-tomorrow/5'
                 : canActivate
                   ? 'hover:bg-muted/40'
-                  : 'border-amber-500/40 bg-amber-500/5'}"
+                  : 'border-warning/40 bg-warning/5'}"
             >
               <div class="flex-1 space-y-1">
                 <span class="flex items-center gap-1.5 text-sm font-bold">
@@ -931,7 +931,7 @@
                   </span>
                 {:else}
                   <span
-                    class="flex flex-col items-start gap-1 text-xs font-medium text-amber-600"
+                    class="flex flex-col items-start gap-1 text-xs font-medium text-warning"
                   >
                     <span class="flex items-center gap-1.5">
                       <TriangleAlert class="size-3.5 shrink-0" />
@@ -1088,7 +1088,7 @@
           required
         />
         {#if overwritesExisting}
-          <p class="text-xs text-amber-600">
+          <p class="text-xs text-warning">
             Un modèle porte déjà ce nom : il sera mis à jour.
           </p>
         {/if}

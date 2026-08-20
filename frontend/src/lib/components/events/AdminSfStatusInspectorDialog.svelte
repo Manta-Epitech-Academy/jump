@@ -97,8 +97,7 @@
 
   const STATUS_BADGE: Record<string, { class: string; label: string }> = {
     READY: {
-      class:
-        'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25',
+      class: 'bg-success/10 text-success border-success/25',
       label: 'Ready',
     },
     MEET: {
@@ -106,13 +105,11 @@
       label: 'Meet',
     },
     CONNECTED: {
-      class:
-        'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25',
+      class: 'bg-warning/10 text-warning border-warning/25',
       label: 'Connected',
     },
     DESISTED: {
-      class:
-        'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25',
+      class: 'bg-destructive/10 text-destructive border-destructive/25',
       label: 'Desisted',
     },
   };
@@ -267,7 +264,7 @@
                     <Table.Cell class="text-right">
                       {#if row.isVisibleInDevSpace}
                         <span
-                          class="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400"
+                          class="inline-flex items-center gap-1 text-xs font-bold text-success"
                         >
                           <Eye class="h-3 w-3" />
                           Visible

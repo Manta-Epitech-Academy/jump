@@ -128,11 +128,9 @@
     <div class="space-y-6">
       {#if minted}
         <div
-          class="space-y-2 rounded-md border border-emerald-300 bg-emerald-50 p-3 dark:border-emerald-900/60 dark:bg-emerald-950/40"
+          class="space-y-2 rounded-md border border-success/30 bg-success/10 p-3"
         >
-          <p
-            class="text-sm font-semibold text-emerald-800 dark:text-emerald-300"
-          >
+          <p class="text-sm font-semibold text-success">
             Token « {minted.label} » créé
           </p>
           <div class="flex items-center gap-2">
@@ -142,7 +140,7 @@
             >
             <CopyButton value={minted.secret} label="Copier le token" />
           </div>
-          <p class="text-xs text-emerald-900/80 dark:text-emerald-200/80">
+          <p class="text-xs text-success/80">
             Copiez-le maintenant : il ne sera plus affiché.
           </p>
         </div>

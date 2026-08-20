@@ -224,7 +224,7 @@
         <div class="grid grid-cols-2 gap-1 rounded-sm bg-muted/50 p-2">
           {#each BADGE_MODE_COLORS as c}
             <div
-              class="flex items-center justify-center rounded bg-white py-1.5"
+              class="flex items-center justify-center rounded bg-card py-1.5"
             >
               <Smile class="h-5 w-5" style="color: {c}" />
             </div>
@@ -245,7 +245,7 @@
       >
         <div class="grid grid-cols-2 gap-1 rounded-sm bg-muted/50 p-2">
           {#each BADGE_MODE_COLORS as c}
-            <div class="flex flex-col overflow-hidden rounded bg-white">
+            <div class="flex flex-col overflow-hidden rounded bg-card">
               <div class="flex items-center justify-center py-1">
                 <Smile class="h-4 w-4" style="color: {c}" />
               </div>

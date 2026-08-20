@@ -57,7 +57,7 @@
             type="button"
             class="cursor-pointer rounded-sm px-2 py-1 text-xs font-medium transition-colors {audience ===
             a.value
-              ? 'bg-background text-foreground shadow-sm'
+              ? 'bg-background text-foreground shadow-raised'
               : 'text-muted-foreground hover:text-foreground'}"
             onclick={() => (audience = a.value)}
           >

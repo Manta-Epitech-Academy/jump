@@ -104,7 +104,7 @@
     <div class="space-y-6">
       {#if !outboundTrapped}
         <div
-          class="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200"
+          class="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-warning"
         >
           <Info class="mt-0.5 h-4 w-4 shrink-0" />
           <div class="space-y-1">
@@ -174,12 +174,10 @@
       </form>
 
       {#if canArmRealSends}
-        <div
-          class="space-y-3 rounded-md border border-red-300 p-4 dark:border-red-900/60"
-        >
+        <div class="space-y-3 rounded-md border border-destructive/30 p-4">
           <div>
             <h3
-              class="flex items-center gap-2 text-sm font-semibold text-red-700 dark:text-red-400"
+              class="flex items-center gap-2 text-sm font-semibold text-destructive"
             >
               <ShieldAlert class="h-4 w-4" /> Envois réels (dev)
             </h3>
@@ -194,9 +192,9 @@
 
           {#if armedRealSends}
             <div
-              class="flex flex-wrap items-center gap-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm dark:border-red-900/60 dark:bg-red-950/40"
+              class="flex flex-wrap items-center gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm"
             >
-              <span class="font-semibold text-red-700 dark:text-red-300">
+              <span class="font-semibold text-destructive">
                 Armé{armedUntilLabel
                   ? ` — se désactive à ${armedUntilLabel}`
                   : ''}.
@@ -218,12 +216,10 @@
           {/if}
         </div>
 
-        <div
-          class="space-y-3 rounded-md border border-amber-300 p-4 dark:border-amber-900/60"
-        >
+        <div class="space-y-3 rounded-md border border-warning/30 p-4">
           <div>
             <h3
-              class="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-400"
+              class="flex items-center gap-2 text-sm font-semibold text-warning"
             >
               <MailCheck class="h-4 w-4" /> Tester la connexion (OTP)
             </h3>
@@ -238,9 +234,9 @@
 
           {#if devRedirectPin}
             <div
-              class="flex flex-wrap items-center gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-900/60 dark:bg-amber-950/40"
+              class="flex flex-wrap items-center gap-3 rounded-md border border-warning/30 bg-warning/10 p-3 text-sm"
             >
-              <span class="font-semibold text-amber-700 dark:text-amber-300">
+              <span class="font-semibold text-warning">
                 Active{pinUntilLabel
                   ? ` (se désactive à ${pinUntilLabel})`
                   : ''}.

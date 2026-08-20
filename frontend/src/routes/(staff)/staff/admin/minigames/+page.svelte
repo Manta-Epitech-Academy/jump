@@ -35,17 +35,15 @@
   > = {
     easy: {
       label: 'Facile',
-      class:
-        'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+      class: 'bg-success/10 text-success',
     },
     medium: {
       label: 'Moyen',
-      class:
-        'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+      class: 'bg-warning/10 text-warning',
     },
     hard: {
       label: 'Difficile',
-      class: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
+      class: 'bg-destructive/10 text-destructive',
     },
   };
 
@@ -168,9 +166,9 @@
 
   {#if !data.catalogAvailable}
     <div
-      class="flex items-start gap-3 rounded-sm border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/40"
+      class="flex items-start gap-3 rounded-sm border border-warning/30 bg-warning/10 p-4 text-sm"
     >
-      <TriangleAlert class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+      <TriangleAlert class="mt-0.5 h-5 w-5 shrink-0 text-warning" />
       <div>
         <p class="font-bold">Catalogue des jeux indisponible</p>
         <p class="text-muted-foreground">
@@ -258,11 +256,9 @@
     {/if}
 
     {#if data.orphans.length > 0}
-      <div
-        class="rounded-sm border border-amber-300 bg-amber-50/60 p-4 dark:border-amber-900 dark:bg-amber-950/30"
-      >
+      <div class="rounded-sm border border-warning/30 bg-warning/60 p-4">
         <p class="mb-2 flex items-center gap-2 text-sm font-bold">
-          <TriangleAlert class="h-4 w-4 text-amber-600" /> Jeux absents du catalogue
+          <TriangleAlert class="h-4 w-4 text-warning" /> Jeux absents du catalogue
         </p>
         <p class="mb-3 text-xs text-muted-foreground">
           Ces réglages pointent vers des jeux qui ne sont plus exposés par
@@ -289,6 +285,7 @@
                   variant="ghost"
                   size="icon"
                   class="text-destructive"
+                  aria-label="Retirer ce jeu de la rotation"
                 >
                   <Trash2 class="h-4 w-4" />
                 </Button>
@@ -419,7 +416,7 @@
   <!-- ── Historique ── -->
   <section class="space-y-3">
     <h2 class="text-lg font-bold uppercase">Historique des publications</h2>
-    <div class="rounded-sm border bg-card shadow-sm">
+    <div class="rounded-sm border bg-card shadow-raised">
       <Table.Root>
         <Table.Header>
           <Table.Row>

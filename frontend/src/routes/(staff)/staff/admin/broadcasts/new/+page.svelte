@@ -739,7 +739,7 @@
           'rounded-sm border px-2 py-1 text-xs',
           $formMessage.type === 'error'
             ? 'border-destructive/30 bg-destructive/10 text-destructive'
-            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700',
+            : 'border-success/30 bg-success/10 text-success',
         )}
       >
         {$formMessage.text}

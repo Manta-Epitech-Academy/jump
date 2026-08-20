@@ -19,8 +19,7 @@ export const FORM_STATUS_OPTIONS: { value: FormStatusValue; label: string }[] =
 
 // Pill background/text per status (admin list status pill).
 export const FORM_STATUS_BADGE_CLASS: Record<FormStatusValue, string> = {
-  draft: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
-  published:
-    'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
-  archived: 'bg-slate-100 text-slate-500 dark:bg-slate-800',
+  draft: 'bg-warning/10 text-warning',
+  published: 'bg-success/10 text-success',
+  archived: 'bg-muted text-muted-foreground',
 };

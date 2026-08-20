@@ -53,7 +53,7 @@
       <TalentAvatar
         talent={{ id: student.id, nom: student.nom, prenom: student.prenom }}
         size="lg"
-        class="h-20 w-20 shrink-0 rounded-sm shadow-md sm:order-1 sm:h-24 sm:w-24 md:h-28 md:w-28"
+        class="h-20 w-20 shrink-0 rounded-sm shadow-raised sm:order-1 sm:h-24 sm:w-24 md:h-28 md:w-28"
       />
 
       {#if xpStory.total > 0}
@@ -65,10 +65,10 @@
           type="button"
           onclick={() => (detailOpen = true)}
           aria-label="Voir le détail des XP"
-          class="group flex shrink-0 cursor-pointer items-center gap-3 rounded-sm bg-epi-tech-ink px-4 py-3 text-left text-white shadow-md ring-1 ring-white/10 transition-colors hover:bg-epi-tech-ink/90 sm:order-3"
+          class="group flex shrink-0 cursor-pointer items-center gap-3 rounded-sm bg-epi-tech-ink px-4 py-3 text-left text-white shadow-raised ring-1 ring-white/10 transition-colors hover:bg-epi-tech-ink/90 sm:order-3"
         >
           <span
-            class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-white/15"
+            class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-card"
           >
             <Sparkles class="h-5 w-5" />
           </span>
@@ -96,7 +96,7 @@
         <span class="ml-3">{student.nom}<TitleCursor /></span>
       </h1>
       {#if subtitle}
-        <p class="mt-2 font-mono text-xs text-blue-100 sm:mt-3">{subtitle}</p>
+        <p class="mt-2 font-mono text-xs text-primary sm:mt-3">{subtitle}</p>
       {/if}
     </div>
 
@@ -110,8 +110,8 @@
         label="Fiche Salesforce"
         variant="default"
         class={cn(
-          'w-full shrink-0 justify-center bg-white font-semibold text-epi-blue shadow-md sm:order-4 sm:ml-auto sm:w-auto sm:self-start',
-          'hover:bg-white/90 hover:text-epi-blue hover:shadow-lg',
+          'w-full shrink-0 justify-center bg-card font-semibold text-epi-blue shadow-raised sm:order-4 sm:ml-auto sm:w-auto sm:self-start',
+          'hover:bg-card hover:text-epi-blue hover:shadow-raised',
         )}
       />
     {/if}

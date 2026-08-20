@@ -105,18 +105,18 @@
   // status is also carried by an icon + label, so color is reinforcement only.
   const rulesTone = (s: RulesStatus) =>
     s === 'signed'
-      ? 'text-epi-tech dark:text-teal-900'
+      ? 'text-epi-tech'
       : s === 'awaiting_parent'
-        ? 'text-amber-300 dark:text-amber-900'
-        : 'text-red-300 dark:text-red-900';
+        ? 'text-warning'
+        : 'text-destructive';
   const imageTone = (s: ImageRightsDisplayStatus) =>
     s === 'accepted'
-      ? 'text-epi-tech dark:text-teal-900'
+      ? 'text-epi-tech'
       : s === 'refused'
-        ? 'text-orange-300 dark:text-orange-900'
+        ? 'text-epi-together-ink'
         : s === 'awaiting_parent'
-          ? 'text-amber-300 dark:text-amber-900'
-          : 'text-red-300 dark:text-red-900';
+          ? 'text-warning'
+          : 'text-destructive';
 
   // Statut badge presentation, one entry per funnel state. Red = never logged in
   // (the most urgent case), amber = connected but dossier in progress, teal =
@@ -131,7 +131,7 @@
     },
     in_progress: {
       icon: Clock,
-      class: 'border-amber-500/30 bg-amber-500/10 text-amber-600',
+      class: 'border-warning/30 bg-warning/10 text-warning',
     },
     ready: {
       icon: Check,
@@ -388,9 +388,7 @@
       <span
         class={cn(
           'inline-flex items-center gap-1 font-bold',
-          r.connected
-            ? 'text-epi-tech dark:text-teal-900'
-            : 'text-red-300 dark:text-red-900',
+          r.connected ? 'text-epi-tech' : 'text-destructive',
         )}
       >
         {#if r.connected}

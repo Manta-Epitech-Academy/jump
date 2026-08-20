@@ -8,7 +8,7 @@
   // on timing and tone before staff open a fiche to conduct an interview.
 </script>
 
-<Card.Root class="rounded-sm shadow-sm dark:shadow-none">
+<Card.Root class="rounded-sm shadow-raised">
   <div
     class="flex flex-row items-center gap-2 border-b bg-muted/30 px-6 pt-4 pb-3"
   >

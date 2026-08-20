@@ -98,9 +98,9 @@
   >
     {#if data.transactional.healthy}
       <div
-        class="mb-4 flex items-start gap-3 rounded-sm border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-900 dark:text-emerald-200"
+        class="mb-4 flex items-start gap-3 rounded-sm border border-success/40 bg-success/10 p-3 text-sm text-success"
       >
-        <CircleCheckBig class="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+        <CircleCheckBig class="mt-0.5 h-5 w-5 shrink-0 text-success" />
         <p>Toutes les actions sont reliées à un template.</p>
       </div>
     {:else}

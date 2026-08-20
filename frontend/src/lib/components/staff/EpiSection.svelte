@@ -55,7 +55,7 @@
   );
 </script>
 
-<section class={cn('rounded-sm border bg-card dark:shadow-none', extraClass)}>
+<section class={cn('rounded-sm border bg-card', extraClass)}>
   <header class="flex items-center justify-between gap-3 border-b px-5 py-4">
     <div class="min-w-0">
       {#if overline}

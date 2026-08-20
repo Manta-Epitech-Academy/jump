@@ -48,7 +48,7 @@
 
   <div class="h-8">
     {#if failed}
-      <p in:fade={{ duration: 200 }} class="text-sm text-rose-500">
+      <p in:fade={{ duration: 200 }} class="text-sm text-destructive">
         Une erreur est survenue.
         <button
           type="button"
@@ -65,7 +65,7 @@
       {#key textIndex}
         <p
           in:fade={{ duration: 200 }}
-          class="text-lg font-bold tracking-wide text-slate-700 uppercase dark:text-slate-200"
+          class="text-lg font-bold tracking-wide text-foreground-secondary uppercase"
         >
           {messages[textIndex]}
         </p>

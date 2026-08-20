@@ -158,7 +158,7 @@
        below md each campus renders as a self-contained card instead. -->
   <div class="space-y-3 md:hidden">
     {#each data.campuses as campus}
-      <div class="rounded-sm border bg-card p-4 shadow-sm">
+      <div class="rounded-sm border bg-card p-4 shadow-raised">
         <div class="flex items-start justify-between gap-2">
           <div class="flex min-w-0 items-center gap-2">
             <Map class="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -200,7 +200,7 @@
     {/each}
   </div>
 
-  <div class="hidden rounded-sm border bg-card shadow-sm md:block">
+  <div class="hidden rounded-sm border bg-card shadow-raised md:block">
     <Table.Root>
       <Table.Header>
         <Table.Row>

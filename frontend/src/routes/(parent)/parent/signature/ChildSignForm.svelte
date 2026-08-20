@@ -33,10 +33,10 @@
   // options, told apart by colour + icon + label rather than by valence.
   const submitClass = $derived(
     cn(
-      'h-auto w-full rounded-2xl px-6 py-3 shadow-lg transition-all duration-200 disabled:opacity-50',
+      'h-auto w-full rounded-xl px-6 py-3 shadow-raised transition-ui duration-200 disabled:opacity-50',
       decision === 'refused'
-        ? 'bg-epi-blue text-white shadow-epi-blue/20 hover:bg-epi-blue hover:brightness-110'
-        : 'bg-epi-tech text-black shadow-epi-tech/20 hover:bg-epi-tech hover:brightness-110',
+        ? 'bg-epi-blue text-white hover:bg-epi-blue hover:brightness-110'
+        : 'bg-epi-tech text-black hover:bg-epi-tech hover:brightness-110',
     ),
   );
 </script>
@@ -73,10 +73,10 @@
         onclick={() => (decision = 'accepted')}
         aria-pressed={decision === 'accepted'}
         class={cn(
-          'flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-left shadow-sm backdrop-blur-xl transition-all',
+          'flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-left shadow-raised transition-ui',
           decision === 'accepted'
             ? 'border-epi-tech bg-epi-tech/10 ring-1 ring-epi-tech'
-            : 'border-slate-200/60 bg-white/80 hover:border-epi-tech/50 dark:bg-slate-900/80',
+            : 'border-border/60 bg-card hover:border-epi-tech/50',
         )}
       >
         <span
@@ -84,12 +84,12 @@
             'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border',
             decision === 'accepted'
               ? 'border-epi-tech bg-epi-tech text-black'
-              : 'border-slate-300 dark:border-slate-600',
+              : 'border-border',
           )}
         >
           {#if decision === 'accepted'}<Check class="size-3.5" />{/if}
         </span>
-        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
+        <span class="text-sm font-medium text-foreground-secondary">
           J'autorise l'utilisation de l'image de mon enfant
         </span>
       </button>
@@ -99,10 +99,10 @@
         onclick={() => (decision = 'refused')}
         aria-pressed={decision === 'refused'}
         class={cn(
-          'flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-left shadow-sm backdrop-blur-xl transition-all',
+          'flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-left shadow-raised transition-ui',
           decision === 'refused'
             ? 'border-epi-blue bg-epi-blue/10 ring-1 ring-epi-blue'
-            : 'border-slate-200/60 bg-white/80 hover:border-epi-blue/50 dark:bg-slate-900/80',
+            : 'border-border/60 bg-card hover:border-epi-blue/50',
         )}
       >
         <span
@@ -110,12 +110,12 @@
             'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border',
             decision === 'refused'
               ? 'border-epi-blue bg-epi-blue text-white'
-              : 'border-slate-300 dark:border-slate-600',
+              : 'border-border',
           )}
         >
           {#if decision === 'refused'}<X class="size-3.5" />{/if}
         </span>
-        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
+        <span class="text-sm font-medium text-foreground-secondary">
           Je refuse l'utilisation de l'image de mon enfant
         </span>
       </button>

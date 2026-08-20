@@ -16,7 +16,7 @@
 </script>
 
 <div
-  class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-red-600 px-4 py-2 text-center text-sm font-semibold text-white"
+  class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-destructive px-4 py-2 text-center text-sm font-semibold text-white"
   role="alert"
 >
   <span class="inline-flex items-center gap-2">
@@ -24,13 +24,15 @@
     ENVOIS RÉELS ACTIVÉS — emails et SMS partent aux vrais destinataires.
   </span>
   {#if untilLabel}
-    <span class="font-normal text-red-100">Se désactive à {untilLabel}.</span>
+    <span class="font-normal text-destructive"
+      >Se désactive à {untilLabel}.</span
+    >
   {/if}
   <form method="POST" action="/api/dev/real-sends" class="inline">
     <input type="hidden" name="action" value="disarm" />
     <button
       type="submit"
-      class="rounded-sm bg-white/20 px-2 py-0.5 font-semibold underline-offset-2 hover:bg-white/30 hover:underline"
+      class="rounded-sm bg-card px-2 py-0.5 font-semibold underline-offset-2 hover:bg-card hover:underline"
     >
       Désarmer
     </button>

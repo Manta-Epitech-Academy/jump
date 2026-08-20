@@ -45,8 +45,8 @@
           <span
             class="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium {ev.presence ===
             'present'
-              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
-              : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'}"
+              ? 'bg-success/10 text-success'
+              : 'bg-muted text-foreground-secondary'}"
           >
             {presenceLabel(ev.presence)}
           </span>

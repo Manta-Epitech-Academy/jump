@@ -19,7 +19,7 @@
 </script>
 
 <nav
-  class="rounded-sm border bg-card p-2 dark:shadow-none"
+  class="rounded-sm border bg-card p-2"
   aria-label="Aller à une section de l'entretien"
 >
   {#each rows as row (row.step)}

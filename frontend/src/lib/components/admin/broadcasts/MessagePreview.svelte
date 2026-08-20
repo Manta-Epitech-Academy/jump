@@ -68,14 +68,14 @@
     </div>
   {:else}
     <!-- SMS handset mock -->
-    <div class="mx-auto max-w-xs rounded-2xl border bg-muted/40 p-3">
+    <div class="mx-auto max-w-xs rounded-xl border bg-muted/40 p-3">
       <div
         class="mb-2 flex items-center justify-center gap-1.5 epi-overline text-muted-foreground"
       >
         <Smartphone class="h-3 w-3" /> Aperçu SMS
       </div>
       <div
-        class="rounded-2xl rounded-bl-sm bg-epi-blue px-3 py-2 text-sm whitespace-pre-wrap text-white"
+        class="rounded-xl rounded-bl-sm bg-epi-blue px-3 py-2 text-sm whitespace-pre-wrap text-white"
       >
         {previewBody}
       </div>

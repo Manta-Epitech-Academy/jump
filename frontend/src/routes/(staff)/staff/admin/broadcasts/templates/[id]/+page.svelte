@@ -20,7 +20,7 @@
 
   {#if form?.success}
     <p
-      class="rounded-sm border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-700"
+      class="rounded-sm border border-success/30 bg-success/10 px-3 py-2 text-sm text-success"
     >
       Enregistré.
     </p>

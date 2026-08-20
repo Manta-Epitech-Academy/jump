@@ -176,7 +176,7 @@
                   <span class="w-48 shrink-0 truncate text-sm">{opt.label}</span
                   >
                   <div class="flex-1">
-                    <div class="h-6 rounded-sm bg-slate-100 dark:bg-slate-800">
+                    <div class="h-6 rounded-sm bg-muted">
                       <div
                         class="h-full rounded-sm bg-epi-blue/80"
                         style="width: {pct}%"

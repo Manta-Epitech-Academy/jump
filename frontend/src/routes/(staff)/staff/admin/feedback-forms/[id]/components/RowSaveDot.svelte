@@ -13,7 +13,7 @@
   {#if state === 'saving'}
     <Loader2 class="h-3.5 w-3.5 animate-spin text-muted-foreground" />
   {:else if state === 'saved'}
-    <Check class="h-3.5 w-3.5 text-emerald-600" />
+    <Check class="h-3.5 w-3.5 text-success" />
   {:else if state === 'error'}
     <TriangleAlert class="h-3.5 w-3.5 text-destructive" />
   {/if}

@@ -20,7 +20,7 @@
   toastOptions={{
     classes: {
       toast:
-        'group toast group-[.toaster]:p-4 group-[.toaster]:rounded-sm group-[.toaster]:border-2 group-[.toaster]:shadow-lg w-full transition-all',
+        'group toast group-[.toaster]:p-4 group-[.toaster]:rounded-sm group-[.toaster]:border-2 group-[.toaster]:shadow-overlay w-full transition-ui',
 
       title:
         'font-heading text-display-s font-normal normal-case text-foreground/90',
@@ -29,10 +29,10 @@
       success:
         'group-[.toaster]:border-epi-tech-ink group-[.toaster]:bg-epi-tech-ink/10',
       error:
-        'group-[.toaster]:border-destructive group-[.toaster]:bg-red-50 dark:group-[.toaster]:bg-red-950/30',
-      info: 'group-[.toaster]:border-epi-blue group-[.toaster]:bg-blue-50 dark:group-[.toaster]:bg-blue-950/30',
+        'group-[.toaster]:border-destructive group-[.toaster]:bg-destructive/10 dark:group-[.toaster]:bg-destructive/30',
+      info: 'group-[.toaster]:border-epi-blue group-[.toaster]:bg-primary/10 dark:group-[.toaster]:bg-primary/30',
       warning:
-        'group-[.toaster]:border-epi-together group-[.toaster]:bg-orange-50 dark:group-[.toaster]:bg-orange-950/30',
+        'group-[.toaster]:border-epi-together group-[.toaster]:bg-epi-together-ink/10 dark:group-[.toaster]:bg-epi-together-ink/30',
 
       actionButton:
         'group-[.toast]:bg-background group-[.toast]:border group-[.toast]:border-border group-[.toast]:text-foreground group-[.toast]:overline group-[.toast]:rounded-sm',

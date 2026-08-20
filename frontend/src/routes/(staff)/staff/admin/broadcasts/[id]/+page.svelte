@@ -145,7 +145,7 @@
         </div>
       {:else}
         <pre
-          class="rounded-sm border bg-white p-3 text-xs whitespace-pre-wrap text-slate-800 dark:bg-slate-900 dark:text-slate-200">{data
+          class="rounded-sm border bg-card p-3 text-xs whitespace-pre-wrap text-foreground">{data
             .broadcast.bodySnapshot}</pre>
       {/if}
     </div>

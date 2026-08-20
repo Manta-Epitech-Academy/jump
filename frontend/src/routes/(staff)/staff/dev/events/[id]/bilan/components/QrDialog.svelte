@@ -41,7 +41,7 @@
       </Dialog.Description>
     </Dialog.Header>
 
-    <div class="rounded-2xl border bg-white p-6 shadow-sm">
+    <div class="rounded-xl border bg-card p-6 shadow-raised">
       <img
         src={qrSrc}
         alt="QR code du formulaire de feedback"

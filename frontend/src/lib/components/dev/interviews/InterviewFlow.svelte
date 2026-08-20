@@ -377,15 +377,14 @@
     positive:
       'border-epi-tech-ink/30 bg-epi-tech-ink/5 text-epi-tech-ink hover:border-epi-tech-ink hover:bg-epi-tech-ink/10',
     neutral:
-      'border-amber-500/30 bg-amber-500/5 text-amber-600 hover:border-amber-500 hover:bg-amber-500/10',
+      'border-warning/30 bg-warning/5 text-warning hover:border-warning hover:bg-warning/10',
     negative:
       'border-destructive/30 bg-destructive/5 text-destructive hover:border-destructive hover:bg-destructive/10',
   };
   const CHIP_TONE_ACTIVE: Record<ChoiceTone, string> = {
     positive:
       'border-epi-tech-ink bg-epi-tech-ink/10 text-epi-tech-ink ring-1 ring-epi-tech-ink',
-    neutral:
-      'border-amber-500 bg-amber-500/10 text-amber-600 ring-1 ring-amber-500',
+    neutral: 'border-warning bg-warning/10 text-warning ring-1 ring-warning',
     negative:
       'border-destructive bg-destructive/10 text-destructive ring-1 ring-destructive',
   };
@@ -654,13 +653,13 @@
   </div>
 {/snippet}
 
-<section class="rounded-sm border bg-card dark:shadow-none">
+<section class="rounded-sm border bg-card">
   <!-- Progress fill: a thin no-number bar so paging never feels like a numbered
        checklist. Conduct-only: the synthesis has nothing to pace. -->
   {#if status === 'in_progress'}
     <div class="h-1 w-full overflow-hidden rounded-t-sm bg-muted">
       <div
-        class="h-full bg-epi-blue transition-all duration-300"
+        class="h-full bg-epi-blue transition-ui duration-300"
         style={`width:${progressPct}%`}
       ></div>
     </div>
@@ -925,7 +924,7 @@
                           disabled={!interactive}
                           onclick={() => setRecommendation(value)}
                           class={cn(
-                            'flex cursor-pointer flex-col items-center gap-1.5 rounded-sm border px-2 py-3 text-center transition-all active:scale-[0.98] disabled:cursor-default disabled:active:scale-100',
+                            'flex cursor-pointer flex-col items-center gap-1.5 rounded-sm border px-2 py-3 text-center transition-ui active:scale-[0.98] disabled:cursor-default disabled:active:scale-100',
                             active
                               ? TONE_ACTIVE[desc.tone]
                               : TONE_IDLE[desc.tone],

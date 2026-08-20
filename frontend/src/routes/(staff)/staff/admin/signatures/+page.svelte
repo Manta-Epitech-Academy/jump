@@ -96,9 +96,11 @@
 </svelte:head>
 
 {#snippet signatoryCard(s: Signatory)}
-  <div class="flex items-center gap-4 rounded-sm border bg-card p-3 shadow-sm">
+  <div
+    class="flex items-center gap-4 rounded-sm border bg-card p-3 shadow-raised"
+  >
     <div
-      class="flex h-16 w-28 shrink-0 items-center justify-center rounded-sm border bg-white"
+      class="flex h-16 w-28 shrink-0 items-center justify-center rounded-sm border bg-card"
     >
       <img
         src="/api/signatures/{s.id}?v={s.updatedAt.getTime()}"

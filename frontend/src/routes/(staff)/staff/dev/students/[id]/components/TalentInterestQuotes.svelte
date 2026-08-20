@@ -53,7 +53,7 @@
           {q.lead}
         </figcaption>
         <blockquote
-          class="border-l-2 border-epi-tech-ink/50 pl-4 text-[15px] leading-relaxed text-foreground italic"
+          class="border-l-2 border-epi-tech-ink/50 pl-4 text-base leading-relaxed text-foreground italic"
         >
           «&nbsp;{q.text}&nbsp;»
         </blockquote>

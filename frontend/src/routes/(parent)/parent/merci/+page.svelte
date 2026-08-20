@@ -15,22 +15,20 @@
   >
     <div class="w-full max-w-lg text-center">
       <div
-        class="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-tech text-black shadow-lg shadow-epi-tech/20"
+        class="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-epi-tech text-black shadow-raised"
       >
         <CheckCircle class="h-7 w-7" />
       </div>
 
       <div
-        class="rounded-2xl border border-slate-200/60 bg-white/80 px-6 py-8 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+        class="rounded-xl border border-border/60 bg-card px-6 py-8 shadow-raised"
       >
-        <h1
-          class="mb-4 font-heading text-display-m text-epi-blue dark:text-epi-blue"
-        >
+        <h1 class="mb-4 font-heading text-display-m text-epi-blue">
           Merci pour votre confiance !
         </h1>
 
         <div
-          class="space-y-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300"
+          class="space-y-4 text-sm leading-relaxed text-foreground-secondary"
         >
           {#if data.childPrenom}
             <p>
@@ -74,7 +72,7 @@
             <p>Nos équipes ont hâte de l'accueillir.</p>
           {/if}
 
-          <p class="pt-2 font-medium text-slate-700 dark:text-slate-200">
+          <p class="pt-2 font-medium text-foreground-secondary">
             Bien cordialement,<br />
             L'équipe Epitech{#if data.campusName}&nbsp;{data.campusName}{/if}
           </p>

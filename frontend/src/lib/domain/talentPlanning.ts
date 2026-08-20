@@ -132,8 +132,7 @@ export type CalendarPlanning = {
 
 /**
  * Flatten every participation's timeSlots into one event-tagged, start-sorted
- * list and compute the overall date range. The range is derived from the events'
- * own [date, endDate] spans (not the slots) so a multi-day event's activity-free
+ * list and compute the overall date range. The range is derived from the events'* own [date, endDate] spans (not the slots) so a multi-day event's activity-free
  * edge days still count as in-range on the grid.
  */
 export function toCalendarPlanning(

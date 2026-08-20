@@ -188,7 +188,7 @@
   </div>
 
   {#if dupWarning}
-    <p class="mt-1 pl-12 text-xs text-amber-600 dark:text-amber-500">
+    <p class="mt-1 pl-12 text-xs text-warning">
       Ce libellé est déjà utilisé dans cette question.
     </p>
   {/if}

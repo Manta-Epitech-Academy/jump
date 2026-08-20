@@ -119,8 +119,8 @@
 <div
   data-sort-id={q.id}
   class="group relative rounded-sm border bg-card transition-shadow {active
-    ? 'border-l-4 border-l-epi-tomorrow shadow-md'
-    : 'cursor-pointer shadow-sm hover:border-foreground/20'} {editor.status_.get(
+    ? 'border-l-4 border-l-epi-tomorrow shadow-raised'
+    : 'cursor-pointer shadow-raised hover:border-foreground/20'} {editor.status_.get(
     q.id,
   ) === 'error'
     ? 'ring-1 ring-destructive'
@@ -201,7 +201,7 @@
           rows={2}
           aria-label="Intitulé de la question"
           placeholder="Question"
-          class="flex-1 cursor-text resize-none rounded-none border-0 border-b bg-muted/30 px-3 py-2 text-base shadow-none focus-visible:outline-none"
+          class="flex-1 cursor-text resize-none rounded-none border-0 border-b bg-muted/30 px-3 py-2 text-base shadow-none focus-visible:border-foreground focus-visible:outline-none"
           oninput={promptField.oninput}
           onblur={promptField.onblur}
         />
@@ -219,7 +219,7 @@
            Only renders on the rare misconfigured card, never on normal ones. -->
       {#if unreachable}
         <div
-          class="flex items-start gap-2 rounded-sm border border-amber-300 bg-amber-50 p-2 text-xs leading-snug text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+          class="flex items-start gap-2 rounded-sm border border-warning/30 bg-warning/10 p-2 text-xs leading-snug text-warning"
         >
           <TriangleAlert class="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <p class="min-w-0 flex-1">
@@ -513,7 +513,7 @@
 
     <!-- Floating add-rail beside the active card (xl+) -->
     <div
-      class="absolute top-4 -right-12 hidden flex-col gap-1 rounded-sm border bg-card p-1 shadow-sm xl:flex"
+      class="absolute top-4 -right-12 hidden flex-col gap-1 rounded-sm border bg-card p-1 shadow-raised xl:flex"
     >
       <Tooltip.Root>
         <Tooltip.Trigger>

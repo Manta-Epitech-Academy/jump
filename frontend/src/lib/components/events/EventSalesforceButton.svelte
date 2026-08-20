@@ -19,7 +19,7 @@
             {externalId}
             kind="campaign"
             label="Campagne Salesforce"
-            class="shadow-sm"
+            class="shadow-raised"
           />
         {/snippet}
       </Tooltip.Trigger>

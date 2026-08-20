@@ -53,7 +53,7 @@
     <div
       class="h-full bg-primary transition-[width] ease-out {finishing
         ? 'duration-200'
-        : 'duration-[600ms]'}"
+        : 'duration-320'}"
       style="width: {width}%"
     ></div>
   </div>
