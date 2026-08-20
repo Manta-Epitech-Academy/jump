@@ -82,7 +82,7 @@
 		${
       active
         ? 'bg-accent-space/10 text-accent-space-ink border-l-4 border-accent-space'
-        : 'text-muted-foreground hover:bg-epi-dark hover:text-chrome-foreground-muted border-l-4 border-transparent'
+        : 'text-chrome-foreground-muted hover:bg-chrome-hover hover:text-chrome-foreground border-l-4 border-transparent'
     }
 	`;
 </script>
@@ -100,9 +100,9 @@
         <span>{item.label}</span>
         {#if badge.count > 0}
           <span
-            class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold text-white {badge.danger
-              ? 'bg-destructive'
-              : 'bg-accent-space'}"
+            class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold {badge.danger
+              ? 'bg-destructive text-status-foreground'
+              : 'bg-accent-space text-epi-dark'}"
             title={badge.title}
           >
             {badge.count}
@@ -117,7 +117,7 @@
 
 {#snippet navMenu()}
   {#each ADMIN_NAV as section, i (section.title)}
-    <div class="mb-2 px-6 epi-overline text-muted-foreground">
+    <div class="mb-2 px-6 epi-overline text-chrome-foreground-muted">
       {section.title}<TitleCursor />
     </div>
     <nav class="space-y-1 {i < ADMIN_NAV.length - 1 ? 'mb-8' : ''}">
@@ -139,7 +139,7 @@
       <Button
         variant="ghost"
         size="icon"
-        class="relative h-10 w-10 text-chrome-foreground-muted hover:bg-epi-dark hover:text-white md:hidden"
+        class="relative h-10 w-10 text-chrome-foreground-muted hover:bg-chrome-hover hover:text-chrome-foreground md:hidden"
         onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
       >
         <Menu
@@ -167,14 +167,14 @@
       <Button
         variant="ghost"
         size="sm"
-        class="h-9 gap-2 rounded-sm text-chrome-foreground-muted hover:bg-epi-dark hover:text-white"
+        class="h-9 gap-2 rounded-sm text-chrome-foreground-muted hover:bg-chrome-hover hover:text-chrome-foreground"
         onclick={() => (commandOpen = true)}
         aria-label="Rechercher une personne"
       >
         <Search class="h-4 w-4" />
         <span class="hidden text-xs sm:inline">Rechercher</span>
         <kbd
-          class="hidden rounded border border-border bg-epi-dark px-1.5 text-xs text-muted-foreground sm:inline"
+          class="hidden rounded border border-chrome-border bg-epi-dark px-1.5 text-xs text-chrome-foreground-muted sm:inline"
           >⌘K</kbd
         >
       </Button>
@@ -187,7 +187,7 @@
             class="flex cursor-pointer items-center gap-3 transition-opacity hover:opacity-80"
           >
             <div class="hidden flex-col items-end md:flex">
-              <span class="epi-overline font-bold text-muted-foreground">
+              <span class="epi-overline font-bold text-chrome-foreground-muted">
                 Superuser
               </span>
               <span class="text-sm font-bold text-chrome-foreground-muted"
@@ -195,7 +195,7 @@
               >
             </div>
             <Avatar.Root
-              class="h-9 w-9 rounded-sm border border-border bg-epi-dark"
+              class="h-9 w-9 rounded-sm border border-chrome-border bg-epi-dark"
             >
               <Avatar.Image
                 src={data.user?.image ?? undefined}
