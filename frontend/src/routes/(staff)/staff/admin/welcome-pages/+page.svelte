@@ -57,7 +57,7 @@
                   class={cn(
                     'flex flex-col gap-1 px-3 py-2.5 text-sm transition-colors hover:bg-accent',
                     active &&
-                      'bg-epi-pink/10 ring-1 ring-epi-pink/30 ring-inset',
+                      'bg-epi-tomorrow/10 ring-1 ring-epi-tomorrow/30 ring-inset',
                   )}
                 >
                   <div class="flex items-center justify-between gap-2">
@@ -77,7 +77,7 @@
                   >
                     <span>{formatStageRange(ev.date, ev.endDate)}</span>
                     {#if ev.hasContent}
-                      <span class="flex items-center gap-1 text-epi-teal-solid">
+                      <span class="flex items-center gap-1 text-epi-tech-ink">
                         <CircleCheck class="h-3 w-3" /> Contenu
                       </span>
                     {:else}

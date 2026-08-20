@@ -37,7 +37,7 @@
         <h1
           class="font-heading text-3xl tracking-wider text-slate-900 uppercase dark:text-white"
         >
-          Paramètres<span class="text-epi-teal">_</span>
+          Paramètres<span class="text-epi-tech">_</span>
         </h1>
       </div>
     </header>
@@ -102,8 +102,8 @@
             <div
               class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30"
             >
-              <Sun class="h-4 w-4 text-epi-orange dark:hidden" />
-              <Moon class="hidden h-4 w-4 text-epi-orange dark:block" />
+              <Sun class="h-4 w-4 text-epi-together dark:hidden" />
+              <Moon class="hidden h-4 w-4 text-epi-together dark:block" />
             </div>
             <span class="text-sm font-bold text-slate-700 dark:text-slate-300"
               >Thème sombre</span

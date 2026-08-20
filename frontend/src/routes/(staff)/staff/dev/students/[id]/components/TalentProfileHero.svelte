@@ -64,7 +64,7 @@
           type="button"
           onclick={() => (detailOpen = true)}
           aria-label="Voir le détail des XP"
-          class="group flex shrink-0 cursor-pointer items-center gap-3 rounded-sm bg-epi-teal-solid px-4 py-3 text-left text-white shadow-md ring-1 ring-white/10 transition-colors hover:bg-epi-teal-solid/90 sm:order-3"
+          class="group flex shrink-0 cursor-pointer items-center gap-3 rounded-sm bg-epi-tech-ink px-4 py-3 text-left text-white shadow-md ring-1 ring-white/10 transition-colors hover:bg-epi-tech-ink/90 sm:order-3"
         >
           <span
             class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-white/15"
@@ -99,7 +99,7 @@
           >{formatGivenName(student.prenom)}</span
         >
         <span class="ml-3"
-          >{student.nom}<span class="text-epi-teal">_</span></span
+          >{student.nom}<span class="text-epi-tech">_</span></span
         >
       </h1>
       {#if subtitle}

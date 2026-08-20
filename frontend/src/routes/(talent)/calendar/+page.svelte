@@ -112,7 +112,7 @@
           <h2
             class="font-heading text-lg tracking-wide text-slate-700 uppercase dark:text-slate-200"
           >
-            Aucune activité au programme<span class="text-epi-teal">_</span>
+            Aucune activité au programme<span class="text-epi-tech">_</span>
           </h2>
           <p class="text-sm text-slate-500">
             Ton planning apparaîtra ici dès qu'un événement sera prévu.

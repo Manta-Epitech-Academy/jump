@@ -45,11 +45,11 @@
     accent === 'blue'
       ? 'text-epi-blue'
       : accent === 'tech'
-        ? 'text-epi-teal-solid'
+        ? 'text-epi-tech-ink'
         : accent === 'together'
-          ? 'text-epi-orange'
+          ? 'text-epi-together'
           : accent === 'tomorrow'
-            ? 'text-epi-pink'
+            ? 'text-epi-tomorrow'
             : 'text-muted-foreground',
   );
 </script>
@@ -73,7 +73,7 @@
           overline && 'mt-1.5',
         )}
       >
-        {title}<span class="text-epi-teal">_</span>
+        {title}<span class="text-epi-tech">_</span>
       </h2>
     </div>
     {#if meta}

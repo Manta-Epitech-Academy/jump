@@ -374,7 +374,7 @@
   // same tinted-ring treatment as the categorical blue.
   const CHIP_TONE_IDLE: Record<ChoiceTone, string> = {
     positive:
-      'border-epi-teal-solid/30 bg-epi-teal-solid/5 text-epi-teal-solid hover:border-epi-teal-solid hover:bg-epi-teal-solid/10',
+      'border-epi-tech-ink/30 bg-epi-tech-ink/5 text-epi-tech-ink hover:border-epi-tech-ink hover:bg-epi-tech-ink/10',
     neutral:
       'border-amber-500/30 bg-amber-500/5 text-amber-600 hover:border-amber-500 hover:bg-amber-500/10',
     negative:
@@ -382,7 +382,7 @@
   };
   const CHIP_TONE_ACTIVE: Record<ChoiceTone, string> = {
     positive:
-      'border-epi-teal-solid bg-epi-teal-solid/10 text-epi-teal-solid ring-1 ring-epi-teal-solid',
+      'border-epi-tech-ink bg-epi-tech-ink/10 text-epi-tech-ink ring-1 ring-epi-tech-ink',
     neutral:
       'border-amber-500 bg-amber-500/10 text-amber-600 ring-1 ring-amber-500',
     negative:
@@ -413,19 +413,20 @@
 
   const TONE_IDLE: Record<RecommendationToneToken, string> = {
     'epi-tech':
-      'border-epi-teal-solid/30 bg-epi-teal-solid/5 text-epi-teal-solid hover:border-epi-teal-solid',
+      'border-epi-tech-ink/30 bg-epi-tech-ink/5 text-epi-tech-ink hover:border-epi-tech-ink',
     'epi-blue':
       'border-epi-blue/30 bg-epi-blue/5 text-epi-blue hover:border-epi-blue',
     'epi-tomorrow':
-      'border-epi-pink/30 bg-epi-pink/5 text-epi-pink hover:border-epi-pink',
+      'border-epi-tomorrow/30 bg-epi-tomorrow/5 text-epi-tomorrow hover:border-epi-tomorrow',
     'epi-drift':
       'border-border bg-muted/40 text-muted-foreground hover:border-foreground/40',
   };
   const TONE_ACTIVE: Record<RecommendationToneToken, string> = {
     'epi-tech':
-      'border-epi-teal-solid bg-epi-teal-solid/15 ring-1 ring-epi-teal-solid',
+      'border-epi-tech-ink bg-epi-tech-ink/15 ring-1 ring-epi-tech-ink',
     'epi-blue': 'border-epi-blue bg-epi-blue/10 ring-1 ring-epi-blue',
-    'epi-tomorrow': 'border-epi-pink bg-epi-pink/10 ring-1 ring-epi-pink',
+    'epi-tomorrow':
+      'border-epi-tomorrow bg-epi-tomorrow/10 ring-1 ring-epi-tomorrow',
     'epi-drift': 'border-foreground/40 bg-muted ring-1 ring-foreground/30',
   };
 
@@ -532,7 +533,7 @@
               class={cn(
                 'h-7 w-7 transition-colors',
                 filled
-                  ? 'fill-epi-orange text-epi-orange'
+                  ? 'fill-epi-together text-epi-together'
                   : 'text-muted-foreground/40',
               )}
             />
@@ -570,7 +571,7 @@
     {#if saveState === 'saving'}
       <Loader2 class="h-3.5 w-3.5 animate-spin" /> Enregistrement…
     {:else if saveState === 'saved'}
-      <Check class="h-3.5 w-3.5 text-epi-teal-solid" /> Enregistré
+      <Check class="h-3.5 w-3.5 text-epi-tech-ink" /> Enregistré
     {:else}
       Enregistrement automatique
     {/if}
@@ -610,7 +611,7 @@
                   class={cn(
                     'h-3.5 w-3.5',
                     ($form.satisfactionStars ?? 0) > idx
-                      ? 'fill-epi-orange text-epi-orange'
+                      ? 'fill-epi-together text-epi-together'
                       : 'text-muted-foreground/30',
                   )}
                 />
@@ -698,12 +699,12 @@
                  the record stays uncluttered. Teal = gate cleared, the "done"
                  status-chip language. -->
             <div
-              class="flex items-center gap-3 rounded-md border border-epi-teal-solid/30 bg-epi-teal-solid/10 p-4"
+              class="flex items-center gap-3 rounded-md border border-epi-tech-ink/30 bg-epi-tech-ink/10 p-4"
             >
               <span
-                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-epi-teal-solid/15"
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-epi-tech-ink/15"
               >
-                <CheckCheck class="h-5 w-5 text-epi-teal-solid" />
+                <CheckCheck class="h-5 w-5 text-epi-tech-ink" />
               </span>
               <p class="text-sm font-medium text-foreground">
                 <span class="font-bold">Entretien finalisé.</span> Il est clôturé
@@ -716,7 +717,7 @@
             <h3
               class="font-heading text-2xl tracking-wide text-foreground uppercase"
             >
-              Synthèse de l'entretien<span class="text-epi-teal">_</span>
+              Synthèse de l'entretien<span class="text-epi-tech">_</span>
             </h3>
             {#if conductedBy || conductedLabel}
               <div class="flex items-center gap-2.5">
@@ -826,7 +827,7 @@
                     <h3
                       class="font-heading text-2xl tracking-wide text-foreground uppercase"
                     >
-                      Entretien d'orientation<span class="text-epi-teal">_</span
+                      Entretien d'orientation<span class="text-epi-tech">_</span
                       >
                     </h3>
                     <p class="text-sm text-muted-foreground">
@@ -984,7 +985,7 @@
 
             {#if isVerdict}
               <Button
-                class="bg-epi-teal-solid text-white hover:bg-epi-teal-solid/90"
+                class="bg-epi-tech-ink text-white hover:bg-epi-tech-ink/90"
                 disabled={$delayed}
                 onclick={close}
               >
@@ -1012,7 +1013,7 @@
   <AlertDialog.Content class="rounded-sm">
     <AlertDialog.Header>
       <AlertDialog.Title class="flex items-center gap-2">
-        <Lock class="h-5 w-5 text-epi-teal-solid" />
+        <Lock class="h-5 w-5 text-epi-tech-ink" />
         Clôturer l'entretien&nbsp;?
       </AlertDialog.Title>
       <AlertDialog.Description>

@@ -40,7 +40,7 @@
   </div>
 
   <h3 class="font-heading text-2xl tracking-wide text-foreground uppercase">
-    {title}<span class="text-epi-teal">_</span>
+    {title}<span class="text-epi-tech">_</span>
   </h3>
 
   <p class="mt-3 max-w-sm text-sm font-medium text-muted-foreground italic">

@@ -107,7 +107,7 @@
     onSelect={() => surround(v.token)}
     class="flex-col items-start gap-0.5 py-1.5"
   >
-    <code class="font-mono text-xs text-epi-pink">{v.token}</code>
+    <code class="font-mono text-xs text-epi-tomorrow">{v.token}</code>
     <span class="text-xs whitespace-normal text-muted-foreground"
       >{v.label}</span
     >
@@ -124,7 +124,7 @@
           smsOverCeiling
             ? 'font-semibold text-destructive'
             : smsMultipart
-              ? 'font-medium text-epi-orange'
+              ? 'font-medium text-epi-together'
               : 'text-muted-foreground',
         )}
       >
@@ -206,7 +206,7 @@
         le texte pour pouvoir envoyer.
       </p>
     {:else if smsMultipart}
-      <p class="text-xs font-medium text-epi-orange">
+      <p class="text-xs font-medium text-epi-together">
         Plus de {SMS_SINGLE_SEGMENT_CHARS} caractères : ce message partira en {smsSegmentCount}
         SMS par destinataire, et sera donc facturé {smsSegmentCount} fois par personne.
       </p>

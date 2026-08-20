@@ -187,8 +187,8 @@
   // Status chip tints (labels are single-sourced in ./labels so the table and
   // the XLSX export read the same words). `active` = onboarding complete.
   const STATUS_CLASS = {
-    active: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
-    pending: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
+    active: 'border-epi-tech/30 bg-epi-tech/10 text-epi-tech-ink',
+    pending: 'border-epi-together/30 bg-epi-together/10 text-epi-together',
     never: 'border-border bg-muted text-muted-foreground',
   } as const;
 
@@ -196,8 +196,8 @@
   // like the account-status chip: complete reads calm (teal), en attente flags
   // a parent still to chase (orange).
   const PARENT_STATUS_CLASS = {
-    complete: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
-    pending: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
+    complete: 'border-epi-tech/30 bg-epi-tech/10 text-epi-tech-ink',
+    pending: 'border-epi-together/30 bg-epi-together/10 text-epi-together',
   } as const;
 
   function lastActiveLabel(date: Date | string | null): string {
@@ -576,7 +576,7 @@
       </Table.Cell>
       <Table.Cell>
         <div class="flex items-center gap-2">
-          <Zap class="h-3.5 w-3.5 text-epi-pink" />
+          <Zap class="h-3.5 w-3.5 text-epi-tomorrow" />
           <span class="font-mono text-sm font-bold">{talent.xp}</span>
           <span class="text-xs text-muted-foreground">
             · {talent.eventsCount} évé{talent.eventsCount > 1
@@ -640,7 +640,7 @@
                     {...props}
                     variant="ghost"
                     size="sm"
-                    class="gap-1.5 text-muted-foreground hover:text-epi-pink"
+                    class="gap-1.5 text-muted-foreground hover:text-epi-tomorrow"
                     disabled={impersonating === talent.id ||
                       (!talent.email && !talent.userId)}
                     onclick={() => impersonate(talent.id)}

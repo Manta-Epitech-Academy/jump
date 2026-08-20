@@ -80,7 +80,7 @@
 		flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-all rounded-r-md cursor-pointer
 		${
       active
-        ? 'bg-epi-pink/10 text-epi-pink border-l-4 border-epi-pink'
+        ? 'bg-epi-tomorrow/10 text-epi-tomorrow border-l-4 border-epi-tomorrow'
         : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-l-4 border-transparent'
     }
 	`;
@@ -101,7 +101,7 @@
           <span
             class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white {badge.danger
               ? 'bg-red-500'
-              : 'bg-epi-pink'}"
+              : 'bg-epi-tomorrow'}"
             title={badge.title}
           >
             {badge.count}
@@ -119,7 +119,7 @@
     <div
       class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
     >
-      {section.title}<span class="text-epi-pink">_</span>
+      {section.title}<span class="text-epi-tomorrow">_</span>
     </div>
     <nav class="space-y-1 {i < ADMIN_NAV.length - 1 ? 'mb-8' : ''}">
       {#each section.items as item (item.href)}
@@ -203,7 +203,9 @@
                 alt={data.user?.name ?? data.user?.email ?? 'Admin'}
                 class="object-cover"
               />
-              <Avatar.Fallback class="rounded-sm bg-slate-900 text-epi-pink">
+              <Avatar.Fallback
+                class="rounded-sm bg-slate-900 text-epi-tomorrow"
+              >
                 <ShieldAlert class="h-4 w-4" />
               </Avatar.Fallback>
             </Avatar.Root>

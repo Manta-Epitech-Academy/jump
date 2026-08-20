@@ -13,9 +13,9 @@
 </script>
 
 <!-- Teal chip marking an identity-data question. Uses the solid teal token (not
-     the neon `epi-teal`) so the icon and text keep contrast as a fill. -->
+     the neon `epi-tech`) so the icon and text keep contrast as a fill. -->
 <span
-  class="inline-flex shrink-0 items-center gap-1 rounded-sm border border-epi-teal-solid/40 bg-epi-teal-solid/10 px-1.5 py-0.5 text-[11px] font-medium text-epi-teal-solid"
+  class="inline-flex shrink-0 items-center gap-1 rounded-sm border border-epi-tech-ink/40 bg-epi-tech-ink/10 px-1.5 py-0.5 text-[11px] font-medium text-epi-tech-ink"
 >
   <ContactRound class="h-3.5 w-3.5" />
   Identité · {label}

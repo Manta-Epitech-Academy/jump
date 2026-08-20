@@ -20,8 +20,8 @@
     present: {
       Icon: PartyPopper,
       title: 'C’est noté !',
-      badge: 'bg-epi-teal-solid/15 text-epi-teal-solid',
-      blob: 'bg-epi-teal-solid/25',
+      badge: 'bg-epi-tech-ink/15 text-epi-tech-ink',
+      blob: 'bg-epi-tech-ink/25',
       celebrate: true,
       ctaLabel: 'Retour à mon espace',
       ctaTo: '/',
@@ -109,7 +109,7 @@
   <div class="pop relative">
     {#if ui.celebrate}
       <span
-        class="absolute inset-0 animate-ping rounded-full bg-epi-teal-solid/30"
+        class="absolute inset-0 animate-ping rounded-full bg-epi-tech-ink/30"
         aria-hidden="true"
       ></span>
     {/if}

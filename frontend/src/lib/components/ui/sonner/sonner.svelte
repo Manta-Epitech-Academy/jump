@@ -27,12 +27,12 @@
       description: 'font-sans text-xs font-medium text-foreground/70 mt-1.5',
 
       success:
-        'group-[.toaster]:border-epi-teal-solid group-[.toaster]:bg-epi-teal-solid/10',
+        'group-[.toaster]:border-epi-tech-ink group-[.toaster]:bg-epi-tech-ink/10',
       error:
         'group-[.toaster]:border-destructive group-[.toaster]:bg-red-50 dark:group-[.toaster]:bg-red-950/30',
       info: 'group-[.toaster]:border-epi-blue group-[.toaster]:bg-blue-50 dark:group-[.toaster]:bg-blue-950/30',
       warning:
-        'group-[.toaster]:border-epi-orange group-[.toaster]:bg-orange-50 dark:group-[.toaster]:bg-orange-950/30',
+        'group-[.toaster]:border-epi-together group-[.toaster]:bg-orange-50 dark:group-[.toaster]:bg-orange-950/30',
 
       actionButton:
         'group-[.toast]:bg-background group-[.toast]:border group-[.toast]:border-border group-[.toast]:text-foreground group-[.toast]:font-bold group-[.toast]:text-[10px] group-[.toast]:uppercase group-[.toast]:rounded-sm',
@@ -58,7 +58,7 @@
     <Loader2Icon class="size-5 animate-spin text-epi-blue" />
   {/snippet}
   {#snippet successIcon()}
-    <CircleCheckIcon class="size-5 text-epi-teal-solid" />
+    <CircleCheckIcon class="size-5 text-epi-tech-ink" />
   {/snippet}
   {#snippet errorIcon()}
     <OctagonXIcon class="size-5 text-destructive" />
@@ -67,6 +67,6 @@
     <InfoIcon class="size-5 text-epi-blue" />
   {/snippet}
   {#snippet warningIcon()}
-    <TriangleAlertIcon class="size-5 text-epi-orange" />
+    <TriangleAlertIcon class="size-5 text-epi-together" />
   {/snippet}
 </Sonner>

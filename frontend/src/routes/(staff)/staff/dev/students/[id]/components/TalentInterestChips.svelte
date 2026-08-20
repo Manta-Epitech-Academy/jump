@@ -53,13 +53,13 @@
 {/snippet}
 
 {#snippet techIcon()}
-  <Code class="h-3 w-3 text-epi-teal-solid" />
+  <Code class="h-3 w-3 text-epi-tech-ink" />
 {/snippet}
 {#snippet persoIcon()}
-  <Heart class="h-3 w-3 text-epi-orange" />
+  <Heart class="h-3 w-3 text-epi-together" />
 {/snippet}
 
 <div class="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
-  {@render group('Tech', 'text-epi-teal-solid', techIcon, tech)}
-  {@render group('Perso', 'text-epi-orange', persoIcon, perso)}
+  {@render group('Tech', 'text-epi-tech-ink', techIcon, tech)}
+  {@render group('Perso', 'text-epi-together', persoIcon, perso)}
 </div>

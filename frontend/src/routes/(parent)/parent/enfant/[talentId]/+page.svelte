@@ -63,7 +63,7 @@
         >
           Bonjour, <span class="text-epi-blue"
             >M./Mme {data.parentLastName}</span
-          ><span class="text-epi-teal">_</span>
+          ><span class="text-epi-tech">_</span>
         </h1>
         <p
           class="mt-1 text-base font-semibold text-slate-600 dark:text-slate-300"
@@ -189,7 +189,7 @@
             class="mb-4 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
           >
             Programme du jour pour {data.child.prenom}<span
-              class="text-epi-teal">_</span
+              class="text-epi-tech">_</span
             >
           </h2>
 
@@ -252,7 +252,7 @@
           >
             <Rocket class="h-5 w-5 text-epi-blue" />
             Prochains événements d'{data.child.prenom}<span
-              class="text-epi-teal">_</span
+              class="text-epi-tech">_</span
             >
           </h2>
           <Badge variant="outline" class="text-[10px] font-bold">

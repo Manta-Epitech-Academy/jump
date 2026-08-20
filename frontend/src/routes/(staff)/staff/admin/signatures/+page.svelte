@@ -149,7 +149,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Signataires <span class="text-epi-pink">Diplômes</span>
+        Signataires <span class="text-epi-tomorrow">Diplômes</span>
       </h1>
       <p class="text-sm font-bold text-muted-foreground uppercase">
         Signatures imprimées sur les certificats de stage
@@ -157,7 +157,7 @@
     </div>
     <Button
       onclick={() => openCreate(null)}
-      class="bg-epi-pink text-white hover:bg-epi-pink/90"
+      class="bg-epi-tomorrow text-white hover:bg-epi-tomorrow/90"
     >
       <Plus class="mr-2 h-4 w-4" /> Ajouter
     </Button>
@@ -166,7 +166,7 @@
   <!-- Signataires globaux -->
   <section class="space-y-3">
     <div class="flex items-center gap-2">
-      <Globe class="h-5 w-5 text-epi-pink" />
+      <Globe class="h-5 w-5 text-epi-tomorrow" />
       <h2 class="font-heading text-lg tracking-wide uppercase">Globaux</h2>
       <span class="text-xs text-muted-foreground">
         Appliqués à tous les campus
@@ -318,7 +318,7 @@
           <Button
             type="submit"
             disabled={submitting}
-            class="bg-epi-pink text-white"
+            class="bg-epi-tomorrow text-white"
           >
             {submitting ? 'Enregistrement...' : 'Enregistrer'}
           </Button>

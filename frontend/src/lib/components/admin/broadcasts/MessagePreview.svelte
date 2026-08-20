@@ -36,7 +36,7 @@
 <div class="space-y-2">
   {#if unknown.length > 0}
     <div
-      class="flex items-start gap-2 rounded-sm border border-epi-orange/40 bg-epi-orange/10 p-2 text-xs text-epi-orange"
+      class="flex items-start gap-2 rounded-sm border border-epi-together/40 bg-epi-together/10 p-2 text-xs text-epi-together"
     >
       <TriangleAlert class="mt-0.5 h-3.5 w-3.5 shrink-0" />
       <p>

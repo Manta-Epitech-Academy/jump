@@ -36,7 +36,7 @@
       'h-auto w-full rounded-2xl px-6 py-3 shadow-lg transition-all duration-200 disabled:opacity-50',
       decision === 'refused'
         ? 'bg-epi-blue text-white shadow-epi-blue/20 hover:bg-epi-blue hover:brightness-110'
-        : 'bg-epi-teal text-black shadow-epi-teal/20 hover:bg-epi-teal hover:brightness-110',
+        : 'bg-epi-tech text-black shadow-epi-tech/20 hover:bg-epi-tech hover:brightness-110',
     ),
   );
 </script>
@@ -75,15 +75,15 @@
         class={cn(
           'flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-left shadow-sm backdrop-blur-xl transition-all',
           decision === 'accepted'
-            ? 'border-epi-teal bg-epi-teal/10 ring-1 ring-epi-teal'
-            : 'border-slate-200/60 bg-white/80 hover:border-epi-teal/50 dark:bg-slate-900/80',
+            ? 'border-epi-tech bg-epi-tech/10 ring-1 ring-epi-tech'
+            : 'border-slate-200/60 bg-white/80 hover:border-epi-tech/50 dark:bg-slate-900/80',
         )}
       >
         <span
           class={cn(
             'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border',
             decision === 'accepted'
-              ? 'border-epi-teal bg-epi-teal text-black'
+              ? 'border-epi-tech bg-epi-tech text-black'
               : 'border-slate-300 dark:border-slate-600',
           )}
         >

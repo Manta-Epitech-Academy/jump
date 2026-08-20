@@ -103,7 +103,7 @@
             class={cn(
               'flex cursor-pointer items-center justify-center gap-1.5 rounded-sm border px-3 py-2 text-sm font-bold transition-colors',
               $form.decision === 'accepted'
-                ? 'border-epi-teal/50 bg-epi-teal/10 text-epi-teal-solid'
+                ? 'border-epi-tech/50 bg-epi-tech/10 text-epi-tech-ink'
                 : 'border-border bg-card text-muted-foreground hover:bg-muted/50',
             )}
           >
@@ -116,7 +116,7 @@
             class={cn(
               'flex cursor-pointer items-center justify-center gap-1.5 rounded-sm border px-3 py-2 text-sm font-bold transition-colors',
               $form.decision === 'refused'
-                ? 'border-epi-orange/50 bg-epi-orange/10 text-epi-orange'
+                ? 'border-epi-together/50 bg-epi-together/10 text-epi-together'
                 : 'border-border bg-card text-muted-foreground hover:bg-muted/50',
             )}
           >
@@ -225,11 +225,9 @@
           {#each records as r (r.id)}
             <li class="flex gap-2 text-xs">
               {#if r.decision === 'accepted'}
-                <Check
-                  class="mt-0.5 h-3.5 w-3.5 shrink-0 text-epi-teal-solid"
-                />
+                <Check class="mt-0.5 h-3.5 w-3.5 shrink-0 text-epi-tech-ink" />
               {:else}
-                <X class="mt-0.5 h-3.5 w-3.5 shrink-0 text-epi-orange" />
+                <X class="mt-0.5 h-3.5 w-3.5 shrink-0 text-epi-together" />
               {/if}
               <div class="min-w-0">
                 <p class="font-bold">

@@ -78,7 +78,7 @@
     <button
       type="button"
       class={cn(
-        'flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-epi-teal text-epi-blue transition-opacity',
+        'flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-epi-tech text-epi-blue transition-opacity',
         !canSubmit && 'cursor-not-allowed opacity-40',
       )}
       disabled={!canSubmit}

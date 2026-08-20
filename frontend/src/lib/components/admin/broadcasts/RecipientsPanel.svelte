@@ -93,7 +93,7 @@
         </p>
         <p class="mt-1 text-xs text-muted-foreground">
           recevront ce message{#if excluded.length > 0}
-            · <span class="text-epi-orange"
+            · <span class="text-epi-together"
               >{excluded.length} exclu{excluded.length > 1 ? 's' : ''}</span
             >{/if}
         </p>
@@ -173,10 +173,10 @@
       <Collapsible.Root
         open={showExcluded}
         onOpenChange={(o) => (showExcluded = o)}
-        class="mt-2 rounded-sm border border-epi-orange/30"
+        class="mt-2 rounded-sm border border-epi-together/30"
       >
         <Collapsible.Trigger
-          class="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-xs font-medium text-epi-orange hover:bg-epi-orange/5"
+          class="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-xs font-medium text-epi-together hover:bg-epi-together/5"
         >
           <span
             >{excluded.length} exclu{excluded.length > 1 ? 's' : ''} (non contactable{excluded.length >

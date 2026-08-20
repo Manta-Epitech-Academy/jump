@@ -10,14 +10,14 @@
 </script>
 
 <div
-  class="relative flex h-dvh w-full flex-col overflow-hidden bg-slate-100 transition-colors duration-500 dark:bg-slate-950"
+  class="parent-layout relative flex h-dvh w-full flex-col overflow-hidden bg-slate-100 transition-colors duration-300 dark:bg-slate-950"
 >
   <!-- Background decorations -->
   <div
     class="absolute -top-20 -right-20 h-100 w-100 rounded-full bg-epi-blue/15 blur-[100px] dark:bg-epi-blue/20"
   ></div>
   <div
-    class="absolute -bottom-20 -left-20 h-100 w-100 rounded-full bg-epi-teal/15 blur-[100px] dark:bg-epi-teal/20"
+    class="absolute -bottom-20 -left-20 h-100 w-100 rounded-full bg-epi-tech/15 blur-[100px] dark:bg-epi-tech/20"
   ></div>
   <div
     class="absolute inset-0 bg-[radial-gradient(var(--color-slate-300)_1px,transparent_1px)] bg-size-[32px_32px] opacity-70 dark:bg-[radial-gradient(var(--color-slate-800)_1px,transparent_1px)] dark:opacity-50"

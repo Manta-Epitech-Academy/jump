@@ -27,7 +27,7 @@
         >
           Bonjour, <span class="text-epi-blue"
             >M./Mme {data.parentLastName}</span
-          ><span class="text-epi-teal">_</span>
+          ><span class="text-epi-tech">_</span>
         </h1>
         <p
           class="mt-1 text-base font-semibold text-slate-600 dark:text-slate-300"

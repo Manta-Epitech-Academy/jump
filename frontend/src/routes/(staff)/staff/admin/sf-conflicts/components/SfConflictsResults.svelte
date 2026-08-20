@@ -258,7 +258,7 @@
       case 'DEGRADED_INVERSION':
       case 'PARENT_HOLDER':
       case 'STAFF_HOLDER':
-        return 'border-epi-orange/40 text-epi-orange';
+        return 'border-epi-together/40 text-epi-together';
       case 'SYMMETRIC_INVERSION':
         return 'border-epi-blue/40 text-epi-blue';
       default:
@@ -364,7 +364,7 @@
     {#if !hasData}
       <Card.Root>
         <Card.Content class="py-16 text-center">
-          <CheckCheck class="mx-auto mb-3 h-8 w-8 text-epi-teal-solid" />
+          <CheckCheck class="mx-auto mb-3 h-8 w-8 text-epi-tech-ink" />
           <p class="text-sm font-medium">Aucune divergence de données.</p>
         </Card.Content>
       </Card.Root>
@@ -558,7 +558,7 @@
     {#if authCount === 0}
       <Card.Root>
         <Card.Content class="py-16 text-center">
-          <CheckCheck class="mx-auto mb-3 h-8 w-8 text-epi-teal-solid" />
+          <CheckCheck class="mx-auto mb-3 h-8 w-8 text-epi-tech-ink" />
           <p class="text-sm font-medium">Aucun conflit d'identité.</p>
           <p class="text-sm text-muted-foreground">
             Chaque talent lié porte bien son email de connexion.

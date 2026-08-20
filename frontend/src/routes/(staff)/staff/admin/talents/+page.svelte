@@ -36,7 +36,7 @@
 <div class="space-y-6">
   <div>
     <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Talents<span class="text-epi-pink">_</span>
+      Talents<span class="text-epi-tomorrow">_</span>
     </h1>
     <p class="font-mono text-xs text-muted-foreground">
       &lt; se connecter en tant qu'un talent pour voir son espace /&gt;

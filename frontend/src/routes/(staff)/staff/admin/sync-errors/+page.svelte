@@ -49,7 +49,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Erreurs de <span class="text-epi-pink">Sync</span>
+        Erreurs de <span class="text-epi-tomorrow">Sync</span>
       </h1>
       <p class="text-sm font-bold text-muted-foreground uppercase">
         Conflits détectés lors de la synchronisation Worker

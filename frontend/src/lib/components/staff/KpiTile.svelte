@@ -66,11 +66,11 @@
 
   const toneAccent = $derived(
     tone === 'teal'
-      ? 'border-l-epi-teal-solid'
+      ? 'border-l-epi-tech-ink'
       : tone === 'orange'
-        ? 'border-l-epi-orange'
+        ? 'border-l-epi-together'
         : tone === 'pink'
-          ? 'border-l-epi-pink'
+          ? 'border-l-epi-tomorrow'
           : tone === 'neutral'
             ? 'border-l-muted-foreground/40'
             : 'border-l-epi-blue',
@@ -78,11 +78,11 @@
 
   const toneText = $derived(
     tone === 'teal'
-      ? 'text-epi-teal-solid'
+      ? 'text-epi-tech-ink'
       : tone === 'orange'
-        ? 'text-epi-orange'
+        ? 'text-epi-together'
         : tone === 'pink'
-          ? 'text-epi-pink'
+          ? 'text-epi-tomorrow'
           : tone === 'neutral'
             ? 'text-muted-foreground'
             : 'text-epi-blue',
@@ -90,11 +90,11 @@
 
   const toneBg = $derived(
     tone === 'teal'
-      ? 'bg-epi-teal-solid/10'
+      ? 'bg-epi-tech-ink/10'
       : tone === 'orange'
         ? 'bg-orange-50 dark:bg-orange-900/20'
         : tone === 'pink'
-          ? 'bg-epi-pink/10'
+          ? 'bg-epi-tomorrow/10'
           : tone === 'neutral'
             ? 'bg-muted/40'
             : 'bg-blue-50 dark:bg-blue-900/20',
@@ -102,11 +102,11 @@
 
   const toneFill = $derived(
     tone === 'teal'
-      ? 'bg-epi-teal-solid'
+      ? 'bg-epi-tech-ink'
       : tone === 'orange'
-        ? 'bg-epi-orange'
+        ? 'bg-epi-together'
         : tone === 'pink'
-          ? 'bg-epi-pink'
+          ? 'bg-epi-tomorrow'
           : tone === 'neutral'
             ? 'bg-muted-foreground'
             : 'bg-epi-blue',

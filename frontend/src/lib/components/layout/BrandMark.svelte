@@ -39,10 +39,10 @@
   // teal there and only go neon on dark.
   const accentTone = $derived(
     accent === 'pink'
-      ? 'text-epi-pink'
+      ? 'text-epi-tomorrow'
       : tone === 'dark'
-        ? 'text-epi-teal'
-        : 'text-epi-teal-solid dark:text-epi-teal',
+        ? 'text-epi-tech'
+        : 'text-epi-tech-ink dark:text-epi-tech',
   );
 </script>
 
@@ -66,13 +66,13 @@
         {/if}
       </span>
       {#if tagline}
-        <span class="text-[11px] leading-tight text-sidebar-foreground-muted">
+        <span class="text-[11px] leading-tight text-chrome-foreground-muted">
           {tagline}
         </span>
       {/if}
       {#if campus}
         <span
-          class="truncate font-mono text-[10px] tracking-widest text-sidebar-foreground-muted uppercase"
+          class="truncate font-mono text-[10px] tracking-widest text-chrome-foreground-muted uppercase"
         >
           Campus {campus}
         </span>

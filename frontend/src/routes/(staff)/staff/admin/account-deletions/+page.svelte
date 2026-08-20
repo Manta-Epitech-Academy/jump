@@ -34,7 +34,7 @@
 
   const statusBadge: Record<string, string> = {
     fulfilled: 'border-destructive/30 bg-destructive/10 text-destructive',
-    rejected: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
+    rejected: 'border-epi-together/30 bg-epi-together/10 text-epi-together',
     cancelled: 'border-border bg-muted text-muted-foreground',
   };
   const statusLabel: Record<string, string> = {
@@ -51,8 +51,8 @@
 <div class="space-y-6">
   <div in:fly={{ y: -12, duration: 300 }}>
     <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Demandes de <span class="text-epi-pink">suppression</span><span
-        class="text-epi-pink">_</span
+      Demandes de <span class="text-epi-tomorrow">suppression</span><span
+        class="text-epi-tomorrow">_</span
       >
     </h1>
     <p class="font-mono text-xs tracking-wide text-muted-foreground">
@@ -127,7 +127,7 @@
                       </div>
                     {/if}
                   </Table.Cell>
-                  <Table.Cell class="text-epi-pink">
+                  <Table.Cell class="text-epi-tomorrow">
                     {req.talent.campus ?? '—'}
                   </Table.Cell>
                   <Table.Cell class="font-mono text-xs text-muted-foreground">

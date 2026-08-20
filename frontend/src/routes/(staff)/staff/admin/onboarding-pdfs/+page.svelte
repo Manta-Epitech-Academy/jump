@@ -187,7 +187,7 @@
   <div class="flex flex-wrap items-start justify-between gap-3">
     <div>
       <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Génération PDF Onboarding<span class="text-epi-pink">_</span>
+        Génération PDF Onboarding<span class="text-epi-tomorrow">_</span>
       </h1>
       <p class="mt-1 font-mono text-xs tracking-wide text-muted-foreground">
         &lt;Générés en arrière-plan dès la signature/&gt;

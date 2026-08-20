@@ -26,7 +26,7 @@
       class="text-3xl font-bold text-epi-blue uppercase"
       style:view-transition-name={titleViewTransitionName}
     >
-      {title}<span class="text-epi-teal">_</span>
+      {title}<span class="text-epi-tech">_</span>
     </h1>
     {#if subtitle}
       <p

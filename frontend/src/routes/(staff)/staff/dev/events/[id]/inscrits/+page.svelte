@@ -217,7 +217,7 @@
       <button
         type="button"
         onclick={() => generateBadges('simple')}
-        class="flex cursor-pointer flex-col items-center gap-3 rounded-sm border p-4 text-center transition hover:border-epi-teal-solid hover:bg-epi-teal-solid/5"
+        class="flex cursor-pointer flex-col items-center gap-3 rounded-sm border p-4 text-center transition hover:border-epi-tech-ink hover:bg-epi-tech-ink/5"
       >
         <div class="grid grid-cols-2 gap-1 rounded-sm bg-muted/50 p-2">
           {#each BADGE_MODE_COLORS as c}
@@ -239,7 +239,7 @@
       <button
         type="button"
         onclick={() => generateBadges('foldable')}
-        class="flex cursor-pointer flex-col items-center gap-3 rounded-sm border p-4 text-center transition hover:border-epi-teal-solid hover:bg-epi-teal-solid/5"
+        class="flex cursor-pointer flex-col items-center gap-3 rounded-sm border p-4 text-center transition hover:border-epi-tech-ink hover:bg-epi-tech-ink/5"
       >
         <div class="grid grid-cols-2 gap-1 rounded-sm bg-muted/50 p-2">
           {#each BADGE_MODE_COLORS as c}

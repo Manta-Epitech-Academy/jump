@@ -128,7 +128,7 @@
     if (rules === 'signed') {
       return {
         label,
-        colorClass: 'text-epi-teal-solid',
+        colorClass: 'text-epi-tech-ink',
         icon: Check,
         tooltip: parentRulesSignedAt
           ? 'Co-signé par le parent et le stagiaire'
@@ -169,7 +169,7 @@
     if (imageDisplay === 'accepted') {
       return {
         label: IMAGE_RIGHTS_DISPLAY_LABELS.accepted,
-        colorClass: 'text-epi-teal-solid',
+        colorClass: 'text-epi-tech-ink',
         icon: Check,
         tooltip:
           "Le parent autorise l'utilisation de l'image du stagiaire par Epitech.",
@@ -178,7 +178,7 @@
     if (imageDisplay === 'refused') {
       return {
         label: IMAGE_RIGHTS_DISPLAY_LABELS.refused,
-        colorClass: 'text-epi-orange',
+        colorClass: 'text-epi-together',
         icon: X,
         tooltip:
           'Les photos et les vidéos de ce stagiaire ne doivent pas être utilisées par Epitech.',
@@ -255,7 +255,7 @@
               <span class="min-w-0 flex-1 truncate">{commLabel(c)}</span>
               {#if open === 'opened'}
                 <span
-                  class="inline-flex shrink-0 items-center gap-1 font-mono text-[10px] tracking-wide text-epi-teal-solid uppercase"
+                  class="inline-flex shrink-0 items-center gap-1 font-mono text-[10px] tracking-wide text-epi-tech-ink uppercase"
                 >
                   <MailOpen class="h-3 w-3" />
                   Ouvert

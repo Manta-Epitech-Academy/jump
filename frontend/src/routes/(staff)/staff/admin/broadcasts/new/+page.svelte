@@ -372,7 +372,7 @@
 {#snippet sectionLabel(n: number, title: string)}
   <div class="flex items-center gap-2">
     <span
-      class="flex h-5 w-5 items-center justify-center rounded-sm bg-epi-pink/10 font-mono text-[11px] font-bold text-epi-pink"
+      class="flex h-5 w-5 items-center justify-center rounded-sm bg-epi-tomorrow/10 font-mono text-[11px] font-bold text-epi-tomorrow"
       >{n}</span
     >
     <h2

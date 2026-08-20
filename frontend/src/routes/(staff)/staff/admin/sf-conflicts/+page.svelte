@@ -39,7 +39,7 @@
 <div class="space-y-6">
   <div class="space-y-1">
     <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Divergences Salesforce<span class="text-epi-teal">_</span>
+      Divergences Salesforce<span class="text-epi-tech">_</span>
     </h1>
     <p class="max-w-3xl text-sm text-muted-foreground">
       Deux familles de divergence : les <strong>données</strong> (Salesforce ⇆

@@ -58,7 +58,7 @@
 <div class="space-y-8">
   <div>
     <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Centres d'<span class="text-epi-pink">intérêt</span>
+      Centres d'<span class="text-epi-tomorrow">intérêt</span>
     </h1>
     <p class="text-sm font-bold text-muted-foreground uppercase">
       Intérêts proposés aux talents pendant l'onboarding.
@@ -130,7 +130,7 @@
   <div class="rounded-lg border bg-card">
     <div class="flex items-center justify-between border-b px-4 py-3">
       <div class="flex items-center gap-2">
-        <Sparkles class="h-4 w-4 text-epi-teal" />
+        <Sparkles class="h-4 w-4 text-epi-tech" />
         <h2 class="text-sm font-bold tracking-wide uppercase">
           Centres d'intérêt généraux
           <span class="ml-1 text-xs font-normal text-muted-foreground">

@@ -25,9 +25,9 @@
 
   const variantClass = $derived(
     variant === 'teal'
-      ? 'bg-epi-teal-solid'
+      ? 'bg-epi-tech-ink'
       : variant === 'amber'
-        ? 'bg-epi-orange'
+        ? 'bg-epi-together'
         : 'bg-epi-blue',
   );
 

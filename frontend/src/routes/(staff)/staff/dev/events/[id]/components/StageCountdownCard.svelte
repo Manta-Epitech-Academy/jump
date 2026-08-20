@@ -61,7 +61,7 @@
   <div class="relative z-10">
     {#if status === 'upcoming'}
       <p
-        class="font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
+        class="font-mono text-[10px] font-bold tracking-widest text-epi-tech uppercase"
       >
         <span class="opacity-60">&lt;</span> Ouverture dans
         <span class="opacity-60">/&gt;</span>
@@ -72,7 +72,7 @@
         <div class="flex flex-col items-center">
           <span class="text-5xl tracking-wide">{pad(days)}</span>
           <span
-            class="mt-1.5 font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
+            class="mt-1.5 font-mono text-[10px] font-bold tracking-widest text-epi-tech uppercase"
             >jours</span
           >
         </div>
@@ -80,7 +80,7 @@
         <div class="flex flex-col items-center">
           <span class="text-5xl tracking-wide">{pad(hours)}</span>
           <span
-            class="mt-1.5 font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
+            class="mt-1.5 font-mono text-[10px] font-bold tracking-widest text-epi-tech uppercase"
             >heures</span
           >
         </div>
@@ -88,14 +88,14 @@
         <div class="flex flex-col items-center">
           <span class="text-5xl tracking-wide">{pad(minutes)}</span>
           <span
-            class="mt-1.5 font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
+            class="mt-1.5 font-mono text-[10px] font-bold tracking-widest text-epi-tech uppercase"
             >min</span
           >
         </div>
       </div>
     {:else if status === 'ongoing'}
       <p
-        class="font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
+        class="font-mono text-[10px] font-bold tracking-widest text-epi-tech uppercase"
       >
         <span class="opacity-60">&lt;</span> Stage en cours
         <span class="opacity-60">/&gt;</span>

@@ -148,7 +148,7 @@
               <h1
                 class="-my-1.5 truncate py-1.5 font-heading text-xl tracking-wider text-slate-900 uppercase sm:text-2xl dark:text-white"
               >
-                {title}<span class="text-epi-teal">_</span>
+                {title}<span class="text-epi-tech">_</span>
               </h1>
               {#if subtitle}
                 <p class="truncate text-xs font-medium text-slate-500">

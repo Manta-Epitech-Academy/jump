@@ -102,7 +102,7 @@
       label: 'Ready',
     },
     MEET: {
-      class: 'bg-epi-teal/10 text-epi-teal-solid border-epi-teal/25',
+      class: 'bg-epi-tech/10 text-epi-tech-ink border-epi-tech/25',
       label: 'Meet',
     },
     CONNECTED: {
@@ -136,7 +136,7 @@
   <Dialog.Content class="flex max-h-[90dvh] flex-col gap-0 p-0 sm:max-w-3xl">
     <Dialog.Header class="border-b px-4 py-4 text-start sm:px-6">
       <Dialog.Title class="flex items-center gap-2">
-        <Database class="h-5 w-5 text-epi-pink" />
+        <Database class="h-5 w-5 text-epi-tomorrow" />
         Membres Salesforce
       </Dialog.Title>
       <Dialog.Description>

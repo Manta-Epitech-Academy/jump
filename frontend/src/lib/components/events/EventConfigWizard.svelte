@@ -359,7 +359,7 @@
   >
     <Dialog.Header class="border-b px-4 py-4 text-start sm:px-6">
       <Dialog.Title class="flex items-center gap-2">
-        <CalendarCog class="h-5 w-5 text-epi-pink" />
+        <CalendarCog class="h-5 w-5 text-epi-tomorrow" />
         Configurer l'événement
       </Dialog.Title>
       {#if editing}
@@ -379,7 +379,7 @@
           onclick={() => (step = 1)}
           aria-current={step === 1 ? 'step' : undefined}
           class="transition-colors {step === 1
-            ? 'cursor-default text-epi-pink'
+            ? 'cursor-default text-epi-tomorrow'
             : 'cursor-pointer text-muted-foreground hover:text-foreground'}"
         >
           1 · Initialisation
@@ -390,7 +390,7 @@
           onclick={() => (step = 2)}
           aria-current={step === 2 ? 'step' : undefined}
           class="transition-colors {step === 2
-            ? 'cursor-default text-epi-pink'
+            ? 'cursor-default text-epi-tomorrow'
             : 'cursor-pointer text-muted-foreground hover:text-foreground'}"
         >
           2 · Configuration
@@ -421,7 +421,7 @@
             <button
               type="button"
               onclick={() => applyTemplate(t)}
-              class="flex flex-1 cursor-pointer items-start gap-3 rounded-l-sm p-3 text-start transition-colors hover:bg-epi-pink/5"
+              class="flex flex-1 cursor-pointer items-start gap-3 rounded-l-sm p-3 text-start transition-colors hover:bg-epi-tomorrow/5"
             >
               <span
                 class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-sm border bg-muted/40 text-muted-foreground"
@@ -535,7 +535,9 @@
           type="button"
           onclick={skipTemplate}
           variant={workingTemplates.length === 0 ? 'default' : 'outline'}
-          class={workingTemplates.length === 0 ? 'bg-epi-pink text-white' : ''}
+          class={workingTemplates.length === 0
+            ? 'bg-epi-tomorrow text-white'
+            : ''}
         >
           Configurer sans modèle
         </Button>
@@ -918,7 +920,7 @@
               class="flex items-start gap-3 rounded-sm border p-3 transition-colors select-none {canActivate
                 ? 'cursor-pointer'
                 : 'cursor-not-allowed'} {effectivelyVisible
-                ? 'border-epi-pink/40 bg-epi-pink/5'
+                ? 'border-epi-tomorrow/40 bg-epi-tomorrow/5'
                 : canActivate
                   ? 'hover:bg-muted/40'
                   : 'border-amber-500/40 bg-amber-500/5'}"
@@ -1005,7 +1007,7 @@
           <Button
             type="submit"
             disabled={$delayed}
-            class="bg-epi-pink text-white"
+            class="bg-epi-tomorrow text-white"
           >
             {$delayed ? 'Sauvegarde…' : 'Enregistrer'}
           </Button>
@@ -1031,7 +1033,7 @@
   <Dialog.Content class="sm:max-w-md">
     <Dialog.Header>
       <Dialog.Title class="flex items-center gap-2">
-        <Bookmark class="h-5 w-5 text-epi-pink" />
+        <Bookmark class="h-5 w-5 text-epi-tomorrow" />
         Enregistrer comme modèle
       </Dialog.Title>
       <Dialog.Description>
@@ -1116,7 +1118,7 @@
         />
       </div>
       <div class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <Check class="h-3.5 w-3.5 text-epi-teal-solid" />
+        <Check class="h-3.5 w-3.5 text-epi-tech-ink" />
         {$form.modules.length} module{$form.modules.length > 1 ? 's' : ''} dans ce
         modèle
       </div>
@@ -1131,7 +1133,7 @@
         <Button
           type="submit"
           disabled={savingTemplate}
-          class="bg-epi-pink text-white"
+          class="bg-epi-tomorrow text-white"
         >
           {savingTemplate ? 'Enregistrement…' : 'Enregistrer le modèle'}
         </Button>

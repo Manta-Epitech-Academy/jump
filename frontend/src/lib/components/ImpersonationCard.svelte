@@ -11,7 +11,7 @@
 
   // Impersonation indicator. Lives inside the sidebar (above the footer)
   // rather than as a top banner so it never shifts the viewport. Styled for
-  // the dark navy rail, with epi-orange (DS alert tone) flagging the paused
+  // the dark navy rail, with epi-together (DS alert tone) flagging the paused
   // admin session.
 
   let busy = $state(false);
@@ -55,28 +55,28 @@
 </script>
 
 {#if isImpersonating}
-  <div class="border-t border-sidebar-border p-3">
+  <div class="border-t border-chrome-border p-3">
     <div
-      class="flex flex-col gap-2 rounded-sm border border-epi-orange/40 bg-epi-orange/10 p-3"
+      class="flex flex-col gap-2 rounded-sm border border-epi-together/40 bg-epi-together/10 p-3"
       role="alert"
     >
       <div class="flex items-center gap-1.5">
-        <UserCheck class="h-3.5 w-3.5 shrink-0 text-epi-orange" />
+        <UserCheck class="h-3.5 w-3.5 shrink-0 text-epi-together" />
         <span
-          class="font-mono text-[9px] font-bold tracking-widest text-epi-orange uppercase"
+          class="font-mono text-[9px] font-bold tracking-widest text-epi-together uppercase"
         >
           Session admin en pause
         </span>
       </div>
       <div class="min-w-0">
         <p
-          class="truncate text-sm leading-tight font-bold text-sidebar-foreground"
+          class="truncate text-sm leading-tight font-bold text-chrome-foreground"
         >
           {user?.name || user?.email || 'utilisateur'}
         </p>
         {#if user?.name && user?.email}
           <p
-            class="truncate text-xs leading-tight text-sidebar-foreground-muted"
+            class="truncate text-xs leading-tight text-chrome-foreground-muted"
           >
             {user.email}
           </p>
@@ -89,7 +89,7 @@
         type="button"
         onclick={stopImpersonating}
         disabled={busy}
-        class="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-sm bg-epi-orange px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-epi-orange/90 disabled:cursor-not-allowed disabled:opacity-60"
+        class="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-sm bg-epi-together px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-epi-together/90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <LogOut class="h-3.5 w-3.5" />
         Revenir au compte admin

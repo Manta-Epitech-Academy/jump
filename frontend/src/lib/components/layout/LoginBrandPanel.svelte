@@ -34,7 +34,7 @@
     <div class="absolute top-[18%] right-[22%] h-16 w-24 bg-white/15"></div>
     <div class="absolute top-[24%] right-[12%] h-20 w-16 bg-white/10"></div>
     <div
-      class="absolute bottom-[26%] left-[14%] h-14 w-20 bg-epi-teal/15"
+      class="absolute bottom-[26%] left-[14%] h-14 w-20 bg-epi-tech/15"
     ></div>
   </div>
 
@@ -50,9 +50,9 @@
 
   <!-- Signature block -->
   <div class="relative z-10 font-mono text-xs text-white/60">
-    <span class="text-epi-teal">&#123;</span>
+    <span class="text-epi-tech">&#123;</span>
     &lt;Tech Together Tomorrow&gt;
-    <span class="text-epi-teal">&#125;</span>
+    <span class="text-epi-tech">&#125;</span>
     <span class="ml-2 tracking-widest uppercase">Since 1999</span>
   </div>
 </aside>

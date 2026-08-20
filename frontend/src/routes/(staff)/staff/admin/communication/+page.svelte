@@ -126,7 +126,7 @@
             <span
               class="flex shrink-0 items-center gap-1.5 text-muted-foreground"
             >
-              <CircleCheckBig class="h-3.5 w-3.5 text-epi-teal-solid" />
+              <CircleCheckBig class="h-3.5 w-3.5 text-epi-tech-ink" />
               <span class="max-w-48 truncate text-xs">{a.templateName}</span>
             </span>
           {:else}

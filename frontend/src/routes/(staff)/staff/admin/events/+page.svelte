@@ -367,7 +367,7 @@
 <div class="space-y-6">
   <div>
     <h1 class="font-heading text-3xl tracking-wide uppercase">
-      <span class="text-epi-pink">Événements</span>
+      <span class="text-epi-tomorrow">Événements</span>
     </h1>
     <p class="text-sm font-bold text-muted-foreground uppercase">
       Configurer les modules, le nom public et les détails de chaque événement
@@ -704,7 +704,7 @@
     <Dialog.Content class="flex max-h-[90dvh] flex-col gap-0 p-0 sm:max-w-lg">
       <Dialog.Header class="border-b px-4 py-4 text-start sm:px-6">
         <Dialog.Title class="flex items-center gap-2">
-          <ListChecks class="h-5 w-5 text-epi-pink" />
+          <ListChecks class="h-5 w-5 text-epi-tomorrow" />
           Modules en masse
         </Dialog.Title>
         <Dialog.Description>
@@ -766,7 +766,7 @@
           <Button
             type="submit"
             disabled={bulkSubmitting}
-            class="bg-epi-pink text-white"
+            class="bg-epi-tomorrow text-white"
           >
             {bulkSubmitting ? 'Application…' : 'Appliquer'}
           </Button>

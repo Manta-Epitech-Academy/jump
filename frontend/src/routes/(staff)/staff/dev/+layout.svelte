@@ -134,7 +134,7 @@
 
   const navLinkClass = (active: boolean) => `
     flex items-center gap-3 px-3 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer
-    ${active ? 'bg-epi-blue text-white' : 'text-sidebar-foreground-muted hover:bg-sidebar-hover hover:text-sidebar-foreground'}
+    ${active ? 'bg-epi-blue text-white' : 'text-chrome-foreground-muted hover:bg-chrome-hover hover:text-chrome-foreground'}
   `;
 
   function getInitials(user: any) {
@@ -154,7 +154,7 @@
   >
     <EpitechLogo tone="dark" class="h-7 w-auto shrink-0" />
     <span class="font-heading text-lg leading-none">
-      Jump<span class="text-epi-teal">_</span>
+      Jump<span class="text-epi-tech">_</span>
     </span>
   </a>
 {/snippet}
@@ -167,7 +167,7 @@
     <div class="sidebar-section-title flex items-center gap-1.5">
       <span class="flex min-w-0 flex-1 items-baseline">
         <span class="truncate">{eventDisplayName(ev)}</span>
-        <span class="text-epi-teal">_</span>
+        <span class="text-epi-tech">_</span>
       </span>
       {#if workspace.events.length > 1}
         <EventWorkspaceSwitcher events={workspace.events} currentId={ev.id} />
@@ -190,11 +190,11 @@
 {/snippet}
 
 {#snippet sidebarFooter()}
-  <div class="border-t border-sidebar-border text-sidebar-foreground">
+  <div class="border-t border-chrome-border text-chrome-foreground">
     <div class="flex items-center justify-between gap-2 p-3">
       <DropdownMenu.Root>
         <DropdownMenu.Trigger
-          class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-sm p-1 transition-colors outline-none hover:bg-sidebar-hover"
+          class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-sm p-1 transition-colors outline-none hover:bg-chrome-hover"
         >
           <Avatar.Root class="h-9 w-9 shrink-0 rounded-full bg-white/10">
             <Avatar.Image
@@ -211,7 +211,7 @@
               {user?.name || user?.username}
             </span>
             <span
-              class="font-mono text-[10px] leading-tight font-bold text-sidebar-foreground-muted uppercase"
+              class="font-mono text-[10px] leading-tight font-bold text-chrome-foreground-muted uppercase"
             >
               {displayedGreeting}<span class="animate-pulse">_</span>
             </span>
@@ -247,9 +247,9 @@
 
 <div class="flex h-dvh w-full overflow-hidden bg-background">
   <aside
-    class="app-sidebar hidden w-68 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
+    class="app-sidebar hidden w-68 flex-col border-r border-chrome-border bg-chrome text-chrome-foreground md:flex"
   >
-    <div class="border-b border-sidebar-border">
+    <div class="border-b border-chrome-border">
       {@render sidebarBrand()}
     </div>
     <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
@@ -395,10 +395,10 @@
         onkeydown={(e) => e.key === 'Escape' && (mobileMenuOpen = false)}
       ></div>
       <aside
-        class="absolute inset-y-0 left-0 z-40 flex w-3/4 max-w-75 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl md:hidden"
+        class="absolute inset-y-0 left-0 z-40 flex w-3/4 max-w-75 flex-col border-r border-chrome-border bg-chrome text-chrome-foreground shadow-2xl md:hidden"
         transition:fly={{ x: -300, duration: 300 }}
       >
-        <div class="border-b border-sidebar-border">
+        <div class="border-b border-chrome-border">
           {@render sidebarBrand()}
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">

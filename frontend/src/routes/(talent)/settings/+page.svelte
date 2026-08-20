@@ -99,8 +99,8 @@
         <div
           class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30"
         >
-          <Sun class="h-4 w-4 text-epi-orange dark:hidden" />
-          <Moon class="hidden h-4 w-4 text-epi-orange dark:block" />
+          <Sun class="h-4 w-4 text-epi-together dark:hidden" />
+          <Moon class="hidden h-4 w-4 text-epi-together dark:block" />
         </div>
         <span class="text-sm font-bold text-slate-700 dark:text-slate-300"
           >Thème sombre</span
@@ -126,7 +126,7 @@
             <div
               class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/30"
             >
-              <FileText class="h-4 w-4 text-epi-teal-solid" />
+              <FileText class="h-4 w-4 text-epi-tech-ink" />
             </div>
             <div class="min-w-0 flex-1">
               <p

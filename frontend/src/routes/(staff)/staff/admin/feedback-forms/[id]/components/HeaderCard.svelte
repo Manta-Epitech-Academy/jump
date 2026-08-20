@@ -72,7 +72,7 @@
      (previously three unlabeled gray fields stacked with no cue which was which).
      Auto-saves live while typing, flushing on blur. -->
 <div class="overflow-hidden rounded-sm border bg-card shadow-sm">
-  <div class="h-2.5 bg-epi-pink"></div>
+  <div class="h-2.5 bg-epi-tomorrow"></div>
 
   <div class="p-5">
     <input
@@ -169,7 +169,7 @@
         info={`Premier message de la mascotte, avant la première question. Il y en a toujours un : laissé vide, c’est « ${DEFAULT_INTRO} ». Vous pouvez écrire {prenom}, remplacé par le prénom du répondant.`}
       />
       <div
-        class="rounded-2xl rounded-bl-sm border border-dashed border-muted-foreground/30 bg-background px-4 py-2.5 shadow-sm transition focus-within:border-solid focus-within:border-epi-pink/50 hover:border-muted-foreground/50"
+        class="rounded-2xl rounded-bl-sm border border-dashed border-muted-foreground/30 bg-background px-4 py-2.5 shadow-sm transition focus-within:border-solid focus-within:border-epi-tomorrow/50 hover:border-muted-foreground/50"
       >
         <Textarea
           value={editor.intro ?? ''}
@@ -189,7 +189,7 @@
         info={`Dernier message de la mascotte, une fois le questionnaire terminé. Il y en a toujours un : laissé vide, c’est « ${DEFAULT_OUTRO} ». Vous pouvez écrire {prenom}, remplacé par le prénom du répondant.`}
       />
       <div
-        class="rounded-2xl rounded-bl-sm border border-dashed border-muted-foreground/30 bg-background px-4 py-2.5 shadow-sm transition focus-within:border-solid focus-within:border-epi-pink/50 hover:border-muted-foreground/50"
+        class="rounded-2xl rounded-bl-sm border border-dashed border-muted-foreground/30 bg-background px-4 py-2.5 shadow-sm transition focus-within:border-solid focus-within:border-epi-tomorrow/50 hover:border-muted-foreground/50"
       >
         <Textarea
           value={editor.outro ?? ''}

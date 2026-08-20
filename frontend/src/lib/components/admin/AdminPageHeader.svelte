@@ -27,8 +27,8 @@
 <div class="flex flex-wrap items-end justify-between gap-4">
   <div class="min-w-0">
     <h1 class="font-heading text-3xl tracking-wide uppercase">
-      {title}{#if accent}{' '}<span class="text-epi-pink">{accent}</span
-        >{/if}{#if cursor}<span class="text-epi-teal">_</span>{/if}
+      {title}{#if accent}{' '}<span class="text-epi-tomorrow">{accent}</span
+        >{/if}{#if cursor}<span class="text-epi-tech">_</span>{/if}
     </h1>
     {#if subtitle}
       <p class="text-sm font-bold text-muted-foreground uppercase">

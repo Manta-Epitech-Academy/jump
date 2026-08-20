@@ -24,7 +24,7 @@
   // fiche XP story always read the same wording for the same fact.
   type SourceConfig = {
     icon: Component<{ class?: string }>;
-    color: string; // tailwind color token (e.g. "epi-orange")
+    color: string; // tailwind color token (e.g. "epi-together")
     bgClass: string;
     textClass: string;
     borderClass: string;
@@ -47,10 +47,10 @@
     },
     minigame: {
       icon: Gamepad2,
-      color: 'epi-teal',
-      bgClass: 'bg-epi-teal-solid/10 dark:bg-epi-teal-solid/20',
-      textClass: 'text-epi-teal-solid',
-      borderClass: 'border-epi-teal-solid/20',
+      color: 'epi-tech',
+      bgClass: 'bg-epi-tech-ink/10 dark:bg-epi-tech-ink/20',
+      textClass: 'text-epi-tech-ink',
+      borderClass: 'border-epi-tech-ink/20',
     },
     minigame_rank: {
       icon: Medal,
@@ -177,7 +177,7 @@
       <div class="flex items-center gap-4 px-5 py-4 sm:gap-5 sm:px-6">
         <!-- XP badge -->
         <div
-          class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-epi-orange/10 ring-2 ring-epi-orange/30 dark:bg-epi-orange/20"
+          class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-epi-together/10 ring-2 ring-epi-together/30 dark:bg-epi-together/20"
         >
           <div class="text-center">
             <div
@@ -185,7 +185,9 @@
             >
               {totalXp}
             </div>
-            <div class="text-[9px] font-bold text-epi-orange uppercase">XP</div>
+            <div class="text-[9px] font-bold text-epi-together uppercase">
+              XP
+            </div>
           </div>
         </div>
 
@@ -205,7 +207,7 @@
       <div class="relative" in:fly={{ y: 20, duration: 400, delay: 200 }}>
         <!-- Vertical line -->
         <div
-          class="absolute top-0 bottom-0 left-5 w-px bg-gradient-to-b from-epi-blue/40 via-epi-orange/20 to-transparent sm:left-6"
+          class="absolute top-0 bottom-0 left-5 w-px bg-gradient-to-b from-epi-blue/40 via-epi-together/20 to-transparent sm:left-6"
         ></div>
 
         <div class="space-y-8">
@@ -217,7 +219,7 @@
               >
                 {day.label}
               </h3>
-              <span class="text-xs font-semibold text-epi-orange">
+              <span class="text-xs font-semibold text-epi-together">
                 {signed(day.total)} XP
               </span>
             </div>

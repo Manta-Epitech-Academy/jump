@@ -119,7 +119,7 @@
 <div
   data-sort-id={q.id}
   class="group relative rounded-sm border bg-card transition-shadow {active
-    ? 'border-l-4 border-l-epi-pink shadow-md'
+    ? 'border-l-4 border-l-epi-tomorrow shadow-md'
     : 'cursor-pointer shadow-sm hover:border-foreground/20'} {editor.status_.get(
     q.id,
   ) === 'error'
@@ -166,7 +166,7 @@
         <IdentityBadge field={q.identityField} />
       {/if}
       {#if q.required}
-        <Asterisk class="h-3.5 w-3.5 shrink-0 text-epi-pink" />
+        <Asterisk class="h-3.5 w-3.5 shrink-0 text-epi-tomorrow" />
       {/if}
       <RowSaveDot state={editor.status_.get(q.id)} />
     </button>

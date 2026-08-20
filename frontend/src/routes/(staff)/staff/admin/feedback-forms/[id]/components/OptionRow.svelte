@@ -155,7 +155,7 @@
             aria-label={reactionTooltip}
             aria-pressed={showReaction || hasReaction}
             class="cursor-pointer rounded-sm p-1 transition hover:bg-muted {hasReaction
-              ? 'text-epi-pink'
+              ? 'text-epi-tomorrow'
               : 'text-muted-foreground/60 opacity-0 group-hover:opacity-100'}"
             onclick={() => (showReaction = !showReaction)}
           >
@@ -200,7 +200,7 @@
     <div class="mt-1.5 flex items-start gap-2 pl-12">
       <MessageCircle
         class="mt-1.5 h-3.5 w-3.5 shrink-0 {hasReaction
-          ? 'text-epi-pink'
+          ? 'text-epi-tomorrow'
           : 'text-muted-foreground/50'}"
       />
       <input
@@ -208,7 +208,7 @@
         aria-label="Réaction de la mascotte à cette option"
         placeholder="Réaction de la mascotte (facultatif), ex. « Ahhh j'adore ! »"
         class="flex-1 cursor-text rounded-xl rounded-bl-sm border px-3 py-1.5 text-xs transition outline-none {hasReaction
-          ? 'border-epi-pink/30 bg-epi-pink/10 text-foreground focus:border-epi-pink'
+          ? 'border-epi-tomorrow/30 bg-epi-tomorrow/10 text-foreground focus:border-epi-tomorrow'
           : 'border-dashed bg-transparent text-muted-foreground italic focus:border-foreground'}"
         oninput={reactionField.oninput}
         onblur={reactionField.onblur}

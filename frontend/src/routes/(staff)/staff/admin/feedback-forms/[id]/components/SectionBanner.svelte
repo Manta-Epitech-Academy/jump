@@ -46,7 +46,7 @@
 
 <!-- Full-width section banner that owns the question block beneath it. -->
 <div class="overflow-hidden rounded-sm border bg-card shadow-sm">
-  <div class="h-1.5 bg-epi-teal/70"></div>
+  <div class="h-1.5 bg-epi-tech/70"></div>
   <div class="flex items-start gap-3 p-4">
     <div class="min-w-0 flex-1 space-y-1.5">
       <div

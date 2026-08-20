@@ -43,7 +43,7 @@
   class={cn(
     'overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 transition-shadow dark:bg-slate-900 dark:shadow-none',
     highlight &&
-      'ring-2 ring-epi-teal/70 ring-offset-2 ring-offset-slate-50 dark:ring-offset-slate-950',
+      'ring-2 ring-epi-tech/70 ring-offset-2 ring-offset-slate-50 dark:ring-offset-slate-950',
   )}
 >
   <div
@@ -53,11 +53,11 @@
     <h2
       class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
     >
-      Actualités<span class="text-epi-teal">_</span>
+      Actualités<span class="text-epi-tech">_</span>
     </h2>
     {#if highlight}
       <span
-        class="ml-auto rounded-full bg-epi-teal px-2 py-0.5 text-[10px] font-bold text-black"
+        class="ml-auto rounded-full bg-epi-tech px-2 py-0.5 text-[10px] font-bold text-black"
       >
         Nouveau
       </span>

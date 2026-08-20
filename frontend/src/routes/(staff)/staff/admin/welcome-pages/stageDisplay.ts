@@ -8,7 +8,7 @@ export const STAGE_STATUS_META: Record<
 > = {
   ongoing: {
     label: 'En cours',
-    class: 'bg-epi-teal/15 text-epi-teal-solid border-epi-teal/30',
+    class: 'bg-epi-tech/15 text-epi-tech-ink border-epi-tech/30',
   },
   upcoming: {
     label: 'À venir',

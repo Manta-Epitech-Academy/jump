@@ -65,7 +65,7 @@
       class={cn(
         'flex cursor-pointer items-center gap-4 rounded-2xl border-2 px-5 py-4 shadow-sm transition-all',
         checked
-          ? 'border-epi-teal bg-epi-teal/10 dark:bg-epi-teal/15'
+          ? 'border-epi-tech bg-epi-tech/10 dark:bg-epi-tech/15'
           : 'border-slate-200 bg-white/70 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900/80 dark:hover:border-slate-600',
       )}
     >
@@ -73,7 +73,7 @@
         class={cn(
           'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors',
           checked
-            ? 'bg-epi-teal text-black'
+            ? 'bg-epi-tech text-black'
             : 'bg-slate-100 text-slate-400 dark:bg-slate-800',
         )}
       >
@@ -88,7 +88,7 @@
         bind:checked
         name="hasLaptop"
         value="true"
-        class="size-6 shrink-0 rounded-full data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
+        class="size-6 shrink-0 rounded-full data-[state=checked]:border-epi-tech data-[state=checked]:bg-epi-tech data-[state=checked]:text-black"
       />
     </label>
   </div>

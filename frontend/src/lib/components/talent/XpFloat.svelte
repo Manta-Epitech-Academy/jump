@@ -32,13 +32,13 @@
   <div class="animate-xp-float flex flex-col items-center gap-1">
     {#if label}
       <span
-        class="text-sm font-bold tracking-[0.2em] text-epi-orange/90 uppercase"
+        class="text-sm font-bold tracking-[0.2em] text-epi-together/90 uppercase"
       >
         {label}
       </span>
     {/if}
     <div
-      class="flex items-center gap-2 text-epi-orange drop-shadow-[0_0_25px_rgba(255,95,58,0.55)]"
+      class="flex items-center gap-2 text-epi-together drop-shadow-[0_0_25px_rgba(255,95,58,0.55)]"
     >
       <Sparkles class="h-7 w-7" />
       <span class="font-heading text-6xl tabular-nums">+{display}</span>

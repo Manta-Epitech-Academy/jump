@@ -491,10 +491,10 @@ export const INTERVIEW_STATUS_LABELS: Record<InterviewListStatus, string> = {
 
 /** Chip classes mirror the inscrits page status badges so the two dev-space
  *  cohort tables share one color language: todo = neutral, in_progress = amber
- *  (action pending), done = epi-teal (gate cleared). */
+ *  (action pending), done = epi-tech (gate cleared). */
 export const INTERVIEW_STATUS_CHIP_CLASS: Record<InterviewListStatus, string> =
   {
     todo: 'border-border bg-muted text-muted-foreground',
     in_progress: 'border-amber-500/30 bg-amber-500/10 text-amber-600',
-    done: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
+    done: 'border-epi-tech/30 bg-epi-tech/10 text-epi-tech-ink',
   };

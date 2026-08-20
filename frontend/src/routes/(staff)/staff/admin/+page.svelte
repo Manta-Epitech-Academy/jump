@@ -43,7 +43,7 @@
 <div class="space-y-6">
   <div>
     <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Système <span class="text-epi-pink">Global</span>
+      Système <span class="text-epi-tomorrow">Global</span>
     </h1>
     <p class="text-sm font-bold text-muted-foreground uppercase">
       Vue d'ensemble du réseau Jump
@@ -57,13 +57,13 @@
       class="block transition-all hover:-translate-y-1"
     >
       <Card.Root
-        class="h-full border-t-4 border-t-epi-pink shadow-sm hover:border-epi-pink/80"
+        class="h-full border-t-4 border-t-epi-tomorrow shadow-sm hover:border-epi-tomorrow/80"
       >
         <Card.Header
           class="flex flex-row items-center justify-between space-y-0 pb-2"
         >
           <Card.Title
-            class="text-sm font-bold uppercase transition-colors hover:text-epi-pink"
+            class="text-sm font-bold uppercase transition-colors hover:text-epi-tomorrow"
             >Réseau</Card.Title
           >
           <Map class="h-4 w-4 text-muted-foreground" />
@@ -80,13 +80,13 @@
       class="block transition-all hover:-translate-y-1"
     >
       <Card.Root
-        class="h-full border-t-4 border-t-epi-pink shadow-sm hover:border-epi-pink/80"
+        class="h-full border-t-4 border-t-epi-tomorrow shadow-sm hover:border-epi-tomorrow/80"
       >
         <Card.Header
           class="flex flex-row items-center justify-between space-y-0 pb-2"
         >
           <Card.Title
-            class="text-sm font-bold uppercase transition-colors hover:text-epi-pink"
+            class="text-sm font-bold uppercase transition-colors hover:text-epi-tomorrow"
             >Staff</Card.Title
           >
           <Users class="h-4 w-4 text-muted-foreground" />
@@ -103,13 +103,13 @@
       class="block transition-all hover:-translate-y-1"
     >
       <Card.Root
-        class="h-full border-t-4 border-t-epi-pink shadow-sm hover:border-epi-pink/80"
+        class="h-full border-t-4 border-t-epi-tomorrow shadow-sm hover:border-epi-tomorrow/80"
       >
         <Card.Header
           class="flex flex-row items-center justify-between space-y-0 pb-2"
         >
           <Card.Title
-            class="text-sm font-bold uppercase transition-colors hover:text-epi-pink"
+            class="text-sm font-bold uppercase transition-colors hover:text-epi-tomorrow"
             >Talents</Card.Title
           >
           <GraduationCap class="h-4 w-4 text-muted-foreground" />
@@ -123,13 +123,13 @@
 
     <a href={eventsHref} class="block transition-all hover:-translate-y-1">
       <Card.Root
-        class="h-full border-t-4 border-t-epi-pink shadow-sm hover:border-epi-pink/80"
+        class="h-full border-t-4 border-t-epi-tomorrow shadow-sm hover:border-epi-tomorrow/80"
       >
         <Card.Header
           class="flex flex-row items-center justify-between space-y-0 pb-2"
         >
           <Card.Title
-            class="text-sm font-bold uppercase transition-colors hover:text-epi-pink"
+            class="text-sm font-bold uppercase transition-colors hover:text-epi-tomorrow"
             >Événements</Card.Title
           >
           <CalendarDays class="h-4 w-4 text-muted-foreground" />
@@ -195,7 +195,7 @@
       <Card.Title class="uppercase">Derniers événements créés</Card.Title>
       <a
         href={eventsHref}
-        class="flex shrink-0 items-center gap-1 text-xs font-bold text-muted-foreground uppercase transition-colors hover:text-epi-pink"
+        class="flex shrink-0 items-center gap-1 text-xs font-bold text-muted-foreground uppercase transition-colors hover:text-epi-tomorrow"
       >
         Tous les événements
         <ArrowRight class="size-3.5" />
@@ -207,7 +207,7 @@
           {#each data.recentEvents as event (event.id)}
             <a
               href="{eventsHref}?event={event.id}"
-              class="group flex items-center gap-4 rounded-sm border px-4 py-3 transition-colors hover:border-epi-pink/60 hover:bg-muted/40"
+              class="group flex items-center gap-4 rounded-sm border px-4 py-3 transition-colors hover:border-epi-tomorrow/60 hover:bg-muted/40"
             >
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
@@ -243,7 +243,7 @@
                 </div>
               </div>
               <ChevronRight
-                class="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-epi-pink"
+                class="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-epi-tomorrow"
               />
             </a>
           {/each}

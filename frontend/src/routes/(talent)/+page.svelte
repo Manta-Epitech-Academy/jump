@@ -194,22 +194,21 @@
           {#if minigamePlayed && minigameWon}
             <a
               href={resolve(`/minigames/${minigamePublication.id}/leaderboard`)}
-              class="flex flex-col gap-3 rounded-2xl border border-epi-teal-solid/30 bg-epi-teal-solid/5 p-4 transition-all hover:bg-epi-teal-solid/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
+              class="flex flex-col gap-3 rounded-2xl border border-epi-tech-ink/30 bg-epi-tech-ink/5 p-4 transition-all hover:bg-epi-tech-ink/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
             >
               <!-- icon + text stay a row on mobile; `sm:contents` dissolves this
                    wrapper on desktop so the CTA rejoins them on one line -->
               <div class="flex items-center gap-4 sm:contents">
                 <div
-                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-teal-solid/15"
+                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-tech-ink/15"
                 >
-                  <Gamepad2 class="h-5 w-5 text-epi-teal-solid" />
+                  <Gamepad2 class="h-5 w-5 text-epi-tech-ink" />
                 </div>
                 <div class="min-w-0 flex-1">
                   <div
                     class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
                   >
-                    <span class="text-epi-teal-solid"
-                      >{DAILY_TRAINING_LABEL}</span
+                    <span class="text-epi-tech-ink">{DAILY_TRAINING_LABEL}</span
                     >
                     <span class="text-slate-300 dark:text-slate-700">•</span>
                     <span class="text-slate-500">
@@ -234,7 +233,7 @@
                 </div>
               </div>
               <span
-                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-epi-teal-solid/15 px-3 py-1.5 text-xs font-bold text-epi-teal-solid uppercase sm:w-auto"
+                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-epi-tech-ink/15 px-3 py-1.5 text-xs font-bold text-epi-tech-ink uppercase sm:w-auto"
               >
                 <Trophy class="h-4 w-4" /> Voir le classement
               </span>
@@ -358,14 +357,14 @@
         >
           <!-- Decorative background blur -->
           <div
-            class="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-epi-orange/10 blur-2xl"
+            class="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-epi-together/10 blur-2xl"
           ></div>
 
           <div class="relative z-10 flex flex-col items-center text-center">
             <div
               class="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-orange-50 dark:bg-orange-950/30"
             >
-              <Trophy class="h-7 w-7 text-epi-orange" />
+              <Trophy class="h-7 w-7 text-epi-together" />
             </div>
 
             <div>
@@ -374,7 +373,7 @@
               >
                 {student?.xp || 0}
               </span>
-              <span class="text-lg font-bold text-epi-orange">XP</span>
+              <span class="text-lg font-bold text-epi-together">XP</span>
             </div>
             <span
               class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-400 transition-all group-hover:bg-epi-blue/10 group-hover:text-epi-blue dark:bg-slate-800 dark:group-hover:bg-epi-blue/20"
@@ -404,7 +403,7 @@
             <h2
               class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
             >
-              Planning à venir<span class="text-epi-teal">_</span>
+              Planning à venir<span class="text-epi-tech">_</span>
             </h2>
           </div>
 
@@ -513,7 +512,7 @@
               <h2
                 class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
               >
-                Événements passés<span class="text-epi-teal">_</span>
+                Événements passés<span class="text-epi-tech">_</span>
               </h2>
             </div>
 
@@ -572,7 +571,7 @@
             <h2
               class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
             >
-              Mission du jour<span class="text-epi-teal">_</span>
+              Mission du jour<span class="text-epi-tech">_</span>
             </h2>
           </div>
 

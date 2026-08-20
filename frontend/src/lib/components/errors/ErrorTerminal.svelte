@@ -42,7 +42,7 @@
         class:border-error={!is404}
       >
         {#if is404}
-          <SearchX color="var(--epi-orange)" size={48} />
+          <SearchX color="var(--epi-together)" size={48} />
         {:else}
           <ServerCrash color="var(--error-color)" size={48} />
         {/if}
@@ -187,7 +187,7 @@
   }
 
   .glow-404 {
-    background-color: var(--epi-orange);
+    background-color: var(--epi-together);
   }
   .glow-error {
     background-color: var(--error-color);
@@ -214,7 +214,7 @@
   }
 
   .border-404 {
-    border-color: var(--epi-orange);
+    border-color: var(--epi-together);
   }
   .border-error {
     border-color: var(--error-color);
@@ -234,10 +234,10 @@
     color: var(--epi-blue);
   }
   .text-orange {
-    color: var(--epi-orange);
+    color: var(--epi-together);
   }
   .text-teal {
-    color: var(--epi-teal);
+    color: var(--epi-tech);
   }
   .text-error {
     color: var(--error-color);

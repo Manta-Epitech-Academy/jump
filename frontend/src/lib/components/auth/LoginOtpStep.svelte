@@ -119,7 +119,7 @@
             class={cn(
               'otp-digit h-14 w-12 rounded-xl border-2 bg-white text-center font-mono text-2xl font-black text-slate-900 shadow-sm transition-all duration-200 outline-none dark:bg-slate-950 dark:text-white',
               digits[i]?.trim()
-                ? 'border-epi-teal shadow-epi-teal/10'
+                ? 'border-epi-tech shadow-epi-tech/10'
                 : 'border-slate-200 dark:border-slate-800',
               'focus:border-epi-blue focus:ring-2 focus:ring-epi-blue/20',
             )}
@@ -137,7 +137,7 @@
       <Button
         type="submit"
         disabled={$otpDelayed || !otpComplete}
-        class="h-12 w-full rounded-xl bg-epi-teal text-base font-bold text-slate-950 shadow-md transition-all hover:bg-epi-teal/90 active:scale-[0.98] disabled:opacity-50"
+        class="h-12 w-full rounded-xl bg-epi-tech text-base font-bold text-slate-950 shadow-md transition-all hover:bg-epi-tech/90 active:scale-[0.98] disabled:opacity-50"
       >
         {#if $otpDelayed}
           Connexion...

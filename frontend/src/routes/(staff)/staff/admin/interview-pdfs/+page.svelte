@@ -179,7 +179,7 @@
   <div class="flex flex-wrap items-start justify-between gap-3">
     <div>
       <h1 class="font-heading text-3xl tracking-wide uppercase">
-        PDF Entretiens<span class="text-epi-pink">_</span>
+        PDF Entretiens<span class="text-epi-tomorrow">_</span>
       </h1>
       <p class="mt-1 font-mono text-xs tracking-wide text-muted-foreground">
         &lt;Synthèse des entretiens de motivation/&gt;

@@ -15,7 +15,7 @@
   >
     <div class="w-full max-w-lg text-center">
       <div
-        class="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-teal text-black shadow-lg shadow-epi-teal/20"
+        class="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-tech text-black shadow-lg shadow-epi-tech/20"
       >
         <CheckCircle class="h-7 w-7" />
       </div>

@@ -35,7 +35,7 @@
 <div class="grid min-h-screen w-full lg:grid-cols-[1.05fr_1fr]">
   <LoginBrandPanel>
     <h1 class="font-heading text-5xl leading-[0.95] xl:text-6xl">
-      We power tech<span class="text-epi-teal">_</span>
+      We power tech<span class="text-epi-tech">_</span>
     </h1>
     <p class="max-w-md font-mono text-sm text-white/70">
       &lt; La plateforme de gestion des stages et coding clubs d'Epitech. /&gt;
@@ -54,7 +54,7 @@
         <EpitechLogo class="h-7 w-auto lg:hidden" />
         <div class="space-y-2">
           <h2 class="font-heading text-3xl tracking-wide">
-            Jump<span class="text-epi-teal">_</span>
+            Jump<span class="text-epi-tech">_</span>
           </h2>
           <p class="text-sm text-muted-foreground">
             Espace staff — connectez-vous pour accéder à votre espace.

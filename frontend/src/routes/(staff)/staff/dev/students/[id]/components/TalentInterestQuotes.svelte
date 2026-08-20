@@ -49,11 +49,11 @@
         <figcaption
           class="flex items-center gap-1.5 text-xs text-muted-foreground"
         >
-          <Quote class="h-3.5 w-3.5 shrink-0 text-epi-teal-solid" />
+          <Quote class="h-3.5 w-3.5 shrink-0 text-epi-tech-ink" />
           {q.lead}
         </figcaption>
         <blockquote
-          class="border-l-2 border-epi-teal-solid/50 pl-4 text-[15px] leading-relaxed text-foreground italic"
+          class="border-l-2 border-epi-tech-ink/50 pl-4 text-[15px] leading-relaxed text-foreground italic"
         >
           «&nbsp;{q.text}&nbsp;»
         </blockquote>

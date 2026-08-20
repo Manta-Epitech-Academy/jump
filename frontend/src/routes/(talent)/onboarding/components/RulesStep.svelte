@@ -125,7 +125,7 @@
         bind:checked={acceptedRules}
         name="acceptedRules"
         value="true"
-        class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
+        class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-tech data-[state=checked]:bg-epi-tech data-[state=checked]:text-black"
       />
       <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
         Je m'engage à respecter le règlement intérieur d'Epitech.
@@ -139,7 +139,7 @@
         bind:checked={acceptedCharter}
         name="acceptedCharter"
         value="true"
-        class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
+        class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-tech data-[state=checked]:bg-epi-tech data-[state=checked]:text-black"
       />
       <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
         J'ai lu et j'accepte la politique de confidentialité d'Epitech

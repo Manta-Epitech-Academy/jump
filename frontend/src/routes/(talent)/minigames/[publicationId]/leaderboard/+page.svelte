@@ -76,7 +76,7 @@
       class="rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
     >
       <div class="mb-4 flex items-center gap-3">
-        <Trophy class="h-6 w-6 text-epi-orange" />
+        <Trophy class="h-6 w-6 text-epi-together" />
         <div>
           <h1 class="text-xl font-bold">
             {data.publication.gameName} · niveau {data.publication.level}
@@ -96,7 +96,7 @@
       </p>
 
       <p
-        class="mb-4 flex items-center gap-1.5 px-1 text-xs font-medium text-epi-orange"
+        class="mb-4 flex items-center gap-1.5 px-1 text-xs font-medium text-epi-together"
       >
         <Crown class="h-3.5 w-3.5 shrink-0" />
         Le top {rankLimit} de ton campus gagne un bonus XP dès la fin de sa partie
@@ -160,7 +160,7 @@
                            the bonus they actually locked in (rankXpAwarded), not a
                            guess from the current rank. -->
                       <span
-                        class="inline-flex items-center gap-0.5 rounded-full bg-epi-orange/10 px-1.5 py-0.5 text-[10px] font-semibold text-epi-orange"
+                        class="inline-flex items-center gap-0.5 rounded-full bg-epi-together/10 px-1.5 py-0.5 text-[10px] font-semibold text-epi-together"
                         title="Bonus XP que tu as gagné en jouant"
                       >
                         <Crown class="h-3 w-3" />
@@ -172,7 +172,7 @@
                 <td class="py-2 text-slate-700 dark:text-slate-300">
                   {displayName(row.prenom, row.nom)}
                   {#if row.talentId === data.currentTalentId}
-                    <span class="ml-1 text-xs text-epi-orange">(toi)</span>
+                    <span class="ml-1 text-xs text-epi-together">(toi)</span>
                   {/if}
                 </td>
                 {#if isScore}

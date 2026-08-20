@@ -195,7 +195,7 @@
               <Table.Cell class="min-w-40">
                 <div class="h-1.5 w-full overflow-hidden rounded-sm bg-muted">
                   <div
-                    class="h-full bg-epi-teal-solid"
+                    class="h-full bg-epi-tech-ink"
                     style="width: {sentPct}%"
                   ></div>
                 </div>

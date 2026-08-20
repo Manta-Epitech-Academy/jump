@@ -26,7 +26,7 @@
   action="?/sign"
   {error}
   extraValid={accepted}
-  submitClass="h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110 disabled:opacity-50"
+  submitClass="h-auto w-full rounded-2xl bg-epi-tech px-6 py-3 text-black shadow-lg shadow-epi-tech/20 transition-all duration-200 hover:bg-epi-tech hover:brightness-110 disabled:opacity-50"
   onResult={(result) => {
     if (result.type === 'success' || result.type === 'redirect') {
       track('parent_rules_signed');
@@ -47,7 +47,7 @@
     >
       <Checkbox
         bind:checked={accepted}
-        class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
+        class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-tech data-[state=checked]:bg-epi-tech data-[state=checked]:text-black"
       />
       <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
         J'ai lu et j'accepte le règlement intérieur d'Epitech.

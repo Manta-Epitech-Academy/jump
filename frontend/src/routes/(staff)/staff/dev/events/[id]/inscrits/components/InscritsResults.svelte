@@ -105,13 +105,13 @@
   // status is also carried by an icon + label, so color is reinforcement only.
   const rulesTone = (s: RulesStatus) =>
     s === 'signed'
-      ? 'text-epi-teal dark:text-teal-900'
+      ? 'text-epi-tech dark:text-teal-900'
       : s === 'awaiting_parent'
         ? 'text-amber-300 dark:text-amber-900'
         : 'text-red-300 dark:text-red-900';
   const imageTone = (s: ImageRightsDisplayStatus) =>
     s === 'accepted'
-      ? 'text-epi-teal dark:text-teal-900'
+      ? 'text-epi-tech dark:text-teal-900'
       : s === 'refused'
         ? 'text-orange-300 dark:text-orange-900'
         : s === 'awaiting_parent'
@@ -135,7 +135,7 @@
     },
     ready: {
       icon: Check,
-      class: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
+      class: 'border-epi-tech/30 bg-epi-tech/10 text-epi-tech-ink',
     },
   };
 
@@ -389,7 +389,7 @@
         class={cn(
           'inline-flex items-center gap-1 font-bold',
           r.connected
-            ? 'text-epi-teal dark:text-teal-900'
+            ? 'text-epi-tech dark:text-teal-900'
             : 'text-red-300 dark:text-red-900',
         )}
       >
@@ -628,7 +628,7 @@
                       {...props}
                       href={resolve(`/staff/dev/students/${r.talentId}`)}
                       tabindex={-1}
-                      class="relative z-10 inline-flex items-center gap-1 rounded-full bg-epi-teal-solid/10 px-2 py-0.5 text-xs font-bold text-epi-teal-solid tabular-nums"
+                      class="relative z-10 inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink tabular-nums"
                     >
                       <Sparkles class="h-3 w-3" />
                       {r.xp}
@@ -720,7 +720,7 @@
                   </p>
                   <div class="flex shrink-0 items-center gap-1.5">
                     <span
-                      class="inline-flex items-center gap-1 rounded-full bg-epi-teal-solid/10 px-2 py-0.5 text-[10px] font-bold text-epi-teal-solid tabular-nums"
+                      class="inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-[10px] font-bold text-epi-tech-ink tabular-nums"
                     >
                       <Sparkles class="h-3 w-3" />
                       {r.xp}

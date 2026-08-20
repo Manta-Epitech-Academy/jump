@@ -147,7 +147,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Mini-<span class="text-epi-pink">jeux</span>
+        Mini-<span class="text-epi-tomorrow">jeux</span>
       </h1>
       <p class="text-sm font-bold text-muted-foreground uppercase">
         Rotation et publications du jeu du jour
@@ -202,7 +202,7 @@
           <div
             class={cn(
               'flex flex-col gap-3 rounded-sm border bg-card p-4 transition-colors',
-              g.enabled ? 'border-epi-pink/40' : 'opacity-80',
+              g.enabled ? 'border-epi-tomorrow/40' : 'opacity-80',
             )}
           >
             <div class="flex items-start justify-between gap-2">
@@ -360,7 +360,7 @@
         <Button
           type="submit"
           disabled={$forceDelayed || !forceGame}
-          class="bg-epi-pink text-white"
+          class="bg-epi-tomorrow text-white"
         >
           {$forceDelayed ? '...' : 'Publier'}
         </Button>
@@ -419,7 +419,7 @@
         <Button
           href={testHref || undefined}
           disabled={!testHref}
-          class="bg-epi-pink text-white"
+          class="bg-epi-tomorrow text-white"
         >
           Tester
         </Button>
@@ -532,7 +532,7 @@
           <Button
             type="submit"
             disabled={$configDelayed}
-            class="bg-epi-pink text-white"
+            class="bg-epi-tomorrow text-white"
           >
             {$configDelayed ? 'Sauvegarde...' : 'Enregistrer'}
           </Button>

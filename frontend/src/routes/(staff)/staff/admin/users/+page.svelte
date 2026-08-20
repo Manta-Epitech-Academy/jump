@@ -379,7 +379,7 @@
   <div class="flex items-end justify-between gap-4">
     <div>
       <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Membres & <span class="text-epi-pink">invitations</span>
+        Membres & <span class="text-epi-tomorrow">invitations</span>
       </h1>
       <p class="text-sm font-bold text-muted-foreground uppercase">
         Pré-approuver un accès ou modifier un membre existant
@@ -513,7 +513,7 @@
             <Mail class="h-3 w-3" />
             <a
               href="mailto:{user.email}"
-              class="transition-colors hover:text-epi-pink hover:underline"
+              class="transition-colors hover:text-epi-tomorrow hover:underline"
             >
               {user.email}
             </a>
@@ -651,7 +651,7 @@
                         {...props}
                         variant="ghost"
                         size="icon"
-                        class="text-muted-foreground hover:text-epi-pink"
+                        class="text-muted-foreground hover:text-epi-tomorrow"
                         disabled={impersonating === user.id}
                         onclick={() =>
                           loginAs(
@@ -717,7 +717,7 @@
       onOpenChange={(o) => (invitesOpen = o)}
     >
       <Collapsible.Trigger
-        class="flex w-full items-center gap-2 border-t pt-4 text-left transition-colors hover:text-epi-pink"
+        class="flex w-full items-center gap-2 border-t pt-4 text-left transition-colors hover:text-epi-tomorrow"
       >
         <ChevronRight
           class="h-4 w-4 shrink-0 text-muted-foreground transition-transform {invitesOpen

@@ -12,7 +12,10 @@
 {#if isLoginPage}
   {@render children()}
 {:else}
-  <div class="min-h-dvh bg-slate-50 dark:bg-slate-950">
+  <!-- `parent-layout` carries the space skin (radius, elevation, focus ring);
+       see the space-skins block in layout.css. The login page bypasses this
+       wrapper, so `ParentFlowShell` declares the same class on its own root. -->
+  <div class="parent-layout min-h-dvh bg-slate-50 dark:bg-slate-950">
     {@render children()}
   </div>
 {/if}

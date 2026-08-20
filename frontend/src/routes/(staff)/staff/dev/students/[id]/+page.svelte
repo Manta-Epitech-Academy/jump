@@ -102,7 +102,7 @@
     interviewStatus === 'in_progress'
       ? 'bg-amber-500'
       : interviewStatus === 'done'
-        ? 'bg-epi-teal-solid'
+        ? 'bg-epi-tech-ink'
         : 'bg-muted-foreground/40',
   );
 </script>

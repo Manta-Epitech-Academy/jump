@@ -15,11 +15,11 @@
   // ordered by count desc, so position conveys rank.
   const ringClass = (i: number) =>
     i === 0
-      ? 'ring-2 ring-epi-orange'
+      ? 'ring-2 ring-epi-together'
       : i === 1
         ? 'ring-2 ring-muted-foreground/40'
         : i === 2
-          ? 'ring-2 ring-epi-teal-solid'
+          ? 'ring-2 ring-epi-tech-ink'
           : '';
 </script>
 

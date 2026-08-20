@@ -91,9 +91,9 @@
   <LoginBrandPanel>
     <h1 class="font-heading text-5xl leading-[0.95] xl:text-6xl">
       {#if userKind === 'parent'}
-        Suivez leur<br />parcours<span class="text-epi-teal">_</span>
+        Suivez leur<br />parcours<span class="text-epi-tech">_</span>
       {:else}
-        Passe au niveau<br />supérieur<span class="text-epi-teal">_</span>
+        Passe au niveau<br />supérieur<span class="text-epi-tech">_</span>
       {/if}
     </h1>
     <p class="max-w-md font-mono text-sm text-white/70">
@@ -120,7 +120,7 @@
         <EpitechLogo class="h-7 w-auto lg:hidden" />
         <div class="space-y-2">
           <h2 class="font-heading text-3xl tracking-wide">
-            Jump<span class="text-epi-teal">_</span>
+            Jump<span class="text-epi-tech">_</span>
           </h2>
           <p class="text-sm text-muted-foreground">
             {#if step === 'otp'}

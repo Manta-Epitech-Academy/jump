@@ -25,13 +25,13 @@
       key: 'done',
       label: 'Finalisés',
       value: counts.done,
-      fill: 'bg-epi-teal-solid',
+      fill: 'bg-epi-tech-ink',
     },
     {
       key: 'in_progress',
       label: 'En cours',
       value: counts.in_progress,
-      fill: 'bg-epi-orange',
+      fill: 'bg-epi-together',
     },
     {
       key: 'todo',
@@ -51,9 +51,9 @@
   );
 
   const TONE_DOT: Record<RecommendationToneToken, string> = {
-    'epi-tech': 'bg-epi-teal-solid',
+    'epi-tech': 'bg-epi-tech-ink',
     'epi-blue': 'bg-epi-blue',
-    'epi-tomorrow': 'bg-epi-pink',
+    'epi-tomorrow': 'bg-epi-tomorrow',
     'epi-drift': 'bg-muted-foreground/40',
   };
 </script>

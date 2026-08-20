@@ -143,7 +143,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Réseau <span class="text-epi-pink">Campus</span>
+        Réseau <span class="text-epi-tomorrow">Campus</span>
       </h1>
       <p class="text-sm font-bold text-muted-foreground uppercase">
         Gérer les villes d'implantation
@@ -151,7 +151,7 @@
     </div>
     <Button
       onclick={openCreate}
-      class="bg-epi-pink text-white hover:bg-epi-pink/90"
+      class="bg-epi-tomorrow text-white hover:bg-epi-tomorrow/90"
     >
       <Plus class="mr-2 h-4 w-4" /> Ajouter
     </Button>
@@ -346,7 +346,7 @@
           <Button
             type="submit"
             disabled={$delayed}
-            class="bg-epi-pink text-white"
+            class="bg-epi-tomorrow text-white"
           >
             {$delayed ? 'Sauvegarde...' : 'Enregistrer'}
           </Button>

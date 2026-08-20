@@ -66,7 +66,7 @@
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 class="text-2xl font-bold text-epi-blue uppercase">
-          Planning<span class="text-epi-teal">_</span>
+          Planning<span class="text-epi-tech">_</span>
         </h1>
         <p
           class="text-sm font-bold tracking-wider text-muted-foreground uppercase"

@@ -26,7 +26,7 @@
     class="absolute -top-20 -right-20 h-100 w-100 rounded-full bg-epi-blue/10 blur-[100px] dark:bg-epi-blue/20"
   ></div>
   <div
-    class="absolute -bottom-20 -left-20 h-100 w-100 rounded-full bg-epi-teal/10 blur-[100px] dark:bg-epi-teal/20"
+    class="absolute -bottom-20 -left-20 h-100 w-100 rounded-full bg-epi-tech/10 blur-[100px] dark:bg-epi-tech/20"
   ></div>
   <div
     class="absolute inset-0 bg-[radial-gradient(var(--color-slate-200)_1px,transparent_1px)] bg-size-[32px_32px] opacity-50 dark:bg-[radial-gradient(var(--color-slate-800)_1px,transparent_1px)]"
@@ -80,7 +80,7 @@
         >
           <Button
             type="submit"
-            class="h-auto rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
+            class="h-auto rounded-2xl bg-epi-tech px-6 py-3 text-black shadow-lg shadow-epi-tech/20 transition-all duration-200 hover:bg-epi-tech hover:brightness-110"
           >
             On y va
             <ArrowRight class="ml-2 h-4 w-4" />

@@ -83,7 +83,7 @@
 
 {#if recommendations.length === 0}
   <div
-    class="flex items-center gap-2 rounded-sm border border-dashed border-epi-teal/30 bg-epi-teal/5 px-4 py-3 text-sm text-epi-teal-solid"
+    class="flex items-center gap-2 rounded-sm border border-dashed border-epi-tech/30 bg-epi-tech/5 px-4 py-3 text-sm text-epi-tech-ink"
   >
     <CircleCheck class="h-4 w-4 shrink-0" />
     Aucune recommandation, rien à signaler.
@@ -98,7 +98,7 @@
         <span
           class={cn(
             'w-1 shrink-0',
-            rec.severity === 'urgent' ? 'bg-epi-orange' : 'bg-epi-blue',
+            rec.severity === 'urgent' ? 'bg-epi-together' : 'bg-epi-blue',
           )}
           aria-hidden="true"
         ></span>
