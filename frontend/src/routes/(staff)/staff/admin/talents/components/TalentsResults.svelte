@@ -611,6 +611,7 @@
                     size="icon"
                     class="text-muted-foreground hover:text-destructive"
                     onclick={() => askWipe(talent)}
+                    aria-label="Réinitialiser {talent.prenom} {talent.nom} à l'état import"
                   >
                     <Bomb class="h-4 w-4" />
                   </Button>

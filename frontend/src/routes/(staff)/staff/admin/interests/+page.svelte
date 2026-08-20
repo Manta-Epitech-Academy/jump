@@ -109,7 +109,8 @@
           </span>
           <button
             type="button"
-            class="ml-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+            aria-label="Supprimer {interest.nom}"
+            class="ml-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
             onclick={(e: MouseEvent) => {
               e.stopPropagation();
               deleteId = interest.id;
@@ -170,7 +171,8 @@
           </span>
           <button
             type="button"
-            class="ml-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+            aria-label="Supprimer {interest.nom}"
+            class="ml-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
             onclick={(e: MouseEvent) => {
               e.stopPropagation();
               deleteId = interest.id;

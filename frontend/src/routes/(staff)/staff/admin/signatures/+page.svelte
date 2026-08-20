@@ -121,6 +121,7 @@
               variant="ghost"
               size="icon"
               onclick={() => openEdit(s)}
+              aria-label="Modifier {s.name}"
             >
               <Pencil class="h-4 w-4" />
             </Button>
@@ -137,6 +138,7 @@
               size="icon"
               class="text-destructive hover:text-destructive"
               onclick={() => confirmDelete(s.id)}
+              aria-label="Supprimer {s.name}"
             >
               <Trash2 class="h-4 w-4" />
             </Button>

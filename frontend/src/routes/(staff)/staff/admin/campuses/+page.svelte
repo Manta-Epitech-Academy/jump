@@ -234,6 +234,7 @@
                         variant="ghost"
                         size="icon"
                         onclick={() => openEdit(campus)}
+                        aria-label="Modifier {campus.name}"
                       >
                         <Pencil class="h-4 w-4" />
                       </Button>
@@ -250,6 +251,7 @@
                         size="icon"
                         class="text-destructive hover:text-destructive"
                         onclick={() => confirmDelete(campus.id)}
+                        aria-label="Supprimer {campus.name}"
                       >
                         <Trash2 class="h-4 w-4" />
                       </Button>

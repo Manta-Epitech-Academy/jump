@@ -648,6 +648,8 @@
                         variant="ghost"
                         size="icon"
                         class="text-muted-foreground hover:text-epi-tomorrow"
+                        aria-label="Se connecter en tant que {user.name ||
+                          user.email}"
                         disabled={impersonating === user.id}
                         onclick={() =>
                           loginAs(
@@ -676,6 +678,7 @@
                       size="icon"
                       class="text-destructive hover:bg-destructive/10"
                       onclick={() => confirmDelete(user.id)}
+                      aria-label="Révoquer l'accès de {user.name || user.email}"
                     >
                       <Trash2 class="h-4 w-4" />
                     </Button>
