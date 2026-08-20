@@ -473,9 +473,7 @@
         {#snippet filters()}
           {#if showStatutColumn}
             <div class="flex items-center gap-2">
-              <span
-                class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
-              >
+              <span class="hidden epi-overline text-muted-foreground sm:inline">
                 Statut
               </span>
               <FilterSelect
@@ -489,9 +487,7 @@
 
           {#if showNiveauFilter}
             <div class="flex items-center gap-2">
-              <span
-                class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
-              >
+              <span class="hidden epi-overline text-muted-foreground sm:inline">
                 Niveau
               </span>
               <FilterSelect
@@ -628,7 +624,7 @@
                       {...props}
                       href={resolve(`/staff/dev/students/${r.talentId}`)}
                       tabindex={-1}
-                      class="relative z-10 inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink tabular-nums"
+                      class="relative z-10 inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
                     >
                       <Sparkles class="h-3 w-3" />
                       {r.xp}
@@ -657,7 +653,7 @@
               {#if r.niveau}
                 <Badge
                   variant="secondary"
-                  class="rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
+                  class="rounded-sm bg-epi-blue/5 px-2 py-0 epi-overline text-epi-blue"
                 >
                   {niveauLabel(r.niveau)}
                 </Badge>
@@ -682,7 +678,7 @@
                         href={resolve(`/staff/dev/students/${r.talentId}`)}
                         tabindex={-1}
                         class={cn(
-                          'relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase',
+                          'relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-overline',
                           badge.class,
                         )}
                       >
@@ -720,7 +716,7 @@
                   </p>
                   <div class="flex shrink-0 items-center gap-1.5">
                     <span
-                      class="inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-[10px] font-bold text-epi-tech-ink tabular-nums"
+                      class="inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
                     >
                       <Sparkles class="h-3 w-3" />
                       {r.xp}
@@ -728,7 +724,7 @@
                     {#if showStatutColumn}
                       <span
                         class={cn(
-                          'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase',
+                          'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-overline',
                           badge.class,
                         )}
                       >
@@ -747,7 +743,7 @@
                   {#if r.niveau}
                     <Badge
                       variant="secondary"
-                      class="shrink-0 rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
+                      class="shrink-0 rounded-sm bg-epi-blue/5 px-2 py-0 epi-overline text-epi-blue"
                     >
                       {niveauLabel(r.niveau)}
                     </Badge>

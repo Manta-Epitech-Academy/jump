@@ -46,6 +46,7 @@
   import { replaceState } from '$app/navigation';
   import { untrack } from 'svelte';
   import type { AdminEventVM } from './+page.server';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
@@ -366,12 +367,10 @@
 
 <div class="space-y-6">
   <div>
-    <h1 class="font-heading text-3xl tracking-wide uppercase">
-      <span class="text-epi-tomorrow">Événements</span>
-    </h1>
-    <p class="text-sm font-bold text-muted-foreground uppercase">
-      Configurer les modules, le nom public et les détails de chaque événement
-    </p>
+    <PageHeader
+      accent="Événements"
+      subtitle="Configurer les modules, le nom public et les détails de chaque événement"
+    />
   </div>
 
   <!-- Cockpit band: each tile is a status filter (click to scope the table),
@@ -522,7 +521,7 @@
       </Button>
       {#if selectedNoModules > 0}
         <span
-          class="flex w-full items-center gap-1.5 text-[11px] font-medium text-amber-600"
+          class="flex w-full items-center gap-1.5 text-xs font-medium text-amber-600"
         >
           <TriangleAlert class="h-3.5 w-3.5 shrink-0" />
           {selectedNoModules} sans section ne {selectedNoModules > 1
@@ -554,7 +553,7 @@
           {#if !e.synced}
             <Badge
               variant="outline"
-              class="shrink-0 text-[10px] font-normal text-muted-foreground"
+              class="shrink-0 text-xs font-normal text-muted-foreground"
             >
               Manuel
             </Badge>
@@ -576,8 +575,7 @@
       <Table.Cell>
         <EventModulesCell modules={e.modules} />
       </Table.Cell>
-      <Table.Cell class="text-right tabular-nums">{e.participations}</Table.Cell
-      >
+      <Table.Cell class="text-right">{e.participations}</Table.Cell>
       <Table.Cell class="text-right">
         <div class="flex items-center justify-end gap-0.5">
           <Button
@@ -617,7 +615,7 @@
             {#if !e.synced}
               <Badge
                 variant="outline"
-                class="shrink-0 text-[10px] font-normal text-muted-foreground"
+                class="shrink-0 text-xs font-normal text-muted-foreground"
               >
                 Manuel
               </Badge>
@@ -658,7 +656,7 @@
       <div class="mt-3 flex items-center gap-2">
         <EventModulesCell modules={e.modules} />
         <EventStateBadge state={e.configState} past={e.status === 'past'} />
-        <span class="ml-auto text-xs text-muted-foreground tabular-nums">
+        <span class="ml-auto text-xs text-muted-foreground">
           {e.participations} inscrits
         </span>
       </div>
@@ -763,11 +761,7 @@
           >
             Annuler
           </Button>
-          <Button
-            type="submit"
-            disabled={bulkSubmitting}
-            class="bg-epi-tomorrow text-white"
-          >
+          <Button type="submit" disabled={bulkSubmitting}>
             {bulkSubmitting ? 'Application…' : 'Appliquer'}
           </Button>
         </Dialog.Footer>

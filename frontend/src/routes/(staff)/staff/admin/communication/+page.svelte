@@ -9,7 +9,7 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import CircleCheckBig from '@lucide/svelte/icons/circle-check-big';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import BroadcastStatusBadge from '$lib/components/admin/broadcasts/BroadcastStatusBadge.svelte';
@@ -55,7 +55,7 @@
 {/snippet}
 
 <div class="space-y-6">
-  <AdminPageHeader
+  <PageHeader
     title="Communication"
     accent="globale"
     subtitle="Tous les envois sortants, en un coup d'œil"

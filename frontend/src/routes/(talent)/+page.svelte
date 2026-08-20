@@ -22,6 +22,7 @@
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
   import MinigameRewardCelebration from '$lib/components/talent/MinigameRewardCelebration.svelte';
   import { onMount } from 'svelte';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -166,7 +167,7 @@
   <TalentPageHeader>
     {#snippet lead()}
       <h1
-        class="truncate font-heading text-xl tracking-wider text-slate-900 uppercase sm:text-2xl dark:text-white"
+        class="truncate font-heading text-display-s text-slate-900 sm:text-display-m dark:text-white"
       >
         Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
       </h1>
@@ -329,7 +330,7 @@
               <button
                 type="submit"
                 title="Dev : basculer l'état de l'entraînement du jour"
-                class="text-[10px] font-bold tracking-wide text-slate-300 uppercase hover:text-epi-blue dark:text-slate-600"
+                class="epi-overline text-slate-300 hover:text-epi-blue dark:text-slate-600"
               >
                 {minigamePlayed ? 'dev: reset' : 'dev: joué'}
               </button>
@@ -369,14 +370,14 @@
 
             <div>
               <span
-                class="text-5xl font-black tracking-tighter text-slate-900 dark:text-white"
+                class="text-5xl font-bold tracking-tighter text-slate-900 dark:text-white"
               >
                 {student?.xp || 0}
               </span>
               <span class="text-lg font-bold text-epi-together">XP</span>
             </div>
             <span
-              class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-400 transition-all group-hover:bg-epi-blue/10 group-hover:text-epi-blue dark:bg-slate-800 dark:group-hover:bg-epi-blue/20"
+              class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-400 transition-all group-hover:bg-epi-blue/10 group-hover:text-epi-blue dark:bg-slate-800 dark:group-hover:bg-epi-blue/20"
             >
               <History class="h-3 w-3" />
               Voir mon historique
@@ -401,9 +402,9 @@
           >
             <CalendarClock class="h-4 w-4 shrink-0 text-epi-blue" />
             <h2
-              class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
+              class="font-heading text-display-s text-slate-800 dark:text-slate-200"
             >
-              Planning à venir<span class="text-epi-tech">_</span>
+              Planning à venir<TitleCursor />
             </h2>
           </div>
 
@@ -510,9 +511,9 @@
             >
               <CalendarCheck class="h-4 w-4 shrink-0 text-epi-blue" />
               <h2
-                class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
+                class="font-heading text-display-s text-slate-800 dark:text-slate-200"
               >
-                Événements passés<span class="text-epi-tech">_</span>
+                Événements passés<TitleCursor />
               </h2>
             </div>
 
@@ -523,7 +524,7 @@
               class="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 px-6 pt-4 pb-2"
             >
               {#each data.pastEvents as ev (ev.id)}
-                <span class="text-xs text-slate-400 tabular-nums">
+                <span class="text-xs text-slate-400">
                   {new Date(ev.date).toLocaleDateString('fr-FR', {
                     timeZone: data.timeZone,
                     day: 'numeric',
@@ -541,7 +542,7 @@
             <div class="flex justify-center pb-4">
               <a
                 href={resolve('/events')}
-                class="group inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-400 transition-all hover:bg-epi-blue/10 hover:text-epi-blue dark:bg-slate-800 dark:hover:bg-epi-blue/20"
+                class="group inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-400 transition-all hover:bg-epi-blue/10 hover:text-epi-blue dark:bg-slate-800 dark:hover:bg-epi-blue/20"
               >
                 <CalendarCheck class="h-3 w-3" />
                 Voir tout
@@ -569,9 +570,9 @@
           >
             <Rocket class="h-4 w-4 shrink-0 text-epi-blue" />
             <h2
-              class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
+              class="font-heading text-display-s text-slate-800 dark:text-slate-200"
             >
-              Mission du jour<span class="text-epi-tech">_</span>
+              Mission du jour<TitleCursor />
             </h2>
           </div>
 

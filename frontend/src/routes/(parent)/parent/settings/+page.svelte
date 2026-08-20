@@ -10,6 +10,7 @@
   import { fly } from 'svelte/transition';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { track } from '$lib/analytics';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let { data } = $props();
 </script>
@@ -34,10 +35,8 @@
           <ArrowLeft class="h-5 w-5" />
           <span class="sr-only">Retour</span>
         </Button>
-        <h1
-          class="font-heading text-3xl tracking-wider text-slate-900 uppercase dark:text-white"
-        >
-          Paramètres<span class="text-epi-tech">_</span>
+        <h1 class="font-heading text-display-l text-slate-900 dark:text-white">
+          Paramètres<TitleCursor />
         </h1>
       </div>
     </header>
@@ -60,7 +59,7 @@
               <User class="h-4 w-4 text-epi-blue" />
             </div>
             <div class="min-w-0">
-              <p class="text-[10px] font-bold text-slate-400 uppercase">Nom</p>
+              <p class="epi-overline text-slate-400">Nom</p>
               <p
                 class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
               >
@@ -75,9 +74,7 @@
               <Mail class="h-4 w-4 text-epi-blue" />
             </div>
             <div class="min-w-0">
-              <p class="text-[10px] font-bold text-slate-400 uppercase">
-                Email
-              </p>
+              <p class="epi-overline text-slate-400">Email</p>
               <p
                 class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
               >

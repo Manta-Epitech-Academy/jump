@@ -11,6 +11,7 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
@@ -57,12 +58,11 @@
 
 <div class="space-y-8">
   <div>
-    <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Centres d'<span class="text-epi-tomorrow">intérêt</span>
-    </h1>
-    <p class="text-sm font-bold text-muted-foreground uppercase">
-      Intérêts proposés aux talents pendant l'onboarding.
-    </p>
+    <PageHeader
+      title="Centres d'"
+      accent="intérêt"
+      subtitle="Intérêts proposés aux talents pendant l'onboarding"
+    />
   </div>
 
   <!-- Tech interests -->
@@ -104,7 +104,7 @@
         >
           {#if interest.emoji}<span>{interest.emoji}</span>{/if}
           <span>{interest.nom}</span>
-          <span class="ml-1 text-[10px] text-muted-foreground">
+          <span class="ml-1 text-xs text-muted-foreground">
             ({interest._count.talentInterests})
           </span>
           <button
@@ -165,7 +165,7 @@
         >
           {#if interest.emoji}<span>{interest.emoji}</span>{/if}
           <span>{interest.nom}</span>
-          <span class="ml-1 text-[10px] text-muted-foreground">
+          <span class="ml-1 text-xs text-muted-foreground">
             ({interest._count.talentInterests})
           </span>
           <button

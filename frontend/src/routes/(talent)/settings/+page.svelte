@@ -58,7 +58,7 @@
           <User class="h-4 w-4 text-epi-blue" />
         </div>
         <div class="min-w-0">
-          <p class="text-[10px] font-bold text-slate-400 uppercase">Nom</p>
+          <p class="epi-overline text-slate-400">Nom</p>
           <p
             class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
           >
@@ -74,7 +74,7 @@
           <Mail class="h-4 w-4 text-epi-blue" />
         </div>
         <div class="min-w-0">
-          <p class="text-[10px] font-bold text-slate-400 uppercase">Email</p>
+          <p class="epi-overline text-slate-400">Email</p>
           <p
             class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
           >
@@ -134,7 +134,7 @@
               >
                 {doc.label}
               </p>
-              <p class="text-[10px] font-bold text-slate-400 uppercase">
+              <p class="epi-overline text-slate-400">
                 {#if doc.signerName}
                   Signé par {doc.signerName} le {formatDateFr(doc.signedAt)}
                 {:else}
@@ -142,7 +142,7 @@
                 {/if}
               </p>
               {#if doc.coSigner}
-                <p class="text-[10px] font-bold text-slate-400 uppercase">
+                <p class="epi-overline text-slate-400">
                   Co-signé par {doc.coSigner.name} le {formatDateFr(
                     doc.coSigner.signedAt,
                   )}
@@ -163,14 +163,14 @@
               </Button>
             {:else if doc.status === 'generating'}
               <span
-                class="flex shrink-0 items-center gap-1 text-[10px] font-bold text-slate-400 uppercase"
+                class="flex shrink-0 items-center gap-1 epi-overline text-slate-400"
               >
                 <Loader class="h-3.5 w-3.5 animate-spin" />
                 Génération…
               </span>
             {:else}
               <span
-                class="flex shrink-0 items-center gap-1 text-[10px] font-bold text-amber-600 uppercase dark:text-amber-500"
+                class="flex shrink-0 items-center gap-1 epi-overline text-amber-600 dark:text-amber-500"
                 title="La génération de ce document a échoué. Notre équipe peut le relancer, réessaie plus tard ou contacte-la."
               >
                 <AlertTriangle class="h-3.5 w-3.5" />
@@ -299,7 +299,7 @@
         variant="link"
         size="sm"
         onclick={() => (deleteDialogOpen = true)}
-        class="h-auto p-0 text-[11px] font-normal text-slate-400 decoration-dotted underline-offset-4 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400"
+        class="h-auto p-0 text-xs font-normal text-slate-400 decoration-dotted underline-offset-4 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400"
       >
         Supprimer mon compte
       </Button>

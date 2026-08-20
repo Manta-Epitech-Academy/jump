@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button } from '$lib/components/ui/button';
   import { cn } from '$lib/utils';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let {
     icon: Icon,
@@ -39,8 +40,8 @@
     </div>
   </div>
 
-  <h3 class="font-heading text-2xl tracking-wide text-foreground uppercase">
-    {title}<span class="text-epi-tech">_</span>
+  <h3 class="font-heading text-display-m text-foreground">
+    {title}<TitleCursor />
   </h3>
 
   <p class="mt-3 max-w-sm text-sm font-medium text-muted-foreground italic">

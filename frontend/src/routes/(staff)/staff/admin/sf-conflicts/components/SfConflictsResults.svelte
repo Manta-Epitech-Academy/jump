@@ -30,6 +30,7 @@
   } from '$lib/domain/authIdentity';
   import type { SfConflictsData } from './types';
   import SfExportMenu from './SfExportMenu.svelte';
+  import CodeTag from '$lib/components/layout/CodeTag.svelte';
 
   // The streamed reconciliation payload plus the shell's search box value. This
   // component owns every data-dependent projection, both tabs and the two repair
@@ -338,7 +339,7 @@
       Connexion / identité
       {#if authExposureCount > 0}
         <span
-          class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white"
+          class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white"
           title="{authExposureCount} risque(s) d'exposition entre comptes"
         >
           {authCount}
@@ -370,7 +371,7 @@
       </Card.Root>
     {:else}
       <section class="space-y-3">
-        <h2 class="font-heading text-lg tracking-wide uppercase">
+        <h2 class="font-heading text-display-s">
           Conflits à arbitrer
           <span class="ml-1 font-mono text-sm text-muted-foreground">
             {conflictCount}
@@ -470,14 +471,14 @@
       {#if pushFieldCount > 0}
         <section class="space-y-3">
           <div>
-            <h2 class="font-heading text-lg tracking-wide uppercase">
+            <h2 class="font-heading text-display-s">
               À transmettre vers Salesforce
               <span class="ml-1 font-mono text-sm text-muted-foreground">
                 {pushFieldCount}
               </span>
             </h2>
             <p class="font-mono text-xs tracking-wide text-muted-foreground">
-              &lt; poussé via l'export CSV — aucune action ici /&gt;
+              <CodeTag>poussé via l'export CSV — aucune action ici</CodeTag>
             </p>
           </div>
 
@@ -507,7 +508,7 @@
                           {item.label}
                           {#if item.origin === 'parent'}
                             <span
-                              class="rounded-full bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground"
+                              class="rounded-full bg-muted px-1.5 py-px text-xs font-medium text-muted-foreground"
                               title="Salesforce n'a pas de champ pour cette donnée"
                             >
                               hors SF
@@ -620,7 +621,7 @@
                       {VERDICT_LABELS[c.verdict]}
                     </Badge>
                     {#if c.exposureRisk}
-                      <div class="mt-1 text-[11px] text-red-600">
+                      <div class="mt-1 text-xs text-red-600">
                         email obsolète = {c.exposureKind === 'parent'
                           ? 'un parent'
                           : c.exposureKind === 'staff'

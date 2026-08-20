@@ -53,7 +53,7 @@
       onclick={() => pick(opt.value)}
       aria-pressed={active}
       class={cn(
-        'rounded border text-[11px] font-bold tracking-wide uppercase transition-all',
+        'rounded border epi-overline transition-all',
         block ? 'flex-1 px-2 py-1.5 text-center' : 'px-2.5 py-1',
         // Selected = a raised colour chip. Inactive recedes, but the resting look
         // splits by density: the compact desktop switch keeps them as flat muted

@@ -26,11 +26,7 @@
     class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-6 text-center"
   >
     <CalendarDays class="h-8 w-8 text-muted-foreground opacity-30" />
-    <h3
-      class="mt-3 text-[11px] font-bold tracking-widest text-muted-foreground uppercase"
-    >
-      Aucun événement
-    </h3>
+    <h3 class="mt-3 epi-overline text-muted-foreground">Aucun événement</h3>
     <p class="mt-1 max-w-[250px] text-xs text-muted-foreground">
       Ce talent n'a participé à aucun événement.
     </p>
@@ -55,9 +51,7 @@
             {presenceLabel(ev.presence)}
           </span>
         {/if}
-        <span
-          class="shrink-0 font-mono text-xs text-muted-foreground tabular-nums"
-        >
+        <span class="shrink-0 font-mono text-xs text-muted-foreground">
           {formatDateFr(ev.date, timezone)}
         </span>
       </li>

@@ -203,7 +203,7 @@
           >
             {#if highlightLabel}
               <h3
-                class="flex items-center gap-1.5 px-1 text-[11px] font-medium text-epi-blue"
+                class="flex items-center gap-1.5 px-1 text-xs font-medium text-epi-blue"
               >
                 <span class="h-1.5 w-1.5 rounded-full bg-epi-blue"></span>
                 {highlightLabel}
@@ -215,7 +215,7 @@
           </section>
           {#if otherNotes.length > 0}
             <div class="space-y-2">
-              <h3 class="px-1 text-[11px] font-medium text-muted-foreground">
+              <h3 class="px-1 text-xs font-medium text-muted-foreground">
                 Autres
               </h3>
               {#each otherNotes as note (note.id)}

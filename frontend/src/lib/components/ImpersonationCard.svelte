@@ -62,9 +62,7 @@
     >
       <div class="flex items-center gap-1.5">
         <UserCheck class="h-3.5 w-3.5 shrink-0 text-epi-together" />
-        <span
-          class="font-mono text-[9px] font-bold tracking-widest text-epi-together uppercase"
-        >
+        <span class="epi-overline text-epi-together">
           Session admin en pause
         </span>
       </div>

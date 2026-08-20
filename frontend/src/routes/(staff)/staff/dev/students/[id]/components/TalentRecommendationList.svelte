@@ -73,7 +73,7 @@
     <Phone class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
     <a
       href={`tel:${phone.replace(/\s+/g, '')}`}
-      class="tabular-nums transition-colors hover:text-epi-blue"
+      class=" transition-colors hover:text-epi-blue"
     >
       {display}
     </a>
@@ -121,9 +121,7 @@
               class="flex shrink-0 flex-col gap-1 sm:items-end sm:text-right"
             >
               {#if !info.email && !info.phone}
-                <span
-                  class="font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-                >
+                <span class="epi-overline text-muted-foreground">
                   Aucun contact renseigné
                 </span>
               {:else if rec.kind === 'opportunity'}

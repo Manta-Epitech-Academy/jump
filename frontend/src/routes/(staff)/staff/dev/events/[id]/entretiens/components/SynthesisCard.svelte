@@ -63,15 +63,13 @@
     class="flex flex-row items-center gap-2 border-b bg-muted/30 px-6 pt-4 pb-3"
   >
     <ClipboardCheck class="h-5 w-5 text-epi-blue" />
-    <h3 class="font-heading text-2xl tracking-wide text-foreground uppercase">
-      Synthèse
-    </h3>
+    <h3 class="font-heading text-display-m text-foreground">Synthèse</h3>
   </div>
 
   <Card.Content class="space-y-3 p-4">
     <div>
       <div class="flex items-baseline gap-2">
-        <span class="text-3xl leading-none font-extrabold text-foreground">
+        <span class="text-3xl leading-none font-bold text-foreground">
           {donePct}%
         </span>
         <span class="text-xs text-muted-foreground">finalisés</span>
@@ -103,9 +101,8 @@
             {s.label}
           </dt>
           <dd class="flex items-baseline gap-2">
-            <span class="font-bold text-foreground tabular-nums">{s.value}</span
-            >
-            <span class="w-9 text-right text-muted-foreground/70 tabular-nums">
+            <span class="font-bold text-foreground">{s.value}</span>
+            <span class="w-9 text-right text-muted-foreground/70">
               {pct(s.value)}%
             </span>
           </dd>
@@ -115,11 +112,7 @@
 
     {#if recoTotal > 0}
       <div class="space-y-1.5 border-t pt-2.5">
-        <p
-          class="font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Avis sur les finalisés
-        </p>
+        <p class="epi-overline text-muted-foreground">Avis sur les finalisés</p>
         {#each INTERVIEW_RECOMMENDATION_VALUES as value (value)}
           {#if recoCounts[value] > 0}
             {@const desc = INTERVIEW_RECOMMENDATIONS[value]}
@@ -133,7 +126,7 @@
                 ></span>
                 {desc.label}
               </span>
-              <span class="font-bold text-foreground tabular-nums">
+              <span class="font-bold text-foreground">
                 {recoCounts[value]}
               </span>
             </div>

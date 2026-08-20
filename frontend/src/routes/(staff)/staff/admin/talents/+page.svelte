@@ -2,6 +2,9 @@
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import TalentsResults from './components/TalentsResults.svelte';
   import type { TalentsCohort } from './query';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import CodeTag from '$lib/components/layout/CodeTag.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
@@ -35,12 +38,10 @@
 
 <div class="space-y-6">
   <div>
-    <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Talents<span class="text-epi-tomorrow">_</span>
-    </h1>
-    <p class="font-mono text-xs text-muted-foreground">
-      &lt; se connecter en tant qu'un talent pour voir son espace /&gt;
-    </p>
+    <PageHeader
+      title="Talents"
+      accroche="se connecter en tant qu'un talent pour voir son espace"
+    />
   </div>
 
   <!-- Stream the cohort behind the heading: the page chrome paints instantly

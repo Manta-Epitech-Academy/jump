@@ -33,6 +33,9 @@
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ExportMenu from './components/ExportMenu.svelte';
   import ResetInterviewDialog from './components/ResetInterviewDialog.svelte';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import CodeTag from '$lib/components/layout/CodeTag.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -176,20 +179,16 @@
 </svelte:head>
 
 <div class="space-y-6">
-  <div class="flex flex-wrap items-start justify-between gap-3">
-    <div>
-      <h1 class="font-heading text-3xl tracking-wide uppercase">
-        PDF Entretiens<span class="text-epi-tomorrow">_</span>
-      </h1>
-      <p class="mt-1 font-mono text-xs tracking-wide text-muted-foreground">
-        &lt;Synthèse des entretiens de motivation/&gt;
-      </p>
-    </div>
-
-    <div class="flex items-center gap-3">
-      <ExportMenu lastExportAt={data.lastExportAt} />
-    </div>
-  </div>
+  <PageHeader
+    title="PDF Entretiens"
+    accroche="Synthèse des entretiens de motivation"
+  >
+    {#snippet actions()}
+      <div class="flex items-center gap-3">
+        <ExportMenu lastExportAt={data.lastExportAt} />
+      </div>
+    {/snippet}
+  </PageHeader>
 
   {#if cohort}
     {@const c = cohort}
@@ -328,7 +327,7 @@
                 <Table.Cell colspan={8} class="py-12 text-center">
                   {#if hasFilters}
                     <p class="font-mono text-xs text-muted-foreground">
-                      &lt;Aucun entretien pour ce filtre/&gt;
+                      <CodeTag>Aucun entretien pour ce filtre</CodeTag>
                     </p>
                     <Button
                       variant="link"
@@ -340,7 +339,7 @@
                     </Button>
                   {:else}
                     <p class="font-mono text-xs text-muted-foreground">
-                      &lt;Aucun entretien finalisé/&gt;
+                      <CodeTag>Aucun entretien finalisé</CodeTag>
                     </p>
                   {/if}
                 </Table.Cell>

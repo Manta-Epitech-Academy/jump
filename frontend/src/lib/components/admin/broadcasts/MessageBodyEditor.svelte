@@ -170,14 +170,14 @@
         {/snippet}
       </DropdownMenu.Trigger>
       <DropdownMenu.Content align="start" class="max-h-96 w-80 overflow-y-auto">
-        <DropdownMenu.Label class="text-[10px] tracking-widest uppercase">
-          Destinataire
-        </DropdownMenu.Label>
+        <DropdownMenu.Label class="epi-overline"
+          >Destinataire</DropdownMenu.Label
+        >
         {#each recipientVars as v (v.key)}
           {@render variableItem(v)}
         {/each}
         <DropdownMenu.Separator />
-        <DropdownMenu.Label class="text-[10px] tracking-widest uppercase">
+        <DropdownMenu.Label class="epi-overline">
           Contexte d'envoi
         </DropdownMenu.Label>
         {#each contextVars as v (v.key)}

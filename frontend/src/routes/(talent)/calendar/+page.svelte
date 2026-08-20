@@ -13,6 +13,7 @@
     type WeekView,
   } from '$lib/domain/calendarWeek';
   import { track } from '$lib/analytics';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -110,9 +111,9 @@
             <CalendarIcon class="h-8 w-8 text-slate-400" />
           </div>
           <h2
-            class="font-heading text-lg tracking-wide text-slate-700 uppercase dark:text-slate-200"
+            class="font-heading text-display-s text-slate-700 dark:text-slate-200"
           >
-            Aucune activité au programme<span class="text-epi-tech">_</span>
+            Aucune activité au programme<TitleCursor />
           </h2>
           <p class="text-sm text-slate-500">
             Ton planning apparaîtra ici dès qu'un événement sera prévu.

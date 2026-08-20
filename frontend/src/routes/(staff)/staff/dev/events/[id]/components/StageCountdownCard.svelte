@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
+  import CodeTag from '$lib/components/layout/CodeTag.svelte';
 
   // Sidebar-sized echo of the preparation hero countdown. Same data, compact
   // chrome: a dark blueprint card that ticks to the stage opening, then folds
@@ -49,71 +50,53 @@
 </script>
 
 <div
-  class="relative overflow-hidden rounded-sm bg-epi-blue px-5 py-5 text-white shadow-sm dark:shadow-none"
+  class="on-dark relative overflow-hidden rounded-sm bg-epi-blue px-5 py-5 text-white"
 >
   <!-- Blueprint grid texture (charte signature), echoing the prep hero. -->
   <div
-    class="pointer-events-none absolute inset-0"
-    style="background-image: linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px); background-size: 28px 28px;"
+    class="pointer-events-none absolute inset-0 blueprint-grid-inverse"
     aria-hidden="true"
   ></div>
 
   <div class="relative z-10">
     {#if status === 'upcoming'}
-      <p
-        class="font-mono text-[10px] font-bold tracking-widest text-epi-tech uppercase"
-      >
-        <span class="opacity-60">&lt;</span> Ouverture dans
-        <span class="opacity-60">/&gt;</span>
+      <p class="epi-overline text-epi-tech">
+        <CodeTag>Ouverture dans</CodeTag>
       </p>
-      <div
-        class="mt-3 flex items-baseline justify-center gap-3 font-heading leading-none"
-      >
+      <!-- These digits tick, so they are IBM Plex Sans and not Anton: Anton has
+           no tabular figures (at 48px "11" and "00" differ by ~13px), which made
+           each column resize and the `:` separators jump every minute. -->
+      <div class="mt-3 flex items-baseline justify-center gap-3 leading-none">
         <div class="flex flex-col items-center">
-          <span class="text-5xl tracking-wide">{pad(days)}</span>
-          <span
-            class="mt-1.5 font-mono text-[10px] font-bold tracking-widest text-epi-tech uppercase"
-            >jours</span
-          >
+          <span class="text-5xl font-bold">{pad(days)}</span>
+          <span class="mt-1.5 epi-overline text-epi-tech">jours</span>
         </div>
-        <span class="-mx-1 text-4xl text-white/30">:</span>
+        <span class="-mx-1 text-4xl font-bold text-white/30">:</span>
         <div class="flex flex-col items-center">
-          <span class="text-5xl tracking-wide">{pad(hours)}</span>
-          <span
-            class="mt-1.5 font-mono text-[10px] font-bold tracking-widest text-epi-tech uppercase"
-            >heures</span
-          >
+          <span class="text-5xl font-bold">{pad(hours)}</span>
+          <span class="mt-1.5 epi-overline text-epi-tech">heures</span>
         </div>
-        <span class="-mx-1 text-4xl text-white/30">:</span>
+        <span class="-mx-1 text-4xl font-bold text-white/30">:</span>
         <div class="flex flex-col items-center">
-          <span class="text-5xl tracking-wide">{pad(minutes)}</span>
-          <span
-            class="mt-1.5 font-mono text-[10px] font-bold tracking-widest text-epi-tech uppercase"
-            >min</span
-          >
+          <span class="text-5xl font-bold">{pad(minutes)}</span>
+          <span class="mt-1.5 epi-overline text-epi-tech">min</span>
         </div>
       </div>
     {:else if status === 'ongoing'}
-      <p
-        class="font-mono text-[10px] font-bold tracking-widest text-epi-tech uppercase"
-      >
-        <span class="opacity-60">&lt;</span> Stage en cours
-        <span class="opacity-60">/&gt;</span>
+      <p class="epi-overline text-epi-tech">
+        <CodeTag>Stage en cours</CodeTag>
       </p>
-      <div class="mt-3 flex items-baseline gap-2 font-heading leading-none">
-        <span class="text-6xl tracking-wide">J{dayN}</span>
+      <div class="mt-3 flex items-baseline gap-2 font-heading">
+        <span class="text-display-xl">J{dayN}</span>
         <span class="font-mono text-sm font-bold text-white/70"
           >/ {totalDays} jours</span
         >
       </div>
     {:else}
-      <p
-        class="font-mono text-[10px] font-bold tracking-widest text-white/60 uppercase"
-      >
-        <span class="opacity-60">&lt;</span> Stage terminé
-        <span class="opacity-60">/&gt;</span>
+      <p class="epi-overline text-white/60">
+        <CodeTag>Stage terminé</CodeTag>
       </p>
-      <p class="mt-3 text-sm font-medium text-blue-100">
+      <p class="mt-3 text-sm font-medium text-white/70">
         Clôturé le <span class="font-bold text-white">{endLabel}</span>
       </p>
     {/if}

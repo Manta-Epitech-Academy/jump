@@ -75,11 +75,7 @@
           <UserCheck class="h-[18px] w-[18px]" />
         </div>
         <div class="min-w-0 flex-1">
-          <p
-            class="text-[11px] font-bold tracking-wide text-epi-together uppercase"
-          >
-            Mode admin
-          </p>
+          <p class="epi-overline text-epi-together">Mode admin</p>
           <p
             class="truncate text-sm leading-tight font-semibold text-foreground"
           >

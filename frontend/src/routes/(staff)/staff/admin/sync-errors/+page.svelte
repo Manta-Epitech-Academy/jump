@@ -13,6 +13,7 @@
   import { formatDateTimeFr } from '$lib/utils';
   import { toast } from 'svelte-sonner';
   import { track, daysBetween } from '$lib/analytics';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
@@ -46,82 +47,79 @@
 </svelte:head>
 
 <div class="space-y-6">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Erreurs de <span class="text-epi-tomorrow">Sync</span>
-      </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
-        Conflits détectés lors de la synchronisation Worker
-      </p>
-    </div>
+  <PageHeader
+    title="Erreurs de"
+    accent="Sync"
+    subtitle="Conflits détectés lors de la synchronisation Worker"
+  >
+    {#snippet actions()}
+      <div class="flex flex-wrap items-center gap-3">
+        <FilterSelect
+          options={campusFilterOptions}
+          value={filterCampus}
+          onChange={(v) => (filterCampus = v)}
+          ariaLabel="Filtrer par campus"
+          triggerClass="text-xs"
+        />
 
-    <div class="flex flex-wrap items-center gap-3">
-      <FilterSelect
-        options={campusFilterOptions}
-        value={filterCampus}
-        onChange={(v) => (filterCampus = v)}
-        ariaLabel="Filtrer par campus"
-        triggerClass="text-xs"
-      />
+        {#if data.unresolvedCount > 0 && !isFiltered}
+          <form
+            method="POST"
+            action="?/resolveAll"
+            use:enhance={() =>
+              async ({ result, update }) => {
+                if (result.type === 'success') {
+                  const unresolved = data.errors.filter((e) => !e.resolved);
+                  const oldestDaysOpen = unresolved
+                    .map((e) => daysBetween(e.createdAt) ?? 0)
+                    .reduce((max, d) => (d > max ? d : max), 0);
+                  track('sync_errors_resolved_all', {
+                    count: data.unresolvedCount,
+                    oldestDaysOpen,
+                  });
+                  toast.success('Toutes les erreurs ont été résolues');
+                  await update();
+                } else {
+                  toast.error('Une erreur est survenue');
+                }
+              }}
+          >
+            <Button type="submit" variant="outline" class="gap-2">
+              <CheckCheck class="h-4 w-4" />
+              Tout résoudre ({data.unresolvedCount})
+            </Button>
+          </form>
+        {/if}
 
-      {#if data.unresolvedCount > 0 && !isFiltered}
-        <form
-          method="POST"
-          action="?/resolveAll"
-          use:enhance={() =>
-            async ({ result, update }) => {
-              if (result.type === 'success') {
-                const unresolved = data.errors.filter((e) => !e.resolved);
-                const oldestDaysOpen = unresolved
-                  .map((e) => daysBetween(e.createdAt) ?? 0)
-                  .reduce((max, d) => (d > max ? d : max), 0);
-                track('sync_errors_resolved_all', {
-                  count: data.unresolvedCount,
-                  oldestDaysOpen,
-                });
-                toast.success('Toutes les erreurs ont été résolues');
-                await update();
-              } else {
-                toast.error('Une erreur est survenue');
-              }
-            }}
-        >
-          <Button type="submit" variant="outline" class="gap-2">
-            <CheckCheck class="h-4 w-4" />
-            Tout résoudre ({data.unresolvedCount})
-          </Button>
-        </form>
-      {/if}
-
-      {#if isFiltered && filteredUnresolved.length > 0}
-        <form
-          method="POST"
-          action="?/resolveSelected"
-          use:enhance={() =>
-            async ({ result, update }) => {
-              if (result.type === 'success') {
-                track('sync_errors_resolved_selected', {
-                  count: filteredUnresolved.length,
-                });
-                toast.success('Erreurs filtrées résolues');
-                await update();
-              } else {
-                toast.error('Une erreur est survenue');
-              }
-            }}
-        >
-          {#each filteredUnresolved as e (e.id)}
-            <input type="hidden" name="ids" value={e.id} />
-          {/each}
-          <Button type="submit" variant="outline" class="gap-2">
-            <Check class="h-4 w-4" />
-            Résoudre les {filteredUnresolved.length} affichés
-          </Button>
-        </form>
-      {/if}
-    </div>
-  </div>
+        {#if isFiltered && filteredUnresolved.length > 0}
+          <form
+            method="POST"
+            action="?/resolveSelected"
+            use:enhance={() =>
+              async ({ result, update }) => {
+                if (result.type === 'success') {
+                  track('sync_errors_resolved_selected', {
+                    count: filteredUnresolved.length,
+                  });
+                  toast.success('Erreurs filtrées résolues');
+                  await update();
+                } else {
+                  toast.error('Une erreur est survenue');
+                }
+              }}
+          >
+            {#each filteredUnresolved as e (e.id)}
+              <input type="hidden" name="ids" value={e.id} />
+            {/each}
+            <Button type="submit" variant="outline" class="gap-2">
+              <Check class="h-4 w-4" />
+              Résoudre les {filteredUnresolved.length} affichés
+            </Button>
+          </form>
+        {/if}
+      </div>
+    {/snippet}
+  </PageHeader>
 
   <Card.Root>
     <Card.Content class="p-0">

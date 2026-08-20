@@ -70,7 +70,7 @@
     <!-- SMS handset mock -->
     <div class="mx-auto max-w-xs rounded-2xl border bg-muted/40 p-3">
       <div
-        class="mb-2 flex items-center justify-center gap-1.5 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+        class="mb-2 flex items-center justify-center gap-1.5 epi-overline text-muted-foreground"
       >
         <Smartphone class="h-3 w-3" /> Aperçu SMS
       </div>
@@ -79,13 +79,13 @@
       >
         {previewBody}
       </div>
-      <p class="mt-1.5 text-center text-[10px] text-muted-foreground">
+      <p class="mt-1.5 text-center text-xs text-muted-foreground">
         Expéditeur : Epitech
       </p>
     </div>
   {/if}
 
-  <p class="text-[11px] text-muted-foreground">
+  <p class="text-xs text-muted-foreground">
     Rendu avec des données fictives — chaque destinataire reçoit ses propres
     valeurs.
   </p>

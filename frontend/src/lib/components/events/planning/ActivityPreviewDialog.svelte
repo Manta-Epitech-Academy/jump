@@ -77,7 +77,7 @@
             <div class="mt-2 flex flex-wrap items-center gap-1.5">
               <span
                 class={cn(
-                  'rounded border px-1.5 py-0.5 text-[10px] font-bold tracking-wide uppercase',
+                  'rounded border px-1.5 py-0.5 epi-overline',
                   styles?.bg,
                   styles?.accent,
                 )}

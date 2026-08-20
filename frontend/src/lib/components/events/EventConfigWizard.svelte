@@ -372,7 +372,7 @@
            config is filled, to re-pick a template. -->
       <nav
         aria-label="Étapes de configuration"
-        class="mt-2 flex items-center gap-2 text-[11px] font-bold tracking-wide uppercase"
+        class="mt-2 flex items-center gap-2 epi-overline"
       >
         <button
           type="button"
@@ -399,7 +399,7 @@
       {#if step === 2 && selectedTemplateId}
         {@const t = workingTemplates.find((x) => x.id === selectedTemplateId)}
         {#if t}
-          <p class="mt-1.5 text-[11px] text-muted-foreground">
+          <p class="mt-1.5 text-xs text-muted-foreground">
             Prérempli depuis <strong class="font-semibold text-foreground"
               >{t.name}</strong
             >
@@ -449,9 +449,7 @@
             </button>
             <div class="flex shrink-0 items-center gap-1 pr-2">
               {#if confirmingDeleteId === t.id}
-                <span class="text-[10px] text-muted-foreground"
-                  >Supprimer ?</span
-                >
+                <span class="text-xs text-muted-foreground">Supprimer ?</span>
                 <form
                   method="POST"
                   action="?/deleteTemplate"
@@ -535,9 +533,6 @@
           type="button"
           onclick={skipTemplate}
           variant={workingTemplates.length === 0 ? 'default' : 'outline'}
-          class={workingTemplates.length === 0
-            ? 'bg-epi-tomorrow text-white'
-            : ''}
         >
           Configurer sans modèle
         </Button>
@@ -560,7 +555,7 @@
                 <p class="text-xs font-medium">
                   Nombre de participants inhabituellement élevé ({editing.participations}).
                 </p>
-                <p class="text-[11px] text-amber-700/80">
+                <p class="text-xs text-amber-700/80">
                   Vérifiez que la campagne Salesforce est bien celle de
                   l'événement.
                 </p>
@@ -626,7 +621,7 @@
                   {#if !$form.startTime}
                     <Badge
                       variant="outline"
-                      class="border-amber-500/50 text-[10px] leading-none font-normal text-amber-600"
+                      class="border-amber-500/50 text-xs leading-none font-normal text-amber-600"
                     >
                       À confirmer
                     </Badge>
@@ -794,25 +789,21 @@
                       {#if effectiveFormId}
                         <div class="rounded-sm border bg-background/60">
                           <div class="border-b px-3 py-1.5">
-                            <span
-                              class="text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
-                            >
+                            <span class="epi-overline text-muted-foreground">
                               Ce que les jeunes rempliront
                             </span>
                           </div>
                           <div class="px-3 py-2">
                             {#if effectivePreview.length === 0}
-                              <p class="text-[11px] text-muted-foreground">
+                              <p class="text-xs text-muted-foreground">
                                 Ce formulaire n'a pas encore de questions.
                               </p>
                             {:else}
                               <ol class="space-y-1">
                                 {#each effectivePreview.slice(0, PREVIEW_LIMIT) as prompt, i (i)}
-                                  <li
-                                    class="flex gap-2 text-[11px] leading-snug"
-                                  >
+                                  <li class="flex gap-2 text-xs leading-snug">
                                     <span
-                                      class="shrink-0 text-muted-foreground/50 tabular-nums"
+                                      class="shrink-0 text-muted-foreground/50"
                                     >
                                       {i + 1}.
                                     </span>
@@ -823,7 +814,7 @@
                               </ol>
                               {#if effectivePreview.length > PREVIEW_LIMIT}
                                 <p
-                                  class="mt-1.5 pl-5 text-[11px] text-muted-foreground/70"
+                                  class="mt-1.5 pl-5 text-xs text-muted-foreground/70"
                                 >
                                   + {effectivePreview.length - PREVIEW_LIMIT} autre{effectivePreview.length -
                                     PREVIEW_LIMIT >
@@ -841,7 +832,7 @@
                         </div>
 
                         <div class="space-y-1.5">
-                          <p class="text-[11px] text-muted-foreground">
+                          <p class="text-xs text-muted-foreground">
                             Ce formulaire vous convient ? Sinon, adaptez-le :
                           </p>
                           <div class="flex flex-wrap items-center gap-2">
@@ -879,7 +870,7 @@
                               Créer un nouveau formulaire
                             </Button>
                           </div>
-                          <p class="text-[11px] text-muted-foreground/70">
+                          <p class="text-xs text-muted-foreground/70">
                             « Modifier » agit sur le formulaire partagé ; «
                             Dupliquer » en crée une copie propre à cet
                             événement.
@@ -887,7 +878,7 @@
                         </div>
                       {:else}
                         <p
-                          class="flex items-start gap-1.5 text-[11px] leading-snug text-amber-600"
+                          class="flex items-start gap-1.5 text-xs leading-snug text-amber-600"
                         >
                           <TriangleAlert class="mt-px size-3 shrink-0" />
                           Aucun formulaire publié n'est associé : tant qu'il n'y en
@@ -933,14 +924,14 @@
                   />
                 </span>
                 {#if canActivate}
-                  <span class="text-[11px] text-muted-foreground">
+                  <span class="text-xs text-muted-foreground">
                     {$form.modules.length} section{$form.modules.length > 1
                       ? 's'
                       : ''} active{$form.modules.length > 1 ? 's' : ''} pour cet événement.
                   </span>
                 {:else}
                   <span
-                    class="flex flex-col items-start gap-1 text-[11px] font-medium text-amber-600"
+                    class="flex flex-col items-start gap-1 text-xs font-medium text-amber-600"
                   >
                     <span class="flex items-center gap-1.5">
                       <TriangleAlert class="size-3.5 shrink-0" />
@@ -1004,11 +995,7 @@
           >
             Annuler
           </Button>
-          <Button
-            type="submit"
-            disabled={$delayed}
-            class="bg-epi-tomorrow text-white"
-          >
+          <Button type="submit" disabled={$delayed}>
             {$delayed ? 'Sauvegarde…' : 'Enregistrer'}
           </Button>
         </Dialog.Footer>
@@ -1101,7 +1088,7 @@
           required
         />
         {#if overwritesExisting}
-          <p class="text-[11px] text-amber-600">
+          <p class="text-xs text-amber-600">
             Un modèle porte déjà ce nom : il sera mis à jour.
           </p>
         {/if}
@@ -1117,7 +1104,7 @@
           placeholder="Optionnel"
         />
       </div>
-      <div class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Check class="h-3.5 w-3.5 text-epi-tech-ink" />
         {$form.modules.length} module{$form.modules.length > 1 ? 's' : ''} dans ce
         modèle
@@ -1130,11 +1117,7 @@
         >
           Annuler
         </Button>
-        <Button
-          type="submit"
-          disabled={savingTemplate}
-          class="bg-epi-tomorrow text-white"
-        >
+        <Button type="submit" disabled={savingTemplate}>
           {savingTemplate ? 'Enregistrement…' : 'Enregistrer le modèle'}
         </Button>
       </Dialog.Footer>

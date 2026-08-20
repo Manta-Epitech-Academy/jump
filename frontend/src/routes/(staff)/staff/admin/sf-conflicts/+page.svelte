@@ -4,6 +4,8 @@
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import SfConflictsResults from './components/SfConflictsResults.svelte';
   import type { SfConflictsData } from './components/types';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
@@ -38,9 +40,7 @@
 
 <div class="space-y-6">
   <div class="space-y-1">
-    <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Divergences Salesforce<span class="text-epi-tech">_</span>
-    </h1>
+    <PageHeader title="Divergences" accent="Salesforce" />
     <p class="max-w-3xl text-sm text-muted-foreground">
       Deux familles de divergence : les <strong>données</strong> (Salesforce ⇆
       profil confirmé) et l'<strong>identité de connexion</strong> (le compte d'un

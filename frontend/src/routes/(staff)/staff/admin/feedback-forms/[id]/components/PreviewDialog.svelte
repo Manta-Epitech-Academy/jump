@@ -45,7 +45,7 @@
     >
       <div class="mr-auto flex flex-col">
         <Dialog.Title class="text-sm font-semibold">Aperçu</Dialog.Title>
-        <Dialog.Description class="text-[11px]">
+        <Dialog.Description class="text-xs">
           Les réponses ne sont pas enregistrées.
         </Dialog.Description>
       </div>

@@ -11,6 +11,7 @@
   import EventStateBadge from '$lib/components/events/EventStateBadge.svelte';
   import EventModulesCell from '$lib/components/events/EventModulesCell.svelte';
   import { resolve } from '$app/paths';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
@@ -42,12 +43,11 @@
 
 <div class="space-y-6">
   <div>
-    <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Système <span class="text-epi-tomorrow">Global</span>
-    </h1>
-    <p class="text-sm font-bold text-muted-foreground uppercase">
-      Vue d'ensemble du réseau Jump
-    </p>
+    <PageHeader
+      title="Système"
+      accent="Global"
+      subtitle="Vue d'ensemble du réseau Jump"
+    />
   </div>
 
   <!-- KPIs -->
@@ -69,7 +69,7 @@
           <Map class="h-4 w-4 text-muted-foreground" />
         </Card.Header>
         <Card.Content>
-          <div class="text-2xl font-black">{data.stats.campuses}</div>
+          <div class="text-2xl font-bold">{data.stats.campuses}</div>
           <p class="text-xs text-muted-foreground">Campus actifs</p>
         </Card.Content>
       </Card.Root>
@@ -92,7 +92,7 @@
           <Users class="h-4 w-4 text-muted-foreground" />
         </Card.Header>
         <Card.Content>
-          <div class="text-2xl font-black">{data.stats.users}</div>
+          <div class="text-2xl font-bold">{data.stats.users}</div>
           <p class="text-xs text-muted-foreground">Membres de l'équipe</p>
         </Card.Content>
       </Card.Root>
@@ -115,7 +115,7 @@
           <GraduationCap class="h-4 w-4 text-muted-foreground" />
         </Card.Header>
         <Card.Content>
-          <div class="text-2xl font-black">{data.stats.students}</div>
+          <div class="text-2xl font-bold">{data.stats.students}</div>
           <p class="text-xs text-muted-foreground">Inscrits en base</p>
         </Card.Content>
       </Card.Root>
@@ -135,7 +135,7 @@
           <CalendarDays class="h-4 w-4 text-muted-foreground" />
         </Card.Header>
         <Card.Content>
-          <div class="text-2xl font-black">{data.stats.events}</div>
+          <div class="text-2xl font-bold">{data.stats.events}</div>
           {#if data.stats.toPrepare > 0}
             <p class="text-xs font-medium text-amber-600">
               {data.stats.toPrepare} à préparer
@@ -160,7 +160,7 @@
     </Card.Header>
     <Card.Content>
       {#if data.lastSync}
-        <div class="text-2xl font-black">
+        <div class="text-2xl font-bold">
           {formatSyncDateTime(data.lastSync.at)}
         </div>
         <p class="text-xs text-muted-foreground">
@@ -179,7 +179,7 @@
           {/if}
         </p>
       {:else}
-        <div class="text-2xl font-black text-muted-foreground">—</div>
+        <div class="text-2xl font-bold text-muted-foreground">—</div>
         <p class="text-xs text-muted-foreground">
           Aucune synchro depuis le dernier redémarrage
         </p>
@@ -217,7 +217,7 @@
                   {#if !event.synced}
                     <Badge
                       variant="outline"
-                      class="shrink-0 text-[10px] font-normal text-muted-foreground"
+                      class="shrink-0 text-xs font-normal text-muted-foreground"
                     >
                       Manuel
                     </Badge>
@@ -235,12 +235,10 @@
                 <EventModulesCell modules={event.modules} />
               </div>
               <div class="shrink-0 text-right">
-                <div class="text-sm font-bold tabular-nums">
+                <div class="text-sm font-bold">
                   {event.participations}
                 </div>
-                <div class="text-[10px] text-muted-foreground uppercase">
-                  inscrits
-                </div>
+                <div class="epi-overline text-muted-foreground">inscrits</div>
               </div>
               <ChevronRight
                 class="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-epi-tomorrow"

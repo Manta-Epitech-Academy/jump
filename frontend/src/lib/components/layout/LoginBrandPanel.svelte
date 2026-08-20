@@ -20,15 +20,12 @@
      Hidden below lg; consuming pages carry a compact logo on mobile. -->
 <aside
   class={cn(
-    'relative hidden flex-col justify-between overflow-hidden bg-[#013afb] p-12 text-white lg:flex xl:p-16',
+    'on-dark relative hidden flex-col justify-between overflow-hidden bg-epi-blue p-12 text-white lg:flex xl:p-16',
     className,
   )}
 >
   <!-- Blueprint grid texture -->
-  <div
-    aria-hidden="true"
-    class="absolute inset-0 bg-[image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:32px_32px]"
-  ></div>
+  <div aria-hidden="true" class="absolute inset-0 blueprint-grid-inverse"></div>
   <!-- Pixel overlays — 50% squares, offset, overlapping (brand signature) -->
   <div aria-hidden="true" class="absolute inset-0">
     <div class="absolute top-[18%] right-[22%] h-16 w-24 bg-white/15"></div>

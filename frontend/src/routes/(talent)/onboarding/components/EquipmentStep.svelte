@@ -30,9 +30,7 @@
   >
     <Laptop class="h-7 w-7" />
   </div>
-  <h1
-    class="font-heading text-2xl tracking-wider text-epi-blue uppercase dark:text-epi-blue"
-  >
+  <h1 class="font-heading text-display-m text-epi-blue dark:text-epi-blue">
     Ton matériel
   </h1>
 </div>
@@ -130,7 +128,7 @@
           maxlength={1000}
           value={setupDescription}
           placeholder="Mon PC gaming, mes écrans, ma config..."
-          class="resize-none rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
+          class="resize-none rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
         />
       </div>
     </div>

@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { Badge } from '$lib/components/ui/badge';
   import { cn } from '$lib/utils';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import WelcomePageEditor from './WelcomePageEditor.svelte';
   import { STAGE_STATUS_META, formatStageRange } from './stageDisplay';
   import MapPin from '@lucide/svelte/icons/map-pin';
@@ -17,7 +17,7 @@
 </script>
 
 <div class="mb-6">
-  <AdminPageHeader title="Pages" accent="d'accueil" cursor />
+  <PageHeader title="Pages" accent="d'accueil" />
   <p class="mt-1 max-w-3xl text-sm text-muted-foreground">
     Le message de bienvenue affiché aux talents dans le fil « Actualités » de
     leur tableau de bord, pendant toute la durée du stage. Vous éditez ici la
@@ -65,7 +65,7 @@
                     <Badge
                       variant="outline"
                       class={cn(
-                        'shrink-0 text-[10px]',
+                        'shrink-0 text-xs',
                         STAGE_STATUS_META[ev.status].class,
                       )}
                     >

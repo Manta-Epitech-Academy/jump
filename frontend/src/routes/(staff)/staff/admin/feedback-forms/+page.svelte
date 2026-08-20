@@ -10,7 +10,7 @@
   import Pencil from '@lucide/svelte/icons/pencil';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import FilterX from '@lucide/svelte/icons/filter-x';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import FormStatusSelect from '$lib/components/admin/feedback/FormStatusSelect.svelte';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
@@ -228,13 +228,13 @@
 <svelte:head><title>Formulaires de feedback</title></svelte:head>
 
 <div class="space-y-6">
-  <AdminPageHeader title="Formulaires" accent="de feedback">
+  <PageHeader title="Formulaires" accent="de feedback">
     {#snippet actions()}
       <Button size="sm" class="rounded-sm" onclick={() => (createOpen = true)}>
         <Plus class="mr-1.5 h-4 w-4" /> Nouveau formulaire
       </Button>
     {/snippet}
-  </AdminPageHeader>
+  </PageHeader>
 
   {#if cohort === null}
     <p class="text-sm text-muted-foreground">Chargement…</p>
@@ -257,9 +257,7 @@
     >
       {#snippet filters()}
         <div class="flex items-center gap-2">
-          <span
-            class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
-          >
+          <span class="hidden epi-overline text-muted-foreground sm:inline">
             Statut
           </span>
           <SegmentedFilter
@@ -328,7 +326,7 @@
             />
           </Table.Cell>
           <Table.Cell>
-            <Badge variant="outline" class="text-[10px] uppercase">
+            <Badge variant="outline" class="epi-overline">
               {r.allowsPublicAccess ? 'Auth + Public' : 'Auth'}
             </Badge>
           </Table.Cell>

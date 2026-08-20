@@ -239,7 +239,7 @@
             <Archive class="h-4 w-4 text-epi-blue" />
             Télécharger
           </span>
-          <span class="font-mono text-xs text-muted-foreground tabular-nums">
+          <span class="font-mono text-xs text-muted-foreground">
             {count} PDF
           </span>
         </a>
@@ -251,7 +251,7 @@
             <Archive class="h-4 w-4" />
             Télécharger
           </span>
-          <span class="font-mono text-xs tabular-nums">
+          <span class="font-mono text-xs">
             {customInvalid ? '-' : '0'}
           </span>
         </div>

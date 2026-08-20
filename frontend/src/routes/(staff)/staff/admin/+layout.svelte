@@ -23,6 +23,7 @@
   } from '$lib/components/admin/adminNav';
   import { fly, fade } from 'svelte/transition';
   import { track, secondsBetween } from '$lib/analytics';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let { children, data } = $props();
 
@@ -80,7 +81,7 @@
 		flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-all rounded-r-md cursor-pointer
 		${
       active
-        ? 'bg-epi-tomorrow/10 text-epi-tomorrow border-l-4 border-epi-tomorrow'
+        ? 'bg-accent-space/10 text-accent-space-ink border-l-4 border-accent-space'
         : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-l-4 border-transparent'
     }
 	`;
@@ -99,9 +100,9 @@
         <span>{item.label}</span>
         {#if badge.count > 0}
           <span
-            class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white {badge.danger
+            class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold text-white {badge.danger
               ? 'bg-red-500'
-              : 'bg-epi-tomorrow'}"
+              : 'bg-accent-space'}"
             title={badge.title}
           >
             {badge.count}
@@ -116,10 +117,8 @@
 
 {#snippet navMenu()}
   {#each ADMIN_NAV as section, i (section.title)}
-    <div
-      class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
-    >
-      {section.title}<span class="text-epi-tomorrow">_</span>
+    <div class="mb-2 px-6 epi-overline text-slate-500">
+      {section.title}<TitleCursor />
     </div>
     <nav class="space-y-1 {i < ADMIN_NAV.length - 1 ? 'mb-8' : ''}">
       {#each section.items as item (item.href)}
@@ -129,10 +128,12 @@
   {/each}
 {/snippet}
 
-<div class="flex h-screen w-full flex-col overflow-hidden bg-background">
+<div
+  class="admin-space flex h-screen w-full flex-col overflow-hidden bg-background"
+>
   <!-- Admin Header -->
   <header
-    class="z-50 flex h-15 w-full shrink-0 items-center justify-between border-b border-slate-800 bg-slate-950 px-4 shadow-md md:px-6"
+    class="on-dark z-50 flex h-15 w-full shrink-0 items-center justify-between border-b border-chrome-border bg-chrome px-4 md:px-6"
   >
     <div class="flex items-center gap-4">
       <Button
@@ -173,7 +174,7 @@
         <Search class="h-4 w-4" />
         <span class="hidden text-xs sm:inline">Rechercher</span>
         <kbd
-          class="hidden rounded border border-slate-700 bg-slate-800 px-1.5 text-[10px] text-slate-400 sm:inline"
+          class="hidden rounded border border-slate-700 bg-slate-800 px-1.5 text-xs text-slate-400 sm:inline"
           >⌘K</kbd
         >
       </Button>
@@ -183,12 +184,10 @@
       <div class="ml-2 flex items-center gap-4">
         <DropdownMenu.Root>
           <DropdownMenu.Trigger
-            class="flex cursor-pointer items-center gap-3 transition-opacity outline-none hover:opacity-80"
+            class="flex cursor-pointer items-center gap-3 transition-opacity hover:opacity-80"
           >
             <div class="hidden flex-col items-end md:flex">
-              <span
-                class="text-[10px] font-black tracking-widest text-slate-500 uppercase"
-              >
+              <span class="epi-overline font-bold text-slate-500">
                 Superuser
               </span>
               <span class="text-sm font-bold text-slate-200"
@@ -204,7 +203,7 @@
                 class="object-cover"
               />
               <Avatar.Fallback
-                class="rounded-sm bg-slate-900 text-epi-tomorrow"
+                class="rounded-sm bg-epi-dark text-accent-space-ink"
               >
                 <ShieldAlert class="h-4 w-4" />
               </Avatar.Fallback>
@@ -278,7 +277,7 @@
   <div class="relative flex flex-1 overflow-hidden">
     <!-- Desktop Admin Sidebar -->
     <aside
-      class="hidden w-64 flex-col border-r border-slate-800 bg-slate-950 md:flex"
+      class="on-dark hidden w-64 flex-col border-r border-chrome-border bg-chrome md:flex"
     >
       <div class="flex-1 overflow-y-auto py-6 pr-4">
         {@render navMenu()}
@@ -296,7 +295,7 @@
       ></div>
 
       <aside
-        class="absolute inset-y-0 left-0 z-40 flex w-3/4 max-w-xs flex-col border-r border-slate-800 bg-slate-950 shadow-2xl md:hidden"
+        class="on-dark absolute inset-y-0 left-0 z-40 flex w-3/4 max-w-xs flex-col border-r border-chrome-border bg-chrome shadow-overlay md:hidden"
         transition:fly={{ x: -300, duration: 300 }}
       >
         <div class="flex-1 overflow-y-auto py-6 pr-2">

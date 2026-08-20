@@ -10,7 +10,7 @@
   import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
   import Copy from '@lucide/svelte/icons/copy';
   import Trash2 from '@lucide/svelte/icons/trash-2';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ChannelBadge from '$lib/components/admin/broadcasts/ChannelBadge.svelte';
 
   let { data } = $props();
@@ -54,7 +54,7 @@
 {/snippet}
 
 <div class="space-y-6">
-  <AdminPageHeader
+  <PageHeader
     title="Templates"
     accent="messages"
     subtitle="Modèles réutilisables (mail / SMS) pour les envois en masse et les mails transactionnels"

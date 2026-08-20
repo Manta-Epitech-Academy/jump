@@ -192,7 +192,7 @@
         <Icon class="h-4 w-4 text-epi-blue" />
         {label}
       </span>
-      <span class="font-mono text-xs text-muted-foreground tabular-nums">
+      <span class="font-mono text-xs text-muted-foreground">
         {count}
       </span>
     </a>
@@ -204,7 +204,7 @@
         <Icon class="h-4 w-4" />
         {label}
       </span>
-      <span class="font-mono text-xs tabular-nums">{disabled ? '—' : 0}</span>
+      <span class="font-mono text-xs">{disabled ? '—' : 0}</span>
     </div>
   {/if}
 {/snippet}

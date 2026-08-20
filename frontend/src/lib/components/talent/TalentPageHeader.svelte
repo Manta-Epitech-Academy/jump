@@ -42,6 +42,7 @@
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Settings from '@lucide/svelte/icons/settings';
   import LogOut from '@lucide/svelte/icons/log-out';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let {
     title,
@@ -131,7 +132,7 @@
           <a
             href={backHref}
             aria-label={backLabel}
-            class="-ml-1 inline-flex shrink-0 items-center justify-center rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-epi-blue focus-visible:ring-2 focus-visible:ring-epi-blue/40 focus-visible:outline-none dark:hover:bg-slate-800"
+            class="-ml-1 inline-flex shrink-0 items-center justify-center rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-epi-blue dark:hover:bg-slate-800"
           >
             <ArrowLeft class="h-5 w-5" />
           </a>
@@ -146,9 +147,9 @@
                    symmetrically while leaving the box's outer size and its
                    vertical centring against the icon unchanged. -->
               <h1
-                class="-my-1.5 truncate py-1.5 font-heading text-xl tracking-wider text-slate-900 uppercase sm:text-2xl dark:text-white"
+                class="-my-1.5 truncate py-1.5 font-heading text-display-s text-slate-900 sm:text-display-m dark:text-white"
               >
-                {title}<span class="text-epi-tech">_</span>
+                {title}<TitleCursor />
               </h1>
               {#if subtitle}
                 <p class="truncate text-xs font-medium text-slate-500">

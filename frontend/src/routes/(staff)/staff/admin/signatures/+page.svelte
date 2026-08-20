@@ -14,6 +14,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import SearchableSelect, {
     type SelectOption,
   } from '$lib/components/staff/SearchableSelect.svelte';
@@ -146,28 +147,23 @@
 {/snippet}
 
 <div class="space-y-8">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Signataires <span class="text-epi-tomorrow">Diplômes</span>
-      </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
-        Signatures imprimées sur les certificats de stage
-      </p>
-    </div>
-    <Button
-      onclick={() => openCreate(null)}
-      class="bg-epi-tomorrow text-white hover:bg-epi-tomorrow/90"
-    >
-      <Plus class="mr-2 h-4 w-4" /> Ajouter
-    </Button>
-  </div>
+  <PageHeader
+    title="Signataires"
+    accent="Diplômes"
+    subtitle="Signatures imprimées sur les certificats de stage"
+  >
+    {#snippet actions()}
+      <Button onclick={() => openCreate(null)}>
+        <Plus class="mr-2 h-4 w-4" /> Ajouter
+      </Button>
+    {/snippet}
+  </PageHeader>
 
   <!-- Signataires globaux -->
   <section class="space-y-3">
     <div class="flex items-center gap-2">
       <Globe class="h-5 w-5 text-epi-tomorrow" />
-      <h2 class="font-heading text-lg tracking-wide uppercase">Globaux</h2>
+      <h2 class="font-heading text-display-s">Globaux</h2>
       <span class="text-xs text-muted-foreground">
         Appliqués à tous les campus
       </span>
@@ -193,7 +189,7 @@
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <Building2 class="h-5 w-5 text-muted-foreground" />
-          <h2 class="font-heading text-lg tracking-wide uppercase">
+          <h2 class="font-heading text-display-s">
             {group.campus.name}
           </h2>
         </div>
@@ -315,11 +311,7 @@
         </div>
 
         <Dialog.Footer class="mt-4">
-          <Button
-            type="submit"
-            disabled={submitting}
-            class="bg-epi-tomorrow text-white"
-          >
+          <Button type="submit" disabled={submitting}>
             {submitting ? 'Enregistrement...' : 'Enregistrer'}
           </Button>
         </Dialog.Footer>

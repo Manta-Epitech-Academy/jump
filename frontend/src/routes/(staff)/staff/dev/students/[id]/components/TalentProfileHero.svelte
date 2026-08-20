@@ -9,6 +9,7 @@
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import type { XpStory } from '$lib/domain/xpStory';
   import TalentXpDetailDialog from './TalentXpDetailDialog.svelte';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   // Blueprint-blue band: square avatar + name with the neon-teal `_` cursor.
   // Firstname leads (light), surname follows in Anton uppercase. The XP medallion
@@ -72,16 +73,10 @@
             <Sparkles class="h-5 w-5" />
           </span>
           <span class="min-w-0">
-            <span
-              class="block font-mono text-[10px] font-bold tracking-widest text-white/80 uppercase"
-            >
-              XP sur JUMP
-            </span>
+            <span class="block epi-overline text-white/80"> XP sur JUMP </span>
             <span class="flex items-baseline gap-1">
-              <span class="font-heading text-4xl leading-none tabular-nums"
-                >{xpStory.total}</span
-              >
-              <span class="font-heading text-lg">XP</span>
+              <span class="font-heading text-display-xl">{xpStory.total}</span>
+              <span class="font-heading text-display-s">XP</span>
             </span>
           </span>
           <ChevronRight
@@ -93,14 +88,12 @@
 
     <div class="min-w-0 overflow-hidden sm:order-2">
       <h1
-        class="flex flex-wrap items-baseline font-heading text-3xl tracking-wide uppercase sm:text-5xl md:text-6xl"
+        class="flex flex-wrap items-baseline font-heading text-display-l sm:text-display-2xl md:text-display-2xl"
       >
         <span class="font-light normal-case"
           >{formatGivenName(student.prenom)}</span
         >
-        <span class="ml-3"
-          >{student.nom}<span class="text-epi-tech">_</span></span
-        >
+        <span class="ml-3">{student.nom}<TitleCursor /></span>
       </h1>
       {#if subtitle}
         <p class="mt-2 font-mono text-xs text-blue-100 sm:mt-3">{subtitle}</p>

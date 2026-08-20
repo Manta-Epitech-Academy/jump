@@ -48,7 +48,7 @@
     <div class="w-full max-w-lg">
       <div class="mb-6 text-center">
         <h1
-          class="font-heading text-2xl tracking-wider text-epi-blue uppercase dark:text-epi-blue"
+          class="font-heading text-display-m text-epi-blue dark:text-epi-blue"
         >
           Bienvenue, {data.prenom}.
         </h1>

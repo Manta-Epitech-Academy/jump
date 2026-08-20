@@ -181,13 +181,11 @@
         >
           <div class="text-center">
             <div
-              class="text-xl font-black tracking-tighter text-slate-900 dark:text-white"
+              class="text-xl font-bold tracking-tighter text-slate-900 dark:text-white"
             >
               {totalXp}
             </div>
-            <div class="text-[9px] font-bold text-epi-together uppercase">
-              XP
-            </div>
+            <div class="epi-overline text-epi-together">XP</div>
           </div>
         </div>
 
@@ -278,14 +276,10 @@
                     <div
                       class="shrink-0 rounded-xl {config.bgClass} px-3 py-1.5 text-center"
                     >
-                      <span class="text-lg font-black {config.textClass}">
+                      <span class="text-lg font-bold {config.textClass}">
                         {signed(grant.amount)}
                       </span>
-                      <span
-                        class="text-[10px] font-bold {config.textClass} uppercase"
-                      >
-                        XP
-                      </span>
+                      <span class="epi-overline {config.textClass}"> XP </span>
                     </div>
                   </div>
                 </div>

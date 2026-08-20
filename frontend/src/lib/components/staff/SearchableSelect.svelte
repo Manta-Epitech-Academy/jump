@@ -131,7 +131,7 @@
         {disabled}
         aria-expanded={open}
         class={cn(
-          'flex h-9 cursor-pointer items-center justify-between gap-2 rounded-sm border border-input bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-colors outline-none select-none hover:bg-accent/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 dark:hover:bg-input/50',
+          'flex h-9 cursor-pointer items-center justify-between gap-2 rounded-sm border border-input bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-colors select-none hover:bg-accent/40 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 dark:hover:bg-input/50',
           triggerClass,
         )}
       >
@@ -159,7 +159,7 @@
             <span class="truncate">{allLabel}</span>
             {#if allCount != null}
               <span
-                class="mr-2 ml-auto font-mono text-[10px] font-bold text-muted-foreground"
+                class="mr-2 ml-auto font-mono text-xs font-bold text-muted-foreground"
               >
                 {allCount}
               </span>
@@ -177,7 +177,7 @@
             <span class="truncate">{opt.label}</span>
             {#if opt.count != null}
               <span
-                class="mr-2 ml-auto font-mono text-[10px] font-bold text-muted-foreground"
+                class="mr-2 ml-auto font-mono text-xs font-bold text-muted-foreground"
               >
                 {opt.count}
               </span>

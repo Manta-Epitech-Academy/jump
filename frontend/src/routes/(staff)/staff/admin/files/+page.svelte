@@ -19,6 +19,7 @@
   import EmptyState from '$lib/components/EmptyState.svelte';
   import type { ColumnDef } from '$lib/components/staff/datatable/types';
   import { track, errReason, bucketBytes, daysBetween } from '$lib/analytics';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
@@ -125,12 +126,11 @@
 
 <div class="space-y-6">
   <div>
-    <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Fichiers <span class="text-epi-tomorrow">Partagés</span>
-    </h1>
-    <p class="text-sm font-bold text-muted-foreground uppercase">
-      Espace de partage entre administrateurs
-    </p>
+    <PageHeader
+      title="Fichiers"
+      accent="Partagés"
+      subtitle="Espace de partage entre administrateurs"
+    />
   </div>
 
   <DataTableToolbar
@@ -186,7 +186,6 @@
           type="button"
           size="sm"
           disabled={uploading}
-          class="bg-epi-tomorrow text-white hover:bg-epi-tomorrow/90"
           onclick={() => fileInput?.click()}
         >
           <Upload class="mr-2 h-4 w-4" />

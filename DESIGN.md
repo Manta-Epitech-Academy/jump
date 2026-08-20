@@ -44,30 +44,42 @@ colors:
   darkMutedForeground: '#8b90a3'
   darkPrimary: '#809dfd'
 typography:
-  displayXl:
+  displayS:
     fontFamily: Anton
-    fontSize: 3.5rem
+    fontSize: 1.25rem
     fontWeight: 400
-    lineHeight: 0.95
-    letterSpacing: '-0.01em'
-  displayL:
-    fontFamily: Anton
-    fontSize: 2.5rem
-    fontWeight: 400
-    lineHeight: 1
-    letterSpacing: '-0.01em'
+    lineHeight: 1.15
+    letterSpacing: '0.02em'
   displayM:
+    fontFamily: Anton
+    fontSize: 1.5rem
+    fontWeight: 400
+    lineHeight: 1.1
+    letterSpacing: '0em'
+  displayL:
     fontFamily: Anton
     fontSize: 1.875rem
     fontWeight: 400
     lineHeight: 1.1
     letterSpacing: '0em'
-  displayS:
+  displayXl:
     fontFamily: Anton
-    fontSize: 1.25rem
+    fontSize: 2.5rem
     fontWeight: 400
-    lineHeight: 1.1
-    letterSpacing: '0.02em'
+    lineHeight: 1
+    letterSpacing: '-0.01em'
+  display2xl:
+    fontFamily: Anton
+    fontSize: 3.5rem
+    fontWeight: 400
+    lineHeight: 0.95
+    letterSpacing: '-0.01em'
+  display3xl:
+    fontFamily: Anton
+    fontSize: 6rem
+    fontWeight: 400
+    lineHeight: 0.92
+    letterSpacing: '-0.015em'
   titleM:
     fontFamily: IBM Plex Sans
     fontSize: 1.125rem
@@ -207,7 +219,7 @@ components:
   kpiTile:
     backgroundColor: '{colors.card}'
     textColor: '{colors.foreground}'
-    typography: '{typography.displayL}'
+    typography: '{typography.displayXl}'
     rounded: '{rounded.sm}'
     padding: 20px
   sidebar:
@@ -227,7 +239,7 @@ components:
   celebration:
     backgroundColor: '{colors.epiBlue}'
     textColor: '{colors.epiTech}'
-    typography: '{typography.displayXl}'
+    typography: '{typography.display2xl}'
     rounded: '{rounded.none}'
     padding: 48px
   inverseSurface:
@@ -424,14 +436,19 @@ UI), **Space Mono** (labels, data, code). All three are self-hosted through
 ### Anton
 
 - **Uppercase only.** Enforced globally: `.font-heading` applies `uppercase`.
-- **Never below 16px.** It is condensed; small Anton stops being readable before it stops being brand.
-- **Tracking follows size.** The charte's `-0.01em` is for 64px to 160px poster titles. Applying one positive `tracking-wide` to every Anton title, as the code does today, spaces out the wrong end of the scale.
+- **Never below `display-s`.** It is condensed; small Anton stops being readable before it stops being brand.
+- **Tracking follows size, and it is not a separate choice.** The charte's `-0.01em` is for 64px to 160px poster titles; a condensed face needs the opposite at label sizes. So tracking travels with the size token and a call site cannot pick one without the other:
 
-  | Size | Letter spacing |
-  | --- | --- |
-  | 40px and up | `-0.01em` |
-  | 24px to 39px | `0` |
-  | 16px to 23px | `+0.02em` |
+  | Token | Size | Letter spacing |
+  | --- | --- | --- |
+  | `display-s` | 20px | `+0.02em` |
+  | `display-m` | 24px | `0` |
+  | `display-l` | 30px | `0` |
+  | `display-xl` | 40px | `-0.01em` |
+  | `display-2xl` | 56px | `-0.01em` |
+  | `display-3xl` | 96px | `-0.015em` |
+
+  Six steps, and every one has real call sites: the scale was cut to match what the product sets, not the other way round. A bare Tailwind size on `font-heading` is a bug, because it brings no tracking with it.
 
 - **Never for running text**, never for a paragraph, never for a form label.
 - **Never for a number that changes.** See below.

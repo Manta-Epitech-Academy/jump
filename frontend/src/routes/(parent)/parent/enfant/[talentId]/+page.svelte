@@ -19,6 +19,7 @@
   import droitImageBodyMd from '$lib/content/droit-image-body.md?raw';
   import droitImageRefusalBodyMd from '$lib/content/droit-image-refusal-body.md?raw';
   import ChildSignForm from '../../signature/ChildSignForm.svelte';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let { data, form } = $props();
 
@@ -59,11 +60,11 @@
       {/if}
       <div class="flex-1">
         <h1
-          class="font-heading text-3xl tracking-wider text-slate-900 uppercase sm:text-4xl dark:text-white"
+          class="font-heading text-display-l text-slate-900 sm:text-display-xl dark:text-white"
         >
           Bonjour, <span class="text-epi-blue"
             >M./Mme {data.parentLastName}</span
-          ><span class="text-epi-tech">_</span>
+          ><TitleCursor />
         </h1>
         <p
           class="mt-1 text-base font-semibold text-slate-600 dark:text-slate-300"
@@ -186,11 +187,9 @@
 
         <div class="p-6">
           <h2
-            class="mb-4 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
+            class="mb-4 font-heading text-display-s text-slate-800 dark:text-slate-200"
           >
-            Programme du jour pour {data.child.prenom}<span
-              class="text-epi-tech">_</span
-            >
+            Programme du jour pour {data.child.prenom}<TitleCursor />
           </h2>
 
           {#if data.todayPlanning.timeSlots.length > 0}
@@ -199,9 +198,7 @@
                 <div>
                   <div class="mb-2 flex items-center gap-2">
                     <Clock class="h-3.5 w-3.5 shrink-0 text-epi-blue" />
-                    <span
-                      class="text-[11px] font-bold text-slate-400 uppercase"
-                    >
+                    <span class="epi-overline text-slate-400">
                       {formatTime(slot.startTime)} — {formatTime(slot.endTime)}
                     </span>
                   </div>
@@ -213,10 +210,7 @@
                       <div
                         class="flex items-center gap-3 rounded-xl px-3 py-2.5"
                       >
-                        <Badge
-                          variant="outline"
-                          class="shrink-0 text-[9px] font-bold uppercase"
-                        >
+                        <Badge variant="outline" class="shrink-0 epi-overline">
                           {activityTypeLabels[activity.type] ?? activity.type}
                         </Badge>
                         <span
@@ -248,14 +242,12 @@
       <div in:fly={{ y: 20, duration: 400, delay: 300 }}>
         <div class="mb-4 flex items-center gap-3">
           <h2
-            class="flex items-center gap-2 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
+            class="flex items-center gap-2 font-heading text-display-s text-slate-800 dark:text-slate-200"
           >
             <Rocket class="h-5 w-5 text-epi-blue" />
-            Prochains événements d'{data.child.prenom}<span
-              class="text-epi-tech">_</span
-            >
+            Prochains événements d'{data.child.prenom}<TitleCursor />
           </h2>
-          <Badge variant="outline" class="text-[10px] font-bold">
+          <Badge variant="outline" class="text-xs font-bold">
             {data.upcomingEvents.length} à venir
           </Badge>
         </div>
@@ -290,7 +282,7 @@
 
                     <div class="flex items-center gap-2">
                       {#if event.timeSlots.length > 0}
-                        <Badge variant="outline" class="text-[10px] font-bold">
+                        <Badge variant="outline" class="text-xs font-bold">
                           {event.timeSlots.reduce(
                             (sum, s) => sum + s.activities.length,
                             0,
@@ -326,9 +318,7 @@
                               <Clock
                                 class="h-3.5 w-3.5 shrink-0 text-epi-blue"
                               />
-                              <span
-                                class="text-[11px] font-bold text-slate-400 uppercase"
-                              >
+                              <span class="epi-overline text-slate-400">
                                 {formatTime(slot.startTime)} — {formatTime(
                                   slot.endTime,
                                 )}
@@ -344,7 +334,7 @@
                                 >
                                   <Badge
                                     variant="outline"
-                                    class="shrink-0 text-[9px] font-bold uppercase"
+                                    class="shrink-0 epi-overline"
                                   >
                                     {activityTypeLabels[activity.type] ??
                                       activity.type}

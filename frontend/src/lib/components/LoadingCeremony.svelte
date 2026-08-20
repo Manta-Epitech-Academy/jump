@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   // Full-screen "ceremony" overlay for long-running, once-in-a-while staff
   // actions (the first being the end-of-stage diploma generation, ~15-20s on a
@@ -123,11 +124,11 @@
       <div class="flex flex-col items-center gap-3">
         <EpitechLogo tone="dark" class="h-8 w-auto" />
         <span class="font-mono text-xs tracking-widest text-white/60 uppercase">
-          Jump<span class="text-epi-tech">_</span>
+          Jump<TitleCursor />
         </span>
       </div>
 
-      <!-- Live region: mono overline (rotating step) + Anton display title. -->
+      <!-- Live region: mono epi-overline (rotating step) + Anton display title. -->
       <div class="space-y-4" role="status" aria-live="polite">
         {#if currentMessage}
           <p
@@ -136,9 +137,7 @@
             {currentMessage}
           </p>
         {/if}
-        <h2
-          class="max-w-2xl font-heading text-3xl leading-[1.1] tracking-wide lg:text-5xl"
-        >
+        <h2 class="max-w-2xl font-heading text-display-l lg:text-display-2xl">
           {title}
         </h2>
       </div>

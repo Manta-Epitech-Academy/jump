@@ -184,7 +184,7 @@
               class="h-9 pl-9 text-xs"
             />
           </div>
-          <div class="flex gap-1 text-[11px] font-bold">
+          <div class="flex gap-1 text-xs font-bold">
             <button
               type="button"
               onclick={() => (filterVisibility = 'all')}
@@ -225,12 +225,10 @@
           <Table.Root>
             <Table.Header class="sticky top-0 bg-background">
               <Table.Row>
-                <Table.Head class="text-xs">Participant</Table.Head>
-                <Table.Head class="text-xs">Email</Table.Head>
-                <Table.Head class="text-xs">Statut SF</Table.Head>
-                <Table.Head class="w-24 text-right text-xs"
-                  >Espace dev</Table.Head
-                >
+                <Table.Head>Participant</Table.Head>
+                <Table.Head>Email</Table.Head>
+                <Table.Head>Statut SF</Table.Head>
+                <Table.Head class="w-24 text-right">Espace dev</Table.Head>
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -252,7 +250,7 @@
                       {row.nom}
                       {#if row.schoolName}
                         <span
-                          class="block text-[11px] font-normal text-muted-foreground"
+                          class="block text-xs font-normal text-muted-foreground"
                         >
                           {row.schoolName}
                         </span>
@@ -262,21 +260,21 @@
                       {row.email ?? '—'}
                     </Table.Cell>
                     <Table.Cell>
-                      <Badge variant="outline" class="text-[10px] {sb.class}">
+                      <Badge variant="outline" class="text-xs {sb.class}">
                         {sb.label}
                       </Badge>
                     </Table.Cell>
                     <Table.Cell class="text-right">
                       {#if row.isVisibleInDevSpace}
                         <span
-                          class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400"
+                          class="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400"
                         >
                           <Eye class="h-3 w-3" />
                           Visible
                         </span>
                       {:else}
                         <span
-                          class="inline-flex items-center gap-1 text-[10px] font-bold text-muted-foreground"
+                          class="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground"
                           title="Masqué de l'espace dev (statut ni READY ni MEET)"
                         >
                           <EyeOff class="h-3 w-3" />

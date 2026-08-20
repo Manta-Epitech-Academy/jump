@@ -50,9 +50,7 @@
 
   <form method="POST" action="?/requestOtp" use:emailEnhance class="space-y-5">
     <div class="space-y-2">
-      <Label
-        for="email"
-        class="pl-1 text-xs font-black text-slate-500 uppercase"
+      <Label for="email" class="pl-1 text-xs font-bold text-slate-500 uppercase"
         >Votre adresse email</Label
       >
       <Input
@@ -61,7 +59,7 @@
         type="email"
         placeholder="prenom.nom@email.com"
         bind:value={$emailForm.email}
-        class="h-12 rounded-xl border-slate-200 bg-slate-50/50 px-4 text-base focus-visible:ring-epi-blue dark:border-slate-800 dark:bg-slate-950/50"
+        class="h-12 rounded-xl border-slate-200 bg-slate-50/50 px-4 text-base dark:border-slate-800 dark:bg-slate-950/50"
       />
       {#if $emailErrors.email}<span class="pl-1 text-xs font-bold text-red-500"
           >{$emailErrors.email}</span

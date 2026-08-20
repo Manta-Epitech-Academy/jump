@@ -9,6 +9,8 @@
   import LoginEmailStep from './components/LoginEmailStep.svelte';
   import LoginOtpStep from '$lib/components/auth/LoginOtpStep.svelte';
   import { track, errReason, secondsBetween } from '$lib/analytics';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import CodeTag from '$lib/components/layout/CodeTag.svelte';
 
   let { data } = $props();
 
@@ -89,20 +91,24 @@
 
 <div class="grid min-h-screen w-full lg:grid-cols-[1.05fr_1fr]">
   <LoginBrandPanel>
-    <h1 class="font-heading text-5xl leading-[0.95] xl:text-6xl">
+    <h1 class="font-heading text-display-xl xl:text-display-2xl">
       {#if userKind === 'parent'}
-        Suivez leur<br />parcours<span class="text-epi-tech">_</span>
+        Suivez leur<br />parcours<TitleCursor />
       {:else}
-        Passe au niveau<br />supérieur<span class="text-epi-tech">_</span>
+        Passe au niveau<br />supérieur<TitleCursor />
       {/if}
     </h1>
     <p class="max-w-md font-mono text-sm text-white/70">
       {#if userKind === 'parent'}
-        &lt; Leur progression, leur assiduité et leurs réussites, en un coup
-        d'œil. /&gt;
+        <CodeTag
+          >Leur progression, leur assiduité et leurs réussites, en un coup
+          d'œil.</CodeTag
+        >
       {:else}
-        &lt; La plateforme qui t'accompagne lors de tes stages et coding clubs à
-        Epitech. /&gt;
+        <CodeTag
+          >La plateforme qui t'accompagne lors de tes stages et coding clubs à
+          Epitech.</CodeTag
+        >
       {/if}
     </p>
     <p class="font-mono text-xs tracking-widest text-white/50 uppercase">
@@ -119,8 +125,8 @@
       <header class="space-y-5">
         <EpitechLogo class="h-7 w-auto lg:hidden" />
         <div class="space-y-2">
-          <h2 class="font-heading text-3xl tracking-wide">
-            Jump<span class="text-epi-tech">_</span>
+          <h2 class="font-heading text-display-l">
+            Jump<TitleCursor />
           </h2>
           <p class="text-sm text-muted-foreground">
             {#if step === 'otp'}

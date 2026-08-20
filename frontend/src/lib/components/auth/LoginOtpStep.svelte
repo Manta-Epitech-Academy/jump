@@ -117,7 +117,7 @@
             onkeydown={(e) => handleDigitKeydown(i, e)}
             onpaste={handleDigitPaste}
             class={cn(
-              'otp-digit h-14 w-12 rounded-xl border-2 bg-white text-center font-mono text-2xl font-black text-slate-900 shadow-sm transition-all duration-200 outline-none dark:bg-slate-950 dark:text-white',
+              'otp-digit h-14 w-12 rounded-xl border-2 bg-white text-center font-mono text-2xl font-bold text-slate-900 shadow-sm transition-all duration-200 focus-visible:outline-none dark:bg-slate-950 dark:text-white',
               digits[i]?.trim()
                 ? 'border-epi-tech shadow-epi-tech/10'
                 : 'border-slate-200 dark:border-slate-800',

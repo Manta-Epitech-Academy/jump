@@ -16,6 +16,6 @@
     className,
   )}
 >
-  <span class="font-heading tracking-wide text-epi-blue">Jump</span>, la
-  plateforme qui t'accompagne lors de tes stages et coding clubs à Epitech.
+  <span class="font-heading text-epi-blue">Jump</span>, la plateforme qui
+  t'accompagne lors de tes stages et coding clubs à Epitech.
 </footer>

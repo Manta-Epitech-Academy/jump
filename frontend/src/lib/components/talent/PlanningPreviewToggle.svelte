@@ -76,11 +76,11 @@
 </script>
 
 <div
-  class="flex w-full items-center gap-1 rounded-xl border border-amber-400/50 bg-amber-50/90 px-1 py-0.5 text-[11px] dark:border-amber-500/40 dark:bg-amber-950/60"
+  class="flex w-full items-center gap-1 rounded-xl border border-amber-400/50 bg-amber-50/90 px-1 py-0.5 text-xs dark:border-amber-500/40 dark:bg-amber-950/60"
   title="Aperçu du widget « Planning à venir » (impersonation uniquement). Reclique l'option active pour revenir au réel."
 >
   <span
-    class="flex shrink-0 items-center gap-1 px-1 font-mono text-[9px] font-bold tracking-widest text-amber-900 uppercase dark:text-amber-100"
+    class="flex shrink-0 items-center gap-1 px-1 epi-overline text-amber-900 dark:text-amber-100"
   >
     <FlaskConical class="h-3 w-3" />
     Aperçu

@@ -30,7 +30,7 @@
       : 'Génération des diplômes',
   );
 
-  // Rotating step lines for the ceremony overline - kept true to what the PDF
+  // Rotating step lines for the ceremony epi-overline - kept true to what the PDF
   // render actually does (one page per inscrit, with the campus signatures).
   const DIPLOMA_CEREMONY_MESSAGES = [
     'Préparation des diplômes…',
@@ -145,37 +145,39 @@
 
 <div class="space-y-6 pb-10">
   <PageHeader title="Inscrits">
-    <Button
-      variant="outline"
-      size="sm"
-      onclick={() => (badgeModeOpen = true)}
-      disabled={generatingBadges}
-    >
-      {#if generatingBadges}
-        <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
-        Génération…
-      {:else}
-        <IdCard class="mr-1.5 h-4 w-4" />
-        Générer badges
-      {/if}
-    </Button>
-    {#if data.allowDiplomas}
+    {#snippet actions()}
       <Button
         variant="outline"
         size="sm"
-        onclick={generateDiplomas}
-        disabled={generatingDiplomas}
+        onclick={() => (badgeModeOpen = true)}
+        disabled={generatingBadges}
       >
-        {#if generatingDiplomas}
+        {#if generatingBadges}
           <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
           Génération…
         {:else}
-          <Award class="mr-1.5 h-4 w-4" />
-          Générer diplômes
+          <IdCard class="mr-1.5 h-4 w-4" />
+          Générer badges
         {/if}
       </Button>
-    {/if}
-    <EventSalesforceButton externalId={data.event.externalId} />
+      {#if data.allowDiplomas}
+        <Button
+          variant="outline"
+          size="sm"
+          onclick={generateDiplomas}
+          disabled={generatingDiplomas}
+        >
+          {#if generatingDiplomas}
+            <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+            Génération…
+          {:else}
+            <Award class="mr-1.5 h-4 w-4" />
+            Générer diplômes
+          {/if}
+        </Button>
+      {/if}
+      <EventSalesforceButton externalId={data.event.externalId} />
+    {/snippet}
   </PageHeader>
 
   {#await data.cohort}

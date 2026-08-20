@@ -1,6 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import type { Snippet } from 'svelte';
+  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
 
   // Shared frame for the parent onboarding flow (welcome → règlement →
   // signature → merci):
@@ -31,11 +32,7 @@
       class="mx-auto flex w-full max-w-lg items-center justify-between px-4 py-3"
     >
       <a href={resolve('/')} aria-label="Accueil">
-        <img
-          src="/EPITECH-LOGO-BLEU-2025.svg"
-          alt="Epitech"
-          class="h-7 w-auto dark:brightness-0 dark:invert"
-        />
+        <EpitechLogo class="h-7 w-auto" />
       </a>
       <span class="text-xs font-semibold text-slate-400 dark:text-slate-500">
         Espace Parent
@@ -52,8 +49,7 @@
   <footer
     class="relative z-10 shrink-0 px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400"
   >
-    <span class="font-heading tracking-wide text-epi-blue">Jump</span>, la
-    plateforme qui accompagne votre enfant tout au long de son parcours à
-    Epitech.
+    <span class="font-heading text-epi-blue">Jump</span>, la plateforme qui
+    accompagne votre enfant tout au long de son parcours à Epitech.
   </footer>
 </div>

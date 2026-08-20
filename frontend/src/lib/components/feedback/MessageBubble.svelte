@@ -33,7 +33,7 @@
   >
     {display}
   </div>
-  <span class="font-mono text-[10px] opacity-55">{time}</span>
+  <span class="font-mono text-xs opacity-55">{time}</span>
 </div>
 
 <style>

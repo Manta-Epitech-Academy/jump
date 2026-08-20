@@ -380,11 +380,7 @@
   >
     {#snippet filters()}
       <div class="flex items-center gap-2">
-        <span
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Statut
-        </span>
+        <span class="epi-overline text-muted-foreground"> Statut </span>
         <SegmentedFilter
           ariaLabel="Filtrer par statut de compte"
           options={statutOptions}
@@ -394,11 +390,7 @@
       </div>
 
       <div class="flex items-center gap-2">
-        <span
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Parent
-        </span>
+        <span class="epi-overline text-muted-foreground"> Parent </span>
         <SegmentedFilter
           ariaLabel="Filtrer par statut du parent"
           options={parentStatusOptions}
@@ -521,7 +513,7 @@
         {#if talent.niveau}
           <Badge
             variant="secondary"
-            class="rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
+            class="rounded-sm bg-epi-blue/5 px-2 py-0 epi-overline text-epi-blue"
           >
             {niveauLabel(talent.niveau)}
           </Badge>
@@ -540,7 +532,7 @@
         <div class="flex items-center gap-1.5">
           {#if talent.parentStatus}
             <span
-              class="inline-flex w-fit rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {PARENT_STATUS_CLASS[
+              class="inline-flex w-fit rounded-sm border px-2 py-0.5 epi-overline {PARENT_STATUS_CLASS[
                 talent.parentStatus
               ]}"
             >
@@ -584,23 +576,21 @@
               : 'nement'}
           </span>
         </div>
-        <span
-          class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
-        >
+        <span class="epi-overline text-muted-foreground">
           {talent.level}
         </span>
       </Table.Cell>
       <Table.Cell>
         <div class="flex flex-col items-start gap-0.5">
           <span
-            class="inline-flex rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {STATUS_CLASS[
+            class="inline-flex rounded-sm border px-2 py-0.5 epi-overline {STATUS_CLASS[
               talent.status
             ]}"
           >
             {TALENT_STATUS_LABELS[talent.status]}
           </span>
           {#if talent.onboardingStep}
-            <span class="text-[10px] text-muted-foreground">
+            <span class="text-xs text-muted-foreground">
               {talent.onboardingStep}
             </span>
           {/if}

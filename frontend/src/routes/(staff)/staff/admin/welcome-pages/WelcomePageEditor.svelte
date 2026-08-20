@@ -79,7 +79,7 @@
         <h2 class="truncate text-base font-bold">{event.titre}</h2>
         <Badge
           variant="outline"
-          class={cn('text-[10px]', STAGE_STATUS_META[event.status].class)}
+          class={cn('text-xs', STAGE_STATUS_META[event.status].class)}
         >
           {STAGE_STATUS_META[event.status].label}
         </Badge>

@@ -23,9 +23,7 @@
     class="flex flex-row items-center gap-2 border-b bg-muted/30 px-6 pt-4 pb-3"
   >
     <Info class="h-5 w-5 text-epi-blue" />
-    <h3 class="font-heading text-2xl tracking-wide text-foreground uppercase">
-      Aide
-    </h3>
+    <h3 class="font-heading text-display-m text-foreground">Aide</h3>
   </div>
 
   <Card.Content class="space-y-3.5 p-4 text-xs leading-relaxed">

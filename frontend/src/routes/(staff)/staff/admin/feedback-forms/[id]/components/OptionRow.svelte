@@ -107,7 +107,7 @@
       {#if type === 'multiple'}
         <Square class="h-4 w-4" />
       {:else if type === 'scale'}
-        <span class="text-xs font-medium tabular-nums">{index + 1}</span>
+        <span class="text-xs font-medium">{index + 1}</span>
       {:else}
         <Circle class="h-4 w-4" />
       {/if}
@@ -188,7 +188,7 @@
   </div>
 
   {#if dupWarning}
-    <p class="mt-1 pl-12 text-[11px] text-amber-600 dark:text-amber-500">
+    <p class="mt-1 pl-12 text-xs text-amber-600 dark:text-amber-500">
       Ce libellé est déjà utilisé dans cette question.
     </p>
   {/if}

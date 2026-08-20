@@ -27,7 +27,7 @@
     class="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center"
   >
     <ShieldAlert class="h-12 w-12 text-destructive" />
-    <h1 class="text-2xl font-bold uppercase">Action réservée</h1>
+    <h1 class="font-heading text-display-m">Action réservée</h1>
     {#if gating}
       <p class="max-w-md text-sm text-muted-foreground">
         Cette page est réservée au rôle <strong>{gating.label}</strong>.

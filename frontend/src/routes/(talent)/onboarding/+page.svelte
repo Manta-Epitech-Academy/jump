@@ -15,6 +15,7 @@
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import { Button } from '$lib/components/ui/button';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
+  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
 
   function exitSlide(
     _node: Element,
@@ -105,11 +106,7 @@
     >
       <!-- Left: logo (always visible, fixed position) -->
       <a href={resolve('/')} aria-label="Accueil">
-        <img
-          src="/EPITECH-LOGO-BLEU-2025.svg"
-          alt="Epitech"
-          class="h-7 w-auto dark:brightness-0 dark:invert"
-        />
+        <EpitechLogo class="h-7 w-auto" />
       </a>
 
       <!-- Right: back button + step counter -->

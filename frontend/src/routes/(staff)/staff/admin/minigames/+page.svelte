@@ -25,6 +25,7 @@
     type SelectOption,
   } from '$lib/components/staff/SearchableSelect.svelte';
   import { cn } from '$lib/utils';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -144,30 +145,26 @@
 </svelte:head>
 
 <div class="space-y-8">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Mini-<span class="text-epi-tomorrow">jeux</span>
-      </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
-        Rotation et publications du jeu du jour
-      </p>
-    </div>
-    {#if data.active}
-      <div class="rounded-sm border bg-card px-4 py-2 text-right">
-        <div
-          class="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
-        >
-          Publication active
+  <PageHeader
+    title="Mini-"
+    accent="jeux"
+    subtitle="Rotation et publications du jeu du jour"
+  >
+    {#snippet actions()}
+      {#if data.active}
+        <div class="rounded-sm border bg-card px-4 py-2 text-right">
+          <div class="epi-overline font-bold text-muted-foreground">
+            Publication active
+          </div>
+          <div class="text-sm font-bold">
+            {data.active.gameName} · niveau {data.active.level}
+          </div>
         </div>
-        <div class="text-sm font-bold">
-          {data.active.gameName} · niveau {data.active.level}
-        </div>
-      </div>
-    {:else}
-      <Badge variant="outline">Aucune publication active</Badge>
-    {/if}
-  </div>
+      {:else}
+        <Badge variant="outline">Aucune publication active</Badge>
+      {/if}
+    {/snippet}
+  </PageHeader>
 
   {#if !data.catalogAvailable}
     <div
@@ -211,13 +208,13 @@
                 <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
                   <span
                     class={cn(
-                      'rounded-full px-2 py-0.5 text-[10px] font-black uppercase',
+                      'rounded-full px-2 py-0.5 epi-overline font-bold',
                       DIFFICULTY[g.difficulty].class,
                     )}
                   >
                     {DIFFICULTY[g.difficulty].label}
                   </span>
-                  <Badge variant="outline" class="gap-1 text-[10px]">
+                  <Badge variant="outline" class="gap-1 text-xs">
                     {#if g.scoringType === 'score'}
                       <Trophy class="h-3 w-3" /> Score
                     {:else}
@@ -352,16 +349,12 @@
             </Button>
           </div>
           {#if forceGame}
-            <p class="text-[11px] text-muted-foreground">
+            <p class="text-xs text-muted-foreground">
               1–{forceGame.levelCount}
             </p>
           {/if}
         </div>
-        <Button
-          type="submit"
-          disabled={$forceDelayed || !forceGame}
-          class="bg-epi-tomorrow text-white"
-        >
+        <Button type="submit" disabled={$forceDelayed || !forceGame}>
           {$forceDelayed ? '...' : 'Publier'}
         </Button>
       </div>
@@ -411,16 +404,12 @@
             bind:value={testLevel}
           />
           {#if testMeta}
-            <p class="text-[11px] text-muted-foreground">
+            <p class="text-xs text-muted-foreground">
               1–{testMeta.levelCount}
             </p>
           {/if}
         </div>
-        <Button
-          href={testHref || undefined}
-          disabled={!testHref}
-          class="bg-epi-tomorrow text-white"
-        >
+        <Button href={testHref || undefined} disabled={!testHref}>
           Tester
         </Button>
       </div>
@@ -458,13 +447,11 @@
                   <Badge variant="secondary">Cron</Badge>
                 {/if}
               </Table.Cell>
-              <Table.Cell class="text-right tabular-nums"
-                >{p.attemptsCount}</Table.Cell
-              >
-              <Table.Cell class="text-right tabular-nums">
+              <Table.Cell class="text-right">{p.attemptsCount}</Table.Cell>
+              <Table.Cell class="text-right">
                 {p.scoringType === 'score' ? formatScore(p.avgScore) : '—'}
               </Table.Cell>
-              <Table.Cell class="text-right tabular-nums"
+              <Table.Cell class="text-right"
                 >{formatChrono(p.avgChrono)}</Table.Cell
               >
             </Table.Row>
@@ -529,11 +516,7 @@
         </div>
 
         <Dialog.Footer>
-          <Button
-            type="submit"
-            disabled={$configDelayed}
-            class="bg-epi-tomorrow text-white"
-          >
+          <Button type="submit" disabled={$configDelayed}>
             {$configDelayed ? 'Sauvegarde...' : 'Enregistrer'}
           </Button>
         </Dialog.Footer>

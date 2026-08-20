@@ -30,7 +30,7 @@
           <Camera class="h-7 w-7" />
         </div>
         <h1
-          class="font-heading text-2xl tracking-wider text-epi-blue uppercase dark:text-epi-blue"
+          class="font-heading text-display-m text-epi-blue dark:text-epi-blue"
         >
           Droit à l'image
         </h1>

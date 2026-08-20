@@ -1,4 +1,5 @@
 <script lang="ts" module>
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   /**
    * Accent maps to the four DS keywords. `neutral` falls back to the muted
    * foreground — use it when the section doesn't carry a brand-vector
@@ -58,22 +59,17 @@
   <header class="flex items-center justify-between gap-3 border-b px-5 py-4">
     <div class="min-w-0">
       {#if overline}
-        <p
-          class={cn(
-            'font-mono text-[10px] font-bold tracking-widest uppercase',
-            accentColor,
-          )}
-        >
+        <p class={cn('epi-overline', accentColor)}>
           {overline}
         </p>
       {/if}
       <h2
         class={cn(
-          'font-heading text-xl leading-none tracking-wide uppercase md:text-2xl',
+          'font-heading text-display-s md:text-display-m',
           overline && 'mt-1.5',
         )}
       >
-        {title}<span class="text-epi-tech">_</span>
+        {title}<TitleCursor />
       </h2>
     </div>
     {#if meta}

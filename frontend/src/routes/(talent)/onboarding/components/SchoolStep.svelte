@@ -36,7 +36,7 @@
   let debounceTimer: ReturnType<typeof setTimeout>;
 
   const fieldInput =
-    'rounded-lg border-slate-300 bg-white/80 text-slate-900 placeholder:text-slate-400 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600';
+    'rounded-lg border-slate-300 bg-white/80 text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600 focus-visible:outline-none';
   const fieldLabel =
     'mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400';
   // Secondary toggles (free-text / back-to-search): given real button chrome
@@ -100,9 +100,7 @@
   >
     <School class="h-7 w-7" />
   </div>
-  <h1
-    class="font-heading text-2xl tracking-wider text-epi-blue uppercase dark:text-epi-blue"
-  >
+  <h1 class="font-heading text-display-m text-epi-blue dark:text-epi-blue">
     De quel lycée viens-tu ?
   </h1>
 </div>

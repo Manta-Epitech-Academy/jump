@@ -59,7 +59,7 @@
               <p class="text-xs text-muted-foreground">{h.dateLabel}</p>
             </div>
             <span
-              class="shrink-0 font-mono text-sm font-bold text-epi-tech-ink tabular-nums"
+              class="shrink-0 font-mono text-sm font-bold text-epi-tech-ink"
             >
               {h.amount >= 0 ? '+' : ''}{h.amount}
             </span>

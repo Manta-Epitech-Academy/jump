@@ -189,9 +189,7 @@
   >
     {#snippet filters()}
       <div class="flex items-center gap-2">
-        <span
-          class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
-        >
+        <span class="hidden epi-overline text-muted-foreground sm:inline">
           Réponse
         </span>
         <FilterSelect
@@ -203,9 +201,7 @@
       </div>
       {#if recoOptions.length > 0}
         <div class="flex items-center gap-2">
-          <span
-            class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
-          >
+          <span class="hidden epi-overline text-muted-foreground sm:inline">
             Recommandation
           </span>
           <FilterSelect
@@ -296,7 +292,7 @@
   </Table.Cell>
   <Table.Cell>{@render recoBadge(r)}</Table.Cell>
   <Table.Cell>{@render statutBadge(r)}</Table.Cell>
-  <Table.Cell class="text-sm text-muted-foreground tabular-nums">
+  <Table.Cell class="text-sm text-muted-foreground">
     {fmtDate(r.respondedAt)}
   </Table.Cell>
 {/snippet}
@@ -309,7 +305,7 @@
         <span class="font-medium">{formatGivenName(r.prenom)}</span>
         <span class="font-bold uppercase">{r.nom ?? ''}</span>
       </p>
-      <p class="text-xs text-muted-foreground tabular-nums">
+      <p class="text-xs text-muted-foreground">
         {fmtDate(r.respondedAt)}
       </p>
       {@render recoBadge(r)}

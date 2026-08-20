@@ -160,7 +160,7 @@
                            the bonus they actually locked in (rankXpAwarded), not a
                            guess from the current rank. -->
                       <span
-                        class="inline-flex items-center gap-0.5 rounded-full bg-epi-together/10 px-1.5 py-0.5 text-[10px] font-semibold text-epi-together"
+                        class="inline-flex items-center gap-0.5 rounded-full bg-epi-together/10 px-1.5 py-0.5 text-xs font-semibold text-epi-together"
                         title="Bonus XP que tu as gagné en jouant"
                       >
                         <Crown class="h-3 w-3" />
@@ -177,13 +177,13 @@
                 </td>
                 {#if isScore}
                   <td
-                    class="py-2 text-right font-semibold text-slate-900 tabular-nums dark:text-white"
+                    class="py-2 text-right font-semibold text-slate-900 dark:text-white"
                   >
                     {row.score ?? '—'}
                   </td>
                 {/if}
                 <td
-                  class="py-2 text-right tabular-nums {isScore
+                  class="py-2 text-right {isScore
                     ? 'text-slate-400 dark:text-slate-500'
                     : ''}"
                 >

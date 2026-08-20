@@ -193,7 +193,8 @@
           {#each columns as col (col.key)}
             <Table.Head
               class={cn(
-                'text-xs font-bold uppercase',
+                // Size, weight and case come from Table.Head's overline
+                // treatment; only the pinning and alignment are this table's.
                 // Pinned header (desktop): each th carries its own opaque fill +
                 // bottom border so the frozen bar reads as one line while rows
                 // scroll under it (z above the body cells and the stretched row
@@ -214,7 +215,7 @@
                   type="button"
                   onclick={() => onSort?.(col.key)}
                   class={cn(
-                    'inline-flex cursor-pointer items-center gap-1 uppercase transition-colors hover:text-foreground',
+                    'inline-flex cursor-pointer items-center gap-1 transition-colors hover:text-foreground',
                     col.align === 'right' && 'flex-row-reverse',
                   )}
                 >
@@ -285,10 +286,7 @@
                    muted sheet over the row's text on hover. Focus shows an inset
                    ring, no fill. -->
                 <td class="absolute inset-0 bg-transparent! p-0">
-                  <a
-                    href={rowHref(r)}
-                    class="block size-full rounded-sm focus-visible:ring-2 focus-visible:ring-epi-blue focus-visible:outline-none focus-visible:ring-inset"
-                  >
+                  <a href={rowHref(r)} class="block size-full rounded-sm">
                     <span class="sr-only">{rowLabel?.(r) ?? 'Ouvrir'}</span>
                   </a>
                 </td>
@@ -379,10 +377,7 @@
           {/if}
           {@render mobileRow(r, i)}
           {#if rowHref}
-            <a
-              href={rowHref(r)}
-              class="absolute inset-0 rounded-sm focus-visible:ring-2 focus-visible:ring-epi-blue focus-visible:outline-none focus-visible:ring-inset"
-            >
+            <a href={rowHref(r)} class="absolute inset-0 rounded-sm">
               <span class="sr-only">{rowLabel?.(r) ?? 'Ouvrir'}</span>
             </a>
           {/if}

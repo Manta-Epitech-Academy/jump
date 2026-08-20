@@ -121,7 +121,7 @@
   </div>
 
   <div class="rise relative max-w-sm space-y-2">
-    <h1 class="text-2xl font-extrabold tracking-tight">{headline}</h1>
+    <h1 class="text-2xl font-bold tracking-tight">{headline}</h1>
     <p class="text-pretty text-muted-foreground">
       {#if data.state === 'present'}
         Tu es bien noté présent pour le

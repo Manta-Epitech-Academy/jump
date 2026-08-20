@@ -93,9 +93,7 @@
     >
       <!-- Decision: the one thing being changed -->
       <div class="space-y-1.5">
-        <Label class="text-[11px] font-bold tracking-widest uppercase">
-          Décision
-        </Label>
+        <Label class="epi-overline">Décision</Label>
         <div class="grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -133,12 +131,9 @@
       <!-- Guardian on file: pre-filled, edited only if the name is wrong -->
       <div class="grid grid-cols-2 gap-2">
         <div class="space-y-1.5">
-          <Label
-            for="ir-prenom"
-            class="text-[11px] font-bold tracking-widest uppercase"
+          <Label for="ir-prenom" class="epi-overline"
+            >Prénom du responsable</Label
           >
-            Prénom du responsable
-          </Label>
           <Input
             id="ir-prenom"
             name="signerPrenom"
@@ -150,12 +145,7 @@
           {/if}
         </div>
         <div class="space-y-1.5">
-          <Label
-            for="ir-nom"
-            class="text-[11px] font-bold tracking-widest uppercase"
-          >
-            Nom du responsable
-          </Label>
+          <Label for="ir-nom" class="epi-overline">Nom du responsable</Label>
           <Input
             id="ir-nom"
             name="signerNom"
@@ -170,12 +160,7 @@
 
       <!-- Mandatory reason: staff stands in for the guardian, must say why -->
       <div class="space-y-1.5">
-        <Label
-          for="ir-note"
-          class="text-[11px] font-bold tracking-widest uppercase"
-        >
-          Motif de la correction
-        </Label>
+        <Label for="ir-note" class="epi-overline">Motif de la correction</Label>
         <Textarea
           id="ir-note"
           name="note"
@@ -213,9 +198,7 @@
     {#if records.length > 0}
       <Separator />
       <div class="px-5 py-4">
-        <h4
-          class="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
+        <h4 class="mb-2 epi-overline text-muted-foreground">
           Historique des décisions
         </h4>
         <!-- `ImageRightsDecisionRecord` is append-only and every staff

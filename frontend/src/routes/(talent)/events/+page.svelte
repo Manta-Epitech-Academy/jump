@@ -62,11 +62,11 @@
         >
           <div class="text-center">
             <div
-              class="text-xl font-black tracking-tighter text-slate-900 dark:text-white"
+              class="text-xl font-bold tracking-tighter text-slate-900 dark:text-white"
             >
               {data.pastEvents.length}
             </div>
-            <div class="text-[8px] font-bold text-epi-blue uppercase">
+            <div class="epi-overline text-epi-blue">
               événement{data.pastEvents.length > 1 ? 's' : ''}
             </div>
           </div>

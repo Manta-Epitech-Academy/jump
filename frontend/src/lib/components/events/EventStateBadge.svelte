@@ -41,10 +41,7 @@
         <Badge
           {...props}
           variant="outline"
-          class="shrink-0 text-[10px] font-normal {stateBadgeClass(
-            state,
-            past,
-          )}"
+          class="shrink-0 text-xs font-normal {stateBadgeClass(state, past)}"
         >
           {EVENT_CONFIG_STATE_LABELS[state]}
         </Badge>

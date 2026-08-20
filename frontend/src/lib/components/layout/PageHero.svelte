@@ -38,7 +38,7 @@
 
 <div
   class={cn(
-    'relative overflow-hidden rounded-sm text-white shadow-md dark:shadow-none',
+    'on-dark relative overflow-hidden rounded-sm text-white',
     variantClass,
     paddingClass,
     extraClass,
@@ -46,8 +46,7 @@
 >
   <!-- Blueprint grid texture (charte signature) -->
   <div
-    class="pointer-events-none absolute inset-0"
-    style="background-image: linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px); background-size: 40px 40px;"
+    class="pointer-events-none absolute inset-0 blueprint-grid-inverse"
     aria-hidden="true"
   ></div>
 

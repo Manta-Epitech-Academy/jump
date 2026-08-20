@@ -1,6 +1,7 @@
 <script lang="ts">
   import { cn } from '$lib/utils';
   import EpitechLogo from './EpitechLogo.svelte';
+  import TitleCursor from './TitleCursor.svelte';
 
   type Props = {
     /** Resolved link target (e.g. resolve('/staff/dev')). */
@@ -35,8 +36,10 @@
   }: Props = $props();
 
   const textTone = $derived(tone === 'dark' ? 'text-white' : 'text-foreground');
-  // Neon green is unreadable on the light mobile bar — fall back to the solid
-  // teal there and only go neon on dark.
+  // The sublabel carries the space accent. The `_` no longer does: it means
+  // "terminal", not "which space am I in", so it is always the tech green (see
+  // TitleCursor). Neon is unreadable on the light mobile bar, hence the ink
+  // fallback there and neon only on a surface that is always dark.
   const accentTone = $derived(
     accent === 'pink'
       ? 'text-epi-tomorrow'
@@ -51,29 +54,22 @@
     <EpitechLogo {tone} class="h-7 w-auto self-start" />
     <div class="flex flex-col gap-1.5">
       <span class="flex items-baseline gap-2">
-        <span class="font-heading text-sm leading-none">
-          Jump<span class={accentTone}>_</span>
+        <span class="font-heading text-display-s">
+          Jump<TitleCursor />
         </span>
         {#if sublabel}
-          <span
-            class={cn(
-              'truncate text-[11px] font-bold tracking-wider uppercase',
-              accentTone,
-            )}
-          >
+          <span class={cn('truncate epi-overline', accentTone)}>
             {sublabel}
           </span>
         {/if}
       </span>
       {#if tagline}
-        <span class="text-[11px] leading-tight text-chrome-foreground-muted">
+        <span class="text-xs leading-tight text-chrome-foreground-muted">
           {tagline}
         </span>
       {/if}
       {#if campus}
-        <span
-          class="truncate font-mono text-[10px] tracking-widest text-chrome-foreground-muted uppercase"
-        >
+        <span class="truncate epi-overline text-chrome-foreground-muted">
           Campus {campus}
         </span>
       {/if}
@@ -82,13 +78,11 @@
 {:else}
   <a {href} class={cn('flex items-center gap-2.5', textTone, className)}>
     <EpitechLogo {tone} class="h-6 w-auto shrink-0" />
-    <span class="font-heading text-base leading-none">
-      Jump<span class={accentTone}>_</span>
+    <span class="font-heading text-display-s">
+      Jump<TitleCursor />
     </span>
     {#if sublabel}
-      <span
-        class={cn('text-[10px] font-bold tracking-wider uppercase', accentTone)}
-      >
+      <span class={cn('epi-overline', accentTone)}>
         {sublabel}
       </span>
     {/if}

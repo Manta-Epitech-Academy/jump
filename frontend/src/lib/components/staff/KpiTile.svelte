@@ -152,7 +152,7 @@
         {:else}
           <p
             class={cn(
-              'font-heading text-8xl tracking-wide',
+              'font-heading text-display-3xl',
               pressed ? 'text-white' : toneText,
             )}
           >
@@ -199,7 +199,7 @@
           <div class="mb-1 flex items-center gap-1.5">
             <p
               class={cn(
-                'text-[10px] font-bold tracking-widest uppercase',
+                'epi-overline',
                 pressed ? 'text-white/70' : 'text-muted-foreground',
               )}
             >
@@ -218,7 +218,7 @@
             {:else}
               <p
                 class={cn(
-                  'font-heading text-5xl tracking-wide',
+                  'font-heading text-display-2xl',
                   pressed ? 'text-white' : toneText,
                 )}
               >
@@ -277,12 +277,12 @@
 {#snippet shell(extraClass: string)}
   <Card.Root
     class={cn(
-      'flex h-full flex-col rounded-sm border-l-4 shadow-sm dark:shadow-none',
-      pressed ? 'border-l-white/40 bg-epi-blue text-white' : toneAccent,
+      'flex h-full flex-col border-l-4',
+      pressed ? 'on-dark border-l-white/40 bg-epi-blue text-white' : toneAccent,
       isInteractive && !pressed
         ? 'transition-colors hover:border-epi-blue/60 hover:bg-muted/30'
         : '',
-      pressed ? 'transition-colors hover:bg-[#0026b8]' : '',
+      pressed ? 'transition-colors hover:bg-primary/90' : '',
       extraClass,
     )}
   >

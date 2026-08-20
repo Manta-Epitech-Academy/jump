@@ -80,6 +80,13 @@
   --success: var(--epi-tech-ink);
   --warning: var(--epi-warning-ink);
 
+  /* The space's identity colour, so a page title, an active nav item and a
+     tile accent never restate it. Vivid for display text (24px and up) and
+     fills; the -ink counterpart for anything smaller, and it inherits the
+     dark / on-dark inversion from the token it points at. */
+  --accent-space: var(--epi-blue);
+  --accent-space-ink: var(--epi-blue);
+
   --border: var(--epi-grey-200);
   --input: var(--epi-grey-200);
   --ring: var(--epi-blue);
@@ -155,16 +162,31 @@
   --primary-foreground: #0c0e13;
   --ring: var(--primary);
 
-  /* Ink variants exist to survive a light background; on dark the raw brand
-     hues are the legible ones (tech 13.69:1, together 8.70:1). */
+  /* A drop shadow is invisible on a dark surface; the border does the work. */
+  --elevation-raised: 0 0 rgb(0 0 0 / 0);
+  --elevation-overlay: 0 4px 16px rgb(0 0 0 / 0.5);
+}
+
+/* ----------------------------------------------------------------------------
+   Ink inversion.
+
+   The ink variants exist only to survive a light background. On a dark one the
+   raw brand hues are the legible ones (tech 13.69:1 on --card, together
+   8.70:1), so the two sets swap.
+
+   `.dark` is the theme. `.on-dark` is a surface that is dark whatever the theme
+   is: the sidebar, the staff top bar, a brand-blue hero, a pressed tile. Put it
+   on such a surface and every descendant that names an ink token is correct
+   without a prop, which is the whole point: at #007a46 on #0b0e1a the ink green
+   is 1.9:1, so a component that had to remember a `tone` prop would be silently
+   invisible on the one surface nobody tests.
+   ---------------------------------------------------------------------------- */
+.dark,
+.on-dark {
   --epi-tech-ink: var(--epi-tech);
   --epi-together-ink: #ff9878; /* 8.70:1 */
   --epi-tomorrow-ink: #ff7ef6; /* 8.31:1 */
   --epi-warning-ink: #ffd15c; /* 12.62:1 */
-
-  /* A drop shadow is invisible on a dark surface; the border does the work. */
-  --elevation-raised: 0 0 rgb(0 0 0 / 0);
-  --elevation-overlay: 0 4px 16px rgb(0 0 0 / 0.5);
 }
 
 /* ----------------------------------------------------------------------------
@@ -180,6 +202,13 @@
    also re-points --background, because a Dialog paints `bg-background` and a
    portaled panel needs the card surface, not the page one.
    ---------------------------------------------------------------------------- */
+/* The admin space is one click from the dev space and easy to confuse with it,
+   so it carries the charte's TOMORROW magenta as its identity. */
+.admin-space {
+  --accent-space: var(--epi-tomorrow);
+  --accent-space-ink: var(--epi-tomorrow-ink);
+}
+
 .camper-layout,
 .parent-layout,
 .talent-surface {
@@ -216,6 +245,8 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-accent-space: var(--accent-space);
+  --color-accent-space-ink: var(--accent-space-ink);
 
   --color-epi-blue: var(--epi-blue);
   --color-epi-tech: var(--epi-tech);
@@ -260,24 +291,33 @@
     'Space Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo,
     Consolas, monospace;
 
-  /* Display sizes carry their own tracking, so the two can never disagree.
-     The charte's -0.01em is for poster titles; a condensed face needs the
-     opposite at label sizes. Same mechanism Tailwind uses for its own scale. */
+  /* Display sizes carry their own tracking, so the two can never disagree. The
+     charte's -0.01em is for poster titles; a condensed face needs the opposite
+     at label sizes, and 0 in between. Same mechanism Tailwind uses for its own
+     scale.
+
+     Six steps, and every one of them has real call sites: the scale was cut to
+     match what the product actually sets, not the other way round. Anton is
+     never smaller than display-s: below ~18px a condensed face stops being
+     readable before it stops being brand. */
   --text-display-s: 1.25rem;
-  --text-display-s--line-height: 1.1;
+  --text-display-s--line-height: 1.15;
   --text-display-s--letter-spacing: 0.02em;
-  --text-display-m: 1.875rem;
+  --text-display-m: 1.5rem;
   --text-display-m--line-height: 1.1;
   --text-display-m--letter-spacing: 0em;
-  --text-display-l: 2.5rem;
-  --text-display-l--line-height: 1;
-  --text-display-l--letter-spacing: -0.01em;
-  --text-display-xl: 3.5rem;
-  --text-display-xl--line-height: 0.95;
+  --text-display-l: 1.875rem;
+  --text-display-l--line-height: 1.1;
+  --text-display-l--letter-spacing: 0em;
+  --text-display-xl: 2.5rem;
+  --text-display-xl--line-height: 1;
   --text-display-xl--letter-spacing: -0.01em;
-  --text-display-2xl: 6rem;
-  --text-display-2xl--line-height: 0.92;
-  --text-display-2xl--letter-spacing: -0.015em;
+  --text-display-2xl: 3.5rem;
+  --text-display-2xl--line-height: 0.95;
+  --text-display-2xl--letter-spacing: -0.01em;
+  --text-display-3xl: 6rem;
+  --text-display-3xl--line-height: 0.92;
+  --text-display-3xl--letter-spacing: -0.015em;
 
   /* 11px is the floor. Nothing in the product is 8, 9 or 10px: a 9px label in
      --muted-foreground is decoration pretending to be information. */
@@ -293,9 +333,15 @@
    instead of being retyped at every call site.
    ---------------------------------------------------------------------------- */
 
-/* Small uppercase mono label. The cheapest brand signal in the system, and
-   what makes a dense screen read as Epitech rather than as admin software. */
-@utility overline {
+/* Small uppercase mono label: the charte's overline. The cheapest brand signal
+   in the system, and what makes a dense screen read as Epitech rather than as
+   admin software.
+
+   Named `epi-overline` rather than `overline` because Tailwind already ships an
+   `overline` utility for `text-decoration-line: overline`. Declaring ours under
+   that name does not replace it: both rules are emitted, so every label in the
+   product got a hairline drawn above it. */
+@utility epi-overline {
   @apply font-mono text-overline font-bold uppercase;
 }
 
@@ -353,7 +399,11 @@
      with the display size token, so a title cannot pick a size and a tracking
      that disagree. Never `font-bold` on this: Anton has one weight, so a
      browser fakes it by smearing the glyphs.
-     TODO(PR 2): drop the bare `h1` selector once every heading opts in. */
+
+     The bare `h1` selector is a holdover, and a footgun: it silently Anton-ises
+     any heading, which is how a `font-bold` on one went unnoticed for months.
+     It comes out once the talent and parent headings name their display token
+     explicitly; until then those two spaces rely on it. */
   h1:not(.prose *),
   .font-heading {
     @apply font-heading leading-[1.1] font-normal uppercase;
@@ -369,7 +419,7 @@
   }
 
   .sidebar-section-title {
-    @apply mt-4 mb-2 overline text-chrome-foreground-muted;
+    @apply mt-4 mb-2 text-chrome-foreground-muted overline;
   }
 
   .app-header {

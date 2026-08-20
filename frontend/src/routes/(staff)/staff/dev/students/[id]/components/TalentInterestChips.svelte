@@ -30,9 +30,7 @@
 )}
   {#if rows.length > 0}
     <section class="space-y-2">
-      <h3
-        class="flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase {accentClass}"
-      >
+      <h3 class="flex items-center gap-1.5 epi-overline {accentClass}">
         {@render icon()}
         {label}
       </h3>

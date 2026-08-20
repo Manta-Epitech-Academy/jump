@@ -1,4 +1,5 @@
 <script lang="ts" module>
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   export type InterviewAction = 'start' | 'autosave' | 'close';
   export type InterviewSaveState = 'idle' | 'saving' | 'saved';
   // Surfaced to the fiche so it can keep the lifecycle status in sync with the
@@ -714,10 +715,8 @@
           {/if}
 
           <div class="space-y-2.5">
-            <h3
-              class="font-heading text-2xl tracking-wide text-foreground uppercase"
-            >
-              Synthèse de l'entretien<span class="text-epi-tech">_</span>
+            <h3 class="font-heading text-display-m text-foreground">
+              Synthèse de l'entretien<TitleCursor />
             </h3>
             {#if conductedBy || conductedLabel}
               <div class="flex items-center gap-2.5">
@@ -729,7 +728,7 @@
                       class="object-cover"
                     />
                     <Avatar.Fallback
-                      class="bg-epi-blue/10 text-[10px] font-bold text-epi-blue"
+                      class="bg-epi-blue/10 text-xs font-bold text-epi-blue"
                     >
                       {getInitials(conductedBy)}
                     </Avatar.Fallback>
@@ -824,11 +823,8 @@
                 <!-- ── Cover: guide + the lifecycle CTA for the current status ── -->
                 <div class="space-y-5">
                   <div class="space-y-1.5">
-                    <h3
-                      class="font-heading text-2xl tracking-wide text-foreground uppercase"
-                    >
-                      Entretien d'orientation<span class="text-epi-tech">_</span
-                      >
+                    <h3 class="font-heading text-display-m text-foreground">
+                      Entretien d'orientation<TitleCursor />
                     </h3>
                     <p class="text-sm text-muted-foreground">
                       Un point d'orientation avec {talentName}, pas un
@@ -905,7 +901,7 @@
                     >
                       {VERDICT_SECTION.title}
                     </p>
-                    <p class="text-[11px] text-muted-foreground">
+                    <p class="text-xs text-muted-foreground">
                       {VERDICT_SECTION.subtitle}
                     </p>
                   </div>

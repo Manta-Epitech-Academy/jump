@@ -23,7 +23,7 @@
         'group toast group-[.toaster]:p-4 group-[.toaster]:rounded-sm group-[.toaster]:border-2 group-[.toaster]:shadow-lg w-full transition-all',
 
       title:
-        'font-heading text-lg font-normal normal-case tracking-normal text-foreground/90 leading-none',
+        'font-heading text-display-s font-normal normal-case text-foreground/90',
       description: 'font-sans text-xs font-medium text-foreground/70 mt-1.5',
 
       success:
@@ -35,9 +35,9 @@
         'group-[.toaster]:border-epi-together group-[.toaster]:bg-orange-50 dark:group-[.toaster]:bg-orange-950/30',
 
       actionButton:
-        'group-[.toast]:bg-background group-[.toast]:border group-[.toast]:border-border group-[.toast]:text-foreground group-[.toast]:font-bold group-[.toast]:text-[10px] group-[.toast]:uppercase group-[.toast]:rounded-sm',
+        'group-[.toast]:bg-background group-[.toast]:border group-[.toast]:border-border group-[.toast]:text-foreground group-[.toast]:overline group-[.toast]:rounded-sm',
       cancelButton:
-        'group-[.toast]:bg-transparent group-[.toast]:text-muted-foreground group-[.toast]:font-bold group-[.toast]:text-[10px] group-[.toast]:uppercase',
+        'group-[.toast]:bg-transparent group-[.toast]:text-muted-foreground group-[.toast]:overline',
 
       // Close button inherits the toast's own text colour (currentColor) instead
       // of a fixed shade, so it reads on both the light staff toasts (dark text)

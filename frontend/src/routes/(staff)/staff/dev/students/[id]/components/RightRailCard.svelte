@@ -206,11 +206,7 @@
   <div class="space-y-4">
     <!-- Connexion -->
     <section class="space-y-2">
-      <h4
-        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        Connexion à Jump
-      </h4>
+      <h4 class="epi-overline text-muted-foreground">Connexion à Jump</h4>
       <dl class="space-y-1.5 text-sm">
         <div class="flex items-baseline justify-between gap-3">
           <dt class="text-muted-foreground">Dernière connexion</dt>
@@ -231,9 +227,7 @@
 
     <!-- Communications -->
     <section class="space-y-2">
-      <h4
-        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
+      <h4 class="epi-overline text-muted-foreground">
         Dernières communications
       </h4>
       {#if communications.length === 0}
@@ -255,22 +249,20 @@
               <span class="min-w-0 flex-1 truncate">{commLabel(c)}</span>
               {#if open === 'opened'}
                 <span
-                  class="inline-flex shrink-0 items-center gap-1 font-mono text-[10px] tracking-wide text-epi-tech-ink uppercase"
+                  class="inline-flex shrink-0 items-center gap-1 epi-overline text-epi-tech-ink"
                 >
                   <MailOpen class="h-3 w-3" />
                   Ouvert
                 </span>
               {:else if open === 'unopened'}
                 <span
-                  class="inline-flex shrink-0 items-center gap-1 font-mono text-[10px] tracking-wide text-muted-foreground uppercase"
+                  class="inline-flex shrink-0 items-center gap-1 epi-overline text-muted-foreground"
                 >
                   <Mail class="h-3 w-3" />
                   Non ouvert
                 </span>
               {/if}
-              <span
-                class="shrink-0 font-mono text-[10px] text-muted-foreground"
-              >
+              <span class="shrink-0 font-mono text-xs text-muted-foreground">
                 {formatDateFr(c.sentAt, timezone)}
               </span>
             </li>
@@ -283,11 +275,7 @@
 
     <!-- Documents -->
     <section class="space-y-2">
-      <h4
-        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        Documents
-      </h4>
+      <h4 class="epi-overline text-muted-foreground">Documents</h4>
       <ul class="space-y-1.5 text-sm">
         {@render docRow('Règlement intérieur', rulesDoc)}
         {@render docRow(
@@ -329,7 +317,7 @@
                 {...props}
                 type="button"
                 onclick={onTrigger}
-                class="inline-flex cursor-pointer items-center gap-1 font-mono text-[10px] font-bold tracking-widest uppercase underline decoration-dotted underline-offset-4 transition-opacity hover:opacity-80 {s.colorClass}"
+                class="inline-flex cursor-pointer items-center gap-1 epi-overline underline decoration-dotted underline-offset-4 transition-opacity hover:opacity-80 {s.colorClass}"
               >
                 <Icon class="h-3 w-3" />
                 {s.label}
@@ -337,7 +325,7 @@
             {:else}
               <span
                 {...props}
-                class="inline-flex cursor-help items-center gap-1 font-mono text-[10px] font-bold tracking-widest uppercase {s.colorClass}"
+                class="inline-flex cursor-help items-center gap-1 epi-overline {s.colorClass}"
               >
                 <Icon class="h-3 w-3" />
                 {s.label}
@@ -348,7 +336,7 @@
         <Tooltip.Content class="max-w-60">
           <p class="text-xs">{s.tooltip}</p>
           {#if onTrigger}
-            <p class="mt-1 text-[10px] text-muted-foreground">
+            <p class="mt-1 text-xs text-muted-foreground">
               Cliquez pour corriger la décision.
             </p>
           {/if}

@@ -78,7 +78,7 @@
     <TimeField.Input
       {id}
       class={cn(
-        'relative inline-flex h-9 w-full items-center overflow-hidden rounded-md border border-input bg-background px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 focus-within:has-aria-invalid:border-destructive focus-within:has-aria-invalid:ring-destructive/20 dark:focus-within:has-aria-invalid:ring-destructive/40',
+        'relative inline-flex h-9 w-full items-center overflow-hidden rounded-md border border-input bg-background px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring disabled:cursor-not-allowed disabled:opacity-50 focus-within:has-aria-invalid:border-destructive focus-within:has-aria-invalid:ring-destructive/20 dark:focus-within:has-aria-invalid:ring-destructive/40',
         icon && 'pl-9',
         className,
       )}

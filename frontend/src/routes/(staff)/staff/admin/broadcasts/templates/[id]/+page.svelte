@@ -1,6 +1,6 @@
 <script lang="ts">
   import TemplateForm from '$lib/components/admin/broadcasts/TemplateForm.svelte';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data, form } = $props();
 </script>
@@ -11,7 +11,7 @@
       Utilisé dans {data.template._count.broadcasts} envoi(s)
     </span>
   {/snippet}
-  <AdminPageHeader
+  <PageHeader
     title="Modifier le"
     accent="template"
     subtitle="Les envois déjà partis gardent leur snapshot"

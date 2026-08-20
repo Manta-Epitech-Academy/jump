@@ -15,6 +15,7 @@
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import { track, errReason } from '$lib/analytics';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
@@ -140,22 +141,17 @@
 </svelte:head>
 
 <div class="space-y-6">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Réseau <span class="text-epi-tomorrow">Campus</span>
-      </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
-        Gérer les villes d'implantation
-      </p>
-    </div>
-    <Button
-      onclick={openCreate}
-      class="bg-epi-tomorrow text-white hover:bg-epi-tomorrow/90"
-    >
-      <Plus class="mr-2 h-4 w-4" /> Ajouter
-    </Button>
-  </div>
+  <PageHeader
+    title="Réseau"
+    accent="Campus"
+    subtitle="Gérer les villes d&#x27;implantation"
+  >
+    {#snippet actions()}
+      <Button onclick={openCreate}>
+        <Plus class="mr-2 h-4 w-4" /> Ajouter
+      </Button>
+    {/snippet}
+  </PageHeader>
 
   <!-- Mobile: stacked cards. The desktop table x-scrolls on narrow screens,
        which buries the nom externe / fuseau / actions columns off-frame, so
@@ -315,7 +311,7 @@
               />
               <p class="text-xs text-muted-foreground">
                 Disponible dans les templates via <code
-                  class="rounded bg-muted px-1 py-0.5 text-[10px]"
+                  class="rounded bg-muted px-1 py-0.5 text-xs"
                   >{`{{EMAIL_CONTACT_CAMPUS}}`}</code
                 >.
               </p>
@@ -343,11 +339,7 @@
           </div>
         </div>
         <Dialog.Footer class="border-t px-4 py-4 sm:px-6">
-          <Button
-            type="submit"
-            disabled={$delayed}
-            class="bg-epi-tomorrow text-white"
-          >
+          <Button type="submit" disabled={$delayed}>
             {$delayed ? 'Sauvegarde...' : 'Enregistrer'}
           </Button>
         </Dialog.Footer>

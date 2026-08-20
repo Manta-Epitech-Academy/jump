@@ -10,6 +10,7 @@
   import Settings from '@lucide/svelte/icons/settings';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let { data } = $props();
 </script>
@@ -23,11 +24,11 @@
     <div class="flex items-center gap-4">
       <div class="flex-1">
         <h1
-          class="font-heading text-3xl tracking-wider text-slate-900 uppercase sm:text-4xl dark:text-white"
+          class="font-heading text-display-l text-slate-900 sm:text-display-xl dark:text-white"
         >
           Bonjour, <span class="text-epi-blue"
             >M./Mme {data.parentLastName}</span
-          ><span class="text-epi-tech">_</span>
+          ><TitleCursor />
         </h1>
         <p
           class="mt-1 text-base font-semibold text-slate-600 dark:text-slate-300"
@@ -81,7 +82,7 @@
               <div class="flex items-start justify-between">
                 <div class="space-y-3">
                   <h2
-                    class="font-heading text-2xl tracking-wider text-slate-900 uppercase dark:text-white"
+                    class="font-heading text-display-m text-slate-900 dark:text-white"
                   >
                     {child.prenom}
                     <span class="text-epi-blue">{child.nom}</span>
@@ -102,7 +103,7 @@
                     <div
                       class="rounded-xl border border-blue-100 bg-blue-50/50 px-4 py-3 dark:border-blue-900/20 dark:bg-blue-950/20"
                     >
-                      <p class="text-[10px] font-bold text-epi-blue uppercase">
+                      <p class="epi-overline text-epi-blue">
                         Prochain rendez-vous
                       </p>
                       <p

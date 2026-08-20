@@ -243,7 +243,7 @@
       >
         <span
           class={cn(
-            'text-[10px] font-bold tracking-wider uppercase',
+            'epi-overline',
             isToday ? 'text-epi-blue' : 'text-slate-400',
           )}
         >
@@ -273,7 +273,7 @@
       <div class="relative">
         {#each hours as h, i (h)}
           <div
-            class="absolute right-1 -translate-y-1/2 text-[10px] font-medium text-slate-400 tabular-nums"
+            class="absolute right-1 -translate-y-1/2 text-xs font-medium text-slate-400"
             style="top: {i * 60 * PIXELS_PER_MINUTE}px;"
             class:opacity-0={i === 0}
           >
@@ -328,14 +328,14 @@
               >
                 <span
                   class={cn(
-                    'text-[10px] leading-tight font-bold break-words',
+                    'text-xs leading-tight font-bold break-words',
                     styles?.text,
                   )}
                 >
                   {activity.nom}
                 </span>
                 <div
-                  class="flex items-center gap-1 text-[9px] font-medium text-muted-foreground"
+                  class="flex items-center gap-1 text-xs font-medium text-muted-foreground"
                 >
                   <span>
                     {formatTime(slot.startTime)} – {formatTime(slot.endTime)}

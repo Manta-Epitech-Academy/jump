@@ -157,7 +157,7 @@
           oninput={personaField.oninput}
           onblur={personaField.onblur}
         />
-        <span class="text-[11px] text-muted-foreground">
+        <span class="text-xs text-muted-foreground">
           La mascotte qui dit le mot d’accueil et le mot de fin
         </span>
       </div>
@@ -176,7 +176,7 @@
           rows={2}
           aria-label="Message d'accueil"
           placeholder={'Message d’accueil (facultatif), ex. « Salut {prenom} ! On y va ? »'}
-          class="cursor-text resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+          class="cursor-text resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:outline-none"
           oninput={introField.oninput}
           onblur={introField.onblur}
         />
@@ -196,7 +196,7 @@
           rows={2}
           aria-label="Message de fin"
           placeholder={'Message de fin (facultatif), ex. « Merci {prenom} ! »'}
-          class="cursor-text resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+          class="cursor-text resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:outline-none"
           oninput={outroField.oninput}
           onblur={outroField.onblur}
         />

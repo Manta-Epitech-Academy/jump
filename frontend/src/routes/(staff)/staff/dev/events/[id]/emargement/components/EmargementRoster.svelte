@@ -341,9 +341,7 @@
           {#snippet filters()}
             <SlotNavigator {slots} bind:value={activeSlotKey} />
             <div class="flex items-center gap-2">
-              <span
-                class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
-              >
+              <span class="hidden epi-overline text-muted-foreground sm:inline">
                 Statut
               </span>
               <FilterSelect
@@ -586,7 +584,7 @@
                       Clôturé
                     </Button>
                   </div>
-                  <p class="text-[11px] leading-snug text-muted-foreground">
+                  <p class="text-xs leading-snug text-muted-foreground">
                     Clôturé automatiquement passé {slotLabelFr(
                       activeSlot.slot,
                     ) === 'Matin'
@@ -648,7 +646,7 @@
                       Clôturer
                     </Button>
                   </div>
-                  <p class="text-[11px] leading-snug text-muted-foreground">
+                  <p class="text-xs leading-snug text-muted-foreground">
                     En fin de créneau : marquez tout le monde présent, ou
                     clôturez pour noter absents ceux qui restent « en attente ».
                   </p>

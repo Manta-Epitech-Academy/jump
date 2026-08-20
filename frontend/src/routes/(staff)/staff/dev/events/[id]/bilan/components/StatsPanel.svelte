@@ -78,9 +78,7 @@
               <span class="min-w-0 truncate text-xs" title={opt.label}>
                 {opt.label}
               </span>
-              <span
-                class="shrink-0 font-mono text-[11px] text-muted-foreground"
-              >
+              <span class="shrink-0 font-mono text-xs text-muted-foreground">
                 {opt.count}{#if answered > 0}<span
                     class="text-muted-foreground/60"
                   >

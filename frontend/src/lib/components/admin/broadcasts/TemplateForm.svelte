@@ -144,11 +144,7 @@
 
   <aside class="space-y-4 lg:sticky lg:top-4 lg:self-start">
     <div class="rounded-sm border bg-card p-4">
-      <h3
-        class="mb-3 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        Aperçu
-      </h3>
+      <h3 class="mb-3 epi-overline text-muted-foreground">Aperçu</h3>
       <MessagePreview
         channel={$form.channel}
         subject={$form.subject}

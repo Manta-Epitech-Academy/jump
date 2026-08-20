@@ -155,7 +155,7 @@
       onclick={() => editor.setActive(q.id)}
     >
       <span
-        class="w-4 shrink-0 text-center text-xs font-medium text-muted-foreground tabular-nums"
+        class="w-4 shrink-0 text-center text-xs font-medium text-muted-foreground"
         >{number}</span
       >
       <Icon class="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -174,9 +174,7 @@
     <!-- Active editor -->
     <div class="space-y-4 p-5 pt-6">
       <div class="flex items-center justify-between">
-        <span
-          class="font-mono text-[10px] font-medium tracking-[0.14em] text-muted-foreground uppercase"
-        >
+        <span class="epi-overline text-muted-foreground">
           Question {number}
         </span>
         <Tooltip.Root>
@@ -203,7 +201,7 @@
           rows={2}
           aria-label="Intitulé de la question"
           placeholder="Question"
-          class="flex-1 cursor-text resize-none rounded-none border-0 border-b bg-muted/30 px-3 py-2 text-base shadow-none focus-visible:border-foreground focus-visible:ring-0"
+          class="flex-1 cursor-text resize-none rounded-none border-0 border-b bg-muted/30 px-3 py-2 text-base shadow-none focus-visible:outline-none"
           oninput={promptField.oninput}
           onblur={promptField.onblur}
         />
@@ -221,7 +219,7 @@
            Only renders on the rare misconfigured card, never on normal ones. -->
       {#if unreachable}
         <div
-          class="flex items-start gap-2 rounded-sm border border-amber-300 bg-amber-50 p-2 text-[11px] leading-snug text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+          class="flex items-start gap-2 rounded-sm border border-amber-300 bg-amber-50 p-2 text-xs leading-snug text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
         >
           <TriangleAlert class="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <p class="min-w-0 flex-1">
@@ -405,9 +403,7 @@
               {/each}
             </DropdownMenu.RadioGroup>
             <DropdownMenu.Separator />
-            <p
-              class="px-2 py-1.5 text-[11px] leading-snug text-muted-foreground"
-            >
+            <p class="px-2 py-1.5 text-xs leading-snug text-muted-foreground">
               Demandée aux répondants publics et toujours obligatoire. Les
               talents connectés ne la voient pas : Jump connaît déjà leur
               identité.
