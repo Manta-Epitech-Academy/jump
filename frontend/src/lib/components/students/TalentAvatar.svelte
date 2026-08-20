@@ -11,7 +11,7 @@
    * request per row on pages that render two hundred of them, and it put
    * vercel's palette next to Epitech's.
    *
-   * The grounds and the reason there are ten of them live in `talentAvatar.ts`.
+   * The grounds and the reason there are seven of them live in `talentAvatar.ts`.
    */
   type Size = 'sm' | 'md' | 'lg';
 
