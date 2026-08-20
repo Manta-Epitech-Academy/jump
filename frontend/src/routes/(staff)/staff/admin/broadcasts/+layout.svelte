@@ -70,7 +70,7 @@
                 {/if}
                 <span class="font-mono">{redirect.recipients.join(', ')}</span>
                 (préfixe
-                <code class="rounded bg-warning/60 px-1 font-mono"
+                <code class="rounded bg-warning/10 px-1 font-mono"
                   >{redirect.prefixExample}</code
                 >)
               {/if}

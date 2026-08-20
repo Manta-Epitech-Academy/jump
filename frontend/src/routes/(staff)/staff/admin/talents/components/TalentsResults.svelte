@@ -513,7 +513,7 @@
         {#if talent.niveau}
           <Badge
             variant="secondary"
-            class="rounded-sm bg-epi-blue/5 px-2 py-0 epi-overline text-epi-blue"
+            class="rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
           >
             {niveauLabel(talent.niveau)}
           </Badge>
@@ -532,7 +532,7 @@
         <div class="flex items-center gap-1.5">
           {#if talent.parentStatus}
             <span
-              class="inline-flex w-fit rounded-sm border px-2 py-0.5 epi-overline {PARENT_STATUS_CLASS[
+              class="inline-flex w-fit rounded-sm border px-2 py-0.5 epi-chip {PARENT_STATUS_CLASS[
                 talent.parentStatus
               ]}"
             >
@@ -569,21 +569,21 @@
       <Table.Cell>
         <div class="flex items-center gap-2">
           <Zap class="h-3.5 w-3.5 text-epi-tomorrow" />
-          <span class="font-mono text-sm font-bold">{talent.xp}</span>
+          <span class="text-sm font-bold">{talent.xp}</span>
           <span class="text-xs text-muted-foreground">
             · {talent.eventsCount} évé{talent.eventsCount > 1
               ? 'nements'
               : 'nement'}
           </span>
         </div>
-        <span class="epi-overline text-muted-foreground">
+        <span class="epi-chip text-muted-foreground">
           {talent.level}
         </span>
       </Table.Cell>
       <Table.Cell>
         <div class="flex flex-col items-start gap-0.5">
           <span
-            class="inline-flex rounded-sm border px-2 py-0.5 epi-overline {STATUS_CLASS[
+            class="inline-flex rounded-sm border px-2 py-0.5 epi-chip {STATUS_CLASS[
               talent.status
             ]}"
           >

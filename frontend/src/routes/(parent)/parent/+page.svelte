@@ -95,7 +95,7 @@
 
                   {#if child.upcomingEvent}
                     <div
-                      class="rounded-xl border border-primary/30 bg-primary/50 px-4 py-3"
+                      class="rounded-xl border border-primary/30 bg-primary/10 px-4 py-3"
                     >
                       <p class="epi-overline text-epi-blue">
                         Prochain rendez-vous

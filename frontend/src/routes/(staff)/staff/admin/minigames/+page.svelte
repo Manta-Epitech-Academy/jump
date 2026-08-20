@@ -206,7 +206,7 @@
                 <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
                   <span
                     class={cn(
-                      'rounded-full px-2 py-0.5 epi-overline font-bold',
+                      'rounded-full px-2 py-0.5 epi-chip font-bold',
                       DIFFICULTY[g.difficulty].class,
                     )}
                   >
@@ -256,7 +256,7 @@
     {/if}
 
     {#if data.orphans.length > 0}
-      <div class="rounded-sm border border-warning/30 bg-warning/60 p-4">
+      <div class="rounded-sm border border-warning/30 bg-warning/10 p-4">
         <p class="mb-2 flex items-center gap-2 text-sm font-bold">
           <TriangleAlert class="h-4 w-4 text-warning" /> Jeux absents du catalogue
         </p>

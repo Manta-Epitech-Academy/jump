@@ -139,7 +139,7 @@
                   </p>
                 </div>
                 <span
-                  class="shrink-0 rounded-sm bg-muted px-1.5 py-0.5 epi-overline text-muted-foreground"
+                  class="shrink-0 rounded-sm bg-muted px-1.5 py-0.5 epi-chip text-muted-foreground"
                 >
                   {RECIPIENT_ROLE_LABELS[r.role]}
                 </span>

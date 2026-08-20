@@ -125,7 +125,7 @@
           <div
             class={cn(
               'flex h-9 w-9 shrink-0 items-center justify-center rounded-sm',
-              pressed ? 'bg-card text-white' : cn(toneBg, toneText),
+              pressed ? 'bg-white/15 text-white' : cn(toneBg, toneText),
             )}
           >
             <Icon class="h-5 w-5" />
@@ -179,7 +179,7 @@
         <div
           class={cn(
             'mt-1 h-1.5 w-full overflow-hidden rounded-full',
-            pressed ? 'bg-card' : 'bg-muted dark:bg-muted/30',
+            pressed ? 'bg-white/20' : 'bg-muted dark:bg-muted/30',
           )}
         >
           <div
@@ -246,7 +246,7 @@
           <div
             class={cn(
               'flex h-12 w-12 shrink-0 items-center justify-center rounded-sm',
-              pressed ? 'bg-card text-white' : cn(toneBg, toneText),
+              pressed ? 'bg-white/15 text-white' : cn(toneBg, toneText),
             )}
           >
             <Icon class="h-6 w-6" />
@@ -258,7 +258,7 @@
         <div
           class={cn(
             'h-1.5 overflow-hidden rounded-full',
-            pressed ? 'bg-card' : 'bg-muted dark:bg-muted/30',
+            pressed ? 'bg-white/20' : 'bg-muted dark:bg-muted/30',
           )}
         >
           <div

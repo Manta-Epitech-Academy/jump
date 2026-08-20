@@ -72,7 +72,7 @@
     <h3 class="font-heading text-display-m text-foreground">Synthèse</h3>
     {#if closed}
       <span
-        class="ml-auto inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 epi-overline text-warning"
+        class="ml-auto inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 epi-chip text-warning"
       >
         <Lock class="h-3 w-3" /> Clôturé
       </span>

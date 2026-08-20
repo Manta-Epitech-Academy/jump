@@ -90,7 +90,7 @@
         <div class="flex flex-wrap items-center gap-1.5">
           <span
             class={cn(
-              'rounded border px-1.5 py-0.5 epi-overline',
+              'rounded border px-1.5 py-0.5 epi-chip',
               styles?.bg,
               styles?.accent,
             )}

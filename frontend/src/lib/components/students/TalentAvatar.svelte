@@ -1,41 +1,17 @@
-<script lang="ts" module>
-  /**
-   * Five on-brand grounds, every one of them at least 5.4:1 against white, so
-   * the monogram is legible whichever one a talent lands on. Enough spread to
-   * tell rows apart at a glance; not a rainbow.
-   */
-  const GROUNDS = [
-    'bg-epi-blue',
-    'bg-epi-tech-ink',
-    'bg-epi-together-ink',
-    'bg-epi-tomorrow-ink',
-    'bg-epi-dark',
-  ] as const;
-
-  /**
-   * Stable ground for a talent. Seeded on the id and not on the name, so the
-   * avatar keeps its identity when a name is corrected, and so two talents who
-   * share initials do not share a colour.
-   */
-  export function talentGround(id: string): string {
-    let hash = 0;
-    for (let i = 0; i < id.length; i++)
-      hash = (hash * 31 + id.charCodeAt(i)) | 0;
-    return GROUNDS[Math.abs(hash) % GROUNDS.length];
-  }
-</script>
-
 <script lang="ts">
   import { cn } from '$lib/utils';
+  import { talentGround } from './talentAvatar';
 
   /**
    * A talent's monogram, drawn locally.
    *
    * It used to be an `<img>` from `avatar.vercel.sh`, which meant every table
    * row sent a talent's id and initials to a third party. Our users are minors,
-   * so that is not a trade we can make for a gradient; it also cost one network
+   * so that is not a trade we make for a gradient; it also cost one network
    * request per row on pages that render two hundred of them, and it put
    * vercel's palette next to Epitech's.
+   *
+   * The grounds and the reason there are ten of them live in `talentAvatar.ts`.
    */
   type Size = 'sm' | 'md' | 'lg';
 
@@ -69,7 +45,7 @@
     // A fixed-size element that must never be squished: `shrink-0` covers a
     // flex row, and the explicit size classes hold in a width-starved
     // `table-auto` column.
-    'inline-flex shrink-0 items-center justify-center rounded-full font-bold text-white select-none',
+    'inline-flex shrink-0 items-center justify-center rounded-full font-bold select-none',
     talentGround(talent.id),
     SIZE_CLASS[size],
     className,

@@ -651,7 +651,7 @@
               {#if r.niveau}
                 <Badge
                   variant="secondary"
-                  class="rounded-sm bg-epi-blue/5 px-2 py-0 epi-overline text-epi-blue"
+                  class="rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
                 >
                   {niveauLabel(r.niveau)}
                 </Badge>
@@ -676,7 +676,7 @@
                         href={resolve(`/staff/dev/students/${r.talentId}`)}
                         tabindex={-1}
                         class={cn(
-                          'relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-overline',
+                          'relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip',
                           badge.class,
                         )}
                       >
@@ -722,7 +722,7 @@
                     {#if showStatutColumn}
                       <span
                         class={cn(
-                          'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-overline',
+                          'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip',
                           badge.class,
                         )}
                       >
@@ -741,7 +741,7 @@
                   {#if r.niveau}
                     <Badge
                       variant="secondary"
-                      class="shrink-0 rounded-sm bg-epi-blue/5 px-2 py-0 epi-overline text-epi-blue"
+                      class="shrink-0 rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
                     >
                       {niveauLabel(r.niveau)}
                     </Badge>

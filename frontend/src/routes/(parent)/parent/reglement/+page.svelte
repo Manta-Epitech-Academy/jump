@@ -43,7 +43,7 @@
       {#if form?.success}
         <div
           in:fly={{ y: -10, duration: 300 }}
-          class="mb-4 flex items-center gap-3 rounded-xl border border-success/60 bg-success/80 px-4 py-3"
+          class="mb-4 flex items-center gap-3 rounded-xl border border-success/40 bg-success/10 px-4 py-3"
         >
           <CheckCircle class="h-5 w-5 shrink-0 text-success" />
           <p class="text-sm text-success">

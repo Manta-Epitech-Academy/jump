@@ -197,7 +197,7 @@
         <DropdownMenu.Trigger
           class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-sm p-1 transition-colors hover:bg-chrome-hover"
         >
-          <Avatar.Root class="h-9 w-9 shrink-0 rounded-full bg-card">
+          <Avatar.Root class="h-9 w-9 shrink-0 rounded-full bg-white/10">
             <Avatar.Image
               src={user?.image ?? undefined}
               alt={user?.name ?? user?.username ?? ''}
@@ -316,7 +316,7 @@
                 alt={user?.name ?? ''}
                 class="object-cover"
               />
-              <Avatar.Fallback class="bg-transparent epi-overline">
+              <Avatar.Fallback class="bg-transparent epi-chip">
                 {getInitials(data.user)}
               </Avatar.Fallback>
             </Avatar.Root>

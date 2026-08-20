@@ -65,7 +65,7 @@
             </span>
             {#if isMe}
               <span
-                class="shrink-0 rounded-full bg-epi-blue/10 px-1.5 py-0.5 epi-overline text-epi-blue"
+                class="shrink-0 rounded-full bg-epi-blue/10 px-1.5 py-0.5 epi-chip text-epi-blue"
               >
                 vous
               </span>

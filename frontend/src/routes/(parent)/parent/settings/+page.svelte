@@ -117,7 +117,7 @@
           <Button
             type="submit"
             variant="ghost"
-            class="h-11 w-full rounded-xl border border-destructive/30 bg-destructive/80 tracking-normal text-destructive normal-case transition-ui hover:scale-[1.02] hover:border-destructive/30 hover:bg-destructive/10 active:scale-[0.98]"
+            class="h-11 w-full rounded-xl border border-destructive/30 bg-destructive/10 tracking-normal text-destructive normal-case transition-ui hover:scale-[1.02] hover:border-destructive/30 hover:bg-destructive/10 active:scale-[0.98]"
           >
             Se déconnecter
           </Button>

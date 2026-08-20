@@ -181,7 +181,7 @@
       </p>
     {:else}
       {#if isFilter}
-        <p class="px-2 pt-1 pb-2 epi-overline text-muted-foreground">
+        <p class="px-2 pt-1 pb-2 epi-chip text-muted-foreground">
           Cliquer pour filtrer les inscrits
         </p>
       {/if}
@@ -199,7 +199,7 @@
             <button
               type="button"
               onclick={() => (expanded = false)}
-              class="flex w-full cursor-pointer items-center justify-center gap-1 rounded-sm border-t border-dashed border-border/60 px-3 py-2 epi-overline text-muted-foreground transition-colors hover:bg-epi-blue/5 hover:text-epi-blue"
+              class="flex w-full cursor-pointer items-center justify-center gap-1 rounded-sm border-t border-dashed border-border/60 px-3 py-2 epi-chip text-muted-foreground transition-colors hover:bg-epi-blue/5 hover:text-epi-blue"
             >
               <ChevronUp class="h-3.5 w-3.5" />
               Réduire

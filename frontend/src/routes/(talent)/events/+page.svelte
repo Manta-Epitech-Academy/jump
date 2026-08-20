@@ -57,20 +57,22 @@
       in:fly={{ y: -20, duration: 400 }}
     >
       <div class="flex items-center gap-4 px-5 py-4 sm:gap-5 sm:px-6">
+        <!-- The figure alone in the square, with its unit beside it. A unit that
+             lives inside a fixed 56px box has to be shrunk until it fits, which
+             is how it ended up at 9px, and it still spilled out the moment the
+             label layer got its real tracking. -->
         <div
           class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-epi-blue/10 ring-2 ring-epi-blue/30 dark:bg-epi-blue/20"
         >
-          <div class="text-center">
-            <div class="text-xl font-bold tracking-tighter text-foreground">
-              {data.pastEvents.length}
-            </div>
-            <div class="epi-overline text-epi-blue">
-              événement{data.pastEvents.length > 1 ? 's' : ''}
-            </div>
-          </div>
+          <span class="font-heading text-display-m text-epi-blue">
+            {data.pastEvents.length}
+          </span>
         </div>
 
         <div class="min-w-0 flex-1">
+          <p class="epi-chip text-epi-blue">
+            événement{data.pastEvents.length > 1 ? 's' : ''}
+          </p>
           <p class="text-sm text-muted-foreground">
             Tous les événements auxquels tu as participé.
           </p>

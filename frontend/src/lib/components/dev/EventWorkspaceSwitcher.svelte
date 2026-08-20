@@ -170,7 +170,7 @@
               <button
                 {...mergeProps(tooltipProps, popoverProps)}
                 aria-label="Changer d'événement"
-                class="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border border-chrome-border bg-chrome-hover text-chrome-foreground-muted transition-colors hover:bg-card hover:text-chrome-foreground"
+                class="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border border-chrome-border bg-chrome-hover text-chrome-foreground-muted transition-colors hover:bg-white/10 hover:text-chrome-foreground"
               >
                 <ChevronDown class="size-4" />
               </button>

@@ -18,7 +18,7 @@
               <Button
                 variant="ghost"
                 size="icon"
-                class="text-inherit hover:bg-card hover:text-inherit"
+                class="text-inherit hover:bg-white/20 hover:text-inherit"
                 {...tooltipProps}
                 {...menuProps}
               >

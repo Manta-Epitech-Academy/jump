@@ -360,6 +360,19 @@
   @apply font-mono text-overline font-bold uppercase;
 }
 
+/* A status chip, a badge, a tier: a small uppercase value that repeats once per
+   row. It is NOT an overline, and that distinction is the whole point.
+
+   An overline names a region and appears once; a chip carries data and appears
+   two hundred times in a cohort table. Mono at 0.14em is right for the first and
+   turns the second into a wall: the page stops reading as "labels in the brand
+   face" and starts reading as "everything is mono". So a chip keeps the body
+   face, and gets its emphasis from weight and case instead of from a second
+   family. */
+@utility epi-chip {
+  @apply text-[0.6875rem] leading-[1.2] font-bold tracking-[0.04em] uppercase;
+}
+
 /* Terminal cursor ending a title: TITRE_ . Decorative, so it is generated
    rather than a DOM node, and assistive tech does not read it. The neon green
    is 1.33:1 on white, so on a light surface the signature would simply be

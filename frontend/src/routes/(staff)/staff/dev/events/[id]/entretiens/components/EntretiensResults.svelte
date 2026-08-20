@@ -172,7 +172,7 @@
   {@const Icon = STATUS_ICON[status]}
   <span
     class={cn(
-      'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-overline',
+      'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip',
       full && 'shrink-0',
       INTERVIEW_STATUS_CHIP_CLASS[status],
     )}

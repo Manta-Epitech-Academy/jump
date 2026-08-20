@@ -53,7 +53,7 @@
       onclick={() => pick(opt.value)}
       aria-pressed={active}
       class={cn(
-        'rounded border epi-overline transition-ui',
+        'rounded border epi-chip transition-ui',
         block ? 'flex-1 px-2 py-1.5 text-center' : 'px-2.5 py-1',
         // Selected = a raised colour chip. Inactive recedes, but the resting look
         // splits by density: the compact desktop switch keeps them as flat muted
@@ -65,7 +65,7 @@
           ? cn('shadow-raised', statusTone(opt.value))
           : block
             ? 'border-border bg-background text-muted-foreground hover:text-foreground'
-            : 'border-transparent text-muted-foreground/60 hover:bg-background hover:text-foreground',
+            : 'border-transparent text-muted-foreground hover:bg-background hover:text-foreground',
         disabled ? 'cursor-default opacity-60' : 'cursor-pointer',
       )}
     >

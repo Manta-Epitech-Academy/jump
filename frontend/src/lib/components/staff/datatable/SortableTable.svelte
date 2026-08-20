@@ -215,7 +215,11 @@
                   type="button"
                   onclick={() => onSort?.(col.key)}
                   class={cn(
-                    'inline-flex cursor-pointer items-center gap-1 transition-colors hover:text-foreground',
+                    // `epi-overline` again rather than inherited: a <button>
+                    // does not inherit text-transform (the UA sets `none` on it
+                    // and Tailwind's preflight inherits font, not case), so
+                    // without it every sortable header lost its uppercase.
+                    'inline-flex cursor-pointer items-center gap-1 epi-overline transition-colors hover:text-foreground',
                     col.align === 'right' && 'flex-row-reverse',
                   )}
                 >

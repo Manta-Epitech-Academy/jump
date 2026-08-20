@@ -326,7 +326,7 @@
             />
           </Table.Cell>
           <Table.Cell>
-            <Badge variant="outline" class="epi-overline">
+            <Badge variant="outline" class="epi-chip">
               {r.allowsPublicAccess ? 'Auth + Public' : 'Auth'}
             </Badge>
           </Table.Cell>

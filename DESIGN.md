@@ -482,6 +482,14 @@ Therefore:
 `tabular-nums` is a no-op with both our fonts. Do not add it, and do not read an
 existing one as protection.
 
+**A custom size token has to be registered with `cn()`.** tailwind-merge resolves
+conflicts from a built-in list, so it reads `text-display-2xl` as an unknown
+`text-*` and treats it as conflicting with a text colour:
+`cn('text-display-2xl', 'text-muted-foreground')` silently dropped the size and
+every KPI figure rendered at the inherited 16px. The font-size group is extended
+in `src/lib/utils.ts`, and `utils.test.ts` fails when a new `--text-*` key is not
+added there.
+
 **Never `font-black` or `font-extrabold`.** `@fontsource-variable/ibm-plex-sans`
 declares `font-weight: 100 700`. A 900 request clamps to 700, so the class states
 a weight the app cannot render. `font-bold` is the top.
@@ -493,9 +501,21 @@ than as generic admin software. They are also where the type scale drifts hardes
 the code currently spells them as arbitrary values roughly 210 times
 (`text-[10px]`, `text-[11px]`, `text-[9px]`, and one `text-[8px]`).
 
-- One `overline` token: **Space Mono 700, 11px, `0.14em`, uppercase**.
+- One `overline` token: **Space Mono 700, 11px, `0.14em`, uppercase**, as the `epi-overline` utility.
 - **11px is the floor.** Nothing in the product is 8, 9 or 10px. A 9px label in `mutedForeground` is decoration pretending to be information.
 - Overlines use `mutedForeground`, or an ink accent when the section carries a brand meaning.
+
+**An overline names a region. It is not a chip, and it is not a control.** This is
+the distinction that decides whether a screen reads as Epitech or as a wall of
+mono, and getting it wrong once turned a cohort table into 279 mono nodes:
+
+| Kind | Face | Utility | Because |
+| --- | --- | --- | --- |
+| Label of a region, once per region: a section title, a column header, a KPI label, a field label | **Space Mono**, `0.14em` | `epi-overline` | It appears a handful of times and it frames what follows. The mono is what makes a dense screen brand-specific. |
+| A value that repeats per row: a status chip, a badge, a tier, a count | **IBM Plex Sans**, `0.04em` | `epi-chip` | Two hundred of them is data, not labelling. At `0.14em` mono they stop being scannable and the page reads as one texture. |
+| A control's label, however small and uppercase: a button, a segment, a toggle, a tab | **IBM Plex Sans** | the component's own class | A control says what it does; the brand voice is not worth a millisecond of reading it. |
+
+- **A figure is never an overline.** A quantity the reader compares down a column takes the body face, whose figures are already tabular. Mono is for a code, an id, a duration, a denominator: something read, not compared.
 
 ## Layout
 
@@ -598,10 +618,16 @@ place is invisible to a keyboard.
 with only an icon and no `aria-label` announces as "button". In the admin roster,
 impersonate and delete are currently indistinguishable to a screen reader.
 
-**Avatars.** Generated from local initials on a token background. They must not be
-fetched from a third-party service: today's `avatar.vercel.sh` URLs send a talent
-id and initials to an external host on every row, for a platform whose users are
-minors.
+**Avatars.** A monogram drawn locally, never fetched: a third-party avatar URL
+sends a talent id and initials to an external host on every row, for a platform
+whose users are minors.
+
+Ten grounds, all from the charte palette, and deliberately **split between dark
+grounds with a white glyph and light grounds with a dark one**. The split is what
+carries the variety across a two-hundred-row column; a set of five dark grounds
+reads as one colour from a distance, which is a fair thing to lose against a
+generated gradient. Every pair is measured in `talentAvatar.test.ts`, so a ground
+cannot be added on looks alone.
 
 **Logo.** One master SVG per tone, shipped as an asset. Never recolored with
 `brightness-0 invert`: the charte forbids adding effects to the logo, and a filter
@@ -629,6 +655,8 @@ logo equals the height of its `{`.
 - Don't blur, glow, or gradient a surface.
 - Don't animate longer than 320ms, and don't use `transition-all`.
 - Don't hand-roll a card, a header, a badge or a dialog that already exists in `ui/`.
+- Don't put an overline on a control or on a per-row value: those are `epi-chip` and the body face.
+- Don't put a label inside a fixed-size box. A unit that has to shrink until it fits will spill the day the label layer changes; put the figure in the box and the unit beside it.
 - Don't put a figure that ticks in Anton.
 
 ## Brand primitives
@@ -679,6 +707,7 @@ differ from the charte.
 - Every interactive element has an accessible name. Icons are `aria-hidden`, so the name lives on the control.
 - Talent and parent surfaces are used on phones by minors and by adults who are not IT staff: 44px minimum touch target, and never a hover-only affordance.
 - Color is never the only carrier of state. A status needs a glyph or a word next to the dot.
+- **Opacity is a contrast decision.** `text-muted-foreground/60` is not a shade, it is 2.6:1, and on a control it reads as disabled. Dim a decorative glyph if you must; never the label of something clickable.
 
 ## Deviations from the charte, and why
 

@@ -68,7 +68,7 @@
           class="group flex shrink-0 cursor-pointer items-center gap-3 rounded-sm bg-epi-tech-ink px-4 py-3 text-left text-white shadow-raised ring-1 ring-white/10 transition-colors hover:bg-epi-tech-ink/90 sm:order-3"
         >
           <span
-            class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-card"
+            class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-white/15"
           >
             <Sparkles class="h-5 w-5" />
           </span>
@@ -111,7 +111,7 @@
         variant="default"
         class={cn(
           'w-full shrink-0 justify-center bg-card font-semibold text-epi-blue shadow-raised sm:order-4 sm:ml-auto sm:w-auto sm:self-start',
-          'hover:bg-card hover:text-epi-blue hover:shadow-raised',
+          'hover:bg-white/90 hover:text-epi-blue hover:shadow-raised',
         )}
       />
     {/if}

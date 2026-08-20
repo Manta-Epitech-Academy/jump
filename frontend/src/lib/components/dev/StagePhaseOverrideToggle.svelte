@@ -73,12 +73,10 @@
 </script>
 
 <div
-  class="flex w-full items-center gap-1 rounded-sm border border-warning/50 bg-warning/95 px-1 py-0.5 text-xs shadow-raised"
+  class="flex w-full items-center gap-1 rounded-sm border border-warning/40 bg-warning/10 px-1 py-0.5 text-xs shadow-raised"
   title="Aperçu phase stage (impersonation uniquement). Clique sur l'option active pour revenir au réel."
 >
-  <span
-    class="flex shrink-0 items-center gap-1 px-1.5 epi-overline text-warning"
-  >
+  <span class="flex shrink-0 items-center gap-1 px-1.5 epi-chip text-warning">
     <FlaskConical class="h-3 w-3" />
     Phase
   </span>
@@ -97,7 +95,7 @@
           : `Prévisualiser la phase « ${opt.label} »`}
       class="relative flex-1 cursor-pointer rounded-sm px-1 py-1 text-center font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 {isOverride
         ? 'bg-warning text-white shadow-raised'
-        : 'text-warning hover:bg-warning/70'}"
+        : 'text-warning hover:bg-warning/20'}"
     >
       {opt.label}
       {#if isReal}

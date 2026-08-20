@@ -60,7 +60,7 @@
         <span
           class={cn(
             'ml-1.5 font-mono',
-            active ? 'text-epi-tomorrow' : 'text-muted-foreground/70',
+            active ? 'text-accent-space' : 'text-muted-foreground',
           )}
         >
           {opt.count}

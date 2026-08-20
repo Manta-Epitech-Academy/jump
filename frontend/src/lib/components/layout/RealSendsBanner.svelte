@@ -32,7 +32,7 @@
     <input type="hidden" name="action" value="disarm" />
     <button
       type="submit"
-      class="rounded-sm bg-card px-2 py-0.5 font-semibold underline-offset-2 hover:bg-card hover:underline"
+      class="rounded-sm bg-white/20 px-2 py-0.5 font-semibold underline-offset-2 hover:bg-white/30 hover:underline"
     >
       Désarmer
     </button>
