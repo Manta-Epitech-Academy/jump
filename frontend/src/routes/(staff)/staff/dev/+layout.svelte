@@ -164,8 +164,14 @@
   {#if currentEvent}
     {@const ev = currentEvent}
     <!-- The event in view is the section heading (underscore motif). The switcher
-         sits inline to its right, demoted: the event name stays the label. -->
-    <div class="sidebar-section-title flex items-center gap-1.5">
+         sits inline to its right, demoted: the event name stays the label.
+
+         Anton, and a display size rather than the label size: this is the
+         workspace you are in, not a group label like the admin sidebar's, and it
+         has to out-rank the 14px entries under it. -->
+    <div
+      class="mt-4 mb-2 flex items-center gap-1.5 font-heading text-display-s text-chrome-foreground"
+    >
       <span class="flex min-w-0 flex-1 items-baseline">
         <span class="truncate">{eventDisplayName(ev)}</span>
         <TitleCursor />

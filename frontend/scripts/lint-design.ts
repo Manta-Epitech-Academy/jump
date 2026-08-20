@@ -124,6 +124,20 @@ const rules: Rule[] = [
       '320 ms est le plafond pour une transition d’état (DESIGN.md § Motion)',
   },
   {
+    name: 'Aucun `overline` nu (la décoration Tailwind)',
+    // Tailwind ships `overline` for text-decoration-line. Written where
+    // `epi-overline` was meant, it draws a hairline over the text and applies no
+    // font at all: that is exactly what happened to the dev sidebar's event
+    // title, in an `@apply` where the rename could not see it.
+    // Only in a class position: `overline` is also a legitimate prop name
+    // (EpiSection takes one) and a perfectly good word in a comment.
+    pattern:
+      /(?:class(?:Name)?\s*=\s*["'{][^"'}]*|@apply[^;]*|cn\([^)]*)(?<![-\w])overline(?![-\w])/,
+    message:
+      '`overline` est la décoration Tailwind — le label mono est `epi-overline`',
+    files: /\.svelte$|layout\.css$/,
+  },
+  {
     name: 'Aucune ombre teintée',
     pattern:
       /\bshadow-(?:epi-[a-z-]+|primary|destructive|success|warning|accent)(?:\/\d+)?\b/,

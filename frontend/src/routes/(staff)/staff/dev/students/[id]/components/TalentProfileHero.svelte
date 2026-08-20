@@ -58,14 +58,17 @@
 
       {#if xpStory.total > 0}
         <!-- Glorified XP medallion, the fiche's through-line: click for the
-             breakdown. Beside the avatar on mobile, after the name on desktop
+             breakdown. A translucent white panel rather than a filled accent:
+             the neon is the charte's accent, not a block of it, and a filled
+             ink token here inverted to neon under `on-dark` and put white text
+             on it at 1.3:1. Beside the avatar on mobile, after the name on desktop
              (via `order`), kept apart from the Salesforce utility. A compact,
              content-hugging badge either way. -->
         <button
           type="button"
           onclick={() => (detailOpen = true)}
           aria-label="Voir le détail des XP"
-          class="group flex shrink-0 cursor-pointer items-center gap-3 rounded-sm bg-epi-tech-ink px-4 py-3 text-left text-white shadow-raised ring-1 ring-white/10 transition-colors hover:bg-epi-tech-ink/90 sm:order-3"
+          class="group flex shrink-0 cursor-pointer items-center gap-3 rounded-sm bg-white/10 px-4 py-3 text-left text-white ring-1 ring-white/20 transition-colors hover:bg-white/15 sm:order-3"
         >
           <span
             class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-white/15"
@@ -73,10 +76,12 @@
             <Sparkles class="h-5 w-5" />
           </span>
           <span class="min-w-0">
-            <span class="block epi-overline text-white/80"> XP sur JUMP </span>
+            <span class="block epi-overline"> XP sur JUMP </span>
             <span class="flex items-baseline gap-1">
-              <span class="font-heading text-display-xl">{xpStory.total}</span>
-              <span class="font-heading text-display-s">XP</span>
+              <span class="font-heading text-display-xl text-epi-tech"
+                >{xpStory.total}</span
+              >
+              <span class="font-heading text-display-s text-epi-tech">XP</span>
             </span>
           </span>
           <ChevronRight

@@ -1,14 +1,18 @@
 /**
  * The grounds a talent monogram can land on.
  *
- * Ten of them, and deliberately split between dark grounds with white glyphs and
- * light grounds with dark ones: the mix is what makes a column of two hundred
- * rows read as varied. Five dark grounds did not, which was the fair complaint
- * against the first version of the local avatar.
+ * Seven, and deliberately split between dark grounds with a white glyph and
+ * light grounds with a dark one: the mix is what makes a column of two hundred
+ * rows read as varied, more than the count does.
  *
- * Every pair is measured: `talentAvatar.test.ts` fails if one drops under 4.5:1,
- * so a ground cannot be added on looks alone. All ten come from the charte
- * palette; none is a new colour.
+ * **None of them is an ink token, on purpose.** An ink value is a text colour,
+ * and `.on-dark` swaps it for the raw neon so text stays legible on a dark
+ * surface. Used as a FILL that swap inverts the meaning: the avatar on the
+ * talent fiche hero turned neon-adjacent with white initials on it. Every ground
+ * here is a colour that means the same thing in both themes.
+ *
+ * Every pair is measured in `talentAvatar.test.ts`, so a ground cannot be added
+ * on looks alone.
  */
 export type AvatarGround = {
   /** Tailwind classes for the ground and its glyph. */
@@ -20,9 +24,6 @@ export type AvatarGround = {
 
 export const AVATAR_GROUNDS: readonly AvatarGround[] = [
   { cls: 'bg-epi-blue text-white', bg: '#013afb', fg: '#ffffff' },
-  { cls: 'bg-epi-tech-ink text-white', bg: '#007a46', fg: '#ffffff' },
-  { cls: 'bg-epi-together-ink text-white', bg: '#b5361a', fg: '#ffffff' },
-  { cls: 'bg-epi-tomorrow-ink text-white', bg: '#9b0b93', fg: '#ffffff' },
   { cls: 'bg-epi-dark text-white', bg: '#181818', fg: '#ffffff' },
   { cls: 'bg-chrome text-white', bg: '#0b0e1a', fg: '#ffffff' },
   { cls: 'bg-epi-tech text-epi-dark', bg: '#00ff97', fg: '#181818' },

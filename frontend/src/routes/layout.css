@@ -452,10 +452,6 @@
     outline-offset: 2px;
   }
 
-  .sidebar-section-title {
-    @apply mt-4 mb-2 text-chrome-foreground-muted overline;
-  }
-
   .app-header {
     view-transition-name: main-header;
   }

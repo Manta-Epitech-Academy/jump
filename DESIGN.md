@@ -422,6 +422,14 @@ dark is arguably more Epitech than light. Two rules make it cheap:
    and `epiTogetherInk` / `epiTomorrowInk` / the warning lift to `#ff9878` /
    `#ff7ef6` / `#ffd15c`. A component therefore names the ink token once and is
    correct in both themes.
+
+   **Which is why an ink token is a text colour and never a fill.** The swap is
+   what makes text legible; used as a background it inverts the meaning, and a
+   dark green panel with white on it becomes a neon one with white on it at
+   1.3:1. That is not a hypothetical: it took out the XP medallion on the talent
+   fiche and every avatar ground on the same hero. A fill on a dark surface is a
+   translucent white panel (`bg-white/10`, the charte's overlay language) or a
+   raw brand accent carrying `epiBlue` or `epiDark` text.
 4. **A drop shadow is invisible on dark**, so `raised` collapses to nothing there
    and the 1px border carries the separation. Only `overlay` survives, deepened.
 
@@ -622,12 +630,18 @@ impersonate and delete are currently indistinguishable to a screen reader.
 sends a talent id and initials to an external host on every row, for a platform
 whose users are minors.
 
-Ten grounds, all from the charte palette, and deliberately **split between dark
-grounds with a white glyph and light grounds with a dark one**. The split is what
-carries the variety across a two-hundred-row column; a set of five dark grounds
-reads as one colour from a distance, which is a fair thing to lose against a
-generated gradient. Every pair is measured in `talentAvatar.test.ts`, so a ground
-cannot be added on looks alone.
+Seven grounds, all from the charte palette and none of them an ink token, and
+deliberately **split between dark grounds with a white glyph and light grounds
+with a dark one**. The split is what carries the variety across a two-hundred-row
+column; a set of dark grounds alone reads as one colour from a distance, which is
+a fair thing to lose against a generated gradient. Every pair is measured in
+`talentAvatar.test.ts`, so a ground cannot be added on looks alone.
+
+The monogram is sized as a fraction of its box with a container query, not with a
+font size per named size. A consumer legitimately overrides the box for a
+responsive hero, and a fixed font size then leaves a 16px monogram floating in a
+112px square. **Any component whose box a caller can override has the same
+problem**: size the contents against the box, not against a prop.
 
 **Logo.** One master SVG per tone, shipped as an asset. Never recolored with
 `brightness-0 invert`: the charte forbids adding effects to the logo, and a filter
@@ -656,6 +670,7 @@ logo equals the height of its `{`.
 - Don't animate longer than 320ms, and don't use `transition-all`.
 - Don't hand-roll a card, a header, a badge or a dialog that already exists in `ui/`.
 - Don't put an overline on a control or on a per-row value: those are `epi-chip` and the body face.
+- Don't fill anything with an ink token. It is a text colour, and it inverts under `.on-dark`.
 - Don't put a label inside a fixed-size box. A unit that has to shrink until it fits will spill the day the label layer changes; put the figure in the box and the unit beside it.
 - Don't put a figure that ticks in Anton.
 

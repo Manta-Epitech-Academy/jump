@@ -19,7 +19,7 @@
 </script>
 
 <div
-  class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-warning px-4 py-2 text-center text-sm font-semibold text-warning"
+  class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-warning px-4 py-2 text-center text-sm font-semibold text-white"
   role="status"
 >
   <span class="inline-flex items-center gap-2">
@@ -27,7 +27,7 @@
     Redirection de connexion active : les emails de connexion vous sont envoyés ({toLabel}).
   </span>
   {#if untilLabel}
-    <span class="font-normal text-warning">Se désactive à {untilLabel}.</span>
+    <span class="font-normal text-white/90">Se désactive à {untilLabel}.</span>
   {/if}
   <form method="POST" action="/api/dev/redirect-pin" class="inline">
     <input type="hidden" name="action" value="disarm" />
