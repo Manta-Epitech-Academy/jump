@@ -4,7 +4,17 @@ This document is the primary entrypoint and source of truth for all AI coding ag
 
 @.github/CONTRIBUTING.md
 @.github/JARGON.md
-@DESIGN.md
+
+> **Visual work: read [`DESIGN.md`](../DESIGN.md) at the repo root first.** It is
+> the visual contract (tokens, per-space skins, brand primitives, and the
+> argument behind every deviation from the charte). It is referenced rather than
+> `@`-imported on purpose: it is 700+ lines that only matter when you are
+> touching the interface, and unlike the two files above it does not have to be
+> in context to be enforced. Two guards do that instead, and both fail the build:
+> `bun run test` checks the token values and every documented contrast pair
+> against `frontend/src/routes/layout.css`, and `bun run lint:design` refuses an
+> off-palette class. If you break the contract without having read it, you find
+> out from a red test, not from a reviewer.
 
 ---
 
@@ -290,7 +300,7 @@ or reworking a staff list page.
   Pagination, search or a dedicated page are a different decision and belong to volume, not to this rule: bound the region first, and reach for those only when the count genuinely justifies them.
 
 - **Layout canon:** the dev-space **inscrits** page (`/staff/dev/events/[id]/inscrits`) is the reference for staff list pages: its filter row, table, spacing, and empty states. New staff pages mirror it unless told otherwise.
-- **Visual identity: `DESIGN.md` at the repo root is the contract**, imported at the top of this file alongside CONTRIBUTING and JARGON. Colors, type, radii, spacing, elevation, motion, the per-space skins, and the brand primitives (`_`, `< />`, `{ }`, the blueprint grid) all live there, with the rationale for every deviation from the charte. Do not restate its values here. `frontend/src/routes/layout.css` is its single implementation, and two guards keep the two in step: `bun run test` (token values and contrast) and `bun run lint:design` (forbidden classes). The raw charte lives at `~/Downloads/Epitech Design System` (brand assets, the source PDF): use it for logos and photography instead of approximating, and treat its `sales/` and `eso/` mockups as tone reference only, per `DESIGN.md`.
+- **Visual identity: [`DESIGN.md`](../DESIGN.md) at the repo root is the contract** (see the note at the top of this file). Colors, type, radii, spacing, elevation, motion, the per-space skins, and the brand primitives (`_`, `< />`, `{ }`, the blueprint grid) all live there, with the rationale for every deviation from the charte. Do not restate its values here. `frontend/src/routes/layout.css` is its single implementation, and two guards keep the two in step: `bun run test` (token values and contrast) and `bun run lint:design` (forbidden classes). The raw charte lives at `~/Downloads/Epitech Design System` (brand assets, the source PDF): use it for logos and photography instead of approximating, and treat its `sales/` and `eso/` mockups as tone reference only, per `DESIGN.md`.
 - **Component naming:** PascalCase, domain-scoped in subfolders (`components/events/`, `components/students/`).
 - **Staff filter controls:** Pick by list shape, do not default to a plain dropdown. A few inline choices → `SegmentedFilter`. A short, known list too wide to sit inline → `FilterSelect`. A long, typeable list (campuses, lycées, talents, games) → `SearchableSelect` (built-in search box; renders its own `'all'` sentinel, so leave it out of `options`). The rationale lives in the `FilterSelect`/`SearchableSelect` doc comments. A campus filter on a plain `FilterSelect` is the classic miss.
 - **Lucide icons:** Always import per-icon, never the barrel. Barrel imports drag every icon through Vite's dev resolver and tank cold-start (~9s → ~3s on this codebase). If you slip, run `bun scripts/codemod-lucide-imports.ts` to auto-rewrite.
