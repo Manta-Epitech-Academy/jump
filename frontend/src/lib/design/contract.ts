@@ -23,33 +23,73 @@ export const DESIGN_MD_PATH = resolve(here, '../../../../DESIGN.md');
 /** Custom properties declared in one selector block, unresolved. */
 export type TokenBlock = Record<string, string>;
 
+/** Custom property declarations in one block body. */
+function readDeclarations(body: string): TokenBlock {
+  const out: TokenBlock = {};
+  for (const line of body.split('\n')) {
+    const m = /^\s*(--[a-z0-9-]+)\s*:\s*(.+?);\s*(?:\/\*.*)?$/i.exec(line);
+    if (m) out[m[1]] = m[2].trim();
+  }
+  return out;
+}
+
 /**
- * Custom properties of a top-level selector block in `layout.css`.
+ * Custom properties every top-level block whose selector list names `selector`
+ * declares, merged in source order.
+ *
+ * A selector LIST, not one block: half the dark palette is declared under
+ * `.dark, .on-dark` rather than `.dark`, because the ink swap applies to both a
+ * theme and an always-dark surface. Reading only the block spelled exactly
+ * `.dark` silently skipped those, so a token could be declared and unchecked -
+ * which is how the status roles stayed pinned to their light values in the dark
+ * theme with a green contract test.
  *
  * Brace counting rather than a regex for the block body: `:root` holds
  * `color-mix(...)` and `rgb(...)` calls, and a lazy `[^}]*` would stop at the
  * first nested brace the day one of them gains a block-valued function.
  */
 export function readCssBlock(selector: string, css: string): TokenBlock {
-  const start = css.indexOf(`\n${selector} {`);
-  if (start === -1) throw new Error(`selector ${selector} not found`);
-  let depth = 0;
-  let end = -1;
-  for (let i = css.indexOf('{', start); i < css.length; i++) {
-    if (css[i] === '{') depth++;
-    else if (css[i] === '}' && --depth === 0) {
-      end = i;
-      break;
-    }
-  }
-  if (end === -1) throw new Error(`selector ${selector} is unterminated`);
-
+  // Comments first: the charte's own `{ }` primitive is discussed in a comment
+  // in this very file, and an unbalanced brace in prose derails brace counting.
+  const src = css.replace(/\/\*[\s\S]*?\*\//g, '');
   const out: TokenBlock = {};
-  const body = css.slice(css.indexOf('{', start) + 1, end);
-  for (const line of body.split('\n')) {
-    const m = /^\s*(--[a-z0-9-]+)\s*:\s*(.+?);\s*(?:\/\*.*)?$/i.exec(line);
-    if (m) out[m[1]] = m[2].trim();
+  let found = false;
+  let i = 0;
+
+  while (i < src.length) {
+    const open = src.indexOf('{', i);
+    if (open === -1) break;
+
+    let depth = 0;
+    let end = -1;
+    for (let j = open; j < src.length; j++) {
+      if (src[j] === '{') depth++;
+      else if (src[j] === '}' && --depth === 0) {
+        end = j;
+        break;
+      }
+    }
+    if (end === -1) throw new Error(`unterminated block near ${selector}`);
+
+    // Only the top level is walked (each iteration jumps past a whole block),
+    // so this is a real selector list and never a nested fragment. It starts
+    // after the previous block or statement: the file opens with `@import` and
+    // `@custom-variant` lines, which would otherwise be read as part of the
+    // first selector.
+    const from = Math.max(src.lastIndexOf(';', open), i - 1) + 1;
+    const parts = src
+      .slice(from, open)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.includes(selector)) {
+      found = true;
+      Object.assign(out, readDeclarations(src.slice(open + 1, end)));
+    }
+    i = end + 1;
   }
+
+  if (!found) throw new Error(`selector ${selector} not found`);
   return out;
 }
 

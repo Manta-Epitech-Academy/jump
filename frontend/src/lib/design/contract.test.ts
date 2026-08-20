@@ -108,10 +108,22 @@ const PAIRS: ReadonlyArray<{
     why: 'primary button label',
   },
   {
-    fg: 'destructiveForeground',
+    fg: 'statusForeground',
     bg: 'destructive',
     min: 4.5,
-    why: 'destructive button label',
+    why: 'label on a destructive fill',
+  },
+  {
+    fg: 'statusForeground',
+    bg: 'success',
+    min: 4.5,
+    why: 'label on a success fill',
+  },
+  {
+    fg: 'statusForeground',
+    bg: 'warning',
+    min: 4.5,
+    why: 'label on a warning fill',
   },
   { fg: 'destructive', bg: 'card', min: 4.5, why: 'error text' },
   { fg: 'success', bg: 'card', min: 4.5, why: 'success text' },
@@ -154,6 +166,31 @@ const PAIRS: ReadonlyArray<{
     min: 4.5,
     why: 'body text on the dark page',
   },
+  // The half that was missing, and the reason `bg-warning text-white` reached
+  // production at 1.45:1: the light pair was pinned and the dark one was not,
+  // so the ink lifting under `.dark` took the fill with it and left the label
+  // behind. These three hold both halves of the pair to the same floor.
+  {
+    fg: 'darkStatusForeground',
+    bg: 'darkDestructive',
+    min: 4.5,
+    why: 'label on a destructive fill, dark',
+  },
+  {
+    fg: 'darkStatusForeground',
+    bg: 'darkSuccess',
+    min: 4.5,
+    why: 'label on a success fill, dark',
+  },
+  {
+    fg: 'darkStatusForeground',
+    bg: 'darkWarning',
+    min: 4.5,
+    why: 'label on a warning fill, dark',
+  },
+  { fg: 'darkDestructive', bg: 'darkCard', min: 4.5, why: 'error text, dark' },
+  { fg: 'darkSuccess', bg: 'darkCard', min: 4.5, why: 'success text, dark' },
+  { fg: 'darkWarning', bg: 'darkCard', min: 4.5, why: 'warning text, dark' },
 ];
 
 describe('design contract contrast', () => {

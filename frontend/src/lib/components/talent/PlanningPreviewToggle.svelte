@@ -94,7 +94,7 @@
         ? `${opt.title} (reclique pour revenir au réel)`
         : opt.title}
       class="flex-1 cursor-pointer rounded-lg px-1 py-1 text-center font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 {isActive
-        ? 'bg-warning text-white shadow-raised'
+        ? 'bg-warning text-status-foreground shadow-raised'
         : 'text-warning hover:bg-warning/20'}"
     >
       {opt.label}

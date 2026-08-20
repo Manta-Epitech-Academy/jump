@@ -336,7 +336,7 @@
         <Button
           type="submit"
           disabled={requesting}
-          class="h-12 w-full rounded-xl bg-destructive tracking-normal text-white normal-case shadow-raised transition-ui hover:scale-[1.02] hover:bg-destructive active:scale-[0.98]"
+          class="h-12 w-full rounded-xl bg-destructive tracking-normal text-status-foreground normal-case shadow-raised transition-ui hover:scale-[1.02] hover:bg-destructive/90 active:scale-[0.98]"
         >
           {#if requesting}
             Envoi en cours…

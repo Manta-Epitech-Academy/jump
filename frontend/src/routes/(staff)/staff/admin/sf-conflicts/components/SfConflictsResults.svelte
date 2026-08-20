@@ -340,7 +340,7 @@
       Connexion / identité
       {#if authExposureCount > 0}
         <span
-          class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-bold text-white"
+          class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-bold text-status-foreground"
           title="{authExposureCount} risque(s) d'exposition entre comptes"
         >
           {authCount}

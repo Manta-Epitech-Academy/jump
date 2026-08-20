@@ -980,7 +980,7 @@
 
             {#if isVerdict}
               <Button
-                class="bg-epi-tech-ink text-white hover:bg-epi-tech-ink/90"
+                class="bg-success text-status-foreground hover:bg-success/90"
                 disabled={$delayed}
                 onclick={close}
               >

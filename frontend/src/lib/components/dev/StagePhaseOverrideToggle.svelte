@@ -94,7 +94,7 @@
           ? 'Phase réelle actuelle'
           : `Prévisualiser la phase « ${opt.label} »`}
       class="relative flex-1 cursor-pointer rounded-sm px-1 py-1 text-center font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 {isOverride
-        ? 'bg-warning text-white shadow-raised'
+        ? 'bg-warning text-status-foreground shadow-raised'
         : 'text-warning hover:bg-warning/20'}"
     >
       {opt.label}

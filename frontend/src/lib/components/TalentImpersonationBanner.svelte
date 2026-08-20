@@ -70,7 +70,7 @@
     >
       <div class="flex items-center gap-3">
         <div
-          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-epi-together-ink text-white"
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-epi-together text-epi-dark"
         >
           <UserCheck class="h-[18px] w-[18px]" />
         </div>
@@ -86,7 +86,7 @@
           type="button"
           onclick={stopImpersonating}
           disabled={busy}
-          class="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-epi-together-ink px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-epi-together-ink/90 disabled:cursor-not-allowed disabled:opacity-60"
+          class="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-epi-together px-3 py-1.5 text-xs font-bold text-epi-dark transition-colors hover:bg-epi-together/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <LogOut class="h-3.5 w-3.5" />
           Revenir

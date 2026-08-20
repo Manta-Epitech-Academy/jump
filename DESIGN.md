@@ -29,9 +29,9 @@ colors:
   border: '#d9dce8'
   ring: '{colors.epiBlue}'
   destructive: '{colors.epiTogetherInk}'
-  destructiveForeground: '#ffffff'
   success: '{colors.epiTechInk}'
   warning: '{colors.epiWarningInk}'
+  statusForeground: '#ffffff'
   chrome: '#0b0e1a'
   chromeForeground: '#ffffff'
   # ---- Semantic, dark theme ----
@@ -43,6 +43,13 @@ colors:
   darkForegroundSecondary: '#a1a6b7'
   darkMutedForeground: '#8b90a3'
   darkPrimary: '#809dfd'
+  # The status roles name an ink variant, so they invert with it, and the text
+  # painted on a status fill inverts the other way. Both halves are declared so
+  # the contrast test can hold the dark pair to the same floor as the light one.
+  darkDestructive: '#ff9878'
+  darkSuccess: '#00ff97'
+  darkWarning: '#ffd15c'
+  darkStatusForeground: '{colors.epiDark}'
 typography:
   displayS:
     fontFamily: Anton
@@ -149,7 +156,7 @@ components:
     height: 36px
   buttonDestructive:
     backgroundColor: '{colors.destructive}'
-    textColor: '{colors.destructiveForeground}'
+    textColor: '{colors.statusForeground}'
     rounded: '{rounded.sm}'
     height: 36px
   card:
@@ -409,7 +416,7 @@ and not a mid grey.
 
 The charte has no dark mode. Jump has one in all four spaces, and it stays: staff
 use this tool all day, and the design system's own app mockup is dark-first, so
-dark is arguably more Epitech than light. Two rules make it cheap:
+dark is arguably more Epitech than light. Five rules make it cheap:
 
 1. **Dark is a token swap, never a per-utility `dark:` variant.** A space that
    reads its colors from semantic tokens gets dark mode for free.
@@ -430,7 +437,25 @@ dark is arguably more Epitech than light. Two rules make it cheap:
    fiche and every avatar ground on the same hero. A fill on a dark surface is a
    translucent white panel (`bg-white/10`, the charte's overlay language) or a
    raw brand accent carrying `epiBlue` or `epiDark` text.
-4. **A drop shadow is invisible on dark**, so `raised` collapses to nothing there
+
+   The status roles are the one place a fill legitimately names an ink, because
+   an error bar has to be red in both themes. They get away with it only in
+   company: `statusForeground` is the text painted on such a fill and inverts
+   the opposite way, white on the light ink and `epiDark` on the lifted one. So
+   the pair is `bg-destructive text-status-foreground`, never `text-white`:
+   white does not invert, so it rides the fill up to 1.3:1 the moment the theme
+   flips. `lint:design` refuses the `text-white` spelling.
+
+4. **A role that names an ink is re-declared wherever that ink is.** A custom
+   property holding `var(--other)` is substituted on the element that
+   *declares* it, not on the element that reads it. `--destructive:
+   var(--epi-together-ink)` on `:root` therefore freezes to the light ink, and a
+   descendant re-pointing `--epi-together-ink` never reaches it. `.dark` is
+   exempt by accident (it lands on `:root` itself) and `.on-dark` is not, so the
+   swap block repeats every derived role and the admin skin repeats itself on
+   its own chrome. Skipping that is how the admin sidebar's active entry sat at
+   2.4:1 while the title cursor beside it inverted correctly.
+5. **A drop shadow is invisible on dark**, so `raised` collapses to nothing there
    and the 1px border carries the separation. Only `overlay` survives, deepened.
 
 ### Chrome

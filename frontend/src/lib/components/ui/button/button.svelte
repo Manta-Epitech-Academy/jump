@@ -13,7 +13,7 @@
         default:
           'bg-primary text-primary-foreground hover:bg-primary/90 shadow-raised',
         destructive:
-          'bg-destructive hover:bg-destructive/90 dark:bg-destructive/60 text-white shadow-raised',
+          'bg-destructive hover:bg-destructive/90 text-status-foreground shadow-raised',
         outline:
           'bg-background hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border shadow-raised',
         secondary:
