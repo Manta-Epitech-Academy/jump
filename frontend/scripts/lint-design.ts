@@ -40,7 +40,14 @@ function findFiles(dir: string, pattern: RegExp): string[] {
 }
 
 const rel = (p: string) => relative(ROOT, p);
-const FILES = findFiles(SRC, /\.(svelte|ts)$/).filter(
+/**
+ * `.css` is in here for `routes/layout.css`, the only stylesheet in `src/` and
+ * the only place `@apply` is still written: every one of the 26 `@apply`
+ * directives in the project lives there and none in a `.svelte` file. The
+ * `overline` rule below was added for a bug in an `@apply`, and while this
+ * walker skipped `.css` that rule had no reachable target at all.
+ */
+const FILES = findFiles(SRC, /\.(svelte|ts|css)$/).filter(
   (f) => !f.endsWith('lint-design.ts'),
 );
 
@@ -131,11 +138,18 @@ const rules: Rule[] = [
     // title, in an `@apply` where the rename could not see it.
     // Only in a class position: `overline` is also a legitimate prop name
     // (EpiSection takes one) and a perfectly good word in a comment.
+    //
+    // The second arm catches a variant-prefixed spelling anywhere, including a
+    // plain object of class strings, which is neither an attribute nor a `cn()`
+    // call: `svelte-sonner` takes its classes that way and kept a
+    // `group-[.toast]:overline` that the first arm could not see. A prefix is
+    // unambiguous - no prop or prose writes `hover:overline` - so it needs no
+    // surrounding context to be certain.
     pattern:
-      /(?:class(?:Name)?\s*=\s*["'{][^"'}]*|@apply[^;]*|cn\([^)]*)(?<![-\w])overline(?![-\w])/,
+      /(?:class(?:Name)?\s*=\s*["'{][^"'}]*|@apply[^;]*|cn\([^)]*)(?<![-\w])overline(?![-\w])|[\w[\]&.\-/]+:overline(?![-\w])/,
     message:
       '`overline` est la décoration Tailwind — le label mono est `epi-overline`',
-    files: /\.svelte$|layout\.css$/,
+    files: /\.svelte$|\.css$/,
   },
   {
     name: 'Aucune ombre teintée',
@@ -157,6 +171,18 @@ const rules: Rule[] = [
       'blanc sur un accent brut est à 3,1:1 — l’action principale est bg-primary',
   },
   {
+    name: 'Aucun blanc figé sur un remplissage qui s’inverse',
+    // `--destructive` / `--success` / `--warning` nomment une variante d’encre :
+    // elles s’éclaircissent sous `.dark` et `.on-dark`. `text-white` ne suit
+    // pas, donc le libellé monte avec le fond jusqu’à 1,3:1. La paire est
+    // `text-status-foreground`, qui s’inverse dans l’autre sens.
+    // Les deux ordres d’écriture, la classe pouvant précéder le fond.
+    pattern:
+      /\bbg-(?:destructive|success|warning|epi-[a-z]+-ink)\b(?![-/])[^"'`]*\btext-white\b|\btext-white\b[^"'`]*\bbg-(?:destructive|success|warning|epi-[a-z]+-ink)\b(?![-/])/,
+    message:
+      'blanc figé sur un fond qui s’inverse — utiliser text-status-foreground (DESIGN.md § Dark theme)',
+  },
+  {
     name: 'Aucun indicateur de focus supprimé sans remplacement',
     pattern: /\boutline-none\b/,
     message:
@@ -167,16 +193,52 @@ const rules: Rule[] = [
   },
 ];
 
+/**
+ * Which lines are prose rather than code.
+ *
+ * Tracked across lines, not matched per line: a rule's own documentation names
+ * the classes it forbids, and in a `/* *\/` block only the first line starts
+ * with the delimiter. Testing each line on its own read every continuation line
+ * as code, which is why `layout.css` could not simply be added to the walk.
+ */
+function commentMask(lines: readonly string[]): boolean[] {
+  const mask: boolean[] = [];
+  let inBlock = false;
+  for (const line of lines) {
+    const opens = line.lastIndexOf('/*');
+    const closes = line.lastIndexOf('*/');
+    const wasInBlock = inBlock;
+    if (inBlock) {
+      if (closes > -1) inBlock = false;
+    } else if (opens > -1 && closes < opens) {
+      inBlock = true;
+    }
+    mask.push(
+      wasInBlock ||
+        inBlock ||
+        /^\s*(?:\/\/|\*|\/\*|<!--)/.test(line) ||
+        /<!--[\s\S]*-->/.test(line),
+    );
+  }
+  return mask;
+}
+
+/** Files are read once and shared by every rule, mask included. */
+const SOURCES = new Map<string, { lines: string[]; mask: boolean[] }>();
+for (const f of FILES) {
+  if (SELF_CONTAINED.test(f)) continue;
+  const lines = readFileSync(f, 'utf8').split('\n');
+  SOURCES.set(f, { lines, mask: commentMask(lines) });
+}
+
 for (const rule of rules) {
   info(rule.name);
   const before = errors;
-  for (const f of FILES) {
-    if (SELF_CONTAINED.test(f)) continue;
+  for (const [f, { lines, mask }] of SOURCES) {
     if (rule.files && !rule.files.test(f)) continue;
-    const lines = readFileSync(f, 'utf8').split('\n');
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (/^\s*(?:\/\/|\*|\/\*|<!--)/.test(line)) continue;
+      if (mask[i]) continue;
       if (!rule.pattern.test(line)) continue;
       const window = lines.slice(i, i + 6).join(' ');
       if (rule.unless?.test(window)) continue;

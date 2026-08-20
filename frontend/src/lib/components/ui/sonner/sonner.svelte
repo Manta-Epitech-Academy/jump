@@ -35,9 +35,9 @@
         'group-[.toaster]:border-epi-together group-[.toaster]:bg-epi-together-ink/10 dark:group-[.toaster]:bg-epi-together-ink/30',
 
       actionButton:
-        'group-[.toast]:bg-background group-[.toast]:border group-[.toast]:border-border group-[.toast]:text-foreground group-[.toast]:overline group-[.toast]:rounded-sm',
+        'group-[.toast]:bg-background group-[.toast]:border group-[.toast]:border-border group-[.toast]:text-foreground group-[.toast]:epi-overline group-[.toast]:rounded-sm',
       cancelButton:
-        'group-[.toast]:bg-transparent group-[.toast]:text-muted-foreground group-[.toast]:overline',
+        'group-[.toast]:bg-transparent group-[.toast]:text-muted-foreground group-[.toast]:epi-overline',
 
       // Close button inherits the toast's own text colour (currentColor) instead
       // of a fixed shade, so it reads on both the light staff toasts (dark text)
