@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { renderMarkdown } from '$lib/markdown';
 import {
   REGLEMENT_VERSIONS,
   CURRENT_REGLEMENT_VERSION,
@@ -22,6 +23,21 @@ describe('règlement versions', () => {
     expect(REGLEMENT_VERSIONS[LEGACY_REGLEMENT_VERSION]).not.toBe(
       REGLEMENT_VERSIONS[CURRENT_REGLEMENT_VERSION],
     );
+  });
+
+  it('keeps the maintainer notes out of the rendered document', () => {
+    // Each version file opens with an HTML comment aimed at whoever edits it
+    // (this one is a draft / this one is frozen because it has been signed).
+    // The file IS the document, so that note has exactly one place it must
+    // never appear: the text an élève reads and a guardian signs. DOMPurify
+    // drops comment nodes, which is the only reason writing it there is safe.
+    for (const [version, markdown] of Object.entries(REGLEMENT_VERSIONS)) {
+      const html = renderMarkdown(markdown);
+      expect(html, version).not.toContain('<!--');
+      expect(html, version).not.toContain('BROUILLON');
+      expect(html, version).not.toContain('NE PAS MODIFIER');
+      expect(html.trimStart().startsWith('<p>'), version).toBe(true);
+    }
   });
 
   it('serves each version its own text, never the current one', () => {

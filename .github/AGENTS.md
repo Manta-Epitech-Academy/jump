@@ -158,6 +158,20 @@ XP follows the ledger pattern above. Each granting fact is one `XpGrant` row (un
 - **Level is derived, not stored** (`Talent.level` was dropped). Use `computeLevel(xp)` (tiers: Novice 0–199, Apprentice 200–499, Expert 500+). `JUMP_LEVELS` is canonical in `domain/xp.ts`; `xpRangeForLevel` maps a tier back to an `xp` range for the broadcast filter. No level tier is surfaced in the dev workspace, so there is no French label helper.
 - Backfill/repair: `scripts/backfill-xp-ledger.ts` (idempotent, `--dry-run`).
 
+### Onboarding: one dossier per school year
+
+Platform onboarding is walked once per school year. `Onboarding_Record` is the fact (one row per `(talentId, schoolYear)`); the flat onboarding columns on `Talent` are its cached projection, stamped with `Talent.onboardingSchoolYear` so a reader can tell which year they describe. Writes go through `onboardingYearService`, in the caller's transaction, never straight to the columns.
+
+Three rules, each of which a reasonable-looking change breaks silently rather than loudly:
+
+- **The projection describes the MOST RECENT dossier, not the current year.** `schoolingService` does the opposite deliberately, so aligning the two is the tempting mistake: a guardian co-signing after the 31 July cutover writes to last year's dossier, a clock-based refresh would skip it, and the parent portal would ask for that signature forever. The clock belongs on the read side, where it decides whether a dossier still counts.
+- **Two kinds of reader, and the rule is stated once, on `DatedOnboardingFields`.** "Has this talent ever signed, and when" reads the flat columns as they stand: PDF regeneration, onboarding velocity, broadcast filters, image rights, early-bird, `/settings/documents`. "Is year Y's dossier done" goes through `onboardingFieldsForYear`, or through the dossier rows when the question is about a year that is not the current one.
+- **A year-scoped aggregate reads dossier rows; an unscoped one reads the projection.** Both branches are in `adminStats/cohort.ts` and both are load-bearing: filtering the projection by year answers a question about 2025-2026 with 2026-2027's state, and pinning an unfiltered cohort to the year in progress counts every past promotion as blocked on step one, permanently.
+
+Collégiens have no dossier at all. `isOnboardingEligible` is a property of the niveau (`domain/niveau.ts`), layered **over** the ladder in `guards.ts` and in the aggregates, never inside `getOnboardingStep`, whose contract is that the step is a pure function of the timestamps set. The RGPD charte is still owed to them, which is what the standalone `/charte` is for, and it is a once-per-account consent: not re-asked of a returning talent, and its date never restamped.
+
+The règlement intérieur is a versioned catalogue (`lib/content/reglement/`), pinned at signature time in `reglementVersion`. **A published version file is never edited and never deleted:** the PDF is regenerated from DB state on every co-signature, so editing one rewrites the wording of documents already signed. A new wording is a new key. Each file opens with a comment saying which of the two it is; a unit test keeps those comments out of the rendered document.
+
 ### Salesforce reconciliation
 
 Talent profile fields have two sources — the worker sync (Salesforce) and onboarding (the student). They are **reconciled, not blindly overwritten**.
