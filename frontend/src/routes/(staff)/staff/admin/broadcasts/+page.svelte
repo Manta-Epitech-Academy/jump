@@ -9,7 +9,7 @@
   import Eye from '@lucide/svelte/icons/eye';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import Search from '@lucide/svelte/icons/search';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
   import BroadcastStatusBadge from '$lib/components/admin/broadcasts/BroadcastStatusBadge.svelte';
@@ -88,7 +88,7 @@
 {/snippet}
 
 <div class="space-y-6">
-  <AdminPageHeader
+  <PageHeader
     title="Envoi"
     accent="en masse"
     subtitle="Mail / SMS ciblés aux talents, parents ou staff, et suivi d'acheminement"
@@ -195,11 +195,11 @@
               <Table.Cell class="min-w-40">
                 <div class="h-1.5 w-full overflow-hidden rounded-sm bg-muted">
                   <div
-                    class="h-full bg-epi-teal-solid"
+                    class="h-full bg-epi-tech-ink"
                     style="width: {sentPct}%"
                   ></div>
                 </div>
-                <p class="mt-1 text-[11px] text-muted-foreground">
+                <p class="mt-1 text-xs text-muted-foreground">
                   {b.progress.sent}/{total} envoyés
                   {#if b.progress.failed > 0}
                     <span class="text-destructive"

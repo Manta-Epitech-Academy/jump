@@ -24,7 +24,7 @@
   // fiche XP story always read the same wording for the same fact.
   type SourceConfig = {
     icon: Component<{ class?: string }>;
-    color: string; // tailwind color token (e.g. "epi-orange")
+    color: string; // tailwind color token (e.g. "epi-together")
     bgClass: string;
     textClass: string;
     borderClass: string;
@@ -41,46 +41,46 @@
     onboarding_early_bird: {
       icon: Zap,
       color: 'amber',
-      bgClass: 'bg-amber-500/10 dark:bg-amber-500/20',
-      textClass: 'text-amber-500',
-      borderClass: 'border-amber-500/20',
+      bgClass: 'bg-warning/10',
+      textClass: 'text-warning',
+      borderClass: 'border-warning/20',
     },
     minigame: {
       icon: Gamepad2,
-      color: 'epi-teal',
-      bgClass: 'bg-epi-teal-solid/10 dark:bg-epi-teal-solid/20',
-      textClass: 'text-epi-teal-solid',
-      borderClass: 'border-epi-teal-solid/20',
+      color: 'epi-tech',
+      bgClass: 'bg-epi-tech-ink/10 dark:bg-epi-tech-ink/20',
+      textClass: 'text-epi-tech-ink',
+      borderClass: 'border-epi-tech-ink/20',
     },
     minigame_rank: {
       icon: Medal,
       color: 'purple',
-      bgClass: 'bg-purple-500/10 dark:bg-purple-500/20',
-      textClass: 'text-purple-500',
-      borderClass: 'border-purple-500/20',
+      bgClass: 'bg-epi-tomorrow-ink/10',
+      textClass: 'text-epi-tomorrow-ink',
+      borderClass: 'border-epi-tomorrow-ink/20',
     },
     reward: {
       icon: Award,
       color: 'emerald',
-      bgClass: 'bg-emerald-500/10 dark:bg-emerald-500/20',
-      textClass: 'text-emerald-500',
-      borderClass: 'border-emerald-500/20',
+      bgClass: 'bg-success/10',
+      textClass: 'text-success',
+      borderClass: 'border-success/20',
     },
     admin_adjustment: {
       icon: Wrench,
       color: 'slate',
-      bgClass: 'bg-slate-500/10 dark:bg-slate-500/20',
-      textClass: 'text-slate-500',
-      borderClass: 'border-slate-500/20',
+      bgClass: 'bg-muted-foreground/10',
+      textClass: 'text-muted-foreground',
+      borderClass: 'border-border/20',
     },
   };
 
   const fallbackConfig: SourceConfig = {
     icon: Sparkles,
     color: 'slate',
-    bgClass: 'bg-slate-100 dark:bg-slate-800',
-    textClass: 'text-slate-500',
-    borderClass: 'border-slate-200',
+    bgClass: 'bg-muted',
+    textClass: 'text-muted-foreground',
+    borderClass: 'border-border',
   };
 
   function getConfig(source: string): SourceConfig {
@@ -171,29 +171,27 @@
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
     <!-- Hero: current XP total + stats -->
     <div
-      class="mb-8 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+      class="mb-8 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
       in:fly={{ y: -20, duration: 400 }}
     >
       <div class="flex items-center gap-4 px-5 py-4 sm:gap-5 sm:px-6">
         <!-- XP badge -->
         <div
-          class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-epi-orange/10 ring-2 ring-epi-orange/30 dark:bg-epi-orange/20"
+          class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-epi-together/10 ring-2 ring-epi-together/30 dark:bg-epi-together/20"
         >
           <div class="text-center">
-            <div
-              class="text-xl font-black tracking-tighter text-slate-900 dark:text-white"
-            >
+            <div class="text-xl font-bold tracking-tighter text-foreground">
               {totalXp}
             </div>
-            <div class="text-[9px] font-bold text-epi-orange uppercase">XP</div>
+            <div class="epi-overline text-epi-together">XP</div>
           </div>
         </div>
 
         <div class="min-w-0 flex-1">
-          <h2 class="text-base font-bold text-slate-900 dark:text-white">
+          <h2 class="text-base font-bold text-foreground">
             Points d'expérience
           </h2>
-          <p class="text-sm text-slate-500">
+          <p class="text-sm text-muted-foreground">
             Chaque activité, entraînement et défi te rapproche du sommet.
           </p>
         </div>
@@ -205,7 +203,7 @@
       <div class="relative" in:fly={{ y: 20, duration: 400, delay: 200 }}>
         <!-- Vertical line -->
         <div
-          class="absolute top-0 bottom-0 left-5 w-px bg-gradient-to-b from-epi-blue/40 via-epi-orange/20 to-transparent sm:left-6"
+          class="absolute top-0 bottom-0 left-5 w-px bg-gradient-to-b from-epi-blue/40 via-epi-together/20 to-transparent sm:left-6"
         ></div>
 
         <div class="space-y-8">
@@ -213,11 +211,11 @@
             <!-- Day header -->
             <div class="relative flex items-center gap-3 pl-10 sm:pl-12">
               <h3
-                class="text-xs font-bold tracking-wide text-slate-400 uppercase dark:text-slate-500"
+                class="text-xs font-bold tracking-wide text-muted-foreground uppercase"
               >
                 {day.label}
               </h3>
-              <span class="text-xs font-semibold text-epi-orange">
+              <span class="text-xs font-semibold text-epi-together">
                 {signed(day.total)} XP
               </span>
             </div>
@@ -236,7 +234,7 @@
                   'talent',
                 )}
                 <div
-                  class="group relative overflow-hidden rounded-2xl border {config.borderClass} bg-white p-4 shadow-sm transition-all hover:shadow-md dark:bg-slate-900"
+                  class="group relative overflow-hidden rounded-xl border {config.borderClass} bg-card p-4 shadow-raised transition-ui hover:shadow-raised"
                   in:fly={{
                     x: -10,
                     duration: 300,
@@ -259,14 +257,12 @@
                     <!-- Label + time -->
                     <div class="min-w-0 flex-1">
                       <div class="flex items-center gap-2">
-                        <span
-                          class="text-sm font-semibold text-slate-900 dark:text-white"
-                        >
+                        <span class="text-sm font-semibold text-foreground">
                           {label}
                         </span>
                       </div>
                       <div
-                        class="mt-0.5 flex items-center gap-2 text-xs text-slate-400"
+                        class="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground"
                       >
                         <span>{formatTime(grant.createdAt)}</span>
                       </div>
@@ -276,14 +272,10 @@
                     <div
                       class="shrink-0 rounded-xl {config.bgClass} px-3 py-1.5 text-center"
                     >
-                      <span class="text-lg font-black {config.textClass}">
+                      <span class="text-lg font-bold {config.textClass}">
                         {signed(grant.amount)}
                       </span>
-                      <span
-                        class="text-[10px] font-bold {config.textClass} uppercase"
-                      >
-                        XP
-                      </span>
+                      <span class="epi-overline {config.textClass}"> XP </span>
                     </div>
                   </div>
                 </div>
@@ -295,23 +287,25 @@
         <!-- Timeline end marker -->
         <div class="relative mt-8 flex items-center gap-4">
           <div
-            class="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 ring-2 ring-slate-200 sm:h-12 sm:w-12 dark:bg-slate-800 dark:ring-slate-700"
+            class="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-background ring-2 ring-border sm:h-12 sm:w-12"
           >
-            <Sparkles class="h-4 w-4 text-slate-400" />
+            <Sparkles class="h-4 w-4 text-muted-foreground" />
           </div>
-          <p class="text-sm text-slate-400">Début de ton aventure Jump</p>
+          <p class="text-sm text-muted-foreground">
+            Début de ton aventure Jump
+          </p>
         </div>
       </div>
     {:else}
       <!-- Empty state -->
       <div
-        class="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-12 text-center dark:border-slate-800 dark:bg-slate-900/50"
+        class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-background/50 p-12 text-center"
       >
-        <Trophy class="mb-4 h-8 w-8 text-slate-400" />
-        <h3 class="text-lg font-bold text-slate-700 dark:text-slate-300">
+        <Trophy class="mb-4 h-8 w-8 text-muted-foreground" />
+        <h3 class="text-lg font-bold text-foreground-secondary">
           Pas encore d'XP
         </h3>
-        <p class="mt-2 max-w-sm text-sm text-slate-500">
+        <p class="mt-2 max-w-sm text-sm text-muted-foreground">
           Tes premiers gains d'XP apparaîtront ici. Commence par terminer ton
           onboarding !
         </p>

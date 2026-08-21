@@ -87,7 +87,7 @@
       class="group flex flex-1 items-center gap-2 text-sm transition-colors hover:text-epi-blue"
     >
       <Phone class="h-4 w-4 shrink-0 text-muted-foreground" />
-      <span class="tabular-nums">{display}</span>
+      <span>{display}</span>
     </a>
     <CopyButton value={display} label={copyLabel} />
   </div>
@@ -125,11 +125,7 @@
           </p>
         {:else if details}
           <div class="space-y-2">
-            <h4
-              class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-            >
-              Élève
-            </h4>
+            <h4 class="epi-overline text-muted-foreground">Élève</h4>
             {@render identityLine(details.civilite, details.fullName)}
             {#if details.phone}
               {@render phoneRow(details.phone, 'Copier le téléphone élève')}
@@ -144,7 +140,7 @@
 
           <div class="space-y-3 border-t pt-4">
             <h4
-              class="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+              class="flex items-center gap-1.5 epi-overline text-muted-foreground"
             >
               <Users class="h-3 w-3" />
               {details.guardians.length > 1

@@ -42,6 +42,7 @@
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Settings from '@lucide/svelte/icons/settings';
   import LogOut from '@lucide/svelte/icons/log-out';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let {
     title,
@@ -78,7 +79,7 @@
 
       {#if lead}
         <div
-          class="hidden h-8 w-px shrink-0 bg-slate-200 sm:block dark:bg-slate-800"
+          class="hidden h-8 w-px shrink-0 bg-muted sm:block"
           aria-hidden="true"
         ></div>
         <div class="order-last w-full min-w-0 sm:order-none sm:w-auto">
@@ -92,7 +93,7 @@
           variant="ghost"
           size="icon"
           href={resolve('/settings')}
-          class="h-8 w-8 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+          class="h-8 w-8 text-muted-foreground hover:text-foreground-secondary"
         >
           <Settings class="h-4 w-4" />
           <span class="sr-only">Paramètres</span>
@@ -112,7 +113,7 @@
             type="submit"
             variant="ghost"
             size="icon"
-            class="h-8 w-8 text-slate-400 hover:text-destructive"
+            class="h-8 w-8 text-muted-foreground hover:text-destructive"
           >
             <LogOut class="h-4 w-4" />
             <span class="sr-only">Déconnexion</span>
@@ -131,7 +132,7 @@
           <a
             href={backHref}
             aria-label={backLabel}
-            class="-ml-1 inline-flex shrink-0 items-center justify-center rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-epi-blue focus-visible:ring-2 focus-visible:ring-epi-blue/40 focus-visible:outline-none dark:hover:bg-slate-800"
+            class="-ml-1 inline-flex shrink-0 items-center justify-center rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-epi-blue"
           >
             <ArrowLeft class="h-5 w-5" />
           </a>
@@ -146,12 +147,12 @@
                    symmetrically while leaving the box's outer size and its
                    vertical centring against the icon unchanged. -->
               <h1
-                class="-my-1.5 truncate py-1.5 font-heading text-xl tracking-wider text-slate-900 uppercase sm:text-2xl dark:text-white"
+                class="-my-1.5 truncate py-1.5 font-heading text-display-s text-foreground sm:text-display-m"
               >
-                {title}<span class="text-epi-teal">_</span>
+                {title}<TitleCursor />
               </h1>
               {#if subtitle}
-                <p class="truncate text-xs font-medium text-slate-500">
+                <p class="truncate text-xs font-medium text-muted-foreground">
                   {subtitle}
                 </p>
               {/if}

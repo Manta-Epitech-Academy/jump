@@ -31,7 +31,7 @@
     <Pencil class="h-3.5 w-3.5" />
     <span>Modifications non enregistrées</span>
   {:else if editor.lastSavedAt}
-    <Check class="h-3.5 w-3.5 text-emerald-600" />
+    <Check class="h-3.5 w-3.5 text-success" />
     <span>Enregistré</span>
   {:else}
     <Cloud class="h-3.5 w-3.5" />

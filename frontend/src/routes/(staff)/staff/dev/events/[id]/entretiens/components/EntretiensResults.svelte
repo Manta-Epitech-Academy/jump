@@ -172,7 +172,7 @@
   {@const Icon = STATUS_ICON[status]}
   <span
     class={cn(
-      'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase',
+      'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip',
       full && 'shrink-0',
       INTERVIEW_STATUS_CHIP_CLASS[status],
     )}
@@ -185,7 +185,7 @@
 {#snippet staffAvatar(name: string, image: string | null)}
   <Avatar.Root class="h-6 w-6 shrink-0">
     <Avatar.Image src={image ?? undefined} alt={name} class="object-cover" />
-    <Avatar.Fallback class="bg-epi-blue/10 text-[9px] font-bold text-epi-blue">
+    <Avatar.Fallback class="bg-epi-blue/10 text-xs font-bold text-epi-blue">
       {getInitials(name)}
     </Avatar.Fallback>
   </Avatar.Root>
@@ -223,9 +223,7 @@
       >
         {#snippet filters()}
           <div class="flex items-center gap-2">
-            <span
-              class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
-            >
+            <span class="hidden epi-overline text-muted-foreground sm:inline">
               Statut
             </span>
             <FilterSelect
@@ -276,7 +274,7 @@
               <span class="text-muted-foreground">—</span>
             {/if}
           </Table.Cell>
-          <Table.Cell class="text-sm text-muted-foreground tabular-nums">
+          <Table.Cell class="text-sm text-muted-foreground">
             {dateFmt(r.conductedAt) ?? '—'}
           </Table.Cell>
           <Table.Cell>
@@ -309,9 +307,7 @@
                   {r.staffName ?? 'Pas encore mené'}
                 </span>
                 {#if r.conductedAt}
-                  <span class="shrink-0 tabular-nums"
-                    >{dateFmt(r.conductedAt)}</span
-                  >
+                  <span class="shrink-0">{dateFmt(r.conductedAt)}</span>
                 {/if}
               </div>
             </div>

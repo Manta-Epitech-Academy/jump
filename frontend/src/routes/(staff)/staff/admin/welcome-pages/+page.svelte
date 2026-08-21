@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { Badge } from '$lib/components/ui/badge';
   import { cn } from '$lib/utils';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import WelcomePageEditor from './WelcomePageEditor.svelte';
   import { STAGE_STATUS_META, formatStageRange } from './stageDisplay';
   import MapPin from '@lucide/svelte/icons/map-pin';
@@ -17,7 +17,7 @@
 </script>
 
 <div class="mb-6">
-  <AdminPageHeader title="Pages" accent="d'accueil" cursor />
+  <PageHeader title="Pages" accent="d'accueil" />
   <p class="mt-1 max-w-3xl text-sm text-muted-foreground">
     Le message de bienvenue affiché aux talents dans le fil « Actualités » de
     leur tableau de bord, pendant toute la durée du stage. Vous éditez ici la
@@ -57,7 +57,7 @@
                   class={cn(
                     'flex flex-col gap-1 px-3 py-2.5 text-sm transition-colors hover:bg-accent',
                     active &&
-                      'bg-epi-pink/10 ring-1 ring-epi-pink/30 ring-inset',
+                      'bg-epi-tomorrow/10 ring-1 ring-epi-tomorrow/30 ring-inset',
                   )}
                 >
                   <div class="flex items-center justify-between gap-2">
@@ -65,7 +65,7 @@
                     <Badge
                       variant="outline"
                       class={cn(
-                        'shrink-0 text-[10px]',
+                        'shrink-0 text-xs',
                         STAGE_STATUS_META[ev.status].class,
                       )}
                     >
@@ -77,7 +77,7 @@
                   >
                     <span>{formatStageRange(ev.date, ev.endDate)}</span>
                     {#if ev.hasContent}
-                      <span class="flex items-center gap-1 text-epi-teal-solid">
+                      <span class="flex items-center gap-1 text-epi-tech-ink">
                         <CircleCheck class="h-3 w-3" /> Contenu
                       </span>
                     {:else}

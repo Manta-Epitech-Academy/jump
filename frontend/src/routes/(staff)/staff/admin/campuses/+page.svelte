@@ -15,6 +15,7 @@
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import { track, errReason } from '$lib/analytics';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
@@ -140,29 +141,24 @@
 </svelte:head>
 
 <div class="space-y-6">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Réseau <span class="text-epi-pink">Campus</span>
-      </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
-        Gérer les villes d'implantation
-      </p>
-    </div>
-    <Button
-      onclick={openCreate}
-      class="bg-epi-pink text-white hover:bg-epi-pink/90"
-    >
-      <Plus class="mr-2 h-4 w-4" /> Ajouter
-    </Button>
-  </div>
+  <PageHeader
+    title="Réseau"
+    accent="Campus"
+    subtitle="Gérer les villes d&#x27;implantation"
+  >
+    {#snippet actions()}
+      <Button onclick={openCreate}>
+        <Plus class="mr-2 h-4 w-4" /> Ajouter
+      </Button>
+    {/snippet}
+  </PageHeader>
 
   <!-- Mobile: stacked cards. The desktop table x-scrolls on narrow screens,
        which buries the nom externe / fuseau / actions columns off-frame, so
        below md each campus renders as a self-contained card instead. -->
   <div class="space-y-3 md:hidden">
     {#each data.campuses as campus}
-      <div class="rounded-sm border bg-card p-4 shadow-sm">
+      <div class="rounded-sm border bg-card p-4 shadow-raised">
         <div class="flex items-start justify-between gap-2">
           <div class="flex min-w-0 items-center gap-2">
             <Map class="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -204,7 +200,7 @@
     {/each}
   </div>
 
-  <div class="hidden rounded-sm border bg-card shadow-sm md:block">
+  <div class="hidden rounded-sm border bg-card shadow-raised md:block">
     <Table.Root>
       <Table.Header>
         <Table.Row>
@@ -238,6 +234,7 @@
                         variant="ghost"
                         size="icon"
                         onclick={() => openEdit(campus)}
+                        aria-label="Modifier {campus.name}"
                       >
                         <Pencil class="h-4 w-4" />
                       </Button>
@@ -254,6 +251,7 @@
                         size="icon"
                         class="text-destructive hover:text-destructive"
                         onclick={() => confirmDelete(campus.id)}
+                        aria-label="Supprimer {campus.name}"
                       >
                         <Trash2 class="h-4 w-4" />
                       </Button>
@@ -315,7 +313,7 @@
               />
               <p class="text-xs text-muted-foreground">
                 Disponible dans les templates via <code
-                  class="rounded bg-muted px-1 py-0.5 text-[10px]"
+                  class="rounded bg-muted px-1 py-0.5 text-xs"
                   >{`{{EMAIL_CONTACT_CAMPUS}}`}</code
                 >.
               </p>
@@ -343,11 +341,7 @@
           </div>
         </div>
         <Dialog.Footer class="border-t px-4 py-4 sm:px-6">
-          <Button
-            type="submit"
-            disabled={$delayed}
-            class="bg-epi-pink text-white"
-          >
+          <Button type="submit" disabled={$delayed}>
             {$delayed ? 'Sauvegarde...' : 'Enregistrer'}
           </Button>
         </Dialog.Footer>

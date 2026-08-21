@@ -73,7 +73,7 @@
     <Phone class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
     <a
       href={`tel:${phone.replace(/\s+/g, '')}`}
-      class="tabular-nums transition-colors hover:text-epi-blue"
+      class="transition-colors hover:text-epi-blue"
     >
       {display}
     </a>
@@ -83,7 +83,7 @@
 
 {#if recommendations.length === 0}
   <div
-    class="flex items-center gap-2 rounded-sm border border-dashed border-epi-teal/30 bg-epi-teal/5 px-4 py-3 text-sm text-epi-teal-solid"
+    class="flex items-center gap-2 rounded-sm border border-dashed border-epi-tech/30 bg-epi-tech/5 px-4 py-3 text-sm text-epi-tech-ink"
   >
     <CircleCheck class="h-4 w-4 shrink-0" />
     Aucune recommandation, rien à signaler.
@@ -98,7 +98,7 @@
         <span
           class={cn(
             'w-1 shrink-0',
-            rec.severity === 'urgent' ? 'bg-epi-orange' : 'bg-epi-blue',
+            rec.severity === 'urgent' ? 'bg-epi-together' : 'bg-epi-blue',
           )}
           aria-hidden="true"
         ></span>
@@ -121,9 +121,7 @@
               class="flex shrink-0 flex-col gap-1 sm:items-end sm:text-right"
             >
               {#if !info.email && !info.phone}
-                <span
-                  class="font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-                >
+                <span class="epi-overline text-muted-foreground">
                   Aucun contact renseigné
                 </span>
               {:else if rec.kind === 'opportunity'}

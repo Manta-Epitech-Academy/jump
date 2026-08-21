@@ -9,7 +9,7 @@
   import SearchableSelect, {
     type SelectOption,
   } from '$lib/components/staff/SearchableSelect.svelte';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
@@ -34,7 +34,7 @@
 
 <div class="space-y-6">
   <div class="space-y-2">
-    <AdminPageHeader
+    <PageHeader
       title="Mails"
       accent="transactionnels"
       subtitle="Chaque action automatique relayée vers un template"
@@ -68,9 +68,9 @@
     </div>
   {:else}
     <div
-      class="flex items-start gap-3 rounded-sm border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-900 dark:text-emerald-200"
+      class="flex items-start gap-3 rounded-sm border border-success/40 bg-success/10 p-4 text-sm text-success"
     >
-      <CheckCircle2 class="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+      <CheckCircle2 class="mt-0.5 h-5 w-5 shrink-0 text-success" />
       <p>
         Toutes les actions sont configurées. Les emails transactionnels partent
         normalement.
@@ -93,7 +93,7 @@
           <Table.Row>
             <Table.Cell class="align-top">
               <div class="font-medium">{action.label}</div>
-              <code class="mt-1 inline-block text-[10px] text-muted-foreground"
+              <code class="mt-1 inline-block text-xs text-muted-foreground"
                 >{action.key}</code
               >
             </Table.Cell>
@@ -106,7 +106,7 @@
               <div class="flex flex-wrap gap-1">
                 {#each action.variables as v (v)}
                   <code
-                    class="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                    class="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
                     >{`{{${v}}}`}</code
                   >
                 {/each}
@@ -153,7 +153,7 @@
                 </Button>
               </form>
               {#if !mapping}
-                <p class="mt-2 text-[11px] font-semibold text-destructive">
+                <p class="mt-2 text-xs font-semibold text-destructive">
                   Non configuré — emails ignorés
                 </p>
               {/if}

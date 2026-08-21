@@ -83,9 +83,10 @@ Before any commit or PR, verify that all static checks pass cleanly:
 
 ```bash
 cd "$(git rev-parse --show-toplevel)/frontend"
-bun run check   # 0 errors, 0 warnings (TypeScript & Svelte)
-bun run lint    # Formatting & linting (Prettier/ESLint)
-bun run test    # Unit tests
+bun run check        # 0 errors, 0 warnings (TypeScript & Svelte)
+bun run lint         # Formatting & linting (Prettier/ESLint)
+bun run test         # Unit tests, incl. the DESIGN.md token contract
+bun run lint:design  # Visual contract (see scripts/LINT-DESIGN.md)
 ```
 
 For branches with schema updates, ensure migrations are cleanly named and squashed into a single migration per branch (see [`AGENTS.md`](./AGENTS.md#prisma-migrations)). Since unit tests (`bun run test`) mock the database layer, branches modifying Prisma schema or tables MUST also be verified against a real PostgreSQL database (via `bunx prisma db push` or `bun run test:integration`) before declaring the feature complete.

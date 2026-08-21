@@ -83,7 +83,7 @@
     </span>
     <button
       type="button"
-      class="cursor-pointer rounded-full bg-epi-teal px-5 py-1.5 font-mono text-sm font-bold text-epi-blue uppercase transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+      class="cursor-pointer rounded-full bg-epi-tech px-5 py-1.5 font-mono text-sm font-bold text-epi-blue uppercase transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
       disabled={!canValidate}
       onclick={validate}
     >

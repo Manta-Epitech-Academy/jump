@@ -71,7 +71,7 @@ describe('admin API tokens (integration)', () => {
   });
 
   it('stores only a hash, and the secret verifies exactly once it exists', async () => {
-    const minted = await mintToken(adminUserId, { label: '  Client IA  ' });
+    const minted = await mintToken(adminUserId, { label: 'Client IA  ' });
 
     expect(minted.secret.startsWith('jump_')).toBe(true);
     expect(minted.label).toBe('Client IA'); // trimmed

@@ -359,7 +359,7 @@
   >
     <Dialog.Header class="border-b px-4 py-4 text-start sm:px-6">
       <Dialog.Title class="flex items-center gap-2">
-        <CalendarCog class="h-5 w-5 text-epi-pink" />
+        <CalendarCog class="h-5 w-5 text-epi-tomorrow" />
         Configurer l'événement
       </Dialog.Title>
       {#if editing}
@@ -372,14 +372,14 @@
            config is filled, to re-pick a template. -->
       <nav
         aria-label="Étapes de configuration"
-        class="mt-2 flex items-center gap-2 text-[11px] font-bold tracking-wide uppercase"
+        class="mt-2 flex items-center gap-2 epi-overline"
       >
         <button
           type="button"
           onclick={() => (step = 1)}
           aria-current={step === 1 ? 'step' : undefined}
           class="transition-colors {step === 1
-            ? 'cursor-default text-epi-pink'
+            ? 'cursor-default text-epi-tomorrow'
             : 'cursor-pointer text-muted-foreground hover:text-foreground'}"
         >
           1 · Initialisation
@@ -390,7 +390,7 @@
           onclick={() => (step = 2)}
           aria-current={step === 2 ? 'step' : undefined}
           class="transition-colors {step === 2
-            ? 'cursor-default text-epi-pink'
+            ? 'cursor-default text-epi-tomorrow'
             : 'cursor-pointer text-muted-foreground hover:text-foreground'}"
         >
           2 · Configuration
@@ -399,7 +399,7 @@
       {#if step === 2 && selectedTemplateId}
         {@const t = workingTemplates.find((x) => x.id === selectedTemplateId)}
         {#if t}
-          <p class="mt-1.5 text-[11px] text-muted-foreground">
+          <p class="mt-1.5 text-xs text-muted-foreground">
             Prérempli depuis <strong class="font-semibold text-foreground"
               >{t.name}</strong
             >
@@ -421,7 +421,7 @@
             <button
               type="button"
               onclick={() => applyTemplate(t)}
-              class="flex flex-1 cursor-pointer items-start gap-3 rounded-l-sm p-3 text-start transition-colors hover:bg-epi-pink/5"
+              class="flex flex-1 cursor-pointer items-start gap-3 rounded-l-sm p-3 text-start transition-colors hover:bg-epi-tomorrow/5"
             >
               <span
                 class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-sm border bg-muted/40 text-muted-foreground"
@@ -449,9 +449,7 @@
             </button>
             <div class="flex shrink-0 items-center gap-1 pr-2">
               {#if confirmingDeleteId === t.id}
-                <span class="text-[10px] text-muted-foreground"
-                  >Supprimer ?</span
-                >
+                <span class="text-xs text-muted-foreground">Supprimer ?</span>
                 <form
                   method="POST"
                   action="?/deleteTemplate"
@@ -535,7 +533,6 @@
           type="button"
           onclick={skipTemplate}
           variant={workingTemplates.length === 0 ? 'default' : 'outline'}
-          class={workingTemplates.length === 0 ? 'bg-epi-pink text-white' : ''}
         >
           Configurer sans modèle
         </Button>
@@ -551,21 +548,21 @@
         <div class="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:px-6">
           {#if editing && editing.participations > 100 && !dismissHighCount}
             <div
-              class="flex items-start gap-3 rounded-sm border border-amber-500/40 bg-amber-500/5 p-3 text-amber-600"
+              class="flex items-start gap-3 rounded-sm border border-warning/40 bg-warning/5 p-3 text-warning"
             >
               <TriangleAlert class="mt-0.5 size-4 shrink-0" />
               <div class="flex-1 space-y-1">
                 <p class="text-xs font-medium">
                   Nombre de participants inhabituellement élevé ({editing.participations}).
                 </p>
-                <p class="text-[11px] text-amber-700/80">
+                <p class="text-xs text-warning/80">
                   Vérifiez que la campagne Salesforce est bien celle de
                   l'événement.
                 </p>
               </div>
               <button
                 type="button"
-                class="shrink-0 text-amber-600 hover:text-amber-800"
+                class="shrink-0 text-warning hover:text-warning"
                 onclick={() => (dismissHighCount = true)}
                 aria-label="Ignorer l'avertissement"
               >
@@ -624,7 +621,7 @@
                   {#if !$form.startTime}
                     <Badge
                       variant="outline"
-                      class="border-amber-500/50 text-[10px] leading-none font-normal text-amber-600"
+                      class="border-warning/50 text-xs leading-none font-normal text-warning"
                     >
                       À confirmer
                     </Badge>
@@ -792,25 +789,21 @@
                       {#if effectiveFormId}
                         <div class="rounded-sm border bg-background/60">
                           <div class="border-b px-3 py-1.5">
-                            <span
-                              class="text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
-                            >
+                            <span class="epi-overline text-muted-foreground">
                               Ce que les jeunes rempliront
                             </span>
                           </div>
                           <div class="px-3 py-2">
                             {#if effectivePreview.length === 0}
-                              <p class="text-[11px] text-muted-foreground">
+                              <p class="text-xs text-muted-foreground">
                                 Ce formulaire n'a pas encore de questions.
                               </p>
                             {:else}
                               <ol class="space-y-1">
                                 {#each effectivePreview.slice(0, PREVIEW_LIMIT) as prompt, i (i)}
-                                  <li
-                                    class="flex gap-2 text-[11px] leading-snug"
-                                  >
+                                  <li class="flex gap-2 text-xs leading-snug">
                                     <span
-                                      class="shrink-0 text-muted-foreground/50 tabular-nums"
+                                      class="shrink-0 text-muted-foreground/50"
                                     >
                                       {i + 1}.
                                     </span>
@@ -821,7 +814,7 @@
                               </ol>
                               {#if effectivePreview.length > PREVIEW_LIMIT}
                                 <p
-                                  class="mt-1.5 pl-5 text-[11px] text-muted-foreground/70"
+                                  class="mt-1.5 pl-5 text-xs text-muted-foreground/70"
                                 >
                                   + {effectivePreview.length - PREVIEW_LIMIT} autre{effectivePreview.length -
                                     PREVIEW_LIMIT >
@@ -839,7 +832,7 @@
                         </div>
 
                         <div class="space-y-1.5">
-                          <p class="text-[11px] text-muted-foreground">
+                          <p class="text-xs text-muted-foreground">
                             Ce formulaire vous convient ? Sinon, adaptez-le :
                           </p>
                           <div class="flex flex-wrap items-center gap-2">
@@ -877,7 +870,7 @@
                               Créer un nouveau formulaire
                             </Button>
                           </div>
-                          <p class="text-[11px] text-muted-foreground/70">
+                          <p class="text-xs text-muted-foreground/70">
                             « Modifier » agit sur le formulaire partagé ; «
                             Dupliquer » en crée une copie propre à cet
                             événement.
@@ -885,7 +878,7 @@
                         </div>
                       {:else}
                         <p
-                          class="flex items-start gap-1.5 text-[11px] leading-snug text-amber-600"
+                          class="flex items-start gap-1.5 text-xs leading-snug text-warning"
                         >
                           <TriangleAlert class="mt-px size-3 shrink-0" />
                           Aucun formulaire publié n'est associé : tant qu'il n'y en
@@ -918,10 +911,10 @@
               class="flex items-start gap-3 rounded-sm border p-3 transition-colors select-none {canActivate
                 ? 'cursor-pointer'
                 : 'cursor-not-allowed'} {effectivelyVisible
-                ? 'border-epi-pink/40 bg-epi-pink/5'
+                ? 'border-epi-tomorrow/40 bg-epi-tomorrow/5'
                 : canActivate
                   ? 'hover:bg-muted/40'
-                  : 'border-amber-500/40 bg-amber-500/5'}"
+                  : 'border-warning/40 bg-warning/5'}"
             >
               <div class="flex-1 space-y-1">
                 <span class="flex items-center gap-1.5 text-sm font-bold">
@@ -931,14 +924,14 @@
                   />
                 </span>
                 {#if canActivate}
-                  <span class="text-[11px] text-muted-foreground">
+                  <span class="text-xs text-muted-foreground">
                     {$form.modules.length} section{$form.modules.length > 1
                       ? 's'
                       : ''} active{$form.modules.length > 1 ? 's' : ''} pour cet événement.
                   </span>
                 {:else}
                   <span
-                    class="flex flex-col items-start gap-1 text-[11px] font-medium text-amber-600"
+                    class="flex flex-col items-start gap-1 text-xs font-medium text-warning"
                   >
                     <span class="flex items-center gap-1.5">
                       <TriangleAlert class="size-3.5 shrink-0" />
@@ -1002,11 +995,7 @@
           >
             Annuler
           </Button>
-          <Button
-            type="submit"
-            disabled={$delayed}
-            class="bg-epi-pink text-white"
-          >
+          <Button type="submit" disabled={$delayed}>
             {$delayed ? 'Sauvegarde…' : 'Enregistrer'}
           </Button>
         </Dialog.Footer>
@@ -1031,7 +1020,7 @@
   <Dialog.Content class="sm:max-w-md">
     <Dialog.Header>
       <Dialog.Title class="flex items-center gap-2">
-        <Bookmark class="h-5 w-5 text-epi-pink" />
+        <Bookmark class="h-5 w-5 text-epi-tomorrow" />
         Enregistrer comme modèle
       </Dialog.Title>
       <Dialog.Description>
@@ -1099,7 +1088,7 @@
           required
         />
         {#if overwritesExisting}
-          <p class="text-[11px] text-amber-600">
+          <p class="text-xs text-warning">
             Un modèle porte déjà ce nom : il sera mis à jour.
           </p>
         {/if}
@@ -1115,8 +1104,8 @@
           placeholder="Optionnel"
         />
       </div>
-      <div class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <Check class="h-3.5 w-3.5 text-epi-teal-solid" />
+      <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Check class="h-3.5 w-3.5 text-epi-tech-ink" />
         {$form.modules.length} module{$form.modules.length > 1 ? 's' : ''} dans ce
         modèle
       </div>
@@ -1128,11 +1117,7 @@
         >
           Annuler
         </Button>
-        <Button
-          type="submit"
-          disabled={savingTemplate}
-          class="bg-epi-pink text-white"
-        >
+        <Button type="submit" disabled={savingTemplate}>
           {savingTemplate ? 'Enregistrement…' : 'Enregistrer le modèle'}
         </Button>
       </Dialog.Footer>

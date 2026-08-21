@@ -120,70 +120,72 @@
        tooltips from here; the roster carries its own provider for per-row icons. -->
   <Tooltip.Provider delayDuration={150}>
     <PageHeader title="Émargement">
-      <!-- Header actions act on the whole stage or the display: the full-record
-           export (read) and the QR (display). The active slot's open/close
-           control lives in the SYNTHÈSE card instead, beside the Clôturé badge it
-           toggles. Filter-scoped controls (search, statut) stay in the toolbar. -->
-      <!-- Full-record export: every talent x every créneau, NOT the on-screen
-           filter (unlike the Inscrits toolbar export). Kept here, away from the
-           toolbar, so it is never mistaken for a filtered export. -->
-      <Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props })}
-            <Button
-              {...props}
-              variant="outline"
-              size="sm"
-              href={exportHref}
-              class="rounded-sm"
-            >
-              <Download class="mr-1.5 h-4 w-4" />
-              Tout exporter (XLSX)
-            </Button>
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content>
-          Toutes les présences de l'événement (tous les créneaux)
-        </Tooltip.Content>
-      </Tooltip.Root>
-
-      {#if canEdit}
-        <!-- A closed créneau (manual close OR past the 11h/15h cutoff) makes the
-             QR inert: a scan lands the talent on the "créneau clôturé" screen and
-             records nothing. Disable rather than project a dead code; the tooltip
-             says why and, when reopenable, points at the SYNTHÈSE reopen control.
-             A span wraps the button so the tooltip still fires while it's
-             disabled (a disabled button takes no pointer events). -->
+      {#snippet actions()}
+        <!-- Header actions act on the whole stage or the display: the full-record
+             export (read) and the QR (display). The active slot's open/close
+             control lives in the SYNTHÈSE card instead, beside the Clôturé badge it
+             toggles. Filter-scoped controls (search, statut) stay in the toolbar. -->
+        <!-- Full-record export: every talent x every créneau, NOT the on-screen
+             filter (unlike the Inscrits toolbar export). Kept here, away from the
+             toolbar, so it is never mistaken for a filtered export. -->
         <Tooltip.Root>
           <Tooltip.Trigger>
             {#snippet child({ props })}
-              <span {...props} class="inline-flex">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onclick={() => (qrOpen = true)}
-                  disabled={!activeSlot || isActiveClosed}
-                  class="rounded-sm"
-                >
-                  <QrCode class="mr-1.5 h-4 w-4" />
-                  Afficher le QR code
-                </Button>
-              </span>
+              <Button
+                {...props}
+                variant="outline"
+                size="sm"
+                href={exportHref}
+                class="rounded-sm"
+              >
+                <Download class="mr-1.5 h-4 w-4" />
+                Tout exporter (XLSX)
+              </Button>
             {/snippet}
           </Tooltip.Trigger>
-          <Tooltip.Content class="max-w-56">
-            {#if !isActiveClosed}
-              Projetez le QR code : les {noun.plural} le scannent pour pointer eux-mêmes.
-            {:else if isActivePastCutoff}
-              Ce créneau est terminé : les {noun.plural} ne peuvent plus pointer avec
-              le QR code.
-            {:else}
-              Ce créneau est clôturé : les {noun.plural} ne peuvent plus pointer.
-              Rouvrez-le pour réactiver le QR code.
-            {/if}
+          <Tooltip.Content>
+            Toutes les présences de l'événement (tous les créneaux)
           </Tooltip.Content>
         </Tooltip.Root>
-      {/if}
+
+        {#if canEdit}
+          <!-- A closed créneau (manual close OR past the 11h/15h cutoff) makes the
+               QR inert: a scan lands the talent on the "créneau clôturé" screen and
+               records nothing. Disable rather than project a dead code; the tooltip
+               says why and, when reopenable, points at the SYNTHÈSE reopen control.
+               A span wraps the button so the tooltip still fires while it's
+               disabled (a disabled button takes no pointer events). -->
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <span {...props} class="inline-flex">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onclick={() => (qrOpen = true)}
+                    disabled={!activeSlot || isActiveClosed}
+                    class="rounded-sm"
+                  >
+                    <QrCode class="mr-1.5 h-4 w-4" />
+                    Afficher le QR code
+                  </Button>
+                </span>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content class="max-w-56">
+              {#if !isActiveClosed}
+                Projetez le QR code : les {noun.plural} le scannent pour pointer eux-mêmes.
+              {:else if isActivePastCutoff}
+                Ce créneau est terminé : les {noun.plural} ne peuvent plus pointer
+                avec le QR code.
+              {:else}
+                Ce créneau est clôturé : les {noun.plural} ne peuvent plus pointer.
+                Rouvrez-le pour réactiver le QR code.
+              {/if}
+            </Tooltip.Content>
+          </Tooltip.Root>
+        {/if}
+      {/snippet}
     </PageHeader>
   </Tooltip.Provider>
 

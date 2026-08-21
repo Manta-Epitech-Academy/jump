@@ -1,14 +1,15 @@
 <div
-  class="flex max-w-[85%] self-start rounded-2xl rounded-bl-sm border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+  class="flex max-w-[85%] self-start rounded-xl rounded-bl-sm border border-border bg-card px-4 py-3 shadow-raised"
 >
   <div class="flex items-center gap-1">
-    <span class="typing-dot h-1.5 w-1.5 rounded-full bg-slate-400"></span>
+    <span class="typing-dot h-1.5 w-1.5 rounded-full bg-muted-foreground"
+    ></span>
     <span
-      class="typing-dot h-1.5 w-1.5 rounded-full bg-slate-400"
+      class="typing-dot h-1.5 w-1.5 rounded-full bg-muted-foreground"
       style="animation-delay:0.15s"
     ></span>
     <span
-      class="typing-dot h-1.5 w-1.5 rounded-full bg-slate-400"
+      class="typing-dot h-1.5 w-1.5 rounded-full bg-muted-foreground"
       style="animation-delay:0.3s"
     ></span>
   </div>

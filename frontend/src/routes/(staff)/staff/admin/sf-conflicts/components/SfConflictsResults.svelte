@@ -30,6 +30,7 @@
   } from '$lib/domain/authIdentity';
   import type { SfConflictsData } from './types';
   import SfExportMenu from './SfExportMenu.svelte';
+  import CodeTag from '$lib/components/layout/CodeTag.svelte';
 
   // The streamed reconciliation payload plus the shell's search box value. This
   // component owns every data-dependent projection, both tabs and the two repair
@@ -253,12 +254,13 @@
     }).format(new Date(d));
 
   function verdictBadgeClass(c: AuthConflict): string {
-    if (c.exposureRisk) return 'border-red-500/50 bg-red-500/10 text-red-600';
+    if (c.exposureRisk)
+      return 'border-destructive/50 bg-destructive/10 text-destructive';
     switch (c.verdict) {
       case 'DEGRADED_INVERSION':
       case 'PARENT_HOLDER':
       case 'STAFF_HOLDER':
-        return 'border-epi-orange/40 text-epi-orange';
+        return 'border-epi-together/40 text-epi-together';
       case 'SYMMETRIC_INVERSION':
         return 'border-epi-blue/40 text-epi-blue';
       default:
@@ -316,7 +318,7 @@
       </div>
       <div>Nature : <span class="font-medium">{natureText}</span></div>
       {#if exposureNote}
-        <div class="font-medium text-red-600">{exposureNote}</div>
+        <div class="font-medium text-destructive">{exposureNote}</div>
       {/if}
     {:else}
       <div class="text-muted-foreground italic">
@@ -338,7 +340,7 @@
       Connexion / identité
       {#if authExposureCount > 0}
         <span
-          class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white"
+          class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-bold text-status-foreground"
           title="{authExposureCount} risque(s) d'exposition entre comptes"
         >
           {authCount}
@@ -364,13 +366,13 @@
     {#if !hasData}
       <Card.Root>
         <Card.Content class="py-16 text-center">
-          <CheckCheck class="mx-auto mb-3 h-8 w-8 text-epi-teal-solid" />
+          <CheckCheck class="mx-auto mb-3 h-8 w-8 text-epi-tech-ink" />
           <p class="text-sm font-medium">Aucune divergence de données.</p>
         </Card.Content>
       </Card.Root>
     {:else}
       <section class="space-y-3">
-        <h2 class="font-heading text-lg tracking-wide uppercase">
+        <h2 class="font-heading text-display-s">
           Conflits à arbitrer
           <span class="ml-1 font-mono text-sm text-muted-foreground">
             {conflictCount}
@@ -470,14 +472,14 @@
       {#if pushFieldCount > 0}
         <section class="space-y-3">
           <div>
-            <h2 class="font-heading text-lg tracking-wide uppercase">
+            <h2 class="font-heading text-display-s">
               À transmettre vers Salesforce
               <span class="ml-1 font-mono text-sm text-muted-foreground">
                 {pushFieldCount}
               </span>
             </h2>
             <p class="font-mono text-xs tracking-wide text-muted-foreground">
-              &lt; poussé via l'export CSV — aucune action ici /&gt;
+              <CodeTag>poussé via l'export CSV — aucune action ici</CodeTag>
             </p>
           </div>
 
@@ -507,7 +509,7 @@
                           {item.label}
                           {#if item.origin === 'parent'}
                             <span
-                              class="rounded-full bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground"
+                              class="rounded-full bg-muted px-1.5 py-px text-xs font-medium text-muted-foreground"
                               title="Salesforce n'a pas de champ pour cette donnée"
                             >
                               hors SF
@@ -551,14 +553,14 @@
       Le compte de connexion d'un talent ne porte plus l'email avec lequel il se
       connecte (changement / inversion Salesforce). Chaque ligne propose la
       <strong>seule résolution sûre pour son verdict</strong>. Une ligne en
-      <span class="font-medium text-red-600">rouge</span> est un risque d'exposition
+      <span class="font-medium text-destructive">rouge</span> est un risque d'exposition
       entre comptes (RGPD) : à traiter en priorité.
     </p>
 
     {#if authCount === 0}
       <Card.Root>
         <Card.Content class="py-16 text-center">
-          <CheckCheck class="mx-auto mb-3 h-8 w-8 text-epi-teal-solid" />
+          <CheckCheck class="mx-auto mb-3 h-8 w-8 text-epi-tech-ink" />
           <p class="text-sm font-medium">Aucun conflit d'identité.</p>
           <p class="text-sm text-muted-foreground">
             Chaque talent lié porte bien son email de connexion.
@@ -581,7 +583,7 @@
             <Table.Body>
               {#each pagedAuth as c (c.talentId)}
                 {@const primary = actionForVerdict(c.verdict)}
-                <Table.Row class={c.exposureRisk ? 'bg-red-500/5' : ''}>
+                <Table.Row class={c.exposureRisk ? 'bg-destructive/5' : ''}>
                   <Table.Cell>
                     <div class="flex items-start gap-2">
                       <button
@@ -620,7 +622,7 @@
                       {VERDICT_LABELS[c.verdict]}
                     </Badge>
                     {#if c.exposureRisk}
-                      <div class="mt-1 text-[11px] text-red-600">
+                      <div class="mt-1 text-xs text-destructive">
                         email obsolète = {c.exposureKind === 'parent'
                           ? 'un parent'
                           : c.exposureKind === 'staff'
@@ -665,7 +667,7 @@
                         <Button
                           variant="ghost"
                           size="sm"
-                          class="gap-1.5 text-red-600 hover:text-red-700"
+                          class="gap-1.5 text-destructive hover:text-destructive"
                           onclick={() => askAuth(c, 'sever')}
                         >
                           <Link2Off class="h-3.5 w-3.5" />

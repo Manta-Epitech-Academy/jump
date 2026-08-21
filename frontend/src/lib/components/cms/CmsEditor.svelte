@@ -93,6 +93,8 @@
       content,
       editorProps: {
         attributes: {
+          // design-lint-ignore: in a rich-text surface the caret is the focus
+          // indicator; an outline around a 300px editor while typing is worse.
           class:
             'prose prose-slate dark:prose-invert max-w-none min-h-[300px] focus:outline-none p-4',
         },

@@ -10,10 +10,10 @@
     <!-- Real sends armed: bulk sends bypass the trap and reach real recipients.
          Don't show the "trapped" banner below — it would claim the opposite. -->
     <div
-      class="flex items-start gap-3 rounded-md border-2 border-red-500 bg-red-50 p-4 text-sm text-red-900 dark:bg-red-950/40 dark:text-red-200"
+      class="flex items-start gap-3 rounded-md border-2 border-destructive bg-destructive/10 p-4 text-sm text-destructive"
       role="alert"
     >
-      <TriangleAlert class="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+      <TriangleAlert class="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
       <div class="space-y-2">
         <p class="font-bold tracking-tight uppercase">
           Envois réels armés — la redirection est levée
@@ -29,10 +29,10 @@
     </div>
   {:else if data.devRedirects.length > 0}
     <div
-      class="flex items-start gap-3 rounded-md border-2 border-amber-500 bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+      class="flex items-start gap-3 rounded-md border-2 border-warning bg-warning/10 p-4 text-sm text-warning"
       role="alert"
     >
-      <TriangleAlert class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+      <TriangleAlert class="mt-0.5 h-5 w-5 shrink-0 text-warning" />
       <div class="space-y-2">
         <p class="font-bold tracking-tight uppercase">
           Mode dev — envois redirigés
@@ -70,8 +70,7 @@
                 {/if}
                 <span class="font-mono">{redirect.recipients.join(', ')}</span>
                 (préfixe
-                <code
-                  class="rounded bg-amber-200/60 px-1 font-mono dark:bg-amber-900/60"
+                <code class="rounded bg-warning/10 px-1 font-mono"
                   >{redirect.prefixExample}</code
                 >)
               {/if}

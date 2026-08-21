@@ -45,7 +45,7 @@
     >
       <div class="mr-auto flex flex-col">
         <Dialog.Title class="text-sm font-semibold">Aperçu</Dialog.Title>
-        <Dialog.Description class="text-[11px]">
+        <Dialog.Description class="text-xs">
           Les réponses ne sont pas enregistrées.
         </Dialog.Description>
       </div>
@@ -57,7 +57,7 @@
             type="button"
             class="cursor-pointer rounded-sm px-2 py-1 text-xs font-medium transition-colors {audience ===
             a.value
-              ? 'bg-background text-foreground shadow-sm'
+              ? 'bg-background text-foreground shadow-raised'
               : 'text-muted-foreground hover:text-foreground'}"
             onclick={() => (audience = a.value)}
           >

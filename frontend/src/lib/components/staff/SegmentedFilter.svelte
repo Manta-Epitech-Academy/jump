@@ -51,7 +51,7 @@
         'cursor-pointer rounded-[5px] px-3 py-1 text-xs font-bold tracking-wide uppercase transition-colors',
         fullWidth && 'flex-1 text-center',
         active
-          ? 'bg-background text-foreground shadow-sm'
+          ? 'bg-background text-foreground shadow-raised'
           : 'text-muted-foreground hover:text-foreground',
       )}
     >
@@ -60,7 +60,7 @@
         <span
           class={cn(
             'ml-1.5 font-mono',
-            active ? 'text-epi-pink' : 'text-muted-foreground/70',
+            active ? 'text-accent-space' : 'text-muted-foreground',
           )}
         >
           {opt.count}

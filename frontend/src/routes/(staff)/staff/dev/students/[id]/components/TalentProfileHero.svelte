@@ -9,6 +9,7 @@
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import type { XpStory } from '$lib/domain/xpStory';
   import TalentXpDetailDialog from './TalentXpDetailDialog.svelte';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   // Blueprint-blue band: square avatar + name with the neon-teal `_` cursor.
   // Firstname leads (light), surname follows in Anton uppercase. The XP medallion
@@ -52,19 +53,22 @@
       <TalentAvatar
         talent={{ id: student.id, nom: student.nom, prenom: student.prenom }}
         size="lg"
-        class="h-20 w-20 shrink-0 rounded-sm shadow-md sm:order-1 sm:h-24 sm:w-24 md:h-28 md:w-28"
+        class="h-20 w-20 shrink-0 rounded-sm shadow-raised sm:order-1 sm:h-24 sm:w-24 md:h-28 md:w-28"
       />
 
       {#if xpStory.total > 0}
         <!-- Glorified XP medallion, the fiche's through-line: click for the
-             breakdown. Beside the avatar on mobile, after the name on desktop
+             breakdown. A translucent white panel rather than a filled accent:
+             the neon is the charte's accent, not a block of it, and a filled
+             ink token here inverted to neon under `on-dark` and put white text
+             on it at 1.3:1. Beside the avatar on mobile, after the name on desktop
              (via `order`), kept apart from the Salesforce utility. A compact,
              content-hugging badge either way. -->
         <button
           type="button"
           onclick={() => (detailOpen = true)}
           aria-label="Voir le détail des XP"
-          class="group flex shrink-0 cursor-pointer items-center gap-3 rounded-sm bg-epi-teal-solid px-4 py-3 text-left text-white shadow-md ring-1 ring-white/10 transition-colors hover:bg-epi-teal-solid/90 sm:order-3"
+          class="group flex shrink-0 cursor-pointer items-center gap-3 rounded-sm bg-white/10 px-4 py-3 text-left text-white ring-1 ring-white/20 transition-colors hover:bg-white/15 sm:order-3"
         >
           <span
             class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-white/15"
@@ -72,16 +76,12 @@
             <Sparkles class="h-5 w-5" />
           </span>
           <span class="min-w-0">
-            <span
-              class="block font-mono text-[10px] font-bold tracking-widest text-white/80 uppercase"
-            >
-              XP sur JUMP
-            </span>
+            <span class="block epi-overline"> XP sur JUMP </span>
             <span class="flex items-baseline gap-1">
-              <span class="font-heading text-4xl leading-none tabular-nums"
+              <span class="font-heading text-display-xl text-epi-tech"
                 >{xpStory.total}</span
               >
-              <span class="font-heading text-lg">XP</span>
+              <span class="font-heading text-display-s text-epi-tech">XP</span>
             </span>
           </span>
           <ChevronRight
@@ -93,17 +93,15 @@
 
     <div class="min-w-0 overflow-hidden sm:order-2">
       <h1
-        class="flex flex-wrap items-baseline font-heading text-3xl tracking-wide uppercase sm:text-5xl md:text-6xl"
+        class="flex flex-wrap items-baseline font-heading text-display-l sm:text-display-2xl md:text-display-2xl"
       >
         <span class="font-light normal-case"
           >{formatGivenName(student.prenom)}</span
         >
-        <span class="ml-3"
-          >{student.nom}<span class="text-epi-teal">_</span></span
-        >
+        <span class="ml-3">{student.nom}<TitleCursor /></span>
       </h1>
       {#if subtitle}
-        <p class="mt-2 font-mono text-xs text-blue-100 sm:mt-3">{subtitle}</p>
+        <p class="mt-2 font-mono text-xs text-primary sm:mt-3">{subtitle}</p>
       {/if}
     </div>
 
@@ -117,8 +115,8 @@
         label="Fiche Salesforce"
         variant="default"
         class={cn(
-          'w-full shrink-0 justify-center bg-white font-semibold text-epi-blue shadow-md sm:order-4 sm:ml-auto sm:w-auto sm:self-start',
-          'hover:bg-white/90 hover:text-epi-blue hover:shadow-lg',
+          'w-full shrink-0 justify-center bg-card font-semibold text-epi-blue shadow-raised sm:order-4 sm:ml-auto sm:w-auto sm:self-start',
+          'hover:bg-white/90 hover:text-epi-blue hover:shadow-raised',
         )}
       />
     {/if}

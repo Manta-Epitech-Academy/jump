@@ -10,6 +10,7 @@
   import X from '@lucide/svelte/icons/x';
   import { CIVILITE_OPTIONS, PARENT_TYPE_OPTIONS } from '$lib/domain/profile';
   import ContinueButton from './ContinueButton.svelte';
+  import { fieldInput, fieldPopover } from './fieldSkin';
 
   let {
     profile,
@@ -47,14 +48,7 @@
     ),
   );
 
-  const fieldInput =
-    'rounded-lg border-slate-300 bg-white/80 text-slate-900 placeholder:text-slate-400 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600';
-  // Glass skin for the PhoneInput chrome so the country selector and its
-  // dropdown match the talent fields; the component itself ships theme-neutral.
-  const fieldPopover =
-    'rounded-xl border border-slate-200 bg-white/80 shadow-lg backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/80';
-  const fieldLabel =
-    'mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400';
+  const fieldLabel = 'mb-1 block text-xs font-medium text-muted-foreground';
 
   // This form is long (two referents + civilité chips), so a validation error
   // can land below the fold and read as "nothing happened" after submit. Bring
@@ -84,15 +78,11 @@
 
 <div class="mb-6 text-center">
   <div
-    class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
+    class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-epi-blue text-white shadow-raised"
   >
     <Users class="h-7 w-7" />
   </div>
-  <h1
-    class="font-heading text-2xl tracking-wider text-epi-blue uppercase dark:text-epi-blue"
-  >
-    Contacts d'urgence
-  </h1>
+  <h1 class="font-heading text-display-m text-epi-blue">Contacts d'urgence</h1>
 </div>
 
 <form
@@ -126,21 +116,21 @@
   <!-- Parent 1 -->
   <div class="space-y-3">
     <div
-      class="grid grid-cols-1 gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl sm:grid-cols-2 dark:bg-slate-900/80"
+      class="grid grid-cols-1 gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised sm:grid-cols-2"
     >
       <div>
-        <p class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
-          Lien <span class="text-red-500">*</span>
+        <p class="mb-2 text-xs font-medium text-muted-foreground">
+          Lien <span class="text-destructive">*</span>
         </p>
         <div class="flex flex-wrap gap-2">
           {#each PARENT_TYPE_OPTIONS as opt}
             <button
               type="button"
               onclick={() => (localParentType = opt.value)}
-              class="inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-sm font-medium transition-all {localParentType ===
+              class="inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-sm font-medium transition-ui {localParentType ===
               opt.value
                 ? 'border-epi-blue bg-epi-blue/10 text-epi-blue'
-                : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300'}"
+                : 'border-border text-foreground-secondary hover:border-border'}"
               >{opt.label}</button
             >
           {/each}
@@ -150,18 +140,18 @@
           >{/if}
       </div>
       <div>
-        <p class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
-          Civilité <span class="text-red-500">*</span>
+        <p class="mb-2 text-xs font-medium text-muted-foreground">
+          Civilité <span class="text-destructive">*</span>
         </p>
         <div class="flex flex-wrap gap-2">
           {#each CIVILITE_OPTIONS as opt}
             <button
               type="button"
               onclick={() => (localParentCivilite = opt.value)}
-              class="inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-sm font-medium transition-all {localParentCivilite ===
+              class="inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-sm font-medium transition-ui {localParentCivilite ===
               opt.value
                 ? 'border-epi-blue bg-epi-blue/10 text-epi-blue'
-                : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300'}"
+                : 'border-border text-foreground-secondary hover:border-border'}"
               >{opt.label}</button
             >
           {/each}
@@ -173,11 +163,11 @@
     </div>
 
     <div
-      class="grid grid-cols-2 gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      class="grid grid-cols-2 gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
     >
       <div>
         <Label for="parentPrenom" class={fieldLabel}
-          >Prénom <span class="text-red-500">*</span></Label
+          >Prénom <span class="text-destructive">*</span></Label
         >
         <Input
           id="parentPrenom"
@@ -194,7 +184,7 @@
       </div>
       <div>
         <Label for="parentNom" class={fieldLabel}
-          >Nom <span class="text-red-500">*</span></Label
+          >Nom <span class="text-destructive">*</span></Label
         >
         <Input
           id="parentNom"
@@ -213,11 +203,11 @@
 
     <!-- Stacked so the phone field gets full width — see IdentityStep. -->
     <div
-      class="space-y-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      class="space-y-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
     >
       <div>
         <Label for="parentEmail" class={fieldLabel}
-          >Email <span class="text-red-500">*</span></Label
+          >Email <span class="text-destructive">*</span></Label
         >
         <Input
           id="parentEmail"
@@ -234,7 +224,7 @@
       </div>
       <div>
         <Label for="parentPhone" class={fieldLabel}
-          >Téléphone <span class="text-red-500">*</span></Label
+          >Téléphone <span class="text-destructive">*</span></Label
         >
         <PhoneInput
           id="parentPhone"
@@ -268,13 +258,13 @@
       <Plus class="h-4 w-4" /> Ajouter un second parent
     </button>
   {:else}
-    <div class="space-y-3 border-t border-slate-200 pt-4 dark:border-slate-800">
+    <div class="space-y-3 border-t border-border pt-4">
       <div class="flex items-center justify-between">
         <h2
-          class="text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
+          class="text-sm font-semibold tracking-wide text-foreground-secondary uppercase"
         >
           Second parent <span
-            class="text-xs font-normal text-slate-400 normal-case"
+            class="text-xs font-normal text-muted-foreground normal-case"
             >(facultatif)</span
           >
         </h2>
@@ -285,29 +275,25 @@
             localP2Type = '';
             localP2Civilite = '';
           }}
-          class="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-slate-400 transition-colors hover:text-red-500"
+          class="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-destructive"
         >
           <X class="h-3.5 w-3.5" /> Retirer
         </button>
       </div>
       <div
-        class="grid grid-cols-1 gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl sm:grid-cols-2 dark:bg-slate-900/80"
+        class="grid grid-cols-1 gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised sm:grid-cols-2"
       >
         <div>
-          <p
-            class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400"
-          >
-            Lien
-          </p>
+          <p class="mb-2 text-xs font-medium text-muted-foreground">Lien</p>
           <div class="flex flex-wrap gap-2">
             {#each PARENT_TYPE_OPTIONS as opt}
               <button
                 type="button"
                 onclick={() => (localP2Type = opt.value)}
-                class="inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-sm font-medium transition-all {localP2Type ===
+                class="inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-sm font-medium transition-ui {localP2Type ===
                 opt.value
                   ? 'border-epi-blue bg-epi-blue/10 text-epi-blue'
-                  : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300'}"
+                  : 'border-border text-foreground-secondary hover:border-border'}"
                 >{opt.label}</button
               >
             {/each}
@@ -317,20 +303,16 @@
             >{/if}
         </div>
         <div>
-          <p
-            class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400"
-          >
-            Civilité
-          </p>
+          <p class="mb-2 text-xs font-medium text-muted-foreground">Civilité</p>
           <div class="flex gap-2">
             {#each CIVILITE_OPTIONS as opt}
               <button
                 type="button"
                 onclick={() => (localP2Civilite = opt.value)}
-                class="inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-sm font-medium transition-all {localP2Civilite ===
+                class="inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-sm font-medium transition-ui {localP2Civilite ===
                 opt.value
                   ? 'border-epi-blue bg-epi-blue/10 text-epi-blue'
-                  : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300'}"
+                  : 'border-border text-foreground-secondary hover:border-border'}"
                 >{opt.label}</button
               >
             {/each}
@@ -342,7 +324,7 @@
         </div>
       </div>
       <div
-        class="grid grid-cols-2 gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+        class="grid grid-cols-2 gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
       >
         <div>
           <Label for="parent2Prenom" class={fieldLabel}>Prénom</Label>
@@ -375,7 +357,7 @@
       </div>
       <!-- Stacked so the phone field gets full width — see IdentityStep. -->
       <div
-        class="space-y-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+        class="space-y-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
       >
         <div>
           <Label for="parent2Email" class={fieldLabel}>Email</Label>

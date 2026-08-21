@@ -67,9 +67,7 @@
 
 <div class="flex h-full min-h-0 flex-col">
   <!-- Header -->
-  <div
-    class="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800"
-  >
+  <div class="flex items-center gap-3 border-b border-border bg-card px-4 py-3">
     <div class="relative">
       <img
         src={personaIcon}
@@ -77,7 +75,7 @@
         class="h-8 w-8 rounded-full object-cover"
       />
       <span
-        class="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-green-500 dark:border-slate-800"
+        class="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-success"
       ></span>
     </div>
     <div class="flex flex-col">
@@ -92,7 +90,7 @@
   <!-- Response dock: all answer inputs live here, flush at the bottom -->
   <div class="mt-auto px-4 py-2">
     {#if conv.error}
-      <p class="mb-2 text-center text-xs text-red-500">{conv.error}</p>
+      <p class="mb-2 text-center text-xs text-destructive">{conv.error}</p>
     {/if}
 
     {#if conv.isDone}

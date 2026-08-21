@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import NotesResults from './components/NotesResults.svelte';
   import type { NotesCohort } from './query';
@@ -30,7 +30,7 @@
 </svelte:head>
 
 <div class="space-y-6">
-  <AdminPageHeader
+  <PageHeader
     title="Notes"
     accent="talents"
     subtitle="Notes du staff sur les talents, tous campus"

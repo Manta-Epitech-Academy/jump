@@ -1,10 +1,43 @@
 import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { extendTailwindMerge } from 'tailwind-merge';
 import {
   getLocalTimeZone,
   now,
   type CalendarDateTime,
 } from '@internationalized/date';
+
+/**
+ * tailwind-merge resolves conflicts from a built-in list of class groups, so it
+ * only knows the font sizes Tailwind ships. Our display scale and the overline
+ * are custom `--text-*` theme keys (see `routes/layout.css`), which it reads as
+ * unknown `text-*` classes and therefore treats as conflicting with a text
+ * COLOUR: `cn('font-heading text-display-2xl', 'text-muted-foreground')` dropped
+ * the size and the figure rendered at the inherited 16px. Teaching it the group
+ * is the fix, and it has to happen here because every component merges through
+ * `cn`.
+ *
+ * Adding a `--text-*` key to the theme means adding it here too. `utils.test.ts`
+ * fails if the two drift.
+ */
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      'font-size': [
+        {
+          text: [
+            'display-s',
+            'display-m',
+            'display-l',
+            'display-xl',
+            'display-2xl',
+            'display-3xl',
+            'overline',
+          ],
+        },
+      ],
+    },
+  },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

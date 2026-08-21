@@ -10,11 +10,11 @@
     if (isPast) return 'border-border text-muted-foreground';
     switch (state) {
       case 'shown':
-        return 'border-emerald-500/40 text-emerald-600';
+        return 'border-success/40 text-success';
       case 'ready':
-        return 'border-blue-500/40 text-blue-600';
+        return 'border-primary/40 text-primary';
       case 'unconfigured':
-        return 'border-amber-500/50 text-amber-600';
+        return 'border-warning/50 text-warning';
     }
   }
 </script>
@@ -41,10 +41,7 @@
         <Badge
           {...props}
           variant="outline"
-          class="shrink-0 text-[10px] font-normal {stateBadgeClass(
-            state,
-            past,
-          )}"
+          class="shrink-0 text-xs font-normal {stateBadgeClass(state, past)}"
         >
           {EVENT_CONFIG_STATE_LABELS[state]}
         </Badge>

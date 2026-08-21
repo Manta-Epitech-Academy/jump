@@ -20,6 +20,9 @@
   import { formatDateTimeFr } from '$lib/utils';
   import { daysBetween } from '$lib/analytics';
   import { toast } from 'svelte-sonner';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import CodeTag from '$lib/components/layout/CodeTag.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
@@ -34,7 +37,7 @@
 
   const statusBadge: Record<string, string> = {
     fulfilled: 'border-destructive/30 bg-destructive/10 text-destructive',
-    rejected: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
+    rejected: 'border-epi-together/30 bg-epi-together/10 text-epi-together',
     cancelled: 'border-border bg-muted text-muted-foreground',
   };
   const statusLabel: Record<string, string> = {
@@ -50,21 +53,18 @@
 
 <div class="space-y-6">
   <div in:fly={{ y: -12, duration: 300 }}>
-    <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Demandes de <span class="text-epi-pink">suppression</span><span
-        class="text-epi-pink">_</span
-      >
-    </h1>
-    <p class="font-mono text-xs tracking-wide text-muted-foreground">
-      &lt;DROIT À L'EFFACEMENT / RGPD / FULFILMENT SOUS 1 MOIS&gt;
-    </p>
+    <PageHeader
+      title="Demandes de"
+      accent="suppression"
+      accroche="Droit à l'effacement / RGPD / fulfilment sous 1 mois"
+    />
   </div>
 
   {#if data.overdueCount > 0}
     <div in:fly={{ y: 12, duration: 300 }}>
       <Alert.Root variant="destructive">
         <ShieldAlert class="animate-pulse" />
-        <Alert.Title class="font-heading tracking-wide uppercase">
+        <Alert.Title class="font-heading">
           {data.overdueCount} demande{data.overdueCount > 1 ? 's' : ''} en retard
         </Alert.Title>
         <Alert.Description>
@@ -79,7 +79,7 @@
   <div in:fly={{ y: 12, duration: 300, delay: 60 }}>
     <Card.Root>
       <Card.Header>
-        <Card.Title class="font-heading tracking-wide uppercase">
+        <Card.Title class="font-heading">
           En attente
           <span class="font-mono text-sm text-muted-foreground"
             >[{data.pending.length}]</span
@@ -127,7 +127,7 @@
                       </div>
                     {/if}
                   </Table.Cell>
-                  <Table.Cell class="text-epi-pink">
+                  <Table.Cell class="text-epi-tomorrow">
                     {req.talent.campus ?? '—'}
                   </Table.Cell>
                   <Table.Cell class="font-mono text-xs text-muted-foreground">
@@ -186,9 +186,7 @@
     <div in:fly={{ y: 12, duration: 300, delay: 120 }}>
       <Card.Root>
         <Card.Header>
-          <Card.Title class="font-heading tracking-wide uppercase">
-            Historique
-          </Card.Title>
+          <Card.Title class="font-heading">Historique</Card.Title>
         </Card.Header>
         <Card.Content class="p-0">
           <Table.Root>
@@ -345,7 +343,8 @@
           placeholder="Ex. Ton compte reste nécessaire pour le stage de seconde en cours."
         />
         <p class="font-mono text-xs text-muted-foreground">
-          &lt;Ce motif est affiché au talent comme raison du refus/&gt;
+          <CodeTag>Ce motif est affiché au talent comme raison du refus</CodeTag
+          >
         </p>
       </div>
       <Dialog.Footer>

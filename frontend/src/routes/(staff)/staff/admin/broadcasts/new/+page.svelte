@@ -14,7 +14,7 @@
   import Plus from '@lucide/svelte/icons/plus';
   import Send from '@lucide/svelte/icons/send';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
   import SearchableSelect, {
     type SelectOption,
@@ -372,18 +372,16 @@
 {#snippet sectionLabel(n: number, title: string)}
   <div class="flex items-center gap-2">
     <span
-      class="flex h-5 w-5 items-center justify-center rounded-sm bg-epi-pink/10 font-mono text-[11px] font-bold text-epi-pink"
+      class="flex h-5 w-5 items-center justify-center rounded-sm bg-epi-tomorrow/10 font-mono text-xs font-bold text-epi-tomorrow"
       >{n}</span
     >
-    <h2
-      class="font-mono text-[11px] font-bold tracking-widest text-muted-foreground uppercase"
-    >
+    <h2 class="epi-overline text-muted-foreground">
       {title}
     </h2>
   </div>
 {/snippet}
 
-<AdminPageHeader
+<PageHeader
   title="Nouvel"
   accent="envoi"
   subtitle="Choisis le canal, rédige le message, cible l'audience — l'aperçu est à droite"
@@ -541,7 +539,7 @@
             Filtres avancés
             {#if activeFilterCount > 0}
               <span
-                class="rounded-sm bg-epi-blue/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-epi-blue"
+                class="rounded-sm bg-epi-blue/10 px-1.5 py-0.5 font-mono text-xs font-bold text-epi-blue"
                 >{activeFilterCount}</span
               >
             {/if}
@@ -661,11 +659,7 @@
 
     <!-- Message preview -->
     <div class="rounded-sm border bg-card p-4">
-      <h3
-        class="mb-3 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        Aperçu du message
-      </h3>
+      <h3 class="mb-3 epi-overline text-muted-foreground">Aperçu du message</h3>
       {#if $form.templateId}
         <MessagePreview
           {channel}
@@ -745,7 +739,7 @@
           'rounded-sm border px-2 py-1 text-xs',
           $formMessage.type === 'error'
             ? 'border-destructive/30 bg-destructive/10 text-destructive'
-            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700',
+            : 'border-success/30 bg-success/10 text-success',
         )}
       >
         {$formMessage.text}

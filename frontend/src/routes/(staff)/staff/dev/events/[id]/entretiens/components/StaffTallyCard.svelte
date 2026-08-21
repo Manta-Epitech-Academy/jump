@@ -15,20 +15,20 @@
   // ordered by count desc, so position conveys rank.
   const ringClass = (i: number) =>
     i === 0
-      ? 'ring-2 ring-epi-orange'
+      ? 'ring-2 ring-epi-together'
       : i === 1
         ? 'ring-2 ring-muted-foreground/40'
         : i === 2
-          ? 'ring-2 ring-epi-teal-solid'
+          ? 'ring-2 ring-epi-tech-ink'
           : '';
 </script>
 
-<Card.Root class="rounded-sm shadow-sm dark:shadow-none">
+<Card.Root class="rounded-sm shadow-raised">
   <div
     class="flex flex-row items-center gap-2 border-b bg-muted/30 px-6 pt-4 pb-3"
   >
     <Trophy class="h-5 w-5 text-epi-blue" />
-    <h3 class="font-heading text-2xl tracking-wide text-foreground uppercase">
+    <h3 class="font-heading text-display-m text-foreground">
       Entretiens menés
     </h3>
   </div>
@@ -55,7 +55,7 @@
                 class="object-cover"
               />
               <Avatar.Fallback
-                class="bg-epi-blue/10 text-[10px] font-bold text-epi-blue"
+                class="bg-epi-blue/10 text-xs font-bold text-epi-blue"
               >
                 {getInitials(person.name)}
               </Avatar.Fallback>
@@ -65,14 +65,12 @@
             </span>
             {#if isMe}
               <span
-                class="shrink-0 rounded-full bg-epi-blue/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-epi-blue uppercase"
+                class="shrink-0 rounded-full bg-epi-blue/10 px-1.5 py-0.5 epi-chip text-epi-blue"
               >
                 vous
               </span>
             {/if}
-            <span
-              class="shrink-0 text-sm font-bold text-foreground tabular-nums"
-            >
+            <span class="shrink-0 text-sm font-bold text-foreground">
               {person.count}
             </span>
           </li>

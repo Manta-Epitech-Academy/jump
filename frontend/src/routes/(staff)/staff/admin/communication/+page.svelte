@@ -9,7 +9,7 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import CircleCheckBig from '@lucide/svelte/icons/circle-check-big';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import BroadcastStatusBadge from '$lib/components/admin/broadcasts/BroadcastStatusBadge.svelte';
@@ -55,7 +55,7 @@
 {/snippet}
 
 <div class="space-y-6">
-  <AdminPageHeader
+  <PageHeader
     title="Communication"
     accent="globale"
     subtitle="Tous les envois sortants, en un coup d'œil"
@@ -98,9 +98,9 @@
   >
     {#if data.transactional.healthy}
       <div
-        class="mb-4 flex items-start gap-3 rounded-sm border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-900 dark:text-emerald-200"
+        class="mb-4 flex items-start gap-3 rounded-sm border border-success/40 bg-success/10 p-3 text-sm text-success"
       >
-        <CircleCheckBig class="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+        <CircleCheckBig class="mt-0.5 h-5 w-5 shrink-0 text-success" />
         <p>Toutes les actions sont reliées à un template.</p>
       </div>
     {:else}
@@ -126,7 +126,7 @@
             <span
               class="flex shrink-0 items-center gap-1.5 text-muted-foreground"
             >
-              <CircleCheckBig class="h-3.5 w-3.5 text-epi-teal-solid" />
+              <CircleCheckBig class="h-3.5 w-3.5 text-epi-tech-ink" />
               <span class="max-w-48 truncate text-xs">{a.templateName}</span>
             </span>
           {:else}

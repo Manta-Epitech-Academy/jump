@@ -32,8 +32,8 @@
   >
     <Dialog.Header class="items-center gap-1 text-center sm:text-center">
       <!-- Full-screen projected display, not modal chrome: styled like a page
-           heading (AdminPageHeader et al.), not the plain Dialog.Title default. -->
-      <Dialog.Title class="font-heading text-2xl tracking-wider uppercase">
+           heading (PageHeader et al.), not the plain Dialog.Title default. -->
+      <Dialog.Title class="font-heading text-display-m">
         {title}
       </Dialog.Title>
       <Dialog.Description class="text-base">
@@ -41,7 +41,7 @@
       </Dialog.Description>
     </Dialog.Header>
 
-    <div class="rounded-2xl border bg-white p-6 shadow-sm">
+    <div class="rounded-xl border bg-card p-6 shadow-raised">
       <img
         src={qrSrc}
         alt="QR code du formulaire de feedback"

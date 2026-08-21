@@ -13,6 +13,7 @@
     type WeekView,
   } from '$lib/domain/calendarWeek';
   import { track } from '$lib/analytics';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -69,7 +70,7 @@
   <title>Planning</title>
 </svelte:head>
 
-<div class="flex h-dvh flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+<div class="flex h-dvh flex-col overflow-hidden bg-background">
   <TalentPageHeader title="Planning">
     {#snippet actions()}
       {#if range}
@@ -92,7 +93,7 @@
     {/snippet}
   </TalentPageHeader>
 
-  <div class="min-h-0 flex-1 overflow-hidden bg-white dark:bg-slate-900">
+  <div class="min-h-0 flex-1 overflow-hidden bg-card">
     {#if range}
       <CalendarViewer
         class="mx-auto max-w-5xl px-4 md:px-8"
@@ -106,15 +107,13 @@
     {:else}
       <div class="flex h-full items-center justify-center px-4">
         <div class="flex max-w-sm flex-col items-center gap-3 text-center">
-          <div class="rounded-full bg-slate-100 p-4 dark:bg-slate-800">
-            <CalendarIcon class="h-8 w-8 text-slate-400" />
+          <div class="rounded-full bg-muted p-4">
+            <CalendarIcon class="h-8 w-8 text-muted-foreground" />
           </div>
-          <h2
-            class="font-heading text-lg tracking-wide text-slate-700 uppercase dark:text-slate-200"
-          >
-            Aucune activité au programme<span class="text-epi-teal">_</span>
+          <h2 class="font-heading text-display-s text-foreground-secondary">
+            Aucune activité au programme<TitleCursor />
           </h2>
-          <p class="text-sm text-slate-500">
+          <p class="text-sm text-muted-foreground">
             Ton planning apparaîtra ici dès qu'un événement sera prévu.
           </p>
         </div>

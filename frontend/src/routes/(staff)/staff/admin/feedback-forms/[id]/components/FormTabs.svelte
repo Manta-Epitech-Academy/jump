@@ -26,7 +26,7 @@
       data-sveltekit-noscroll
       class="-mb-px border-b-2 px-1 pb-2.5 text-sm font-medium transition-colors {current ===
       t.key
-        ? 'border-epi-pink text-foreground'
+        ? 'border-epi-tomorrow text-foreground'
         : 'border-transparent text-muted-foreground hover:text-foreground'}"
     >
       {t.label}

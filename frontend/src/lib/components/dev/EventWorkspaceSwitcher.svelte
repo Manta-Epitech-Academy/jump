@@ -170,7 +170,7 @@
               <button
                 {...mergeProps(tooltipProps, popoverProps)}
                 aria-label="Changer d'événement"
-                class="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border border-sidebar-border bg-sidebar-hover text-sidebar-foreground-muted transition-colors hover:bg-white/10 hover:text-sidebar-foreground"
+                class="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border border-chrome-border bg-chrome-hover text-chrome-foreground-muted transition-colors hover:bg-white/10 hover:text-chrome-foreground"
               >
                 <ChevronDown class="size-4" />
               </button>
@@ -255,7 +255,7 @@
         {#each groups as g (g.key)}
           <div
             data-current={g.isCurrent}
-            class="sticky top-0 z-10 flex items-baseline gap-1.5 bg-popover px-2 pt-2 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase"
+            class="sticky top-0 z-10 flex items-baseline gap-1.5 bg-popover px-2 pt-2 pb-1 epi-overline text-muted-foreground"
           >
             <span>{g.name}</span>
             <span class="font-normal opacity-60">{g.year}</span>

@@ -167,7 +167,7 @@
 </script>
 
 {#if showDesktop}
-  <div class="rounded-sm border bg-card shadow-sm">
+  <div class="rounded-sm border bg-card shadow-raised">
     <Table.Root
       class={layout === 'fixed' ? 'table-fixed' : undefined}
       containerClass={stickyHeader ? 'lg:overflow-visible' : undefined}
@@ -193,7 +193,8 @@
           {#each columns as col (col.key)}
             <Table.Head
               class={cn(
-                'text-xs font-bold uppercase',
+                // Size, weight and case come from Table.Head's overline
+                // treatment; only the pinning and alignment are this table's.
                 // Pinned header (desktop): each th carries its own opaque fill +
                 // bottom border so the frozen bar reads as one line while rows
                 // scroll under it (z above the body cells and the stretched row
@@ -214,7 +215,11 @@
                   type="button"
                   onclick={() => onSort?.(col.key)}
                   class={cn(
-                    'inline-flex cursor-pointer items-center gap-1 uppercase transition-colors hover:text-foreground',
+                    // `epi-overline` again rather than inherited: a <button>
+                    // does not inherit text-transform (the UA sets `none` on it
+                    // and Tailwind's preflight inherits font, not case), so
+                    // without it every sortable header lost its uppercase.
+                    'inline-flex cursor-pointer items-center gap-1 epi-overline transition-colors hover:text-foreground',
                     col.align === 'right' && 'flex-row-reverse',
                   )}
                 >
@@ -285,10 +290,7 @@
                    muted sheet over the row's text on hover. Focus shows an inset
                    ring, no fill. -->
                 <td class="absolute inset-0 bg-transparent! p-0">
-                  <a
-                    href={rowHref(r)}
-                    class="block size-full rounded-sm focus-visible:ring-2 focus-visible:ring-epi-blue focus-visible:outline-none focus-visible:ring-inset"
-                  >
+                  <a href={rowHref(r)} class="block size-full rounded-sm">
                     <span class="sr-only">{rowLabel?.(r) ?? 'Ouvrir'}</span>
                   </a>
                 </td>
@@ -349,7 +351,7 @@
     {/if}
 
     {#if rows.length === 0}
-      <div class="rounded-sm border bg-card p-6 text-center shadow-sm">
+      <div class="rounded-sm border bg-card p-6 text-center shadow-raised">
         {#if empty}
           {@render empty()}
         {:else}
@@ -362,7 +364,7 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div
           class={cn(
-            'relative rounded-sm border bg-card p-3 shadow-sm',
+            'relative rounded-sm border bg-card p-3 shadow-raised',
             onRowClick && 'cursor-pointer',
           )}
           onclick={onRowClick ? () => onRowClick(r, i) : undefined}
@@ -379,10 +381,7 @@
           {/if}
           {@render mobileRow(r, i)}
           {#if rowHref}
-            <a
-              href={rowHref(r)}
-              class="absolute inset-0 rounded-sm focus-visible:ring-2 focus-visible:ring-epi-blue focus-visible:outline-none focus-visible:ring-inset"
-            >
+            <a href={rowHref(r)} class="absolute inset-0 rounded-sm">
               <span class="sr-only">{rowLabel?.(r) ?? 'Ouvrir'}</span>
             </a>
           {/if}

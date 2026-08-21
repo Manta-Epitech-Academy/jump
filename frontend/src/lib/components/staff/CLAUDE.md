@@ -14,4 +14,6 @@ The dev stage-seconde pages (`inscrits`, `émargement`, `entretiens`) and admin 
 
 ## SortableTable renders one layout
 
-`SortableTable` (`$lib/components/staff/datatable/`) renders **either** the desktop table **or** the `mobileRow` cards, gated by a `MediaQuery` (lg seam) plus a mount guard, never both at once. Do not reintroduce a CSS-toggled (`hidden lg:block` / `lg:hidden`) dual render: it builds and hydrates every row twice (2x DOM nodes, 2x `avatar.vercel.sh` requests) and was the main client-side render cost on these tables. Pages without a `mobileRow` snippet always render the desktop table (unchanged).
+`SortableTable` (`$lib/components/staff/datatable/`) renders **either** the desktop table **or** the `mobileRow` cards, gated by a `MediaQuery` (lg seam) plus a mount guard, never both at once. Do not reintroduce a CSS-toggled (`hidden lg:block` / `lg:hidden`) dual render: it builds and hydrates every row twice (2x DOM nodes, 2x avatars) and was the main client-side render cost on these tables. Pages without a `mobileRow` snippet always render the desktop table (unchanged).
+
+Column headers get their treatment from `Table.Head`, not from the page: it carries the mono overline, so a sentence-case header is not a variant to reach for. `TalentAvatar` draws its monogram locally; it used to fetch one per row from a third party, which sent a minor's id off-site and cost a request each time.

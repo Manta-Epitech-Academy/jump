@@ -32,7 +32,7 @@
       <Skeleton class="h-9 w-[230px]" />
       <Skeleton class="h-9 w-44" />
     </div>
-    <div class="rounded-sm border bg-card shadow-sm">
+    <div class="rounded-sm border bg-card shadow-raised">
       <!-- Header bar: the real tables carry a ~40px header row, so reserve it
            here too or the rows pop down a notch when content lands. -->
       <Skeleton class="m-3 h-9 rounded-sm" />

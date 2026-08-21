@@ -76,12 +76,10 @@
 </script>
 
 <div
-  class="flex w-full items-center gap-1 rounded-xl border border-amber-400/50 bg-amber-50/90 px-1 py-0.5 text-[11px] dark:border-amber-500/40 dark:bg-amber-950/60"
+  class="flex w-full items-center gap-1 rounded-xl border border-warning/40 bg-warning/10 px-1 py-0.5 text-xs"
   title="Aperçu du widget « Planning à venir » (impersonation uniquement). Reclique l'option active pour revenir au réel."
 >
-  <span
-    class="flex shrink-0 items-center gap-1 px-1 font-mono text-[9px] font-bold tracking-widest text-amber-900 uppercase dark:text-amber-100"
-  >
+  <span class="flex shrink-0 items-center gap-1 px-1 epi-chip text-warning">
     <FlaskConical class="h-3 w-3" />
     Aperçu
   </span>
@@ -96,8 +94,8 @@
         ? `${opt.title} (reclique pour revenir au réel)`
         : opt.title}
       class="flex-1 cursor-pointer rounded-lg px-1 py-1 text-center font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 {isActive
-        ? 'bg-amber-500 text-white shadow-sm'
-        : 'text-amber-900 hover:bg-amber-200/70 dark:text-amber-100 dark:hover:bg-amber-900/50'}"
+        ? 'bg-warning text-status-foreground shadow-raised'
+        : 'text-warning hover:bg-warning/20'}"
     >
       {opt.label}
     </button>

@@ -22,6 +22,7 @@
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
   import MinigameRewardCelebration from '$lib/components/talent/MinigameRewardCelebration.svelte';
   import { onMount } from 'svelte';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -166,7 +167,7 @@
   <TalentPageHeader>
     {#snippet lead()}
       <h1
-        class="truncate font-heading text-xl tracking-wider text-slate-900 uppercase sm:text-2xl dark:text-white"
+        class="truncate font-heading text-display-s text-foreground sm:text-display-m"
       >
         Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
       </h1>
@@ -194,34 +195,31 @@
           {#if minigamePlayed && minigameWon}
             <a
               href={resolve(`/minigames/${minigamePublication.id}/leaderboard`)}
-              class="flex flex-col gap-3 rounded-2xl border border-epi-teal-solid/30 bg-epi-teal-solid/5 p-4 transition-all hover:bg-epi-teal-solid/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
+              class="flex flex-col gap-3 rounded-xl border border-epi-tech-ink/30 bg-epi-tech-ink/5 p-4 transition-ui hover:bg-epi-tech-ink/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
             >
               <!-- icon + text stay a row on mobile; `sm:contents` dissolves this
                    wrapper on desktop so the CTA rejoins them on one line -->
               <div class="flex items-center gap-4 sm:contents">
                 <div
-                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-teal-solid/15"
+                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-tech-ink/15"
                 >
-                  <Gamepad2 class="h-5 w-5 text-epi-teal-solid" />
+                  <Gamepad2 class="h-5 w-5 text-epi-tech-ink" />
                 </div>
                 <div class="min-w-0 flex-1">
                   <div
                     class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
                   >
-                    <span class="text-epi-teal-solid"
-                      >{DAILY_TRAINING_LABEL}</span
+                    <span class="text-epi-tech-ink">{DAILY_TRAINING_LABEL}</span
                     >
-                    <span class="text-slate-300 dark:text-slate-700">•</span>
-                    <span class="text-slate-500">
+                    <span class="text-muted-foreground">•</span>
+                    <span class="text-muted-foreground">
                       {minigamePublication.gameName} · niveau {minigamePublication.level}
                     </span>
                   </div>
-                  <p
-                    class="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white"
-                  >
+                  <p class="mt-0.5 text-sm font-semibold text-foreground">
                     Défi relevé !
                     {#if minigameAttempt && (minigameAttempt.score !== null || minigameAttempt.chrono !== null)}
-                      <span class="font-normal text-slate-500">
+                      <span class="font-normal text-muted-foreground">
                         {#if minigameAttempt.score !== null}{minigameAttempt.score}
                           pts{/if}{#if minigameAttempt.score !== null && minigameAttempt.chrono !== null}
                           ·
@@ -234,7 +232,7 @@
                 </div>
               </div>
               <span
-                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-epi-teal-solid/15 px-3 py-1.5 text-xs font-bold text-epi-teal-solid uppercase sm:w-auto"
+                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-epi-tech-ink/15 px-3 py-1.5 text-xs font-bold text-epi-tech-ink uppercase sm:w-auto"
               >
                 <Trophy class="h-4 w-4" /> Voir le classement
               </span>
@@ -246,40 +244,34 @@
                  is still spent, so the link goes to the board, not back to play. -->
             <a
               href={resolve(`/minigames/${minigamePublication.id}/leaderboard`)}
-              class="flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 transition-all hover:bg-amber-500/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
+              class="flex flex-col gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4 transition-ui hover:bg-warning/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
             >
               <div class="flex items-center gap-4 sm:contents">
                 <div
-                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-500/15"
+                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-warning/15"
                 >
-                  <Gamepad2
-                    class="h-5 w-5 text-amber-600 dark:text-amber-500"
-                  />
+                  <Gamepad2 class="h-5 w-5 text-warning" />
                 </div>
                 <div class="min-w-0 flex-1">
                   <div
                     class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
                   >
-                    <span class="text-amber-600 dark:text-amber-500"
-                      >{DAILY_TRAINING_LABEL}</span
-                    >
-                    <span class="text-slate-300 dark:text-slate-700">•</span>
-                    <span class="text-slate-500">
+                    <span class="text-warning">{DAILY_TRAINING_LABEL}</span>
+                    <span class="text-muted-foreground">•</span>
+                    <span class="text-muted-foreground">
                       {minigamePublication.gameName} · niveau {minigamePublication.level}
                     </span>
                   </div>
-                  <p
-                    class="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white"
-                  >
+                  <p class="mt-0.5 text-sm font-semibold text-foreground">
                     Pas validé cette fois
-                    <span class="font-normal text-slate-500"
+                    <span class="font-normal text-muted-foreground"
                       >· retente demain</span
                     >
                   </p>
                 </div>
               </div>
               <span
-                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-amber-500/15 px-3 py-1.5 text-xs font-bold text-amber-600 uppercase sm:w-auto dark:text-amber-500"
+                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-warning/15 px-3 py-1.5 text-xs font-bold text-warning uppercase sm:w-auto"
               >
                 <Trophy class="h-4 w-4" /> Voir le classement
               </span>
@@ -287,7 +279,7 @@
           {:else}
             <a
               href={resolve(`/minigames/${minigamePublication.id}`)}
-              class="flex flex-col gap-3 rounded-2xl border border-epi-blue/20 bg-epi-blue/5 p-4 transition-all hover:bg-epi-blue/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4 dark:border-epi-blue/30 dark:bg-epi-blue/10"
+              class="flex flex-col gap-3 rounded-xl border border-epi-blue/20 bg-epi-blue/5 p-4 transition-ui hover:bg-epi-blue/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4 dark:border-epi-blue/30 dark:bg-epi-blue/10"
             >
               <div class="flex items-center gap-4 sm:contents">
                 <div
@@ -300,14 +292,12 @@
                     class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
                   >
                     <span class="text-epi-blue">{DAILY_TRAINING_LABEL}</span>
-                    <span class="text-slate-300 dark:text-slate-700">•</span>
-                    <span class="text-slate-500">
+                    <span class="text-muted-foreground">•</span>
+                    <span class="text-muted-foreground">
                       {minigamePublication.gameName} · niveau {minigamePublication.level}
                     </span>
                   </div>
-                  <p
-                    class="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white"
-                  >
+                  <p class="mt-0.5 text-sm font-semibold text-foreground">
                     Relève le défi du jour et grimpe au classement !
                   </p>
                 </div>
@@ -330,7 +320,7 @@
               <button
                 type="submit"
                 title="Dev : basculer l'état de l'entraînement du jour"
-                class="text-[10px] font-bold tracking-wide text-slate-300 uppercase hover:text-epi-blue dark:text-slate-600"
+                class="epi-overline text-muted-foreground hover:text-epi-blue"
               >
                 {minigamePlayed ? 'dev: reset' : 'dev: joué'}
               </button>
@@ -354,30 +344,28 @@
       >
         <a
           href={resolve('/xp')}
-          class="group relative order-1 block overflow-hidden rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/50 transition-all hover:shadow-2xl active:scale-[0.98] dark:bg-slate-900 dark:shadow-none"
+          class="group active:scale-[0.98]d relative order-1 block overflow-hidden rounded-xl border border-border bg-card p-6 shadow-raised transition-ui hover:shadow-raised active:scale-[0.98]"
         >
           <!-- Decorative background blur -->
           <div
-            class="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-epi-orange/10 blur-2xl"
+            class="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-epi-together/10 blur-2xl"
           ></div>
 
           <div class="relative z-10 flex flex-col items-center text-center">
             <div
-              class="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-orange-50 dark:bg-orange-950/30"
+              class="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-epi-together-ink/10"
             >
-              <Trophy class="h-7 w-7 text-epi-orange" />
+              <Trophy class="h-7 w-7 text-epi-together" />
             </div>
 
             <div>
-              <span
-                class="text-5xl font-black tracking-tighter text-slate-900 dark:text-white"
-              >
+              <span class="text-5xl font-bold tracking-tighter text-foreground">
                 {student?.xp || 0}
               </span>
-              <span class="text-lg font-bold text-epi-orange">XP</span>
+              <span class="text-lg font-bold text-epi-together">XP</span>
             </div>
             <span
-              class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-400 transition-all group-hover:bg-epi-blue/10 group-hover:text-epi-blue dark:bg-slate-800 dark:group-hover:bg-epi-blue/20"
+              class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground transition-ui group-hover:bg-epi-blue/10 group-hover:text-epi-blue dark:group-hover:bg-epi-blue/20"
             >
               <History class="h-3 w-3" />
               Voir mon historique
@@ -395,16 +383,14 @@
              only the ongoing "Voir le planning" CTA is flag-gated, since it
              opens the /calendar grid that 404s when the flag is off. -->
         <div
-          class="order-4 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+          class="order-4 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
         >
           <div
-            class="flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
+            class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
           >
             <CalendarClock class="h-4 w-4 shrink-0 text-epi-blue" />
-            <h2
-              class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
-            >
-              Planning à venir<span class="text-epi-teal">_</span>
+            <h2 class="font-heading text-display-s text-foreground">
+              Planning à venir<TitleCursor />
             </h2>
           </div>
 
@@ -413,12 +399,10 @@
               <div
                 class="flex flex-col items-center justify-center text-center"
               >
-                <div
-                  class="mb-4 rounded-full bg-blue-50 p-4 dark:bg-blue-900/20"
-                >
+                <div class="mb-4 rounded-full bg-primary/10 p-4">
                   <CalendarClock class="h-8 w-8 text-epi-blue" />
                 </div>
-                <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+                <h3 class="text-lg font-bold text-foreground">
                   {planningEventName}
                 </h3>
                 <!-- Live status: a pulsing dot so an active IRL event reads as
@@ -450,7 +434,7 @@
                   <!-- No /calendar to open (planning flag off): the live status
                        stands alone, with a line pointing the talent on-site so
                        the card doesn't read as truncated where the CTA was. -->
-                  <p class="mt-3 text-sm text-slate-500">
+                  <p class="mt-3 text-sm text-muted-foreground">
                     Ça se passe en ce moment. Rejoins ton groupe sur place !
                   </p>
                 {/if}
@@ -459,20 +443,18 @@
               <div
                 class="flex flex-col items-center justify-center text-center"
               >
-                <div
-                  class="mb-4 rounded-full bg-blue-50 p-4 dark:bg-blue-900/20"
-                >
+                <div class="mb-4 rounded-full bg-primary/10 p-4">
                   <Rocket class="h-8 w-8 text-epi-blue" />
                 </div>
-                <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+                <h3 class="text-lg font-bold text-foreground">
                   {planningEventName}
                 </h3>
-                <p class="mt-2 text-sm text-slate-500">
+                <p class="mt-2 text-sm text-muted-foreground">
                   Ta prochaine session est prévue le<br /><strong
-                    class="text-slate-700 dark:text-slate-300"
+                    class="text-foreground-secondary"
                     >{formatDateLong(planning.date)}</strong
                   >{#if upcomingStartTime}{' '}à
-                    <strong class="text-slate-700 dark:text-slate-300"
+                    <strong class="text-foreground-secondary"
                       >{upcomingStartTime}</strong
                     >{/if}.
                 </p>
@@ -481,17 +463,15 @@
               <div
                 class="flex flex-col items-center justify-center text-center"
               >
-                <div
-                  class="mb-4 rounded-full bg-slate-200/50 p-4 dark:bg-slate-800"
-                >
-                  <Coffee class="h-8 w-8 text-slate-400" />
+                <div class="mb-4 rounded-full bg-muted/50 p-4">
+                  <Coffee class="h-8 w-8 text-muted-foreground" />
                 </div>
                 <h3
-                  class="text-base font-bold text-slate-700 uppercase dark:text-slate-300"
+                  class="text-base font-bold text-foreground-secondary uppercase"
                 >
                   Rien de prévu
                 </h3>
-                <p class="mt-2 text-sm text-slate-500">
+                <p class="mt-2 text-sm text-muted-foreground">
                   Aucune session à venir pour le moment. On te préviendra ici
                   dès qu'il y a du nouveau !
                 </p>
@@ -504,16 +484,14 @@
              left column on mobile (after planning). -->
         {#if data.pastEvents.length > 0}
           <div
-            class="order-5 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+            class="order-5 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
           >
             <div
-              class="flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
+              class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
             >
               <CalendarCheck class="h-4 w-4 shrink-0 text-epi-blue" />
-              <h2
-                class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
-              >
-                Événements passés<span class="text-epi-teal">_</span>
+              <h2 class="font-heading text-display-s text-foreground">
+                Événements passés<TitleCursor />
               </h2>
             </div>
 
@@ -524,7 +502,7 @@
               class="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 px-6 pt-4 pb-2"
             >
               {#each data.pastEvents as ev (ev.id)}
-                <span class="text-xs text-slate-400 tabular-nums">
+                <span class="text-xs text-muted-foreground">
                   {new Date(ev.date).toLocaleDateString('fr-FR', {
                     timeZone: data.timeZone,
                     day: 'numeric',
@@ -532,7 +510,7 @@
                   })}
                 </span>
                 <span
-                  class="min-w-0 truncate text-sm font-medium text-slate-700 dark:text-slate-300"
+                  class="min-w-0 truncate text-sm font-medium text-foreground-secondary"
                 >
                   {eventDisplayName(ev)}
                 </span>
@@ -542,7 +520,7 @@
             <div class="flex justify-center pb-4">
               <a
                 href={resolve('/events')}
-                class="group inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-400 transition-all hover:bg-epi-blue/10 hover:text-epi-blue dark:bg-slate-800 dark:hover:bg-epi-blue/20"
+                class="group inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground transition-ui hover:bg-epi-blue/10 hover:text-epi-blue dark:hover:bg-epi-blue/20"
               >
                 <CalendarCheck class="h-3 w-3" />
                 Voir tout
@@ -563,16 +541,14 @@
       >
         <!-- order-3: sits below Actualités on mobile, with its history link -->
         <div
-          class="order-3 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+          class="order-3 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
         >
           <div
-            class="flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
+            class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
           >
             <Rocket class="h-4 w-4 shrink-0 text-epi-blue" />
-            <h2
-              class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
-            >
-              Mission du jour<span class="text-epi-teal">_</span>
+            <h2 class="font-heading text-display-s text-foreground">
+              Mission du jour<TitleCursor />
             </h2>
           </div>
 
@@ -585,17 +561,15 @@
               <div
                 class="flex flex-col items-center justify-center py-8 text-center"
               >
-                <div
-                  class="mb-4 rounded-full bg-slate-200/50 p-4 dark:bg-slate-800"
-                >
-                  <Coffee class="h-8 w-8 text-slate-400" />
+                <div class="mb-4 rounded-full bg-muted/50 p-4">
+                  <Coffee class="h-8 w-8 text-muted-foreground" />
                 </div>
                 <h3
-                  class="text-lg font-bold text-slate-700 uppercase dark:text-slate-300"
+                  class="text-lg font-bold text-foreground-secondary uppercase"
                 >
                   Repos aujourd'hui
                 </h3>
-                <p class="mt-2 max-w-sm text-sm text-slate-500">
+                <p class="mt-2 max-w-sm text-sm text-muted-foreground">
                   Aucune mission pour aujourd'hui. Profites-en pour souffler ou
                   tenter un mini-jeu !
                 </p>

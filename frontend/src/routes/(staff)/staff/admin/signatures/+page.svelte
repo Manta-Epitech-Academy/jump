@@ -14,6 +14,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import SearchableSelect, {
     type SelectOption,
   } from '$lib/components/staff/SearchableSelect.svelte';
@@ -95,9 +96,11 @@
 </svelte:head>
 
 {#snippet signatoryCard(s: Signatory)}
-  <div class="flex items-center gap-4 rounded-sm border bg-card p-3 shadow-sm">
+  <div
+    class="flex items-center gap-4 rounded-sm border bg-card p-3 shadow-raised"
+  >
     <div
-      class="flex h-16 w-28 shrink-0 items-center justify-center rounded-sm border bg-white"
+      class="flex h-16 w-28 shrink-0 items-center justify-center rounded-sm border bg-card"
     >
       <img
         src="/api/signatures/{s.id}?v={s.updatedAt.getTime()}"
@@ -118,6 +121,7 @@
               variant="ghost"
               size="icon"
               onclick={() => openEdit(s)}
+              aria-label="Modifier {s.name}"
             >
               <Pencil class="h-4 w-4" />
             </Button>
@@ -134,6 +138,7 @@
               size="icon"
               class="text-destructive hover:text-destructive"
               onclick={() => confirmDelete(s.id)}
+              aria-label="Supprimer {s.name}"
             >
               <Trash2 class="h-4 w-4" />
             </Button>
@@ -146,28 +151,23 @@
 {/snippet}
 
 <div class="space-y-8">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Signataires <span class="text-epi-pink">Diplômes</span>
-      </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
-        Signatures imprimées sur les certificats de stage
-      </p>
-    </div>
-    <Button
-      onclick={() => openCreate(null)}
-      class="bg-epi-pink text-white hover:bg-epi-pink/90"
-    >
-      <Plus class="mr-2 h-4 w-4" /> Ajouter
-    </Button>
-  </div>
+  <PageHeader
+    title="Signataires"
+    accent="Diplômes"
+    subtitle="Signatures imprimées sur les certificats de stage"
+  >
+    {#snippet actions()}
+      <Button onclick={() => openCreate(null)}>
+        <Plus class="mr-2 h-4 w-4" /> Ajouter
+      </Button>
+    {/snippet}
+  </PageHeader>
 
   <!-- Signataires globaux -->
   <section class="space-y-3">
     <div class="flex items-center gap-2">
-      <Globe class="h-5 w-5 text-epi-pink" />
-      <h2 class="font-heading text-lg tracking-wide uppercase">Globaux</h2>
+      <Globe class="h-5 w-5 text-epi-tomorrow" />
+      <h2 class="font-heading text-display-s">Globaux</h2>
       <span class="text-xs text-muted-foreground">
         Appliqués à tous les campus
       </span>
@@ -193,7 +193,7 @@
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <Building2 class="h-5 w-5 text-muted-foreground" />
-          <h2 class="font-heading text-lg tracking-wide uppercase">
+          <h2 class="font-heading text-display-s">
             {group.campus.name}
           </h2>
         </div>
@@ -315,11 +315,7 @@
         </div>
 
         <Dialog.Footer class="mt-4">
-          <Button
-            type="submit"
-            disabled={submitting}
-            class="bg-epi-pink text-white"
-          >
+          <Button type="submit" disabled={submitting}>
             {submitting ? 'Enregistrement...' : 'Enregistrer'}
           </Button>
         </Dialog.Footer>

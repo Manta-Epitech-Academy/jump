@@ -50,7 +50,7 @@
           )}
         >
           {#if copied}
-            <Check class="h-3.5 w-3.5 text-emerald-600" />
+            <Check class="h-3.5 w-3.5 text-success" />
           {:else}
             <Copy class="h-3.5 w-3.5" />
           {/if}

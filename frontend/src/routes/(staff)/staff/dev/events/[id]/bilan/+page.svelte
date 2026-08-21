@@ -24,37 +24,40 @@
 <div class="space-y-6 pb-10">
   <Tooltip.Provider delayDuration={150}>
     <PageHeader title={data.form.title}>
-      <div class="flex items-center gap-2">
-        <Button
-          href={`${page.url.pathname}/export`}
-          download
-          variant="outline"
-          size="sm"
-          class="rounded-sm"
-        >
-          <Download class="mr-1.5 h-4 w-4" />
-          Exporter XLSX
-        </Button>
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <Button
-                {...props}
-                variant="outline"
-                size="sm"
-                onclick={() => (qrOpen = true)}
-                class="rounded-sm"
-              >
-                <QrCode class="mr-1.5 h-4 w-4" />
-                Afficher le QR code
-              </Button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content class="max-w-56">
-            Projetez le QR code : les talents le scannent pour donner leur avis.
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </div>
+      {#snippet actions()}
+        <div class="flex items-center gap-2">
+          <Button
+            href={`${page.url.pathname}/export`}
+            download
+            variant="outline"
+            size="sm"
+            class="rounded-sm"
+          >
+            <Download class="mr-1.5 h-4 w-4" />
+            Exporter XLSX
+          </Button>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <Button
+                  {...props}
+                  variant="outline"
+                  size="sm"
+                  onclick={() => (qrOpen = true)}
+                  class="rounded-sm"
+                >
+                  <QrCode class="mr-1.5 h-4 w-4" />
+                  Afficher le QR code
+                </Button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content class="max-w-56">
+              Projetez le QR code : les talents le scannent pour donner leur
+              avis.
+            </Tooltip.Content>
+          </Tooltip.Root>
+        </div>
+      {/snippet}
     </PageHeader>
   </Tooltip.Provider>
 

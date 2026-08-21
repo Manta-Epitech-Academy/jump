@@ -105,18 +105,18 @@
   // status is also carried by an icon + label, so color is reinforcement only.
   const rulesTone = (s: RulesStatus) =>
     s === 'signed'
-      ? 'text-epi-teal dark:text-teal-900'
+      ? 'text-epi-tech'
       : s === 'awaiting_parent'
-        ? 'text-amber-300 dark:text-amber-900'
-        : 'text-red-300 dark:text-red-900';
+        ? 'text-warning'
+        : 'text-destructive';
   const imageTone = (s: ImageRightsDisplayStatus) =>
     s === 'accepted'
-      ? 'text-epi-teal dark:text-teal-900'
+      ? 'text-epi-tech'
       : s === 'refused'
-        ? 'text-orange-300 dark:text-orange-900'
+        ? 'text-epi-together-ink'
         : s === 'awaiting_parent'
-          ? 'text-amber-300 dark:text-amber-900'
-          : 'text-red-300 dark:text-red-900';
+          ? 'text-warning'
+          : 'text-destructive';
 
   // Statut badge presentation, one entry per funnel state. Red = never logged in
   // (the most urgent case), amber = connected but dossier in progress, teal =
@@ -131,11 +131,11 @@
     },
     in_progress: {
       icon: Clock,
-      class: 'border-amber-500/30 bg-amber-500/10 text-amber-600',
+      class: 'border-warning/30 bg-warning/10 text-warning',
     },
     ready: {
       icon: Check,
-      class: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
+      class: 'border-epi-tech/30 bg-epi-tech/10 text-epi-tech-ink',
     },
   };
 
@@ -388,9 +388,7 @@
       <span
         class={cn(
           'inline-flex items-center gap-1 font-bold',
-          r.connected
-            ? 'text-epi-teal dark:text-teal-900'
-            : 'text-red-300 dark:text-red-900',
+          r.connected ? 'text-epi-tech' : 'text-destructive',
         )}
       >
         {#if r.connected}
@@ -473,9 +471,7 @@
         {#snippet filters()}
           {#if showStatutColumn}
             <div class="flex items-center gap-2">
-              <span
-                class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
-              >
+              <span class="hidden epi-overline text-muted-foreground sm:inline">
                 Statut
               </span>
               <FilterSelect
@@ -489,9 +485,7 @@
 
           {#if showNiveauFilter}
             <div class="flex items-center gap-2">
-              <span
-                class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
-              >
+              <span class="hidden epi-overline text-muted-foreground sm:inline">
                 Niveau
               </span>
               <FilterSelect
@@ -628,7 +622,7 @@
                       {...props}
                       href={resolve(`/staff/dev/students/${r.talentId}`)}
                       tabindex={-1}
-                      class="relative z-10 inline-flex items-center gap-1 rounded-full bg-epi-teal-solid/10 px-2 py-0.5 text-xs font-bold text-epi-teal-solid tabular-nums"
+                      class="relative z-10 inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
                     >
                       <Sparkles class="h-3 w-3" />
                       {r.xp}
@@ -657,7 +651,7 @@
               {#if r.niveau}
                 <Badge
                   variant="secondary"
-                  class="rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
+                  class="rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
                 >
                   {niveauLabel(r.niveau)}
                 </Badge>
@@ -682,7 +676,7 @@
                         href={resolve(`/staff/dev/students/${r.talentId}`)}
                         tabindex={-1}
                         class={cn(
-                          'relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase',
+                          'relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip',
                           badge.class,
                         )}
                       >
@@ -720,7 +714,7 @@
                   </p>
                   <div class="flex shrink-0 items-center gap-1.5">
                     <span
-                      class="inline-flex items-center gap-1 rounded-full bg-epi-teal-solid/10 px-2 py-0.5 text-[10px] font-bold text-epi-teal-solid tabular-nums"
+                      class="inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
                     >
                       <Sparkles class="h-3 w-3" />
                       {r.xp}
@@ -728,7 +722,7 @@
                     {#if showStatutColumn}
                       <span
                         class={cn(
-                          'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase',
+                          'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip',
                           badge.class,
                         )}
                       >
@@ -747,7 +741,7 @@
                   {#if r.niveau}
                     <Badge
                       variant="secondary"
-                      class="shrink-0 rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
+                      class="shrink-0 rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
                     >
                       {niveauLabel(r.niveau)}
                     </Badge>

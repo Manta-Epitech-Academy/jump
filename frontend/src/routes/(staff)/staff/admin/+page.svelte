@@ -11,6 +11,7 @@
   import EventStateBadge from '$lib/components/events/EventStateBadge.svelte';
   import EventModulesCell from '$lib/components/events/EventModulesCell.svelte';
   import { resolve } from '$app/paths';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
@@ -42,34 +43,33 @@
 
 <div class="space-y-6">
   <div>
-    <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Système <span class="text-epi-pink">Global</span>
-    </h1>
-    <p class="text-sm font-bold text-muted-foreground uppercase">
-      Vue d'ensemble du réseau Jump
-    </p>
+    <PageHeader
+      title="Système"
+      accent="Global"
+      subtitle="Vue d'ensemble du réseau Jump"
+    />
   </div>
 
   <!-- KPIs -->
   <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
     <a
       href={resolve('/staff/admin/campuses')}
-      class="block transition-all hover:-translate-y-1"
+      class="block transition-ui hover:-translate-y-1"
     >
       <Card.Root
-        class="h-full border-t-4 border-t-epi-pink shadow-sm hover:border-epi-pink/80"
+        class="h-full border-t-4 border-t-epi-tomorrow shadow-raised hover:border-epi-tomorrow/80"
       >
         <Card.Header
           class="flex flex-row items-center justify-between space-y-0 pb-2"
         >
           <Card.Title
-            class="text-sm font-bold uppercase transition-colors hover:text-epi-pink"
+            class="text-sm font-bold uppercase transition-colors hover:text-epi-tomorrow"
             >Réseau</Card.Title
           >
           <Map class="h-4 w-4 text-muted-foreground" />
         </Card.Header>
         <Card.Content>
-          <div class="text-2xl font-black">{data.stats.campuses}</div>
+          <div class="text-2xl font-bold">{data.stats.campuses}</div>
           <p class="text-xs text-muted-foreground">Campus actifs</p>
         </Card.Content>
       </Card.Root>
@@ -77,22 +77,22 @@
 
     <a
       href={resolve('/staff/admin/users')}
-      class="block transition-all hover:-translate-y-1"
+      class="block transition-ui hover:-translate-y-1"
     >
       <Card.Root
-        class="h-full border-t-4 border-t-epi-pink shadow-sm hover:border-epi-pink/80"
+        class="h-full border-t-4 border-t-epi-tomorrow shadow-raised hover:border-epi-tomorrow/80"
       >
         <Card.Header
           class="flex flex-row items-center justify-between space-y-0 pb-2"
         >
           <Card.Title
-            class="text-sm font-bold uppercase transition-colors hover:text-epi-pink"
+            class="text-sm font-bold uppercase transition-colors hover:text-epi-tomorrow"
             >Staff</Card.Title
           >
           <Users class="h-4 w-4 text-muted-foreground" />
         </Card.Header>
         <Card.Content>
-          <div class="text-2xl font-black">{data.stats.users}</div>
+          <div class="text-2xl font-bold">{data.stats.users}</div>
           <p class="text-xs text-muted-foreground">Membres de l'équipe</p>
         </Card.Content>
       </Card.Root>
@@ -100,44 +100,44 @@
 
     <a
       href={resolve('/staff/admin/talents')}
-      class="block transition-all hover:-translate-y-1"
+      class="block transition-ui hover:-translate-y-1"
     >
       <Card.Root
-        class="h-full border-t-4 border-t-epi-pink shadow-sm hover:border-epi-pink/80"
+        class="h-full border-t-4 border-t-epi-tomorrow shadow-raised hover:border-epi-tomorrow/80"
       >
         <Card.Header
           class="flex flex-row items-center justify-between space-y-0 pb-2"
         >
           <Card.Title
-            class="text-sm font-bold uppercase transition-colors hover:text-epi-pink"
+            class="text-sm font-bold uppercase transition-colors hover:text-epi-tomorrow"
             >Talents</Card.Title
           >
           <GraduationCap class="h-4 w-4 text-muted-foreground" />
         </Card.Header>
         <Card.Content>
-          <div class="text-2xl font-black">{data.stats.students}</div>
+          <div class="text-2xl font-bold">{data.stats.students}</div>
           <p class="text-xs text-muted-foreground">Inscrits en base</p>
         </Card.Content>
       </Card.Root>
     </a>
 
-    <a href={eventsHref} class="block transition-all hover:-translate-y-1">
+    <a href={eventsHref} class="block transition-ui hover:-translate-y-1">
       <Card.Root
-        class="h-full border-t-4 border-t-epi-pink shadow-sm hover:border-epi-pink/80"
+        class="h-full border-t-4 border-t-epi-tomorrow shadow-raised hover:border-epi-tomorrow/80"
       >
         <Card.Header
           class="flex flex-row items-center justify-between space-y-0 pb-2"
         >
           <Card.Title
-            class="text-sm font-bold uppercase transition-colors hover:text-epi-pink"
+            class="text-sm font-bold uppercase transition-colors hover:text-epi-tomorrow"
             >Événements</Card.Title
           >
           <CalendarDays class="h-4 w-4 text-muted-foreground" />
         </Card.Header>
         <Card.Content>
-          <div class="text-2xl font-black">{data.stats.events}</div>
+          <div class="text-2xl font-bold">{data.stats.events}</div>
           {#if data.stats.toPrepare > 0}
-            <p class="text-xs font-medium text-amber-600">
+            <p class="text-xs font-medium text-warning">
               {data.stats.toPrepare} à préparer
             </p>
           {:else}
@@ -160,7 +160,7 @@
     </Card.Header>
     <Card.Content>
       {#if data.lastSync}
-        <div class="text-2xl font-black">
+        <div class="text-2xl font-bold">
           {formatSyncDateTime(data.lastSync.at)}
         </div>
         <p class="text-xs text-muted-foreground">
@@ -179,7 +179,7 @@
           {/if}
         </p>
       {:else}
-        <div class="text-2xl font-black text-muted-foreground">—</div>
+        <div class="text-2xl font-bold text-muted-foreground">—</div>
         <p class="text-xs text-muted-foreground">
           Aucune synchro depuis le dernier redémarrage
         </p>
@@ -195,7 +195,7 @@
       <Card.Title class="uppercase">Derniers événements créés</Card.Title>
       <a
         href={eventsHref}
-        class="flex shrink-0 items-center gap-1 text-xs font-bold text-muted-foreground uppercase transition-colors hover:text-epi-pink"
+        class="flex shrink-0 items-center gap-1 text-xs font-bold text-muted-foreground uppercase transition-colors hover:text-epi-tomorrow"
       >
         Tous les événements
         <ArrowRight class="size-3.5" />
@@ -207,7 +207,7 @@
           {#each data.recentEvents as event (event.id)}
             <a
               href="{eventsHref}?event={event.id}"
-              class="group flex items-center gap-4 rounded-sm border px-4 py-3 transition-colors hover:border-epi-pink/60 hover:bg-muted/40"
+              class="group flex items-center gap-4 rounded-sm border px-4 py-3 transition-colors hover:border-epi-tomorrow/60 hover:bg-muted/40"
             >
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
@@ -217,7 +217,7 @@
                   {#if !event.synced}
                     <Badge
                       variant="outline"
-                      class="shrink-0 text-[10px] font-normal text-muted-foreground"
+                      class="shrink-0 text-xs font-normal text-muted-foreground"
                     >
                       Manuel
                     </Badge>
@@ -235,15 +235,13 @@
                 <EventModulesCell modules={event.modules} />
               </div>
               <div class="shrink-0 text-right">
-                <div class="text-sm font-bold tabular-nums">
+                <div class="text-sm font-bold">
                   {event.participations}
                 </div>
-                <div class="text-[10px] text-muted-foreground uppercase">
-                  inscrits
-                </div>
+                <div class="epi-overline text-muted-foreground">inscrits</div>
               </div>
               <ChevronRight
-                class="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-epi-pink"
+                class="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-epi-tomorrow"
               />
             </a>
           {/each}

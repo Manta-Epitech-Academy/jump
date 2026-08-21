@@ -97,22 +97,19 @@
 
   const STATUS_BADGE: Record<string, { class: string; label: string }> = {
     READY: {
-      class:
-        'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25',
+      class: 'bg-success/10 text-success border-success/25',
       label: 'Ready',
     },
     MEET: {
-      class: 'bg-epi-teal/10 text-epi-teal-solid border-epi-teal/25',
+      class: 'bg-epi-tech/10 text-epi-tech-ink border-epi-tech/25',
       label: 'Meet',
     },
     CONNECTED: {
-      class:
-        'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25',
+      class: 'bg-warning/10 text-warning border-warning/25',
       label: 'Connected',
     },
     DESISTED: {
-      class:
-        'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25',
+      class: 'bg-destructive/10 text-destructive border-destructive/25',
       label: 'Desisted',
     },
   };
@@ -136,7 +133,7 @@
   <Dialog.Content class="flex max-h-[90dvh] flex-col gap-0 p-0 sm:max-w-3xl">
     <Dialog.Header class="border-b px-4 py-4 text-start sm:px-6">
       <Dialog.Title class="flex items-center gap-2">
-        <Database class="h-5 w-5 text-epi-pink" />
+        <Database class="h-5 w-5 text-epi-tomorrow" />
         Membres Salesforce
       </Dialog.Title>
       <Dialog.Description>
@@ -184,7 +181,7 @@
               class="h-9 pl-9 text-xs"
             />
           </div>
-          <div class="flex gap-1 text-[11px] font-bold">
+          <div class="flex gap-1 text-xs font-bold">
             <button
               type="button"
               onclick={() => (filterVisibility = 'all')}
@@ -225,12 +222,10 @@
           <Table.Root>
             <Table.Header class="sticky top-0 bg-background">
               <Table.Row>
-                <Table.Head class="text-xs">Participant</Table.Head>
-                <Table.Head class="text-xs">Email</Table.Head>
-                <Table.Head class="text-xs">Statut SF</Table.Head>
-                <Table.Head class="w-24 text-right text-xs"
-                  >Espace dev</Table.Head
-                >
+                <Table.Head>Participant</Table.Head>
+                <Table.Head>Email</Table.Head>
+                <Table.Head>Statut SF</Table.Head>
+                <Table.Head class="w-24 text-right">Espace dev</Table.Head>
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -252,7 +247,7 @@
                       {row.nom}
                       {#if row.schoolName}
                         <span
-                          class="block text-[11px] font-normal text-muted-foreground"
+                          class="block text-xs font-normal text-muted-foreground"
                         >
                           {row.schoolName}
                         </span>
@@ -262,21 +257,21 @@
                       {row.email ?? '—'}
                     </Table.Cell>
                     <Table.Cell>
-                      <Badge variant="outline" class="text-[10px] {sb.class}">
+                      <Badge variant="outline" class="text-xs {sb.class}">
                         {sb.label}
                       </Badge>
                     </Table.Cell>
                     <Table.Cell class="text-right">
                       {#if row.isVisibleInDevSpace}
                         <span
-                          class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400"
+                          class="inline-flex items-center gap-1 text-xs font-bold text-success"
                         >
                           <Eye class="h-3 w-3" />
                           Visible
                         </span>
                       {:else}
                         <span
-                          class="inline-flex items-center gap-1 text-[10px] font-bold text-muted-foreground"
+                          class="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground"
                           title="Masqué de l'espace dev (statut ni READY ni MEET)"
                         >
                           <EyeOff class="h-3 w-3" />

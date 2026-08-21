@@ -43,6 +43,7 @@
   import { can } from '$lib/domain/permissions';
   import type { StaffRole } from '@prisma/client';
   import { track, errReason } from '$lib/analytics';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   let { data } = $props();
 
   type MemberRow = (typeof data)['members'][number];
@@ -376,27 +377,23 @@
 </svelte:head>
 
 <div class="space-y-6">
-  <div class="flex items-end justify-between gap-4">
-    <div>
-      <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Membres & <span class="text-epi-pink">invitations</span>
-      </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
-        Pré-approuver un accès ou modifier un membre existant
-      </p>
-    </div>
-    <Button onclick={openInvite} class="gap-2">
-      <Plus class="h-4 w-4" />
-      Inviter
-    </Button>
-  </div>
+  <PageHeader
+    title="Membres &amp;"
+    accent="invitations"
+    subtitle="Pré-approuver un accès ou modifier un membre existant"
+  >
+    {#snippet actions()}
+      <Button onclick={openInvite} class="gap-2">
+        <Plus class="h-4 w-4" />
+        Inviter
+      </Button>
+    {/snippet}
+  </PageHeader>
 
   <!-- Explorer un campus -->
   <section class="space-y-3">
     <div class="space-y-1">
-      <h2 class="font-heading text-lg tracking-wide uppercase">
-        Explorer un campus
-      </h2>
+      <h2 class="font-heading text-display-s">Explorer un campus</h2>
       <p class="text-sm text-muted-foreground">
         Entrez dans l'espace d'un campus tel que son équipe le voit, sans
         choisir qui : on se connecte en tant qu'un membre représentatif (le
@@ -469,7 +466,7 @@
 
   <!-- Members -->
   <section id="members" class="scroll-mt-20 space-y-3">
-    <h2 class="font-heading text-lg tracking-wide uppercase">
+    <h2 class="font-heading text-display-s">
       Membres actifs
       <span class="ml-2 text-sm text-muted-foreground"
         >({data.members.length})</span
@@ -513,7 +510,7 @@
             <Mail class="h-3 w-3" />
             <a
               href="mailto:{user.email}"
-              class="transition-colors hover:text-epi-pink hover:underline"
+              class="transition-colors hover:text-epi-tomorrow hover:underline"
             >
               {user.email}
             </a>
@@ -629,8 +626,7 @@
                   <Select.Item value={role.value} class="py-2">
                     <div class="flex flex-col gap-0.5">
                       <span class="text-xs font-semibold">{role.label}</span>
-                      <span
-                        class="text-[11px] leading-snug text-muted-foreground"
+                      <span class="text-xs leading-snug text-muted-foreground"
                         >{role.description}</span
                       >
                     </div>
@@ -651,7 +647,9 @@
                         {...props}
                         variant="ghost"
                         size="icon"
-                        class="text-muted-foreground hover:text-epi-pink"
+                        class="text-muted-foreground hover:text-epi-tomorrow"
+                        aria-label="Se connecter en tant que {user.name ||
+                          user.email}"
                         disabled={impersonating === user.id}
                         onclick={() =>
                           loginAs(
@@ -680,6 +678,7 @@
                       size="icon"
                       class="text-destructive hover:bg-destructive/10"
                       onclick={() => confirmDelete(user.id)}
+                      aria-label="Révoquer l'accès de {user.name || user.email}"
                     >
                       <Trash2 class="h-4 w-4" />
                     </Button>
@@ -717,22 +716,18 @@
       onOpenChange={(o) => (invitesOpen = o)}
     >
       <Collapsible.Trigger
-        class="flex w-full items-center gap-2 border-t pt-4 text-left transition-colors hover:text-epi-pink"
+        class="flex w-full items-center gap-2 border-t pt-4 text-left transition-colors hover:text-epi-tomorrow"
       >
         <ChevronRight
           class="h-4 w-4 shrink-0 text-muted-foreground transition-transform {invitesOpen
             ? 'rotate-90'
             : ''}"
         />
-        <h2 class="font-heading text-lg tracking-wide uppercase">
-          Invitations en attente
-        </h2>
+        <h2 class="font-heading text-display-s">Invitations en attente</h2>
         <span class="text-sm text-muted-foreground"
           >({data.invitations.length})</span
         >
-        <span
-          class="ml-auto text-[10px] font-black tracking-widest text-muted-foreground uppercase"
-        >
+        <span class="ml-auto epi-overline text-muted-foreground">
           {invitesOpen ? 'Masquer' : 'Afficher'}
         </span>
       </Collapsible.Trigger>
@@ -825,6 +820,7 @@
                           variant="ghost"
                           size="icon"
                           class="text-destructive hover:bg-destructive/10"
+                          aria-label="Annuler l'invitation"
                         >
                           <X class="h-4 w-4" />
                         </Button>
@@ -951,7 +947,7 @@
                 <Select.Item value={role.value} class="py-2">
                   <div class="flex flex-col gap-0.5">
                     <span class="text-xs font-semibold">{role.label}</span>
-                    <span class="text-[11px] leading-snug text-muted-foreground"
+                    <span class="text-xs leading-snug text-muted-foreground"
                       >{role.description}</span
                     >
                   </div>

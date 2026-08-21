@@ -187,8 +187,8 @@
   // Status chip tints (labels are single-sourced in ./labels so the table and
   // the XLSX export read the same words). `active` = onboarding complete.
   const STATUS_CLASS = {
-    active: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
-    pending: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
+    active: 'border-epi-tech/30 bg-epi-tech/10 text-epi-tech-ink',
+    pending: 'border-epi-together/30 bg-epi-together/10 text-epi-together',
     never: 'border-border bg-muted text-muted-foreground',
   } as const;
 
@@ -196,8 +196,8 @@
   // like the account-status chip: complete reads calm (teal), en attente flags
   // a parent still to chase (orange).
   const PARENT_STATUS_CLASS = {
-    complete: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
-    pending: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
+    complete: 'border-epi-tech/30 bg-epi-tech/10 text-epi-tech-ink',
+    pending: 'border-epi-together/30 bg-epi-together/10 text-epi-together',
   } as const;
 
   function lastActiveLabel(date: Date | string | null): string {
@@ -380,11 +380,7 @@
   >
     {#snippet filters()}
       <div class="flex items-center gap-2">
-        <span
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Statut
-        </span>
+        <span class="epi-overline text-muted-foreground"> Statut </span>
         <SegmentedFilter
           ariaLabel="Filtrer par statut de compte"
           options={statutOptions}
@@ -394,11 +390,7 @@
       </div>
 
       <div class="flex items-center gap-2">
-        <span
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Parent
-        </span>
+        <span class="epi-overline text-muted-foreground"> Parent </span>
         <SegmentedFilter
           ariaLabel="Filtrer par statut du parent"
           options={parentStatusOptions}
@@ -521,7 +513,7 @@
         {#if talent.niveau}
           <Badge
             variant="secondary"
-            class="rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
+            class="rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
           >
             {niveauLabel(talent.niveau)}
           </Badge>
@@ -540,7 +532,7 @@
         <div class="flex items-center gap-1.5">
           {#if talent.parentStatus}
             <span
-              class="inline-flex w-fit rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {PARENT_STATUS_CLASS[
+              class="inline-flex w-fit rounded-sm border px-2 py-0.5 epi-chip {PARENT_STATUS_CLASS[
                 talent.parentStatus
               ]}"
             >
@@ -576,31 +568,29 @@
       </Table.Cell>
       <Table.Cell>
         <div class="flex items-center gap-2">
-          <Zap class="h-3.5 w-3.5 text-epi-pink" />
-          <span class="font-mono text-sm font-bold">{talent.xp}</span>
+          <Zap class="h-3.5 w-3.5 text-epi-tomorrow" />
+          <span class="text-sm font-bold">{talent.xp}</span>
           <span class="text-xs text-muted-foreground">
             · {talent.eventsCount} évé{talent.eventsCount > 1
               ? 'nements'
               : 'nement'}
           </span>
         </div>
-        <span
-          class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
-        >
+        <span class="epi-chip text-muted-foreground">
           {talent.level}
         </span>
       </Table.Cell>
       <Table.Cell>
         <div class="flex flex-col items-start gap-0.5">
           <span
-            class="inline-flex rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {STATUS_CLASS[
+            class="inline-flex rounded-sm border px-2 py-0.5 epi-chip {STATUS_CLASS[
               talent.status
             ]}"
           >
             {TALENT_STATUS_LABELS[talent.status]}
           </span>
           {#if talent.onboardingStep}
-            <span class="text-[10px] text-muted-foreground">
+            <span class="text-xs text-muted-foreground">
               {talent.onboardingStep}
             </span>
           {/if}
@@ -621,6 +611,7 @@
                     size="icon"
                     class="text-muted-foreground hover:text-destructive"
                     onclick={() => askWipe(talent)}
+                    aria-label="Réinitialiser {talent.prenom} {talent.nom} à l'état import"
                   >
                     <Bomb class="h-4 w-4" />
                   </Button>
@@ -640,7 +631,7 @@
                     {...props}
                     variant="ghost"
                     size="sm"
-                    class="gap-1.5 text-muted-foreground hover:text-epi-pink"
+                    class="gap-1.5 text-muted-foreground hover:text-epi-tomorrow"
                     disabled={impersonating === talent.id ||
                       (!talent.email && !talent.userId)}
                     onclick={() => impersonate(talent.id)}

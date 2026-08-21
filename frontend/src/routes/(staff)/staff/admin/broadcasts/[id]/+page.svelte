@@ -13,7 +13,7 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import Eye from '@lucide/svelte/icons/eye';
   import Activity from '@lucide/svelte/icons/activity';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import BroadcastStatusBadge from '$lib/components/admin/broadcasts/BroadcastStatusBadge.svelte';
   import ChannelBadge from '$lib/components/admin/broadcasts/ChannelBadge.svelte';
@@ -75,7 +75,7 @@
     <ArrowLeft class="mr-1 h-4 w-4" /> Retour aux envois
   </Button>
 
-  <AdminPageHeader title={data.broadcast.name} />
+  <PageHeader title={data.broadcast.name} />
   <div
     class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground"
   >
@@ -145,7 +145,7 @@
         </div>
       {:else}
         <pre
-          class="rounded-sm border bg-white p-3 text-xs whitespace-pre-wrap text-slate-800 dark:bg-slate-900 dark:text-slate-200">{data
+          class="rounded-sm border bg-card p-3 text-xs whitespace-pre-wrap text-foreground">{data
             .broadcast.bodySnapshot}</pre>
       {/if}
     </div>

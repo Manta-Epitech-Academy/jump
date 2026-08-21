@@ -93,9 +93,7 @@
     >
       <!-- Decision: the one thing being changed -->
       <div class="space-y-1.5">
-        <Label class="text-[11px] font-bold tracking-widest uppercase">
-          Décision
-        </Label>
+        <Label class="epi-overline">Décision</Label>
         <div class="grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -103,7 +101,7 @@
             class={cn(
               'flex cursor-pointer items-center justify-center gap-1.5 rounded-sm border px-3 py-2 text-sm font-bold transition-colors',
               $form.decision === 'accepted'
-                ? 'border-epi-teal/50 bg-epi-teal/10 text-epi-teal-solid'
+                ? 'border-epi-tech/50 bg-epi-tech/10 text-epi-tech-ink'
                 : 'border-border bg-card text-muted-foreground hover:bg-muted/50',
             )}
           >
@@ -116,7 +114,7 @@
             class={cn(
               'flex cursor-pointer items-center justify-center gap-1.5 rounded-sm border px-3 py-2 text-sm font-bold transition-colors',
               $form.decision === 'refused'
-                ? 'border-epi-orange/50 bg-epi-orange/10 text-epi-orange'
+                ? 'border-epi-together/50 bg-epi-together/10 text-epi-together'
                 : 'border-border bg-card text-muted-foreground hover:bg-muted/50',
             )}
           >
@@ -133,12 +131,9 @@
       <!-- Guardian on file: pre-filled, edited only if the name is wrong -->
       <div class="grid grid-cols-2 gap-2">
         <div class="space-y-1.5">
-          <Label
-            for="ir-prenom"
-            class="text-[11px] font-bold tracking-widest uppercase"
+          <Label for="ir-prenom" class="epi-overline"
+            >Prénom du responsable</Label
           >
-            Prénom du responsable
-          </Label>
           <Input
             id="ir-prenom"
             name="signerPrenom"
@@ -150,12 +145,7 @@
           {/if}
         </div>
         <div class="space-y-1.5">
-          <Label
-            for="ir-nom"
-            class="text-[11px] font-bold tracking-widest uppercase"
-          >
-            Nom du responsable
-          </Label>
+          <Label for="ir-nom" class="epi-overline">Nom du responsable</Label>
           <Input
             id="ir-nom"
             name="signerNom"
@@ -170,12 +160,7 @@
 
       <!-- Mandatory reason: staff stands in for the guardian, must say why -->
       <div class="space-y-1.5">
-        <Label
-          for="ir-note"
-          class="text-[11px] font-bold tracking-widest uppercase"
-        >
-          Motif de la correction
-        </Label>
+        <Label for="ir-note" class="epi-overline">Motif de la correction</Label>
         <Textarea
           id="ir-note"
           name="note"
@@ -213,9 +198,7 @@
     {#if records.length > 0}
       <Separator />
       <div class="px-5 py-4">
-        <h4
-          class="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
+        <h4 class="mb-2 epi-overline text-muted-foreground">
           Historique des décisions
         </h4>
         <!-- `ImageRightsDecisionRecord` is append-only and every staff
@@ -225,11 +208,9 @@
           {#each records as r (r.id)}
             <li class="flex gap-2 text-xs">
               {#if r.decision === 'accepted'}
-                <Check
-                  class="mt-0.5 h-3.5 w-3.5 shrink-0 text-epi-teal-solid"
-                />
+                <Check class="mt-0.5 h-3.5 w-3.5 shrink-0 text-epi-tech-ink" />
               {:else}
-                <X class="mt-0.5 h-3.5 w-3.5 shrink-0 text-epi-orange" />
+                <X class="mt-0.5 h-3.5 w-3.5 shrink-0 text-epi-together" />
               {/if}
               <div class="min-w-0">
                 <p class="font-bold">

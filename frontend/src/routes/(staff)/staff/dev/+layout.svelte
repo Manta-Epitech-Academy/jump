@@ -31,6 +31,7 @@
   } from '$lib/domain/eventModules';
   import { eventDisplayName } from '$lib/domain/event';
   import { schoolYearOf } from '$lib/domain/schoolYear';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   // Icons live with the component (Svelte components can't sit in the domain
   // layer); order/label/reachability are single-sourced in `eventModules`.
@@ -134,7 +135,7 @@
 
   const navLinkClass = (active: boolean) => `
     flex items-center gap-3 px-3 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer
-    ${active ? 'bg-epi-blue text-white' : 'text-sidebar-foreground-muted hover:bg-sidebar-hover hover:text-sidebar-foreground'}
+    ${active ? 'bg-epi-blue text-white' : 'text-chrome-foreground-muted hover:bg-chrome-hover hover:text-chrome-foreground'}
   `;
 
   function getInitials(user: any) {
@@ -153,8 +154,8 @@
     class="flex items-center gap-2.5 px-4 py-4.5 text-white transition-opacity hover:opacity-95"
   >
     <EpitechLogo tone="dark" class="h-7 w-auto shrink-0" />
-    <span class="font-heading text-lg leading-none">
-      Jump<span class="text-epi-teal">_</span>
+    <span class="font-heading text-display-s">
+      Jump<TitleCursor />
     </span>
   </a>
 {/snippet}
@@ -163,11 +164,17 @@
   {#if currentEvent}
     {@const ev = currentEvent}
     <!-- The event in view is the section heading (underscore motif). The switcher
-         sits inline to its right, demoted: the event name stays the label. -->
-    <div class="sidebar-section-title flex items-center gap-1.5">
+         sits inline to its right, demoted: the event name stays the label.
+
+         Anton, and a display size rather than the label size: this is the
+         workspace you are in, not a group label like the admin sidebar's, and it
+         has to out-rank the 14px entries under it. -->
+    <div
+      class="mt-4 mb-2 flex items-center gap-1.5 font-heading text-display-s text-chrome-foreground"
+    >
       <span class="flex min-w-0 flex-1 items-baseline">
         <span class="truncate">{eventDisplayName(ev)}</span>
-        <span class="text-epi-teal">_</span>
+        <TitleCursor />
       </span>
       {#if workspace.events.length > 1}
         <EventWorkspaceSwitcher events={workspace.events} currentId={ev.id} />
@@ -190,11 +197,11 @@
 {/snippet}
 
 {#snippet sidebarFooter()}
-  <div class="border-t border-sidebar-border text-sidebar-foreground">
+  <div class="border-t border-chrome-border text-chrome-foreground">
     <div class="flex items-center justify-between gap-2 p-3">
       <DropdownMenu.Root>
         <DropdownMenu.Trigger
-          class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-sm p-1 transition-colors outline-none hover:bg-sidebar-hover"
+          class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-sm p-1 transition-colors hover:bg-chrome-hover"
         >
           <Avatar.Root class="h-9 w-9 shrink-0 rounded-full bg-white/10">
             <Avatar.Image
@@ -211,9 +218,9 @@
               {user?.name || user?.username}
             </span>
             <span
-              class="font-mono text-[10px] leading-tight font-bold text-sidebar-foreground-muted uppercase"
+              class="epi-overline leading-tight text-chrome-foreground-muted"
             >
-              {displayedGreeting}<span class="animate-pulse">_</span>
+              {displayedGreeting}<TitleCursor blink />
             </span>
           </div>
           <ChevronDown class="h-4 w-4 shrink-0 opacity-50" />
@@ -247,9 +254,9 @@
 
 <div class="flex h-dvh w-full overflow-hidden bg-background">
   <aside
-    class="app-sidebar hidden w-68 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
+    class="app-sidebar on-dark hidden w-68 flex-col border-r border-chrome-border bg-chrome text-chrome-foreground md:flex"
   >
-    <div class="border-b border-sidebar-border">
+    <div class="border-b border-chrome-border">
       {@render sidebarBrand()}
     </div>
     <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
@@ -315,9 +322,7 @@
                 alt={user?.name ?? ''}
                 class="object-cover"
               />
-              <Avatar.Fallback
-                class="bg-transparent text-[10px] font-bold uppercase"
-              >
+              <Avatar.Fallback class="bg-transparent epi-chip">
                 {getInitials(data.user)}
               </Avatar.Fallback>
             </Avatar.Root>
@@ -365,12 +370,12 @@
           onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
         >
           <Menu
-            class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
+            class="absolute h-6! w-6! transition-ui duration-300 {mobileMenuOpen
               ? 'scale-0 opacity-0'
               : 'scale-100 opacity-100'}"
           />
           <X
-            class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
+            class="absolute h-6! w-6! transition-ui duration-300 {mobileMenuOpen
               ? 'scale-100 rotate-0 opacity-100'
               : 'scale-0 -rotate-90 opacity-0'}"
           />
@@ -395,10 +400,10 @@
         onkeydown={(e) => e.key === 'Escape' && (mobileMenuOpen = false)}
       ></div>
       <aside
-        class="absolute inset-y-0 left-0 z-40 flex w-3/4 max-w-75 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl md:hidden"
+        class="on-dark absolute inset-y-0 left-0 z-40 flex w-3/4 max-w-75 flex-col border-r border-chrome-border bg-chrome text-chrome-foreground shadow-overlay md:hidden"
         transition:fly={{ x: -300, duration: 300 }}
       >
-        <div class="border-b border-sidebar-border">
+        <div class="border-b border-chrome-border">
           {@render sidebarBrand()}
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">

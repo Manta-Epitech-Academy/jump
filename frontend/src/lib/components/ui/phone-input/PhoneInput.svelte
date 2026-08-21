@@ -391,11 +391,7 @@
         {required}
         aria-invalid={error || undefined}
         aria-describedby={ariaDescribedBy}
-        class={cn(
-          'w-full pr-9 tabular-nums',
-          className,
-          error && 'border-destructive focus-visible:border-destructive',
-        )}
+        class={cn('w-full pr-9', className, error && 'border-destructive')}
       />
       {#if isValid}
         <CircleCheck

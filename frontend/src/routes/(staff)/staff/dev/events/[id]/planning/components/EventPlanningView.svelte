@@ -13,6 +13,7 @@
   } from '$lib/domain/calendarWeek';
   import type { TimeSlotWithActivity } from '$lib/types';
   import type { PageData } from '../$types';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   // One event's read-only planning. The page remounts this via {#key event.id},
   // so every per-event piece of state below (the visible week, the open preview)
@@ -65,8 +66,8 @@
   <div class="shrink-0 border-b pb-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-bold text-epi-blue uppercase">
-          Planning<span class="text-epi-teal">_</span>
+        <h1 class="font-heading text-display-m">
+          Planning<TitleCursor />
         </h1>
         <p
           class="text-sm font-bold tracking-wider text-muted-foreground uppercase"

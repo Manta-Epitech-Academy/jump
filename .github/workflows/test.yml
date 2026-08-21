@@ -39,6 +39,13 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      # The other half of the DESIGN.md contract. `bun run test` covers the
+      # token values and their contrast; this covers the classes components are
+      # allowed to write. Both block, or the drift they exist to stop restarts
+      # against a green build.
+      - name: Design Lint
+        run: bun run lint:design
+
       - name: Svelte Check
         run: bun run check
 

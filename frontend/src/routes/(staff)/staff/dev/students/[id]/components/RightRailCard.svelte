@@ -128,7 +128,7 @@
     if (rules === 'signed') {
       return {
         label,
-        colorClass: 'text-epi-teal-solid',
+        colorClass: 'text-epi-tech-ink',
         icon: Check,
         tooltip: parentRulesSignedAt
           ? 'Co-signé par le parent et le stagiaire'
@@ -138,7 +138,7 @@
     if (rules === 'awaiting_parent') {
       return {
         label,
-        colorClass: 'text-amber-600 dark:text-amber-500',
+        colorClass: 'text-warning',
         icon: Clock,
         tooltip:
           'Le stagiaire a signé le règlement intérieur, la co-signature du parent est en cours.',
@@ -169,7 +169,7 @@
     if (imageDisplay === 'accepted') {
       return {
         label: IMAGE_RIGHTS_DISPLAY_LABELS.accepted,
-        colorClass: 'text-epi-teal-solid',
+        colorClass: 'text-epi-tech-ink',
         icon: Check,
         tooltip:
           "Le parent autorise l'utilisation de l'image du stagiaire par Epitech.",
@@ -178,7 +178,7 @@
     if (imageDisplay === 'refused') {
       return {
         label: IMAGE_RIGHTS_DISPLAY_LABELS.refused,
-        colorClass: 'text-epi-orange',
+        colorClass: 'text-epi-together',
         icon: X,
         tooltip:
           'Les photos et les vidéos de ce stagiaire ne doivent pas être utilisées par Epitech.',
@@ -187,7 +187,7 @@
     if (imageDisplay === 'awaiting_parent') {
       return {
         label: IMAGE_RIGHTS_DISPLAY_LABELS.awaiting_parent,
-        colorClass: 'text-amber-600 dark:text-amber-500',
+        colorClass: 'text-warning',
         icon: Clock,
         tooltip:
           "En attente de la décision des parents sur le droit à l'image.",
@@ -206,11 +206,7 @@
   <div class="space-y-4">
     <!-- Connexion -->
     <section class="space-y-2">
-      <h4
-        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        Connexion à Jump
-      </h4>
+      <h4 class="epi-overline text-muted-foreground">Connexion à Jump</h4>
       <dl class="space-y-1.5 text-sm">
         <div class="flex items-baseline justify-between gap-3">
           <dt class="text-muted-foreground">Dernière connexion</dt>
@@ -231,9 +227,7 @@
 
     <!-- Communications -->
     <section class="space-y-2">
-      <h4
-        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
+      <h4 class="epi-overline text-muted-foreground">
         Dernières communications
       </h4>
       {#if communications.length === 0}
@@ -255,22 +249,20 @@
               <span class="min-w-0 flex-1 truncate">{commLabel(c)}</span>
               {#if open === 'opened'}
                 <span
-                  class="inline-flex shrink-0 items-center gap-1 font-mono text-[10px] tracking-wide text-epi-teal-solid uppercase"
+                  class="inline-flex shrink-0 items-center gap-1 epi-overline text-epi-tech-ink"
                 >
                   <MailOpen class="h-3 w-3" />
                   Ouvert
                 </span>
               {:else if open === 'unopened'}
                 <span
-                  class="inline-flex shrink-0 items-center gap-1 font-mono text-[10px] tracking-wide text-muted-foreground uppercase"
+                  class="inline-flex shrink-0 items-center gap-1 epi-overline text-muted-foreground"
                 >
                   <Mail class="h-3 w-3" />
                   Non ouvert
                 </span>
               {/if}
-              <span
-                class="shrink-0 font-mono text-[10px] text-muted-foreground"
-              >
+              <span class="shrink-0 font-mono text-xs text-muted-foreground">
                 {formatDateFr(c.sentAt, timezone)}
               </span>
             </li>
@@ -283,11 +275,7 @@
 
     <!-- Documents -->
     <section class="space-y-2">
-      <h4
-        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        Documents
-      </h4>
+      <h4 class="epi-overline text-muted-foreground">Documents</h4>
       <ul class="space-y-1.5 text-sm">
         {@render docRow('Règlement intérieur', rulesDoc)}
         {@render docRow(
@@ -329,7 +317,7 @@
                 {...props}
                 type="button"
                 onclick={onTrigger}
-                class="inline-flex cursor-pointer items-center gap-1 font-mono text-[10px] font-bold tracking-widest uppercase underline decoration-dotted underline-offset-4 transition-opacity hover:opacity-80 {s.colorClass}"
+                class="inline-flex cursor-pointer items-center gap-1 epi-overline underline decoration-dotted underline-offset-4 transition-opacity hover:opacity-80 {s.colorClass}"
               >
                 <Icon class="h-3 w-3" />
                 {s.label}
@@ -337,7 +325,7 @@
             {:else}
               <span
                 {...props}
-                class="inline-flex cursor-help items-center gap-1 font-mono text-[10px] font-bold tracking-widest uppercase {s.colorClass}"
+                class="inline-flex cursor-help items-center gap-1 epi-overline {s.colorClass}"
               >
                 <Icon class="h-3 w-3" />
                 {s.label}
@@ -348,7 +336,7 @@
         <Tooltip.Content class="max-w-60">
           <p class="text-xs">{s.tooltip}</p>
           {#if onTrigger}
-            <p class="mt-1 text-[10px] text-muted-foreground">
+            <p class="mt-1 text-xs text-muted-foreground">
               Cliquez pour corriger la décision.
             </p>
           {/if}

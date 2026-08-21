@@ -14,7 +14,10 @@
   bind:this={ref}
   data-slot="table-head"
   class={cn(
-    'h-10 bg-clip-padding px-2 text-start align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pe-0',
+    // The overline treatment lives here rather than at each table: a
+    // sentence-case column header is a drift, not a variant, and the mono label
+    // layer is what makes a dense table read as Epitech.
+    'h-10 bg-clip-padding px-2 text-start align-middle epi-overline whitespace-nowrap text-muted-foreground [&:has([role=checkbox])]:pe-0',
     className,
   )}
   {...restProps}

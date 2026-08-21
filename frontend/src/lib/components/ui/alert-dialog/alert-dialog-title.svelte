@@ -16,6 +16,6 @@
 <AlertDialogPrimitive.Title
   bind:ref
   data-slot="alert-dialog-title"
-  class={cn('font-heading text-xl tracking-wider uppercase', className)}
+  class={cn('font-heading text-display-s', className)}
   {...restProps}
 />

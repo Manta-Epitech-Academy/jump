@@ -182,7 +182,7 @@
 
       {#if locked}
         <div
-          class="flex flex-wrap items-start gap-3 rounded-sm border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+          class="flex flex-wrap items-start gap-3 rounded-sm border border-warning/30 bg-warning/10 p-3 text-sm text-warning"
         >
           <Lock class="mt-0.5 h-4 w-4 shrink-0" />
           <p class="min-w-0 flex-1">

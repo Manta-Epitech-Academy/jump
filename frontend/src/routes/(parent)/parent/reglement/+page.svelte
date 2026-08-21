@@ -26,16 +26,14 @@
       <!-- Header -->
       <div class="mb-6 text-center">
         <div
-          class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
+          class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-epi-blue text-white shadow-raised"
         >
           <BookOpen class="h-7 w-7" />
         </div>
-        <h1
-          class="font-heading text-2xl tracking-wider text-epi-blue uppercase dark:text-epi-blue"
-        >
+        <h1 class="font-heading text-display-m text-epi-blue">
           Règlement intérieur
         </h1>
-        <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
+        <p class="mt-2 text-sm text-foreground-secondary">
           En tant que représentant légal, votre signature accompagne celle de
           votre enfant.
         </p>
@@ -45,12 +43,10 @@
       {#if form?.success}
         <div
           in:fly={{ y: -10, duration: 300 }}
-          class="mb-4 flex items-center gap-3 rounded-xl border border-green-200/60 bg-green-50/80 px-4 py-3 dark:border-green-800/50 dark:bg-green-900/30"
+          class="mb-4 flex items-center gap-3 rounded-xl border border-success/40 bg-success/10 px-4 py-3"
         >
-          <CheckCircle
-            class="h-5 w-5 shrink-0 text-green-600 dark:text-green-400"
-          />
-          <p class="text-sm text-green-700 dark:text-green-300">
+          <CheckCircle class="h-5 w-5 shrink-0 text-success" />
+          <p class="text-sm text-success">
             Le règlement intérieur pour <strong>{form.success}</strong> a été signé
             avec succès.
           </p>
@@ -60,7 +56,7 @@
       <!-- Global error -->
       {#if form?.error && !form?.talentId}
         <p
-          class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
+          class="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-center text-sm text-destructive"
         >
           {form.error}
         </p>
@@ -80,11 +76,11 @@
            PDF needs to identify them. -->
       <div class="mb-6">
         <h2
-          class="mb-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
+          class="mb-2 text-sm font-semibold tracking-wide text-foreground-secondary uppercase"
         >
           Sécurité des données
         </h2>
-        <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+        <p class="text-xs leading-relaxed text-muted-foreground">
           Nous conservons votre nom, votre qualité (mère, père, tuteur légal,
           tutrice légale) et la ville où vous avez signé, uniquement pour
           produire le PDF du règlement intérieur co-signé. Ces informations sont

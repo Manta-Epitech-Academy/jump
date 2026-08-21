@@ -196,7 +196,7 @@
           ariaLabel="Statut des démarches parent"
         />
       </div>
-      <p class="text-[11px] text-muted-foreground">
+      <p class="text-xs text-muted-foreground">
         « En attente » = droit à l'image non décidé ou règlement non co-signé.
         Cible les parents à relancer.
       </p>
@@ -204,9 +204,7 @@
 
     {#each tristateGroups as group (group.heading)}
       <div class="grid gap-1.5">
-        <p
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
+        <p class="epi-overline text-muted-foreground">
           {group.heading}
         </p>
         {#each group.items as t (t.key)}

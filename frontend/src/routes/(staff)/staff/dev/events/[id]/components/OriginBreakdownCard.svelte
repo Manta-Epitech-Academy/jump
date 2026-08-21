@@ -119,7 +119,7 @@
       >
     </span>
     <span
-      class="flex shrink-0 items-center gap-1 font-mono text-[10px] font-bold text-muted-foreground"
+      class="flex shrink-0 items-center gap-1 font-mono text-xs font-bold text-muted-foreground"
     >
       {r.count} · {pct}%
       {#if interaction === 'navigate'}
@@ -135,7 +135,7 @@
     class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted dark:bg-muted/30"
   >
     <div
-      class="h-full bg-epi-blue transition-[width] duration-700 ease-out"
+      class="h-full bg-epi-blue transition-[width] duration-320 ease-out"
       style="width: {pct}%"
     ></div>
   </div>
@@ -165,12 +165,12 @@
   {/if}
 {/snippet}
 
-<Card.Root class="rounded-sm shadow-sm dark:shadow-none">
+<Card.Root class="rounded-sm shadow-raised">
   <div
     class="flex flex-row items-center gap-2 border-b bg-muted/30 px-6 pt-4 pb-3"
   >
     {@render icon()}
-    <h3 class="font-heading text-2xl tracking-wide text-foreground uppercase">
+    <h3 class="font-heading text-display-m text-foreground">
       {title}
     </h3>
   </div>
@@ -181,9 +181,7 @@
       </p>
     {:else}
       {#if isFilter}
-        <p
-          class="px-2 pt-1 pb-2 font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase"
-        >
+        <p class="px-2 pt-1 pb-2 epi-chip text-muted-foreground">
           Cliquer pour filtrer les inscrits
         </p>
       {/if}
@@ -201,7 +199,7 @@
             <button
               type="button"
               onclick={() => (expanded = false)}
-              class="flex w-full cursor-pointer items-center justify-center gap-1 rounded-sm border-t border-dashed border-border/60 px-3 py-2 font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase transition-colors hover:bg-epi-blue/5 hover:text-epi-blue"
+              class="flex w-full cursor-pointer items-center justify-center gap-1 rounded-sm border-t border-dashed border-border/60 px-3 py-2 epi-chip text-muted-foreground transition-colors hover:bg-epi-blue/5 hover:text-epi-blue"
             >
               <ChevronUp class="h-3.5 w-3.5" />
               Réduire
@@ -218,7 +216,7 @@
             >
               <span class="italic">Autres</span>
               <span
-                class="flex shrink-0 items-center gap-1 font-mono text-[10px] font-bold"
+                class="flex shrink-0 items-center gap-1 font-mono text-xs font-bold"
               >
                 {tailSummary.count}
                 {noun(tailSummary.count, tailNoun.item)} ·
@@ -238,7 +236,7 @@
           >
             <span class="italic">Autres</span>
             <span
-              class="flex shrink-0 items-center gap-1 font-mono text-[10px] font-bold"
+              class="flex shrink-0 items-center gap-1 font-mono text-xs font-bold"
             >
               {others.count}
               {noun(others.count, tailNoun.item)} ·

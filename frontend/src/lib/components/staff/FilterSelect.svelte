@@ -58,7 +58,7 @@
       <Select.Item value={opt.value}>
         {opt.label}
         {#if opt.count != null}
-          <span class="ml-1.5 font-mono text-muted-foreground/70">
+          <span class="ml-1.5 font-mono text-muted-foreground">
             {opt.count}
           </span>
         {/if}

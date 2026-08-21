@@ -110,9 +110,9 @@
 
   {#if conflict}
     <div
-      class="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm"
+      class="space-y-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm"
     >
-      <p class="flex items-center gap-1.5 font-medium text-amber-700">
+      <p class="flex items-center gap-1.5 font-medium text-warning">
         <TriangleAlert class="h-4 w-4" />
         Note modifiée par un autre membre du staff depuis l'ouverture.
       </p>

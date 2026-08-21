@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   // Full-screen "ceremony" overlay for long-running, once-in-a-while staff
   // actions (the first being the end-of-stage diploma generation, ~15-20s on a
@@ -111,7 +112,7 @@
         class="absolute top-[22%] right-[11%] h-20 w-16 bg-white/[0.06]"
       ></div>
       <div
-        class="absolute bottom-[20%] left-[12%] h-14 w-20 bg-epi-teal/15 motion-safe:animate-pulse"
+        class="absolute bottom-[20%] left-[12%] h-14 w-20 bg-epi-tech/15 motion-safe:animate-pulse"
       ></div>
       <div
         class="absolute bottom-[30%] left-[21%] h-10 w-10 bg-white/[0.06]"
@@ -123,22 +124,20 @@
       <div class="flex flex-col items-center gap-3">
         <EpitechLogo tone="dark" class="h-8 w-auto" />
         <span class="font-mono text-xs tracking-widest text-white/60 uppercase">
-          Jump<span class="text-epi-teal">_</span>
+          Jump<TitleCursor />
         </span>
       </div>
 
-      <!-- Live region: mono overline (rotating step) + Anton display title. -->
+      <!-- Live region: mono epi-overline (rotating step) + Anton display title. -->
       <div class="space-y-4" role="status" aria-live="polite">
         {#if currentMessage}
           <p
-            class="font-mono text-xs tracking-widest text-epi-teal uppercase lg:text-sm"
+            class="font-mono text-xs tracking-widest text-epi-tech uppercase lg:text-sm"
           >
             {currentMessage}
           </p>
         {/if}
-        <h2
-          class="max-w-2xl font-heading text-3xl leading-[1.1] tracking-wide lg:text-5xl"
-        >
+        <h2 class="max-w-2xl font-heading text-display-l lg:text-display-2xl">
           {title}
         </h2>
       </div>
@@ -147,7 +146,7 @@
       <div class="flex items-center gap-1.5" aria-hidden="true">
         {#each PIXEL_DELAYS as delay}
           <div
-            class="h-2.5 w-2.5 bg-epi-teal motion-safe:animate-pulse {delay}"
+            class="h-2.5 w-2.5 bg-epi-tech motion-safe:animate-pulse {delay}"
           ></div>
         {/each}
       </div>
@@ -158,9 +157,9 @@
       aria-hidden="true"
       class="absolute bottom-8 font-mono text-xs text-white/50"
     >
-      <span class="text-epi-teal">&#123;</span>
+      <span class="text-epi-tech">&#123;</span>
       &lt;Tech Together Tomorrow&gt;
-      <span class="text-epi-teal">&#125;</span>
+      <span class="text-epi-tech">&#125;</span>
       <span class="ml-2 tracking-widest uppercase">Since 1999</span>
     </div>
   </div>

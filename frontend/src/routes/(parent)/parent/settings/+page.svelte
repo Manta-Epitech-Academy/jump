@@ -10,6 +10,7 @@
   import { fly } from 'svelte/transition';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { track } from '$lib/analytics';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let { data } = $props();
 </script>
@@ -29,58 +30,48 @@
           variant="ghost"
           size="icon"
           href={resolve('/parent')}
-          class="h-10 w-10 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+          class="h-10 w-10 rounded-xl text-muted-foreground hover:text-foreground-secondary"
         >
           <ArrowLeft class="h-5 w-5" />
           <span class="sr-only">Retour</span>
         </Button>
-        <h1
-          class="font-heading text-3xl tracking-wider text-slate-900 uppercase dark:text-white"
-        >
-          Paramètres<span class="text-epi-teal">_</span>
+        <h1 class="font-heading text-display-l text-foreground">
+          Paramètres<TitleCursor />
         </h1>
       </div>
     </header>
 
     <div class="space-y-4" in:fly={{ y: 20, duration: 400, delay: 200 }}>
       <!-- Profile Info (read-only) -->
-      <div
-        class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-      >
+      <div class="rounded-xl border border-border bg-card p-5 shadow-raised">
         <h2
-          class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
+          class="mb-3 text-base font-bold tracking-widest text-muted-foreground uppercase"
         >
           Mon compte
         </h2>
         <div class="space-y-3">
           <div class="flex items-center gap-3">
             <div
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30"
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10"
             >
               <User class="h-4 w-4 text-epi-blue" />
             </div>
             <div class="min-w-0">
-              <p class="text-[10px] font-bold text-slate-400 uppercase">Nom</p>
-              <p
-                class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
-              >
+              <p class="epi-overline text-muted-foreground">Nom</p>
+              <p class="truncate text-sm font-bold text-foreground">
                 {data.parentName}
               </p>
             </div>
           </div>
           <div class="flex items-center gap-3">
             <div
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30"
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10"
             >
               <Mail class="h-4 w-4 text-epi-blue" />
             </div>
             <div class="min-w-0">
-              <p class="text-[10px] font-bold text-slate-400 uppercase">
-                Email
-              </p>
-              <p
-                class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
-              >
+              <p class="epi-overline text-muted-foreground">Email</p>
+              <p class="truncate text-sm font-bold text-foreground">
                 {data.email}
               </p>
             </div>
@@ -89,23 +80,21 @@
       </div>
 
       <!-- Appearance -->
-      <div
-        class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-      >
+      <div class="rounded-xl border border-border bg-card p-5 shadow-raised">
         <h2
-          class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
+          class="mb-3 text-base font-bold tracking-widest text-muted-foreground uppercase"
         >
           Apparence
         </h2>
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
             <div
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30"
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-epi-together-ink/10"
             >
-              <Sun class="h-4 w-4 text-epi-orange dark:hidden" />
-              <Moon class="hidden h-4 w-4 text-epi-orange dark:block" />
+              <Sun class="h-4 w-4 text-epi-together dark:hidden" />
+              <Moon class="hidden h-4 w-4 text-epi-together dark:block" />
             </div>
-            <span class="text-sm font-bold text-slate-700 dark:text-slate-300"
+            <span class="text-sm font-bold text-foreground-secondary"
               >Thème sombre</span
             >
           </div>
@@ -114,11 +103,9 @@
       </div>
 
       <!-- Logout -->
-      <div
-        class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-      >
+      <div class="rounded-xl border border-border bg-card p-5 shadow-raised">
         <h2
-          class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
+          class="mb-3 text-base font-bold tracking-widest text-muted-foreground uppercase"
         >
           Session
         </h2>
@@ -130,7 +117,7 @@
           <Button
             type="submit"
             variant="ghost"
-            class="h-11 w-full rounded-2xl border border-red-200 bg-red-50/80 tracking-normal text-red-500 normal-case transition-all hover:scale-[1.02] hover:border-red-300 hover:bg-red-100 active:scale-[0.98] dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400 dark:hover:border-red-800 dark:hover:bg-red-950/40"
+            class="h-11 w-full rounded-xl border border-destructive/30 bg-destructive/10 tracking-normal text-destructive normal-case transition-ui hover:scale-[1.02] hover:border-destructive/30 hover:bg-destructive/10 active:scale-[0.98]"
           >
             Se déconnecter
           </Button>

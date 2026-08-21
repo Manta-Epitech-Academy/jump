@@ -28,7 +28,7 @@
     {@const color = scaleLevelColor(origIdx, options.length)}
     <button
       type="button"
-      class="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-[var(--lvl)] p-3 text-left transition-colors active:bg-slate-50 sm:flex-col sm:items-center sm:gap-1 sm:border-transparent sm:text-center sm:hover:border-[var(--lvl)] sm:active:bg-transparent dark:active:bg-slate-800"
+      class="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-[var(--lvl)] p-3 text-left transition-colors active:bg-background sm:flex-col sm:items-center sm:gap-1 sm:border-transparent sm:text-center sm:hover:border-[var(--lvl)] sm:active:bg-transparent"
       style:--lvl={color}
       onclick={() => onanswer?.(label, `${emoji}  ${label}`)}
     >
