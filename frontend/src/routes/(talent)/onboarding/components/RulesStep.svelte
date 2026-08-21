@@ -25,7 +25,19 @@
     reglementTextFor(CURRENT_REGLEMENT_VERSION),
   );
 
-  let { error: formError }: { error?: string } = $props();
+  let {
+    error: formError,
+    charterAccepted = false,
+    welcomeBonusGranted = false,
+  }: {
+    error?: string;
+    /** Charte already consented to on a previous year's dossier: not re-asked,
+     * and its date is not restamped (see the `signRules` action). */
+    charterAccepted?: boolean;
+    /** The arrival bonus is already in the XP ledger, so this signature grants
+     * nothing and the button must not promise it. */
+    welcomeBonusGranted?: boolean;
+  } = $props();
   const seenAt = Date.now();
   let submitting = $state(false);
   let city = $state('');
@@ -77,16 +89,21 @@
   </div>
 
   <!-- ═══ Sécurité des données (police réduite) ═══ -->
-  <div class="mt-8">
-    <h2
-      class="mb-2 text-sm font-semibold tracking-wide text-foreground-secondary uppercase"
-    >
-      Sécurité des données
-    </h2>
-    <p class="text-xs leading-relaxed text-muted-foreground">
-      {CHARTE_INFORMATIQUE_BODY}
-    </p>
-  </div>
+  <!-- Only for a talent who has not consented yet. The charte is signed once per
+       account, so re-reading it belongs to /settings/documents, not to the act of
+       signing this year's règlement. -->
+  {#if !charterAccepted}
+    <div class="mt-8">
+      <h2
+        class="mb-2 text-sm font-semibold tracking-wide text-foreground-secondary uppercase"
+      >
+        Sécurité des données
+      </h2>
+      <p class="text-xs leading-relaxed text-muted-foreground">
+        {CHARTE_INFORMATIQUE_BODY}
+      </p>
+    </div>
+  {/if}
 
   <!-- ═══ Signature ═══ -->
   <div
@@ -149,30 +166,36 @@
       </span>
     </label>
 
-    <label
-      class="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
-    >
-      <Checkbox
-        bind:checked={acceptedCharter}
-        name="acceptedCharter"
-        value="true"
-        class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-tech data-[state=checked]:bg-epi-tech data-[state=checked]:text-black"
-      />
-      <span class="text-sm font-medium text-foreground-secondary">
-        J'ai lu et j'accepte la Charte Informatique et Éthique d'Epitech, qui
-        encadre la collecte et le traitement de mes données personnelles.
-      </span>
-    </label>
+    {#if !charterAccepted}
+      <label
+        class="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
+      >
+        <Checkbox
+          bind:checked={acceptedCharter}
+          name="acceptedCharter"
+          value="true"
+          class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-tech data-[state=checked]:bg-epi-tech data-[state=checked]:text-black"
+        />
+        <span class="text-sm font-medium text-foreground-secondary">
+          J'ai lu et j'accepte la Charte Informatique et Éthique d'Epitech, qui
+          encadre la collecte et le traitement de mes données personnelles.
+        </span>
+      </label>
+    {/if}
 
     <ContinueButton
       {submitting}
       disabled={!acceptedRules ||
         !acceptedEquipment ||
-        !acceptedCharter ||
+        (!charterAccepted && !acceptedCharter) ||
         !city.trim()}
     >
       <Sparkles class="h-4 w-4 shrink-0" />
-      Signer et obtenir mes {WELCOME_XP_BONUS} XP de bienvenue
+      {#if welcomeBonusGranted}
+        Signer le règlement de cette année
+      {:else}
+        Signer et obtenir mes {WELCOME_XP_BONUS} XP de bienvenue
+      {/if}
     </ContinueButton>
   </div>
 </form>

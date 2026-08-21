@@ -251,3 +251,13 @@ export const rulesSchema = z.object({
     "Tu dois certifier posséder un ordinateur portable, ou prévenir l'équipe de ton campus.",
   ),
 });
+
+/**
+ * The same act for a talent who already gave the charte consent, on a previous
+ * year's dossier. The charte is a once-per-account consent, so the box is not
+ * rendered for them and the field is legitimately absent; the règlement and the
+ * laptop clause stay mandatory, because those are what a yearly dossier signs.
+ */
+export const rulesSchemaWithoutCharter = rulesSchema.omit({
+  acceptedCharter: true,
+});

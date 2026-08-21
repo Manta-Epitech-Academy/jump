@@ -2388,6 +2388,21 @@ async function seedStudents(): Promise<
         : 'accepted'
       : null;
 
+    const parentType = hasParentInfo ? (i % 3 === 0 ? 'pere' : 'mere') : null;
+    // "Agissant en qualité de": the exact option both signature forms offer.
+    // Mirrors parentSignerRelationship in src/lib/domain/profile.ts (STANDALONE
+    // RULE: no $lib import here). One value for the two guardian acts, the
+    // règlement co-signature and the image-rights decision, because a single
+    // parent cannot hold two qualités.
+    const signerRelationship =
+      parentType === 'pere'
+        ? 'père'
+        : parentType === 'mere'
+          ? 'mère'
+          : civilite === 'femme'
+            ? 'tutrice légale'
+            : 'tuteur légal';
+
     // The per-year onboarding dossier. Built once and spread into both the
     // talent (as its cached projection) and the Onboarding_Record created below:
     // a seeded talent carrying the flat columns with no backing row is a state
@@ -2404,12 +2419,24 @@ async function seedStudents(): Promise<
       equipmentValidatedAt: equipmentConfirmed ? ts : null,
       processingCompletedAt: processingConfirmed ? ts : null,
       rulesSignedAt: fullyOnboarded ? ts : null,
+      rulesSignedCity: fullyOnboarded ? s.campus : null,
       // Règlement intérieur precedes droit-à-l'image in the parent flow, so a
       // guardian who reached an image-rights decision necessarily co-signed the
       // règlement first (runtime invariant: image decided ⟹ règlement co-signed).
       parentRulesSignedAt: imageRightsDecision ? ts : null,
       parentRulesSignerPrenom: imageRightsDecision ? 'Sophie' : null,
       parentRulesSignerNom: imageRightsDecision ? 'Martin' : null,
+      parentRulesRelationship: imageRightsDecision ? signerRelationship : null,
+      parentRulesSignedCity: imageRightsDecision ? s.campus : null,
+      // The version the signature commits to, always written with the signature
+      // itself (`onboardingService` for the talent, `parentRulesService` for the
+      // guardian), so a signed row with no version is a state the runtime cannot
+      // reach - and it would make the regenerated PDF render the legacy text
+      // under a current signature. Whichever signer got there first pins it, so
+      // either one is enough. Mirrors CURRENT_REGLEMENT_VERSION in
+      // src/lib/content/reglement (STANDALONE RULE: no $lib import here).
+      reglementVersion:
+        fullyOnboarded || imageRightsDecision ? '2026-2027' : null,
     };
 
     const talent = {
@@ -2437,7 +2464,7 @@ async function seedStudents(): Promise<
       parentPrenom: hasParentInfo ? 'Sophie' : null,
       parentEmail: hasParentInfo ? `parent.${s.email}` : null,
       civilite,
-      parentType: hasParentInfo ? (i % 3 === 0 ? 'pere' : 'mere') : null,
+      parentType,
       parentCivilite: hasParentInfo ? (i % 3 === 0 ? 'homme' : 'femme') : null,
       imageRightsDecision,
       imageRightsDecidedAt: imageRightsDecision ? ts : null,
@@ -2475,7 +2502,14 @@ async function seedStudents(): Promise<
       schoolId: sfSchoolId,
     };
 
-    return { talent, sf, dossier, signCity: s.campus, email: s.email };
+    return {
+      talent,
+      sf,
+      dossier,
+      signCity: s.campus,
+      signerRelationship,
+      email: s.email,
+    };
   });
 
   const talentData = seeded.map((x) => x.talent);
@@ -2521,8 +2555,9 @@ async function seedStudents(): Promise<
   // projection above gets the matching append-only fact, so seed data isn't a
   // projection without a history (which would read like a bug in the staff
   // history view). A real parent decision captures the signer, their qualité and
-  // the town, so the seed fills all three (relationship from parentType, town
-  // from the campus city) — otherwise a staff correction would regenerate the
+  // the town, so the seed fills all three (the same `signerRelationship` the
+  // règlement co-signature carries, town from the campus city), otherwise a
+  // staff correction would regenerate the
   // PDF with a blank "Fait à …" place, the gap real onboarding never produces.
   const imageRightsRecordData = seeded
     .map((x) => {
@@ -2539,12 +2574,7 @@ async function seedStudents(): Promise<
         decidedAt: x.talent.imageRightsDecidedAt,
         signerPrenom: x.talent.imageRightsSignerPrenom,
         signerNom: x.talent.imageRightsSignerNom,
-        relationship:
-          x.talent.parentType === 'pere'
-            ? 'père'
-            : x.talent.parentType === 'mere'
-              ? 'mère'
-              : 'représentant légal',
+        relationship: x.signerRelationship,
         city: x.signCity,
         source: 'parent_portal' as const,
       };

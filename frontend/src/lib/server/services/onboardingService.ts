@@ -177,8 +177,12 @@ export async function signOnboardingRules(input: {
 
     // The charte is a once-per-account consent, not part of the yearly dossier,
     // so it stays flat on `Talent` and a returning talent is not asked again.
-    await tx.talent.update({
-      where: { id: talentId },
+    // `updateMany` with the null in the WHERE rather than a read-then-write: the
+    // date somebody first consented is the auditable fact, and re-walking the
+    // ladder for a new year must not restamp it. A no-op row count is the normal
+    // outcome for a returning talent.
+    await tx.talent.updateMany({
+      where: { id: talentId, charterAcceptedAt: null },
       data: { charterAcceptedAt: now },
     });
     await patchCurrentOnboardingRecord(tx, talentId, {

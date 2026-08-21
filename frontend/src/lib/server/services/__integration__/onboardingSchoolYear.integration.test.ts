@@ -11,6 +11,8 @@ import {
   upsertOnboardingYearRecord,
 } from '../onboardingYearService';
 import { getOnboardingFunnel } from '../adminStats/onboardingFunnel';
+import { signOnboardingRules } from '../onboardingService';
+import { CURRENT_REGLEMENT_VERSION } from '$lib/content/reglement';
 import { resolveScope } from '$lib/server/adminApi/scope';
 
 /**
@@ -133,6 +135,10 @@ describe('onboarding dossier per school year (integration)', () => {
 
   afterAll(async () => {
     const ids = [talentId, laggingTalentId];
+    await prisma.onboardingPdfJob.deleteMany({
+      where: { talentId: { in: ids } },
+    });
+    await prisma.xpGrant.deleteMany({ where: { talentId: { in: ids } } });
     await prisma.participation.deleteMany({ where: { talentId: { in: ids } } });
     await prisma.onboarding_Record.deleteMany({
       where: { talentId: { in: ids } },
@@ -265,5 +271,50 @@ describe('onboarding dossier per school year (integration)', () => {
     });
     expect(talent.onboardingSchoolYear).toBe(currentYear);
     expect(talent.rulesSignedAt).toBeNull();
+  });
+
+  it('signs this year’s règlement without restamping the charte', async () => {
+    // The charte is a once-per-account consent, so the second signature pins the
+    // current wording on the new dossier and leaves the date the talent first
+    // consented exactly where it was. Restamping it would quietly rewrite the
+    // only record of when consent was actually given, for every talent who comes
+    // back - and the wizard, which stops asking for it, would be claiming a
+    // consent it just overwrote.
+    await signOnboardingRules({
+      talentId,
+      studentName: 'Test Revenant',
+      city: 'Lyon',
+    });
+
+    const talent = await readTalent();
+    expect(talent.charterAcceptedAt?.toISOString()).toBe(
+      signedLastYear.toISOString(),
+    );
+    expect(talent.onboardingSchoolYear).toBe(currentYear);
+    expect(talent.reglementVersion).toBe(CURRENT_REGLEMENT_VERSION);
+
+    const records = await prisma.onboarding_Record.findMany({
+      where: { talentId },
+      orderBy: { schoolYear: 'asc' },
+      select: {
+        schoolYear: true,
+        reglementVersion: true,
+        rulesSignedCity: true,
+      },
+    });
+    expect(records).toEqual(
+      expect.arrayContaining([
+        {
+          schoolYear: lastYear,
+          reglementVersion: '2025-2026',
+          rulesSignedCity: 'Lille',
+        },
+        {
+          schoolYear: currentYear,
+          reglementVersion: CURRENT_REGLEMENT_VERSION,
+          rulesSignedCity: 'Lyon',
+        },
+      ]),
+    );
   });
 });

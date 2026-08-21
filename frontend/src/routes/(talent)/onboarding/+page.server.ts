@@ -9,6 +9,7 @@ import {
   interestsSchema,
   equipmentSchema,
   rulesSchema,
+  rulesSchemaWithoutCharter,
 } from '$lib/validation/onboarding';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
@@ -153,6 +154,33 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
       step,
       setupDescription: locals.talent.setupDescription ?? '',
     };
+  }
+
+  if (step === 'rules') {
+    // Two things this act does exactly once per account, and a talent re-walking
+    // the ladder for a new year has already had both. Neither is answered from
+    // the onboarding timestamps: by the time a returning talent reaches this
+    // step they have re-opened a dossier, so every one of those columns says
+    // "not yet" again. Each fact is read where it actually lives.
+    //
+    // The charte is a data-processing consent, not a yearly contract, so it is
+    // neither re-asked nor re-dated (`signOnboardingRules` never overwrites the
+    // date it was first given).
+    const charterAccepted = locals.talent.charterAcceptedAt != null;
+    // The welcome bonus is one XP fact per talent for life (`XpGrant` is unique
+    // on `(source, sourceId)`, and onboarding keys it on the talent's own id), so
+    // the second signature grants nothing. Asking the ledger rather than
+    // inferring it keeps the button's promise tied to what will actually be
+    // written.
+    const welcomeBonusGranted =
+      (await prisma.xpGrant.findUnique({
+        where: {
+          source_sourceId: { source: 'onboarding', sourceId: locals.talent.id },
+        },
+        select: { id: true },
+      })) != null;
+
+    return { step, charterAccepted, welcomeBonusGranted };
   }
 
   return { step };
@@ -485,7 +513,13 @@ export const actions: Actions = {
 
     const formData = await request.formData();
     const raw = Object.fromEntries(formData);
-    const result = rulesSchema.safeParse(raw);
+    // A talent who already gave the charte consent is not shown the box, so the
+    // field is legitimately absent and requiring it would fail a valid form.
+    // Two schemas rather than one optional field: what is rendered is what is
+    // enforced, and the charte stays mandatory for everyone still asked.
+    const result = (
+      locals.talent.charterAcceptedAt ? rulesSchemaWithoutCharter : rulesSchema
+    ).safeParse(raw);
 
     if (!result.success) {
       return fail(400, {
