@@ -2,7 +2,11 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
-import { getOnboardingStep } from '$lib/domain/talentOnboarding';
+import {
+  getOnboardingStep,
+  onboardingFieldsForYear,
+} from '$lib/domain/talentOnboarding';
+import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import { captureOnboardingReturn } from '$lib/server/auth/loginRedirect';
 
 export const load: PageServerLoad = async ({ locals, url, cookies }) => {
@@ -15,7 +19,9 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   // splash copy is generic (no per-event content).
   if (
     locals.talent.welcomeSeenAt ||
-    getOnboardingStep(locals.talent) === null
+    getOnboardingStep(
+      onboardingFieldsForYear(locals.talent, currentSchoolYearLabel()),
+    ) === null
   ) {
     throw redirect(303, resolve('/'));
   }
@@ -40,9 +46,12 @@ export const actions: Actions = {
       data: { welcomeSeenAt: new Date() },
     });
 
-    // The message has been read here; welcome runs before onboarding, so hand
-    // off to the onboarding flow. The dashboard celebration fires later, once
-    // onboarding completes and arms the one-shot arrival-celebration cookie.
-    throw redirect(303, resolve('/onboarding'));
+    // The message has been read; hand back to the root and let the route
+    // guards pick the next gate. They already own that decision - the wizard
+    // for a talent who walks the ladder, `/charte` for a collégien who does not
+    // - and naming a destination here would be a second copy of it, free to
+    // drift. The dashboard celebration fires later, once onboarding completes
+    // and arms the one-shot arrival-celebration cookie.
+    throw redirect(303, resolve('/'));
   },
 };

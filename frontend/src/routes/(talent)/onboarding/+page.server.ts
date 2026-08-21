@@ -12,9 +12,16 @@ import {
 } from '$lib/validation/onboarding';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
-import { schoolYearOf } from '$lib/domain/schoolYear';
+import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
-import { getOnboardingStep } from '$lib/domain/talentOnboarding';
+import {
+  getOnboardingStep,
+  onboardingFieldsForYear,
+} from '$lib/domain/talentOnboarding';
+import {
+  patchCurrentOnboardingRecord,
+  type OnboardingRecordPatch,
+} from '$lib/server/services/onboardingYearService';
 import { runOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobService';
 import {
   ensureParentAccount,
@@ -32,7 +39,13 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
     throw error(401, 'Non autorisé');
   }
 
-  const step = getOnboardingStep(locals.talent);
+  // The ladder runs on the dossier of the year in progress, not on the flat
+  // columns: those hold the most recent dossier, which for a returning talent is
+  // last year's. A stale projection resolves to "nothing done", so they re-walk
+  // the whole wizard and re-sign the current règlement.
+  const schoolYear = currentSchoolYearLabel();
+  const dossier = onboardingFieldsForYear(locals.talent, schoolYear);
+  const step = getOnboardingStep(dossier);
 
   if (!step) {
     throw redirect(303, resolve('/'));
@@ -85,6 +98,16 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   }
 
   if (step === 'interests') {
+    // Pre-fill from the stored selection only when it belongs to THIS year's
+    // dossier. `interestsRecapSeenAt` is the signal, and it is the only field
+    // that can be: it is stamped when the step is validated and, unlike the two
+    // gates, deliberately NOT rewound by `goBack`. So it tells a mid-year back
+    // navigation (show the talent what they just picked) apart from a new school
+    // year (start from a blank slate instead of anchoring them on last year's
+    // answers, which is what the returning-talent dossier exists to avoid).
+    // `TalentInterest` carries no date of its own and stays untouched either
+    // way - validating the step replaces the whole selection.
+    const prefill = dossier.interestsRecapSeenAt != null;
     const [techInterests, generalInterests, existingTech, existingGeneral] =
       await Promise.all([
         prisma.interest.findMany({
@@ -95,14 +118,21 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
           where: { kind: 'general' },
           orderBy: { order: 'asc' },
         }),
-        prisma.talentInterest.findMany({
-          where: { talentId: locals.talent.id, interest: { kind: 'tech' } },
-          select: { interestId: true },
-        }),
-        prisma.talentInterest.findMany({
-          where: { talentId: locals.talent.id, interest: { kind: 'general' } },
-          select: { interestId: true },
-        }),
+        prefill
+          ? prisma.talentInterest.findMany({
+              where: { talentId: locals.talent.id, interest: { kind: 'tech' } },
+              select: { interestId: true },
+            })
+          : [],
+        prefill
+          ? prisma.talentInterest.findMany({
+              where: {
+                talentId: locals.talent.id,
+                interest: { kind: 'general' },
+              },
+              select: { interestId: true },
+            })
+          : [],
       ]);
 
     return {
@@ -111,7 +141,7 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
       generalInterests,
       selectedTechIds: existingTech.map((e) => e.interestId),
       selectedGeneralIds: existingGeneral.map((e) => e.interestId),
-      freeText: locals.talent.interestsFreeText ?? '',
+      freeText: prefill ? (locals.talent.interestsFreeText ?? '') : '',
       // Seeds a per-talent stable shuffle: chip order varies across the cohort
       // (anti-bias) but stays put across reloads for one student.
       shuffleSeed: locals.talent.id,
@@ -121,7 +151,6 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   if (step === 'equipment') {
     return {
       step,
-      hasLaptop: locals.talent.hasLaptop,
       setupDescription: locals.talent.setupDescription ?? '',
     };
   }
@@ -145,15 +174,23 @@ export const actions: Actions = {
       });
     }
 
-    await prisma.talent.update({
-      where: { id: locals.talent.id },
-      data: {
-        civilite: result.data.civilite,
-        nom: result.data.nom,
-        prenom: result.data.prenom,
-        phone: result.data.phone || null,
+    // Profile columns are the talent's current truth and stay flat on `Talent`;
+    // only the gate belongs to the year's dossier. Same transaction, since the
+    // dossier write also refreshes the projection those columns sit next to.
+    const talentId = locals.talent.id;
+    await prisma.$transaction(async (tx) => {
+      await tx.talent.update({
+        where: { id: talentId },
+        data: {
+          civilite: result.data.civilite,
+          nom: result.data.nom,
+          prenom: result.data.prenom,
+          phone: result.data.phone || null,
+        },
+      });
+      await patchCurrentOnboardingRecord(tx, talentId, {
         infoValidatedAt: new Date(),
-      },
+      });
     });
 
     return { success: true };
@@ -182,7 +219,9 @@ export const actions: Actions = {
       : null;
 
     const talentId = locals.talent.id;
-    const currentSchoolYear = schoolYearOf(new Date(), 'Europe/Paris').label;
+    // One resolution for both ledgers, so this step's schooling record and its
+    // onboarding gate can never land on different years.
+    const currentSchoolYear = currentSchoolYearLabel();
 
     await prisma.$transaction(async (tx) => {
       // schoolId is the cached projection of Schooling_YearRecord (schoolingService),
@@ -199,8 +238,11 @@ export const actions: Actions = {
         where: { id: talentId },
         data: {
           highSchoolNameManual: schoolId ? null : result.data.schoolName,
-          highSchoolValidatedAt: new Date(),
         },
+      });
+
+      await patchCurrentOnboardingRecord(tx, talentId, {
+        highSchoolValidatedAt: new Date(),
       });
     });
 
@@ -255,25 +297,30 @@ export const actions: Actions = {
       });
     }
 
-    await prisma.talent.update({
-      where: { id: locals.talent.id },
-      data: {
-        parentType: result.data.parentType,
-        parentCivilite: result.data.parentCivilite,
-        parentNom: result.data.parentNom,
-        parentPrenom: result.data.parentPrenom,
-        parentEmail,
-        parentPhone: result.data.parentPhone || null,
-        parent2Type: result.data.parent2Type || null,
-        parent2Civilite: result.data.parent2Civilite || null,
-        parent2Nom: result.data.parent2Nom || null,
-        parent2Prenom: result.data.parent2Prenom || null,
-        parent2Email: result.data.parent2Email
-          ? result.data.parent2Email.toLowerCase().trim()
-          : null,
-        parent2Phone: result.data.parent2Phone || null,
+    const talentId = locals.talent.id;
+    await prisma.$transaction(async (tx) => {
+      await tx.talent.update({
+        where: { id: talentId },
+        data: {
+          parentType: result.data.parentType,
+          parentCivilite: result.data.parentCivilite,
+          parentNom: result.data.parentNom,
+          parentPrenom: result.data.parentPrenom,
+          parentEmail,
+          parentPhone: result.data.parentPhone || null,
+          parent2Type: result.data.parent2Type || null,
+          parent2Civilite: result.data.parent2Civilite || null,
+          parent2Nom: result.data.parent2Nom || null,
+          parent2Prenom: result.data.parent2Prenom || null,
+          parent2Email: result.data.parent2Email
+            ? result.data.parent2Email.toLowerCase().trim()
+            : null,
+          parent2Phone: result.data.parent2Phone || null,
+        },
+      });
+      await patchCurrentOnboardingRecord(tx, talentId, {
         parentsValidatedAt: new Date(),
-      },
+      });
     });
 
     // Welcome carries the passwordless magic link into the parent space; it's
@@ -352,13 +399,17 @@ export const actions: Actions = {
       });
     }
 
-    await prisma.talent.update({
-      where: { id: locals.talent.id },
-      data: {
-        hasLaptop: result.data.hasLaptop,
-        setupDescription: result.data.setupDescription || null,
+    // `setupDescription` is current truth about the student's kit (the staff
+    // fiche reads it), so it stays on `Talent`; only the gate is per-year.
+    const talentId = locals.talent.id;
+    await prisma.$transaction(async (tx) => {
+      await tx.talent.update({
+        where: { id: talentId },
+        data: { setupDescription: result.data.setupDescription || null },
+      });
+      await patchCurrentOnboardingRecord(tx, talentId, {
         equipmentValidatedAt: new Date(),
-      },
+      });
     });
 
     return { success: true };
@@ -367,10 +418,12 @@ export const actions: Actions = {
   advanceProcessing: async ({ locals }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
 
-    await prisma.talent.update({
-      where: { id: locals.talent.id },
-      data: { processingCompletedAt: new Date() },
-    });
+    const talentId = locals.talent.id;
+    await prisma.$transaction((tx) =>
+      patchCurrentOnboardingRecord(tx, talentId, {
+        processingCompletedAt: new Date(),
+      }),
+    );
 
     return { success: true };
   },
@@ -378,8 +431,10 @@ export const actions: Actions = {
   goBack: async ({ locals }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
 
-    const step = getOnboardingStep(locals.talent);
-    const clearFields: Record<string, null> = {};
+    const step = getOnboardingStep(
+      onboardingFieldsForYear(locals.talent, currentSchoolYearLabel()),
+    );
+    const clearFields: OnboardingRecordPatch = {};
 
     switch (step) {
       case 'school':
@@ -394,7 +449,10 @@ export const actions: Actions = {
       case 'equipment':
         clearFields.techInterestsValidatedAt = null;
         clearFields.generalInterestsValidatedAt = null;
-        clearFields.interestsRecapSeenAt = null;
+        // `interestsRecapSeenAt` is deliberately NOT rewound. It is not a gate,
+        // so the ladder ignores it, and keeping it is what lets the interests
+        // step tell "this talent just stepped back, show their picks" from "new
+        // school year, blank slate" - see the pre-fill in `load`.
         break;
       case 'processing':
         clearFields.equipmentValidatedAt = null;
@@ -412,10 +470,10 @@ export const actions: Actions = {
         return { success: true };
     }
 
-    await prisma.talent.update({
-      where: { id: locals.talent.id },
-      data: clearFields,
-    });
+    const talentId = locals.talent.id;
+    await prisma.$transaction((tx) =>
+      patchCurrentOnboardingRecord(tx, talentId, clearFields),
+    );
 
     return { success: true };
   },

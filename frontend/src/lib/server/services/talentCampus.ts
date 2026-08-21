@@ -30,8 +30,9 @@ export async function resolveTalentCampus(
 }
 
 /**
- * The talent's 0-based early-bird position within `campusId`: how many talents
- * have ALREADY completed onboarding there, capped at `limit`. Positions at or
+ * The talent's 0-based early-bird position within `campusId` for `schoolYear`:
+ * how many talents have ALREADY completed onboarding there that year, capped at
+ * `limit`. Positions at or
  * beyond the limit earn no bonus, so the exact count past it is never needed —
  * the cap lets the scan stop early and returns `min(completers, limit)`.
  *
@@ -49,6 +50,11 @@ export async function resolveTalentCampus(
  * The lock makes positions exact and gap-free, and is per-campus so unrelated
  * campuses never contend.
  *
+ * Scoped to one school year through `Talent.onboardingSchoolYear`, the stamp on
+ * the onboarding projection. Counting all-time completers instead would exhaust
+ * a campus's early-bird tiers after its first cohort and silently retire the
+ * reward, since the dossier is walked again every year.
+ *
  * "Their campus" matches {@link resolveTalentCampus} exactly: the campus of each
  * completer's most-recent participation, NOT merely any participation here. A
  * talent whose latest campus is elsewhere but who once attended this one must
@@ -59,6 +65,7 @@ export async function resolveTalentCampus(
 export async function countCampusEarlyBirdPosition(
   tx: Prisma.TransactionClient,
   campusId: string,
+  schoolYear: string,
   limit: number,
 ): Promise<number> {
   // Serialize same-campus completions; released when the caller's tx commits.
@@ -71,6 +78,7 @@ export async function countCampusEarlyBirdPosition(
       SELECT 1
       FROM "Talent" t
       WHERE t."rulesSignedAt" IS NOT NULL
+        AND t."onboardingSchoolYear" = ${schoolYear}
         AND t.id IN (
           SELECT p."talentId"
           FROM "Participation" p

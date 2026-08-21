@@ -6,12 +6,12 @@
 
 ## Vue d'ensemble
 
-- **57** modèles · **35** enums · **84** relations
+- **58** modèles · **35** enums · **85** relations
 
 | Domaine | Modèles |
 | --- | ---: |
 | Authentification & Profils | 12 |
-| Cycle de vie talent & RGPD | 5 |
+| Cycle de vie talent & RGPD | 6 |
 | Événements & Participations | 10 |
 | Planning & Activités | 3 |
 | Progression, Portfolio & XP | 2 |
@@ -128,6 +128,7 @@ erDiagram
     String imageRightsSignerPrenom
     String imageRightsSignerNom
     String rulesSignedCity
+    String reglementVersion
     DateTime parentRulesSignedAt
     String parentRulesSignerPrenom
     String parentRulesSignerNom
@@ -137,6 +138,7 @@ erDiagram
     DateTime highSchoolValidatedAt
     DateTime parentsValidatedAt
     DateTime processingCompletedAt
+    String onboardingSchoolYear
     String schoolId FK
     String highSchoolNameManual
     String rulesFilePath
@@ -260,6 +262,29 @@ erDiagram
     DateTime createdAt
     DateTime updatedAt
   }
+  Onboarding_Record {
+    String id PK
+    String talentId FK,UK
+    String schoolYear UK
+    DateTime infoValidatedAt
+    DateTime highSchoolValidatedAt
+    DateTime parentsValidatedAt
+    DateTime techInterestsValidatedAt
+    DateTime generalInterestsValidatedAt
+    DateTime interestsRecapSeenAt
+    DateTime equipmentValidatedAt
+    DateTime processingCompletedAt
+    DateTime rulesSignedAt
+    String rulesSignedCity
+    String reglementVersion
+    DateTime parentRulesSignedAt
+    String parentRulesSignerPrenom
+    String parentRulesSignerNom
+    String parentRulesRelationship
+    String parentRulesSignedCity
+    DateTime createdAt
+    DateTime updatedAt
+  }
   Audit_ImpersonationEvent {
     String id PK
     String adminUserId
@@ -282,6 +307,7 @@ erDiagram
   Talent ||--o{ TalentDeletionRequest : "deletionRequests"
   Talent ||--o{ ImageRightsDecisionRecord : "imageRightsRecords"
   Talent ||--o{ Schooling_YearRecord : "schoolingRecords"
+  Talent ||--o{ Onboarding_Record : "onboardingRecords"
   Talent ||--o{ Note_TalentNote : "notes"
   School |o--o{ Schooling_YearRecord : "schoolingRecords"
   Event |o--o{ Note_TalentNote : "talentNotes"

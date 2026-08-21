@@ -101,6 +101,7 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
           nom: true,
           rulesSignedAt: true,
           rulesSignedCity: true,
+          reglementVersion: true,
           parentRulesSignedAt: true,
           parentRulesSignerPrenom: true,
           parentRulesSignerNom: true,
@@ -115,6 +116,10 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
       pdf = await generateOnboardingPDF({
         type: documentType,
         studentName: `${talent.prenom} ${talent.nom}`,
+        // Pinned to what was signed, not to the current wording: this artifact
+        // is re-rendered on every co-signature, so reading the live text here
+        // would rewrite an already-signed document.
+        reglementVersion: talent.reglementVersion,
         rules: {
           talent:
             talent.rulesSignedAt && talent.rulesSignedCity

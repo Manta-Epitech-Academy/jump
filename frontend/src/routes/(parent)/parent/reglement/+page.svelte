@@ -2,18 +2,32 @@
   import BookOpen from '@lucide/svelte/icons/book-open';
   import CheckCircle from '@lucide/svelte/icons/check-circle';
   import { renderMarkdown } from '$lib/markdown';
-  import reglementMd from '$lib/content/reglement-interieur.md?raw';
+  import { reglementTextFor } from '$lib/content/reglement';
   import { fly } from 'svelte/transition';
   import ParentFlowShell from '$lib/components/parent/ParentFlowShell.svelte';
   import ChildRulesForm from './ChildRulesForm.svelte';
 
-  // Single source of truth for the règlement body — same text the talent reads
-  // at the last step of their onboarding (and the PDF embeds). The .md no
-  // longer carries a trailing "Fait à …" line: each signature footer (in the
-  // PDF) and each per-child form (on this page) handles its own city + date.
-  const reglementBody = renderMarkdown(reglementMd);
-
   let { data, form } = $props();
+
+  // One body per distinct version, not one for the whole page. Siblings can sit
+  // either side of a wording change, and the guardian co-signs the very
+  // document their child signed, so a shared body would put a signature under a
+  // text that child never saw. A single-version family (every family, most
+  // days) renders exactly one group.
+  //
+  // Single source of truth for the body itself: same text the talent reads at
+  // the last step of their onboarding, and the same the PDF embeds. The .md
+  // carries no trailing "Fait à …" line: each signature footer (in the PDF) and
+  // each per-child form (here) handles its own city + date.
+  const groups = $derived(
+    [...new Set(data.children.map((c) => c.reglementVersion))].map(
+      (version) => ({
+        version,
+        body: renderMarkdown(reglementTextFor(version)),
+        children: data.children.filter((c) => c.reglementVersion === version),
+      }),
+    ),
+  );
 </script>
 
 <svelte:head>
@@ -62,13 +76,6 @@
         </p>
       {/if}
 
-      <!-- Règlement text (shared by all children). No wrapper card on purpose,
-           matching the talent's RulesStep: the body reads as the document
-           itself, not a boxed widget on the page. -->
-      <div class="prose prose-sm mb-6 max-w-none prose-slate dark:prose-invert">
-        {@html reglementBody}
-      </div>
-
       <!-- ═══ Sécurité des données ═══
            Mirrors the talent's last onboarding step: every page that asks the
            family to sign on the dotted line names the data it captures. The
@@ -90,12 +97,33 @@
         </p>
       </div>
 
-      <!-- Per-child signature forms -->
-      {#each data.children as child (child.id)}
-        <ChildRulesForm
-          {child}
-          error={form?.talentId === child.id ? form.error : undefined}
-        />
+      <!-- Each règlement sits directly above the forms that sign it. No wrapper
+           card on purpose, matching the talent's RulesStep: the body reads as
+           the document itself, not a boxed widget on the page. -->
+      {#each groups as group (group.version)}
+        <div
+          class="prose prose-sm mb-6 max-w-none prose-slate dark:prose-invert"
+        >
+          {@html group.body}
+        </div>
+
+        {#if groups.length > 1}
+          <p class="mb-4 text-sm text-foreground-secondary">
+            Ce texte est celui que
+            <strong>
+              {group.children.map((c) => c.prenom).join(', ')}
+            </strong>
+            a signé. Vos autres enfants ont signé une version différente, reprise
+            plus bas.
+          </p>
+        {/if}
+
+        {#each group.children as child (child.id)}
+          <ChildRulesForm
+            {child}
+            error={form?.talentId === child.id ? form.error : undefined}
+          />
+        {/each}
       {/each}
     </div>
   </main>

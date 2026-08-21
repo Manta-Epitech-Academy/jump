@@ -63,6 +63,7 @@ const DOMAINS: { title: string; models: string[] }[] = [
       'ImageRightsDecisionRecord',
       'Note_TalentNote',
       'Schooling_YearRecord',
+      'Onboarding_Record',
       'Audit_ImpersonationEvent',
     ],
   },

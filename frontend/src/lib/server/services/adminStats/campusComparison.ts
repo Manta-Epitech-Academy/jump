@@ -38,12 +38,13 @@ import {
   scopedEvents,
   participationWhere,
   cohortWhere,
-  ONBOARDING_COMPLETE_WHERE,
+  onboardingCompleteWhere,
 } from './cohort';
 import {
   WOMEN_SHARE_RULE,
   ONBOARDING_COMPLETED_SHARE_RULE,
 } from './cohortProfile';
+import { isOnboardingEligible } from '$lib/domain/niveau';
 import { SHOW_UP_RATE_RULE } from './attendanceRate';
 import { DISTINCT_SCHOOLS_RULE } from './schoolsReach';
 import { RETURNING_SHARE_RULE } from './talentRetention';
@@ -113,10 +114,12 @@ export async function getCampusComparison(
     }),
     prisma.talent.findMany({
       where: await cohortWhere(scope),
-      select: { id: true, civilite: true, schoolId: true },
+      select: { id: true, civilite: true, schoolId: true, niveau: true },
     }),
     prisma.talent.findMany({
-      where: { AND: [await cohortWhere(scope), ONBOARDING_COMPLETE_WHERE] },
+      where: {
+        AND: [await cohortWhere(scope), onboardingCompleteWhere(scope)],
+      },
       select: { id: true },
     }),
   ]);
@@ -191,10 +194,18 @@ export async function getCampusComparison(
       ),
       onboardingCompletedShare: metric(
         figure((t) => {
-          const done = [...t.talents].filter((id) => completed.has(id));
-          return share(done.length, cohortSize(t));
+          // Denominator filtered like `womenShare` just above, and for the same
+          // reason: ranking campuses on a rate whose denominator holds people
+          // who can never move it would rank them on their event mix rather
+          // than on how well they chase dossiers. A campus running Coding Clubs
+          // would slide down for hosting collégiens.
+          const concerned = [...t.talents].filter((id) =>
+            isOnboardingEligible(profileOf.get(id)?.niveau),
+          );
+          const done = concerned.filter((id) => completed.has(id));
+          return share(done.length, concerned.length);
         }),
-        `${ONBOARDING_COMPLETED_SHARE_RULE} Rapportée ici à la cohorte du campus ; vaut null quand le campus n'a aucun talent. ${AXIS_NOTE}`,
+        `${ONBOARDING_COMPLETED_SHARE_RULE} Rapportée ici aux talents concernés du campus ; vaut null quand aucun d'eux n'y est concerné. ${AXIS_NOTE}`,
       ),
       showUpRate: metric(
         figure((t) => share(t.present, t.conclusive)),

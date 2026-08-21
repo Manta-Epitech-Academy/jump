@@ -4,7 +4,12 @@ import type { StaffRole } from '@prisma/client';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 import { prisma } from '$lib/server/db';
 import { can, type StaffGroup } from '$lib/domain/permissions';
-import { getOnboardingStep } from '$lib/domain/talentOnboarding';
+import {
+  getOnboardingStep,
+  onboardingFieldsForYear,
+} from '$lib/domain/talentOnboarding';
+import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+import { isOnboardingEligible } from '$lib/domain/niveau';
 import {
   loginUrlWithRedirect,
   onboardingFunnelUrl,
@@ -39,6 +44,7 @@ export async function applyRouteGuards(
   const pathStaffDev = p('/staff/dev');
 
   const pathTalentWelcome = p('/welcome');
+  const pathTalentCharte = p('/charte');
   const pathParentLogin = p('/login');
   const pathParentFastlogin = p('/parent/fastlogin');
   const pathParentWelcome = p('/parent/welcome');
@@ -75,6 +81,13 @@ export async function applyRouteGuards(
       return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
 
+    // The school year both onboarding guards below ask about. The flat columns
+    // on `Talent` hold the most recent dossier, which for a talent returning
+    // after the summer is last year's; `onboardingFieldsForYear` reads them as
+    // "nothing done" unless they are this year's, so a returning talent is sent
+    // back through the wizard instead of walking in on last year's signature.
+    const currentYear = currentSchoolYearLabel();
+
     // Welcome guard: a fresh talent sees the welcome splash once, before
     // onboarding. `markSeen` sets `welcomeSeenAt` and hands off to onboarding, so
     // this short-circuits on every later request. Gated purely on talent state
@@ -84,7 +97,9 @@ export async function applyRouteGuards(
     if (
       event.locals.talent &&
       !event.locals.talent.welcomeSeenAt &&
-      getOnboardingStep(event.locals.talent) !== null &&
+      getOnboardingStep(
+        onboardingFieldsForYear(event.locals.talent, currentYear),
+      ) !== null &&
       currentPath !== pathTalentWelcome &&
       !currentPath.startsWith(pathTalentOnboarding) &&
       currentPath !== pathTalentLogin
@@ -96,12 +111,24 @@ export async function applyRouteGuards(
       );
     }
 
+    // Who walks the ladder at all. Collégiens do not: the seminar settled that
+    // Jump holds no reliable guardian contact for them, so they reach the app
+    // without a dossier. Kept out of `getOnboardingStep`, whose contract is that
+    // the step is a pure function of the timestamps set; eligibility is a
+    // property of the talent's level, layered on top here.
+    const walksOnboarding =
+      event.locals.talent != null &&
+      isOnboardingEligible(event.locals.talent.niveau);
+
     // Onboarding guard: redirect until every step of the canonical ladder is
     // done. `getOnboardingStep` is the single source of truth shared with the
     // wizard's resume logic and the admin progress label — so a step added there
     // is gated here automatically, with no parallel field list to keep in sync.
-    if (event.locals.talent) {
-      const needsOnboarding = getOnboardingStep(event.locals.talent) !== null;
+    if (event.locals.talent && walksOnboarding) {
+      const needsOnboarding =
+        getOnboardingStep(
+          onboardingFieldsForYear(event.locals.talent, currentYear),
+        ) !== null;
 
       if (
         needsOnboarding &&
@@ -124,23 +151,50 @@ export async function applyRouteGuards(
       }
     }
 
-    // Charter guard. `charterAcceptedAt` is set at the end of onboarding (same
-    // transaction as `rulesSignedAt`), so a talent missing it hasn't finished
-    // onboarding and is already caught by the onboarding guard above. This stays
-    // as a defensive net: send any talent without the charter back through
-    // onboarding, where it is signed. (The old standalone `/charter` page was
-    // retired once the charter folded into the onboarding rules step.)
+    // A talent with no dossier has no business in the wizard, whatever their
+    // timestamps say. Without this they would sit on step 1 forever, since the
+    // guard above no longer advances them.
+    if (
+      event.locals.talent &&
+      !walksOnboarding &&
+      currentPath.startsWith(pathTalentOnboarding)
+    ) {
+      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+    }
+
+    // Charter guard. The RGPD charte conditions any use of Jump, and it is due
+    // whatever the talent's level: their data is processed either way.
+    //
+    // For a talent who walks the ladder it is signed in the same transaction as
+    // `rulesSignedAt`, so missing it means onboarding is unfinished and the
+    // guard above already caught them; this stays a defensive net. For everyone
+    // else it is the only gate they meet, and `/charte` is where they meet it -
+    // the standalone page exists precisely because the wizard, which they never
+    // enter, is otherwise the sole place the charte is signed.
     if (
       event.locals.talent &&
       !event.locals.talent.charterAcceptedAt &&
       !currentPath.startsWith(pathTalentOnboarding) &&
+      currentPath !== pathTalentCharte &&
       currentPath !== pathTalentWelcome &&
       currentPath !== pathTalentLogin
     ) {
       return Response.redirect(
-        new URL(pathTalentOnboarding, event.url).href,
+        new URL(
+          walksOnboarding ? pathTalentOnboarding : pathTalentCharte,
+          event.url,
+        ).href,
         303,
       );
+    }
+
+    // Settled charte, no ladder to walk: nothing left on /charte.
+    if (
+      event.locals.talent &&
+      event.locals.talent.charterAcceptedAt &&
+      currentPath === pathTalentCharte
+    ) {
+      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
   }
 

@@ -158,7 +158,6 @@
               />
             {:else if data.step === 'equipment'}
               <EquipmentStep
-                hasLaptop={data.hasLaptop ?? false}
                 setupDescription={data.setupDescription ?? ''}
                 error={form?.step === 'equipment' ? form?.error : undefined}
               />

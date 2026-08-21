@@ -14,7 +14,7 @@
   import {
     rulesStatus,
     RULES_STATUS_LABELS,
-  } from '$lib/domain/stageCompliance';
+  } from '$lib/domain/dossierCompliance';
   import {
     IMAGE_RIGHTS_DISPLAY_LABELS,
     imageRightsStatus,
@@ -61,7 +61,6 @@
     communications,
     rulesSignedAt,
     parentRulesSignedAt,
-    charteSigned,
     imageRightsDecision,
     imageRightsForm,
     imageRightsRecords = [],
@@ -73,7 +72,6 @@
     communications: Communication[];
     rulesSignedAt: Date | string | null;
     parentRulesSignedAt: Date | string | null;
-    charteSigned: boolean | null | undefined;
     imageRightsDecision: ImageRightsDecision | null;
     imageRightsForm?: SuperValidated<Infer<ImageRightsCorrectionSchema>>;
     imageRightsRecords?: ImageRightsRecordVM[];
@@ -119,9 +117,7 @@
 
   // Shared three-state resolver (kept in lockstep with the cohort table); the
   // rail layers an explanatory tooltip and tone on top of the state.
-  const rules = $derived(
-    rulesStatus(parentRulesSignedAt, charteSigned, rulesSignedAt),
-  );
+  const rules = $derived(rulesStatus(parentRulesSignedAt, rulesSignedAt));
 
   const rulesDoc = $derived.by<DocStatus>(() => {
     const label = RULES_STATUS_LABELS[rules];

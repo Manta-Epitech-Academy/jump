@@ -15,7 +15,7 @@ import { xpRangeForLevel } from '$lib/domain/xp';
 import {
   parentBlockedWhere,
   parentCompleteWhere,
-} from '$lib/server/db/stageCompliance';
+} from '$lib/server/db/dossierCompliance';
 
 export interface RecipientSpec {
   campusId: string;
@@ -237,7 +237,7 @@ function talentWhere(spec: RecipientSpec): Prisma.TalentWhereInput {
   if (f.charterSigned === 'no') and.push({ charterAcceptedAt: null });
   // Règlement intérieur: the talent's own signature (`rulesSignedAt`) and the
   // legal guardian's online co-signature (`parentRulesSignedAt`, the canonical
-  // minor-compliance signal — see domain/stageCompliance `isRulesCompliant`).
+  // minor-compliance signal, see domain/dossierCompliance `isRulesCompliant`).
   if (f.rulesSigned === 'yes') and.push({ rulesSignedAt: { not: null } });
   if (f.rulesSigned === 'no') and.push({ rulesSignedAt: null });
   if (f.parentRulesSigned === 'yes')

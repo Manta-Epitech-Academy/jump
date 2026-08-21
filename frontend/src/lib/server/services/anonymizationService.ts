@@ -153,6 +153,10 @@ export async function anonymizeTalent(
   //      - schooling_YearRecord: which lycée a named minor attended, year by
   //        year. Erasure is total here (all years), unlike resetTalentToImport,
   //        which keeps the history (a re-onboard is not an erasure).
+  //      - onboarding_Record: the per-year sign-up dossier. It embeds the
+  //        guardian's typed signer name and both signatories' place of
+  //        signature. Total here too; resetTalentToImport drops it as well, for
+  //        a different reason (the dossier is the sign-up a reset voids).
   //      - note_TalentNote: staff notes about the minor (pedago + administratif
   //        free text). The whole feed is removed on erasure.
   //      - interview / interviewReset: the synthesis row holds free-text staff
@@ -167,6 +171,7 @@ export async function anonymizeTalent(
   await tx.talentSfImport.deleteMany({ where: { talentId } });
   await tx.talentInterest.deleteMany({ where: { talentId } });
   await tx.schooling_YearRecord.deleteMany({ where: { talentId } });
+  await tx.onboarding_Record.deleteMany({ where: { talentId } });
   await tx.imageRightsDecisionRecord.deleteMany({ where: { talentId } });
   await tx.note_TalentNote.deleteMany({ where: { talentId } });
   // feedback_Submission: the talent's bilan answers embed free-text opinions

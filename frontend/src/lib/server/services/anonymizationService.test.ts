@@ -24,6 +24,9 @@ describe('anonymizationService - anonymizeTalent', () => {
       schooling_YearRecord: {
         deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
+      onboarding_Record: {
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
       imageRightsDecisionRecord: {
         deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       },

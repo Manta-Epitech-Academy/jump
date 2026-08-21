@@ -1,9 +1,13 @@
 import type { ImageRightsStatus } from './imageRights';
+import { isOnboardingEligible } from './niveau';
 
 /**
- * Shared predicates for stage-de-seconde dossier compliance. One module so
- * the cohort funnel, the per-event onboarding table and the per-student
- * dossier banner never drift on what counts as "compliant".
+ * Shared predicates for dossier compliance. One module so the cohort funnel,
+ * the per-event onboarding table and the per-student dossier banner never
+ * drift on what counts as "compliant".
+ *
+ * Named for the dossier, not for the stage: with one generic règlement signed
+ * once, these predicates serve every kind of event, Coding Clubs included.
  *
  * Bare positional args (not a participation shape) so the predicates work
  * uniformly across the two call shapes that exist:
@@ -14,18 +18,19 @@ import type { ImageRightsStatus } from './imageRights';
  */
 
 /**
- * Règlement intérieur compliance, with two signals in priority order:
- *  1. `parentRulesSignedAt` — the legal guardian co-signed online. Canonical
- *     authoritative proof.
- *  2. `charteSigned` — staff manually attested the offline equivalent
- *     (paper signature, in-person, etc).
- * Either signal satisfies the gate.
+ * Règlement intérieur compliance: the legal guardian co-signed online.
+ *
+ * There used to be a second accepted signal, a per-participation staff
+ * attestation of an offline signature (`StageCompliance.charteSigned`). No code
+ * path could ever set it, so in production it was always false, and it is gone.
+ * If an offline attestation is wanted again it belongs to the talent or to
+ * their yearly dossier, never to one participation: the règlement is signed
+ * once, not once per event.
  */
 export function isRulesCompliant(
   parentRulesSignedAt: Date | string | null | undefined,
-  charteSigned: boolean | null | undefined,
 ): boolean {
-  return parentRulesSignedAt != null || charteSigned === true;
+  return parentRulesSignedAt != null;
 }
 
 /** The three display states a règlement intérieur signature can be in. */
@@ -39,7 +44,7 @@ export const RULES_STATUS_LABELS: Record<RulesStatus, string> = {
 };
 
 /**
- * Resolves the displayable règlement status from its three signals. Mirrors
+ * Resolves the displayable règlement status from its two signals. Mirrors
  * {@link isRulesCompliant} for the "done" case, then splits the not-done case
  * into the actionable "chase the parent" state (student signed, guardian
  * co-signature still pending) versus "nothing signed yet". One definition so
@@ -47,10 +52,9 @@ export const RULES_STATUS_LABELS: Record<RulesStatus, string> = {
  */
 export function rulesStatus(
   parentRulesSignedAt: Date | string | null | undefined,
-  charteSigned: boolean | null | undefined,
   rulesSignedAt: Date | string | null | undefined,
 ): RulesStatus {
-  if (isRulesCompliant(parentRulesSignedAt, charteSigned)) return 'signed';
+  if (isRulesCompliant(parentRulesSignedAt)) return 'signed';
   if (rulesSignedAt != null) return 'awaiting_parent';
   return 'pending';
 }
@@ -63,7 +67,11 @@ export function rulesStatus(
  * One definition shared by the inscrits table, its statut filter and the XLSX
  * export so they never drift.
  */
-export type InscritStatus = 'never_connected' | 'in_progress' | 'ready';
+export type InscritStatus =
+  | 'no_dossier'
+  | 'never_connected'
+  | 'in_progress'
+  | 'ready';
 
 /**
  * UI labels (French) keyed by the funnel state. `never_connected` is the short
@@ -71,27 +79,47 @@ export type InscritStatus = 'never_connected' | 'in_progress' | 'ready';
  * two; the badge tooltip spells out the full "Jamais connecté".
  */
 export const INSCRIT_STATUS_LABELS: Record<InscritStatus, string> = {
+  no_dossier: 'Pas de dossier',
   never_connected: 'Jamais',
   in_progress: 'En cours',
   ready: 'Prêt',
 };
 
 /**
- * Folds connection + the two per-document statuses into the badge's three states:
+ * Tooltip for the one chip whose label omits its reason. The Niveau column sits
+ * on the same row and already names the level, so spending chip width on
+ * "(collégien)" repeats what the row shows.
+ */
+export const NO_DOSSIER_HINT =
+  "Collégien : pas de parcours d'inscription sur Jump.";
+
+/**
+ * Folds level + connection + the two per-document statuses into the badge's
+ * four states:
+ *  - `no_dossier`      : a collégien. Checked first, and it outranks every
+ *                        other signal: they have no dossier to open, so
+ *                        "Jamais" would read as something to chase and
+ *                        "En cours" would be untrue. They would otherwise sit
+ *                        in `in_progress` for good.
  *  - `never_connected` — the talent never logged in (no real `bauth_session`).
- *                        Most urgent: nothing in the dossier can move until they
- *                        connect, so it reads red regardless of document state.
+ *                        Most urgent of the remaining three: nothing in the
+ *                        dossier can move until they connect, so it reads red
+ *                        regardless of document state.
  *  - `ready`           — connected AND both gates done: règlement signed AND
  *                        image-rights decided.
  *  - `in_progress`     — connected but not both gates done. Subsumes the old
  *                        "partial" (some motion) and the connected slice of the
  *                        old "empty" (nothing signed yet).
+ *
+ * `niveau` comes first because it decides whether the rest is even asked.
  */
 export function inscritStatus(
+  niveau: string | null | undefined,
   connected: boolean,
   rules: RulesStatus,
   image: ImageRightsStatus,
 ): InscritStatus {
+  if (!isOnboardingEligible(niveau)) return 'no_dossier';
   if (!connected) return 'never_connected';
   if (rules === 'signed' && image !== 'undecided') return 'ready';
   return 'in_progress';

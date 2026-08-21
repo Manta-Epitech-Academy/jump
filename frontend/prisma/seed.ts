@@ -946,10 +946,6 @@ type EventBlueprint = {
   studentEmails: string[];
   presentEmails?: string[]; // subset of studentEmails
   delays?: Record<string, number>; // email -> delay minutes
-  bringPc?: (email: string, index: number) => boolean;
-  // Stage compliance: only for stage_seconde events
-  stageSigned?: string[]; // emails with fully signed compliance
-  stageUnsigned?: string[]; // emails missing at least one doc
 };
 
 // Build a helper to keep event definitions readable
@@ -1026,7 +1022,6 @@ const EVENTS: EventBlueprint[] = [
       parisStudents[21],
     ], // 10/11 attended
     delays: { [parisStudents[3]]: 10 },
-    bringPc: (_, i) => i % 3 !== 0,
   },
 
   // 2. Past robotics workshop (1 week ago)
@@ -1058,7 +1053,6 @@ const EVENTS: EventBlueprint[] = [
       parisStudents[24],
     ], // 11/13 attended
     delays: { [parisStudents[1]]: 10, [parisStudents[5]]: 5 },
-    bringPc: () => false,
   },
 
   // 3. Past STAGE DE SECONDE (promotion précédente — historique + portfolio)
@@ -1126,9 +1120,6 @@ const EVENTS: EventBlueprint[] = [
     ],
     studentEmails: parisStudents.slice(0, 6),
     presentEmails: parisStudents.slice(0, 6), // all attended
-    bringPc: () => true,
-    stageSigned: parisStudents.slice(0, 3), // 3 fully signed
-    stageUnsigned: parisStudents.slice(3, 6), // 3 partial
   },
 
   // 4. LIVE EVENT (today) — IA workshop
@@ -1169,7 +1160,6 @@ const EVENTS: EventBlueprint[] = [
     ],
     presentEmails: parisStudents.slice(0, 6), // 6 already checked in
     delays: { [parisStudents[4]]: 15 },
-    bringPc: (_, i) => i % 2 === 0,
   },
 
   // 5. Upcoming event in 2 days (planning built)
@@ -1197,7 +1187,6 @@ const EVENTS: EventBlueprint[] = [
       parisStudents[26], // elise.pierre — 3eme
       parisStudents[29], // anais.vasseur — 5eme
     ],
-    bringPc: () => true,
   },
 
   // 6. Task queue trigger: event in 4 days WITHOUT PLANNING (no slots)
@@ -1212,7 +1201,6 @@ const EVENTS: EventBlueprint[] = [
       parisStudents[19], // ethan.bonnet — 1ere
       parisStudents[31], // lou.carpentier — 6eme
     ],
-    bringPc: () => true,
   },
 
   // 7. Fully-prepared event in 7 days
@@ -1237,7 +1225,6 @@ const EVENTS: EventBlueprint[] = [
       parisStudents[22], // raphael.mercier — 4eme
       parisStudents[27], // tristan.roussel — 4eme
     ],
-    bringPc: () => true,
   },
 
   // 8. Ongoing STAGE DE SECONDE — En-cours phase QA (today = J3 of 14)
@@ -1371,9 +1358,6 @@ const EVENTS: EventBlueprint[] = [
     studentEmails: parisStudents.slice(6, 18),
     presentEmails: parisStudents.slice(6, 16), // 10/12 émargés
     delays: { [parisStudents[9]]: 10, [parisStudents[13]]: 5 },
-    bringPc: () => true,
-    stageSigned: parisStudents.slice(6, 14), // 8/12 dossiers complets
-    stageUnsigned: parisStudents.slice(14, 18), // 4 partiels — alimente alertes
   },
 
   // 9. Past Lyon event
@@ -1402,7 +1386,6 @@ const EVENTS: EventBlueprint[] = [
       lyonStudents[10],
       lyonStudents[11],
     ],
-    bringPc: () => true,
   },
 
   // 10. Upcoming Lyon event
@@ -1421,7 +1404,6 @@ const EVENTS: EventBlueprint[] = [
       },
     ],
     studentEmails: lyonStudents,
-    bringPc: () => false,
   },
 
   // 11. Future STAGE DE SECONDE Lyon (compliance + cross-campus coverage)
@@ -1476,9 +1458,6 @@ const EVENTS: EventBlueprint[] = [
       },
     ],
     studentEmails: lyonStudents.slice(0, 10),
-    stageSigned: lyonStudents.slice(0, 5), // 5 of 10 fully signed
-    stageUnsigned: lyonStudents.slice(5, 10), // 5 partial
-    bringPc: () => true,
   },
 ];
 
@@ -2028,7 +2007,6 @@ async function wipeAll() {
   // deleteMany must run after the rows referencing it are gone, so the array
   // order is the FK dependency order — keep it.
   await prisma.$transaction([
-    prisma.stageCompliance.deleteMany(),
     prisma.note_TalentNote.deleteMany(),
     // Broadcasts + email-action mappings — dropped before staff so the
     // `MessageTemplate.createdById` FK doesn't block.
@@ -2325,6 +2303,10 @@ async function seedStudents(): Promise<
   // The TalentSfImport mirror always holds the SF claim; a few confirmed talents
   // diverge from it (and some fill in what SF lacked) to populate the
   // reconciliation page realistically.
+  // One resolution for both ledgers written below, so a seeded talent's
+  // schooling record and onboarding dossier can never land on different years.
+  const schoolYear = currentSchoolYearLabel();
+
   const seeded = STUDENTS.map((s, i) => {
     const lifecycle = lifecycles[i];
     const loggedIn = lifecycle !== 'imported';
@@ -2406,7 +2388,35 @@ async function seedStudents(): Promise<
         : 'accepted'
       : null;
 
+    // The per-year onboarding dossier. Built once and spread into both the
+    // talent (as its cached projection) and the Onboarding_Record created below:
+    // a seeded talent carrying the flat columns with no backing row is a state
+    // the runtime can't reach, and the first wizard step they took would upsert a
+    // fresh dossier and wipe the projection down to that one field. Same
+    // reasoning as the schooling ledger further down.
+    const dossier = {
+      infoValidatedAt: profileConfirmed ? ts : null,
+      highSchoolValidatedAt: schoolConfirmed ? ts : null,
+      parentsValidatedAt: parentsConfirmed ? ts : null,
+      techInterestsValidatedAt: interestsConfirmed ? ts : null,
+      generalInterestsValidatedAt: interestsConfirmed ? ts : null,
+      interestsRecapSeenAt: interestsConfirmed ? ts : null,
+      equipmentValidatedAt: equipmentConfirmed ? ts : null,
+      processingCompletedAt: processingConfirmed ? ts : null,
+      rulesSignedAt: fullyOnboarded ? ts : null,
+      // Règlement intérieur precedes droit-à-l'image in the parent flow, so a
+      // guardian who reached an image-rights decision necessarily co-signed the
+      // règlement first (runtime invariant: image decided ⟹ règlement co-signed).
+      parentRulesSignedAt: imageRightsDecision ? ts : null,
+      parentRulesSignerPrenom: imageRightsDecision ? 'Sophie' : null,
+      parentRulesSignerNom: imageRightsDecision ? 'Martin' : null,
+    };
+
     const talent = {
+      ...dossier,
+      // Which year the projection above describes. Null when the talent never
+      // opened a dossier, matching the migration's backfill rule.
+      onboardingSchoolYear: profileConfirmed ? schoolYear : null,
       // Eager mint: every emailful lead is linked from import. The map only
       // misses the mint-conflict anchor, whose account was never created.
       userId: userIdByEmail.get(s.email) ?? null,
@@ -2421,14 +2431,6 @@ async function seedStudents(): Promise<
       // a state the real flow can't produce — it would re-trap them on
       // /welcome at next login (seed bug, not a runtime one).
       welcomeSeenAt: profileConfirmed ? ts : null,
-      infoValidatedAt: profileConfirmed ? ts : null,
-      highSchoolValidatedAt: schoolConfirmed ? ts : null,
-      parentsValidatedAt: parentsConfirmed ? ts : null,
-      techInterestsValidatedAt: interestsConfirmed ? ts : null,
-      generalInterestsValidatedAt: interestsConfirmed ? ts : null,
-      interestsRecapSeenAt: interestsConfirmed ? ts : null,
-      processingCompletedAt: processingConfirmed ? ts : null,
-      rulesSignedAt: fullyOnboarded ? ts : null,
       charterAcceptedAt: fullyOnboarded ? ts : null,
       schoolId,
       parentNom: hasParentInfo ? 'Martin' : null,
@@ -2441,24 +2443,16 @@ async function seedStudents(): Promise<
       imageRightsDecidedAt: imageRightsDecision ? ts : null,
       imageRightsSignerPrenom: imageRightsDecision ? 'Sophie' : null,
       imageRightsSignerNom: imageRightsDecision ? 'Martin' : null,
-      // Règlement intérieur precedes droit-à-l'image in the parent flow, so a
-      // guardian who reached an image-rights decision necessarily co-signed the
-      // règlement first (runtime invariant: image decided ⟹ règlement co-signed).
-      parentRulesSignedAt: imageRightsDecision ? ts : null,
-      parentRulesSignerPrenom: imageRightsDecision ? 'Sophie' : null,
-      parentRulesSignerNom: imageRightsDecision ? 'Martin' : null,
       parent2Type: null,
       parent2Civilite: null,
       parent2Nom: null,
       parent2Prenom: null,
       parent2Email: null,
       parent2Phone: null,
-      hasLaptop: equipmentConfirmed,
       setupDescription:
         equipmentConfirmed && i % 3 === 0
           ? 'PC gaming RTX 4070, double écran'
           : null,
-      equipmentValidatedAt: equipmentConfirmed ? ts : null,
       interestsFreeText: null,
       lastActiveAt,
       // The hooks stamp firstLoginAt on the first session; anyone with
@@ -2481,7 +2475,7 @@ async function seedStudents(): Promise<
       schoolId: sfSchoolId,
     };
 
-    return { talent, sf, signCity: s.campus, email: s.email };
+    return { talent, sf, dossier, signCity: s.campus, email: s.email };
   });
 
   const talentData = seeded.map((x) => x.talent);
@@ -2567,7 +2561,6 @@ async function seedStudents(): Promise<
   // reasoning as the image-rights ledger above and the XP one below. `source`
   // follows the write path each seeded state implies: a confirmed lycée came
   // from the talent at onboarding, everything else from the worker.
-  const schoolYear = currentSchoolYearLabel();
   const schoolingRecordData = seeded
     .map((x) => {
       const talentId = talentIdByExternalId.get(x.talent.externalId);
@@ -2582,6 +2575,17 @@ async function seedStudents(): Promise<
     })
     .filter((d): d is NonNullable<typeof d> => d !== null);
   await prisma.schooling_YearRecord.createMany({ data: schoolingRecordData });
+
+  // Onboarding dossier: one row per talent who opened one, carrying exactly what
+  // the projection on `Talent` shows. See the `dossier` object above.
+  const onboardingRecordData = seeded
+    .map((x) => {
+      const talentId = talentIdByExternalId.get(x.talent.externalId);
+      if (!talentId || x.talent.onboardingSchoolYear == null) return null;
+      return { talentId, schoolYear, ...x.dossier };
+    })
+    .filter((d): d is NonNullable<typeof d> => d !== null);
+  await prisma.onboarding_Record.createMany({ data: onboardingRecordData });
 
   return byEmail;
 }
@@ -2781,8 +2785,8 @@ async function seedEvents(
     });
     eventIds.push(event.id);
 
-    // Per-student context, derived once and reused across participation,
-    // émargement and stageCompliance rows. `isPresent`/`delay` are blueprint
+    // Per-student context, derived once and reused across participation and
+    // émargement rows. `isPresent`/`delay` are blueprint
     // attendance hints (from presentEmails/delays) that drive the EventPresence
     // status below — attendance no longer lives on Participation.
     const students = blueprint.studentEmails
@@ -2806,7 +2810,6 @@ async function seedEvents(
         talentId: s.talent.id,
         eventId: event.id,
         campusId,
-        bringPc: blueprint.bringPc ? blueprint.bringPc(s.email, s.i) : false,
       })),
       select: { id: true, talentId: true },
     });
@@ -2856,28 +2859,6 @@ async function seedEvents(
         data: presenceRows,
         skipDuplicates: true,
       });
-    }
-
-    // Stage compliance (only for stage events). This row tracks the
-    // event-scoped charte; the image-rights decision is a talent-level fact
-    // seeded with the onboarding ladder (see seedStudents), because the parent
-    // mail that drives it fires at the parents step — independent of any event.
-    if (isStage) {
-      const complianceRows: {
-        participationId: string;
-        charteSigned: boolean;
-      }[] = [];
-      for (const s of students) {
-        const fullySigned = blueprint.stageSigned?.includes(s.email) ?? false;
-        const partiallySigned =
-          blueprint.stageUnsigned?.includes(s.email) ?? false;
-        if (!fullySigned && !partiallySigned) continue;
-        complianceRows.push({
-          participationId: participationIdByTalent.get(s.talent.id)!,
-          charteSigned: fullySigned || Math.random() < 0.5,
-        });
-      }
-      await prisma.stageCompliance.createMany({ data: complianceRows });
     }
   }
 
@@ -3166,9 +3147,6 @@ async function printSummary(parentEmail: string) {
   console.log(`   Entretiens — en cours:         ${inProgressInterviews}`);
   console.log(
     `   Task queue — missing planning: 1 event (Atelier Game Design, +4d)`,
-  );
-  console.log(
-    '   Stage compliance:              3 stage_seconde events with mixed signed/unsigned',
   );
   console.log('');
 

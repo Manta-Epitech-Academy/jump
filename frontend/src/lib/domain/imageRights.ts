@@ -50,9 +50,10 @@ export function imageRightsStatus(talent: {
  * unchanged.
  *
  * `studentSigned` must be the student's own signature (`rulesSignedAt != null`),
- * not "the règlement is satisfied": a staff offline attestation (`charteSigned`)
- * marks the règlement signed without ever inviting a guardian, so folding it in
- * would mislabel an undecided image as "awaiting parent" when no one was asked.
+ * not "the règlement is satisfied": the student's signature is what invites the
+ * guardian, whereas satisfaction means the guardian already co-signed. Folding
+ * the latter in would leave an undecided image reading "pending" for a family
+ * that has in fact been asked.
  */
 export type ImageRightsDisplayStatus =
   | ImageRightsDecision

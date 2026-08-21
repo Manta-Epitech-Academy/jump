@@ -17,7 +17,7 @@ import { NOTE_FIELDS, type NoteField } from '$lib/domain/interview';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { formatGivenName } from '$lib/domain/profile';
 import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
-import { isRulesCompliant } from '$lib/domain/stageCompliance';
+import { isRulesCompliant } from '$lib/domain/dossierCompliance';
 import { isImageRightsDecided } from '$lib/domain/imageRights';
 import { recordImageRightsDecision } from '$lib/server/services/imageRightsService';
 import { imageRightsCorrectionSchema } from '$lib/validation/imageRights';
@@ -73,9 +73,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         select: {
           id: true,
           sfMemberStatus: true,
-          stageCompliance: {
-            select: { charteSigned: true, updatedAt: true },
-          },
           event: {
             select: {
               id: true,
@@ -281,9 +278,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     // a real login read "Jamais".
     const firstLoginAt = student.firstLoginAt;
 
-    const charteSigned =
-      primaryComplianceParticipation?.stageCompliance?.charteSigned;
-
     // Event-opportunity recommendations (REC-005): one per tech interest the
     // student picked that carries a curated `recommendationMessage`, shown
     // verbatim.
@@ -303,10 +297,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       prenom: formatGivenName(student.prenom),
       appUrl,
       connected: firstLoginAt != null,
-      rulesCompliant: isRulesCompliant(
-        student.parentRulesSignedAt,
-        charteSigned,
-      ),
+      rulesCompliant: isRulesCompliant(student.parentRulesSignedAt),
       imageRightsDecided: isImageRightsDecided(student),
       hasCompletedInterview: completedInterviewCount > 0,
       techRecommendationMessages,

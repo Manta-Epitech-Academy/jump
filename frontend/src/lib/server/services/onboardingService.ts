@@ -24,6 +24,9 @@ import {
 } from '$lib/server/services/talentCampus';
 import { enqueueOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobService';
 import type { ServiceResult } from './result';
+import { CURRENT_REGLEMENT_VERSION } from '$lib/content/reglement';
+import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+import { patchCurrentOnboardingRecord } from './onboardingYearService';
 
 type ParentContact = { email: string; prenom: string; nom: string };
 
@@ -112,21 +115,23 @@ export async function validateTalentInterests(
   const now = new Date();
   const allIds = [...input.techInterestIds, ...input.generalInterestIds];
 
-  await prisma.$transaction([
-    prisma.talentInterest.deleteMany({ where: { talentId } }),
-    prisma.talentInterest.createMany({
+  await prisma.$transaction(async (tx) => {
+    await tx.talentInterest.deleteMany({ where: { talentId } });
+    await tx.talentInterest.createMany({
       data: allIds.map((interestId) => ({ talentId, interestId })),
-    }),
-    prisma.talent.update({
+    });
+    // The selection itself is the talent's current preference and stays flat;
+    // the step's gates belong to this year's dossier.
+    await tx.talent.update({
       where: { id: talentId },
-      data: {
-        techInterestsValidatedAt: now,
-        generalInterestsValidatedAt: now,
-        interestsRecapSeenAt: now,
-        interestsFreeText: input.freeText || null,
-      },
-    }),
-  ]);
+      data: { interestsFreeText: input.freeText || null },
+    });
+    await patchCurrentOnboardingRecord(tx, talentId, {
+      techInterestsValidatedAt: now,
+      generalInterestsValidatedAt: now,
+      interestsRecapSeenAt: now,
+    });
+  });
 
   return { ok: true };
 }
@@ -164,18 +169,24 @@ export async function signOnboardingRules(input: {
           await countCampusEarlyBirdPosition(
             tx,
             campusId,
+            currentSchoolYearLabel(),
             ONBOARDING_EARLY_BIRD_LIMIT,
           ),
         )
       : 0;
 
+    // The charte is a once-per-account consent, not part of the yearly dossier,
+    // so it stays flat on `Talent` and a returning talent is not asked again.
     await tx.talent.update({
       where: { id: talentId },
-      data: {
-        rulesSignedAt: now,
-        rulesSignedCity: city,
-        charterAcceptedAt: now,
-      },
+      data: { charterAcceptedAt: now },
+    });
+    await patchCurrentOnboardingRecord(tx, talentId, {
+      rulesSignedAt: now,
+      rulesSignedCity: city,
+      // Pin the wording this signature commits to. Everything downstream
+      // reads it back; nothing else ever writes it.
+      reglementVersion: CURRENT_REGLEMENT_VERSION,
     });
     await grantXp(tx, {
       talentId,

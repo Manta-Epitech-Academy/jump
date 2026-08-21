@@ -1,27 +1,21 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { onboardingSubmit } from '../stepSubmit';
-  import { Checkbox } from '$lib/components/ui/checkbox';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
-  import { cn } from '$lib/utils';
   import Laptop from '@lucide/svelte/icons/laptop';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import ContinueButton from './ContinueButton.svelte';
   import { fieldInput } from './fieldSkin';
 
   let {
-    hasLaptop = false,
     setupDescription = '',
     error,
   }: {
-    hasLaptop?: boolean;
     setupDescription?: string;
     error?: string;
   } = $props();
 
-  // svelte-ignore state_referenced_locally
-  let checked = $state(hasLaptop);
   let submitting = $state(false);
 </script>
 
@@ -48,47 +42,11 @@
   use:enhance={onboardingSubmit((v) => (submitting = v))}
   class="space-y-6"
 >
-  <!-- Ton équipement — the one input that matters operationally (do they have a
-       usable machine for the stage). Promoted to a stateful selectable card so
-       it reads as the primary choice, not an afterthought. -->
-  <div>
-    <h2
-      class="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-foreground-secondary uppercase"
-    >
-      <Laptop class="h-4 w-4" /> Ton équipement
-      <span class="text-destructive">*</span>
-    </h2>
-    <label
-      class={cn(
-        'flex cursor-pointer items-center gap-4 rounded-xl border-2 px-5 py-4 shadow-raised transition-ui',
-        checked
-          ? 'border-epi-tech bg-epi-tech/10 dark:bg-epi-tech/15'
-          : 'border-border bg-card hover:border-border',
-      )}
-    >
-      <div
-        class={cn(
-          'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors',
-          checked ? 'bg-epi-tech text-black' : 'bg-muted text-muted-foreground',
-        )}
-      >
-        <Laptop class="h-5 w-5" />
-      </div>
-      <span class="flex-1 text-sm font-medium text-foreground-secondary">
-        Je possède un laptop qui fonctionne pour réaliser mon stage.
-      </span>
-      <Checkbox
-        bind:checked
-        name="hasLaptop"
-        value="true"
-        class="size-6 shrink-0 rounded-full data-[state=checked]:border-epi-tech data-[state=checked]:bg-epi-tech data-[state=checked]:text-black"
-      />
-    </label>
-  </div>
-
-  <!-- Ton setup — optional flavour. Clearly secondary: tagged optionnel. The
-       illustration is a small centred wink (gif-sized), not a full-bleed banner
-       that would steal focus from the actual question. -->
+  <!-- Ton setup: informational, never a gate. The laptop requirement itself is
+       certified on the règlement step, where the clause it certifies is written
+       down; asking it twice would let the two answers disagree. What is left
+       here is the free-text description, which staff read on the fiche talent,
+       so an empty answer has to let the talent through. -->
   <div>
     <h2
       class="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-foreground-secondary uppercase"
@@ -127,12 +85,5 @@
     </div>
   </div>
 
-  <div class="space-y-3">
-    {#if !checked}
-      <p class="text-center text-xs text-muted-foreground">
-        Coche « Je possède un laptop qui fonctionne… » pour continuer.
-      </p>
-    {/if}
-    <ContinueButton {submitting} disabled={!checked} />
-  </div>
+  <ContinueButton {submitting} />
 </form>

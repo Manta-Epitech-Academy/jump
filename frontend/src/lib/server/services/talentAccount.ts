@@ -153,8 +153,7 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
  *     onboarding edit to e.g. the phone is rolled back to SF's claim;
  *   - the SF mirror itself (`TalentSfImport`, worker-owned);
  *   - the `Participation` rows the worker upserts per event (the talent *was*
- *     imported into those events), reset to their import defaults, with every
- *     post-import child (`StageCompliance`) dropped.
+ *     imported into those events), kept as the worker wrote them.
  *
  * Everything else a talent accrues after import is deleted: the XP ledger and
  * its cached projections (`xp`/`eventsCount` → 0), the émargement marks
@@ -171,7 +170,7 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
  * reproducing import state means keeping it, not deleting it (dropping it would
  * lock the talent out of OTP login, which routes by `bauth_user`). Any parent
  * account minted during testing that no *other* talent still references is
- * deleted (step 6).
+ * deleted (step 4).
  *
  * Contrast with `anonymizeTalent`: it scrubs identity to placeholders for RGPD
  * erasure but deliberately keeps the XP/stats and the account; this keeps the
@@ -219,7 +218,7 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     const sf = talent.sfImport;
 
     // Captured before the update nulls them, so the matching parent accounts can
-    // be cleaned up afterwards (step 6) and the PDF objects deleted post-commit.
+    // be cleaned up afterwards (step 4) and the PDF objects deleted post-commit.
     const parentEmails = [talent.parentEmail, talent.parent2Email].filter(
       (e): e is string => !!e,
     );
@@ -228,20 +227,7 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
       talent.imageRightsFilePath,
     ].filter((k): k is string => !!k);
 
-    // 1. Drop the post-import children hanging off the worker-created
-    //    Participation rows (the rows themselves are kept, see step 3).
-    const participations = await tx.participation.findMany({
-      where: { talentId },
-      select: { id: true },
-    });
-    const participationIds = participations.map((p) => p.id);
-    if (participationIds.length > 0) {
-      await tx.stageCompliance.deleteMany({
-        where: { participationId: { in: participationIds } },
-      });
-    }
-
-    // 2. Delete every other talent-scoped record created after import.
+    // 1. Delete every talent-scoped record created after import.
     //    Broadcast recipients are matched on both the talent and parent-of
     //    slots (SetNull relations, so deleted explicitly rather than left
     //    orphaned).
@@ -250,6 +236,13 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     // it must go with the interviews it traces, matching anonymizeTalent.
     await tx.interviewReset.deleteMany({ where: { talentId } });
     await tx.talentInterest.deleteMany({ where: { talentId } });
+    // Every year's dossier, not just the current one. Unlike
+    // schooling_YearRecord (kept below - which lycée a talent attended is a fact
+    // about them, independent of Jump's sign-up), the dossier IS the sign-up, and
+    // voiding it is the whole point of a reset to import. Leaving the current
+    // year's row behind would also un-reset the talent on their next step: the
+    // service copies the whole dossier back onto the projection.
+    await tx.onboarding_Record.deleteMany({ where: { talentId } });
     await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
     await tx.minigameAttempt.deleteMany({ where: { talentId } });
     await tx.xpGrant.deleteMany({ where: { talentId } });
@@ -271,15 +264,8 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     // re-onboard. They are erased only by anonymizeTalent (true RGPD erasure),
     // mirroring how the single-column predecessor survived a reset.
 
-    // 3. Reset the worker-created Participation rows to their import defaults
-    //    (the worker creates them with only talent/event/campus set).
-    await tx.participation.updateMany({
-      where: { talentId },
-      data: { bringPc: false },
-    });
-
-    // 4. Reset the Talent row. Keep externalId (the SF identity; the login
-    //    email lives on the linked bauth_user, kept in step 5);
+    // 2. Reset the Talent row. Keep externalId (the SF identity; the login
+    //    email lives on the linked bauth_user, kept in step 3);
     //    re-seed the SF-owned columns from the mirror; null everything onboarding
     //    and the parent flows wrote; zero the cached XP projections.
     await tx.talent.update({
@@ -316,12 +302,11 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         parent2Prenom: null,
         parent2Email: null,
         parent2Phone: null,
-        hasLaptop: false,
         setupDescription: null,
         interestsFreeText: null,
         // Activity projections: a fresh-import talent has never logged in, so
         // both the first-login and last-active facts are dropped. The login
-        // identity itself is kept (step 5 clears only its history), so `userId`
+        // identity itself is kept (step 3 clears only its history), so `userId`
         // stays linked.
         lastActiveAt: null,
         firstLoginAt: null,
@@ -334,7 +319,7 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     // sync last wrote there.
     //
     // Only the *current* year is realigned to the mirror. Earlier years are
-    // deliberately KEPT, like the worker-created Participation rows in step 3
+    // deliberately KEPT, like the worker-created Participation rows themselves
     // and for the same reason: they are import-derived schooling history, not
     // onboarding output, and a re-onboard is not an erasure. anonymizeTalent is
     // the path that drops every year (see its step 2).
@@ -346,7 +331,7 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
       source: 'staff',
     });
 
-    // 5. Clear the login *history* but keep the identity. Eager mint gives every
+    // 3. Clear the login *history* but keep the identity. Eager mint gives every
     //    fresh Salesforce import a bauth_user from day one (see syncService), so
     //    the state "the worker leaves them in on first import" now includes a
     //    login account: reset restores that state, it does not delete it.
@@ -361,7 +346,7 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
       await tx.bauth_account.deleteMany({ where: { userId: talent.userId } });
     }
 
-    // 6. Delete parent bauth_user(s) minted during testing, but only ones no
+    // 4. Delete parent bauth_user(s) minted during testing, but only ones no
     //    other talent still references, so a real sibling keeps their parent
     //    login. The sibling + role guard lives in findUnreferencedParentAccount
     //    (shared with anonymizeTalent); here we delete rather than scrub since

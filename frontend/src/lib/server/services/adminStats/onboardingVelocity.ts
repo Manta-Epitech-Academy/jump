@@ -16,7 +16,7 @@
 import { prisma } from '$lib/server/db';
 import { metric, median, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
-import { cohortWhere, ONBOARDING_COMPLETE_WHERE, scopeLabels } from './cohort';
+import { cohortWhere, onboardingCompleteWhere, scopeLabels } from './cohort';
 
 const DAY_MS = 86_400_000;
 
@@ -48,7 +48,7 @@ export async function getOnboardingVelocity(
     where: {
       AND: [
         cohort,
-        ONBOARDING_COMPLETE_WHERE,
+        onboardingCompleteWhere(scope),
         { rulesSignedAt: { gte: since } },
       ],
     },
