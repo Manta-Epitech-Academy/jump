@@ -14,7 +14,7 @@
   import {
     rulesStatus,
     RULES_STATUS_LABELS,
-  } from '$lib/domain/stageCompliance';
+  } from '$lib/domain/dossierCompliance';
   import {
     IMAGE_RIGHTS_DISPLAY_LABELS,
     imageRightsStatus,
@@ -61,7 +61,6 @@
     communications,
     rulesSignedAt,
     parentRulesSignedAt,
-    charteSigned,
     imageRightsDecision,
     imageRightsForm,
     imageRightsRecords = [],
@@ -73,7 +72,6 @@
     communications: Communication[];
     rulesSignedAt: Date | string | null;
     parentRulesSignedAt: Date | string | null;
-    charteSigned: boolean | null | undefined;
     imageRightsDecision: ImageRightsDecision | null;
     imageRightsForm?: SuperValidated<Infer<ImageRightsCorrectionSchema>>;
     imageRightsRecords?: ImageRightsRecordVM[];
@@ -117,11 +115,13 @@
     return c.openedAt ? 'opened' : 'unopened';
   }
 
-  // Shared three-state resolver (kept in lockstep with the cohort table); the
-  // rail layers an explanatory tooltip and tone on top of the state.
-  const rules = $derived(
-    rulesStatus(parentRulesSignedAt, charteSigned, rulesSignedAt),
-  );
+  // Shared three-state resolver, on the talent's own columns: the fiche answers
+  // "has this person ever signed, and when", not "is a given year's dossier
+  // done". The cohort table asks the second question, against the dossier of the
+  // event it is showing, so the two legitimately differ for a talent who signed
+  // last year and has not reopened a dossier. The rail layers an explanatory
+  // tooltip and tone on top of the state.
+  const rules = $derived(rulesStatus(parentRulesSignedAt, rulesSignedAt));
 
   const rulesDoc = $derived.by<DocStatus>(() => {
     const label = RULES_STATUS_LABELS[rules];
@@ -130,9 +130,10 @@
         label,
         colorClass: 'text-epi-tech-ink',
         icon: Check,
-        tooltip: parentRulesSignedAt
-          ? 'Co-signé par le parent et le stagiaire'
-          : "Signature attestée manuellement par l'équipe (hors ligne).",
+        // Unconditional: `signed` is reached only through the guardian's
+        // co-signature. It used to fork on a staff attestation of an offline
+        // signature, which no code path could ever set and which is gone.
+        tooltip: 'Co-signé par le participant et son parent.',
       };
     }
     if (rules === 'awaiting_parent') {
@@ -141,7 +142,7 @@
         colorClass: 'text-warning',
         icon: Clock,
         tooltip:
-          'Le stagiaire a signé le règlement intérieur, la co-signature du parent est en cours.',
+          'Le participant a signé le règlement intérieur, la co-signature du parent est en cours.',
       };
     }
     return {
@@ -149,15 +150,15 @@
       colorClass: 'text-destructive',
       icon: Clock,
       tooltip:
-        "Le règlement intérieur n'a pas encore été signé par le stagiaire.",
+        "Le règlement intérieur n'a pas encore été signé par le participant.",
     };
   });
 
   // Made parallel to the règlement row: an undecided image splits into "awaiting
   // parent" (the student signed, so the parent flow that co-signs both is under
-  // way) vs "pending" (nothing signed yet), gated on the student's own signature,
-  // not `rules`, whose `signed` state a staff offline attestation can reach
-  // without a parent ever being invited.
+  // way) vs "pending" (nothing signed yet), gated on the student's own signature
+  // rather than on `rules`, whose `signed` state means the guardian has already
+  // co-signed and so would read an asked family as never invited.
   const imageDisplay = $derived(
     imageRightsDisplayStatus(
       imageRightsStatus({ imageRightsDecision }),

@@ -1,5 +1,9 @@
 import type { RequestHandler } from './$types';
-import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import {
+  getCampusId,
+  getCampusTimezone,
+  scopedPrisma,
+} from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { niveauLabel } from '$lib/domain/niveau';
@@ -8,7 +12,7 @@ import {
   inscritStatus,
   INSCRIT_STATUS_LABELS,
   RULES_STATUS_LABELS,
-} from '$lib/domain/stageCompliance';
+} from '$lib/domain/dossierCompliance';
 import {
   imageRightsStatus,
   imageRightsDisplayStatus,
@@ -16,6 +20,8 @@ import {
 } from '$lib/domain/imageRights';
 import { buildXlsx } from '$lib/server/xlsx';
 import { INSCRIT_EXPORT_PARTICIPATION_SELECT } from '../components/types';
+import { loadEventDossierSignatures, NO_DOSSIER_SIGNATURES } from '../dossiers';
+import { schoolYearOf } from '$lib/domain/schoolYear';
 
 /**
  * Filtered-cohort XLSX export. The inscrits page filters/sorts ~200 rows client
@@ -41,12 +47,22 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     ? body.talentIds.filter((x): x is string => typeof x === 'string')
     : [];
 
-  const participations = talentIds.length
-    ? await db.participation.findMany({
-        where: { eventId: event.id, talentId: { in: talentIds } },
-        select: INSCRIT_EXPORT_PARTICIPATION_SELECT,
-      })
-    : [];
+  // Same dossier the on-screen column reads: the event's own school year, never
+  // the talent's most recent one.
+  const eventSchoolYear = schoolYearOf(
+    event.date,
+    getCampusTimezone(locals),
+  ).label;
+
+  const [participations, dossiers] = await Promise.all([
+    talentIds.length
+      ? db.participation.findMany({
+          where: { eventId: event.id, talentId: { in: talentIds } },
+          select: INSCRIT_EXPORT_PARTICIPATION_SELECT,
+        })
+      : [],
+    loadEventDossierSignatures(db, event.id, eventSchoolYear),
+  ]);
 
   // Preserve the client's filtered + sorted order.
   const byTalent = new Map(participations.map((p) => [p.talentId, p]));
@@ -59,14 +75,14 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     // Recompute the verdict server-side (never trust the client): the folded
     // "Statut" mirrors the table badge, and connection + each gate get their own
     // column so the sheet can be triaged on what a student actually owes.
+    const dossier = dossiers.get(p.talentId) ?? NO_DOSSIER_SIGNATURES;
     const rules = rulesStatus(
-      t.parentRulesSignedAt,
-      p.stageCompliance?.charteSigned,
-      t.rulesSignedAt,
+      dossier.parentRulesSignedAt,
+      dossier.rulesSignedAt,
     );
     const image = imageRightsStatus(t);
     const connected = t.firstLoginAt != null;
-    const status = inscritStatus(connected, rules, image);
+    const status = inscritStatus(t.niveau, connected, rules, image);
     const parentName = [t.parentPrenom, t.parentNom].filter(Boolean).join(' ');
     return [
       t.prenom,
@@ -77,7 +93,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
       connected ? 'Oui' : 'Non',
       RULES_STATUS_LABELS[rules],
       IMAGE_RIGHTS_DISPLAY_LABELS[
-        imageRightsDisplayStatus(image, t.rulesSignedAt != null)
+        imageRightsDisplayStatus(image, dossier.rulesSignedAt != null)
       ],
       t.user?.email ?? '',
       t.phone ?? '',

@@ -3,7 +3,7 @@ import { renderMarkdown } from '$lib/markdown';
 import { withBrowser } from '../infra/browserPool';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import onboardingTemplate from '../templates/onboarding-document.html?raw';
-import reglementMd from '$lib/content/reglement-interieur.md?raw';
+import { reglementTextFor } from '$lib/content/reglement';
 import droitImageMd from '$lib/content/droit-image.md?raw';
 import droitImageRefusalMd from '$lib/content/droit-image-refusal.md?raw';
 import {
@@ -54,7 +54,7 @@ function buildImageRightsHtml(
   return renderMarkdown(filled);
 }
 
-/** Stagiaire's signature input for the shared règlement PDF. */
+/** Talent's signature input for the shared règlement PDF. */
 export type RulesTalentSignature = {
   city: string;
   signedAt: Date;
@@ -81,6 +81,13 @@ export async function generateOnboardingPDF(data: {
     talent?: RulesTalentSignature;
     parent?: RulesParentSignature;
   };
+  /**
+   * `rules` only: which version of the règlement the signature committed to,
+   * read off `Talent.reglementVersion`. The body is pinned to it rather than to
+   * the current wording, so a co-signature years later re-renders the text that
+   * was actually signed. Null resolves to the pre-versioning text.
+   */
+  reglementVersion?: string | null;
   /** Required for `image-rights`: selects the authorization vs refusal wording. */
   decision?: ImageRightsDecision;
   /** Image-rights only: guardian's name, relationship, city, and signature time. */
@@ -96,7 +103,7 @@ export async function generateOnboardingPDF(data: {
 
   let documentContent = '';
   if (data.type === 'rules') {
-    documentContent = renderMarkdown(reglementMd);
+    documentContent = renderMarkdown(reglementTextFor(data.reglementVersion));
   } else if (data.type === 'image-rights') {
     documentContent = buildImageRightsHtml(
       decision,

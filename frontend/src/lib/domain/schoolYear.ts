@@ -34,6 +34,18 @@ export function schoolYearOf(
   return { startYear, label: `${startYear}-${startYear + 1}` };
 }
 
+/**
+ * The school year in progress right now, as a label.
+ *
+ * Paris, because this is the platform's own cycle rather than a campus's: the
+ * onboarding dossier is Jump-wide, and `schoolingService` already defaults to the
+ * same zone. A year derived from an *event* still goes through `schoolYearOf`
+ * with that event's campus timezone.
+ */
+export function currentSchoolYearLabel(timezone = 'Europe/Paris'): string {
+  return schoolYearOf(new Date(), timezone).label;
+}
+
 /** French month names indexed 1-12 (index 0 unused), for switcher labels. */
 export const MOIS_FR = [
   '',

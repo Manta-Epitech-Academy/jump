@@ -57,8 +57,20 @@ export async function anonymizeTalent(
       user: { select: { email: true } },
       parentEmail: true,
       parent2Email: true,
-      rulesFilePath: true,
       imageRightsFilePath: true,
+      // RETIRED, read here for one release only, and dropped from this select
+      // with the column itself. It still holds the pre-annual `rules.pdf` key,
+      // and a talent whose règlement was regenerated after the migration has a
+      // dossier pointing at the new year-keyed object instead - leaving that old
+      // one referenced by nothing but this column. Collecting both is what keeps
+      // the transition from leaving a named minor's PDF in the bucket.
+      rulesFilePath: true,
+      // Every year's règlement render, not just the latest: the dossier rows are
+      // deleted below, so a key not collected here is an orphaned PDF of a named
+      // minor left in the bucket with nothing pointing at it. That is the whole
+      // erasure failing quietly, so it is read from the rows rather than from the
+      // projection.
+      onboardingRecords: { select: { rulesFilePath: true } },
     },
   });
   if (!talent) return [];
@@ -69,12 +81,20 @@ export async function anonymizeTalent(
     (e): e is string => !!e,
   );
 
-  // S3 keys of the generated onboarding PDFs, captured before the update nulls
-  // the columns. Returned to the caller, which deletes the objects post-commit.
+  // S3 keys of the generated onboarding PDFs, captured before the update and the
+  // dossier deletion drop the references. Returned to the caller, which deletes
+  // the objects post-commit.
+  // Deduplicated: the retired column and a dossier row normally hold the same
+  // key, and deleting twice would log a spurious failure on the second attempt.
   const documentKeys = [
-    talent.rulesFilePath,
-    talent.imageRightsFilePath,
-  ].filter((k): k is string => !!k);
+    ...new Set(
+      [
+        talent.imageRightsFilePath,
+        talent.rulesFilePath,
+        ...talent.onboardingRecords.map((d) => d.rulesFilePath),
+      ].filter((k): k is string => !!k),
+    ),
+  ];
 
   // 1. Clear all PII fields on the Talent (keep xp / eventsCount), including
   //    both parent/guardian slots and every onboarding-state timestamp (those
@@ -153,6 +173,10 @@ export async function anonymizeTalent(
   //      - schooling_YearRecord: which lycée a named minor attended, year by
   //        year. Erasure is total here (all years), unlike resetTalentToImport,
   //        which keeps the history (a re-onboard is not an erasure).
+  //      - onboarding_Record: the per-year sign-up dossier. It embeds the
+  //        guardian's typed signer name and both signatories' place of
+  //        signature. Total here too; resetTalentToImport drops it as well, for
+  //        a different reason (the dossier is the sign-up a reset voids).
   //      - note_TalentNote: staff notes about the minor (pedago + administratif
   //        free text). The whole feed is removed on erasure.
   //      - interview / interviewReset: the synthesis row holds free-text staff
@@ -167,6 +191,7 @@ export async function anonymizeTalent(
   await tx.talentSfImport.deleteMany({ where: { talentId } });
   await tx.talentInterest.deleteMany({ where: { talentId } });
   await tx.schooling_YearRecord.deleteMany({ where: { talentId } });
+  await tx.onboarding_Record.deleteMany({ where: { talentId } });
   await tx.imageRightsDecisionRecord.deleteMany({ where: { talentId } });
   await tx.note_TalentNote.deleteMany({ where: { talentId } });
   // feedback_Submission: the talent's bilan answers embed free-text opinions

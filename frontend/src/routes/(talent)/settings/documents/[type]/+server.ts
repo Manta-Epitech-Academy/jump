@@ -2,39 +2,45 @@ import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getStorage } from '$lib/server/infra/storage';
 import {
-  ONBOARDING_DOCUMENTS,
   isTalentViewableDocument,
   onboardingDownloadFilename,
+  resolveTalentDocumentKey,
 } from '$lib/server/services/onboardingDocuments';
 
 /**
- * Serves a talent their own signed onboarding PDF. Reads the S3 key from the
- * authenticated talent's record — never from a client-supplied id — so the
+ * Serves a talent their own signed onboarding PDF. The key is resolved from the
+ * authenticated talent's own records — never from a client-supplied id — so the
  * route can only ever hand back the caller's own document, then 302s to a
  * short-lived presigned URL rather than proxying the bytes.
+ *
+ * `?annee=` picks which year's document for the règlement, which a talent has
+ * one of per school year. Untrusted like any query param, and it does not need
+ * to be trusted: it only ever narrows a lookup already scoped to this talent, so
+ * an unknown or forged year finds nothing rather than somebody else's file.
+ * Omitted, it resolves to their most recently signed one, so a bare link works.
  */
-export const GET: RequestHandler = async ({ params, locals }) => {
+export const GET: RequestHandler = async ({ params, url: reqUrl, locals }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
 
   if (!isTalentViewableDocument(params.type)) {
     throw error(404, 'Document inconnu');
   }
 
-  const descriptor = ONBOARDING_DOCUMENTS[params.type];
-  // The route's contract is to serve a *signed* document, so require both the
-  // signature timestamp and the generated file. Gating on the file alone would
-  // keep handing back a stale PDF after the signature is voided (e.g. an admin
-  // onboarding reset nulls `rulesSignedAt`), serving a document the rest of the
-  // app already treats as unsigned.
-  const filePath = descriptor.filePathField
-    ? locals.talent[descriptor.filePathField]
-    : null;
-  if (!locals.talent[descriptor.signedAtField] || !filePath) {
+  const resolved = await resolveTalentDocumentKey(
+    locals.talent.id,
+    params.type,
+    reqUrl.searchParams.get('annee'),
+  );
+  if (!resolved) {
     throw error(404, 'Document indisponible');
   }
 
-  const url = await getStorage().getDownloadUrl(filePath, {
-    filename: onboardingDownloadFilename(params.type, locals.talent),
+  const url = await getStorage().getDownloadUrl(resolved.key, {
+    filename: onboardingDownloadFilename(
+      params.type,
+      locals.talent,
+      resolved.schoolYear,
+    ),
     contentType: 'application/pdf',
   });
   throw redirect(302, url);

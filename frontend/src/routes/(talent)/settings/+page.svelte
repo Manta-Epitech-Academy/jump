@@ -111,7 +111,10 @@
         Mes documents
       </h2>
       <ul class="space-y-3">
-        {#each documents as doc (doc.type)}
+        <!-- Keyed on type + year: the règlement is signed once per année
+             scolaire, so a returning talent has one row per year and the type
+             alone is no longer unique. -->
+        {#each documents as doc (`${doc.type}-${doc.schoolYear ?? ''}`)}
           <li class="flex items-center gap-3">
             <div
               class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-success/10"
@@ -120,7 +123,7 @@
             </div>
             <div class="min-w-0 flex-1">
               <p class="text-sm leading-tight font-bold text-foreground">
-                {doc.label}
+                {doc.label}{doc.schoolYear ? ` ${doc.schoolYear}` : ''}
               </p>
               <p class="epi-overline text-muted-foreground">
                 {#if doc.signerName}
@@ -141,7 +144,9 @@
               <Button
                 variant="outline"
                 size="sm"
-                href={resolve(`/settings/documents/${doc.type}`)}
+                href={doc.schoolYear
+                  ? `${resolve(`/settings/documents/${doc.type}`)}?annee=${doc.schoolYear}`
+                  : resolve(`/settings/documents/${doc.type}`)}
                 target="_blank"
                 rel="noopener"
                 class="h-9 shrink-0 rounded-xl text-xs font-bold"

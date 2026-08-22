@@ -42,7 +42,12 @@
   import { toast } from 'svelte-sonner';
   import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
   import { formatPersonName, civiliteCourtesyTitle } from '$lib/domain/profile';
-  import { TALENT_STATUS_LABELS, PARENT_STATUS_LABELS } from '../labels';
+  import {
+    TALENT_STATUS_LABELS,
+    PARENT_STATUS_LABELS,
+    NO_DOSSIER_HINT,
+    type TalentAccountStatus,
+  } from '../labels';
   import { track } from '$lib/analytics';
   import type { TalentsCohort, TalentFilters } from '../query';
 
@@ -186,11 +191,15 @@
 
   // Status chip tints (labels are single-sourced in ./labels so the table and
   // the XLSX export read the same words). `active` = onboarding complete.
-  const STATUS_CLASS = {
+  // `no_dossier` is deliberately the quietest of the four: it is not a state
+  // anyone chases, unlike "Jamais connecté", and tinting it would put visual
+  // urgency on a row that needs none.
+  const STATUS_CLASS: Record<TalentAccountStatus, string> = {
     active: 'border-epi-tech/30 bg-epi-tech/10 text-epi-tech-ink',
     pending: 'border-epi-together/30 bg-epi-together/10 text-epi-together',
     never: 'border-border bg-muted text-muted-foreground',
-  } as const;
+    no_dossier: 'border-dashed border-border text-muted-foreground',
+  };
 
   // Parent completion chip (règlement co-signature + droit à l'image), tinted
   // like the account-status chip: complete reads calm (teal), en attente flags
@@ -243,13 +252,17 @@
     `${page.url.pathname}/export?${page.url.searchParams.toString()}`,
   );
 
-  // Mirrors the three states of the table's Statut column, so filtering and the
-  // badge speak the same language: complete onboarding, mid-onboarding, no account.
+  // Mirrors the four states of the table's Statut column, so filtering and the
+  // badge speak the same language: complete onboarding, mid-onboarding, no
+  // account, no dossier at all. Hand-written rather than derived from
+  // TALENT_STATUS_LABELS because the filter wording is plural and the chip
+  // wording is singular; keep them in step by hand when a state is added.
   const statutOptions: SegmentOption[] = [
     { value: 'all', label: 'Tous' },
     { value: 'active', label: 'Onboardés' },
     { value: 'onboarding', label: 'Onboarding' },
     { value: 'never', label: 'Jamais connectés' },
+    { value: 'no_dossier', label: 'Sans dossier' },
   ];
   // Parent completion status: "En attente" = règlement not co-signed or
   // image-rights not decided (the blocked parents the SMS relance targets);
@@ -582,13 +595,33 @@
       </Table.Cell>
       <Table.Cell>
         <div class="flex flex-col items-start gap-0.5">
-          <span
-            class="inline-flex rounded-sm border px-2 py-0.5 epi-chip {STATUS_CLASS[
-              talent.status
-            ]}"
-          >
-            {TALENT_STATUS_LABELS[talent.status]}
-          </span>
+          {#if talent.status === 'no_dossier'}
+            <Tooltip.Provider delayDuration={300}>
+              <Tooltip.Root>
+                <Tooltip.Trigger>
+                  {#snippet child({ props })}
+                    <span
+                      {...props}
+                      class="inline-flex rounded-sm border px-2 py-0.5 epi-chip {STATUS_CLASS[
+                        talent.status
+                      ]}"
+                    >
+                      {TALENT_STATUS_LABELS[talent.status]}
+                    </span>
+                  {/snippet}
+                </Tooltip.Trigger>
+                <Tooltip.Content>{NO_DOSSIER_HINT}</Tooltip.Content>
+              </Tooltip.Root>
+            </Tooltip.Provider>
+          {:else}
+            <span
+              class="inline-flex rounded-sm border px-2 py-0.5 epi-chip {STATUS_CLASS[
+                talent.status
+              ]}"
+            >
+              {TALENT_STATUS_LABELS[talent.status]}
+            </span>
+          {/if}
           {#if talent.onboardingStep}
             <span class="text-xs text-muted-foreground">
               {talent.onboardingStep}

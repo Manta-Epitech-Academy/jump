@@ -26,10 +26,6 @@
 
   let { data }: { data: PageData } = $props();
 
-  const charteSigned = $derived(
-    data.primaryComplianceParticipation?.stageCompliance?.charteSigned,
-  );
-
   // The notes composer is driven from the card header ("Ajouter une note"), so
   // the feed's own inline button is hidden and its open-state is bound here.
   let notesComposing = $state(false);
@@ -318,7 +314,6 @@
             communications={data.communications}
             rulesSignedAt={data.student.rulesSignedAt}
             parentRulesSignedAt={data.student.parentRulesSignedAt}
-            {charteSigned}
             imageRightsDecision={data.student.imageRightsDecision}
             imageRightsForm={data.imageRightsForm}
             imageRightsRecords={data.imageRightsRecords}

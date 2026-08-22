@@ -35,10 +35,13 @@
     }
   }}
 >
+  <!-- Wording follows the règlement's own scope ("toute personne participant à
+       une activité organisée par Epitech, quelle qu'en soit la forme"): one
+       document signed once a year, for a coding club as much as for a stage. -->
   {#snippet declarationTail()}
     , reconnais avoir pris connaissance du règlement intérieur et m'engage à ce
-    que mon enfant <strong>{child.prenom} {child.nom}</strong> le respecte dans le
-    cadre du stage de seconde.
+    que mon enfant <strong>{child.prenom} {child.nom}</strong> le respecte lors des
+    activités organisées par Epitech.
   {/snippet}
 
   {#snippet artifact()}

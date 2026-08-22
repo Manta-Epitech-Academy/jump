@@ -24,6 +24,12 @@ import {
 } from '$lib/server/services/talentCampus';
 import { enqueueOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobService';
 import type { ServiceResult } from './result';
+import { CURRENT_REGLEMENT_VERSION } from '$lib/content/reglement';
+import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+import {
+  patchCurrentOnboardingRecord,
+  upsertOnboardingYearRecord,
+} from './onboardingYearService';
 
 type ParentContact = { email: string; prenom: string; nom: string };
 
@@ -112,21 +118,23 @@ export async function validateTalentInterests(
   const now = new Date();
   const allIds = [...input.techInterestIds, ...input.generalInterestIds];
 
-  await prisma.$transaction([
-    prisma.talentInterest.deleteMany({ where: { talentId } }),
-    prisma.talentInterest.createMany({
+  await prisma.$transaction(async (tx) => {
+    await tx.talentInterest.deleteMany({ where: { talentId } });
+    await tx.talentInterest.createMany({
       data: allIds.map((interestId) => ({ talentId, interestId })),
-    }),
-    prisma.talent.update({
+    });
+    // The selection itself is the talent's current preference and stays flat;
+    // the step's gates belong to this year's dossier.
+    await tx.talent.update({
       where: { id: talentId },
-      data: {
-        techInterestsValidatedAt: now,
-        generalInterestsValidatedAt: now,
-        interestsRecapSeenAt: now,
-        interestsFreeText: input.freeText || null,
-      },
-    }),
-  ]);
+      data: { interestsFreeText: input.freeText || null },
+    });
+    await patchCurrentOnboardingRecord(tx, talentId, {
+      techInterestsValidatedAt: now,
+      generalInterestsValidatedAt: now,
+      interestsRecapSeenAt: now,
+    });
+  });
 
   return { ok: true };
 }
@@ -148,6 +156,9 @@ export async function signOnboardingRules(input: {
 }): Promise<{ jobId: string }> {
   const { talentId, studentName, city } = input;
   const now = input.signedAt ?? new Date();
+  // One resolution for the dossier this act writes, the early-bird count and the
+  // PDF job, so all three can never land on different years.
+  const schoolYear = currentSchoolYearLabel();
 
   const job = await prisma.$transaction(async (tx) => {
     // Resolve the talent's campus (most-recent participation) and their 0-based
@@ -164,17 +175,35 @@ export async function signOnboardingRules(input: {
           await countCampusEarlyBirdPosition(
             tx,
             campusId,
+            schoolYear,
             ONBOARDING_EARLY_BIRD_LIMIT,
           ),
         )
       : 0;
 
-    await tx.talent.update({
-      where: { id: talentId },
-      data: {
+    // The charte is a once-per-account consent, not part of the yearly dossier,
+    // so it stays flat on `Talent` and a returning talent is not asked again.
+    // `updateMany` with the null in the WHERE rather than a read-then-write: the
+    // date somebody first consented is the auditable fact, and re-walking the
+    // ladder for a new year must not restamp it. A no-op row count is the normal
+    // outcome for a returning talent.
+    await tx.talent.updateMany({
+      where: { id: talentId, charterAcceptedAt: null },
+      data: { charterAcceptedAt: now },
+    });
+    // The explicit year rather than `patchCurrentOnboardingRecord`, which would
+    // resolve it a second time: the PDF job below names the dossier it renders,
+    // and two resolutions either side of the 31 July cutover would point them at
+    // different rows, failing the job on a dossier it cannot find.
+    await upsertOnboardingYearRecord(tx, {
+      talentId,
+      schoolYear,
+      patch: {
         rulesSignedAt: now,
         rulesSignedCity: city,
-        charterAcceptedAt: now,
+        // Pin the wording this signature commits to. Everything downstream
+        // reads it back; nothing else ever writes it.
+        reglementVersion: CURRENT_REGLEMENT_VERSION,
       },
     });
     await grantXp(tx, {
@@ -199,6 +228,10 @@ export async function signOnboardingRules(input: {
     return enqueueOnboardingPdfJob(tx, {
       talentId,
       documentType: 'rules',
+      // The dossier just signed, so a job that runs (or is retried) after the
+      // 31 July cutover still renders this year's document rather than whichever
+      // one is current when it finally gets a browser.
+      schoolYear,
       payload: { studentName, city, signedAt: now.toISOString() },
     });
   });

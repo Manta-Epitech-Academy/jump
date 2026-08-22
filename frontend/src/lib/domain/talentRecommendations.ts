@@ -76,9 +76,8 @@ export type TalentRecommendationInput = TalentOnboardingFields & {
   /** Whether the talent ever logged in (the durable `Talent.firstLoginAt` is set). */
   connected: boolean;
   /**
-   * Règlement intérieur compliance: guardian co-signed online
-   * (`parentRulesSignedAt`) or staff attested the offline equivalent
-   * (`stageCompliance.charteSigned`). See `isRulesCompliant`.
+   * Règlement intérieur compliance: the guardian co-signed online
+   * (`parentRulesSignedAt`). See `isRulesCompliant`.
    */
   rulesCompliant: boolean;
   /** Image-rights decision settled by the guardian (accepted or refused). */

@@ -12,7 +12,7 @@ import {
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { compareNiveaux } from '$lib/domain/niveau';
-import { rulesStatus, inscritStatus } from '$lib/domain/stageCompliance';
+import { rulesStatus, inscritStatus } from '$lib/domain/dossierCompliance';
 import { imageRightsStatus } from '$lib/domain/imageRights';
 import {
   getLifecycleBounds,
@@ -28,6 +28,8 @@ import {
   toBreakdown,
 } from '$lib/server/services/cohortOverview';
 import { INSCRIT_PARTICIPATION_SELECT } from './components/types';
+import { loadEventDossierSignatures, NO_DOSSIER_SIGNATURES } from './dossiers';
+import { schoolYearOf } from '$lib/domain/schoolYear';
 import type { InscritRow, InscritsCohort } from './components/types';
 import { stageCountdown } from '$lib/domain/eventPresence';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
@@ -116,31 +118,41 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   // (counter + origin breakdowns + lycée picker) is whole-event on purpose —
   // it ignores the `?lycee`/`?interest` origin filter so it stays a stable map
   // the user drills into, never collapsing to the row currently filtered.
+  // The règlement applying to this event is the one of the event's own school
+  // year, so that is the dossier the statut column reads (see `./dossiers`).
+  const eventSchoolYear = schoolYearOf(event.date, timezone).label;
+
   const cohort: Promise<InscritsCohort> = (async () => {
-    const [participations, lyceeRanking, interestRanking, cohortTotal] =
-      await Promise.all([
-        db.participation.findMany({
-          where,
-          select: INSCRIT_PARTICIPATION_SELECT,
-          orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
-        }),
-        rankLyceesByCohort(db, eventCohortWhere(event.id)),
-        // The interests sidebar shows only tech interests (the recruitment
-        // signal); the lycée breakdown stays the full origin picture.
-        rankInterestsByCohort(db, eventCohortWhere(event.id), {
-          techOnly: true,
-        }),
-        db.participation.count({
-          where: { eventId: event.id, ...visibleParticipationWhere },
-        }),
-      ]);
+    const [
+      participations,
+      lyceeRanking,
+      interestRanking,
+      cohortTotal,
+      dossiers,
+    ] = await Promise.all([
+      db.participation.findMany({
+        where,
+        select: INSCRIT_PARTICIPATION_SELECT,
+        orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
+      }),
+      rankLyceesByCohort(db, eventCohortWhere(event.id)),
+      // The interests sidebar shows only tech interests (the recruitment
+      // signal); the lycée breakdown stays the full origin picture.
+      rankInterestsByCohort(db, eventCohortWhere(event.id), {
+        techOnly: true,
+      }),
+      db.participation.count({
+        where: { eventId: event.id, ...visibleParticipationWhere },
+      }),
+      loadEventDossierSignatures(db, event.id, eventSchoolYear),
+    ]);
 
     const rows: InscritRow[] = participations.map((p) => {
       const t = p.talent;
+      const dossier = dossiers.get(p.talentId) ?? NO_DOSSIER_SIGNATURES;
       const rules = rulesStatus(
-        t.parentRulesSignedAt,
-        p.stageCompliance?.charteSigned,
-        t.rulesSignedAt,
+        dossier.parentRulesSignedAt,
+        dossier.rulesSignedAt,
       );
       const image = imageRightsStatus(t);
       const connected = t.firstLoginAt != null;
@@ -152,11 +164,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         niveau: t.niveau,
         schoolName: t.school?.name ?? null,
         xp: t.xp,
-        status: inscritStatus(connected, rules, image),
+        status: inscritStatus(t.niveau, connected, rules, image),
         connected,
         rulesStatus: rules,
         imageStatus: image,
-        studentSigned: t.rulesSignedAt != null,
+        studentSigned: dossier.rulesSignedAt != null,
         email: t.user?.email ?? null,
         sfMemberStatus: p.sfMemberStatus,
       };

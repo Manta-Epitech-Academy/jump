@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import type { InscritStatus, RulesStatus } from '$lib/domain/stageCompliance';
+import type { InscritStatus, RulesStatus } from '$lib/domain/dossierCompliance';
 import type { ImageRightsStatus } from '$lib/domain/imageRights';
 
 // The scoped-down inscrits page is one flat table: avatar, prenom, nom, lycee,
@@ -18,11 +18,12 @@ const INSCRIT_TALENT_SELECT = {
   // shows XP alone, the fiche carries the fuller breakdown.
   xp: true,
   user: { select: { email: true } },
-  // Dossier inputs — feed the statut badge and its per-document tooltip
-  // (see rulesStatus / imageRightsStatus). `rulesSignedAt` distinguishes the
-  // "waiting on the parent co-signature" state from "nothing signed yet".
-  rulesSignedAt: true,
-  parentRulesSignedAt: true,
+  // Dossier input for the image-rights gate of the statut badge. The two
+  // règlement signatures are deliberately NOT selected here: they belong to the
+  // dossier of the EVENT's school year, which the flat columns cannot answer for
+  // (they hold the talent's most recent dossier). Both consumers read them from
+  // `loadEventDossierSignatures` instead, so neither can drift onto the wrong
+  // year.
   imageRightsDecision: true,
   // Has the talent ever genuinely logged in? Gates the statut badge. Read from
   // the durable `firstLoginAt` projection (stamped once on first real,
@@ -46,9 +47,6 @@ export const INSCRIT_PARTICIPATION_SELECT = {
   id: true,
   talentId: true,
   talent: { select: INSCRIT_TALENT_SELECT },
-  // The offline-attested règlement signature lives on the participation, so it
-  // joins the status computation alongside the talent's online co-signature.
-  stageCompliance: { select: { charteSigned: true } },
   sfMemberStatus: true,
 } satisfies Prisma.ParticipationSelect;
 

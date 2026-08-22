@@ -17,7 +17,7 @@ import { NOTE_FIELDS, type NoteField } from '$lib/domain/interview';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { formatGivenName } from '$lib/domain/profile';
 import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
-import { isRulesCompliant } from '$lib/domain/stageCompliance';
+import { isRulesCompliant } from '$lib/domain/dossierCompliance';
 import { isImageRightsDecided } from '$lib/domain/imageRights';
 import { recordImageRightsDecision } from '$lib/server/services/imageRightsService';
 import { imageRightsCorrectionSchema } from '$lib/validation/imageRights';
@@ -73,9 +73,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         select: {
           id: true,
           sfMemberStatus: true,
-          stageCompliance: {
-            select: { charteSigned: true, updatedAt: true },
-          },
           event: {
             select: {
               id: true,
@@ -147,12 +144,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       (a, b) => b.sentAt.getTime() - a.sentAt.getTime(),
     );
     const communications = allCommunications.slice(0, RIGHT_RAIL_COMMS);
-
-    // Compliance (charte, droits à l'image) is a Talent-level artifact; the
-    // participation only supplies display context (which event/campus the fiche
-    // shows it under). `participations` is `event.date desc`, so [0] is the
-    // latest one the talent attended.
-    const primaryComplianceParticipation = participations[0] ?? null;
 
     // "Historique événements" is a past-only view (Plan 01, phase E): keep the
     // events already over, newest first (participations are `event.date desc`),
@@ -281,9 +272,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     // a real login read "Jamais".
     const firstLoginAt = student.firstLoginAt;
 
-    const charteSigned =
-      primaryComplianceParticipation?.stageCompliance?.charteSigned;
-
     // Event-opportunity recommendations (REC-005): one per tech interest the
     // student picked that carries a curated `recommendationMessage`, shown
     // verbatim.
@@ -303,10 +291,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       prenom: formatGivenName(student.prenom),
       appUrl,
       connected: firstLoginAt != null,
-      rulesCompliant: isRulesCompliant(
-        student.parentRulesSignedAt,
-        charteSigned,
-      ),
+      rulesCompliant: isRulesCompliant(student.parentRulesSignedAt),
       imageRightsDecided: isImageRightsDecided(student),
       hasCompletedInterview: completedInterviewCount > 0,
       techRecommendationMessages,
@@ -317,7 +302,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       notes,
       xpStory,
       eventHistory,
-      primaryComplianceParticipation,
       communications,
       firstLoginAt,
       recommendations,

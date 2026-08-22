@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import { timingSafeEqual } from 'node:crypto';
 import { env } from '$env/dynamic/private';
 import { can } from '$lib/domain/permissions';
@@ -73,6 +74,7 @@ export async function seedLoadTalents(
   if (!campus) throw error(500, 'No campus in DB — cannot seed');
 
   const now = new Date();
+  const schoolYear = currentSchoolYearLabel();
   let created = 0;
   let reset = 0;
   const talents: SeededTalent[] = [];
@@ -97,7 +99,34 @@ export async function seedLoadTalents(
       select: { id: true, rulesSignedAt: true },
     });
 
+    // The dossier of the year in progress, spread into the talent as its cached
+    // projection and written as the backing row below. Seeding the flat columns
+    // alone would be a state the runtime can't reach: the signRules call this
+    // pool exists to exercise upserts the dossier, and with no row to patch it
+    // would create one holding that single field, wiping every gate off the
+    // projection mid-burst.
+    const dossier = {
+      infoValidatedAt: now,
+      highSchoolValidatedAt: now,
+      parentsValidatedAt: now,
+      techInterestsValidatedAt: now,
+      generalInterestsValidatedAt: now,
+      interestsRecapSeenAt: now,
+      equipmentValidatedAt: now,
+      processingCompletedAt: now,
+      rulesSignedAt: null,
+      rulesSignedCity: null,
+      reglementVersion: null,
+      parentRulesSignedAt: null,
+      parentRulesSignerPrenom: null,
+      parentRulesSignerNom: null,
+      parentRulesRelationship: null,
+      parentRulesSignedCity: null,
+    };
+
     const fields = {
+      ...dossier,
+      onboardingSchoolYear: schoolYear,
       userId: user.id,
       nom: `LoadTest${i}`,
       prenom: 'Test',
@@ -110,16 +139,6 @@ export async function seedLoadTalents(
       parentEmail: `load-test-parent-${i}@loadtest.invalid`,
       parentPhone: '0600000001',
       highSchoolNameManual: 'Lycée Load Test',
-      infoValidatedAt: now,
-      highSchoolValidatedAt: now,
-      parentsValidatedAt: now,
-      techInterestsValidatedAt: now,
-      generalInterestsValidatedAt: now,
-      interestsRecapSeenAt: now,
-      equipmentValidatedAt: now,
-      processingCompletedAt: now,
-      hasLaptop: true,
-      rulesSignedAt: null,
       charterAcceptedAt: null,
       welcomeSeenAt: null,
     };
@@ -144,6 +163,14 @@ export async function seedLoadTalents(
       talentId = t.id;
       created++;
     }
+
+    // Rewritten on every pass, like `fields`: a prior burst's signature must not
+    // survive into the next one.
+    await prisma.onboarding_Record.upsert({
+      where: { talentId_schoolYear: { talentId, schoolYear } },
+      create: { talentId, schoolYear, ...dossier },
+      update: dossier,
+    });
 
     talents.push({ id: talentId, email });
   }

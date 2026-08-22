@@ -16,7 +16,7 @@
 import { prisma } from '$lib/server/db';
 import { metric, median, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
-import { cohortWhere, ONBOARDING_COMPLETE_WHERE, scopeLabels } from './cohort';
+import { completedDossierWhere, scopeLabels } from './cohort';
 
 const DAY_MS = 86_400_000;
 
@@ -42,17 +42,20 @@ export async function getOnboardingVelocity(
     VELOCITY_MAX_DAYS,
   );
   const since = new Date(Date.now() - days * DAY_MS);
-  const cohort = await cohortWhere(scope);
 
-  const rows = await prisma.talent.findMany({
+  // Counted off the dossier rows, not the projection on `Talent`: this is a
+  // dated series, so the completion and the date it is filed under have to come
+  // from the same row (see `completedDossierWhere`). Reading the projection
+  // attributed a returning talent's new signature to whichever year the scope
+  // named, and dropped their earlier completion out of a window that contained it.
+  const rows = await prisma.onboarding_Record.findMany({
     where: {
       AND: [
-        cohort,
-        ONBOARDING_COMPLETE_WHERE,
+        await completedDossierWhere(scope),
         { rulesSignedAt: { gte: since } },
       ],
     },
-    select: { rulesSignedAt: true, createdAt: true },
+    select: { rulesSignedAt: true, talent: { select: { createdAt: true } } },
   });
 
   const perDayCounts = new Map<string, number>();
@@ -62,7 +65,7 @@ export async function getOnboardingVelocity(
     const day = row.rulesSignedAt.toISOString().slice(0, 10);
     perDayCounts.set(day, (perDayCounts.get(day) ?? 0) + 1);
     durations.push(
-      (row.rulesSignedAt.getTime() - row.createdAt.getTime()) / DAY_MS,
+      (row.rulesSignedAt.getTime() - row.talent.createdAt.getTime()) / DAY_MS,
     );
   }
 
@@ -75,7 +78,7 @@ export async function getOnboardingVelocity(
     filters: { ...scopeLabels(scope), days },
     completions: metric(
       rows.length,
-      `Talents du périmètre ayant terminé leur parcours d'inscription au cours des ${days} derniers jours. Compté à la date de signature du règlement, la dernière étape du parcours.`,
+      `Parcours d'inscription terminés dans le périmètre au cours des ${days} derniers jours. Compté à la date de signature du règlement, la dernière étape du parcours. Le dossier d'inscription étant annuel, un talent revenu une année suivante compte un parcours par année terminée : c'est un nombre de parcours, pas un nombre de talents.`,
     ),
     perDay: metric(
       perDay,
@@ -87,7 +90,7 @@ export async function getOnboardingVelocity(
     ),
     medianDaysToComplete: metric(
       median(durations),
-      "Durée médiane, en jours, entre l'enregistrement du talent dans Jump et la fin de son parcours d'inscription. La médiane plutôt que la moyenne : quelques talents qui finissent des mois plus tard tireraient une moyenne vers le haut sans rien dire du cas courant. Vaut null si personne n'a terminé sur la période.",
+      "Durée médiane, en jours, entre l'enregistrement du talent dans Jump et la fin de son parcours d'inscription. La médiane plutôt que la moyenne : quelques talents qui finissent des mois plus tard tireraient une moyenne vers le haut sans rien dire du cas courant. L'origine est toujours l'enregistrement du talent, jamais l'ouverture du dossier : pour un talent qui refait son dossier une année suivante, cette durée couvre donc aussi les années précédentes et ne mesure pas le temps qu'il a mis cette année-là. Vaut null si aucun parcours n'a été terminé sur la période.",
     ),
   };
 }

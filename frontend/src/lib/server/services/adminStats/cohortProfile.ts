@@ -17,7 +17,8 @@ import { NIVEAUX, niveauLabel, compareNiveaux } from '$lib/domain/niveau';
 import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
-import { cohortWhere, ONBOARDING_COMPLETE_WHERE, scopeLabels } from './cohort';
+import { cohortWhere, onboardingCompleteWhere, scopeLabels } from './cohort';
+import { onboardingEligibleWhere } from '$lib/server/db/onboardingEligibility';
 
 /** How an absent value is named in every breakdown here. */
 const UNKNOWN_LABEL = 'Non renseigné';
@@ -32,7 +33,7 @@ const UNKNOWN_LABEL = 'Non renseigné';
 export const WOMEN_SHARE_RULE = `Part de femmes parmi les talents dont la civilité est renseignée, en pourcentage : le dénominateur exclut les talents sans civilité (« ${UNKNOWN_LABEL} »), pour ne pas sous-estimer la proportion.`;
 
 export const ONBOARDING_COMPLETED_SHARE_RULE =
-  "Part des talents ayant terminé l'intégralité de leur parcours d'inscription en ligne, charte de données comprise, en pourcentage de la cohorte.";
+  "Part des talents ayant terminé l'intégralité de leur parcours d'inscription en ligne, Charte Informatique et Éthique comprise, en pourcentage des talents concernés par ce parcours. Le dénominateur exclut les collégiens, qui n'ont pas de dossier d'inscription sur Jump et ne pourraient donc jamais le terminer.";
 
 export type BreakdownRow = {
   /** Stored value, or null for the "not filled in" bucket. */
@@ -50,6 +51,7 @@ export type CohortProfile = {
   byNiveau: Metric<BreakdownRow[]>;
   onboardingCompleted: Metric;
   onboardingCompletedShare: Metric<number | null>;
+  onboardingNotApplicable: Metric;
   connected: Metric;
   connectedShare: Metric<number | null>;
 };
@@ -90,7 +92,7 @@ export async function getCohortProfile(
 ): Promise<CohortProfile> {
   const where = await cohortWhere(scope);
 
-  const [cohort, byCivilite, byNiveauRaw, completed, connected] =
+  const [cohort, byCivilite, byNiveauRaw, completed, connected, eligible] =
     await Promise.all([
       prisma.talent.count({ where }),
       prisma.talent.groupBy({
@@ -100,10 +102,13 @@ export async function getCohortProfile(
       }),
       prisma.talent.groupBy({ by: ['niveau'], where, _count: { _all: true } }),
       prisma.talent.count({
-        where: { AND: [where, ONBOARDING_COMPLETE_WHERE] },
+        where: { AND: [where, onboardingCompleteWhere(scope)] },
       }),
       prisma.talent.count({
         where: { AND: [where, { firstLoginAt: { not: null } }] },
+      }),
+      prisma.talent.count({
+        where: { AND: [where, onboardingEligibleWhere] },
       }),
     ]);
 
@@ -149,11 +154,15 @@ export async function getCohortProfile(
     ),
     onboardingCompleted: metric(
       completed,
-      "Talents du périmètre ayant terminé l'intégralité du parcours d'inscription en ligne, charte de données acceptée comprise.",
+      "Talents du périmètre ayant terminé l'intégralité du parcours d'inscription en ligne, Charte Informatique et Éthique acceptée comprise.",
     ),
     onboardingCompletedShare: metric(
-      share(completed, cohort),
-      `${ONBOARDING_COMPLETED_SHARE_RULE} Vaut null si la cohorte du périmètre est vide.`,
+      share(completed, eligible),
+      `${ONBOARDING_COMPLETED_SHARE_RULE} Vaut null si aucun talent du périmètre n'est concerné par le parcours.`,
+    ),
+    onboardingNotApplicable: metric(
+      cohort - eligible,
+      "Talents du périmètre sans dossier d'inscription : les collégiens, qui accèdent à Jump sans parcours d'inscription. Ils sont comptés dans la cohorte mais exclus du dénominateur du taux ci-dessus, et c'est l'écart entre les deux.",
     ),
     connected: metric(
       connected,

@@ -158,7 +158,6 @@
               />
             {:else if data.step === 'equipment'}
               <EquipmentStep
-                hasLaptop={data.hasLaptop ?? false}
                 setupDescription={data.setupDescription ?? ''}
                 error={form?.step === 'equipment' ? form?.error : undefined}
               />
@@ -166,6 +165,8 @@
               <ProcessingStep />
             {:else if data.step === 'rules'}
               <RulesStep
+                charterAccepted={data.charterAccepted ?? false}
+                welcomeBonusGranted={data.welcomeBonusGranted ?? false}
                 error={form?.step === 'rules' ? form?.error : undefined}
               />
             {/if}

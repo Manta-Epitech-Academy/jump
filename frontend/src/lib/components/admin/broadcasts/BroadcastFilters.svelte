@@ -58,7 +58,7 @@
     {
       heading: 'Conformité',
       items: [
-        { key: 'charterSigned', label: 'Charte RGPD signée' },
+        { key: 'charterSigned', label: 'Charte Informatique et Éthique' },
         { key: 'rulesSigned', label: 'Règlement signé (élève)' },
         { key: 'parentRulesSigned', label: 'Règlement co-signé (parent)' },
       ],

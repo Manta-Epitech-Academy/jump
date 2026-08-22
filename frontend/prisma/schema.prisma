@@ -175,11 +175,11 @@ model bauth_session {
 /// (actor + target) so the facts survive account scrubs/deletions without
 /// copying direct PII.
 model Audit_ImpersonationEvent {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   adminUserId  String
   targetUserId String
   targetKind   String
-  startedAt    DateTime @default(now())
+  startedAt    DateTime  @default(now())
   endedAt      DateTime?
 
   @@index([adminUserId, startedAt])
@@ -311,6 +311,13 @@ model Talent {
   // Lives on the row (not just in the PDF job payload) so the règlement PDF can
   // be regenerated from DB state alone when the guardian co-signs later.
   rulesSignedCity             String?
+  // Which version of the règlement intérieur this signature committed to
+  // (catalogue in `lib/content/reglement/`). The PDF is regenerated from DB
+  // state on every co-signature, so without this the body would be re-rendered
+  // from whatever the current text happens to be, under a signature already
+  // given. Null means the signature predates the column: it resolves to the
+  // legacy version, never to the current one.
+  reglementVersion            String?
   // Guardian's online co-signature of the règlement intérieur. The talent signs
   // it during onboarding (`rulesSignedAt`); for a minor the legal guardian
   // co-signs it from the parent flow. The règlement PDF (`rulesFilePath`) is a
@@ -326,10 +333,22 @@ model Talent {
   highSchoolValidatedAt       DateTime?
   parentsValidatedAt          DateTime?
   processingCompletedAt       DateTime?
+  // Which school year the onboarding columns above describe. They are a cached
+  // projection of the talent's most recent `Onboarding_Record`, so on their own
+  // they cannot say whether the dossier is this year's or last year's. A reader
+  // asking "is the dossier for year Y done" compares this; a reader asking "did
+  // they ever sign" ignores it (see `domain/talentOnboarding.ts`).
+  onboardingSchoolYear        String?
   schoolId                    String?
   // Free-text fallback used only when the talent's lycée has no UAI (so no
   // canonical `School` row exists). When `schoolId` is set this stays null.
   highSchoolNameManual        String?
+  /// RETIRED, dropped in a follow-up migration. The règlement render moved to
+  /// `Onboarding_Record.rulesFilePath`: the document is signed once per school
+  /// year, so one key per talent meant the second year's PDF overwrote the
+  /// first, destroying a co-signed document nothing could rebuild. Kept one
+  /// release so a rolling deploy does not break pods still running the previous
+  /// build. Read nothing from it; `onboardingDocuments` resolves the dossier.
   rulesFilePath               String?
   imageRightsFilePath         String?
   parentEmail                 String?
@@ -346,6 +365,10 @@ model Talent {
   parent2Prenom               String?
   parent2Email                String?
   parent2Phone                String?
+  /// RETIRED, dropped in a follow-up migration. No code reads or writes it:
+  /// the laptop requirement is certified on the règlement step, where the
+  /// clause it certifies is actually written down. Kept one release so a
+  /// rolling deploy does not break pods still running the previous build.
   hasLaptop                   Boolean              @default(false)
   setupDescription            String?
   equipmentValidatedAt        DateTime?
@@ -380,6 +403,7 @@ model Talent {
   feedbackSubmissions Feedback_Submission[]
   interviewResets     InterviewReset[]
   schoolingRecords    Schooling_YearRecord[]
+  onboardingRecords   Onboarding_Record[]
   notes               Note_TalentNote[]
 
   @@index([xp])
@@ -417,17 +441,88 @@ model Schooling_YearRecord {
   id         String   @id @default(cuid())
   talentId   String
   talent     Talent   @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  schoolYear String   // e.g. "2026-2027", canonical format from domain/schoolYear.ts
-  niveau     String?  // catalogue in domain/niveau.ts
+  schoolYear String // e.g. "2026-2027", canonical format from domain/schoolYear.ts
+  niveau     String? // catalogue in domain/niveau.ts
   schoolId   String?
   school     School?  @relation(fields: [schoolId], references: [id], onDelete: SetNull)
-  source     String   // vocabulary in code as `SchoolingSource` (schoolingService)
+  source     String // vocabulary in code as `SchoolingSource` (schoolingService)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   @@unique([talentId, schoolYear])
   @@index([schoolYear, schoolId])
   @@index([schoolYear, niveau])
+}
+
+/// Per-school-year onboarding dossier: the platform sign-up a talent walks once
+/// per year. Same shape as `Schooling_YearRecord` above - the row is the fact,
+/// and the flat onboarding columns on `Talent` are a cached projection of the
+/// most recent one, refreshed transactionally by `onboardingYearService` and
+/// stamped with `Talent.onboardingSchoolYear` so a reader can tell which year
+/// the projection describes.
+///
+/// A new year's dossier starts blank on purpose: nothing is carried forward from
+/// the previous one, which is what makes a returning talent re-walk the ladder
+/// and re-sign the current règlement. The profile they filled in (name, phone,
+/// parents, setup) stays on `Talent` and pre-fills the form.
+///
+/// Deliberately NOT here, each for its own reason:
+///   - `Talent.welcomeSeenAt` - the first-arrival splash, shown once per account,
+///     not once per year.
+///   - `Talent.charterAcceptedAt` - the RGPD charte is a data-processing consent,
+///     not a yearly contract, and it is owed even to a talent who never walks the
+///     ladder (hence the standalone `/charte`). Filing it per year would also make
+///     it a yearly gate for collégiens, who have no dossier at all.
+///   - `Talent.setupDescription` - current truth about the student's kit, read by
+///     the staff fiche like `phone` or `nom`. Only its gate is per-year.
+///
+/// The rendered PDF, by contrast, IS here (`rulesFilePath`). It used to sit on
+/// `Talent` as "a render, not a fact", which held only while a talent signed
+/// once: with an annual signature, one key per talent meant year two's render
+/// overwrote year one's co-signed document, and nothing could rebuild it (the
+/// worker reads a dossier, and only this row says which). The signature and the
+/// artifact attesting it now live together.
+model Onboarding_Record {
+  id         String @id @default(cuid())
+  talentId   String
+  talent     Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  schoolYear String // e.g. "2026-2027", canonical format from domain/schoolYear.ts
+
+  // The ladder gates, in ONBOARDING_STEP_ORDER (domain/talentOnboarding.ts).
+  // `interestsRecapSeenAt` is not a gate but is written and rewound with the
+  // interests step, so it belongs to the same dossier.
+  infoValidatedAt             DateTime?
+  highSchoolValidatedAt       DateTime?
+  parentsValidatedAt          DateTime?
+  techInterestsValidatedAt    DateTime?
+  generalInterestsValidatedAt DateTime?
+  interestsRecapSeenAt        DateTime?
+  equipmentValidatedAt        DateTime?
+  processingCompletedAt       DateTime?
+  rulesSignedAt               DateTime?
+
+  // The S3 key of this year's rendered règlement PDF, the artifact the two
+  // signatures below sit on. Per dossier, not per talent: the key carries the
+  // school year, so signing a new year's règlement adds a document instead of
+  // overwriting the one a guardian already co-signed. Null until the background
+  // job lands, and nulled again by a co-signature (the worker rewrites it with
+  // both blocks).
+  rulesFilePath           String?
+
+  // What freezes this year's règlement signatures - the talent's and, for a
+  // minor, the legal guardian's co-signature of the same document.
+  rulesSignedCity         String?
+  reglementVersion        String?
+  parentRulesSignedAt     DateTime?
+  parentRulesSignerPrenom String?
+  parentRulesSignerNom    String?
+  parentRulesRelationship String?
+  parentRulesSignedCity   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([talentId, schoolYear])
 }
 
 /// 1:1 mirror of what Salesforce last claimed for a talent — the anti-corruption
@@ -798,6 +893,9 @@ model Participation {
   talentId       String
   eventId        String
   campusId       String
+  /// RETIRED, dropped in a follow-up migration. Nothing has ever read it: the
+  /// only writes were a reset-to-defaults and the seed. Kept one release for
+  /// the rolling deploy, same as `Talent.hasLaptop`.
   bringPc        Boolean @default(false)
   sfMemberStatus String? // raw Salesforce CampaignMember status, e.g. CONNECTED/READY/MEET/DESISTED
 
@@ -818,6 +916,13 @@ model Participation {
   @@index([talentId, campusId])
 }
 
+/// RETIRED, dropped in a follow-up migration along with its `Participation`
+/// back-relation. `charteSigned` was a staff attestation of an offline
+/// règlement signature, and no code path could ever set it, so in production it
+/// was always false. With one generic règlement signed once, an attestation
+/// scoped to a single participation makes no sense either: if the offline path
+/// is wanted again it belongs to the talent or to their yearly dossier. Kept
+/// one release so a rolling deploy does not break the previous build.
 model StageCompliance {
   participationId String   @id
   charteSigned    Boolean  @default(false)
@@ -1320,9 +1425,18 @@ model CmsImage {
 /// so the signer isn't blocked. No auto-retry: a failed job stays in "error"
 /// with the captured message, re-runnable from /staff/admin/onboarding-pdfs.
 model OnboardingPdfJob {
-  id           String    @id @default(cuid())
+  id           String @id @default(cuid())
   talentId     String
   documentType String // "charter" | "rules" | "image-rights"
+  /// Which `Onboarding_Record` a `rules` job renders, in the canonical
+  /// `YYYY-YYYY` format. Carried on the job rather than resolved when it runs:
+  /// a job can sit queued behind the browser pool, and a retry from
+  /// /staff/admin/onboarding-pdfs can fire days later, by which point "the
+  /// talent's current dossier" may be a different year than the signature that
+  /// asked for this render. Null for `image-rights`, which is not annual, and on
+  /// jobs enqueued before the column existed (those fall back to the talent's
+  /// most recent dossier).
+  schoolYear   String?
   status       String    @default("pending") // "pending" | "processing" | "success" | "error"
   filePath     String? // S3 key, set on success
   errorMessage String? // captured on failure
@@ -1738,37 +1852,37 @@ enum AdminApi_TokenTier {
 /// borrowing a browser session. The secret is displayed once at creation and
 /// persisted only as a hash, so a database dump carries no usable credential.
 model AdminApi_Token {
-  id          String    @id @default(cuid())
+  id              String             @id @default(cuid())
   /// `bauth_user.id` of the owning admin. Cascade on purpose: a token is that
   /// human's own credential and must never outlive their account.
   ///
   /// A leadership token is minted by an admin FOR someone with no Jump account
   /// (national leadership has none), so this names the admin who issued it and
   /// stays accountable for it; `label` names the human actually holding it.
-  staffUserId String
+  staffUserId     String
   /// Human label typed at creation ("Copilot Edouard", "script rapport
   /// mensuel"), so a token can be told apart before being revoked. On a
   /// leadership token it must name the holder, since `staffUserId` cannot.
-  label       String
+  label           String
   /// What this token may call. Fixed at mint: re-scoping a credential already
   /// handed out is how a narrow token quietly becomes a wide one.
-  tier        AdminApi_TokenTier @default(core)
+  tier            AdminApi_TokenTier @default(core)
   /// Whether this token may call mutating operations. One boolean, not a scope
   /// vocabulary: there are two classes of caller today and a speculative scope
   /// array would be surface without a user. A read token stays read-only for
   /// life; writing needs a token minted for it. Never true on a leadership
   /// token (tier 2 is read-only by construction).
-  writeEnabled Boolean  @default(false)
+  writeEnabled    Boolean            @default(false)
   /// sha256 hex of the secret. Unique, so verifying a bearer is one indexed
   /// lookup instead of a scan-and-compare over every row.
-  tokenHash   String    @unique
-  createdAt   DateTime  @default(now())
+  tokenHash       String             @unique
+  createdAt       DateTime           @default(now())
   /// Stamped on every accepted call, so a token nobody uses is visible before
   /// someone has to guess whether cutting it breaks something.
-  lastUsedAt  DateTime?
+  lastUsedAt      DateTime?
   /// Revocation is a timestamp, not a delete: the call log keeps pointing at the
   /// token that produced it.
-  revokedAt   DateTime?
+  revokedAt       DateTime?
   /// `bauth_user.id` of the admin who revoked it, null while it is live. Plain
   /// `String` (no FK), like `AdminApi_Call.actorUserId`, so the fact survives
   /// that admin's own account being deleted. Recorded because the inventory is

@@ -210,14 +210,12 @@ export const interestsSchema = z.object({
 });
 
 export const equipmentSchema = z.object({
-  // A working laptop is a hard prerequisite for the stage, so the box must be
-  // ticked to advance — enforced here, not only by the disabled CTA. Kept as a
-  // boolean column, hence the literal + transform rather than `requiredConsent`.
-  hasLaptop: z
-    .literal('true', {
-      message: 'Tu dois posséder un laptop fonctionnel pour continuer.',
-    })
-    .transform(() => true),
+  // Informational only, and deliberately not a gate. The laptop requirement is
+  // now certified where it is actually written down, as a consent box on the
+  // règlement (`rulesSchema.acceptedEquipment`); asking for it twice would let
+  // the two answers disagree. What stays here is the free-text description,
+  // which staff read on the fiche talent as a recruiting signal, so an empty
+  // answer must not block the wizard.
   setupDescription: z
     .string()
     .max(1000, 'Maximum 1000 caractères')
@@ -225,15 +223,41 @@ export const equipmentSchema = z.object({
     .or(z.literal('')),
 });
 
-// --- Étape 7 : Règlement intérieur & confidentialité ---
-// Both consents are legally load-bearing (RGPD, minors), so they are enforced
-// server-side here, not merely by the disabled submit button on the client.
-export const rulesSchema = z.object({
-  city: z.string().trim().min(1, 'Veuillez indiquer la ville.'),
+// --- Charte seule (/charte) ---
+// The standalone surface for talents who never enter the wizard. Same consent,
+// same wording as the wizard's box, so the two can't ask for different things.
+export const charteSchema = z.object({
   acceptedCharter: requiredConsent(
-    'Vous devez accepter la politique de confidentialité pour continuer.',
+    'Tu dois accepter la Charte Informatique et Éthique pour continuer.',
+  ),
+});
+
+// --- Étape 7 : Règlement intérieur & charte ---
+// All three consents are legally load-bearing (RGPD, minors), so they are
+// enforced server-side here, not merely by the disabled submit button on the
+// client. Messages tutoient: this is talent-facing copy.
+export const rulesSchema = z.object({
+  city: z.string().trim().min(1, 'Indique la ville où tu signes.'),
+  acceptedCharter: requiredConsent(
+    'Tu dois accepter la Charte Informatique et Éthique pour continuer.',
   ),
   acceptedRules: requiredConsent(
-    'Vous devez accepter le règlement intérieur pour continuer.',
+    'Tu dois accepter le règlement intérieur pour continuer.',
   ),
+  // The laptop clause lives in the règlement's "Matériel et responsabilité"
+  // section; this box is the affirmative certification of it. It replaced the
+  // blocking checkbox on the equipment step.
+  acceptedEquipment: requiredConsent(
+    "Tu dois certifier posséder un ordinateur portable, ou prévenir l'équipe de ton campus.",
+  ),
+});
+
+/**
+ * The same act for a talent who already gave the charte consent, on a previous
+ * year's dossier. The charte is a once-per-account consent, so the box is not
+ * rendered for them and the field is legitimately absent; the règlement and the
+ * laptop clause stay mandatory, because those are what a yearly dossier signs.
+ */
+export const rulesSchemaWithoutCharter = rulesSchema.omit({
+  acceptedCharter: true,
 });

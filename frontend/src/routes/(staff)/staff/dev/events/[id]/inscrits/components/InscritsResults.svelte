@@ -6,6 +6,7 @@
   import Users from '@lucide/svelte/icons/users';
   import X from '@lucide/svelte/icons/x';
   import Check from '@lucide/svelte/icons/check';
+  import Minus from '@lucide/svelte/icons/minus';
   import Clock from '@lucide/svelte/icons/clock';
   import Unplug from '@lucide/svelte/icons/unplug';
   import FilterX from '@lucide/svelte/icons/filter-x';
@@ -40,10 +41,11 @@
   import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
   import {
     RULES_STATUS_LABELS,
+    NO_DOSSIER_HINT,
     INSCRIT_STATUS_LABELS,
     type RulesStatus,
     type InscritStatus,
-  } from '$lib/domain/stageCompliance';
+  } from '$lib/domain/dossierCompliance';
   import {
     IMAGE_RIGHTS_DISPLAY_LABELS,
     imageRightsDisplayStatus,
@@ -120,11 +122,17 @@
 
   // Statut badge presentation, one entry per funnel state. Red = never logged in
   // (the most urgent case), amber = connected but dossier in progress, teal =
-  // connected with both gates done.
+  // connected with both gates done. `no_dossier` is the only untinted one, and
+  // deliberately so: a collégien is not a row anyone chases, and a tint here
+  // would put urgency on the one state that carries none.
   const INSCRIT_STATUS_BADGE: Record<
     InscritStatus,
     { icon: typeof Check; class: string }
   > = {
+    no_dossier: {
+      icon: Minus,
+      class: 'border-dashed border-border text-muted-foreground',
+    },
     never_connected: {
       icon: Unplug,
       class: 'border-destructive/30 bg-destructive/10 text-destructive',
@@ -141,10 +149,13 @@
 
   // Sort order: least-ready first in ascending, so the rows still needing a
   // chase float to the top (never connected before in progress before ready).
+  // `no_dossier` sorts last, past ready: there is nothing to do about it, so it
+  // belongs furthest from the rows that need attention.
   const STATUS_ORDER: Record<InscritStatus, number> = {
     never_connected: 0,
     in_progress: 1,
     ready: 2,
+    no_dossier: 3,
   };
 
   let searchQuery = $state('');
@@ -212,11 +223,19 @@
     ...availableNiveaux.map((n) => ({ value: n, label: niveauLabel(n) })),
   ]);
 
+  // Derived from the labels record rather than hand-listed, in the badge's own
+  // sort order. The previous hand-written version was the one place a new funnel
+  // state could be added without anything failing: the exhaustive `Record`s
+  // above are compile errors until filled, this list would just have silently
+  // omitted the new filter.
   const statutOptions: SegmentOption[] = [
     { value: 'all', label: 'Tous' },
-    { value: 'never_connected', label: INSCRIT_STATUS_LABELS.never_connected },
-    { value: 'in_progress', label: INSCRIT_STATUS_LABELS.in_progress },
-    { value: 'ready', label: INSCRIT_STATUS_LABELS.ready },
+    ...(Object.keys(INSCRIT_STATUS_LABELS) as InscritStatus[])
+      .sort((a, b) => STATUS_ORDER[a] - STATUS_ORDER[b])
+      .map((status) => ({
+        value: status,
+        label: INSCRIT_STATUS_LABELS[status],
+      })),
   ];
 
   // Every lycée in the cohort, ranked by headcount, for the toolbar picker.
@@ -371,60 +390,68 @@
      triage the cohort without opening each fiche — the fiche stays the place for
      the full history and next actions. -->
 {#snippet statusBreakdown(r: InscritRow)}
-  {@const RulesIcon = r.rulesStatus === 'signed' ? Check : Clock}
-  {@const imageDisplay = imageRightsDisplayStatus(
-    r.imageStatus,
-    r.studentSigned,
-  )}
-  {@const ImageIcon =
-    imageDisplay === 'accepted'
-      ? Check
-      : imageDisplay === 'refused'
-        ? X
-        : Clock}
-  <div class="space-y-1.5">
-    <div class="flex items-center justify-between gap-6">
-      <span class="text-background/70">Connexion</span>
-      <span
-        class={cn(
-          'inline-flex items-center gap-1 font-bold',
-          r.connected ? 'text-epi-tech' : 'text-destructive',
-        )}
-      >
-        {#if r.connected}
-          <Check class="h-3 w-3" />
-          Connecté
-        {:else}
-          <X class="h-3 w-3" />
-          Jamais connecté
-        {/if}
-      </span>
+  {#if r.status === 'no_dossier'}
+    <!-- A collégien owes none of the three documents below, so listing them
+         with a red cross each would read as a dossier to chase. The single line
+         is the whole answer, and it carries the reason the chip's label leaves
+         out. -->
+    <p>{NO_DOSSIER_HINT}</p>
+  {:else}
+    {@const RulesIcon = r.rulesStatus === 'signed' ? Check : Clock}
+    {@const imageDisplay = imageRightsDisplayStatus(
+      r.imageStatus,
+      r.studentSigned,
+    )}
+    {@const ImageIcon =
+      imageDisplay === 'accepted'
+        ? Check
+        : imageDisplay === 'refused'
+          ? X
+          : Clock}
+    <div class="space-y-1.5">
+      <div class="flex items-center justify-between gap-6">
+        <span class="text-background/70">Connexion</span>
+        <span
+          class={cn(
+            'inline-flex items-center gap-1 font-bold',
+            r.connected ? 'text-epi-tech' : 'text-destructive',
+          )}
+        >
+          {#if r.connected}
+            <Check class="h-3 w-3" />
+            Connecté
+          {:else}
+            <X class="h-3 w-3" />
+            Jamais connecté
+          {/if}
+        </span>
+      </div>
+      <div class="flex items-center justify-between gap-6">
+        <span class="text-background/70">Règlement intérieur</span>
+        <span
+          class={cn(
+            'inline-flex items-center gap-1 font-bold',
+            rulesTone(r.rulesStatus),
+          )}
+        >
+          <RulesIcon class="h-3 w-3" />
+          {RULES_STATUS_LABELS[r.rulesStatus]}
+        </span>
+      </div>
+      <div class="flex items-center justify-between gap-6">
+        <span class="text-background/70">Droit à l'image</span>
+        <span
+          class={cn(
+            'inline-flex items-center gap-1 font-bold',
+            imageTone(imageDisplay),
+          )}
+        >
+          <ImageIcon class="h-3 w-3" />
+          {IMAGE_RIGHTS_DISPLAY_LABELS[imageDisplay]}
+        </span>
+      </div>
     </div>
-    <div class="flex items-center justify-between gap-6">
-      <span class="text-background/70">Règlement intérieur</span>
-      <span
-        class={cn(
-          'inline-flex items-center gap-1 font-bold',
-          rulesTone(r.rulesStatus),
-        )}
-      >
-        <RulesIcon class="h-3 w-3" />
-        {RULES_STATUS_LABELS[r.rulesStatus]}
-      </span>
-    </div>
-    <div class="flex items-center justify-between gap-6">
-      <span class="text-background/70">Droit à l'image</span>
-      <span
-        class={cn(
-          'inline-flex items-center gap-1 font-bold',
-          imageTone(imageDisplay),
-        )}
-      >
-        <ImageIcon class="h-3 w-3" />
-        {IMAGE_RIGHTS_DISPLAY_LABELS[imageDisplay]}
-      </span>
-    </div>
-  </div>
+  {/if}
 {/snippet}
 
 {#if cohort.total === 0}

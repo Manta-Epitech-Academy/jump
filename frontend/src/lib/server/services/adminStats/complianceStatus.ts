@@ -4,7 +4,8 @@
  * Three separate obligations, deliberately kept apart because they are three
  * different documents that people routinely conflate:
  *
- *   - the **charte de données** (RGPD), which the talent accepts to use Jump;
+ *   - the **Charte Informatique et Éthique** (RGPD), which the talent accepts
+ *     to use Jump;
  *   - the **règlement intérieur**, signed by the talent and, for a minor,
  *     co-signed by their legal guardian, which is what makes the two signatures
  *     two figures rather than one;
@@ -22,7 +23,7 @@ import { prisma } from '$lib/server/db';
 import { IMAGE_RIGHTS_STATUS_LABELS } from '$lib/domain/imageRights';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
-import { cohortWhere, scopeLabels } from './cohort';
+import { cohortWhere, dossierSchoolYear, scopeLabels } from './cohort';
 
 export type ImageRightsRow = {
   status: string;
@@ -49,13 +50,23 @@ export async function getComplianceStatus(
 ): Promise<ComplianceStatus> {
   const where = await cohortWhere(scope);
   const and = (extra: object) => ({ where: { AND: [where, extra] } });
+  // The règlement is signed once per school year, so a scoped question is about
+  // that year's dossier row - the flat columns are the most recent dossier and
+  // would change last year's answer the day a talent re-onboards. Unscoped, the
+  // cohort spans years and the projection is the right reading. Same rule as the
+  // funnel, see `dossierSchoolYear`.
+  const schoolYear = dossierSchoolYear(scope);
+  const signedThatYear = (field: 'rulesSignedAt' | 'parentRulesSignedAt') =>
+    schoolYear
+      ? { onboardingRecords: { some: { schoolYear, [field]: { not: null } } } }
+      : { [field]: { not: null } };
 
   const [cohort, charter, rulesTalent, rulesGuardian, accepted, refused] =
     await Promise.all([
       prisma.talent.count({ where }),
       prisma.talent.count(and({ charterAcceptedAt: { not: null } })),
-      prisma.talent.count(and({ rulesSignedAt: { not: null } })),
-      prisma.talent.count(and({ parentRulesSignedAt: { not: null } })),
+      prisma.talent.count(and(signedThatYear('rulesSignedAt'))),
+      prisma.talent.count(and(signedThatYear('parentRulesSignedAt'))),
       prisma.talent.count(and({ imageRightsDecision: 'accepted' })),
       prisma.talent.count(and({ imageRightsDecision: 'refused' })),
     ]);
@@ -79,15 +90,15 @@ export async function getComplianceStatus(
     ),
     charterAccepted: metric(
       charter,
-      "Talents ayant accepté la charte de traitement des données personnelles. C'est le document RGPD qui conditionne l'usage de Jump, distinct du règlement intérieur.",
+      "Talents ayant accepté la Charte Informatique et Éthique. C'est le document RGPD encadrant le traitement de leurs données personnelles, qui conditionne l'usage de Jump, distinct du règlement intérieur.",
     ),
     charterAcceptedShare: metric(
       share(charter, cohort),
-      'Part du périmètre ayant accepté la charte de données, en pourcentage.',
+      'Part du périmètre ayant accepté la Charte Informatique et Éthique, en pourcentage.',
     ),
     rulesSignedByTalent: metric(
       rulesTalent,
-      'Talents ayant signé le règlement intérieur eux-mêmes, en ligne, pendant leur inscription.',
+      'Talents ayant signé le règlement intérieur eux-mêmes, en ligne, pendant leur inscription. Le règlement se signe une fois par année scolaire : filtré sur une année, ce chiffre compte la signature de cette année-là.',
     ),
     rulesSignedByTalentShare: metric(
       share(rulesTalent, cohort),

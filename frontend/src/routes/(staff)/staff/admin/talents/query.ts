@@ -4,13 +4,21 @@ import {
   deriveOnboardingStatus,
   describeOnboardingProgress,
   ONBOARDING_STEP_LABELS,
+  onboardingFieldsForYear,
   type OnboardingStepFields,
   type TalentOnboardingFields,
 } from '$lib/domain/talentOnboarding';
+import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import {
   parentBlockedWhere,
   parentCompleteWhere,
-} from '$lib/server/db/stageCompliance';
+} from '$lib/server/db/dossierCompliance';
+import {
+  onboardingEligibleWhere,
+  onboardingNotApplicableWhere,
+} from '$lib/server/db/onboardingEligibility';
+import { isOnboardingEligible } from '$lib/domain/niveau';
+import { isParentDossierComplete } from '$lib/domain/dossierCompliance';
 import type { TalentAccountStatus, ParentCompletionStatus } from './labels';
 
 /**
@@ -23,10 +31,16 @@ import type { TalentAccountStatus, ParentCompletionStatus } from './labels';
 
 // ---- filter parsing -------------------------------------------------------
 
-// Mirrors the three onboarding states shown in the table's Statut column:
+// Mirrors the four onboarding states shown in the table's Statut column:
 // `active` = onboarding complete, `onboarding` = account exists but mid-flow,
-// `never` = no login account. `all` clears the filter.
-export type StatusFilter = 'all' | 'active' | 'onboarding' | 'never';
+// `never` = no login account, `no_dossier` = a collégien, who has no onboarding
+// to do at all. `all` clears the filter.
+export type StatusFilter =
+  | 'all'
+  | 'active'
+  | 'onboarding'
+  | 'never'
+  | 'no_dossier';
 // Parent completion: "complete" once the guardian co-signed the règlement AND
 // settled the image-rights decision; "pending" = still blocked on one. `all`
 // clears it. Both buckets presuppose a parent on file (see buildTalentWhere).
@@ -45,7 +59,13 @@ export type TalentFilters = {
   page: number;
 };
 
-const STATUS_VALUES: StatusFilter[] = ['all', 'active', 'onboarding', 'never'];
+const STATUS_VALUES: StatusFilter[] = [
+  'all',
+  'active',
+  'onboarding',
+  'never',
+  'no_dossier',
+];
 const PARENT_STATUS_VALUES: ParentStatusFilter[] = [
   'all',
   'pending',
@@ -89,21 +109,36 @@ export function parseTalentFilters(
 /**
  * Prisma predicate for a talent who has fully cleared platform onboarding —
  * every step gate set AND the charter accepted. The Prisma mirror of
- * `deriveOnboardingStatus(...) === 'done'`; the three-way Statut filter splits
- * accounts into done (`active`) vs not-done (`onboarding`) by negating this, so
- * a new gate added to the ladder has to land here too.
+ * `deriveOnboardingStatus(...) === 'done'`; the Statut filter splits accounts
+ * into done (`active`) vs not-done (`onboarding`) by negating this, so a new
+ * gate added to the ladder has to land here too.
+ *
+ * Eligibility is folded in for the same reason as in `adminStats/cohort.ts`:
+ * the negation is what `onboarding` filters on, and without it every collégien
+ * would answer to "mid-flow" despite having no flow.
  */
-export const ONBOARDING_DONE_WHERE: Prisma.TalentWhereInput = {
-  infoValidatedAt: { not: null },
-  highSchoolValidatedAt: { not: null },
-  parentsValidatedAt: { not: null },
-  techInterestsValidatedAt: { not: null },
-  generalInterestsValidatedAt: { not: null },
-  equipmentValidatedAt: { not: null },
-  processingCompletedAt: { not: null },
-  rulesSignedAt: { not: null },
-  charterAcceptedAt: { not: null },
-};
+export function onboardingDoneWhere(): Prisma.TalentWhereInput {
+  return {
+    ...onboardingEligibleWhere,
+    // This year's dossier, not any dossier. The directory answers "what will I
+    // walk into if I impersonate this account", and the talent guards send a
+    // returning talent back through the wizard, so a completed 2025-2026 dossier
+    // is not "onboardé" once 2026-2027 has opened. Resolved per call: a constant
+    // would freeze the year at import and a pod alive across the 31 July cutoff
+    // would keep answering about the year that just ended.
+    onboardingSchoolYear: currentSchoolYearLabel(),
+    infoValidatedAt: { not: null },
+    highSchoolValidatedAt: { not: null },
+    parentsValidatedAt: { not: null },
+    techInterestsValidatedAt: { not: null },
+    generalInterestsValidatedAt: { not: null },
+    equipmentValidatedAt: { not: null },
+    processingCompletedAt: { not: null },
+    rulesSignedAt: { not: null },
+    // Once per account, never re-asked, so it is not narrowed to the year.
+    charterAcceptedAt: { not: null },
+  };
+}
 
 /**
  * Builds the directory `where` and the KPI `scopeWhere` from one filter set.
@@ -151,13 +186,19 @@ export function buildTalentWhere(f: TalentFilters): {
     : {};
 
   const narrow: Prisma.TalentWhereInput[] = [...scope];
-  // active/onboarding both require an account, then split on whether onboarding
-  // is fully cleared; never is the no-account set.
-  if (f.status === 'never') narrow.push({ userId: null });
+  // no_dossier is checked first and stands alone: a collégien has no ladder, so
+  // asking whether they cleared it is meaningless. The other three keep their
+  // meaning within the population that does have one.
+  if (f.status === 'no_dossier') narrow.push(onboardingNotApplicableWhere);
+  else if (f.status === 'never')
+    narrow.push({ userId: null }, onboardingEligibleWhere);
   else if (f.status === 'active')
-    narrow.push({ userId: { not: null } }, ONBOARDING_DONE_WHERE);
+    narrow.push({ userId: { not: null } }, onboardingDoneWhere());
   else if (f.status === 'onboarding')
-    narrow.push({ userId: { not: null }, NOT: ONBOARDING_DONE_WHERE });
+    narrow.push(
+      { userId: { not: null }, NOT: onboardingDoneWhere() },
+      onboardingEligibleWhere,
+    );
 
   // Both parent buckets presuppose a parent on file (a parentEmail to relance).
   if (f.parentStatus === 'pending')
@@ -212,6 +253,7 @@ export const TALENT_ROW_SELECT = {
   civilite: true,
   phone: true,
   charterAcceptedAt: true,
+  onboardingSchoolYear: true,
   infoValidatedAt: true,
   highSchoolValidatedAt: true,
   parentsValidatedAt: true,
@@ -255,8 +297,11 @@ export type TalentRow = Prisma.TalentGetPayload<{
  * guard's checks in `guards.ts`.
  */
 function onboardingStatus(
-  t: TalentOnboardingFields & { userId: string | null },
+  t: TalentOnboardingFields & { userId: string | null; niveau: string | null },
 ): TalentAccountStatus {
+  // Checked before the account: a collégien without a login is still "no
+  // dossier", not "never connected". The latter reads as something to chase.
+  if (!isOnboardingEligible(t.niveau)) return 'no_dossier';
   if (!t.userId) return 'never';
   return deriveOnboardingStatus(t) === 'done' ? 'active' : 'pending';
 }
@@ -264,7 +309,8 @@ function onboardingStatus(
 /**
  * Human label for where a `pending` talent will resume — what the admin walks
  * into on impersonation. "Non démarré" when the account exists but no step is
- * done; "N/total · <étape>" mid-flow. `null` for `never`/`active`.
+ * done; "N/total · <étape>" mid-flow. `null` for `never`/`active`, and unused
+ * for `no_dossier`, which has no rung to name.
  */
 function onboardingStepLabel(t: OnboardingStepFields): string | null {
   const { step, completed, total, phase } = describeOnboardingProgress(t);
@@ -279,8 +325,20 @@ function onboardingStepLabel(t: OnboardingStepFields): string | null {
  * read the exact same verdict.
  */
 export function projectTalentRow(row: TalentRow) {
-  const { charterAcceptedAt, participations, ...t } = row;
-  const status = onboardingStatus({ ...t, charterAcceptedAt });
+  // Two readings of one row, kept as two named values rather than one narrowed
+  // row, because a single blanket transform silently converts every read below
+  // into a year question and only some of them are (see `DatedOnboardingFields`).
+  //
+  // `dossier` is the ladder, which IS a year question: the flat columns hold the
+  // most recent dossier, so a talent returning after the summer carries last
+  // year's, and unnarrowed the directory would call them onboardé while the
+  // guards send them straight back through the wizard.
+  //
+  // `t` is the row as it stands, for everything that asks "ever / most recent" -
+  // the guardian's outstanding acts below, and the identity and activity columns.
+  const { participations, ...t } = row;
+  const dossier = onboardingFieldsForYear(row, currentSchoolYearLabel());
+  const status = onboardingStatus(dossier);
   // Both guardians in priority order; drop any with no identity or contact at
   // all so the contact dialog only ever lists reachable responsables.
   const guardians = [
@@ -300,10 +358,15 @@ export function projectTalentRow(row: TalentRow) {
     },
   ].filter((g) => g.prenom || g.nom || g.email || g.phone);
   // Parent status, gated on a parentEmail (the relance contact). null = no
-  // parent to chase. Mirror of the parentStatus where-filter above.
+  // parent to chase. Mirror of the parentStatus where-filter above, through the
+  // predicate those fragments are the SQL twins of - and on `t`, not `dossier`:
+  // what a guardian still owes is not a question about a school year, and
+  // narrowing it here is what made this chip read "En attente" for every talent
+  // whose dossier predates the cutover while the filter and the KPI tile above
+  // counted them complete.
   const parentStatus: ParentCompletionStatus | null = !t.parentEmail
     ? null
-    : t.parentRulesSignedAt && t.imageRightsDecidedAt
+    : isParentDossierComplete(t)
       ? 'complete'
       : 'pending';
   return {
@@ -328,8 +391,9 @@ export function projectTalentRow(row: TalentRow) {
     campus: participations[0]?.campus?.name ?? null,
     status,
     // Only meaningful mid-journey: shown next to the "Onboarding" badge so the
-    // admin sees where impersonation will drop them.
-    onboardingStep: status === 'pending' ? onboardingStepLabel(t) : null,
+    // admin sees where impersonation will drop them, so it reads the year's
+    // dossier like the badge it annotates.
+    onboardingStep: status === 'pending' ? onboardingStepLabel(dossier) : null,
     guardians,
     parentStatus,
   };

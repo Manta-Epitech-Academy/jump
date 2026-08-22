@@ -6,21 +6,43 @@
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import { track, errReason, secondsBetween } from '$lib/analytics';
   import { WELCOME_XP_BONUS } from '$lib/domain/xp';
-  import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
+  import { CHARTE_INFORMATIQUE_BODY } from '$lib/content/charteInformatique';
   import { renderMarkdown } from '$lib/markdown';
-  import reglementMd from '$lib/content/reglement-interieur.md?raw';
+  import {
+    reglementTextFor,
+    CURRENT_REGLEMENT_VERSION,
+  } from '$lib/content/reglement';
   import ContinueButton from './ContinueButton.svelte';
 
   // Single source of truth for the règlement body — same text the PDF embeds
   // and the parent reads on /parent/reglement. Inline paraphrases would let
   // the student agree to text A while signing PDF text B.
-  const reglementBody = renderMarkdown(reglementMd);
+  //
+  // A signature taken now commits to the current version, and the action pins
+  // that same constant on the row, so what is read here and what the PDF
+  // renders can't drift apart later.
+  const reglementBody = renderMarkdown(
+    reglementTextFor(CURRENT_REGLEMENT_VERSION),
+  );
 
-  let { error: formError }: { error?: string } = $props();
+  let {
+    error: formError,
+    charterAccepted = false,
+    welcomeBonusGranted = false,
+  }: {
+    error?: string;
+    /** Charte already consented to on a previous year's dossier: not re-asked,
+     * and its date is not restamped (see the `signRules` action). */
+    charterAccepted?: boolean;
+    /** The arrival bonus is already in the XP ledger, so this signature grants
+     * nothing and the button must not promise it. */
+    welcomeBonusGranted?: boolean;
+  } = $props();
   const seenAt = Date.now();
   let submitting = $state(false);
   let city = $state('');
   let acceptedRules = $state(false);
+  let acceptedEquipment = $state(false);
   let acceptedCharter = $state(false);
 </script>
 
@@ -67,22 +89,21 @@
   </div>
 
   <!-- ═══ Sécurité des données (police réduite) ═══ -->
-  <div class="mt-8">
-    <h2
-      class="mb-2 text-sm font-semibold tracking-wide text-foreground-secondary uppercase"
-    >
-      Sécurité des données
-    </h2>
-    <p class="text-xs leading-relaxed text-muted-foreground">
-      On collecte ton nom, ton prénom et ta progression (participations aux
-      événements, présence, XP) pour suivre ton parcours et générer tes
-      certifications. Ces données sont conservées {DATA_RETENTION_MONTHS}
-      mois après ta dernière activité, puis automatiquement anonymisées. Tu peux à
-      tout moment les consulter, les modifier ou les supprimer depuis ton espace personnel,
-      et demander la suppression complète de ton compte. Tout est stocké en France,
-      sur un serveur géré par l'équipe Epitech.
-    </p>
-  </div>
+  <!-- Only for a talent who has not consented yet. The charte is signed once per
+       account, so re-reading it belongs to /settings/documents, not to the act of
+       signing this year's règlement. -->
+  {#if !charterAccepted}
+    <div class="mt-8">
+      <h2
+        class="mb-2 text-sm font-semibold tracking-wide text-foreground-secondary uppercase"
+      >
+        Sécurité des données
+      </h2>
+      <p class="text-xs leading-relaxed text-muted-foreground">
+        {CHARTE_INFORMATIQUE_BODY}
+      </p>
+    </div>
+  {/if}
 
   <!-- ═══ Signature ═══ -->
   <div
@@ -111,8 +132,10 @@
   </div>
 
   <!-- ═══ Checkboxes ═══ -->
-  <!-- Order mirrors the document order above (règlement intérieur, then sécurité
-       des données) so each checkbox sits right after the text it confirms. -->
+  <!-- Order mirrors the document order above (règlement intérieur, whose
+       "Matériel et responsabilité" section carries the laptop clause, then
+       sécurité des données) so each checkbox sits right after the text it
+       confirms. -->
   <div class="mt-6 space-y-3">
     <label
       class="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
@@ -132,23 +155,47 @@
       class="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
     >
       <Checkbox
-        bind:checked={acceptedCharter}
-        name="acceptedCharter"
+        bind:checked={acceptedEquipment}
+        name="acceptedEquipment"
         value="true"
         class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-tech data-[state=checked]:bg-epi-tech data-[state=checked]:text-black"
       />
       <span class="text-sm font-medium text-foreground-secondary">
-        J'ai lu et j'accepte la politique de confidentialité d'Epitech
-        concernant la collecte et le traitement de mes données personnelles.
+        Je certifie posséder un ordinateur portable en état de marche. Si ce
+        n'est pas le cas, je préviens l'équipe de mon campus.
       </span>
     </label>
 
+    {#if !charterAccepted}
+      <label
+        class="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
+      >
+        <Checkbox
+          bind:checked={acceptedCharter}
+          name="acceptedCharter"
+          value="true"
+          class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-tech data-[state=checked]:bg-epi-tech data-[state=checked]:text-black"
+        />
+        <span class="text-sm font-medium text-foreground-secondary">
+          J'ai lu et j'accepte la Charte Informatique et Éthique d'Epitech, qui
+          encadre la collecte et le traitement de mes données personnelles.
+        </span>
+      </label>
+    {/if}
+
     <ContinueButton
       {submitting}
-      disabled={!acceptedRules || !acceptedCharter || !city.trim()}
+      disabled={!acceptedRules ||
+        !acceptedEquipment ||
+        (!charterAccepted && !acceptedCharter) ||
+        !city.trim()}
     >
       <Sparkles class="h-4 w-4 shrink-0" />
-      Signer et obtenir mes {WELCOME_XP_BONUS} XP de bienvenue
+      {#if welcomeBonusGranted}
+        Signer le règlement de cette année
+      {:else}
+        Signer et obtenir mes {WELCOME_XP_BONUS} XP de bienvenue
+      {/if}
     </ContinueButton>
   </div>
 </form>

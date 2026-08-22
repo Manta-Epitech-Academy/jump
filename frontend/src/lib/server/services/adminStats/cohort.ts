@@ -17,6 +17,7 @@
 import type { Prisma } from '@prisma/client';
 import { EventService, type AdminEventVM } from '$lib/server/services/events';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import { onboardingEligibleWhere } from '$lib/server/db/onboardingEligibility';
 import { assertKnownSchoolYear, type Scope } from '$lib/server/adminApi/scope';
 
 export type ScopedEvents = {
@@ -102,10 +103,29 @@ export async function participationWhere(
 }
 
 /**
- * The talents who finished the whole online sign-up, charte included. The
- * counterpart of the funnel's rungs: every timestamp on the ladder set.
+ * The school year an aggregate's onboarding figures are about, or `null` for "the
+ * most recent dossier, whichever year it is".
+ *
+ * Narrowing happens only when the scope names a year, and the reason is that the
+ * cohort spans years too. Scoped to 2025-2026, both sides move together: that
+ * year's events, that year's dossier, and the answer stops being overwritten the
+ * day a returning talent re-onboards. Unscoped, the cohort is everyone who ever
+ * enrolled, so pinning the dossier to the year in progress would count every past
+ * cohort as blocked on step one - permanently, and worse every year. There the
+ * question is "does this talent have a completed dossier at all", which the
+ * projection answers as it stands.
+ *
+ * A single talent's own screens (the wizard, the guards, the admin directory) do
+ * pin the year in progress: they ask what this person has to do now, not how a
+ * cohort did.
  */
-export const ONBOARDING_COMPLETE_WHERE: Prisma.TalentWhereInput = {
+export function dossierSchoolYear(scope: Scope): string | null {
+  return scope.schoolYear ?? null;
+}
+
+/** Every ladder gate set. Same column names on the projection and on a dossier
+ * row, so the one shape serves both readings below. */
+const COMPLETE_GATES = {
   infoValidatedAt: { not: null },
   highSchoolValidatedAt: { not: null },
   parentsValidatedAt: { not: null },
@@ -114,8 +134,78 @@ export const ONBOARDING_COMPLETE_WHERE: Prisma.TalentWhereInput = {
   equipmentValidatedAt: { not: null },
   processingCompletedAt: { not: null },
   rulesSignedAt: { not: null },
-  charterAcceptedAt: { not: null },
-};
+} as const;
+
+/**
+ * The talents who finished the whole online sign-up, charte included.
+ *
+ * Which dossier that is depends on the scope, and the two readings are not
+ * interchangeable ({@link dossierSchoolYear}):
+ *
+ *   - **A named year** is answered from the dossier rows, not from the flat
+ *     columns. Those are a projection of each talent's MOST RECENT dossier, so
+ *     the moment a returning talent opens this year's, last year's answer would
+ *     change under it - which is the history-overwriting the model exists to end,
+ *     and it would end it everywhere except in the figures people quote. The
+ *     relation filter costs one EXISTS on a unique index.
+ *   - **No year** is answered from the projection, which is what "has a completed
+ *     dossier at all" means.
+ *
+ * `charterAcceptedAt` sits outside either reading: it is a once-per-account
+ * consent that a returning talent is never asked for again, so it is a column on
+ * the talent and never a condition on a year.
+ *
+ * Eligibility is folded in so the numerator can never escape its denominator:
+ * every rate built on this counts eligible talents only, and a collégien whose
+ * level landed after they had already onboarded (a re-import can do that) would
+ * otherwise push a share past 100 %.
+ */
+export function onboardingCompleteWhere(scope: Scope): Prisma.TalentWhereInput {
+  const schoolYear = dossierSchoolYear(scope);
+  return {
+    ...onboardingEligibleWhere,
+    charterAcceptedAt: { not: null },
+    ...(schoolYear
+      ? { onboardingRecords: { some: { schoolYear, ...COMPLETE_GATES } } }
+      : COMPLETE_GATES),
+  };
+}
+
+/**
+ * The same population counted as DOSSIERS rather than as talents: one row per
+ * finished parcours, for the cohort the scope selects.
+ *
+ * {@link onboardingCompleteWhere} answers "how many talents finished", which is
+ * a headcount and rightly collapses a returning talent to one. An aggregate that
+ * needs each completion's own **date** cannot use it: the date would come from
+ * the projection while the completion came from a dossier row, so a talent who
+ * finished twice would be counted under one year with the other year's date.
+ * Here the two travel together on one row.
+ *
+ * No projection branch, deliberately. Unlike a headcount, a dated series is
+ * wrong on the projection at *every* scope, not only a scoped one: unfiltered, a
+ * window spanning the 31 July cutover simply loses the earlier completion, since
+ * the projection only ever holds the latest.
+ *
+ * `charterAcceptedAt` stays a condition on the talent, not on the row, for the
+ * same reason as above: once per account, never re-asked.
+ */
+export async function completedDossierWhere(
+  scope: Scope,
+): Promise<Prisma.Onboarding_RecordWhereInput> {
+  const schoolYear = dossierSchoolYear(scope);
+  return {
+    ...COMPLETE_GATES,
+    ...(schoolYear ? { schoolYear } : {}),
+    talent: {
+      AND: [
+        await cohortWhere(scope),
+        onboardingEligibleWhere,
+        { charterAcceptedAt: { not: null } },
+      ],
+    },
+  };
+}
 
 /** How a scope prints back in an answer's `filters` block. */
 export function scopeLabels(scope: Scope) {

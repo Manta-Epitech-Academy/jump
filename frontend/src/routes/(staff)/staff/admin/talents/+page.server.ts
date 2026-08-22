@@ -4,14 +4,14 @@ import { z } from 'zod';
 import { prisma } from '$lib/server/db';
 import { resetTalentToImport } from '$lib/server/services/talentAccount';
 import { changeParentEmail } from '$lib/server/services/parentAccount';
-import { parentCompleteWhere } from '$lib/server/db/stageCompliance';
+import { parentCompleteWhere } from '$lib/server/db/dossierCompliance';
 import {
   parseTalentFilters,
   buildTalentWhere,
   buildOrderBy,
   TALENT_ROW_SELECT,
   projectTalentRow,
-  ONBOARDING_DONE_WHERE,
+  onboardingDoneWhere,
   type TalentsCohort,
 } from './query';
 
@@ -60,7 +60,7 @@ export const load: PageServerLoad = async ({ url }) => {
       // KPI counts, all over `scopeWhere` (status/parentStatus excluded).
       prisma.talent.count({ where: scopeWhere }),
       prisma.talent.count({
-        where: { AND: [scopeWhere, ONBOARDING_DONE_WHERE] },
+        where: { AND: [scopeWhere, onboardingDoneWhere()] },
       }),
       prisma.talent.count({ where: { AND: [scopeWhere, hasParent] } }),
       prisma.talent.count({
