@@ -145,12 +145,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     );
     const communications = allCommunications.slice(0, RIGHT_RAIL_COMMS);
 
-    // Compliance (charte, droits à l'image) is a Talent-level artifact; the
-    // participation only supplies display context (which event/campus the fiche
-    // shows it under). `participations` is `event.date desc`, so [0] is the
-    // latest one the talent attended.
-    const primaryComplianceParticipation = participations[0] ?? null;
-
     // "Historique événements" is a past-only view (Plan 01, phase E): keep the
     // events already over, newest first (participations are `event.date desc`),
     // and resolve each SF status to a présent/absent outcome here so the raw
@@ -308,7 +302,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       notes,
       xpStory,
       eventHistory,
-      primaryComplianceParticipation,
       communications,
       firstLoginAt,
       recommendations,
