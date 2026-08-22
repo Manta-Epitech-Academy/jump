@@ -240,27 +240,30 @@ export function clearOnboardingTimestamps(): Record<
 }
 
 /**
- * The non-timestamp columns platform onboarding wrote on the talent: the
- * generated-PDF S3 key, the place of signature, the règlement version it
- * committed to, and the school year the whole projection describes, as distinct
- * from the profile data they fill in (school, parents, interests), which a
- * returning talent legitimately keeps.
+ * The non-timestamp columns platform onboarding wrote on the talent: the place
+ * of signature, the règlement version it committed to, and the school year the
+ * whole projection describes, as distinct from the profile data they fill in
+ * (school, parents, interests), which a returning talent legitimately keeps.
  *
  * Owned here for the same reason as {@link ONBOARDING_TIMESTAMP_FIELDS}: every
  * path that returns a talent to a pre-onboarding state (admin reset, RGPD
- * anonymisation) must drop these alongside the gate timestamps, so a stale PDF
- * never outlives the signature it attests. Adding a new talent-signed artifact
- * here lights up both paths at once.
+ * anonymisation) must drop these alongside the gate timestamps, so nothing
+ * outlives the signature it describes. Adding a new talent-signed artifact here
+ * lights up both paths at once.
  *
  * Scope is the *talent's* signature only. The guardian's règlement co-signature
  * (`parentRules*`) and the parent-decided image-rights artifacts sit outside the
  * talent ladder and are cleared by their own flows, never by a talent reset.
- * `rulesFilePath` is the one shared key: it carries both signature blocks, but
- * voiding the talent's signature already invalidates the current render, so it
- * is dropped here and regenerated when either signer next commits.
+ *
+ * The rendered règlement PDF is deliberately NOT here, and it is the one thing
+ * a reader expects to find: it lives on the dossier
+ * (`Onboarding_Record.rulesFilePath`), because it is produced once per school
+ * year. Both reset paths delete the dossier rows outright, so the render leaves
+ * with the signature it attests instead of being nulled alongside it. What each
+ * path must still do by hand is collect those keys for deletion from the bucket,
+ * which is a side effect no `{ field: null }` patch can express.
  */
 const TALENT_ONBOARDING_ARTIFACT_FIELDS = [
-  'rulesFilePath',
   'rulesSignedCity',
   // Pins which text the voided signature committed to; it has to go with it,
   // or the next render reads a version nobody signed.

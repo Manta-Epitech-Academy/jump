@@ -26,7 +26,10 @@ import { enqueueOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobSe
 import type { ServiceResult } from './result';
 import { CURRENT_REGLEMENT_VERSION } from '$lib/content/reglement';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
-import { patchCurrentOnboardingRecord } from './onboardingYearService';
+import {
+  patchCurrentOnboardingRecord,
+  upsertOnboardingYearRecord,
+} from './onboardingYearService';
 
 type ParentContact = { email: string; prenom: string; nom: string };
 
@@ -153,6 +156,9 @@ export async function signOnboardingRules(input: {
 }): Promise<{ jobId: string }> {
   const { talentId, studentName, city } = input;
   const now = input.signedAt ?? new Date();
+  // One resolution for the dossier this act writes, the early-bird count and the
+  // PDF job, so all three can never land on different years.
+  const schoolYear = currentSchoolYearLabel();
 
   const job = await prisma.$transaction(async (tx) => {
     // Resolve the talent's campus (most-recent participation) and their 0-based
@@ -169,7 +175,7 @@ export async function signOnboardingRules(input: {
           await countCampusEarlyBirdPosition(
             tx,
             campusId,
-            currentSchoolYearLabel(),
+            schoolYear,
             ONBOARDING_EARLY_BIRD_LIMIT,
           ),
         )
@@ -185,12 +191,20 @@ export async function signOnboardingRules(input: {
       where: { id: talentId, charterAcceptedAt: null },
       data: { charterAcceptedAt: now },
     });
-    await patchCurrentOnboardingRecord(tx, talentId, {
-      rulesSignedAt: now,
-      rulesSignedCity: city,
-      // Pin the wording this signature commits to. Everything downstream
-      // reads it back; nothing else ever writes it.
-      reglementVersion: CURRENT_REGLEMENT_VERSION,
+    // The explicit year rather than `patchCurrentOnboardingRecord`, which would
+    // resolve it a second time: the PDF job below names the dossier it renders,
+    // and two resolutions either side of the 31 July cutover would point them at
+    // different rows, failing the job on a dossier it cannot find.
+    await upsertOnboardingYearRecord(tx, {
+      talentId,
+      schoolYear,
+      patch: {
+        rulesSignedAt: now,
+        rulesSignedCity: city,
+        // Pin the wording this signature commits to. Everything downstream
+        // reads it back; nothing else ever writes it.
+        reglementVersion: CURRENT_REGLEMENT_VERSION,
+      },
     });
     await grantXp(tx, {
       talentId,
@@ -214,6 +228,10 @@ export async function signOnboardingRules(input: {
     return enqueueOnboardingPdfJob(tx, {
       talentId,
       documentType: 'rules',
+      // The dossier just signed, so a job that runs (or is retried) after the
+      // 31 July cutover still renders this year's document rather than whichever
+      // one is current when it finally gets a browser.
+      schoolYear,
       payload: { studentName, city, signedAt: now.toISOString() },
     });
   });

@@ -12,6 +12,7 @@ CREATE TABLE "Onboarding_Record" (
     "equipmentValidatedAt" TIMESTAMP(3),
     "processingCompletedAt" TIMESTAMP(3),
     "rulesSignedAt" TIMESTAMP(3),
+    "rulesFilePath" TEXT,
     "rulesSignedCity" TEXT,
     "reglementVersion" TEXT,
     "parentRulesSignedAt" TIMESTAMP(3),
@@ -33,6 +34,13 @@ ALTER TABLE "Onboarding_Record" ADD CONSTRAINT "Onboarding_Record_talentId_fkey"
 
 -- AlterTable
 ALTER TABLE "Talent" ADD COLUMN     "onboardingSchoolYear" TEXT;
+
+-- AlterTable: which dossier a `rules` PDF job renders. Left NULL on existing
+-- rows on purpose, and the worker reads NULL as "the talent's most recent
+-- dossier": every job predating this migration was enqueued when a talent had
+-- exactly one dossier, the one backfilled below, so the fallback resolves to the
+-- same row a backfilled value would have named.
+ALTER TABLE "OnboardingPdfJob" ADD COLUMN     "schoolYear" TEXT;
 
 -- Data Backfill: give every talent who ever started onboarding the dossier row
 -- their flat columns are now a projection of. Without it the first wizard step
@@ -63,7 +71,7 @@ INSERT INTO "Onboarding_Record" (
   "infoValidatedAt", "highSchoolValidatedAt", "parentsValidatedAt",
   "techInterestsValidatedAt", "generalInterestsValidatedAt", "interestsRecapSeenAt",
   "equipmentValidatedAt", "processingCompletedAt", "rulesSignedAt",
-  "rulesSignedCity", "reglementVersion",
+  "rulesFilePath", "rulesSignedCity", "reglementVersion",
   "parentRulesSignedAt", "parentRulesSignerPrenom", "parentRulesSignerNom",
   "parentRulesRelationship", "parentRulesSignedCity",
   "createdAt", "updatedAt"
@@ -75,7 +83,11 @@ SELECT
   d."infoValidatedAt", d."highSchoolValidatedAt", d."parentsValidatedAt",
   d."techInterestsValidatedAt", d."generalInterestsValidatedAt", d."interestsRecapSeenAt",
   d."equipmentValidatedAt", d."processingCompletedAt", d."rulesSignedAt",
-  d."rulesSignedCity", d."reglementVersion",
+  -- The existing render moves onto the dossier it attests. Copied, not
+  -- recomputed: the S3 key it holds is the pre-annual `rules.pdf` one, and it
+  -- must keep resolving. Only a regeneration writes the year-keyed name, so no
+  -- object has to be moved in the bucket for this to be correct.
+  d."rulesFilePath", d."rulesSignedCity", d."reglementVersion",
   d."parentRulesSignedAt", d."parentRulesSignerPrenom", d."parentRulesSignerNom",
   d."parentRulesRelationship", d."parentRulesSignedCity",
   NOW(), NOW()

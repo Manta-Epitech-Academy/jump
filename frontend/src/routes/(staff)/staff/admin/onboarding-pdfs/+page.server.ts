@@ -160,6 +160,7 @@ export const actions: Actions = {
       select: {
         filePath: true,
         documentType: true,
+        schoolYear: true,
         talent: {
           select: { prenom: true, nom: true, externalId: true, id: true },
         },
@@ -173,8 +174,14 @@ export const actions: Actions = {
       // rather than forcing a download. The custom filename is a nicety: if a
       // row ever carries an unknown documentType, fall back to no override so
       // the preview still works instead of 500-ing on the filename build.
+      // The school year is part of the name for a per-year document, so two
+      // règlement jobs on the same talent don't preview under one filename.
       const filename = isOnboardingDocumentType(job.documentType)
-        ? onboardingDownloadFilename(job.documentType, job.talent)
+        ? onboardingDownloadFilename(
+            job.documentType,
+            job.talent,
+            job.schoolYear,
+          )
         : undefined;
       const url = await getStorage().getDownloadUrl(job.filePath, {
         filename,

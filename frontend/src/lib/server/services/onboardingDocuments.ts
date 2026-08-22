@@ -1,12 +1,20 @@
 /**
- * Single source of truth for the onboarding documents a talent signs and how
- * each one maps onto the {@link Talent} record. Consumed by the PDF generator
- * (titles), the PDF job service (where the generated S3 key lands), and the
- * talent-facing "Mes documents" view (which signatures to surface + serve).
+ * Single source of truth for the onboarding documents a talent signs, and for
+ * which record each one lives on. Consumed by the PDF generator (titles), the
+ * PDF job service (where the generated S3 key lands), the talent-facing "Mes
+ * documents" view, and the staff archive export.
  *
- * Keep the doc-type → Talent-column mapping here only: scattering it invites
- * the three consumers to drift (a renamed column fixed in one, missed in
- * another).
+ * Two records hold documents, and the difference is the thing to keep straight:
+ * the charte and the image-rights decision are once-per-account and live on
+ * `Talent`, while the règlement is signed once per school year and lives on the
+ * matching `Onboarding_Record` - signature, co-signature and rendered PDF
+ * together. A talent therefore has ONE image-rights document and one règlement
+ * per year they walked, which is why the reads here return lists rather than one
+ * row per document kind.
+ *
+ * Keep that mapping here only: scattering it invites the consumers to drift, and
+ * the last time it drifted the règlement kept resolving to a single per-talent
+ * artifact after it had become annual.
  */
 import type { Prisma, Talent } from '@prisma/client';
 import { prisma } from '$lib/server/db';
@@ -17,12 +25,28 @@ interface OnboardingDocumentDescriptor {
   /** French title — shared by the PDF header and the talent-facing list. */
   label: string;
   /**
-   * Talent column holding the S3 key of the generated PDF. Absent for the
-   * charte, which is a checkbox acceptance with no generated document.
+   * Which record carries this kind's signature and its rendered PDF.
+   *
+   * `account` — signed at most once per talent, so the columns live on `Talent`
+   * (the charte, the image-rights decision).
+   *
+   * `dossier` — signed once per school year, so both the signature and the
+   * render live on the matching `Onboarding_Record` (the règlement intérieur).
+   *
+   * Named rather than expressed as a column name, which is what the descriptor
+   * used to hold: a single `filePathField` string forced every kind onto a
+   * `Talent` column, and that is how the règlement kept pointing at one
+   * per-talent artifact after it became annual, so year two's render overwrote
+   * year one's. The two records spell these columns differently and a document
+   * kind now says which record to ask.
    */
-  filePathField?: 'rulesFilePath' | 'imageRightsFilePath';
-  /** Talent column timestamping the signature this document attests. */
-  signedAtField: 'charterAcceptedAt' | 'rulesSignedAt' | 'imageRightsDecidedAt';
+  scope: 'account' | 'dossier';
+  /**
+   * Talent column holding the S3 key of the generated PDF, for `account`-scoped
+   * kinds only. Absent for the charte, which is a checkbox acceptance with no
+   * generated document, and for the règlement, whose key is on the dossier.
+   */
+  filePathField?: 'imageRightsFilePath';
   /** Lowercase ASCII slug used as the first segment of the download filename. */
   downloadSlug: 'charter' | 'rules' | 'imagerights';
 }
@@ -33,48 +57,55 @@ export const ONBOARDING_DOCUMENTS: Record<
 > = {
   charter: {
     label: 'Charte Informatique et Éthique',
-    signedAtField: 'charterAcceptedAt',
+    scope: 'account',
     downloadSlug: 'charter',
   },
-  // Shared règlement intérieur PDF — single artifact carrying the student's
-  // signature block and (for minors) the legal guardian's co-signature block.
-  // The worker regenerates it whenever either signer commits, reading both
-  // signature columns from Talent so the file always reflects current state.
+  // Shared règlement intérieur PDF — one artifact per school year, carrying the
+  // student's signature block and (for minors) the legal guardian's co-signature
+  // block. The worker regenerates it whenever either signer commits, reading both
+  // signature columns from that year's dossier so the file always reflects the
+  // state of the year it belongs to.
   rules: {
     label: 'Règlement Intérieur',
-    filePathField: 'rulesFilePath',
-    signedAtField: 'rulesSignedAt',
+    scope: 'dossier',
     downloadSlug: 'rules',
   },
   // Neutral label: the same document type backs both an authorization and a
   // refusal. The PDF generator picks the decision-specific title and body.
   'image-rights': {
     label: "Droit à l'Image",
+    scope: 'account',
     filePathField: 'imageRightsFilePath',
-    signedAtField: 'imageRightsDecidedAt',
     downloadSlug: 'imagerights',
   },
 };
 
 /**
  * Build a human, unique download filename for a generated onboarding PDF:
- *   {slug}-{prenomnom}-{tag}.pdf
+ *   {slug}-{year}-{prenomnom}-{tag}.pdf
  *     slug      charter | rules | imagerights
+ *     year      school year of the dossier, for a per-year document only
  *     prenomnom lowercased, accent-stripped, alphanumerics only (concatenated)
  *     tag       Talent.externalId (Salesforce id) when set, else the first 8
  *               chars of the talent id, so homonyms' filenames stay distinct.
- * Pure ASCII, so it needs no RFC 5987 Content-Disposition encoding. The `who`
- * segment is dropped when a name slugifies to empty (fully non-Latin), leaving
- * a clean `{slug}-{tag}.pdf` rather than a stray double hyphen.
+ * Pure ASCII, so it needs no RFC 5987 Content-Disposition encoding. Any segment
+ * that resolves to empty is dropped (a name that slugifies away, a document with
+ * no year), leaving a clean join rather than a stray double hyphen.
+ *
+ * The year is what keeps a returning talent's two règlements apart: without it
+ * both land in a bulk export under one name, and a zip entry silently replaces
+ * the other.
  */
 export function onboardingDownloadFilename(
   type: OnboardingDocumentType,
   talent: Pick<Talent, 'prenom' | 'nom' | 'externalId' | 'id'>,
+  schoolYear?: string | null,
 ): string {
   const slug = ONBOARDING_DOCUMENTS[type].downloadSlug;
   const who = `${slugifyAscii(talent.prenom)}${slugifyAscii(talent.nom)}`;
   const tag = sanitizeTag(talent.externalId ?? talent.id.slice(0, 8));
-  return `${[slug, who, tag].filter(Boolean).join('-')}.pdf`;
+  const year = schoolYear ? sanitizeYear(schoolYear) : '';
+  return `${[slug, year, who, tag].filter(Boolean).join('-')}.pdf`;
 }
 
 function slugifyAscii(s: string): string {
@@ -89,14 +120,20 @@ function sanitizeTag(s: string): string {
   return s.replace(/[^a-zA-Z0-9]/g, '');
 }
 
+/** `2025-2026` kept readable, so the hyphen inside the year survives. */
+function sanitizeYear(s: string): string {
+  return s.replace(/[^0-9-]/g, '');
+}
+
 /**
  * A talent's "finished" onboarding documents are EITHER:
  *   - the image-rights PDF, once the legal guardian has decided either way
  *     (authorization OR refusal both produce a legal PDF worth archiving), OR
- *   - the règlement intérieur PDF, ONLY once it is co-signed by BOTH the talent
- *     (`rulesSignedAt`) AND the parent (`parentRulesSignedAt`). The règlement is
- *     a single artifact carrying both signature blocks, so the two-signature
- *     gate guards that one file: a talent-only-signed règlement never matches.
+ *   - a règlement intérieur PDF, one per school year, and ONLY once that year's
+ *     is co-signed by BOTH the talent (`rulesSignedAt`) AND the parent
+ *     (`parentRulesSignedAt`). Each year's règlement is a single artifact
+ *     carrying both signature blocks, so the two-signature gate guards that one
+ *     file: a talent-only-signed règlement never matches.
  * Each arm also requires the generated PDF to exist on the row (`*FilePath`).
  * Shared by the bulk-export endpoint and the page that gates its button so the
  * filter can never drift between the two.
@@ -109,14 +146,25 @@ const FINISHED_IMAGE_RIGHTS_WHERE: Prisma.TalentWhereInput = {
   imageRightsDecidedAt: { not: null },
   imageRightsFilePath: { not: null },
 };
-const FINISHED_RULES_WHERE: Prisma.TalentWhereInput = {
+
+/**
+ * A finished règlement is one DOSSIER, not one talent: a returning talent has a
+ * complete document per school year they walked, and each is its own signed
+ * artifact at its own key. Reading these three columns off the projection on
+ * `Talent` would answer for the most recent dossier only, so the day a talent
+ * reopens one their previous years' documents would vanish from the archive.
+ */
+const FINISHED_RULES_DOSSIER_WHERE: Prisma.Onboarding_RecordWhereInput = {
   rulesSignedAt: { not: null },
   parentRulesSignedAt: { not: null },
   rulesFilePath: { not: null },
 };
 
 const FINISHED_ONBOARDING_DOCS_WHERE: Prisma.TalentWhereInput = {
-  OR: [FINISHED_IMAGE_RIGHTS_WHERE, FINISHED_RULES_WHERE],
+  OR: [
+    FINISHED_IMAGE_RIGHTS_WHERE,
+    { onboardingRecords: { some: FINISHED_RULES_DOSSIER_WHERE } },
+  ],
 };
 
 /** Document kinds the bulk export can package (the charte has no PDF). */
@@ -145,23 +193,29 @@ function inRange(at: Date, { from, to }: DateRange): boolean {
   return true;
 }
 
-/** The Talent columns the "finished" projection reads. */
-type TalentFinishedFields = Pick<
-  Talent,
-  | 'imageRightsDecidedAt'
-  | 'imageRightsFilePath'
-  | 'rulesSignedAt'
-  | 'parentRulesSignedAt'
-  | 'rulesFilePath'
->;
-
+/**
+ * The Talent columns + dossier rows the "finished" projection reads. The
+ * dossiers are pre-filtered in SQL, so every row that comes back is a finished
+ * règlement and the projection below only has to date it.
+ */
 const FINISHED_FIELDS_SELECT = {
   imageRightsDecidedAt: true,
   imageRightsFilePath: true,
-  rulesSignedAt: true,
-  parentRulesSignedAt: true,
-  rulesFilePath: true,
+  onboardingRecords: {
+    where: FINISHED_RULES_DOSSIER_WHERE,
+    select: {
+      schoolYear: true,
+      rulesSignedAt: true,
+      parentRulesSignedAt: true,
+      rulesFilePath: true,
+    },
+    orderBy: { schoolYear: 'asc' },
+  },
 } satisfies Prisma.TalentSelect;
+
+type TalentFinishedFields = Prisma.TalentGetPayload<{
+  select: typeof FINISHED_FIELDS_SELECT;
+}>;
 
 /** One finished document with the instant it became legally complete. */
 export interface FinishedOnboardingDocTime {
@@ -172,29 +226,56 @@ export interface FinishedOnboardingDocTime {
    * guardian co-sign) for the règlement.
    */
   finishedAt: Date;
+  /**
+   * School year the document belongs to, for a `dossier`-scoped kind; null for
+   * an `account`-scoped one. What tells a returning talent's two règlements
+   * apart, in the archive and in their filename.
+   */
+  schoolYear: string | null;
+}
+
+/** A finished document with the storage key holding it. */
+interface FinishedOnboardingDocKey extends FinishedOnboardingDocTime {
+  key: string;
 }
 
 /**
- * Single source of truth for WHICH of a talent's onboarding docs are finished
- * and WHEN each completed. {@link FINISHED_ONBOARDING_DOCS_WHERE} is the coarse
- * SQL prefilter that fetches candidate rows; this is the exact per-document
- * projection (it also resolves the règlement's max-of-two-signatures instant,
- * which the SQL gate can't express). Keep the two in step.
+ * Single source of truth for WHICH of a talent's onboarding docs are finished,
+ * WHEN each completed and WHERE each is stored.
+ * {@link FINISHED_ONBOARDING_DOCS_WHERE} is the coarse SQL prefilter that
+ * fetches candidate rows; this is the exact per-document projection (it also
+ * resolves the règlement's max-of-two-signatures instant, which the SQL gate
+ * can't express). Keep the two in step.
+ *
+ * The key travels with the document rather than being looked up again by the
+ * caller: with one règlement per year there is no longer a single column a
+ * caller could re-derive it from, and the two non-null assertions that used to
+ * do it are gone with it.
  */
 function finishedOnboardingDocsOf(
   t: TalentFinishedFields,
-): FinishedOnboardingDocTime[] {
-  const out: FinishedOnboardingDocTime[] = [];
+): FinishedOnboardingDocKey[] {
+  const out: FinishedOnboardingDocKey[] = [];
   if (t.imageRightsDecidedAt && t.imageRightsFilePath) {
-    out.push({ type: 'image-rights', finishedAt: t.imageRightsDecidedAt });
+    out.push({
+      type: 'image-rights',
+      finishedAt: t.imageRightsDecidedAt,
+      schoolYear: null,
+      key: t.imageRightsFilePath,
+    });
   }
-  if (t.rulesSignedAt && t.parentRulesSignedAt && t.rulesFilePath) {
+  for (const d of t.onboardingRecords) {
+    // Non-null: `FINISHED_RULES_DOSSIER_WHERE` already required all three.
+    if (!d.rulesSignedAt || !d.parentRulesSignedAt || !d.rulesFilePath)
+      continue;
     out.push({
       type: 'rules',
       finishedAt:
-        t.parentRulesSignedAt > t.rulesSignedAt
-          ? t.parentRulesSignedAt
-          : t.rulesSignedAt,
+        d.parentRulesSignedAt > d.rulesSignedAt
+          ? d.parentRulesSignedAt
+          : d.rulesSignedAt,
+      schoolYear: d.schoolYear,
+      key: d.rulesFilePath,
     });
   }
   return out;
@@ -213,7 +294,15 @@ export async function loadFinishedOnboardingTimeline(): Promise<
     where: FINISHED_ONBOARDING_DOCS_WHERE,
     select: FINISHED_FIELDS_SELECT,
   });
-  return talents.flatMap(finishedOnboardingDocsOf);
+  // Storage keys are dropped here on purpose: this list is serialised to the
+  // admin page, which only counts documents per period and per type.
+  return talents
+    .flatMap(finishedOnboardingDocsOf)
+    .map(({ type, finishedAt, schoolYear }) => ({
+      type,
+      finishedAt,
+      schoolYear,
+    }));
 }
 
 /**
@@ -238,9 +327,7 @@ export async function recordOnboardingDocsExport(
   });
 }
 
-export interface FinishedOnboardingDoc extends FinishedOnboardingDocTime {
-  /** S3 key of the stored PDF. */
-  key: string;
+export interface FinishedOnboardingDoc extends FinishedOnboardingDocKey {
   /** Per-file download name, e.g. `imagerights-jeandupont-A12345.pdf`. */
   filename: string;
 }
@@ -275,14 +362,9 @@ export async function collectFinishedOnboardingDocs(filter?: {
     for (const doc of finishedOnboardingDocsOf(t)) {
       if (onlyType && doc.type !== onlyType) continue;
       if (range && !inRange(doc.finishedAt, range)) continue;
-      // Non-null: `finishedOnboardingDocsOf` only emits a kind once its file
-      // path column is set.
-      const key =
-        doc.type === 'image-rights' ? t.imageRightsFilePath! : t.rulesFilePath!;
       docs.push({
         ...doc,
-        key,
-        filename: onboardingDownloadFilename(doc.type, t),
+        filename: onboardingDownloadFilename(doc.type, t, doc.schoolYear),
       });
     }
   }
@@ -320,30 +402,149 @@ export function isOnboardingDocumentType(
   return Object.hasOwn(ONBOARDING_DOCUMENTS, type);
 }
 
-/**
- * Projects one viewable document's state for the talent, reading the columns
- * named by its descriptor. `signedAt === null` ⇒ never signed (hide it);
- * `ready === false` ⇒ signed but the background PDF job hasn't landed the file
- * yet.
- */
-export function projectTalentDocument(
-  // Accepts the session talent (`locals.talent`); reads only the document
-  // signed-at / file-path fields.
-  talent: Talent,
-  type: TalentViewableDocumentType,
-): {
+/** One row of the talent's own "Mes documents" list. */
+export interface TalentDocumentEntry {
   type: TalentViewableDocumentType;
   label: string;
-  signedAt: Date | null;
+  /** Present for a per-year document, null for a once-per-account one. */
+  schoolYear: string | null;
+  signedAt: Date;
+  /** Whether the rendered PDF has landed in storage. */
   ready: boolean;
-} {
-  const descriptor = ONBOARDING_DOCUMENTS[type];
-  return {
-    type,
-    label: descriptor.label,
-    signedAt: talent[descriptor.signedAtField],
-    ready: descriptor.filePathField
-      ? talent[descriptor.filePathField] !== null
-      : false,
-  };
+  /** Guardian who decided an `image-rights` document, which they alone sign. */
+  signerName: string | null;
+  /**
+   * Guardian who co-signed a `rules` document on top of the talent's own
+   * signature (both signature events live on that year's single shared PDF).
+   * Read from the dossier, so an older document shows the guardian who signed
+   * THAT year rather than whoever signed most recently.
+   */
+  coSigner: { name: string; signedAt: Date } | null;
+}
+
+/** `Prenom Nom`, or whichever half exists, or null. */
+function signerFullName(
+  prenom: string | null,
+  nom: string | null,
+): string | null {
+  if (prenom && nom) return `${prenom} ${nom}`;
+  return nom ?? prenom;
+}
+
+/**
+ * The documents a talent has actually signed, newest first, one entry per
+ * artifact: their image-rights decision, plus one règlement per school year they
+ * completed.
+ *
+ * A list rather than one entry per document *type*, which is what this used to
+ * return: a per-year kind cannot be projected into a single row, and collapsing
+ * it to the most recent dossier is what made a returning talent's previous
+ * règlement disappear from their own settings page the moment they reopened a
+ * dossier. Unsigned documents are absent rather than listed as unavailable; the
+ * caller still decides what to do with a signed one whose render is missing.
+ */
+export async function listTalentDocuments(
+  talentId: string,
+): Promise<TalentDocumentEntry[]> {
+  const talent = await prisma.talent.findUnique({
+    where: { id: talentId },
+    select: {
+      imageRightsDecidedAt: true,
+      imageRightsFilePath: true,
+      imageRightsSignerPrenom: true,
+      imageRightsSignerNom: true,
+      onboardingRecords: {
+        where: { rulesSignedAt: { not: null } },
+        select: {
+          schoolYear: true,
+          rulesSignedAt: true,
+          rulesFilePath: true,
+          parentRulesSignedAt: true,
+          parentRulesSignerPrenom: true,
+          parentRulesSignerNom: true,
+        },
+      },
+    },
+  });
+  if (!talent) return [];
+
+  const entries: TalentDocumentEntry[] = [];
+  if (talent.imageRightsDecidedAt) {
+    entries.push({
+      type: 'image-rights',
+      label: ONBOARDING_DOCUMENTS['image-rights'].label,
+      schoolYear: null,
+      signedAt: talent.imageRightsDecidedAt,
+      ready: talent.imageRightsFilePath !== null,
+      signerName: signerFullName(
+        talent.imageRightsSignerPrenom,
+        talent.imageRightsSignerNom,
+      ),
+      coSigner: null,
+    });
+  }
+  for (const d of talent.onboardingRecords) {
+    if (!d.rulesSignedAt) continue;
+    const coSignerName = signerFullName(
+      d.parentRulesSignerPrenom,
+      d.parentRulesSignerNom,
+    );
+    entries.push({
+      type: 'rules',
+      label: ONBOARDING_DOCUMENTS.rules.label,
+      schoolYear: d.schoolYear,
+      signedAt: d.rulesSignedAt,
+      ready: d.rulesFilePath !== null,
+      signerName: null,
+      coSigner:
+        d.parentRulesSignedAt && coSignerName
+          ? { name: coSignerName, signedAt: d.parentRulesSignedAt }
+          : null,
+    });
+  }
+  return entries.sort((a, b) => b.signedAt.getTime() - a.signedAt.getTime());
+}
+
+/**
+ * Resolves the storage key of one document a talent may download, or null when
+ * there is nothing to serve.
+ *
+ * The contract is to serve a *signed* document, so both the signature and the
+ * rendered file are required. Gating on the file alone would keep handing back a
+ * stale PDF after a signature is voided (an admin onboarding reset deletes the
+ * dossier), serving a document the rest of the app already treats as unsigned.
+ *
+ * `schoolYear` selects which dossier for a per-year document; omitted, it
+ * resolves to the talent's most recently signed one, so a plain link keeps
+ * working. It is never used to reach another talent's row: the lookup is scoped
+ * by `talentId` first.
+ */
+export async function resolveTalentDocumentKey(
+  talentId: string,
+  type: TalentViewableDocumentType,
+  schoolYear?: string | null,
+): Promise<{ key: string; schoolYear: string | null } | null> {
+  if (ONBOARDING_DOCUMENTS[type].scope === 'account') {
+    const talent = await prisma.talent.findUnique({
+      where: { id: talentId },
+      select: { imageRightsDecidedAt: true, imageRightsFilePath: true },
+    });
+    if (!talent?.imageRightsDecidedAt || !talent.imageRightsFilePath) {
+      return null;
+    }
+    return { key: talent.imageRightsFilePath, schoolYear: null };
+  }
+
+  const dossier = await prisma.onboarding_Record.findFirst({
+    where: {
+      talentId,
+      rulesSignedAt: { not: null },
+      rulesFilePath: { not: null },
+      ...(schoolYear ? { schoolYear } : {}),
+    },
+    orderBy: { rulesSignedAt: 'desc' },
+    select: { schoolYear: true, rulesFilePath: true },
+  });
+  if (!dossier?.rulesFilePath) return null;
+  return { key: dossier.rulesFilePath, schoolYear: dossier.schoolYear };
 }

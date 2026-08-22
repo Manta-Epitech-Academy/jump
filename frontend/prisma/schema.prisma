@@ -343,6 +343,12 @@ model Talent {
   // Free-text fallback used only when the talent's lycée has no UAI (so no
   // canonical `School` row exists). When `schoolId` is set this stays null.
   highSchoolNameManual        String?
+  /// RETIRED, dropped in a follow-up migration. The règlement render moved to
+  /// `Onboarding_Record.rulesFilePath`: the document is signed once per school
+  /// year, so one key per talent meant the second year's PDF overwrote the
+  /// first, destroying a co-signed document nothing could rebuild. Kept one
+  /// release so a rolling deploy does not break pods still running the previous
+  /// build. Read nothing from it; `onboardingDocuments` resolves the dossier.
   rulesFilePath               String?
   imageRightsFilePath         String?
   parentEmail                 String?
@@ -467,12 +473,15 @@ model Schooling_YearRecord {
 ///     not a yearly contract, and it is owed even to a talent who never walks the
 ///     ladder (hence the standalone `/charte`). Filing it per year would also make
 ///     it a yearly gate for collégiens, who have no dossier at all.
-///   - `Talent.rulesFilePath` - a render, not a fact. `rulesSignedAt` +
-///     `rulesSignedCity` + `reglementVersion` freeze the signature, and the
-///     règlement text is version-pinned, so any year's PDF is reproducible from
-///     this row. The bucket only ever holds the current artifact.
 ///   - `Talent.setupDescription` - current truth about the student's kit, read by
 ///     the staff fiche like `phone` or `nom`. Only its gate is per-year.
+///
+/// The rendered PDF, by contrast, IS here (`rulesFilePath`). It used to sit on
+/// `Talent` as "a render, not a fact", which held only while a talent signed
+/// once: with an annual signature, one key per talent meant year two's render
+/// overwrote year one's co-signed document, and nothing could rebuild it (the
+/// worker reads a dossier, and only this row says which). The signature and the
+/// artifact attesting it now live together.
 model Onboarding_Record {
   id         String @id @default(cuid())
   talentId   String
@@ -491,6 +500,14 @@ model Onboarding_Record {
   equipmentValidatedAt        DateTime?
   processingCompletedAt       DateTime?
   rulesSignedAt               DateTime?
+
+  // The S3 key of this year's rendered règlement PDF, the artifact the two
+  // signatures below sit on. Per dossier, not per talent: the key carries the
+  // school year, so signing a new year's règlement adds a document instead of
+  // overwriting the one a guardian already co-signed. Null until the background
+  // job lands, and nulled again by a co-signature (the worker rewrites it with
+  // both blocks).
+  rulesFilePath           String?
 
   // What freezes this year's règlement signatures - the talent's and, for a
   // minor, the legal guardian's co-signature of the same document.
@@ -1408,9 +1425,18 @@ model CmsImage {
 /// so the signer isn't blocked. No auto-retry: a failed job stays in "error"
 /// with the captured message, re-runnable from /staff/admin/onboarding-pdfs.
 model OnboardingPdfJob {
-  id           String    @id @default(cuid())
+  id           String @id @default(cuid())
   talentId     String
   documentType String // "charter" | "rules" | "image-rights"
+  /// Which `Onboarding_Record` a `rules` job renders, in the canonical
+  /// `YYYY-YYYY` format. Carried on the job rather than resolved when it runs:
+  /// a job can sit queued behind the browser pool, and a retry from
+  /// /staff/admin/onboarding-pdfs can fire days later, by which point "the
+  /// talent's current dossier" may be a different year than the signature that
+  /// asked for this render. Null for `image-rights`, which is not annual, and on
+  /// jobs enqueued before the column existed (those fall back to the talent's
+  /// most recent dossier).
+  schoolYear   String?
   status       String    @default("pending") // "pending" | "processing" | "success" | "error"
   filePath     String? // S3 key, set on success
   errorMessage String? // captured on failure

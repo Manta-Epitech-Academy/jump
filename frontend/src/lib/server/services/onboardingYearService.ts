@@ -22,13 +22,21 @@ import {
 } from '$lib/domain/talentOnboarding';
 
 /**
- * The dossier fields a step may set. Derived from the Prisma model through
- * {@link ONBOARDING_PROJECTED_FIELDS}, so a column that exists on one side and
- * not the other is a type error here rather than a field that silently stops
- * being written or projected.
+ * The dossier fields a signature act may set: every projected field, derived
+ * from the Prisma model through {@link ONBOARDING_PROJECTED_FIELDS} so a column
+ * that exists on one side and not the other is a type error here rather than a
+ * field that silently stops being written or projected.
+ *
+ * Plus `rulesFilePath`, the one dossier column that is deliberately not
+ * projected onto `Talent` (it is a render, and the talent row no longer carries
+ * one). It is in the patch because voiding the current render is part of a
+ * signature act: a guardian co-signing invalidates the single-signer PDF in the
+ * same transaction that records their signature. The write-back of the new key
+ * is NOT a signature act and does not come through here - `onboardingPdfJobService`
+ * updates the row directly, so a background render never touches the projection.
  */
 export type OnboardingRecordPatch = Partial<
-  Pick<Onboarding_Record, OnboardingProjectedField>
+  Pick<Onboarding_Record, OnboardingProjectedField | 'rulesFilePath'>
 >;
 
 export interface UpsertOnboardingYearRecordInput {

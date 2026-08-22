@@ -190,8 +190,15 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         userId: true,
         parentEmail: true,
         parent2Email: true,
-        rulesFilePath: true,
         imageRightsFilePath: true,
+        // RETIRED, read for one release only (see anonymizationService): it may
+        // still hold the pre-annual key of a document since regenerated under a
+        // year-keyed one, which no dossier row points at any more.
+        rulesFilePath: true,
+        // Every year's règlement render: step 1 deletes the dossier rows that
+        // hold these keys, so one missed here is a PDF left in the bucket that
+        // nothing references and no later reset can find.
+        onboardingRecords: { select: { rulesFilePath: true } },
         // The worker's source for the seed columns. When present, re-seeding the
         // Talent from it reproduces a fresh worker `talent.create`. It is present
         // for every SF talent (the worker creates it atomically with the row and
@@ -223,9 +230,14 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
       (e): e is string => !!e,
     );
     const documentKeys = [
-      talent.rulesFilePath,
-      talent.imageRightsFilePath,
-    ].filter((k): k is string => !!k);
+      ...new Set(
+        [
+          talent.imageRightsFilePath,
+          talent.rulesFilePath,
+          ...talent.onboardingRecords.map((d) => d.rulesFilePath),
+        ].filter((k): k is string => !!k),
+      ),
+    ];
 
     // 1. Delete every talent-scoped record created after import.
     //    Broadcast recipients are matched on both the talent and parent-of

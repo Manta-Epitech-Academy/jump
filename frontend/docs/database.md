@@ -275,6 +275,7 @@ erDiagram
     DateTime equipmentValidatedAt
     DateTime processingCompletedAt
     DateTime rulesSignedAt
+    String rulesFilePath
     String rulesSignedCity
     String reglementVersion
     DateTime parentRulesSignedAt
@@ -744,6 +745,7 @@ erDiagram
     String id PK
     String talentId FK
     String documentType
+    String schoolYear
     String status
     String filePath
     String errorMessage

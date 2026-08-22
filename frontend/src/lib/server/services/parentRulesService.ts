@@ -15,9 +15,9 @@ import {
  * field, only the timestamp + signer details.
  *
  * The règlement PDF is a *shared* artifact carrying both the student's and the
- * guardian's signature blocks; the worker reads the current signature columns
- * from the talent row and renders whichever blocks exist. Clearing
- * `rulesFilePath` here drops the stale single-signer PDF while the worker
+ * guardian's signature blocks; the worker reads the signature columns from the
+ * dossier being signed and renders whichever blocks exist. Clearing that
+ * dossier's `rulesFilePath` drops the stale single-signer PDF while the worker
  * regenerates the dual-signed version. Fire-and-forget generation, mirroring
  * the rest of the onboarding PDF pipeline: the caller's response isn't blocked
  * on Puppeteer/S3.
@@ -73,24 +73,23 @@ export async function recordParentRulesSignature(args: {
         parentRulesSignerNom: args.signerNom,
         parentRulesRelationship: args.relationship,
         parentRulesSignedCity: args.city,
+        // Drop this year's prior single-signer PDF: the worker rewrites the same
+        // key with both signature blocks. Nulled on the dossier, so the document
+        // of a PREVIOUS year keeps its own render - it is a different artifact at
+        // a different key, and this co-signature says nothing about it.
+        rulesFilePath: null,
         ...(dossier?.reglementVersion == null
           ? { reglementVersion: args.reglementVersion }
           : {}),
       },
     });
 
-    await tx.talent.update({
-      where: { id: args.talentId },
-      data: {
-        // Drop the prior single-signer PDF: the worker will rewrite the same
-        // S3 key with both signatures. A render, not a dossier fact, so it
-        // stays flat on the talent row.
-        rulesFilePath: null,
-      },
-    });
     return enqueueOnboardingPdfJob(tx, {
       talentId: args.talentId,
       documentType: 'rules',
+      // The dossier co-signed just above, never "the current one": a guardian
+      // signing after the cutover legitimately writes to last year's dossier.
+      schoolYear,
       payload: {
         studentName: args.studentName,
         signedAt: now.toISOString(),
