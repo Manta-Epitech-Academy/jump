@@ -14,6 +14,12 @@ import type { Prisma } from '@prisma/client';
  * These are bare `WhereInput` objects, not factories. Callers spread them into
  * their own where (or compose with `AND`/`OR`) so they stay scoped to whatever
  * campus/event the surrounding query already constrains.
+ *
+ * SQL twins of `isParentDossierComplete` (`domain/dossierCompliance.ts`), same
+ * pairing as `onboardingEligibleWhere` ↔ `isOnboardingEligible`: both read the
+ * same two columns, unnarrowed by school year, so a filter and the badge it
+ * filters on cannot disagree. If one side ever has to become year-aware, the
+ * other moves with it or the admin directory starts hiding the rows it displays.
  */
 export const parentBlockedWhere: Prisma.TalentWhereInput = {
   OR: [{ parentRulesSignedAt: null }, { imageRightsDecidedAt: null }],

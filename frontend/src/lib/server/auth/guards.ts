@@ -10,6 +10,7 @@ import {
 } from '$lib/domain/talentOnboarding';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import { isOnboardingEligible } from '$lib/domain/niveau';
+import { parentBlockedWhere } from '$lib/server/db/dossierCompliance';
 import {
   loginUrlWithRedirect,
   onboardingFunnelUrl,
@@ -278,10 +279,15 @@ export async function applyRouteGuards(
     // steps themselves and skip whatever is already done. Once nothing is
     // pending they land on /parent/merci (no dashboard in this release).
     if (event.locals.user?.role === 'parent' && !isParentPublic) {
+      // Through the shared fragment rather than an inlined `OR`: this guard is
+      // what decides whether a guardian is asked for anything, so the admin
+      // directory's "parent en attente" chip and the relance audience have to
+      // mean exactly what it means. Three hand-written copies of the rule is how
+      // they drifted.
       const pendingCount = await prisma.talent.count({
         where: {
           parentEmail: event.locals.user.email,
-          OR: [{ parentRulesSignedAt: null }, { imageRightsDecidedAt: null }],
+          ...parentBlockedWhere,
         },
       });
 

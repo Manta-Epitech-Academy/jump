@@ -1,4 +1,4 @@
-import type { ImageRightsStatus } from './imageRights';
+import { isImageRightsDecided, type ImageRightsStatus } from './imageRights';
 import { isOnboardingEligible } from './niveau';
 
 /**
@@ -31,6 +31,29 @@ export function isRulesCompliant(
   parentRulesSignedAt: Date | string | null | undefined,
 ): boolean {
   return parentRulesSignedAt != null;
+}
+
+/**
+ * Whether a legal guardian owes nothing further: they co-signed the règlement
+ * AND settled the image-rights decision (a refusal settles it). The two acts of
+ * the parent flow, so this is exactly "will this parent be asked for something
+ * when they next log in", inverted.
+ *
+ * **Read the talent's own columns, never a year-narrowed view of them.** The
+ * flat columns hold the most recent dossier, and this question is not about a
+ * year: the parent flow (`applyRouteGuards`) and the relance audience both ask
+ * it unscoped, so narrowing it on one surface makes that surface promise a chase
+ * nobody is running. A guardian is re-asked when their child reopens a dossier,
+ * and that is already visible here, because reopening one moves the projection.
+ *
+ * `db/dossierCompliance.ts` holds the SQL twins of this predicate and reads the
+ * same two fields, so a filter and a badge cannot disagree.
+ */
+export function isParentDossierComplete(t: {
+  parentRulesSignedAt: Date | string | null | undefined;
+  imageRightsDecidedAt: Date | string | null;
+}): boolean {
+  return isRulesCompliant(t.parentRulesSignedAt) && isImageRightsDecided(t);
 }
 
 /** The three display states a règlement intérieur signature can be in. */

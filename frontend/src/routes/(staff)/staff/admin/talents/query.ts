@@ -18,6 +18,7 @@ import {
   onboardingNotApplicableWhere,
 } from '$lib/server/db/onboardingEligibility';
 import { isOnboardingEligible } from '$lib/domain/niveau';
+import { isParentDossierComplete } from '$lib/domain/dossierCompliance';
 import type { TalentAccountStatus, ParentCompletionStatus } from './labels';
 
 /**
@@ -324,15 +325,20 @@ function onboardingStepLabel(t: OnboardingStepFields): string | null {
  * read the exact same verdict.
  */
 export function projectTalentRow(row: TalentRow) {
-  // Read the dossier of the year in progress: the flat columns hold the most
-  // recent one, and a talent returning after the summer carries last year's, so
-  // without this the directory would call them onboardé while the guards send
-  // them straight back through the wizard. Covers the parent chip too - the
-  // guardian re-co-signs each year's règlement.
-  const { charterAcceptedAt, participations, ...rest } =
-    onboardingFieldsForYear(row, currentSchoolYearLabel());
-  const t = rest;
-  const status = onboardingStatus({ ...t, charterAcceptedAt });
+  // Two readings of one row, kept as two named values rather than one narrowed
+  // row, because a single blanket transform silently converts every read below
+  // into a year question and only some of them are (see `DatedOnboardingFields`).
+  //
+  // `dossier` is the ladder, which IS a year question: the flat columns hold the
+  // most recent dossier, so a talent returning after the summer carries last
+  // year's, and unnarrowed the directory would call them onboardé while the
+  // guards send them straight back through the wizard.
+  //
+  // `t` is the row as it stands, for everything that asks "ever / most recent" -
+  // the guardian's outstanding acts below, and the identity and activity columns.
+  const { participations, ...t } = row;
+  const dossier = onboardingFieldsForYear(row, currentSchoolYearLabel());
+  const status = onboardingStatus(dossier);
   // Both guardians in priority order; drop any with no identity or contact at
   // all so the contact dialog only ever lists reachable responsables.
   const guardians = [
@@ -352,10 +358,15 @@ export function projectTalentRow(row: TalentRow) {
     },
   ].filter((g) => g.prenom || g.nom || g.email || g.phone);
   // Parent status, gated on a parentEmail (the relance contact). null = no
-  // parent to chase. Mirror of the parentStatus where-filter above.
+  // parent to chase. Mirror of the parentStatus where-filter above, through the
+  // predicate those fragments are the SQL twins of - and on `t`, not `dossier`:
+  // what a guardian still owes is not a question about a school year, and
+  // narrowing it here is what made this chip read "En attente" for every talent
+  // whose dossier predates the cutover while the filter and the KPI tile above
+  // counted them complete.
   const parentStatus: ParentCompletionStatus | null = !t.parentEmail
     ? null
-    : t.parentRulesSignedAt && t.imageRightsDecidedAt
+    : isParentDossierComplete(t)
       ? 'complete'
       : 'pending';
   return {
@@ -380,8 +391,9 @@ export function projectTalentRow(row: TalentRow) {
     campus: participations[0]?.campus?.name ?? null,
     status,
     // Only meaningful mid-journey: shown next to the "Onboarding" badge so the
-    // admin sees where impersonation will drop them.
-    onboardingStep: status === 'pending' ? onboardingStepLabel(t) : null,
+    // admin sees where impersonation will drop them, so it reads the year's
+    // dossier like the badge it annotates.
+    onboardingStep: status === 'pending' ? onboardingStepLabel(dossier) : null,
     guardians,
     parentStatus,
   };
