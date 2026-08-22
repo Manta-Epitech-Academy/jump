@@ -171,6 +171,42 @@ export function onboardingCompleteWhere(scope: Scope): Prisma.TalentWhereInput {
   };
 }
 
+/**
+ * The same population counted as DOSSIERS rather than as talents: one row per
+ * finished parcours, for the cohort the scope selects.
+ *
+ * {@link onboardingCompleteWhere} answers "how many talents finished", which is
+ * a headcount and rightly collapses a returning talent to one. An aggregate that
+ * needs each completion's own **date** cannot use it: the date would come from
+ * the projection while the completion came from a dossier row, so a talent who
+ * finished twice would be counted under one year with the other year's date.
+ * Here the two travel together on one row.
+ *
+ * No projection branch, deliberately. Unlike a headcount, a dated series is
+ * wrong on the projection at *every* scope, not only a scoped one: unfiltered, a
+ * window spanning the 31 July cutover simply loses the earlier completion, since
+ * the projection only ever holds the latest.
+ *
+ * `charterAcceptedAt` stays a condition on the talent, not on the row, for the
+ * same reason as above: once per account, never re-asked.
+ */
+export async function completedDossierWhere(
+  scope: Scope,
+): Promise<Prisma.Onboarding_RecordWhereInput> {
+  const schoolYear = dossierSchoolYear(scope);
+  return {
+    ...COMPLETE_GATES,
+    ...(schoolYear ? { schoolYear } : {}),
+    talent: {
+      AND: [
+        await cohortWhere(scope),
+        onboardingEligibleWhere,
+        { charterAcceptedAt: { not: null } },
+      ],
+    },
+  };
+}
+
 /** How a scope prints back in an answer's `filters` block. */
 export function scopeLabels(scope: Scope) {
   return {
