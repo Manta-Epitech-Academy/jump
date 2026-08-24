@@ -54,6 +54,7 @@ export type CohortProfile = {
   onboardingCompleted: Metric;
   onboardingCompletedShare: Metric<number | null>;
   onboardingNotApplicable: Metric;
+  onboardingNotApplicableShare: Metric<number | null>;
   connected: Metric;
   connectedShare: Metric<number | null>;
 };
@@ -164,7 +165,11 @@ export async function getCohortProfile(
     ),
     onboardingNotApplicable: metric(
       cohort - eligible,
-      "Talents du périmètre sans dossier d'inscription : les collégiens, qui accèdent à Jump sans parcours d'inscription. Ils sont comptés dans la cohorte mais exclus du dénominateur du taux ci-dessus ; leur part de la cohorte se lit sur la ligne « collégien » de la répartition par niveau.",
+      "Talents du périmètre sans dossier d'inscription : les collégiens, qui accèdent à Jump sans parcours d'inscription. Ils sont comptés dans la cohorte mais exclus du dénominateur du taux ci-dessus.",
+    ),
+    onboardingNotApplicableShare: metric(
+      share(cohort - eligible, cohort),
+      "Part de la cohorte du périmètre non concernée par le parcours d'inscription, en pourcentage. Vaut null si la cohorte est vide.",
     ),
     connected: metric(
       connected,
