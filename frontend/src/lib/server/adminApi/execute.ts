@@ -46,6 +46,8 @@ export async function executeOperation(input: {
   credential: AdminApiCredential;
   /** Validated against `input.operation.schema` by the caller. */
   params: AdminApiCallParams;
+  /** Origin of the request being answered, for an answer that links back to it. */
+  origin: string;
 }): Promise<OperationOutcome> {
   const { name, operation, credential, params } = input;
   const { caller } = credential;
@@ -65,6 +67,7 @@ export async function executeOperation(input: {
     const data = await operation.run(params, {
       tier: caller.tier,
       actorUserId: caller.actorUserId,
+      origin: input.origin,
     });
     await recordAdminApiCall({
       caller,

@@ -169,7 +169,11 @@ function toolContent(
   ];
 }
 
-export function buildAdminMcpServer(credential: AdminApiCredential): McpServer {
+export function buildAdminMcpServer(
+  credential: AdminApiCredential,
+  /** Origin of the JSON-RPC request, so an answer can link back to this instance. */
+  origin: string,
+): McpServer {
   const { caller, writeEnabled } = credential;
 
   const server = new McpServer(
@@ -196,6 +200,7 @@ export function buildAdminMcpServer(credential: AdminApiCredential): McpServer {
           operation,
           credential,
           params: args,
+          origin,
         });
         // Text content, not structured output: every figure already travels
         // with its French definition inside the payload, and that is what we

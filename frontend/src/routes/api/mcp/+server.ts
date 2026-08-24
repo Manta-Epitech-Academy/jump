@@ -116,7 +116,7 @@ const handle: RequestHandler = async (event) => {
 
   await auditUnreachedToolCall(body, credential);
 
-  const server = buildAdminMcpServer(credential);
+  const server = buildAdminMcpServer(credential, event.url.origin);
   const transport = new StreamableHTTPTransport({
     sessionIdGenerator: undefined,
   });

@@ -224,7 +224,10 @@ describe('certificate authoring (integration)', () => {
     // one; a terminal MCP client gets a URL it can hand over. Without the second,
     // a model left holding only the design answers "what does it look like" by
     // describing it, which is the one thing this tier exists to prevent.
-    const preview = await getDiplomaTemplatePreview({ code: 'stage' });
+    const preview = await getDiplomaTemplatePreview({
+      code: 'stage',
+      origin: 'https://jump.example',
+    });
 
     expect(preview.image.mimeType).toBe('image/png');
     const bytes = Buffer.from(preview.image.base64, 'base64');
@@ -234,8 +237,11 @@ describe('certificate authoring (integration)', () => {
     // Small enough to travel in a chat message.
     expect(preview.image.base64.length).toBeLessThan(400_000);
 
-    expect(preview.url).toContain(
-      '/api/admin/config/diploma-template-preview?code=stage',
+    // Built from the request that arrived, not from env.ORIGIN: a static origin
+    // hands out links to whichever instance config names, which is how the
+    // instance on one port started answering with another port's URLs.
+    expect(preview.url).toBe(
+      'https://jump.example/api/admin/config/diploma-template-preview?code=stage',
     );
 
     // A finished sentence carrying the link, not facts to compose one from. A
@@ -251,7 +257,10 @@ describe('certificate authoring (integration)', () => {
 
   it('refuses a preview of a certificate that does not exist, naming the real ones', async () => {
     await expect(
-      getDiplomaTemplatePreview({ code: 'nope-not-a-certificate' }),
+      getDiplomaTemplatePreview({
+        code: 'nope-not-a-certificate',
+        origin: 'https://jump.example',
+      }),
     ).rejects.toThrow(/stage/);
   });
 

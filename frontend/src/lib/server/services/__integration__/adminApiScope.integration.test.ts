@@ -101,7 +101,11 @@ async function refusalOf(
 ): Promise<Error | null> {
   const params = operation.schema.parse({ ...requiredArgsFor(name), ...scope });
   try {
-    await operation.run(params, { tier: 'core', actorUserId: 'test' });
+    await operation.run(params, {
+      tier: 'core',
+      actorUserId: 'test',
+      origin: 'http://localhost',
+    });
     return null;
   } catch (err) {
     return err as Error;

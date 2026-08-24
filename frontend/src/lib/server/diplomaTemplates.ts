@@ -1,6 +1,5 @@
 import { prisma } from '$lib/server/db';
 import type { Prisma } from '@prisma/client';
-import { env } from '$env/dynamic/private';
 import { base } from '$app/paths';
 import { renderCertificatePreviewPng } from '$lib/server/services/diplomaGenerator';
 import { UnknownScopeError } from '$lib/server/adminApi/scope';
@@ -107,6 +106,14 @@ export function listDiplomaTemplates(): Promise<DiplomaTemplateIdentity[]> {
  */
 export async function getDiplomaTemplatePreview(params: {
   code: string;
+  /**
+   * Origin of the request being answered, so the link points at the instance that
+   * produced it. From the request rather than `env.ORIGIN`, because a static
+   * origin sends the caller wherever config says: two dev servers on two ports is
+   * enough to hand out :5173 links from the instance on :3030, which is exactly
+   * what happened.
+   */
+  origin: string;
 }): Promise<{
   code: string;
   label: string;
@@ -133,7 +140,7 @@ export async function getDiplomaTemplatePreview(params: {
   const { png, widthPx, heightPx } =
     await renderCertificatePreviewPng(template);
 
-  const url = `${env.ORIGIN ?? ''}${base}/api/admin/config/diploma-template-preview?code=${encodeURIComponent(template.code)}`;
+  const url = `${params.origin}${base}/api/admin/config/diploma-template-preview?code=${encodeURIComponent(template.code)}`;
 
   return {
     code: template.code,

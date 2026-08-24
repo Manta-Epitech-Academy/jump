@@ -212,6 +212,16 @@ export type AdminApiTier = AdminApi_TokenTier;
 export type OperationContext = {
   tier: AdminApiTier;
   actorUserId: string;
+  /**
+   * Origin of the request being answered, for an answer that has to link back to
+   * this instance (the certificate preview does).
+   *
+   * From the request, never from `env.ORIGIN`: a self-referencing link built from
+   * config points wherever config says regardless of which instance replied. Two
+   * dev servers on two ports is enough to break it, and it broke exactly that way
+   * once, handing out :5173 links from the instance on :3030.
+   */
+  origin: string;
 };
 
 /**
@@ -399,7 +409,8 @@ export const ADMIN_API_OPERATIONS = {
         .min(1)
         .describe('Certificate code, from config_diploma_templates.'),
     },
-    run: (params) => getDiplomaTemplatePreview(params),
+    run: (params, ctx) =>
+      getDiplomaTemplatePreview({ ...params, origin: ctx.origin }),
   }),
 
   config_feedback_forms: defineOperation({

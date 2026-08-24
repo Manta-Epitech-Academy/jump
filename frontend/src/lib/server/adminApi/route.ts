@@ -99,6 +99,7 @@ function handlerFor(
       operation,
       credential: auth,
       params: parsed.data,
+      origin: event.url.origin,
     });
     return outcome.ok
       ? encode(outcome.data)

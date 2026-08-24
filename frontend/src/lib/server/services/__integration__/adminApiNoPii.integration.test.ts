@@ -224,6 +224,7 @@ describe('no read operation leaks a talent identity (integration)', () => {
       const answer = await operation.run(args as Record<string, unknown>, {
         tier: 'core',
         actorUserId: 'test',
+        origin: 'http://localhost',
       });
       const serialized = JSON.stringify(answer);
 
@@ -272,7 +273,7 @@ describe('no read operation leaks a talent identity (integration)', () => {
   it('returns a self-naming testimonial whole, the one documented exception', async () => {
     const answer = (await ADMIN_API_OPERATIONS.stats_interview_testimonials.run(
       {},
-      { tier: 'leadership', actorUserId: 'test' },
+      { tier: 'leadership', actorUserId: 'test', origin: 'http://localhost' },
     )) as { testimonials: { value: { quote: string }[] } };
 
     expect(answer.testimonials.value.map((row) => row.quote)).toContain(
