@@ -115,3 +115,79 @@ export function variation(
       : `Évolution de cette figure par rapport à ${comparedTo} : « previous » est sa valeur sur ${comparedTo} et « absolute » l'écart exprimé en points sur la même échelle que la figure. « relative » vaut toujours null ici : l'évolution relative d'un taux ou d'une moyenne se lit de travers (passer de 20 % à 30 % est un écart de 10 points, pas une hausse de 50 %). Ce que la figure mesure est dit dans sa propre définition, à côté de sa valeur.`,
   };
 }
+
+/**
+ * One row of a ranking: whatever identifies it, its value, and its position.
+ *
+ * `rank` is null exactly when `value` is: a row the figure cannot be computed for
+ * has no position in the ordering, and giving it the last rank would read as
+ * "worst" instead of "unknown". Equal values share a rank, so a tie never looks
+ * like an ordering.
+ */
+export type Ranked<Row> = Row & { rank: number | null };
+
+/**
+ * Sorts descending and stamps positions, so the consumer never orders anything.
+ *
+ * The same rule as {@link share} and {@link variation}, applied to ordering. "Quels
+ * sont nos meilleurs campus" is one question, so a consumer handed an unordered
+ * set will sort it - and pick its own handling of the rows it cannot measure,
+ * which is where a ranking starts lying. A campus with no measurable value placed
+ * last reads as the worst one.
+ *
+ * Here rather than in the one aggregate that needed it first: five other lists in
+ * this tier come back sorted with no position at all (`topSchools`,
+ * `byDepartement`, `byAcademie`, the churn lists, the interest breakdowns), which
+ * is how a convention that exists in exactly one file gets re-derived or skipped.
+ *
+ * `labelOf` is the tie-break, so the same data always comes back in the same
+ * order: a ranking that reshuffles between two identical calls reads as a change.
+ */
+export function rank<Row extends { value: number | null }>(
+  rows: Row[],
+  labelOf: (row: Row) => string,
+): Ranked<Row>[] {
+  const sorted = [...rows].sort((a, b) => {
+    if (a.value === null || b.value === null) {
+      if (a.value === b.value)
+        return labelOf(a).localeCompare(labelOf(b), 'fr');
+      return a.value === null ? 1 : -1;
+    }
+    return b.value - a.value || labelOf(a).localeCompare(labelOf(b), 'fr');
+  });
+
+  let lastValue: number | null = null;
+  // Standard competition ranking (1, 1, 3), not dense (1, 1, 2): the gap after a
+  // tie is what says two rows shared a place.
+  let lastRank = 0;
+  return sorted.map((row, index) => {
+    if (row.value === null) return { ...row, rank: null };
+    if (row.value !== lastValue) {
+      lastRank = index + 1;
+      lastValue = row.value;
+    }
+    return { ...row, rank: lastRank };
+  });
+}
+
+/**
+ * What a ranking's definition says about its own axis, so every ranked answer
+ * explains `rank` and `null` the same way.
+ *
+ * Takes the French forms of what one row is rather than hardcoding "campus": the
+ * unit is part of the sentence, and a second ranking over events would otherwise
+ * either say "campus" or reword the whole rule. Same reasoning as
+ * `cohortNounForms` in `domain/event.ts`.
+ */
+export function rankAxisNote(unit: {
+  singular: string;
+  plural: string;
+}): string {
+  return `Un ${unit.singular} par ligne, du plus au moins élevé, « rank » étant sa position. Les ${unit.plural} dont la valeur ne peut pas être calculée valent null, sont placés en fin de liste et n'ont pas de rang : ce n'est pas un mauvais résultat, c'est une absence de mesure. Deux ${unit.plural} à égalité partagent le même rang.`;
+}
+
+/** The French forms of the units this tier ranks over, so a noun is typed once. */
+export const RANK_UNITS = {
+  campus: { singular: 'campus', plural: 'campus' },
+  event: { singular: 'événement', plural: 'événements' },
+} as const;

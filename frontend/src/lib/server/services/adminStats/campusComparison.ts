@@ -32,7 +32,15 @@ import {
   pastEventPresence,
   VISIBLE_PARTICIPATION_DEFINITION,
 } from '$lib/domain/sfMemberStatus';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
+import {
+  metric,
+  rank,
+  rankAxisNote,
+  RANK_UNITS,
+  share,
+  type Metric,
+  type Ranked,
+} from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
 import {
   scopedEvents,
@@ -49,19 +57,8 @@ import { SHOW_UP_RATE_RULE } from './attendanceRate';
 import { DISTINCT_SCHOOLS_RULE } from './schoolsReach';
 import { RETURNING_SHARE_RULE } from './talentRetention';
 
-/**
- * One campus's value for one figure.
- *
- * `rank` is null exactly when `value` is: a campus the figure cannot be computed
- * for has no position in the ordering, and giving it the last rank would read as
- * "worst" instead of "unknown". Equal values share a rank, so a tie never looks
- * like an ordering.
- */
-export type CampusFigure = {
-  campus: string;
-  value: number | null;
-  rank: number | null;
-};
+/** One campus's value for one figure, with its position. See {@link Ranked}. */
+export type CampusFigure = Ranked<{ campus: string; value: number | null }>;
 
 export type CampusComparison = {
   filters: { schoolYear: string };
@@ -77,8 +74,7 @@ export type CampusComparison = {
 };
 
 /** What every ranking's definition says about the axis, stated once. */
-const AXIS_NOTE =
-  "Un campus par ligne, du plus au moins élevé, « rank » étant sa position. Les campus dont la valeur ne peut pas être calculée valent null, sont placés en fin de liste et n'ont pas de rang : ce n'est pas un mauvais résultat, c'est une absence de mesure. Deux campus à égalité partagent le même rang.";
+const AXIS_NOTE = rankAxisNote(RANK_UNITS.campus);
 
 /** Per-campus tallies, filled in one pass over the rows loaded below. */
 type Tally = {
@@ -165,6 +161,7 @@ export async function getCampusComparison(
         campus,
         value: pick(tally),
       })),
+      (row) => row.campus,
     );
 
   const cohortSize = (tally: Tally) => tally.talents.size;
@@ -233,34 +230,4 @@ export async function getCampusComparison(
       ),
     },
   };
-}
-
-/**
- * Sorts descending and stamps positions, so the consumer never orders anything.
- *
- * Nulls last and unranked, ties sharing a rank, and campus name as the tie-break
- * so the same data always comes back in the same order (a ranking that reshuffles
- * between two calls reads as a change).
- */
-function rank(
-  rows: { campus: string; value: number | null }[],
-): CampusFigure[] {
-  const sorted = [...rows].sort((a, b) => {
-    if (a.value === null || b.value === null) {
-      if (a.value === b.value) return a.campus.localeCompare(b.campus, 'fr');
-      return a.value === null ? 1 : -1;
-    }
-    return b.value - a.value || a.campus.localeCompare(b.campus, 'fr');
-  });
-
-  let lastValue: number | null = null;
-  let lastRank = 0;
-  return sorted.map((row, index) => {
-    if (row.value === null) return { ...row, rank: null };
-    if (row.value !== lastValue) {
-      lastRank = index + 1;
-      lastValue = row.value;
-    }
-    return { ...row, rank: lastRank };
-  });
 }
