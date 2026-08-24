@@ -28,12 +28,18 @@
       "E2E Tests",
       "Block out-of-order migrations",
       "Secret Scanning",
-      "Dependency Audit",
       "SAST (Semgrep)"
+    ],
+    "_deterministicComment": [
+      "Every check above answers the same way for the same diff: it reads this repository and nothing",
+      "else. That is the condition for blocking a merge, because a required check that can turn red on",
+      "its own turns every open pull request red on its own, and no change to the branch clears it.",
+      "The same argument is why SAST pins its rulesets instead of using `--config auto`."
     ],
     "excluded": {
       "DAST (OWASP ZAP)": "Guarded by `if: schedule || push to main`, so it never reports on a pull request. Requiring it would leave every merge waiting for a status that never arrives.",
-      "Docker Image Scan": "Builds the whole image. Useful, but a merge into dev should not wait on it."
+      "Docker Image Scan": "Builds the whole image. Useful, but a merge into dev should not wait on it.",
+      "Dependency Audit": "Not deterministic: osv-scanner resolves advisories against the live OSV database, so an advisory published tonight fails every pull request tomorrow with no diff change and no per-branch fix. It still runs on every pull request and is still red when it matters, and the weekly `schedule` run is what catches a new advisory against a branch nobody touched. Blocking the merge on it would repeat the Docker Hub outage that took this repository's image scan down."
     }
   },
 
