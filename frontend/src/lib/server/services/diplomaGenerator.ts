@@ -51,6 +51,41 @@ function signaturesHtml(signatories: CertificateSignatory[]): string {
 }
 
 /**
+ * Render two sample pages, to prove a design produces a document at all.
+ *
+ * Run before a design is stored. What it catches is a design that makes the
+ * renderer fail or run away - a crash, or a page that never settles inside the
+ * budget - which is worth catching because the alternative is finding out in
+ * front of a cohort's worth of certificates. What it does NOT catch is a design
+ * that renders badly: browsers are forgiving, and ugly is not an exception. Two
+ * pages rather than one, because page breaks are what one page would not
+ * exercise, and a short budget because a runaway design must not hold an API
+ * call open for two minutes.
+ */
+export async function renderCertificateSample(
+  design: CertificateDesign,
+): Promise<{ bytes: number }> {
+  const pdf = await generateDiplomasPDF(
+    design,
+    {
+      students: [
+        { prenom: 'Camille', nom: 'Martin' },
+        { prenom: 'Nguyễn', nom: 'Wróblewski' },
+      ],
+      city: 'Lille',
+      startDate: '1 juillet 2026',
+      endDate: '12 juillet 2026',
+      todayDate: '24 août 2026',
+      signatories: [
+        { name: 'Prénom Nom', role: 'Directeur du campus', imageDataUri: null },
+      ],
+    },
+    { timeoutMs: 20_000 },
+  );
+  return { bytes: pdf.byteLength };
+}
+
+/**
  * One page per recipient, of whatever certificate the event issues.
  *
  * Token values are HTML-escaped before substitution, because they land in markup
@@ -66,6 +101,10 @@ export async function generateDiplomasPDF(
     endDate: string;
     todayDate: string;
     signatories: CertificateSignatory[];
+  },
+  options?: {
+    /** Print budget. Defaults to the cohort-sized one; a sample render lowers it. */
+    timeoutMs?: number;
   },
 ): Promise<Uint8Array<ArrayBuffer>> {
   // Every token in one pass per recipient, rather than an event-level pass
@@ -118,6 +157,6 @@ export async function generateDiplomasPDF(
     },
     // A cohort sheet can run to ~200 pages; on a constrained pod CPU the print
     // pass needs more headroom than Puppeteer's 30s default.
-    timeoutMs: 120_000,
+    timeoutMs: options?.timeoutMs ?? 120_000,
   });
 }

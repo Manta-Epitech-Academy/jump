@@ -20,7 +20,12 @@
 
 import { EventService, type AdminEventVM } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
-import { isEventModuleKey, EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
+import {
+  isEventModuleKey,
+  parseModuleSettings,
+  EVENT_MODULES,
+  EVENT_MODULE_KEYS,
+} from '$lib/domain/eventModules';
 import { EVENT_CONFIG_STATE_LABELS } from '$lib/domain/eventReadiness';
 import { UnknownScopeError } from '../scope';
 import { OperationRefusedError } from '../errors';
@@ -67,8 +72,8 @@ async function loadEvent(eventId: string): Promise<AdminEventVM> {
 
 /**
  * Send the event back through the wizard's own save, changing only what `patch`
- * names. `moduleSettings` is carried across untouched: the per-module
- * sub-options are the wizard's business, and a module added here gets its
+ * names. `moduleSettings` is carried across untouched unless the patch replaces
+ * it (only `write_event_inscrits_options` does), and a module added here gets its
  * defaults from `applyModuleDiff`.
  */
 async function saveEvent(
@@ -82,6 +87,7 @@ async function saveEvent(
     devActivated: boolean;
     feedbackFormId: string;
     diplomaTemplateId: string;
+    moduleSettings: Record<string, unknown>;
   }>,
 ): Promise<WriteOutcome> {
   const before = stateOf(event);
@@ -92,7 +98,7 @@ async function saveEvent(
     startTime: patch.startTime ?? event.startTime,
     endDate: patch.endDate ?? event.endDate,
     modules: patch.modules ?? event.modules,
-    moduleSettings: event.moduleSettings,
+    moduleSettings: patch.moduleSettings ?? event.moduleSettings,
     devActivated: patch.devActivated ?? event.devActivated,
     feedbackFormId: patch.feedbackFormId ?? event.feedbackFormId,
     diplomaTemplateId: patch.diplomaTemplateId ?? event.diplomaTemplateId,
@@ -146,6 +152,63 @@ export async function writeEventActivation(params: {
   }
 
   return { applied: true, before, after: stateOf(await loadEvent(event.id)) };
+}
+
+/** The inscrits sub-options, before and after. */
+type InscritsOptionsState = {
+  eventId: string;
+  showStatutColumn: boolean;
+};
+
+const inscritsOptionsOf = (event: AdminEventVM): InscritsOptionsState => ({
+  eventId: event.id,
+  showStatutColumn: parseModuleSettings(
+    EVENT_MODULES.INSCRITS,
+    event.moduleSettings[EVENT_MODULES.INSCRITS],
+  ).showStatutColumn,
+});
+
+/**
+ * The sub-options of the Inscrits section.
+ *
+ * This exists because `moduleSettings` was reachable through no write at all:
+ * every event write carried the bag across untouched, so a field the config
+ * dialog offers had no API equivalent. The catalogue is meant to be the floor
+ * under the UI, and `operations.test.ts` now asserts that, so the gap had to
+ * close rather than be excepted.
+ */
+export async function writeEventInscritsOptions(params: {
+  eventId: string;
+  showStatutColumn?: boolean;
+}): Promise<WriteOutcome> {
+  const event = await loadEvent(params.eventId);
+  if (!event.modules.includes(EVENT_MODULES.INSCRITS)) {
+    throw new OperationRefusedError(
+      "La section Inscrits n'est pas activée sur cet événement, ses sous-options n'ont donc aucun effet. Activez-la d'abord avec write_event_config.",
+    );
+  }
+  const before = inscritsOptionsOf(event);
+
+  const current = parseModuleSettings(
+    EVENT_MODULES.INSCRITS,
+    event.moduleSettings[EVENT_MODULES.INSCRITS],
+  );
+  const outcome = await saveEvent(event, {
+    moduleSettings: {
+      ...event.moduleSettings,
+      [EVENT_MODULES.INSCRITS]: {
+        ...current,
+        showStatutColumn: params.showStatutColumn ?? current.showStatutColumn,
+      },
+    },
+  });
+  if (!outcome.applied) return outcome;
+
+  return {
+    applied: true,
+    before,
+    after: inscritsOptionsOf(await loadEvent(event.id)),
+  };
 }
 
 export async function writeEventFeedbackForm(params: {

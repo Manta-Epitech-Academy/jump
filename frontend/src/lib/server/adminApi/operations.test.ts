@@ -8,9 +8,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { adminEventSchema } from '$lib/validation/events';
 import {
   ADMIN_API_OPERATIONS,
   ADMIN_API_WRITE_NAMES,
+  ADMIN_API_OPERATION_NAMES,
   operationsForTier,
   isOperationAllowedForTier,
   operationsOfferedTo,
@@ -158,5 +162,84 @@ describe('what a credential is offered as tools', () => {
         expect(name.startsWith('bulk_'), name).toBe(false);
       }
     }
+  });
+});
+
+/**
+ * Where each field of the admin event form is reachable from, as
+ * `operation.param`. Explicit and exhaustive, with a throwing default, for the
+ * same reason `requiredArgsFor` is: a new config field then fails this test until
+ * somebody decides how the API exposes it, instead of quietly having no API at
+ * all. Three params are deliberately named differently from the form field, which
+ * is why this cannot be a key intersection.
+ */
+const EVENT_FIELD_WRITES: Record<string, string> = {
+  id: 'write_event_config.eventId',
+  publicName: 'write_event_config.publicName',
+  cohortNoun: 'write_event_config.cohortNoun',
+  startTime: 'write_event_config.startTime',
+  endDate: 'write_event_config.endDate',
+  modules: 'write_event_config.modules',
+  moduleSettings: 'write_event_inscrits_options.showStatutColumn',
+  devActivated: 'write_event_activation.visible',
+  feedbackFormId: 'write_event_feedback_form.formId',
+  diplomaTemplateId: 'write_event_diploma_template.templateId',
+};
+
+/** Every operation name a `+server.ts` under /api/admin actually mounts. */
+function mountedOperationNames(): string[] {
+  const root = join(process.cwd(), 'src/routes/api/admin');
+  const found: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.name === '+server.ts') {
+        for (const [, name] of readFileSync(path, 'utf8').matchAll(
+          /adminApi(?:Read|Write)\(\s*'([^']+)'/g,
+        )) {
+          found.push(name);
+        }
+      }
+    }
+  };
+  walk(root);
+  return found;
+}
+
+describe('the API is the floor under the UI', () => {
+  // Event configuration is fully MCP-driven, so a field an admin can change in
+  // the wizard and nowhere else is a hole. This is the executable half of that
+  // rule; it was written after finding `moduleSettings` reachable through no
+  // write at all.
+  it('exposes every admin event-config field through some write', () => {
+    for (const field of Object.keys(adminEventSchema.shape)) {
+      const reachable = EVENT_FIELD_WRITES[field];
+      if (!reachable) {
+        throw new Error(
+          `adminEventSchema.${field} is reachable through no write operation. ` +
+            'Add one, then name it in EVENT_FIELD_WRITES.',
+        );
+      }
+      const [name, param] = reachable.split('.');
+      const operation = ADMIN_API_OPERATIONS[
+        name as keyof typeof ADMIN_API_OPERATIONS
+      ] as AdminApiOperation | undefined;
+      expect(operation, `${field} -> ${name}`).toBeDefined();
+      expect(operation?.kind, `${field} -> ${name}`).toBe('write');
+      expect(
+        Object.keys(operation!.schema.shape),
+        `${field} -> ${reachable}`,
+      ).toContain(param);
+    }
+  });
+
+  // MCP registers tools straight from the catalogue, but HTTP needs a route file,
+  // and nothing else checks for one: an entry with no `+server.ts` is a tool over
+  // MCP and a 404 over HTTP, with no failing test to say so.
+  it('mounts every catalogue operation on an HTTP route, exactly once', () => {
+    const mounted = mountedOperationNames();
+    expect(mounted.length).toBeGreaterThan(0);
+    expect([...mounted].sort()).toEqual([...ADMIN_API_OPERATION_NAMES].sort());
   });
 });
