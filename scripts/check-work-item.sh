@@ -43,12 +43,24 @@ while [ $# -gt 0 ]; do
     --pr)        PR="${2:-}"; shift 2 ;;
     --labels)    LABELS="${2:-}"; shift 2 ;;
     --body-file) BODY_FILE="${2:-}"; shift 2 ;;
-    -h|--help)   sed -n '2,28p' "$0"; exit 0 ;;
+    -h|--help)  work_item_usage "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 
 FAILURES=0
+
+# Bodies are read from files rather than variables so grep can work on them, and
+# they are ours to clean up.
+TMP_FILES=""
+trap 'for f in $TMP_FILES; do rm -f "$f"; done' EXIT
+
+new_tmp() {
+  local f
+  f=$(mktemp)
+  TMP_FILES="$TMP_FILES $f"
+  printf '%s' "$f"
+}
 
 fail() {
   FAILURES=$((FAILURES + 1))
@@ -84,7 +96,7 @@ if [ -z "$PR" ] && command -v gh >/dev/null 2>&1; then
     -q '.[0].number' 2>/dev/null || true)
 fi
 if [ -n "$PR" ] && [ -z "$BODY_FILE" ]; then
-  BODY_FILE=$(mktemp)
+  BODY_FILE=$(new_tmp)
   gh pr view "$PR" --repo "$REPO" --json body -q .body > "$BODY_FILE" 2>/dev/null || : > "$BODY_FILE"
 fi
 if [ -n "$PR" ] && [ -z "$LABELS" ]; then
@@ -155,7 +167,7 @@ fi
 ISSUE_CREATED=${ISSUE_META%%$'\t'*}
 echo "issue title: ${ISSUE_META#*$'\t'}"
 
-ISSUE_BODY=$(mktemp)
+ISSUE_BODY=$(new_tmp)
 gh issue view "$ISSUE" --repo "$REPO" --json body -q .body > "$ISSUE_BODY"
 
 # -------------------------------------------------- 3. the issue is structured

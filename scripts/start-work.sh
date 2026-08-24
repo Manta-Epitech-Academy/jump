@@ -38,7 +38,7 @@ while [ $# -gt 0 ]; do
     --slug)      SLUG="${2:-}"; shift 2 ;;
     --label)     LABEL="${2:-}"; shift 2 ;;
     --base)      BASE="${2:-}"; shift 2 ;;
-    -h|--help)   sed -n '2,26p' "$0"; exit 0 ;;
+    -h|--help)  work_item_usage "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done

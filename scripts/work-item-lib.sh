@@ -35,3 +35,10 @@ work_item_is_protected() {
 work_item_types_human() {
   printf '%s' "$WORK_ITEM_TYPES" | tr '|' ' '
 }
+
+# Prints the leading comment block of script $1 as usage text. By rule rather than
+# by line range: a `sed -n '2,26p'` starts printing shell code the first time the
+# header grows a line.
+work_item_usage() {
+  awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$1"
+}

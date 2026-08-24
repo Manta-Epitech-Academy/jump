@@ -171,6 +171,8 @@ part that is easy to get wrong.
 
 1. Conventional Commits, per [`AGENTS.md`](../AGENTS.md#commits): `type(scope): subject` under 72 characters including the prefix, one logical change per commit.
 2. **Write the copy into files under `.ship/`, and hand the files to git and gh.** `git commit -F .ship/commit.txt`, and `scripts/finish-work.sh` reads `.ship/pr-body.md`. Pasting multi-line markdown through the terminal mangles newlines and bullets, and the shell here is fish, which has no heredoc to fall back on. `.ship/` is gitignored.
+
+   **`.ship/` still holds the previous branch's files.** Rewrite every one you are about to use, or clear the directory first: `finish-work.sh` will cheerfully ship a stale body from two branches ago, and it looks plausible enough that nobody notices.
 3. **Do not hard-wrap inside those files.** One bullet is one line, however long; one paragraph is one line. GitHub and `git log` wrap for you, and manual breaks at 72 columns re-introduce the exact mangling the files exist to prevent.
 4. **Scope the body to the whole branch, not the working tree.** Survey it with `git log --oneline origin/dev..HEAD` and `git diff --name-status origin/dev...HEAD`. On a long branch, cluster the commits into themes and write from the themes. If something is still uncommitted, say so instead of quietly folding it into the summary.
 5. **Name real things.** Actual symbols, models, routes, files. "Various improvements" is not a summary. Add `## Migrations` and `## Env vars` sections when the branch carries either, so a reviewer cannot miss them.

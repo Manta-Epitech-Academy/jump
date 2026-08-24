@@ -32,7 +32,7 @@ while [ $# -gt 0 ]; do
     --title-file) TITLE_FILE="${2:-}"; shift 2 ;;
     --body-file)  BODY_FILE="${2:-}"; shift 2 ;;
     --ready)      DRAFT=""; shift ;;
-    -h|--help)    sed -n '2,19p' "$0"; exit 0 ;;
+    -h|--help)  work_item_usage "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
