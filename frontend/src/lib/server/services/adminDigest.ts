@@ -13,8 +13,20 @@
  *
  * Sending goes through the mail façade, so the outbound gate applies untouched: on
  * a trapped environment this lands in the dev-redirect inbox, which is correct.
+ *
+ * Every actionable figure links straight to the admin page that acts on it. A
+ * recipient who isn't logged in yet still lands there: the staff login guard
+ * carries the target through `?redirect=` and replays it after Microsoft OAuth
+ * (`$lib/server/auth/loginRedirect.ts`), so the link works whether the click
+ * happens before or after signing in.
+ *
+ * Same branded shell as every other Jump mail (`$lib/domain/emailBrandShell`),
+ * wrapped as a full HTML document: a bare fragment scores Gmail/Outlook's
+ * auto-generated-spam heuristic, which is exactly the defect the shared shell
+ * exists to avoid.
  */
 
+import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 import { sendEmail, MAIL_FROM } from '$lib/server/email';
 import { getUnconfiguredEvents } from '$lib/server/services/adminStats/unconfiguredEvents';
@@ -23,6 +35,17 @@ import {
   getPdfJobsHealth,
   getAccountDeletionQueue,
 } from '$lib/server/services/adminStats/opsQueues';
+import {
+  EPI_BLUE,
+  INK,
+  SUBTLE,
+  BORDER,
+  PANEL_BG,
+  shellOpen,
+  shellClose,
+  wrapEmailDocument,
+} from '$lib/domain/emailBrandShell';
+import { escapeHtml } from '$lib/domain/htmlEscape';
 
 /** How many events to list in the mail before deferring to the cockpit. */
 const LISTED_EVENTS = 15;
@@ -41,22 +64,29 @@ export type AdminDigest = {
   };
 };
 
-const esc = (value: string) =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
-export async function buildAdminDigest(): Promise<AdminDigest> {
+const link = (href: string, label: string) =>
+  `<a href="${href}" style="color:${EPI_BLUE};text-decoration:underline;">${label}</a>`;
+
+/**
+ * Build the digest. `baseUrl` (pass `env.ORIGIN`) turns every page link and the
+ * shell's logo into an absolute URL, the way a recipient's mail client needs it;
+ * the default empty string is only for tests, which assert on the relative path.
+ */
+export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
   const [events, sync, pdfJobs, deletions] = await Promise.all([
     getUnconfiguredEvents(),
     getSyncHealth(),
     getPdfJobsHealth(),
     getAccountDeletionQueue(),
   ]);
+
+  const eventsUrl = `${baseUrl}/staff/admin/events`;
+  const dashboardUrl = `${baseUrl}/staff/admin`;
+  const syncErrorsUrl = `${baseUrl}/staff/admin/sync-errors`;
+  const onboardingPdfsUrl = `${baseUrl}/staff/admin/onboarding-pdfs`;
+  const accountDeletionsUrl = `${baseUrl}/staff/admin/account-deletions`;
 
   const toPrepare = events.toPrepare.value;
   const listed = events.events.value.slice(0, LISTED_EVENTS);
@@ -66,15 +96,16 @@ export async function buildAdminDigest(): Promise<AdminDigest> {
   // of 15 plus "et 85 autres") as soon as the cap was reached.
   const remaining = toPrepare - listed.length;
   const last = sync.lastSync.value;
+  const unresolvedErrors = sync.unresolvedErrors.value;
 
   const eventRows = listed
     .map(
       (e) => `
         <tr>
-          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${esc(e.titre)}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${esc(e.campus)}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${esc(e.dateLabel)}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${esc(e.missing.join(', ') || e.configStateLabel)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.titre)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.campus)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.dateLabel)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.missing.join(', ') || e.configStateLabel)}</td>
         </tr>`,
     )
     .join('');
@@ -86,10 +117,11 @@ export async function buildAdminDigest(): Promise<AdminDigest> {
       <p style="margin:0 0 8px;">
         <strong>${toPrepare}</strong> ${plural(toPrepare, 'événement demande', 'événements demandent')}
         encore une action avant l'arrivée de ${plural(toPrepare, 'sa cohorte', 'leurs cohortes')}.
+        ${link(eventsUrl, 'Voir sur la page Événements')}.
       </p>
       <table style="border-collapse:collapse;width:100%;font-size:13px;margin:0 0 8px;">
         <thead>
-          <tr style="text-align:left;background:#f3f4f6;">
+          <tr style="text-align:left;background:${PANEL_BG};">
             <th style="padding:6px 10px;">Événement (Salesforce)</th>
             <th style="padding:6px 10px;">Campus</th>
             <th style="padding:6px 10px;">Dates</th>
@@ -100,22 +132,32 @@ export async function buildAdminDigest(): Promise<AdminDigest> {
       </table>
       ${
         remaining > 0
-          ? `<p style="margin:0 0 16px;font-size:13px;color:#6b7280;">Et ${remaining} autre${remaining > 1 ? 's' : ''} : la liste complète est sur la page Événements de l'espace admin.</p>`
+          ? `<p style="margin:0 0 16px;font-size:13px;color:${SUBTLE};">Et ${remaining} autre${remaining > 1 ? 's' : ''}.</p>`
           : ''
       }`;
 
+  // Two lines, because they answer two questions and only one of them is ever
+  // reassuring. `last === null` means the sync has NEVER run, worse than merely
+  // stale, so it must not sit next to "aucune erreur en attente": that zero is
+  // true here only because no sync ran to produce an error, and pairing them
+  // reads as reassurance for the worst possible state.
+  const syncStateLine = !last
+    ? `Aucune synchronisation Salesforce n'a jamais été enregistrée : à vérifier en priorité sur ${link(dashboardUrl, 'le tableau de bord admin')}.`
+    : last.stale
+      ? `Dernière synchronisation Salesforce il y a <strong>${last.ageHours} h</strong> : à vérifier sur ${link(dashboardUrl, 'le tableau de bord admin')}.`
+      : `Dernière synchronisation Salesforce il y a <strong>${last.ageHours} h</strong>.`;
+
+  const syncErrorsLine =
+    unresolvedErrors > 0
+      ? `${last ? '' : 'Pourtant, '}<strong>${unresolvedErrors}</strong> ${plural(unresolvedErrors, 'erreur', 'erreurs')} de synchronisation ${plural(unresolvedErrors, 'est', 'sont')} à arbitrer sur ${link(syncErrorsUrl, 'la page dédiée')}.`
+      : last
+        ? 'Aucune erreur en attente.'
+        : '';
+
   const syncSection = `
     <p style="margin:0 0 8px;">
-      ${
-        last
-          ? `Dernière synchronisation Salesforce il y a <strong>${last.ageHours} h</strong>${last.stale ? ' (à vérifier)' : ''}.`
-          : 'Aucune synchronisation Salesforce enregistrée à ce jour.'
-      }
-      ${
-        sync.unresolvedErrors.value === 0
-          ? 'Aucune erreur en attente.'
-          : `<strong>${sync.unresolvedErrors.value}</strong> ${plural(sync.unresolvedErrors.value, 'erreur', 'erreurs')} de synchronisation à arbitrer.`
-      }
+      ${syncStateLine}
+      ${syncErrorsLine}
     </p>`;
 
   // Two queues nothing else chases. A failed document means a talent has no
@@ -126,10 +168,10 @@ export async function buildAdminDigest(): Promise<AdminDigest> {
   const pendingDeletions = deletions.pending.value;
   const queueLines = [
     failedPdfJobs > 0
-      ? `<strong>${failedPdfJobs}</strong> ${plural(failedPdfJobs, 'document non généré', 'documents non générés')} : ${plural(failedPdfJobs, 'le talent concerné ne peut pas le télécharger', 'les talents concernés ne peuvent pas les télécharger')}.`
+      ? `<strong>${failedPdfJobs}</strong> ${plural(failedPdfJobs, 'génération de document en échec', 'générations de document en échec')} : tant qu'${plural(failedPdfJobs, "elle n'est pas relancée", 'elles ne sont pas relancées')}, ${plural(failedPdfJobs, "le talent concerné n'a", "les talents concernés n'ont")} pas de document à télécharger. ${link(onboardingPdfsUrl, 'Voir la file')}.`
       : '',
     overdueDeletions > 0
-      ? `<strong>${overdueDeletions}</strong> ${plural(overdueDeletions, 'demande de suppression de compte a dépassé', 'demandes de suppression de compte ont dépassé')} le délai que nous nous imposons.`
+      ? `<strong>${overdueDeletions}</strong> ${plural(overdueDeletions, 'demande de suppression de compte a dépassé', 'demandes de suppression de compte ont dépassé')} le délai que nous nous imposons. ${link(accountDeletionsUrl, 'Voir les demandes')}.`
       : pendingDeletions > 0
         ? `${pendingDeletions} ${plural(pendingDeletions, 'demande de suppression de compte est en attente', 'demandes de suppression de compte sont en attente')}, encore dans les délais.`
         : '',
@@ -139,23 +181,26 @@ export async function buildAdminDigest(): Promise<AdminDigest> {
     ? `<ul style="margin:0 0 16px;padding-left:18px;">${queueLines.map((line) => `<li>${line}</li>`).join('')}</ul>`
     : `<p style="margin:0 0 16px;">Aucune file en attente : documents générés, aucune demande de suppression en retard.</p>`;
 
-  const html = `
-    <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111827;line-height:1.5;">
-      <h1 style="font-size:18px;margin:0 0 4px;">Jump - point hebdomadaire</h1>
-      <p style="margin:0 0 16px;color:#6b7280;font-size:13px;">
+  const shellHtml = `
+      <h1 style="font-size:20px;font-weight:700;margin:0 0 4px;color:${INK};">Point hebdomadaire</h1>
+      <p style="margin:0 0 20px;color:${SUBTLE};font-size:13px;">
         Préparation des événements, files en attente et santé de la
         synchronisation Salesforce.
       </p>
-      <h2 style="font-size:15px;margin:0 0 8px;">Événements à préparer</h2>
+      <h2 style="font-size:15px;font-weight:700;margin:0 0 8px;color:${INK};">Événements à préparer</h2>
       ${eventsSection}
-      <h2 style="font-size:15px;margin:0 0 8px;">Files en attente</h2>
+      <h2 style="font-size:15px;font-weight:700;margin:0 0 8px;color:${INK};">Files en attente</h2>
       ${queueSection}
-      <h2 style="font-size:15px;margin:0 0 8px;">Synchronisation</h2>
+      <h2 style="font-size:15px;font-weight:700;margin:0 0 8px;color:${INK};">Synchronisation</h2>
       ${syncSection}
-      <p style="margin:24px 0 0;color:#6b7280;font-size:12px;">
+      <p style="margin:24px 0 0;color:${SUBTLE};font-size:12px;">
         Message automatique, envoyé chaque lundi aux administrateurs de Jump.
-      </p>
-    </div>`;
+      </p>`;
+
+  const html = wrapEmailDocument(
+    `${shellOpen(baseUrl)}${shellHtml}${shellClose()}`,
+    'Jump - point hebdomadaire',
+  );
 
   const textLines = [
     'Jump - point hebdomadaire',
@@ -166,14 +211,21 @@ export async function buildAdminDigest(): Promise<AdminDigest> {
         `  - ${e.titre} (${e.campus}, ${e.dateLabel}) : ${e.missing.join(', ') || e.configStateLabel}`,
     ),
     remaining > 0 ? `  ... et ${remaining} autre(s).` : '',
+    toPrepare > 0 ? `  Voir : ${eventsUrl}` : '',
     '',
-    `Documents non générés : ${failedPdfJobs}`,
+    failedPdfJobs > 0
+      ? `Générations de document en échec (relance nécessaire) : ${failedPdfJobs}`
+      : 'Générations de document en échec : 0',
+    failedPdfJobs > 0 ? `  Voir : ${onboardingPdfsUrl}` : '',
     `Demandes de suppression en attente : ${pendingDeletions}${overdueDeletions > 0 ? ` (dont ${overdueDeletions} hors délai)` : ''}`,
+    overdueDeletions > 0 ? `  Voir : ${accountDeletionsUrl}` : '',
     '',
     last
       ? `Dernière synchronisation Salesforce : il y a ${last.ageHours} h${last.stale ? ' (à vérifier)' : ''}.`
-      : 'Aucune synchronisation Salesforce enregistrée.',
-    `Erreurs de synchronisation à arbitrer : ${sync.unresolvedErrors.value}`,
+      : `Aucune synchronisation Salesforce n'a jamais été enregistrée (à vérifier en priorité).`,
+    !last || last.stale ? `  Voir : ${dashboardUrl}` : '',
+    `Erreurs de synchronisation à arbitrer : ${unresolvedErrors}`,
+    unresolvedErrors > 0 ? `  Voir : ${syncErrorsUrl}` : '',
   ].filter(Boolean);
 
   return {
@@ -182,7 +234,7 @@ export async function buildAdminDigest(): Promise<AdminDigest> {
     text: textLines.join('\n'),
     summary: {
       eventsToPrepare: toPrepare,
-      unresolvedSyncErrors: sync.unresolvedErrors.value,
+      unresolvedSyncErrors: unresolvedErrors,
       lastSyncAgeHours: last?.ageHours ?? null,
       failedPdfJobs,
       overdueDeletionRequests: overdueDeletions,
@@ -208,7 +260,7 @@ export type AdminDigestSendResult = {
 
 export async function sendAdminDigest(): Promise<AdminDigestSendResult> {
   const [digest, recipients] = await Promise.all([
-    buildAdminDigest(),
+    buildAdminDigest(env.ORIGIN ?? ''),
     adminDigestRecipients(),
   ]);
 
