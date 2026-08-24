@@ -92,9 +92,11 @@ if [ -f "$TEMPLATE" ] && ! grep -qiE '^#+[[:space:]]+definition of done' "$BODY_
   echo "appended the Definition of Done from $TEMPLATE"
 fi
 
-if ! git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' >/dev/null 2>&1; then
-  git push -u origin "$BRANCH"
-fi
+# Unconditionally, and not only when there is no upstream yet. `gh pr create`
+# opens the pull request against whatever the remote already has, so a branch
+# pushed earlier in the day would ship one missing its last commits, with nothing
+# saying so. Pushing an already-pushed branch is a no-op.
+git push -u origin "$BRANCH"
 
 # shellcheck disable=SC2086
 url=$(gh pr create --repo "$REPO" --base "$BASE" $DRAFT \

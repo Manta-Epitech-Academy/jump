@@ -142,22 +142,27 @@ fi
 
 say "Labels"
 
-jq -c '.labels[]' "$CONFIG" | while read -r label; do
+# Fed by redirection rather than by a pipe: a piped `while` runs in a subshell,
+# where STATUS could not be raised and a refused label would leave the script
+# exiting 0 after saying it had applied one.
+while read -r label; do
   name=$(printf '%s' "$label" | jq -r .name)
   color=$(printf '%s' "$label" | jq -r .color)
   desc=$(printf '%s' "$label" | jq -r .description)
   if [ "$DRY_RUN" = "1" ]; then
     echo "  would upsert: $name (#$color)"
-  else
-    # --force upserts, so this is safe to re-run.
-    gh label create "$name" --repo "$REPO" --color "$color" --description "$desc" --force >/dev/null
+  # --force upserts, so this is safe to re-run.
+  elif gh label create "$name" --repo "$REPO" --color "$color" --description "$desc" --force >/dev/null; then
     echo "  upserted: $name"
+  else
+    echo "  refused: $name (see the error above)" >&2
+    STATUS=1
   fi
-done
+done < <(jq -c '.labels[]' "$CONFIG")
 
 if [ "$STATUS" = "0" ]; then
   say "Done"
 else
-  say "Done, with the required checks left to apply (see above)"
+  say "Done, but not everything was applied (see above)"
 fi
 exit "$STATUS"
