@@ -23,8 +23,8 @@
   <!-- A check, not shadcn's filled dot: "this option is the selected one" is
        said with a ✓ everywhere else here, from the sibling checkbox item right
        next to this file to `SearchableSelect`. A third glyph for the same idea
-       is how a vocabulary drifts. Space is reserved rather than conditional, so
-       the labels do not shift as the selection moves. -->
+       is how a vocabulary drifts. Always rendered and hidden with
+       `text-transparent` when unchecked, exactly as that sibling does. -->
   {#snippet children({ checked })}
     <span
       class="pointer-events-none absolute start-2 flex size-3.5 items-center justify-center"
