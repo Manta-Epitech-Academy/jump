@@ -21,7 +21,10 @@
 import { EventService, type AdminEventVM } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
 import { isEventModuleKey, EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
-import { EVENT_CONFIG_STATE_LABELS } from '$lib/domain/eventReadiness';
+import {
+  activationBlockers,
+  EVENT_CONFIG_STATE_LABELS,
+} from '$lib/domain/eventReadiness';
 import { UnknownScopeError } from '../scope';
 import { OperationRefusedError } from '../errors';
 import type { WriteOutcome } from '../plan';
@@ -128,18 +131,18 @@ export async function writeEventActivation(params: {
   const event = await loadEvent(params.eventId);
   const before = stateOf(event);
 
-  // Through the bulk helper, for its eligibility rule: activating an event with
-  // no section, no end date or no public name would set the flag and change
-  // nothing anyone can see. It reports that as skipped instead of pretending.
-  const { skipped } = await EventService.bulkSetActivation(
-    [event.id],
-    params.visible,
-  );
-  if (skipped > 0) {
+  // Checked before the write, and named: activating an event with no section, no
+  // end date or no public name would set the flag and change nothing anyone can
+  // see. The service refuses it too (`activatableEventWhere`, the SQL twin of
+  // this rule), but only as a count, which left the caller to guess which of the
+  // three applied.
+  const blockers = params.visible ? activationBlockers(event) : [];
+  if (blockers.length > 0) {
     throw new OperationRefusedError(
-      "Cet événement ne peut pas encore être rendu visible : il lui manque un nom public, une date de fin ou au moins une section activée. L'opération config_event_detail liste précisément ce qui manque.",
+      `Cet événement ne peut pas encore être rendu visible, il lui manque : ${blockers.join(', ')}.`,
     );
   }
+  await EventService.bulkSetActivation([event.id], params.visible);
 
   return { applied: true, before, after: stateOf(await loadEvent(event.id)) };
 }

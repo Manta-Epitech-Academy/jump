@@ -25,6 +25,7 @@ import {
 import {
   EVENT_CONFIG_STATE_LABELS,
   EVENT_CONFIG_STATE_HINTS,
+  eventMissingConfig,
 } from '$lib/domain/eventReadiness';
 import { getStaffRoleLabel } from '$lib/domain/staff';
 import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
@@ -79,14 +80,6 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
       })
     : null;
 
-  const missing: string[] = [];
-  if (!event.publicName) missing.push('nom public');
-  if (!event.cohortNoun) missing.push('nom des participants');
-  if (!event.endDate) missing.push('date de fin');
-  if (event.modules.length === 0) missing.push('aucune section activée');
-  else if (!event.devActivated)
-    missing.push("pas encore activé pour l'espace dev");
-
   return {
     event: metric(
       {
@@ -113,7 +106,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
       "État de configuration de l'événement, tel que l'affiche la page Événements de l'espace admin.",
     ),
     missing: metric(
-      missing,
+      eventMissingConfig(event),
       "Ce qu'il reste à renseigner pour que l'événement soit visible dans l'espace dev. Liste vide = rien ne manque.",
     ),
     modules: metric(

@@ -22,6 +22,10 @@ import type { Prisma } from '@prisma/client';
  * (`devActivatedAt`) and it carries at least one module. Single source for the
  * dev workspace event list and any surface that must mirror that visibility
  * (the talent / staff attended-events history).
+ *
+ * Not the same rule as `activatableEventWhere` in `services/events`: this one is
+ * what IS visible, that one is what MAY be made visible (a stricter set, which
+ * also needs a public name and an end date).
  */
 export const devVisibleEventWhere = {
   devActivatedAt: { not: null },
