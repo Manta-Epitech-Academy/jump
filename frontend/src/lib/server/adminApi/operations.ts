@@ -880,7 +880,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_feedback_results: defineOperation({
     leadership: true,
-    description: `How the feedback forms of a périmètre were answered: per questionnaire, how many responses, how many came from a Jump account against the public link, the response rate over the enrolments of the events it is attached to, and the distribution of every closed question. Free-text answers are counted, never returned. Omit formId to get every questionnaire used in the périmètre, capped at ${FEEDBACK_FORMS_LIMIT}; pass one to narrow to it.`,
+    description: `How the feedback forms of a périmètre were answered: per questionnaire, its id, how many responses, how many came from a Jump account against the public link, the response rate over the enrolments of the events it is attached to, and then every closed question with its stable key, its wording, and each of its answer options with a count and a share. Free-text answers are counted, never returned: student sentences meant to be quoted live in stats_interview_testimonials instead. Omit formId to get every questionnaire used in the périmètre, capped at ${FEEDBACK_FORMS_LIMIT}; pass one to narrow to it.`,
     shape: {
       formId: z
         .string()
