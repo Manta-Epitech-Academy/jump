@@ -14,7 +14,7 @@
 #
 # Needs a token that can administer the repository. The previous ruleset is saved
 # to .ship/ before anything is written, so a mistake is recoverable.
-set -euo pipefail
+set -uo pipefail
 
 REPO="${JUMP_REPO:-Manta-Epitech-Academy/jump}"
 ROOT=$(git rev-parse --show-toplevel)
@@ -28,7 +28,15 @@ command -v jq >/dev/null || { echo "error: jq is required" >&2; exit 1; }
 
 say() { printf '\n== %s\n' "$1"; }
 
+STATUS=0
+
 # ------------------------------------------------------- required status checks
+#
+# Rulesets need repository *admin*, which is not the same thing as push access.
+# The API answers a write attempt without it with a bare 404, so check first and
+# say what is missing rather than reporting a mystery.
+
+is_admin=$(gh api "repos/$REPO" --jq '.permissions.admin' 2>/dev/null || echo false)
 
 ruleset_name=$(jq -r '.requiredStatusChecks.ruleset' "$CONFIG")
 strict=$(jq -r '.requiredStatusChecks.strict' "$CONFIG")
@@ -72,7 +80,26 @@ new_rules=$(printf '%s' "$current" | jq \
     )
   }')
 
-if [ "$DRY_RUN" = "1" ]; then
+if [ "$is_admin" != "true" ] && [ "$DRY_RUN" != "1" ]; then
+  cat >&2 <<MSG
+
+Cannot apply the required checks: this account has push access but not admin on
+$REPO, and a ruleset is an admin-level setting. GitHub answers with 404 rather
+than 403, which is why this looks like a missing endpoint.
+
+Hand this to someone with the Admin role on the repository:
+
+  bash scripts/apply-repo-config.sh
+
+Or, in the web UI: Settings, Rules, "push dev", tick "Require status checks to
+pass" and add the contexts listed above, leaving "Require branches to be up to
+date" off.
+
+Until then every check on this repository stays advisory, which is the state this
+file exists to end.
+MSG
+  STATUS=1
+elif [ "$DRY_RUN" = "1" ]; then
   echo "dry run, payload that would be sent:"
   printf '%s' "$new_rules" | jq .
 else
@@ -80,8 +107,12 @@ else
   mkdir -p "$(dirname "$backup")"
   printf '%s' "$current" | jq . > "$backup"
   echo "previous ruleset saved to $backup"
-  printf '%s' "$new_rules" | gh api -X PUT "repos/$REPO/rulesets/$ruleset_id" --input - >/dev/null
-  echo "applied."
+  if printf '%s' "$new_rules" | gh api -X PUT "repos/$REPO/rulesets/$ruleset_id" --input - >/dev/null; then
+    echo "applied."
+  else
+    echo "error: the ruleset update was refused. The previous state is in $backup." >&2
+    STATUS=1
+  fi
 fi
 
 # ----------------------------------------------------------------------- labels
@@ -101,4 +132,9 @@ jq -c '.labels[]' "$CONFIG" | while read -r label; do
   fi
 done
 
-say "Done"
+if [ "$STATUS" = "0" ]; then
+  say "Done"
+else
+  say "Done, with the required checks left to apply (see above)"
+fi
+exit "$STATUS"
