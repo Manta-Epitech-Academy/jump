@@ -136,27 +136,29 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
           : ''
       }`;
 
-  // `last === null` means the sync has NEVER run, worse than merely stale — so
-  // it must not sit next to "aucune erreur en attente", which is true here only
-  // because zero syncs ran to produce one. Pairing them reads as reassurance for
-  // the worst possible state instead of a distinct, more urgent signal.
-  const syncSection = !last
-    ? `<p style="margin:0 0 8px;">
-        Aucune synchronisation Salesforce n'a jamais été enregistrée : à vérifier en priorité sur ${link(dashboardUrl, 'le tableau de bord admin')}.
-        ${
-          unresolvedErrors > 0
-            ? `Pourtant, <strong>${unresolvedErrors}</strong> ${plural(unresolvedErrors, 'erreur', 'erreurs')} de synchronisation ${plural(unresolvedErrors, 'est déjà signalée', 'sont déjà signalées')}, à arbitrer sur ${link(syncErrorsUrl, 'la page dédiée')}.`
-            : ''
-        }
-      </p>`
-    : `<p style="margin:0 0 8px;">
-        Dernière synchronisation Salesforce il y a <strong>${last.ageHours} h</strong>${last.stale ? ' (à vérifier)' : ''}.
-        ${
-          unresolvedErrors === 0
-            ? 'Aucune erreur en attente.'
-            : `<strong>${unresolvedErrors}</strong> ${plural(unresolvedErrors, 'erreur', 'erreurs')} de synchronisation à arbitrer sur ${link(syncErrorsUrl, 'la page dédiée')}.`
-        }
-      </p>`;
+  // Two lines, because they answer two questions and only one of them is ever
+  // reassuring. `last === null` means the sync has NEVER run, worse than merely
+  // stale, so it must not sit next to "aucune erreur en attente": that zero is
+  // true here only because no sync ran to produce an error, and pairing them
+  // reads as reassurance for the worst possible state.
+  const syncStateLine = !last
+    ? `Aucune synchronisation Salesforce n'a jamais été enregistrée : à vérifier en priorité sur ${link(dashboardUrl, 'le tableau de bord admin')}.`
+    : last.stale
+      ? `Dernière synchronisation Salesforce il y a <strong>${last.ageHours} h</strong> : à vérifier sur ${link(dashboardUrl, 'le tableau de bord admin')}.`
+      : `Dernière synchronisation Salesforce il y a <strong>${last.ageHours} h</strong>.`;
+
+  const syncErrorsLine =
+    unresolvedErrors > 0
+      ? `${last ? '' : 'Pourtant, '}<strong>${unresolvedErrors}</strong> ${plural(unresolvedErrors, 'erreur', 'erreurs')} de synchronisation ${plural(unresolvedErrors, 'est', 'sont')} à arbitrer sur ${link(syncErrorsUrl, 'la page dédiée')}.`
+      : last
+        ? 'Aucune erreur en attente.'
+        : '';
+
+  const syncSection = `
+    <p style="margin:0 0 8px;">
+      ${syncStateLine}
+      ${syncErrorsLine}
+    </p>`;
 
   // Two queues nothing else chases. A failed document means a talent has no
   // règlement to download; an overdue erasure request is a legal exposure with
@@ -166,7 +168,7 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
   const pendingDeletions = deletions.pending.value;
   const queueLines = [
     failedPdfJobs > 0
-      ? `<strong>${failedPdfJobs}</strong> ${plural(failedPdfJobs, 'génération de document en échec', 'générations de document en échec')} : tant qu'${plural(failedPdfJobs, "elle n'est pas relancée", 'elles ne sont pas relancées')}, ${plural(failedPdfJobs, 'le talent concerné n’a', 'les talents concernés n’ont')} pas de document à télécharger. ${link(onboardingPdfsUrl, 'Voir la file')}.`
+      ? `<strong>${failedPdfJobs}</strong> ${plural(failedPdfJobs, 'génération de document en échec', 'générations de document en échec')} : tant qu'${plural(failedPdfJobs, "elle n'est pas relancée", 'elles ne sont pas relancées')}, ${plural(failedPdfJobs, "le talent concerné n'a", "les talents concernés n'ont")} pas de document à télécharger. ${link(onboardingPdfsUrl, 'Voir la file')}.`
       : '',
     overdueDeletions > 0
       ? `<strong>${overdueDeletions}</strong> ${plural(overdueDeletions, 'demande de suppression de compte a dépassé', 'demandes de suppression de compte ont dépassé')} le délai que nous nous imposons. ${link(accountDeletionsUrl, 'Voir les demandes')}.`
@@ -221,7 +223,7 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
     last
       ? `Dernière synchronisation Salesforce : il y a ${last.ageHours} h${last.stale ? ' (à vérifier)' : ''}.`
       : `Aucune synchronisation Salesforce n'a jamais été enregistrée (à vérifier en priorité).`,
-    !last ? `  Voir : ${dashboardUrl}` : '',
+    !last || last.stale ? `  Voir : ${dashboardUrl}` : '',
     `Erreurs de synchronisation à arbitrer : ${unresolvedErrors}`,
     unresolvedErrors > 0 ? `  Voir : ${syncErrorsUrl}` : '',
   ].filter(Boolean);

@@ -232,9 +232,24 @@ describe('buildAdminDigest', () => {
     const digest = await buildAdminDigest();
 
     expect(digest.html).toContain('9 h');
-    expect(digest.html).toContain('(à vérifier)');
+    // A stale feed is the likeliest alarm here (a dead worker), so it must say
+    // where to check it rather than only that it needs checking.
+    expect(digest.html).toContain('à vérifier sur');
+    expect(digest.html).toContain('/staff/admin"');
+    expect(digest.text).toContain('  Voir : /staff/admin');
     expect(digest.html).toContain('Lille &lt;script&gt;');
     expect(digest.html).not.toContain('<script>');
+  });
+
+  it('leaves a healthy sync without an alarm or a link', async () => {
+    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload({ ageHours: 0.5 }));
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain('Aucune erreur en attente');
+    expect(digest.html).not.toContain('à vérifier');
+    expect(digest.html).not.toContain('/staff/admin');
   });
 
   it('flags a never-synced Salesforce feed as its own severity, not as "no errors"', async () => {
@@ -260,7 +275,7 @@ describe('buildAdminDigest', () => {
     const digest = await buildAdminDigest();
 
     expect(digest.html).toContain('jamais été enregistrée');
-    expect(digest.html).toContain('4');
+    expect(digest.html).toContain('Pourtant, <strong>4</strong> erreurs');
     expect(digest.html).toContain('/staff/admin/sync-errors');
   });
 });
