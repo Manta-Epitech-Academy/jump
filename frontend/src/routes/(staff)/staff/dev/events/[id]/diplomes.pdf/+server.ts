@@ -15,7 +15,7 @@ import { prisma } from '$lib/server/db';
 import { formatDateFr } from '$lib/utils';
 
 // Generates whichever certificate this event issues, for every talent registered
-// to it (no selection — all inscrits), one page per student. Campus-scoped via
+// to it (no selection, all inscrits), one page per student. Campus-scoped via
 // the event load. Signatories are the global ones plus this campus's local ones;
 // their signature images are fetched from S3 and inlined as base64 data URIs,
 // which is also what lets the renderer print with the network blocked.
