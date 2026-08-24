@@ -113,3 +113,8 @@ frontend/playwright-report/
 frontend/test-results/
 
 
+
+# Working copy for commit messages, PR and issue bodies (see .github/CONTRIBUTING.md
+# step 7). Handed to `git commit -F` and to finish-work.sh so multi-line markdown
+# survives the shell; never part of a change.
+.ship/
