@@ -54,7 +54,7 @@ export type EventsOverview = {
   };
   perCampus: Metric<CampusRow[]>;
   perModule: Metric<ModuleRow[]>;
-  availableSchoolYears: string[];
+  availableSchoolYears: Metric<string[]>;
 };
 
 const countState = (events: AdminEventVM[], state: EventConfigState) =>
@@ -135,6 +135,9 @@ export async function getEventsOverview(
         .sort((a, b) => b.events - a.events),
       "Nombre d'événements du périmètre où chaque section de l'espace dev est activée.",
     ),
-    availableSchoolYears,
+    availableSchoolYears: metric(
+      availableSchoolYears,
+      "Années scolaires ayant au moins un événement enregistré, de la plus récente à la plus ancienne, quel que soit le filtre demandé. C'est ce que le filtre « schoolYear » accepte, et toute autre valeur est refusée plutôt que répondue à zéro.",
+    ),
   };
 }

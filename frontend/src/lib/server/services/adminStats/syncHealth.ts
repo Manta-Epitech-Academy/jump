@@ -34,24 +34,27 @@ export type SyncHealth = {
   unresolvedErrors: Metric;
   errorsByType: Metric<{ errorType: string; count: number }[]>;
   oldestUnresolvedAgeDays: Metric<number | null>;
+  unresolvedSchools: Metric;
 };
 
 export async function getSyncHealth(): Promise<SyncHealth> {
-  const [last, unresolved, grouped, oldest] = await Promise.all([
-    getLastSync(),
-    prisma.syncError.count({ where: { resolved: false } }),
-    prisma.syncError.groupBy({
-      by: ['errorType'],
-      where: { resolved: false },
-      _count: { _all: true },
-      orderBy: { _count: { errorType: 'desc' } },
-    }),
-    prisma.syncError.findFirst({
-      where: { resolved: false },
-      orderBy: { createdAt: 'asc' },
-      select: { createdAt: true },
-    }),
-  ]);
+  const [last, unresolved, grouped, oldest, unresolvedSchools] =
+    await Promise.all([
+      getLastSync(),
+      prisma.syncError.count({ where: { resolved: false } }),
+      prisma.syncError.groupBy({
+        by: ['errorType'],
+        where: { resolved: false },
+        _count: { _all: true },
+        orderBy: { _count: { errorType: 'desc' } },
+      }),
+      prisma.syncError.findFirst({
+        where: { resolved: false },
+        orderBy: { createdAt: 'asc' },
+        select: { createdAt: true },
+      }),
+      prisma.school.count({ where: { resolvedAt: null } }),
+    ]);
 
   return {
     lastSync: metric(
@@ -81,6 +84,10 @@ export async function getSyncHealth(): Promise<SyncHealth> {
         ? Math.floor((Date.now() - oldest.createdAt.getTime()) / 86_400_000)
         : null,
       "Ancienneté, en jours, de la plus vieille erreur non traitée. Null s'il n'y en a aucune.",
+    ),
+    unresolvedSchools: metric(
+      unresolvedSchools,
+      "Lycées créés à partir d'un nom sans que leur UAI ait pu être retrouvé dans l'annuaire de l'éducation nationale : leur ville et leurs codes manquent encore, et l'opération ops_resolve_schools relance la recherche. Compte des lycées, pas des talents : la part des talents dont le lycée n'est pas identifié se lit dans stats_schools_reach.",
     ),
   };
 }
