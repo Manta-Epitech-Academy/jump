@@ -11,6 +11,7 @@ import {
   eventModuleSettings,
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { resolveEventDiplomaIdentity } from '$lib/server/diplomaTemplates';
 import { compareNiveaux } from '$lib/domain/niveau';
 import { rulesStatus, inscritStatus } from '$lib/domain/dossierCompliance';
 import { imageRightsStatus } from '$lib/domain/imageRights';
@@ -200,9 +201,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     // campus doesn't onboard. Cheap shell value, so it rides the first paint.
     showStatutColumn: eventModuleSettings(event, EVENT_MODULES.INSCRITS)
       .showStatutColumn,
-    // Inscrits sub-option: the internship-diploma export (Certificat de stage).
-    // Off for events that don't issue one (e.g. coding clubs). Cheap shell value.
-    allowDiplomas: eventModuleSettings(event, EVENT_MODULES.INSCRITS).diplomas,
+    // Which certificate this event issues, or null when it issues none, which is
+    // what hides the export. Only the identity: the page needs the label to name
+    // the download, never the design's kilobytes of CSS.
+    diploma: await resolveEventDiplomaIdentity(event),
     // Un-awaited on purpose: SvelteKit streams it so the shell paints first.
     cohort,
   };

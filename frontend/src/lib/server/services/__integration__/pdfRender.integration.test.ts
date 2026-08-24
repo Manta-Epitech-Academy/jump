@@ -10,10 +10,15 @@
  * Two things are asserted, and both are things that fail silently in production
  * rather than loudly: a document quietly printing in a fallback face, and the
  * renderer quietly regaining network access.
+ *
+ * It reads the seeded `stage` design out of the database rather than inlining a
+ * fixture, so what is under test is the certificate Jump actually ships.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { prisma } from '$lib/server/db';
 import { renderPdf } from '$lib/server/infra/pdfRenderer';
-import { generateStageDiplomasPDF } from '../diplomaGenerator';
+import { generateDiplomasPDF } from '../diplomaGenerator';
+import { assertTestDatabase } from './testDatabase';
 
 /**
  * The embedded font names, read straight out of the PDF bytes (`AAAAAA+Anton-Regular`).
@@ -27,12 +32,26 @@ function embeddedFonts(pdf: Uint8Array): string[] {
 }
 
 describe('the PDF renderer', () => {
+  beforeAll(assertTestDatabase);
+
+  /** The internship certificate as the migration seeded it. */
+  const stageDesign = async () =>
+    prisma.diploma_Template.findUniqueOrThrow({
+      where: { code: 'stage' },
+      select: {
+        styleCss: true,
+        bodyHtml: true,
+        pageWidthPx: true,
+        pageHeightPx: true,
+      },
+    });
+
   it('embeds the brand faces, including for a name outside latin-1', async () => {
     // Every glyph of "Nguyễn Wróblewski" has to come from our own @font-face
     // rules. If one did not, Chrome would substitute and a THIRD family would
     // appear here, which is what asserting the exact set catches: the Vietnamese
     // and latin-ext subsets are load-bearing for a real student's name.
-    const pdf = await generateStageDiplomasPDF({
+    const pdf = await generateDiplomasPDF(await stageDesign(), {
       students: [{ prenom: 'Nguyễn', nom: 'Wróblewski' }],
       city: 'Lille',
       startDate: '1 juillet 2026',

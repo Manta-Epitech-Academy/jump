@@ -2804,6 +2804,12 @@ async function seedEvents(
         // anything else is left unnamed (null) and reads "participant" via the
         // fallback, exactly like an unconfigured event.
         cohortNoun: isStage ? 'stagiaire' : null,
+        // The certificate the event issues, from the catalogue the migration
+        // seeded. Set here because the export was unreachable locally otherwise:
+        // the control it replaced defaulted off and the seed never turned it on.
+        diplomaTemplate: {
+          connect: { code: isStage ? 'stage' : 'coding-club' },
+        },
         campusId,
         modules: {
           create: (isStage ? STAGE_MODULE_KEYS : CODING_CLUB_MODULE_KEYS).map(

@@ -105,12 +105,6 @@ const inscritsModuleSettingsSchema = z.object({
   // Paris with interviews + public bilan only, leave it off). Gates ONLY that
   // column, never the talent fiche.
   showStatutColumn: z.boolean().default(false),
-  // Show the "Générer diplômes" export (the internship Certificat de stage) on the
-  // Inscrits header. Opt-in: defaults off, so nothing stage-specific surfaces until
-  // an admin enables it (a coding club issues no certificate; even a stage turns it
-  // on explicitly). Gating goes through this sub-option, never inferred from what
-  // kind of event it is.
-  diplomas: z.boolean().default(false),
 });
 
 const emptyModuleSettingsSchema = z.object({});

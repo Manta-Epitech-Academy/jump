@@ -52,6 +52,7 @@
     moduleSettings: Record<string, unknown>;
     devActivated: boolean;
     feedbackFormId: string;
+    diplomaTemplateId: string;
     participations: number;
   };
 
@@ -63,6 +64,7 @@
     cohortNoun: string | null;
     startTime: string;
     feedbackFormId: string | null;
+    diplomaTemplateId: string | null;
     modules: EventModuleKey[];
     moduleSettings: Record<string, unknown>;
   };
@@ -72,6 +74,7 @@
     editing,
     formData,
     feedbackForms,
+    certificates,
     formPreviews,
     templates,
   }: {
@@ -79,6 +82,8 @@
     editing: EditingEvent | null;
     formData: SuperValidated<AdminEventForm>;
     feedbackForms: { value: string; label: string }[];
+    /** The certificates an event can be set to issue. */
+    certificates: { value: string; label: string }[];
     /** Per-form ordered question prompts, for the inline read-only preview. */
     formPreviews: Record<string, string[]>;
     templates: TemplateVM[];
@@ -142,6 +147,7 @@
     $form.moduleSettings = withDefaults(e.moduleSettings);
     $form.devActivated = e.devActivated;
     $form.feedbackFormId = e.feedbackFormId;
+    $form.diplomaTemplateId = e.diplomaTemplateId;
     selectedTemplateId = null;
     confirmingDeleteId = null;
     dismissHighCount = false;
@@ -179,9 +185,10 @@
     $form.modules = [...t.modules];
     $form.moduleSettings = withDefaults(t.moduleSettings);
     $form.feedbackFormId = t.feedbackFormId ?? '';
+    $form.diplomaTemplateId = t.diplomaTemplateId ?? '';
     // Prefilled like the rest of the preset: a wholesale copy the admin can still
-    // edit on step 2. Empty falls back as usual (publicName → SF titre, startTime
-    // → the type default).
+    // edit on step 2. Empty falls back as usual (publicName → the SF titre,
+    // startTime → no arrival time).
     $form.publicName = t.publicName ?? '';
     $form.cohortNoun = t.cohortNoun ?? '';
     $form.startTime = t.startTime ?? '';
@@ -254,6 +261,19 @@
   // No feedback form picked yet: the event's Feedback surface stays hidden until
   // an admin selects one. There is no per-kind default anymore.
   const NO_FORM_LABEL = 'Aucun formulaire';
+
+  // ─── Certificate picker (inscrits sub-option) ────────────────────────────
+  // Same shape as the feedback form above: a nullable typed choice on the event,
+  // whose picker sits under the module whose surface it feeds. Null is the whole
+  // gate - an event that names no certificate shows no export.
+  const NO_CERTIFICATE = 'none';
+  const NO_CERTIFICATE_LABEL = 'Aucun certificat';
+  const certificateTriggerLabel = $derived(
+    $form.diplomaTemplateId
+      ? (certificates.find((c) => c.value === $form.diplomaTemplateId)?.label ??
+          'Certificat inconnu')
+      : NO_CERTIFICATE_LABEL,
+  );
   const feedbackTriggerLabel = $derived(
     $form.feedbackFormId
       ? (workingForms.find((f) => f.value === $form.feedbackFormId)?.label ??
@@ -328,6 +348,11 @@
       // Only carry the feedback form when bilan is actually on: a form id with no
       // bilan module resolves to nothing, so snapshotting it would store dead data.
       feedbackFormId: moduleActive('bilan') ? $form.feedbackFormId : '',
+      // Same gate, for the same reason: the export lives on the Inscrits page, so
+      // a certificate without that section would be dead data in the preset.
+      diplomaTemplateId: moduleActive('inscrits')
+        ? $form.diplomaTemplateId
+        : '',
       publicName: $form.publicName,
       cohortNoun: $form.cohortNoun,
       startTime: $form.startTime,
@@ -722,33 +747,37 @@
                             )}
                         />
                       </label>
-                      <label
-                        for="inscrits-diplomes"
-                        class="flex cursor-pointer items-center justify-between gap-3 select-none"
-                      >
+                      <div class="space-y-2">
                         <span
                           class="flex items-center gap-1.5 text-xs font-medium"
                         >
-                          Génération des diplômes
+                          Certificat délivré
                           <InfoTooltip
-                            text="Affiche le bouton « Générer diplômes » (le certificat de stage) sur la page Inscrits. Désactivez-le pour un événement qui ne délivre pas de certificat de stage, comme un coding club."
+                            text="Le document généré depuis la page Inscrits, une page par inscrit. « Aucun certificat » masque le bouton pour un événement qui ne délivre rien."
                           />
                         </span>
-                        <Switch
-                          id="inscrits-diplomes"
-                          checked={getModuleSetting(
-                            'inscrits',
-                            'diplomas',
-                            false,
-                          )}
-                          onCheckedChange={(v) =>
-                            setModuleSetting(
-                              'inscrits',
-                              'diplomas',
-                              v === true,
-                            )}
-                        />
-                      </label>
+                        <Select.Root
+                          type="single"
+                          value={$form.diplomaTemplateId || NO_CERTIFICATE}
+                          onValueChange={(v) =>
+                            ($form.diplomaTemplateId =
+                              v === NO_CERTIFICATE ? '' : v)}
+                        >
+                          <Select.Trigger class="w-full">
+                            {certificateTriggerLabel}
+                          </Select.Trigger>
+                          <Select.Content>
+                            <Select.Item value={NO_CERTIFICATE}>
+                              {NO_CERTIFICATE_LABEL}
+                            </Select.Item>
+                            {#each certificates as opt (opt.value)}
+                              <Select.Item value={opt.value}>
+                                {opt.label}
+                              </Select.Item>
+                            {/each}
+                          </Select.Content>
+                        </Select.Root>
+                      </div>
                     </div>
                   {/if}
 
@@ -1049,6 +1078,9 @@
               // what the server actually stored.
               feedbackFormId: moduleActive('bilan')
                 ? $form.feedbackFormId || null
+                : null,
+              diplomaTemplateId: moduleActive('inscrits')
+                ? $form.diplomaTemplateId || null
                 : null,
               modules: [...$form.modules] as EventModuleKey[],
               moduleSettings: { ...$form.moduleSettings },

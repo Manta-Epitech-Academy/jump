@@ -56,6 +56,12 @@ export type EventRecord = {
   externalId: string | null;
   /** Per-event feedback form; null = no feedback form on this event. */
   feedbackFormId: string | null;
+  /**
+   * Which certificate this event issues, from the `Diploma_Template` catalogue.
+   * Null = it issues none, which is what hides the Inscrits export. Resolve it
+   * through `server/diplomaTemplates.ts` rather than querying it here.
+   */
+  diplomaTemplateId: string | null;
   /** The dev-workspace surfaces this event exposes (presence = enabled). */
   modules: Set<EventModuleKey>;
   /**
@@ -95,6 +101,7 @@ export async function loadEventOr404(
       campusId: true,
       externalId: true,
       feedbackFormId: true,
+      diplomaTemplateId: true,
       modules: { select: { moduleKey: true, settings: true } },
     },
   });

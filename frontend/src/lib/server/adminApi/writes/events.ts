@@ -35,6 +35,7 @@ type EventState = {
   endDate: string;
   modules: string[];
   feedbackFormId: string | null;
+  diplomaTemplateId: string | null;
   visibleInDevWorkspace: boolean;
   configState: string;
 };
@@ -47,6 +48,7 @@ const stateOf = (event: AdminEventVM): EventState => ({
   endDate: event.endDate,
   modules: [...event.modules].sort(),
   feedbackFormId: event.feedbackFormId || null,
+  diplomaTemplateId: event.diplomaTemplateId || null,
   visibleInDevWorkspace: event.configState === 'shown',
   configState: EVENT_CONFIG_STATE_LABELS[event.configState],
 });
@@ -79,6 +81,7 @@ async function saveEvent(
     modules: string[];
     devActivated: boolean;
     feedbackFormId: string;
+    diplomaTemplateId: string;
   }>,
 ): Promise<WriteOutcome> {
   const before = stateOf(event);
@@ -92,6 +95,7 @@ async function saveEvent(
     moduleSettings: event.moduleSettings,
     devActivated: patch.devActivated ?? event.devActivated,
     feedbackFormId: patch.feedbackFormId ?? event.feedbackFormId,
+    diplomaTemplateId: patch.diplomaTemplateId ?? event.diplomaTemplateId,
   });
 
   return { applied: true, before, after: stateOf(await loadEvent(event.id)) };
@@ -173,6 +177,7 @@ export async function writeEventTemplate(params: {
     modules: event.modules,
     moduleSettings: event.moduleSettings,
     feedbackFormId: event.feedbackFormId,
+    diplomaTemplateId: event.diplomaTemplateId,
     // Nobody's staff profile: the preset was saved by a token, and the audit
     // row already carries which one.
     actorId: null,

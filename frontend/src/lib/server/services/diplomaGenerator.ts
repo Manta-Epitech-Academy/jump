@@ -2,56 +2,120 @@ import ejs from 'ejs';
 import { renderPdf } from '../infra/pdfRenderer';
 import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
-import stageDiplomaTemplate from '../templates/stage-diploma.html?raw';
+import certificateTemplate from '../templates/certificate.html?raw';
+import { escapeHtml } from '$lib/domain/htmlEscape';
+import { interpolateCertificate } from '$lib/domain/diplomas';
 
-// Internship certificate ("Certificat de stage"): one A4 landscape page per
-// student, all sharing the same signatory blocks (one global Director General
-// plus the campus's local managers). The signature images are passed as
-// pre-built base64 data URIs so the template needs no network access.
-export async function generateStageDiplomasPDF(data: {
-  students: { prenom: string; nom: string }[];
-  city: string;
-  startDate: string;
-  endDate: string;
-  todayDate: string;
-  // `imageDataUri` is null when the signatory's image is absent (e.g. a DB
-  // restored without its S3 objects); the block then renders the name and role
-  // over a blank signature line.
-  signatories: { name: string; role: string; imageDataUri: string | null }[];
-}): Promise<Uint8Array<ArrayBuffer>> {
-  // The logo and the signature images are referenced as CSS background images
-  // declared once in the template (see stage-diploma.html), not inlined per
-  // page, so a 200-student sheet stays small. Encode the SVG logo as a data URI
-  // here so the template needs nothing but the string.
+/**
+ * The certificate design, as stored on a `Diploma_Template` row. Taken as a
+ * parameter rather than imported: which certificate an event issues is a per-event
+ * choice (`Event.diplomaTemplateId`), and the design itself is authored at runtime.
+ */
+export type CertificateDesign = {
+  styleCss: string;
+  bodyHtml: string;
+  pageWidthPx: number;
+  pageHeightPx: number;
+};
+
+/** A signatory block, its image already inlined by the caller. */
+export type CertificateSignatory = {
+  name: string;
+  role: string;
+  /**
+   * Null when the image is absent (e.g. a database restored without its S3
+   * objects); the block then renders the name and role over a blank line.
+   */
+  imageDataUri: string | null;
+};
+
+/**
+ * The signature blocks, as the markup `{signatures}` is replaced with.
+ *
+ * Built here rather than left to the design: the count varies with the campus,
+ * and the images are hoisted into one `<style>` in the shell, so an author has
+ * nothing to bind them to. The `.sig-*` classes are theirs to style.
+ */
+function signaturesHtml(signatories: CertificateSignatory[]): string {
+  return signatories
+    .map(
+      (s, i) => `<div class="sig-block">
+  <div class="sig-img sig-img-${i}"></div>
+  <div class="sig-line">
+    <p class="sig-name">${escapeHtml(s.name)}</p>
+    <p class="sig-role">${escapeHtml(s.role)}</p>
+  </div>
+</div>`,
+    )
+    .join('\n');
+}
+
+/**
+ * One page per recipient, of whatever certificate the event issues.
+ *
+ * Token values are HTML-escaped before substitution, because they land in markup
+ * the shell injects unescaped: a name is data, and `{signatures}` is the one
+ * value that is markup by design.
+ */
+export async function generateDiplomasPDF(
+  design: CertificateDesign,
+  data: {
+    students: { prenom: string; nom: string }[];
+    city: string;
+    startDate: string;
+    endDate: string;
+    todayDate: string;
+    signatories: CertificateSignatory[];
+  },
+): Promise<Uint8Array<ArrayBuffer>> {
+  // Every token in one pass per recipient, rather than an event-level pass
+  // followed by a per-student one: two passes only work if each leaves the
+  // other's tokens alone, and that is a subtlety worth not depending on.
+  const perEvent = {
+    ville: escapeHtml(data.city),
+    dateDebut: escapeHtml(data.startDate),
+    dateFin: escapeHtml(data.endDate),
+    dateDuJour: escapeHtml(data.todayDate),
+    signatures: signaturesHtml(data.signatories),
+  };
+
+  const pages = data.students.map((student) =>
+    interpolateCertificate(design.bodyHtml, {
+      ...perEvent,
+      prenom: escapeHtml(student.prenom),
+      nom: escapeHtml(student.nom),
+    }),
+  );
+
+  // The logo and the signature images are declared once as CSS background
+  // images in the shell, never inlined per page: duplicating tens of kilobytes
+  // across 200 pages is the slow path that once timed out.
   const logoDataUri = `data:image/svg+xml;base64,${Buffer.from(
     epitechLogoSvg,
   ).toString('base64')}`;
 
-  return await generatePDF(
-    stageDiplomaTemplate,
+  const html = await ejs.render(
+    certificateTemplate,
     {
-      ...data,
-      logoDataUri,
-      fontFaces: fontFaceCss('anton', 'plexSans', 'plexSansItalic'),
+      data: {
+        pages,
+        styleCss: design.styleCss,
+        pageWidthPx: design.pageWidthPx,
+        pageHeightPx: design.pageHeightPx,
+        signatories: data.signatories,
+        logoDataUri,
+        fontFaces: fontFaceCss('anton', 'plexSans', 'plexSansItalic'),
+      },
     },
-    { width: '1123px', height: '794px' },
-  );
-}
-
-async function generatePDF(
-  templateString: string,
-  data: any,
-  format: { width: string; height: string },
-): Promise<Uint8Array<ArrayBuffer>> {
-  const htmlContent = await ejs.render(
-    templateString,
-    { data },
     { async: true },
   );
 
   return renderPdf({
-    html: htmlContent,
-    page: format,
+    html,
+    page: {
+      width: `${design.pageWidthPx}px`,
+      height: `${design.pageHeightPx}px`,
+    },
     // A cohort sheet can run to ~200 pages; on a constrained pod CPU the print
     // pass needs more headroom than Puppeteer's 30s default.
     timeoutMs: 120_000,

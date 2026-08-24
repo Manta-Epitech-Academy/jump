@@ -74,8 +74,10 @@ export type AdminEventVM = {
   modules: EventModuleKey[];
   /** Per-module sub-options keyed by module key (only enabled modules carry one). */
   moduleSettings: Record<string, unknown>;
-  /** Per-event feedback form override (id), or "" = use the type default. */
+  /** Per-event feedback form (id), or "" = no feedback form on this event. */
   feedbackFormId: string;
+  /** The certificate the event issues (id), or "" = it issues none. */
+  diplomaTemplateId: string;
   participations: number;
 };
 
@@ -92,6 +94,7 @@ const ADMIN_EVENT_SELECT = {
   externalId: true,
   devActivatedAt: true,
   feedbackFormId: true,
+  diplomaTemplateId: true,
   campusId: true,
   createdAt: true,
   campus: { select: { name: true, timezone: true } },
@@ -179,6 +182,7 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
       modules,
       moduleSettings,
       feedbackFormId: e.feedbackFormId ?? '',
+      diplomaTemplateId: e.diplomaTemplateId ?? '',
       participations: e._count.participations,
     };
   });
@@ -269,6 +273,7 @@ export const EventService = {
       moduleSettings: Record<string, unknown>;
       devActivated: boolean;
       feedbackFormId: string;
+      diplomaTemplateId: string;
     },
   ) {
     // Surfaces a clean 404 (rather than a transaction-level throw) if the event
@@ -293,10 +298,10 @@ export const EventService = {
     const devActivatedAt = data.devActivated
       ? (event.devActivatedAt ?? new Date())
       : null;
-    // The feedback form the event's bilan surface uses. Empty clears the
-    // override (fall back to the form marked default for the type); a non-empty
-    // id is validated to point at a real form (publication is enforced later, at
-    // resolve time). Checked outside the transaction so a bad id 400s cleanly.
+    // The feedback form the event's bilan surface uses. Empty = no form, and the
+    // surface stays hidden; a non-empty id is validated to point at a real form
+    // (publication is enforced later, at resolve time). Checked outside the
+    // transaction so a bad id 400s cleanly.
     const feedbackFormId = data.feedbackFormId.trim() || null;
     if (feedbackFormId) {
       const form = await prisma.feedback_Form.findUnique({
@@ -304,6 +309,17 @@ export const EventService = {
         select: { id: true },
       });
       if (!form) throw error(400, 'Formulaire de feedback introuvable.');
+    }
+    // Which certificate the event issues. Empty = none, and the Inscrits export
+    // disappears. Same shape as the form above, and checked here rather than in
+    // the transaction for the same reason.
+    const diplomaTemplateId = data.diplomaTemplateId.trim() || null;
+    if (diplomaTemplateId) {
+      const template = await prisma.diploma_Template.findUnique({
+        where: { id: diplomaTemplateId },
+        select: { id: true },
+      });
+      if (!template) throw error(400, 'Certificat introuvable.');
     }
 
     await prisma.$transaction(async (tx) => {
@@ -319,6 +335,7 @@ export const EventService = {
           endDate,
           devActivatedAt,
           feedbackFormId,
+          diplomaTemplateId,
         },
       });
     });

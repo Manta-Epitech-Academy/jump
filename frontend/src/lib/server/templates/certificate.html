@@ -1,0 +1,83 @@
+<!doctype html>
+<!--
+  The render shell for every certificate Jump issues.
+
+  It holds no wording and no design: those live on the `Diploma_Template` row and
+  arrive as `styleCss` and `pages`. What stays here is the part a staff author
+  has no way to know about, and that a 200-page render depends on:
+
+  - the logo, the signature images and the font bytes are declared ONCE, in the
+    head. Repeating tens of kilobytes per page is what timed out a cohort render.
+  - `styleCss` is emitted once and `pages` repeated, which is why the row keeps
+    them in separate columns: it makes that mistake unavailable rather than
+    merely discouraged.
+  - the three blocks below are ordered so an authored rule can restyle the brand
+    assets (block 1) but cannot accidentally break pagination (block 3).
+-->
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- 1. Defaults and brand assets. Before the design, so it can override. -->
+    <style>
+      <%- data.fontFaces %>
+
+      :root {
+        --epitech-logo: url('<%= data.logoDataUri %>');
+      }
+      * {
+        box-sizing: border-box;
+      }
+      <% data.signatories.forEach(function (s, i) { if (s.imageDataUri) { %>
+      .sig-img-<%= i %> {
+        background-image: url('<%= s.imageDataUri %>');
+      }
+      <% } }); %>
+    </style>
+
+    <!--
+      2. The design, authored at runtime and stored on the row. Sanitised on
+      write, and rendered with the network blocked, because Chrome executes it.
+    -->
+    <!-- nosemgrep: javascript.express.security.audit.xss.ejs.explicit-unescape -->
+    <style>
+      <%- data.styleCss %>
+    </style>
+
+    <!-- 3. Pagination and print fidelity. After the design, so it wins. -->
+    <style>
+      * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      @page {
+        size: <%= data.pageWidthPx %>px <%= data.pageHeightPx %>px;
+        margin: 0;
+      }
+      .page {
+        position: relative;
+        width: <%= data.pageWidthPx %>px;
+        height: <%= data.pageHeightPx %>px;
+        overflow: hidden;
+        page-break-after: always;
+      }
+      .page:last-child {
+        page-break-after: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <% /* One entry per recipient, already interpolated: the token substitution
+    lives in the generator, next to the vocabulary that defines it. */ %> <%
+    data.pages.forEach(function (pageHtml) { %>
+    <!-- nosemgrep: javascript.express.security.audit.xss.ejs.explicit-unescape -->
+    <div class="page"><%- pageHtml %></div>
+    <% }); %>
+  </body>
+</html>
