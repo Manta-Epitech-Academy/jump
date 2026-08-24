@@ -101,6 +101,11 @@ url=$(gh pr create --repo "$REPO" --base "$BASE" $DRAFT \
   --title "$TITLE" --body-file "$BODY_FILE")
 echo "$url"
 
+# Hand the number over rather than letting the guard look it up: a freshly created
+# pull request is exactly the case where a lookup can come back empty, and a guard
+# that quietly checks less than it says is worse than one that fails.
+pr_number=$(printf '%s' "$url" | grep -oE '[0-9]+$')
+
 echo
 echo "Verifying the same way CI will:"
-bash "$SCRIPT_DIR/check-work-item.sh" --base "$BASE"
+bash "$SCRIPT_DIR/check-work-item.sh" --base "$BASE" --pr "$pr_number"

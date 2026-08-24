@@ -76,7 +76,12 @@ fi
 # Locally, the pull request may not exist yet. That is fine: everything except the
 # Closes line can be checked from git and the issue alone.
 if [ -z "$PR" ] && command -v gh >/dev/null 2>&1; then
-  PR=$(gh pr view --repo "$REPO" --json number -q .number 2>/dev/null || true)
+  # `gh pr view` cannot infer the pull request from the current branch once
+  # --repo is given, and it then reports nothing rather than failing, which made
+  # this whole block skip the Closes check while still printing OK. Ask by head
+  # branch instead.
+  PR=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number \
+    -q '.[0].number' 2>/dev/null || true)
 fi
 if [ -n "$PR" ] && [ -z "$BODY_FILE" ]; then
   BODY_FILE=$(mktemp)
