@@ -36,6 +36,8 @@ export type GameRow = {
   enabled: boolean;
   weight: number;
   attempts: number;
+  /** Share of the périmètre's attempts played on this game. */
+  share: number | null;
 };
 
 export type Engagement = {
@@ -47,6 +49,8 @@ export type Engagement = {
   byLevel: Metric<LevelRow[]>;
   attempts: Metric;
   finishedAttempts: Metric;
+  finishedShare: Metric<number | null>;
+  players: Metric;
   playersShare: Metric<number | null>;
   games: Metric<GameRow[]>;
 };
@@ -160,9 +164,14 @@ export async function getEngagement(scope: Scope = {}): Promise<Engagement> {
       attempts,
       'Parties de mini-jeux lancées par les talents du périmètre, terminées ou non.',
     ),
-    finishedAttempts: metric(
-      finished,
-      "Parties menées jusqu'au bout. L'écart avec les parties lancées mesure l'abandon en cours de partie.",
+    finishedAttempts: metric(finished, "Parties menées jusqu'au bout."),
+    finishedShare: metric(
+      share(finished, attempts),
+      "Part des parties lancées qui ont été menées jusqu'au bout, en pourcentage : le complément est l'abandon en cours de partie. Vaut null quand aucune partie n'a été lancée.",
+    ),
+    players: metric(
+      players,
+      'Talents du périmètre ayant lancé au moins une partie de mini-jeu.',
     ),
     playersShare: metric(
       share(players, cohort),
@@ -174,8 +183,9 @@ export async function getEngagement(scope: Scope = {}): Promise<Engagement> {
         enabled: config.enabled,
         weight: config.weight,
         attempts: attemptsPerGame.get(config.game) ?? 0,
+        share: share(attemptsPerGame.get(config.game) ?? 0, attempts),
       })),
-      "Les jeux du carrousel quotidien : « enabled » dit s'il peut encore être tiré, « weight » sa fréquence relative, « attempts » le nombre de parties lancées par le périmètre. Un jeu désactivé peut afficher des parties : ce sont celles jouées avant sa désactivation.",
+      "Les jeux du carrousel quotidien : « enabled » dit s'il peut encore être tiré, « weight » sa fréquence relative, « attempts » le nombre de parties lancées par le périmètre et « share » la part des parties du périmètre qui s'est jouée dessus. Un jeu désactivé peut afficher des parties : ce sont celles jouées avant sa désactivation.",
     ),
   };
 }

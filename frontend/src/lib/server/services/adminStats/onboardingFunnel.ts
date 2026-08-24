@@ -21,7 +21,7 @@ import {
   type OnboardingStepFields,
 } from '$lib/domain/talentOnboarding';
 import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
-import { metric, type Metric } from '$lib/server/adminApi/metrics';
+import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
 import {
   cohortWhere,
@@ -105,14 +105,19 @@ export type FunnelRung = {
   step: OnboardingStep;
   label: string;
   blocked: number;
+  /** Share of the concerned cohort stopped on this rung. */
+  share: number | null;
 };
 
 export type OnboardingFunnel = {
   filters: { event: string; campus: string; schoolYear: string };
   cohort: Metric;
   horsParcours: Metric;
+  horsParcoursShare: Metric<number | null>;
   completed: Metric;
+  completedShare: Metric<number | null>;
   inProgress: Metric;
+  inProgressShare: Metric<number | null>;
   rungs: Metric<FunnelRung[]>;
 };
 
@@ -177,6 +182,9 @@ export async function getOnboardingFunnel(
     step,
     label: ONBOARDING_STEP_LABELS[step],
     blocked: blockedCounts[i] ?? 0,
+    // Over the concerned cohort, the same denominator as `completedShare`, so the
+    // rungs and the completion rate can be read against each other.
+    share: share(blockedCounts[i] ?? 0, cohort),
   }));
 
   return {
@@ -191,19 +199,31 @@ export async function getOnboardingFunnel(
     ),
     horsParcours: metric(
       scopeSize - cohort,
-      "Talents du périmètre non concernés par le parcours d'inscription : les collégiens. Ils ne figurent dans aucune étape ci-dessous. C'est l'écart entre la cohorte totale du périmètre et la cohorte de ce tableau.",
+      "Talents du périmètre non concernés par le parcours d'inscription : les collégiens. Ils ne figurent dans aucune étape ci-dessous.",
+    ),
+    horsParcoursShare: metric(
+      share(scopeSize - cohort, scopeSize),
+      "Part du périmètre non concernée par le parcours d'inscription, en pourcentage de la cohorte totale du périmètre, collégiens compris. Vaut null quand le périmètre ne compte personne.",
     ),
     completed: metric(
       completed,
       "Talents concernés ayant terminé l'intégralité du parcours d'inscription en ligne, Charte Informatique et Éthique acceptée comprise. Le dossier d'inscription est annuel : filtré sur une année scolaire, ce chiffre compte le dossier de cette année-là, et un talent revenu l'année suivante doit le refaire entièrement. Sans filtre d'année, il compte le dossier le plus récent de chaque talent.",
     ),
+    completedShare: metric(
+      share(completed, cohort),
+      "Part des talents concernés ayant terminé leur parcours d'inscription, en pourcentage. Vaut null quand personne n'est concerné sur le périmètre.",
+    ),
     inProgress: metric(
       cohort - completed,
-      "Talents concernés qui n'ont pas fini leur parcours d'inscription : la somme des étapes bloquantes ci-dessous.",
+      "Talents concernés qui n'ont pas fini leur parcours d'inscription. Ils se répartissent sur les étapes ci-dessous, chacun sur une seule.",
+    ),
+    inProgressShare: metric(
+      share(cohort - completed, cohort),
+      "Part des talents concernés dont le parcours d'inscription est encore en cours, en pourcentage. Vaut null quand personne n'est concerné sur le périmètre.",
     ),
     rungs: metric(
       rungs,
-      "Pour chaque étape du parcours, le nombre de talents arrêtés dessus : toutes les étapes précédentes sont validées, celle-ci ne l'est pas. Un talent n'apparaît que dans une seule étape.",
+      "Pour chaque étape du parcours, le nombre de talents arrêtés dessus et la part de la cohorte concernée que cela représente : toutes les étapes précédentes sont validées, celle-ci ne l'est pas. Un talent n'apparaît que dans une seule étape, donc l'étape à la part la plus élevée est celle qui retient le plus de monde.",
     ),
   };
 }

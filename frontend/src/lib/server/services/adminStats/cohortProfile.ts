@@ -40,6 +40,8 @@ export type BreakdownRow = {
   value: string | null;
   label: string;
   count: number;
+  /** Share of the cohort this row represents. */
+  share: number | null;
 };
 
 export type CohortProfile = {
@@ -65,25 +67,23 @@ export type CohortProfile = {
 function breakdownRows(
   grouped: { value: string | null; count: number }[],
   known: readonly { value: string; label: string }[],
+  cohort: number,
 ): BreakdownRow[] {
   const counts = new Map(grouped.map((g) => [g.value, g.count]));
-  const rows: BreakdownRow[] = known.map((k) => ({
-    value: k.value,
-    label: k.label,
-    count: counts.get(k.value) ?? 0,
-  }));
+  const row = (value: string | null, label: string): BreakdownRow => {
+    const count = counts.get(value) ?? 0;
+    return { value, label, count, share: share(count, cohort) };
+  };
 
-  for (const [value, count] of counts) {
+  const rows: BreakdownRow[] = known.map((k) => row(k.value, k.label));
+
+  for (const [value] of counts) {
     if (value === null) continue;
     if (known.some((k) => k.value === value)) continue;
-    rows.push({ value, label: value, count });
+    rows.push(row(value, value));
   }
 
-  rows.push({
-    value: null,
-    label: UNKNOWN_LABEL,
-    count: counts.get(null) ?? 0,
-  });
+  rows.push(row(null, UNKNOWN_LABEL));
   return rows;
 }
 
@@ -115,10 +115,12 @@ export async function getCohortProfile(
   const gender = breakdownRows(
     byCivilite.map((g) => ({ value: g.civilite, count: g._count._all })),
     CIVILITE_OPTIONS,
+    cohort,
   );
   const niveaux = breakdownRows(
     byNiveauRaw.map((g) => ({ value: g.niveau, count: g._count._all })),
     NIVEAUX.map((n) => ({ value: n, label: niveauLabel(n) })),
+    cohort,
   ).sort((a, b) => {
     if (a.value === null) return 1;
     if (b.value === null) return -1;
@@ -138,7 +140,7 @@ export async function getCohortProfile(
     ),
     byGender: metric(
       gender,
-      `Répartition des talents du périmètre par civilité déclarée. La civilité vient de Salesforce ou de ce que le talent a saisi lui-même à l'inscription ; « ${UNKNOWN_LABEL} » regroupe ceux pour qui elle est absente.`,
+      `Répartition des talents du périmètre par civilité déclarée, « share » étant la part de la cohorte, en pourcentage. La civilité vient de Salesforce ou de ce que le talent a saisi lui-même à l'inscription ; « ${UNKNOWN_LABEL} » regroupe ceux pour qui elle est absente, et sa part dit ce que la répartition ne couvre pas.`,
     ),
     womenShare: metric(
       share(women, genderKnown),
@@ -150,7 +152,7 @@ export async function getCohortProfile(
     ),
     byNiveau: metric(
       niveaux,
-      `Répartition des talents du périmètre par niveau scolaire de l'année en cours. Le niveau est renseigné par Salesforce ; « ${UNKNOWN_LABEL} » regroupe ceux pour qui il est absent.`,
+      `Répartition des talents du périmètre par niveau scolaire de l'année en cours, « share » étant la part de la cohorte, en pourcentage. Le niveau est renseigné par Salesforce ; « ${UNKNOWN_LABEL} » regroupe ceux pour qui il est absent.`,
     ),
     onboardingCompleted: metric(
       completed,
@@ -162,7 +164,7 @@ export async function getCohortProfile(
     ),
     onboardingNotApplicable: metric(
       cohort - eligible,
-      "Talents du périmètre sans dossier d'inscription : les collégiens, qui accèdent à Jump sans parcours d'inscription. Ils sont comptés dans la cohorte mais exclus du dénominateur du taux ci-dessus, et c'est l'écart entre les deux.",
+      "Talents du périmètre sans dossier d'inscription : les collégiens, qui accèdent à Jump sans parcours d'inscription. Ils sont comptés dans la cohorte mais exclus du dénominateur du taux ci-dessus ; leur part de la cohorte se lit sur la ligne « collégien » de la répartition par niveau.",
     ),
     connected: metric(
       connected,

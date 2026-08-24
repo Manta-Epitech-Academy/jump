@@ -23,7 +23,7 @@ import {
   type EventModuleKey,
 } from '$lib/domain/eventModules';
 import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
-import { metric, type Metric } from '$lib/server/adminApi/metrics';
+import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
 import { scopedEvents } from './cohort';
 
@@ -31,6 +31,8 @@ export type CampusRow = {
   campus: string;
   events: number;
   visible: number;
+  /** Share of this campus's events that are live in the dev workspace. */
+  visibleShare: number | null;
   readyToPublish: number;
   unconfigured: number;
   participants: number;
@@ -47,6 +49,7 @@ export type EventsOverview = {
   totals: {
     events: Metric;
     visible: Metric;
+    visibleShare: Metric<number | null>;
     readyToPublish: Metric;
     unconfigured: Metric;
     toPrepare: Metric;
@@ -95,6 +98,10 @@ export async function getEventsOverview(
         countState(events, 'shown'),
         `Événements en état « ${EVENT_CONFIG_STATE_LABELS.shown} » : ${EVENT_CONFIG_STATE_HINTS.shown}`,
       ),
+      visibleShare: metric(
+        share(countState(events, 'shown'), events.length),
+        "Part des événements du périmètre effectivement visibles dans l'espace dev, en pourcentage. Le complément se répartit entre « readyToPublish » et « unconfigured » : les trois états couvrent tous les événements. Vaut null quand le périmètre n'a aucun événement.",
+      ),
       readyToPublish: metric(
         countState(events, 'ready'),
         `Événements en état « ${EVENT_CONFIG_STATE_LABELS.ready} » : ${EVENT_CONFIG_STATE_HINTS.ready}`,
@@ -118,12 +125,13 @@ export async function getEventsOverview(
           campus,
           events: list.length,
           visible: countState(list, 'shown'),
+          visibleShare: share(countState(list, 'shown'), list.length),
           readyToPublish: countState(list, 'ready'),
           unconfigured: countState(list, 'unconfigured'),
           participants: list.reduce((sum, e) => sum + e.participations, 0),
         }))
         .sort((a, b) => b.events - a.events),
-      `Mêmes compteurs ventilés par campus : events = total, visible / readyToPublish / unconfigured = état de configuration, participants = participations, ${VISIBLE_PARTICIPATION_DEFINITION}.`,
+      `Mêmes compteurs ventilés par campus : events = total, visible / readyToPublish / unconfigured = état de configuration et leur somme fait le total, visibleShare = part des événements du campus visibles dans l'espace dev, participants = participations, ${VISIBLE_PARTICIPATION_DEFINITION}.`,
     ),
     perModule: metric(
       [...moduleCounts.entries()]
