@@ -22,14 +22,11 @@
   let {
     events,
     currentId,
-    schoolYear,
     onpick,
   }: {
     /** The active year's navigable events. Scoping is the host's job. */
     events: SwitcherEvent[];
     currentId: string;
-    /** The active school year, for the list's own label. */
-    schoolYear: string;
     onpick: (event: SwitcherEvent) => void;
   } = $props();
 
@@ -77,7 +74,13 @@
     // A school year straddles two calendar years (Sept-Dec 2025, then Jan-Jul
     // 2026), so "décembre" alone is ambiguous up in the autumn. Every header
     // carries its calendar year (muted, beside the month name) - which also
-    // disambiguates the July/August bookend for free.
+    // disambiguates the bookend for free: the cycle runs 31 July to 30 July, so
+    // one school year can hold two "juillet" sections.
+    //
+    // This is the only year the popover states, on purpose. The list can no
+    // longer show anything but the active year, and the header says which one,
+    // so a banner repeating it would say nothing the screen does not; the month
+    // is the one place a year is not deducible from that banner.
     return keys.map((k) => ({
       key: k,
       name: monthName(k),
@@ -134,15 +137,6 @@
     </Tooltip.Root>
   </Tooltip.Provider>
   <Popover.Content align="start" class="w-80 p-0">
-    <!-- The list is the active school year, and nothing else: the year is the
-         workspace's global context and it is changed in the header. This label
-         is what keeps the list self-describing, which matters more than it
-         looks: a school year straddles two calendar years, so two different
-         years both show a "juillet 2026" month header below. -->
-    <div class="border-b px-2 py-1.5">
-      <span class="text-xs font-semibold">{schoolYear}</span>
-    </div>
-
     <Tooltip.Provider delayDuration={150}>
       <div bind:this={listEl} class="max-h-72 overflow-y-auto px-1 pb-1">
         {#snippet eventRow(e: SwitcherEvent, dateLabel: string)}

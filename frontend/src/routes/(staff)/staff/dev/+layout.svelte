@@ -201,7 +201,6 @@
         <EventWorkspaceSwitcher
           events={yearEvents}
           currentId={ev.id}
-          schoolYear={selectedSchoolYear}
           onpick={openEvent}
         />
       {/if}
