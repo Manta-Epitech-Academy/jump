@@ -380,4 +380,10 @@ So: declare the data loss in the migration's `Warnings` block, say in a comment 
 
 ## Commits
 
-Conventional Commits (`type(scope): subject`), matching the existing history (`fix(events):`, `feat(...)`). **Keep the subject line under 72 characters including the `type(scope):` prefix.** Trim wording to fit and push detail into the body rather than a long subject; one logical change per commit.
+Conventional Commits (`type(scope): subject`), the format the existing history uses (`fix(events):`, `feat(...)`). **Keep the subject line under 72 characters including the `type(scope):` prefix.** Trim wording to fit and push detail into the body rather than a long subject; one logical change per commit.
+
+**Commits are written in English**, subject and body, whatever language the issue and the review conversation used. A commit sits next to the code, whose identifiers are English by the rule above, and it is read through `git log` and `git blame` long after the discussion that produced it. Pull request titles too, because `scripts/generate-changelog.sh` copies them verbatim into `CHANGELOG.md`, which is English: a French title lands there unedited.
+
+The reason this is a written rule and not a matter of taste: **a branch's own history is the only style guide the next agent gets**, so one French subject makes every later commit on that branch French by imitation, and "matching the existing history" is enough of an instruction to keep it going. Eleven accumulated that way before anyone read them side by side.
+
+What stays French is what a French-speaking non-developer reads: the UI strings covered above, and the content of an issue, which the PO reads (see [`CONTRIBUTING.md`](.github/CONTRIBUTING.md), step 1). A pull request body follows its audience the same way. Its title does not, because of `CHANGELOG.md`.
