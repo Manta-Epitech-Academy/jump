@@ -1,5 +1,7 @@
 import { prisma } from '$lib/server/db';
 import type { Prisma } from '@prisma/client';
+import { env } from '$env/dynamic/private';
+import { base } from '$app/paths';
 import { renderCertificatePreviewPng } from '$lib/server/services/diplomaGenerator';
 import { UnknownScopeError } from '$lib/server/adminApi/scope';
 
@@ -91,6 +93,12 @@ export function listDiplomaTemplates(): Promise<DiplomaTemplateIdentity[]> {
  * Rendered with placeholder names, never a cohort, so a preview can never carry a
  * student's identity into a chat. The `note` says so in the answer, because an
  * image of a certificate with a name on it invites exactly the wrong caption.
+ *
+ * The answer carries the image twice over, and not by oversight: `image` is for a
+ * consumer that can display one, `url` is for one that cannot. A terminal MCP
+ * client renders no inline image, and a model left holding only the source will
+ * answer "what does it look like" by describing the design, which is the single
+ * thing this tier exists to prevent. A link is what it can hand over instead.
  */
 export async function getDiplomaTemplatePreview(params: {
   code: string;
@@ -98,6 +106,7 @@ export async function getDiplomaTemplatePreview(params: {
   code: string;
   label: string;
   image: { mimeType: string; base64: string };
+  url: string;
   widthPx: number;
   heightPx: number;
   note: string;
@@ -126,8 +135,9 @@ export async function getDiplomaTemplatePreview(params: {
       mimeType: 'image/png',
       base64: Buffer.from(png).toString('base64'),
     },
+    url: `${env.ORIGIN ?? ''}${base}/api/admin/config/diploma-template-preview?code=${encodeURIComponent(template.code)}`,
     widthPx,
     heightPx,
-    note: "Rendu réel de la première page de ce certificat, produit par le même moteur que l'export. Les noms, dates, ville et signataires visibles sont des exemples : aucune donnée de jeune n'y figure, et ce document n'a été délivré à personne.",
+    note: "Rendu réel de la première page de ce certificat, produit par le même moteur que l'export. Les noms, dates, ville et signataires visibles sont des exemples : aucune donnée de jeune n'y figure, et ce document n'a été délivré à personne. Si l'image ne peut pas être affichée, ouvrez « url » : c'est la même image.",
   };
 }

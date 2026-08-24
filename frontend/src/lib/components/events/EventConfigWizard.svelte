@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { base } from '$app/paths';
   import { superForm, type SuperValidated } from 'sveltekit-superforms';
   import Database from '@lucide/svelte/icons/database';
   import CalendarCog from '@lucide/svelte/icons/calendar-cog';
@@ -278,43 +279,18 @@
   );
 
   // The certificate is previewed for the same reason the feedback form below is:
-  // the dropdown IS the choice, and this shows what was just chosen. Fetched from
-  // the curated API rather than from a private endpoint, and it is the same
-  // operation the MCP tool calls, so what staff see here and what a model is
-  // shown cannot disagree. An admin session authenticates against that API as a
-  // reader, so no token is involved.
-  let previewedCode = $state<string | null>(null);
-  let previewSrc = $state<string | null>(null);
-  let previewLoading = $state(false);
+  // the dropdown IS the choice, and this shows what was just chosen. The src is
+  // the curated API's own operation, which serves the rendered image itself, so
+  // what staff see here and what a model is shown are the same bytes from the
+  // same call, and there is nothing to fetch by hand. An admin session
+  // authenticates against that API as a reader, so no token is involved.
+  const previewUrl = $derived(
+    selectedCertificate
+      ? `${base}/api/admin/config/diploma-template-preview?code=${encodeURIComponent(selectedCertificate.code)}`
+      : null,
+  );
   let previewFailed = $state(false);
 
-  $effect(() => {
-    const code = selectedCertificate?.code ?? null;
-    if (code === untrack(() => previewedCode)) return;
-    previewedCode = code;
-    previewSrc = null;
-    previewFailed = false;
-    if (!code) return;
-
-    previewLoading = true;
-    fetch(
-      `/api/admin/config/diploma-template-preview?code=${encodeURIComponent(code)}`,
-    )
-      .then((r) =>
-        r.ok ? r.json() : Promise.reject(new Error(String(r.status))),
-      )
-      .then((answer) => {
-        // Ignore a render that lost the race to a newer selection.
-        if (untrack(() => previewedCode) !== code) return;
-        previewSrc = `data:${answer.image.mimeType};base64,${answer.image.base64}`;
-      })
-      .catch(() => {
-        if (untrack(() => previewedCode) === code) previewFailed = true;
-      })
-      .finally(() => {
-        if (untrack(() => previewedCode) === code) previewLoading = false;
-      });
-  });
   const feedbackTriggerLabel = $derived(
     $form.feedbackFormId
       ? (workingForms.find((f) => f.value === $form.feedbackFormId)?.label ??
@@ -818,7 +794,7 @@
                             {/each}
                           </Select.Content>
                         </Select.Root>
-                        {#if $form.diplomaTemplateId}
+                        {#if previewUrl}
                           <div class="rounded-sm border bg-background/60">
                             <div class="border-b px-3 py-1.5">
                               <span class="epi-overline text-muted-foreground">
@@ -826,24 +802,23 @@
                               </span>
                             </div>
                             <div class="space-y-1.5 px-3 py-2">
-                              {#if previewLoading}
-                                <p class="text-xs text-muted-foreground">
-                                  Rendu en cours…
-                                </p>
-                              {:else if previewFailed}
-                                <p class="text-xs text-muted-foreground">
-                                  Aperçu indisponible pour le moment.
-                                </p>
-                              {:else if previewSrc}
-                                <img
-                                  src={previewSrc}
-                                  alt="Aperçu du certificat {certificateTriggerLabel}"
-                                  class="w-full rounded-sm border"
-                                />
-                                <p class="text-xs text-muted-foreground">
-                                  Nom, dates et signataire sont des exemples.
-                                </p>
-                              {/if}
+                              {#key previewUrl}
+                                {#if previewFailed}
+                                  <p class="text-xs text-muted-foreground">
+                                    Aperçu indisponible pour le moment.
+                                  </p>
+                                {:else}
+                                  <img
+                                    src={previewUrl}
+                                    alt="Aperçu du certificat {certificateTriggerLabel}"
+                                    class="w-full rounded-sm border"
+                                    onerror={() => (previewFailed = true)}
+                                  />
+                                  <p class="text-xs text-muted-foreground">
+                                    Nom, dates et signataire sont des exemples.
+                                  </p>
+                                {/if}
+                              {/key}
                             </div>
                           </div>
                         {/if}

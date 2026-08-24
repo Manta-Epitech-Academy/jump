@@ -392,7 +392,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_diploma_template_preview: defineOperation({
     description:
-      'What one certificate actually looks like: its first page, rendered as an image by the same engine as the real export. Ask for this rather than describing a design from its HTML, which does not contain the page geometry, the fonts or the signature blocks. Rendered with placeholder names, so it shows no real person.',
+      'What one certificate actually looks like: its first page, rendered as an image by the same engine as the real export. Rendered with placeholder names, so it shows no real person. Never describe a certificate\'s appearance from its HTML: the design does not carry the page geometry, the fonts or the signature blocks, so any description drawn from it is invented. Show the image; if you cannot display an image, hand the reader the "url" field instead of describing what is in it.',
     shape: {
       code: z
         .string()

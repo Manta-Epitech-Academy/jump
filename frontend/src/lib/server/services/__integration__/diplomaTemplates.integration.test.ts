@@ -15,6 +15,7 @@ import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
 import { mintToken } from '$lib/server/adminApi/tokens';
 import { adminApiWrite } from '$lib/server/adminApi/route';
+import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
 
 const postTemplate = adminApiWrite('write_diploma_template');
 const postEventTemplate = adminApiWrite('write_event_diploma_template');
@@ -216,6 +217,34 @@ describe('certificate authoring (integration)', () => {
     ).rejects.toThrow();
 
     await call(postEventTemplate, secret, { eventId });
+  });
+
+  it('previews a certificate as an image, and as a link to the same image', async () => {
+    // Both, and not by oversight. A client that can display an inline image gets
+    // one; a terminal MCP client gets a URL it can hand over. Without the second,
+    // a model left holding only the design answers "what does it look like" by
+    // describing it, which is the one thing this tier exists to prevent.
+    const preview = await getDiplomaTemplatePreview({ code: 'stage' });
+
+    expect(preview.image.mimeType).toBe('image/png');
+    const bytes = Buffer.from(preview.image.base64, 'base64');
+    // A real PNG, not an empty or truncated one.
+    expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+    expect(bytes.byteLength).toBeGreaterThan(2000);
+    // Small enough to travel in a chat message.
+    expect(preview.image.base64.length).toBeLessThan(400_000);
+
+    expect(preview.url).toContain(
+      '/api/admin/config/diploma-template-preview?code=stage',
+    );
+    // The note is what stops a model captioning a placeholder as a real student.
+    expect(preview.note).toMatch(/exemples/);
+  }, 60_000);
+
+  it('refuses a preview of a certificate that does not exist, naming the real ones', async () => {
+    await expect(
+      getDiplomaTemplatePreview({ code: 'nope-not-a-certificate' }),
+    ).rejects.toThrow(/stage/);
   });
 
   it('refuses inscrits sub-options when the section is off', async () => {

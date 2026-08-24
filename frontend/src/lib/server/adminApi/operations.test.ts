@@ -196,7 +196,7 @@ function mountedOperationNames(): string[] {
       if (entry.isDirectory()) walk(path);
       else if (entry.name === '+server.ts') {
         for (const [, name] of readFileSync(path, 'utf8').matchAll(
-          /adminApi(?:Read|Write)\(\s*'([^']+)'/g,
+          /adminApi(?:Read|Write|Image)\(\s*'([^']+)'/g,
         )) {
           found.push(name);
         }
