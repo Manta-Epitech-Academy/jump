@@ -6,13 +6,13 @@
 
 ## Vue d'ensemble
 
-- **58** modèles · **35** enums · **85** relations
+- **57** modèles · **35** enums · **84** relations
 
 | Domaine | Modèles |
 | --- | ---: |
 | Authentification & Profils | 12 |
 | Cycle de vie talent & RGPD | 6 |
-| Événements & Participations | 10 |
+| Événements & Participations | 9 |
 | Planning & Activités | 3 |
 | Progression, Portfolio & XP | 2 |
 | Minijeux | 3 |
@@ -157,7 +157,6 @@ erDiagram
     String parent2Prenom
     String parent2Email
     String parent2Phone
-    Boolean hasLaptop
     String setupDescription
     DateTime equipmentValidatedAt
     String interestsFreeText
@@ -361,14 +360,7 @@ erDiagram
     String talentId FK,UK
     String eventId FK,UK
     String campusId FK
-    Boolean bringPc
     String sfMemberStatus
-    DateTime createdAt
-    DateTime updatedAt
-  }
-  StageCompliance {
-    String participationId PK,FK
-    Boolean charteSigned
     DateTime createdAt
     DateTime updatedAt
   }
@@ -465,7 +457,6 @@ erDiagram
   Event ||--o{ EventConfig_Module : "modules"
   Feedback_Form |o--o{ EventConfig_Template : "configTemplates"
   EventConfig_Template ||--o{ EventConfig_TemplateModule : "modules"
-  Participation ||--|| StageCompliance : "stageCompliance"
   Participation ||--|| Interview : "interview"
 ```
 
