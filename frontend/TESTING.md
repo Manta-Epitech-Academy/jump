@@ -420,35 +420,21 @@ Causes fréquentes :
 
 ### Si un test échoue sur `main` (urgence)
 
-1. Créer immédiatement un ticket avec les labels `test-broken` + `priority:high`
-2. Utiliser le template suivant :
+Un test rouge sur `main` est un correctif comme un autre, et il passe par le
+protocole de [`CONTRIBUTING.md`](../.github/CONTRIBUTING.md) : ouvrir l'issue avec
+le gabarit _Feature_, puis `scripts/start-work.sh --issue <n> --type fix --slug
+short-name`. Le critère d'acceptation s'écrit tout seul : le test passe pour la
+bonne raison, et la régression reste couverte.
 
-```markdown
-## Broken test report
+Si c'est assez urgent pour ne pas s'arrêter à l'issue, l'échappatoire est nommée
+et non silencieuse : `git push --no-verify`, label `no-issue` sur la PR, et une
+section `## Process exception` qui dit pourquoi. C'est exactement le cas pour
+lequel elle existe.
 
-**File:** src/lib/services/student.service.test.ts
-**Test:** "should return null if the student does not exist"
+Ensuite :
 
-## Observed behavior
-
-<!-- Paste the CI error message here -->
-
-## Expected behavior
-
-The test should pass.
-
-## Context
-
-- Since which commit does the test fail?
-- Which recent PR might have caused this?
-
-## Impact
-
-Does this broken test block merges on main? Yes / No
-```
-
-3. Si le test cassé bloque les merges sur `main`, le hotfix est priorisé sur toutes les autres tâches
-4. Ne jamais merger du code qui casse un test existant sans validation du Lead Qualité
+1. Si le test cassé bloque les merges sur `main`, le hotfix est priorisé sur toutes les autres tâches
+2. Ne jamais merger du code qui casse un test existant sans validation du Lead Qualité
 
 ---
 

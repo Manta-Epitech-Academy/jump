@@ -1,11 +1,15 @@
 # AGENTS.md — Vendor-Neutral AI Agent Instructions
 
-This document is the primary entrypoint and source of truth for all AI coding agents (Claude Code, Gemini, Cursor, Copilot, etc.) working in this repository.
+This document is the primary entrypoint and source of truth for all AI coding agents (Claude Code, Gemini, Cursor, Copilot, Codex, etc.) working in this repository.
+
+**It lives at the repo root on purpose.** That is the path agents look for without being told, so `CLAUDE.md`, `GEMINI.md` and `.github/copilot-instructions.md` are one-line pointers here and hold no content of their own. If you are reading a pointer, read this file.
+
+**Process is not optional here.** [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) is a protocol, not advice: parts of it are enforced by a CI check that blocks the merge, and it opens with a table saying which parts. Read it before your first commit on a branch, not before your PR.
 
 @.github/CONTRIBUTING.md
 @.github/JARGON.md
 
-> **Visual work: read [`DESIGN.md`](../DESIGN.md) at the repo root first.** It is
+> **Visual work: read [`DESIGN.md`](./DESIGN.md) at the repo root first.** It is
 > the visual contract (tokens, per-space skins, brand primitives, and the
 > argument behind every deviation from the charte). It is referenced rather than
 > `@`-imported on purpose: it is 700+ lines that only matter when you are
@@ -30,7 +34,7 @@ Jump — an internal Epitech Academy platform for managing training events, stud
 
 **DRY everywhere.** No repetitions in code, no repetitions in documentation. If something is true in two places, it must live in one.
 
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the full feature pipeline and Definition of Done, and [`JARGON.md`](./JARGON.md) for shared vocabulary.
+See [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) for the full feature pipeline and Definition of Done, and [`JARGON.md`](.github/JARGON.md) for shared vocabulary.
 
 ## Commands
 
@@ -61,7 +65,7 @@ The app splits into four workspaces, each serving a distinct audience and busine
 | **Talent** | `(talent)/`    | students          | Student experience: gamification, progression          |
 | **Parent** | `(parent)/`    | legal guardians   | Règlement co-signature, image-rights decision          |
 
-**Terminology:** See [`JARGON.md`](./JARGON.md) for shared vocabulary. Critical for reading this codebase: `dev` roles and `/dev/` routes refer to the recruitment team (Business Development), not software engineers.
+**Terminology:** See [`JARGON.md`](.github/JARGON.md) for shared vocabulary. Critical for reading this codebase: `dev` roles and `/dev/` routes refer to the recruitment team (Business Development), not software engineers.
 
 ### Auth System
 
@@ -317,7 +321,7 @@ or reworking a staff list page.
   Pagination, search or a dedicated page are a different decision and belong to volume, not to this rule: bound the region first, and reach for those only when the count genuinely justifies them.
 
 - **Layout canon:** the dev-space **inscrits** page (`/staff/dev/events/[id]/inscrits`) is the reference for staff list pages: its filter row, table, spacing, and empty states. New staff pages mirror it unless told otherwise.
-- **Visual identity: [`DESIGN.md`](../DESIGN.md) at the repo root is the contract** (see the note at the top of this file). Colors, type, radii, spacing, elevation, motion, the per-space skins, and the brand primitives (`_`, `< />`, `{ }`, the blueprint grid) all live there, with the rationale for every deviation from the charte. Do not restate its values here. `frontend/src/routes/layout.css` is its single implementation, and two guards keep the two in step: `bun run test` (token values and contrast) and `bun run lint:design` (forbidden classes). The raw charte lives at `~/Downloads/Epitech Design System` (brand assets, the source PDF): use it for logos and photography instead of approximating, and treat its `sales/` and `eso/` mockups as tone reference only, per `DESIGN.md`.
+- **Visual identity: [`DESIGN.md`](./DESIGN.md) at the repo root is the contract** (see the note at the top of this file). Colors, type, radii, spacing, elevation, motion, the per-space skins, and the brand primitives (`_`, `< />`, `{ }`, the blueprint grid) all live there, with the rationale for every deviation from the charte. Do not restate its values here. `frontend/src/routes/layout.css` is its single implementation, and two guards keep the two in step: `bun run test` (token values and contrast) and `bun run lint:design` (forbidden classes). The raw charte lives at `~/Downloads/Epitech Design System` (brand assets, the source PDF): use it for logos and photography instead of approximating, and treat its `sales/` and `eso/` mockups as tone reference only, per `DESIGN.md`.
 - **Component naming:** PascalCase, domain-scoped in subfolders (`components/events/`, `components/students/`).
 - **Staff filter controls:** Pick by list shape, do not default to a plain dropdown. A few inline choices → `SegmentedFilter`. A short, known list too wide to sit inline → `FilterSelect`. A long, typeable list (campuses, lycées, talents, games) → `SearchableSelect` (built-in search box; renders its own `'all'` sentinel, so leave it out of `options`). The rationale lives in the `FilterSelect`/`SearchableSelect` doc comments. A campus filter on a plain `FilterSelect` is the classic miss.
 - **Lucide icons:** Always import per-icon, never the barrel. Barrel imports drag every icon through Vite's dev resolver and tank cold-start (~9s → ~3s on this codebase). If you slip, run `bun scripts/codemod-lucide-imports.ts` to auto-rewrite.
@@ -376,4 +380,10 @@ So: declare the data loss in the migration's `Warnings` block, say in a comment 
 
 ## Commits
 
-Conventional Commits (`type(scope): subject`), matching the existing history (`fix(events):`, `feat(...)`). **Keep the subject line under 72 characters including the `type(scope):` prefix.** Trim wording to fit and push detail into the body rather than a long subject; one logical change per commit.
+Conventional Commits (`type(scope): subject`), the format the existing history uses (`fix(events):`, `feat(...)`). **Keep the subject line under 72 characters including the `type(scope):` prefix.** Trim wording to fit and push detail into the body rather than a long subject; one logical change per commit.
+
+**Commits are written in English**, subject and body, whatever language the issue and the review conversation used. A commit sits next to the code, whose identifiers are English by the rule above, and it is read through `git log` and `git blame` long after the discussion that produced it. Pull request titles too, because `scripts/generate-changelog.sh` copies them verbatim into `CHANGELOG.md`, which is English: a French title lands there unedited.
+
+The reason this is a written rule and not a matter of taste: **a branch's own history is the only style guide the next agent gets**, so one French subject makes every later commit on that branch French by imitation, and "matching the existing history" is enough of an instruction to keep it going. Eleven accumulated that way before anyone read them side by side.
+
+What stays French is what a French-speaking non-developer reads: the UI strings covered above, and the content of an issue, which the PO reads (see [`CONTRIBUTING.md`](.github/CONTRIBUTING.md), step 1). A pull request body follows its audience the same way. Its title does not, because of `CHANGELOG.md`.

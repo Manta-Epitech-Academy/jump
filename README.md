@@ -145,6 +145,22 @@ CI builds and pushes Docker images to GHCR on pushes to `main`, `staging`, and `
 
 See [`.env.example`](.env.example) for the full template.
 
+## Contributing
+
+The contribution protocol is [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md), and part of it is
+enforced: a CI check blocks the merge unless the branch is named `type/<issue>-slug`, the issue it
+points at carries user stories and acceptance criteria, and the pull request body closes it. The
+document opens with a table saying exactly which steps are checked and which are not.
+
+Start a piece of work with:
+
+```bash
+scripts/start-work.sh --issue <n> --type feat --slug short-name
+```
+
+That opens the branch and moves the issue on the board. Repo-wide conventions for agents and humans
+alike live in [`AGENTS.md`](AGENTS.md).
+
 ## License
 
 Private — Epitech internal use only.
