@@ -98,6 +98,15 @@
   // event's Jump-owned config. Single source for every label below.
   const noun = $derived(cohortNounForms(event.cohortNoun));
 
+  // `?event=` carries the event the fiche was opened from: the talent route has
+  // no `[id]` of its own, so without it a reload (or a shared link) falls back to
+  // the workspace default and the sidebar, along with the header's school year,
+  // silently moves off this event. Mirrors the émargement, bilan and entretiens
+  // rosters.
+  function ficheHref(talentId: string): string {
+    return resolve(`/staff/dev/students/${talentId}`) + `?event=${event.id}`;
+  }
+
   // Status tints for the dossier tooltip. The tooltip surface is bg-foreground,
   // which inverts with the theme: dark in light mode (the bright tints pop) but
   // light (#c9c9c9) in dark mode, where those same bright tints wash out to
@@ -614,7 +623,7 @@
           {sortDir}
           onSort={toggleSort}
           rowKey={(r) => r.id}
-          rowHref={(r) => resolve(`/staff/dev/students/${r.talentId}`)}
+          rowHref={(r) => ficheHref(r.talentId)}
           rowLabel={(r) => `Voir la fiche de ${r.prenom} ${r.nom}`}
           stickyHeader
           layout="fixed"
