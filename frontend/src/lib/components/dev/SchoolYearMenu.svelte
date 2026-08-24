@@ -40,8 +40,12 @@
 
 {#if canSwitch}
   <DropdownMenu.Root>
+    <!-- A menu button has one accessible name and no separate value slot (unlike
+         the `Select.Trigger` combobox behind `FilterSelect`), so the label
+         carries the year as well as what the control is. A bare "Changer d'année
+         scolaire" would hide the readout that is the point of this control. -->
     <DropdownMenu.Trigger
-      aria-label="Changer d'année scolaire"
+      aria-label="Année scolaire : {active}"
       class="{base} cursor-pointer border border-border bg-background text-foreground hover:bg-muted/50"
     >
       <CalendarDays class="h-4 w-4 text-muted-foreground" />
