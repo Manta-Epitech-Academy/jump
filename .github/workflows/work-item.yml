@@ -1,0 +1,53 @@
+name: Work item
+
+# Does this pull request trace back to a real, well-formed issue?
+#
+# The logic lives in scripts/check-work-item.sh so the same code runs locally
+# (`bash scripts/check-work-item.sh`) and here. A guard you can only trigger by
+# opening a pull request teaches you nothing until it is too late.
+#
+# No `paths:` filter, on purpose: a required check that does not report on every
+# pull request leaves the merge waiting for a status that will never arrive.
+
+on:
+  pull_request:
+    branches: [dev]
+    # `edited` because the Closes line lives in the body, `labeled` and
+    # `unlabeled` because the `no-issue` escape hatch is a label.
+    types: [opened, synchronize, reopened, ready_for_review, edited, labeled, unlabeled]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  check-work-item:
+    name: Work item
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # The ordering check compares the issue's creation time with the
+          # branch's first commit, so it needs the history and origin/dev.
+          fetch-depth: 0
+
+      - name: Check the branch traces back to a real issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.base_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          # Passed through env and never spliced into the script with `${{ }}`:
+          # a pull request body is caller-written text, and interpolating it
+          # straight into a shell would let it execute.
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+          bash scripts/check-work-item.sh \
+            --branch "$HEAD_REF" \
+            --base "$BASE_REF" \
+            --pr "$PR_NUMBER" \
+            --labels "$PR_LABELS" \
+            --body-file "$RUNNER_TEMP/pr-body.md"

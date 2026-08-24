@@ -1,0 +1,51 @@
+{
+  "_comment": [
+    "GitHub configuration this repository cannot express in code, kept here so the intent is",
+    "versioned, reviewable and reproducible instead of living in one person's browser tab.",
+    "Apply it with scripts/apply-repo-config.sh. Edit this file, never the web UI."
+  ],
+
+  "requiredStatusChecks": {
+    "_comment": [
+      "Until now the `push dev` ruleset had no required status checks at all, so every CI job was",
+      "decorative at the moment of merging: red, and mergeable anyway. These are the checks that",
+      "report on every pull request to dev, which is the condition for being required at all."
+    ],
+    "ruleset": "push dev",
+    "strict": false,
+    "_strictComment": "false: do not force the branch to be up to date with dev before merging. With merge commits and mostly solo work, that only adds churn.",
+    "contexts": [
+      "Work item",
+      "Lint & Type Check",
+      "Unit & Integration Tests",
+      "E2E Tests",
+      "Block out-of-order migrations",
+      "Secret Scanning",
+      "Dependency Audit",
+      "SAST (Semgrep)"
+    ],
+    "excluded": {
+      "DAST (OWASP ZAP)": "Guarded by `if: schedule || push to main`, so it never reports on a pull request. Requiring it would leave every merge waiting for a status that never arrives.",
+      "Docker Image Scan": "Builds the whole image. Useful, but a merge into dev should not wait on it."
+    }
+  },
+
+  "labels": [
+    {
+      "name": "no-issue",
+      "color": "d876e3",
+      "description": "Deliberate exception to the issue-first rule, justified under ## Process exception"
+    },
+    {
+      "name": "test-broken",
+      "color": "d73a4a",
+      "description": "A test is failing and needs fixing"
+    },
+    {
+      "name": "priority:high",
+      "color": "b60205",
+      "description": "Needs attention before other work"
+    }
+  ],
+  "_labelsComment": "no-issue is the CI escape hatch. test-broken and priority:high are referenced by ISSUE_TEMPLATE/broken-test.yml, which has been quietly dropping them because they never existed."
+}
