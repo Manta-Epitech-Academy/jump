@@ -1,6 +1,6 @@
 <script lang="ts">
   import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui';
-  import CircleIcon from '@lucide/svelte/icons/circle';
+  import CheckIcon from '@lucide/svelte/icons/check';
   import { cn, type WithoutChild } from '$lib/utils.js';
 
   let {
@@ -20,13 +20,16 @@
   )}
   {...restProps}
 >
+  <!-- A check, not shadcn's filled dot: "this option is the selected one" is
+       said with a ✓ everywhere else here, from the sibling checkbox item right
+       next to this file to `SearchableSelect`. A third glyph for the same idea
+       is how a vocabulary drifts. Space is reserved rather than conditional, so
+       the labels do not shift as the selection moves. -->
   {#snippet children({ checked })}
     <span
       class="pointer-events-none absolute start-2 flex size-3.5 items-center justify-center"
     >
-      {#if checked}
-        <CircleIcon class="size-2 fill-current" />
-      {/if}
+      <CheckIcon class={cn('size-4', !checked && 'text-transparent')} />
     </span>
     {@render childrenProp?.({ checked })}
   {/snippet}
