@@ -19,6 +19,13 @@ export const API_USAGE_MAX_DAYS = 180;
 export const API_USAGE_DEFAULT_DAYS = 30;
 /** Operations listed in the refusal ranking. */
 export const REFUSAL_TOP_N = 10;
+/**
+ * The name the MCP endpoint logs a rejected request under, before any tool is
+ * named. Not an operation, so it is kept out of both friction lists: at the top
+ * of a refusal ranking it reads as a broken tool when it is in fact
+ * unauthenticated traffic, which is what the edge rate limit is for.
+ */
+const ENVELOPE_OPERATION = 'mcp_request';
 
 export type OperationUsage = {
   operation: string;
@@ -162,9 +169,13 @@ export async function getApiUsage(
   // envelope audit records those, so they are the questions somebody tried to ask
   // and could not. `mcp_request` is not one of them: it is the name the endpoint
   // logs an authentication failure under, before any tool is named.
+  const catalogued = operations.filter(
+    (row) => known.has(row.operation) || row.operation === ENVELOPE_OPERATION,
+  );
   const invented = operations
     .filter(
-      (row) => !known.has(row.operation) && row.operation !== 'mcp_request',
+      (row) =>
+        !known.has(row.operation) && row.operation !== ENVELOPE_OPERATION,
     )
     .map((row) => ({ name: row.operation, attempts: row.calls }))
     .sort((a, b) => b.attempts - a.attempts || a.name.localeCompare(b.name));
@@ -207,8 +218,10 @@ export async function getApiUsage(
       "Opérations du catalogue que personne n'a appelées sur la période. Une opération qui n'en sort jamais est une opération que le catalogue peut perdre.",
     ),
     mostRefused: metric(
-      operations
-        .filter((row) => row.refused > 0)
+      catalogued
+        .filter(
+          (row) => row.refused > 0 && row.operation !== ENVELOPE_OPERATION,
+        )
         .sort(
           (a, b) =>
             (b.refusedShare ?? 0) - (a.refusedShare ?? 0) ||

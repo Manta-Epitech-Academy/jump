@@ -236,7 +236,7 @@ export async function getFeedbackQuestion(
     groups: groups
       ? metric(
           groups.slice(0, FEEDBACK_QUESTION_GROUPS_LIMIT),
-          `${FAVOURABLE_RULE} Ici ${params.groupBy === 'campus' ? 'par campus' : 'par événement'}, classé par cette part. ${rankAxisNote(
+          `${FAVOURABLE_RULE} Ici ${params.groupBy === 'campus' ? 'par campus' : 'par événement'}, classé par cette part. À lire avec « answered », qui dit sur combien de réponses la part est calculée : un groupe à trois réponses peut occuper la première place sans rien dire de comparable à un groupe à cent. ${rankAxisNote(
             params.groupBy === 'campus' ? RANK_UNITS.campus : RANK_UNITS.event,
           )} Le groupe « ${NOT_SET} » rassemble les réponses envoyées par le lien public sans campus ni événement renseigné, et n'est jamais classé. Limité à ${FEEDBACK_QUESTION_GROUPS_LIMIT} lignes.`,
         )
