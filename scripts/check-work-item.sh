@@ -48,19 +48,21 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# A body file that is not there is a mistake in the call, not an empty body: the
+# difference decides whether the Closes check runs, so it is not one to guess at.
+if [ -n "$BODY_FILE" ] && [ ! -f "$BODY_FILE" ]; then
+  echo "no such body file: $BODY_FILE" >&2
+  exit 2
+fi
+
 FAILURES=0
 
-# Bodies are read from files rather than variables so grep can work on them, and
-# they are ours to clean up.
-TMP_FILES=""
-trap 'for f in $TMP_FILES; do rm -f "$f"; done' EXIT
-
-new_tmp() {
-  local f
-  f=$(mktemp)
-  TMP_FILES="$TMP_FILES $f"
-  printf '%s' "$f"
-}
+# Bodies are read from files rather than variables so grep can work on them. One
+# directory holds all of them: a helper that echoed a path could only register it
+# for cleanup from inside a command substitution, where the assignment is lost and
+# the trap ends up with nothing to remove.
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
 
 fail() {
   FAILURES=$((FAILURES + 1))
@@ -95,9 +97,22 @@ if [ -z "$PR" ] && command -v gh >/dev/null 2>&1; then
   PR=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number \
     -q '.[0].number' 2>/dev/null || true)
 fi
-if [ -n "$PR" ] && [ -z "$BODY_FILE" ]; then
-  BODY_FILE=$(new_tmp)
-  gh pr view "$PR" --repo "$REPO" --json body -q .body > "$BODY_FILE" 2>/dev/null || : > "$BODY_FILE"
+
+# Whether the body is KNOWN, which is not the same question as whether it has any
+# bytes in it. A body handed over with --body-file is authoritative even when it
+# is empty: that is a pull request whose body really is empty, and it must fail
+# the Closes check rather than skip it. A body we fetched ourselves is only
+# authoritative if the call worked, because an empty file is otherwise
+# indistinguishable from a failed one, and treating the two alike is how this
+# check once skipped itself while printing OK.
+BODY_KNOWN=0
+[ -z "$BODY_FILE" ] || BODY_KNOWN=1
+
+if [ -n "$PR" ] && [ "$BODY_KNOWN" = 0 ]; then
+  BODY_FILE="$TMP_DIR/pr-body.md"
+  if gh pr view "$PR" --repo "$REPO" --json body -q .body > "$BODY_FILE" 2>/dev/null; then
+    BODY_KNOWN=1
+  fi
 fi
 if [ -n "$PR" ] && [ -z "$LABELS" ]; then
   LABELS=$(gh pr view "$PR" --repo "$REPO" --json labels -q '[.labels[].name] | join(",")' 2>/dev/null || true)
@@ -132,7 +147,7 @@ has_section() {
 if has_label "no-issue"; then
   echo
   echo "This pull request carries the 'no-issue' label."
-  if [ -n "$BODY_FILE" ] && [ -f "$BODY_FILE" ] && has_section "$BODY_FILE" "process exception"; then
+  if [ "$BODY_KNOWN" = 1 ] && has_section "$BODY_FILE" "process exception"; then
     echo "Process exception is documented in the body. Passing."
     exit 0
   fi
@@ -167,7 +182,7 @@ fi
 ISSUE_CREATED=${ISSUE_META%%$'\t'*}
 echo "issue title: ${ISSUE_META#*$'\t'}"
 
-ISSUE_BODY=$(new_tmp)
+ISSUE_BODY="$TMP_DIR/issue-body.md"
 gh issue view "$ISSUE" --repo "$REPO" --json body -q .body > "$ISSUE_BODY"
 
 # -------------------------------------------------- 3. the issue is structured
@@ -211,15 +226,18 @@ fi
 
 # ---------------------------------------------------- 5. the pull request link
 
-if [ -z "$PR" ] || [ ! -s "${BODY_FILE:-/dev/null}" ]; then
-  note "No pull request body available yet, skipping the Closes check. CI will run it."
+if [ -z "$PR" ]; then
+  note "No pull request yet, so there is no body to read. CI runs this check when you open one."
+elif [ "$BODY_KNOWN" != 1 ]; then
+  # Not a skip. An unreadable body means the link is unverified, and an
+  # unverified check that reports OK is the failure this guard exists to end.
+  fail "Could not read the body of pull request #$PR, so its link to #$ISSUE is unverified."
+  note "Check 'gh auth status', or hand the body over with --body-file."
+elif ! grep -qiE "(clos(e|es|ed)|fix(e[sd])?|resolv(e|es|ed))[[:space:]]*:?[[:space:]]*#${ISSUE}([^0-9]|$)" "$BODY_FILE"; then
+  fail "The pull request body does not link issue #$ISSUE."
+  note "Add 'Closes #$ISSUE' under ## Context. scripts/finish-work.sh does it for you."
 else
-  if ! grep -qiE "(clos(e|es|ed)|fix(e[sd])?|resolv(e|es|ed))[[:space:]]*:?[[:space:]]*#${ISSUE}([^0-9]|$)" "$BODY_FILE"; then
-    fail "The pull request body does not link issue #$ISSUE."
-    note "Add 'Closes #$ISSUE' under ## Context. scripts/finish-work.sh does it for you."
-  else
-    echo "pull request links #$ISSUE"
-  fi
+  echo "pull request links #$ISSUE"
 fi
 
 echo
