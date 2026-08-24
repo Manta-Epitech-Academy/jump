@@ -76,6 +76,16 @@ function syncPayload(over: { unresolved?: number; ageHours?: number } = {}) {
   };
 }
 
+/** The sync has never run once: worse than stale, and distinct from it below. */
+function neverSyncedPayload(unresolved = 0) {
+  return {
+    lastSync: metric(null, 'def'),
+    unresolvedErrors: metric(unresolved, 'def'),
+    errorsByType: metric([], 'def'),
+    oldestUnresolvedAgeDays: metric(null, 'def'),
+  };
+}
+
 function pdfJobsPayload(failed = 0) {
   return {
     pending: metric(0, 'def'),
@@ -117,6 +127,8 @@ describe('buildAdminDigest', () => {
     expect(digest.subject).toContain('0 événements à préparer');
     expect(digest.html).toContain('Aucun événement à préparer');
     expect(digest.html).not.toContain('<table');
+    // Nothing to act on, so no link to a page that would show an empty list.
+    expect(digest.html).not.toContain('/staff/admin/events');
     expect(digest.summary.eventsToPrepare).toBe(0);
   });
 
@@ -130,6 +142,8 @@ describe('buildAdminDigest', () => {
     expect(digest.html).toContain('Lille-CodingClub-1');
     expect(digest.html).toContain('nom public');
     expect(digest.html).toContain('erreurs');
+    expect(digest.html).toContain('/staff/admin/events');
+    expect(digest.html).toContain('/staff/admin/sync-errors');
     expect(digest.text).toContain('Lille-CodingClub-1');
     expect(digest.summary).toEqual({
       eventsToPrepare: 1,
@@ -154,14 +168,32 @@ describe('buildAdminDigest', () => {
 
     const busy = await buildAdminDigest();
     expect(busy.html).toContain('3');
-    expect(busy.html).toContain('documents non générés');
+    // "Non généré" reads as merely pending; the underlying rows are in the
+    // `error` status and need a human to relaunch them, so the mail has to say
+    // "échec" and point at the queue that can act on it, not just report a count.
+    expect(busy.html).toContain('générations de document en échec');
+    expect(busy.html).not.toContain('non généré');
+    expect(busy.html).toContain('/staff/admin/onboarding-pdfs');
     // An overdue erasure request is the one figure here with a legal clock on
     // it, so it has to be named rather than folded into "4 en attente".
     expect(busy.html).toContain('dépassé');
+    expect(busy.html).toContain('/staff/admin/account-deletions');
     expect(busy.summary).toMatchObject({
       failedPdfJobs: 3,
       overdueDeletionRequests: 2,
     });
+  });
+
+  it('says a single failed generation without the wrong plural', async () => {
+    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload());
+    getPdfJobsHealth.mockResolvedValue(pdfJobsPayload(1));
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain('génération de document en échec');
+    expect(digest.html).not.toContain('générations de document en échec');
+    expect(digest.html).toContain('le talent concerné');
   });
 
   it('caps the listed events and points at the cockpit for the rest', async () => {
@@ -203,5 +235,32 @@ describe('buildAdminDigest', () => {
     expect(digest.html).toContain('(à vérifier)');
     expect(digest.html).toContain('Lille &lt;script&gt;');
     expect(digest.html).not.toContain('<script>');
+  });
+
+  it('flags a never-synced Salesforce feed as its own severity, not as "no errors"', async () => {
+    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(neverSyncedPayload());
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain('jamais été enregistrée');
+    expect(digest.html).toContain('à vérifier en priorité');
+    expect(digest.html).toContain('/staff/admin');
+    // The zero below is true only because zero syncs ran to produce an error;
+    // presenting it as reassurance right after the worst possible state is
+    // the exact bug this test guards against.
+    expect(digest.html).not.toContain('Aucune erreur en attente');
+    expect(digest.summary.lastSyncAgeHours).toBeNull();
+  });
+
+  it('still surfaces sync errors reported despite no run ever being recorded', async () => {
+    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(neverSyncedPayload(4));
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain('jamais été enregistrée');
+    expect(digest.html).toContain('4');
+    expect(digest.html).toContain('/staff/admin/sync-errors');
   });
 });
