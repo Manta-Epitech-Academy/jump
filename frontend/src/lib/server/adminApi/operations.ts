@@ -728,7 +728,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   ops_api_usage: defineOperation({
-    description: `This API's own call log, aggregated: how many calls over the window, how many were refused or failed, and the breakdown per operation, per token and per day. Also lists the catalogue operations nobody called. Window defaults to ${API_USAGE_DEFAULT_DAYS} days, ${API_USAGE_MAX_DAYS} maximum.`,
+    description: `This API's own call log, aggregated: how many calls over the window, how many were refused or failed, and the breakdown per operation, per token and per day. Also lists the catalogue operations nobody called, the ones with the highest refusal rate, and the operation names callers reached for that do not exist - the last two being where a question this API answers badly, or not at all, shows up. Window defaults to ${API_USAGE_DEFAULT_DAYS} days, ${API_USAGE_MAX_DAYS} maximum.`,
     shape: {
       days: z.coerce
         .number()
