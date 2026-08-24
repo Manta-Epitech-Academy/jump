@@ -8,6 +8,8 @@
  * reliably renders (no custom properties, no linked stylesheet).
  */
 
+import { escapeHtml } from './htmlEscape';
+
 /** `DESIGN.md`'s `epiBlue`: brand primary, AA on white. Borders, links, CTAs. */
 export const EPI_BLUE = '#013afb';
 /** `DESIGN.md`'s `epiTech`: the jungle accent. Fills only, never text on light. */
@@ -53,14 +55,6 @@ export function shellClose(): string {
     `</div>`,
     `</div>`,
   ].join('');
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 /**

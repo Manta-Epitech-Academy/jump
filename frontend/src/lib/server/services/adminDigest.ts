@@ -45,6 +45,7 @@ import {
   shellClose,
   wrapEmailDocument,
 } from '$lib/domain/emailBrandShell';
+import { escapeHtml } from '$lib/domain/htmlEscape';
 
 /** How many events to list in the mail before deferring to the cockpit. */
 const LISTED_EVENTS = 15;
@@ -62,13 +63,6 @@ export type AdminDigest = {
     overdueDeletionRequests: number;
   };
 };
-
-const esc = (value: string) =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
@@ -108,10 +102,10 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
     .map(
       (e) => `
         <tr>
-          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${esc(e.titre)}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${esc(e.campus)}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${esc(e.dateLabel)}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${esc(e.missing.join(', ') || e.configStateLabel)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.titre)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.campus)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.dateLabel)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.missing.join(', ') || e.configStateLabel)}</td>
         </tr>`,
     )
     .join('');

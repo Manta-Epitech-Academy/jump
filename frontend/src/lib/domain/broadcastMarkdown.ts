@@ -18,25 +18,19 @@ import DOMPurify from 'isomorphic-dompurify';
 import {
   EPI_BLUE,
   EPI_TECH,
+  BORDER,
+  MUTED,
   shellOpen,
   shellClose,
   wrapEmailDocument,
 } from './emailBrandShell';
+import { escapeHtml } from './htmlEscape';
 
 interface BroadcastButtonToken extends Tokens.Generic {
   type: 'broadcastButton';
   raw: string;
   href: string;
   label: string;
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 /**
@@ -156,11 +150,11 @@ marked.use({
       return `<${tag} style="font-size: 16px; margin: 0 0 18px; padding-left: 24px; list-style-type: ${listStyle}; list-style-position: outside;">${body}</${tag}>\n`;
     },
     hr() {
-      return '<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 28px 0;" />\n';
+      return `<hr style="border: none; border-top: 1px solid ${BORDER}; margin: 28px 0;" />\n`;
     },
     blockquote(this: any, token: Tokens.Blockquote) {
       const inner = this.parser.parse(token.tokens);
-      return `<blockquote style="border-left: 4px solid ${EPI_TECH}; margin: 0 0 18px; padding: 4px 0 4px 16px; color: #475569; font-style: italic;">${inner}</blockquote>\n`;
+      return `<blockquote style="border-left: 4px solid ${EPI_TECH}; margin: 0 0 18px; padding: 4px 0 4px 16px; color: ${MUTED}; font-style: italic;">${inner}</blockquote>\n`;
     },
   },
 });
@@ -215,17 +209,6 @@ function wrapBroadcastHtml(innerHtml: string, baseUrl = ''): string {
 export function renderBroadcastMail(markdown: string, baseUrl = ''): string {
   return wrapBroadcastHtml(renderBroadcastBodyHtml(markdown), baseUrl);
 }
-
-/**
- * Wrap the branded inner shell in a complete HTML document.
- *
- * The shell from {@link wrapBroadcastHtml} is a bare `<div>` fragment. Shipped
- * as the HTML part of an email it carries no `<html>`/`<body>`, which
- * SpamAssassin scores as HTML_MIME_NO_HTML_TAG and Gmail/Outlook read as a tell
- * of auto-generated spam. Only the server send paths use this; in-app previews
- * keep the fragment ({@link renderBroadcastMail}) because a full document
- * injected via `{@html}` would nest `<html>`/`<body>` inside the live DOM.
- */
 
 // Walking marked's token tree (rather than regex-scrubbing rendered output)
 // keeps URLs out of reach of emphasis handling. Tokens are typed as the
