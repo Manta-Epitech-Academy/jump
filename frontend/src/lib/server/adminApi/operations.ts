@@ -68,6 +68,12 @@ import {
   getUnconfiguredEvents,
   UNCONFIGURED_EVENTS_LIMIT,
 } from '$lib/server/services/adminStats/unconfiguredEvents';
+import {
+  getEventsConfigList,
+  getEventsDirectory,
+  EVENTS_LIST_LIMIT,
+  EVENTS_LIST_STATES,
+} from '$lib/server/services/adminStats/eventsList';
 import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
 import { getDataFreshness } from '$lib/server/services/adminStats/dataFreshness';
 import { getScopeVocabulary } from '$lib/server/services/adminStats/scopeVocabulary';
@@ -179,6 +185,13 @@ const campus = z
 // Both sources are named on purpose. Pointing only at config_unconfigured_events
 // left the parameter unusable for a leadership token, which is offered five reads
 // that accept it and no configuration answer to obtain one from.
+const eventStatus = z
+  .enum(['upcoming', 'ongoing', 'past'])
+  .optional()
+  .describe(
+    'Keep only events at this point of their life: upcoming, ongoing or past. Omit for every event.',
+  );
+
 const eventId = z
   .string()
   .min(1)
@@ -329,6 +342,14 @@ export const ADMIN_API_OPERATIONS = {
     run: async (params) => getEventsOverview(await resolveScope(params)),
   }),
 
+  stats_events: defineOperation({
+    leadership: true,
+    description: `Every event of a périmètre, one row each: its id, the name teams and students see, its campus, its dates, whether it is upcoming, ongoing or past, and how many people are enrolled. Answers "what is running right now", and is where an event id comes from for the operations that take one. Capped at ${EVENTS_LIST_LIMIT} rows.`,
+    shape: { schoolYear, campus, status: eventStatus },
+    run: async ({ status, ...scope }) =>
+      getEventsDirectory(await resolveScope(scope), { status }),
+  }),
+
   stats_onboarding_funnel: defineOperation({
     description:
       'Where the online sign-up funnel leaks: for each step of the talent onboarding ladder, how many talents are stopped on it, plus how many completed the whole thing. Counts only, no name or contact detail exists in this answer. Can be narrowed to one event, one campus or one school year.',
@@ -340,6 +361,23 @@ export const ADMIN_API_OPERATIONS = {
     description: `Events, upcoming or ongoing, that are not visible in the dev workspace yet, soonest first, with what each one is still missing. Configuration state only, no personal data. Capped at ${UNCONFIGURED_EVENTS_LIMIT} events; the "truncated" field tells you whether the cap was reached.`,
     shape: { schoolYear, campus },
     run: async (params) => getUnconfiguredEvents(await resolveScope(params)),
+  }),
+
+  config_events: defineOperation({
+    description: `Every event of a périmètre, one row each: its id, its public and Salesforce names, its campus, its dates, how many people are enrolled, which dev-workspace sections are on, the feedback form attached to it, its configuration state, and both what is still unset and what actually stops it from being made visible. This is where an event id comes from. Filter by campus, school year, point of life or configuration state. Capped at ${EVENTS_LIST_LIMIT} rows; "truncated" tells you whether the cap was reached.`,
+    shape: {
+      schoolYear,
+      campus,
+      status: eventStatus,
+      state: z
+        .enum(EVENTS_LIST_STATES)
+        .optional()
+        .describe(
+          'Keep only events in this configuration state: unconfigured (no section enabled), ready (configured but hidden), shown (live in the dev workspace), or to_prepare for anything not past that is not shown yet. Omit for every state.',
+        ),
+    },
+    run: async ({ status, state, ...scope }) =>
+      getEventsConfigList(await resolveScope(scope), { status, state }),
   }),
 
   stats_sync_health: defineOperation({
