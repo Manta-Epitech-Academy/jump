@@ -343,12 +343,19 @@ model Talent {
   // Free-text fallback used only when the talent's lycée has no UAI (so no
   // canonical `School` row exists). When `schoolId` is set this stays null.
   highSchoolNameManual        String?
-  /// RETIRED, dropped in a follow-up migration. The règlement render moved to
-  /// `Onboarding_Record.rulesFilePath`: the document is signed once per school
-  /// year, so one key per talent meant the second year's PDF overwrote the
-  /// first, destroying a co-signed document nothing could rebuild. Kept one
-  /// release so a rolling deploy does not break pods still running the previous
-  /// build. Read nothing from it; `onboardingDocuments` resolves the dossier.
+  /// LEGACY key, and deliberately NOT a rolling-deploy reserve: it is still
+  /// read, and dropping it today loses data. The render moved to
+  /// `Onboarding_Record.rulesFilePath` because the document is signed once per
+  /// school year, and one key per talent meant the second year's PDF overwrote
+  /// a co-signed first year nothing could rebuild. The dossier backfill copied
+  /// this key onto the row it attests, so the two agree until a regeneration
+  /// writes the year-keyed name over that row, which leaves the pre-annual
+  /// `rules.pdf` object referenced by this column alone. That is why both
+  /// erasure paths still select it (`anonymizationService`,
+  /// `resetTalentToImport`): a key missed there is a named minor's PDF left in
+  /// the bucket with nothing pointing at it. It drops together with those two
+  /// selects, once the pre-annual keys have been swept from the bucket.
+  /// Nothing else reads it; `onboardingDocuments` resolves the dossier.
   rulesFilePath               String?
   imageRightsFilePath         String?
   parentEmail                 String?
@@ -365,11 +372,6 @@ model Talent {
   parent2Prenom               String?
   parent2Email                String?
   parent2Phone                String?
-  /// RETIRED, dropped in a follow-up migration. No code reads or writes it:
-  /// the laptop requirement is certified on the règlement step, where the
-  /// clause it certifies is actually written down. Kept one release so a
-  /// rolling deploy does not break pods still running the previous build.
-  hasLaptop                   Boolean              @default(false)
   setupDescription            String?
   equipmentValidatedAt        DateTime?
   interestsFreeText           String?
@@ -893,20 +895,15 @@ model Participation {
   talentId       String
   eventId        String
   campusId       String
-  /// RETIRED, dropped in a follow-up migration. Nothing has ever read it: the
-  /// only writes were a reset-to-defaults and the seed. Kept one release for
-  /// the rolling deploy, same as `Talent.hasLaptop`.
-  bringPc        Boolean @default(false)
   sfMemberStatus String? // raw Salesforce CampaignMember status, e.g. CONNECTED/READY/MEET/DESISTED
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  talent          Talent           @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  event           Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  campus          Campus           @relation(fields: [campusId], references: [id])
-  stageCompliance StageCompliance?
-  interview       Interview?
+  talent    Talent     @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  campus    Campus     @relation(fields: [campusId], references: [id])
+  interview Interview?
 
   @@unique([talentId, eventId])
   @@index([eventId])
@@ -914,22 +911,6 @@ model Participation {
   @@index([campusId])
   @@index([talentId])
   @@index([talentId, campusId])
-}
-
-/// RETIRED, dropped in a follow-up migration along with its `Participation`
-/// back-relation. `charteSigned` was a staff attestation of an offline
-/// règlement signature, and no code path could ever set it, so in production it
-/// was always false. With one generic règlement signed once, an attestation
-/// scoped to a single participation makes no sense either: if the offline path
-/// is wanted again it belongs to the talent or to their yearly dossier. Kept
-/// one release so a rolling deploy does not break the previous build.
-model StageCompliance {
-  participationId String   @id
-  charteSigned    Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
 }
 
 // Administrative attendance ("émargement"), one record per half-day a talent is
