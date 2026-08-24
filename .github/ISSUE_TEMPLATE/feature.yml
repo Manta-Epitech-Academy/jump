@@ -1,0 +1,70 @@
+name: "Feature or change"
+description: Any change to Jump that starts from a user need. Open this before cutting the branch.
+labels: ["enhancement"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Title this issue like a Conventional Commit: `type(scope): subject`, for example
+        `feat(onboarding): dossier par année scolaire`.
+
+        **Open this issue before the branch.** The `Work item` check compares the issue's creation
+        time with the branch's first commit, so an issue written afterwards fails the merge.
+        Once it exists, `scripts/start-work.sh --issue <n> --type feat --slug short-name` cuts the
+        branch and puts this issue on the board.
+
+        French is expected for the content: it is what the PO reads.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: The user problem or the business need. Start here, not from the technical solution.
+      placeholder: |
+        Les Coding Clubs reprennent sur Jump le 15/09. Le règlement intérieur est écrit pour le
+        stage de seconde, donc un collégien signerait un texte qui ne le concerne pas.
+    validations:
+      required: true
+
+  - type: textarea
+    id: user-stories
+    attributes:
+      label: User Stories
+      description: |
+        One per capability, from the point of view of whoever benefits. Any number of them.
+        Format: `As a [role], I want to [action] so that [benefit]`, or in French
+        `En tant que [rôle], je veux [action], pour [bénéfice]`.
+      placeholder: |
+        **En tant que collégien inscrit à un Coding Club**, je veux accéder à Jump sans parcours
+        d'inscription, pour ne pas être bloqué derrière un formulaire qui demande des informations
+        que l'école n'attend pas de moi.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: |
+        Testable, one per line. `Given X, when Y, then Z`, or in French
+        `étant donné X, quand Y, alors Z`. These become the tests, so write them as assertions.
+      placeholder: |
+        - **AC1** : étant donné un talent de niveau 6e à 3e, quand il se connecte, alors il n'entre
+          jamais dans le wizard d'inscription.
+        - **AC2** : étant donné un talent ayant signé en 2025-2026, quand son PDF est régénéré,
+          alors le corps rendu est celui de la version signée.
+    validations:
+      required: true
+
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: What this issue explicitly does not cover, so the PR can be reviewed against it.
+      placeholder: |
+        - Pas de variante de règlement par campus (défaut séminaire maintenu).
+        - Pas de refonte du flux parent.
+    validations:
+      required: false

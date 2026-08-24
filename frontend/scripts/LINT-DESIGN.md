@@ -54,7 +54,7 @@ Les trois exceptions actuelles sont l'éditeur CMS, le contenu d'un `DropdownMen
 ## Quand le lancer ?
 
 - **Avant de commit** un changement visuel.
-- Dans la liste des vérifications statiques de la Definition of Done (voir [`CONTRIBUTING.md`](../../.github/CONTRIBUTING.md)).
+- Dans la liste des vérifications statiques de la Definition of Done (voir [`pull_request_template.md`](../../.github/pull_request_template.md)).
 
 ## Limites connues
 
