@@ -66,7 +66,18 @@ export type QuestionOption = {
 };
 
 export type QuestionGroup = {
+  /** What this row is: a campus name, or an event as teams and talents see it. */
   group: string;
+  /**
+   * Which event this row is, when grouping by event. Null on a campus row and on
+   * the leftover bucket.
+   *
+   * Returned because the name does not identify one: eight events of one form
+   * currently share the name "Stage de Seconde", and a comparison whose rows
+   * cannot be told apart is not a comparison. It is also what lets the winner of
+   * the ranking be passed back to the operations that take an event.
+   */
+  eventId: string | null;
   answered: number;
   options: QuestionOption[];
   favourableShare: number | null;
@@ -104,6 +115,7 @@ type AnswerRow = {
   submission: {
     respondentCampusLabel: string | null;
     event: {
+      id: string;
       titre: string;
       publicName: string | null;
       campus: { name: string };
@@ -143,6 +155,11 @@ export async function getFeedbackQuestion(
   const [answers, submissions] = await Promise.all([
     prisma.feedback_Answer.findMany({
       where: { questionId: question.id, submission: submissionWhere },
+      // The buckets below are filled in this order, and `rank` breaks a tie on
+      // the group name, which two events can share. Without an order here, two
+      // identical calls could hand the same two rows back the other way round,
+      // and a ranking that reshuffles reads as a change.
+      orderBy: { id: 'asc' },
       select: {
         selectedOptions: { select: { optionId: true } },
         submission: {
@@ -150,6 +167,7 @@ export async function getFeedbackQuestion(
             respondentCampusLabel: true,
             event: {
               select: {
+                id: true,
                 titre: true,
                 publicName: true,
                 campus: { select: { name: true } },
@@ -176,7 +194,9 @@ export async function getFeedbackQuestion(
       : [],
   );
 
-  const tally = (rows: AnswerRow[]): Omit<QuestionGroup, 'group'> => {
+  const tally = (
+    rows: AnswerRow[],
+  ): Omit<QuestionGroup, 'group' | 'eventId'> => {
     const counts = new Map<string, number>();
     let favourable = 0;
     for (const row of rows) {
@@ -238,32 +258,53 @@ export async function getFeedbackQuestion(
           groups.slice(0, FEEDBACK_QUESTION_GROUPS_LIMIT),
           `${FAVOURABLE_RULE} Ici ${params.groupBy === 'campus' ? 'par campus' : 'par événement'}, classé par cette part. À lire avec « answered », qui dit sur combien de réponses la part est calculée : un groupe à trois réponses peut occuper la première place sans rien dire de comparable à un groupe à cent. ${rankAxisNote(
             params.groupBy === 'campus' ? RANK_UNITS.campus : RANK_UNITS.event,
-          )} Le groupe « ${NOT_SET} » rassemble les réponses envoyées par le lien public sans campus ni événement renseigné, et n'est jamais classé. Limité à ${FEEDBACK_QUESTION_GROUPS_LIMIT} lignes.`,
+          )} ${
+            params.groupBy === 'event'
+              ? "« group » est le nom de l'événement et « eventId » son identifiant : plusieurs événements portent le même nom, donc c'est l'identifiant qui désigne une ligne, et c'est lui à repasser aux opérations qui prennent un événement. "
+              : ''
+          }Le groupe « ${NOT_SET} » rassemble les réponses envoyées par le lien public sans campus ni événement renseigné, et n'est jamais classé. Limité à ${FEEDBACK_QUESTION_GROUPS_LIMIT} lignes.`,
         )
       : null,
     truncated: (groups?.length ?? 0) > FEEDBACK_QUESTION_GROUPS_LIMIT,
   };
 
+  /**
+   * Buckets on what identifies a group, never on what displays it.
+   *
+   * A campus name is unique, so for that axis the two are the same string. An
+   * event name is not: on the real data, one form's answers span eight distinct
+   * events all called "Stage de Seconde". Keying on the name merged them into a
+   * single row that then took a single rank, so the per-event comparison this
+   * operation exists for silently did not happen, and nothing in the answer said
+   * so. The event id is therefore both the key and a returned field.
+   */
   function groupRows(rows: AnswerRow[], by: GroupBy) {
-    const buckets = new Map<string, AnswerRow[]>();
+    type Bucket = { group: string; eventId: string | null; rows: AnswerRow[] };
+    const buckets = new Map<string, Bucket>();
+
     for (const row of rows) {
-      const key =
+      const { event, respondentCampusLabel } = row.submission;
+      const identity: Omit<Bucket, 'rows'> =
         by === 'campus'
-          ? (row.submission.event?.campus.name ??
-            row.submission.respondentCampusLabel ??
-            NOT_SET)
-          : row.submission.event
-            ? eventDisplayName(row.submission.event)
-            : NOT_SET;
+          ? {
+              group: event?.campus.name ?? respondentCampusLabel ?? NOT_SET,
+              eventId: null,
+            }
+          : event
+            ? { group: eventDisplayName(event), eventId: event.id }
+            : { group: NOT_SET, eventId: null };
+
+      const key = identity.eventId ?? identity.group;
       const bucket = buckets.get(key);
-      if (bucket) bucket.push(row);
-      else buckets.set(key, [row]);
+      if (bucket) bucket.rows.push(row);
+      else buckets.set(key, { ...identity, rows: [row] });
     }
 
     return rank(
-      [...buckets.entries()].map(([group, groupRows]) => ({
+      [...buckets.values()].map(({ group, eventId, rows: bucketRows }) => ({
         group,
-        ...tally(groupRows),
+        eventId,
+        ...tally(bucketRows),
       })),
       (row) => row.group,
       // Never ranked on a share it does not have: an unordered question, or a

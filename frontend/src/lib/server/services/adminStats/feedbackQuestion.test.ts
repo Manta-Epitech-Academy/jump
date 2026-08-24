@@ -72,10 +72,15 @@ function form(
   };
 }
 
-/** One answer row in the shape the service selects. */
+/**
+ * One answer row in the shape the service selects.
+ *
+ * `eventId` defaults to the event name, which is what most cases want, and is
+ * passed explicitly by the ones that need two distinct events to share a name.
+ */
 function answer(
   optionId: string,
-  group: { campus?: string; event?: string } = {},
+  group: { campus?: string; event?: string; eventId?: string } = {},
 ) {
   return {
     selectedOptions: [{ optionId }],
@@ -83,6 +88,7 @@ function answer(
       respondentCampusLabel: group.campus && !group.event ? group.campus : null,
       event: group.event
         ? {
+            id: group.eventId ?? `evt-${group.event}`,
             titre: `sf-${group.event}`,
             publicName: group.event,
             campus: { name: group.campus ?? 'Lille' },
@@ -282,7 +288,7 @@ describe('grouped by campus', () => {
 });
 
 describe('grouped by event', () => {
-  it('names each event as teams and students see it', async () => {
+  it('names each event as teams and students see it, and returns its id', async () => {
     answerFindMany.mockResolvedValue([
       answer('o0', { campus: 'Lille', event: 'Stage Web Été' }),
     ]);
@@ -293,6 +299,58 @@ describe('grouped by event', () => {
     );
 
     expect(result.groups?.value.map((g) => g.group)).toEqual(['Stage Web Été']);
+    // Ranked on nothing else it could be passed back by: the id is what makes
+    // the winner of the comparison reachable.
+    expect(result.groups?.value[0].eventId).toBe('evt-Stage Web Été');
+  });
+
+  // The bug this replaces: eight events of one real form are all called "Stage
+  // de Seconde", and bucketing on the display name merged them into a single row
+  // that took a single rank. The comparison the operation exists for silently
+  // did not happen, and nothing in the answer said so.
+  it('keeps two same-named events apart', async () => {
+    answerFindMany.mockResolvedValue([
+      // Lille loved it, Nice did not. Same name, so a name-keyed bucket would
+      // average them into one meaningless row.
+      answer('o0', {
+        campus: 'Lille',
+        event: 'Stage de Seconde',
+        eventId: 'evt-lille',
+      }),
+      answer('o3', {
+        campus: 'Nice',
+        event: 'Stage de Seconde',
+        eventId: 'evt-nice',
+      }),
+    ]);
+
+    const result = await getFeedbackQuestion(
+      {},
+      { formId: 'form_1', question: 'conferences', groupBy: 'event' },
+    );
+
+    expect(result.groups?.value).toHaveLength(2);
+    expect(result.groups?.value.map((g) => g.eventId)).toEqual([
+      'evt-lille',
+      'evt-nice',
+    ]);
+    expect(result.groups?.value.map((g) => g.favourableShare)).toEqual([
+      100, 0,
+    ]);
+    expect(result.groups?.value.map((g) => g.rank)).toEqual([1, 2]);
+  });
+
+  it('leaves the campus row without an event id', async () => {
+    answerFindMany.mockResolvedValue([
+      answer('o0', { campus: 'Lille', event: 'Stage Web Été' }),
+    ]);
+
+    const result = await getFeedbackQuestion(
+      {},
+      { formId: 'form_1', question: 'conferences', groupBy: 'campus' },
+    );
+
+    expect(result.groups?.value[0].eventId).toBeNull();
   });
 });
 

@@ -93,6 +93,11 @@ export const HANDLES: Record<HandleKind, Handle> = {
         operation: 'ops_emargement_coverage',
         covers: 'only events with the attendance section enabled',
       },
+      {
+        operation: 'stats_feedback_question',
+        covers:
+          'only when grouped by event, and only events that answered the question asked about',
+      },
     ],
   },
   formId: {
