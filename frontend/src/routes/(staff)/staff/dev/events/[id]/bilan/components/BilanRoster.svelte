@@ -7,6 +7,7 @@
   import { Button } from '$lib/components/ui/button';
   import { formatGivenName } from '$lib/domain/profile';
   import { cohortNounForms } from '$lib/domain/event';
+  import { optionPolarity, type OptionPolarity } from '$lib/domain/feedback';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
@@ -62,22 +63,18 @@
   }
 
   // Sentiment tier from the option's position in the canonical best→worst list,
-  // so the colour survives label edits and works for any future reco question:
-  // top third positive (green), bottom quarter negative (red), middle neutral
-  // (amber). For the 4 stage options this reads green / green / amber / red.
-  type RecoTier = 'positive' | 'neutral' | 'negative';
-  function recoTier(label: string | null): RecoTier | null {
+  // so the colour survives label edits and works for any future reco question.
+  // The thresholds live in the domain, shared with the figure the curated API
+  // computes from the same ordering: two places deciding what "good" means is two
+  // places that drift.
+  function recoTier(label: string | null): OptionPolarity | null {
     if (!label) return null;
     const idx = recoOptions.indexOf(label);
     if (idx < 0) return null;
-    if (recoOptions.length <= 1) return 'neutral';
-    const ratio = idx / (recoOptions.length - 1);
-    if (ratio <= 0.34) return 'positive';
-    if (ratio >= 0.75) return 'negative';
-    return 'neutral';
+    return optionPolarity(idx, recoOptions.length);
   }
 
-  const recoBadgeClass: Record<RecoTier, string> = {
+  const recoBadgeClass: Record<OptionPolarity, string> = {
     positive: 'bg-success/10 text-success',
     neutral: 'bg-warning/10 text-warning',
     negative: 'bg-destructive/10 text-destructive',

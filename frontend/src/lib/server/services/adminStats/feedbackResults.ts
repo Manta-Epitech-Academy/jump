@@ -43,10 +43,24 @@ import { scopedEvents, scopeLabels } from './cohort';
 export const FEEDBACK_FORMS_LIMIT = 10;
 
 export type QuestionResults = {
+  /**
+   * The question's stable key inside its form ("reco", "avis_accueil"). What
+   * addresses one question: the prompt is talent-phrased and editable per form,
+   * so it identifies nothing and cannot be passed back.
+   */
+  key: string;
   question: string;
   type: string;
   answered: number;
-  options: { label: string; count: number; share: number | null }[];
+  /** Share of the questionnaire's responses that answered this question. */
+  answeredShare: number | null;
+  options: {
+    /** Authored position, 0-based. For a `scale`, 0 is the best answer. */
+    position: number;
+    label: string;
+    count: number;
+    share: number | null;
+  }[];
   /** Free-text answers left on this question. Counted, never returned. */
   freeTextAnswers: number;
 };
@@ -108,7 +122,7 @@ export async function getFeedbackResults(
     ),
     forms: metric(
       rows,
-      "Un questionnaire par ligne. « submissions » est le nombre de réponses, « connectedSubmissions » celles envoyées depuis un compte Jump (donc rattachées à un talent et à son événement), « publicSubmissions » celles envoyées via le lien public sans compte. « responseRate » est la part des inscrits du périmètre ayant répondu depuis leur compte, en pourcentage, et vaut null quand aucun inscrit n'est rattaché à ce questionnaire. « questions » donne la répartition de chaque question fermée, de la réponse la plus à la moins choisie, où « answered » est le nombre de personnes ayant répondu à cette question et les pourcentages portent sur ce nombre ; « freeTextAnswers » compte les réponses libres, dont le contenu ne sort pas de Jump : ces phrases n'ont pas été recueillies pour être citées, contrairement aux témoignages d'entretien, que l'opération stats_interview_testimonials rend mot pour mot.",
+      "Un questionnaire par ligne. « submissions » est le nombre de réponses, « connectedSubmissions » celles envoyées depuis un compte Jump (donc rattachées à un talent et à son événement), « publicSubmissions » celles envoyées via le lien public sans compte. « responseRate » est la part des inscrits du périmètre ayant répondu depuis leur compte, en pourcentage, et vaut null quand aucun inscrit n'est rattaché à ce questionnaire. « questions » donne la répartition de chaque question fermée, dans l'ordre du questionnaire : pour une question de type « scale », cet ordre va de la meilleure à la pire réponse, et « position » est le rang de la réponse sur cette échelle, 0 étant la meilleure. « key » est l'identifiant stable de la question, celui à repasser en filtre pour la détailler ou la comparer entre campus. « answered » est le nombre de personnes ayant répondu à cette question et les parts des options portent sur ce nombre, pas sur le total des réponses au questionnaire, que donne « answeredShare » ; une question à choix multiples compte une personne une fois dans « answered » même si elle a coché plusieurs options, donc la somme des parts peut y dépasser 100 %. « freeTextAnswers » compte les réponses libres, dont le contenu ne sort pas de Jump : ces phrases n'ont pas été recueillies pour être citées, contrairement aux témoignages d'entretien, que l'opération stats_interview_testimonials rend mot pour mot.",
     ),
     truncated: formIds.length > FEEDBACK_FORMS_LIMIT,
   };
@@ -143,7 +157,9 @@ async function resultsFor(
     connectedSubmissions: stats.authSubmissions,
     publicSubmissions: stats.publicSubmissions,
     responseRate: share(stats.authSubmissions, invited),
-    questions: stats.questions.map(toQuestionResults),
+    questions: stats.questions.map((question) =>
+      toQuestionResults(question, stats.totalSubmissions),
+    ),
   };
 }
 
@@ -171,16 +187,35 @@ function eventAxis(
   return {};
 }
 
-function toQuestionResults(question: FormStats['questions'][number]) {
+/**
+ * One question, in the form's own order rather than by popularity.
+ *
+ * `computeFormStats` sorts options most-chosen first, which is right for the two
+ * bar charts it was written for and wrong here: for a `scale` the authored order
+ * IS best-to-worst, so sorting by count buries which answer was the good one. On
+ * the stage bilan it put "J'ai adoré, ça m'a donné envie" third, below "Sympa sans
+ * plus", and a reader with only counts and labels has no way to recover the scale.
+ * Canonical order is also what both CSV exports use, so the API and the export now
+ * present a question the same way.
+ */
+function toQuestionResults(
+  question: FormStats['questions'][number],
+  submissions: number,
+) {
   return {
+    key: question.key,
     question: question.prompt,
     type: question.type,
     answered: question.answeredCount,
-    options: question.options.map((option) => ({
-      label: option.label,
-      count: option.count,
-      share: share(option.count, question.answeredCount),
-    })),
+    answeredShare: share(question.answeredCount, submissions),
+    options: [...question.options]
+      .sort((a, b) => a.position - b.position)
+      .map((option) => ({
+        position: option.position,
+        label: option.label,
+        count: option.count,
+        share: share(option.count, question.answeredCount),
+      })),
     freeTextAnswers: question.freeTexts.length,
   };
 }
