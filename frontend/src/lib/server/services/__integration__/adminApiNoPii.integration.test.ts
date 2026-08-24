@@ -294,6 +294,12 @@ function requiredArgsFor(
   switch (name) {
     case 'config_event_detail':
       return { eventId: seeded.eventId };
+    // The seeded certificate. This one really renders a browser page, which is
+    // slower than the rest of this suite and worth it: the preview is the answer
+    // most likely to carry something it should not, being an image of a document
+    // with a name on it. It must be a placeholder name, never a seeded talent.
+    case 'config_diploma_template_preview':
+      return { code: 'stage' };
     case 'stats_school_year_review':
       return { schoolYear: seeded.schoolYear };
     case 'stats_campus_comparison':

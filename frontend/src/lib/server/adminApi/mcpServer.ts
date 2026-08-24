@@ -128,6 +128,47 @@ export function adminMcpInstructions(tier: AdminApiTier): string {
   ).join('\n');
 }
 
+/**
+ * An answer that carries a rendered image, alongside its own metadata.
+ *
+ * The only answer shape in the catalogue that is not JSON. It exists because a
+ * question like "what does this certificate look like" is answered by the
+ * artifact, and a model handed only its source renders a lookalike and presents
+ * it as the document. So the image travels as an image, where the model can
+ * actually see it, and the surrounding fields travel as text beside it.
+ */
+type ImageAnswer = { image: { mimeType: string; base64: string } };
+
+function carriesImage(data: unknown): data is ImageAnswer {
+  if (!data || typeof data !== 'object') return false;
+  const image = (data as { image?: unknown }).image;
+  return (
+    !!image &&
+    typeof image === 'object' &&
+    typeof (image as { base64?: unknown }).base64 === 'string' &&
+    typeof (image as { mimeType?: unknown }).mimeType === 'string'
+  );
+}
+
+/** Encode one answer for this transport. */
+function toolContent(
+  data: unknown,
+): (
+  | { type: 'text'; text: string }
+  | { type: 'image'; data: string; mimeType: string }
+)[] {
+  if (!carriesImage(data)) {
+    return [{ type: 'text', text: JSON.stringify(data, null, 2) }];
+  }
+  // The base64 is dropped from the text half: it is already the image, and
+  // repeating tens of kilobytes of it would be the bulk of the message.
+  const { image, ...rest } = data as ImageAnswer & Record<string, unknown>;
+  return [
+    { type: 'image', data: image.base64, mimeType: image.mimeType },
+    { type: 'text', text: JSON.stringify(rest, null, 2) },
+  ];
+}
+
 export function buildAdminMcpServer(credential: AdminApiCredential): McpServer {
   const { caller, writeEnabled } = credential;
 
@@ -160,14 +201,7 @@ export function buildAdminMcpServer(credential: AdminApiCredential): McpServer {
         // with its French definition inside the payload, and that is what we
         // want quoted back.
         return outcome.ok
-          ? {
-              content: [
-                {
-                  type: 'text' as const,
-                  text: JSON.stringify(outcome.data, null, 2),
-                },
-              ],
-            }
+          ? { content: toolContent(outcome.data) }
           : {
               isError: true,
               content: [{ type: 'text' as const, text: outcome.message }],

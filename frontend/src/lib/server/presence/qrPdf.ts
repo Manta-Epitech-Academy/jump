@@ -1,4 +1,4 @@
-import { renderPdf } from '$lib/server/infra/pdfRenderer';
+import { renderPdf } from '$lib/server/infra/documentRenderer';
 import { fontFaceCss } from '$lib/server/templates/fonts';
 import { epitechLogoSvg } from '$lib/server/templates/epitechLogo';
 

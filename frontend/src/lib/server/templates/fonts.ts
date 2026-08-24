@@ -2,7 +2,7 @@
  * The brand fonts, as `@font-face` rules carrying their own bytes.
  *
  * Every PDF template used to pull its fonts from a Google Fonts `<link>`. The
- * renderer now blocks the network (see `infra/pdfRenderer.ts`), so a remote
+ * renderer now blocks the network (see `infra/documentRenderer.ts`), so a remote
  * stylesheet would resolve to nothing and every document would print in
  * `ttf-freefont`, the only family the container actually has.
  *
@@ -74,7 +74,7 @@ type Face = {
 
 /**
  * `font-display: block` rather than fontsource's `swap`: `swap` paints a
- * fallback first, and while `pdfRenderer` awaits `document.fonts.ready` before
+ * fallback first, and while `documentRenderer` awaits `document.fonts.ready` before
  * printing, a face that never arrives should leave a gap rather than bake the
  * wrong family into a document somebody hands to a student.
  */

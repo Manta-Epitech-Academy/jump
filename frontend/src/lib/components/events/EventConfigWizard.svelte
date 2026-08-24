@@ -82,8 +82,8 @@
     editing: EditingEvent | null;
     formData: SuperValidated<AdminEventForm>;
     feedbackForms: { value: string; label: string }[];
-    /** The certificates an event can be set to issue. */
-    certificates: { value: string; label: string }[];
+    /** The certificates an event can be set to issue. `code` feeds the preview. */
+    certificates: { value: string; label: string; code: string }[];
     /** Per-form ordered question prompts, for the inline read-only preview. */
     formPreviews: Record<string, string[]>;
     templates: TemplateVM[];
@@ -268,12 +268,53 @@
   // gate - an event that names no certificate shows no export.
   const NO_CERTIFICATE = 'none';
   const NO_CERTIFICATE_LABEL = 'Aucun certificat';
+  const selectedCertificate = $derived(
+    certificates.find((c) => c.value === $form.diplomaTemplateId) ?? null,
+  );
   const certificateTriggerLabel = $derived(
     $form.diplomaTemplateId
-      ? (certificates.find((c) => c.value === $form.diplomaTemplateId)?.label ??
-          'Certificat inconnu')
+      ? (selectedCertificate?.label ?? 'Certificat inconnu')
       : NO_CERTIFICATE_LABEL,
   );
+
+  // The certificate is previewed for the same reason the feedback form below is:
+  // the dropdown IS the choice, and this shows what was just chosen. Fetched from
+  // the curated API rather than from a private endpoint, and it is the same
+  // operation the MCP tool calls, so what staff see here and what a model is
+  // shown cannot disagree. An admin session authenticates against that API as a
+  // reader, so no token is involved.
+  let previewedCode = $state<string | null>(null);
+  let previewSrc = $state<string | null>(null);
+  let previewLoading = $state(false);
+  let previewFailed = $state(false);
+
+  $effect(() => {
+    const code = selectedCertificate?.code ?? null;
+    if (code === untrack(() => previewedCode)) return;
+    previewedCode = code;
+    previewSrc = null;
+    previewFailed = false;
+    if (!code) return;
+
+    previewLoading = true;
+    fetch(
+      `/api/admin/config/diploma-template-preview?code=${encodeURIComponent(code)}`,
+    )
+      .then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error(String(r.status))),
+      )
+      .then((answer) => {
+        // Ignore a render that lost the race to a newer selection.
+        if (untrack(() => previewedCode) !== code) return;
+        previewSrc = `data:${answer.image.mimeType};base64,${answer.image.base64}`;
+      })
+      .catch(() => {
+        if (untrack(() => previewedCode) === code) previewFailed = true;
+      })
+      .finally(() => {
+        if (untrack(() => previewedCode) === code) previewLoading = false;
+      });
+  });
   const feedbackTriggerLabel = $derived(
     $form.feedbackFormId
       ? (workingForms.find((f) => f.value === $form.feedbackFormId)?.label ??
@@ -777,6 +818,35 @@
                             {/each}
                           </Select.Content>
                         </Select.Root>
+                        {#if $form.diplomaTemplateId}
+                          <div class="rounded-sm border bg-background/60">
+                            <div class="border-b px-3 py-1.5">
+                              <span class="epi-overline text-muted-foreground">
+                                À quoi ressemble le document
+                              </span>
+                            </div>
+                            <div class="space-y-1.5 px-3 py-2">
+                              {#if previewLoading}
+                                <p class="text-xs text-muted-foreground">
+                                  Rendu en cours…
+                                </p>
+                              {:else if previewFailed}
+                                <p class="text-xs text-muted-foreground">
+                                  Aperçu indisponible pour le moment.
+                                </p>
+                              {:else if previewSrc}
+                                <img
+                                  src={previewSrc}
+                                  alt="Aperçu du certificat {certificateTriggerLabel}"
+                                  class="w-full rounded-sm border"
+                                />
+                                <p class="text-xs text-muted-foreground">
+                                  Nom, dates et signataire sont des exemples.
+                                </p>
+                              {/if}
+                            </div>
+                          </div>
+                        {/if}
                       </div>
                     </div>
                   {/if}

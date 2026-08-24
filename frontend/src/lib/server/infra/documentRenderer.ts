@@ -2,7 +2,7 @@ import type { Page } from 'puppeteer';
 import { withBrowser } from './browserPool';
 
 /**
- * HTML to PDF, for every document Jump prints.
+ * HTML to a document, for everything Jump renders in a browser.
  *
  * Five generators used to repeat this block verbatim. It is shared for the usual
  * reason, and for one that is not cosmetic: **the network is blocked here**, so
@@ -10,6 +10,10 @@ import { withBrowser } from './browserPool';
  * switch it off. Certificate designs are authored at runtime and stored in the
  * database (`Diploma_Template`), and this function is the boundary that makes
  * that safe to hand to Chrome.
+ *
+ * It renders PDFs (what gets printed) and PNGs (what gets looked at). Both go
+ * through the same page setup on purpose: a preview that took a different path
+ * would be free to disagree with the document it is a preview of.
  *
  * Blocking the network also removed a workaround rather than accommodating it.
  * The certificate generator used to parse on `domcontentloaded` and race
@@ -56,6 +60,35 @@ async function blockNetwork(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Open a page, cut it off from the network, load the HTML and wait for the fonts.
+ * Everything both outputs must agree on lives here.
+ */
+async function withRenderedPage<T>(
+  html: string,
+  fontTimeoutMs: number,
+  fn: (page: Page) => Promise<T>,
+): Promise<T> {
+  return withBrowser(async (browser) => {
+    const page = await browser.newPage();
+    try {
+      await blockNetwork(page);
+      await page.setContent(html, { waitUntil: 'load' });
+      await page.evaluate(
+        (budget) =>
+          Promise.race([
+            document.fonts.ready,
+            new Promise((resolve) => setTimeout(resolve, budget)),
+          ]),
+        fontTimeoutMs,
+      );
+      return await fn(page);
+    } finally {
+      await page.close();
+    }
+  });
+}
+
 export async function renderPdf(input: {
   html: string;
   page: PdfPageSize;
@@ -90,32 +123,46 @@ export async function renderPdf(input: {
     fontTimeoutMs = 2000,
   } = input;
 
-  return withBrowser(async (browser) => {
-    const page = await browser.newPage();
-    try {
-      await blockNetwork(page);
-      await page.setContent(html, { waitUntil: 'load' });
+  return withRenderedPage(html, fontTimeoutMs, async (page) => {
+    const pdf = await page.pdf({
+      ...size,
+      printBackground: true,
+      preferCSSPageSize: preferCssPageSize,
+      margin: margin ?? ZERO_MARGIN,
+      ...(timeoutMs === undefined ? {} : { timeout: timeoutMs }),
+    });
+    return new Uint8Array(pdf) as Uint8Array<ArrayBuffer>;
+  });
+}
 
-      await page.evaluate(
-        (budget) =>
-          Promise.race([
-            document.fonts.ready,
-            new Promise((resolve) => setTimeout(resolve, budget)),
-          ]),
-        fontTimeoutMs,
-      );
+/**
+ * The first page as a PNG, for a human or a model to look at.
+ *
+ * Same page setup as `renderPdf`, deliberately: this is what makes a preview
+ * trustworthy rather than merely plausible. It is the answer to "what does this
+ * document look like", and a model asked that question with only the source in
+ * hand will otherwise render its own approximation and present it as the thing.
+ */
+export async function renderPng(input: {
+  html: string;
+  widthPx: number;
+  heightPx: number;
+  /** Downscale, to keep the encoded image small enough to travel. */
+  scale?: number;
+  fontTimeoutMs?: number;
+}): Promise<Uint8Array<ArrayBuffer>> {
+  const { html, widthPx, heightPx, scale = 1, fontTimeoutMs = 2000 } = input;
 
-      const pdf = await page.pdf({
-        ...size,
-        printBackground: true,
-        preferCSSPageSize: preferCssPageSize,
-        margin: margin ?? ZERO_MARGIN,
-        ...(timeoutMs === undefined ? {} : { timeout: timeoutMs }),
-      });
-
-      return new Uint8Array(pdf) as Uint8Array<ArrayBuffer>;
-    } finally {
-      await page.close();
-    }
+  return withRenderedPage(html, fontTimeoutMs, async (page) => {
+    await page.setViewport({
+      width: widthPx,
+      height: heightPx,
+      deviceScaleFactor: scale,
+    });
+    const png = await page.screenshot({
+      type: 'png',
+      clip: { x: 0, y: 0, width: widthPx, height: heightPx, scale },
+    });
+    return new Uint8Array(png) as Uint8Array<ArrayBuffer>;
   });
 }

@@ -1,5 +1,5 @@
 import ejs from 'ejs';
-import { renderPdf } from '../infra/pdfRenderer';
+import { renderPdf, renderPng } from '../infra/documentRenderer';
 import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import certificateTemplate from '../templates/certificate.html?raw';
@@ -36,7 +36,7 @@ export type CertificateSignatory = {
  * and the images are hoisted into one `<style>` in the shell, so an author has
  * nothing to bind them to. The `.sig-*` classes are theirs to style.
  */
-function signaturesHtml(signatories: CertificateSignatory[]): string {
+function signaturesHtml(signatories: readonly CertificateSignatory[]): string {
   return signatories
     .map(
       (s, i) => `<div class="sig-block">
@@ -49,6 +49,29 @@ function signaturesHtml(signatories: CertificateSignatory[]): string {
     )
     .join('\n');
 }
+
+/**
+ * The cohort a certificate is shown with when there is no real one.
+ *
+ * Placeholder names on purpose, and that is what makes both the validation
+ * render and the preview safe to expose: neither can ever carry a student's
+ * identity, which matters because the preview travels into an LLM's context.
+ * "Nguyễn Wróblewski" is deliberate too, it exercises the font subsets a real
+ * name needs.
+ */
+const SAMPLE_DATA = {
+  students: [
+    { prenom: 'Camille', nom: 'Martin' },
+    { prenom: 'Nguyễn', nom: 'Wróblewski' },
+  ],
+  city: 'Lille',
+  startDate: '1 juillet 2026',
+  endDate: '12 juillet 2026',
+  todayDate: '24 août 2026',
+  signatories: [
+    { name: 'Prénom Nom', role: 'Directeur du campus', imageDataUri: null },
+  ],
+} as const;
 
 /**
  * Render two sample pages, to prove a design produces a document at all.
@@ -65,25 +88,56 @@ function signaturesHtml(signatories: CertificateSignatory[]): string {
 export async function renderCertificateSample(
   design: CertificateDesign,
 ): Promise<{ bytes: number }> {
-  const pdf = await generateDiplomasPDF(
-    design,
-    {
-      students: [
-        { prenom: 'Camille', nom: 'Martin' },
-        { prenom: 'Nguyễn', nom: 'Wróblewski' },
-      ],
-      city: 'Lille',
-      startDate: '1 juillet 2026',
-      endDate: '12 juillet 2026',
-      todayDate: '24 août 2026',
-      signatories: [
-        { name: 'Prénom Nom', role: 'Directeur du campus', imageDataUri: null },
-      ],
+  const pdf = await renderPdf({
+    html: await buildCertificateHtml(design, SAMPLE_DATA),
+    page: {
+      width: `${design.pageWidthPx}px`,
+      height: `${design.pageHeightPx}px`,
     },
-    { timeoutMs: 20_000 },
-  );
+    timeoutMs: 20_000,
+  });
   return { bytes: pdf.byteLength };
 }
+
+/**
+ * The first page of a design, as a PNG, for a human or a model to look at.
+ *
+ * This is the answer to "what does this certificate look like". Without it, that
+ * question can only be answered from `styleCss` and `bodyHtml`, which do not
+ * contain the shell: the fonts, the page geometry, the signature blocks. A model
+ * asked it anyway renders its own approximation and presents it as the document,
+ * which is the same failure as re-deriving a figure instead of quoting it.
+ *
+ * Rendered through the very same path as the export, so it cannot drift from what
+ * actually prints. Downscaled because it has to travel in a chat message.
+ */
+export async function renderCertificatePreviewPng(
+  design: CertificateDesign,
+): Promise<{
+  png: Uint8Array<ArrayBuffer>;
+  widthPx: number;
+  heightPx: number;
+}> {
+  // One recipient: a preview shows the page, not the pagination.
+  const html = await buildCertificateHtml(design, {
+    ...SAMPLE_DATA,
+    students: [SAMPLE_DATA.students[1]],
+  });
+  const png = await renderPng({
+    html,
+    widthPx: design.pageWidthPx,
+    heightPx: design.pageHeightPx,
+    scale: PREVIEW_SCALE,
+  });
+  return {
+    png,
+    widthPx: Math.round(design.pageWidthPx * PREVIEW_SCALE),
+    heightPx: Math.round(design.pageHeightPx * PREVIEW_SCALE),
+  };
+}
+
+/** Enough to read the layout and the wording, small enough to send. */
+const PREVIEW_SCALE = 0.75;
 
 /**
  * One page per recipient, of whatever certificate the event issues.
@@ -107,6 +161,34 @@ export async function generateDiplomasPDF(
     timeoutMs?: number;
   },
 ): Promise<Uint8Array<ArrayBuffer>> {
+  return renderPdf({
+    html: await buildCertificateHtml(design, data),
+    page: {
+      width: `${design.pageWidthPx}px`,
+      height: `${design.pageHeightPx}px`,
+    },
+    // A cohort sheet can run to ~200 pages; on a constrained pod CPU the print
+    // pass needs more headroom than Puppeteer's 30s default.
+    timeoutMs: options?.timeoutMs ?? 120_000,
+  });
+}
+
+/**
+ * The whole document as HTML: the design's pages, its CSS, and the shell around
+ * them. Shared by the export, the validation render and the preview, so all three
+ * are looking at the same thing by construction.
+ */
+async function buildCertificateHtml(
+  design: CertificateDesign,
+  data: {
+    students: readonly { prenom: string; nom: string }[];
+    city: string;
+    startDate: string;
+    endDate: string;
+    todayDate: string;
+    signatories: readonly CertificateSignatory[];
+  },
+): Promise<string> {
   // Every token in one pass per recipient, rather than an event-level pass
   // followed by a per-student one: two passes only work if each leaves the
   // other's tokens alone, and that is a subtlety worth not depending on.
@@ -133,7 +215,7 @@ export async function generateDiplomasPDF(
     epitechLogoSvg,
   ).toString('base64')}`;
 
-  const html = await ejs.render(
+  return ejs.render(
     certificateTemplate,
     {
       data: {
@@ -148,15 +230,4 @@ export async function generateDiplomasPDF(
     },
     { async: true },
   );
-
-  return renderPdf({
-    html,
-    page: {
-      width: `${design.pageWidthPx}px`,
-      height: `${design.pageHeightPx}px`,
-    },
-    // A cohort sheet can run to ~200 pages; on a constrained pod CPU the print
-    // pass needs more headroom than Puppeteer's 30s default.
-    timeoutMs: options?.timeoutMs ?? 120_000,
-  });
 }

@@ -16,7 +16,7 @@
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { prisma } from '$lib/server/db';
-import { renderPdf } from '$lib/server/infra/pdfRenderer';
+import { renderPdf } from '$lib/server/infra/documentRenderer';
 import { generateDiplomasPDF } from '../diplomaGenerator';
 import { assertTestDatabase } from './testDatabase';
 

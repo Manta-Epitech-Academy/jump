@@ -116,6 +116,7 @@ import {
   getFeedbackForms,
   getEventTemplates,
 } from '$lib/server/services/adminStats/configuration';
+import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
 import { getSchoolYearReview } from '$lib/server/services/adminStats/schoolYearReview';
 import {
   writeDiplomaTemplate,
@@ -387,6 +388,18 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => getDiplomaTemplates(params),
+  }),
+
+  config_diploma_template_preview: defineOperation({
+    description:
+      'What one certificate actually looks like: its first page, rendered as an image by the same engine as the real export. Ask for this rather than describing a design from its HTML, which does not contain the page geometry, the fonts or the signature blocks. Rendered with placeholder names, so it shows no real person.',
+    shape: {
+      code: z
+        .string()
+        .min(1)
+        .describe('Certificate code, from config_diploma_templates.'),
+    },
+    run: (params) => getDiplomaTemplatePreview(params),
   }),
 
   config_feedback_forms: defineOperation({

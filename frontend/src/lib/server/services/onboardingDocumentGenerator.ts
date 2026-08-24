@@ -1,6 +1,6 @@
 import ejs from 'ejs';
 import { renderMarkdown } from '$lib/markdown';
-import { renderPdf } from '../infra/pdfRenderer';
+import { renderPdf } from '../infra/documentRenderer';
 import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import onboardingTemplate from '../templates/onboarding-document.html?raw';

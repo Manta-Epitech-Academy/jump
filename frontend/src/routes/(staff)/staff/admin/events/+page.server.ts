@@ -45,9 +45,12 @@ export const load: PageServerLoad = async () => {
     value: f.id,
     label: f.title,
   }));
+  // `code` travels too: it is what the preview operation takes, since a code is
+  // the stable key the write operations quote.
   const certificates = diplomaTemplates.map((t) => ({
     value: t.id,
     label: t.label,
+    code: t.code,
   }));
 
   // A compact, read-only preview of each pickable form (ordered question

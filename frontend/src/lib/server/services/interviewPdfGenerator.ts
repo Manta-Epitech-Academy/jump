@@ -1,5 +1,5 @@
 import ejs from 'ejs';
-import { renderPdf } from '../infra/pdfRenderer';
+import { renderPdf } from '../infra/documentRenderer';
 import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import interviewTemplate from '../templates/interview-synthesis.html?raw';

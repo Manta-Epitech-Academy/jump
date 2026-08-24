@@ -10,7 +10,7 @@ import DOMPurify from 'isomorphic-dompurify';
  *
  * 1. refuse, so the author is TOLD what will not work (`certificateProblems`);
  * 2. sanitise, so nothing dangerous is stored even if the refusal missed it;
- * 3. render with the network blocked (`infra/pdfRenderer.ts`) - the one that
+ * 3. render with the network blocked (`infra/documentRenderer.ts`) - the one that
  *    actually contains the damage, and the reason a missed `url()` is inert.
  *
  * The first two are not one mechanism twice: a refusal is for the person writing
