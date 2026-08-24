@@ -94,11 +94,16 @@ export function listDiplomaTemplates(): Promise<DiplomaTemplateIdentity[]> {
  * student's identity into a chat. The `note` says so in the answer, because an
  * image of a certificate with a name on it invites exactly the wrong caption.
  *
- * The answer carries the image twice over, and not by oversight: `image` is for a
- * consumer that can display one, `url` is for one that cannot. A terminal MCP
- * client renders no inline image, and a model left holding only the source will
- * answer "what does it look like" by describing the design, which is the single
- * thing this tier exists to prevent. A link is what it can hand over instead.
+ * The answer carries the image twice over, and not by oversight: `image` for a
+ * consumer that can display one, `url` for one that cannot. Which of the two a
+ * caller is, nobody can tell: MCP has no capability for "renders images", and a
+ * model that returned an image block believes it showed something. So the link is
+ * handed over unconditionally, inside `apercu`, as a finished sentence to quote.
+ *
+ * That is not decoration. Watched twice: asked what a certificate looks like, a
+ * model with the image in hand answered "Voilà" plus a description it invented
+ * ("dark thème, style tech/radar"), and the reader saw nothing at all. Composing
+ * the sentence here is the same fix as shipping a definition with every figure.
  */
 export async function getDiplomaTemplatePreview(params: {
   code: string;
@@ -109,7 +114,7 @@ export async function getDiplomaTemplatePreview(params: {
   url: string;
   widthPx: number;
   heightPx: number;
-  note: string;
+  apercu: string;
 }> {
   const template = await prisma.diploma_Template.findUnique({
     where: { code: params.code },
@@ -128,6 +133,8 @@ export async function getDiplomaTemplatePreview(params: {
   const { png, widthPx, heightPx } =
     await renderCertificatePreviewPng(template);
 
+  const url = `${env.ORIGIN ?? ''}${base}/api/admin/config/diploma-template-preview?code=${encodeURIComponent(template.code)}`;
+
   return {
     code: template.code,
     label: template.label,
@@ -135,9 +142,16 @@ export async function getDiplomaTemplatePreview(params: {
       mimeType: 'image/png',
       base64: Buffer.from(png).toString('base64'),
     },
-    url: `${env.ORIGIN ?? ''}${base}/api/admin/config/diploma-template-preview?code=${encodeURIComponent(template.code)}`,
+    url,
     widthPx,
     heightPx,
-    note: "Rendu réel de la première page de ce certificat, produit par le même moteur que l'export. Les noms, dates, ville et signataires visibles sont des exemples : aucune donnée de jeune n'y figure, et ce document n'a été délivré à personne. Si l'image ne peut pas être affichée, ouvrez « url » : c'est la même image.",
+    // A sentence to quote, not facts to compose one from. Same move as
+    // `metric(value, definition)`, and for a sharper reason here: a model cannot
+    // tell whether its client renders an inline image, so "show the image, or
+    // else give the link" is a condition it has no way to evaluate. It returned
+    // an image, so from its side it did show something, and the reader saw
+    // nothing. Handing over the link is therefore unconditional, and the wording
+    // is ours so it survives being relayed verbatim.
+    apercu: `Aperçu de « ${template.label} » : ${url} (nom, dates, ville et signataire sont des exemples, aucune donnée de jeune n'y figure). Ouvrez ce lien pour voir le certificat.`,
   };
 }

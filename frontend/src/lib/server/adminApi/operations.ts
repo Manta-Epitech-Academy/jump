@@ -392,7 +392,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_diploma_template_preview: defineOperation({
     description:
-      'What one certificate actually looks like: its first page, rendered as an image by the same engine as the real export. Rendered with placeholder names, so it shows no real person. Never describe a certificate\'s appearance from its HTML: the design does not carry the page geometry, the fonts or the signature blocks, so any description drawn from it is invented. Show the image; if you cannot display an image, hand the reader the "url" field instead of describing what is in it.',
+      'What one certificate actually looks like: its first page, rendered as an image by the same engine as the real export, with placeholder names so it shows no real person. Reply by quoting the "apercu" sentence, which carries a link to that image, and quote it every time even when you also display the image: you cannot tell whether the reader\'s client renders one, and a reply that shows nothing and describes the design instead is worse than useless. Never say how a certificate looks in your own words, neither from its HTML nor from the image: send the link and let it be seen.',
     shape: {
       code: z
         .string()

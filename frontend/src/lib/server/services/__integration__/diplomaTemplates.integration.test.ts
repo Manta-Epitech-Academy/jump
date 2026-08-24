@@ -237,8 +237,16 @@ describe('certificate authoring (integration)', () => {
     expect(preview.url).toContain(
       '/api/admin/config/diploma-template-preview?code=stage',
     );
-    // The note is what stops a model captioning a placeholder as a real student.
-    expect(preview.note).toMatch(/exemples/);
+
+    // A finished sentence carrying the link, not facts to compose one from. A
+    // model cannot tell whether its client renders an inline image, so the link
+    // cannot be conditional on that: twice, a model holding the image answered
+    // "Voilà" plus a description it invented, and the reader saw nothing.
+    expect(preview.apercu).toContain(preview.url);
+    expect(preview.apercu).toContain('Certificat de stage');
+    // And it says the names are placeholders, so a relayed caption cannot claim
+    // the certificate belongs to a real student.
+    expect(preview.apercu).toMatch(/exemples/);
   }, 60_000);
 
   it('refuses a preview of a certificate that does not exist, naming the real ones', async () => {
