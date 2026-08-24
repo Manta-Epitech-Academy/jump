@@ -51,7 +51,12 @@ printf '%s' "$TYPE" | grep -qE "^(${WORK_ITEM_TYPES})$" \
 
 [ -n "$SLUG" ] || die "--slug is required, lowercase kebab-case, for example dossier-annuel"
 printf '%s' "$SLUG" | grep -qE '^[a-z0-9]+(-[a-z0-9]+)*$' \
-  || die "slug '$SLUG' must be lowercase kebab-case, and must not carry the issue number"
+  || die "slug '$SLUG' must be lowercase kebab-case"
+# A slug that opens with digits produces feat/248-248-dossier-annuel, which passes
+# work_item_branch_ok (the guard reads the first number) and so looks fine while
+# being wrong. Saying "do not include the number" in the help was not enough.
+printf '%s' "$SLUG" | grep -qE '^[0-9]+(-|$)' \
+  && die "slug '$SLUG' looks like it carries the issue number. The number is added for you, pass just the words: --slug ${SLUG#*-}"
 
 if [ -z "$ISSUE" ]; then
   [ -n "$TITLE" ] || die "pass --issue N, or --title and --body-file to open one"
@@ -89,7 +94,19 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 git fetch origin "$BASE" --quiet
-git checkout -b "$BRANCH" "origin/$BASE"
+if ! git checkout -b "$BRANCH" "origin/$BASE"; then
+  # The issue and the board are already done by this point, and that is fine:
+  # both steps are idempotent and --issue picks the work back up.
+  cat >&2 <<MSG
+
+The issue is open and sitting on the board, but the branch could not be created:
+git refused to switch with the working tree in its current state. Settle it
+(commit, stash or discard), then pick this back up with:
+
+  scripts/start-work.sh --issue $ISSUE --type $TYPE --slug $SLUG
+MSG
+  exit 1
+fi
 
 cat <<EOF
 
