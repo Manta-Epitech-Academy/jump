@@ -96,6 +96,7 @@ describe('variation', () => {
 
 describe('rank', () => {
   const label = (row: { campus: string }) => row.campus;
+  const value = (row: { value: number | null }) => row.value;
 
   it('sorts descending and stamps positions', () => {
     const ranked = rank(
@@ -105,6 +106,7 @@ describe('rank', () => {
         { campus: 'Lyon', value: 20 },
       ],
       label,
+      value,
     );
     expect(ranked.map((r) => [r.campus, r.rank])).toEqual([
       ['Lille', 1],
@@ -122,6 +124,7 @@ describe('rank', () => {
         { campus: 'Nantes', value: 30 },
       ],
       label,
+      value,
     );
     expect(ranked.map((r) => [r.campus, r.value, r.rank])).toEqual([
       ['Lille', 30, 1],
@@ -139,6 +142,7 @@ describe('rank', () => {
         { campus: 'Lille', value: 5 },
       ],
       label,
+      value,
     );
     expect(ranked.map((r) => [r.campus, r.rank])).toEqual([
       ['Lille', 1],
@@ -153,6 +157,7 @@ describe('rank', () => {
         { campus: 'Lyon', value: null },
       ],
       label,
+      value,
     );
     expect(ranked.map((r) => [r.campus, r.rank])).toEqual([
       ['Lille', 1],
@@ -168,6 +173,7 @@ describe('rank', () => {
         { campus: 'Nice', value: 0 },
       ],
       label,
+      value,
     );
     for (const row of ranked) {
       expect(row.value === null).toBe(row.rank === null);
@@ -182,8 +188,8 @@ describe('rank', () => {
       { campus: 'Épinal', value: null },
       { campus: 'Aix', value: null },
     ];
-    const once = rank(rows, label).map((r) => r.campus);
-    const twice = rank([...rows].reverse(), label).map((r) => r.campus);
+    const once = rank(rows, label, value).map((r) => r.campus);
+    const twice = rank([...rows].reverse(), label, value).map((r) => r.campus);
     expect(once).toEqual(['Lille', 'Nantes', 'Aix', 'Épinal']);
     expect(twice).toEqual(once);
   });

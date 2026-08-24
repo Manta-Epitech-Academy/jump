@@ -117,6 +117,10 @@ import {
   FEEDBACK_FORMS_LIMIT,
 } from '$lib/server/services/adminStats/feedbackResults';
 import {
+  getFeedbackQuestion,
+  FEEDBACK_QUESTION_GROUPS_LIMIT,
+} from '$lib/server/services/adminStats/feedbackQuestion';
+import {
   getOnboardingVelocity,
   VELOCITY_DEFAULT_DAYS,
   VELOCITY_MAX_DAYS,
@@ -895,6 +899,30 @@ export const ADMIN_API_OPERATIONS = {
     },
     run: async ({ formId, ...scope }) =>
       getFeedbackResults(await resolveScope(scope), { formId }),
+  }),
+
+  stats_feedback_question: defineOperation({
+    leadership: true,
+    description: `One question of one feedback form, in full: every answer option in the form's own order with a count and a share, how many people answered it against how many answered the questionnaire, and - for a scale question, whose options run best to worst - the share of favourable answers. Pass groupBy to get the same figures per campus or per event, already ranked on that share. A question whose options carry no order returns no favourable share and no ranking, rather than an invented one. Capped at ${FEEDBACK_QUESTION_GROUPS_LIMIT} groups.`,
+    shape: {
+      formId: z.string().min(1).describe(handleDescribe('formId')),
+      question: z.string().min(1).describe(handleDescribe('questionKey')),
+      groupBy: z
+        .enum(['campus', 'event'])
+        .optional()
+        .describe(
+          'Break the figures down per campus or per event, ranked. Omit to answer for the whole périmètre at once.',
+        ),
+      schoolYear,
+      campus,
+      eventId,
+    },
+    run: async ({ formId, question, groupBy, ...scope }) =>
+      getFeedbackQuestion(await resolveScope(scope), {
+        formId,
+        question,
+        groupBy,
+      }),
   }),
 
   stats_attendance_rate: defineOperation({

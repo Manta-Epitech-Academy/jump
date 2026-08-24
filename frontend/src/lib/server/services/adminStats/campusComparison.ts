@@ -162,6 +162,7 @@ export async function getCampusComparison(
         value: pick(tally),
       })),
       (row) => row.campus,
+      (row) => row.value,
     );
 
   const cohortSize = (tally: Tally) => tally.talents.size;

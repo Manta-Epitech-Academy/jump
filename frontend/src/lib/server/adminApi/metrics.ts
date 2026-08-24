@@ -142,18 +142,22 @@ export type Ranked<Row> = Row & { rank: number | null };
  *
  * `labelOf` is the tie-break, so the same data always comes back in the same
  * order: a ranking that reshuffles between two identical calls reads as a change.
+ * `valueOf` is what is ranked, read rather than assumed, so a row can name its own
+ * figure (`favourableShare`) instead of every ranked answer having to call it
+ * `value`.
  */
-export function rank<Row extends { value: number | null }>(
+export function rank<Row>(
   rows: Row[],
   labelOf: (row: Row) => string,
+  valueOf: (row: Row) => number | null,
 ): Ranked<Row>[] {
   const sorted = [...rows].sort((a, b) => {
-    if (a.value === null || b.value === null) {
-      if (a.value === b.value)
-        return labelOf(a).localeCompare(labelOf(b), 'fr');
-      return a.value === null ? 1 : -1;
+    const [x, y] = [valueOf(a), valueOf(b)];
+    if (x === null || y === null) {
+      if (x === y) return labelOf(a).localeCompare(labelOf(b), 'fr');
+      return x === null ? 1 : -1;
     }
-    return b.value - a.value || labelOf(a).localeCompare(labelOf(b), 'fr');
+    return y - x || labelOf(a).localeCompare(labelOf(b), 'fr');
   });
 
   let lastValue: number | null = null;
@@ -161,10 +165,11 @@ export function rank<Row extends { value: number | null }>(
   // tie is what says two rows shared a place.
   let lastRank = 0;
   return sorted.map((row, index) => {
-    if (row.value === null) return { ...row, rank: null };
-    if (row.value !== lastValue) {
+    const value = valueOf(row);
+    if (value === null) return { ...row, rank: null };
+    if (value !== lastValue) {
       lastRank = index + 1;
-      lastValue = row.value;
+      lastValue = value;
     }
     return { ...row, rank: lastRank };
   });

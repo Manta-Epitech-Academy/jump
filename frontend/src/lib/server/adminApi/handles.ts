@@ -32,6 +32,7 @@ import type { AdminApiOperationName } from './operations';
 export type HandleKind =
   | 'eventId'
   | 'formId'
+  | 'questionKey'
   | 'templateName'
   | 'pdfJobId'
   | 'syncErrorType'
@@ -100,6 +101,16 @@ export const HANDLES: Record<HandleKind, Handle> = {
       { operation: 'stats_feedback_results', path: 'forms.value[].formId' },
     ],
   },
+  questionKey: {
+    what: 'A question\'s stable key inside its form, e.g. "reco". Its wording is not an identifier: it is phrased for students and editable per form.',
+    frNoun: 'clés de question',
+    producedBy: [
+      {
+        operation: 'stats_feedback_results',
+        path: 'forms.value[].questions[].key',
+      },
+    ],
+  },
   templateName: {
     what: 'Event configuration preset name, which is what identifies it.',
     frNoun: 'noms de modèle',
@@ -152,6 +163,7 @@ export const HANDLES: Record<HandleKind, Handle> = {
 export const PARAM_HANDLES: Record<string, HandleKind> = {
   eventId: 'eventId',
   formId: 'formId',
+  question: 'questionKey',
   templateName: 'templateName',
   // `write_event_template` spells it `name`: the same preset name, which the
   // operation either creates or overwrites.
