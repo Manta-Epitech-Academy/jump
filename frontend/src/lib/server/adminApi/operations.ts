@@ -593,9 +593,9 @@ export const ADMIN_API_OPERATIONS = {
     shape: {
       errorType: z
         .string()
-        .optional()
+        .min(1)
         .describe(
-          `Resolve every unresolved error of this kind. ${handleDescribe('syncErrorType')}`,
+          `Resolve every unresolved error of this kind. Required: emptying the whole queue without naming a kind is ops_resolve_all_sync_errors, deliberately a separate act. ${handleDescribe('syncErrorType')}`,
         ),
     },
     run: (params) => resolveSyncErrorRows(params),

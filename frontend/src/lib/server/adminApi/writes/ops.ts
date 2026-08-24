@@ -77,22 +77,21 @@ export async function retryPdfJob(params: {
 /**
  * Safe to repeat: resolving is a flag, and the update is scoped to rows still
  * unresolved, so a second call clears nothing and reports zero.
+ *
+ * By kind, or not at all. The operation used to take a list of row ids as well,
+ * and no read in the catalogue has ever returned a `SyncError.id`, so that branch
+ * could not be reached by the one consumer this tier has. Between adding a read
+ * to feed a parameter and removing a parameter nothing can feed, the second is
+ * the honest move: `errorType` and `ops_resolve_all_sync_errors` cover the act.
+ *
+ * That the kind is mandatory is stated once, by the catalogue's own strict
+ * schema, which both transports validate against before this runs. It used to be
+ * said twice - an optional param here plus a runtime refusal - and the two
+ * disagreed, so the published tool shape accepted a call that always failed.
  */
 export async function resolveSyncErrorRows(params: {
-  errorType?: string;
+  errorType: string;
 }): Promise<WriteOutcome> {
-  // By kind, or not at all. The operation used to take a list of row ids as well,
-  // and no read in the catalogue has ever returned a `SyncError.id`, so that
-  // branch could not be reached by the one consumer this tier has. Between adding
-  // a read to feed a parameter and removing a parameter nothing can feed, the
-  // second is the honest move: `errorType` and `ops_resolve_all_sync_errors`
-  // already cover the act.
-  if (!params.errorType) {
-    throw new OperationRefusedError(
-      "Précisez le type d'erreur à traiter. Sans filtre, l'opération viderait toute la file d'un coup ; c'est ce que fait ops_resolve_all_sync_errors, délibérément à part.",
-    );
-  }
-
   const before = await prisma.syncError.count({ where: { resolved: false } });
 
   const rows = await prisma.syncError.findMany({
