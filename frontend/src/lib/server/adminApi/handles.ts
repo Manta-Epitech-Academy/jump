@@ -39,14 +39,19 @@ export type HandleKind =
   | 'moduleKey'
   | 'interviewId';
 
+/**
+ * Deliberately only the operation and the slice it covers, never where the value
+ * sits in the answer.
+ *
+ * A field path was carried here at first and dropped: nothing consumed it, and
+ * nothing could check it either. Verifying one needs a real answer with a
+ * non-empty list in it, and half these lists are empty on any seeded fixture, so
+ * the check would have passed on the rows it never reached - a guard that cannot
+ * fail, guarding a comment that claimed it did. `covers` earns its place instead
+ * by being read: it goes into the `describe()` a model sees.
+ */
 type Producer = {
   operation: AdminApiOperationName;
-  /**
-   * Where the value sits in that operation's answer, as a path a reader can
-   * follow: `list.value[].eventId`. Checked against a real answer by the guard,
-   * so a renamed field fails a test instead of quietly becoming a lie.
-   */
-  path: string;
   /**
    * Which of them it emits, when it is not all of them. Absent means all. This is
    * the field the hand-written prose never had: naming a producer without saying
@@ -74,21 +79,18 @@ export const HANDLES: Record<HandleKind, Handle> = {
     what: 'Event id.',
     frNoun: "identifiants d'événement",
     producedBy: [
-      { operation: 'config_events', path: 'list.value[].eventId' },
-      { operation: 'stats_events', path: 'list.value[].eventId' },
+      { operation: 'config_events' },
+      { operation: 'stats_events' },
       {
         operation: 'config_unconfigured_events',
-        path: 'events.value[].id',
         covers: 'only events that still need work before their cohort arrives',
       },
       {
         operation: 'stats_attendance_rate',
-        path: 'perEvent.value[].eventId',
         covers: 'only events that have already happened',
       },
       {
         operation: 'ops_emargement_coverage',
-        path: 'perEvent.value[].eventId',
         covers: 'only events with the attendance section enabled',
       },
     ],
@@ -97,26 +99,19 @@ export const HANDLES: Record<HandleKind, Handle> = {
     what: 'Feedback form id.',
     frNoun: 'identifiants de questionnaire',
     producedBy: [
-      { operation: 'config_feedback_forms', path: 'forms.value[].formId' },
-      { operation: 'stats_feedback_results', path: 'forms.value[].formId' },
+      { operation: 'config_feedback_forms' },
+      { operation: 'stats_feedback_results' },
     ],
   },
   questionKey: {
     what: 'A question\'s stable key inside its form, e.g. "reco". Its wording is not an identifier: it is phrased for students and editable per form.',
     frNoun: 'clés de question',
-    producedBy: [
-      {
-        operation: 'stats_feedback_results',
-        path: 'forms.value[].questions[].key',
-      },
-    ],
+    producedBy: [{ operation: 'stats_feedback_results' }],
   },
   templateName: {
     what: 'Event configuration preset name, which is what identifies it.',
     frNoun: 'noms de modèle',
-    producedBy: [
-      { operation: 'config_event_templates', path: 'templates.value[].name' },
-    ],
+    producedBy: [{ operation: 'config_event_templates' }],
   },
   pdfJobId: {
     what: 'Document generation job id. It names a document, never a person.',
@@ -124,7 +119,6 @@ export const HANDLES: Record<HandleKind, Handle> = {
     producedBy: [
       {
         operation: 'ops_pdf_jobs_health',
-        path: 'jobs.value[].jobId',
         covers: 'only jobs that can be retried, and only the most recent ones',
       },
     ],
@@ -132,19 +126,14 @@ export const HANDLES: Record<HandleKind, Handle> = {
   syncErrorType: {
     what: 'Kind of synchronisation error.',
     frNoun: "types d'erreur de synchronisation",
-    producedBy: [
-      {
-        operation: 'stats_sync_health',
-        path: 'errorsByType.value[].errorType',
-      },
-    ],
+    producedBy: [{ operation: 'stats_sync_health' }],
   },
   moduleKey: {
     what: 'Dev-workspace section key.',
     frNoun: 'clés de section',
     producedBy: [
-      { operation: 'config_event_detail', path: 'modules.value[].module' },
-      { operation: 'stats_events_overview', path: 'perModule.value[].module' },
+      { operation: 'config_event_detail' },
+      { operation: 'stats_events_overview' },
     ],
   },
   interviewId: {
