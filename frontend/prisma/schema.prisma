@@ -893,11 +893,10 @@ model Participation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  talent          Talent           @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  event           Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  campus          Campus           @relation(fields: [campusId], references: [id])
-  stageCompliance StageCompliance?
-  interview       Interview?
+  talent    Talent     @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  campus    Campus     @relation(fields: [campusId], references: [id])
+  interview Interview?
 
   @@unique([talentId, eventId])
   @@index([eventId])
@@ -905,22 +904,6 @@ model Participation {
   @@index([campusId])
   @@index([talentId])
   @@index([talentId, campusId])
-}
-
-/// RETIRED, dropped in a follow-up migration along with its `Participation`
-/// back-relation. `charteSigned` was a staff attestation of an offline
-/// règlement signature, and no code path could ever set it, so in production it
-/// was always false. With one generic règlement signed once, an attestation
-/// scoped to a single participation makes no sense either: if the offline path
-/// is wanted again it belongs to the talent or to their yearly dossier. Kept
-/// one release so a rolling deploy does not break the previous build.
-model StageCompliance {
-  participationId String   @id
-  charteSigned    Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
 }
 
 // Administrative attendance ("émargement"), one record per half-day a talent is
