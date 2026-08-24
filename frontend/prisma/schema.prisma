@@ -343,12 +343,19 @@ model Talent {
   // Free-text fallback used only when the talent's lycée has no UAI (so no
   // canonical `School` row exists). When `schoolId` is set this stays null.
   highSchoolNameManual        String?
-  /// RETIRED, dropped in a follow-up migration. The règlement render moved to
-  /// `Onboarding_Record.rulesFilePath`: the document is signed once per school
-  /// year, so one key per talent meant the second year's PDF overwrote the
-  /// first, destroying a co-signed document nothing could rebuild. Kept one
-  /// release so a rolling deploy does not break pods still running the previous
-  /// build. Read nothing from it; `onboardingDocuments` resolves the dossier.
+  /// LEGACY key, and deliberately NOT a rolling-deploy reserve: it is still
+  /// read, and dropping it today loses data. The render moved to
+  /// `Onboarding_Record.rulesFilePath` because the document is signed once per
+  /// school year, and one key per talent meant the second year's PDF overwrote
+  /// a co-signed first year nothing could rebuild. The dossier backfill copied
+  /// this key onto the row it attests, so the two agree until a regeneration
+  /// writes the year-keyed name over that row, which leaves the pre-annual
+  /// `rules.pdf` object referenced by this column alone. That is why both
+  /// erasure paths still select it (`anonymizationService`,
+  /// `resetTalentToImport`): a key missed there is a named minor's PDF left in
+  /// the bucket with nothing pointing at it. It drops together with those two
+  /// selects, once the pre-annual keys have been swept from the bucket.
+  /// Nothing else reads it; `onboardingDocuments` resolves the dossier.
   rulesFilePath               String?
   imageRightsFilePath         String?
   parentEmail                 String?
