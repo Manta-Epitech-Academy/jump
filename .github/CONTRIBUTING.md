@@ -35,6 +35,8 @@ Four rules govern everything below, in this order.
 
 Anything marked **required** blocks the merge into `dev`. Anything marked prose does not, which is precisely why the prose steps are the ones to be deliberate about.
 
+One caveat, and it is deliberate. A bypass exception on the `push dev` ruleset bypasses the **whole** ruleset, required checks included, and such an exception exists because a single person works on Jump today: being the only developer must not mean being unable to merge. So what the required checks buy on this boundary is that merging red becomes an explicit bypass rather than the default, and that anyone without the exception cannot do it at all. `staging` and `main` are a different matter and belong to whoever runs the release.
+
 Run the guard yourself before pushing, so you find out locally instead of in CI:
 
 ```bash

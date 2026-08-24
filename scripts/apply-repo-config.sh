@@ -61,24 +61,39 @@ printf '%s' "$current" | jq -e '.rules[] | select(.type == "required_status_chec
 echo "will be required:"
 printf '%s' "$contexts" | jq -r '.[]' | sed 's/^/  - /'
 
-# Send only the rules array. The update endpoint takes partial bodies, so keeping
-# the payload to what actually changes cannot disturb conditions or bypass actors.
+# The bypass exception is the reason this repository is workable by one person, so
+# losing it would be worse than never adding the checks. `bypass_actors` is only
+# returned to an admin, so it is round-tripped from the GET rather than assumed:
+# the payload carries back exactly what was there, and is never defaulted to an
+# empty list, which would silently revoke the exception.
+echo "bypass actors that will be carried over unchanged:"
+printf '%s' "$current" | jq -r '
+  if .bypass_actors == null then "  (not returned; only an admin sees this field)"
+  elif (.bypass_actors | length) == 0 then "  (none configured)"
+  else (.bypass_actors[] | "  - actor_id=\(.actor_id) type=\(.actor_type) mode=\(.bypass_mode)")
+  end'
+
+# The whole object is sent back with only `rules` replaced. Whether the endpoint
+# treats a partial body as a patch or as a full replacement, this is correct.
 new_rules=$(printf '%s' "$current" | jq \
   --argjson checks "$contexts" \
   --argjson strict "$strict" '
-  {
-    rules: (
-      (.rules | map(select(.type != "required_status_checks")))
-      + [{
-          type: "required_status_checks",
-          parameters: {
-            strict_required_status_checks_policy: $strict,
-            do_not_enforce_on_create: false,
-            required_status_checks: ($checks | map({context: .}))
-          }
-        }]
-    )
-  }')
+  . as $cur
+  | {name, target, enforcement, conditions}
+  + (if $cur.bypass_actors then {bypass_actors: $cur.bypass_actors} else {} end)
+  + {
+      rules: (
+        ($cur.rules | map(select(.type != "required_status_checks")))
+        + [{
+            type: "required_status_checks",
+            parameters: {
+              strict_required_status_checks_policy: $strict,
+              do_not_enforce_on_create: false,
+              required_status_checks: ($checks | map({context: .}))
+            }
+          }]
+      )
+    }')
 
 if [ "$is_admin" != "true" ] && [ "$DRY_RUN" != "1" ]; then
   cat >&2 <<MSG
@@ -108,7 +123,15 @@ else
   printf '%s' "$current" | jq . > "$backup"
   echo "previous ruleset saved to $backup"
   if printf '%s' "$new_rules" | gh api -X PUT "repos/$REPO/rulesets/$ruleset_id" --input - >/dev/null; then
-    echo "applied."
+    echo "applied. Re-reading to confirm nothing was dropped:"
+    gh api "repos/$REPO/rulesets/$ruleset_id" --jq '
+      "  required: " + ([.rules[] | select(.type == "required_status_checks")
+        | .parameters.required_status_checks[].context] | join(", "))
+      + "\n  bypass actors: " + (
+          if .bypass_actors == null then "not returned"
+          elif (.bypass_actors | length) == 0 then "NONE - if there was an exception before, it is gone: restore it from the backup"
+          else ([.bypass_actors[] | "actor_id=\(.actor_id)"] | join(", "))
+          end)'
   else
     echo "error: the ruleset update was refused. The previous state is in $backup." >&2
     STATUS=1

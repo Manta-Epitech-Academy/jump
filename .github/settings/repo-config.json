@@ -11,6 +11,13 @@
       "decorative at the moment of merging: red, and mergeable anyway. These are the checks that",
       "report on every pull request to dev, which is the condition for being required at all."
     ],
+    "_bypassComment": [
+      "A bypass exception on this ruleset bypasses all of it, required checks included, so on the dev",
+      "boundary these make merging red a deliberate act rather than the default. That is the intent:",
+      "one person works on Jump today and must not be blocked by the absence of a second reviewer.",
+      "bypass_actors is only returned to an admin, so apply-repo-config.sh round-trips whatever the",
+      "GET returned and never defaults it to an empty list, which would revoke the exception."
+    ],
     "ruleset": "push dev",
     "strict": false,
     "_strictComment": "false: do not force the branch to be up to date with dev before merging. With merge commits and mostly solo work, that only adds churn.",
