@@ -18,6 +18,7 @@ import {
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 import { resetInterview } from '$lib/server/services/interviewResetService';
 import { OperationRefusedError } from '../errors';
+import { handleProvenanceFr } from '../handles';
 import type { WriteOutcome } from '../plan';
 
 /** How many unresolved schools one call will try to enrich. */
@@ -39,7 +40,7 @@ export async function retryPdfJob(params: {
   });
   if (!job) {
     throw new OperationRefusedError(
-      `Génération « ${params.jobId} » introuvable. Les identifiants relançables sont renvoyés par l'opération ops_pdf_jobs_health.`,
+      `Génération « ${params.jobId} » introuvable. ${handleProvenanceFr('pdfJobId')}`,
     );
   }
   if (job.status === 'success') {
@@ -79,26 +80,26 @@ export async function retryPdfJob(params: {
  */
 export async function resolveSyncErrorRows(params: {
   errorType?: string;
-  ids?: string[];
 }): Promise<WriteOutcome> {
-  if (!params.errorType && !params.ids?.length) {
+  // By kind, or not at all. The operation used to take a list of row ids as well,
+  // and no read in the catalogue has ever returned a `SyncError.id`, so that
+  // branch could not be reached by the one consumer this tier has. Between adding
+  // a read to feed a parameter and removing a parameter nothing can feed, the
+  // second is the honest move: `errorType` and `ops_resolve_all_sync_errors`
+  // already cover the act.
+  if (!params.errorType) {
     throw new OperationRefusedError(
-      "Précisez soit une liste d'identifiants, soit un type d'erreur à traiter. Sans filtre, l'opération viderait toute la file d'un coup.",
+      "Précisez le type d'erreur à traiter. Sans filtre, l'opération viderait toute la file d'un coup ; c'est ce que fait ops_resolve_all_sync_errors, délibérément à part.",
     );
   }
 
   const before = await prisma.syncError.count({ where: { resolved: false } });
 
-  let resolved: number;
-  if (params.ids?.length) {
-    resolved = (await resolveSyncErrors(params.ids)).count;
-  } else {
-    const rows = await prisma.syncError.findMany({
-      where: { resolved: false, errorType: params.errorType },
-      select: { id: true },
-    });
-    resolved = (await resolveSyncErrors(rows.map((r) => r.id))).count;
-  }
+  const rows = await prisma.syncError.findMany({
+    where: { resolved: false, errorType: params.errorType },
+    select: { id: true },
+  });
+  const resolved = (await resolveSyncErrors(rows.map((r) => r.id))).count;
 
   const after = await prisma.syncError.count({ where: { resolved: false } });
   return {
@@ -207,7 +208,7 @@ export async function resetInterviewById(params: {
   });
   if (!interview) {
     throw new OperationRefusedError(
-      `Entretien « ${params.interviewId} » introuvable : il a peut-être déjà été réinitialisé. L'identifiant se lit sur la page des entretiens de l'espace admin.`,
+      `Entretien « ${params.interviewId} » introuvable : il a peut-être déjà été réinitialisé. ${handleProvenanceFr('interviewId')}`,
     );
   }
   // The `InterviewReset` trail names a staff profile, not an account: a reset

@@ -27,6 +27,7 @@ import {
 } from '$lib/domain/eventReadiness';
 import { UnknownScopeError } from '../scope';
 import { OperationRefusedError } from '../errors';
+import { handleProvenanceFr } from '../handles';
 import type { WriteOutcome } from '../plan';
 
 /** What every event write reports, before and after, in the same shape. */
@@ -60,7 +61,7 @@ async function loadEvent(eventId: string): Promise<AdminEventVM> {
   );
   if (!event) {
     throw new UnknownScopeError(
-      `Événement « ${eventId} » introuvable. Les identifiants d'événement sont renvoyés par config_unconfigured_events et config_event_detail.`,
+      `Événement « ${eventId} » introuvable. ${handleProvenanceFr('eventId')}`,
     );
   }
   return event;

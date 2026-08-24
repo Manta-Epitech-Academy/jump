@@ -24,6 +24,7 @@ import {
   canBeMadeVisible,
 } from '$lib/domain/eventReadiness';
 import { OperationRefusedError } from '../errors';
+import { handleProvenanceFr } from '../handles';
 import { runTwoStep, type WriteOutcome } from '../plan';
 import { resolveScope, type ScopeParams } from '../scope';
 import { scopedEvents } from '$lib/server/services/adminStats/cohort';
@@ -177,7 +178,7 @@ export async function bulkApplyEventTemplate(params: {
   );
   if (!template) {
     throw new OperationRefusedError(
-      `Modèle « ${params.templateName} » introuvable. L'opération config_event_templates liste les modèles enregistrés.`,
+      `Modèle « ${params.templateName} » introuvable. ${handleProvenanceFr('templateName')}`,
     );
   }
   const desired = [...template.modules].sort();

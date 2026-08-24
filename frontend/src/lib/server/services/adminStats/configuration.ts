@@ -31,6 +31,7 @@ import { getStaffRoleLabel } from '$lib/domain/staff';
 import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
 import { UnknownScopeError, type Scope } from '$lib/server/adminApi/scope';
+import { handleProvenanceFr } from '$lib/server/adminApi/handles';
 import { scopedEvents, scopeLabels } from './cohort';
 
 // ── One event, in full ───────────────────────────────────────────────────────
@@ -69,7 +70,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
   const event = all.find((e) => e.id === eventId);
   if (!event) {
     throw new UnknownScopeError(
-      `Événement « ${eventId} » introuvable. Les identifiants d'événement sont renvoyés par les opérations config_unconfigured_events et stats_attendance_rate.`,
+      `Événement « ${eventId} » introuvable. ${handleProvenanceFr('eventId')}`,
     );
   }
 
