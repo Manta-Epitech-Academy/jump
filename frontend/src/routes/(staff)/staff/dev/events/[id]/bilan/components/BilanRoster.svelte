@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import Check from '@lucide/svelte/icons/check';
   import Clock from '@lucide/svelte/icons/clock';
   import * as Table from '$lib/components/ui/table';
@@ -11,6 +10,7 @@
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
+  import { talentFicheHref } from '$lib/components/dev/talentFiche';
   import type {
     ColumnDef,
     SortDir,
@@ -265,7 +265,7 @@
      navigation; mirrors the émargement roster. -->
 {#snippet avatarLink(r: BilanRow)}
   <a
-    href={resolve(`/staff/dev/students/${r.talentId}`) + `?event=${eventId}`}
+    href={talentFicheHref(r.talentId, eventId)}
     target="_blank"
     rel="noopener"
     class="inline-flex align-middle"
