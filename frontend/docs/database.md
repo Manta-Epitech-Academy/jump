@@ -157,7 +157,6 @@ erDiagram
     String parent2Prenom
     String parent2Email
     String parent2Phone
-    Boolean hasLaptop
     String setupDescription
     DateTime equipmentValidatedAt
     String interestsFreeText
@@ -361,7 +360,6 @@ erDiagram
     String talentId FK,UK
     String eventId FK,UK
     String campusId FK
-    Boolean bringPc
     String sfMemberStatus
     DateTime createdAt
     DateTime updatedAt

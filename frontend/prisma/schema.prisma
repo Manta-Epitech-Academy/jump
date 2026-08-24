@@ -365,11 +365,6 @@ model Talent {
   parent2Prenom               String?
   parent2Email                String?
   parent2Phone                String?
-  /// RETIRED, dropped in a follow-up migration. No code reads or writes it:
-  /// the laptop requirement is certified on the règlement step, where the
-  /// clause it certifies is actually written down. Kept one release so a
-  /// rolling deploy does not break pods still running the previous build.
-  hasLaptop                   Boolean              @default(false)
   setupDescription            String?
   equipmentValidatedAt        DateTime?
   interestsFreeText           String?
@@ -893,10 +888,6 @@ model Participation {
   talentId       String
   eventId        String
   campusId       String
-  /// RETIRED, dropped in a follow-up migration. Nothing has ever read it: the
-  /// only writes were a reset-to-defaults and the seed. Kept one release for
-  /// the rolling deploy, same as `Talent.hasLaptop`.
-  bringPc        Boolean @default(false)
   sfMemberStatus String? // raw Salesforce CampaignMember status, e.g. CONNECTED/READY/MEET/DESISTED
 
   createdAt DateTime @default(now())
