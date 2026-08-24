@@ -12,6 +12,7 @@ import {
   getEventStatus,
   getLifecycleBounds,
 } from '$lib/domain/eventLifecycle';
+import { defaultEvent } from '$lib/domain/devWorkspace';
 import { schoolYearOf, type SchoolYear } from '$lib/domain/schoolYear';
 import { toDateKey } from '$lib/domain/planningTime';
 import { prisma } from '$lib/server/db';
@@ -188,7 +189,7 @@ export type WorkspaceEventEntry = {
 export type WorkspaceEvents = {
   /** All workspace events for the campus, most recent first. */
   events: WorkspaceEventEntry[];
-  /** The event the workspace defaults to: ongoing > soonest upcoming > most recent past. */
+  /** The event the workspace defaults to. Rule and rationale: `defaultEvent`. */
   current: WorkspaceEventEntry | null;
 };
 
@@ -200,7 +201,7 @@ export type WorkspaceEvents = {
  *  - at least one enabled module: the dev space is nothing but per-module
  *    surfaces, so an event exposing zero of them has nowhere to land. Including
  *    it would seat it in the switcher and let it become `current`, then drop on
- *    the empty state (`firstReachableSurface` -> null). Excluding it keeps the
+ *    the empty state (`landingSurface` -> null). Excluding it keeps the
  *    landing's happy path: a `current` with a reachable surface lands on it.
  *    (A member whose only surfaces are gated off by data, e.g. bilan without a
  *    form, still resolves to null and shows the empty state rather than a 404.)
@@ -265,17 +266,5 @@ export async function resolveWorkspaceEvents(
     };
   });
 
-  const byDateAsc = (a: WorkspaceEventEntry, b: WorkspaceEventEntry) =>
-    a.date.getTime() - b.date.getTime();
-  const ongoing = events
-    .filter((e) => e.status === 'ongoing')
-    .sort(byDateAsc)[0];
-  const upcoming = events
-    .filter((e) => e.status === 'upcoming')
-    .sort(byDateAsc)[0];
-  // `events` is date-desc, so the first past entry is the most recent one.
-  const past = events.find((e) => e.status === 'past');
-  const current = ongoing ?? upcoming ?? past ?? null;
-
-  return { events, current };
+  return { events, current: defaultEvent(events) };
 }

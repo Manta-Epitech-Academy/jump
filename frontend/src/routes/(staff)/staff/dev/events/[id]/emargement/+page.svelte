@@ -119,7 +119,7 @@
   <!-- One tooltip context for the header: the export and QR actions surface
        tooltips from here; the roster carries its own provider for per-row icons. -->
   <Tooltip.Provider delayDuration={150}>
-    <PageHeader title="Émargement">
+    <PageHeader title="Émargement" subtitle={eventDisplayName(data.event)}>
       {#snippet actions()}
         <!-- Header actions act on the whole stage or the display: the full-record
              export (read) and the QR (display). The active slot's open/close

@@ -1,6 +1,5 @@
 <script lang="ts">
   import { SvelteMap } from 'svelte/reactivity';
-  import { resolve } from '$app/paths';
   import { invalidate } from '$app/navigation';
   import { enhance as formEnhance, deserialize } from '$app/forms';
   import { toast } from 'svelte-sonner';
@@ -24,6 +23,7 @@
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
+  import { talentFicheHref } from '$lib/components/dev/talentFiche';
   import {
     slotLabelFr,
     statusLabelFr,
@@ -267,17 +267,6 @@
     );
   }
 
-  // The talent fiche opens in a new tab on purpose: staff stay anchored in the
-  // émargement flow (presence toggles, filters, scroll position) instead of
-  // navigating away mid-attendance, while still reaching the full dossier when a
-  // case needs it. Backs the row name/avatar links below. The `?event=` carries
-  // the current event: the fiche loads in a fresh tab with no client-side
-  // `lastEventId` to fall back on, so without it the dev sidebar would snap to
-  // the workspace default instead of this event. Mirrors the entretiens link.
-  function ficheHref(talentId: string): string {
-    return resolve(`/staff/dev/students/${talentId}`) + `?event=${eventId}`;
-  }
-
   // Mark one cell straight from the inline switch. Optimistic: paint the choice
   // at once, POST it to the `setPresence` action, then reload to reconcile.
   // `pending` clears the cell (the action deletes the row).
@@ -383,10 +372,12 @@
             <!-- The avatar is the only fiche link: a small, conventional
                  target that reuses an element already in the row, so it adds
                  no surface to mis-tap while marking presence. New tab keeps
-                 staff anchored in the émargement flow. -->
+                 staff anchored in the émargement flow (presence toggles,
+                 filters, scroll position) instead of navigating away
+                 mid-attendance. -->
             <Table.Cell>
               <a
-                href={ficheHref(r.talentId)}
+                href={talentFicheHref(r.talentId, eventId)}
                 target="_blank"
                 rel="noopener"
                 class="inline-flex align-middle"
@@ -483,7 +474,7 @@
                      action buttons stay non-navigating so they're safe to tap
                      on the floor. -->
                 <a
-                  href={ficheHref(r.talentId)}
+                  href={talentFicheHref(r.talentId, eventId)}
                   target="_blank"
                   rel="noopener"
                   class="inline-flex shrink-0"

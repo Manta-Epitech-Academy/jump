@@ -1,5 +1,4 @@
 <script lang="ts">
-  import BrandMark from '$lib/components/layout/BrandMark.svelte';
   import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
   import LogOut from '@lucide/svelte/icons/log-out';
   import Users from '@lucide/svelte/icons/users';
@@ -23,12 +22,21 @@
   import { goto } from '$app/navigation';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
   import EventWorkspaceSwitcher from '$lib/components/dev/EventWorkspaceSwitcher.svelte';
+  import SchoolYearMenu from '$lib/components/dev/SchoolYearMenu.svelte';
   import {
+    landingSurface,
     reachableSurfaces,
+    surfaceFromPath,
     surfaceSegment,
     surfaceLabel,
     type EventSurfaceKey,
   } from '$lib/domain/eventModules';
+  import {
+    defaultEventOfYear,
+    eventsOfSchoolYear,
+    navigableSchoolYears,
+    type DevWorkspaceEvent,
+  } from '$lib/domain/devWorkspace';
   import { eventDisplayName } from '$lib/domain/event';
   import { schoolYearOf } from '$lib/domain/schoolYear';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
@@ -70,29 +78,42 @@
       schoolYearOf(new Date(), data.timezone).label,
   );
 
-  const schoolYears = $derived.by(() => {
-    const seen = new Set<string>();
-    for (const e of workspace.events) {
-      seen.add(e.schoolYear.label);
-    }
-    if (seen.size === 0) {
-      seen.add(schoolYearOf(new Date(), data.timezone).label);
-    }
-    return [...seen].sort((a, b) => b.localeCompare(a));
-  });
+  /** The years you can actually go to. Empty on a campus with no event, which
+      leaves the menu as the readout `selectedSchoolYear` already falls back to. */
+  const schoolYears = $derived(navigableSchoolYears(workspace.events));
 
-  // Picking a year is a context jump: land on that year's first event (its first
-  // reachable surface). A year with no reachable event leaves you where you are.
+  /** The active year's events: the switcher's whole list, and what decides
+      whether there is anything to switch between. */
+  const yearEvents = $derived(
+    eventsOfSchoolYear(workspace.events, selectedSchoolYear),
+  );
+
+  /** The surface in view, so a context change keeps you on it. Derived once
+      here rather than in each control, for the same reason as the year. */
+  const openSurface = $derived(surfaceFromPath(page.url.pathname));
+
+  /**
+   * Both context controls resolve to one navigation: open `e`, keeping the
+   * surface in view when the target event exposes it. `openSurface` is null off
+   * an event route (a talent fiche), which lands on the first reachable one.
+   */
+  function openEvent(e: DevWorkspaceEvent) {
+    if (e.id === currentEvent?.id) return;
+    const surface = landingSurface(e, openSurface);
+    if (!surface) return;
+    goto(resolve(`/staff/dev/events/${e.id}/${surfaceSegment(surface)}`));
+  }
+
+  /**
+   * Changing the year is a context jump: land on the event that year defaults
+   * to, the same rule a bare `/staff/dev` lands on. `navigableSchoolYears` and
+   * `defaultEventOfYear` share a reachability filter, so the null below is a
+   * type guard, not a year that quietly does nothing when picked.
+   */
   function changeSchoolYear(year: string) {
-    if (currentEvent?.schoolYear.label === year) return;
-    const target = workspace.events
-      .filter((e) => e.schoolYear.label === year && reachableSurfaces(e).length)
-      .sort(
-        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-      )[0];
-    if (!target) return;
-    const seg = surfaceSegment(reachableSurfaces(target)[0]);
-    goto(resolve(`/staff/dev/events/${target.id}/${seg}`));
+    if (year === selectedSchoolYear) return;
+    const target = defaultEventOfYear(workspace.events, year);
+    if (target) openEvent(target);
   }
 
   let mobileMenuOpen = $state(false);
@@ -176,8 +197,12 @@
         <span class="truncate">{eventDisplayName(ev)}</span>
         <TitleCursor />
       </span>
-      {#if workspace.events.length > 1}
-        <EventWorkspaceSwitcher events={workspace.events} currentId={ev.id} />
+      {#if yearEvents.length > 1}
+        <EventWorkspaceSwitcher
+          events={yearEvents}
+          currentId={ev.id}
+          onpick={openEvent}
+        />
       {/if}
     </div>
     <nav class="space-y-1">
@@ -193,6 +218,21 @@
         </a>
       {/each}
     </nav>
+  {/if}
+{/snippet}
+
+{#snippet campusBadge()}
+  {#if data.staffProfile?.campus?.name}
+    <div
+      class="flex min-w-0 items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase select-none"
+    >
+      <School class="h-4 w-4 shrink-0 text-epi-blue" />
+      <span class="truncate font-bold text-epi-blue">
+        {data.staffProfile.campus.name}
+      </span>
+    </div>
+  {:else}
+    <div></div>
   {/if}
 {/snippet}
 
@@ -271,45 +311,17 @@
       class="hidden h-14 w-full shrink-0 items-center justify-between border-b border-border bg-card px-8 md:flex"
     >
       <!-- Left Context (Campus) -->
-      {#if data.staffProfile?.campus?.name}
-        <div
-          class="flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase select-none"
-        >
-          <School class="h-4 w-4 text-epi-blue" />
-          <span class="font-bold text-epi-blue">
-            {data.staffProfile.campus.name}
-          </span>
-        </div>
-      {:else}
-        <div></div>
-      {/if}
+      {@render campusBadge()}
 
       <!-- Context Selectors -->
       <div class="flex items-center gap-3">
-        <!-- Academic Year Dropdown -->
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger
-            class="flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-border bg-background px-3 text-xs font-bold text-foreground hover:bg-muted/50"
-          >
-            <CalendarDays class="h-4 w-4 text-muted-foreground" />
-            <span>{selectedSchoolYear}</span>
-            <ChevronDown class="h-3.5 w-3.5 text-muted-foreground" />
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content align="end" class="w-48 rounded-sm">
-            <DropdownMenu.Label>Année scolaire</DropdownMenu.Label>
-            <DropdownMenu.Separator />
-            {#each schoolYears as year}
-              <DropdownMenu.Item
-                class="cursor-pointer text-xs {selectedSchoolYear === year
-                  ? 'bg-accent font-bold'
-                  : ''}"
-                onclick={() => changeSchoolYear(year)}
-              >
-                {year}
-              </DropdownMenu.Item>
-            {/each}
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
+        <!-- Academic Year: the workspace's global context, changed here and
+             nowhere else. Mirrored in the mobile header below. -->
+        <SchoolYearMenu
+          years={schoolYears}
+          active={selectedSchoolYear}
+          onselect={changeSchoolYear}
+        />
 
         <!-- User Profile Dropdown -->
         <DropdownMenu.Root>
@@ -362,11 +374,20 @@
     <header
       class="z-40 flex h-14 w-full shrink-0 items-center justify-between border-b border-border bg-background px-4 md:hidden"
     >
-      <div class="flex items-center gap-2">
+      <!-- Campus on the left, school year on the right: the same two context
+           readouts as the desktop header, so both breakpoints say the same
+           thing. The brand used to sit here and no longer fits beside the year
+           control (a 360px bar cannot hold the burger, the full mark and a
+           control at once), which is no loss: the drawer this burger opens
+           renders the same mark at its top, exactly as the sidebar does on
+           desktop. The year lives in the bar rather than inside the drawer so it
+           stays readable while you work, émargement included, and so it needs no
+           second skin for the navy rail. -->
+      <div class="flex min-w-0 items-center gap-2">
         <Button
           variant="ghost"
           size="icon"
-          class="relative h-10 w-10"
+          class="relative h-10 w-10 shrink-0"
           onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
         >
           <Menu
@@ -381,13 +402,13 @@
           />
           <span class="sr-only">Toggle menu</span>
         </Button>
-        <BrandMark
-          href={resolve('/staff/dev')}
-          tone="auto"
-          orientation="inline"
-          campus={data.staffProfile?.campus?.name}
-        />
+        {@render campusBadge()}
       </div>
+      <SchoolYearMenu
+        years={schoolYears}
+        active={selectedSchoolYear}
+        onselect={changeSchoolYear}
+      />
     </header>
 
     {#if mobileMenuOpen}
