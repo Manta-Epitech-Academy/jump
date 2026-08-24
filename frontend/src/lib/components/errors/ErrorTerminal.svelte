@@ -109,8 +109,10 @@
 </div>
 
 <style>
-  /* Import Fonts Directly */
-  @import url('https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans:wght@400;500;700&display=swap');
+  /* Anton and IBM Plex Sans are already self-hosted app-wide (`+layout.svelte`
+     imports them from @fontsource), so this screen needs no font import of its
+     own. It used to @import them from Google, which was both redundant and the
+     last remote font fetch left in the app. */
 
   /* Map the screen's local palette onto the app's theme tokens so it resolves
      correctly and follows light/dark, instead of the never-defined custom

@@ -1,5 +1,6 @@
 import ejs from 'ejs';
-import { withBrowser } from '../infra/browserPool';
+import { renderPdf } from '../infra/pdfRenderer';
+import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import stageDiplomaTemplate from '../templates/stage-diploma.html?raw';
 
@@ -28,7 +29,11 @@ export async function generateStageDiplomasPDF(data: {
 
   return await generatePDF(
     stageDiplomaTemplate,
-    { ...data, logoDataUri },
+    {
+      ...data,
+      logoDataUri,
+      fontFaces: fontFaceCss('anton', 'plexSans', 'plexSansItalic'),
+    },
     { width: '1123px', height: '794px' },
   );
 }
@@ -44,41 +49,11 @@ async function generatePDF(
     { async: true },
   );
 
-  return withBrowser(async (browser) => {
-    const page = await browser.newPage();
-    try {
-      // Parse the DOM but do NOT wait on the network `load` event. The Google
-      // Fonts stylesheet is the only remote resource, and blocking setContent on
-      // `load` blocks the whole render on that one request, which can hang it for
-      // a long time when Google Fonts is slow or unreachable (a `load`-wait once
-      // stalled the 200-page stage diploma into Puppeteer's 30s timeout). All
-      // images/logo are inline data URIs, so the DOM is structurally complete at
-      // `domcontentloaded`; the fonts get a bounded grace period in the race below.
-      await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
-
-      // Give web fonts a brief chance to load when the network IS reachable,
-      // but never block the render on a hung font request.
-      await page.evaluate(() =>
-        Promise.race([
-          document.fonts.ready,
-          new Promise((resolve) => setTimeout(resolve, 2000)),
-        ]),
-      );
-
-      const pdfBuffer = await page.pdf({
-        width: format.width,
-        height: format.height,
-        printBackground: true,
-        preferCSSPageSize: true,
-        margin: { top: 0, right: 0, bottom: 0, left: 0 },
-        // A cohort sheet can run to ~200 pages; on a constrained pod CPU the
-        // print pass needs more headroom than Puppeteer's 30s default.
-        timeout: 120_000,
-      });
-
-      return new Uint8Array(pdfBuffer) as Uint8Array<ArrayBuffer>;
-    } finally {
-      await page.close();
-    }
+  return renderPdf({
+    html: htmlContent,
+    page: format,
+    // A cohort sheet can run to ~200 pages; on a constrained pod CPU the print
+    // pass needs more headroom than Puppeteer's 30s default.
+    timeoutMs: 120_000,
   });
 }

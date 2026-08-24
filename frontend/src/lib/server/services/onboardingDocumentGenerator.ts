@@ -1,6 +1,7 @@
 import ejs from 'ejs';
 import { renderMarkdown } from '$lib/markdown';
-import { withBrowser } from '../infra/browserPool';
+import { renderPdf } from '../infra/pdfRenderer';
+import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import onboardingTemplate from '../templates/onboarding-document.html?raw';
 import { reglementTextFor } from '$lib/content/reglement';
@@ -144,6 +145,9 @@ export async function generateOnboardingPDF(data: {
     onboardingTemplate,
     {
       data: {
+        // Only the handwritten signature needs a webfont here; the body is set
+        // in a system sans on purpose.
+        fontFaces: fontFaceCss('dancingScript'),
         type: data.type,
         title,
         documentContent,
@@ -159,21 +163,12 @@ export async function generateOnboardingPDF(data: {
     { async: true },
   );
 
-  return withBrowser(async (browser) => {
-    const page = await browser.newPage();
-    try {
-      await page.setContent(htmlContent, { waitUntil: 'load' });
-      await page.evaluateHandle('document.fonts.ready');
-
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' },
-      });
-
-      return new Uint8Array(pdfBuffer) as Uint8Array<ArrayBuffer>;
-    } finally {
-      await page.close();
-    }
+  return renderPdf({
+    html: htmlContent,
+    page: { format: 'A4' },
+    // This is the one document that wants Puppeteer's margin box rather than its
+    // own @page rule: it is flowing prose, not a fixed-size canvas.
+    margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' },
+    preferCssPageSize: false,
   });
 }

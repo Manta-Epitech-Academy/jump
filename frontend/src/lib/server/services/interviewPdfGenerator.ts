@@ -1,5 +1,6 @@
 import ejs from 'ejs';
-import { withBrowser } from '../infra/browserPool';
+import { renderPdf } from '../infra/pdfRenderer';
+import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import interviewTemplate from '../templates/interview-synthesis.html?raw';
 import {
@@ -186,6 +187,7 @@ export async function generateInterviewPdf(
     : null;
 
   const data = {
+    fontFaces: fontFaceCss('anton', 'plexSans', 'spaceMono'),
     // The masthead sits on full-bleed brand blue, so the logo ships white. The
     // source asset is the blue wordmark (every path filled #013AFB); recolour it
     // here rather than maintaining a second 26 KB copy.
@@ -207,24 +209,9 @@ export async function generateInterviewPdf(
     { async: true },
   );
 
-  return withBrowser(async (browser) => {
-    const page = await browser.newPage();
-    try {
-      await page.setContent(htmlContent, { waitUntil: 'load' });
-      await page.evaluateHandle('document.fonts.ready');
-
-      const pdfBuffer = await page.pdf({
-        width: '794px',
-        height: '1123px',
-        printBackground: true,
-        preferCSSPageSize: true,
-        margin: { top: 0, right: 0, bottom: 0, left: 0 },
-      });
-
-      return new Uint8Array(pdfBuffer) as Uint8Array<ArrayBuffer>;
-    } finally {
-      await page.close();
-    }
+  return renderPdf({
+    html: htmlContent,
+    page: { width: '794px', height: '1123px' },
   });
 }
 

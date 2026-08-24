@@ -1,5 +1,6 @@
 import ejs from 'ejs';
-import { withBrowser } from '../infra/browserPool';
+import { renderPdf } from '../infra/pdfRenderer';
+import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import badgeTemplate from '../templates/badge.html?raw';
 
@@ -28,26 +29,16 @@ export async function generateBadgesPDF(
 ): Promise<Uint8Array<ArrayBuffer>> {
   const htmlContent = await ejs.render(
     badgeTemplate,
-    { data: { badges, mode, logoSvg: epitechLogoSvg } },
+    {
+      data: {
+        badges,
+        mode,
+        logoSvg: epitechLogoSvg,
+        fontFaces: fontFaceCss('anton', 'plexSans'),
+      },
+    },
     { async: true },
   );
 
-  return withBrowser(async (browser) => {
-    const page = await browser.newPage();
-    try {
-      await page.setContent(htmlContent, { waitUntil: 'load' });
-      await page.evaluateHandle('document.fonts.ready');
-
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        preferCSSPageSize: true,
-        margin: { top: 0, right: 0, bottom: 0, left: 0 },
-      });
-
-      return new Uint8Array(pdfBuffer) as Uint8Array<ArrayBuffer>;
-    } finally {
-      await page.close();
-    }
-  });
+  return renderPdf({ html: htmlContent, page: { format: 'A4' } });
 }

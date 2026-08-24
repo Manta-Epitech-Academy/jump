@@ -5,10 +5,9 @@
     <!-- Anton (display), IBM Plex Sans (body), Space Mono (meta/tech) = the
          three Epitech charte families. Same Google Fonts route the diploma and
          certificate templates use; the generator awaits document.fonts.ready. -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
-      rel="stylesheet"
-    />
+    <style>
+      <%- data.fontFaces %>
+    </style>
     <style>
       /* Epitech design-system tokens (subset, charte = source of truth). */
       :root {
