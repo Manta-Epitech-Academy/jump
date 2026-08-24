@@ -1,72 +1,46 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
-  import { page } from '$app/state';
   import * as Popover from '$lib/components/ui/popover';
   import { mergeProps } from 'bits-ui';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
-  import ChevronLeft from '@lucide/svelte/icons/chevron-left';
-  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import SalesforceIcon from '$lib/components/icons/SalesforceIcon.svelte';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { cn } from '$lib/utils';
-  import { reachableSurfaces, surfaceSegment } from '$lib/domain/eventModules';
+  import type { DevWorkspaceEvent } from '$lib/domain/devWorkspace';
   import { eventDisplayName } from '$lib/domain/event';
   import { MOIS_FR } from '$lib/domain/schoolYear';
 
-  // Client-safe shape of a workspace event (a subset of the server's
-  // WorkspaceEventEntry; not imported from $lib/server).
-  type SwitcherEvent = {
-    id: string;
+  // The client-safe workspace shape plus what a row displays. The surface gates
+  // ride along not for this component's own use but so `onpick` hands the host
+  // an event it can route.
+  type SwitcherEvent = DevWorkspaceEvent & {
     titre: string;
     publicName: string | null;
     externalId: string | null;
-    date: string | Date;
-    schoolYear: { label: string; startYear: number };
     monthKey: string; // "YYYY-MM" in campus tz
-    modules: string[];
-    // The data gates folded into surface reachability, so the switcher routes to
-    // a page the target event can actually open (a bilan-without-form event is
-    // hidden from the nav; routing to it would 404).
-    hasPlanning: boolean;
-    hasFeedbackForm: boolean;
   };
 
   let {
     events,
     currentId,
+    schoolYear,
+    onpick,
   }: {
+    /** The active year's navigable events. Scoping is the host's job. */
     events: SwitcherEvent[];
     currentId: string;
+    /** The active school year, for the list's own label. */
+    schoolYear: string;
+    onpick: (event: SwitcherEvent) => void;
   } = $props();
 
   const current = $derived(events.find((e) => e.id === currentId) ?? null);
 
-  // Epitech reasons by school year, so the year is the picker's backbone: one
-  // year shown at a time, switched with the arrows. The real data is small
-  // (a campus runs ~16-32 events a year, most months hold 1-2), so the month is
-  // a section header to scan, never a click-through filter.
-  const years = $derived.by(() => {
-    const seen = new Map<string, number>(); // label -> startYear
-    for (const e of events)
-      seen.set(e.schoolYear.label, e.schoolYear.startYear);
-    return [...seen].sort((a, b) => b[1] - a[1]).map(([label]) => label);
-  });
-
-  let selectedYear = $state('');
   let open = $state(false);
   let listEl = $state<HTMLElement>();
 
   const dateFmt = new Intl.DateTimeFormat('fr-FR', {
     day: '2-digit',
     month: 'short',
-  });
-
-  // Each time the picker opens, re-anchor on the year of the event in view.
-  // In-popover year browsing doesn't touch `current`, so it isn't clobbered
-  // mid-pick (navigating closes the popover before `current` changes).
-  $effect(() => {
-    if (open && current) selectedYear = current.schoolYear.label;
   });
 
   // On open, scroll the month of the event in view to the top, so the picker
@@ -82,23 +56,20 @@
     }
   });
 
-  const yearIndex = $derived(years.indexOf(selectedYear));
   const monthName = (key: string) => MOIS_FR[Number(key.slice(5, 7))];
 
-  // The selected year's events grouped by month, plain chronological (a real
-  // timeline).
+  // The year's events grouped by month, plain chronological (a real timeline).
+  // Epitech reasons by school year, so the year is the list's scope; the real
+  // data is small (a campus runs ~16-32 events a year, most months hold 1-2), so
+  // the month is a section header to scan, never a click-through filter.
   const groups = $derived.by(() => {
-    const pool = events.filter((e) => e.schoolYear.label === selectedYear);
     const byMonth = new Map<string, SwitcherEvent[]>();
-    for (const e of pool) {
+    for (const e of events) {
       const arr = byMonth.get(e.monthKey);
       if (arr) arr.push(e);
       else byMonth.set(e.monthKey, [e]);
     }
-    const currentKey =
-      current && current.schoolYear.label === selectedYear
-        ? current.monthKey
-        : null;
+    const currentKey = current?.monthKey ?? null;
     // Yanking the current month to the front read as "juin -> juillet -> mai"
     // (non-monotone, confusing); it's brought into view by scrolling instead
     // (see the open effect), so the past stays above it and the future below.
@@ -121,31 +92,12 @@
     }));
   });
 
-  // Keep the same surface when switching: if the new event can reach the surface
-  // currently open, stay on it; otherwise land on its first reachable surface,
-  // or the dev home when it exposes nothing reachable. "Reachable" folds the data
-  // gates (planning/bilan), so switching never lands on a page that 404s.
-  function currentSegment(): string {
-    const m = page.url.pathname.match(/\/staff\/dev\/events\/[^/]+\/([^/?]+)/);
-    return m?.[1] ?? '';
-  }
-  function targetFor(e: SwitcherEvent): string {
-    const seg = currentSegment();
-    const segments = reachableSurfaces(e).map(surfaceSegment);
-    // Keep the currently open surface if the target event also exposes it. Match
-    // against the typed segment list so the resolved path stays a known route.
-    const match = segments.find((s) => s === seg);
-    if (match) {
-      return resolve(`/staff/dev/events/${e.id}/${match}`);
-    }
-    return segments.length
-      ? resolve(`/staff/dev/events/${e.id}/${segments[0]}`)
-      : resolve('/staff/dev');
-  }
-
+  // Navigating is the host's job: the year menu and this list resolve to the
+  // same jump (keep the surface in view when the target event exposes it), so
+  // the layout owns it once and both controls call into it.
   function pick(e: SwitcherEvent) {
     open = false;
-    if (e.id !== currentId) goto(targetFor(e));
+    onpick(e);
   }
 </script>
 
@@ -182,29 +134,14 @@
     </Tooltip.Root>
   </Tooltip.Provider>
   <Popover.Content align="start" class="w-80 p-0">
-    {#if selectedYear}
-      <div class="flex items-center justify-between border-b px-2 py-1.5">
-        <button
-          type="button"
-          aria-label="Année précédente"
-          disabled={yearIndex >= years.length - 1}
-          onclick={() => (selectedYear = years[yearIndex + 1])}
-          class="flex size-6 cursor-pointer items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-30"
-        >
-          <ChevronLeft class="size-4" />
-        </button>
-        <span class="text-xs font-semibold">{selectedYear}</span>
-        <button
-          type="button"
-          aria-label="Année suivante"
-          disabled={yearIndex <= 0}
-          onclick={() => (selectedYear = years[yearIndex - 1])}
-          class="flex size-6 cursor-pointer items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-30"
-        >
-          <ChevronRight class="size-4" />
-        </button>
-      </div>
-    {/if}
+    <!-- The list is the active school year, and nothing else: the year is the
+         workspace's global context and it is changed in the header. This label
+         is what keeps the list self-describing, which matters more than it
+         looks: a school year straddles two calendar years, so two different
+         years both show a "juillet 2026" month header below. -->
+    <div class="border-b px-2 py-1.5">
+      <span class="text-xs font-semibold">{schoolYear}</span>
+    </div>
 
     <Tooltip.Provider delayDuration={150}>
       <div bind:this={listEl} class="max-h-72 overflow-y-auto px-1 pb-1">
@@ -263,10 +200,6 @@
           {#each g.events as e (e.id)}
             {@render eventRow(e, dateFmt.format(new Date(e.date)))}
           {/each}
-        {:else}
-          <p class="px-2 py-6 text-center text-xs text-muted-foreground">
-            Aucun événement.
-          </p>
         {/each}
       </div>
     </Tooltip.Provider>
