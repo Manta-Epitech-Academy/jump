@@ -945,7 +945,8 @@ model Diploma_Template {
   styleCss     String
   /// The authored markup for ONE page, repeated per student with its `{prenom}`,
   /// `{ville}`, `{signatures}` and other placeholders substituted. Sanitised on
-  /// write, and rendered with the network blocked, because Chrome executes this.
+  /// write, and rendered with script execution and the network both off, because
+  /// a real Chrome parses this.
   bodyHtml     String
   /// Page geometry in CSS pixels, which the shell turns into the `@page` rule and
   /// the `.page` box. Owned by the row so a design can be portrait or landscape

@@ -7,16 +7,17 @@
  * so CI has no browser and `bun run test` must stay browser-free. It touches no
  * database, hence no `assertTestDatabase()`.
  *
- * Two things are asserted, and both are things that fail silently in production
- * rather than loudly: a document quietly printing in a fallback face, and the
- * renderer quietly regaining network access.
+ * Three things are asserted, and all three fail silently in production rather
+ * than loudly: a document quietly printing in a fallback face, the renderer
+ * quietly regaining network access, and the renderer quietly regaining the
+ * ability to run a stored design's scripts.
  *
  * It reads the seeded `stage` design out of the database rather than inlining a
  * fixture, so what is under test is the certificate Jump actually ships.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { prisma } from '$lib/server/db';
-import { renderPdf } from '$lib/server/infra/documentRenderer';
+import { renderPdf, renderPng } from '$lib/server/infra/documentRenderer';
 import { generateDiplomasPDF } from '../diplomaGenerator';
 import { assertTestDatabase } from './testDatabase';
 
@@ -97,5 +98,32 @@ describe('the PDF renderer', () => {
     expect(embeddedFonts(pdf)).not.toContain('Remote');
     // Aborted requests fail immediately; a stalled one would blow past this.
     expect(elapsedMs).toBeLessThan(15_000);
+  }, 60_000);
+
+  it("runs none of the document's own JS", async () => {
+    // The companion control to the one above, and the one that actually contains
+    // a stored design: request interception never sees a `ws://` handshake, so a
+    // script that ran could still reach every internal service the pod reaches.
+    // Rendered twice, once with a script that would repaint the box - identical
+    // bytes mean it never ran. The red render is there so the comparison cannot
+    // pass by being blind: it proves these bytes do change when the pixels do.
+    const box = '<div style="width:40px;height:40px;background:#0f0"></div>';
+    const page = (body: string) =>
+      renderPng({
+        html: `<body style="margin:0">${body}</body>`,
+        widthPx: 40,
+        heightPx: 40,
+      });
+
+    const [plain, scripted, red] = await Promise.all([
+      page(box),
+      page(
+        `${box}<script>document.querySelector('div').style.background = '#f00'</script>`,
+      ),
+      page('<div style="width:40px;height:40px;background:#f00"></div>'),
+    ]);
+
+    expect(Buffer.from(scripted).equals(Buffer.from(plain))).toBe(true);
+    expect(Buffer.from(red).equals(Buffer.from(plain))).toBe(false);
   }, 60_000);
 });

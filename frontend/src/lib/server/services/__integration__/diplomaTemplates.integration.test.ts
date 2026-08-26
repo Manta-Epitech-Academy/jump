@@ -4,7 +4,7 @@
  * accountable.
  *
  * The refusals are the load-bearing part. A certificate design is stored HTML and
- * CSS that a real Chrome executes inside the cluster, so what must not be
+ * CSS that a real Chrome parses inside the cluster, so what must not be
  * possible is more interesting here than what must.
  */
 

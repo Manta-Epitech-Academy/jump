@@ -5,11 +5,23 @@ import { withBrowser } from './browserPool';
  * HTML to a document, for everything Jump renders in a browser.
  *
  * Five generators used to repeat this block verbatim. It is shared for the usual
- * reason, and for one that is not cosmetic: **the network is blocked here**, so
- * no caller can render staff-authored HTML with it switched on by forgetting to
- * switch it off. Certificate designs are authored at runtime and stored in the
- * database (`Diploma_Template`), and this function is the boundary that makes
- * that safe to hand to Chrome.
+ * reason, and for one that is not cosmetic: **nothing rendered here executes, and
+ * nothing rendered here fetches**, so no caller can render staff-authored HTML
+ * with either switched on by forgetting to switch it off. Certificate designs are
+ * authored at runtime and stored in the database (`Diploma_Template`), and this
+ * function is the boundary that makes that safe to hand to Chrome.
+ *
+ * Those are two controls, not one stated twice, and the first is the one that
+ * contains a script. Request interception does NOT cover WebSockets: no `request`
+ * event fires for a `ws://` handshake, so a script that got as far as running
+ * could still reach every internal service this pod reaches. Not running it is
+ * what closes that; refusing requests is what keeps a document from depending on
+ * anything outside its own bytes.
+ *
+ * Nothing here wants page JS in the first place: all five templates are static
+ * print or screenshot output, and the QR codes arrive as data URIs their caller
+ * already built. `page.evaluate` keeps working with it off, because CDP evaluates
+ * out of band, so the font wait below is unaffected.
  *
  * It renders PDFs (what gets printed) and PNGs (what gets looked at). Both go
  * through the same page setup on purpose: a preview that took a different path
@@ -37,9 +49,9 @@ const ZERO_MARGIN = {
 
 /**
  * Only a `data:` URI, or the blank document `setContent` writes into, may load.
- * Everything else is aborted, which is the whole control: a stored design that
- * slipped a remote reference past the sanitiser still cannot reach the network,
- * and this pod can reach the database and every internal service.
+ * Everything else is aborted: a stored design that slipped a remote reference
+ * past the sanitiser still resolves to nothing, so a document can only ever be
+ * made of bytes we handed it.
  *
  * Aborting rather than allowing-and-ignoring matters for latency too: a blocked
  * request fails immediately, so `load` and `document.fonts.ready` both settle
@@ -61,8 +73,8 @@ async function blockNetwork(page: Page): Promise<void> {
 }
 
 /**
- * Open a page, cut it off from the network, load the HTML and wait for the fonts.
- * Everything both outputs must agree on lives here.
+ * Open a page with nothing running and nothing reachable, load the HTML and wait
+ * for the fonts. Everything both outputs must agree on lives here.
  */
 async function withRenderedPage<T>(
   html: string,
@@ -72,6 +84,8 @@ async function withRenderedPage<T>(
   return withBrowser(async (browser) => {
     const page = await browser.newPage();
     try {
+      // Before `setContent`, or a design's inline script runs while it parses.
+      await page.setJavaScriptEnabled(false);
       await blockNetwork(page);
       await page.setContent(html, { waitUntil: 'load' });
       await page.evaluate(
