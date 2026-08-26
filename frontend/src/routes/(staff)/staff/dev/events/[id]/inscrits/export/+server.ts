@@ -80,7 +80,8 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
       dossier.parentRulesSignedAt,
       dossier.rulesSignedAt,
     );
-    const image = imageRightsStatus(t);
+    // Off the event's own dossier, like the règlement above it.
+    const image = imageRightsStatus(dossier);
     const connected = t.firstLoginAt != null;
     const status = inscritStatus(t.niveau, connected, rules, image);
     const parentName = [t.parentPrenom, t.parentNom].filter(Boolean).join(' ');

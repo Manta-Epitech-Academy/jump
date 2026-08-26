@@ -18,13 +18,14 @@ const INSCRIT_TALENT_SELECT = {
   // shows XP alone, the fiche carries the fuller breakdown.
   xp: true,
   user: { select: { email: true } },
-  // Dossier input for the image-rights gate of the statut badge. The two
-  // règlement signatures are deliberately NOT selected here: they belong to the
-  // dossier of the EVENT's school year, which the flat columns cannot answer for
-  // (they hold the talent's most recent dossier). Both consumers read them from
-  // `loadEventDossierSignatures` instead, so neither can drift onto the wrong
-  // year.
-  imageRightsDecision: true,
+  // Neither the règlement signatures NOR the image-rights decision are selected
+  // here: all three belong to the dossier of the EVENT's school year, which the
+  // flat columns cannot answer for (they hold the talent's most recent dossier).
+  // Both consumers read them from `loadEventDossierSignatures` instead, so
+  // neither can drift onto the wrong year. `imageRightsDecision` was still here
+  // when only the règlement was annual, which is how one badge came to answer
+  // about two different years.
+  //
   // Has the talent ever genuinely logged in? Gates the statut badge. Read from
   // the durable `firstLoginAt` projection (stamped once on first real,
   // non-impersonated login), not a bauth_session probe: sessions are deleted by

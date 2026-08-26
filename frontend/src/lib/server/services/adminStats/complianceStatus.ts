@@ -19,6 +19,7 @@
  * be quoted as if it were a completion rate.
  */
 
+import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { IMAGE_RIGHTS_STATUS_LABELS } from '$lib/domain/imageRights';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
@@ -52,16 +53,18 @@ export async function getComplianceStatus(
 ): Promise<ComplianceStatus> {
   const where = await cohortWhere(scope);
   const and = (extra: object) => ({ where: { AND: [where, extra] } });
-  // The règlement is signed once per school year, so a scoped question is about
-  // that year's dossier row - the flat columns are the most recent dossier and
-  // would change last year's answer the day a talent re-onboards. Unscoped, the
-  // cohort spans years and the projection is the right reading. Same rule as the
-  // funnel, see `dossierSchoolYear`.
+  // The règlement is signed and the image right decided once per school year, so
+  // a scoped question is about that year's dossier row - the flat columns are the
+  // most recent dossier and would change last year's answer the day a talent
+  // re-onboards. Unscoped, the cohort spans years and the projection is the right
+  // reading. Same rule as the funnel, see `dossierSchoolYear`.
   const schoolYear = dossierSchoolYear(scope);
-  const signedThatYear = (field: 'rulesSignedAt' | 'parentRulesSignedAt') =>
+  const onDossierThatYear = (criteria: Prisma.Onboarding_RecordWhereInput) =>
     schoolYear
-      ? { onboardingRecords: { some: { schoolYear, [field]: { not: null } } } }
-      : { [field]: { not: null } };
+      ? { onboardingRecords: { some: { schoolYear, ...criteria } } }
+      : criteria;
+  const signedThatYear = (field: 'rulesSignedAt' | 'parentRulesSignedAt') =>
+    onDossierThatYear({ [field]: { not: null } });
 
   const [cohort, charter, rulesTalent, rulesGuardian, accepted, refused] =
     await Promise.all([
@@ -69,8 +72,12 @@ export async function getComplianceStatus(
       prisma.talent.count(and({ charterAcceptedAt: { not: null } })),
       prisma.talent.count(and(signedThatYear('rulesSignedAt'))),
       prisma.talent.count(and(signedThatYear('parentRulesSignedAt'))),
-      prisma.talent.count(and({ imageRightsDecision: 'accepted' })),
-      prisma.talent.count(and({ imageRightsDecision: 'refused' })),
+      prisma.talent.count(
+        and(onDossierThatYear({ imageRightsDecision: 'accepted' })),
+      ),
+      prisma.talent.count(
+        and(onDossierThatYear({ imageRightsDecision: 'refused' })),
+      ),
     ]);
 
   const undecided = cohort - accepted - refused;
@@ -128,11 +135,11 @@ export async function getComplianceStatus(
         imageRow('refused', refused),
         imageRow('undecided', undecided),
       ],
-      "Décision du responsable légal sur le droit à l'image, en trois états. « Refusé » est une réponse arrêtée, pas une signature manquante : cet élève ne doit pas être photographié. « En attente » signifie que personne n'a encore répondu.",
+      "Décision du responsable légal sur le droit à l'image pour l'année scolaire concernée, en trois états. La décision est redemandée à chaque année scolaire, donc « En attente » signifie que personne n'a répondu pour cette année-là, pas que personne n'a jamais répondu. « Refusé » est une réponse arrêtée, pas une signature manquante : cet élève ne doit pas être photographié, et un refus donné une année continue de s'appliquer tant qu'aucune décision nouvelle ne l'a remplacé.",
     ),
     usableInCommunication: metric(
       share(accepted, cohort),
-      "Part du périmètre dont l'image est utilisable en communication, en pourcentage : uniquement les autorisations explicites. Les indécis ne comptent pas comme des autorisations.",
+      "Part du périmètre dont l'image est utilisable en communication, en pourcentage : uniquement les autorisations explicites données pour l'année scolaire concernée. Les indécis ne comptent pas comme des autorisations, et une autorisation donnée une année précédente n'en est pas une non plus : elle a expiré et doit être redemandée.",
     ),
   };
 }
