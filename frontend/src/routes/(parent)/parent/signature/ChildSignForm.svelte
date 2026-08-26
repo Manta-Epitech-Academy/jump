@@ -4,7 +4,10 @@
   import { cn } from '$lib/utils';
   import ParentSignatureForm from '$lib/components/parent/ParentSignatureForm.svelte';
   import { track, errReason } from '$lib/analytics';
-  import type { ImageRightsDecision } from '$lib/domain/imageRights';
+  import type {
+    ImageRightsDecision,
+    ImageRightsDecisionSummary,
+  } from '$lib/domain/imageRights';
 
   interface Props {
     child: {
@@ -15,6 +18,18 @@
       parentNom?: string | null;
       parentType?: string | null;
       parentCivilite?: string | null;
+      /**
+       * What this guardian decided in a PREVIOUS school year, resolved by
+       * `priorYearDecision`. The decision is taken once per school year, so a
+       * returning family meets this question again; recalling their own answer is
+       * what keeps a second ask from reading as a first one, and a mis-click from
+       * quietly reversing a refusal.
+       *
+       * Null when the decision on screen belongs to the dossier in hand, which is
+       * the change-of-mind path rather than a new ask: the reminder below says the
+       * question is re-asked every year, and that is not what is happening there.
+       */
+      previousDecision?: ImageRightsDecisionSummary | null;
     };
     /** Legal body shown once the guardian chooses to authorize. */
     droitImageBody: string;
@@ -58,13 +73,37 @@
   }}
 >
   {#snippet declarationTail()}
+    <!--
+      Scope-free on purpose. The document rendered just below states which
+      activities and which school year it covers, and it is the text being
+      signed; repeating that here was a second, hand-maintained copy of the
+      scope, and it had already fallen out of step (it still said "stage de
+      seconde" after the document stopped saying it).
+    -->
     , concernant l'utilisation par <strong>Epitech</strong> de l'image de mon
-    enfant <strong>{child.prenom} {child.nom}</strong> dans le cadre du stage de seconde
-    :
+    enfant <strong>{child.prenom} {child.nom}</strong> :
   {/snippet}
 
   {#snippet artifact()}
     <input type="hidden" name="decision" value={decision} />
+
+    {#if child.previousDecision}
+      <!-- One line, stating the fact that changes the decision being taken: an
+           answer already exists, and this ask is for a new school year. Neutral
+           in tone, because re-deciding either way is legitimate. -->
+      <p
+        class="rounded-xl border border-border/60 bg-muted/40 px-4 py-2.5 text-sm text-foreground-secondary"
+      >
+        Pour l'année {child.previousDecision.schoolYear}, vous aviez
+        <strong>
+          {child.previousDecision.decision === 'refused'
+            ? 'refusé'
+            : 'autorisé'}
+        </strong>
+        l'utilisation de l'image de votre enfant. Cette décision est redemandée chaque
+        année scolaire.
+      </p>
+    {/if}
 
     <!-- Decision: authorize or refuse -->
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">

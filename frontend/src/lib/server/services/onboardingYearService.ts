@@ -18,6 +18,7 @@ import type { Prisma, Onboarding_Record } from '@prisma/client';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import {
   ONBOARDING_PROJECTED_FIELDS,
+  type OnboardingDossierOnlyField,
   type OnboardingProjectedField,
 } from '$lib/domain/talentOnboarding';
 
@@ -27,16 +28,17 @@ import {
  * that exists on one side and not the other is a type error here rather than a
  * field that silently stops being written or projected.
  *
- * Plus `rulesFilePath`, the one dossier column that is deliberately not
- * projected onto `Talent` (it is a render, and the talent row no longer carries
- * one). It is in the patch because voiding the current render is part of a
- * signature act: a guardian co-signing invalidates the single-signer PDF in the
- * same transaction that records their signature. The write-back of the new key
- * is NOT a signature act and does not come through here - `onboardingPdfJobService`
+ * Plus {@link ONBOARDING_DOSSIER_ONLY_FIELDS}, the columns deliberately not
+ * projected onto `Talent`. They are in the patch because setting them is part of
+ * a signature act: an act pins the wording it committed to, and it voids the
+ * current render (a guardian co-signing invalidates the single-signer règlement
+ * PDF, a new image-rights decision invalidates that year's droit-à-l'image PDF)
+ * in the same transaction that records it. The write-back of the new key is NOT
+ * a signature act and does not come through here - `onboardingPdfJobService`
  * updates the row directly, so a background render never touches the projection.
  */
 export type OnboardingRecordPatch = Partial<
-  Pick<Onboarding_Record, OnboardingProjectedField | 'rulesFilePath'>
+  Pick<Onboarding_Record, OnboardingProjectedField | OnboardingDossierOnlyField>
 >;
 
 export interface UpsertOnboardingYearRecordInput {
@@ -117,6 +119,35 @@ export async function upsertOnboardingYearRecord(
   await refreshTalentOnboardingProjection(tx, record);
 
   return record;
+}
+
+/**
+ * The dossier a legal guardian's act belongs to: the one the projection
+ * currently describes, never the year on the clock.
+ *
+ * The guardian is invited by their child's own progress, so the dossier they are
+ * answering about is whichever one that child actually has. Resolving it from
+ * the clock instead would file a co-signature or an image-rights decision taken
+ * after the 31 July cutover against a year nobody opened, and the parent portal
+ * would ask for it again the moment it was given.
+ *
+ * The fallback to the year in progress covers a talent with no dossier at all,
+ * who cannot appear in the parent flow: it is there so an unexpected call opens
+ * the right row rather than none.
+ *
+ * Shared by `parentRulesService` and `imageRightsService` so the two acts of one
+ * parent session cannot land on different years.
+ */
+export async function guardianActSchoolYear(
+  tx: Prisma.TransactionClient,
+  talentId: string,
+  timezone: string = 'Europe/Paris',
+): Promise<string> {
+  const talent = await tx.talent.findUniqueOrThrow({
+    where: { id: talentId },
+    select: { onboardingSchoolYear: true },
+  });
+  return talent.onboardingSchoolYear ?? currentSchoolYearLabel(timezone);
 }
 
 /**

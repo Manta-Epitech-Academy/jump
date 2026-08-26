@@ -226,6 +226,18 @@ model Talent {
   generalInterestsValidatedAt DateTime?
   interestsRecapSeenAt        DateTime?
   rulesSignedAt               DateTime?
+  // The guardian's image-rights decision for the talent's MOST RECENT dossier,
+  // projected from `Onboarding_Record` like every column above (the stamp is the
+  // shared `onboardingSchoolYear`). The decision is taken once per school year,
+  // so these four answer "has this guardian decided for the dossier in hand",
+  // which is what the parent guard, the relance audience and the staff dossier
+  // badges ask, and they go blank when their child reopens a dossier.
+  //
+  // They are NOT what decides whether a photo may be published. That question is
+  // not annual (a consent expires, an interdiction does not) and is answered by
+  // `imageRightsStance` from the latest `ImageRightsDecisionRecord`, all years
+  // taken together. Reading it here would let a refusal lapse into "nobody asked
+  // yet" at the 31 July cutover, on printed badges, with nothing reporting it.
   imageRightsDecision         ImageRightsDecision?
   imageRightsDecidedAt        DateTime?
   // Guardian's typed legal name at the moment of the image-rights decision,
@@ -284,6 +296,16 @@ model Talent {
   /// selects, once the pre-annual keys have been swept from the bucket.
   /// Nothing else reads it; `onboardingDocuments` resolves the dossier.
   rulesFilePath               String?
+  /// LEGACY key, for exactly the same reason as `rulesFilePath` above and on the
+  /// same terms: the render moved to `Onboarding_Record.imageRightsFilePath`
+  /// when the decision became annual, the migration copied this key onto the
+  /// dossier it attests, and the two agree until a regeneration writes the
+  /// year-keyed name over that row and leaves the pre-annual `image-rights.pdf`
+  /// object referenced by this column alone. Both erasure paths still select it
+  /// so that object cannot be stranded, and it drops together with
+  /// `rulesFilePath` and those selects once the pre-annual keys have been swept
+  /// from the bucket. Nothing else reads it; `onboardingDocuments` resolves the
+  /// dossier.
   imageRightsFilePath         String?
   parentEmail                 String?
   parentNom                   String?
@@ -448,6 +470,36 @@ model Onboarding_Record {
   parentRulesRelationship String?
   parentRulesSignedCity   String?
 
+  // The guardian's OTHER act for this year: the image-rights decision. It sits
+  // here rather than on its own per-year table because the dossier already
+  // carries their règlement co-signature, both are decided in one session of the
+  // parent portal, and both are filed against the dossier the talent actually
+  // has (never against the year on the clock).
+  //
+  // The current decision for this year, projected onto `Talent` by
+  // `onboardingYearService` like the block above. The append-only history of
+  // every choice ever made lives on `ImageRightsDecisionRecord`; this is the
+  // latest of that year's rows, which is what a cohort query can filter on.
+  imageRightsDecision     ImageRightsDecision?
+  imageRightsDecidedAt    DateTime?
+  imageRightsSignerPrenom String?
+  imageRightsSignerNom    String?
+  // Not projected onto `Talent`: only the render reads them back
+  // (`ONBOARDING_DOSSIER_ONLY_FIELDS` in domain/talentOnboarding.ts).
+  imageRightsRelationship String?
+  imageRightsSignedCity   String?
+  imageRightsVersion      String?
+  // The S3 key of this year's rendered droit-à-l'image PDF, keyed
+  // `documents/{talentId}/image-rights-{schoolYear}.pdf`. Per dossier for the
+  // same reason as `rulesFilePath`: one artifact per year, so a new year's
+  // decision adds a document instead of destroying the one a guardian signed
+  // for a minor. Nulled by a fresh decision within the year, which the worker
+  // then rewrites over the same key, so a change of mind supersedes the year's
+  // document rather than accumulating one object per click. A superseded
+  // decision stays reproducible from its ledger row, which carries its own
+  // wording version.
+  imageRightsFilePath     String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -522,10 +574,30 @@ enum ImageRightsDecisionSource {
 ///
 /// `relationship` and `city` are persisted here (they previously lived only in
 /// the transient PDF job payload, so they were unqueryable after generation).
+///
+/// This log is also the answer to the one image-rights question that is NOT
+/// annual: whether a photo may be published today. `imageRightsStance` reads the
+/// latest row across every school year, so a refusal that nobody has revisited
+/// keeps forbidding after its year has closed, instead of lapsing into "not
+/// asked yet" on the projection.
 model ImageRightsDecisionRecord {
   id                String                    @id @default(cuid())
   talentId          String
   decision          ImageRightsDecision
+  /// Which school year's decision this is, in the canonical `YYYY-YYYY` format.
+  /// The decision is taken once per year, and this is the year of the dossier it
+  /// was filed against, NOT the year `decidedAt` falls in: a guardian deciding
+  /// after the 31 July cutover for a child who has not reopened a dossier is
+  /// answering last year's question, and filing it under the new year would let
+  /// the parent portal ask them again the moment they finished.
+  schoolYear        String
+  /// Which wording of the droit à l'image this choice committed to (catalogue in
+  /// `lib/content/droit-image/`). The PDF is regenerated from DB state on every
+  /// change of mind and every staff correction, so without this the body would
+  /// be re-rendered from whatever the current text happens to be, under a
+  /// decision already taken. Null means the decision predates the column: it
+  /// resolves to the legacy version, never to the current one.
+  version           String?
   /// When the guardian made this choice (the signature timestamp).
   decidedAt         DateTime
   /// Signer identity + context. Nullable only because rows backfilled from the
@@ -547,6 +619,9 @@ model ImageRightsDecisionRecord {
   recordedBy StaffProfile? @relation(fields: [recordedByStaffId], references: [id], onDelete: SetNull)
 
   @@index([talentId, createdAt])
+  /// Serves the per-year lookups: which decision a given dossier carries, and
+  /// the year-scoped compliance counts.
+  @@index([talentId, schoolYear])
 }
 
 model TalentDeletionRequest {
@@ -1606,19 +1681,24 @@ model OnboardingPdfJob {
   id           String @id @default(cuid())
   talentId     String
   documentType String // "charter" | "rules" | "image-rights"
-  /// Which `Onboarding_Record` a `rules` job renders, in the canonical
-  /// `YYYY-YYYY` format. Carried on the job rather than resolved when it runs:
-  /// a job can sit queued behind the browser pool, and a retry from
+  /// Which `Onboarding_Record` this job renders, in the canonical `YYYY-YYYY`
+  /// format. Carried on the job rather than resolved when it runs: a job can sit
+  /// queued behind the browser pool, and a retry from
   /// /staff/admin/onboarding-pdfs can fire days later, by which point "the
-  /// talent's current dossier" may be a different year than the signature that
-  /// asked for this render. Null for `image-rights`, which is not annual, and on
-  /// jobs enqueued before the column existed (those fall back to the talent's
-  /// most recent dossier).
-  schoolYear   String?
+  /// talent's current dossier" may be a different year than the act that asked
+  /// for this render.
+  ///
+  /// NOT NULL, because every generated document is per-year and there is
+  /// therefore no such thing as a job without a dossier. It was nullable for one
+  /// release, with the worker falling back to the talent's most recent dossier;
+  /// that fallback was correct only for the rows predating the column, and only
+  /// until their talent reopened a dossier, after which a retry silently aimed at
+  /// a year nobody had asked for. The migration backfilled every row instead, so
+  /// the fallback is gone rather than fixed.
+  schoolYear   String
   status       String    @default("pending") // "pending" | "processing" | "success" | "error"
   filePath     String? // S3 key, set on success
   errorMessage String? // captured on failure
-  payload      Json // snapshot of generator inputs (studentName, city, signedAt, etc.)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   processedAt  DateTime?

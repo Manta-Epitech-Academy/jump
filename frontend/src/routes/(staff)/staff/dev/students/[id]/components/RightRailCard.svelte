@@ -17,8 +17,10 @@
   } from '$lib/domain/dossierCompliance';
   import {
     IMAGE_RIGHTS_DISPLAY_LABELS,
+    IMAGE_RIGHTS_STANCE_LABELS,
     imageRightsStatus,
     imageRightsDisplayStatus,
+    imageRightsStance,
     type ImageRightsDecision,
   } from '$lib/domain/imageRights';
   import type { Communication } from '$lib/domain/communications';
@@ -30,6 +32,7 @@
   // dialog owns the precise type) — this card only forwards it.
   type ImageRightsRecordVM = {
     id: string;
+    schoolYear: string;
     decision: ImageRightsDecision;
     decidedAt: Date | string;
     signerPrenom: string | null;
@@ -62,6 +65,8 @@
     rulesSignedAt,
     parentRulesSignedAt,
     imageRightsDecision,
+    lastImageRightsDecision,
+    imageRightsSchoolYear,
     imageRightsForm,
     imageRightsRecords = [],
     studentName = '',
@@ -72,7 +77,20 @@
     communications: Communication[];
     rulesSignedAt: Date | string | null;
     parentRulesSignedAt: Date | string | null;
+    /** The decision for the dossier in hand, or null when this year is open. */
     imageRightsDecision: ImageRightsDecision | null;
+    /**
+     * The last decision ever taken and the year it answered for. Required, not
+     * optional: it is what keeps a standing refusal on screen once its year has
+     * closed, and a caller that forgot to pass it would quietly downgrade an
+     * interdiction to "En attente".
+     */
+    lastImageRightsDecision: {
+      decision: ImageRightsDecision;
+      schoolYear: string;
+    } | null;
+    /** The dossier year a correction recorded from here would be filed against. */
+    imageRightsSchoolYear: string;
     imageRightsForm?: SuperValidated<Infer<ImageRightsCorrectionSchema>>;
     imageRightsRecords?: ImageRightsRecordVM[];
     studentName?: string;
@@ -166,7 +184,35 @@
     ),
   );
 
+  // What actually applies to this student right now, which the row above cannot
+  // say once the decision is annual: a refusal given in a closed year still
+  // forbids, while its dossier row has gone back to "En attente" because the
+  // guardian is being asked again. Showing only the dossier state here is how a
+  // dev ends up photographing a student whose parent said no.
+  const stance = $derived(
+    imageRightsStance(
+      imageRightsStatus({ imageRightsDecision }),
+      lastImageRightsDecision?.decision ?? null,
+    ),
+  );
+  const standingRefusal = $derived(
+    stance === 'forbidden' && imageRightsDecision == null
+      ? (lastImageRightsDecision?.schoolYear ?? null)
+      : null,
+  );
+
   const imageDoc = $derived.by<DocStatus>(() => {
+    // A refusal from a closed year outranks the dossier state: the row is read
+    // to decide whether to take a photo, so the interdiction is what it must
+    // show, with the chase still explained in the tooltip.
+    if (standingRefusal) {
+      return {
+        label: IMAGE_RIGHTS_STANCE_LABELS.forbidden,
+        colorClass: 'text-epi-together',
+        icon: X,
+        tooltip: `Refus donné pour ${standingRefusal} et jamais revu depuis : les photos et vidéos de ce participant ne doivent pas être utilisées. La décision est redemandée au responsable légal pour l'année en cours.`,
+      };
+    }
     if (imageDisplay === 'accepted') {
       return {
         label: IMAGE_RIGHTS_DISPLAY_LABELS.accepted,
@@ -300,6 +346,7 @@
     form={imageRightsForm}
     records={imageRightsRecords}
     {studentName}
+    targetSchoolYear={imageRightsSchoolYear}
   />
 {/if}
 

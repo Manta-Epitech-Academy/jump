@@ -17,8 +17,12 @@ import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { formatGivenName } from '$lib/domain/profile';
 import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
 import { isRulesCompliant } from '$lib/domain/dossierCompliance';
+import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import { isImageRightsDecided } from '$lib/domain/imageRights';
-import { recordImageRightsDecision } from '$lib/server/services/imageRightsService';
+import {
+  LATEST_IMAGE_RIGHTS_DECISION_ORDER,
+  recordImageRightsDecision,
+} from '$lib/server/services/imageRightsService';
 import { imageRightsCorrectionSchema } from '$lib/validation/imageRights';
 import type { Communication } from '$lib/domain/communications';
 import { getTalentXpStory } from '$lib/server/services/xpStoryService';
@@ -59,8 +63,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
           school: { select: { name: true } },
           // Image-rights decision history (newest first) for the audit trail in
           // the rail: who decided what and when, parent vs staff correction.
+          // Ordered on the decision instant first, so the head of this list is
+          // the last thing a guardian actually decided - which is what the rail
+          // resolves the publishing stance from.
           imageRightsRecords: {
-            orderBy: { createdAt: 'desc' },
+            orderBy: LATEST_IMAGE_RIGHTS_DECISION_ORDER,
             include: {
               recordedBy: { select: { user: { select: { name: true } } } },
             },
@@ -167,9 +174,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     );
 
     // Decision history VM: flatten the recorded-by staff name, keep only what
-    // the rail renders. Newest first (already ordered in the query).
+    // the rail renders. Newest first (already ordered in the query). Each row
+    // carries the school year it answers for, since the decision is taken once
+    // per year and a history that did not say so would read as a string of
+    // changes of mind.
     const imageRightsRecords = student.imageRightsRecords.map((r) => ({
       id: r.id,
+      schoolYear: r.schoolYear,
       decision: r.decision,
       decidedAt: r.decidedAt,
       signerPrenom: r.signerPrenom,
@@ -178,6 +189,25 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       note: r.note,
       recordedByName: r.recordedBy?.user?.name ?? null,
     }));
+
+    // The last decision ever taken, and the year it answered for. Feeds the
+    // rail's stance, which is NOT the projection above it: an authorization
+    // expires with its school year, an interdiction does not, so a refusal
+    // nobody has revisited keeps forbidding while the dossier reads "En
+    // attente". Resolved here rather than in the component so the ordering rule
+    // (the decision instant, not the row's creation) lives with the query.
+    const lastImageRightsDecision = student.imageRightsRecords[0]
+      ? {
+          decision: student.imageRightsRecords[0].decision,
+          schoolYear: student.imageRightsRecords[0].schoolYear,
+        }
+      : null;
+
+    // The dossier a correction recorded from this page would land on, resolved
+    // exactly as `guardianActSchoolYear` resolves it server-side, so the dialog
+    // names the year the write will actually use.
+    const imageRightsSchoolYear =
+      student.onboardingSchoolYear ?? currentSchoolYearLabel();
 
     // Backs the right rail's "première connexion" line and tells the dev whether
     // the talent ever logged in. Read from the durable `Talent.firstLoginAt`
@@ -222,6 +252,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       timezone,
       imageRightsForm,
       imageRightsRecords,
+      lastImageRightsDecision,
+      imageRightsSchoolYear,
     };
   } catch (e) {
     // A genuinely missing talent (findUniqueOrThrow → P2025) is the only real
@@ -268,7 +300,7 @@ async function correctImageRights({ request, locals, params }: RequestEvent) {
       // staff don't re-key them; both default cleanly in the PDF if absent.
       imageRightsRecords: {
         take: 1,
-        orderBy: { createdAt: 'desc' },
+        orderBy: LATEST_IMAGE_RIGHTS_DECISION_ORDER,
         select: { relationship: true, city: true },
       },
     },
@@ -280,7 +312,6 @@ async function correctImageRights({ request, locals, params }: RequestEvent) {
   const prior = student.imageRightsRecords[0];
   await recordImageRightsDecision({
     talentId: student.id,
-    studentName: `${student.prenom} ${student.nom}`,
     decision: form.data.decision,
     signerPrenom: form.data.signerPrenom,
     signerNom: form.data.signerNom,

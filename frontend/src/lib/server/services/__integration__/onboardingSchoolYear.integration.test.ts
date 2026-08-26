@@ -282,7 +282,6 @@ describe('onboarding dossier per school year (integration)', () => {
     // consent it just overwrote.
     await signOnboardingRules({
       talentId,
-      studentName: 'Test Revenant',
       city: 'Lyon',
     });
 

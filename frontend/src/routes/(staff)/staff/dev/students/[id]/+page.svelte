@@ -141,6 +141,8 @@
           rulesSignedAt={data.student.rulesSignedAt}
           parentRulesSignedAt={data.student.parentRulesSignedAt}
           imageRightsDecision={data.student.imageRightsDecision}
+          lastImageRightsDecision={data.lastImageRightsDecision}
+          imageRightsSchoolYear={data.imageRightsSchoolYear}
           imageRightsForm={data.imageRightsForm}
           imageRightsRecords={data.imageRightsRecords}
           studentName={`${data.student.prenom} ${data.student.nom}`}

@@ -20,6 +20,12 @@ import type { Prisma } from '@prisma/client';
  * same two columns, unnarrowed by school year, so a filter and the badge it
  * filters on cannot disagree. If one side ever has to become year-aware, the
  * other moves with it or the admin directory starts hiding the rows it displays.
+ *
+ * Both columns are now projections of the talent's most recent dossier
+ * (`imageRightsDecidedAt` joined `parentRulesSignedAt` there when the
+ * image-rights decision became annual), so reading them unnarrowed is what makes
+ * these fragments mean "for the dossier in hand". The pairing held through that
+ * change without either side moving, which is the whole point of it.
  */
 export const parentBlockedWhere: Prisma.TalentWhereInput = {
   OR: [{ parentRulesSignedAt: null }, { imageRightsDecidedAt: null }],

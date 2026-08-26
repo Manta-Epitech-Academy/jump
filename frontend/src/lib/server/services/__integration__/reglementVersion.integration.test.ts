@@ -80,7 +80,6 @@ describe('règlement version pinning (integration)', () => {
 
     await signOnboardingRules({
       talentId: talent.id,
-      studentName: 'Reglement Test',
       city: 'Paris',
     });
 
@@ -100,7 +99,6 @@ describe('règlement version pinning (integration)', () => {
 
     await recordParentRulesSignature({
       talentId: talent.id,
-      studentName: 'Reglement Test',
       signerPrenom: 'Marie',
       signerNom: 'Dupont',
       relationship: 'mère',
@@ -127,7 +125,6 @@ describe('règlement version pinning (integration)', () => {
 
     await recordParentRulesSignature({
       talentId: talent.id,
-      studentName: 'Reglement Test',
       signerPrenom: 'Marie',
       signerNom: 'Dupont',
       relationship: 'mère',

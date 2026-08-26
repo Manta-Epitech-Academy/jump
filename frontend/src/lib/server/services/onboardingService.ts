@@ -150,11 +150,10 @@ export async function validateTalentInterests(
  */
 export async function signOnboardingRules(input: {
   talentId: string;
-  studentName: string;
   city: string;
   signedAt?: Date;
 }): Promise<{ jobId: string }> {
-  const { talentId, studentName, city } = input;
+  const { talentId, city } = input;
   const now = input.signedAt ?? new Date();
   // One resolution for the dossier this act writes, the early-bird count and the
   // PDF job, so all three can never land on different years.
@@ -232,7 +231,6 @@ export async function signOnboardingRules(input: {
       // 31 July cutover still renders this year's document rather than whichever
       // one is current when it finally gets a browser.
       schoolYear,
-      payload: { studentName, city, signedAt: now.toISOString() },
     });
   });
 

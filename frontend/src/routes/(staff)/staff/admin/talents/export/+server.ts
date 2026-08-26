@@ -68,6 +68,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       row.parentEmail ?? '',
       row.parentPhone ?? '',
       t.parentStatus ? PARENT_STATUS_LABELS[t.parentStatus] : '',
+      // The decision for the dossier in hand, which since the decision became
+      // annual is this talent's CURRENT year and not their whole history. That is
+      // the right reading for a triage sheet, and the wrong one for "may we
+      // publish a photo": a refusal from a closed year reads « En attente » here,
+      // because the guardian is being asked again. The header says so, and
+      // `stats_compliance_status` returns the standing interdictions as a figure.
       IMAGE_RIGHTS_STATUS_LABELS[imageRightsStatus(row)],
       t.xp,
       t.eventsCount,
@@ -91,7 +97,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       'Email parent',
       'Téléphone parent',
       'Statut parent',
-      "Droit à l'image",
+      "Droit à l'image (année en cours)",
       'XP',
       'Événements',
       'Dernière activité',

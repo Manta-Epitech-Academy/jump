@@ -155,7 +155,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         dossier.parentRulesSignedAt,
         dossier.rulesSignedAt,
       );
-      const image = imageRightsStatus(t);
+      // Off the event's own dossier, like the règlement beside it: the flat
+      // column would answer for whichever year this talent last opened.
+      const image = imageRightsStatus(dossier);
       const connected = t.firstLoginAt != null;
       return {
         id: p.id,

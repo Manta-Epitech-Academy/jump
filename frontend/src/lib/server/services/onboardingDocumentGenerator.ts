@@ -5,8 +5,7 @@ import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import onboardingTemplate from '../templates/onboarding-document.html?raw';
 import { reglementTextFor } from '$lib/content/reglement';
-import droitImageMd from '$lib/content/droit-image.md?raw';
-import droitImageRefusalMd from '$lib/content/droit-image-refusal.md?raw';
+import { droitImageDocumentFor } from '$lib/content/droit-image';
 import {
   ONBOARDING_DOCUMENTS,
   type OnboardingDocumentType,
@@ -31,28 +30,51 @@ function formatFr(d: Date): string {
   });
 }
 
-function buildImageRightsHtml(
-  decision: ImageRightsDecision,
-  signerName: string,
-  relationship: string,
-  studentName: string,
-  city: string,
-  formattedDate: string,
-): string {
-  const template = decision === 'refused' ? droitImageRefusalMd : droitImageMd;
+/**
+ * The droit-à-l'image document, filled in: the version's markdown with every
+ * placeholder substituted. Pure, exported and separated from the render so the
+ * substitution rules are testable without a browser, which is what they need to
+ * be: they are business rules about a signed document, not formatting.
+ *
+ * Every field a pre-ledger decision may be missing has a neutral fallback,
+ * because the worker now renders from the dossier and an admin retry reaches
+ * those rows. Of the 831 decisions in production at the time of writing, 114
+ * carry no signer name and 813 carry no relationship or place of signature: they
+ * predate the pipeline that captures them. Without the fallbacks those documents
+ * render "Mme/Mr ****" and "Fait à , le …".
+ */
+export function fillImageRightsDocument(fields: {
+  version: string | null | undefined;
+  decision: ImageRightsDecision;
+  signerName: string;
+  relationship: string;
+  studentName: string;
+  city: string;
+  schoolYear: string;
+  formattedDate: string;
+}): string {
+  // Pinned to the wording this decision committed to, not to the current text:
+  // the document is re-rendered on every change of mind and every staff
+  // correction, so reading the live text here would rewrite a decision already
+  // taken. A null version predates the column and resolves to the legacy text.
+  const template = droitImageDocumentFor(fields.version, fields.decision);
+  const namedSigner = fields.signerName.trim() || 'Responsable légal';
+  const relationship = fields.relationship.trim() || 'représentant légal';
   // Drop the place when it's unknown rather than rendering "Fait à , le …".
-  // City was never persisted before the decision ledger, so a regeneration of a
-  // pre-ledger document legitimately has no town to show.
-  const trimmedCity = city.trim();
-  const signatureLine = trimmedCity
-    ? `Fait à ${trimmedCity}, le ${formattedDate}`
-    : `Fait le ${formattedDate}`;
-  const filled = template
-    .replace('{{signerName}}', `**${signerName}**`)
-    .replace('{{relationship}}', `**${relationship}**`)
-    .replace('{{studentName}}', `**${studentName}**`)
-    .replace('{{signatureLine}}', signatureLine);
-  return renderMarkdown(filled);
+  const city = fields.city.trim();
+  const signatureLine = city
+    ? `Fait à ${city}, le ${fields.formattedDate}`
+    : `Fait le ${fields.formattedDate}`;
+  return (
+    template
+      .replace('{{signerName}}', `**${namedSigner}**`)
+      .replace('{{relationship}}', `**${relationship}**`)
+      .replace('{{studentName}}', `**${fields.studentName}**`)
+      // Only the versions written after the decision became annual name the year
+      // they cover; on an older one this replaces nothing, which is correct.
+      .replace('{{schoolYear}}', `**${fields.schoolYear}**`)
+      .replace('{{signatureLine}}', signatureLine)
+  );
 }
 
 /** Talent's signature input for the shared règlement PDF. */
@@ -89,8 +111,22 @@ export async function generateOnboardingPDF(data: {
    * was actually signed. Null resolves to the pre-versioning text.
    */
   reglementVersion?: string | null;
+  /**
+   * `image-rights` only: which version of the droit à l'image the decision
+   * committed to, read off the dossier. Same contract as `reglementVersion`, and
+   * needed for the same reason: this document is re-rendered from DB state, so
+   * without it a regeneration would put today's wording under a decision taken
+   * on another. Null resolves to the pre-versioning text.
+   */
+  droitImageVersion?: string | null;
   /** Required for `image-rights`: selects the authorization vs refusal wording. */
   decision?: ImageRightsDecision;
+  /**
+   * `image-rights` only: the school year the decision covers. Named in the
+   * document itself since the decision became annual, so a guardian reading a
+   * signed copy can tell which year they authorized.
+   */
+  schoolYear?: string;
   /** Image-rights only: guardian's name, relationship, city, and signature time. */
   signerName?: string;
   relationship?: string;
@@ -106,13 +142,17 @@ export async function generateOnboardingPDF(data: {
   if (data.type === 'rules') {
     documentContent = renderMarkdown(reglementTextFor(data.reglementVersion));
   } else if (data.type === 'image-rights') {
-    documentContent = buildImageRightsHtml(
-      decision,
-      data.signerName ?? '',
-      data.relationship ?? 'représentant légal',
-      data.studentName,
-      data.city ?? '',
-      formatFr(data.signedAt ?? new Date()),
+    documentContent = renderMarkdown(
+      fillImageRightsDocument({
+        version: data.droitImageVersion,
+        decision,
+        signerName: data.signerName ?? '',
+        relationship: data.relationship ?? '',
+        studentName: data.studentName,
+        city: data.city ?? '',
+        schoolYear: data.schoolYear ?? '',
+        formattedDate: formatFr(data.signedAt ?? new Date()),
+      }),
     );
   }
 

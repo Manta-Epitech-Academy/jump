@@ -21,6 +21,7 @@
   // History row as projected by the page load (staff name flattened).
   type RecordVM = {
     id: string;
+    schoolYear: string;
     decision: 'accepted' | 'refused';
     decidedAt: Date | string;
     signerPrenom: string | null;
@@ -35,11 +36,19 @@
     form: formData,
     records,
     studentName,
+    targetSchoolYear,
   }: {
     open?: boolean;
     form: SuperValidated<Infer<ImageRightsCorrectionSchema>>;
     records: RecordVM[];
     studentName: string;
+    /**
+     * The school year this correction will be filed against: the dossier the
+     * talent currently has. Shown because the decision is annual, so "corriger"
+     * means correcting one year's decision, and a history of several years is
+     * otherwise indistinguishable from a string of changes of mind.
+     */
+    targetSchoolYear: string;
   } = $props();
 
   const { form, errors, enhance, delayed } = superForm(
@@ -80,8 +89,9 @@
       </Dialog.Title>
       <Dialog.Description class="text-xs text-muted-foreground">
         Enregistrez la décision du responsable légal de {studentName} transmise hors
-        ligne. La décision reste la sienne : vous la consignez pour lui, et la correction
-        est tracée à votre nom.
+        ligne, pour l'année <strong>{targetSchoolYear}</strong>. La décision
+        reste la sienne : vous la consignez pour lui, et la correction est
+        tracée à votre nom.
       </Dialog.Description>
     </Dialog.Header>
 
@@ -216,7 +226,7 @@
                 <p class="font-bold">
                   {IMAGE_RIGHTS_STATUS_LABELS[r.decision]}
                   <span class="font-normal text-muted-foreground">
-                    · {formatDateFr(r.decidedAt)}
+                    · {r.schoolYear} · {formatDateFr(r.decidedAt)}
                   </span>
                 </p>
                 <p class="text-muted-foreground">
