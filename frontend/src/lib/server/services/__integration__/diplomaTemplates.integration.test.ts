@@ -182,20 +182,20 @@ describe('certificate authoring (integration)', () => {
   }, 60_000);
 
   it('refuses markup in the stylesheet, and stores nothing', async () => {
-    // The stylesheet is emitted inside a `<style>` element, so `</style>` is the
-    // whole trick: past it, the rest of the design is parsed as markup in the head
-    // and a `<script>` tag is a `<script>` tag. The renderer runs no page JS, so
-    // this is depth rather than the only thing standing there - but a design
+    // The stylesheet is emitted inside a `<style>` element, so a closing tag is
+    // the whole trick: past it, the rest of the design is parsed as markup in the
+    // head, where a script tag would be a script tag. The renderer runs no page
+    // JS, so this is depth rather than the only thing standing there, but a design
     // nobody reviewed must not get to write the document's markup either.
     //
-    // The `<script>` is the fixture, not a sink: semgrep cannot resolve `call`, so
-    // it flags the very payload this test asserts is refused and stored nowhere.
-    // nosemgrep: javascript.lang.security.audit.unknown-value-with-script-tag.unknown-value-with-script-tag
+    // The escape alone is the payload here, and what it would carry is exercised
+    // in `diplomaSanitize.test.ts`. Not to appease a scanner: this test's subject
+    // is the refusal, and `</style>` is the whole of what gets refused.
     const { status, payload } = await call(postTemplate, secret, {
       code: `${code}-escape`,
       label: 'Échappement',
       ...VALID,
-      styleCss: '.a{}</style><script>window.x = 1</script><style>',
+      styleCss: '.a{}</style>',
     });
 
     expect(status).toBe(400);
