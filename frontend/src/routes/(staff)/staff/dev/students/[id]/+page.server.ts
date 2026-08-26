@@ -539,7 +539,6 @@ async function correctImageRights({ request, locals, params }: RequestEvent) {
   const prior = student.imageRightsRecords[0];
   await recordImageRightsDecision({
     talentId: student.id,
-    studentName: `${student.prenom} ${student.nom}`,
     decision: form.data.decision,
     signerPrenom: form.data.signerPrenom,
     signerNom: form.data.signerNom,

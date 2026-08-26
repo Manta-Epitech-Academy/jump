@@ -113,7 +113,6 @@ export const actions: Actions = {
     // `remaining` count below already excludes this child.
     await recordParentRulesSignature({
       talentId: profile.id,
-      studentName,
       signerPrenom,
       signerNom,
       relationship,

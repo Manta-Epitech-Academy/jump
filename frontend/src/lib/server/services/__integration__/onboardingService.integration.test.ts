@@ -113,7 +113,6 @@ describe('onboardingService (integration)', () => {
 
     const { jobId } = await signOnboardingRules({
       talentId: talent.id,
-      studentName: 'Test Talent',
       city: 'Lille',
     });
 

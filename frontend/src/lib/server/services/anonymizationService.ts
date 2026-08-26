@@ -13,8 +13,8 @@ import {
  * deleting rows: name/contact fields are nulled or replaced with placeholders,
  * the linked auth identity is scrubbed and its sessions/accounts dropped, and
  * every talent-scoped satellite that embeds a name, a contact detail, or free
- * text (interviews, comm + send history, the PDF-job payload) is deleted
- * outright. The generated onboarding PDFs (charte / règlement student /
+ * text (interviews, comm + send history) is deleted outright, along with the
+ * PDF-job queue trace. The generated onboarding PDFs (charte / règlement student /
  * règlement parent / droit à l'image — each embeds the student's and guardian's
  * names and a signature) are deleted from object storage, not merely
  * dereferenced. We deliberately keep the de-identified behavioural telemetry
@@ -188,9 +188,11 @@ export async function anonymizeTalent(
   //      - interview / interviewReset: the synthesis row holds free-text staff
   //        observations about the minor; both existing wipe paths already
   //        hard-delete it. InterviewReset is a reset's audit trace + reason.
-  //      - onboardingPdfJob: payload snapshots the student + guardian name and
-  //        city. The generated S3 PDFs are deleted post-commit; this is the DB
-  //        copy of the same names.
+  //      - onboardingPdfJob: the queue trace of every document ever rendered
+  //        for this minor. It stopped snapshotting their name when the payload
+  //        column was retired, so what is erased here is the trace itself: which
+  //        documents were produced, for which years, and when. The generated S3
+  //        PDFs are deleted post-commit.
   //      - broadcastRecipient: the talent's and the parent's email / phone per
   //        send, matched on both slots (SetNull relations, so deleted here, not
   //        left orphaned). The parent is a data subject too.

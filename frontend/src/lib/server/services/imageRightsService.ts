@@ -50,7 +50,6 @@ import {
  */
 export async function recordImageRightsDecision(args: {
   talentId: string;
-  studentName: string;
   decision: ImageRightsDecision;
   signerPrenom: string;
   signerNom: string;
@@ -123,10 +122,6 @@ export async function recordImageRightsDecision(args: {
       // deciding after the cutover legitimately writes to last year's dossier,
       // and a job can be retried days later when that has moved on.
       schoolYear,
-      payload: {
-        studentName: args.studentName,
-        signedAt: now.toISOString(),
-      },
     });
   });
 

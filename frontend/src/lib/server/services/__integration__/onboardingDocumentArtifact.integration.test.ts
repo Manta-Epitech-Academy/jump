@@ -132,7 +132,6 @@ describe('règlement artifact per dossier (integration)', () => {
   it("keeps last year's co-signed PDF when the talent signs again", async () => {
     await signOnboardingRules({
       talentId,
-      studentName: 'Test Artifact',
       city: 'Paris',
     });
     await drainJobs();
@@ -166,7 +165,6 @@ describe('règlement artifact per dossier (integration)', () => {
   it('renders the co-signature onto the year it was given for', async () => {
     await recordParentRulesSignature({
       talentId,
-      studentName: 'Test Artifact',
       signerPrenom: 'Marie',
       signerNom: 'Dupont',
       relationship: 'mère',

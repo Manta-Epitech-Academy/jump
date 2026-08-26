@@ -530,7 +530,6 @@ export const actions: Actions = {
 
     const { jobId } = await signOnboardingRules({
       talentId: locals.talent.id,
-      studentName: `${locals.talent.prenom} ${locals.talent.nom}`,
       city: result.data.city,
     });
 

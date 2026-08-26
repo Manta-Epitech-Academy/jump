@@ -39,7 +39,6 @@ import {
  */
 export async function recordParentRulesSignature(args: {
   talentId: string;
-  studentName: string;
   signerPrenom: string;
   signerNom: string;
   relationship: string;
@@ -87,10 +86,6 @@ export async function recordParentRulesSignature(args: {
       // The dossier co-signed just above, never "the current one": a guardian
       // signing after the cutover legitimately writes to last year's dossier.
       schoolYear,
-      payload: {
-        studentName: args.studentName,
-        signedAt: now.toISOString(),
-      },
     });
   });
 

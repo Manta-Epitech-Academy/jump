@@ -135,7 +135,6 @@ export const actions: Actions = {
     // the `remaining` count below already excludes this child.
     await recordImageRightsDecision({
       talentId: profile.id,
-      studentName,
       decision,
       signerPrenom,
       signerNom,

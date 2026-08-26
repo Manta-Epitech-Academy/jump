@@ -1,7 +1,5 @@
 import type { Prisma, OnboardingPdfJob } from '@prisma/client';
-import { z } from 'zod';
 import { prisma } from '$lib/server/db';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import { generateOnboardingPDF } from './onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
 import {
@@ -10,22 +8,6 @@ import {
 } from './onboardingDocuments';
 
 export type OnboardingPdfDocumentType = OnboardingDocumentType;
-
-// What the signing act recorded about itself, frozen at enqueue time.
-//
-// The worker no longer renders from it: both document kinds read the dossier
-// they belong to, so a retry days later renders that year's current state rather
-// than a stale snapshot. What this is FOR is the opposite question, and it is
-// the one that matters when a render and a dossier disagree (the class of defect
-// this pipeline has now produced twice): it says what the job was asked to do,
-// so `/staff/admin/onboarding-pdfs` can tell a stale job apart from a dossier
-// that moved under it.
-const payloadSchema = z.object({
-  studentName: z.string(),
-  city: z.string().optional(),
-  signedAt: z.string(),
-});
-export type OnboardingPdfJobPayload = z.infer<typeof payloadSchema>;
 
 /**
  * Records a PDF-generation job in the SAME transaction as the signature it
@@ -38,22 +20,29 @@ export function enqueueOnboardingPdfJob(
   args: {
     talentId: string;
     documentType: OnboardingPdfDocumentType;
-    payload: OnboardingPdfJobPayload;
     /**
-     * Which dossier this job renders. Required in practice for both kinds, since
-     * both are per-year: the enqueuing act knows the year, and resolving it when
-     * the job RUNS would read whatever dossier is current by then, which for a
-     * queued or retried job is not necessarily the one that was signed.
+     * Which dossier this job renders. Mandatory, because every generated
+     * document is per-year and the enqueuing act is the only thing that knows
+     * which year it settled: resolving it when the job RUNS would read whatever
+     * dossier is current by then, which for a job queued behind the browser pool
+     * or retried from /staff/admin/onboarding-pdfs days later is not necessarily
+     * the one that was signed.
+     *
+     * It used to be optional, with the worker falling back to the talent's most
+     * recent dossier. That fallback was only ever correct for the rows that
+     * predated the column, and it stopped being correct for those the moment
+     * their talent reopened a dossier: the retry then rendered, or refused to
+     * render, a year nobody had asked for. The migration backfilled them all and
+     * the column is NOT NULL, so there is no fallback left to get wrong.
      */
-    schoolYear?: string | null;
+    schoolYear: string;
   },
 ): Promise<OnboardingPdfJob> {
   return tx.onboardingPdfJob.create({
     data: {
       talentId: args.talentId,
       documentType: args.documentType,
-      schoolYear: args.schoolYear ?? null,
-      payload: args.payload,
+      schoolYear: args.schoolYear,
     },
   });
 }
@@ -108,23 +97,21 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
 
     const talent = await prisma.talent.findUniqueOrThrow({
       where: { id: job.talentId },
-      select: { prenom: true, nom: true, onboardingSchoolYear: true },
+      select: { prenom: true, nom: true },
     });
-    // The dossier this render belongs to, from the job. The fallback covers a
-    // job enqueued before the column existed, or before `image-rights` started
-    // carrying one, whose talent had exactly one dossier at the time (see the
-    // two migrations).
-    const dossierSchoolYear =
-      job.schoolYear ?? talent.onboardingSchoolYear ?? currentSchoolYearLabel();
+    // The dossier this render belongs to, off the job and nowhere else.
+    const dossierSchoolYear = job.schoolYear;
 
     // BOTH documents are read off THAT dossier, never off the flat projection on
     // `Talent`. The projection holds the most recent dossier, so a job for an
     // earlier year - queued behind the browser pool, or retried from the admin
     // page days later - would otherwise render this year's state under that
     // year's document. `rules` has always worked this way; `image-rights` used
-    // to render from a payload snapshot instead, which was the same defect one
+    // to render from a snapshot on the job instead, which was the same defect one
     // layer along: it froze the decision at enqueue time, so a retry after a
-    // change of mind re-published a superseded choice.
+    // change of mind re-published a superseded choice. That snapshot column is
+    // gone rather than merely unread, so there is nothing left to render from but
+    // the dossier.
     const dossier = await prisma.onboarding_Record.findUnique({
       where: {
         talentId_schoolYear: {

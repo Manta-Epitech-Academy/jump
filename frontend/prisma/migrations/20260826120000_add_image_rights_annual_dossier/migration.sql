@@ -171,3 +171,72 @@ LEFT JOIN LATERAL (
 WHERE o."talentId" = t."id"
   AND o."schoolYear" = t."onboardingSchoolYear"
   AND t."imageRightsDecidedAt" IS NOT NULL;
+
+-- Data Backfill: dire à chaque job de génération quel dossier il rend.
+--
+-- `OnboardingPdfJob.schoolYear` était nullable et le worker repliait sur « le
+-- dossier le plus récent du talent ». Ce repli n'était juste que pour les lignes
+-- antérieures à la colonne (20260821010000), et il cessait de l'être dès que
+-- leur talent rouvrait un dossier : une relance depuis
+-- /staff/admin/onboarding-pdfs visait alors une année que personne n'avait
+-- demandée. Comme tout document généré est désormais annuel, un job sans dossier
+-- n'existe pas : on remplit toutes les lignes et la colonne passe NOT NULL, ce
+-- qui supprime le repli au lieu de le rendre plus subtil.
+--
+-- L'année retenue est `Talent.onboardingSchoolYear`, déjà tamponné plus haut :
+-- exactement ce que le repli aurait résolu au moment où cette migration tourne,
+-- donc aucune ligne ne change de cible aujourd'hui, seules les relances futures
+-- cessent de dériver. Le repli final sur `createdAt` ne sert qu'à une ligne dont
+-- le talent n'a aucun dossier du tout (un job `charter`, qui ne rend rien) : il
+-- faut une valeur, et la date de création du job est le seul fait daté qu'elle
+-- porte. Même seuil du 31 juillet, transcrit de `schoolYearOf`, que plus haut.
+WITH resolved AS (
+  SELECT
+    j."id" AS job_id,
+    COALESCE(
+      t."onboardingSchoolYear",
+      y.start_year::text || '-' || (y.start_year + 1)::text
+    ) AS school_year
+  FROM "OnboardingPdfJob" j
+  JOIN "Talent" t ON t."id" = j."talentId"
+  CROSS JOIN LATERAL (
+    SELECT (j."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') AS paris
+  ) p
+  CROSS JOIN LATERAL (
+    SELECT
+      CASE
+        WHEN p.paris >= make_timestamp(EXTRACT(YEAR FROM p.paris)::int, 7, 31, 0, 0, 0)
+        THEN EXTRACT(YEAR FROM p.paris)::int
+        ELSE EXTRACT(YEAR FROM p.paris)::int - 1
+      END AS start_year
+  ) y
+  WHERE j."schoolYear" IS NULL
+)
+UPDATE "OnboardingPdfJob" j
+SET "schoolYear" = resolved.school_year
+FROM resolved
+WHERE resolved.job_id = j."id";
+
+ALTER TABLE "OnboardingPdfJob" ALTER COLUMN "schoolYear" SET NOT NULL;
+
+/*
+  Warnings:
+
+  - You are about to drop the column `payload` on the `OnboardingPdfJob` table. All the data in the column will be lost.
+*/
+-- DropColumn: l'instantané des entrées du générateur.
+--
+-- Aucun backfill dû, et rien à conserver : plus une seule lecture n'y touche. Le
+-- worker rend les deux types depuis la ligne de dossier (c'est le sujet de cette
+-- release), et /staff/admin/onboarding-pdfs ne l'a jamais sélectionnée. Les trois
+-- seuls écrivains sont `onboardingService`, `parentRulesService` et
+-- `imageRightsService`, donc le jeu de clés est connu depuis le code et non
+-- supposé : `studentName`, `city`, `signerName`, `relationship`, `decision`,
+-- `signedAt`. Chacune est lisible là où elle fait foi, sur `Talent` ou sur
+-- `Onboarding_Record`, et ce que le job a été chargé de faire est entièrement dit
+-- par (`talentId`, `documentType`, `schoolYear`).
+--
+-- Effet de bord voulu : la ligne de job cesse de porter le nom d'un mineur. Les
+-- deux chemins d'effacement la suppriment toujours, mais pour ce qu'elle trace
+-- désormais et non pour ce qu'elle recopiait.
+ALTER TABLE "OnboardingPdfJob" DROP COLUMN "payload";

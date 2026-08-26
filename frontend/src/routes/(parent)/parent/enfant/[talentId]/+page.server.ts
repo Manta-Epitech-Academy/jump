@@ -222,7 +222,6 @@ export const actions: Actions = {
 
     await recordImageRightsDecision({
       talentId: child.id,
-      studentName: `${child.prenom} ${child.nom}`,
       decision,
       signerPrenom,
       signerNom,

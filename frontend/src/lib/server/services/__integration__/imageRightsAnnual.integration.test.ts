@@ -176,7 +176,6 @@ describe("droit à l'image, décision annuelle (integration)", () => {
     // moves the projection onto it.
     await signOnboardingRules({
       talentId,
-      studentName: 'Test Annuel',
       city: 'Paris',
     });
     await drainJobs();
@@ -218,7 +217,6 @@ describe("droit à l'image, décision annuelle (integration)", () => {
     saved.clear();
     await recordImageRightsDecision({
       talentId,
-      studentName: 'Test Annuel',
       decision: 'accepted',
       signerPrenom: 'Marie',
       signerNom: 'Dupont',
@@ -290,23 +288,16 @@ describe("droit à l'image, décision annuelle (integration)", () => {
     // A retry of last year's document, exactly as the admin PDF page fires one:
     // it must render the text signed then, not the wording in force now.
     const job = await prisma.onboardingPdfJob.create({
-      data: {
-        talentId,
-        documentType: 'image-rights',
-        schoolYear: lastYear,
-        payload: {
-          studentName: 'Test Annuel',
-          signedAt: decidedLastYear.toISOString(),
-        },
-      },
+      data: { talentId, documentType: 'image-rights', schoolYear: lastYear },
     });
     await runOnboardingPdfJob(job.id);
 
     expect(generated).toHaveLength(1);
     expect(generated[0]).toMatchObject({
       type: 'image-rights',
-      // Off the dossier, never the payload: the decision, its wording and its
-      // year all come from the row the render belongs to.
+      // Off the dossier, and off nothing else: the job carries only which
+      // document and which year, so the decision, its wording, the signer and
+      // the place of signature all come from the row the render belongs to.
       droitImageVersion: '2025-2026',
       decision: 'refused',
       schoolYear: lastYear,
@@ -411,7 +402,6 @@ describe("droit à l'image, décision annuelle (integration)", () => {
       // and the parent portal would ask for it again the moment it was given.
       await recordImageRightsDecision({
         talentId: lateTalentId,
-        studentName: 'Test Cutover',
         decision: 'accepted',
         signerPrenom: 'Paul',
         signerNom: 'Durand',

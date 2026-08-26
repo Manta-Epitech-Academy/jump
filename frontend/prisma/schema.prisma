@@ -1560,15 +1560,19 @@ model OnboardingPdfJob {
   /// queued behind the browser pool, and a retry from
   /// /staff/admin/onboarding-pdfs can fire days later, by which point "the
   /// talent's current dossier" may be a different year than the act that asked
-  /// for this render. Set for both generated kinds, since both are per-year.
-  /// Null only on jobs enqueued before the column existed, and on `image-rights`
-  /// jobs enqueued before that decision became annual; both fall back to the
-  /// talent's most recent dossier, which is the row they were made from.
-  schoolYear   String?
+  /// for this render.
+  ///
+  /// NOT NULL, because every generated document is per-year and there is
+  /// therefore no such thing as a job without a dossier. It was nullable for one
+  /// release, with the worker falling back to the talent's most recent dossier;
+  /// that fallback was correct only for the rows predating the column, and only
+  /// until their talent reopened a dossier, after which a retry silently aimed at
+  /// a year nobody had asked for. The migration backfilled every row instead, so
+  /// the fallback is gone rather than fixed.
+  schoolYear   String
   status       String    @default("pending") // "pending" | "processing" | "success" | "error"
   filePath     String? // S3 key, set on success
   errorMessage String? // captured on failure
-  payload      Json // snapshot of generator inputs (studentName, city, signedAt, etc.)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   processedAt  DateTime?
