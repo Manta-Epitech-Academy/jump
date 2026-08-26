@@ -87,7 +87,7 @@ export function certificateProblems(design: {
 }
 
 /**
- * Drop any inline `style` declaration that would fetch. DOMPurify keeps arbitrary
+ * Drop an inline `style` attribute that would fetch. DOMPurify keeps arbitrary
  * style declarations - it only neutralises `javascript:` and the like - so
  * `style="background: url(http://...)"` survives its default config untouched.
  * Same shape as the CMS hook in `server/cms/sanitize.ts`, and added and removed
@@ -95,19 +95,22 @@ export function certificateProblems(design: {
  * singleton, so a hook left in place would change sanitising for the CMS, the
  * broadcast renderer and `renderMarkdown`.
  *
+ * The whole attribute, not the offending declaration: splitting a style attribute
+ * into declarations needs a CSS parser, and splitting on `;` is not one. A data
+ * URI carries a `;` of its own (`data:image/png;base64,...`), so the obvious
+ * version corrupted exactly the thing the authoring contract tells people to use -
+ * it rejoined the halves with a space and Chrome computed `background-image: none`.
+ * Nothing is lost by dropping more: a value that reaches here at all was already
+ * refused by `certificateProblems`, so this only runs when the refusal missed it.
  */
 function dropFetchingInlineStyle(
   _node: Element,
   data: { attrName: string; attrValue: string; keepAttr: boolean },
 ): void {
   if (data.attrName !== 'style') return;
-  const safe = data.attrValue
-    .split(';')
-    .map((d) => d.trim())
-    .filter(Boolean)
-    .filter((d) => !REMOTE_URL.test(d) && !CSS_EXPRESSION.test(d));
-  if (safe.length === 0) data.keepAttr = false;
-  else data.attrValue = safe.join('; ');
+  if (REMOTE_URL.test(data.attrValue) || CSS_EXPRESSION.test(data.attrValue)) {
+    data.keepAttr = false;
+  }
 }
 
 /**
