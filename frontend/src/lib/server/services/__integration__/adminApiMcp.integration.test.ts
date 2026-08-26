@@ -32,10 +32,13 @@ async function clientFor(secret: string): Promise<Client> {
   });
   if (!auth.ok) throw new Error(`expected a valid credential: ${auth.message}`);
 
-  const server = buildAdminMcpServer({
-    caller: auth.caller,
-    writeEnabled: auth.writeEnabled,
-  });
+  const server = buildAdminMcpServer(
+    {
+      caller: auth.caller,
+      writeEnabled: auth.writeEnabled,
+    },
+    'http://localhost',
+  );
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'test-client', version: '1.0.0' });
   await Promise.all([server.connect(serverSide), client.connect(clientSide)]);

@@ -128,13 +128,20 @@ import {
 import { getComplianceStatus } from '$lib/server/services/adminStats/complianceStatus';
 import { getEngagement } from '$lib/server/services/adminStats/engagement';
 import {
+  getDiplomaTemplates,
   getEventDetail,
   getCampusOverview,
   getFeedbackForms,
   getEventTemplates,
 } from '$lib/server/services/adminStats/configuration';
+import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
 import { getSchoolYearReview } from '$lib/server/services/adminStats/schoolYearReview';
 import {
+  writeDiplomaTemplate,
+  writeEventDiplomaTemplate,
+} from './writes/diplomas';
+import {
+  writeEventInscritsOptions,
   writeEventConfig,
   writeEventActivation,
   writeEventFeedbackForm,
@@ -232,6 +239,16 @@ export type AdminApiTier = AdminApi_TokenTier;
 export type OperationContext = {
   tier: AdminApiTier;
   actorUserId: string;
+  /**
+   * Origin of the request being answered, for an answer that has to link back to
+   * this instance (the certificate preview does).
+   *
+   * From the request, never from `env.ORIGIN`: a self-referencing link built from
+   * config points wherever config says regardless of which instance replied. Two
+   * dev servers on two ports is enough to break it, and it broke exactly that way
+   * once, handing out :5173 links from the instance on :3030.
+   */
+  origin: string;
 };
 
 /**
@@ -417,6 +434,31 @@ export const ADMIN_API_OPERATIONS = {
     run: async (params) => getCampusOverview(await resolveScope(params)),
   }),
 
+  config_diploma_templates: defineOperation({
+    description:
+      "The certificates Jump can issue at the end of an event, plus everything needed to write a new one: the placeholders a design may use and the constraints of the template it is inserted into. Pass a code to also get that certificate's current design, which is what you edit from rather than rewriting it.",
+    shape: {
+      code: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          `${handleDescribe('diplomaCode')} Pass one to also return its design; omit for the catalogue alone.`,
+        ),
+    },
+    run: (params) => getDiplomaTemplates(params),
+  }),
+
+  config_diploma_template_preview: defineOperation({
+    description:
+      'What one certificate actually looks like: its first page, rendered as an image by the same engine as the real export, with placeholder names so it shows no real person. Reply by quoting the "apercu" sentence, which carries a link to that image, and quote it every time even when you also display the image: you cannot tell whether the reader\'s client renders one, and a reply that shows nothing and describes the design instead is worse than useless. Never say how a certificate looks in your own words, neither from its HTML nor from the image: send the link and let it be seen.',
+    shape: {
+      code: z.string().min(1).describe(handleDescribe('diplomaCode')),
+    },
+    run: (params, ctx) =>
+      getDiplomaTemplatePreview({ ...params, origin: ctx.origin }),
+  }),
+
   config_feedback_forms: defineOperation({
     description:
       'The feedback form catalogue: title, status (draft, published, archived), question count, response count, how many events use it, and whether it accepts public responses. Returns the form ids the other feedback operations take.',
@@ -557,6 +599,85 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => writeEventFeedbackForm(params),
+  }),
+
+  write_diploma_template: defineWrite({
+    description:
+      'Create or replace a certificate design, identified by its code: a code that does not exist yet creates one, an existing code replaces it. Refused, saying what is wrong, if it uses an unknown placeholder, references anything remote, or does not render. Safe to repeat: the same code and the same design leave one certificate. Answers with the design before and after.',
+    shape: {
+      code: z
+        .string()
+        // A slug, because it is not only a key: it names the downloaded file, so
+        // it reaches a `Content-Disposition` header. Constrained here, where the
+        // value is created, rather than escaped at each place it is read.
+        .regex(
+          /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+          'lowercase letters, digits and single hyphens only',
+        )
+        .describe(
+          `${handleDescribe('diplomaCode')} Creates or replaces by it, so a code that does not exist yet is a new certificate. Lowercase letters, digits and hyphens only.`,
+        ),
+      label: z
+        .string()
+        .min(1)
+        .describe(
+          'French name teams see and that names the downloaded file, e.g. "Certificat de participation".',
+        ),
+      styleCss: z
+        .string()
+        .describe(
+          'The stylesheet, inserted once in the document head. No @import and no remote url().',
+        ),
+      bodyHtml: z
+        .string()
+        .describe(
+          'The markup of ONE page, repeated per recipient, with {placeholders}. No <style> tag: put CSS in styleCss.',
+        ),
+      pageWidthPx: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('Page width in CSS pixels. 1123 for A4 landscape.'),
+      pageHeightPx: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('Page height in CSS pixels. 794 for A4 landscape.'),
+    },
+    run: (params) => writeDiplomaTemplate(params),
+  }),
+
+  write_event_diploma_template: defineWrite({
+    description:
+      'Set which certificate one event issues, or stop it issuing any by omitting templateId. Only points at an existing certificate, it authors nothing. Safe to repeat. Answers with the state before and after.',
+    shape: {
+      eventId: z.string().min(1).describe(handleDescribe('eventId')),
+      templateId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          `${handleDescribe('diplomaTemplateId')} Omit so the event issues none.`,
+        ),
+    },
+    run: (params) => writeEventDiplomaTemplate(params),
+  }),
+
+  write_event_inscrits_options: defineWrite({
+    description:
+      "Change the sub-options of one event's Inscrits section. Patch semantics: only what you pass changes. Refused if the section is not enabled on that event, since the options would have no effect. Safe to repeat. Answers with the state before and after.",
+    shape: {
+      eventId: z.string().min(1).describe(handleDescribe('eventId')),
+      showStatutColumn: z
+        .boolean()
+        .optional()
+        .describe(
+          "Show the dossier progress column (connexion, règlement, droit à l'image) on the Inscrits table.",
+        ),
+    },
+    run: (params) => writeEventInscritsOptions(params),
   }),
 
   write_event_template: defineWrite({

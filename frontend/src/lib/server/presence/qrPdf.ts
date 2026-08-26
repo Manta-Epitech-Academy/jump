@@ -1,4 +1,5 @@
-import { withBrowser } from '$lib/server/infra/browserPool';
+import { renderPdf } from '$lib/server/infra/documentRenderer';
+import { fontFaceCss } from '$lib/server/templates/fonts';
 import { epitechLogoSvg } from '$lib/server/templates/epitechLogo';
 
 function escapeHtml(s: string): string {
@@ -26,6 +27,7 @@ export async function generatePresenceQrPdf(data: {
   <head>
     <meta charset="utf-8" />
     <style>
+      ${fontFaceCss('plexSans')}
       @page { size: A4 landscape; margin: 0; }
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; }
@@ -61,22 +63,8 @@ export async function generatePresenceQrPdf(data: {
   </body>
 </html>`;
 
-  return withBrowser(async (browser) => {
-    const page = await browser.newPage();
-    try {
-      await page.setContent(html, { waitUntil: 'load' });
-      await page.evaluateHandle('document.fonts.ready');
-      const pdf = await page.pdf({
-        width: '1123px',
-        height: '794px',
-        landscape: true,
-        printBackground: true,
-        preferCSSPageSize: true,
-        margin: { top: 0, right: 0, bottom: 0, left: 0 },
-      });
-      return new Uint8Array(pdf) as Uint8Array<ArrayBuffer>;
-    } finally {
-      await page.close();
-    }
+  return renderPdf({
+    html,
+    page: { width: '1123px', height: '794px', landscape: true },
   });
 }

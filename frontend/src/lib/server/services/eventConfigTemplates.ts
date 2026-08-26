@@ -28,8 +28,10 @@ type EventConfigTemplateSummary = {
   cohortNoun: string | null;
   /** Arrival time-of-day the preset prefills as "HH:MM", or "" when unset. */
   startTime: string;
-  /** Optional default feedback form (weak FK), prefilled when bilan is enabled. */
+  /** Optional feedback form (weak FK), prefilled when bilan is enabled. */
   feedbackFormId: string | null;
+  /** The certificate the preset carries (weak FK), or null when it names none. */
+  diplomaTemplateId: string | null;
   modules: EventModuleKey[];
   /** Per-module sub-options, keyed by module key (fully defaulted). */
   moduleSettings: Record<string, unknown>;
@@ -43,6 +45,7 @@ type TemplateRow = {
   cohortNoun: string | null;
   startMinutes: number | null;
   feedbackFormId: string | null;
+  diplomaTemplateId: string | null;
   modules: { moduleKey: string; settings: Prisma.JsonValue }[];
 };
 
@@ -65,6 +68,7 @@ function toSummary(t: TemplateRow): EventConfigTemplateSummary {
     cohortNoun: t.cohortNoun,
     startTime: minutesToHHMM(t.startMinutes),
     feedbackFormId: t.feedbackFormId,
+    diplomaTemplateId: t.diplomaTemplateId,
     modules: present.map((m) => m.moduleKey as EventModuleKey),
     moduleSettings,
   };
@@ -79,6 +83,18 @@ async function resolveFeedbackFormId(raw: string): Promise<string | null> {
     select: { id: true },
   });
   if (!form) throw error(400, 'Formulaire de feedback introuvable.');
+  return id;
+}
+
+/** Same for the certificate, so an applied preset can't point at a deleted one. */
+async function resolveDiplomaTemplateId(raw: string): Promise<string | null> {
+  const id = raw.trim();
+  if (!id) return null;
+  const template = await prisma.diploma_Template.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  if (!template) throw error(400, 'Certificat introuvable.');
   return id;
 }
 
@@ -123,11 +139,15 @@ export const EventConfigTemplateService = {
     modules: string[];
     moduleSettings: Record<string, unknown>;
     feedbackFormId: string;
+    diplomaTemplateId: string;
     actorId: string | null;
   }): Promise<{ id: string; updated: boolean }> {
     const name = input.name.trim();
     if (!name) throw error(400, 'Nom de modèle requis.');
     const feedbackFormId = await resolveFeedbackFormId(input.feedbackFormId);
+    const diplomaTemplateId = await resolveDiplomaTemplateId(
+      input.diplomaTemplateId,
+    );
     const description = input.description.trim() || null;
     const publicName = input.publicName.trim() || null;
     const cohortNoun = input.cohortNoun.trim() || null;
@@ -153,6 +173,7 @@ export const EventConfigTemplateService = {
             cohortNoun,
             startMinutes,
             feedbackFormId,
+            diplomaTemplateId,
             modules: { create: moduleRows },
           },
         }),
@@ -168,6 +189,7 @@ export const EventConfigTemplateService = {
         cohortNoun,
         startMinutes,
         feedbackFormId,
+        diplomaTemplateId,
         createdById: input.actorId,
         modules: { create: moduleRows },
       },

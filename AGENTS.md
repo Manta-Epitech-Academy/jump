@@ -118,6 +118,9 @@ subsystem: the per-campus `CampusFeatureFlag` table, `domain/featureFlags.ts`,
 - **Storage:** one `EventConfig_Module` row per `(eventId, moduleKey)`, with an optional `settings` Json bag validated app-side by a per-module Zod schema. Typed FKs (e.g. `Event.feedbackFormId`) stay columns on `Event`, never in the bag.
 - **Presets:** `EventConfig_Template` is a named, point-in-time seed applied by the config wizard. Applying one copies modules + settings; there is no live link afterwards.
 - **Routing:** `reachableSurfaces` / `firstReachableSurface` decide which surface the dev dashboard lands on.
+- **A document an event issues is a nullable FK on `Event`, never a sub-option.** `Event.diplomaTemplateId` names which certificate the Inscrits export renders, and `null` means it issues none. That nullness IS the gate: there is no companion boolean, because "does this event issue one" and "which one" are the same question. It replaced exactly such a boolean (`inscrits.diplomas`), which could only ever turn the one hardcoded document on or off.
+
+  The certificate itself is a `Diploma_Template` row whose CSS and markup are **authored at runtime** over the API, because the set of documents grows with the business and their wording belongs to the team, not to a developer. Two consequences worth stating. **A stored design is outside the `DESIGN.md` contract**, which guards code: `lint:design` cannot see it, and that is an accepted trade, not an oversight. And **the shell is not**: `templates/certificate.html` keeps the pagination and the once-in-`<head>` hoisting of logo, signature and font bytes, because repeating those per page is what timed out a 200-page render. Since a stored design is handed to a real Chrome inside the cluster, `server/diplomaSanitize.ts` refuses it and sanitises it, and `infra/documentRenderer.ts` renders it with script execution and the network both off. The script switch is the one that actually contains the damage, and the two are not interchangeable: Puppeteer's request interception never sees a `ws://` handshake, so a design that got as far as running could still reach every internal service the pod reaches.
 
 Don't hardcode module keys.
 
@@ -189,6 +192,20 @@ Talent profile fields have two sources — the worker sync (Salesforce) and onbo
 - **No-clobber rule:** before a field is talent-confirmed (its `*ValidatedAt` is set), sync re-seeds it on `Talent`; after, sync writes **only the mirror**. Never let SF overwrite a confirmed value. (This fixed a real bug where every sync overwrote the talent's confirmed phone/name.)
 - **Conflict** = field is talent-confirmed **AND** `Talent` ≠ `TalentSfImport` (school compared by FK). Computed in `reconciliationService`, never stored. Surfaced at `/staff/admin/sf-conflicts` (list + accept/reject + CSV export); `acceptJump` realigns the mirror optimistically. `niveau` is SF-owned (onboarding never sets it) → always synced, never a conflict.
 
+### UI, API, or both
+
+The admin space stopping its UI growth (below) is often read as "admin work goes to the API". That is not the axis. What the freeze reacted to is **pages that restate the database**: one screen per question, none fitting anyone exactly. Five tests instead, and they cut across spaces:
+
+1. **Is the output a fact, a figure, or a bounded state change?** → API. A chat composes the exact answer; a screen freezes one shape of it forever.
+2. **Does the human need to *see* the result to decide?** → UI. When the acceptance test is "does this look right", no JSON substitutes for a render.
+3. **Is it done while already on a screen that exists?** → put the control there. That is not growing the admin space; the certificate picker in `EventConfigWizard` replaced a switch that was already in that dialog.
+4. **Is it done under time pressure, in the field, repeatedly?** → UI. Nobody opens a chat client to check in 200 students at 9am, which is why émargement is a screen.
+5. **Is it for someone who will never hold a token?** → UI. Talents, parents, campus staff.
+
+**And the rule under all five: the API is the floor.** Every capability lands as a named operation first; a UI is optional convenience on top. A config field reachable only in the wizard is a hole, because event configuration is already fully MCP-driven, and the people who use it prefer it that way: a form will never be exactly what its user wants, whereas a named operation is. Stated here because it is mechanically checked - `operations.test.ts` asserts that every field of `adminEventSchema` is reachable through some write, and that every catalogue entry is mounted on exactly one HTTP route. `write_event_inscrits_options` exists because that test found `moduleSettings` reachable through nothing at all.
+
+The corollary is narrower than it looks. "No form will ever fit" is decisive for **authoring** surfaces. It says nothing about a picker inside a flow somebody is already in.
+
 ### Curated admin API and MCP
 
 The admin space **stops growing UI**. New admin capabilities ship as curated named API operations, consumable over HTTP and as MCP tools (July 2026 seminar). Campus staff and talents never get MCP.
@@ -248,7 +265,7 @@ Pieces:
 | The vocabulary the filters accept (campus names, school years), so discovery is not a deliberate error | `services/adminStats/scopeVocabulary.ts` |
 | Where every named value (event id, form id, question key) comes from, per tier, and the guard that fails when nothing produces one | `adminApi/handles.ts` |
 | Dry-run digest and the two-step contract | `adminApi/plan.ts` |
-| Write implementations | `adminApi/writes/{events,ops,bulk}.ts` |
+| Write implementations | `adminApi/writes/{events,ops,bulk,diplomas}.ts` |
 | HTTP endpoints (one line each) | `adminApi/route.ts` → `src/routes/api/admin/**` |
 | MCP tools (stateless, `@hono/mcp` transport, tool list built per credential) | `adminApi/mcpServer.ts` → `POST /api/mcp` |
 | Aggregation services | `services/adminStats/*` (reuse `EventService.listAdminEvents`, `cohort.ts`'s shared scope, `cohortOverview`'s rankings, the onboarding ladder, `infra/syncStatus`) |
@@ -266,7 +283,8 @@ The weekly PO digest (`services/adminDigest.ts`, `POST /api/jobs/admin-digest`) 
 - **`services/staffAdminService.ts`** — staff roster writes for `/staff/admin/users` (the role change moves `StaffProfile.staffRole` + `bauth_user.role` in one transaction)
 - **`services/syncErrorService.ts`** — admin remediation of sync errors, including the extId rebind and its refusal branches
 - **`services/onboardingService.ts`** — the onboarding transactions: parent-1 account provisioning, interest swap, rules signature (timestamps + XP facts + PDF job)
-- **`services/diplomaGenerator.ts`** — PDF generation via Puppeteer with HTML templates in `server/templates/`
+- **`infra/documentRenderer.ts`** - the one browser-render path: PDFs for what gets printed, PNGs for what gets looked at, both over the same page setup so a preview cannot disagree with the document it previews. Owns the page lifecycle and turns off **both script execution and the network**, so no caller can render a stored design with either switched off by forgetting to switch it on; no template wants page JS anyway (a QR code arrives as a data URI its caller built). Fonts therefore carry their own bytes (`templates/fonts.ts`, `@font-face` built from the `@fontsource` packages with `?inline`)
+- **`services/diplomaGenerator.ts`** - certificates: takes the design off a `Diploma_Template` row, substitutes the `{placeholders}`, and renders one page per recipient
 - **`services/syncService.ts`** — Salesforce worker sync → seeds `Talent` + upserts the `TalentSfImport` mirror (no-clobber; see Salesforce reconciliation)
 - **`services/reconciliationService.ts`** — computes `Talent` ↔ `TalentSfImport` conflicts; accept/reject + CSV for `/staff/admin/sf-conflicts`
 - **`services/schoolService.ts`** / **`annuaire.ts`** — lazy `School` resolution from UAI via the éducation-nationale annuaire

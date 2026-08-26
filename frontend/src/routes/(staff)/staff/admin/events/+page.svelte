@@ -688,6 +688,7 @@
     {editing}
     formData={data.form}
     feedbackForms={data.feedbackForms}
+    certificates={data.certificates}
     formPreviews={data.formPreviews}
     templates={data.templates}
   />

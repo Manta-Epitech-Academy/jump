@@ -760,15 +760,15 @@ model Activity {
 }
 
 model Event {
-  id             String    @id @default(cuid())
-  titre          String
+  id                String    @id @default(cuid())
+  titre             String
   // Salesforce campaign name (`titre`) is an internal identifier, ugly to show
   // ("Montpellier-19-06-2026-CodingClub"). `publicName` is the friendly name an
   // admin types, surfaced in the dev switcher / talent widget / page chrome in
   // its place. `null` falls back to `titre` everywhere (see `eventDisplayName`).
   // Admin-set today; the worker may seed it from SF later (plain nullable field
   // so a future no-clobber sync can write it, like the other reconciled fields).
-  publicName     String?
+  publicName        String?
   // What one member of this event's cohort is called across the dev workspace
   // ("stagiaire", "participant", "collégien", ...). Jump-owned free text typed in
   // the event config wizard and read straight off this column; nothing infers it
@@ -777,33 +777,41 @@ model Event {
   // falls back to the neutral default ("participant") via `cohortNounForms`, so
   // the column never asserts an unmade choice. Past stages were backfilled to
   // "stagiaire" (a real historical value).
-  cohortNoun     String?
-  date           DateTime
+  cohortNoun        String?
+  date              DateTime
   // Salesforce gives us the calendar day (`date`/`endDate`) but never a
   // start time, so the time-of-day is Jump-owned: wall-clock minutes from
   // local midnight (0–1439), `null` until staff set it. Kept separate from
   // `date` precisely so the SF sync — which rewrites `date` — can never
   // clobber it. Compose with the campus timezone for a real instant.
-  startMinutes   Int?
-  endDate        DateTime?
-  campusId       String
+  startMinutes      Int?
+  endDate           DateTime?
+  campusId          String
   // Which feedback form this event uses (the `bilan` module reports against it,
   // and its QR/link/export resolve through it). Null = no feedback form on this
   // event (the bilan surface stays hidden). SetNull so deleting a form just drops
   // the binding rather than the event.
-  feedbackFormId String?
-  externalId     String?   @unique
+  feedbackFormId    String?
+  // Which certificate this event issues on the Inscrits export, from the
+  // `Diploma_Template` catalogue. Null = this event issues none, and that is the
+  // whole gate: there is no companion boolean, because "does it issue one" and
+  // "which one" are the same question. Restrict, not SetNull: nothing deletes a
+  // template through the app, so a hand-deletion should fail loudly rather than
+  // silently stop every event pointing at it from issuing anything.
+  diplomaTemplateId String?
+  externalId        String?   @unique
   // Explicit admin gate for the dev workspace, decoupled from modules: an event
   // appears in the dev sidebar/switcher only once an admin activates it here.
   // `null` = not yet validated (hidden, even when its modules are pre-configured).
   // Modules decide WHICH surfaces show; this decides WHETHER the event shows at
   // all. Set on activate, cleared on deactivate.
-  devActivatedAt DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  devActivatedAt    DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   campus              Campus                 @relation(fields: [campusId], references: [id])
   feedbackForm        Feedback_Form?         @relation("EventFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
+  diplomaTemplate     Diploma_Template?      @relation("EventDiplomaTemplate", fields: [diplomaTemplateId], references: [id], onDelete: Restrict)
   participations      Participation[]
   planning            Planning?
   cmsPages            CmsPage[]
@@ -817,6 +825,7 @@ model Event {
 
   @@index([campusId])
   @@index([feedbackFormId])
+  @@index([diplomaTemplateId])
 }
 
 // Per-event surface configuration for the dev workspace. A row's mere
@@ -849,33 +858,40 @@ model EventConfig_Module {
 // rows stay the truth). `name` is globally unique → saving with an existing
 // name updates that template (upsert), which is how a template is edited.
 model EventConfig_Template {
-  id             String   @id @default(cuid())
-  name           String   @unique
-  description    String?
+  id                String   @id @default(cuid())
+  name              String   @unique
+  description       String?
   // The friendly event name the preset carries (e.g. "Coding Club"). Captured
   // because campuses reuse one display name across every occurrence of a format
   // (Strasbourg has "Coding Club" ×10), so a preset that doesn't pre-fill it just
   // makes the admin retype the same string. Like the live `Event.publicName`,
   // applying it is a point-in-time copy; `null` = the event keeps the SF `titre`.
-  publicName     String?
+  publicName        String?
   // Cohort noun the preset carries ("stagiaire", ...), copied onto the event on
   // apply like the other config fields. Mirrors `Event.cohortNoun`; `null` = the
   // preset names no cohort (the applied event falls back to the neutral default).
-  cohortNoun     String?
+  cohortNoun        String?
   // Jump-owned arrival time-of-day the preset carries, in wall-clock minutes from
   // local midnight (0-1439), `null` = none (the event falls back to the single
   // default). Mirrors `Event.startMinutes`; copied onto the event on apply.
-  startMinutes   Int?
-  feedbackFormId String?
-  createdById    String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  startMinutes      Int?
+  feedbackFormId    String?
+  // The certificate the preset carries, copied onto the event on apply like the
+  // other config fields. Mirrors `Event.diplomaTemplateId`. Without this column a
+  // preset would silently drop the choice, because the setting it replaced used
+  // to ride along inside the module `settings` the preset already copies.
+  diplomaTemplateId String?
+  createdById       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  feedbackForm Feedback_Form?               @relation("EventConfigTemplateFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
-  createdBy    StaffProfile?                @relation("EventConfigTemplateCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  modules      EventConfig_TemplateModule[]
+  feedbackForm    Feedback_Form?               @relation("EventConfigTemplateFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
+  diplomaTemplate Diploma_Template?            @relation("EventConfigTemplateDiploma", fields: [diplomaTemplateId], references: [id], onDelete: Restrict)
+  createdBy       StaffProfile?                @relation("EventConfigTemplateCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  modules         EventConfig_TemplateModule[]
 
   @@index([feedbackFormId])
+  @@index([diplomaTemplateId])
 }
 
 // Mirror of EventConfig_Module on the template side (presence = enabled, same
@@ -888,6 +904,61 @@ model EventConfig_TemplateModule {
   template EventConfig_Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@id([templateId, moduleKey])
+}
+
+/// A certificate Jump can issue at the end of an event: the internship
+/// "Certificat de stage", the Coding Club "Certificat de participation", and
+/// whatever a campus asks for next.
+///
+/// The DESIGN is data, not code, because the set of them grows with the business
+/// (Coding Club, Winter Camp, Back to Epitech) and its wording belongs to the
+/// team, not to a developer: authored through `write_diploma_template`, so a new
+/// one costs an API call rather than a release. What stays in code is the render
+/// shell (`templates/certificate.html`), which carries the page-break machinery
+/// and the once-in-`<head>` hoisting of logo, signature and font bytes that a
+/// 200-page render depends on.
+///
+/// Who wrote a design is on its `AdminApi_Call` row, not on a column here: this
+/// table has no UI writer by design, so a `createdById` could only ever be null
+/// (`writeEventTemplate` makes the same call for `EventConfig_Template`).
+///
+/// Nothing pins a version, unlike the règlement: a certificate is regenerated
+/// from live state on every export and is never stored and never signed, so
+/// there is no signature whose wording could be rewritten under it.
+///
+/// Global, not campus-scoped. The event selecting the template is already
+/// campus-scoped, so a `campusId` here would re-encode a tie an FK already
+/// carries; a campus wanting its own design names one.
+model Diploma_Template {
+  id           String   @id @default(cuid())
+  /// Natural key, stable across environments: seeded in migration SQL, quoted by
+  /// the write operations, and what analytics would group on. Never renamed.
+  code         String   @unique
+  /// French document title: what the event-config picker offers and what names
+  /// the downloaded file. NOT injected into the page - the design writes its own
+  /// heading, so it can split it, style it or leave it out.
+  label        String
+  /// The authored CSS, emitted ONCE in the document head. Separate from
+  /// `bodyHtml` on purpose, and structurally rather than cosmetically: repeating
+  /// stylesheet bytes per student is what timed out a 200-page render, and
+  /// keeping them apart makes that impossible instead of merely discouraged.
+  styleCss     String
+  /// The authored markup for ONE page, repeated per student with its `{prenom}`,
+  /// `{ville}`, `{signatures}` and other placeholders substituted. Sanitised on
+  /// write, and rendered with script execution and the network both off, because
+  /// a real Chrome parses this.
+  bodyHtml     String
+  /// Page geometry in CSS pixels, which the shell turns into the `@page` rule and
+  /// the `.page` box. Owned by the row so a design can be portrait or landscape
+  /// without the shell knowing which, but emitted after the authored CSS so a
+  /// stray override cannot break pagination.
+  pageWidthPx  Int
+  pageHeightPx Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  events          Event[]                @relation("EventDiplomaTemplate")
+  configTemplates EventConfig_Template[] @relation("EventConfigTemplateDiploma")
 }
 
 model Participation {

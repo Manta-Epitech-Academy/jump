@@ -34,6 +34,8 @@ export type HandleKind =
   | 'formId'
   | 'questionKey'
   | 'templateName'
+  | 'diplomaCode'
+  | 'diplomaTemplateId'
   | 'pdfJobId'
   | 'syncErrorType'
   | 'moduleKey'
@@ -118,6 +120,22 @@ export const HANDLES: Record<HandleKind, Handle> = {
     frNoun: 'noms de modèle',
     producedBy: [{ operation: 'config_event_templates' }],
   },
+  diplomaCode: {
+    what: 'Certificate code: the stable key a design is created and replaced by, and what names the downloaded file.',
+    frNoun: 'codes de certificat',
+    producedBy: [{ operation: 'config_diploma_templates' }],
+  },
+  diplomaTemplateId: {
+    what: 'Certificate id, which is what an event is pointed at.',
+    frNoun: 'identifiants de certificat',
+    producedBy: [
+      { operation: 'config_diploma_templates' },
+      {
+        operation: 'config_event_detail',
+        covers: 'only the certificate that one event already issues',
+      },
+    ],
+  },
   pdfJobId: {
     what: 'Document generation job id. It names a document, never a person.',
     frNoun: 'identifiants de génération',
@@ -162,6 +180,11 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   // `write_event_template` spells it `name`: the same preset name, which the
   // operation either creates or overwrites.
   name: 'templateName',
+  // Only the certificate operations take a bare `code` today, and this map is
+  // keyed by parameter name across the whole catalogue: a second, unrelated
+  // `code` would need one of the two renamed rather than a second entry here.
+  code: 'diplomaCode',
+  templateId: 'diplomaTemplateId',
   jobId: 'pdfJobId',
   errorType: 'syncErrorType',
   modules: 'moduleKey',

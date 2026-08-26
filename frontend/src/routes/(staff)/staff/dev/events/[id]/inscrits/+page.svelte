@@ -21,20 +21,22 @@
   let badgeModeOpen = $state(false);
   let generatingDiplomas = $state(false);
   // Headcount for the ceremony copy, filled from the streamed cohort when the
-  // diploma generation starts; 0 until then (the title degrades gracefully).
+  // generation starts; 0 until then (the title degrades gracefully).
   let diplomaCount = $state(0);
 
+  // "Certificat", not "diplôme": that is what the document says on its face, and
+  // it stays true whichever one the event issues.
   const diplomaCeremonyTitle = $derived(
     diplomaCount > 0
-      ? `Génération de ${diplomaCount} diplôme${diplomaCount > 1 ? 's' : ''}`
-      : 'Génération des diplômes',
+      ? `Génération de ${diplomaCount} certificat${diplomaCount > 1 ? 's' : ''}`
+      : 'Génération des certificats',
   );
 
   // Rotating step lines for the ceremony epi-overline - kept true to what the PDF
   // render actually does (one page per inscrit, with the campus signatures).
   const DIPLOMA_CEREMONY_MESSAGES = [
-    'Préparation des diplômes…',
-    'Mise en page de chaque diplôme…',
+    'Préparation des certificats…',
+    'Mise en page de chaque certificat…',
     'Application des signatures…',
     'Presque prêt…',
   ];
@@ -120,19 +122,20 @@
       const res = await fetch(`${endpoint}?t=${Date.now()}`, {
         cache: 'no-store',
       });
-      if (!res.ok) throw new Error(`Diplomas failed: ${res.status}`);
+      if (!res.ok) throw new Error(`Certificates failed: ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Diplômes - ${eventDisplayName(data.event)}.pdf`;
+      // Named for the document actually issued, e.g. "Certificat de stage - …".
+      a.download = `${data.diploma?.label ?? 'Certificats'} - ${eventDisplayName(data.event)}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
     } catch (e) {
-      console.error('generate diplomas', e);
-      toast.error('Échec de la génération des diplômes.');
+      console.error('generate certificates', e);
+      toast.error('Échec de la génération des certificats.');
     } finally {
       generatingDiplomas = false;
     }
@@ -160,7 +163,7 @@
           Générer badges
         {/if}
       </Button>
-      {#if data.allowDiplomas}
+      {#if data.diploma}
         <Button
           variant="outline"
           size="sm"
@@ -172,7 +175,7 @@
             Génération…
           {:else}
             <Award class="mr-1.5 h-4 w-4" />
-            Générer diplômes
+            Générer certificats
           {/if}
         </Button>
       {/if}

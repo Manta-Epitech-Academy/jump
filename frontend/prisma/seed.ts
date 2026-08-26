@@ -2734,6 +2734,23 @@ async function seedEvents(
 ) {
   const eventIds: string[] = [];
 
+  // Resolved by code rather than hardcoded: the migration owns the ids, and a
+  // seed that guessed them would break the day one is regenerated.
+  const diplomaTemplateIds = {
+    stage: (
+      await prisma.diploma_Template.findUniqueOrThrow({
+        where: { code: 'stage' },
+        select: { id: true },
+      })
+    ).id,
+    codingClub: (
+      await prisma.diploma_Template.findUniqueOrThrow({
+        where: { code: 'coding-club' },
+        select: { id: true },
+      })
+    ).id,
+  };
+
   for (const blueprint of EVENTS) {
     const campusId = campuses[blueprint.campus].id;
 
@@ -2804,6 +2821,15 @@ async function seedEvents(
         // anything else is left unnamed (null) and reads "participant" via the
         // fallback, exactly like an unconfigured event.
         cohortNoun: isStage ? 'stagiaire' : null,
+        // The certificate the event issues, from the catalogue the migration
+        // seeded. Set here because the export was unreachable locally otherwise:
+        // the control it replaced defaulted off and the seed never turned it on.
+        // The scalar, not a `connect`: this `data` already names `campusId`, and
+        // mixing a scalar FK with a relation forces Prisma's unchecked input,
+        // which has no relation fields at all.
+        diplomaTemplateId: isStage
+          ? diplomaTemplateIds.stage
+          : diplomaTemplateIds.codingClub,
         campusId,
         modules: {
           create: (isStage ? STAGE_MODULE_KEYS : CODING_CLUB_MODULE_KEYS).map(

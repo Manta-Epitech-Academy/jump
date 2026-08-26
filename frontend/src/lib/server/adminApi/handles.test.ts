@@ -53,8 +53,16 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'endDate',
   'description',
   'reason',
+  'label',
+  // A certificate design. Authored rather than picked from anywhere, which is the
+  // whole point of the table it is stored in.
+  'styleCss',
+  'bodyHtml',
   // Flags, windows and sizes.
   'visible',
+  'showStatutColumn',
+  'pageWidthPx',
+  'pageHeightPx',
   'onlyUpcoming',
   'days',
   'limit',

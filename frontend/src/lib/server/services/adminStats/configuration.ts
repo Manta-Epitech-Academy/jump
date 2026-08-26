@@ -31,9 +31,115 @@ import {
 import { getStaffRoleLabel } from '$lib/domain/staff';
 import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
+import { CERTIFICATE_TOKENS } from '$lib/domain/diplomas';
 import { UnknownScopeError, type Scope } from '$lib/server/adminApi/scope';
 import { handleProvenanceFr } from '$lib/server/adminApi/handles';
 import { scopedEvents, scopeLabels } from './cohort';
+
+// ── The certificate catalogue ────────────────────────────────────────────────
+
+export type DiplomaTemplateRow = {
+  templateId: string;
+  code: string;
+  label: string;
+  pageWidthPx: number;
+  pageHeightPx: number;
+  attachedEvents: number;
+};
+
+/** The design itself, returned only when one certificate is asked for by code. */
+export type DiplomaTemplateDesign = {
+  styleCss: string;
+  bodyHtml: string;
+};
+
+export type DiplomaTemplates = {
+  templates: Metric<DiplomaTemplateRow[]>;
+  design: Metric<DiplomaTemplateDesign | null>;
+  placeholders: Metric<{ token: string; description: string }[]>;
+  authoring: Metric<string[]>;
+};
+
+/**
+ * What an author needs to know to write a design, returned rather than documented
+ * elsewhere: the same reason `scopeVocabulary` ships the campus names, namely that
+ * discovery should not have to be a deliberate error.
+ */
+const AUTHORING_CONTRACT = [
+  "« bodyHtml » est le contenu d'UNE page, répété pour chaque inscrit ; « styleCss » est inséré une seule fois dans l'en-tête du document. Ne mettez pas de balise <style> dans bodyHtml : répéter la feuille de style à chaque page est ce qui a déjà fait expirer un rendu de 200 pages.",
+  'Le document est rendu sans aucun accès réseau. Aucune image, police ou feuille de style distante ne peut être chargée : utilisez des data: URI. Les polices de la charte sont déjà là (Anton pour les titres, IBM Plex Sans pour le texte, en romain et en italique).',
+  'Le logo Epitech est disponible en CSS via var(--epitech-logo), à utiliser comme background-image. Sa taille est à vous.',
+  'Les signatures du campus sont posées par le repère {signatures}, qui produit un bloc par signataire avec les classes sig-block, sig-img, sig-img-0 (puis 1, 2...), sig-line, sig-name et sig-role. Le style de ces classes vous appartient ; les images, non.',
+  'La pagination et la taille de page sont appliquées APRÈS votre CSS et ne peuvent pas être surchargées : réglez les dimensions avec pageWidthPx et pageHeightPx (1123x794 pour un A4 paysage). Utilisez la classe .page si vous devez peindre le fond de la page.',
+  "Le titre du document fait partie du design : écrivez-le dans bodyHtml. Le champ « label » ne sert qu'à nommer le certificat pour les équipes et le fichier téléchargé.",
+];
+
+export async function getDiplomaTemplates(params: {
+  code?: string;
+}): Promise<DiplomaTemplates> {
+  const rows = await prisma.diploma_Template.findMany({
+    orderBy: { label: 'asc' },
+    select: {
+      id: true,
+      code: true,
+      label: true,
+      pageWidthPx: true,
+      pageHeightPx: true,
+      _count: { select: { events: true } },
+    },
+  });
+
+  // Asked for one certificate: hand back its design so it can be edited rather
+  // than rewritten from scratch. Withheld from the list, where N designs would be
+  // tens of kilobytes nobody asked for.
+  let design: DiplomaTemplateDesign | null = null;
+  if (params.code) {
+    const wanted = await prisma.diploma_Template.findUnique({
+      where: { code: params.code },
+      select: { styleCss: true, bodyHtml: true },
+    });
+    if (!wanted) {
+      throw new UnknownScopeError(
+        `Certificat « ${params.code} » introuvable. Les codes existants sont : ${rows.map((r) => r.code).join(', ')}.`,
+      );
+    }
+    design = wanted;
+  }
+
+  return {
+    templates: metric(
+      rows.map((t) => ({
+        templateId: t.id,
+        code: t.code,
+        label: t.label,
+        pageWidthPx: t.pageWidthPx,
+        pageHeightPx: t.pageHeightPx,
+        attachedEvents: t._count.events,
+      })),
+      "Les certificats que Jump sait délivrer. « label » est le nom que voient les équipes et qui nomme le fichier téléchargé, « code » la clé stable à passer à write_diploma_template pour le modifier, « templateId » l'identifiant à passer à write_event_diploma_template pour le rattacher à un événement, et « attachedEvents » le nombre d'événements qui le délivrent aujourd'hui.",
+    ),
+    design: metric(
+      design,
+      "Le design du certificat demandé par « code » : sa feuille de style et le contenu d'une page. Null si aucun code n'a été demandé. C'est ce qu'il faut relire avant de modifier un certificat existant, pour repartir de l'existant au lieu de le réécrire.",
+    ),
+    placeholders: metric(
+      // A list rather than an object keyed by token name: a payload with a key
+      // called `nom` or `prenom` is precisely what the no-PII guard flags, and
+      // it is right to - a field with that name is where somebody's identity
+      // would sit. Here they are values, which is also the shape every other
+      // list in this tier uses.
+      Object.entries(CERTIFICATE_TOKENS).map(([token, description]) => ({
+        token,
+        description,
+      })),
+      "Les repères utilisables dans « bodyHtml », sous la forme {nom_du_repère}, et ce que chacun remplace. Un repère mal orthographié fait refuser l'enregistrement, parce qu'il s'imprimerait tel quel sur le document.",
+    ),
+    authoring: metric(
+      AUTHORING_CONTRACT,
+      "Les contraintes du gabarit dans lequel un design est inséré. Un design qui les ignore est refusé à l'enregistrement, ou sort visuellement faux.",
+    ),
+  };
+}
 
 // ── One event, in full ───────────────────────────────────────────────────────
 
@@ -63,6 +169,11 @@ export type EventDetail = {
   missing: Metric<string[]>;
   modules: Metric<ModuleState[]>;
   feedbackForm: Metric<{ id: string; title: string; status: string } | null>;
+  certificate: Metric<{
+    templateId: string;
+    code: string;
+    label: string;
+  } | null>;
   participants: Metric;
 };
 
@@ -79,6 +190,13 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
     ? await prisma.feedback_Form.findUnique({
         where: { id: event.feedbackFormId },
         select: { id: true, title: true, status: true },
+      })
+    : null;
+
+  const certificate = event.diplomaTemplateId
+    ? await prisma.diploma_Template.findUnique({
+        where: { id: event.diplomaTemplateId },
+        select: { id: true, code: true, label: true },
       })
     : null;
 
@@ -123,6 +241,16 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
     feedbackForm: metric(
       form,
       "Le formulaire de bilan rattaché à cet événement, ou null s'il n'y en a pas : la section bilan reste alors masquée. Un formulaire en brouillon est rattaché mais ne peut pas encore recevoir de réponse.",
+    ),
+    certificate: metric(
+      certificate
+        ? {
+            templateId: certificate.id,
+            code: certificate.code,
+            label: certificate.label,
+          }
+        : null,
+      "Le certificat que cet événement délivre depuis la page Inscrits, une page par inscrit, ou null s'il n'en délivre aucun : le bouton de génération est alors absent. « templateId » est l'identifiant à passer à write_event_diploma_template.",
     ),
     participants: metric(
       event.participations,

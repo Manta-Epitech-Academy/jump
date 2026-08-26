@@ -4,31 +4,33 @@ import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import {
   loadEventOr404,
-  eventModuleSettings,
   requireEventModule,
   eventEndOrDefault,
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { generateStageDiplomasPDF } from '$lib/server/services/diplomaGenerator';
+import { generateDiplomasPDF } from '$lib/server/services/diplomaGenerator';
+import { resolveEventDiplomaDesign } from '$lib/server/diplomaTemplates';
 import { getStorage, isObjectNotFound } from '$lib/server/infra/storage';
 import { prisma } from '$lib/server/db';
 import { formatDateFr } from '$lib/utils';
 
-// Generates the internship certificate sheet for every talent registered to
-// this event (no selection — all inscrits), one A4 landscape page per student.
-// Campus-scoped via the event load. Signatories are the global ones plus this
-// campus's local ones; their signature images are fetched from S3 and inlined
-// as base64 data URIs so the PDF template needs no network access.
+// Generates whichever certificate this event issues, for every talent registered
+// to it (no selection, all inscrits), one page per student. Campus-scoped via
+// the event load. Signatories are the global ones plus this campus's local ones;
+// their signature images are fetched from S3 and inlined as base64 data URIs,
+// which is also what lets the renderer print with the network blocked.
 export const GET: RequestHandler = async ({ params, locals }) => {
   requireStaffGroup(locals, 'devMember');
 
   const campusId = getCampusId(locals);
   const event = await loadEventOr404(params.id, campusId);
-  // The diploma sheet is an Inscrits sub-option (the internship Certificat de
-  // stage). Gate the route too, not just the button: a direct URL for an event
-  // that doesn't issue one (coding club) behaves like a missing page.
+  // Two gates, answering two different questions. The module guards access to
+  // the COHORT: this export prints every inscrit, so a direct GET must not leak
+  // it when Inscrits is off (same reason as badges.pdf). The template answers
+  // whether this event issues a document at all.
   requireEventModule(event, EVENT_MODULES.INSCRITS);
-  if (!eventModuleSettings(event, EVENT_MODULES.INSCRITS).diplomas) {
+  const design = await resolveEventDiplomaDesign(event);
+  if (!design) {
     throw error(404, 'Fonctionnalité non disponible pour cet événement.');
   }
   const db = scopedPrisma(campusId);
@@ -79,7 +81,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   );
 
   const timezone = campus?.timezone;
-  const pdf = await generateStageDiplomasPDF({
+  const pdf = await generateDiplomasPDF(design, {
     students: participations.map((p) => ({
       prenom: p.talent.prenom,
       nom: p.talent.nom,
@@ -96,7 +98,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="diplomes.pdf"',
+        // Named for the document actually issued; the browser overrides it with
+        // the friendly name the Inscrits page sets on the download anchor.
+        'Content-Disposition': `attachment; filename="${design.code}.pdf"`,
         // Regenerated from live DB each call (signatory role/image can change).
         // Without this the browser HTTP-caches the stable .pdf URL and re-serves
         // a stale diploma. Mirrors onboarding-pdfs / interview-pdfs exports.

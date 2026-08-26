@@ -260,6 +260,7 @@ describe('no read operation leaks a talent identity (integration)', () => {
       const answer = await operation.run(args as Record<string, unknown>, {
         tier: 'core',
         actorUserId: 'test',
+        origin: 'http://localhost',
       });
       const serialized = JSON.stringify(answer);
 
@@ -308,7 +309,7 @@ describe('no read operation leaks a talent identity (integration)', () => {
   it('returns a self-naming testimonial whole, the one documented exception', async () => {
     const answer = (await ADMIN_API_OPERATIONS.stats_interview_testimonials.run(
       {},
-      { tier: 'leadership', actorUserId: 'test' },
+      { tier: 'leadership', actorUserId: 'test', origin: 'http://localhost' },
     )) as { testimonials: { value: { quote: string }[] } };
 
     expect(answer.testimonials.value.map((row) => row.quote)).toContain(
@@ -335,6 +336,12 @@ function requiredArgsFor(
   switch (name) {
     case 'config_event_detail':
       return { eventId: seeded.eventId };
+    // The seeded certificate. This one really renders a browser page, which is
+    // slower than the rest of this suite and worth it: the preview is the answer
+    // most likely to carry something it should not, being an image of a document
+    // with a name on it. It must be a placeholder name, never a seeded talent.
+    case 'config_diploma_template_preview':
+      return { code: 'stage' };
     // Grouped by campus on purpose: the grouped branch is the one that ranks, and
     // a ranking is where a name would surface if a group were ever labelled by a
     // person rather than by a campus.
