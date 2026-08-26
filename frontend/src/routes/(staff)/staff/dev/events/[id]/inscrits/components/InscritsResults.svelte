@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
@@ -30,6 +29,7 @@
     type SelectOption,
   } from '$lib/components/staff/SearchableSelect.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
+  import { talentFicheHref } from '$lib/components/dev/talentFiche';
   import StageCountdownCard from '../../components/StageCountdownCard.svelte';
   import LyceesBreakdown from '../../components/LyceesBreakdown.svelte';
   import InterestsCloud from '../../components/InterestsCloud.svelte';
@@ -614,7 +614,7 @@
           {sortDir}
           onSort={toggleSort}
           rowKey={(r) => r.id}
-          rowHref={(r) => resolve(`/staff/dev/students/${r.talentId}`)}
+          rowHref={(r) => talentFicheHref(r.talentId, event.id)}
           rowLabel={(r) => `Voir la fiche de ${r.prenom} ${r.nom}`}
           stickyHeader
           layout="fixed"
@@ -647,7 +647,7 @@
                   {#snippet child({ props })}
                     <a
                       {...props}
-                      href={resolve(`/staff/dev/students/${r.talentId}`)}
+                      href={talentFicheHref(r.talentId, event.id)}
                       tabindex={-1}
                       class="relative z-10 inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
                     >
@@ -700,7 +700,7 @@
                            row - the overlay link already covers keyboard nav. -->
                       <a
                         {...props}
-                        href={resolve(`/staff/dev/students/${r.talentId}`)}
+                        href={talentFicheHref(r.talentId, event.id)}
                         tabindex={-1}
                         class={cn(
                           'relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip',

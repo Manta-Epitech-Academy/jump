@@ -13,7 +13,7 @@
 </svelte:head>
 
 <div class="space-y-6 pb-10">
-  <PageHeader title="Entretiens" />
+  <PageHeader title="Entretiens" subtitle={eventDisplayName(data.event)} />
 
   {#await data.cohort}
     <ResultsSkeleton />

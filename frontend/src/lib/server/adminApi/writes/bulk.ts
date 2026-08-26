@@ -19,7 +19,12 @@
 import { EventService, type AdminEventVM } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
 import { isEventModuleKey, EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
+import {
+  activationBlockers,
+  canBeMadeVisible,
+} from '$lib/domain/eventReadiness';
 import { OperationRefusedError } from '../errors';
+import { handleProvenanceFr } from '../handles';
 import { runTwoStep, type WriteOutcome } from '../plan';
 import { resolveScope, type ScopeParams } from '../scope';
 import { scopedEvents } from '$lib/server/services/adminStats/cohort';
@@ -132,11 +137,11 @@ export async function bulkEventActivation(params: {
       );
       // Same eligibility rule the service applies, surfaced up front: an event
       // missing a public name, an end date or a section cannot be shown, and a
-      // plan that promised it would be is a plan that lies.
+      // plan that promised it would be is a plan that lies. Read off the domain
+      // rule rather than respelled here, and reported per event: one row saying
+      // what that row lacks beats every row repeating all three possibilities.
       const ineligible = params.visible
-        ? changing.filter(
-            (e) => !e.publicName || !e.endDate || e.modules.length === 0,
-          )
+        ? changing.filter((e) => !canBeMadeVisible(e))
         : [];
       const eligible = changing.filter((e) => !ineligible.includes(e));
       return {
@@ -144,7 +149,7 @@ export async function bulkEventActivation(params: {
         changes: eligible.map(identify),
         skipped: ineligible.map((event) => ({
           ...identify(event),
-          reason: 'nom public, date de fin ou section manquante',
+          reason: `il manque : ${activationBlockers(event).join(', ')}`,
         })),
       };
     },
@@ -173,7 +178,7 @@ export async function bulkApplyEventTemplate(params: {
   );
   if (!template) {
     throw new OperationRefusedError(
-      `Modèle « ${params.templateName} » introuvable. L'opération config_event_templates liste les modèles enregistrés.`,
+      `Modèle « ${params.templateName} » introuvable. ${handleProvenanceFr('templateName')}`,
     );
   }
   const desired = [...template.modules].sort();

@@ -147,7 +147,7 @@
 </svelte:head>
 
 <div class="space-y-6 pb-10">
-  <PageHeader title="Inscrits">
+  <PageHeader title="Inscrits" subtitle={eventDisplayName(data.event)}>
     {#snippet actions()}
       <Button
         variant="outline"

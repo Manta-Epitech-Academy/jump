@@ -23,7 +23,7 @@
 
 <div class="space-y-6 pb-10">
   <Tooltip.Provider delayDuration={150}>
-    <PageHeader title={data.form.title}>
+    <PageHeader title={data.form.title} subtitle={eventDisplayName(data.event)}>
       {#snippet actions()}
         <div class="flex items-center gap-2">
           <Button

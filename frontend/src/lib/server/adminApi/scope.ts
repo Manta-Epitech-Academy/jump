@@ -27,6 +27,7 @@
  */
 
 import { prisma } from '$lib/server/db';
+import { handleProvenanceFr } from './handles';
 import { eventDisplayName } from '$lib/domain/event';
 
 /**
@@ -103,8 +104,7 @@ async function resolveEvent(id: string): Promise<ResolvedEvent> {
   });
   if (!found) {
     throw new UnknownScopeError(
-      `Événement « ${id} » introuvable. Les identifiants d'événement sont ` +
-        `renvoyés par l'opération config_unconfigured_events.`,
+      `Événement « ${id} » introuvable. ${handleProvenanceFr('eventId')}`,
     );
   }
   return { id: found.id, label: eventDisplayName(found) };

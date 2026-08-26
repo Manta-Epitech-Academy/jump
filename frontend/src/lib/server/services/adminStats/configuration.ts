@@ -25,12 +25,15 @@ import {
 import {
   EVENT_CONFIG_STATE_LABELS,
   EVENT_CONFIG_STATE_HINTS,
+  eventMissingConfig,
+  isEventToPrepare,
 } from '$lib/domain/eventReadiness';
 import { getStaffRoleLabel } from '$lib/domain/staff';
 import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
 import { CERTIFICATE_TOKENS } from '$lib/domain/diplomas';
 import { UnknownScopeError, type Scope } from '$lib/server/adminApi/scope';
+import { handleProvenanceFr } from '$lib/server/adminApi/handles';
 import { scopedEvents, scopeLabels } from './cohort';
 
 // ── The certificate catalogue ────────────────────────────────────────────────
@@ -179,7 +182,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
   const event = all.find((e) => e.id === eventId);
   if (!event) {
     throw new UnknownScopeError(
-      `Événement « ${eventId} » introuvable. Les identifiants d'événement sont renvoyés par les opérations config_unconfigured_events et stats_attendance_rate.`,
+      `Événement « ${eventId} » introuvable. ${handleProvenanceFr('eventId')}`,
     );
   }
 
@@ -196,14 +199,6 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
         select: { id: true, code: true, label: true },
       })
     : null;
-
-  const missing: string[] = [];
-  if (!event.publicName) missing.push('nom public');
-  if (!event.cohortNoun) missing.push('nom des participants');
-  if (!event.endDate) missing.push('date de fin');
-  if (event.modules.length === 0) missing.push('aucune section activée');
-  else if (!event.devActivated)
-    missing.push("pas encore activé pour l'espace dev");
 
   return {
     event: metric(
@@ -231,7 +226,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
       "État de configuration de l'événement, tel que l'affiche la page Événements de l'espace admin.",
     ),
     missing: metric(
-      missing,
+      eventMissingConfig(event),
       "Ce qu'il reste à renseigner pour que l'événement soit visible dans l'espace dev. Liste vide = rien ne manque.",
     ),
     modules: metric(
@@ -270,6 +265,14 @@ export type CampusRow = {
   campus: string;
   events: number;
   visible: number;
+  /**
+   * Configured but hidden. Returned because without it the row does not add up:
+   * `visible` needs both the activation gate and a section, while the `modules`
+   * tally below counts the section alone, so a campus with 25 configured events
+   * and 2 activated ones read as a contradiction with nothing naming the 23.
+   */
+  readyToPublish: number;
+  unconfigured: number;
   toPrepare: number;
   participants: number;
   staff: { role: string; label: string; count: number }[];
@@ -309,9 +312,11 @@ export async function getCampusOverview(
       campus: campus.name,
       events: own.length,
       visible: own.filter((e) => e.configState === 'shown').length,
-      toPrepare: own.filter(
-        (e) => e.status !== 'past' && e.configState !== 'shown',
-      ).length,
+      readyToPublish: own.filter((e) => e.configState === 'ready').length,
+      unconfigured: own.filter((e) => e.configState === 'unconfigured').length,
+      // The shared predicate, not a fourth spelling of it: this was the only site
+      // in the repository that rewrote it inline instead of importing it.
+      toPrepare: own.filter(isEventToPrepare).length,
       participants: own.reduce((sum, e) => sum + e.participations, 0),
       staff: staff
         .filter((s) => s.campusId === campus.id && s.staffRole)
@@ -338,7 +343,7 @@ export async function getCampusOverview(
     },
     campuses: metric(
       rows,
-      "Par campus : ses événements sur le périmètre, combien sont visibles dans l'espace dev, combien demandent encore une action, le total des inscriptions, l'équipe par rôle et les sections activées. Les effectifs d'équipe sont ceux d'aujourd'hui, ils ne dépendent pas de l'année scolaire demandée.",
+      "Par campus : ses événements sur le périmètre, répartis entre « visible » (activé et pourvu d'au moins une section), « readyToPublish » (configuré mais encore masqué) et « unconfigured » (aucune section activée) : la somme des trois fait le total. « toPrepare » compte, parmi eux, ceux qui ne sont pas passés et ne sont pas encore visibles : c'est ce qui demande une action, et ce n'est donc pas l'écart entre le total et « visible ». « modules » compte les événements où chaque section est activée, sans tenir compte de l'activation, donc il inclut les événements configurés mais masqués : c'est pourquoi ce décompte peut largement dépasser « visible ». Un événement pourvu de quatre sections compte une fois dans chacune des quatre lignes. Les effectifs d'équipe sont ceux d'aujourd'hui, ils ne dépendent pas de l'année scolaire demandée.",
     ),
   };
 }

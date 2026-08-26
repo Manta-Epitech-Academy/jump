@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import Check from '@lucide/svelte/icons/check';
   import Clock from '@lucide/svelte/icons/clock';
   import Circle from '@lucide/svelte/icons/circle';
@@ -15,6 +14,7 @@
   import { type SegmentOption } from '$lib/components/staff/SegmentedFilter.svelte';
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
+  import { talentFicheHref } from '$lib/components/dev/talentFiche';
   import * as Avatar from '$lib/components/ui/avatar';
   import { getInitials } from '$lib/avatar';
   import { formatGivenName } from '$lib/domain/profile';
@@ -163,9 +163,11 @@
       : 'au total',
   );
 
+  // The fiche opens straight in its interview flow: this roster is the way in
+  // to conducting one, so the dev lands on the questions rather than on the
+  // dossier with a toggle left to find.
   const ficheHref = (r: EntretienRow) =>
-    resolve(`/staff/dev/students/${r.talentId}`) +
-    `?interview=1&event=${eventId}`;
+    talentFicheHref(r.talentId, eventId, { interviewMode: true });
 </script>
 
 {#snippet statusBadge(status: InterviewListStatus, full: boolean)}

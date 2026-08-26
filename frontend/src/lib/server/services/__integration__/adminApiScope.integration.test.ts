@@ -133,6 +133,14 @@ function requiredArgsFor(name: AdminApiOperationName): Record<string, unknown> {
       // Takes an event id as its subject rather than as a filter, so it is
       // covered by the eventId sweep with no extra argument.
       return {};
+    // Its subject is a question of a form, so both have to be supplied for the
+    // schema to accept the call at all. The values need not exist: the entry
+    // resolves its scope before it touches the form, so an unknown campus or event
+    // is refused first, which is exactly what this sweep asserts. Were that order
+    // ever reversed, the message would name the form instead and the sweep would
+    // fail rather than pass for the wrong reason.
+    case 'stats_feedback_question':
+      return { formId: 'form-that-does-not-exist', question: 'reco' };
     default:
       return {};
   }

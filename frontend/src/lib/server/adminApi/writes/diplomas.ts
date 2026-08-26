@@ -14,6 +14,7 @@ import {
 } from '$lib/server/diplomaSanitize';
 import { renderCertificateSample } from '$lib/server/services/diplomaGenerator';
 import { OperationRefusedError } from '../errors';
+import { handleProvenanceFr } from '../handles';
 import { UnknownScopeError } from '../scope';
 import type { WriteOutcome } from '../plan';
 
@@ -130,7 +131,7 @@ async function eventCertificateState(
   });
   if (!event) {
     throw new UnknownScopeError(
-      `Événement « ${eventId} » introuvable. Les identifiants d'événement sont renvoyés par config_unconfigured_events et config_event_detail.`,
+      `Événement « ${eventId} » introuvable. ${handleProvenanceFr('eventId')}`,
     );
   }
   return { eventId: event.id, certificate: event.diplomaTemplate };
@@ -156,7 +157,7 @@ export async function writeEventDiplomaTemplate(params: {
     });
     if (!exists) {
       throw new OperationRefusedError(
-        `Certificat « ${templateId} » introuvable. Les identifiants sont renvoyés par config_diploma_templates.`,
+        `Certificat « ${templateId} » introuvable. ${handleProvenanceFr('diplomaTemplateId')}`,
       );
     }
   }

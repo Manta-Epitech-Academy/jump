@@ -210,13 +210,24 @@ export function reachableSurfaces(gates: EventSurfaceGates): EventSurfaceKey[] {
 }
 
 /**
- * The surface the dev workspace lands on for an event (first reachable in
- * display order), or null when the event exposes nothing reachable.
+ * The surface to open for an event: `preferred` when the event actually reaches
+ * it, else its first reachable one in display order, else null (the event
+ * exposes nothing).
+ *
+ * One function rather than two, because every caller asks the same question with
+ * a different amount of context. The dev landing has no surface open and passes
+ * nothing; the event switcher and the header's year menu pass the surface in
+ * view, so changing context keeps you on the page you were reading. Splitting
+ * the two is how the year menu ended up dropping devs on `inscrits` while the
+ * switcher, one click away, preserved their surface.
  */
-export function firstReachableSurface(
+export function landingSurface(
   gates: EventSurfaceGates,
+  preferred?: EventSurfaceKey | null,
 ): EventSurfaceKey | null {
-  return reachableSurfaces(gates)[0] ?? null;
+  const reachable = reachableSurfaces(gates);
+  if (preferred && reachable.includes(preferred)) return preferred;
+  return reachable[0] ?? null;
 }
 
 /**
@@ -226,6 +237,31 @@ export function firstReachableSurface(
  */
 export function surfaceSegment(key: EventSurfaceKey): EventSurfaceKey {
   return key === 'planning' ? 'planning' : EVENT_MODULE_DEFS[key].segment;
+}
+
+/**
+ * Reverse of `surfaceSegment`, keyed off the same source so the two cannot drift.
+ */
+const SURFACE_BY_SEGMENT: ReadonlyMap<string, EventSurfaceKey> = new Map(
+  EVENT_SURFACE_ORDER.map((key) => [surfaceSegment(key) as string, key]),
+);
+
+/**
+ * The surface a dev-workspace pathname is on, or null when it is not an event
+ * surface (the dev landing, a talent fiche, a PDF endpoint).
+ *
+ * Validated against the surface union rather than handed back raw, so a caller
+ * gets a key it can pass straight to `landingSurface` instead of a string it has
+ * to match against a segment list itself.
+ *
+ * Deliberately unanchored, for two reasons that both matter: the app can be
+ * served under a base path, and a page nested under a surface must report the
+ * surface carrying it rather than null, or switching event from there would
+ * silently drop you back onto the first one.
+ */
+export function surfaceFromPath(pathname: string): EventSurfaceKey | null {
+  const segment = pathname.match(/\/staff\/dev\/events\/[^/]+\/([^/?]+)/)?.[1];
+  return (segment && SURFACE_BY_SEGMENT.get(segment)) || null;
 }
 
 /** Sidebar label for a surface (FR, staff-facing → vous). */
