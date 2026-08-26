@@ -367,7 +367,7 @@ VALUES
 
 -- Data Seed: the one grid that exists today, composed over the bank above.
 INSERT INTO "Closing_Template" ("id", "key", "label", "updatedAt")
-VALUES ('clt_stage_seconde', 'stage_seconde', 'Entretien d''orientation - stage de seconde', CURRENT_TIMESTAMP);
+VALUES ('clt_stage_seconde', 'stage_seconde', 'Closing d''orientation - stage de seconde', CURRENT_TIMESTAMP);
 
 INSERT INTO "Closing_TemplateSection" ("id", "templateId", "position", "synthesisPosition", "title")
 VALUES

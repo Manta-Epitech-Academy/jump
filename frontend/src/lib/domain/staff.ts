@@ -24,7 +24,7 @@ export const STAFF_ROLES: readonly {
     value: 'dev',
     label: 'Dev',
     description:
-      'Membre dev du campus. Opérations quotidiennes : participants, entretiens, mises à jour.',
+      'Membre dev du campus. Opérations quotidiennes : participants, closings, mises à jour.',
   },
 ];
 
