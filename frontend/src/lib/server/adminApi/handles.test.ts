@@ -242,6 +242,23 @@ describe('what the registry generates', () => {
     expect(fr).not.toContain('ops_');
   });
 
+  /**
+   * The sentence is assembled, so its participle has to agree with a noun the
+   * registry chooses. Half of them are feminine ("clés"), and a wrong agreement
+   * is caught by nothing: it is only read, in French, by an admin being told
+   * where a value comes from.
+   */
+  it('agrees with the gender of the noun it was given', () => {
+    // "Les clés de question de closing sont RENVOYÉES par…"
+    expect(handleProvenanceFr('closingQuestionKey')).toContain(
+      'clés de question de closing sont renvoyées',
+    );
+    // "Les identifiants d'événement sont RENVOYÉS par…"
+    expect(handleProvenanceFr('eventId')).toContain(
+      "identifiants d'événement sont renvoyés",
+    );
+  });
+
   it('derives requires and provides for meta_operations', () => {
     expect(handlesRequiredBy(paramsOf('config_event_detail'))).toEqual([
       'eventId',
