@@ -10,8 +10,9 @@ import DOMPurify from 'isomorphic-dompurify';
  *
  * 1. refuse, so the author is TOLD what will not work (`certificateProblems`);
  * 2. sanitise, so nothing dangerous is stored even if the refusal missed it;
- * 3. render with the network blocked (`infra/documentRenderer.ts`) - the one that
- *    actually contains the damage, and the reason a missed `url()` is inert.
+ * 3. render with script execution and the network off (`infra/documentRenderer.ts`)
+ *    - the one that actually contains the damage, and the reason a missed `url()`
+ *    or a missed tag is inert.
  *
  * The first two are not one mechanism twice: a refusal is for the person writing
  * the design, the sanitiser is for the bytes we keep.
@@ -26,6 +27,13 @@ const ACTIVE_TAG =
   /<\s*(script|style|iframe|object|embed|link|base|meta|form|svg|math)\b/i;
 /** `onclick=`, `onerror=`, ... on any element. */
 const EVENT_HANDLER = /<[^>]+\son[a-z]+\s*=/i;
+/**
+ * Any `<` in the stylesheet. Not a tag-name list, because the stylesheet is
+ * emitted inside a `<style>` element and `</style>` is the only thing needed to
+ * leave it: past that, the rest of the design is parsed as markup in the head.
+ * One character covers every spelling of that, opening tag or closing.
+ */
+const CSS_MARKUP = /</;
 
 /**
  * What is wrong with this design, in French, for the caller to act on. Empty
@@ -50,6 +58,11 @@ export function certificateProblems(design: {
   if (EVENT_HANDLER.test(bodyHtml)) {
     problems.push(
       "Le corps du certificat ne peut pas porter d'attribut d'événement (onclick, onerror, ...) : le document est imprimé, rien n'y est cliquable.",
+    );
+  }
+  if (CSS_MARKUP.test(styleCss)) {
+    problems.push(
+      '« styleCss » contient le caractère « < », qui ne veut rien dire en CSS et qui fermerait la balise <style> du document : tout ce qui suit se retrouverait dans la page au lieu de la feuille de style. Pour un chevron littéral, échappez-le (\\3C). Les dimensions de la page se règlent avec pageWidthPx et pageHeightPx, jamais avec une requête de média.',
     );
   }
   for (const [field, value] of [
@@ -81,6 +94,7 @@ export function certificateProblems(design: {
  * around the one synchronous call for the same reason: DOMPurify is a shared
  * singleton, so a hook left in place would change sanitising for the CMS, the
  * broadcast renderer and `renderMarkdown`.
+ *
  */
 function dropFetchingInlineStyle(
   _node: Element,
@@ -125,9 +139,11 @@ export function sanitizeCertificateHtml(bodyHtml: string): string {
 }
 
 /** The stylesheet as it will be stored. DOMPurify does not parse CSS, so this is
- * its own pass rather than a config flag. */
+ * its own pass rather than a config flag. `<` goes first: while one is left, the
+ * rest of this function is guarding a string the browser may never read as CSS. */
 export function sanitizeCertificateCss(styleCss: string): string {
   return styleCss
+    .replace(/</g, '')
     .replace(/@import[^;]*;?/gi, '')
     .replace(/expression\s*\([^)]*\)/gi, 'none')
     .replace(/url\(\s*['"]?(?!data:)[^)]*\)/gi, 'none');

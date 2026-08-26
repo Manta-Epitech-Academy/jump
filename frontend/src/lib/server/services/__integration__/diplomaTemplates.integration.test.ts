@@ -181,6 +181,28 @@ describe('certificate authoring (integration)', () => {
     ).toBeNull();
   }, 60_000);
 
+  it('refuses markup in the stylesheet, and stores nothing', async () => {
+    // The stylesheet is emitted inside a `<style>` element, so `</style>` is the
+    // whole trick: past it, the rest of the design is parsed as markup in the head
+    // and a `<script>` tag is a `<script>` tag. The renderer runs no page JS, so
+    // this is depth rather than the only thing standing there - but a design
+    // nobody reviewed must not get to write the document's markup either.
+    const { status, payload } = await call(postTemplate, secret, {
+      code: `${code}-escape`,
+      label: 'Échappement',
+      ...VALID,
+      styleCss: '.a{}</style><script>window.x = 1</script><style>',
+    });
+
+    expect(status).toBe(400);
+    expect(String(payload.error)).toContain('<');
+    expect(
+      await prisma.diploma_Template.findUnique({
+        where: { code: `${code}-escape` },
+      }),
+    ).toBeNull();
+  }, 60_000);
+
   it('attaches a certificate to an event and detaches it again', async () => {
     const template = await prisma.diploma_Template.findUniqueOrThrow({
       where: { code },
