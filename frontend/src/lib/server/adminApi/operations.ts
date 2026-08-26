@@ -570,9 +570,15 @@ export const ADMIN_API_OPERATIONS = {
     shape: {
       code: z
         .string()
-        .min(1)
+        // A slug, because it is not only a key: it names the downloaded file, so
+        // it reaches a `Content-Disposition` header. Constrained here, where the
+        // value is created, rather than escaped at each place it is read.
+        .regex(
+          /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+          'lowercase letters, digits and single hyphens only',
+        )
         .describe(
-          'Stable technical key, e.g. "winter-camp". Creates or replaces by this.',
+          'Stable technical key, e.g. "winter-camp". Creates or replaces by this, and names the downloaded file: lowercase letters, digits and hyphens only.',
         ),
       label: z
         .string()
@@ -616,6 +622,7 @@ export const ADMIN_API_OPERATIONS = {
         .describe('Event id, from config_event_detail.'),
       templateId: z
         .string()
+        .min(1)
         .optional()
         .describe(
           'Certificate id from config_diploma_templates. Omit so the event issues none.',

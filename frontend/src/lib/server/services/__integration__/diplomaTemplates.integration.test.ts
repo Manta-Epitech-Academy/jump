@@ -222,6 +222,19 @@ describe('certificate authoring (integration)', () => {
     expect(detached.payload.after).toMatchObject({ certificate: null });
   });
 
+  it('refuses a blank certificate id rather than reading it as "detach"', async () => {
+    // A model told "omit templateId to detach" may send an empty string instead.
+    // That used to skip the existence check and land `''` in the FK column, which
+    // Postgres refused and the caller was told "erreur interne" for.
+    const { status, payload } = await call(postEventTemplate, secret, {
+      eventId,
+      templateId: '',
+    });
+
+    expect(status).toBe(400);
+    expect(payload.error).toBe('Paramètres invalides.');
+  });
+
   it('refuses to delete a certificate an event still issues', async () => {
     const template = await prisma.diploma_Template.findUniqueOrThrow({
       where: { code },

@@ -142,21 +142,28 @@ export async function writeEventDiplomaTemplate(params: {
 }): Promise<WriteOutcome> {
   const before = await eventCertificateState(params.eventId);
 
-  if (params.templateId) {
+  // A blank id is "issues none", never a row to go looking for. The catalogue's
+  // schema refuses an empty string upstream; normalising here is what makes that
+  // a second line of defence rather than the only one, because `?? null` on a
+  // string that might be empty puts `''` in an FK column and answers a caller's
+  // own mistake with "erreur interne".
+  const templateId = params.templateId?.trim() || null;
+
+  if (templateId) {
     const exists = await prisma.diploma_Template.findUnique({
-      where: { id: params.templateId },
+      where: { id: templateId },
       select: { id: true },
     });
     if (!exists) {
       throw new OperationRefusedError(
-        `Certificat « ${params.templateId} » introuvable. Les identifiants sont renvoyés par config_diploma_templates.`,
+        `Certificat « ${templateId} » introuvable. Les identifiants sont renvoyés par config_diploma_templates.`,
       );
     }
   }
 
   await prisma.event.update({
     where: { id: params.eventId },
-    data: { diplomaTemplateId: params.templateId ?? null },
+    data: { diplomaTemplateId: templateId },
   });
 
   return {
