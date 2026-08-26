@@ -187,6 +187,10 @@ describe('certificate authoring (integration)', () => {
     // and a `<script>` tag is a `<script>` tag. The renderer runs no page JS, so
     // this is depth rather than the only thing standing there - but a design
     // nobody reviewed must not get to write the document's markup either.
+    //
+    // The `<script>` is the fixture, not a sink: semgrep cannot resolve `call`, so
+    // it flags the very payload this test asserts is refused and stored nowhere.
+    // nosemgrep: javascript.lang.security.audit.unknown-value-with-script-tag.unknown-value-with-script-tag
     const { status, payload } = await call(postTemplate, secret, {
       code: `${code}-escape`,
       label: 'Échappement',
