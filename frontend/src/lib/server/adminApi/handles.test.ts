@@ -58,6 +58,20 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   // whole point of the table it is stored in.
   'styleCss',
   'bodyHtml',
+  // A closing question and the composition of a grid. Same case: authored, not
+  // picked, which is the whole point of the bank they are stored in. The one
+  // value here that DOES name something is the question key a section references,
+  // and that one is a handle.
+  'kind',
+  'hint',
+  'max',
+  'maxLength',
+  'placeholder',
+  'notePlaceholder',
+  'testimonial',
+  'retired',
+  'options',
+  'sections',
   // Flags, windows and sizes.
   'visible',
   'showStatutColumn',
@@ -187,7 +201,7 @@ describe('every handle is obtainable by whoever needs it', () => {
   });
 
   // An unobtainable handle is a defensible design - it is what keeps
-  // ops_reset_interview from letting a model pick a victim - but it has to be a
+  // ops_reset_closing from letting a model pick a victim - but it has to be a
   // decision somebody wrote down, because an oversight reads exactly the same.
   it('explains, in both languages, any handle nothing returns', () => {
     for (const [kind, handle] of Object.entries(HANDLES) as [
@@ -223,9 +237,26 @@ describe('what the registry generates', () => {
   });
 
   it('answers in French for a handle nothing returns, without naming an operation', () => {
-    const fr = handleProvenanceFr('interviewId');
-    expect(fr).toContain('page des entretiens');
+    const fr = handleProvenanceFr('closingId');
+    expect(fr).toContain('page des closings');
     expect(fr).not.toContain('ops_');
+  });
+
+  /**
+   * The sentence is assembled, so its participle has to agree with a noun the
+   * registry chooses. Half of them are feminine ("clés"), and a wrong agreement
+   * is caught by nothing: it is only read, in French, by an admin being told
+   * where a value comes from.
+   */
+  it('agrees with the gender of the noun it was given', () => {
+    // "Les clés de question de closing sont RENVOYÉES par…"
+    expect(handleProvenanceFr('closingQuestionKey')).toContain(
+      'clés de question de closing sont renvoyées',
+    );
+    // "Les identifiants d'événement sont RENVOYÉS par…"
+    expect(handleProvenanceFr('eventId')).toContain(
+      "identifiants d'événement sont renvoyés",
+    );
   });
 
   it('derives requires and provides for meta_operations', () => {

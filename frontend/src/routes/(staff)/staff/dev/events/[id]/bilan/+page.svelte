@@ -72,7 +72,7 @@
          breakdown, the one chart that matters). `min-w-0` keeps the table from
          blowing the grid past the viewport. The page is read-only (no poll, no
          optimistic write), so a bare {#await} is the right pattern, like
-         inscrits/entretiens; no $state unwrap needed. -->
+         inscrits/closings; no $state unwrap needed. -->
     <div class="grid gap-6 xl:grid-cols-10">
       <div class="min-w-0 xl:col-span-7">
         <BilanRoster

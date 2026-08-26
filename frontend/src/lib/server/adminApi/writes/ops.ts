@@ -1,6 +1,6 @@
 /**
  * The class A writes that unblock something: a stuck document, a pile of sync
- * errors, a lycée the annuaire never resolved, and an interview closed by
+ * errors, a lycée the annuaire never resolved, and a closing finalised by
  * mistake.
  *
  * Each delegates to the service the admin pages already use, so a repair made
@@ -16,7 +16,8 @@ import {
   resolveAllSyncErrors,
 } from '$lib/server/services/syncErrorService';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
-import { resetInterview } from '$lib/server/services/interviewResetService';
+import { resetClosing } from '$lib/server/services/closingResetService';
+import { answeredCount } from '$lib/server/services/closingService';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import type { WriteOutcome } from '../plan';
@@ -170,47 +171,50 @@ export async function resolveSchools(params: {
   };
 }
 
-// ── Reset an interview ───────────────────────────────────────────────────────
+// ── Reset a closing ──────────────────────────────────────────────────────────
 
 /**
  * NOT safe to repeat, and the only write here that destroys anything: the
- * interview row is deleted so the talent returns to "à faire" and a fresh one
- * can be conducted. The answers do not come back.
+ * closing row is deleted so the talent returns to "à faire" and a fresh one can
+ * be conducted. The answers do not come back.
  *
- * Two things keep that defensible. The id can only come from the admin
- * interviews page, since no operation in this tier returns one, so a model
- * cannot pick a victim on its own. And what lands on the audit row is a summary
- * of what was discarded - its state, when it was held, how many questions had
- * been answered, the team's verdict - never the answers themselves, which are a
- * minor's and have no business sitting in a call log for the retention window.
+ * Two things keep that defensible. The id can only come from the admin closings
+ * page, since no operation in this tier returns one, so a model cannot pick a
+ * victim on its own. And what lands on the audit row is a summary of what was
+ * discarded - its state, when it was held, how many questions had been answered,
+ * the team's verdict - never the answers themselves, which are a minor's and have
+ * no business sitting in a call log for the retention window.
  */
-export async function resetInterviewById(params: {
-  interviewId: string;
+export async function resetClosingById(params: {
+  closingId: string;
   reason: string;
   /** `bauth_user.id` behind the call, resolved to a staff profile below. */
   actorUserId: string;
 }): Promise<WriteOutcome> {
-  const interview = await prisma.interview.findUnique({
-    where: { id: params.interviewId },
+  const closing = await prisma.closing_Record.findUnique({
+    where: { id: params.closingId },
     select: {
       id: true,
       status: true,
       conductedAt: true,
       recommendation: true,
-      discoveryChannel: true,
-      motivation: true,
-      orientationTalkAtSchool: true,
-      passionateTeacher: true,
-      wantsMore: true,
-      satisfactionStars: true,
+      // Structured shape only, never the text: enough for `answeredCount` to say
+      // how much was filled in, nothing a reader could reconstruct an answer from.
+      answers: {
+        select: {
+          ratingValue: true,
+          freeText: true,
+          selectedOptions: { select: { optionId: true } },
+        },
+      },
     },
   });
-  if (!interview) {
+  if (!closing) {
     throw new OperationRefusedError(
-      `Entretien « ${params.interviewId} » introuvable : il a peut-être déjà été réinitialisé. ${handleProvenanceFr('interviewId')}`,
+      `Closing « ${params.closingId} » introuvable : il a peut-être déjà été réinitialisé. ${handleProvenanceFr('closingId')}`,
     );
   }
-  // The `InterviewReset` trail names a staff profile, not an account: a reset
+  // The `Closing_ResetEvent` trail names a staff profile, not an account: a reset
   // that cannot be attributed to a colleague is a reset that does not happen.
   const staff = await prisma.staffProfile.findUnique({
     where: { userId: params.actorUserId },
@@ -218,27 +222,22 @@ export async function resetInterviewById(params: {
   });
   if (!staff) {
     throw new OperationRefusedError(
-      "Réinitialiser un entretien demande de savoir qui le fait, et ce token n'est rattaché à aucun profil de l'équipe.",
+      "Réinitialiser un closing demande de savoir qui le fait, et ce token n'est rattaché à aucun profil de l'équipe.",
     );
   }
 
-  const answered = [
-    interview.discoveryChannel,
-    interview.motivation,
-    interview.orientationTalkAtSchool,
-    interview.passionateTeacher,
-    interview.wantsMore,
-    interview.satisfactionStars,
-  ].filter((value) => value != null).length;
+  // One shared helper rather than a hand-listed set of fields, which is how the
+  // old count came to describe six of eleven questions without saying so.
+  const answered = answeredCount(closing);
 
-  const result = await resetInterview({
-    interviewId: interview.id,
+  const result = await resetClosing({
+    closingId: closing.id,
     resetByStaffId: staff.id,
     reason: params.reason,
   });
   if (!result) {
     throw new OperationRefusedError(
-      'Cet entretien vient de disparaître : quelqu’un d’autre l’a réinitialisé entre-temps.',
+      'Ce closing vient de disparaître : quelqu’un d’autre l’a réinitialisé entre-temps.',
     );
   }
 
@@ -246,10 +245,10 @@ export async function resetInterviewById(params: {
     applied: true,
     // A summary, never the answers: see the note above.
     before: {
-      status: interview.status,
-      conductedAt: interview.conductedAt.toISOString(),
+      status: closing.status,
+      conductedAt: closing.conductedAt.toISOString(),
       answeredQuestions: answered,
-      recommendation: interview.recommendation,
+      recommendation: closing.recommendation,
     },
     after: { status: 'à faire', reason: params.reason },
   };

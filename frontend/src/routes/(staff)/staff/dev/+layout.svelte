@@ -48,7 +48,7 @@
     emargement: UserCheck,
     planning: CalendarDays,
     bilan: MessageSquareText,
-    entretiens: MessageSquare,
+    closings: MessageSquare,
   };
 
   let { children, data } = $props();

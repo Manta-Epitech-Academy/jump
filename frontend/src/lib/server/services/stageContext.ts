@@ -67,6 +67,12 @@ export type EventRecord = {
    * through `server/diplomaTemplates.ts` rather than querying it here.
    */
   diplomaTemplateId: string | null;
+  /**
+   * Which closing grid this event's 1:1s use, from the `Closing_Template`
+   * catalogue. Null = it holds no closings, which is what hides the surface.
+   * Resolve it through `server/closingTemplates.ts` rather than querying here.
+   */
+  closingTemplateId: string | null;
   /** The dev-workspace surfaces this event exposes (presence = enabled). */
   modules: Set<EventModuleKey>;
   /**
@@ -107,6 +113,7 @@ export async function loadEventOr404(
       externalId: true,
       feedbackFormId: true,
       diplomaTemplateId: true,
+      closingTemplateId: true,
       modules: { select: { moduleKey: true, settings: true } },
     },
   });
@@ -195,6 +202,14 @@ export type WorkspaceEventEntry = {
    * only shows when there is real feedback to look at.
    */
   hasFeedbackForm: boolean;
+  /**
+   * Whether the event names a closing grid (`closingTemplateId`). The Closings
+   * surface is gated on this on top of its module, exactly as bilan is gated on
+   * its form: a grid-less closings module has no questions to ask, so the nav
+   * entry would lead to a 404. Cheaper than the bilan's gate, which also has to
+   * check the form is published - a grid is reachable as soon as it is named.
+   */
+  hasClosingTemplate: boolean;
 };
 
 export type WorkspaceEvents = {
@@ -240,6 +255,7 @@ export async function resolveWorkspaceEvents(
         date: true,
         endDate: true,
         feedbackFormId: true,
+        closingTemplateId: true,
         modules: { select: { moduleKey: true } },
         planning: { select: { _count: { select: { timeSlots: true } } } },
       },
@@ -274,6 +290,7 @@ export async function resolveWorkspaceEvents(
       modules: e.modules.map((m) => m.moduleKey).filter(isEventModuleKey),
       hasPlanning: (e.planning?._count.timeSlots ?? 0) > 0,
       hasFeedbackForm: eventResolvesLiveForm(e),
+      hasClosingTemplate: e.closingTemplateId !== null,
     };
   });
 

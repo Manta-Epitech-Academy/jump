@@ -689,6 +689,7 @@
     formData={data.form}
     feedbackForms={data.feedbackForms}
     certificates={data.certificates}
+    closingGrids={data.closingGrids}
     formPreviews={data.formPreviews}
     templates={data.templates}
   />

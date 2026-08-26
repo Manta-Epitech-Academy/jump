@@ -159,7 +159,7 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
  * its cached projections (`xp`/`eventsCount` → 0), the émargement marks
  * (`EventPresence` — the source `eventsCount` projects from, so the zeroed
  * count stays consistent and a later presence write can't resurrect it),
- * minigame attempts, interviews
+ * minigame attempts, closings
  * (and the audit trail of any admin reset), interests, reminders, PDF jobs,
  * broadcast-recipient rows, deletion requests, every
  * onboarding/parent/image-rights/règlement column, and the generated onboarding
@@ -243,10 +243,11 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     //    Broadcast recipients are matched on both the talent and parent-of
     //    slots (SetNull relations, so deleted explicitly rather than left
     //    orphaned).
-    await tx.interview.deleteMany({ where: { talentId } });
+    // Answers and their option rows cascade from the record.
+    await tx.closing_Record.deleteMany({ where: { talentId } });
     // The reset-audit trail is talent-scoped too (talentId + a free-text reason);
-    // it must go with the interviews it traces, matching anonymizeTalent.
-    await tx.interviewReset.deleteMany({ where: { talentId } });
+    // it must go with the closings it traces, matching anonymizeTalent.
+    await tx.closing_ResetEvent.deleteMany({ where: { talentId } });
     await tx.talentInterest.deleteMany({ where: { talentId } });
     // Every year's dossier, not just the current one. Unlike
     // schooling_YearRecord (kept below - which lycée a talent attended is a fact

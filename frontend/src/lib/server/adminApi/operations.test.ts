@@ -184,6 +184,7 @@ const EVENT_FIELD_WRITES: Record<string, string> = {
   devActivated: 'write_event_activation.visible',
   feedbackFormId: 'write_event_feedback_form.formId',
   diplomaTemplateId: 'write_event_diploma_template.templateId',
+  closingTemplateId: 'write_event_closing_template.closingTemplateId',
 };
 
 /** Every operation name a `+server.ts` under /api/admin actually mounts. */

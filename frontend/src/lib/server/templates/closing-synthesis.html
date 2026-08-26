@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Anton (display), IBM Plex Sans (body), Space Mono (meta/tech) = the
+         three Epitech charte families. Same Google Fonts route the diploma and
+         certificate templates use; the generator awaits document.fonts.ready. -->
+    <style>
+      <%- data.fontFaces %>
+    </style>
+    <style>
+      /* Epitech design-system tokens (subset, charte = source of truth). */
+      :root {
+        --epi-blue: #013afb; /* dominant brand */
+        --epi-tech: #00ff97; /* neon accent, cursor */
+        --epi-together: #ff5f3a; /* warm orange */
+        --epi-tomorrow: #ff1ef7; /* magenta */
+        --epi-drift: #7eb9a6; /* muted teal */
+        --ink: #181818; /* text on light, never pure black */
+        --ink-2: #3a3f55;
+        --ink-3: #6b7189;
+        --line: rgba(0, 0, 0, 0.1);
+        --rail: rgba(1, 58, 251, 0.45); /* subtle blue rail = DS pixel-blue */
+        --bg-soft: #f6f7fb;
+        --font-display: 'Anton', Impact, 'Arial Narrow Bold', sans-serif;
+        --font-body: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+        --font-mono: 'Space Mono', 'IBM Plex Mono', Menlo, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 794px;
+        background: #ffffff;
+        color: var(--ink);
+        font-family: var(--font-body);
+        font-size: 11px;
+        line-height: 1.45;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      @page {
+        size: 794px 1123px;
+        margin: 0;
+      }
+      .section,
+      .question,
+      .verdict {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      /* ─── Masthead: full-bleed brand blue, one compact row. The doc type sits
+         inline next to the logo (the real headline is the talent name below). ── */
+      .masthead {
+        position: relative;
+        overflow: hidden;
+        background: var(--epi-blue);
+        color: #fff;
+        padding: 12px 36px;
+      }
+      /* Semi-transparent pixel overlays = the brand's signature texture. */
+      .px {
+        position: absolute;
+      }
+      .px-1 {
+        width: 52px;
+        height: 52px;
+        top: -18px;
+        right: 92px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .px-2 {
+        width: 22px;
+        height: 22px;
+        top: 6px;
+        right: 156px;
+        background: rgba(0, 255, 151, 0.22);
+      }
+      .px-3 {
+        width: 38px;
+        height: 38px;
+        bottom: -16px;
+        right: 24px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .masthead-row {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .masthead-row svg {
+        height: 19px;
+        width: auto;
+        display: block;
+      }
+      .masthead-kicker {
+        padding-left: 14px;
+        border-left: 1px solid rgba(255, 255, 255, 0.28);
+        font-family: var(--font-display);
+        font-weight: 400;
+        font-size: 14px;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        line-height: 1;
+      }
+      .code-tag {
+        margin-left: auto;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.04em;
+        color: rgba(255, 255, 255, 0.82);
+      }
+      /* Terminal-cursor accents. Neon green reads only on the dark masthead;
+         each section cursor + its underline share one accent colour, cycled
+         across the palette via a --accent custom property set per section. */
+      .cursor-tech {
+        color: var(--epi-tech);
+      }
+      .cursor-blue {
+        color: var(--epi-blue);
+      }
+      .accent-tech {
+        --accent: var(--epi-tech);
+      }
+      .accent-together {
+        --accent: var(--epi-together);
+      }
+      .accent-tomorrow {
+        --accent: var(--epi-tomorrow);
+      }
+      .accent-drift {
+        --accent: var(--epi-drift);
+      }
+
+      /* ─── Body ─── */
+      .body {
+        padding: 20px 36px 0;
+      }
+      .subject {
+        margin: 0 0 5px;
+        font-family: var(--font-display);
+        font-weight: 400;
+        font-size: 30px;
+        letter-spacing: 0.01em;
+        /* Name comes pre-cased "Lucie BARTOLETTI"; don't force-uppercase it. */
+        text-transform: none;
+        line-height: 1;
+      }
+      /* Meta as a terminal-style keyword line: mono, uppercase, slash-joined. */
+      .meta {
+        font-family: var(--font-mono);
+        font-size: 9.5px;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        padding-bottom: 12px;
+        margin-bottom: 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      .meta b {
+        color: var(--ink);
+        font-weight: 700;
+      }
+      .meta .sep {
+        color: var(--epi-blue);
+        margin: 0 5px;
+      }
+
+      /* ─── Verdict: the centerpiece, accent-coded by recommendation ─── */
+      .verdict {
+        margin-bottom: 16px;
+        padding: 12px 16px 14px;
+        background: var(--bg-soft);
+        border: 1px solid var(--line);
+        border-top: 4px solid var(--ink-3);
+      }
+      .verdict.reco-tres_compatible {
+        border-top-color: var(--epi-tech);
+      }
+      .verdict.reco-bon_profil {
+        border-top-color: var(--epi-blue);
+      }
+      .verdict.reco-indecis {
+        border-top-color: var(--epi-drift);
+      }
+      .verdict.reco-pas_interesse {
+        border-top-color: var(--epi-tomorrow);
+      }
+      .overline {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--epi-blue);
+        margin: 0 0 8px;
+      }
+      .reco-pill {
+        display: inline-block;
+        padding: 5px 13px;
+        border-radius: 2px;
+        font-family: var(--font-display);
+        font-weight: 400;
+        font-size: 16px;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        background: #e2e5ee;
+        color: var(--ink);
+      }
+      .reco-tres_compatible .reco-pill {
+        background: var(--epi-tech);
+        color: #04402e;
+      }
+      .reco-bon_profil .reco-pill {
+        background: var(--epi-blue);
+        color: #fff;
+      }
+      .reco-indecis .reco-pill {
+        background: var(--epi-drift);
+        color: #15241e;
+      }
+      .reco-pas_interesse .reco-pill {
+        background: var(--epi-tomorrow);
+        color: #fff;
+      }
+      .verdict-empty {
+        font-style: italic;
+        color: var(--ink-3);
+      }
+      .verdict-note {
+        margin-top: 10px;
+        padding-left: 9px;
+        border-left: 2px solid var(--rail);
+        color: var(--ink-2);
+        white-space: pre-wrap;
+      }
+
+      /* ─── Sections ─── */
+      .section {
+        margin-bottom: 14px;
+      }
+      .section-title {
+        display: inline-block;
+        margin: 0 0 8px;
+        padding-bottom: 2px;
+        font-family: var(--font-display);
+        font-weight: 400;
+        font-size: 14px;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        border-bottom: 2px solid var(--epi-blue);
+      }
+      .section-title .cursor {
+        color: var(--accent, var(--epi-blue));
+      }
+      /* Question + structured answer share a line (label ≈2fr, answer ≈3fr);
+         free text drops to its own full-width .prose line below. */
+      .question {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 4px;
+      }
+      .question-label {
+        width: 42%;
+        flex-shrink: 0;
+        font-size: 10px;
+        color: var(--ink-3);
+      }
+      .answer {
+        flex: 1;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      /* Multi-select answers as discrete chips: each option is one bounded box,
+         so labels containing commas or slashes ("IA / Data") never read as more
+         answers than there are. */
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .chip {
+        display: inline-block;
+        padding: 1.5px 7px;
+        border: 1px solid #cdd2e0;
+        border-radius: 2px;
+        background: var(--bg-soft);
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .answer-empty {
+        flex: 1;
+        font-size: 11px;
+        font-style: italic;
+        color: #9aa1b4;
+      }
+      .stars {
+        font-size: 13px;
+        letter-spacing: 1px;
+        line-height: 1;
+      }
+      .star-on {
+        color: var(--epi-together);
+      }
+      .star-off {
+        color: #d9dce8;
+      }
+      .rating-num {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--ink-3);
+        margin-left: 4px;
+      }
+      .prose {
+        margin: 2px 0 7px;
+        padding-left: 9px;
+        border-left: 2px solid var(--rail);
+        font-size: 11px;
+        color: var(--ink-2);
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="masthead">
+      <span class="px px-1"></span>
+      <span class="px px-2"></span>
+      <span class="px px-3"></span>
+      <div class="masthead-row">
+        <%- data.logoSvgWhite %>
+        <span class="masthead-kicker"
+          >Synthèse de closing<span class="cursor-tech">_</span></span
+        >
+        <span class="code-tag">&lt; Stage de Seconde /&gt;</span>
+      </div>
+    </header>
+
+    <main class="body">
+      <h2 class="subject">
+        <%= data.talentName %><span class="cursor-blue">_</span>
+      </h2>
+      <div class="meta">
+        <span>Mené par <b><%= data.staffName %></b></span>
+        <span class="sep">/</span>
+        <span><b><%= data.campusName %></b></span>
+        <span class="sep">/</span>
+        <span><b><%= data.conductedAt %></b></span>
+        <% if (data.eventTitle) { %>
+        <span class="sep">/</span>
+        <span><b><%= data.eventTitle %></b></span>
+        <% } %>
+      </div>
+
+      <section class="verdict reco-<%= data.recommendationKey || 'none' %>">
+        <p class="overline">Avis de l'équipe_</p>
+        <% if (data.recommendation) { %>
+        <span class="reco-pill"><%= data.recommendation %></span>
+        <% } else { %>
+        <p class="verdict-empty">Aucune recommandation renseignée.</p>
+        <% } %> <% if (data.verdictNote) { %>
+        <div class="verdict-note"><%= data.verdictNote %></div>
+        <% } %>
+      </section>
+
+      <% const accents = ['accent-together', 'accent-tomorrow', 'accent-drift',
+      'accent-tech']; %> <% data.sections.forEach(function (section, si) { %>
+      <section class="section">
+        <p class="section-title <%= accents[si % accents.length] %>">
+          <%= section.title %><span class="cursor">_</span>
+        </p>
+        <% for (const q of section.questions) { %>
+        <div class="question">
+          <div class="question-label"><%= q.label %></div>
+          <% if (q.kind === 'rating') { %> <% if (q.value) { %>
+          <div class="answer stars">
+            <% for (let i = 1; i <= q.max; i++) { %><span
+              class="<%= i <= q.value ? 'star-on' : 'star-off' %>"
+              >&#9733;</span
+            ><% } %><span class="rating-num"><%= q.value %>/<%= q.max %></span>
+          </div>
+          <% } else { %>
+          <div class="answer-empty">Non renseigné</div>
+          <% } %> <% } else if (q.kind === 'text') { %> <%# The testimony is
+          free text: it renders full-width below. %> <% if (!q.value) { %>
+          <div class="answer-empty">Non renseigné</div>
+          <% } %> <% } else if (q.kind === 'multi') { %> <% if (q.value &&
+          q.value.length) { %>
+          <div class="answer chips">
+            <% for (const v of q.value) { %><span class="chip"><%= v %></span><%
+            } %>
+          </div>
+          <% } else { %>
+          <div class="answer-empty">Non renseigné</div>
+          <% } %> <% } else if (q.value) { %>
+          <div class="answer"><%= q.value %></div>
+          <% } else { %>
+          <div class="answer-empty">Non renseigné</div>
+          <% } %>
+        </div>
+        <% if (q.kind === 'text' && q.value) { %>
+        <div class="prose"><%= q.value %></div>
+        <% } %> <% if (q.note) { %>
+        <div class="prose"><%= q.note %></div>
+        <% } %> <% } %>
+      </section>
+      <% }); %>
+    </main>
+  </body>
+</html>

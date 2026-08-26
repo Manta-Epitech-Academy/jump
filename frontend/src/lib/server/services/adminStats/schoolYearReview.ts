@@ -37,7 +37,8 @@ import { getCohortProfile } from './cohortProfile';
 import { getSchoolsReach } from './schoolsReach';
 import { getAttendanceRate } from './attendanceRate';
 import { getTalentRetention } from './talentRetention';
-import { getInterviewInsights } from './interviewInsights';
+import { getClosingInsights } from './closingInsights';
+import { CLOSING_QUESTION_KEYS } from '$lib/domain/closing';
 
 export type SchoolYearReview = {
   filters: { schoolYear: string; campus: string };
@@ -68,7 +69,7 @@ export type SchoolYearReview = {
     averageEventsPerTalent: Metric<number | null>;
   };
   voice: {
-    interviewCoverage: Metric<number | null>;
+    closingCoverage: Metric<number | null>;
     satisfaction: Metric<number | null>;
     wantsMore: Metric<unknown>;
     discovery: Metric<unknown>;
@@ -95,7 +96,7 @@ export type SchoolYearComparison = {
   attendance: { present: Metric<Variation>; showUpRate: Metric<Variation> };
   loyalty: { returningShare: Metric<Variation> };
   voice: {
-    interviewCoverage: Metric<Variation>;
+    closingCoverage: Metric<Variation>;
     satisfaction: Metric<Variation>;
   };
 };
@@ -103,7 +104,7 @@ export type SchoolYearComparison = {
 /** What this platform cannot answer, said before anybody infers it. */
 const LIMITES = [
   "Jump enregistre qui s'est inscrit, qui est venu et ce que les élèves en ont dit. Il n'enregistre nulle part si un élève a ensuite intégré Epitech : aucun de ces chiffres n'est un taux de conversion ni un taux d'admission, et aucun ne permet d'en déduire un.",
-  "Les réponses des élèves proviennent des entretiens d'orientation, menés sur une partie seulement de la cohorte. Le taux de couverture est donné avec elles : plus il est bas, moins elles représentent l'ensemble des participants.",
+  "Les réponses des élèves proviennent des closings, menés sur une partie seulement de la cohorte. Le taux de couverture est donné avec elles : plus il est bas, moins elles représentent l'ensemble des participants.",
   "La présence est déduite du statut Salesforce des inscriptions après l'événement. Un événement dont les statuts n'ont pas été mis à jour apparaît sans présence exploitable plutôt que comme une absence générale.",
   'La civilité et le niveau scolaire viennent de Salesforce ou de ce que le talent a saisi ; la part de fiches renseignées est donnée à côté de chaque répartition.',
 ];
@@ -118,32 +119,37 @@ const LIMITE_COMPARAISON =
 
 /** The six aggregates a review is made of, for one périmètre. */
 async function gather(scope: Scope) {
-  const [events, cohort, reach, attendance, retention, interviews] =
+  const [events, cohort, reach, attendance, retention, closings] =
     await Promise.all([
       getEventsOverview(scope),
       getCohortProfile(scope),
       getSchoolsReach(scope),
       getAttendanceRate(scope),
       getTalentRetention(scope),
-      getInterviewInsights(scope),
+      getClosingInsights(scope),
     ]);
-  return { events, cohort, reach, attendance, retention, interviews };
+  return { events, cohort, reach, attendance, retention, closings };
 }
 
 type Gathered = Awaited<ReturnType<typeof gather>>;
 
 /**
- * The three interview answers the review speaks for, picked by field rather than
- * by position: the questionnaire owns its own order, and a review that indexed
- * into it would start quoting a different question the day one is inserted.
+ * The three closing answers the review speaks for, picked by bank key rather than
+ * by position: a grid owns its own order, and a review that indexed into it would
+ * start quoting a different question the day one is inserted.
+ *
+ * The keys are named in `CLOSING_QUESTION_KEYS` rather than spelled out here, and
+ * an integration test asserts the seeded bank still holds them. A key that quietly
+ * stopped existing would otherwise reach a national director as "la question
+ * n'existe pas", which reads exactly like "personne n'a répondu".
  */
-function voiceOf(interviews: Gathered['interviews']) {
-  const question = (field: string) =>
-    interviews.questions.value.find((q) => q.field === field);
+function voiceOf(closings: Gathered['closings']) {
+  const question = (key: string) =>
+    closings.questions.value.find((q) => q.key === key);
   return {
-    satisfaction: interviews.questions.value.find((q) => q.kind === 'rating'),
-    wantsMore: question('wantsMore'),
-    discovery: question('discoveryChannel'),
+    satisfaction: closings.questions.value.find((q) => q.kind === 'rating'),
+    wantsMore: question(CLOSING_QUESTION_KEYS.wantsMore),
+    discovery: question(CLOSING_QUESTION_KEYS.discoveryChannel),
   };
 }
 
@@ -159,8 +165,8 @@ export async function getSchoolYearReview(
     ? await gather({ ...scope, schoolYear: params.compareTo })
     : null;
 
-  const { events, cohort, reach, attendance, retention, interviews } = current;
-  const voice = voiceOf(interviews);
+  const { events, cohort, reach, attendance, retention, closings } = current;
+  const voice = voiceOf(closings);
 
   return {
     filters: {
@@ -194,24 +200,24 @@ export async function getSchoolYearReview(
       averageEventsPerTalent: retention.averageEventsPerTalent,
     },
     voice: {
-      interviewCoverage: interviews.coverage,
+      closingCoverage: closings.coverage,
       satisfaction: {
         value: voice.satisfaction?.average ?? null,
         definition: voice.satisfaction
-          ? `Note moyenne donnée par les élèves à la question « ${voice.satisfaction.question} », sur ${voice.satisfaction.max}, portant sur les ${voice.satisfaction.answered} entretiens où elle a été posée. Vaut null si personne n'a répondu.`
-          : "La question de satisfaction n'existe pas dans le questionnaire actuel.",
+          ? `Note moyenne donnée par les élèves à la question « ${voice.satisfaction.question} », sur ${voice.satisfaction.max}, portant sur les ${voice.satisfaction.answered} closings où elle a été renseignée. Vaut null si personne n'a répondu.`
+          : 'Aucune grille de closing du périmètre ne pose de question de satisfaction.',
       },
       wantsMore: {
         value: voice.wantsMore?.options ?? [],
         definition: voice.wantsMore
           ? `Réponses à « ${voice.wantsMore.question} », en nombre et en part des ${voice.wantsMore.answered} élèves qui ont répondu. C'est une intention exprimée sur le moment, pas une inscription.`
-          : "La question n'existe pas dans le questionnaire actuel.",
+          : "La question n'est posée par aucune grille de closing du périmètre.",
       },
       discovery: {
         value: voice.discovery?.options ?? [],
         definition: voice.discovery
           ? `Réponses à « ${voice.discovery.question} », en nombre et en part des ${voice.discovery.answered} élèves qui ont répondu. C'est le canal que l'élève cite lui-même, pas une mesure d'attribution.`
-          : "La question n'existe pas dans le questionnaire actuel.",
+          : "La question n'est posée par aucune grille de closing du périmètre.",
       },
     },
     comparaison:
@@ -283,13 +289,13 @@ function compare(
       ),
     },
     voice: {
-      interviewCoverage: points(
-        current.interviews.coverage.value,
-        previous.interviews.coverage.value,
+      closingCoverage: points(
+        current.closings.coverage.value,
+        previous.closings.coverage.value,
       ),
       satisfaction: points(
-        voiceOf(current.interviews).satisfaction?.average ?? null,
-        voiceOf(previous.interviews).satisfaction?.average ?? null,
+        voiceOf(current.closings).satisfaction?.average ?? null,
+        voiceOf(previous.closings).satisfaction?.average ?? null,
       ),
     },
   };

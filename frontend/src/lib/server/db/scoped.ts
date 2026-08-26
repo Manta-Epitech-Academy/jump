@@ -639,8 +639,13 @@ export function scopedPrisma(campusId: string) {
         },
       },
 
-      // ── Interview (campusId required) ──
-      interview: {
+      // ── Closing (campusId required) ──
+      //
+      // `Closing_Answer` and `Closing_AnswerOption` carry no `campusId` of their
+      // own and deliberately get no entry here: a delegate with no handler is
+      // simply unscoped, so the only safe shape is to reach answers through their
+      // record's relation, which these handlers already scope.
+      closing_Record: {
         async findMany({ args, query }) {
           args.where = { ...args.where, campusId };
           return query(args);
@@ -653,21 +658,25 @@ export function scopedPrisma(campusId: string) {
           args.where = { ...args.where, campusId };
           return query(args);
         },
+        async groupBy({ args, query }) {
+          args.where = { ...args.where, campusId };
+          return query(args);
+        },
         async findUnique({ args, query }) {
-          const existing = await prisma.interview.findUnique({
+          const existing = await prisma.closing_Record.findUnique({
             where: args.where,
             select: { campusId: true },
           });
           if (existing && existing.campusId !== campusId)
-            accessDenied('Interview');
+            accessDenied('Closing_Record');
           return query(args);
         },
         async findUniqueOrThrow({ args, query }) {
-          const existing = await prisma.interview.findUniqueOrThrow({
+          const existing = await prisma.closing_Record.findUniqueOrThrow({
             where: args.where,
             select: { campusId: true },
           });
-          if (existing.campusId !== campusId) accessDenied('Interview');
+          if (existing.campusId !== campusId) accessDenied('Closing_Record');
           return query(args);
         },
         async create({ args, query }) {
@@ -675,19 +684,19 @@ export function scopedPrisma(campusId: string) {
           return query(args);
         },
         async update({ args, query }) {
-          const existing = await prisma.interview.findUniqueOrThrow({
+          const existing = await prisma.closing_Record.findUniqueOrThrow({
             where: args.where,
             select: { campusId: true },
           });
-          if (existing.campusId !== campusId) accessDenied('Interview');
+          if (existing.campusId !== campusId) accessDenied('Closing_Record');
           return query(args);
         },
         async delete({ args, query }) {
-          const existing = await prisma.interview.findUniqueOrThrow({
+          const existing = await prisma.closing_Record.findUniqueOrThrow({
             where: args.where,
             select: { campusId: true },
           });
-          if (existing.campusId !== campusId) accessDenied('Interview');
+          if (existing.campusId !== campusId) accessDenied('Closing_Record');
           return query(args);
         },
       },

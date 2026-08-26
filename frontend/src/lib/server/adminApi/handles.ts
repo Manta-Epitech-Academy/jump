@@ -39,7 +39,10 @@ export type HandleKind =
   | 'pdfJobId'
   | 'syncErrorType'
   | 'moduleKey'
-  | 'interviewId';
+  | 'closingTemplateId'
+  | 'closingTemplateKey'
+  | 'closingQuestionKey'
+  | 'closingId';
 
 /**
  * Deliberately only the operation and the slice it covers, never where the value
@@ -67,10 +70,17 @@ type Handle = {
   what: string;
   /** French, plural, for a refusal: "identifiants d'événement". */
   frNoun: string;
+  /**
+   * Its gender, because the generated sentence agrees with it and half these
+   * nouns are feminine ("clés"). Required rather than optional so a new handle
+   * cannot inherit the masculine by forgetting: a wrong agreement is not caught
+   * by any test, it is only read, in French, by an admin.
+   */
+  frGender: 'm' | 'f';
   producedBy: Producer[];
   /**
    * Set only when nothing returns it. An unobtainable handle is a defensible
-   * design - it is how `ops_reset_interview` stays safe - but it has to be a
+   * design - it is how `ops_reset_closing` stays safe - but it has to be a
    * decision somebody wrote down, not an oversight that reads the same.
    */
   unobtainable?: { why: string; frSentence: string };
@@ -80,6 +90,7 @@ export const HANDLES: Record<HandleKind, Handle> = {
   eventId: {
     what: 'Event id.',
     frNoun: "identifiants d'événement",
+    frGender: 'm',
     producedBy: [
       { operation: 'config_events' },
       { operation: 'stats_events' },
@@ -105,6 +116,7 @@ export const HANDLES: Record<HandleKind, Handle> = {
   formId: {
     what: 'Feedback form id.',
     frNoun: 'identifiants de questionnaire',
+    frGender: 'm',
     producedBy: [
       { operation: 'config_feedback_forms' },
       { operation: 'stats_feedback_results' },
@@ -113,21 +125,25 @@ export const HANDLES: Record<HandleKind, Handle> = {
   questionKey: {
     what: 'A question\'s stable key inside its form, e.g. "reco". Its wording is not an identifier: it is phrased for students and editable per form.',
     frNoun: 'clés de question',
+    frGender: 'f',
     producedBy: [{ operation: 'stats_feedback_results' }],
   },
   templateName: {
     what: 'Event configuration preset name, which is what identifies it.',
     frNoun: 'noms de modèle',
+    frGender: 'm',
     producedBy: [{ operation: 'config_event_templates' }],
   },
   diplomaCode: {
     what: 'Certificate code: the stable key a design is created and replaced by, and what names the downloaded file.',
     frNoun: 'codes de certificat',
+    frGender: 'm',
     producedBy: [{ operation: 'config_diploma_templates' }],
   },
   diplomaTemplateId: {
     what: 'Certificate id, which is what an event is pointed at.',
     frNoun: 'identifiants de certificat',
+    frGender: 'm',
     producedBy: [
       { operation: 'config_diploma_templates' },
       {
@@ -139,6 +155,7 @@ export const HANDLES: Record<HandleKind, Handle> = {
   pdfJobId: {
     what: 'Document generation job id. It names a document, never a person.',
     frNoun: 'identifiants de génération',
+    frGender: 'm',
     producedBy: [
       {
         operation: 'ops_pdf_jobs_health',
@@ -149,24 +166,45 @@ export const HANDLES: Record<HandleKind, Handle> = {
   syncErrorType: {
     what: 'Kind of synchronisation error.',
     frNoun: "types d'erreur de synchronisation",
+    frGender: 'm',
     producedBy: [{ operation: 'stats_sync_health' }],
   },
   moduleKey: {
     what: 'Dev-workspace section key.',
     frNoun: 'clés de section',
+    frGender: 'f',
     producedBy: [
       { operation: 'config_event_detail' },
       { operation: 'stats_events_overview' },
     ],
   },
-  interviewId: {
-    what: 'Interview id.',
-    frNoun: "identifiants d'entretien",
+  closingTemplateId: {
+    what: 'Closing grid id, as an event points at it.',
+    frNoun: 'identifiants de grille de closing',
+    frGender: 'm',
+    producedBy: [{ operation: 'config_closing_templates' }],
+  },
+  closingTemplateKey: {
+    what: 'Closing grid key, the stable name a grid is authored under.',
+    frNoun: 'clés de grille de closing',
+    frGender: 'f',
+    producedBy: [{ operation: 'config_closing_templates' }],
+  },
+  closingQuestionKey: {
+    what: 'Closing question key, the stable name a bank question is authored under.',
+    frNoun: 'clés de question de closing',
+    frGender: 'f',
+    producedBy: [{ operation: 'config_closing_questions' }],
+  },
+  closingId: {
+    what: 'Closing id.',
+    frNoun: 'identifiants de closing',
+    frGender: 'm',
     producedBy: [],
     unobtainable: {
-      why: 'Read off the admin interviews page. No operation returns one, which is what keeps an irreversible delete out of a model reach: it can carry out a reset on an id a human handed it, never pick a target.',
+      why: 'Read off the admin closings page. No operation returns one, which is what keeps an irreversible delete out of a model reach: it can carry out a reset on an id a human handed it, never pick a target.',
       frSentence:
-        "L'identifiant se lit sur la page des entretiens de l'espace admin : aucune opération n'en renvoie.",
+        "L'identifiant se lit sur la page des closings de l'espace admin : aucune opération n'en renvoie.",
     },
   },
 };
@@ -188,7 +226,13 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   jobId: 'pdfJobId',
   errorType: 'syncErrorType',
   modules: 'moduleKey',
-  interviewId: 'interviewId',
+  // The event binding takes an id, like the certificate one beside it; authoring
+  // takes a key, like `write_diploma_template`'s `code`. Both are produced by the
+  // same configuration read, which returns a grid's id and its key together.
+  closingTemplateId: 'closingTemplateId',
+  templateKey: 'closingTemplateKey',
+  questionKey: 'closingQuestionKey',
+  closingId: 'closingId',
 };
 
 const list = (parts: string[]) =>
@@ -226,7 +270,9 @@ export function handleProvenanceFr(kind: HandleKind): string {
   const handle = HANDLES[kind];
   if (handle.unobtainable) return handle.unobtainable.frSentence;
   const ops = list(handle.producedBy.map((p) => p.operation));
-  return `Les ${handle.frNoun} sont renvoyés par ${
+  return `Les ${handle.frNoun} sont ${
+    handle.frGender === 'f' ? 'renvoyées' : 'renvoyés'
+  } par ${
     handle.producedBy.length > 1 ? 'les opérations' : "l'opération"
   } ${ops}.`;
 }

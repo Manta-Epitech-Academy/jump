@@ -7,18 +7,18 @@ import {
  * The dev-facing "Recommandations" list on a talent fiche. Pure derivation from
  * the talent's current state — each recommendation is a short bold title plus a
  * one-sentence suggested action (call the student, contact the parents, plan the
- * interview, invite to an event). Kept in `domain/` so it is testable without
+ * closing, invite to an event). Kept in `domain/` so it is testable without
  * prisma and shared between the page load and any future cohort-level view.
  *
  * Recommendations auto-appear and auto-disappear: there is no stored state, the
  * list is recomputed from the talent on every load, so the moment a condition
- * stops holding (règlement signed, interview done) its recommendation drops off.
+ * stops holding (règlement signed, closing done) its recommendation drops off.
  *
  * Two INDEPENDENT groups make up the list:
  *   1. The readiness funnel (never connected → onboarding not done → parent
  *      signatures pending) — mutually exclusive: a talent sits at exactly one
  *      rung, so we surface only the first unmet gate, or none once ready.
- *   2. Opportunity / action recommendations (plan the interview, invite to an
+ *   2. Opportunity / action recommendations (plan the closing, invite to an
  *      event for an interest) — each shows on its own condition, regardless of
  *      where the talent is in the funnel. An event opportunity is actionable the
  *      moment the talent picks the interest; it is not blocked by a missing
@@ -32,14 +32,14 @@ export type TalentRecommendationSeverity = 'urgent' | 'info';
  * copyable contact. How it renders depends on the recommendation `kind`: a
  * `funnel` nudge shows the single fastest reach (phone, email as fallback),
  * while an `opportunity` shows both email and phone. `null` = no contact panel
- * (the action is the dev's own, e.g. plan an interview).
+ * (the action is the dev's own, e.g. plan a closing).
  */
 export type TalentRecommendationContact = 'parent' | 'student' | null;
 
 /**
  * Which of the two groups (see the module doc) this recommendation belongs to:
  * `funnel` = a readiness gate, an urgent single nudge to unblock the dossier;
- * `opportunity` = an action to engage the talent (plan the interview, invite to
+ * `opportunity` = an action to engage the talent (plan the closing, invite to
  * an event). It drives how the contact panel renders — a funnel nudge wants the
  * one fastest way to reach the person, an opportunity surfaces every channel.
  */
@@ -82,8 +82,8 @@ export type TalentRecommendationInput = TalentOnboardingFields & {
   rulesCompliant: boolean;
   /** Image-rights decision settled by the guardian (accepted or refused). */
   imageRightsDecided: boolean;
-  /** A completed orientation interview exists for this talent. */
-  hasCompletedInterview: boolean;
+  /** A finalised closing exists for this talent, at any event. */
+  hasCompletedClosing: boolean;
   /**
    * Verbatim event-opportunity messages: one per tech interest the student
    * picked that carries an `Interest.recommendationMessage`. Each may contain a
@@ -146,16 +146,19 @@ export function deriveTalentRecommendations(
   const funnelRec = deriveFunnelRecommendation(t);
   if (funnelRec) recommendations.push(funnelRec);
 
-  // Opportunities: evaluated independently of the funnel. The interview only
-  // needs the talent to be reachable (connected), not the dossier complete — a
-  // parent signature has no bearing on running an orientation interview.
-  if (t.connected && !t.hasCompletedInterview) {
+  // Opportunities: evaluated independently of the funnel. A closing only needs
+  // the talent to be reachable (connected), not the dossier complete — a parent
+  // signature has no bearing on sitting down with them.
+  if (t.connected && !t.hasCompletedClosing) {
     recommendations.push({
-      id: 'interview-todo',
+      id: 'closing-todo',
       kind: 'opportunity',
       severity: 'info',
-      shortTitle: 'Entretien à réaliser',
-      message: `Vous n'avez pas encore réalisé l'entretien d'orientation de ${t.prenom}. Lancez-le avec le bouton « Faire l'entretien » sur cette fiche.`,
+      shortTitle: 'Closing à réaliser',
+      // A closing is an event-scoped act, so it starts from the event's closings
+      // list, not from this fiche. The copy names where it actually happens: the
+      // button it used to point at here no longer exists.
+      message: `Aucun closing n'a encore été mené avec ${t.prenom}. Ouvrez la liste des closings de l'événement concerné pour le lancer.`,
       contact: null,
     });
   }

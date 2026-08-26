@@ -9,6 +9,7 @@ const gates = (over: Partial<EventSurfaceGates> = {}): EventSurfaceGates => ({
   modules: ['inscrits', 'emargement', 'bilan'],
   hasPlanning: false,
   hasFeedbackForm: true,
+  hasClosingTemplate: true,
   ...over,
 });
 
@@ -20,7 +21,11 @@ describe('landingSurface', () => {
   it('should fall back to the first reachable surface when the preferred one is gated off by data', () => {
     // Arrange: bilan is enabled as a module but resolves no live form, and the
     // event has no schedule, so neither bilan nor planning is reachable.
-    const event = gates({ hasFeedbackForm: false, hasPlanning: false });
+    const event = gates({
+      hasFeedbackForm: false,
+      hasPlanning: false,
+      hasClosingTemplate: false,
+    });
     // Act
     const bilan = landingSurface(event, 'bilan');
     const planning = landingSurface(event, 'planning');
@@ -30,14 +35,23 @@ describe('landingSurface', () => {
   });
 
   it('should fall back to the first reachable surface when nothing is preferred', () => {
-    expect(landingSurface(gates({ modules: ['entretiens'] }))).toBe(
-      'entretiens',
-    );
+    expect(landingSurface(gates({ modules: ['closings'] }))).toBe('closings');
   });
 
   it('should return null when the event exposes nothing reachable', () => {
     expect(
       landingSurface(gates({ modules: ['bilan'], hasFeedbackForm: false })),
+    ).toBeNull();
+  });
+
+  // The closings surface is gated on its module AND on the event naming a grid,
+  // the same pair bilan is gated on. Without it the nav would offer a page that
+  // 404s, since a grid-less closing has no questions to ask.
+  it('should not reach closings when the event names no grid', () => {
+    expect(
+      landingSurface(
+        gates({ modules: ['closings'], hasClosingTemplate: false }),
+      ),
     ).toBeNull();
   });
 });
@@ -55,8 +69,8 @@ describe('surfaceFromPath', () => {
   });
 
   it('should read the surface under a base path', () => {
-    expect(surfaceFromPath('/jump/staff/dev/events/abc/entretiens')).toBe(
-      'entretiens',
+    expect(surfaceFromPath('/jump/staff/dev/events/abc/closings')).toBe(
+      'closings',
     );
   });
 

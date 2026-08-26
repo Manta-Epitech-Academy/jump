@@ -19,7 +19,7 @@
     [EVENT_MODULES.INSCRITS]: Users,
     [EVENT_MODULES.EMARGEMENT]: ClipboardCheck,
     [EVENT_MODULES.BILAN]: ChartColumn,
-    [EVENT_MODULES.ENTRETIENS]: MessagesSquare,
+    [EVENT_MODULES.CLOSINGS]: MessagesSquare,
   } as const;
 
   const Icon = $derived(ICONS[module]);
