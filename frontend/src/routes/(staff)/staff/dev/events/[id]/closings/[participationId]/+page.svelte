@@ -29,7 +29,7 @@
   />
 
   <div class="grid gap-6 lg:grid-cols-10">
-    <div class="space-y-6 lg:col-span-7">
+    <div class="min-w-0 space-y-6 lg:col-span-7">
       <ClosingFlow
         form={data.form}
         grid={data.grid}

@@ -590,7 +590,11 @@
     {:else if saveState === 'saved'}
       <Check class="h-3.5 w-3.5 text-epi-tech-ink" /> Enregistré
     {:else}
-      Enregistrement automatique
+      <!-- A hint, not a status: it says what the form will do, and it is the
+           longest of the three labels. On a phone the two controls either side
+           are what the footer is for, so the hint steps aside there while the
+           real statuses ("Enregistrement…", "Enregistré") always show. -->
+      <span class="hidden sm:inline">Enregistrement automatique</span>
     {/if}
   </p>
 {/snippet}
@@ -984,7 +988,7 @@
       {#if !isIntro}
         <div class="border-t px-5 py-3.5">
           <div
-            class="mx-auto flex w-full max-w-2xl items-center justify-between gap-3"
+            class="mx-auto flex w-full max-w-2xl flex-wrap items-center justify-between gap-3"
           >
             <Button variant="ghost" onclick={goPrev}>
               <ArrowLeft class="mr-1.5 h-4 w-4" />

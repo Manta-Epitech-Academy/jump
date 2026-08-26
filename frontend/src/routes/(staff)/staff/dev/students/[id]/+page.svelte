@@ -45,7 +45,7 @@
     <!-- Left 70%: the talent's dossier. A closing used to take this column over
          behind a toggle; it is an event-scoped act and now has its own page under
          its event, so the fiche reads closings back rather than conducting them. -->
-    <div class="space-y-6 lg:col-span-7">
+    <div class="min-w-0 space-y-6 lg:col-span-7">
       <EpiSection title="Centres d'intérêt" accent="tech">
         {@const hasChips = (data.student.interests ?? []).length > 0}
         {@const hasQuotes = Boolean(
