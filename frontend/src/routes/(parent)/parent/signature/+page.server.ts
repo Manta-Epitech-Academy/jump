@@ -22,8 +22,11 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, resolve('/parent/reglement'));
   }
 
-  // Children whose guardian has not yet decided either way — a refusal is a
-  // settled decision and drops out here just as an authorization does.
+  // Children whose guardian has not yet decided for the dossier in hand — a
+  // refusal is a settled decision and drops out here just as an authorization
+  // does. The column is a projection of the talent's most recent dossier, so a
+  // returning family reappears here the year their child reopens one: the
+  // decision is taken once per school year.
   const undecidedChildren = await prisma.talent.findMany({
     where: {
       parentEmail: locals.user.email,
@@ -40,6 +43,16 @@ export const load: PageServerLoad = async ({ locals }) => {
       parentNom: true,
       parentType: true,
       parentCivilite: true,
+      // What this guardian last decided, for the year they decided it. Shown on
+      // the form so somebody asked a second time is not answering blind: without
+      // it a returning parent sees a question identical to last year's with no
+      // trace of the answer they gave, and a mis-click silently reverses a
+      // refusal.
+      imageRightsRecords: {
+        orderBy: [{ decidedAt: 'desc' }, { createdAt: 'desc' }],
+        take: 1,
+        select: { decision: true, schoolYear: true },
+      },
     },
   });
 
@@ -48,7 +61,10 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   return {
-    children: undecidedChildren,
+    children: undecidedChildren.map(({ imageRightsRecords, ...child }) => ({
+      ...child,
+      previousDecision: imageRightsRecords[0] ?? null,
+    })),
   };
 };
 

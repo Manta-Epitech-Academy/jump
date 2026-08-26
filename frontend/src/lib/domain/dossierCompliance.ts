@@ -39,12 +39,23 @@ export function isRulesCompliant(
  * the parent flow, so this is exactly "will this parent be asked for something
  * when they next log in", inverted.
  *
- * **Read the talent's own columns, never a year-narrowed view of them.** The
- * flat columns hold the most recent dossier, and this question is not about a
- * year: the parent flow (`applyRouteGuards`) and the relance audience both ask
- * it unscoped, so narrowing it on one surface makes that surface promise a chase
- * nobody is running. A guardian is re-asked when their child reopens a dossier,
- * and that is already visible here, because reopening one moves the projection.
+ * **Read the talent's own columns, never a year-narrowed view of them.** The two
+ * fields are both projections of the talent's most recent dossier, so reading
+ * them as they stand already answers "for the dossier in hand", which is the
+ * question. Narrowing them onto a named year turns this into an aggregate's
+ * question instead, and a surface that did that promised a chase nobody was
+ * running: the admin directory's chip read "En attente" for every talent whose
+ * dossier predated the cutover while its own filter and KPI tile counted them
+ * complete.
+ *
+ * A guardian is re-asked when their child reopens a dossier, and that is already
+ * visible here, because reopening one moves the projection. That now holds for
+ * BOTH acts: the image-rights decision became annual and joined the projection,
+ * so a returning family is asked for both again, from this one predicate.
+ *
+ * This is emphatically not the predicate that decides whether a photo may be
+ * published (`imageRightsStance` in `domain/imageRights.ts`). What a guardian
+ * owes is a question about a dossier; what applies to a student is not.
  *
  * `db/dossierCompliance.ts` holds the SQL twins of this predicate and reads the
  * same two fields, so a filter and a badge cannot disagree.

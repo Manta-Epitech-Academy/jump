@@ -248,8 +248,12 @@ function talentWhere(spec: RecipientSpec): Prisma.TalentWhereInput {
   // = at least one still owed, the "relance every blocked parent" target.
   if (f.parentStatus === 'pending') and.push(parentBlockedWhere);
   if (f.parentStatus === 'complete') and.push(parentCompleteWhere);
-  // Image rights: OR the selected states. `undecided` is the absence of a
-  // decision; `accepted`/`refused` match the stored enum directly.
+  // Image rights: OR the selected states, for the dossier in hand. The columns
+  // are a projection of the talent's most recent dossier, so `undecided` means
+  // "nothing decided for the year they are on", which is the relance target: a
+  // returning family whose guardian decided last year is asked again, and shows
+  // up here. It is NOT "never decided anything", and it is not what says whether
+  // a photo may be published (`imageRightsStance`).
   if (f.imageRights?.length) {
     and.push({
       OR: f.imageRights.map((status) =>

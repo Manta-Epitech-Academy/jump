@@ -172,17 +172,19 @@ export const actions: Actions = {
     try {
       // The "view" button opens the URL in a new tab, so render the PDF inline
       // rather than forcing a download. The custom filename is a nicety: if a
-      // row ever carries an unknown documentType, fall back to no override so
-      // the preview still works instead of 500-ing on the filename build.
-      // The school year is part of the name for a per-year document, so two
-      // règlement jobs on the same talent don't preview under one filename.
-      const filename = isOnboardingDocumentType(job.documentType)
-        ? onboardingDownloadFilename(
-            job.documentType,
-            job.talent,
-            job.schoolYear,
-          )
-        : undefined;
+      // row carries an unknown documentType, or no school year (a job enqueued
+      // before its kind became annual), fall back to no override so the preview
+      // still works instead of 500-ing on the filename build.
+      // The school year is part of the name, so two jobs of the same kind on the
+      // same talent don't preview under one filename.
+      const filename =
+        isOnboardingDocumentType(job.documentType) && job.schoolYear
+          ? onboardingDownloadFilename(
+              job.documentType,
+              job.talent,
+              job.schoolYear,
+            )
+          : undefined;
       const url = await getStorage().getDownloadUrl(job.filePath, {
         filename,
         contentType: 'application/pdf',

@@ -2437,6 +2437,29 @@ async function seedStudents(): Promise<
       // src/lib/content/reglement (STANDALONE RULE: no $lib import here).
       reglementVersion:
         fullyOnboarded || imageRightsDecision ? '2026-2027' : null,
+      // The guardian's other act for the year, decided in the same session as
+      // the co-signature above. Part of `dossier` rather than of `talent` alone
+      // because these four are projected columns now that the decision is
+      // annual: a talent carrying them with no matching dossier row is a state
+      // the runtime cannot reach, and the first wizard step they took would
+      // upsert a fresh dossier and wipe the decision off the projection.
+      imageRightsDecision,
+      imageRightsDecidedAt: imageRightsDecision ? ts : null,
+      imageRightsSignerPrenom: imageRightsDecision ? 'Sophie' : null,
+      imageRightsSignerNom: imageRightsDecision ? 'Martin' : null,
+    };
+
+    // What the dossier carries and the projection does not: read only when
+    // regenerating that year's document (`ONBOARDING_DOSSIER_ONLY_FIELDS`).
+    // `imageRightsVersion` follows the same rule as `reglementVersion`: always
+    // written with the decision itself, so a decided row with no version is
+    // unreachable at runtime and would re-render the legacy wording under a
+    // current decision. Mirrors CURRENT_DROIT_IMAGE_VERSION in
+    // src/lib/content/droit-image (STANDALONE RULE: no $lib import here).
+    const dossierOnly = {
+      imageRightsRelationship: imageRightsDecision ? signerRelationship : null,
+      imageRightsSignedCity: imageRightsDecision ? s.campus : null,
+      imageRightsVersion: imageRightsDecision ? '2026-2027' : null,
     };
 
     const talent = {
@@ -2466,10 +2489,6 @@ async function seedStudents(): Promise<
       civilite,
       parentType,
       parentCivilite: hasParentInfo ? (i % 3 === 0 ? 'homme' : 'femme') : null,
-      imageRightsDecision,
-      imageRightsDecidedAt: imageRightsDecision ? ts : null,
-      imageRightsSignerPrenom: imageRightsDecision ? 'Sophie' : null,
-      imageRightsSignerNom: imageRightsDecision ? 'Martin' : null,
       parent2Type: null,
       parent2Civilite: null,
       parent2Nom: null,
@@ -2506,6 +2525,7 @@ async function seedStudents(): Promise<
       talent,
       sf,
       dossier,
+      dossierOnly,
       signCity: s.campus,
       signerRelationship,
       email: s.email,
@@ -2564,18 +2584,24 @@ async function seedStudents(): Promise<
       const talentId = talentIdByExternalId.get(x.talent.externalId);
       if (
         !talentId ||
-        !x.talent.imageRightsDecision ||
-        !x.talent.imageRightsDecidedAt
+        !x.dossier.imageRightsDecision ||
+        !x.dossier.imageRightsDecidedAt
       )
         return null;
       return {
         talentId,
-        decision: x.talent.imageRightsDecision,
-        decidedAt: x.talent.imageRightsDecidedAt,
-        signerPrenom: x.talent.imageRightsSignerPrenom,
-        signerNom: x.talent.imageRightsSignerNom,
-        relationship: x.signerRelationship,
-        city: x.signCity,
+        // The year the decision answers for, the same one its dossier row is
+        // filed under: a ledger row whose year disagreed with the dossier it
+        // projects onto would put the parent portal back into a loop, asking for
+        // a decision the projection says is already given.
+        schoolYear,
+        version: x.dossierOnly.imageRightsVersion,
+        decision: x.dossier.imageRightsDecision,
+        decidedAt: x.dossier.imageRightsDecidedAt,
+        signerPrenom: x.dossier.imageRightsSignerPrenom,
+        signerNom: x.dossier.imageRightsSignerNom,
+        relationship: x.dossierOnly.imageRightsRelationship,
+        city: x.dossierOnly.imageRightsSignedCity,
         source: 'parent_portal' as const,
       };
     })
@@ -2612,7 +2638,7 @@ async function seedStudents(): Promise<
     .map((x) => {
       const talentId = talentIdByExternalId.get(x.talent.externalId);
       if (!talentId || x.talent.onboardingSchoolYear == null) return null;
-      return { talentId, schoolYear, ...x.dossier };
+      return { talentId, schoolYear, ...x.dossier, ...x.dossierOnly };
     })
     .filter((d): d is NonNullable<typeof d> => d !== null);
   await prisma.onboarding_Record.createMany({ data: onboardingRecordData });

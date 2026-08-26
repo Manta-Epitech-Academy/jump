@@ -1,7 +1,9 @@
 import { prisma } from '$lib/server/db';
 import type { ReglementVersion } from '$lib/content/reglement';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
-import { upsertOnboardingYearRecord } from './onboardingYearService';
+import {
+  guardianActSchoolYear,
+  upsertOnboardingYearRecord,
+} from './onboardingYearService';
 import {
   enqueueOnboardingPdfJob,
   runOnboardingPdfJob,
@@ -22,11 +24,10 @@ import {
  * the rest of the onboarding PDF pipeline: the caller's response isn't blocked
  * on Puppeteer/S3.
  *
- * The co-signature is filed on the dossier the projection currently describes
- * (`Talent.onboardingSchoolYear`) - the same one the parent page rendered the
- * text of, and the only one it ever offers to sign. A talent with no dossier at
- * all cannot appear on that page; the fallback to the year in progress is there
- * so an unexpected call opens the right row rather than none.
+ * The co-signature is filed on the dossier the projection currently describes,
+ * through the shared {@link guardianActSchoolYear}: the same one the parent page
+ * rendered the text of, and the same one the guardian's image-rights decision
+ * lands on in the same session.
  *
  * `reglementVersion` is the version the guardian was actually shown, and it is
  * written only when the dossier carries none yet. The guardian is invited at the
@@ -48,11 +49,7 @@ export async function recordParentRulesSignature(args: {
   const now = new Date();
 
   const job = await prisma.$transaction(async (tx) => {
-    const talent = await tx.talent.findUniqueOrThrow({
-      where: { id: args.talentId },
-      select: { onboardingSchoolYear: true },
-    });
-    const schoolYear = talent.onboardingSchoolYear ?? currentSchoolYearLabel();
+    const schoolYear = await guardianActSchoolYear(tx, args.talentId);
 
     // An already-pinned version is the text the talent signed, and it wins:
     // whoever signs first pins it, the second signer joins that same text. Read

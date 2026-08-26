@@ -113,7 +113,14 @@ export function deriveOnboardingStatus(
  * stopping being projected.
  *
  * The gates come first, in ladder order, then what freezes the year's règlement
- * signatures. What is NOT projected, and why, is documented on the Prisma model.
+ * signatures, then the guardian's image-rights decision for that year. The last
+ * two are both acts of the legal guardian rather than rungs of the talent's
+ * ladder, and they are projected for the same reason: "does this guardian still
+ * owe something" is a question about the dossier in hand, and the projection is
+ * what makes it answerable in one column compare.
+ *
+ * See {@link ONBOARDING_DOSSIER_ONLY_FIELDS} for what a dossier carries and
+ * deliberately does not project.
  */
 export const ONBOARDING_PROJECTED_FIELDS = [
   'infoValidatedAt',
@@ -132,10 +139,45 @@ export const ONBOARDING_PROJECTED_FIELDS = [
   'parentRulesSignerNom',
   'parentRulesRelationship',
   'parentRulesSignedCity',
+  'imageRightsDecision',
+  'imageRightsDecidedAt',
+  'imageRightsSignerPrenom',
+  'imageRightsSignerNom',
 ] as const;
 
 export type OnboardingProjectedField =
   (typeof ONBOARDING_PROJECTED_FIELDS)[number];
+
+/**
+ * Columns a dossier carries that are deliberately NOT projected onto `Talent`,
+ * because no reader of the projection asks for them.
+ *
+ * Two kinds, and both would be actively wrong on the talent row:
+ *
+ *  - **The renders** (`rulesFilePath`, `imageRightsFilePath`). One artifact per
+ *    school year, so a single column per talent cannot hold them: that is
+ *    exactly the shape that let a second year's PDF overwrite a co-signed first
+ *    year. They are written by `onboardingPdfJobService` straight onto the row
+ *    the render was made from, never through the projection.
+ *  - **What only the render needs** (`reglementVersion` is projected because the
+ *    talent row is where a co-signing guardian reads it back, but the
+ *    image-rights version, relationship and place of signature are read only
+ *    when regenerating that year's document, off that year's row).
+ *
+ * Named as a set rather than spelled out as a union of string literals at the
+ * one place that needs it, so "on the dossier, not on the talent" is a concept
+ * with a name instead of a list that grows by accretion.
+ */
+export const ONBOARDING_DOSSIER_ONLY_FIELDS = [
+  'rulesFilePath',
+  'imageRightsFilePath',
+  'imageRightsVersion',
+  'imageRightsRelationship',
+  'imageRightsSignedCity',
+] as const;
+
+export type OnboardingDossierOnlyField =
+  (typeof ONBOARDING_DOSSIER_ONLY_FIELDS)[number];
 
 /**
  * A talent's onboarding projection together with the year it describes.
@@ -145,14 +187,24 @@ export type OnboardingProjectedField =
  * distinction is the whole point of the stamp, and it splits every reader in two:
  *
  *   - **"Did they ever / when did they"** reads the flat columns and ignores the
- *     stamp. Regenerating a signed PDF, the signature-date time series, the
- *     broadcast filters, the image-rights display, the early-bird count, serving
- *     a document from `/settings/documents`: all of those mean the last
- *     signature, and the last signature is exactly what the columns hold.
+ *     stamp. The signature-date time series, the early-bird count: those mean
+ *     the last signature, and the last signature is exactly what the columns
+ *     hold. Naming a single document is NOT in this family, whatever it feels
+ *     like: regenerating a signed PDF, serving one from `/settings/documents`
+ *     and the staff archive all read the dossier row, because a talent has one
+ *     document per year they walked and the columns only describe the last.
  *   - **"Is the dossier for year Y done"** goes through
  *     {@link onboardingFieldsForYear} (in memory) or narrows on
  *     `onboardingSchoolYear` (in SQL). The wizard, the guards, the staff dossier
- *     statuses and the cohort aggregates all ask this one.
+ *     statuses, the broadcast filters, what a guardian still owes and the cohort
+ *     aggregates all ask this one.
+ *   - **"What applies to this person right now"** reads neither. There is
+ *     exactly one such question and it is the image-rights stance: whether a
+ *     photo may be published is decided by the last decision a guardian ever
+ *     made, so it comes off the `ImageRightsDecisionRecord` ledger and is
+ *     resolved by `imageRightsStance` (`domain/imageRights.ts`). Answering it
+ *     from these columns would let a refusal lapse into "nobody asked yet" at
+ *     the cutover, silently, on printed material.
  *
  * Y is not always the current year: an aggregate scoped to a past school year
  * asks about that year's dossier, which is what makes the historical funnel stop
@@ -251,17 +303,19 @@ export function clearOnboardingTimestamps(): Record<
  * outlives the signature it describes. Adding a new talent-signed artifact here
  * lights up both paths at once.
  *
- * Scope is the *talent's* signature only. The guardian's règlement co-signature
- * (`parentRules*`) and the parent-decided image-rights artifacts sit outside the
- * talent ladder and are cleared by their own flows, never by a talent reset.
+ * Scope is the *talent's* signature only. The guardian's two acts, the règlement
+ * co-signature (`parentRules*`) and the image-rights decision
+ * (`imageRights*`), are projections of the dossier rather than artifacts the
+ * talent produced: the reset paths null them explicitly next to this patch, in
+ * the same statement that deletes the dossier rows they mirror.
  *
- * The rendered règlement PDF is deliberately NOT here, and it is the one thing
- * a reader expects to find: it lives on the dossier
- * (`Onboarding_Record.rulesFilePath`), because it is produced once per school
- * year. Both reset paths delete the dossier rows outright, so the render leaves
- * with the signature it attests instead of being nulled alongside it. What each
- * path must still do by hand is collect those keys for deletion from the bucket,
- * which is a side effect no `{ field: null }` patch can express.
+ * The rendered PDFs are deliberately NOT here, and they are the thing a reader
+ * expects to find: both live on the dossier (`Onboarding_Record.rulesFilePath`
+ * and `imageRightsFilePath`), because each is produced once per school year.
+ * Both reset paths delete the dossier rows outright, so a render leaves with the
+ * signature it attests instead of being nulled alongside it. What each path must
+ * still do by hand is collect those keys for deletion from the bucket, which is
+ * a side effect no `{ field: null }` patch can express.
  */
 const TALENT_ONBOARDING_ARTIFACT_FIELDS = [
   'rulesSignedCity',

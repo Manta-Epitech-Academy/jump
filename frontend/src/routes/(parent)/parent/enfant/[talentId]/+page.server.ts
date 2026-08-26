@@ -33,6 +33,14 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       // onboarding — same rationale as `/parent/signature` and `/parent/reglement`.
       parentPrenom: true,
       parentNom: true,
+      // Last decision taken and the year it answered for, shown on the form for
+      // the same reason as on `/parent/signature`: the decision is annual, so a
+      // guardian can meet this question again with an answer already on file.
+      imageRightsRecords: {
+        orderBy: [{ decidedAt: 'desc' }, { createdAt: 'desc' }],
+        take: 1,
+        select: { decision: true, schoolYear: true },
+      },
     },
   });
 
@@ -133,7 +141,10 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       id: child.id,
       prenom: child.prenom,
       nom: child.nom,
+      parentPrenom: child.parentPrenom,
+      parentNom: child.parentNom,
       imageRightsStatus: imageRightsStatus(child),
+      previousDecision: child.imageRightsRecords[0] ?? null,
     },
     upcomingEvents: upcomingParticipations.map((p) => ({
       id: p.event.id,

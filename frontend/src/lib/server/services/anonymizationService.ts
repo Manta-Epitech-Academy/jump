@@ -57,20 +57,23 @@ export async function anonymizeTalent(
       user: { select: { email: true } },
       parentEmail: true,
       parent2Email: true,
+      // RETIRED, both of them, read here for one release only and dropped from
+      // this select with the columns themselves. They still hold the pre-annual
+      // `rules.pdf` / `image-rights.pdf` keys, and a talent whose document was
+      // regenerated after the migration has a dossier pointing at the new
+      // year-keyed object instead, leaving that old one referenced by nothing
+      // but this column. Collecting both sides is what keeps the transition from
+      // leaving a named minor's PDF in the bucket.
       imageRightsFilePath: true,
-      // RETIRED, read here for one release only, and dropped from this select
-      // with the column itself. It still holds the pre-annual `rules.pdf` key,
-      // and a talent whose règlement was regenerated after the migration has a
-      // dossier pointing at the new year-keyed object instead - leaving that old
-      // one referenced by nothing but this column. Collecting both is what keeps
-      // the transition from leaving a named minor's PDF in the bucket.
       rulesFilePath: true,
-      // Every year's règlement render, not just the latest: the dossier rows are
-      // deleted below, so a key not collected here is an orphaned PDF of a named
-      // minor left in the bucket with nothing pointing at it. That is the whole
-      // erasure failing quietly, so it is read from the rows rather than from the
-      // projection.
-      onboardingRecords: { select: { rulesFilePath: true } },
+      // Every year's renders, both kinds, not just the latest: the dossier rows
+      // are deleted below, so a key not collected here is an orphaned PDF of a
+      // named minor left in the bucket with nothing pointing at it. That is the
+      // whole erasure failing quietly, so it is read from the rows rather than
+      // from the projection.
+      onboardingRecords: {
+        select: { rulesFilePath: true, imageRightsFilePath: true },
+      },
     },
   });
   if (!talent) return [];
@@ -91,7 +94,10 @@ export async function anonymizeTalent(
       [
         talent.imageRightsFilePath,
         talent.rulesFilePath,
-        ...talent.onboardingRecords.map((d) => d.rulesFilePath),
+        ...talent.onboardingRecords.flatMap((d) => [
+          d.rulesFilePath,
+          d.imageRightsFilePath,
+        ]),
       ].filter((k): k is string => !!k),
     ),
   ];

@@ -11,17 +11,18 @@ import {
 
 export type OnboardingPdfDocumentType = OnboardingDocumentType;
 
-// Snapshot of the generator inputs, frozen at signature time. Parsed (not
-// cast) on read so a malformed payload surfaces as a clean job error instead
-// of throwing midway through Puppeteer.
+// What the signing act recorded about itself, frozen at enqueue time.
+//
+// The worker no longer renders from it: both document kinds read the dossier
+// they belong to, so a retry days later renders that year's current state rather
+// than a stale snapshot. What this is FOR is the opposite question, and it is
+// the one that matters when a render and a dossier disagree (the class of defect
+// this pipeline has now produced twice): it says what the job was asked to do,
+// so `/staff/admin/onboarding-pdfs` can tell a stale job apart from a dossier
+// that moved under it.
 const payloadSchema = z.object({
   studentName: z.string(),
   city: z.string().optional(),
-  signerName: z.string().optional(),
-  relationship: z.string().optional(),
-  // image-rights only: which way the guardian decided. Optional for back-compat
-  // with rows enqueued before refusal existed (the generator defaults to accept).
-  decision: z.enum(['accepted', 'refused']).optional(),
   signedAt: z.string(),
 });
 export type OnboardingPdfJobPayload = z.infer<typeof payloadSchema>;
@@ -39,10 +40,10 @@ export function enqueueOnboardingPdfJob(
     documentType: OnboardingPdfDocumentType;
     payload: OnboardingPdfJobPayload;
     /**
-     * Which dossier a `rules` job renders. Required in practice for `rules` and
-     * meaningless for `image-rights`: the enqueuing signature knows the year, and
-     * resolving it when the job RUNS would read whatever dossier is current by
-     * then, which for a queued or retried job is not necessarily the one signed.
+     * Which dossier this job renders. Required in practice for both kinds, since
+     * both are per-year: the enqueuing act knows the year, and resolving it when
+     * the job RUNS would read whatever dossier is current by then, which for a
+     * queued or retried job is not necessarily the one that was signed.
      */
     schoolYear?: string | null;
   },
@@ -93,65 +94,81 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
     job = await prisma.onboardingPdfJob.findUnique({ where: { id: jobId } });
     if (!job) return;
 
-    const payload = payloadSchema.parse(job.payload);
     const documentType = job.documentType as OnboardingPdfDocumentType;
 
-    // `rules` is a shared multi-signer artifact (student + guardian co-sign the
-    // same règlement). The worker reads the talent's current signature columns
-    // and renders whichever blocks exist, so re-enqueueing on either signature
-    // produces a PDF that reflects the latest state of both. Image-rights stays
-    // payload-driven (single signer, snapshot at signature time).
+    const descriptor = ONBOARDING_DOCUMENTS[documentType];
+    const filePathField = descriptor.dossierFilePathField;
+    if (!filePathField) {
+      // Only the charte, which has no PDF and is never enqueued. Refusing loudly
+      // beats rendering an empty document onto a key nothing will ever read.
+      throw new Error(
+        `Le type de document "${documentType}" ne produit pas de PDF.`,
+      );
+    }
+
+    const talent = await prisma.talent.findUniqueOrThrow({
+      where: { id: job.talentId },
+      select: { prenom: true, nom: true, onboardingSchoolYear: true },
+    });
+    // The dossier this render belongs to, from the job. The fallback covers a
+    // job enqueued before the column existed, or before `image-rights` started
+    // carrying one, whose talent had exactly one dossier at the time (see the
+    // two migrations).
+    const dossierSchoolYear =
+      job.schoolYear ?? talent.onboardingSchoolYear ?? currentSchoolYearLabel();
+
+    // BOTH documents are read off THAT dossier, never off the flat projection on
+    // `Talent`. The projection holds the most recent dossier, so a job for an
+    // earlier year - queued behind the browser pool, or retried from the admin
+    // page days later - would otherwise render this year's state under that
+    // year's document. `rules` has always worked this way; `image-rights` used
+    // to render from a payload snapshot instead, which was the same defect one
+    // layer along: it froze the decision at enqueue time, so a retry after a
+    // change of mind re-published a superseded choice.
+    const dossier = await prisma.onboarding_Record.findUnique({
+      where: {
+        talentId_schoolYear: {
+          talentId: job.talentId,
+          schoolYear: dossierSchoolYear,
+        },
+      },
+      select: {
+        rulesSignedAt: true,
+        rulesSignedCity: true,
+        reglementVersion: true,
+        parentRulesSignedAt: true,
+        parentRulesSignerPrenom: true,
+        parentRulesSignerNom: true,
+        parentRulesRelationship: true,
+        parentRulesSignedCity: true,
+        imageRightsDecision: true,
+        imageRightsDecidedAt: true,
+        imageRightsSignerPrenom: true,
+        imageRightsSignerNom: true,
+        imageRightsRelationship: true,
+        imageRightsSignedCity: true,
+        imageRightsVersion: true,
+      },
+    });
+    if (!dossier) {
+      throw new Error(
+        `Dossier d'inscription introuvable pour l'année ${dossierSchoolYear}.`,
+      );
+    }
+
+    const studentName = `${talent.prenom} ${talent.nom}`;
     let pdf: Uint8Array<ArrayBuffer>;
-    // Set for a `rules` job, so the write-back below knows which dossier row to
-    // stamp; null for `image-rights`, which is a talent-level artifact.
-    let dossierSchoolYear: string | null = null;
     if (documentType === 'rules') {
-      const talent = await prisma.talent.findUniqueOrThrow({
-        where: { id: job.talentId },
-        select: { prenom: true, nom: true, onboardingSchoolYear: true },
-      });
-      // The dossier this render belongs to, from the job. The fallback covers a
-      // job enqueued before the column existed, whose talent had exactly one
-      // dossier at the time (see the migration).
-      dossierSchoolYear =
-        job.schoolYear ??
-        talent.onboardingSchoolYear ??
-        currentSchoolYearLabel();
-      // Signatures read off THAT dossier, never off the flat projection on
-      // `Talent`. The projection holds the most recent dossier, so a job for an
-      // earlier year - queued behind the browser pool, or retried from the admin
-      // page days later - would otherwise render this year's signatures under
-      // that year's document.
-      const dossier = await prisma.onboarding_Record.findUnique({
-        where: {
-          talentId_schoolYear: {
-            talentId: job.talentId,
-            schoolYear: dossierSchoolYear,
-          },
-        },
-        select: {
-          rulesSignedAt: true,
-          rulesSignedCity: true,
-          reglementVersion: true,
-          parentRulesSignedAt: true,
-          parentRulesSignerPrenom: true,
-          parentRulesSignerNom: true,
-          parentRulesRelationship: true,
-          parentRulesSignedCity: true,
-        },
-      });
-      if (!dossier) {
-        throw new Error(
-          `Dossier d'inscription introuvable pour l'année ${dossierSchoolYear}.`,
-        );
-      }
+      // A shared multi-signer artifact (student + guardian co-sign the same
+      // règlement). Whichever blocks exist are rendered, so re-enqueueing on
+      // either signature produces a PDF reflecting the latest state of both.
       const parentSignerFull =
         dossier.parentRulesSignerPrenom && dossier.parentRulesSignerNom
           ? `${dossier.parentRulesSignerPrenom} ${dossier.parentRulesSignerNom}`
           : null;
       pdf = await generateOnboardingPDF({
         type: documentType,
-        studentName: `${talent.prenom} ${talent.nom}`,
+        studentName,
         // Pinned to what was signed, not to the current wording: this artifact
         // is re-rendered on every co-signature, so reading the live text here
         // would rewrite an already-signed document.
@@ -179,51 +196,51 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
         },
       });
     } else {
+      if (!dossier.imageRightsDecision || !dossier.imageRightsDecidedAt) {
+        throw new Error(
+          `Aucune décision de droit à l'image sur le dossier ${dossierSchoolYear}.`,
+        );
+      }
+      const signerName =
+        [dossier.imageRightsSignerPrenom, dossier.imageRightsSignerNom]
+          .filter(Boolean)
+          .join(' ') || undefined;
       pdf = await generateOnboardingPDF({
         type: documentType,
-        decision: payload.decision,
-        studentName: payload.studentName,
-        signerName: payload.signerName,
-        relationship: payload.relationship,
-        city: payload.city,
-        signedAt: new Date(payload.signedAt),
+        studentName,
+        schoolYear: dossierSchoolYear,
+        decision: dossier.imageRightsDecision,
+        signerName,
+        relationship: dossier.imageRightsRelationship ?? undefined,
+        city: dossier.imageRightsSignedCity ?? undefined,
+        signedAt: dossier.imageRightsDecidedAt,
+        // Same reason as `reglementVersion` above, and it is what makes a
+        // superseded decision reproducible from its own ledger row.
+        droitImageVersion: dossier.imageRightsVersion,
       });
     }
 
     const storage = getStorage();
     // Stable per artifact, so a regeneration overwrites its own object instead
-    // of accumulating timestamp-keyed orphans. For a per-year document the
-    // artifact is the dossier, hence the year in the key: with one key per
-    // talent, signing a new year's règlement overwrote the co-signed document of
-    // the previous one, and nothing could rebuild it.
-    const key =
-      dossierSchoolYear === null
-        ? `documents/${job.talentId}/${documentType}.pdf`
-        : `documents/${job.talentId}/${documentType}-${dossierSchoolYear}.pdf`;
+    // of accumulating timestamp-keyed orphans. Every generated document is a
+    // per-year artifact belonging to a dossier, hence the year in the key: with
+    // one key per talent, a new year's document overwrote the signed one of the
+    // previous year, and nothing could rebuild it.
+    const key = `documents/${job.talentId}/${documentType}-${dossierSchoolYear}.pdf`;
     await storage.save(key, pdf, 'application/pdf');
 
-    const descriptor = ONBOARDING_DOCUMENTS[documentType];
     await prisma.$transaction([
-      // The key lands on whichever record owns the artifact. `dossier` scope
-      // updates the row this render was made from; `account` scope updates the
-      // talent, and the charte (no generated PDF, never enqueued) updates
-      // nothing.
-      descriptor.scope === 'dossier' && dossierSchoolYear !== null
-        ? prisma.onboarding_Record.update({
-            where: {
-              talentId_schoolYear: {
-                talentId: job.talentId,
-                schoolYear: dossierSchoolYear,
-              },
-            },
-            data: { rulesFilePath: key },
-          })
-        : prisma.talent.update({
-            where: { id: job.talentId },
-            data: descriptor.filePathField
-              ? { [descriptor.filePathField]: key }
-              : {},
-          }),
+      // The key lands on the dossier this render was made from, in the column
+      // the document kind declares.
+      prisma.onboarding_Record.update({
+        where: {
+          talentId_schoolYear: {
+            talentId: job.talentId,
+            schoolYear: dossierSchoolYear,
+          },
+        },
+        data: { [filePathField]: key },
+      }),
       prisma.onboardingPdfJob.update({
         where: { id: job.id },
         data: {
