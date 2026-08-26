@@ -79,9 +79,71 @@ export function imageRightsDisplayStatus(
   return studentSigned ? 'awaiting_parent' : 'pending';
 }
 
-/** True once the guardian has made any decision — the chase can stop. */
+/**
+ * True once the guardian has decided for the dossier in hand, so the chase can
+ * stop.
+ *
+ * Read off the flat columns on `Talent` this is a question about the talent's
+ * MOST RECENT dossier, not about their whole history: the columns are a
+ * projection of that dossier (`domain/talentOnboarding.ts`), so a returning
+ * talent who reopens one puts their guardian back in the chase, which is the
+ * point. Read off an `Onboarding_Record` it is that year's question directly.
+ *
+ * It is therefore NOT the predicate that decides whether a photo may be
+ * published: see {@link imageRightsStance}, which is deliberately not a year
+ * question.
+ */
 export function isImageRightsDecided(talent: {
   imageRightsDecidedAt: Date | string | null;
 }): boolean {
   return talent.imageRightsDecidedAt != null;
+}
+
+/**
+ * What staff may actually do with this student's likeness right now.
+ *
+ * The third and last reading of the image-rights data, and the only one that is
+ * not about a school year. A consent expires; an interdiction does not. The year
+ * decides whether the guardian is ASKED again, it does not decide what applies
+ * in the meantime, and conflating the two is how a refusal disappears from a
+ * printed badge on the first day of a new school year while nothing reports it.
+ *
+ *  - `authorized` the guardian authorized for the dossier in hand.
+ *  - `forbidden`  they refused for the dossier in hand, OR nothing is decided
+ *                 for it and the last decision they ever made was a refusal.
+ *  - `unknown`    nothing is decided and no refusal stands. **Not an
+ *                 authorization.** A lapsed authorization lands here, because
+ *                 last year's yes does not cover this year's photo.
+ *
+ * Only `forbidden` is surfaced as a marker on printed material. Marking every
+ * `unknown` would put a marker on most of the cohort every September and the
+ * marker would stop being read, which is a worse outcome than not printing it.
+ * The staff screens show all three, since there the reader is deciding rather
+ * than scanning.
+ *
+ * Bare positional args, like the rest of this module: the two values come from
+ * different places (the projection or a dossier row for the first, the latest
+ * ledger row for the second) and no caller has them on one object.
+ */
+export type ImageRightsStance = 'authorized' | 'forbidden' | 'unknown';
+
+/** UI labels (French) keyed by the resolved stance. */
+export const IMAGE_RIGHTS_STANCE_LABELS: Record<ImageRightsStance, string> = {
+  authorized: 'Autorisé',
+  forbidden: 'Ne pas photographier',
+  unknown: 'Sans autorisation',
+};
+
+export function imageRightsStance(
+  /** The decision for the dossier in hand, from {@link imageRightsStatus}. */
+  current: ImageRightsStatus,
+  /**
+   * The decision of the most recent `ImageRightsDecisionRecord`, all school
+   * years taken together, or null when the guardian never decided anything.
+   */
+  lastKnown: ImageRightsDecision | null,
+): ImageRightsStance {
+  if (current === 'accepted') return 'authorized';
+  if (current === 'refused') return 'forbidden';
+  return lastKnown === 'refused' ? 'forbidden' : 'unknown';
 }
