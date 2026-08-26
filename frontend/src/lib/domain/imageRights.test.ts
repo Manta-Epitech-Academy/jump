@@ -3,6 +3,7 @@ import {
   imageRightsStance,
   imageRightsStatus,
   imageRightsDisplayStatus,
+  priorYearDecision,
 } from './imageRights';
 
 /**
@@ -53,5 +54,37 @@ describe('image rights stance', () => {
       'refused',
     );
     expect(imageRightsDisplayStatus('refused', false)).toBe('refused');
+  });
+});
+
+/**
+ * What the parent form reminds a guardian of, which is not the same question as
+ * the stance. Both parent surfaces render the same form, and one of them renders
+ * it on a decision still in force, so the reminder has to be able to say "this is
+ * not a previous year's answer".
+ */
+describe('prior-year decision', () => {
+  const lastYear = { decision: 'refused' as const, schoolYear: '2025-2026' };
+
+  it('recalls a decision taken for another year', () => {
+    expect(priorYearDecision(lastYear, '2026-2027')).toEqual(lastYear);
+  });
+
+  it('says nothing when the decision belongs to the dossier being decided', () => {
+    // The change-of-mind path: the guardian is reopening their own in-force
+    // answer, so telling them they "avaient" decided and that the question comes
+    // back every year would describe a re-ask that is not happening.
+    expect(priorYearDecision(lastYear, '2025-2026')).toBeNull();
+  });
+
+  it('says nothing when no decision was ever taken', () => {
+    expect(priorYearDecision(null, '2026-2027')).toBeNull();
+    expect(priorYearDecision(undefined, '2026-2027')).toBeNull();
+  });
+
+  it('recalls a decision for a talent with no dossier year stamped', () => {
+    // A guardian whose child never opened a dossier cannot be mid-year on one, so
+    // whatever they last decided is necessarily a previous answer.
+    expect(priorYearDecision(lastYear, null)).toEqual(lastYear);
   });
 });

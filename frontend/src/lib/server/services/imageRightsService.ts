@@ -1,5 +1,8 @@
-import type { ImageRightsDecision } from '$lib/domain/imageRights';
-import type { ImageRightsDecisionSource } from '@prisma/client';
+import type {
+  ImageRightsDecision,
+  ImageRightsDecisionSummary,
+} from '$lib/domain/imageRights';
+import type { ImageRightsDecisionSource, Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { CURRENT_DROIT_IMAGE_VERSION } from '$lib/content/droit-image';
 import {
@@ -10,6 +13,19 @@ import {
   enqueueOnboardingPdfJob,
   runOnboardingPdfJob,
 } from './onboardingPdfJobService';
+
+/**
+ * Newest decision first, for any read of the image-rights ledger.
+ *
+ * Shared as a fragment rather than retyped per query, the same way
+ * `db/dossierCompliance` shares its `where`s: a surface that ordered on
+ * `createdAt` alone would rank the moment a staff correction was keyed above the
+ * moment the guardian actually decided, and it would disagree with the badge
+ * sheet without either side being obviously wrong. See
+ * {@link latestImageRightsDecisions} for why that ordering is the rule.
+ */
+export const LATEST_IMAGE_RIGHTS_DECISION_ORDER: Prisma.ImageRightsDecisionRecordOrderByWithRelationInput[] =
+  [{ decidedAt: 'desc' }, { createdAt: 'desc' }];
 
 /**
  * Records a legal guardian's image-rights decision (authorize *or* refuse) and
@@ -129,22 +145,42 @@ export async function recordImageRightsDecision(args: {
 }
 
 /**
- * The last decision a guardian ever made for this talent, whatever school year
- * it belongs to, or null if they never made one.
+ * The last decision each of these guardians ever made, whatever school year it
+ * belongs to, keyed by talent. A talent with no decision is absent from the map.
  *
- * The input to `imageRightsStance` (`domain/imageRights.ts`), and the reason it
- * comes off the ledger rather than off `Talent`: the projection is a per-dossier
- * answer, so it goes blank when a talent reopens one, and a refusal read from
- * there would lapse into "nobody asked yet" at the cutover. Whether a photo may
- * be published is not a question about a school year.
+ * The one place the ledger's "newest first" rule lives, because it is not the
+ * obvious one: rows are ordered on the decision INSTANT, with the row's creation
+ * only as a tie-break. A staff correction consigning an offline decision carries
+ * the date the guardian decided, so ordering on `createdAt` alone would let the
+ * moment somebody typed it into Jump outrank the moment it was taken. Every
+ * reader of "the latest decision" imports {@link LATEST_IMAGE_RIGHTS_DECISION_ORDER}
+ * or calls this, so two surfaces cannot answer with different rows.
+ *
+ * Reads the ledger and not `Talent`: the projection is a per-dossier answer, so
+ * it goes blank when a talent reopens one, and a refusal read from there would
+ * lapse into "nobody asked yet" at the cutover. Whether a photo may be published
+ * is not a question about a school year.
+ *
+ * Batched over ids rather than offered per talent, because every caller has a
+ * set: a cohort's badge sheet, a guardian's children, a scoped compliance count.
  */
-export async function latestImageRightsDecision(
-  talentId: string,
-): Promise<ImageRightsDecision | null> {
-  const row = await prisma.imageRightsDecisionRecord.findFirst({
-    where: { talentId },
-    orderBy: [{ decidedAt: 'desc' }, { createdAt: 'desc' }],
-    select: { decision: true },
+export async function latestImageRightsDecisions(
+  talentIds: string[],
+): Promise<Map<string, ImageRightsDecisionSummary>> {
+  if (talentIds.length === 0) return new Map();
+  const rows = await prisma.imageRightsDecisionRecord.findMany({
+    where: { talentId: { in: talentIds } },
+    orderBy: LATEST_IMAGE_RIGHTS_DECISION_ORDER,
+    select: { talentId: true, decision: true, schoolYear: true },
   });
-  return row?.decision ?? null;
+  const latest = new Map<string, ImageRightsDecisionSummary>();
+  // Ordered newest first, so the first row seen for a talent is theirs to keep.
+  for (const row of rows) {
+    if (latest.has(row.talentId)) continue;
+    latest.set(row.talentId, {
+      decision: row.decision,
+      schoolYear: row.schoolYear,
+    });
+  }
+  return latest;
 }

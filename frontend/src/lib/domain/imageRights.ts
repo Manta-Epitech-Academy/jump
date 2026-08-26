@@ -147,3 +147,35 @@ export function imageRightsStance(
   if (current === 'refused') return 'forbidden';
   return lastKnown === 'refused' ? 'forbidden' : 'unknown';
 }
+
+/**
+ * One decision as every reader of the ledger needs it: what was chosen, and
+ * which school year it answered for.
+ */
+export interface ImageRightsDecisionSummary {
+  decision: ImageRightsDecision;
+  schoolYear: string;
+}
+
+/**
+ * The decision to REMIND a guardian of, when asking them again.
+ *
+ * Not the same question as {@link imageRightsStance}, and the difference is the
+ * word "prior": a guardian meeting this question for a new school year is
+ * answering blind unless they are shown what they said last time, but a guardian
+ * re-opening their own in-force decision to change it must not be told they
+ * "avaient" decided and that the question is being re-asked. It is not, they are
+ * changing their mind inside one year.
+ *
+ * So the rule is one comparison, stated once here rather than left to whichever
+ * branch of whichever page happens to render the form: the latest decision
+ * counts as a reminder only when it belongs to a year other than the dossier
+ * being decided now.
+ */
+export function priorYearDecision(
+  latest: ImageRightsDecisionSummary | null | undefined,
+  dossierSchoolYear: string | null | undefined,
+): ImageRightsDecisionSummary | null {
+  if (!latest) return null;
+  return latest.schoolYear === dossierSchoolYear ? null : latest;
+}

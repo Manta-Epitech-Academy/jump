@@ -4,7 +4,10 @@
   import { cn } from '$lib/utils';
   import ParentSignatureForm from '$lib/components/parent/ParentSignatureForm.svelte';
   import { track, errReason } from '$lib/analytics';
-  import type { ImageRightsDecision } from '$lib/domain/imageRights';
+  import type {
+    ImageRightsDecision,
+    ImageRightsDecisionSummary,
+  } from '$lib/domain/imageRights';
 
   interface Props {
     child: {
@@ -16,16 +19,17 @@
       parentType?: string | null;
       parentCivilite?: string | null;
       /**
-       * What this guardian last decided, and the school year it answered for.
-       * The decision is taken once per school year, so a returning family meets
-       * this question again; recalling their own answer is what keeps a second
-       * ask from reading as a first one, and a mis-click from quietly reversing
-       * a refusal.
+       * What this guardian decided in a PREVIOUS school year, resolved by
+       * `priorYearDecision`. The decision is taken once per school year, so a
+       * returning family meets this question again; recalling their own answer is
+       * what keeps a second ask from reading as a first one, and a mis-click from
+       * quietly reversing a refusal.
+       *
+       * Null when the decision on screen belongs to the dossier in hand, which is
+       * the change-of-mind path rather than a new ask: the reminder below says the
+       * question is re-asked every year, and that is not what is happening there.
        */
-      previousDecision?: {
-        decision: ImageRightsDecision;
-        schoolYear: string;
-      } | null;
+      previousDecision?: ImageRightsDecisionSummary | null;
     };
     /** Legal body shown once the guardian chooses to authorize. */
     droitImageBody: string;

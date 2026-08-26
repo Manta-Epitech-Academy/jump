@@ -9,9 +9,13 @@ import { getParentLastName } from '$lib/domain/parent';
 import {
   IMAGE_RIGHTS_DECISIONS,
   imageRightsStatus,
+  priorYearDecision,
   type ImageRightsDecision,
 } from '$lib/domain/imageRights';
-import { recordImageRightsDecision } from '$lib/server/services/imageRightsService';
+import {
+  LATEST_IMAGE_RIGHTS_DECISION_ORDER,
+  recordImageRightsDecision,
+} from '$lib/server/services/imageRightsService';
 
 export const load: PageServerLoad = async ({ locals, params, cookies }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -33,11 +37,14 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       // onboarding — same rationale as `/parent/signature` and `/parent/reglement`.
       parentPrenom: true,
       parentNom: true,
+      // Which dossier the decision on this page belongs to, so the reminder
+      // below can tell a previous year's answer from the one in force.
+      onboardingSchoolYear: true,
       // Last decision taken and the year it answered for, shown on the form for
       // the same reason as on `/parent/signature`: the decision is annual, so a
       // guardian can meet this question again with an answer already on file.
       imageRightsRecords: {
-        orderBy: [{ decidedAt: 'desc' }, { createdAt: 'desc' }],
+        orderBy: LATEST_IMAGE_RIGHTS_DECISION_ORDER,
         take: 1,
         select: { decision: true, schoolYear: true },
       },
@@ -144,7 +151,15 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       parentPrenom: child.parentPrenom,
       parentNom: child.parentNom,
       imageRightsStatus: imageRightsStatus(child),
-      previousDecision: child.imageRightsRecords[0] ?? null,
+      // Only a PREVIOUS year's answer is a reminder. This page also renders the
+      // form under « Modifier ma décision », on a decision still in force for the
+      // dossier in hand: telling that guardian they "avaient" decided and that
+      // the question is re-asked every year would describe a re-ask that is not
+      // happening, while they are simply changing their mind inside one year.
+      previousDecision: priorYearDecision(
+        child.imageRightsRecords[0],
+        child.onboardingSchoolYear,
+      ),
     },
     upcomingEvents: upcomingParticipations.map((p) => ({
       id: p.event.id,

@@ -7,6 +7,7 @@ import {
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { imageRightsStance, imageRightsStatus } from '$lib/domain/imageRights';
+import { latestImageRightsDecisions } from '$lib/server/services/imageRightsService';
 import { generateBadgesPDF } from '$lib/server/services/badgeGenerator';
 
 // Generates the printable badge sheet for every talent registered to this event
@@ -31,25 +32,25 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
     select: {
       talent: {
         select: {
+          id: true,
           prenom: true,
           nom: true,
           imageRightsDecision: true,
-          // The last decision this guardian ever made, whatever school year it
-          // belongs to. The projection above answers "did they decide for the
-          // dossier in hand", which goes blank when a talent reopens one: read
-          // alone it would drop the marker off a refused student's badge at the
-          // 31 July cutover, on the printed sheet, with nothing to notice it.
-          // What may be photographed is not a question about a school year.
-          imageRightsRecords: {
-            orderBy: [{ decidedAt: 'desc' }, { createdAt: 'desc' }],
-            take: 1,
-            select: { decision: true },
-          },
         },
       },
     },
     orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
   });
+
+  // The last decision each guardian ever made, whatever school year it belongs
+  // to. The projection alone answers "did they decide for the dossier in hand",
+  // which goes blank when a talent reopens one: read by itself it would drop the
+  // marker off a refused student's badge at the 31 July cutover, on the printed
+  // sheet, with nothing to notice it. What may be photographed is not a question
+  // about a school year.
+  const latestDecisions = await latestImageRightsDecisions(
+    participations.map((p) => p.talent.id),
+  );
 
   const badges = participations.map((p) => ({
     prenom: p.talent.prenom,
@@ -61,7 +62,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
     imageRefused:
       imageRightsStance(
         imageRightsStatus(p.talent),
-        p.talent.imageRightsRecords[0]?.decision ?? null,
+        latestDecisions.get(p.talent.id)?.decision ?? null,
       ) === 'forbidden',
   }));
 

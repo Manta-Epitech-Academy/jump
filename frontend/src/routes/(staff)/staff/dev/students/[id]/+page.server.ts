@@ -20,7 +20,10 @@ import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
 import { isRulesCompliant } from '$lib/domain/dossierCompliance';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import { isImageRightsDecided } from '$lib/domain/imageRights';
-import { recordImageRightsDecision } from '$lib/server/services/imageRightsService';
+import {
+  LATEST_IMAGE_RIGHTS_DECISION_ORDER,
+  recordImageRightsDecision,
+} from '$lib/server/services/imageRightsService';
 import { imageRightsCorrectionSchema } from '$lib/validation/imageRights';
 import type { Communication } from '$lib/domain/communications';
 import { getTalentXpStory } from '$lib/server/services/xpStoryService';
@@ -65,7 +68,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
           // the last thing a guardian actually decided - which is what the rail
           // resolves the publishing stance from.
           imageRightsRecords: {
-            orderBy: [{ decidedAt: 'desc' }, { createdAt: 'desc' }],
+            orderBy: LATEST_IMAGE_RIGHTS_DECISION_ORDER,
             include: {
               recordedBy: { select: { user: { select: { name: true } } } },
             },
@@ -527,7 +530,7 @@ async function correctImageRights({ request, locals, params }: RequestEvent) {
       // staff don't re-key them; both default cleanly in the PDF if absent.
       imageRightsRecords: {
         take: 1,
-        orderBy: [{ decidedAt: 'desc' }, { createdAt: 'desc' }],
+        orderBy: LATEST_IMAGE_RIGHTS_DECISION_ORDER,
         select: { relationship: true, city: true },
       },
     },
