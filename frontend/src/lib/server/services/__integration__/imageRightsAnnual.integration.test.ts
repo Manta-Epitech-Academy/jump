@@ -360,6 +360,102 @@ describe("droit à l'image, décision annuelle (integration)", () => {
     });
   });
 
+  describe('a standing refusal, in the figures', () => {
+    let refusedTalentId = '';
+    let eventId = '';
+    const campus = () => ({ id: campusId, name: `Test Campus IR ${stamp}` });
+
+    beforeAll(async () => {
+      // Refused last year, came back this year, not asked yet: the dossier in
+      // hand is undecided while the interdiction still stands. This is the state
+      // a returning September cohort is in, and the one that used to be invisible
+      // to every figure.
+      const talent = await prisma.talent.create({
+        data: {
+          nom: 'Standing',
+          prenom: 'Test',
+          niveau: '1ere',
+          onboardingSchoolYear: currentYear,
+          rulesSignedAt: new Date(),
+          onboardingRecords: {
+            create: [
+              {
+                schoolYear: lastYear,
+                imageRightsDecision: 'refused',
+                imageRightsDecidedAt: decidedLastYear,
+              },
+              { schoolYear: currentYear, rulesSignedAt: new Date() },
+            ],
+          },
+          imageRightsRecords: {
+            create: {
+              schoolYear: lastYear,
+              version: '2025-2026',
+              decision: 'refused',
+              decidedAt: decidedLastYear,
+              source: 'parent_portal',
+            },
+          },
+        },
+      });
+      refusedTalentId = talent.id;
+      const event = await prisma.event.create({
+        data: { titre: `Test Event IR ${stamp} C`, date: new Date(), campusId },
+      });
+      eventId = event.id;
+      await prisma.participation.create({
+        data: { talentId: refusedTalentId, eventId, campusId },
+      });
+    });
+
+    afterAll(async () => {
+      await prisma.participation.deleteMany({
+        where: { talentId: refusedTalentId },
+      });
+      await prisma.event.deleteMany({ where: { id: eventId } });
+      await prisma.imageRightsDecisionRecord.deleteMany({
+        where: { talentId: refusedTalentId },
+      });
+      await prisma.onboarding_Record.deleteMany({
+        where: { talentId: refusedTalentId },
+      });
+      await prisma.talent.deleteMany({ where: { id: refusedTalentId } });
+    });
+
+    it('reports the interdiction while this year reads "en attente"', async () => {
+      const status = await getComplianceStatus({ campus: campus() });
+      const rows = Object.fromEntries(
+        status.imageRights.value.map((r) => [r.status, r.count]),
+      );
+      // The three-state breakdown is the state of THIS year's campaign, and it
+      // is right: nobody has answered for the dossier in hand, so this family is
+      // still to chase.
+      expect(rows.refused).toBe(0);
+      expect(rows.undecided).toBe(1);
+      // And the figure a human consults before publishing a photo says the
+      // opposite about the same student, which is the point of it existing. Read
+      // off the breakdown alone, the answer to "combien ne doivent pas être
+      // photographiés" was zero, with a definition that made it sound complete.
+      expect(status.imageUseForbidden.value).toBe(1);
+      expect(status.imageUseForbiddenShare.value).toBe(100);
+    });
+
+    it('does not let the school-year filter narrow an interdiction', async () => {
+      // Every other figure here moves with the year filter. This one must not: an
+      // authorization expires, an interdiction does not, so scoping to the year
+      // in progress would report "personne n'est interdit cette année".
+      const scoped = await getComplianceStatus({
+        campus: campus(),
+        schoolYear: currentYear,
+      });
+      expect(scoped.imageUseForbidden.value).toBe(1);
+      const rows = Object.fromEntries(
+        scoped.imageRights.value.map((r) => [r.status, r.count]),
+      );
+      expect(rows.refused).toBe(0);
+    });
+  });
+
   describe('a guardian answering after the 31 July cutover', () => {
     let lateTalentId = '';
 

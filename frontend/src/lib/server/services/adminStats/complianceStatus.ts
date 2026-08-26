@@ -21,7 +21,11 @@
 
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { IMAGE_RIGHTS_STATUS_LABELS } from '$lib/domain/imageRights';
+import {
+  IMAGE_RIGHTS_STATUS_LABELS,
+  imageRightsStance,
+} from '$lib/domain/imageRights';
+import { latestImageRightsDecisions } from '../imageRightsService';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
 import { cohortWhere, dossierSchoolYear, scopeLabels } from './cohort';
@@ -45,8 +49,60 @@ export type ComplianceStatus = {
   rulesAwaitingGuardian: Metric;
   rulesAwaitingGuardianShare: Metric<number | null>;
   imageRights: Metric<ImageRightsRow[]>;
+  imageUseForbidden: Metric;
+  imageUseForbiddenShare: Metric<number | null>;
   usableInCommunication: Metric<number | null>;
 };
+
+/**
+ * Talents of the périmètre who must not be photographed, resolved by
+ * {@link imageRightsStance}: the one image-rights question that is not about a
+ * school year.
+ *
+ * Two disjoint halves of `stance === 'forbidden'`, split so that only the second
+ * needs the ledger ORDERED:
+ *
+ *  1. the dossier in hand carries a refusal, which is a plain count;
+ *  2. nothing is decided for it and the last decision the guardian ever made was
+ *     a refusal. Which decision is the last one cannot be asked in SQL here, so
+ *     the candidates are narrowed first to those undecided today who have refused
+ *     at least once - a small minority of any cohort, and an EXISTS on an indexed
+ *     relation - and only those rows are read back and ordered.
+ *
+ * A lapsed AUTHORIZATION is deliberately not here: it resolves to `unknown`, not
+ * to consent and not to an interdiction.
+ */
+async function countForbiddenNow(
+  where: Prisma.TalentWhereInput,
+): Promise<number> {
+  const [refusedForDossierInHand, candidates] = await Promise.all([
+    prisma.talent.count({
+      where: { AND: [where, { imageRightsDecision: 'refused' }] },
+    }),
+    prisma.talent.findMany({
+      where: {
+        AND: [
+          where,
+          { imageRightsDecision: null },
+          { imageRightsRecords: { some: { decision: 'refused' } } },
+        ],
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  const latest = await latestImageRightsDecisions(candidates.map((t) => t.id));
+  // `'undecided'` is a constant here, not a shortcut: the query above selected on
+  // exactly that. The stance is still resolved by the domain rule rather than
+  // re-derived, so a change to what a lapsed decision means lands here too.
+  const standingRefusals = candidates.filter(
+    (t) =>
+      imageRightsStance('undecided', latest.get(t.id)?.decision ?? null) ===
+      'forbidden',
+  ).length;
+
+  return refusedForDossierInHand + standingRefusals;
+}
 
 export async function getComplianceStatus(
   scope: Scope = {},
@@ -66,19 +122,27 @@ export async function getComplianceStatus(
   const signedThatYear = (field: 'rulesSignedAt' | 'parentRulesSignedAt') =>
     onDossierThatYear({ [field]: { not: null } });
 
-  const [cohort, charter, rulesTalent, rulesGuardian, accepted, refused] =
-    await Promise.all([
-      prisma.talent.count({ where }),
-      prisma.talent.count(and({ charterAcceptedAt: { not: null } })),
-      prisma.talent.count(and(signedThatYear('rulesSignedAt'))),
-      prisma.talent.count(and(signedThatYear('parentRulesSignedAt'))),
-      prisma.talent.count(
-        and(onDossierThatYear({ imageRightsDecision: 'accepted' })),
-      ),
-      prisma.talent.count(
-        and(onDossierThatYear({ imageRightsDecision: 'refused' })),
-      ),
-    ]);
+  const [
+    cohort,
+    charter,
+    rulesTalent,
+    rulesGuardian,
+    accepted,
+    refused,
+    forbiddenNow,
+  ] = await Promise.all([
+    prisma.talent.count({ where }),
+    prisma.talent.count(and({ charterAcceptedAt: { not: null } })),
+    prisma.talent.count(and(signedThatYear('rulesSignedAt'))),
+    prisma.talent.count(and(signedThatYear('parentRulesSignedAt'))),
+    prisma.talent.count(
+      and(onDossierThatYear({ imageRightsDecision: 'accepted' })),
+    ),
+    prisma.talent.count(
+      and(onDossierThatYear({ imageRightsDecision: 'refused' })),
+    ),
+    countForbiddenNow(where),
+  ]);
 
   const undecided = cohort - accepted - refused;
   const imageRow = (
@@ -135,7 +199,15 @@ export async function getComplianceStatus(
         imageRow('refused', refused),
         imageRow('undecided', undecided),
       ],
-      "Décision du responsable légal sur le droit à l'image pour l'année scolaire concernée, en trois états. La décision est redemandée à chaque année scolaire, donc « En attente » signifie que personne n'a répondu pour cette année-là, pas que personne n'a jamais répondu. « Refusé » est une réponse arrêtée, pas une signature manquante : cet élève ne doit pas être photographié, et un refus donné une année continue de s'appliquer tant qu'aucune décision nouvelle ne l'a remplacé.",
+      "Décision du responsable légal sur le droit à l'image pour l'année scolaire concernée, en trois états. La décision est redemandée à chaque année scolaire, donc ces trois chiffres disent où en est la campagne de cette année-là, et « En attente » signifie que personne n'a répondu pour cette année-là, pas que personne n'a jamais répondu. « Refusé » est une réponse arrêtée, pas une signature manquante : c'est le nombre de familles qu'il est inutile de relancer. Pour savoir combien d'élèves ne doivent pas être photographiés aujourd'hui, lire le chiffre « Interdictions en vigueur » de cette même réponse : un refus donné une année continue de s'appliquer, et il est alors compté ici en « En attente » puisque la décision de l'année en cours reste à donner.",
+    ),
+    imageUseForbidden: metric(
+      forbiddenNow,
+      "Interdictions en vigueur : les élèves du périmètre dont l'image ne doit pas être utilisée aujourd'hui, ceux dont le responsable légal a refusé pour le dossier en cours, plus ceux dont le dernier refus n'a jamais été remplacé par une décision nouvelle. C'est le seul chiffre à consulter avant de publier une photo, et c'est aussi le seul de cette réponse que le filtre d'année scolaire ne restreint pas : une autorisation expire, une interdiction non. Une autorisation donnée une année précédente et non renouvelée n'est comptée ni ici ni parmi les autorisations : personne n'a interdit, mais personne n'a autorisé pour cette année.",
+    ),
+    imageUseForbiddenShare: metric(
+      share(forbiddenNow, cohort),
+      "Part du périmètre sous interdiction en vigueur, c'est-à-dire dont l'image ne doit pas être utilisée aujourd'hui, en pourcentage. Complément de « part utilisable en communication », mais les deux ne totalisent pas 100 % : entre les deux se trouvent les élèves dont personne n'a encore décidé pour cette année.",
     ),
     usableInCommunication: metric(
       share(accepted, cohort),
