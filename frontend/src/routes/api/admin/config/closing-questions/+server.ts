@@ -3,4 +3,4 @@ import { adminApiRead } from '$lib/server/adminApi/route';
 // Curated operation: see `$lib/server/adminApi/operations.ts` for the params,
 // the description and what the figures mean. Auth, tier, validation and audit
 // logging are handled by the wrapper.
-export const GET = adminApiRead('stats_interview_testimonials');
+export const GET = adminApiRead('config_closing_questions');

@@ -106,12 +106,16 @@ import {
   INTERESTS_TOP_N,
 } from '$lib/server/services/adminStats/interestsBreakdown';
 import { getTalentRetention } from '$lib/server/services/adminStats/talentRetention';
-import { getInterviewInsights } from '$lib/server/services/adminStats/interviewInsights';
+import { getClosingInsights } from '$lib/server/services/adminStats/closingInsights';
 import {
-  getInterviewTestimonials,
+  getClosingQuestions,
+  getClosingTemplates,
+} from '$lib/server/services/adminStats/closingConfiguration';
+import {
+  getClosingTestimonials,
   TESTIMONIALS_DEFAULT_LIMIT,
   TESTIMONIALS_MAX_LIMIT,
-} from '$lib/server/services/adminStats/interviewTestimonials';
+} from '$lib/server/services/adminStats/closingTestimonials';
 import {
   getFeedbackResults,
   FEEDBACK_FORMS_LIMIT,
@@ -152,9 +156,14 @@ import {
   resolveSyncErrorRows,
   resolveAllSyncErrorRows,
   resolveSchools,
-  resetInterviewById,
+  resetClosingById,
   SCHOOL_RESOLVE_LIMIT,
 } from './writes/ops';
+import {
+  writeClosingQuestion,
+  writeClosingTemplate,
+  writeEventClosingTemplate,
+} from './writes/closings';
 import {
   bulkEventModules,
   bulkEventActivation,
@@ -233,7 +242,7 @@ export type AdminApiTier = AdminApi_TokenTier;
  * `tier` decides what a read may describe (see `meta_operations`).
  * `actorUserId` is the `bauth_user.id` behind the call - the token's owner, or
  * the signed-in admin - which the writes that record accountability elsewhere
- * need: an interview reset stamps its own audit row with a staff profile, and
+ * need: a closing reset stamps its own audit row with a staff profile, and
  * that profile has to be a real person, not "the API".
  */
 export type OperationContext = {
@@ -459,6 +468,28 @@ export const ADMIN_API_OPERATIONS = {
       getDiplomaTemplatePreview({ ...params, origin: ctx.origin }),
   }),
 
+  config_closing_questions: defineOperation({
+    description:
+      'The bank of questions a closing grid can ask, with the options each offers and how many answers it already holds. A question belongs to the bank, not to one grid: the same question asked at a stage and at a Coding Club is one row, which is what lets a distribution span both. Also returns what an author needs to know before writing one, including the accepted valence and pictogram vocabularies.',
+    shape: {},
+    run: () => getClosingQuestions(),
+  }),
+
+  config_closing_templates: defineOperation({
+    description:
+      "The closing grids that exist, how many questions each asks and how many events use it. Pass templateKey to also get that grid's composition, section by section, which is what you edit from rather than rewriting it. Returns the ids the other closing operations take.",
+    shape: {
+      templateKey: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          `${handleDescribe('closingTemplateKey')} Pass one to also return its composition; omit for the catalogue alone.`,
+        ),
+    },
+    run: (params) => getClosingTemplates(params),
+  }),
+
   config_feedback_forms: defineOperation({
     description:
       'The feedback form catalogue: title, status (draft, published, archived), question count, response count, how many events use it, and whether it accepts public responses. Returns the form ids the other feedback operations take.',
@@ -476,7 +507,7 @@ export const ADMIN_API_OPERATIONS = {
   stats_school_year_review: defineOperation({
     leadership: true,
     description:
-      'One school year summarised for a steering review: events run, cohort size and make-up, high-school and territorial reach, real show-up rate, whether talents came back, and what they said in their interviews. Pass compareTo to also get every headline figure as a movement against another year, already computed. Also returns "limites", stating in French what these figures cannot be read as. The school year is required.',
+      'One school year summarised for a steering review: events run, cohort size and make-up, high-school and territorial reach, real show-up rate, whether talents came back, and what they said in their closings. Pass compareTo to also get every headline figure as a movement against another year, already computed. Also returns "limites", stating in French what these figures cannot be read as. The school year is required.',
     shape: {
       schoolYear: requiredSchoolYear.describe(
         'School year, e.g. "2026-2027". Required for this operation.',
@@ -665,6 +696,168 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => writeEventDiplomaTemplate(params),
   }),
 
+  write_closing_question: defineWrite({
+    description:
+      'Create or replace one question of the closing bank, identified by its key: a key that does not exist yet creates one, an existing key replaces it. Refused, saying what is wrong, if it uses an unknown valence or pictogram, or if it changes the type or drops an option of a question students have already answered. Wording stays editable on purpose. Safe to repeat: the same key and the same content leave one question. Answers with the question before and after.',
+    shape: {
+      questionKey: z
+        .string()
+        .min(1)
+        .describe(
+          `${handleDescribe('closingQuestionKey')} Creates or replaces by it, so a key that does not exist yet is a new question. A question whose meaning changes needs a NEW key, never an edit to this one.`,
+        ),
+      label: z
+        .string()
+        .min(1)
+        .describe(
+          'The canonical French wording, and the name every figure is quoted under. A grid that needs to phrase it differently overrides the prompt, not this.',
+        ),
+      kind: z
+        .enum(['single', 'multi', 'rating', 'text'])
+        .optional()
+        .describe(
+          'How it is answered. Required when creating; on an existing question it can only change while nobody has answered it.',
+        ),
+      hint: z
+        .string()
+        .optional()
+        .describe('A line under the question, for the person asking it.'),
+      max: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('rating only: the top of the scale.'),
+      maxLength: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('text only: the character ceiling of the answer.'),
+      placeholder: z
+        .string()
+        .optional()
+        .describe('text only: what the input invites the team to type.'),
+      notePlaceholder: z
+        .string()
+        .optional()
+        .describe(
+          "What the team's note under this question invites, in the grids that offer one.",
+        ),
+      testimonial: z
+        .boolean()
+        .optional()
+        .describe(
+          "Its free text is the student's own words and is meant to be quoted. At most one per grid.",
+        ),
+      retired: z
+        .boolean()
+        .optional()
+        .describe(
+          'Retire it: it stays readable on past closings but can no longer enter a new grid.',
+        ),
+      options: z
+        .array(
+          z.object({
+            value: z
+              .string()
+              .min(1)
+              .describe(
+                'Stable stored value, quoted by analytics. Never renamed.',
+              ),
+            label: z.string().min(1).describe('French wording of the option.'),
+            tone: z
+              .string()
+              .optional()
+              .describe('Valence, on ordinal answers only.'),
+            icon: z
+              .string()
+              .optional()
+              .describe('Pictogram token, where one exists.'),
+          }),
+        )
+        .optional()
+        .describe(
+          'The choices offered, in order. single and multi only. Omit to leave the current options untouched.',
+        ),
+    },
+    run: (params) => writeClosingQuestion(params),
+  }),
+
+  write_closing_template: defineWrite({
+    description:
+      'Create or replace a closing grid, identified by its key: which bank questions it asks, in which sections, in what order. Refused if it names a question that does not exist or has been retired, asks the same one twice, marks more than one as quotable, or asks nothing at all. Composing a grid never touches an answer already recorded. Safe to repeat: the same key and the same composition leave one grid. Answers with the composition before and after.',
+    shape: {
+      templateKey: z
+        .string()
+        .min(1)
+        .describe(
+          `${handleDescribe('closingTemplateKey')} Creates or replaces by it, so a key that does not exist yet is a new grid.`,
+        ),
+      label: z
+        .string()
+        .min(1)
+        .describe('French name teams see, e.g. "Closing Coding Club".'),
+      sections: z
+        .array(
+          z.object({
+            title: z
+              .string()
+              .min(1)
+              .describe('Section heading, one step of the flow.'),
+            synthesisPosition: z
+              .number()
+              .int()
+              .min(0)
+              .optional()
+              .describe(
+                'Where this section sits when the closing is read back, if that differs from the order it is conducted in. Omit to follow the conduct order.',
+              ),
+            questions: z
+              .array(
+                z.object({
+                  questionKey: z
+                    .string()
+                    .min(1)
+                    .describe(handleDescribe('closingQuestionKey')),
+                  labelOverride: z
+                    .string()
+                    .optional()
+                    .describe(
+                      'What THIS grid reads aloud, when the canonical wording does not fit the format. Changes the prompt only: the figure keeps the bank name and stays comparable.',
+                    ),
+                  withNote: z
+                    .boolean()
+                    .optional()
+                    .describe(
+                      'Offer the team a free-text note under this question here. A short closing usually wants none.',
+                    ),
+                }),
+              )
+              .describe('The questions of this section, in order.'),
+          }),
+        )
+        .describe('The whole composition, replacing the current one.'),
+    },
+    run: (params) => writeClosingTemplate(params),
+  }),
+
+  write_event_closing_template: defineWrite({
+    description:
+      'Set which closing grid one event uses, or stop it holding closings by omitting closingTemplateId. Only points at an existing grid, it authors nothing. Safe to repeat. Answers with the state before and after.',
+    shape: {
+      eventId: z.string().min(1).describe(handleDescribe('eventId')),
+      closingTemplateId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          `${handleDescribe('closingTemplateId')} Omit so the event holds no closings.`,
+        ),
+    },
+    run: (params) => writeEventClosingTemplate(params),
+  }),
+
   write_event_inscrits_options: defineWrite({
     description:
       "Change the sub-options of one event's Inscrits section. Patch semantics: only what you pass changes. Refused if the section is not enabled on that event, since the options would have no effect. Safe to repeat. Answers with the state before and after.",
@@ -743,18 +936,18 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => resolveSchools(params),
   }),
 
-  ops_reset_interview: defineWrite({
+  ops_reset_closing: defineWrite({
     description:
-      'Discard one orientation interview so a fresh one can be conducted. NOT safe to repeat and NOT reversible: the answers are deleted, not archived. The interview id is read off the admin interviews page; no operation returns one. A reason is required and is kept in the trail.',
+      'Discard one closing so a fresh one can be conducted. NOT safe to repeat and NOT reversible: the answers are deleted, not archived. The closing id is read off the admin closings page; no operation returns one. A reason is required and is kept in the trail.',
     shape: {
-      interviewId: z.string().min(1).describe(handleDescribe('interviewId')),
+      closingId: z.string().min(1).describe(handleDescribe('closingId')),
       reason: z
         .string()
         .min(3)
         .describe('Why it is being discarded. Kept in the audit trail.'),
     },
     run: (params, ctx) =>
-      resetInterviewById({ ...params, actorUserId: ctx.actorUserId }),
+      resetClosingById({ ...params, actorUserId: ctx.actorUserId }),
   }),
 
   bulk_event_modules: defineWrite({
@@ -974,17 +1167,17 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => getBroadcastDeliveries(params),
   }),
 
-  stats_interview_insights: defineOperation({
+  stats_closing_insights: defineOperation({
     leadership: true,
     description:
-      'What the orientation interviews say: how they heard about us, what motivates them, which school specialities and tech domains they are heading for, how satisfied they were, whether they want to come back, and the team verdict. One distribution per question of the interview grid, plus how much of the cohort was interviewed at all. No free text, nobody named.',
+      'What the closings say: how they heard about us, what motivates them, which school specialities and tech domains they are heading for, how satisfied they were, whether they want to come back, and the team verdict. One distribution per question, plus how much of the cohort had a closing at all. A périmètre can mix several grids: a question several of them ask is aggregated once, and each carries the number of closings that actually asked it. No free text, nobody named.',
     shape: { schoolYear, campus, eventId },
-    run: async (params) => getInterviewInsights(await resolveScope(params)),
+    run: async (params) => getClosingInsights(await resolveScope(params)),
   }),
 
-  stats_interview_testimonials: defineOperation({
+  stats_closing_testimonials: defineOperation({
     leadership: true,
-    description: `Sentences students wrote about the event, word for word, from the interview question "le stage en une phrase". Most recent first, no student identified. Default ${TESTIMONIALS_DEFAULT_LIMIT}, ${TESTIMONIALS_MAX_LIMIT} maximum.`,
+    description: `Sentences students wrote about the event, word for word, from the one question each closing grid marks as quotable. Most recent first, no student identified. Default ${TESTIMONIALS_DEFAULT_LIMIT}, ${TESTIMONIALS_MAX_LIMIT} maximum.`,
     shape: {
       schoolYear,
       campus,
@@ -1000,12 +1193,12 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: async ({ limit, ...scope }) =>
-      getInterviewTestimonials(await resolveScope(scope), { limit }),
+      getClosingTestimonials(await resolveScope(scope), { limit }),
   }),
 
   stats_feedback_results: defineOperation({
     leadership: true,
-    description: `How the feedback forms of a périmètre were answered: per questionnaire, its id, how many responses, how many came from a Jump account against the public link, the response rate over the enrolments of the events it is attached to, and then every closed question with its stable key, its wording, and each of its answer options with a count and a share. Free-text answers are counted, never returned: student sentences meant to be quoted live in stats_interview_testimonials instead. Omit formId to get every questionnaire used in the périmètre, capped at ${FEEDBACK_FORMS_LIMIT}; pass one to narrow to it.`,
+    description: `How the feedback forms of a périmètre were answered: per questionnaire, its id, how many responses, how many came from a Jump account against the public link, the response rate over the enrolments of the events it is attached to, and then every closed question with its stable key, its wording, and each of its answer options with a count and a share. Free-text answers are counted, never returned: student sentences meant to be quoted live in stats_closing_testimonials instead. Omit formId to get every questionnaire used in the périmètre, capped at ${FEEDBACK_FORMS_LIMIT}; pass one to narrow to it.`,
     shape: {
       formId: z
         .string()

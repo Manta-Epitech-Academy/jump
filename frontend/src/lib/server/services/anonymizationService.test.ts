@@ -45,8 +45,10 @@ describe('anonymizationService - anonymizeTalent', () => {
       feedback_Submission: {
         deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
-      interview: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
-      interviewReset: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      closing_Record: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      closing_ResetEvent: {
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
       onboardingPdfJob: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
       broadcastRecipient: {
         deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -83,6 +85,26 @@ describe('anonymizationService - anonymizeTalent', () => {
     expect(documentKeys).toHaveLength(4);
     expect(new Set(documentKeys).size).toBe(documentKeys.length);
     expect(mockTx.onboarding_Record.deleteMany).toHaveBeenCalledWith({
+      where: { talentId: 'talent_123' },
+    });
+
+    // A closing holds the team's verdict on a minor plus a note under each
+    // question, so an erasure that stops deleting it leaves staff prose about a
+    // named child behind. Asserted rather than assumed: the hand-written mock
+    // above only fails on a delegate nobody declared, never on a call that
+    // quietly stopped being made, so before this the whole closing family could
+    // have dropped out of the erasure with the suite still green.
+    expect(mockTx.closing_Record.deleteMany).toHaveBeenCalledWith({
+      where: { talentId: 'talent_123' },
+    });
+    expect(mockTx.closing_ResetEvent.deleteMany).toHaveBeenCalledWith({
+      where: { talentId: 'talent_123' },
+    });
+    // The same guarantee for the two other free-text stores on a talent.
+    expect(mockTx.note_TalentNote.deleteMany).toHaveBeenCalledWith({
+      where: { talentId: 'talent_123' },
+    });
+    expect(mockTx.feedback_Submission.deleteMany).toHaveBeenCalledWith({
       where: { talentId: 'talent_123' },
     });
 

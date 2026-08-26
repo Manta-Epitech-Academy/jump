@@ -179,9 +179,11 @@ export async function anonymizeTalent(
   //        a different reason (the dossier is the sign-up a reset voids).
   //      - note_TalentNote: staff notes about the minor (pedago + administratif
   //        free text). The whole feed is removed on erasure.
-  //      - interview / interviewReset: the synthesis row holds free-text staff
-  //        observations about the minor; both existing wipe paths already
-  //        hard-delete it. InterviewReset is a reset's audit trace + reason.
+  //      - closing_Record / closing_ResetEvent: the record and its answers hold
+  //        free-text staff observations about the minor (the verdict note and a
+  //        note per question); both existing wipe paths hard-delete it, and the
+  //        answers cascade with the record. Closing_ResetEvent is a reset's audit
+  //        trace + reason.
   //      - onboardingPdfJob: payload snapshots the student + guardian name and
   //        city. The generated S3 PDFs are deleted post-commit; this is the DB
   //        copy of the same names.
@@ -218,8 +220,10 @@ export async function anonymizeTalent(
       ],
     },
   });
-  await tx.interview.deleteMany({ where: { talentId } });
-  await tx.interviewReset.deleteMany({ where: { talentId } });
+  // Answers and their option rows cascade from the record, so this one delete
+  // takes the whole closing with it.
+  await tx.closing_Record.deleteMany({ where: { talentId } });
+  await tx.closing_ResetEvent.deleteMany({ where: { talentId } });
   await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
   await tx.broadcastRecipient.deleteMany({
     where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },

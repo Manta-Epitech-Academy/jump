@@ -20,7 +20,7 @@ export const EVENT_MODULES = {
   INSCRITS: 'inscrits',
   EMARGEMENT: 'emargement',
   BILAN: 'bilan',
-  ENTRETIENS: 'entretiens',
+  CLOSINGS: 'closings',
 } as const;
 
 export type EventModuleKey = (typeof EVENT_MODULES)[keyof typeof EVENT_MODULES];
@@ -64,12 +64,12 @@ export const EVENT_MODULE_DEFS: Record<EventModuleKey, EventModuleDef> = {
       'Les réponses des jeunes au questionnaire de fin, leurs statistiques, et un QR code à partager pour le remplir.',
     segment: 'bilan',
   }),
-  [EVENT_MODULES.ENTRETIENS]: def({
-    key: EVENT_MODULES.ENTRETIENS,
-    label: 'Entretiens',
+  [EVENT_MODULES.CLOSINGS]: def({
+    key: EVENT_MODULES.CLOSINGS,
+    label: 'Closings',
     description:
-      "Les entretiens d'orientation, un par jeune : noter le ressenti, le projet et la suite du parcours.",
-    segment: 'entretiens',
+      'Le closing de fin, un par jeune : noter le ressenti, le projet et la suite du parcours. Les questions posées dépendent de la grille choisie pour cet événement.',
+    segment: 'closings',
   }),
 };
 
@@ -113,7 +113,7 @@ const EVENT_MODULE_SETTINGS_SCHEMAS = {
   [EVENT_MODULES.INSCRITS]: inscritsModuleSettingsSchema,
   [EVENT_MODULES.EMARGEMENT]: emptyModuleSettingsSchema,
   [EVENT_MODULES.BILAN]: emptyModuleSettingsSchema,
-  [EVENT_MODULES.ENTRETIENS]: emptyModuleSettingsSchema,
+  [EVENT_MODULES.CLOSINGS]: emptyModuleSettingsSchema,
 } as const;
 
 export type EventModuleSettings = {
@@ -181,7 +181,7 @@ const EVENT_SURFACE_ORDER: EventSurfaceKey[] = [
   EVENT_MODULES.EMARGEMENT,
   'planning',
   EVENT_MODULES.BILAN,
-  EVENT_MODULES.ENTRETIENS,
+  EVENT_MODULES.CLOSINGS,
 ];
 
 /** The per-event signals a surface's reachability folds in. */
@@ -191,6 +191,13 @@ export interface EventSurfaceGates {
   hasPlanning: boolean;
   /** Event resolves a live feedback form: gates `bilan` on top of its module. */
   hasFeedbackForm: boolean;
+  /** Event names a closing grid: gates `closings` on top of its module. Same
+   *  shape as `hasFeedbackForm`, and for the same reason - a surface whose
+   *  content is a per-event FK is unreachable while that FK is null, so the nav
+   *  must not offer a page that would 404. Cheaper than the bilan's, which has to
+   *  check the form is published too: a grid is reachable as soon as it is
+   *  named. */
+  hasClosingTemplate: boolean;
 }
 
 /** Whether a dev can actually reach a surface, module presence + data gates. */
@@ -201,6 +208,7 @@ function isSurfaceReachable(
   if (key === 'planning') return gates.hasPlanning;
   if (!eventHasModule(gates.modules, key)) return false;
   if (key === EVENT_MODULES.BILAN) return gates.hasFeedbackForm;
+  if (key === EVENT_MODULES.CLOSINGS) return gates.hasClosingTemplate;
   return true;
 }
 

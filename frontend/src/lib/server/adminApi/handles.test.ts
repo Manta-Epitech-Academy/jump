@@ -187,7 +187,7 @@ describe('every handle is obtainable by whoever needs it', () => {
   });
 
   // An unobtainable handle is a defensible design - it is what keeps
-  // ops_reset_interview from letting a model pick a victim - but it has to be a
+  // ops_reset_closing from letting a model pick a victim - but it has to be a
   // decision somebody wrote down, because an oversight reads exactly the same.
   it('explains, in both languages, any handle nothing returns', () => {
     for (const [kind, handle] of Object.entries(HANDLES) as [
@@ -223,8 +223,8 @@ describe('what the registry generates', () => {
   });
 
   it('answers in French for a handle nothing returns, without naming an operation', () => {
-    const fr = handleProvenanceFr('interviewId');
-    expect(fr).toContain('page des entretiens');
+    const fr = handleProvenanceFr('closingId');
+    expect(fr).toContain('page des closings');
     expect(fr).not.toContain('ops_');
   });
 
