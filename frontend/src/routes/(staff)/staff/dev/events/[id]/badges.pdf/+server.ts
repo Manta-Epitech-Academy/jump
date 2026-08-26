@@ -6,7 +6,7 @@ import {
   requireEventModule,
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { imageRightsStatus } from '$lib/domain/imageRights';
+import { imageRightsStance, imageRightsStatus } from '$lib/domain/imageRights';
 import { generateBadgesPDF } from '$lib/server/services/badgeGenerator';
 
 // Generates the printable badge sheet for every talent registered to this event
@@ -30,7 +30,22 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
     where: { eventId: event.id },
     select: {
       talent: {
-        select: { prenom: true, nom: true, imageRightsDecision: true },
+        select: {
+          prenom: true,
+          nom: true,
+          imageRightsDecision: true,
+          // The last decision this guardian ever made, whatever school year it
+          // belongs to. The projection above answers "did they decide for the
+          // dossier in hand", which goes blank when a talent reopens one: read
+          // alone it would drop the marker off a refused student's badge at the
+          // 31 July cutover, on the printed sheet, with nothing to notice it.
+          // What may be photographed is not a question about a school year.
+          imageRightsRecords: {
+            orderBy: [{ decidedAt: 'desc' }, { createdAt: 'desc' }],
+            take: 1,
+            select: { decision: true },
+          },
+        },
       },
     },
     orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
@@ -39,7 +54,15 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
   const badges = participations.map((p) => ({
     prenom: p.talent.prenom,
     nom: p.talent.nom,
-    imageRefused: imageRightsStatus(p.talent) === 'refused',
+    // Only an outright interdiction is marked. `unknown` (nobody has decided
+    // for this year, and no refusal stands) is not an authorization either, but
+    // marking it would put a marker on most of the cohort every September and
+    // the marker would stop being read. The staff screens show all three.
+    imageRefused:
+      imageRightsStance(
+        imageRightsStatus(p.talent),
+        p.talent.imageRightsRecords[0]?.decision ?? null,
+      ) === 'forbidden',
   }));
 
   const pdf = await generateBadgesPDF(badges, mode);
