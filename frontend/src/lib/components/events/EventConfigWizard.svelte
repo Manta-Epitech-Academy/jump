@@ -289,7 +289,11 @@
       ? `${base}/api/admin/config/diploma-template-preview?code=${encodeURIComponent(selectedCertificate.code)}`
       : null,
   );
-  let previewFailed = $state(false);
+  // Which preview failed, not whether one ever did. A boolean outlives the image
+  // it describes: the dialog is mounted for the life of the page, so one timed-out
+  // render read "indisponible" for every certificate on every event until a
+  // reload. Keyed on the url, a new selection is a new question by construction.
+  let failedPreviewUrl = $state<string | null>(null);
 
   const feedbackTriggerLabel = $derived(
     $form.feedbackFormId
@@ -802,23 +806,22 @@
                               </span>
                             </div>
                             <div class="space-y-1.5 px-3 py-2">
-                              {#key previewUrl}
-                                {#if previewFailed}
-                                  <p class="text-xs text-muted-foreground">
-                                    Aperçu indisponible pour le moment.
-                                  </p>
-                                {:else}
-                                  <img
-                                    src={previewUrl}
-                                    alt="Aperçu du certificat {certificateTriggerLabel}"
-                                    class="w-full rounded-sm border"
-                                    onerror={() => (previewFailed = true)}
-                                  />
-                                  <p class="text-xs text-muted-foreground">
-                                    Nom, dates et signataire sont des exemples.
-                                  </p>
-                                {/if}
-                              {/key}
+                              {#if failedPreviewUrl === previewUrl}
+                                <p class="text-xs text-muted-foreground">
+                                  Aperçu indisponible pour le moment.
+                                </p>
+                              {:else}
+                                <img
+                                  src={previewUrl}
+                                  alt="Aperçu du certificat {certificateTriggerLabel}"
+                                  class="w-full rounded-sm border"
+                                  onerror={() =>
+                                    (failedPreviewUrl = previewUrl)}
+                                />
+                                <p class="text-xs text-muted-foreground">
+                                  Nom, dates et signataire sont des exemples.
+                                </p>
+                              {/if}
                             </div>
                           </div>
                         {/if}
