@@ -259,6 +259,15 @@ describe('certificate authoring (integration)', () => {
     // Small enough to travel in a chat message.
     expect(preview.image.base64.length).toBeLessThan(400_000);
 
+    // Read straight out of the PNG header: the dimensions reported alongside the
+    // image have to be the image's. Puppeteer applies `deviceScaleFactor` and
+    // `clip.scale` on top of one another, so passing the preview scale to both
+    // rendered at scale squared while still reporting a single factor.
+    expect([bytes.readUInt32BE(16), bytes.readUInt32BE(20)]).toEqual([
+      preview.widthPx,
+      preview.heightPx,
+    ]);
+
     // Built from the request that arrived, not from env.ORIGIN: a static origin
     // hands out links to whichever instance config names, which is how the
     // instance on one port started answering with another port's URLs.

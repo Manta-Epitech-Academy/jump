@@ -161,7 +161,11 @@ export async function renderPng(input: {
   html: string;
   widthPx: number;
   heightPx: number;
-  /** Downscale, to keep the encoded image small enough to travel. */
+  /**
+   * Downscale, to keep the encoded image small enough to travel. Applied as the
+   * viewport's `deviceScaleFactor` and nowhere else: `clip.scale` multiplies with
+   * it rather than replacing it, so setting both rendered at scale squared.
+   */
   scale?: number;
   fontTimeoutMs?: number;
 }): Promise<Uint8Array<ArrayBuffer>> {
@@ -175,7 +179,10 @@ export async function renderPng(input: {
     });
     const png = await page.screenshot({
       type: 'png',
-      clip: { x: 0, y: 0, width: widthPx, height: heightPx, scale },
+      // CSS pixels, unscaled: the clip says which box, the viewport says at what
+      // density. The output is therefore `widthPx * scale` wide, which is what
+      // the caller reports.
+      clip: { x: 0, y: 0, width: widthPx, height: heightPx },
     });
     return new Uint8Array(png) as Uint8Array<ArrayBuffer>;
   });
