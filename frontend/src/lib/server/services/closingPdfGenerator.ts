@@ -60,7 +60,7 @@ export type ClosingForPdf = Prisma.Closing_RecordGetPayload<{
 
 type ClosingAnswerRow = ClosingForPdf['answers'][number];
 
-type TemplateQuestion = {
+export type SynthesisQuestion = {
   kind: string;
   label: string;
   /** The structured answer: a label for single, the list of selected labels for
@@ -85,7 +85,7 @@ function renderAnswer(
   kind: string,
   answer: ClosingAnswerRow | undefined,
   max: number | null,
-): TemplateQuestion {
+): SynthesisQuestion {
   const note = answer?.note?.trim() || null;
   if (kind === 'rating') {
     return {
@@ -115,7 +115,21 @@ function renderAnswer(
   };
 }
 
-function buildSections(record: ClosingForPdf, grid: ClosingGrid) {
+/**
+ * The synthesis the document prints: one entry per question of the grid, in its
+ * read-back order, plus anything answered under a question the grid no longer
+ * asks.
+ *
+ * Exported because this is the whole silent-failure surface of the document. Its
+ * predecessor indexed the row by a catalogue's field name through a
+ * `Record<string, unknown>` cast, so a renamed column printed "Non renseigné" for
+ * every question and dropped every note, with nothing failing anywhere. Rendering
+ * a PDF to prove that needs a browser; checking this mapping does not.
+ */
+export function buildClosingSynthesis(
+  record: ClosingForPdf,
+  grid: ClosingGrid,
+): { title: string; questions: SynthesisQuestion[] }[] {
   const byQuestion = new Map(record.answers.map((a) => [a.question.id, a]));
   const asked = new Set<string>();
 
@@ -186,7 +200,7 @@ export async function generateClosingPdf(
     campusName: record.campus.name,
     conductedAt: formatDate(record.conductedAt),
     eventTitle: record.participation.event.titre,
-    sections: buildSections(record, grid),
+    sections: buildClosingSynthesis(record, grid),
     recommendation: recoLabel,
     recommendationKey: recoKey,
     verdictNote: record.verdictNote,
