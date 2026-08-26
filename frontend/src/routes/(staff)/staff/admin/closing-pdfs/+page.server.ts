@@ -1,8 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
-import type { Prisma, InterviewRecommendation } from '@prisma/client';
+import type { Prisma, ClosingRecommendation } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { resetInterview } from '$lib/server/services/interviewResetService';
-import { INTERVIEW_RECOMMENDATIONS } from '$lib/domain/interview';
+import { resetClosing } from '$lib/server/services/closingResetService';
+import { CLOSING_RECOMMENDATIONS } from '$lib/domain/closing';
 import { fail } from '@sveltejs/kit';
 
 const RESET_REASON_MAX = 500;
@@ -10,20 +10,20 @@ const RESET_REASON_MAX = 500;
 // The reco filter feeds a Prisma enum query, which throws on an unknown value.
 // Validate against the catalogue's keys so a hand-edited `?reco=` degrades to
 // "all" rather than 500-ing the page.
-const VALID_RECOS = new Set<string>(Object.keys(INTERVIEW_RECOMMENDATIONS));
+const VALID_RECOS = new Set<string>(Object.keys(CLOSING_RECOMMENDATIONS));
 
 export const load: PageServerLoad = async ({ url, locals, depends }) => {
-  depends('admin:interview-pdfs');
+  depends('admin:closing-pdfs');
 
   const recoParam = url.searchParams.get('reco') ?? 'all';
   const statusFilter = VALID_RECOS.has(recoParam) ? recoParam : 'all';
   const q = url.searchParams.get('q') ?? '';
 
-  const where: Prisma.InterviewWhereInput = { status: 'done' };
+  const where: Prisma.Closing_RecordWhereInput = { status: 'done' };
 
   if (statusFilter !== 'all') {
     // Validated against the catalogue keys above, so the cast is safe.
-    where.recommendation = statusFilter as InterviewRecommendation;
+    where.recommendation = statusFilter as ClosingRecommendation;
   }
 
   if (q) {
@@ -44,8 +44,8 @@ export const load: PageServerLoad = async ({ url, locals, depends }) => {
   // but it's an unbounded scan only the export popover needs, so it moved to
   // ./export-timeline and the menu fetches it lazily on open.
   const cohort = (async () => {
-    const [interviews, matchCount, recoCounts] = await Promise.all([
-      prisma.interview.findMany({
+    const [closings, matchCount, recoCounts] = await Promise.all([
+      prisma.closing_Record.findMany({
         where,
         select: {
           id: true,
@@ -59,8 +59,8 @@ export const load: PageServerLoad = async ({ url, locals, depends }) => {
         orderBy: { conductedAt: 'desc' },
         take: PAGE_SIZE,
       }),
-      prisma.interview.count({ where }),
-      prisma.interview.groupBy({
+      prisma.closing_Record.count({ where }),
+      prisma.closing_Record.groupBy({
         by: ['recommendation'],
         where: { status: 'done' },
         _count: true,
@@ -74,14 +74,14 @@ export const load: PageServerLoad = async ({ url, locals, depends }) => {
     const totalDone = recoCounts.reduce((s, r) => s + r._count, 0);
 
     return {
-      interviews: interviews.map((i) => ({
-        id: i.id,
-        conductedAt: i.conductedAt.toISOString(),
-        recommendation: i.recommendation,
-        talentName: `${i.talent.prenom} ${i.talent.nom}`,
-        staffName: i.staff.user.name ?? 'Staff',
-        campusName: i.campus.name,
-        eventTitle: i.participation.event.titre,
+      closings: closings.map((c) => ({
+        id: c.id,
+        conductedAt: c.conductedAt.toISOString(),
+        recommendation: c.recommendation,
+        talentName: `${c.talent.prenom} ${c.talent.nom}`,
+        staffName: c.staff.user.name ?? 'Staff',
+        campusName: c.campus.name,
+        eventTitle: c.participation.event.titre,
       })),
       matchCount,
       truncated: matchCount > PAGE_SIZE,
@@ -95,15 +95,15 @@ export const load: PageServerLoad = async ({ url, locals, depends }) => {
     // Un-awaited on purpose: SvelteKit streams it so the chrome paints first.
     cohort,
     lastExportAt:
-      locals.staffProfile?.interviewDocsExportedAt?.toISOString() ?? null,
+      locals.staffProfile?.closingDocsExportedAt?.toISOString() ?? null,
   };
 };
 
 export const actions: Actions = {
-  // Reset = hard-delete an interview finalized by mistake, returning the talent
+  // Reset = hard-delete a closing finalised by mistake, returning the talent
   // to "à faire" so a fresh one can be conducted. Belt-and-braces admin assert
   // on top of the /staff/admin/* route guard, since this destroys a colleague's
-  // finalized work on a minor's record. Mirrors the account-deletions guard.
+  // finalised work on a minor's record. Mirrors the account-deletions guard.
   reset: async ({ request, locals }) => {
     if (locals.staffProfile?.staffRole !== 'admin') {
       return fail(403, { error: 'Réservé aux administrateurs.' });
@@ -114,7 +114,7 @@ export const actions: Actions = {
     const reason = form.get('reason');
 
     if (typeof id !== 'string' || !id) {
-      return fail(400, { error: 'Entretien manquant.' });
+      return fail(400, { error: 'Closing manquant.' });
     }
     const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
     if (!trimmedReason) {
@@ -127,16 +127,16 @@ export const actions: Actions = {
     }
 
     try {
-      const done = await resetInterview({
-        interviewId: id,
+      const done = await resetClosing({
+        closingId: id,
         resetByStaffId: locals.staffProfile.id,
         reason: trimmedReason,
       });
       if (!done) {
-        return fail(409, { error: 'Entretien déjà réinitialisé.' });
+        return fail(409, { error: 'Closing déjà réinitialisé.' });
       }
     } catch (err) {
-      console.error('[interview-pdfs] reset failed', err);
+      console.error('[closing-pdfs] reset failed', err);
       return fail(500, { error: 'Échec de la réinitialisation.' });
     }
 

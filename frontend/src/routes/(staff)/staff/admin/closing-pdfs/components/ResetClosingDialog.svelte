@@ -28,7 +28,7 @@
   let resetting = $state(false);
 
   // Clear the reason whenever the dialog opens for a (possibly different) target,
-  // so a prior draft never leaks onto the next interview.
+  // so a prior draft never leaks onto the next closing.
   $effect(() => {
     if (open) reason = '';
   });
@@ -39,11 +39,11 @@
 <AlertDialog.Root bind:open>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title>Réinitialiser l'entretien</AlertDialog.Title>
+      <AlertDialog.Title>Réinitialiser le closing</AlertDialog.Title>
       <AlertDialog.Description>
-        Cette action supprime définitivement l'entretien finalisé et sa
-        synthèse. Le talent repassera en « à faire » et un nouvel entretien
-        pourra être conduit depuis l'espace dev. Action irréversible.
+        Cette action supprime définitivement le closing finalisé et sa synthèse.
+        Le talent repassera en « à faire » et un nouveau closing pourra être
+        conduit depuis l'espace dev. Action irréversible.
       </AlertDialog.Description>
     </AlertDialog.Header>
 
@@ -65,7 +65,7 @@
           return async ({ result, update }) => {
             resetting = false;
             if (result.type === 'success') {
-              toast.success('Entretien réinitialisé');
+              toast.success('Closing réinitialisé');
               open = false;
               await update();
             } else {
@@ -89,7 +89,7 @@
             bind:value={reason}
             maxlength={REASON_MAX}
             rows={3}
-            placeholder="Ex. : entretien créé par erreur lors d'un test."
+            placeholder="Ex. : closing créé par erreur lors d'un test."
             class="resize-none"
           />
         </div>

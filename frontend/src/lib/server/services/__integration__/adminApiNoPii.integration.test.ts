@@ -41,7 +41,7 @@ const SELF_NAMING_QUOTE = `Semaine géniale, merci à tous. ${IDENTITY.prenom} $
  * The one operation allowed to carry a talent's own words, and therefore the one
  * exempted from the string search below.
  *
- * `stats_interview_testimonials` returns what a student wrote about an event,
+ * `stats_closing_testimonials` returns what a student wrote about an event,
  * verbatim and unattributed, because that question exists to collect a quotable
  * line. Verbatim means unfiltered: a student who signs his own sentence is
  * republished signing it. That residual risk was weighed and accepted rather
@@ -51,7 +51,7 @@ const SELF_NAMING_QUOTE = `Semaine géniale, merci à tous. ${IDENTITY.prenom} $
  * in its select fails here like anywhere else. Only the free text is exempt.
  */
 const VERBATIM_OPERATIONS = new Set<AdminApiOperationName>([
-  'stats_interview_testimonials',
+  'stats_closing_testimonials',
 ]);
 
 function offendingKeys(value: unknown, path = ''): string[] {
@@ -76,7 +76,7 @@ describe('no read operation leaks a talent identity (integration)', () => {
   let userId = '';
   let staffUserId = '';
   /**
-   * Values the parameterised operations are exercised with, plus the interview
+   * Values the parameterised operations are exercised with, plus the closing
    * id no read may hand out (see the assertion that hunts for it).
    */
   const seeded = {
@@ -84,7 +84,7 @@ describe('no read operation leaks a talent identity (integration)', () => {
     formId: '',
     questionKey: 'satisfaction',
     schoolYear: '',
-    interviewId: '',
+    closingId: '',
   };
 
   beforeAll(async () => {
@@ -167,7 +167,7 @@ describe('no read operation leaks a talent identity (integration)', () => {
       },
     });
 
-    // A conducted interview, so the two operations that read one are exercised
+    // A conducted closing, so the two operations that read one are exercised
     // on real rows instead of passing over an empty list, which is how the only
     // free-text answer in this catalogue used to assert nothing at all.
     const staff = await prisma.bauth_user.create({
@@ -179,22 +179,78 @@ describe('no read operation leaks a talent identity (integration)', () => {
     });
     staffUserId = staff.id;
 
-    const interview = await prisma.interview.create({
+    // The grid the closing is conducted with. Seeded here rather than reused
+    // from the migration so the suite does not depend on production content: one
+    // quotable question (the testimonial) and one rating, which is what the two
+    // operations under test read.
+    const template = await prisma.closing_Template.create({
+      data: {
+        key: `pii-grid-${stamp}`,
+        label: 'Grille test',
+        sections: { create: { position: 0, title: 'Retour' } },
+      },
+      select: { id: true, sections: { select: { id: true } } },
+    });
+    const quotable = await prisma.closing_Question.create({
+      data: {
+        key: `pii-quote-${stamp}`,
+        label: "L'événement en une phrase",
+        kind: 'text',
+        testimonial: true,
+      },
+    });
+    const rating = await prisma.closing_Question.create({
+      data: {
+        key: `pii-rating-${stamp}`,
+        label: 'Satisfaction globale',
+        kind: 'rating',
+        max: 5,
+      },
+    });
+    await prisma.closing_TemplateQuestion.createMany({
+      data: [
+        {
+          templateId: template.id,
+          sectionId: template.sections[0].id,
+          questionId: quotable.id,
+          position: 0,
+        },
+        {
+          templateId: template.id,
+          sectionId: template.sections[0].id,
+          questionId: rating.id,
+          position: 1,
+        },
+      ],
+    });
+
+    const closing = await prisma.closing_Record.create({
       data: {
         talentId: talent.id,
         staffId: staff.staffProfile!.id,
         campusId,
         participationId: participation.id,
+        templateId: template.id,
         status: 'done',
         recommendation: 'bon_profil',
-        satisfactionStars: 5,
-        oneSentence: SELF_NAMING_QUOTE,
         // Staff prose about a named minor, which no tier may ever read. Seeded
         // precisely so the string search has something to catch if it does.
         verdictNote: `Très bon échange avec ${IDENTITY.prenom}.`,
+        answers: {
+          create: [
+            { questionId: quotable.id, freeText: SELF_NAMING_QUOTE },
+            {
+              questionId: rating.id,
+              ratingValue: 5,
+              // The team's note under a question: the other half of the prose a
+              // closing holds about a minor, and equally out of bounds.
+              note: `${IDENTITY.prenom} a beaucoup parlé de sa prof de NSI.`,
+            },
+          ],
+        },
       },
     });
-    seeded.interviewId = interview.id;
+    seeded.closingId = closing.id;
 
     // A response from the seeded talent, so the feedback answer has a real
     // submission to aggregate rather than an empty one that could not leak, and
@@ -224,7 +280,7 @@ describe('no read operation leaks a talent identity (integration)', () => {
       });
       await prisma.participation.deleteMany({ where: { talentId } });
       await prisma.talent.deleteMany({ where: { id: talentId } });
-      // The staff account too: its profile, and the interview hanging off it,
+      // The staff account too: its profile, and the closing hanging off it,
       // cascade away with it.
       await prisma.bauth_user.deleteMany({
         where: { id: { in: [userId, staffUserId] } },
@@ -245,9 +301,9 @@ describe('no read operation leaks a talent identity (integration)', () => {
 
   it('has reads to check and rows to find, so nothing here passes vacuously', () => {
     expect(reads.length).toBeGreaterThan(15);
-    // An empty needle is found in every haystack, which would turn the interview
+    // An empty needle is found in every haystack, which would turn the closing
     // assertion below into a permanent, baffling failure.
-    expect(seeded.interviewId).not.toBe('');
+    expect(seeded.closingId).not.toBe('');
   });
 
   for (const [name, operation] of reads) {
@@ -278,15 +334,15 @@ describe('no read operation leaks a talent identity (integration)', () => {
       }
 
       // A different rule from the identity ones, and it holds for every read,
-      // exempt or not. `ops_reset_interview` is an irreversible delete and is
+      // exempt or not. `ops_reset_closing` is an irreversible delete and is
       // allowed to be a tool for exactly one reason: no read hands out an
-      // interview id, so a model can carry out a reset on an id a human gave it
+      // closing id, so a model can carry out a reset on an id a human gave it
       // and can never choose the target itself. That was doctrine with nothing
       // enforcing it, so an id slipped into a select would have quietly moved
       // the write into "never a tool" (see the class C table in AGENTS.md).
       expect(
-        serialized.includes(seeded.interviewId),
-        `${name} returns an interview id, which only an irreversible write can spend`,
+        serialized.includes(seeded.closingId),
+        `${name} returns a closing id, which only an irreversible write can spend`,
       ).toBe(false);
 
       // Checked here rather than in a unit test because it is the composition in
@@ -303,11 +359,11 @@ describe('no read operation leaks a talent identity (integration)', () => {
   }
 
   // Pinned rather than left implicit. This is the single hole in "no identity at
-  // any tier", it was opened knowingly, and it also proves the seeded interview
+  // any tier", it was opened knowingly, and it also proves the seeded closing
   // reaches this operation: the check above is exempt here, so without this the
   // one answer carrying free text would be asserting on an empty list again.
   it('returns a self-naming testimonial whole, the one documented exception', async () => {
-    const answer = (await ADMIN_API_OPERATIONS.stats_interview_testimonials.run(
+    const answer = (await ADMIN_API_OPERATIONS.stats_closing_testimonials.run(
       {},
       { tier: 'leadership', actorUserId: 'test', origin: 'http://localhost' },
     )) as { testimonials: { value: { quote: string }[] } };

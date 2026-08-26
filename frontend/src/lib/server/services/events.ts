@@ -78,6 +78,8 @@ export type AdminEventVM = {
   feedbackFormId: string;
   /** The certificate the event issues (id), or "" = it issues none. */
   diplomaTemplateId: string;
+  /** The closing grid the event's 1:1s use (id), or "" = it holds none. */
+  closingTemplateId: string;
   participations: number;
 };
 
@@ -115,6 +117,7 @@ const ADMIN_EVENT_SELECT = {
   devActivatedAt: true,
   feedbackFormId: true,
   diplomaTemplateId: true,
+  closingTemplateId: true,
   campusId: true,
   createdAt: true,
   campus: { select: { name: true, timezone: true } },
@@ -203,6 +206,7 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
       moduleSettings,
       feedbackFormId: e.feedbackFormId ?? '',
       diplomaTemplateId: e.diplomaTemplateId ?? '',
+      closingTemplateId: e.closingTemplateId ?? '',
       participations: e._count.participations,
     };
   });
@@ -294,6 +298,7 @@ export const EventService = {
       devActivated: boolean;
       feedbackFormId: string;
       diplomaTemplateId: string;
+      closingTemplateId: string;
     },
   ) {
     // Surfaces a clean 404 (rather than a transaction-level throw) if the event
@@ -341,6 +346,16 @@ export const EventService = {
       });
       if (!template) throw error(400, 'Certificat introuvable.');
     }
+    // Which closing grid the event's 1:1s use. Empty = it holds none and the
+    // surface stays hidden, exactly as a null feedback form hides the bilan.
+    const closingTemplateId = data.closingTemplateId.trim() || null;
+    if (closingTemplateId) {
+      const grid = await prisma.closing_Template.findUnique({
+        where: { id: closingTemplateId },
+        select: { id: true },
+      });
+      if (!grid) throw error(400, 'Grille de closing introuvable.');
+    }
 
     await prisma.$transaction(async (tx) => {
       await applyModuleDiff(tx, eventId, data.modules, data.moduleSettings);
@@ -356,6 +371,7 @@ export const EventService = {
           devActivatedAt,
           feedbackFormId,
           diplomaTemplateId,
+          closingTemplateId,
         },
       });
     });

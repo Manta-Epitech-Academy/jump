@@ -13,7 +13,7 @@ import {
  * deleting rows: name/contact fields are nulled or replaced with placeholders,
  * the linked auth identity is scrubbed and its sessions/accounts dropped, and
  * every talent-scoped satellite that embeds a name, a contact detail, or free
- * text (interviews, comm + send history, the PDF-job payload) is deleted
+ * text (closings, comm + send history, the PDF-job payload) is deleted
  * outright. The generated onboarding PDFs (charte / règlement student /
  * règlement parent / droit à l'image — each embeds the student's and guardian's
  * names and a signature) are deleted from object storage, not merely

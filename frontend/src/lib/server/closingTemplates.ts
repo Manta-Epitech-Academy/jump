@@ -104,6 +104,25 @@ export async function resolveClosingGridById(
 }
 
 /**
+ * Several grids at once, keyed by id.
+ *
+ * The bulk archive renders hundreds of records that between them use a handful
+ * of grids, so resolving one per record would be the same three joins over and
+ * over. Resolved once per distinct grid instead.
+ */
+export async function resolveClosingGrids(
+  templateIds: string[],
+): Promise<Map<string, ClosingGrid>> {
+  const unique = [...new Set(templateIds)];
+  if (unique.length === 0) return new Map();
+  const graphs = await prisma.closing_Template.findMany({
+    where: { id: { in: unique } },
+    include: TEMPLATE_GRAPH_INCLUDE,
+  });
+  return new Map(graphs.map((g) => [g.id, toClosingGrid(g)]));
+}
+
+/**
  * The catalogue, for the event-config picker and the curated API.
  * Ordered by label so the dropdown reads alphabetically.
  */

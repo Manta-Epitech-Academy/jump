@@ -91,6 +91,7 @@ async function saveEvent(
     devActivated: boolean;
     feedbackFormId: string;
     diplomaTemplateId: string;
+    closingTemplateId: string;
     moduleSettings: Record<string, unknown>;
   }>,
 ): Promise<WriteOutcome> {
@@ -106,6 +107,7 @@ async function saveEvent(
     devActivated: patch.devActivated ?? event.devActivated,
     feedbackFormId: patch.feedbackFormId ?? event.feedbackFormId,
     diplomaTemplateId: patch.diplomaTemplateId ?? event.diplomaTemplateId,
+    closingTemplateId: patch.closingTemplateId ?? event.closingTemplateId,
   });
 
   return { applied: true, before, after: stateOf(await loadEvent(event.id)) };
@@ -245,6 +247,7 @@ export async function writeEventTemplate(params: {
     moduleSettings: event.moduleSettings,
     feedbackFormId: event.feedbackFormId,
     diplomaTemplateId: event.diplomaTemplateId,
+    closingTemplateId: event.closingTemplateId,
     // Nobody's staff profile: the preset was saved by a token, and the audit
     // row already carries which one.
     actorId: null,

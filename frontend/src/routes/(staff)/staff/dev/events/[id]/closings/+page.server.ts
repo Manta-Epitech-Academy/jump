@@ -9,12 +9,12 @@ import {
   requireEventModule,
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { interviewListStatus } from '$lib/domain/interview';
-import type { InterviewRecommendation } from '@prisma/client';
+import { closingListStatus } from '$lib/domain/closing';
+import type { ClosingRecommendation } from '@prisma/client';
 import type {
-  EntretienRow,
+  ClosingRow,
   StaffTally,
-  EntretiensCohort,
+  ClosingsCohort,
 } from './components/types';
 
 const TOP_STAFF = 5;
@@ -22,17 +22,17 @@ const TOP_STAFF = 5;
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
   const event = await loadEventOr404(params.id, campusId);
-  requireEventModule(event, EVENT_MODULES.ENTRETIENS);
+  requireEventModule(event, EVENT_MODULES.CLOSINGS);
   const db = scopedPrisma(campusId);
   const timezone = getCampusTimezone(locals);
 
   // Stream the cohort: the page shell (header + rail skeleton) paints immediately
   // while this resolves, instead of the client navigation blocking on it. One
   // driving query for the table (every participant left-joined with their
-  // interview) plus a grouped count for the "entretiens menés" rail card; the
+  // closing) plus a grouped count for the "closings menés" rail card; the
   // status buckets, the recommendation breakdown and the per-staff tally
   // are all derived from rows already in memory (a stage cohort is ~200).
-  const cohort: Promise<EntretiensCohort> = (async () => {
+  const cohort: Promise<ClosingsCohort> = (async () => {
     const [participations, byStaff] = await Promise.all([
       db.participation.findMany({
         where: { eventId: event.id },
@@ -40,7 +40,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
           id: true,
           talentId: true,
           talent: { select: { nom: true, prenom: true } },
-          interview: {
+          closing: {
             select: {
               status: true,
               conductedAt: true,
@@ -56,7 +56,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         },
         orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
       }),
-      db.interview.groupBy({
+      db.closing_Record.groupBy({
         by: ['staffId'],
         where: { participation: { eventId: event.id } },
         _count: { staffId: true },
@@ -65,36 +65,36 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       }),
     ]);
 
-    const rows: EntretienRow[] = participations.map((p) => ({
+    const rows: ClosingRow[] = participations.map((p) => ({
       participationId: p.id,
       talentId: p.talentId,
       nom: p.talent.nom,
       prenom: p.talent.prenom,
-      status: interviewListStatus(p.interview),
-      staffName: p.interview?.staff.user?.name ?? null,
-      staffImage: p.interview?.staff.user?.image ?? null,
-      conductedAt: p.interview?.conductedAt ?? null,
-      recommendation: p.interview?.recommendation ?? null,
+      status: closingListStatus(p.closing),
+      staffName: p.closing?.staff.user?.name ?? null,
+      staffImage: p.closing?.staff.user?.image ?? null,
+      conductedAt: p.closing?.conductedAt ?? null,
+      recommendation: p.closing?.recommendation ?? null,
     }));
 
     // Status buckets (à faire / en cours / finalisé) for the synthesis card.
     const counts = { todo: 0, in_progress: 0, done: 0 };
-    // Recommendation breakdown over finalized interviews, for prospection.
-    const recoCounts: Record<InterviewRecommendation, number> = {
+    // Recommendation breakdown over finalised closings, for prospection.
+    const recoCounts: Record<ClosingRecommendation, number> = {
       tres_compatible: 0,
       bon_profil: 0,
       indecis: 0,
       pas_interesse: 0,
     };
     for (const p of participations) {
-      counts[interviewListStatus(p.interview)]++;
-      if (p.interview?.status === 'done' && p.interview.recommendation) {
-        recoCounts[p.interview.recommendation]++;
+      counts[closingListStatus(p.closing)]++;
+      if (p.closing?.status === 'done' && p.closing.recommendation) {
+        recoCounts[p.closing.recommendation]++;
       }
     }
 
     // Resolve the grouped staff ids to display names (one extra query, only for
-    // the handful that actually conducted an interview).
+    // the handful that actually conducted a closing).
     const staffIds = byStaff.map((g) => g.staffId);
     const staff = staffIds.length
       ? await db.staffProfile.findMany({

@@ -22,17 +22,17 @@
   import KpiTile, { type KpiTone } from '$lib/components/staff/KpiTile.svelte';
   import type { Icon as IconType } from '@lucide/svelte';
   import {
-    INTERVIEW_RECOMMENDATIONS,
-    INTERVIEW_RECOMMENDATION_DISPLAY_ORDER,
+    CLOSING_RECOMMENDATIONS,
+    CLOSING_RECOMMENDATION_DISPLAY_ORDER,
     type RecommendationToneToken,
     type RecommendationIconToken,
-  } from '$lib/domain/interview';
-  import type { InterviewRecommendation } from '@prisma/client';
+  } from '$lib/domain/closing';
+  import type { ClosingRecommendation } from '@prisma/client';
   import { cn, formatDateTimeFr } from '$lib/utils';
   import { toast } from 'svelte-sonner';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ExportMenu from './components/ExportMenu.svelte';
-  import ResetInterviewDialog from './components/ResetInterviewDialog.svelte';
+  import ResetClosingDialog from './components/ResetClosingDialog.svelte';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   import CodeTag from '$lib/components/layout/CodeTag.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
@@ -70,8 +70,8 @@
   let resetOpen = $state(false);
   let resetTarget = $state<ResetTarget | null>(null);
 
-  function openReset(interview: ResetTarget) {
-    resetTarget = interview;
+  function openReset(closing: ResetTarget) {
+    resetTarget = closing;
     resetOpen = true;
   }
 
@@ -106,7 +106,7 @@
     meh: Meh,
     frown: Frown,
   };
-  const recoCaption: Record<InterviewRecommendation, string> = {
+  const recoCaption: Record<ClosingRecommendation, string> = {
     tres_compatible: '100 % compatible',
     bon_profil: 'Bon profil',
     indecis: 'À relancer',
@@ -124,12 +124,12 @@
     {
       key: 'all',
       label: 'Tous',
-      caption: 'Entretiens finalisés',
+      caption: 'Closings finalisés',
       tone: 'neutral',
       Icon: Layers,
     },
-    ...INTERVIEW_RECOMMENDATION_DISPLAY_ORDER.map((key): KpiCard => {
-      const desc = INTERVIEW_RECOMMENDATIONS[key];
+    ...CLOSING_RECOMMENDATION_DISPLAY_ORDER.map((key): KpiCard => {
+      const desc = CLOSING_RECOMMENDATIONS[key];
       return {
         key,
         label: desc.short,
@@ -175,14 +175,11 @@
 </script>
 
 <svelte:head>
-  <title>PDF Entretiens</title>
+  <title>PDF Closings</title>
 </svelte:head>
 
 <div class="space-y-6">
-  <PageHeader
-    title="PDF Entretiens"
-    accroche="Synthèse des entretiens de motivation"
-  >
+  <PageHeader title="PDF Closings" accroche="Synthèses de closing">
     {#snippet actions()}
       <div class="flex items-center gap-3">
         <ExportMenu lastExportAt={data.lastExportAt} />
@@ -212,7 +209,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3">
           <Card.Title class="flex items-center gap-2 tracking-wide uppercase">
             <FileText class="h-4 w-4 text-epi-blue" />
-            Entretiens
+            Closings
             <span class="font-mono text-xs font-normal text-muted-foreground">
               ({c.matchCount}{c.truncated ? ' - 100 affichées' : ''})
             </span>
@@ -252,7 +249,7 @@
             <Table.Row>
               <Table.Head class={th}>Avis</Table.Head>
               <Table.Head class={th}>Talent</Table.Head>
-              <Table.Head class={th}>Interviewer</Table.Head>
+              <Table.Head class={th}>Mené par</Table.Head>
               <Table.Head class={th}>Campus</Table.Head>
               <Table.Head class={th}>Événement</Table.Head>
               <Table.Head class={th}>Date</Table.Head>
@@ -263,38 +260,38 @@
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {#each c.interviews as interview (interview.id)}
+            {#each c.closings as closing (closing.id)}
               <Table.Row>
                 <Table.Cell>
-                  {#if interview.recommendation}
+                  {#if closing.recommendation}
                     <Badge
-                      variant={recoVariant(interview.recommendation)}
+                      variant={recoVariant(closing.recommendation)}
                       class="gap-1 rounded-sm font-mono text-[0.7rem] tracking-wide uppercase"
                     >
-                      {INTERVIEW_RECOMMENDATIONS[interview.recommendation]
-                        ?.short ?? interview.recommendation}
+                      {CLOSING_RECOMMENDATIONS[closing.recommendation]?.short ??
+                        closing.recommendation}
                     </Badge>
                   {:else}
                     <span class="text-xs text-muted-foreground">-</span>
                   {/if}
                 </Table.Cell>
                 <Table.Cell class="font-medium">
-                  {interview.talentName}
+                  {closing.talentName}
                 </Table.Cell>
-                <Table.Cell>{interview.staffName}</Table.Cell>
-                <Table.Cell>{interview.campusName}</Table.Cell>
+                <Table.Cell>{closing.staffName}</Table.Cell>
+                <Table.Cell>{closing.campusName}</Table.Cell>
                 <Table.Cell class="max-w-48 truncate">
-                  {interview.eventTitle ?? '-'}
+                  {closing.eventTitle ?? '-'}
                 </Table.Cell>
                 <Table.Cell>
                   <span class="font-mono text-xs text-muted-foreground">
-                    {formatDateTimeFr(interview.conductedAt)}
+                    {formatDateTimeFr(closing.conductedAt)}
                   </span>
                 </Table.Cell>
                 <Table.Cell class="text-right">
                   <a
                     href={resolve(
-                      `/staff/admin/interview-pdfs/${interview.id}/pdf`,
+                      `/staff/admin/closing-pdfs/${closing.id}/pdf`,
                     )}
                     target="_blank"
                     rel="noopener"
@@ -311,10 +308,10 @@
                     class="h-auto gap-1.5 p-0 text-xs text-muted-foreground hover:text-destructive"
                     onclick={() =>
                       openReset({
-                        id: interview.id,
-                        talentName: interview.talentName,
-                        staffName: interview.staffName,
-                        conductedAt: interview.conductedAt,
+                        id: closing.id,
+                        talentName: closing.talentName,
+                        staffName: closing.staffName,
+                        conductedAt: closing.conductedAt,
                       })}
                   >
                     <RotateCcw class="h-3.5 w-3.5" />
@@ -327,7 +324,7 @@
                 <Table.Cell colspan={8} class="py-12 text-center">
                   {#if hasFilters}
                     <p class="font-mono text-xs text-muted-foreground">
-                      <CodeTag>Aucun entretien pour ce filtre</CodeTag>
+                      <CodeTag>Aucun closing pour ce filtre</CodeTag>
                     </p>
                     <Button
                       variant="link"
@@ -339,7 +336,7 @@
                     </Button>
                   {:else}
                     <p class="font-mono text-xs text-muted-foreground">
-                      <CodeTag>Aucun entretien finalisé</CodeTag>
+                      <CodeTag>Aucun closing finalisé</CodeTag>
                     </p>
                   {/if}
                 </Table.Cell>
@@ -357,7 +354,7 @@
         Chargement impossible
       </h3>
       <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        Les entretiens n'ont pas pu être chargés. Rechargez la page pour
+        Les closings n'ont pas pu être chargés. Rechargez la page pour
         réessayer.
       </p>
     </div>
@@ -366,4 +363,4 @@
   {/if}
 </div>
 
-<ResetInterviewDialog bind:open={resetOpen} target={resetTarget} />
+<ResetClosingDialog bind:open={resetOpen} target={resetTarget} />

@@ -14,20 +14,20 @@
   import { type SegmentOption } from '$lib/components/staff/SegmentedFilter.svelte';
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
-  import { talentFicheHref } from '$lib/components/dev/talentFiche';
+  import { resolve } from '$app/paths';
   import * as Avatar from '$lib/components/ui/avatar';
   import { getInitials } from '$lib/avatar';
   import { formatGivenName } from '$lib/domain/profile';
   import { cohortNounForms } from '$lib/domain/event';
   import {
-    INTERVIEW_STATUS_LABELS,
-    INTERVIEW_STATUS_CHIP_CLASS,
-    type InterviewListStatus,
-  } from '$lib/domain/interview';
-  import type { EntretienRow, SortKey, EntretiensCohort } from './types';
+    CLOSING_STATUS_LABELS,
+    CLOSING_STATUS_CHIP_CLASS,
+    type ClosingListStatus,
+  } from '$lib/domain/closing';
+  import type { ClosingRow, SortKey, ClosingsCohort } from './types';
   import SynthesisCard from './SynthesisCard.svelte';
   import StaffTallyCard from './StaffTallyCard.svelte';
-  import GuideCard from '$lib/components/dev/interviews/GuideCard.svelte';
+  import GuideCard from '$lib/components/dev/closings/GuideCard.svelte';
 
   // The streamed cohort payload plus the two cheap shell values the table/rail
   // need (timezone for date formatting, currentStaffId to highlight the leader-
@@ -43,7 +43,7 @@
     cohortNoun,
     timezone,
     currentStaffId,
-  }: EntretiensCohort & {
+  }: ClosingsCohort & {
     eventId: string;
     cohortNoun: string | null;
     timezone: string;
@@ -53,20 +53,20 @@
   // Event's Jump-owned cohort noun ("stagiaire" / "participant").
   const noun = $derived(cohortNounForms(cohortNoun));
 
-  const STATUS_ICON: Record<InterviewListStatus, typeof Check> = {
+  const STATUS_ICON: Record<ClosingListStatus, typeof Check> = {
     todo: Circle,
     in_progress: Clock,
     done: Check,
   };
   // Least-advanced first in ascending sort, so the talents still to call float up.
-  const STATUS_ORDER: Record<InterviewListStatus, number> = {
+  const STATUS_ORDER: Record<ClosingListStatus, number> = {
     todo: 0,
     in_progress: 1,
     done: 2,
   };
 
   let searchQuery = $state('');
-  let statutFilter = $state<'all' | InterviewListStatus>('all');
+  let statutFilter = $state<'all' | ClosingListStatus>('all');
   let sortKey = $state<SortKey>('nom');
   let sortDir = $state<SortDir>('asc');
 
@@ -86,9 +86,9 @@
 
   const statutOptions: SegmentOption[] = [
     { value: 'all', label: 'Tous' },
-    { value: 'todo', label: INTERVIEW_STATUS_LABELS.todo },
-    { value: 'in_progress', label: INTERVIEW_STATUS_LABELS.in_progress },
-    { value: 'done', label: INTERVIEW_STATUS_LABELS.done },
+    { value: 'todo', label: CLOSING_STATUS_LABELS.todo },
+    { value: 'in_progress', label: CLOSING_STATUS_LABELS.in_progress },
+    { value: 'done', label: CLOSING_STATUS_LABELS.done },
   ];
 
   function toggleSort(key: string) {
@@ -112,14 +112,14 @@
         })
       : null;
 
-  function compareRows(a: EntretienRow, b: EntretienRow, key: SortKey): number {
+  function compareRows(a: ClosingRow, b: ClosingRow, key: SortKey): number {
     switch (key) {
       case 'prenom':
         return a.prenom.localeCompare(b.prenom, 'fr');
       case 'nom':
         return a.nom.localeCompare(b.nom, 'fr');
       case 'staff':
-        // Conducted interviews (named) sort before the not-yet-assigned.
+        // Conducted closings (named) sort before the not-yet-assigned.
         if (!a.staffName && !b.staffName) return 0;
         if (!a.staffName) return 1;
         if (!b.staffName) return -1;
@@ -163,24 +163,25 @@
       : 'au total',
   );
 
-  // The fiche opens straight in its interview flow: this roster is the way in
+  // A closing is an event-scoped act, so it is conducted on its own page under
+  // the event rather than on the talent fiche: this roster is the way in
   // to conducting one, so the dev lands on the questions rather than on the
   // dossier with a toggle left to find.
-  const ficheHref = (r: EntretienRow) =>
-    talentFicheHref(r.talentId, eventId, { interviewMode: true });
+  const conductHref = (r: ClosingRow) =>
+    resolve(`/staff/dev/events/${eventId}/closings/${r.participationId}`);
 </script>
 
-{#snippet statusBadge(status: InterviewListStatus, full: boolean)}
+{#snippet statusBadge(status: ClosingListStatus, full: boolean)}
   {@const Icon = STATUS_ICON[status]}
   <span
     class={cn(
       'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip',
       full && 'shrink-0',
-      INTERVIEW_STATUS_CHIP_CLASS[status],
+      CLOSING_STATUS_CHIP_CLASS[status],
     )}
   >
     <Icon class="h-3 w-3" />
-    {INTERVIEW_STATUS_LABELS[status]}
+    {CLOSING_STATUS_LABELS[status]}
   </span>
 {/snippet}
 
@@ -204,7 +205,7 @@
       Aucun {noun.singular} inscrit
     </h3>
     <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-      Les entretiens apparaîtront ici dès que la cohorte de l'événement sera
+      Les closings apparaîtront ici dès que la cohorte de l'événement sera
       synchronisée.
     </p>
   </div>
@@ -220,7 +221,7 @@
         searchWidthClass="w-full max-w-[230px]"
         filtersAlign="end"
         count={filtered.length}
-        countNoun="entretien"
+        countNoun="closing"
         {countSuffix}
       >
         {#snippet filters()}
@@ -229,7 +230,7 @@
               Statut
             </span>
             <FilterSelect
-              ariaLabel="Filtrer par statut d'entretien"
+              ariaLabel="Filtrer par statut de closing"
               options={statutOptions}
               value={statutFilter}
               onChange={(v) => (statutFilter = v as typeof statutFilter)}
@@ -245,12 +246,12 @@
         {sortDir}
         onSort={toggleSort}
         rowKey={(r) => r.participationId}
-        rowHref={ficheHref}
-        rowLabel={(r) => `Mener l'entretien de ${r.prenom} ${r.nom}`}
+        rowHref={conductHref}
+        rowLabel={(r) => `Mener le closing de ${r.prenom} ${r.nom}`}
         stickyHeader
         layout="fixed"
       >
-        {#snippet row(r: EntretienRow)}
+        {#snippet row(r: ClosingRow)}
           <Table.Cell>
             <TalentAvatar
               talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
@@ -284,7 +285,7 @@
           </Table.Cell>
         {/snippet}
 
-        {#snippet mobileRow(r: EntretienRow)}
+        {#snippet mobileRow(r: ClosingRow)}
           {@const prenom = formatGivenName(r.prenom)}
           <div class="flex items-start gap-3">
             <TalentAvatar
@@ -328,7 +329,7 @@
       </SortableTable>
     </div>
 
-    <!-- Right 30%: synthesis, the staff tally and the interview guide. Same
+    <!-- Right 30%: synthesis, the staff tally and the closing guide. Same
          sticky-rail mechanics as Inscrits / Émargement. -->
     <aside class="min-w-0 xl:col-span-3">
       <div

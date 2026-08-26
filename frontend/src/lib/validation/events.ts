@@ -51,6 +51,10 @@ export const adminEventSchema = z.object({
   // the export disappears. A non-empty value is a `Diploma_Template` id, checked
   // server-side against an existing row.
   diplomaTemplateId: z.string().default(''),
+  // Which closing grid this event's 1:1s use. Empty = it holds no closings, and
+  // the surface stays hidden; there is no per-type fallback. A non-empty value is
+  // a `Closing_Template` id, checked server-side against an existing row.
+  closingTemplateId: z.string().default(''),
 });
 
 export type AdminEventForm = z.infer<typeof adminEventSchema>;
@@ -111,4 +115,7 @@ export const eventConfigTemplateSaveSchema = z.object({
   // The certificate the preset carries, copied onto the event on apply. Mirrors
   // the event form's `diplomaTemplateId`; empty = the preset names none.
   diplomaTemplateId: z.string().default(''),
+  // Same for the closing grid, and for the same reason: a preset that copied the
+  // modules but not the grid would apply a closings surface with nothing to ask.
+  closingTemplateId: z.string().default(''),
 });

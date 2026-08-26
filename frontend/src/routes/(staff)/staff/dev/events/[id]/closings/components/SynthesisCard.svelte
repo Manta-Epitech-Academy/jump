@@ -2,12 +2,12 @@
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import * as Card from '$lib/components/ui/card';
   import { cn } from '$lib/utils';
-  import type { InterviewRecommendation } from '@prisma/client';
+  import type { ClosingRecommendation } from '@prisma/client';
   import {
-    INTERVIEW_RECOMMENDATIONS,
-    INTERVIEW_RECOMMENDATION_VALUES,
+    CLOSING_RECOMMENDATIONS,
+    CLOSING_RECOMMENDATION_VALUES,
     type RecommendationToneToken,
-  } from '$lib/domain/interview';
+  } from '$lib/domain/closing';
 
   let {
     counts,
@@ -16,7 +16,7 @@
   }: {
     counts: { todo: number; in_progress: number; done: number };
     total: number;
-    recoCounts: Record<InterviewRecommendation, number>;
+    recoCounts: Record<ClosingRecommendation, number>;
   } = $props();
 
   // Left-to-right in the same order as the legend so colour ↔ count stay aligned.
@@ -47,7 +47,7 @@
   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
 
   const recoTotal = $derived(
-    INTERVIEW_RECOMMENDATION_VALUES.reduce((s, v) => s + recoCounts[v], 0),
+    CLOSING_RECOMMENDATION_VALUES.reduce((s, v) => s + recoCounts[v], 0),
   );
 
   const TONE_DOT: Record<RecommendationToneToken, string> = {
@@ -80,7 +80,7 @@
       <div
         class="flex h-2.5 w-full overflow-hidden rounded-full bg-muted"
         role="img"
-        aria-label="Répartition des entretiens par statut"
+        aria-label="Répartition des closings par statut"
       >
         {#each segments as s (s.key)}
           {#if s.value > 0}
@@ -113,9 +113,9 @@
     {#if recoTotal > 0}
       <div class="space-y-1.5 border-t pt-2.5">
         <p class="epi-overline text-muted-foreground">Avis sur les finalisés</p>
-        {#each INTERVIEW_RECOMMENDATION_VALUES as value (value)}
+        {#each CLOSING_RECOMMENDATION_VALUES as value (value)}
           {#if recoCounts[value] > 0}
-            {@const desc = INTERVIEW_RECOMMENDATIONS[value]}
+            {@const desc = CLOSING_RECOMMENDATIONS[value]}
             <div class="flex items-center justify-between gap-2 text-xs">
               <span class="flex items-center gap-1.5 text-muted-foreground">
                 <span

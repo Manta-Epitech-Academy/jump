@@ -4,8 +4,8 @@
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import * as Card from '$lib/components/ui/card';
 
-  // Static how-to card. Shown on the cohort entretiens list as a quick reminder
-  // on timing and tone before staff open a fiche to conduct an interview.
+  // Static how-to card. Shown on the cohort closings list as a quick reminder
+  // on timing and tone before staff open one to conduct it.
 </script>
 
 <Card.Root class="rounded-sm shadow-raised">
@@ -36,7 +36,7 @@
         >
         Accroche : « On prend 10 min ensemble pour faire le point sur ton orientation
         et avoir ton retour sur la semaine. » L'avis de l'équipe se remplit à chaud,
-        après l'entretien.
+        après le closing.
       </p>
     </div>
   </Card.Content>

@@ -102,7 +102,7 @@ const inscritsModuleSettingsSchema = z.object({
   // Show the dossier/statut funnel column (connexion, règlement, droit à l'image)
   // on the Inscrits table for this event. Opt-in: defaults off, an admin turns it
   // on per event from the config wizard (onboarding campuses want it; others, e.g.
-  // Paris with interviews + public bilan only, leave it off). Gates ONLY that
+  // Paris with closings + public bilan only, leave it off). Gates ONLY that
   // column, never the talent fiche.
   showStatutColumn: z.boolean().default(false),
 });

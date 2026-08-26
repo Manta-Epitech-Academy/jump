@@ -100,13 +100,14 @@ describe('anonymizationService - anonymizeTalent', () => {
     expect(mockTx.closing_ResetEvent.deleteMany).toHaveBeenCalledWith({
       where: { talentId: 'talent_123' },
     });
-    // The same guarantee for the two other free-text stores on a talent.
+    // The same guarantee for the two other free-text stores on a talent. The
+    // feedback one is asserted on the call rather than on its filter, which is
+    // deliberately wider than a talent id (it also catches public submissions
+    // matched back by email); what matters here is that the call still happens.
     expect(mockTx.note_TalentNote.deleteMany).toHaveBeenCalledWith({
       where: { talentId: 'talent_123' },
     });
-    expect(mockTx.feedback_Submission.deleteMany).toHaveBeenCalledWith({
-      where: { talentId: 'talent_123' },
-    });
+    expect(mockTx.feedback_Submission.deleteMany).toHaveBeenCalled();
 
     // Assert AuthIdentityRepair email scrubbing
     expect(mockTx.authIdentityRepair.updateMany).toHaveBeenCalledWith({

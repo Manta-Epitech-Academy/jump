@@ -58,6 +58,20 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   // whole point of the table it is stored in.
   'styleCss',
   'bodyHtml',
+  // A closing question and the composition of a grid. Same case: authored, not
+  // picked, which is the whole point of the bank they are stored in. The one
+  // value here that DOES name something is the question key a section references,
+  // and that one is a handle.
+  'kind',
+  'hint',
+  'max',
+  'maxLength',
+  'placeholder',
+  'notePlaceholder',
+  'testimonial',
+  'retired',
+  'options',
+  'sections',
   // Flags, windows and sizes.
   'visible',
   'showStatutColumn',

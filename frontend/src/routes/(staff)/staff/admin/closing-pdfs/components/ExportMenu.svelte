@@ -15,7 +15,7 @@
 
   // The conducted-at timeline is fetched lazily when the popover opens rather
   // than passed down from the page load: it's an unbounded scan of every done
-  // interview, needed only to count PDFs per period, so keeping it off the load
+  // closing, needed only to count PDFs per period, so keeping it off the load
   // lets the page chrome paint without it. Refetched on each open so the counts
   // and the "depuis le dernier export" delta stay fresh.
   let timeline = $state<string[]>([]);
@@ -23,8 +23,8 @@
   // then, then keeps the last data on subsequent re-opens while it refetches.
   let loaded = $state(false);
 
-  const exportBase = resolve('/staff/admin/interview-pdfs/export');
-  const timelineHref = resolve('/staff/admin/interview-pdfs/export-timeline');
+  const exportBase = resolve('/staff/admin/closing-pdfs/export');
+  const timelineHref = resolve('/staff/admin/closing-pdfs/export-timeline');
   const DAY = 86_400_000;
 
   async function loadTimeline() {
@@ -35,7 +35,7 @@
       timeline = data.timeline;
       loaded = true;
     } catch (err) {
-      console.error('[interview-pdfs] timeline fetch failed', err);
+      console.error('[closing-pdfs] timeline fetch failed', err);
       toast.error("Impossible de charger l'historique des exports.");
     }
   }
@@ -132,7 +132,7 @@
     <p
       class="font-mono text-[0.7rem] tracking-wider text-muted-foreground uppercase"
     >
-      Synthèses d'entretien
+      Synthèses de closing
     </p>
 
     {#if !loaded}
@@ -174,7 +174,7 @@
             </a>
           {:else}
             <p class="text-xs text-muted-foreground">
-              Aucun nouvel entretien depuis.
+              Aucun nouveau closing depuis.
             </p>
           {/if}
         </div>

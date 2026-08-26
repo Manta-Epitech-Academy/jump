@@ -66,6 +66,7 @@
     startTime: string;
     feedbackFormId: string | null;
     diplomaTemplateId: string | null;
+    closingTemplateId: string | null;
     modules: EventModuleKey[];
     moduleSettings: Record<string, unknown>;
   };
@@ -76,6 +77,7 @@
     formData,
     feedbackForms,
     certificates,
+    closingGrids,
     formPreviews,
     templates,
   }: {
@@ -85,6 +87,7 @@
     feedbackForms: { value: string; label: string }[];
     /** The certificates an event can be set to issue. `code` feeds the preview. */
     certificates: { value: string; label: string; code: string }[];
+    closingGrids: { value: string; label: string }[];
     /** Per-form ordered question prompts, for the inline read-only preview. */
     formPreviews: Record<string, string[]>;
     templates: TemplateVM[];
@@ -187,6 +190,7 @@
     $form.moduleSettings = withDefaults(t.moduleSettings);
     $form.feedbackFormId = t.feedbackFormId ?? '';
     $form.diplomaTemplateId = t.diplomaTemplateId ?? '';
+    $form.closingTemplateId = t.closingTemplateId ?? '';
     // Prefilled like the rest of the preset: a wholesale copy the admin can still
     // edit on step 2. Empty falls back as usual (publicName → the SF titre,
     // startTime → no arrival time).
@@ -295,6 +299,20 @@
   // reload. Keyed on the url, a new selection is a new question by construction.
   let failedPreviewUrl = $state<string | null>(null);
 
+  // ─── Closing-grid picker (closings module) ───────────────────────────────
+  // Third instance of the same shape: a nullable typed choice on the event whose
+  // picker sits under the module it feeds, and whose null IS the gate. No preview
+  // beside it, unlike the certificate: a grid's acceptance test is textual, so
+  // reading it back is `config_closing_templates`' job rather than an image.
+  const NO_GRID = 'none';
+  const NO_GRID_LABEL = 'Aucune grille';
+  const closingTriggerLabel = $derived(
+    $form.closingTemplateId
+      ? (closingGrids.find((g) => g.value === $form.closingTemplateId)?.label ??
+          'Grille inconnue')
+      : NO_GRID_LABEL,
+  );
+
   const feedbackTriggerLabel = $derived(
     $form.feedbackFormId
       ? (workingForms.find((f) => f.value === $form.feedbackFormId)?.label ??
@@ -371,6 +389,9 @@
       feedbackFormId: moduleActive('bilan') ? $form.feedbackFormId : '',
       // Same gate, for the same reason: the export lives on the Inscrits page, so
       // a certificate without that section would be dead data in the preset.
+      closingTemplateId: moduleActive('closings')
+        ? $form.closingTemplateId
+        : '',
       diplomaTemplateId: moduleActive('inscrits')
         ? $form.diplomaTemplateId
         : '',
@@ -829,6 +850,39 @@
                     </div>
                   {/if}
 
+                  {#if checked && key === 'closings'}
+                    <div class="space-y-2 border-t bg-muted/20 px-3 py-3 pl-14">
+                      <span
+                        class="flex items-center gap-1.5 text-xs font-medium"
+                      >
+                        Grille de closing
+                        <InfoTooltip
+                          text="Les questions posées lors du closing de cet événement. Sans grille, la page Closings n'apparaît pas dans l'espace dev. Les grilles s'écrivent via l'API, pas ici."
+                        />
+                      </span>
+                      <Select.Root
+                        type="single"
+                        value={$form.closingTemplateId || NO_GRID}
+                        onValueChange={(v) =>
+                          ($form.closingTemplateId = v === NO_GRID ? '' : v)}
+                      >
+                        <Select.Trigger class="w-full">
+                          {closingTriggerLabel}
+                        </Select.Trigger>
+                        <Select.Content>
+                          <Select.Item value={NO_GRID}>
+                            {NO_GRID_LABEL}
+                          </Select.Item>
+                          {#each closingGrids as opt (opt.value)}
+                            <Select.Item value={opt.value}>
+                              {opt.label}
+                            </Select.Item>
+                          {/each}
+                        </Select.Content>
+                      </Select.Root>
+                    </div>
+                  {/if}
+
                   {#if checked && key === 'bilan'}
                     <div class="space-y-2 border-t bg-muted/20 px-3 py-3 pl-14">
                       <span
@@ -1127,6 +1181,9 @@
               feedbackFormId: moduleActive('bilan')
                 ? $form.feedbackFormId || null
                 : null,
+              closingTemplateId: moduleActive('closings')
+                ? $form.closingTemplateId
+                : '',
               diplomaTemplateId: moduleActive('inscrits')
                 ? $form.diplomaTemplateId || null
                 : null,

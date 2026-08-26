@@ -72,14 +72,6 @@ declare global {
       devRedirectPin: { until: Date; to: string[] } | null;
     }
     // interface PageData {}
-    interface PageState {
-      /**
-       * Fiche talent "Mode entretien" view toggle. Shallow-routed so flipping
-       * the switch is instant (no load rerun); mirrored to `?interview=1`,
-       * which seeds the mode again on a full reload or deep-link.
-       */
-      interviewMode?: boolean;
-    }
     // interface Platform {}
   }
 }

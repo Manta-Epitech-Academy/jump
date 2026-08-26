@@ -1,26 +1,27 @@
 <script lang="ts">
-  import { INTERVIEW_SECTIONS, VERDICT_SECTION } from '$lib/domain/interview';
+  import { VERDICT_SECTION, type ClosingGrid } from '$lib/domain/closing';
   import { cn } from '$lib/utils';
 
-  // Right-rail companion to InterviewFlow while an interview is in progress: a
+  // Right-rail companion to ClosingFlow while a closing is in progress: a
   // light jump-to nav over the flow's local step cursor (bound, so a click here
   // is the same as paging with Suivant/Précédent). Deliberately minimal: no
   // numbers, no progress counts, no cover entry (Précédent from the first
   // section reaches it), so it never competes with the question on the left.
-  let { step = $bindable() }: { step: number } = $props();
+  let { step = $bindable(), grid }: { step: number; grid: ClosingGrid } =
+    $props();
 
-  const rows = [
-    ...INTERVIEW_SECTIONS.map((s, i) => ({ step: i + 1, title: s.title })),
+  const rows = $derived([
+    ...grid.sections.map((s, i) => ({ step: i + 1, title: s.title })),
     {
-      step: INTERVIEW_SECTIONS.length + 1,
+      step: grid.sections.length + 1,
       title: VERDICT_SECTION.title,
     },
-  ];
+  ]);
 </script>
 
 <nav
   class="rounded-sm border bg-card p-2"
-  aria-label="Aller à une section de l'entretien"
+  aria-label="Aller à une section du closing"
 >
   {#each rows as row (row.step)}
     <button

@@ -32,6 +32,8 @@ type EventConfigTemplateSummary = {
   feedbackFormId: string | null;
   /** The certificate the preset carries (weak FK), or null when it names none. */
   diplomaTemplateId: string | null;
+  /** The closing grid it carries (weak FK), or null when it names none. */
+  closingTemplateId: string | null;
   modules: EventModuleKey[];
   /** Per-module sub-options, keyed by module key (fully defaulted). */
   moduleSettings: Record<string, unknown>;
@@ -46,6 +48,7 @@ type TemplateRow = {
   startMinutes: number | null;
   feedbackFormId: string | null;
   diplomaTemplateId: string | null;
+  closingTemplateId: string | null;
   modules: { moduleKey: string; settings: Prisma.JsonValue }[];
 };
 
@@ -69,6 +72,7 @@ function toSummary(t: TemplateRow): EventConfigTemplateSummary {
     startTime: minutesToHHMM(t.startMinutes),
     feedbackFormId: t.feedbackFormId,
     diplomaTemplateId: t.diplomaTemplateId,
+    closingTemplateId: t.closingTemplateId,
     modules: present.map((m) => m.moduleKey as EventModuleKey),
     moduleSettings,
   };
@@ -95,6 +99,18 @@ async function resolveDiplomaTemplateId(raw: string): Promise<string | null> {
     select: { id: true },
   });
   if (!template) throw error(400, 'Certificat introuvable.');
+  return id;
+}
+
+/** Same for the closing grid, so an applied preset can't point at a deleted one. */
+async function resolveClosingTemplateId(raw: string): Promise<string | null> {
+  const id = raw.trim();
+  if (!id) return null;
+  const grid = await prisma.closing_Template.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  if (!grid) throw error(400, 'Grille de closing introuvable.');
   return id;
 }
 
@@ -140,6 +156,7 @@ export const EventConfigTemplateService = {
     moduleSettings: Record<string, unknown>;
     feedbackFormId: string;
     diplomaTemplateId: string;
+    closingTemplateId: string;
     actorId: string | null;
   }): Promise<{ id: string; updated: boolean }> {
     const name = input.name.trim();
@@ -147,6 +164,9 @@ export const EventConfigTemplateService = {
     const feedbackFormId = await resolveFeedbackFormId(input.feedbackFormId);
     const diplomaTemplateId = await resolveDiplomaTemplateId(
       input.diplomaTemplateId,
+    );
+    const closingTemplateId = await resolveClosingTemplateId(
+      input.closingTemplateId,
     );
     const description = input.description.trim() || null;
     const publicName = input.publicName.trim() || null;
@@ -174,6 +194,7 @@ export const EventConfigTemplateService = {
             startMinutes,
             feedbackFormId,
             diplomaTemplateId,
+            closingTemplateId,
             modules: { create: moduleRows },
           },
         }),
@@ -190,6 +211,7 @@ export const EventConfigTemplateService = {
         startMinutes,
         feedbackFormId,
         diplomaTemplateId,
+        closingTemplateId,
         createdById: input.actorId,
         modules: { create: moduleRows },
       },
