@@ -54,6 +54,7 @@
     devActivated: boolean;
     feedbackFormId: string;
     diplomaTemplateId: string;
+    closingTemplateId: string;
     participations: number;
   };
 
@@ -66,6 +67,7 @@
     startTime: string;
     feedbackFormId: string | null;
     diplomaTemplateId: string | null;
+    closingTemplateId: string | null;
     modules: EventModuleKey[];
     moduleSettings: Record<string, unknown>;
   };
@@ -76,6 +78,7 @@
     formData,
     feedbackForms,
     certificates,
+    closingGrids,
     formPreviews,
     templates,
   }: {
@@ -85,6 +88,7 @@
     feedbackForms: { value: string; label: string }[];
     /** The certificates an event can be set to issue. `code` feeds the preview. */
     certificates: { value: string; label: string; code: string }[];
+    closingGrids: { value: string; label: string }[];
     /** Per-form ordered question prompts, for the inline read-only preview. */
     formPreviews: Record<string, string[]>;
     templates: TemplateVM[];
@@ -135,20 +139,30 @@
   }
 
   function prefill(e: EditingEvent) {
-    $form.id = e.id;
-    $form.publicName = e.publicName;
-    // The persisted noun, or '' when the event was never named (the field then
-    // shows its placeholder). The SF type is never consulted here: a per-type
-    // default rides the config template the admin starts from (the stage template
-    // carries "stagiaire"), and an event keeps whatever staff last set.
-    $form.cohortNoun = e.cohortNoun ?? '';
-    $form.startTime = e.startTime;
-    $form.endDate = e.endDate;
-    $form.modules = [...e.modules];
-    $form.moduleSettings = withDefaults(e.moduleSettings);
-    $form.devActivated = e.devActivated;
-    $form.feedbackFormId = e.feedbackFormId;
-    $form.diplomaTemplateId = e.diplomaTemplateId;
+    // Built as ONE exhaustive `AdminEventForm` rather than assigned field by
+    // field, so a field added to the schema is a compile error here instead of a
+    // silent omission. That omission is not hypothetical: the closing grid was
+    // missing from the list, so the dialog opened reading "Aucune grille" over an
+    // event that had one, and saving from it wiped the grid - hiding the surface
+    // in the dev space with nothing anywhere reporting a failure.
+    const next: AdminEventForm = {
+      id: e.id,
+      publicName: e.publicName,
+      // The persisted noun, or '' when the event was never named (the field then
+      // shows its placeholder). The SF type is never consulted here: a per-type
+      // default rides the config template the admin starts from (the stage
+      // template carries "stagiaire"), and an event keeps whatever staff last set.
+      cohortNoun: e.cohortNoun ?? '',
+      startTime: e.startTime,
+      endDate: e.endDate,
+      modules: [...e.modules],
+      moduleSettings: withDefaults(e.moduleSettings),
+      devActivated: e.devActivated,
+      feedbackFormId: e.feedbackFormId,
+      diplomaTemplateId: e.diplomaTemplateId,
+      closingTemplateId: e.closingTemplateId,
+    };
+    $form = next;
     selectedTemplateId = null;
     confirmingDeleteId = null;
     dismissHighCount = false;
@@ -187,6 +201,7 @@
     $form.moduleSettings = withDefaults(t.moduleSettings);
     $form.feedbackFormId = t.feedbackFormId ?? '';
     $form.diplomaTemplateId = t.diplomaTemplateId ?? '';
+    $form.closingTemplateId = t.closingTemplateId ?? '';
     // Prefilled like the rest of the preset: a wholesale copy the admin can still
     // edit on step 2. Empty falls back as usual (publicName → the SF titre,
     // startTime → no arrival time).
@@ -295,6 +310,20 @@
   // reload. Keyed on the url, a new selection is a new question by construction.
   let failedPreviewUrl = $state<string | null>(null);
 
+  // ─── Closing-grid picker (closings module) ───────────────────────────────
+  // Third instance of the same shape: a nullable typed choice on the event whose
+  // picker sits under the module it feeds, and whose null IS the gate. No preview
+  // beside it, unlike the certificate: a grid's acceptance test is textual, so
+  // reading it back is `config_closing_templates`' job rather than an image.
+  const NO_GRID = 'none';
+  const NO_GRID_LABEL = 'Aucune grille';
+  const closingTriggerLabel = $derived(
+    $form.closingTemplateId
+      ? (closingGrids.find((g) => g.value === $form.closingTemplateId)?.label ??
+          'Grille inconnue')
+      : NO_GRID_LABEL,
+  );
+
   const feedbackTriggerLabel = $derived(
     $form.feedbackFormId
       ? (workingForms.find((f) => f.value === $form.feedbackFormId)?.label ??
@@ -371,6 +400,9 @@
       feedbackFormId: moduleActive('bilan') ? $form.feedbackFormId : '',
       // Same gate, for the same reason: the export lives on the Inscrits page, so
       // a certificate without that section would be dead data in the preset.
+      closingTemplateId: moduleActive('closings')
+        ? $form.closingTemplateId
+        : '',
       diplomaTemplateId: moduleActive('inscrits')
         ? $form.diplomaTemplateId
         : '',
@@ -640,7 +672,7 @@
               <Label for="cohortNoun" class="flex items-center gap-1.5">
                 Comment nommer les inscrits ?
                 <InfoTooltip
-                  text="Le mot employé partout dans l'espace dev pour désigner un inscrit, au singulier (liste, émargement, entretiens, feedback). Indépendant du type Salesforce : à vous de le choisir, même si le type a été mal renseigné."
+                  text="Le mot employé partout dans l'espace dev pour désigner un inscrit, au singulier (liste, émargement, closings, feedback). Indépendant du type Salesforce : à vous de le choisir, même si le type a été mal renseigné."
                 />
               </Label>
               <Input
@@ -750,7 +782,7 @@
                         >
                           Colonne « statut » du dossier
                           <InfoTooltip
-                            text="Affiche la colonne de suivi du dossier (connexion, règlement, droit à l'image) sur la page Inscrits. Désactivez-la pour les campus qui n'onboardent pas (la page reste utile pour les entretiens et le feedback)."
+                            text="Affiche la colonne de suivi du dossier (connexion, règlement, droit à l'image) sur la page Inscrits. Désactivez-la pour les campus qui n'onboardent pas (la page reste utile pour les closings et le feedback)."
                           />
                         </span>
                         <Switch
@@ -826,6 +858,39 @@
                           </div>
                         {/if}
                       </div>
+                    </div>
+                  {/if}
+
+                  {#if checked && key === 'closings'}
+                    <div class="space-y-2 border-t bg-muted/20 px-3 py-3 pl-14">
+                      <span
+                        class="flex items-center gap-1.5 text-xs font-medium"
+                      >
+                        Grille de closing
+                        <InfoTooltip
+                          text="Les questions posées lors du closing de cet événement. Sans grille, la page Closings n'apparaît pas dans l'espace dev. Les grilles s'écrivent via l'API, pas ici."
+                        />
+                      </span>
+                      <Select.Root
+                        type="single"
+                        value={$form.closingTemplateId || NO_GRID}
+                        onValueChange={(v) =>
+                          ($form.closingTemplateId = v === NO_GRID ? '' : v)}
+                      >
+                        <Select.Trigger class="w-full">
+                          {closingTriggerLabel}
+                        </Select.Trigger>
+                        <Select.Content>
+                          <Select.Item value={NO_GRID}>
+                            {NO_GRID_LABEL}
+                          </Select.Item>
+                          {#each closingGrids as opt (opt.value)}
+                            <Select.Item value={opt.value}>
+                              {opt.label}
+                            </Select.Item>
+                          {/each}
+                        </Select.Content>
+                      </Select.Root>
                     </div>
                   {/if}
 
@@ -1127,6 +1192,9 @@
               feedbackFormId: moduleActive('bilan')
                 ? $form.feedbackFormId || null
                 : null,
+              closingTemplateId: moduleActive('closings')
+                ? $form.closingTemplateId
+                : '',
               diplomaTemplateId: moduleActive('inscrits')
                 ? $form.diplomaTemplateId || null
                 : null,

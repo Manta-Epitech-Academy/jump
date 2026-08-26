@@ -19,6 +19,7 @@ function ev({ id, date, ...rest }: Overrides): DevWorkspaceEvent {
     modules: ['inscrits'],
     hasPlanning: false,
     hasFeedbackForm: false,
+    hasClosingTemplate: false,
     ...rest,
   };
 }
@@ -120,6 +121,7 @@ describe('navigableSchoolYears', () => {
         date: '2023-10-01',
         modules: ['bilan'],
         hasFeedbackForm: false,
+        hasClosingTemplate: false,
       }),
     ];
     // Act
@@ -154,6 +156,7 @@ describe('defaultEventOfYear', () => {
         date: '2022-10-01',
         modules: ['bilan'],
         hasFeedbackForm: false,
+        hasClosingTemplate: false,
       }),
     ];
     // Act
@@ -190,6 +193,7 @@ describe('eventsOfSchoolYear', () => {
         date: '2025-11-01',
         modules: ['bilan'],
         hasFeedbackForm: false,
+        hasClosingTemplate: false,
       }),
       ev({ id: 'other-year', date: '2024-10-01' }),
     ];

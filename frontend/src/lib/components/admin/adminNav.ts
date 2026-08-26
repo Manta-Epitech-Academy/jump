@@ -88,10 +88,12 @@ export const ADMIN_NAV: AdminNavSection[] = [
         keywords: ['pdf', 'documents', 'signes', 'export'],
       },
       {
-        label: 'PDF Entretiens',
-        href: resolve('/staff/admin/interview-pdfs'),
+        label: 'PDF Closings',
+        href: resolve('/staff/admin/closing-pdfs'),
         icon: ClipboardList,
-        keywords: ['pdf', 'entretien', 'synthese', 'motivation', 'export'],
+        // 'entretien' stays a search keyword: the business renamed the act, and
+        // staff who learnt the old word still type it into the palette.
+        keywords: ['pdf', 'closing', 'entretien', 'synthese', 'export'],
       },
       {
         label: '[DEV] S3 Test',

@@ -16,17 +16,13 @@ import { resolve } from '$app/paths';
  * which sit above the stretched row link on purpose, so they take the click)
  * ended up without the parameter while the row around them carried it.
  *
- * `interviewMode` opens the fiche straight in its interview flow, the same state
- * the fiche mirrors into `page.state.interviewMode` when it toggles itself. It
- * is what the entretiens roster links to.
+ * There used to be an `interviewMode` option here, opening the fiche straight
+ * into the closing form. A closing is an event-scoped act and has its own page
+ * under its event now, so the roster links there instead and this builder only
+ * ever points at the fiche.
  */
-export function talentFicheHref(
-  talentId: string,
-  eventId: string,
-  options: { interviewMode?: boolean } = {},
-): string {
+export function talentFicheHref(talentId: string, eventId: string): string {
   const params = new URLSearchParams();
-  if (options.interviewMode) params.set('interview', '1');
   params.set('event', eventId);
   return `${resolve(`/staff/dev/students/${talentId}`)}?${params}`;
 }

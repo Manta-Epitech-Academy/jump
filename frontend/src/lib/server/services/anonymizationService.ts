@@ -13,7 +13,7 @@ import {
  * deleting rows: name/contact fields are nulled or replaced with placeholders,
  * the linked auth identity is scrubbed and its sessions/accounts dropped, and
  * every talent-scoped satellite that embeds a name, a contact detail, or free
- * text (interviews, comm + send history) is deleted outright, along with the
+ * text (closings, comm + send history) is deleted outright, along with the
  * PDF-job queue trace. The generated onboarding PDFs (charte / règlement student /
  * règlement parent / droit à l'image — each embeds the student's and guardian's
  * names and a signature) are deleted from object storage, not merely
@@ -185,9 +185,11 @@ export async function anonymizeTalent(
   //        a different reason (the dossier is the sign-up a reset voids).
   //      - note_TalentNote: staff notes about the minor (pedago + administratif
   //        free text). The whole feed is removed on erasure.
-  //      - interview / interviewReset: the synthesis row holds free-text staff
-  //        observations about the minor; both existing wipe paths already
-  //        hard-delete it. InterviewReset is a reset's audit trace + reason.
+  //      - closing_Record / closing_ResetEvent: the record and its answers hold
+  //        free-text staff observations about the minor (the verdict note and a
+  //        note per question); both existing wipe paths hard-delete it, and the
+  //        answers cascade with the record. Closing_ResetEvent is a reset's audit
+  //        trace + reason.
   //      - onboardingPdfJob: the queue trace of every document ever rendered
   //        for this minor. It stopped snapshotting their name when the payload
   //        column was retired, so what is erased here is the trace itself: which
@@ -226,8 +228,10 @@ export async function anonymizeTalent(
       ],
     },
   });
-  await tx.interview.deleteMany({ where: { talentId } });
-  await tx.interviewReset.deleteMany({ where: { talentId } });
+  // Answers and their option rows cascade from the record, so this one delete
+  // takes the whole closing with it.
+  await tx.closing_Record.deleteMany({ where: { talentId } });
+  await tx.closing_ResetEvent.deleteMany({ where: { talentId } });
   await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
   await tx.broadcastRecipient.deleteMany({
     where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },

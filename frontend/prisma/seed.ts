@@ -20,6 +20,7 @@ import {
   PrismaClient,
   Prisma,
   type ActivityType,
+  type ClosingRecommendation,
   type ImageRightsDecision,
   type PresenceStatus,
 } from '@prisma/client';
@@ -57,7 +58,7 @@ type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
 // testable locally; coding-club events get the registration + attendance
 // surfaces so their émargement history is reachable. `planning` is not a module
 // (it is data-driven from the event's time slots), so it is not listed here.
-const STAGE_MODULE_KEYS = ['inscrits', 'emargement', 'bilan', 'entretiens'];
+const STAGE_MODULE_KEYS = ['inscrits', 'emargement', 'bilan', 'closings'];
 const CODING_CLUB_MODULE_KEYS = ['inscrits', 'emargement'];
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
@@ -968,7 +969,7 @@ const standardOrgaSlot = (): SlotBlueprint => ({
 // weeks long, kickoff around mid-month. Past Paris edition is ~11 months
 // back (previous cohort), the current Paris one straddles "today" so QA
 // can exercise the En-cours phase, and the Lyon edition is the upcoming
-// kickoff. Shared between EVENTS and the INTERVIEWS/BROADCASTS
+// kickoff. Shared between EVENTS and the CLOSINGS/BROADCASTS
 // blueprints that point at those stages by titre/eventIndex.
 const STAGE_DURATION_DAYS = 14;
 const PAST_PARIS_STAGE_OFFSET = -338;
@@ -1461,82 +1462,78 @@ const EVENTS: EventBlueprint[] = [
   },
 ];
 
-// ─── Interview blueprints ───
+// ─── Closing blueprints ───
 
 // The questionnaire answers, typed straight off the Prisma create input so the
 // enum/array values are checked at compile time.
-type InterviewAnswers = Partial<
-  Pick<
-    Prisma.InterviewCreateManyInput,
-    // Choice / rating answers.
-    | 'discoveryChannel'
-    | 'motivation'
-    | 'orientationTalkAtSchool'
-    | 'passionateTeacher'
-    | 'techProjection'
-    | 'specialties'
-    | 'otherJobs'
-    | 'infoSources'
-    | 'wantsMore'
-    | 'nextYearEvents'
-    | 'satisfactionStars'
-    | 'recommendation'
-    // Free text: the per-question notes, plus the testimony and the verdict.
-    | 'discoveryChannelNote'
-    | 'motivationNote'
-    | 'specialtiesNote'
-    | 'orientationTalkNote'
-    | 'passionateTeacherNote'
-    | 'techProjectionNote'
-    | 'otherJobsNote'
-    | 'infoSourcesNote'
-    | 'wantsMoreNote'
-    | 'satisfactionNote'
-    | 'nextYearEventsNote'
-    | 'oneSentence'
-    | 'verdictNote'
-  >
->;
+/**
+ * One answer in a seeded closing, addressed by its BANK question key and by the
+ * option VALUES that question offers. Keys and values rather than row ids,
+ * because the bank is seeded by the migration and the ids are generated: the
+ * seeder resolves them at run time and warns on anything it cannot find, so a
+ * blueprint can only ever produce a runtime-reachable row.
+ */
+type ClosingAnswerSeed = {
+  /** Option values of that question. A single-choice question takes one. */
+  options?: string[];
+  /** `rating` questions only. */
+  rating?: number;
+  /** `text` questions only: the student's own words. */
+  text?: string;
+  /** The team's note under that question, where the grid offers one. */
+  note?: string;
+};
 
-type InterviewBlueprint = {
+type ClosingAnswers = Record<string, ClosingAnswerSeed>;
+
+type ClosingBlueprint = {
   studentEmail: string;
   staffKey: string;
   status: 'in_progress' | 'done';
-  // Required: the interview is 1:1 with the talent's participation in this stage.
-  // A blueprint whose talent has no participation here is skipped (warn), so
-  // only real stage participants ever get an interview row.
+  // Required: a closing is 1:1 with the talent's participation in this event. A
+  // blueprint whose talent has no participation here is skipped (warn), so only
+  // real participants ever get a closing row.
   forEventTitre: string;
-  answers?: InterviewAnswers;
+  /** The team's verdict. Not a bank question: staff-only, Jump-wide. */
+  recommendation?: ClosingRecommendation;
+  verdictNote?: string;
+  answers?: ClosingAnswers;
 };
 
-// Orientation interviews on the ongoing Paris stage. Conducted by the dev team
-// (marie.manta = dev, pauline.marchand = superdev). A handful are finalized with
-// full answers + a recommendation so the Entretiens list, the synthesis card and
-// the recommendation breakdown all render; a couple stay in progress; the rest of
-// the cohort has no row, i.e. "à faire".
-const INTERVIEWS: InterviewBlueprint[] = [
+// Closings on the ongoing Paris stage, conducted with the grid the migration
+// seeds. Run by the dev team (marie.manta = dev, pauline.marchand = superdev). A
+// handful are finalised with full answers + a verdict so the Closings list, the
+// synthesis card, the recommendation breakdown and the fiche's parcours all
+// render; a couple stay in progress; the rest of the cohort has no row, i.e.
+// "à faire".
+const CLOSINGS: ClosingBlueprint[] = [
   {
     studentEmail: parisStudents[6],
     staffKey: 'marie.manta',
     status: 'done',
     forEventTitre: ONGOING_PARIS_STAGE_TITLE,
+    recommendation: 'tres_compatible',
+    verdictNote: 'Très motivée, projet clair. À inviter à la prochaine JPO.',
     answers: {
-      discoveryChannel: 'site_1e1s',
-      motivation: 'passion',
-      specialties: ['nsi', 'maths'],
-      orientationTalkAtSchool: 'un_peu',
-      passionateTeacher: 'oui',
-      passionateTeacherNote:
-        'M. Garnier (NSI), anime un club robotique au lycée.',
-      techProjection: ['dev'],
-      infoSources: ['youtube', 'tiktok', 'ia_chatgpt'],
-      wantsMore: 'oui',
-      satisfactionStars: 5,
-      satisfactionNote: 'Niveau parfaitement adapté, repart très motivée.',
-      oneSentence: 'Une semaine qui m’a donné envie de coder tous les jours.',
-      nextYearEvents: ['coding_club', 'jpo'],
-      recommendation: 'tres_compatible',
-      verdictNote: 'Très motivée, projet clair. À inviter à la prochaine JPO.',
+      discovery_channel: { options: ['site_1e1s'] },
+      motivation: { options: ['passion'] },
+      specialties: { options: ['nsi', 'maths'] },
+      orientation_talk: { options: ['un_peu'] },
+      passionate_teacher: {
+        options: ['oui'],
+        note: 'M. Garnier (NSI), anime un club robotique au lycée.',
+      },
+      tech_projection: { options: ['dev'] },
+      info_sources: { options: ['youtube', 'tiktok', 'ia_chatgpt'] },
+      wants_more: { options: ['oui'] },
+      satisfaction: {
+        rating: 5,
+        note: 'Niveau parfaitement adapté, repart très motivée.',
+      },
+      one_sentence: {
+        text: 'Une semaine qui m’a donné envie de coder tous les jours.',
+      },
+      next_year_events: { options: ['coding_club', 'jpo'] },
     },
   },
   {
@@ -1544,22 +1541,24 @@ const INTERVIEWS: InterviewBlueprint[] = [
     staffKey: 'marie.manta',
     status: 'done',
     forEventTitre: ONGOING_PARIS_STAGE_TITLE,
+    recommendation: 'bon_profil',
+    verdictNote: 'Hésite avec le game design, à relancer dans 6 mois.',
     answers: {
-      discoveryChannel: 'entourage',
-      motivation: 'metier',
-      specialties: ['maths', 'physique_chimie'],
-      orientationTalkAtSchool: 'pas_du_tout',
-      passionateTeacher: 'pas_sur',
-      techProjection: ['jeux_video'],
-      techProjectionNote: 'Hésite entre le dev de jeux et le game design.',
-      otherJobs: ['arts_design'],
-      infoSources: ['instagram', 'youtube'],
-      wantsMore: 'peut_etre',
-      satisfactionStars: 4,
-      oneSentence: 'J’ai compris comment un jeu est fabriqué.',
-      nextYearEvents: ['camp', 'journee_decouverte'],
-      recommendation: 'bon_profil',
-      verdictNote: 'Hésite avec le game design, à relancer dans 6 mois.',
+      discovery_channel: { options: ['entourage'] },
+      motivation: { options: ['metier'] },
+      specialties: { options: ['maths', 'physique_chimie'] },
+      orientation_talk: { options: ['pas_du_tout'] },
+      passionate_teacher: { options: ['pas_sur'] },
+      tech_projection: {
+        options: ['jeux_video'],
+        note: 'Hésite entre le dev de jeux et le game design.',
+      },
+      other_jobs: { options: ['arts_design'] },
+      info_sources: { options: ['instagram', 'youtube'] },
+      wants_more: { options: ['peut_etre'] },
+      satisfaction: { rating: 4 },
+      one_sentence: { text: 'J’ai compris comment un jeu est fabriqué.' },
+      next_year_events: { options: ['camp', 'journee_decouverte'] },
     },
   },
   {
@@ -1567,22 +1566,26 @@ const INTERVIEWS: InterviewBlueprint[] = [
     staffKey: 'pauline.marchand',
     status: 'done',
     forEventTitre: ONGOING_PARIS_STAGE_TITLE,
+    recommendation: 'indecis',
+    verdictNote: 'Profil ouvert, encore en réflexion sur son orientation.',
     answers: {
-      discoveryChannel: 'google',
-      motivation: 'curiosite',
-      specialties: ['indecis'],
-      orientationTalkAtSchool: 'un_peu',
-      passionateTeacher: 'pas_sur',
-      techProjection: ['pas_idee'],
-      otherJobs: ['sante', 'commerce_gestion'],
-      infoSources: ['parcoursup_onisep', 'entourage'],
-      wantsMore: 'peut_etre',
-      satisfactionStars: 4,
-      satisfactionNote: 'A trouvé la semaine un peu dense, mais intéressante.',
-      oneSentence: 'Intéressant mais beaucoup d’informations d’un coup.',
-      nextYearEvents: ['conference'],
-      recommendation: 'indecis',
-      verdictNote: 'Profil ouvert, encore en réflexion sur son orientation.',
+      discovery_channel: { options: ['google'] },
+      motivation: { options: ['curiosite'] },
+      specialties: { options: ['indecis'] },
+      orientation_talk: { options: ['un_peu'] },
+      passionate_teacher: { options: ['pas_sur'] },
+      tech_projection: { options: ['pas_idee'] },
+      other_jobs: { options: ['sante', 'commerce_gestion'] },
+      info_sources: { options: ['parcoursup_onisep', 'entourage'] },
+      wants_more: { options: ['peut_etre'] },
+      satisfaction: {
+        rating: 4,
+        note: 'A trouvé la semaine un peu dense, mais intéressante.',
+      },
+      one_sentence: {
+        text: 'Intéressant mais beaucoup d’informations d’un coup.',
+      },
+      next_year_events: { options: ['conference'] },
     },
   },
   {
@@ -1591,10 +1594,10 @@ const INTERVIEWS: InterviewBlueprint[] = [
     status: 'in_progress',
     forEventTitre: ONGOING_PARIS_STAGE_TITLE,
     answers: {
-      discoveryChannel: 'epitech',
-      motivation: 'cadre_stage',
-      techProjection: ['cyber'],
-      infoSources: ['tiktok'],
+      discovery_channel: { options: ['epitech'] },
+      motivation: { options: ['cadre_stage'] },
+      tech_projection: { options: ['cyber'] },
+      info_sources: { options: ['tiktok'] },
     },
   },
   {
@@ -1603,9 +1606,11 @@ const INTERVIEWS: InterviewBlueprint[] = [
     status: 'in_progress',
     forEventTitre: ONGOING_PARIS_STAGE_TITLE,
     answers: {
-      discoveryChannel: 'site_1e1s',
-      specialties: ['nsi'],
-      specialtiesNote: 'Vise une prépa, hésite encore sur la voie.',
+      discovery_channel: { options: ['site_1e1s'] },
+      specialties: {
+        options: ['nsi'],
+        note: 'Vise une prépa, hésite encore sur la voie.',
+      },
     },
   },
 ];
@@ -1933,13 +1938,9 @@ async function main() {
   const updated = await recomputeXp();
   console.log(`✓  XP (${updated} students updated)`);
 
-  // 7. Interviews
-  const interviewCount = await seedInterviews(
-    staffByKey,
-    talentByEmail,
-    campuses,
-  );
-  console.log(`✓  Interviews (${interviewCount})`);
+  // 7. Closings
+  const closingCount = await seedClosings(staffByKey, talentByEmail, campuses);
+  console.log(`✓  Closings (${closingCount})`);
 
   // 8b. Broadcasts (mass mail / SMS campaigns) — feed the unified
   //      communications timeline on the fiche talent.
@@ -2015,7 +2016,7 @@ async function wipeAll() {
     prisma.broadcast.deleteMany(),
     prisma.messageTemplate.deleteMany(),
     prisma.participation.deleteMany(),
-    prisma.interview.deleteMany(),
+    prisma.closing_Record.deleteMany(),
     prisma.activity.deleteMany(),
     prisma.timeSlot.deleteMany(),
     prisma.planning.deleteMany(),
@@ -2777,6 +2778,17 @@ async function seedEvents(
     ).id,
   };
 
+  // Same story for the closing grid: the migration owns it, and only a stage has
+  // one today. A Coding Club grid is business content the team composes over the
+  // API, so a seeded club event names none and its closings surface stays hidden,
+  // which is the real gate rather than a fixture shortcut.
+  const stageClosingTemplateId = (
+    await prisma.closing_Template.findUniqueOrThrow({
+      where: { key: 'stage_seconde' },
+      select: { id: true },
+    })
+  ).id;
+
   for (const blueprint of EVENTS) {
     const campusId = campuses[blueprint.campus].id;
 
@@ -2856,6 +2868,10 @@ async function seedEvents(
         diplomaTemplateId: isStage
           ? diplomaTemplateIds.stage
           : diplomaTemplateIds.codingClub,
+        // The grid the event's closings are conducted with. Null on a club, and
+        // that null IS the gate: without it the module alone leaves the surface
+        // unreachable, so a seeded closing would be a state the app cannot open.
+        closingTemplateId: isStage ? stageClosingTemplateId : null,
         campusId,
         modules: {
           create: (isStage ? STAGE_MODULE_KEYS : CODING_CLUB_MODULE_KEYS).map(
@@ -3006,18 +3022,56 @@ async function recomputeXp(): Promise<number> {
   return talentIds.size;
 }
 
-async function seedInterviews(
+async function seedClosings(
   staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
   talentByEmail: Record<string, { id: string }>,
   _campuses: Record<string, { id: string }>,
 ): Promise<number> {
+  // The grid, its questions and its options come from the migration: this seeder
+  // reads them rather than re-creating them, so the fixture exercises the same
+  // rows production runs on. No grid, no closings.
+  const template = await prisma.closing_Template.findFirst({
+    select: {
+      id: true,
+      questions: {
+        select: {
+          withNote: true,
+          question: {
+            select: {
+              id: true,
+              key: true,
+              kind: true,
+              options: { select: { id: true, value: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!template) {
+    console.warn('⚠ No closing template seeded: skipping closings.');
+    return 0;
+  }
+  const byKey = new Map(
+    template.questions.map((tq) => [
+      tq.question.key,
+      {
+        id: tq.question.id,
+        kind: tq.question.kind,
+        withNote: tq.withNote,
+        optionIdByValue: new Map(
+          tq.question.options.map((o) => [o.value, o.id]),
+        ),
+      },
+    ]),
+  );
+
   // Pre-resolve titre → eventId and (talentId, eventId) → participationId once,
-  // so each interview resolves from memory instead of its own findUnique.
+  // so each closing resolves from memory instead of its own findUnique.
   const events = await prisma.event.findMany({
     select: { id: true, titre: true },
   });
   const eventIdByTitre = new Map(events.map((e) => [e.titre, e.id]));
-
   const participations = await prisma.participation.findMany({
     select: { id: true, talentId: true, eventId: true },
   });
@@ -3025,44 +3079,73 @@ async function seedInterviews(
     participations.map((p) => [`${p.talentId}_${p.eventId}`, p.id]),
   );
 
-  const rows = INTERVIEWS.flatMap((iv) => {
-    const talent = talentByEmail[iv.studentEmail];
-    const staff = staffByKey[iv.staffKey];
-    if (!talent || !staff) return [];
+  let created = 0;
+  for (const bp of CLOSINGS) {
+    const talent = talentByEmail[bp.studentEmail];
+    const staff = staffByKey[bp.staffKey];
+    if (!talent || !staff) continue;
 
-    // participationId is required: the interview is 1:1 with the talent's
-    // participation in this stage. Skip (warn) when there's no participation, so
-    // the seed can only produce runtime-reachable rows.
-    const eventId = eventIdByTitre.get(iv.forEventTitre);
+    const eventId = eventIdByTitre.get(bp.forEventTitre);
     if (!eventId) {
       console.warn(
-        `⚠ Interview for ${iv.studentEmail} references unknown event "${iv.forEventTitre}"`,
+        `⚠ Closing for ${bp.studentEmail} references unknown event "${bp.forEventTitre}"`,
       );
-      return [];
+      continue;
     }
     const participationId =
       participationByTalentEvent.get(`${talent.id}_${eventId}`) ?? null;
     if (!participationId) {
       console.warn(
-        `⚠ Interview for ${iv.studentEmail} has no participation in "${iv.forEventTitre}"`,
+        `⚠ Closing for ${bp.studentEmail} has no participation in "${bp.forEventTitre}"`,
       );
-      return [];
+      continue;
     }
 
-    return [
-      {
+    const answers = Object.entries(bp.answers ?? {}).flatMap(
+      ([key, answer]) => {
+        const q = byKey.get(key);
+        if (!q) {
+          console.warn(`⚠ Closing answer references unknown question "${key}"`);
+          return [];
+        }
+        const optionIds = (answer.options ?? []).flatMap((value) => {
+          const id = q.optionIdByValue.get(value);
+          if (!id) {
+            console.warn(`⚠ Question "${key}" offers no option "${value}"`);
+            return [];
+          }
+          return [id];
+        });
+        return [
+          {
+            questionId: q.id,
+            ratingValue: answer.rating ?? null,
+            freeText: answer.text ?? null,
+            note: q.withNote ? (answer.note ?? null) : null,
+            selectedOptions: {
+              create: optionIds.map((optionId) => ({ optionId })),
+            },
+          },
+        ];
+      },
+    );
+
+    await prisma.closing_Record.create({
+      data: {
         talentId: talent.id,
         staffId: staff.id,
         campusId: staff.campusId,
         participationId,
-        status: iv.status,
-        ...iv.answers,
+        templateId: template.id,
+        status: bp.status,
+        recommendation: bp.recommendation ?? null,
+        verdictNote: bp.verdictNote ?? null,
+        answers: { create: answers },
       },
-    ];
-  });
-
-  await prisma.interview.createMany({ data: rows });
-  return rows.length;
+    });
+    created += 1;
+  }
+  return created;
 }
 
 // ─── Broadcasts ───
@@ -3179,7 +3262,7 @@ async function seedBroadcasts(
 
 async function printSummary(parentEmail: string) {
   const origin = process.env.ORIGIN || 'http://localhost:3030';
-  const [parisTalents, lyonTalents, eventCount, interviewCount] =
+  const [parisTalents, lyonTalents, eventCount, closingCount] =
     await Promise.all([
       prisma.talent.count({
         where: {
@@ -3192,13 +3275,13 @@ async function printSummary(parentEmail: string) {
         },
       }),
       prisma.event.count(),
-      prisma.interview.count(),
+      prisma.closing_Record.count(),
     ]);
 
-  const doneInterviews = await prisma.interview.count({
+  const doneClosings = await prisma.closing_Record.count({
     where: { status: 'done' },
   });
-  const inProgressInterviews = await prisma.interview.count({
+  const inProgressClosings = await prisma.closing_Record.count({
     where: { status: 'in_progress' },
   });
 
@@ -3221,12 +3304,12 @@ async function printSummary(parentEmail: string) {
   console.log(
     `   ${parisTalents} Paris students + ${lyonTalents} Lyon students`,
   );
-  console.log(`   ${eventCount} events, ${interviewCount} interviews`);
+  console.log(`   ${eventCount} events, ${closingCount} closings`);
   console.log('');
 
   console.log('🎯 Feature trigger points');
-  console.log(`   Entretiens — finalisés:        ${doneInterviews}`);
-  console.log(`   Entretiens — en cours:         ${inProgressInterviews}`);
+  console.log(`   Closings — finalisés:          ${doneClosings}`);
+  console.log(`   Closings — en cours:            ${inProgressClosings}`);
   console.log(
     `   Task queue — missing planning: 1 event (Atelier Game Design, +4d)`,
   );

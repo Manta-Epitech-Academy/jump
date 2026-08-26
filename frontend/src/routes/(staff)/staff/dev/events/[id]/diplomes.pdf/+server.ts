@@ -103,7 +103,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         'Content-Disposition': `attachment; filename="${design.code}.pdf"`,
         // Regenerated from live DB each call (signatory role/image can change).
         // Without this the browser HTTP-caches the stable .pdf URL and re-serves
-        // a stale diploma. Mirrors onboarding-pdfs / interview-pdfs exports.
+        // a stale diploma. Mirrors onboarding-pdfs / closing-pdfs exports.
         'Cache-Control': 'no-store',
       },
     },

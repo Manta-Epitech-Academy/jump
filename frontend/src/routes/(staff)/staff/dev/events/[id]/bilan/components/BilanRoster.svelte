@@ -153,7 +153,7 @@
     searchQuery.trim() !== '' || statut !== 'all' || reco !== 'all',
   );
 
-  // Mirrors the sibling rosters (inscrits/émargement/entretiens): singular vs
+  // Mirrors the sibling rosters (inscrits/émargement/closings): singular vs
   // plural agreement, and "au total" when nothing is filtered.
   const countSuffix = $derived(
     anyFiltersApplied

@@ -6,6 +6,7 @@ import { prisma } from '$lib/server/db';
 import { EventService } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
 import { listDiplomaTemplates } from '$lib/server/diplomaTemplates';
+import { listClosingTemplates } from '$lib/server/closingTemplates';
 import {
   requireAdmin,
   duplicateForm,
@@ -28,19 +29,22 @@ export const load: PageServerLoad = async () => {
   // The feedback-form picker in the edit dialog: the published, talent-answerable
   // forms an event can be bound to. One query, cross-event (the dialog reuses them
   // for whichever row is opened).
-  const [publishedForms, templates, diplomaTemplates] = await Promise.all([
-    prisma.feedback_Form.findMany({
-      // Any published, talent-answerable form is pickable for an event (forms are
-      // not owned by events - an event-specific one is just a normally-named form).
-      where: { status: 'published', allowsAuthenticatedAccess: true },
-      select: { id: true, title: true },
-      orderBy: { title: 'asc' },
-    }),
-    EventConfigTemplateService.list(),
-    // The certificate picker in the same dialog. A small catalogue, so it is
-    // fetched whole rather than per row.
-    listDiplomaTemplates(),
-  ]);
+  const [publishedForms, templates, diplomaTemplates, closingTemplates] =
+    await Promise.all([
+      prisma.feedback_Form.findMany({
+        // Any published, talent-answerable form is pickable for an event (forms are
+        // not owned by events - an event-specific one is just a normally-named form).
+        where: { status: 'published', allowsAuthenticatedAccess: true },
+        select: { id: true, title: true },
+        orderBy: { title: 'asc' },
+      }),
+      EventConfigTemplateService.list(),
+      // The certificate picker in the same dialog. A small catalogue, so it is
+      // fetched whole rather than per row.
+      listDiplomaTemplates(),
+      // And the closing-grid picker beside it, for the same reason.
+      listClosingTemplates(),
+    ]);
   const feedbackForms = publishedForms.map((f) => ({
     value: f.id,
     label: f.title,
@@ -51,6 +55,10 @@ export const load: PageServerLoad = async () => {
     value: t.id,
     label: t.label,
     code: t.code,
+  }));
+  const closingGrids = closingTemplates.map((t) => ({
+    value: t.id,
+    label: t.label,
   }));
 
   // A compact, read-only preview of each pickable form (ordered question
@@ -77,6 +85,7 @@ export const load: PageServerLoad = async () => {
     form,
     feedbackForms,
     certificates,
+    closingGrids,
     templates,
     formPreviews,
   };
@@ -108,6 +117,7 @@ export const actions: Actions = {
         devActivated: form.data.devActivated,
         feedbackFormId: form.data.feedbackFormId,
         diplomaTemplateId: form.data.diplomaTemplateId,
+        closingTemplateId: form.data.closingTemplateId,
       });
       return message(form, 'Événement mis à jour.');
     } catch (err) {

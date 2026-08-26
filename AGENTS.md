@@ -92,7 +92,7 @@ Inside a workspace, role-based gating goes through **one table** of named role g
 
 | Group            | Roles             | Use for                                                    |
 | ---------------- | ----------------- | ---------------------------------------------------------- |
-| `devMember`      | `superdev`, `dev` | Dev workspace daily ops (participants, interviews, update) |
+| `devMember`      | `superdev`, `dev` | Dev workspace daily ops (participants, closings, update) |
 | `realSendArmers` | `admin`           | Arming real outbound sends / login-redirect pin            |
 
 - **Client:** `const canEdit = $derived(can('devMember', page.data.staffProfile?.staffRole))`, then apply one of the UI patterns below. Import: `$lib/domain/permissions`.
@@ -123,6 +123,86 @@ subsystem: the per-campus `CampusFeatureFlag` table, `domain/featureFlags.ts`,
   The certificate itself is a `Diploma_Template` row whose CSS and markup are **authored at runtime** over the API, because the set of documents grows with the business and their wording belongs to the team, not to a developer. Two consequences worth stating. **A stored design is outside the `DESIGN.md` contract**, which guards code: `lint:design` cannot see it, and that is an accepted trade, not an oversight. And **the shell is not**: `templates/certificate.html` keeps the pagination and the once-in-`<head>` hoisting of logo, signature and font bytes, because repeating those per page is what timed out a 200-page render. Since a stored design is handed to a real Chrome inside the cluster, `server/diplomaSanitize.ts` refuses it and sanitises it, and `infra/documentRenderer.ts` renders it with script execution and the network both off. The script switch is the one that actually contains the damage, and the two are not interchangeable: Puppeteer's request interception never sees a `ws://` handshake, so a design that got as far as running could still reach every internal service the pod reaches.
 
 Don't hardcode module keys.
+
+### Closings: a question bank, composed per event
+
+A **closing** is the 1:1 a dev-team member conducts with a talent at the end of an
+event. It is what the codebase used to call an *entretien*; the July 2026 seminar
+renamed it, and real PGE admission interviews stay out of Jump for good. Every
+event format has them: a stage closing runs ten minutes, a Coding Club one five,
+a camp asks about the format itself.
+
+The questionnaire is **data in two layers**, and the split is the whole design.
+
+- **A bank** (`Closing_Question` + `Closing_Option`) holds every question that
+  exists, once, globally.
+- **A composition** (`Closing_Template` + `Closing_TemplateSection` +
+  `Closing_TemplateQuestion`) says which of them a grid asks, in what order, and
+  with what wording. `Event.closingTemplateId` names the grid, and that null IS
+  the gate, exactly as a null `feedbackFormId` hides the bilan.
+
+**The bank is global, and that is the one deliberate inversion of `Feedback_*`,**
+where a question belongs to a single form and `adminStats/feedbackResults.ts`
+documents that a `key` "identifies nothing" outside it. A feedback form is
+authored per form in talent-facing wording; closing questions are one
+institutional vocabulary reused across formats. So "comment as-tu connu cet
+événement" asked at a stage and at a Coding Club is ONE row, which is what lets a
+distribution span both. Four copies of a question could never legitimately be
+added up, and `stats_closing_insights` groups by bank question for that reason,
+carrying `asked` beside `answered` so a question only some grids pose is never
+read against the wrong base.
+
+Rules, each of which a reasonable-looking change breaks quietly rather than loudly:
+
+- **A grid is composed over the API, never in a migration.** `write_closing_question`
+  and `write_closing_template` are the authoring surface, and there is deliberately
+  no builder UI: composing is the team's job and a form would never fit it. The
+  seed migration exists to carry the one grid that predates this across, not to be
+  the catalogue.
+- **A published key is never renamed and never reused.** Changing what a question
+  MEANS is a new key; changing how it READS is an edit, and it re-renders on
+  documents already produced, which is what you want for a typo. That line is
+  enforced, not hoped for: a kind change or a dropped option is refused once
+  answers exist (the same lock `feedbackFormsAdmin.ts` draws with
+  `STRUCTURAL_QUESTION_FIELDS`, where `prompt` is deliberately not structural).
+- **`labelOverride` changes the prompt, never the identity.** A grid reads a
+  question aloud in its own words ("Satisfaction globale du stage"); every figure
+  keeps the bank's label, so the wording can fit the format and the number stays
+  comparable.
+- **An answer references the BANK question, never the composition row.** Drop a
+  question from a grid and its answers still resolve, and every renderer prints
+  them under an explicit "Questions retirées" heading. Removing something from a
+  composition must never be able to hide what was recorded.
+- **The grid is pinned on the record, not re-read off the event.**
+  `Closing_Record.templateId` is a fact; `Event.closingTemplateId` is
+  configuration. Retargeting an event cannot rewrite a closing already conducted.
+- **The verdict is not a bank question.** `recommendation` + `verdictNote` are
+  typed columns: a grid describes what is asked OF the student, the verdict is the
+  team's conclusion ABOUT them, and it is Jump-wide, closed, and what the fiche,
+  the admin archive and the school-year review all group on.
+- **Student words and staff words live in different columns, and that split is
+  what the API tier's no-PII rule rests on.** `Closing_Answer.freeText` is the
+  student's, `.note` is the team's. Aggregates select the option join and
+  `ratingValue`; a testimonial selects `freeText` of the one question a grid flags
+  `testimonial`; nothing selects `note`. On the talent fiche the same split is
+  visible rather than documented: the talent's words get the pull-quote treatment
+  (`PullQuote`), staff prose stays plain behind a neutral rule, the rule
+  `TalentNoteCard` already drew.
+- **A closing is 1:1 with a participation, and a regular has many.** Eight to ten
+  a year is the expected shape, deliberately: the successive verdicts and how they
+  moved are what "Son parcours" on the fiche is for, which is also why that list
+  is bounded against the viewport rather than at a pixel cap.
+- **`conductedAt` means FINALISED**, re-stamped at clôture, with `createdAt` beside
+  it. The admin archive's ordering and windowing, each admin's export high-water
+  mark, testimonial recency and the reset snapshot all read it.
+- **`db/scoped.ts` must carry `closing_Record`.** A delegate with no handler there
+  is not an error, it is simply unscoped, so answers are only ever reached through
+  their record's relation.
+
+Naming: the concept is a **closing** everywhere new. `entretien` survives on
+purpose in two places, and neither is an oversight: as a search keyword in the
+admin palette, because staff who learnt the old word still type it, and inside
+`AdminApi_Call` history, because an audit row records what was actually called.
 
 ### Data Layer
 
@@ -221,7 +301,7 @@ Rules, all non-negotiable (they come from the team's own Salesforce-MCP failure 
 - **The LLM formats, it never computes.** Every figure is returned wrapped with its own French definition (`adminApi/metrics.ts` → `metric(value, definition)`), so it can be quoted but not re-derived. This extends to ratios: `share()` exists because returning two counts and no percentage just moves the division downstream, where the consumer picks its own denominator and its own wording. Any proportion a human would ask for is a figure the API returns. The instruction to quote rather than compute is declared **once**, as the MCP server's `instructions`; a definition itself is owned by whatever owns the rule it states (the visible-cohort clause lives with `visibleParticipationWhere` in `domain/sfMemberStatus.ts`), never spelled out again in a tool description or a second aggregate.
 - **Curated named operations only.** `adminApi/operations.ts` is the single catalogue: HTTP endpoints, MCP tool names and audit `operation` values all read from it. Adding a question means adding an entry; there is no generic query surface. Each entry carries **one** strict schema used by both consumers, so an unknown filter is a refusal over HTTP *and* over MCP (hand the SDK a raw shape instead and it silently strips the key, which answers a wider question than the one asked).
 - **An unknown scope is a refusal, never a zero.** Filters name things the caller can actually see: a campus is its unique `Campus.name`, not a cuid no operation returns. `adminApi/scope.ts` checks every campus, event and school year exists before anything is counted, and the refusal lists the values that would have worked. Skipping that check is how `campus: "Lile"` came back as `{ campus: "Lile", events: 0 }`, a confident zero with the echoed filter confirming it.
-- **No talent identity, at any tier.** No answer carries a `nom`, `prenom`, `email` or `phone`, and none may. What a core-tier answer *may* carry beyond aggregates: row ids that a write needs (an event, a PDF job), operational internals, and the verbatim student testimonials from `stats_interview_testimonials`, which are unattributed and were collected explicitly to be quoted. Everything else free-text (interview notes, the team verdict, feedback answers) stays out and is only counted. Enforced by running it: `adminApiNoPii.integration.test.ts` seeds a talent, conducts an interview on him, calls every read, and fails on the identity.
+- **No talent identity, at any tier.** No answer carries a `nom`, `prenom`, `email` or `phone`, and none may. What a core-tier answer *may* carry beyond aggregates: row ids that a write needs (an event, a PDF job), operational internals, and the verbatim student testimonials from `stats_closing_testimonials`, which are unattributed and were collected explicitly to be quoted. Everything else free-text (the per-question notes, the team verdict, feedback answers) stays out and is only counted. Enforced by running it: `adminApiNoPii.integration.test.ts` seeds a talent, conducts a closing on him, calls every read, and fails on the identity.
 
   Testimonials are the one exception, and it is stated rather than implied: unattributed is not the same as non-identifying, because a student can sign his own sentence and verbatim means it goes out signed. Screening a quote against its author's name was weighed and turned down (what makes the answer worth having is that it is what was written), so the French definition says so and the test pins the behaviour. Only that operation is exempt from the string search, never from the structural one: a `nom` reappearing in its select still fails.
 - **Hard caps + audit.** Every list is capped, every token is quota-limited per 24h, and **every** call (success or refusal) writes an `AdminApi_Call` row. Audit replaces up-front restriction, so nothing may bypass it. Including what a transport refuses on its own: the MCP SDK rejects an unknown tool name and validates arguments before a tool handler runs, so `mcpServer.ts` reads the envelope first (`auditUnreachedToolCall`) and logs those refusals, which are exactly the ones that show a model probing.
@@ -229,11 +309,11 @@ Rules, all non-negotiable (they come from the team's own Salesforce-MCP failure 
   Two consequences of "a row per call", both load-bearing. **One call per MCP request**: a JSON-RPC batch is refused (`envelopeRefusal`), because quota, plan digest and audit row are all spent per call, so a batch lets one HTTP request spend N of them ahead of the authorisation that guards them. And **the endpoint assumes a rate limit at the edge**: a refused call writes its row like any other, so unauthenticated traffic is unauthenticated *writes*, at request rate. That control belongs at Cloudflare, which fronts prod, and specifically not on the Traefik ingress: traffic reaches the cluster through a `cloudflared` tunnel, so Traefik sees the tunnel pods as the source and a per-IP rule there would put every caller in one bucket, which is worse than none because it reads as protection. The zone's bot mitigation is not that control either, and is the easy thing to mistake for it: it classifies traffic instead of bounding a rate, and an unauthenticated `curl` POST does reach the app. The rule is scoped to the `/api/admin` and `/api/mcp` prefixes, which every endpoint of this tier lives under today, so one mounted anywhere else leaves the protection behind with nothing failing to say so. None of this is checkable from the app, which is why it is written down here.
 - **A parameter that names a thing declares where that thing comes from.** This tier's only consumer is a language model, so a parameter no answer produces is not awkward, it is dead, and it fails silently: the operation sits in the tool list and refuses only when called with a value nobody could have. `adminApi/handles.ts` is the single map from a named value (an event id, a form id, a question key) to the reads that return it and the slice each one covers. The parameter descriptions, the French sentence every refusal ends with, and `meta_operations`' `requires` / `provides` are all generated from it. `handles.test.ts` then walks the catalogue and fails when a parameter has no producing read **its own tier can call**, insists every parameter be classified as a handle or as naming nothing, and runs itself against a doctored registry so a broken guard fails instead of passing forever.
 
-  The per-tier clause is the point. That hole had already shipped twice: `stats_feedback_results` once required a form id obtainable only from a configuration answer national leadership cannot reach, and `ops_resolve_sync_errors` took a list of row ids no read has ever returned. Between adding a read to feed a parameter and removing a parameter nothing can feed, the second is honest; a handle nothing returns *on purpose* (`ops_reset_interview`) declares that, in both languages, because an oversight reads exactly the same. This replaced provenance written as prose in nine places naming three different lists, none of them naming the operation that actually covered the common case.
+  The per-tier clause is the point. That hole had already shipped twice: `stats_feedback_results` once required a form id obtainable only from a configuration answer national leadership cannot reach, and `ops_resolve_sync_errors` took a list of row ids no read has ever returned. Between adding a read to feed a parameter and removing a parameter nothing can feed, the second is honest; a handle nothing returns *on purpose* (`ops_reset_closing`) declares that, in both languages, because an oversight reads exactly the same. This replaced provenance written as prose in nine places naming three different lists, none of them naming the operation that actually covered the common case.
 - **The gap is a measured quantity.** `ops_api_usage` reports the refusal rate **per operation** and the operation names callers reached for that do not exist. Both were already in `AdminApi_Call` and unread, which is why the two holes above were found in a conversation instead of in a report.
 - **Say what the figures cannot answer.** Jump holds no admission outcome, so nothing here is a conversion rate. `stats_school_year_review` returns a `limites` field saying so in French, because a consumer handed only good figures fills the gap itself.
 
-**Two tiers, one catalogue.** An entry declares `leadership: true` to be reachable by a tier-2 token; the default is core-team only, so `core ⊇ leadership` holds by construction and the leadership surface only ever grows by an explicit opt-in. What qualifies is a figure or a ranking (cohort make-up, school reach, attendance, the cross-campus comparison, lycée churn, interview answers, the school-year review), plus the unattributed student testimonials, which were collected to be quoted and whose first reader is this tier. What does not is anything `ops_*` or `config_*` and any free text somebody wrote *about* a student. Enforced in `guard.ts` (which refuses) and mirrored in `mcpServer.ts` (which does not register the tool, so a model never tries). A leadership token is minted by an admin for someone with no Jump account, so `AdminApi_Call.actorUserId` names the *issuer* and the token label names the holder.
+**Two tiers, one catalogue.** An entry declares `leadership: true` to be reachable by a tier-2 token; the default is core-team only, so `core ⊇ leadership` holds by construction and the leadership surface only ever grows by an explicit opt-in. What qualifies is a figure or a ranking (cohort make-up, school reach, attendance, the cross-campus comparison, lycée churn, closing answers, the school-year review), plus the unattributed student testimonials, which were collected to be quoted and whose first reader is this tier. What does not is anything `ops_*` or `config_*` and any free text somebody wrote *about* a student. Enforced in `guard.ts` (which refuses) and mirrored in `mcpServer.ts` (which does not register the tool, so a model never tries). A leadership token is minted by an admin for someone with no Jump account, so `AdminApi_Call.actorUserId` names the *issuer* and the token label names the holder.
 
 Three rules keep that surface honest, and each closed a hole that shipped once:
 
@@ -251,7 +331,7 @@ Three rules keep that surface honest, and each closed a hole that shipped once:
 | **B - two-step** | Touches many rows | Mandatory dry run returning the exact rows that would change plus a `planDigest`, then an apply echoing it (`adminApi/plan.ts`) |
 | **C - never a tool** | Irreversible, outbound, identity-bearing or PII-bearing | Human action. Every broadcast send or retry, `users/invite`, `impersonate`, `talents/resetToImport`, the RGPD erasure fulfilment, and every `delete` a model could aim on its own |
 
-The qualifier on that last one is the whole test, and `ops_reset_interview` is what it was written for: an interview reset is a hard delete, irreversible, and it is still a tool. What makes it one is that **no read in the catalogue returns an `interviewId`** (check `ANSWER_SELECT` in `interviewInsights.ts` and the testimonial select), so a model cannot pick a victim, only carry out a reset on an id a human read off the admin interviews page and handed over. Add an id to a read and you have silently promoted the delete into class C, so before returning any row id, ask which write could spend it.
+The qualifier on that last one is the whole test, and `ops_reset_closing` is what it was written for: a closing reset is a hard delete, irreversible, and it is still a tool. What makes it one is that **no read in the catalogue returns a `Closing_Record.id`** (check `ANSWER_SELECT` in `closingInsights.ts` and the testimonial select), so a model cannot pick a victim, only carry out a reset on an id a human read off the admin closings page and handed over. Template and question ids ARE returned, and that is the distinction: they are what an author spends on a write that composes a grid, not on one that destroys a conversation. Add an id to a read and you have silently promoted the delete into class C, so before returning any row id, ask which write could spend it.
 
 Three things follow that are easy to get wrong. **Writes are token-only**: an admin browser session reads but never mutates, so every change is attributable to a credential somebody deliberately minted, and a cookie-carrying cross-origin POST is not a threat model this endpoint has to reason about. **The two-step contract holds no state**: the apply recomputes the plan and compares digests rather than looking up a stored one, which also catches the world moving between the two calls, and needs no table on horizontally-scaled pods. And **a token is only as alive as its owner's role**: `verifyToken` re-reads `StaffProfile.staffRole` on every call, so a demotion cuts the credential the way a departure already did through the FK cascade, and `updateStaffRole` never has to learn that this table exists. Its inventory is shared for the same reason it is audited: every admin sees and can revoke every token, because a leadership token's holder has no Jump account and no way to cut his own.
 
@@ -284,7 +364,7 @@ The weekly PO digest (`services/adminDigest.ts`, `POST /api/jobs/admin-digest`) 
 
 - **`auth.ts`** — BetterAuth config (Prisma adapter, Microsoft OAuth, email OTP, admin plugin with impersonation)
 - **`adminApi/`** — curated admin API: token auth (tier + write capability), quotas, audit log with before/after, operation catalogue, write implementations, two-step plan digest, MCP server (see above)
-- **`services/adminStats/`** — the curated aggregates (cohort profile, school reach and lycée churn, attendance, the cross-campus comparison, interview insights and testimonials, feedback results, engagement, onboarding funnel and velocity, compliance, the operational queues, configuration state, the school-year review), each figure carrying its definition
+- **`services/adminStats/`** — the curated aggregates (cohort profile, school reach and lycée churn, attendance, the cross-campus comparison, closing insights and testimonials, feedback results, engagement, onboarding funnel and velocity, compliance, the operational queues, configuration state, the school-year review), each figure carrying its definition
 - **`services/adminDigest.ts`** — weekly French digest to every admin-role login, built on `adminStats/`
 - **`services/staffAdminService.ts`** — staff roster writes for `/staff/admin/users` (the role change moves `StaffProfile.staffRole` + `bauth_user.role` in one transaction)
 - **`services/syncErrorService.ts`** — admin remediation of sync errors, including the extId rebind and its refusal branches

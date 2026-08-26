@@ -12,8 +12,7 @@ import {
 } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { NOTE_INCLUDE, serializeNote } from '$lib/server/talentNotes';
-import { interviewConductSchema } from '$lib/validation/interviews';
-import { NOTE_FIELDS, type NoteField } from '$lib/domain/interview';
+import { getTalentJourney } from '$lib/server/services/talentJourneyService';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { formatGivenName } from '$lib/domain/profile';
 import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
@@ -52,7 +51,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       student,
       participations,
       broadcastRows,
-      completedInterviewCount,
+      completedClosingCount,
       xpStory,
       noteRows,
     ] = await Promise.all([
@@ -114,7 +113,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
           },
         },
       }),
-      db.interview.count({
+      db.closing_Record.count({
         where: { talentId: params.id, status: 'done' },
       }),
       getTalentXpStory(params.id, timezone),
@@ -152,96 +151,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     );
     const communications = allCommunications.slice(0, RIGHT_RAIL_COMMS);
 
-    // "Historique événements" is a past-only view (Plan 01, phase E): keep the
-    // events already over, newest first (participations are `event.date desc`),
-    // and resolve each SF status to a présent/absent outcome here so the raw
-    // Salesforce vocabulary never reaches the view.
-    const historyBounds = getLifecycleBounds(timezone);
-    const eventHistory = participations
-      .filter(
-        (p) =>
-          getEventStatus(
-            { date: p.event.date, endDate: p.event.endDate },
-            historyBounds,
-          ) === 'past',
-      )
-      .map((p) => ({
-        id: p.event.id,
-        name: eventDisplayName(p.event),
-        date: p.event.date,
-        presence: pastEventPresence(p.sfMemberStatus),
-      }));
-
-    // Interview conduct surface. The orientation interview is 1:1 with a
-    // participation (one per person per event) and is offered on any event that
-    // exposes the `entretiens` module. The entretiens page links here with
-    // `?event=<id>`, so we attach to THAT event's participation; opened without
-    // context (search, deep link) we fall back to the latest interviewable one
-    // (`participations` is `event.date desc`). Staff routinely type up paper
-    // interviews long after, so lifecycle phase is irrelevant here. With no
-    // interviewable participation the fiche disables "Faire l'entretien" with a
-    // reason and the actions refuse.
-    const interviewable = participations.filter((p) =>
-      p.event.modules.some((m) => m.moduleKey === EVENT_MODULES.ENTRETIENS),
-    );
-    const eventParam = url.searchParams.get('event');
-    const interviewParticipation =
-      (eventParam
-        ? interviewable.find((p) => p.event.id === eventParam)
-        : null) ??
-      interviewable[0] ??
-      null;
-
-    const existingInterview = interviewParticipation
-      ? await db.interview.findUnique({
-          where: { participationId: interviewParticipation.id },
-          include: {
-            staff: {
-              select: { user: { select: { name: true, image: true } } },
-            },
-          },
-        })
-      : null;
-
-    const interviewForm = await superValidate(
-      existingInterview
-        ? {
-            participationId: interviewParticipation!.id,
-            discoveryChannel: existingInterview.discoveryChannel,
-            motivation: existingInterview.motivation,
-            orientationTalkAtSchool: existingInterview.orientationTalkAtSchool,
-            passionateTeacher: existingInterview.passionateTeacher,
-            techProjection: existingInterview.techProjection,
-            wantsMore: existingInterview.wantsMore,
-            recommendation: existingInterview.recommendation,
-            specialties: existingInterview.specialties,
-            otherJobs: existingInterview.otherJobs,
-            infoSources: existingInterview.infoSources,
-            nextYearEvents: existingInterview.nextYearEvents,
-            satisfactionStars: existingInterview.satisfactionStars,
-            oneSentence: existingInterview.oneSentence ?? '',
-            verdictNote: existingInterview.verdictNote ?? '',
-            discoveryChannelNote: existingInterview.discoveryChannelNote ?? '',
-            motivationNote: existingInterview.motivationNote ?? '',
-            specialtiesNote: existingInterview.specialtiesNote ?? '',
-            orientationTalkNote: existingInterview.orientationTalkNote ?? '',
-            passionateTeacherNote:
-              existingInterview.passionateTeacherNote ?? '',
-            techProjectionNote: existingInterview.techProjectionNote ?? '',
-            otherJobsNote: existingInterview.otherJobsNote ?? '',
-            infoSourcesNote: existingInterview.infoSourcesNote ?? '',
-            wantsMoreNote: existingInterview.wantsMoreNote ?? '',
-            satisfactionNote: existingInterview.satisfactionNote ?? '',
-            nextYearEventsNote: existingInterview.nextYearEventsNote ?? '',
-          }
-        : { participationId: interviewParticipation?.id ?? '' },
-      zod4(interviewConductSchema),
-    );
-
-    const canConductInterview = interviewParticipation != null;
-    const noInterviewReason = canConductInterview
-      ? null
-      : "Ce talent n'a aucun événement avec les entretiens activés.";
+    // "Son parcours": the past events, newest first, each with the closing
+    // conducted at it. Past-only, as the event history it replaces was: an event
+    // still to come says nothing about who this person is yet. Assembled in its
+    // own service so the fiche keeps painting rather than composing.
+    const journey = await getTalentJourney(params.id, timezone);
 
     // Staff correction form for the image-rights decision, prefilled with the
     // current decision + the guardian on file (the last signer, else the parent
@@ -323,7 +237,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       connected: firstLoginAt != null,
       rulesCompliant: isRulesCompliant(student.parentRulesSignedAt),
       imageRightsDecided: isImageRightsDecided(student),
-      hasCompletedInterview: completedInterviewCount > 0,
+      hasCompletedClosing: completedClosingCount > 0,
       techRecommendationMessages,
     });
 
@@ -331,22 +245,15 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       student,
       notes,
       xpStory,
-      eventHistory,
+      journey,
       communications,
       firstLoginAt,
       recommendations,
       timezone,
-      interviewForm,
       imageRightsForm,
       imageRightsRecords,
       lastImageRightsDecision,
       imageRightsSchoolYear,
-      canConductInterview,
-      noInterviewReason,
-      interviewStatus: existingInterview?.status ?? null,
-      interviewConductedAt: existingInterview?.conductedAt ?? null,
-      interviewConductedBy: existingInterview?.staff.user?.name ?? null,
-      interviewConductedByImage: existingInterview?.staff.user?.image ?? null,
     };
   } catch (e) {
     // A genuinely missing talent (findUniqueOrThrow → P2025) is the only real
@@ -362,142 +269,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     throw e;
   }
 };
-
-type InterviewMode = 'start' | 'save' | 'close';
-
-/**
- * Upsert the orientation interview for the talent's active stage participation.
- * The status transition is owned by the `mode`, never read from the payload, so
- * an autosave can never accidentally close an interview:
- *   - `start`  → create the row `in_progress` (the "Démarrer l'entretien" CTA)
- *   - `save`   → autosave answers, status unchanged
- *   - `close`  → flip to `done` (the "Clôturer l'entretien" CTA)
- * Clôture is a one-way door: a `done` interview is locked for good (guarded
- * below), so the lifecycle only ever runs null → in_progress → done.
- * Dev-only (Talent Acquisition conducts interviews); gated per participation on
- * its event's `entretiens` module, re-validated.
- */
-async function persistInterview(
-  { request, locals, params }: RequestEvent,
-  mode: InterviewMode,
-) {
-  requireStaffGroup(locals, 'devMember');
-
-  const campusId = getCampusId(locals);
-  const db = scopedPrisma(campusId);
-
-  const form = await superValidate(request, zod4(interviewConductSchema));
-  if (!form.valid) return fail(400, { form });
-
-  // Gated per participation on the `entretiens` module of its event, not on the
-  // event type: any event exposing entretiens (stage, coding club…) can be
-  // interviewed, one interview per participation.
-  const participation = await db.participation.findUnique({
-    where: { id: form.data.participationId },
-    select: {
-      id: true,
-      talentId: true,
-      campusId: true,
-      event: {
-        select: {
-          modules: {
-            where: { moduleKey: EVENT_MODULES.ENTRETIENS },
-            select: { moduleKey: true },
-          },
-        },
-      },
-    },
-  });
-  if (
-    !participation ||
-    participation.talentId !== params.id ||
-    participation.campusId !== campusId ||
-    participation.event.modules.length === 0
-  ) {
-    return message(form, 'Entretien impossible pour ce participant.', {
-      status: 400,
-    });
-  }
-
-  // Clôture is terminal: once `done`, the interview is locked for good. Refuse
-  // any further mutation (autosave, re-close, or a stray start) server-side so
-  // the lock holds even against a replayed or hand-crafted POST, not just the
-  // removed UI controls.
-  const existing = await db.interview.findUnique({
-    where: { participationId: form.data.participationId },
-    select: { status: true },
-  });
-  if (existing?.status === 'done') {
-    return message(
-      form,
-      'Cet entretien est finalisé et ne peut plus être modifié.',
-      {
-        status: 409,
-      },
-    );
-  }
-
-  const { participationId, oneSentence, verdictNote, ...rest } = form.data;
-
-  // Per-question notes: trim and store '' as null so the DB never holds "". The
-  // notes are ungated (always offered under their question), so there is nothing
-  // to clear on a deselect, unlike the old reveal precisions. Catalogue-driven
-  // via NOTE_FIELDS: a new note needs no change here.
-  const data = form.data as Record<string, unknown>;
-  const noteText = {} as Record<NoteField, string | null>;
-  for (const field of NOTE_FIELDS) {
-    const raw = data[field];
-    const trimmed = typeof raw === 'string' ? raw.trim() : '';
-    noteText[field] = trimmed || null;
-  }
-
-  const answers = {
-    ...rest,
-    oneSentence: oneSentence.trim() || null,
-    verdictNote: verdictNote.trim() || null,
-    ...noteText,
-  };
-
-  const createStatus = mode === 'close' ? 'done' : 'in_progress';
-  // `save` leaves the status untouched; the other modes set it explicitly.
-  const setStatus =
-    mode === 'close'
-      ? ('done' as const)
-      : mode === 'start'
-        ? ('in_progress' as const)
-        : undefined;
-
-  // `conductedAt` defaults to row-creation time, i.e. when the interview is
-  // first started or autosaved as `in_progress`. Re-stamp it at clôture so it
-  // marks when the interview was finalized, not when the form was first opened.
-  // Everything downstream treats a `done` interview's `conductedAt` as its
-  // completion date (the admin PDF list orders and dates by it, the reset audit
-  // snapshots it), so a just-closed interview must carry "now" even if it sat in
-  // progress for a while.
-  const conductedAt = mode === 'close' ? new Date() : undefined;
-
-  await db.interview.upsert({
-    where: { participationId },
-    create: {
-      participationId,
-      talentId: participation.talentId,
-      campusId,
-      staffId: locals.staffProfile.id,
-      status: createStatus,
-      ...(conductedAt ? { conductedAt } : {}),
-      ...answers,
-    },
-    update: {
-      ...answers,
-      ...(setStatus ? { status: setStatus } : {}),
-      ...(conductedAt ? { conductedAt } : {}),
-    },
-  });
-
-  // Success carries no flash: the conduct UI signals each lifecycle outcome
-  // through its view transition (cover ⇆ questions ⇆ synthèse), not a toast.
-  return { form };
-}
 
 /**
  * Record a staff correction of the guardian's image-rights decision after an
@@ -515,8 +286,7 @@ async function correctImageRights({ request, locals, params }: RequestEvent) {
   const form = await superValidate(request, zod4(imageRightsCorrectionSchema), {
     id: 'imageRights',
   });
-  // Superforms routes by form id, so the conventional `form` key is correct
-  // even with the interview form on the same page.
+  // Superforms routes by form id, so the conventional `form` key is correct.
   if (!form.valid) return fail(400, { form });
 
   const db = scopedPrisma(getCampusId(locals));
@@ -556,8 +326,5 @@ async function correctImageRights({ request, locals, params }: RequestEvent) {
 }
 
 export const actions: Actions = {
-  startInterview: (event) => persistInterview(event, 'start'),
-  saveInterview: (event) => persistInterview(event, 'save'),
-  closeInterview: (event) => persistInterview(event, 'close'),
   correctImageRights,
 };
