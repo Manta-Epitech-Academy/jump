@@ -58,7 +58,7 @@ type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
 // testable locally; coding-club events get the registration + attendance
 // surfaces so their émargement history is reachable. `planning` is not a module
 // (it is data-driven from the event's time slots), so it is not listed here.
-const STAGE_MODULE_KEYS = ['inscrits', 'emargement', 'bilan', 'entretiens'];
+const STAGE_MODULE_KEYS = ['inscrits', 'emargement', 'bilan', 'closings'];
 const CODING_CLUB_MODULE_KEYS = ['inscrits', 'emargement'];
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
@@ -2752,6 +2752,17 @@ async function seedEvents(
     ).id,
   };
 
+  // Same story for the closing grid: the migration owns it, and only a stage has
+  // one today. A Coding Club grid is business content the team composes over the
+  // API, so a seeded club event names none and its closings surface stays hidden,
+  // which is the real gate rather than a fixture shortcut.
+  const stageClosingTemplateId = (
+    await prisma.closing_Template.findUniqueOrThrow({
+      where: { key: 'stage_seconde' },
+      select: { id: true },
+    })
+  ).id;
+
   for (const blueprint of EVENTS) {
     const campusId = campuses[blueprint.campus].id;
 
@@ -2831,6 +2842,10 @@ async function seedEvents(
         diplomaTemplateId: isStage
           ? diplomaTemplateIds.stage
           : diplomaTemplateIds.codingClub,
+        // The grid the event's closings are conducted with. Null on a club, and
+        // that null IS the gate: without it the module alone leaves the surface
+        // unreachable, so a seeded closing would be a state the app cannot open.
+        closingTemplateId: isStage ? stageClosingTemplateId : null,
         campusId,
         modules: {
           create: (isStage ? STAGE_MODULE_KEYS : CODING_CLUB_MODULE_KEYS).map(
