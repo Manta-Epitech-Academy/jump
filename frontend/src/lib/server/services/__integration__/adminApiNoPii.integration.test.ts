@@ -79,7 +79,13 @@ describe('no read operation leaks a talent identity (integration)', () => {
    * Values the parameterised operations are exercised with, plus the interview
    * id no read may hand out (see the assertion that hunts for it).
    */
-  const seeded = { eventId: '', formId: '', schoolYear: '', interviewId: '' };
+  const seeded = {
+    eventId: '',
+    formId: '',
+    questionKey: 'satisfaction',
+    schoolYear: '',
+    interviewId: '',
+  };
 
   beforeAll(async () => {
     assertTestDatabase();
@@ -105,14 +111,35 @@ describe('no read operation leaks a talent identity (integration)', () => {
     });
     talentId = talent.id;
 
+    // A form with a real scale question and real options, because the operations
+    // that aggregate one walk the question graph: a form with no question at all
+    // asserted nothing about the path that reads answers.
     const form = await prisma.feedback_Form.create({
       data: {
         slug: `pii-form-${stamp}`,
         title: 'Bilan de test',
         status: 'published',
+        questions: {
+          create: {
+            key: seeded.questionKey,
+            position: 0,
+            prompt: 'Les conférences du matin, tu en as pensé quoi ?',
+            type: 'scale',
+            options: {
+              create: [
+                { position: 0, label: "J'ai adoré" },
+                { position: 1, label: 'Intéressant' },
+                { position: 2, label: 'Sympa sans plus' },
+                { position: 3, label: "Ça m'a pas parlé" },
+              ],
+            },
+          },
+        },
       },
+      include: { questions: { include: { options: true } } },
     });
     seeded.formId = form.id;
+    const question = form.questions[0];
 
     const event = await prisma.event.create({
       data: {
@@ -170,13 +197,22 @@ describe('no read operation leaks a talent identity (integration)', () => {
     seeded.interviewId = interview.id;
 
     // A response from the seeded talent, so the feedback answer has a real
-    // submission to aggregate rather than an empty one that could not leak.
+    // submission to aggregate rather than an empty one that could not leak, and
+    // a real answer on it so the option tally is exercised too.
     await prisma.feedback_Submission.create({
       data: {
         formId: form.id,
         eventId: event.id,
         talentId: talent.id,
         source: 'authenticated',
+        answers: {
+          create: {
+            questionId: question.id,
+            selectedOptions: {
+              create: { optionId: question.options[0].id },
+            },
+          },
+        },
       },
     });
   });
@@ -289,11 +325,25 @@ describe('no read operation leaks a talent identity (integration)', () => {
  */
 function requiredArgsFor(
   name: AdminApiOperationName,
-  seeded: { eventId: string; schoolYear: string },
+  seeded: {
+    eventId: string;
+    formId: string;
+    questionKey: string;
+    schoolYear: string;
+  },
 ): Record<string, unknown> {
   switch (name) {
     case 'config_event_detail':
       return { eventId: seeded.eventId };
+    // Grouped by campus on purpose: the grouped branch is the one that ranks, and
+    // a ranking is where a name would surface if a group were ever labelled by a
+    // person rather than by a campus.
+    case 'stats_feedback_question':
+      return {
+        formId: seeded.formId,
+        question: seeded.questionKey,
+        groupBy: 'campus',
+      };
     case 'stats_school_year_review':
       return { schoolYear: seeded.schoolYear };
     case 'stats_campus_comparison':

@@ -102,7 +102,10 @@ describe('getEventsOverview', () => {
     expect(overview.totals.events.value).toBe(1);
     expect(overview.filters.campus).toBe('Nantes');
     // Newest first, and computed before filtering so a caller can re-ask.
-    expect(overview.availableSchoolYears).toEqual(['2026-2027', '2025-2026']);
+    expect(overview.availableSchoolYears.value).toEqual([
+      '2026-2027',
+      '2025-2026',
+    ]);
   });
 
   // A campus that exists but has no event in scope is a truthful zero, reported
@@ -148,6 +151,7 @@ describe('getEventsOverview', () => {
         campus: 'Lille',
         events: 2,
         visible: 2,
+        visibleShare: 100,
         readyToPublish: 0,
         unconfigured: 0,
         participants: 15,
@@ -156,6 +160,7 @@ describe('getEventsOverview', () => {
         campus: 'Nantes',
         events: 1,
         visible: 1,
+        visibleShare: 100,
         readyToPublish: 0,
         unconfigured: 0,
         participants: 30,

@@ -51,7 +51,10 @@ export type EmargementCoverage = {
   slots: Metric;
   closedSlots: Metric;
   closedShare: Metric<number | null>;
-  byStatus: Metric<{ status: string; label: string; count: number }[]>;
+  marks: Metric;
+  byStatus: Metric<
+    { status: string; label: string; count: number; share: number | null }[]
+  >;
   perEvent: Metric<EventCoverage[]>;
   truncated: boolean;
 };
@@ -125,6 +128,7 @@ export async function getEmargementCoverage(
 
   const totalSlots = perEvent.reduce((sum, e) => sum + e.slots, 0);
   const totalClosed = perEvent.reduce((sum, e) => sum + e.closedSlots, 0);
+  const totalMarks = statuses.reduce((sum, s) => sum + s._count._all, 0);
 
   return {
     filters: scopeLabels(scope),
@@ -144,13 +148,18 @@ export async function getEmargementCoverage(
       share(totalClosed, totalSlots),
       "Part des demi-journées clôturées sur le périmètre, en pourcentage. Un événement à venir fait naturellement baisser ce chiffre : ses créneaux existent déjà mais n'ont pas encore eu lieu.",
     ),
+    marks: metric(
+      totalMarks,
+      "Pointages enregistrés sur ces événements, tous statuts confondus. C'est le dénominateur de la répartition ci-dessous.",
+    ),
     byStatus: metric(
       statuses.map((s) => ({
         status: s.status,
         label: statusLabelFr(s.status as PresenceStatus),
         count: s._count._all,
+        share: share(s._count._all, totalMarks),
       })),
-      "Répartition des pointages enregistrés sur ces événements. Un talent sans ligne n'est pas encore traité et n'apparaît donc dans aucune de ces catégories.",
+      "Répartition des pointages enregistrés sur ces événements, « share » étant la part de tous les pointages, en pourcentage. Un talent sans ligne n'est pas encore traité et n'apparaît dans aucune de ces catégories : ces parts portent sur les pointages, pas sur la cohorte.",
     ),
     perEvent: metric(
       perEvent.slice(0, EMARGEMENT_EVENTS_LIMIT),
@@ -169,6 +178,7 @@ function empty(scope: Scope): EmargementCoverage {
     slots: metric(0, none),
     closedSlots: metric(0, none),
     closedShare: metric(null, none),
+    marks: metric(0, none),
     byStatus: metric([], none),
     perEvent: metric([], none),
     truncated: false,

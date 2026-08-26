@@ -18,6 +18,7 @@ import {
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 import { resetInterview } from '$lib/server/services/interviewResetService';
 import { OperationRefusedError } from '../errors';
+import { handleProvenanceFr } from '../handles';
 import type { WriteOutcome } from '../plan';
 
 /** How many unresolved schools one call will try to enrich. */
@@ -39,7 +40,7 @@ export async function retryPdfJob(params: {
   });
   if (!job) {
     throw new OperationRefusedError(
-      `Génération « ${params.jobId} » introuvable. Les identifiants relançables sont renvoyés par l'opération ops_pdf_jobs_health.`,
+      `Génération « ${params.jobId} » introuvable. ${handleProvenanceFr('pdfJobId')}`,
     );
   }
   if (job.status === 'success') {
@@ -76,29 +77,28 @@ export async function retryPdfJob(params: {
 /**
  * Safe to repeat: resolving is a flag, and the update is scoped to rows still
  * unresolved, so a second call clears nothing and reports zero.
+ *
+ * By kind, or not at all. The operation used to take a list of row ids as well,
+ * and no read in the catalogue has ever returned a `SyncError.id`, so that branch
+ * could not be reached by the one consumer this tier has. Between adding a read
+ * to feed a parameter and removing a parameter nothing can feed, the second is
+ * the honest move: `errorType` and `ops_resolve_all_sync_errors` cover the act.
+ *
+ * That the kind is mandatory is stated once, by the catalogue's own strict
+ * schema, which both transports validate against before this runs. It used to be
+ * said twice - an optional param here plus a runtime refusal - and the two
+ * disagreed, so the published tool shape accepted a call that always failed.
  */
 export async function resolveSyncErrorRows(params: {
-  errorType?: string;
-  ids?: string[];
+  errorType: string;
 }): Promise<WriteOutcome> {
-  if (!params.errorType && !params.ids?.length) {
-    throw new OperationRefusedError(
-      "Précisez soit une liste d'identifiants, soit un type d'erreur à traiter. Sans filtre, l'opération viderait toute la file d'un coup.",
-    );
-  }
-
   const before = await prisma.syncError.count({ where: { resolved: false } });
 
-  let resolved: number;
-  if (params.ids?.length) {
-    resolved = (await resolveSyncErrors(params.ids)).count;
-  } else {
-    const rows = await prisma.syncError.findMany({
-      where: { resolved: false, errorType: params.errorType },
-      select: { id: true },
-    });
-    resolved = (await resolveSyncErrors(rows.map((r) => r.id))).count;
-  }
+  const rows = await prisma.syncError.findMany({
+    where: { resolved: false, errorType: params.errorType },
+    select: { id: true },
+  });
+  const resolved = (await resolveSyncErrors(rows.map((r) => r.id))).count;
 
   const after = await prisma.syncError.count({ where: { resolved: false } });
   return {
@@ -207,7 +207,7 @@ export async function resetInterviewById(params: {
   });
   if (!interview) {
     throw new OperationRefusedError(
-      `Entretien « ${params.interviewId} » introuvable : il a peut-être déjà été réinitialisé. L'identifiant se lit sur la page des entretiens de l'espace admin.`,
+      `Entretien « ${params.interviewId} » introuvable : il a peut-être déjà été réinitialisé. ${handleProvenanceFr('interviewId')}`,
     );
   }
   // The `InterviewReset` trail names a staff profile, not an account: a reset

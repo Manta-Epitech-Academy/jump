@@ -35,8 +35,11 @@
  *
  *     Ids are judged by what they are, not by being ids. Never one that
  *     identifies a person, and never one only a write could spend; an event id is
- *     a périmètre key five of these reads accept, so withholding it would leave
- *     them with a parameter this tier cannot obtain. A leadership answer
+ *     a périmètre key many of these reads accept, so withholding it would leave
+ *     them with a parameter this tier cannot obtain. Which operation hands out
+ *     which id is declared in `handles.ts` and checked per tier, rather than
+ *     counted by hand here: the count this sentence used to carry had drifted to
+ *     less than half the real one. A leadership answer
  *     additionally carries `fraicheur` (see `defineOperation`), because its reader
  *     cannot go and check whether the sync is alive.
  *
@@ -61,6 +64,11 @@ import type { AdminApi_TokenTier } from '@prisma/client';
 import { EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
 import { isCalendarDay, isWallClock } from '$lib/domain/planningTime';
 import { resolveScope } from './scope';
+import {
+  handleDescribe,
+  handlesProvidedBy,
+  handlesRequiredBy,
+} from './handles';
 import type { WriteOutcome } from './plan';
 import { getEventsOverview } from '$lib/server/services/adminStats/eventsOverview';
 import { getOnboardingFunnel } from '$lib/server/services/adminStats/onboardingFunnel';
@@ -68,6 +76,12 @@ import {
   getUnconfiguredEvents,
   UNCONFIGURED_EVENTS_LIMIT,
 } from '$lib/server/services/adminStats/unconfiguredEvents';
+import {
+  getEventsConfigList,
+  getEventsDirectory,
+  EVENTS_LIST_LIMIT,
+  EVENTS_LIST_STATES,
+} from '$lib/server/services/adminStats/eventsList';
 import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
 import { getDataFreshness } from '$lib/server/services/adminStats/dataFreshness';
 import { getScopeVocabulary } from '$lib/server/services/adminStats/scopeVocabulary';
@@ -102,6 +116,10 @@ import {
   getFeedbackResults,
   FEEDBACK_FORMS_LIMIT,
 } from '$lib/server/services/adminStats/feedbackResults';
+import {
+  getFeedbackQuestion,
+  FEEDBACK_QUESTION_GROUPS_LIMIT,
+} from '$lib/server/services/adminStats/feedbackQuestion';
 import {
   getOnboardingVelocity,
   VELOCITY_DEFAULT_DAYS,
@@ -176,16 +194,25 @@ const campus = z
     'Campus name as it appears in the answers, e.g. "Lille". Omit for every campus.',
   );
 
-// Both sources are named on purpose. Pointing only at config_unconfigured_events
-// left the parameter unusable for a leadership token, which is offered five reads
-// that accept it and no configuration answer to obtain one from.
+// The lifecycle axis, kept apart from the configuration one: an event is upcoming,
+// ongoing or past by the calendar, and configured or not by what an admin did.
+const eventStatus = z
+  .enum(['upcoming', 'ongoing', 'past'])
+  .optional()
+  .describe(
+    'Keep only events at this point of their life: upcoming, ongoing or past. Omit for every event.',
+  );
+
+// Every source is named, with the slice it covers, and generated from
+// `handles.ts`. This describe used to name one operation that by construction
+// excludes anything already visible, which left the parameter unusable for the
+// commonest state an event can be in - and unusable outright for a leadership
+// token, whose only source returned past events.
 const eventId = z
   .string()
   .min(1)
   .optional()
-  .describe(
-    'Event id, as returned by stats_attendance_rate for a past event or by config_unconfigured_events for an upcoming one. Omit for every event.',
-  );
+  .describe(`${handleDescribe('eventId')} Omit for every event.`);
 
 /**
  * Which tier the caller belongs to, mirrored from the token
@@ -329,6 +356,14 @@ export const ADMIN_API_OPERATIONS = {
     run: async (params) => getEventsOverview(await resolveScope(params)),
   }),
 
+  stats_events: defineOperation({
+    leadership: true,
+    description: `Every event of a périmètre, one row each: its id, the name teams and students see, its campus, its dates, whether it is upcoming, ongoing or past, and how many people are enrolled. Answers "what is running right now", and is where an event id comes from for the operations that take one. Capped at ${EVENTS_LIST_LIMIT} rows.`,
+    shape: { schoolYear, campus, status: eventStatus },
+    run: async ({ status, ...scope }) =>
+      getEventsDirectory(await resolveScope(scope), { status }),
+  }),
+
   stats_onboarding_funnel: defineOperation({
     description:
       'Where the online sign-up funnel leaks: for each step of the talent onboarding ladder, how many talents are stopped on it, plus how many completed the whole thing. Counts only, no name or contact detail exists in this answer. Can be narrowed to one event, one campus or one school year.',
@@ -342,6 +377,23 @@ export const ADMIN_API_OPERATIONS = {
     run: async (params) => getUnconfiguredEvents(await resolveScope(params)),
   }),
 
+  config_events: defineOperation({
+    description: `Every event of a périmètre, one row each: its id, its public and Salesforce names, its campus, its dates, how many people are enrolled, which dev-workspace sections are on, the feedback form attached to it, its configuration state, and both what is still unset and what actually stops it from being made visible. This is where an event id comes from. Filter by campus, school year, point of life or configuration state. Capped at ${EVENTS_LIST_LIMIT} rows; "truncated" tells you whether the cap was reached.`,
+    shape: {
+      schoolYear,
+      campus,
+      status: eventStatus,
+      state: z
+        .enum(EVENTS_LIST_STATES)
+        .optional()
+        .describe(
+          'Keep only events in this configuration state: unconfigured (no section enabled), ready (configured but hidden), shown (live in the dev workspace), or to_prepare for anything not past that is not shown yet. Omit for every state.',
+        ),
+    },
+    run: async ({ status, state, ...scope }) =>
+      getEventsConfigList(await resolveScope(scope), { status, state }),
+  }),
+
   stats_sync_health: defineOperation({
     description:
       'Whether Salesforce is still feeding Jump: when the last sync landed and how old it is, how many sync errors are waiting, their breakdown by kind, and the age of the oldest. Takes no parameter.',
@@ -353,10 +405,7 @@ export const ADMIN_API_OPERATIONS = {
     description:
       'Everything configured on one event: its Salesforce and public names, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form attached to it, and how many people are enrolled.',
     shape: {
-      eventId: z
-        .string()
-        .min(1)
-        .describe('Event id, as returned by config_unconfigured_events.'),
+      eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },
     run: (params) => getEventDetail(params.eventId),
   }),
@@ -448,10 +497,7 @@ export const ADMIN_API_OPERATIONS = {
     description:
       "Change one event's configuration. Patch semantics: only the fields you pass change, everything else is left exactly as it is, so you never have to restate the rest. Safe to repeat, it sets values rather than adjusting them. Answers with the state before and after.",
     shape: {
-      eventId: z
-        .string()
-        .min(1)
-        .describe('Event id, from config_event_detail.'),
+      eventId: z.string().min(1).describe(handleDescribe('eventId')),
       publicName: z
         .string()
         .optional()
@@ -490,10 +536,7 @@ export const ADMIN_API_OPERATIONS = {
     description:
       'Show or hide one event in the dev workspace. Refused, with what is missing, if the event is not ready to be shown. Safe to repeat. Answers with the state before and after.',
     shape: {
-      eventId: z
-        .string()
-        .min(1)
-        .describe('Event id, from config_event_detail.'),
+      eventId: z.string().min(1).describe(handleDescribe('eventId')),
       visible: z
         .boolean()
         .describe('True to show it in the dev workspace, false to hide it.'),
@@ -505,15 +548,12 @@ export const ADMIN_API_OPERATIONS = {
     description:
       'Attach a feedback form to one event, or detach the current one by omitting formId. Authors no content, only points at an existing form. Safe to repeat. Answers with the state before and after.',
     shape: {
-      eventId: z
-        .string()
-        .min(1)
-        .describe('Event id, from config_event_detail.'),
+      eventId: z.string().min(1).describe(handleDescribe('eventId')),
       formId: z
         .string()
         .optional()
         .describe(
-          'Form id from config_feedback_forms. Omit to detach the current form.',
+          `${handleDescribe('formId')} Omit to detach the current form.`,
         ),
     },
     run: (params) => writeEventFeedbackForm(params),
@@ -530,7 +570,9 @@ export const ADMIN_API_OPERATIONS = {
       name: z
         .string()
         .min(1)
-        .describe('Preset name. An existing one is overwritten.'),
+        .describe(
+          `${handleDescribe('templateName')} An existing one is overwritten.`,
+        ),
       description: z.string().optional(),
     },
     run: (params) => writeEventTemplate(params),
@@ -540,24 +582,20 @@ export const ADMIN_API_OPERATIONS = {
     description:
       'Regenerate one onboarding document that failed or got stuck. Sends no message to anyone, it only rebuilds a file. Safe to repeat: a document already generated is refused rather than rebuilt. Answers with the resulting state, including the error if it failed again.',
     shape: {
-      jobId: z
-        .string()
-        .min(1)
-        .describe('Job id, as returned by ops_pdf_jobs_health.'),
+      jobId: z.string().min(1).describe(handleDescribe('pdfJobId')),
     },
     run: (params) => retryPdfJob(params),
   }),
 
   ops_resolve_sync_errors: defineWrite({
     description:
-      'Mark Salesforce sync errors as handled, either a specific list of ids or every unresolved one of a given kind. Resolving is a flag, nothing is deleted. Safe to repeat: a second call finds nothing left to resolve and reports zero. Requires one of the two filters.',
+      'Mark every unresolved Salesforce sync error of one kind as handled. Resolving is a flag, nothing is deleted. Safe to repeat: a second call finds nothing left to resolve and reports zero. The kind is required: emptying the whole queue is ops_resolve_all_sync_errors, deliberately a separate act.',
     shape: {
-      ids: z.array(z.string()).optional().describe('Specific error row ids.'),
       errorType: z
         .string()
-        .optional()
+        .min(1)
         .describe(
-          'Resolve every unresolved error of this kind. Kinds come from stats_sync_health.',
+          `Resolve every unresolved error of this kind. Required: emptying the whole queue without naming a kind is ops_resolve_all_sync_errors, deliberately a separate act. ${handleDescribe('syncErrorType')}`,
         ),
     },
     run: (params) => resolveSyncErrorRows(params),
@@ -588,10 +626,7 @@ export const ADMIN_API_OPERATIONS = {
     description:
       'Discard one orientation interview so a fresh one can be conducted. NOT safe to repeat and NOT reversible: the answers are deleted, not archived. The interview id is read off the admin interviews page; no operation returns one. A reason is required and is kept in the trail.',
     shape: {
-      interviewId: z
-        .string()
-        .min(1)
-        .describe('Interview id, read from the admin interviews page.'),
+      interviewId: z.string().min(1).describe(handleDescribe('interviewId')),
       reason: z
         .string()
         .min(3)
@@ -647,10 +682,7 @@ export const ADMIN_API_OPERATIONS = {
     twoStep: true,
     description: `Apply a saved preset's sections to every event matching a filter. Only the sections are applied in bulk, not the preset's names or times. Dry run first (no planDigest), then apply with the digest it returns. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
     shape: {
-      templateName: z
-        .string()
-        .min(1)
-        .describe('Preset name, from config_event_templates.'),
+      templateName: z.string().min(1).describe(handleDescribe('templateName')),
       campus,
       schoolYear,
       onlyUpcoming: z
@@ -668,25 +700,35 @@ export const ADMIN_API_OPERATIONS = {
   meta_operations: defineOperation({
     leadership: true,
     description:
-      'The catalogue of operations you can call, with each one description and the exact shape of its parameters as a JSON Schema. Use it to discover what is available; it only ever lists what your own credentials may call.',
+      'The catalogue of operations you can call: each one description, the exact shape of its parameters as a JSON Schema, and which named values it needs ("requires") against which ones its answer hands out ("provides"), so a parameter you do not have can be traced to the operation that returns it. Use it to discover what is available; it only ever lists what your own credentials may call.',
     shape: {},
     // Annotated, and reading the catalogue it is itself part of: TypeScript
     // cannot infer a return type through that self-reference.
     run: async (_params, ctx): Promise<{ operations: unknown[] }> => ({
-      operations: operationsForTier(ctx.tier).map(([name, operation]) => ({
-        name,
-        kind: operation.kind,
-        description: operation.description,
-        parameters: z.toJSONSchema(operation.schema),
-        ...(operation.twoStep
-          ? { twoStep: 'Call without planDigest first to obtain a plan.' }
-          : {}),
-      })),
+      operations: operationsForTier(ctx.tier).map(([name, operation]) => {
+        // `requires` and `provides` are derived from the handle registry, never
+        // declared twice: they turn "look for the tool that returns it" from
+        // advice into something a reader can resolve, instead of guessing from
+        // names which answer carries the id its next question needs.
+        const requires = handlesRequiredBy(Object.keys(operation.schema.shape));
+        const provides = handlesProvidedBy(name);
+        return {
+          name,
+          kind: operation.kind,
+          description: operation.description,
+          parameters: z.toJSONSchema(operation.schema),
+          ...(requires.length ? { requires } : {}),
+          ...(provides.length ? { provides } : {}),
+          ...(operation.twoStep
+            ? { twoStep: 'Call without planDigest first to obtain a plan.' }
+            : {}),
+        };
+      }),
     }),
   }),
 
   ops_api_usage: defineOperation({
-    description: `This API's own call log, aggregated: how many calls over the window, how many were refused or failed, and the breakdown per operation, per token and per day. Also lists the catalogue operations nobody called. Window defaults to ${API_USAGE_DEFAULT_DAYS} days, ${API_USAGE_MAX_DAYS} maximum.`,
+    description: `This API's own call log, aggregated: how many calls over the window, how many were refused or failed, and the breakdown per operation, per token and per day. Also lists the catalogue operations nobody called, the ones with the highest refusal rate, and the operation names callers reached for that do not exist - the last two being where a question this API answers badly, or not at all, shows up. Window defaults to ${API_USAGE_DEFAULT_DAYS} days, ${API_USAGE_MAX_DAYS} maximum.`,
     shape: {
       days: z.coerce
         .number()
@@ -842,7 +884,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_feedback_results: defineOperation({
     leadership: true,
-    description: `How the feedback forms of a périmètre were answered: per questionnaire, how many responses, how many came from a Jump account against the public link, the response rate over the enrolments of the events it is attached to, and the distribution of every closed question. Free-text answers are counted, never returned. Omit formId to get every questionnaire used in the périmètre, capped at ${FEEDBACK_FORMS_LIMIT}; pass one to narrow to it.`,
+    description: `How the feedback forms of a périmètre were answered: per questionnaire, its id, how many responses, how many came from a Jump account against the public link, the response rate over the enrolments of the events it is attached to, and then every closed question with its stable key, its wording, and each of its answer options with a count and a share. Free-text answers are counted, never returned: student sentences meant to be quoted live in stats_interview_testimonials instead. Omit formId to get every questionnaire used in the périmètre, capped at ${FEEDBACK_FORMS_LIMIT}; pass one to narrow to it.`,
     shape: {
       formId: z
         .string()
@@ -857,6 +899,30 @@ export const ADMIN_API_OPERATIONS = {
     },
     run: async ({ formId, ...scope }) =>
       getFeedbackResults(await resolveScope(scope), { formId }),
+  }),
+
+  stats_feedback_question: defineOperation({
+    leadership: true,
+    description: `One question of one feedback form, in full: every answer option in the form's own order with a count and a share, how many people answered it against how many answered the questionnaire, and - for a scale question, whose options run best to worst - the share of favourable answers. Pass groupBy to get the same figures per campus or per event, already ranked on that share. A question whose options carry no order returns no favourable share and no ranking, rather than an invented one. Capped at ${FEEDBACK_QUESTION_GROUPS_LIMIT} groups.`,
+    shape: {
+      formId: z.string().min(1).describe(handleDescribe('formId')),
+      question: z.string().min(1).describe(handleDescribe('questionKey')),
+      groupBy: z
+        .enum(['campus', 'event'])
+        .optional()
+        .describe(
+          'Break the figures down per campus or per event, ranked. Omit to answer for the whole périmètre at once.',
+        ),
+      schoolYear,
+      campus,
+      eventId,
+    },
+    run: async ({ formId, question, groupBy, ...scope }) =>
+      getFeedbackQuestion(await resolveScope(scope), {
+        formId,
+        question,
+        groupBy,
+      }),
   }),
 
   stats_attendance_rate: defineOperation({

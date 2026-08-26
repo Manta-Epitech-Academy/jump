@@ -188,6 +188,19 @@ describe('the standing instructions', () => {
     }
   });
 
+  // The rule the two failures that motivated it both needed: a model that read
+  // "if the comparison is not in an answer, look for the tool that returns it"
+  // as "find the right tool or stop" answered a question the platform could
+  // answer, without calling anything.
+  it('separates not computing from not looking', () => {
+    for (const tier of ['core', 'leadership'] as const) {
+      const instructions = adminMcpInstructions(tier);
+      expect(instructions).toMatch(/not the same as not looking/i);
+      expect(instructions).toMatch(/call the closest tool once/i);
+      expect(instructions).toContain('meta_operations');
+    }
+  });
+
   it('warns both tiers about the student quotes they now both receive', () => {
     for (const tier of ['core', 'leadership'] as const) {
       expect(adminMcpInstructions(tier)).toMatch(/never guess who said one/i);

@@ -40,7 +40,9 @@ export type ComplianceStatus = {
   rulesSignedByTalent: Metric;
   rulesSignedByTalentShare: Metric<number | null>;
   rulesCosignedByGuardian: Metric;
+  rulesCosignedShare: Metric<number | null>;
   rulesAwaitingGuardian: Metric;
+  rulesAwaitingGuardianShare: Metric<number | null>;
   imageRights: Metric<ImageRightsRow[]>;
   usableInCommunication: Metric<number | null>;
 };
@@ -108,9 +110,17 @@ export async function getComplianceStatus(
       rulesGuardian,
       "Talents dont le responsable légal a contresigné le règlement intérieur. Pour un mineur, c'est cette contresignature qui rend le document complet.",
     ),
+    rulesCosignedShare: metric(
+      share(rulesGuardian, cohort),
+      'Part du périmètre dont le règlement intérieur est contresigné par le responsable légal, en pourcentage : la part de dossiers réellement complets sur ce point.',
+    ),
     rulesAwaitingGuardian: metric(
       Math.max(rulesTalent - rulesGuardian, 0),
       "Talents qui ont signé le règlement mais dont le responsable légal ne l'a pas encore contresigné : ceux qu'il reste à relancer, côté parent.",
+    ),
+    rulesAwaitingGuardianShare: metric(
+      share(Math.max(rulesTalent - rulesGuardian, 0), rulesTalent),
+      "Part des talents ayant signé qui attendent encore la contresignature de leur responsable légal, en pourcentage. Rapportée aux signatures et non à la cohorte : c'est la mesure de ce que la relance parentale a encore à traiter.",
     ),
     imageRights: metric(
       [

@@ -61,9 +61,13 @@ export type AttendanceRate = {
   filters: { schoolYear: string; campus: string; event: string };
   pastEvents: Metric;
   enrolled: Metric;
+  /** Enrolments shown in the dev workspace: `enrolled` plus `unknown`. */
+  shownEnrolments: Metric;
   present: Metric;
   absent: Metric;
+  absentRate: Metric<number | null>;
   unknown: Metric;
+  unknownShare: Metric<number | null>;
   showUpRate: Metric<number | null>;
   perEvent: Metric<EventAttendance[]>;
   truncated: boolean;
@@ -147,6 +151,10 @@ export async function getAttendanceRate(
       enrolled,
       "Inscriptions à ces événements passés dont le statut Salesforce conclut sur la venue : MEET (la personne est venue) ou READY (elle ne l'est pas). C'est le dénominateur du taux de présence. Les inscriptions sans statut exploitable n'y figurent pas, elles sont comptées dans « unknown » ; la somme des deux correspond aux inscriptions affichées dans l'espace dev.",
     ),
+    shownEnrolments: metric(
+      enrolled + sum((r) => r.unknown),
+      "Toutes les inscriptions à ces événements passés telles que l'espace dev les affiche : celles dont le statut conclut sur la venue et celles sans statut exploitable. C'est le total dont « enrolled » ne retient que la partie mesurable.",
+    ),
     present: metric(
       present,
       'Inscriptions dont le statut Salesforce vaut MEET après coup, ce qui signifie que la personne est venue.',
@@ -155,9 +163,23 @@ export async function getAttendanceRate(
       sum((r) => r.absent),
       "Inscriptions restées au statut Salesforce READY après l'événement : la personne s'était inscrite et n'est pas venue.",
     ),
+    absentRate: metric(
+      share(
+        sum((r) => r.absent),
+        enrolled,
+      ),
+      'Part des inscriptions exploitables restées absentes, en pourcentage, sur la même base que le taux de présence. Vaut null si aucune inscription exploitable.',
+    ),
     unknown: metric(
       sum((r) => r.unknown),
-      `Inscriptions à ces événements passés sans statut de présence exploitable, ${VISIBLE_PARTICIPATION_DEFINITION} : en pratique celles importées avant que Jump n'enregistre le statut Salesforce, et que jamais aucune synchronisation ultérieure n'a rafraîchies. Elles sont exclues du taux plutôt que comptées comme des absences, car leur statut ne dit rien de leur venue. Un chiffre élevé face à « enrolled » signifie que le taux ne porte que sur une partie des inscrits.`,
+      `Inscriptions à ces événements passés sans statut de présence exploitable, ${VISIBLE_PARTICIPATION_DEFINITION} : en pratique celles importées avant que Jump n'enregistre le statut Salesforce, et que jamais aucune synchronisation ultérieure n'a rafraîchies. Elles sont exclues du taux plutôt que comptées comme des absences, car leur statut ne dit rien de leur venue. « unknownShare » dit quelle part des inscriptions affichées elles représentent : plus elle est haute, moins le taux de présence porte sur la cohorte réelle.`,
+    ),
+    unknownShare: metric(
+      share(
+        sum((r) => r.unknown),
+        enrolled + sum((r) => r.unknown),
+      ),
+      "Part des inscriptions affichées à ces événements passés dont le statut ne dit rien de la venue, en pourcentage. C'est la mesure de ce que le taux de présence ne couvre pas. Vaut null quand ces événements n'affichent aucune inscription.",
     ),
     showUpRate: metric(
       share(present, enrolled),
@@ -180,9 +202,18 @@ function empty(scope: Scope): AttendanceRate {
       "Aucun événement terminé sur ce périmètre : il n'y a pas encore de présence à mesurer.",
     ),
     enrolled: none('Aucun événement terminé sur ce périmètre.'),
+    shownEnrolments: none('Aucun événement terminé sur ce périmètre.'),
     present: none('Aucun événement terminé sur ce périmètre.'),
     absent: none('Aucun événement terminé sur ce périmètre.'),
+    absentRate: metric(
+      null,
+      "Taux d'absence non calculable : aucun événement du périmètre n'est terminé.",
+    ),
     unknown: none('Aucun événement terminé sur ce périmètre.'),
+    unknownShare: metric(
+      null,
+      "Non calculable : aucun événement du périmètre n'est terminé.",
+    ),
     showUpRate: metric(
       null,
       "Taux de présence non calculable : aucun événement du périmètre n'est terminé.",

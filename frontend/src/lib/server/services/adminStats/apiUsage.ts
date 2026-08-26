@@ -17,15 +17,37 @@ import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
 /** How far back the log can be read in one call. */
 export const API_USAGE_MAX_DAYS = 180;
 export const API_USAGE_DEFAULT_DAYS = 30;
+/** Operations listed in the refusal ranking. */
+export const REFUSAL_TOP_N = 10;
+/**
+ * The name the MCP endpoint logs a rejected request under, before any tool is
+ * named. Not an operation, so it is kept out of both friction lists: at the top
+ * of a refusal ranking it reads as a broken tool when it is in fact
+ * unauthenticated traffic, which is what the edge rate limit is for.
+ */
+const ENVELOPE_OPERATION = 'mcp_request';
 
 export type OperationUsage = {
   operation: string;
   calls: number;
   ok: number;
   refused: number;
+  /** Share of this operation's own calls that were refused. */
+  refusedShare: number | null;
   failed: number;
   lastCalledAt: string | null;
 };
+
+/**
+ * A name a caller reached for that the catalogue does not have.
+ *
+ * The most direct evidence there is of a question this API cannot answer, and it
+ * was already being recorded and never read: `auditUnreachedToolCall` logs a 404
+ * against the invented name precisely so a model probing for an operation leaves a
+ * trace. Reporting it is what turns "we found the gap by accident during a
+ * demonstration" into something a team can watch.
+ */
+export type InventedOperation = { name: string; attempts: number };
 
 export type TokenUsage = {
   /** The label its owner gave it. Null once the token has been deleted. */
@@ -48,6 +70,8 @@ export type ApiUsage = {
   byToken: Metric<TokenUsage[]>;
   byDay: Metric<DayUsage[]>;
   neverCalled: Metric<string[]>;
+  mostRefused: Metric<OperationUsage[]>;
+  inventedOperations: Metric<InventedOperation[]>;
 };
 
 const iso = (date: Date | null) => date?.toISOString() ?? null;
@@ -106,6 +130,7 @@ export async function getApiUsage(
       calls: 0,
       ok: 0,
       refused: 0,
+      refusedShare: null,
       failed: 0,
       lastCalledAt: iso(row.createdAt),
     };
@@ -130,6 +155,30 @@ export async function getApiUsage(
   }
 
   const called = new Set(rows.map((r) => r.operation));
+  const known = new Set(knownOperations);
+
+  // Computed after the loop, once each operation has its totals: a refusal rate
+  // per operation is what tells a widely-used tool with a hard filter apart from
+  // one nobody can call correctly, which the global rate cannot.
+  const operations = [...byOperation.values()].map((row) => ({
+    ...row,
+    refusedShare: share(row.refused, row.calls),
+  }));
+
+  // An operation name that is not in the catalogue was invented by a caller. The
+  // envelope audit records those, so they are the questions somebody tried to ask
+  // and could not. `mcp_request` is not one of them: it is the name the endpoint
+  // logs an authentication failure under, before any tool is named.
+  const catalogued = operations.filter(
+    (row) => known.has(row.operation) || row.operation === ENVELOPE_OPERATION,
+  );
+  const invented = operations
+    .filter(
+      (row) =>
+        !known.has(row.operation) && row.operation !== ENVELOPE_OPERATION,
+    )
+    .map((row) => ({ name: row.operation, attempts: row.calls }))
+    .sort((a, b) => b.attempts - a.attempts || a.name.localeCompare(b.name));
 
   return {
     filters: { days },
@@ -151,8 +200,8 @@ export async function getApiUsage(
       "Part des appels refusés, en pourcentage du total de la période. Vaut null si aucun appel n'a été enregistré.",
     ),
     byOperation: metric(
-      [...byOperation.values()].sort((a, b) => b.calls - a.calls),
-      "Nombre d'appels par opération, de la plus à la moins demandée, avec le détail réussites / refus / erreurs et la date du dernier appel.",
+      [...operations].sort((a, b) => b.calls - a.calls),
+      "Nombre d'appels par opération, de la plus à la moins demandée, avec le détail réussites / refus / erreurs, la part de refus de cette opération et la date du dernier appel.",
     ),
     byToken: metric(
       [...byToken.values()].sort((a, b) => b.calls - a.calls),
@@ -167,6 +216,23 @@ export async function getApiUsage(
     neverCalled: metric(
       knownOperations.filter((name) => !called.has(name)).sort(),
       "Opérations du catalogue que personne n'a appelées sur la période. Une opération qui n'en sort jamais est une opération que le catalogue peut perdre.",
+    ),
+    mostRefused: metric(
+      catalogued
+        .filter(
+          (row) => row.refused > 0 && row.operation !== ENVELOPE_OPERATION,
+        )
+        .sort(
+          (a, b) =>
+            (b.refusedShare ?? 0) - (a.refusedShare ?? 0) ||
+            b.refused - a.refused,
+        )
+        .slice(0, REFUSAL_TOP_N),
+      `Les opérations dont la part de refus est la plus forte, au maximum ${REFUSAL_TOP_N} lignes. À lire avec « calls » : une part élevée sur deux appels est une erreur de frappe, la même part sur deux cents appels est une question que le catalogue pose mal, un filtre qui manque ou un identifiant que rien ne renvoie.`,
+    ),
+    inventedOperations: metric(
+      invented,
+      "Noms d'opération demandés qui n'existent pas dans le catalogue, du plus au moins tenté. C'est la trace la plus directe d'une question à laquelle cette API ne sait pas répondre : quelqu'un a cherché un outil sous un nom qu'il a imaginé. Un nom qui revient mérite soit une opération, soit une description qui dirige mieux vers celle qui existe déjà.",
     ),
   };
 }

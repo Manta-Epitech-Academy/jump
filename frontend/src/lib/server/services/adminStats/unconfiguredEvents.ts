@@ -11,6 +11,7 @@
 
 import {
   EVENT_CONFIG_STATE_LABELS,
+  eventMissingConfig,
   isEventToPrepare,
   type EventConfigState,
 } from '$lib/domain/eventReadiness';
@@ -20,15 +21,6 @@ import { scopedEvents } from './cohort';
 
 /** Hard cap on the returned list, whatever the filters. */
 export const UNCONFIGURED_EVENTS_LIMIT = 100;
-
-/** What an event is missing, in staff wording. */
-const MISSING_LABELS = {
-  publicName: 'nom public',
-  cohortNoun: 'nom des participants',
-  endDate: 'date de fin',
-  modules: 'aucune section activée',
-  activation: "pas encore activé pour l'espace dev",
-} as const;
 
 export type UnconfiguredEvent = {
   id: string;
@@ -62,13 +54,6 @@ export async function getUnconfiguredEvents(
     .sort((a, b) => a.dateTs - b.dateTs);
 
   const events = candidates.slice(0, UNCONFIGURED_EVENTS_LIMIT).map((e) => {
-    const missing: string[] = [];
-    if (!e.publicName) missing.push(MISSING_LABELS.publicName);
-    if (!e.cohortNoun) missing.push(MISSING_LABELS.cohortNoun);
-    if (!e.endDate) missing.push(MISSING_LABELS.endDate);
-    if (e.modules.length === 0) missing.push(MISSING_LABELS.modules);
-    else if (!e.devActivated) missing.push(MISSING_LABELS.activation);
-
     return {
       id: e.id,
       titre: e.titre,
@@ -76,7 +61,7 @@ export async function getUnconfiguredEvents(
       dateLabel: e.dateLabel,
       configState: e.configState,
       configStateLabel: EVENT_CONFIG_STATE_LABELS[e.configState],
-      missing,
+      missing: eventMissingConfig(e),
     };
   });
 

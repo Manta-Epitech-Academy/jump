@@ -79,6 +79,26 @@ export type AdminEventVM = {
   participations: number;
 };
 
+/**
+ * The rows `bulkSetActivation` is allowed to activate: the SQL twin of
+ * `activationBlockers` in `domain/eventReadiness`.
+ *
+ * Two spellings of one rule is the shape this replaces - the same three
+ * conditions sat here as a `where`, in `adminApi/writes/bulk.ts` as a hand-copied
+ * predicate, and in a refusal sentence that listed all three with "or" because it
+ * could not tell which one applied. A `where` cannot call a predicate, so the
+ * honest arrangement is one rule with two spellings that name each other, and a
+ * unit test asserting they read the same fields.
+ *
+ * Stricter than `devVisibleEventWhere` in `services/stageContext`, which is what
+ * is visible rather than what may be made visible.
+ */
+export const activatableEventWhere = {
+  modules: { some: {} },
+  endDate: { not: null },
+  NOT: [{ publicName: null }, { publicName: '' }],
+} satisfies Prisma.EventWhereInput;
+
 // Cross-campus: admins see every campus. The dev workspace, by contrast, only
 // ever reads its own campus via scopedPrisma.
 const ADMIN_EVENT_SELECT = {
@@ -401,12 +421,7 @@ export const EventService = {
       return { activated: eventIds.length, skipped: 0 };
     }
     const eligible = await prisma.event.findMany({
-      where: {
-        id: { in: eventIds },
-        modules: { some: {} },
-        endDate: { not: null },
-        NOT: [{ publicName: null }, { publicName: '' }],
-      },
+      where: { id: { in: eventIds }, ...activatableEventWhere },
       select: { id: true },
     });
     const eligibleIds = eligible.map((e) => e.id);
