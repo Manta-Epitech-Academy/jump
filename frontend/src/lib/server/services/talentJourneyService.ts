@@ -63,16 +63,19 @@ export async function getTalentJourney(
       year: 'numeric',
     }).format(d);
 
-  // Past-only, like the event history it replaces: an event still to come says
-  // nothing about who this person is yet.
+  const isPast = (p: (typeof participations)[number]) =>
+    getEventStatus({ date: p.event.date, endDate: p.event.endDate }, bounds) ===
+    'past';
+
+  // Past events, and any event a closing has already been conducted at. An event
+  // still to come says nothing about who this person is yet, which is the rule
+  // this block inherits from the event history it replaces. A conducted closing
+  // is the exception, and not a marginal one: a closing happens at the END of an
+  // event, so a stage's is finalised while the event still has days to run and a
+  // Coding Club's the same afternoon. Past-only would hide the verdict for
+  // exactly as long as it is the freshest thing anybody knows about the talent.
   const entries: TalentJourneyEntry[] = participations
-    .filter(
-      (p) =>
-        getEventStatus(
-          { date: p.event.date, endDate: p.event.endDate },
-          bounds,
-        ) === 'past',
-    )
+    .filter((p) => isPast(p) || p.closing !== null)
     .map((p) => {
       const quote = p.closing?.answers[0]?.freeText?.trim() || null;
       return {
@@ -80,7 +83,10 @@ export async function getTalentJourney(
         eventId: p.event.id,
         eventName: eventDisplayName(p.event),
         dateLabel: dateLabel(p.event.date),
-        presence: pastEventPresence(p.sfMemberStatus),
+        // Presence is READ OFF the Salesforce status and only means anything once
+        // the event is over: on a running event `READY` says "confirmed", not
+        // "absent". So an event carried here by its closing alone shows none.
+        presence: isPast(p) ? pastEventPresence(p.sfMemberStatus) : null,
         closing: p.closing
           ? {
               status: p.closing.status,
@@ -99,7 +105,11 @@ export async function getTalentJourney(
     eventCount: entries.length,
     closingCount: entries.filter((e) => e.closing?.status === 'done').length,
     latestQuote: withQuote?.closing?.quote
-      ? { text: withQuote.closing.quote, eventName: withQuote.eventName }
+      ? {
+          text: withQuote.closing.quote,
+          eventName: withQuote.eventName,
+          participationId: withQuote.participationId,
+        }
       : null,
   };
 }

@@ -95,7 +95,9 @@
             </span>
           </div>
 
-          {#if entry.closing?.quote}
+          <!-- The quote the section already leads with is not repeated three
+               lines under itself; every other row carries its own. -->
+          {#if entry.closing?.quote && entry.participationId !== journey.latestQuote?.participationId}
             <PullQuote text={entry.closing.quote} size="inline" clamp />
           {/if}
           {#if entry.closing?.verdictNote}

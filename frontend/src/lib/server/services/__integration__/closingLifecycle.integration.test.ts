@@ -8,6 +8,7 @@ import { persistClosing } from '$lib/server/services/closingService';
 import { anonymizeTalent } from '$lib/server/services/anonymizationService';
 import { writeClosingQuestion } from '$lib/server/adminApi/writes/closings';
 import { OperationRefusedError } from '$lib/server/adminApi/errors';
+import { getTalentJourney } from '$lib/server/services/talentJourneyService';
 
 /**
  * The closing invariants that only a real database can prove.
@@ -356,5 +357,92 @@ describe('a second grid over the same bank', () => {
       where: { templateId: second.id },
     });
     await prisma.closing_Template.delete({ where: { id: second.id } });
+  });
+});
+
+describe("the talent's journey", () => {
+  /**
+   * A closing is conducted at the END of an event, so it is finalised while the
+   * event still has days to run (a stage) or the same afternoon (a Coding Club).
+   * The block this replaced listed past events only, and inheriting that rule
+   * would hide the team's verdict for exactly as long as it is the freshest
+   * thing anybody knows about the talent - with the fiche rendering perfectly
+   * and simply not mentioning it.
+   */
+  it('carries a closing conducted on an event that is still running', async () => {
+    const now = new Date();
+    const startedYesterday = new Date(now.getTime() - 24 * 3600 * 1000);
+    const endsNextWeek = new Date(now.getTime() + 7 * 24 * 3600 * 1000);
+
+    const event = await prisma.event.create({
+      data: {
+        titre: `ClosingOngoing-${stamp}`,
+        date: startedYesterday,
+        endDate: endsNextWeek,
+        campusId: ids.campus,
+        closingTemplateId: ids.template,
+      },
+    });
+    const talent = await prisma.talent.create({
+      data: { nom: 'Ongoing', prenom: `Test${stamp}` },
+    });
+    const participation = await prisma.participation.create({
+      data: { talentId: talent.id, eventId: event.id, campusId: ids.campus },
+    });
+    await prisma.closing_Record.create({
+      data: {
+        participationId: participation.id,
+        talentId: talent.id,
+        staffId: ids.staff,
+        campusId: ids.campus,
+        templateId: ids.template,
+        status: 'done',
+        conductedAt: now,
+        recommendation: 'bon_profil',
+        verdictNote: 'À relancer pour la JPO.',
+      },
+    });
+
+    const journey = await getTalentJourney(talent.id, 'Europe/Paris');
+
+    expect(journey.entries).toHaveLength(1);
+    expect(journey.closingCount).toBe(1);
+    expect(journey.entries[0].closing).toMatchObject({
+      status: 'done',
+      recommendation: 'bon_profil',
+      verdictNote: 'À relancer pour la JPO.',
+    });
+    // Presence is read off the Salesforce status and only means anything once
+    // the event is over: on a running one `READY` says "confirmed", not "absent".
+    expect(journey.entries[0].presence).toBeNull();
+
+    await prisma.closing_Record.deleteMany({ where: { talentId: talent.id } });
+    await prisma.participation.deleteMany({ where: { id: participation.id } });
+    await prisma.talent.delete({ where: { id: talent.id } });
+    await prisma.event.delete({ where: { id: event.id } });
+  });
+
+  it('leaves out an event that is still to come and has no closing', async () => {
+    const nextMonth = new Date(Date.now() + 30 * 24 * 3600 * 1000);
+    const event = await prisma.event.create({
+      data: {
+        titre: `ClosingFuture-${stamp}`,
+        date: nextMonth,
+        campusId: ids.campus,
+      },
+    });
+    const talent = await prisma.talent.create({
+      data: { nom: 'Future', prenom: `Test${stamp}` },
+    });
+    const participation = await prisma.participation.create({
+      data: { talentId: talent.id, eventId: event.id, campusId: ids.campus },
+    });
+
+    const journey = await getTalentJourney(talent.id, 'Europe/Paris');
+    expect(journey.entries).toHaveLength(0);
+
+    await prisma.participation.deleteMany({ where: { id: participation.id } });
+    await prisma.talent.delete({ where: { id: talent.id } });
+    await prisma.event.delete({ where: { id: event.id } });
   });
 });

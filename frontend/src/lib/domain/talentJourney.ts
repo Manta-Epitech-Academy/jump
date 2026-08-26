@@ -52,7 +52,12 @@ export type TalentJourney = {
    * event that prompted it. Led on rather than buried in the list, because it is
    * the one line on this page written by the person the page is about.
    */
-  latestQuote: { text: string; eventName: string } | null;
+  latestQuote: {
+    text: string;
+    eventName: string;
+    /** So the row it came from does not print it a second time. */
+    participationId: string;
+  } | null;
 };
 
 /** Whether anything on the journey is worth rendering. */
