@@ -2,14 +2,23 @@
   import Camera from '@lucide/svelte/icons/camera';
   import CheckCircle from '@lucide/svelte/icons/check-circle';
   import { renderMarkdown } from '$lib/markdown';
-  import droitImageBodyMd from '$lib/content/droit-image-body.md?raw';
-  import droitImageRefusalBodyMd from '$lib/content/droit-image-refusal-body.md?raw';
+  import {
+    CURRENT_DROIT_IMAGE_VERSION,
+    droitImageClausesFor,
+  } from '$lib/content/droit-image';
   import { fly } from 'svelte/transition';
   import ParentFlowShell from '$lib/components/parent/ParentFlowShell.svelte';
   import ChildSignForm from './ChildSignForm.svelte';
 
-  const droitImageBody = renderMarkdown(droitImageBodyMd);
-  const droitImageRefusalBody = renderMarkdown(droitImageRefusalBodyMd);
+  // The clauses of the document about to be signed, taken FROM that document
+  // rather than hand-copied beside it. A decision taken now commits to the
+  // current version, so that is the wording shown.
+  const droitImageBody = renderMarkdown(
+    droitImageClausesFor(CURRENT_DROIT_IMAGE_VERSION, 'accepted'),
+  );
+  const droitImageRefusalBody = renderMarkdown(
+    droitImageClausesFor(CURRENT_DROIT_IMAGE_VERSION, 'refused'),
+  );
 
   let { data, form } = $props();
 </script>

@@ -16,15 +16,24 @@
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
   import { renderMarkdown } from '$lib/markdown';
-  import droitImageBodyMd from '$lib/content/droit-image-body.md?raw';
-  import droitImageRefusalBodyMd from '$lib/content/droit-image-refusal-body.md?raw';
+  import {
+    CURRENT_DROIT_IMAGE_VERSION,
+    droitImageClausesFor,
+  } from '$lib/content/droit-image';
   import ChildSignForm from '../../signature/ChildSignForm.svelte';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let { data, form } = $props();
 
-  const droitImageBody = renderMarkdown(droitImageBodyMd);
-  const droitImageRefusalBody = renderMarkdown(droitImageRefusalBodyMd);
+  // The clauses of the document about to be signed, taken FROM that document
+  // rather than hand-copied beside it. A decision taken now commits to the
+  // current version, so that is the wording shown.
+  const droitImageBody = renderMarkdown(
+    droitImageClausesFor(CURRENT_DROIT_IMAGE_VERSION, 'accepted'),
+  );
+  const droitImageRefusalBody = renderMarkdown(
+    droitImageClausesFor(CURRENT_DROIT_IMAGE_VERSION, 'refused'),
+  );
 
   const activityTypeLabels: Record<string, string> = {
     atelier: 'Atelier',
