@@ -54,6 +54,7 @@
     devActivated: boolean;
     feedbackFormId: string;
     diplomaTemplateId: string;
+    closingTemplateId: string;
     participations: number;
   };
 
@@ -138,20 +139,30 @@
   }
 
   function prefill(e: EditingEvent) {
-    $form.id = e.id;
-    $form.publicName = e.publicName;
-    // The persisted noun, or '' when the event was never named (the field then
-    // shows its placeholder). The SF type is never consulted here: a per-type
-    // default rides the config template the admin starts from (the stage template
-    // carries "stagiaire"), and an event keeps whatever staff last set.
-    $form.cohortNoun = e.cohortNoun ?? '';
-    $form.startTime = e.startTime;
-    $form.endDate = e.endDate;
-    $form.modules = [...e.modules];
-    $form.moduleSettings = withDefaults(e.moduleSettings);
-    $form.devActivated = e.devActivated;
-    $form.feedbackFormId = e.feedbackFormId;
-    $form.diplomaTemplateId = e.diplomaTemplateId;
+    // Built as ONE exhaustive `AdminEventForm` rather than assigned field by
+    // field, so a field added to the schema is a compile error here instead of a
+    // silent omission. That omission is not hypothetical: the closing grid was
+    // missing from the list, so the dialog opened reading "Aucune grille" over an
+    // event that had one, and saving from it wiped the grid - hiding the surface
+    // in the dev space with nothing anywhere reporting a failure.
+    const next: AdminEventForm = {
+      id: e.id,
+      publicName: e.publicName,
+      // The persisted noun, or '' when the event was never named (the field then
+      // shows its placeholder). The SF type is never consulted here: a per-type
+      // default rides the config template the admin starts from (the stage
+      // template carries "stagiaire"), and an event keeps whatever staff last set.
+      cohortNoun: e.cohortNoun ?? '',
+      startTime: e.startTime,
+      endDate: e.endDate,
+      modules: [...e.modules],
+      moduleSettings: withDefaults(e.moduleSettings),
+      devActivated: e.devActivated,
+      feedbackFormId: e.feedbackFormId,
+      diplomaTemplateId: e.diplomaTemplateId,
+      closingTemplateId: e.closingTemplateId,
+    };
+    $form = next;
     selectedTemplateId = null;
     confirmingDeleteId = null;
     dismissHighCount = false;
@@ -661,7 +672,7 @@
               <Label for="cohortNoun" class="flex items-center gap-1.5">
                 Comment nommer les inscrits ?
                 <InfoTooltip
-                  text="Le mot employé partout dans l'espace dev pour désigner un inscrit, au singulier (liste, émargement, entretiens, feedback). Indépendant du type Salesforce : à vous de le choisir, même si le type a été mal renseigné."
+                  text="Le mot employé partout dans l'espace dev pour désigner un inscrit, au singulier (liste, émargement, closings, feedback). Indépendant du type Salesforce : à vous de le choisir, même si le type a été mal renseigné."
                 />
               </Label>
               <Input
@@ -771,7 +782,7 @@
                         >
                           Colonne « statut » du dossier
                           <InfoTooltip
-                            text="Affiche la colonne de suivi du dossier (connexion, règlement, droit à l'image) sur la page Inscrits. Désactivez-la pour les campus qui n'onboardent pas (la page reste utile pour les entretiens et le feedback)."
+                            text="Affiche la colonne de suivi du dossier (connexion, règlement, droit à l'image) sur la page Inscrits. Désactivez-la pour les campus qui n'onboardent pas (la page reste utile pour les closings et le feedback)."
                           />
                         </span>
                         <Switch
