@@ -26,8 +26,6 @@ CREATE TABLE "Diploma_Template" (
     "bodyHtml" TEXT NOT NULL,
     "pageWidthPx" INTEGER NOT NULL,
     "pageHeightPx" INTEGER NOT NULL,
-    "createdById" TEXT,
-    "updatedById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -48,12 +46,6 @@ ALTER TABLE "Event" ADD CONSTRAINT "Event_diplomaTemplateId_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "EventConfig_Template" ADD CONSTRAINT "EventConfig_Template_diplomaTemplateId_fkey" FOREIGN KEY ("diplomaTemplateId") REFERENCES "Diploma_Template"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Diploma_Template" ADD CONSTRAINT "Diploma_Template_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "StaffProfile"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Diploma_Template" ADD CONSTRAINT "Diploma_Template_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "StaffProfile"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- The two certificates that exist today. Ids are readable rather than generated:
 -- the backfill below points at one of them, and a reader should be able to tell

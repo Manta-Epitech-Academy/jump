@@ -254,22 +254,20 @@ model StaffProfile {
   createdAt                DateTime   @default(now())
   updatedAt                DateTime   @updatedAt
 
-  user                    bauth_user                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  campus                  Campus?                     @relation(fields: [campusId], references: [id])
-  interviewsConducted     Interview[]
-  adminFiles              AdminFile[]
-  cmsImages               CmsImage[]
-  presencesMarked         EventPresence[]
-  presenceClosuresMade    EventPresenceClosure[]
-  imageRightsCorrections  ImageRightsDecisionRecord[]
-  interviewResets         InterviewReset[]            @relation("InterviewResetBy")
-  notesAuthored           Note_TalentNote[]           @relation("Note_TalentNoteAuthor")
-  notesEdited             Note_TalentNote[]           @relation("Note_TalentNoteEditor")
-  feedbackFormsCreated    Feedback_Form[]             @relation("Feedback_FormCreator")
-  feedbackFormsUpdated    Feedback_Form[]             @relation("Feedback_FormEditor")
-  eventConfigTemplates    EventConfig_Template[]      @relation("EventConfigTemplateCreator")
-  diplomaTemplatesCreated Diploma_Template[]          @relation("Diploma_TemplateCreator")
-  diplomaTemplatesUpdated Diploma_Template[]          @relation("Diploma_TemplateEditor")
+  user                   bauth_user                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campus                 Campus?                     @relation(fields: [campusId], references: [id])
+  interviewsConducted    Interview[]
+  adminFiles             AdminFile[]
+  cmsImages              CmsImage[]
+  presencesMarked        EventPresence[]
+  presenceClosuresMade   EventPresenceClosure[]
+  imageRightsCorrections ImageRightsDecisionRecord[]
+  interviewResets        InterviewReset[]            @relation("InterviewResetBy")
+  notesAuthored          Note_TalentNote[]           @relation("Note_TalentNoteAuthor")
+  notesEdited            Note_TalentNote[]           @relation("Note_TalentNoteEditor")
+  feedbackFormsCreated   Feedback_Form[]             @relation("Feedback_FormCreator")
+  feedbackFormsUpdated   Feedback_Form[]             @relation("Feedback_FormEditor")
+  eventConfigTemplates   EventConfig_Template[]      @relation("EventConfigTemplateCreator")
 
   @@index([campusId])
 }
@@ -920,6 +918,10 @@ model EventConfig_TemplateModule {
 /// and the once-in-`<head>` hoisting of logo, signature and font bytes that a
 /// 200-page render depends on.
 ///
+/// Who wrote a design is on its `AdminApi_Call` row, not on a column here: this
+/// table has no UI writer by design, so a `createdById` could only ever be null
+/// (`writeEventTemplate` makes the same call for `EventConfig_Template`).
+///
 /// Nothing pins a version, unlike the règlement: a certificate is regenerated
 /// from live state on every export and is never stored and never signed, so
 /// there is no signature whose wording could be rewritten under it.
@@ -951,15 +953,9 @@ model Diploma_Template {
   /// stray override cannot break pagination.
   pageWidthPx  Int
   pageHeightPx Int
-  /// Author and last editor. SetNull so a staff departure never deletes a
-  /// document design.
-  createdById  String?
-  updatedById  String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  createdBy       StaffProfile?          @relation("Diploma_TemplateCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy       StaffProfile?          @relation("Diploma_TemplateEditor", fields: [updatedById], references: [id], onDelete: SetNull)
   events          Event[]                @relation("EventDiplomaTemplate")
   configTemplates EventConfig_Template[] @relation("EventConfigTemplateDiploma")
 }
