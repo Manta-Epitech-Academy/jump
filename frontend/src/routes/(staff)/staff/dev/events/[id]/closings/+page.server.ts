@@ -1,3 +1,4 @@
+import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import {
   getCampusId,
@@ -9,6 +10,7 @@ import {
   requireEventModule,
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { resolveEventClosingIdentity } from '$lib/server/closingTemplates';
 import { closingListStatus } from '$lib/domain/closing';
 import type { ClosingRecommendation } from '@prisma/client';
 import type {
@@ -23,6 +25,23 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
   const event = await loadEventOr404(params.id, campusId);
   requireEventModule(event, EVENT_MODULES.CLOSINGS);
+
+  // The module is only half the gate: without a grid there is nothing to ask, so
+  // every "Mener le closing" link on this page would land on a 404. The nav entry
+  // hides on the same condition (`hasClosingTemplate`), and a direct URL then
+  // behaves like a missing page rather than dropping the dev on a roster whose
+  // every row is a dead end. Exactly what `bilan` does without its form.
+  //
+  // The narrow resolver, not the graph one: this page reads a roster, never a
+  // question, and only needs to know a grid resolves at all.
+  const grid = await resolveEventClosingIdentity(event);
+  if (!grid) {
+    throw error(
+      404,
+      "Aucune grille de closing n'est configurée pour cet événement.",
+    );
+  }
+
   const db = scopedPrisma(campusId);
   const timezone = getCampusTimezone(locals);
 
