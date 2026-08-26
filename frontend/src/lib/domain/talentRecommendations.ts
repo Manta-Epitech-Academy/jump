@@ -129,7 +129,9 @@ function deriveFunnelRecommendation(
       kind: 'funnel',
       severity: 'urgent',
       shortTitle: 'Signatures parents',
-      message: `Contactez les parents de ${t.prenom} car ils/elles ne se sont jamais connecté(e)s sur la plateforme ${t.appUrl} avec leur adresse ${t.parentEmail ? `**${t.parentEmail}**` : 'e-mail'} afin de signer électroniquement les documents complémentaires du stage : le droit à l'image et le règlement intérieur.`,
+      // "du dossier", not "du stage": both documents are generic and signed once
+      // per school year, for a Coding Club as much as for a stage.
+      message: `Contactez les parents de ${t.prenom} car ils/elles ne se sont jamais connecté(e)s sur la plateforme ${t.appUrl} avec leur adresse ${t.parentEmail ? `**${t.parentEmail}**` : 'e-mail'} afin de signer électroniquement les documents du dossier : le droit à l'image et le règlement intérieur.`,
       contact: 'parent',
     };
   }
