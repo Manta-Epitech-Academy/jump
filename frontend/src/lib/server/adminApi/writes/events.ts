@@ -27,7 +27,7 @@ import {
   EVENT_MODULE_KEYS,
 } from '$lib/domain/eventModules';
 import {
-  activationBlockers,
+  activationRefusal,
   EVENT_CONFIG_STATE_LABELS,
 } from '$lib/domain/eventReadiness';
 import { UnknownScopeError } from '../scope';
@@ -149,12 +149,8 @@ export async function writeEventActivation(params: {
   // see. The service refuses it too (`activatableEventWhere`, the SQL twin of
   // this rule), but only as a count, which left the caller to guess which of the
   // three applied.
-  const blockers = params.visible ? activationBlockers(event) : [];
-  if (blockers.length > 0) {
-    throw new OperationRefusedError(
-      `Cet événement ne peut pas encore être rendu visible, il lui manque : ${blockers.join(', ')}.`,
-    );
-  }
+  const refusal = params.visible ? activationRefusal(event) : null;
+  if (refusal) throw new OperationRefusedError(refusal);
   await EventService.bulkSetActivation([event.id], params.visible);
 
   return { applied: true, before, after: stateOf(await loadEvent(event.id)) };

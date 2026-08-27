@@ -33,6 +33,10 @@
     type EventModuleKey,
   } from '$lib/domain/eventModules';
   import { effectiveStartMinutes, minutesToHHMM } from '$lib/domain/event';
+  import {
+    activationBlockerKeys,
+    type ActivationBlocker,
+  } from '$lib/domain/eventReadiness';
   import type { AdminEventForm } from '$lib/validation/events';
   import { enhance as kitEnhance, deserialize } from '$app/forms';
   import { toast } from 'svelte-sonner';
@@ -244,19 +248,53 @@
 
   const moduleActive = (key: EventModuleKey) => $form.modules.includes(key);
 
-  // "Visible dans l'espace dev" only takes effect with at least one module: the
-  // dev space is nothing but per-module surfaces, so making a section-less event
-  // visible shows nothing (it would never get the "Espace dev" badge nor land in
-  // the switcher). We gate the toggle on that rather than let an admin tick a
-  // promise that silently does nothing. The displayed state is the EFFECTIVE
-  // visibility (gate AND >=1 module), so toggling the last module off reads as
-  // not-visible immediately, matching what the dev space will show.
-  const canActivate = $derived(
-    $form.modules.length > 0 &&
-      $form.publicName.trim().length > 0 &&
-      $form.endDate !== '',
+  // "Visible dans l'espace dev" only takes effect once the event is actually
+  // showable: the dev space is nothing but per-module surfaces, so a
+  // section-less event made visible shows nothing (it would never get the
+  // "Espace dev" badge nor land in the switcher), and one with no public name
+  // would sit in the switcher under its raw Salesforce title. We gate the
+  // toggle on that rather than let an admin tick a promise that silently does
+  // nothing. The displayed state is the EFFECTIVE visibility, so toggling the
+  // last module off reads as not-visible immediately, matching what the dev
+  // space will show.
+  //
+  // Read off `activationBlockerKeys` rather than re-tested here: this was a
+  // fourth hand-copy of a rule that already exists as a Prisma `where`, as a
+  // predicate and as an API refusal, and the wizard's copy is the one an admin
+  // acts on.
+  const blockers = $derived(
+    activationBlockerKeys({
+      publicName: $form.publicName.trim() || null,
+      cohortNoun: $form.cohortNoun.trim() || null,
+      endDate: $form.endDate || null,
+      modules: $form.modules,
+      devActivated: $form.devActivated,
+    }),
   );
+  const canActivate = $derived(blockers.length === 0);
   const effectivelyVisible = $derived($form.devActivated && canActivate);
+
+  // What each blocker asks of the admin. The nouns `EVENT_MISSING_LABELS`
+  // carries read as an inventory ("il manque : nom public"), which is right
+  // where a list is reported and wrong on the one screen that can fix it. Typed
+  // on the union, so a fourth blocker fails the build here instead of quietly
+  // missing from the list.
+  const BLOCKER_ACTIONS: Record<ActivationBlocker, string> = {
+    modules: 'Activer au moins une section',
+    publicName: 'Renseigner un nom public',
+    endDate: 'Renseigner une date de fin',
+  };
+
+  // The switch shows the effective visibility, so the payload must not keep
+  // carrying a `true` the screen has stopped showing. Clearing the public name
+  // of an already-activated event disabled the toggle and drew it off while
+  // `devActivated` stayed true underneath, and the save went through: live in
+  // the dev workspace under its Salesforce title, which is exactly what the
+  // rule forbids. The server refuses that save now; this is what keeps the
+  // dialog from asking for it in the first place.
+  $effect(() => {
+    if (!canActivate && $form.devActivated) $form.devActivated = false;
+  });
 
   // Local state for participant count warning
   let dismissHighCount = $state(false);
@@ -1080,15 +1118,9 @@
                       Pour rendre l'événement visible, il faut :
                     </span>
                     <ul class="list-disc pl-5">
-                      {#if $form.modules.length === 0}
-                        <li>Activer au moins une section</li>
-                      {/if}
-                      {#if $form.publicName.trim().length === 0}
-                        <li>Renseigner un nom public</li>
-                      {/if}
-                      {#if $form.endDate === ''}
-                        <li>Renseigner une date de fin</li>
-                      {/if}
+                      {#each blockers as blocker (blocker)}
+                        <li>{BLOCKER_ACTIONS[blocker]}</li>
+                      {/each}
                     </ul>
                   </span>
                 {/if}

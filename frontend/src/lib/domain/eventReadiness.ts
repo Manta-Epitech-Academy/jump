@@ -109,6 +109,9 @@ export function eventMissingConfig(event: EventConfigFields): string[] {
   return missing;
 }
 
+/** One thing that can stop an activation. See {@link activationBlockerKeys}. */
+export type ActivationBlocker = 'publicName' | 'endDate' | 'modules';
+
 /**
  * What stops this event from being made visible, empty when nothing does.
  *
@@ -121,16 +124,45 @@ export function eventMissingConfig(event: EventConfigFields): string[] {
  *
  * The cohort noun is deliberately absent: the write does not check it, so listing
  * it here would refuse an activation that actually succeeds.
+ *
+ * Keys rather than labels, because the same three facts are read aloud in two
+ * registers: an inventory quotes them as nouns ("il manque : nom public"), and
+ * the config dialog asks for them as instructions ("Renseigner un nom public").
+ * A surface picking its own wording off a key still shares the rule, and the
+ * union makes a fourth blocker a compile error there rather than a bullet
+ * silently missing from the list.
  */
-export function activationBlockers(event: EventConfigFields): string[] {
-  const blockers: string[] = [];
-  if (!event.publicName) blockers.push(EVENT_MISSING_LABELS.publicName);
-  if (!event.endDate) blockers.push(EVENT_MISSING_LABELS.endDate);
-  if (event.modules.length === 0) blockers.push(EVENT_MISSING_LABELS.modules);
+export function activationBlockerKeys(
+  event: EventConfigFields,
+): ActivationBlocker[] {
+  const blockers: ActivationBlocker[] = [];
+  if (!event.publicName) blockers.push('publicName');
+  if (!event.endDate) blockers.push('endDate');
+  if (event.modules.length === 0) blockers.push('modules');
   return blockers;
+}
+
+/** The same rule in staff wording, which is what the admin API tier quotes. */
+export function activationBlockers(event: EventConfigFields): string[] {
+  return activationBlockerKeys(event).map((key) => EVENT_MISSING_LABELS[key]);
+}
+
+/**
+ * The refusal a caller reads when it asks for an activation the rule above
+ * refuses, or null when nothing stops it.
+ *
+ * The sentence lives here rather than at either call site because both
+ * transports of the same refusal have to say the same thing: the admin API
+ * hands it back as an `OperationRefusedError`, the config save as a 400 on the
+ * dialog. What differs is the vocabulary of the failure, never its wording.
+ */
+export function activationRefusal(event: EventConfigFields): string | null {
+  const blockers = activationBlockers(event);
+  if (blockers.length === 0) return null;
+  return `Cet événement ne peut pas encore être rendu visible, il lui manque : ${blockers.join(', ')}.`;
 }
 
 /** Whether activating this event would show anything. See {@link activationBlockers}. */
 export function canBeMadeVisible(event: EventConfigFields): boolean {
-  return activationBlockers(event).length === 0;
+  return activationBlockerKeys(event).length === 0;
 }
