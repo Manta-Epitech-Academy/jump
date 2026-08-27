@@ -18,7 +18,7 @@ Closes #
 This checklist is the canonical one, referenced by `CONTRIBUTING.md` step 6. Tick it before marking
 the PR ready for review.
 
-- [ ] **Technical:** `bun run verify` green (it is the CI gate: lint, design lint, test lint, check, unit, integration, schema drift, E2E), migration named and squashed into one.
+- [ ] **Technical:** `bun run verify` green (it is the CI gate: script bits, lint, design lint, test lint, check, unit, integration, schema drift, E2E), migration named and squashed into one.
 - [ ] **Automated testing:** new behaviours are covered by unit, integration or Playwright tests, not by manual testing alone. Human verification is welcome for visual polish, but core functional contracts need automated coverage.
 - [ ] **Schema changes:** the integration suite and `test:schema-drift` ran (both are inside `bun run verify`), so the schema is proven against a real PostgreSQL and against its own migration trail.
 - [ ] **Space conventions:** rounded corners, title colors, button placement; square dialogs in the dev space, rounded in the talent space; `cursor-pointer` on every interactive element; existing UI components reused.

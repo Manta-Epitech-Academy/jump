@@ -381,8 +381,8 @@ bun run verify
 ```
 
 C'est le contrat de ce document. `verify` enchaîne exactement ce que les checks
-requis exécutent, dans le même ordre, avec les mêmes scripts : `lint`,
-`lint:design`, `lint:tests`, `check`, `test`, `test:integration`,
+requis exécutent, dans le même ordre, avec les mêmes scripts : `lint:scripts`,
+`lint`, `lint:design`, `lint:tests`, `check`, `test`, `test:integration`,
 `test:schema-drift`, `test:e2e`. Un agent (ou un humain) peut donc produire du
 code, le vérifier, corriger et revérifier avant d'ouvrir la PR, et « j'ai
 vérifié » devient une affirmation que quelqu'un d'autre peut recontrôler.
@@ -525,7 +525,7 @@ règle `push dev` (voir `.github/settings/repo-config.json`) :
 
 | Job                          | Ce qu'il exécute                                                                           |
 | ---------------------------- | ------------------------------------------------------------------------------------------ |
-| **Lint & Type Check**        | bit exécutable des scripts, `lint`, `lint:design`, `lint:tests`, `check`                   |
+| **Lint & Type Check**        | `lint:scripts` (bit exécutable), `lint`, `lint:design`, `lint:tests`, `check`              |
 | **Unit & Integration Tests** | `test:coverage`, puis `test:integration` contre un vrai Postgres, puis `test:schema-drift` |
 | **E2E Tests**                | build + serveur + les specs Playwright, avec le rapport HTML uploadé en cas d'échec        |
 

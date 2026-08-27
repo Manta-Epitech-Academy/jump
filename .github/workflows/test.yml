@@ -39,24 +39,12 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
-      # `core.fileMode` is false in this repo, so `chmod +x` is invisible to git
-      # and a new script gets committed 100644. A non-executable git hook does not
-      # run at all, silently, which is how the pre-push guard nearly shipped inert.
-      # The rule is self-maintaining: anything with a shebang must be executable,
-      # so a sourced library needs no exception.
+      # Whatever this job runs must be runnable locally, or it is a required check
+      # that only CI can fail - the gap `bun run verify` exists to close. The
+      # logic lives in `scripts/check-exec-bits.sh` and both callers run that one
+      # copy. No `bun install` needed: it is git, awk and sh.
       - name: Executable bit on hooks and entrypoints
-        working-directory: ${{ github.workspace }}
-        run: |
-          fail=0
-          for f in $(git ls-files '.githooks/*' 'scripts/*.sh' 'frontend/scripts/*.sh'); do
-            head -1 "$f" | grep -q '^#!' || continue
-            mode=$(git ls-files -s -- "$f" | awk '{print $1}')
-            if [ "$mode" != "100755" ]; then
-              echo "::error file=$f::$f has a shebang but is committed $mode. Fix it with: git update-index --chmod=+x $f"
-              fail=1
-            fi
-          done
-          exit "$fail"
+        run: bun run lint:scripts
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
