@@ -28,7 +28,7 @@ import {
   CLOSING_STATUS_LABELS,
   VERDICT_SECTION,
 } from '$lib/domain/closing';
-import { eventRunsClosings } from '$lib/domain/eventModules';
+import { adminEventRunsClosings } from '$lib/server/services/events';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
 import { participationWhere, scopedEvents, scopeLabels } from './cohort';
@@ -129,14 +129,7 @@ export async function getClosingInsights(
   // The events that actually conduct closings, read off the same rule the dev
   // sidebar uses to decide whether to offer the page at all.
   const concernedIds = new Set(
-    events
-      .filter((e) =>
-        eventRunsClosings({
-          modules: e.modules,
-          hasClosingTemplate: e.closingTemplateId !== '',
-        }),
-      )
-      .map((e) => e.id),
+    events.filter(adminEventRunsClosings).map((e) => e.id),
   );
 
   const [enrolments, enrolmentsConcerned, rows] = await Promise.all([

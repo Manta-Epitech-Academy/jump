@@ -206,12 +206,14 @@ export interface EventSurfaceGates {
  *
  * Named because the pair is read twice and means the same thing both times. The
  * sidebar asks it to decide whether to offer a page that would otherwise 404;
- * `adminStats/closingInsights` asks it to decide whose enrolments belong in the
- * coverage denominator. That second reading is why this is a function and not an
- * inline `&&`: the denominator counted every enrolment in scope, including the
- * ones on events that run no closing at all, so a national coverage of 78 % was
- * reported as 18 % and read as an execution problem rather than a configuration
- * one. A rule spelled out at each site is a rule that only some sites apply.
+ * the admin aggregates ask it to decide whose enrolments belong in the coverage
+ * denominator, through `adminEventRunsClosings` in `services/events`, which is
+ * where the admin view model's `""`-means-none is understood. That second reading
+ * is why this is a function and not an inline `&&`: the denominator counted every
+ * enrolment in scope, including the ones on events that run no closing at all, so
+ * a national coverage of 78 % was reported as 18 % and read as an execution
+ * problem rather than a configuration one. A rule spelled out at each site is a
+ * rule that only some sites apply.
  */
 export function eventRunsClosings(
   gates: Pick<EventSurfaceGates, 'modules' | 'hasClosingTemplate'>,

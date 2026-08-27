@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { hhmmToMinutes, minutesToHHMM } from '$lib/domain/event';
 import {
+  eventRunsClosings,
   isEventModuleKey,
   parseModuleSettings,
   type EventModuleKey,
@@ -82,6 +83,27 @@ export type AdminEventVM = {
   closingTemplateId: string;
   participations: number;
 };
+
+/**
+ * {@link eventRunsClosings} read off this view model.
+ *
+ * Here rather than at each aggregate because this file is where `""` starts
+ * meaning "none": the VM flattens three nullable FKs to the empty string for the
+ * forms that consume it (`closingTemplateId: e.closingTemplateId ?? ''` below),
+ * so this is the only place that can be trusted to know `!== ''` and not
+ * `!== null` is the test. Written twice at the call sites, the second spelling
+ * was one keystroke from `!= null`, which is TRUE for every event and would have
+ * put every module-on, grid-less event back into the coverage denominator - the
+ * same figure, wrong the same way, with the domain rule still dutifully called.
+ */
+export function adminEventRunsClosings(
+  event: Pick<AdminEventVM, 'modules' | 'closingTemplateId'>,
+): boolean {
+  return eventRunsClosings({
+    modules: event.modules,
+    hasClosingTemplate: event.closingTemplateId !== '',
+  });
+}
 
 /**
  * The rows `bulkSetActivation` is allowed to activate: the SQL twin of

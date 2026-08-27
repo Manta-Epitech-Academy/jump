@@ -29,7 +29,7 @@
 
 import { prisma } from '$lib/server/db';
 import { CLOSING_FAVOURABLE_RECOMMENDATIONS } from '$lib/domain/closing';
-import { eventRunsClosings } from '$lib/domain/eventModules';
+import { adminEventRunsClosings } from '$lib/server/services/events';
 import {
   pastEventPresence,
   VISIBLE_PARTICIPATION_DEFINITION,
@@ -128,14 +128,7 @@ export async function getCampusComparison(
   // gates the surface on. Enrolments elsewhere belong to no closing rate: an
   // event with no grid is a configuration fact, not a campus that fell behind.
   const closingEventIds = new Set(
-    events
-      .filter((e) =>
-        eventRunsClosings({
-          modules: e.modules,
-          hasClosingTemplate: e.closingTemplateId !== '',
-        }),
-      )
-      .map((e) => e.id),
+    events.filter(adminEventRunsClosings).map((e) => e.id),
   );
 
   const enrolmentWhere = await participationWhere(scope);
@@ -185,11 +178,13 @@ export async function getCampusComparison(
       (tally.enrolments.get(row.talentId) ?? 0) + 1,
     );
 
-    // Presence is only a question on an event that has happened, and only for a
-    // status that concludes something - the same two exclusions `attendanceRate`
-    // makes, read off the same domain rule.
+    // The coverage denominator, which is a question on every enrolment: an event
+    // that runs closings owes one per inscription whether it has happened or not.
     if (closingEventIds.has(row.eventId)) tally.closingEnrolments += 1;
 
+    // Presence, by contrast, is only a question on an event that has happened,
+    // and only for a status that concludes something - the same two exclusions
+    // `attendanceRate` makes, read off the same domain rule.
     if (!pastEventIds.has(row.eventId)) continue;
     const presence = pastEventPresence(row.sfMemberStatus);
     if (presence === 'present') {
