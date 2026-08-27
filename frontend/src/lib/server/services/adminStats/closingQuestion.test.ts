@@ -138,7 +138,7 @@ describe('getClosingQuestion', () => {
       ],
     });
 
-    const answer = await getClosingQuestion({}, { question: 'wants_more' });
+    const answer = await getClosingQuestion({}, { questionKey: 'wants_more' });
 
     expect(answer.closings.value).toBe(2);
     expect(answer.asked.value).toBe(1);
@@ -157,7 +157,7 @@ describe('getClosingQuestion', () => {
 
     const answer = await getClosingQuestion(
       {},
-      { question: 'wants_more', groupBy: 'campus' },
+      { questionKey: 'wants_more', groupBy: 'campus' },
     );
 
     expect(answer.favourableShare.value).toBe(66.7);
@@ -180,7 +180,7 @@ describe('getClosingQuestion', () => {
 
     const answer = await getClosingQuestion(
       {},
-      { question: 'discovery_channel', groupBy: 'campus' },
+      { questionKey: 'discovery_channel', groupBy: 'campus' },
     );
 
     expect(answer.question.value.ordered).toBe(false);
@@ -208,7 +208,7 @@ describe('getClosingQuestion', () => {
 
     const answer = await getClosingQuestion(
       {},
-      { question: 'satisfaction', groupBy: 'campus' },
+      { questionKey: 'satisfaction', groupBy: 'campus' },
     );
 
     expect(answer.average.value).toBe(4.33);
@@ -238,7 +238,7 @@ describe('getClosingQuestion', () => {
 
     const answer = await getClosingQuestion(
       {},
-      { question: 'wants_more', groupBy: 'grid' },
+      { questionKey: 'wants_more', groupBy: 'grid' },
     );
 
     expect(answer.question.value.grids).toEqual([
@@ -260,7 +260,7 @@ describe('getClosingQuestion', () => {
     });
 
     await expect(
-      getClosingQuestion({}, { question: 'one_sentence' }),
+      getClosingQuestion({}, { questionKey: 'one_sentence' }),
     ).rejects.toThrow(/rédigée/);
   });
 
@@ -268,7 +268,7 @@ describe('getClosingQuestion', () => {
     questionFindUnique.mockResolvedValue(null);
 
     await expect(
-      getClosingQuestion({}, { question: 'inexistante' }),
+      getClosingQuestion({}, { questionKey: 'inexistante' }),
     ).rejects.toThrow(/config_closing_questions/);
   });
 });

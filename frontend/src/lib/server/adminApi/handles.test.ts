@@ -90,6 +90,15 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
 const paramsOf = (name: AdminApiOperationName) =>
   Object.keys(ADMIN_API_OPERATIONS[name].schema.shape);
 
+/** A parameter's own `.describe()`, which is the other half of what it declares. */
+const describedAs = (name: AdminApiOperationName, param: string): string => {
+  const shape = ADMIN_API_OPERATIONS[name].schema.shape as Record<
+    string,
+    { description?: string }
+  >;
+  return shape[param]?.description ?? '';
+};
+
 describe('every parameter is classified', () => {
   it('is either a declared handle or listed as naming nothing', () => {
     const unclassified: string[] = [];
@@ -111,6 +120,68 @@ describe('every parameter is classified', () => {
       (param) => !used.has(param),
     );
     expect(orphanParams).toEqual([]);
+  });
+});
+
+/**
+ * A parameter declares its handle TWICE - once in `PARAM_HANDLES`, once in the
+ * `handleDescribe()` embedded in its own `.describe()` - and nothing compared
+ * them.
+ *
+ * That is the hole this closes, and it had shipped: `stats_closing_question`
+ * named its parameter `question`, described it with the closing bank's handle,
+ * and inherited the feedback form's from the map, because the map is keyed by
+ * parameter name across the whole catalogue. Neither half looked wrong on its
+ * own. The visible consequence was in `meta_operations`, the one surface a
+ * leadership token discovers this tier through: it published a read that needed a
+ * value only `stats_feedback_results` hands out, so the model went and fetched
+ * the wrong one. The refusal that followed named the right producers - after the
+ * call was spent, and counted as a refusal in `ops_api_usage`.
+ *
+ * Only parameters that embed a generated sentence are checked. A parameter may
+ * legitimately carry a handle and describe itself in its own words instead
+ * (`modules` enumerates the section keys, which is more useful than naming their
+ * provenance); what it may not do is claim one handle's provenance while the map
+ * claims another's.
+ */
+function describeMismatches(
+  paramHandles: Record<string, HandleKind>,
+): string[] {
+  const kinds = Object.keys(HANDLES) as HandleKind[];
+  const mismatches: string[] = [];
+  for (const name of ADMIN_API_OPERATION_NAMES) {
+    for (const param of paramsOf(name)) {
+      const description = describedAs(name, param);
+      const claimed = kinds.filter((kind) =>
+        description.includes(handleDescribe(kind)),
+      );
+      if (claimed.length === 0) continue;
+      const declared = paramHandles[param];
+      if (declared && claimed.includes(declared)) continue;
+      mismatches.push(
+        `${name}.${param} describes ${claimed.join('/')} but PARAM_HANDLES says ${declared ?? 'nothing'}`,
+      );
+    }
+  }
+  return mismatches;
+}
+
+describe('a parameter declares one handle, not two', () => {
+  it('maps every parameter to the handle its own describe names', () => {
+    expect(describeMismatches(PARAM_HANDLES)).toEqual([]);
+  });
+
+  // Proof the check bites, in the exact shape that shipped: two operations
+  // spelling two different things the same way.
+  it('reports a parameter whose map entry and describe disagree', () => {
+    const doctored = { ...PARAM_HANDLES, questionKey: 'questionKey' as const };
+
+    const mismatches = describeMismatches(doctored);
+
+    expect(mismatches.length).toBeGreaterThan(0);
+    expect(
+      mismatches.some((m) => m.includes('stats_closing_question.questionKey')),
+    ).toBe(true);
   });
 });
 
@@ -263,6 +334,15 @@ describe('what the registry generates', () => {
     expect(handlesRequiredBy(paramsOf('config_event_detail'))).toEqual([
       'eventId',
     ]);
+    // The closing comparison needs a BANK key, not a feedback form's: this is the
+    // pairing `meta_operations` got wrong, and it is what a leadership token
+    // reads before choosing which operation to call first.
+    expect(handlesRequiredBy(paramsOf('stats_closing_question'))).toEqual([
+      'closingQuestionKey',
+      'eventId',
+    ]);
+    // And it hands one back on the event axis, like its feedback twin.
+    expect(handlesProvidedBy('stats_closing_question')).toContain('eventId');
     expect(handlesProvidedBy('config_events')).toContain('eventId');
     // A read that consumes a handle and produces none must not claim otherwise.
     expect(handlesProvidedBy('stats_cohort_profile')).toEqual([]);

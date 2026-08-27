@@ -146,7 +146,7 @@ function requiredArgsFor(name: AdminApiOperationName): Record<string, unknown> {
     // reversed, the refusal would name the question and this sweep would fail
     // rather than pass for the wrong reason.
     case 'stats_closing_question':
-      return { question: 'question-that-does-not-exist' };
+      return { questionKey: 'question-that-does-not-exist' };
     default:
       return {};
   }

@@ -111,6 +111,11 @@ export const HANDLES: Record<HandleKind, Handle> = {
         covers:
           'only when grouped by event, and only events that answered the question asked about',
       },
+      {
+        operation: 'stats_closing_question',
+        covers:
+          'only when grouped by event, and only events whose grid asks the question asked about',
+      },
     ],
   },
   formId: {
@@ -222,10 +227,22 @@ export const HANDLES: Record<HandleKind, Handle> = {
   },
 };
 
-/** Which parameter name carries which handle. The guard checks this is complete. */
+/**
+ * Which parameter name carries which handle. The guard checks this is complete.
+ *
+ * One entry per NAME, catalogue-wide, which is a constraint on the catalogue and
+ * not only on this map: two operations may not spell two different things the
+ * same way. That is why the closing bank's key is `questionKey` wherever it is
+ * taken and `question` is the feedback form's - spelling both `question` did not
+ * fail here, it silently told `meta_operations` that `stats_closing_question`
+ * needed a value only `stats_feedback_results` hands out. `describeMismatches`
+ * in `handles.test.ts` is what now refuses that, by comparing each parameter's
+ * own `describe()` against the handle this map claims for it.
+ */
 export const PARAM_HANDLES: Record<string, HandleKind> = {
   eventId: 'eventId',
   formId: 'formId',
+  // The feedback form's question key. The closing bank's is `questionKey`, below.
   question: 'questionKey',
   templateName: 'templateName',
   // `write_event_template` spells it `name`: the same preset name, which the
@@ -244,6 +261,8 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   // same configuration read, which returns a grid's id and its key together.
   closingTemplateId: 'closingTemplateId',
   templateKey: 'closingTemplateKey',
+  // Every closing operation that takes a bank key spells it this way, reads and
+  // writes alike, precisely because `question` is taken. See the note above.
   questionKey: 'closingQuestionKey',
   closingId: 'closingId',
 };

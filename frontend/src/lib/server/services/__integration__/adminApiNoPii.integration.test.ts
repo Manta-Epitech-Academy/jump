@@ -415,7 +415,7 @@ function requiredArgsFor(
     // the database rather than with a campus name, which is where a leak would
     // show up first.
     case 'stats_closing_question':
-      return { question: seeded.closingQuestionKey, groupBy: 'grid' };
+      return { questionKey: seeded.closingQuestionKey, groupBy: 'grid' };
     case 'stats_school_year_review':
       return { schoolYear: seeded.schoolYear };
     case 'stats_campus_comparison':

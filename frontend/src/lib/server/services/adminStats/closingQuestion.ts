@@ -132,10 +132,10 @@ type RecordRow = {
 
 export async function getClosingQuestion(
   scope: Scope = {},
-  params: { question: string; groupBy?: ClosingQuestionGroupBy },
+  params: { questionKey: string; groupBy?: ClosingQuestionGroupBy },
 ): Promise<ClosingQuestion> {
   const question = await prisma.closing_Question.findUnique({
-    where: { key: params.question },
+    where: { key: params.questionKey },
     select: {
       id: true,
       key: true,
@@ -150,7 +150,7 @@ export async function getClosingQuestion(
   });
   if (!question) {
     throw new UnknownScopeError(
-      `Question de closing « ${params.question} » introuvable dans la banque. ${handleProvenanceFr('closingQuestionKey')}`,
+      `Question de closing « ${params.questionKey} » introuvable dans la banque. ${handleProvenanceFr('closingQuestionKey')}`,
     );
   }
   // A distribution over free text is not a figure. Refused rather than answered

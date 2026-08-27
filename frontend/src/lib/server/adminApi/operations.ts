@@ -1188,7 +1188,13 @@ export const ADMIN_API_OPERATIONS = {
     leadership: true,
     description: `One question of the closing bank, in full: every answer with a count and a share, how many closings actually asked it against how many answered, and - when its answers carry a declared order - the share of favourable ones. Pass groupBy to get the same figures per campus, per event or per grid, already ranked. Grouping by grid is how a stage and a Coding Club are compared on the same question: the bank holds it once, so both formats fall into one distribution and this is what splits it back apart. A question whose options carry no order comes back unranked rather than ordered on an invented best, and a free-text question is refused. Capped at ${CLOSING_QUESTION_GROUPS_LIMIT} groups.`,
     shape: {
-      question: z
+      // `questionKey`, not `question`: the handle registry is keyed by parameter
+      // name across the whole catalogue, and `question` is already the feedback
+      // form's question key. Spelling this one the same way made
+      // `meta_operations` publish that this read needs a value produced by
+      // `stats_feedback_results`. It is also the name the closing writes already
+      // use for a bank key.
+      questionKey: z
         .string()
         .min(1)
         .describe(handleDescribe('closingQuestionKey')),
@@ -1202,8 +1208,8 @@ export const ADMIN_API_OPERATIONS = {
       campus,
       eventId,
     },
-    run: async ({ question, groupBy, ...scope }) =>
-      getClosingQuestion(await resolveScope(scope), { question, groupBy }),
+    run: async ({ questionKey, groupBy, ...scope }) =>
+      getClosingQuestion(await resolveScope(scope), { questionKey, groupBy }),
   }),
 
   stats_closing_testimonials: defineOperation({
