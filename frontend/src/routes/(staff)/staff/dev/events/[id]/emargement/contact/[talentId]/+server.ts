@@ -8,6 +8,7 @@ import {
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import { guardiansOf, type ContactPerson } from '$lib/domain/contact';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
   requireStaffGroup(locals, 'devMember');
@@ -47,26 +48,19 @@ export const GET: RequestHandler = async ({ locals, params }) => {
   if (!participation) error(404, 'Introuvable.');
 
   const t = participation.talent;
-  const guardians = [
-    {
-      civilite: t.parentCivilite,
-      name: [t.parentPrenom, t.parentNom].filter(Boolean).join(' ') || null,
-      email: t.parentEmail,
-      phone: t.parentPhone,
-    },
-    {
-      civilite: t.parent2Civilite,
-      name: [t.parent2Prenom, t.parent2Nom].filter(Boolean).join(' ') || null,
-      email: t.parent2Email,
-      phone: t.parent2Phone,
-    },
-  ].filter((g) => g.name || g.phone || g.email);
 
+  // `ContactPerson` on both sides, so the dialog renders through the same
+  // `StudentContactDetails` as the admin directory and the student dossier. It
+  // used to flatten the pair into one `fullName`, which cost the given-name /
+  // surname split that display treatment is built on.
   return json({
-    civilite: t.civilite,
-    fullName: `${t.prenom} ${t.nom}`,
-    phone: t.phone,
-    email: t.user?.email ?? null,
-    guardians,
+    student: {
+      civilite: t.civilite,
+      prenom: t.prenom,
+      nom: t.nom,
+      phone: t.phone,
+      email: t.user?.email ?? null,
+    } satisfies ContactPerson,
+    guardians: guardiansOf(t),
   });
 };

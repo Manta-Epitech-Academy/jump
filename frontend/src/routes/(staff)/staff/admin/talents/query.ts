@@ -20,6 +20,7 @@ import {
 import { isOnboardingEligible } from '$lib/domain/niveau';
 import { isParentDossierComplete } from '$lib/domain/dossierCompliance';
 import type { TalentAccountStatus, ParentCompletionStatus } from './labels';
+import { guardiansOf } from '$lib/domain/contact';
 
 /**
  * Single source of truth for the admin talents directory query. Both the page
@@ -339,24 +340,7 @@ export function projectTalentRow(row: TalentRow) {
   const { participations, ...t } = row;
   const dossier = onboardingFieldsForYear(row, currentSchoolYearLabel());
   const status = onboardingStatus(dossier);
-  // Both guardians in priority order; drop any with no identity or contact at
-  // all so the contact dialog only ever lists reachable responsables.
-  const guardians = [
-    {
-      civilite: t.parentCivilite,
-      prenom: t.parentPrenom,
-      nom: t.parentNom,
-      email: t.parentEmail,
-      phone: t.parentPhone,
-    },
-    {
-      civilite: t.parent2Civilite,
-      prenom: t.parent2Prenom,
-      nom: t.parent2Nom,
-      email: t.parent2Email,
-      phone: t.parent2Phone,
-    },
-  ].filter((g) => g.prenom || g.nom || g.email || g.phone);
+  const guardians = guardiansOf(t);
   // Parent status, gated on a parentEmail (the relance contact). null = no
   // parent to chase. Mirror of the parentStatus where-filter above, through the
   // predicate those fragments are the SQL twins of - and on `t`, not `dossier`:

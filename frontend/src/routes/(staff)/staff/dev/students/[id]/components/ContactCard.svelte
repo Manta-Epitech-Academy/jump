@@ -1,7 +1,7 @@
 <script lang="ts">
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
   import StudentContactDetails from '$lib/components/students/StudentContactDetails.svelte';
-  import type { ContactPerson } from '$lib/components/students/contact';
+  import type { ContactPerson } from '$lib/domain/contact';
 
   type Student = {
     id: string;

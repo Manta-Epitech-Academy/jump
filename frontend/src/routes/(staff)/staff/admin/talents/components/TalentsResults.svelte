@@ -34,7 +34,7 @@
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import StudentContactDialog from '$lib/components/students/StudentContactDialog.svelte';
   import EditParentEmailDialog from '../EditParentEmailDialog.svelte';
-  import type { ContactPerson } from '$lib/components/students/contact';
+  import type { ContactPerson } from '$lib/domain/contact';
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
