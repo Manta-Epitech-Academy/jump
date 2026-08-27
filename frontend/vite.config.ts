@@ -10,7 +10,11 @@ export default defineConfig({
       // check` or `bun run test` never triggers HMR / hydration mismatches in
       // the running dev server. `.svelte-kit/` itself stays watched: it is this
       // server's own, and SvelteKit regenerates it as routes change.
-      ignored: ['**/.svelte-kit-check/**', '**/.svelte-kit-test/**'],
+      ignored: [
+        '**/.svelte-kit-check/**',
+        '**/.svelte-kit-test/**',
+        '**/.svelte-kit-e2e/**',
+      ],
     },
   },
 });
