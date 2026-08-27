@@ -2,6 +2,7 @@ import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import { eventDisplayName } from '$lib/domain/event';
 import { EVENT_MODULES, eventHasModule } from '$lib/domain/eventModules';
+import { isDevVisibleEvent } from '$lib/server/services/stageContext';
 import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
 import { pastEventPresence } from '$lib/domain/sfMemberStatus';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
@@ -43,9 +44,11 @@ export async function getTalentJourney(
           date: true,
           endDate: true,
           // What decides whether the event's name is a link: the reader's own
-          // campus, and the module the destination is gated on. Read here rather
-          // than left to the component, which has no way to ask.
+          // campus, whether the event is in the dev workspace at all, and the
+          // module the destination is gated on. Read here rather than left to
+          // the component, which has no way to ask.
           campusId: true,
+          devActivatedAt: true,
           modules: { select: { moduleKey: true } },
         },
       },
@@ -66,17 +69,25 @@ export async function getTalentJourney(
   });
 
   // The event's Inscrits list, when the reader can actually open it: same campus
-  // (`loadEventOr404`) and the module that gates the page (`requireEventModule`).
+  // (`loadEventOr404`), a member of the dev workspace (`isDevVisibleEvent`), and
+  // the module that gates the page (`requireEventModule`).
   // Withholding the link rather than pointing at another surface is deliberate -
   // an event with no Inscrits list has nothing this page was sending them to
   // read, and "the first surface it happens to expose" is a different question
   // (`landingSurface`), asked by the workspace, which knows the event.
+  //
+  // The row itself stays, link or no link: what somebody attended is a fact
+  // about that person, and dropping the events an admin has not activated would
+  // make this section - and the counts in its header - describe the workspace's
+  // configuration rather than the talent's history.
   const eventHref = (event: {
     id: string;
     campusId: string;
+    devActivatedAt: Date | null;
     modules: { moduleKey: string }[];
   }): string | null => {
     if (event.campusId !== campusId) return null;
+    if (!isDevVisibleEvent(event)) return null;
     const modules = event.modules.map((m) => m.moduleKey);
     if (!eventHasModule(modules, EVENT_MODULES.INSCRITS)) return null;
     return resolve(`/staff/dev/events/${event.id}/inscrits`);
