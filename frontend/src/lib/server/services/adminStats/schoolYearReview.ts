@@ -104,7 +104,7 @@ export type SchoolYearComparison = {
 /** What this platform cannot answer, said before anybody infers it. */
 const LIMITES = [
   "Jump enregistre qui s'est inscrit, qui est venu et ce que les élèves en ont dit. Il n'enregistre nulle part si un élève a ensuite intégré Epitech : aucun de ces chiffres n'est un taux de conversion ni un taux d'admission, et aucun ne permet d'en déduire un.",
-  "Les réponses des élèves proviennent des closings, menés sur une partie seulement de la cohorte. Le taux de couverture est donné avec elles : plus il est bas, moins elles représentent l'ensemble des participants.",
+  "Les réponses des élèves proviennent des closings, qui ne sont menés que sur les événements configurés pour en mener, et là seulement sur une partie des inscrits. Le taux de couverture donné avec elles porte sur ces événements-là : il ne dit pas quelle part de l'ensemble des participants s'est exprimée.",
   "La présence est déduite du statut Salesforce des inscriptions après l'événement. Un événement dont les statuts n'ont pas été mis à jour apparaît sans présence exploitable plutôt que comme une absence générale.",
   'La civilité et le niveau scolaire viennent de Salesforce ou de ce que le talent a saisi ; la part de fiches renseignées est donnée à côté de chaque répartition.',
 ];
