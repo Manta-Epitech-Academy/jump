@@ -15,6 +15,7 @@
   import { Button } from '$lib/components/ui/button';
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
     ColumnDef,
@@ -300,19 +301,11 @@
      slot-lifecycle controls all surface tooltips from here. -->
 <Tooltip.Provider delayDuration={150}>
   {#if rows.length === 0}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-    >
-      <Users class="h-10 w-10 text-muted-foreground opacity-30" />
-      <h3
-        class="mt-4 text-sm font-bold tracking-widest text-foreground uppercase"
-      >
-        Aucun {noun.singular} inscrit
-      </h3>
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        Les {noun.plural} apparaîtront ici une fois la synchronisation effectuée.
-      </p>
-    </div>
+    <ResultsNotice
+      icon={Users}
+      title={`Aucun ${noun.singular} inscrit`}
+      description={`Les ${noun.plural} apparaîtront ici une fois la synchronisation effectuée.`}
+    />
   {:else}
     <div class="grid gap-6 xl:grid-cols-10">
       <div class="min-w-0 space-y-4 xl:col-span-7">

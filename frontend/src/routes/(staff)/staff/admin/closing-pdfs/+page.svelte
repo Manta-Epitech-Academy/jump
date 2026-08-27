@@ -31,6 +31,7 @@
   import { cn, formatDateTimeFr } from '$lib/utils';
   import { toast } from 'svelte-sonner';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import ExportMenu from './components/ExportMenu.svelte';
   import ResetClosingDialog from './components/ResetClosingDialog.svelte';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
@@ -347,17 +348,10 @@
       </Card.Content>
     </Card.Root>
   {:else if cohortFailed}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-    >
-      <h3 class="text-sm font-bold tracking-widest text-foreground uppercase">
-        Chargement impossible
-      </h3>
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        Les closings n'ont pas pu être chargés. Rechargez la page pour
-        réessayer.
-      </p>
-    </div>
+    <ResultsNotice
+      title="Chargement impossible"
+      description="Les closings n'ont pas pu être chargés. Rechargez la page pour réessayer."
+    />
   {:else}
     <ResultsSkeleton rows={8} rail={false} />
   {/if}

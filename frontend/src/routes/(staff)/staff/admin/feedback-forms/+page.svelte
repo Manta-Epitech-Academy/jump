@@ -15,6 +15,7 @@
   import FormStatusSelect from '$lib/components/admin/feedback/FormStatusSelect.svelte';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import type {
     ColumnDef,
     SortDir,
@@ -239,11 +240,7 @@
   {#if cohort === null}
     <p class="text-sm text-muted-foreground">Chargement…</p>
   {:else if cohort.rows.length === 0}
-    <div
-      class="rounded-sm border border-dashed bg-muted/10 p-16 text-center text-sm text-muted-foreground"
-    >
-      Aucun formulaire pour le moment.
-    </div>
+    <ResultsNotice description="Aucun formulaire pour le moment." />
   {:else}
     <DataTableToolbar
       searchValue={search}

@@ -6,6 +6,7 @@
   import * as Table from '$lib/components/ui/table';
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
     ColumnDef,
@@ -195,20 +196,11 @@
 {/snippet}
 
 {#if total === 0}
-  <div
-    class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-  >
-    <MessageSquare class="h-10 w-10 text-muted-foreground opacity-30" />
-    <h3
-      class="mt-4 text-sm font-bold tracking-widest text-foreground uppercase"
-    >
-      Aucun {noun.singular} inscrit
-    </h3>
-    <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-      Les closings apparaîtront ici dès que la cohorte de l'événement sera
-      synchronisée.
-    </p>
-  </div>
+  <ResultsNotice
+    icon={MessageSquare}
+    title={`Aucun ${noun.singular} inscrit`}
+    description="Les closings apparaîtront ici dès que la cohorte de l'événement sera synchronisée."
+  />
 {:else}
   <div class="grid gap-6 xl:grid-cols-10">
     <!-- Left 70%: the working list. `min-w-0` lets the fixed-layout table

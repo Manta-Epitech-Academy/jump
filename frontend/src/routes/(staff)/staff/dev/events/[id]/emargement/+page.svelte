@@ -14,6 +14,7 @@
   import type { EmargementCohort } from './components/types';
   import QrDialog from './components/QrDialog.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import EmargementRoster from './components/EmargementRoster.svelte';
 
   let { data }: { data: PageData } = $props();
@@ -206,17 +207,10 @@
       bind:dialogOpen={rosterDialogOpen}
     />
   {:else if rosterFailed}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-    >
-      <h3 class="text-sm font-bold tracking-widest text-foreground uppercase">
-        Chargement impossible
-      </h3>
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        La liste d'émargement n'a pas pu être chargée. Rechargez la page pour
-        réessayer.
-      </p>
-    </div>
+    <ResultsNotice
+      title="Chargement impossible"
+      description="La liste d'émargement n'a pas pu être chargée. Rechargez la page pour réessayer."
+    />
   {:else}
     <ResultsSkeleton />
   {/if}

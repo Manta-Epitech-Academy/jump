@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import NotesResults from './components/NotesResults.svelte';
   import type { NotesCohort } from './query';
 
@@ -39,9 +40,10 @@
   {#if cohort}
     <NotesResults {...cohort} filters={data.filters} />
   {:else if cohortFailed}
-    <p class="py-16 text-center text-sm text-muted-foreground">
-      Le chargement des notes a échoué. Rechargez la page pour réessayer.
-    </p>
+    <ResultsNotice
+      title="Chargement impossible"
+      description="Les notes n'ont pas pu être chargées. Rechargez la page pour réessayer."
+    />
   {:else}
     <ResultsSkeleton rail={false} />
   {/if}

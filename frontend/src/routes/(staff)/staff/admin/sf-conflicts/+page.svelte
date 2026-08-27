@@ -2,6 +2,7 @@
   import { Input } from '$lib/components/ui/input';
   import Search from '@lucide/svelte/icons/search';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import SfConflictsResults from './components/SfConflictsResults.svelte';
   import type { SfConflictsData } from './components/types';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
@@ -68,17 +69,10 @@
       {query}
     />
   {:else if failed}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-    >
-      <h3 class="text-sm font-bold tracking-widest text-foreground uppercase">
-        Chargement impossible
-      </h3>
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        Les divergences n'ont pas pu être chargées. Rechargez la page pour
-        réessayer.
-      </p>
-    </div>
+    <ResultsNotice
+      title="Chargement impossible"
+      description="Les divergences n'ont pas pu être chargées. Rechargez la page pour réessayer."
+    />
   {:else}
     <ResultsSkeleton rows={6} rail={false} />
   {/if}

@@ -1,5 +1,6 @@
 <script lang="ts">
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import TalentsResults from './components/TalentsResults.svelte';
   import type { TalentsCohort } from './query';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
@@ -52,17 +53,10 @@
   {#if cohort}
     <TalentsResults {...cohort} filters={data.filters} />
   {:else if cohortFailed}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-    >
-      <h3 class="text-sm font-bold tracking-widest text-foreground uppercase">
-        Chargement impossible
-      </h3>
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        La liste des talents n'a pas pu être chargée. Rechargez la page pour
-        réessayer.
-      </p>
-    </div>
+    <ResultsNotice
+      title="Chargement impossible"
+      description="La liste des talents n'a pas pu être chargée. Rechargez la page pour réessayer."
+    />
   {:else}
     <ResultsSkeleton rail={false} />
   {/if}

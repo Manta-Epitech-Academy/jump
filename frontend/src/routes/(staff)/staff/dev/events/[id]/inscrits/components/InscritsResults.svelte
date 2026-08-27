@@ -18,6 +18,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
     ColumnDef,
@@ -455,22 +456,13 @@
 {/snippet}
 
 {#if cohort.total === 0}
-  <div
-    class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-  >
-    <Users class="h-10 w-10 text-muted-foreground opacity-30" />
-    <h3
-      class="mt-4 text-sm font-bold tracking-widest text-foreground uppercase"
-    >
-      Aucun {noun.singular} inscrit
-    </h3>
-    <!-- The cohort is synced from Salesforce by the worker, not imported by
-         hand, so there is no manual-import action here. -->
-    <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-      Personne pour l'instant. Les inscrits apparaissent ici dès qu'ils sont
-      marqués prêts dans Salesforce.
-    </p>
-  </div>
+  <!-- The cohort is synced from Salesforce by the worker, not imported by hand,
+       so this is a notice and not an EmptyState: there is no action to offer. -->
+  <ResultsNotice
+    icon={Users}
+    title={`Aucun ${noun.singular} inscrit`}
+    description="Personne pour l'instant. Les inscrits apparaissent ici dès qu'ils sont marqués prêts dans Salesforce."
+  />
 {:else}
   <!-- Two-column (70/30) split is held back to `xl`: a 6-column roster plus
        the overview rail simply doesn't fit side by side on a `lg` laptop once

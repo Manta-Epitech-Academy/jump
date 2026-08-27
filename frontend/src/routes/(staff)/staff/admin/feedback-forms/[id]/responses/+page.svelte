@@ -11,6 +11,7 @@
     type SelectOption,
   } from '$lib/components/staff/SearchableSelect.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import * as Table from '$lib/components/ui/table';
   import type { PageData } from './$types';
 
@@ -156,11 +157,7 @@
     </p>
 
     {#if total === 0}
-      <div
-        class="rounded-sm border border-dashed bg-muted/10 p-16 text-center text-sm text-muted-foreground"
-      >
-        Aucune réponse pour ce filtre.
-      </div>
+      <ResultsNotice description="Aucune réponse pour ce filtre." />
     {:else}
       <div class="space-y-4">
         {#each chartQuestions as q (q.questionId)}

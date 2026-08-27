@@ -3,6 +3,7 @@
   import type { PageData } from './$types';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import ClosingsResults from './components/ClosingsResults.svelte';
 
   let { data }: { data: PageData } = $props();
@@ -26,16 +27,9 @@
       currentStaffId={data.currentStaffId}
     />
   {:catch}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-    >
-      <h3 class="text-sm font-bold tracking-widest text-foreground uppercase">
-        Chargement impossible
-      </h3>
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        La liste des closings n'a pas pu être chargée. Rechargez la page pour
-        réessayer.
-      </p>
-    </div>
+    <ResultsNotice
+      title="Chargement impossible"
+      description="La liste des closings n'a pas pu être chargée. Rechargez la page pour réessayer."
+    />
   {/await}
 </div>
