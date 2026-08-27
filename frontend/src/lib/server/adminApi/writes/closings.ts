@@ -159,6 +159,25 @@ export async function writeClosingQuestion(params: {
     );
   }
 
+  // The same lock again, on the one field of a rating that carries meaning: a
+  // barème may be raised, and may be lowered, but never below a note already
+  // given. A 4 recorded on 5 does not become a 4 on 3 - it becomes a note
+  // outside its own scale, which the conduct form then refuses on every
+  // autosave, so the closing holding it can no longer be saved or clôturé.
+  if (kind === 'rating' && before && answered > 0) {
+    const highest = await prisma.closing_Answer.aggregate({
+      where: { questionId: before.id },
+      _max: { ratingValue: true },
+    });
+    const recorded = highest._max.ratingValue ?? 0;
+    const max = params.max ?? before.max ?? 0;
+    if (max < recorded) {
+      throw new OperationRefusedError(
+        `« ${key} » a déjà reçu la note ${recorded} : son barème ne peut pas descendre à ${max}, sinon cette réponse sort de son échelle. Créez une nouvelle question sous une autre clé pour changer d'échelle.`,
+      );
+    }
+  }
+
   const data = {
     label,
     kind,

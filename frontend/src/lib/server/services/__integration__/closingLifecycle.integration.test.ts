@@ -133,7 +133,9 @@ afterAll(async () => {
       where: { templateId: ids.template },
     });
     await prisma.closing_Template.deleteMany({ where: { id: ids.template } });
-    await prisma.closing_Question.deleteMany({ where: { id: ids.choice } });
+    await prisma.closing_Question.deleteMany({
+      where: { id: { in: [ids.choice, ids.rating].filter(Boolean) } },
+    });
     await prisma.bauth_user.deleteMany({ where: { id: ids.staffUser } });
     await prisma.campus.deleteMany({
       where: { id: { in: [ids.campus, ids.otherCampus] } },
@@ -305,6 +307,48 @@ describe('the structural-edit lock', () => {
         options: [{ value: 'cyber', label: 'Cyber', icon: 'cyber' }],
       }),
     ).rejects.toBeInstanceOf(OperationRefusedError);
+  });
+
+  it('should refuse a barème that no longer contains a note already given', async () => {
+    // Arrange: a rating question answered 4 on 5. The same lock as the two
+    // above, on the one field of a rating that carries meaning - and the
+    // consequence is not only an unreadable answer: a 4 outside its own scale is
+    // refused by the conduct form on every autosave, so the closing holding it
+    // can no longer be saved or clôturé.
+    const key = `lock-rating-${stamp}`;
+    const label = 'Satisfaction globale';
+    await writeClosingQuestion({
+      questionKey: key,
+      label,
+      kind: 'rating',
+      max: 5,
+    });
+    const question = await prisma.closing_Question.findUniqueOrThrow({
+      where: { key },
+      select: { id: true },
+    });
+    ids.rating = question.id;
+    const record = await prisma.closing_Record.findUniqueOrThrow({
+      where: { participationId: ids.participation },
+      select: { id: true },
+    });
+    await prisma.closing_Answer.create({
+      data: { recordId: record.id, questionId: question.id, ratingValue: 4 },
+    });
+
+    // Act + Assert: 4 out of 5 must not become 4 out of 3.
+    await expect(
+      writeClosingQuestion({ questionKey: key, label, max: 3 }),
+    ).rejects.toBeInstanceOf(OperationRefusedError);
+
+    // Widening it is not a structural change, and neither is a floor that still
+    // contains what was given.
+    const raised = await writeClosingQuestion({
+      questionKey: key,
+      label,
+      max: 10,
+    });
+    expect(raised.applied).toBe(true);
   });
 });
 
