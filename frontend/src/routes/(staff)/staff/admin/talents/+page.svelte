@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import TalentsResults from './components/TalentsResults.svelte';
@@ -9,28 +10,10 @@
 
   let { data } = $props();
 
-  // Resolve the streamed cohort into local state rather than a bare `{#await}`:
-  // search, sort and pagination are all server-side, so each one replaces
-  // `data.cohort` with a fresh promise. A template `{#await}` would swap back to
-  // the skeleton and remount `TalentsResults` on every such navigation, flashing
-  // the shell and dropping focus from the search box mid-typing. Holding the last
-  // resolved value keeps the table mounted so navigations swap data in place; the
-  // skeleton shows only on the first load. The `=== p` guard drops a stale
-  // resolution arriving after a newer navigation has started. (Same pattern as
-  // the dev émargement table.)
-  let cohort = $state<TalentsCohort | null>(null);
-  let cohortFailed = $state(false);
-  $effect(() => {
-    const p = data.cohort;
-    p.then((d) => {
-      if (data.cohort === p) {
-        cohort = d;
-        cohortFailed = false;
-      }
-    }).catch(() => {
-      if (data.cohort === p) cohortFailed = true;
-    });
-  });
+  // Search, sort and pagination are all server-side here, so each one replaces
+  // `data.cohort` with a fresh promise: the table has to be held across them
+  // rather than re-awaited. See `createStreamedCohort` for why.
+  const cohort = createStreamedCohort<TalentsCohort>(() => data.cohort);
 </script>
 
 <svelte:head>
@@ -50,9 +33,9 @@
        filters live inside the streamed region (they need the cohort). Once
        resolved, the table stays mounted so server-side search / sort / paging
        swap data in place instead of reflashing the skeleton. -->
-  {#if cohort}
-    <TalentsResults {...cohort} filters={data.filters} />
-  {:else if cohortFailed}
+  {#if cohort.value}
+    <TalentsResults {...cohort.value} filters={data.filters} />
+  {:else if cohort.failed}
     <ResultsNotice
       title="Chargement impossible"
       description="La liste des talents n'a pas pu être chargée. Rechargez la page pour réessayer."

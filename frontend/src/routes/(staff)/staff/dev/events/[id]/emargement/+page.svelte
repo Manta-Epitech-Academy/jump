@@ -13,6 +13,7 @@
   import type { PageData } from './$types';
   import type { EmargementCohort } from './components/types';
   import QrDialog from './components/QrDialog.svelte';
+  import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import EmargementRoster from './components/EmargementRoster.svelte';
@@ -70,26 +71,11 @@
       : false,
   );
 
-  // Resolve the streamed roster into local state rather than a bare `{#await}`:
-  // the 5s poll (and every optimistic edit) replaces `data.cohort` with a fresh
-  // promise, and a template `{#await}` would flash the skeleton + remount the
-  // roster each time (wiping in-flight edits and the search box). Holding the
-  // last resolved value keeps the roster mounted; the skeleton shows only on the
-  // first load. The `=== p` guard drops a stale resolution arriving after a newer
-  // poll has already started.
-  let roster = $state<EmargementCohort | null>(null);
-  let rosterFailed = $state(false);
-  $effect(() => {
-    const p = data.cohort;
-    p.then((d) => {
-      if (data.cohort === p) {
-        roster = d;
-        rosterFailed = false;
-      }
-    }).catch(() => {
-      if (data.cohort === p) rosterFailed = true;
-    });
-  });
+  // The 5s poll and every optimistic edit replace `data.cohort` with a fresh
+  // promise, so the roster is held across them rather than re-awaited: a
+  // template `{#await}` would remount it each tick and wipe the in-flight edits
+  // along with the search box. See `createStreamedCohort`.
+  const roster = createStreamedCohort<EmargementCohort>(() => data.cohort);
 
   let qrOpen = $state(false);
   // Reported up by the roster: true while any of its edit dialogs is open. ORed
@@ -190,11 +176,11 @@
     </PageHeader>
   </Tooltip.Provider>
 
-  {#if roster}
+  {#if roster.value}
     <EmargementRoster
-      rows={roster.rows}
-      presences={roster.presences}
-      attendanceRate={roster.attendanceRate}
+      rows={roster.value.rows}
+      presences={roster.value.presences}
+      attendanceRate={roster.value.attendanceRate}
       slots={data.slots}
       {activeSlot}
       {isActiveClosed}
@@ -206,7 +192,7 @@
       bind:activeSlotKey
       bind:dialogOpen={rosterDialogOpen}
     />
-  {:else if rosterFailed}
+  {:else if roster.failed}
     <ResultsNotice
       title="Chargement impossible"
       description="La liste d'émargement n'a pas pu être chargée. Rechargez la page pour réessayer."
