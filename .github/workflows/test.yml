@@ -175,10 +175,10 @@ jobs:
 
     env:
       TEST_DATABASE_SERVER: postgresql://jump:testpassword@localhost:5432
-      # The server Playwright boots, and the origin BetterAuth derives from it.
-      PORT: '4173'
-      ORIGIN: http://localhost:4173
-      BETTER_AUTH_URL: http://localhost:4173
+      # No PORT / ORIGIN here. `scripts/with-test-db.sh` derives the port from
+      # the worktree and exports it, plus the ORIGIN BetterAuth reads as its base
+      # URL, so anything set here would be a dead override that reads as
+      # configuration. On a CI checkout the derivation lands on 4173.
       BETTER_AUTH_SECRET: e2e-only-secret-not-used-anywhere-real
       # Arms `/api/test/login-as`, which 404s without it. That endpoint is how the
       # suite gets a session for each role: staff log in through Microsoft OAuth

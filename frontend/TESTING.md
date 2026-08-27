@@ -424,6 +424,19 @@ Le script dérive le nom de la base : `jump_test` dans le checkout principal,
 `jump_test_<nom-du-worktree>` ailleurs, plus un suffixe `_e2e` pour la suite
 Playwright. Un seul conteneur, plusieurs bases.
 
+Il dérive **aussi le port** du serveur E2E, du même discriminant, et exporte le
+`ORIGIN` qui va avec (BetterAuth le lit comme base URL). C'est la même isolation
+un cran plus haut, et il manquait : le port était écrit en dur dans
+`.env.test.example`, donc chaque worktree copiait le même `4173`, et
+`reuseExistingServer` rendait la collision silencieuse. Le deuxième worktree
+trouvait 4173 qui répondait, sautait son build, et faisait tourner ses specs
+contre le build et la base du premier. Comme tous les ids de fixture sont des
+littéraux, les deux graines se ressemblent et le run passe au vert contre du code
+qui n'a jamais été compilé. Le port est maintenant par worktree, et
+`reuseExistingServer` est à `false` : le cas résiduel (deux worktrees dont les
+noms tombent sur le même offset) échoue à l'ouverture du socket, ce qui se lit en
+une ligne.
+
 **Par worktree**, parce que c'était un vrai problème et pas une précaution : les
 worktrees partageaient l'unique base `jump_test`, donc un `migrate deploy` lancé
 depuis une branche laissait la suite de toutes les autres rouge contre un schéma
@@ -456,8 +469,8 @@ Deux détails qui trompent, et que le script gère à votre place :
 | Fichier                         | Rôle                                                                                                                                                                                                                                         |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `vitest.config.ts`              | Deux projets : **unit** (les `*.test.ts` de `src/`, sans base) et **integration** (les `__integration__/*.integration.test.ts`, un fichier à la fois). Fixe aussi `KIT_OUTDIR` pour ne pas écrire dans le `.svelte-kit/` d'un serveur vivant |
-| `playwright.config.ts`          | Le projet `setup` (graine + sessions) et le projet `chromium` qui en dépend. Le `webServer` **build et lève le serveur de prod**, avec la même commande en local et en CI                                                                    |
-| `scripts/with-test-db.sh`       | Le provisionnement : conteneur, base par worktree, migrations. Trois consommateurs (`test:integration`, `test:e2e`, la CI)                                                                                                                   |
+| `playwright.config.ts`          | Le projet `setup` (graine + sessions) et le projet `chromium` qui en dépend. Le `webServer` **build et lève le serveur de prod**, avec la même commande en local et en CI, et ne réutilise jamais un serveur qu'il n'a pas démarré           |
+| `scripts/with-test-db.sh`       | Le provisionnement, et tout ce qui doit différer d'un worktree à l'autre : conteneur, base, port + `ORIGIN`, migrations. Trois consommateurs (`test:integration`, `test:e2e`, la CI)                                                         |
 | `scripts/check-schema-drift.sh` | Compare `schema.prisma` à la base que `migrate deploy` vient de construire                                                                                                                                                                   |
 | `docker-compose.test.yml`       | Le Postgres jetable du port `5434`. Ne rien y créer à la main : le script s'en charge                                                                                                                                                        |
 | `.env.test.example`             | À copier en `.env.test` (gitignored) : l'environnement du serveur de test (ORIGIN, PORT, secrets jetables). Pas de `DATABASE_URL`, voir plus haut                                                                                            |

@@ -8,7 +8,10 @@
 #   bun run test:e2e            # -> playwright test, on the `_e2e` database
 #   bun run test:db             # provision only
 #
-# ONE database per worktree AND per suite, on ONE Postgres.
+# ONE database per worktree AND per suite, on ONE Postgres, and ONE port per
+# worktree for the server the E2E suite drives. Everything that has to differ
+# between two worktrees is derived HERE, from one discriminant, because a value
+# that is only per-worktree in one of the two layers is not isolated at all.
 #
 # Per worktree, because the worktrees on this machine share the checkout's history
 # but not its untracked files, and they also shared the single `jump_test`
@@ -37,7 +40,9 @@ cd "$(dirname "$0")/.."
 # `prisma.config.ts` calls `dotenv.config({ path: '../.env' })`, which does NOT
 # overwrite a variable already present in the environment. So DATABASE_URL has to
 # be exported LAST, after .env.test, or the CLI would migrate whatever the
-# repo-root .env points at, which is the shared dev database.
+# repo-root .env points at, which is the shared dev database. The same ordering
+# is what lets this script own PORT and ORIGIN: a stale `.env.test` carrying the
+# old hardcoded 4173 loses to the exports at the bottom of this file.
 if [ -f .env.test ]; then
   set -a
   # shellcheck disable=SC1091
@@ -45,16 +50,30 @@ if [ -f .env.test ]; then
   set +a
 fi
 
-# ── Which database ──────────────────────────────────────────────────────────
+# ── Which database, and which port ──────────────────────────────────────────
 repo_root=$(git rev-parse --show-toplevel)
 main_root=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
 
 db_name=jump_test
+port=4173
 
 if [ "$repo_root" != "$main_root" ]; then
   slug=$(basename "$repo_root" | tr '[:upper:]' '[:lower:]' \
     | sed 's/[^a-z0-9]\{1,\}/_/g; s/^_//; s/_$//')
   db_name="${db_name}_${slug}"
+  # The port matters for the same reason the database name does, and it was the
+  # half that stayed shared. Every worktree copied `PORT=4173` out of
+  # .env.test.example, and Playwright's `reuseExistingServer` turned that
+  # collision into a SILENT one: the second worktree found 4173 answering,
+  # skipped its own build, and drove the first worktree's server against the
+  # first worktree's database. Every fixture id is a literal, so both seeds look
+  # alike and the run goes green against code that was never built.
+  #
+  # Deterministic, so a worktree always gets the same port and a report can be
+  # read tomorrow. Two worktrees whose names hash alike still collide, but that
+  # one fails loudly on bind (`reuseExistingServer` is off), which is the whole
+  # difference.
+  port=$((4173 + $(printf '%s' "$slug" | cksum | cut -d' ' -f1) % 100 + 1))
 fi
 
 # Set by the `test:e2e` scripts. Unset means the integration/default database.
@@ -66,8 +85,8 @@ fi
 #
 # CI hands us a server that is already up (a GitHub `services:` container), so
 # there is no compose file to start and no `docker` to call. Locally we own the
-# container. Either way this script owns the database NAME, which is the part
-# the worktrees were fighting over.
+# container. Either way this script owns the database NAME and the PORT, which
+# are the two things the worktrees were fighting over.
 if [ -n "${TEST_DATABASE_SERVER:-}" ]; then
   server=${TEST_DATABASE_SERVER%/}
   compose=""
@@ -77,6 +96,16 @@ else
 fi
 
 export DATABASE_URL="${server}/${db_name}"
+
+# ORIGIN is derived rather than configured because BetterAuth reads it as its
+# base URL (`server/auth.ts`), so a port and an ORIGIN that disagree produce an
+# app that boots and then fails every session lookup. One source, three readers.
+export PORT="$port"
+export ORIGIN="http://localhost:${port}"
+export BETTER_AUTH_URL="$ORIGIN"
+export PLAYWRIGHT_BASE_URL="$ORIGIN"
+
+echo "[test-db] ${db_name}, server on :${port}" >&2
 
 if [ -n "$compose" ]; then
   echo "[test-db] starting the disposable Postgres (docker-compose.test.yml)" >&2
