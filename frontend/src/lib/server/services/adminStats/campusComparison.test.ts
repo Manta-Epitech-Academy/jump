@@ -14,10 +14,12 @@ vi.mock('$lib/server/services/events', () => ({
 
 const participationFindMany = vi.fn();
 const talentFindMany = vi.fn();
+const closingFindMany = vi.fn();
 vi.mock('$lib/server/db', () => ({
   prisma: {
     participation: { findMany: (args: unknown) => participationFindMany(args) },
     talent: { findMany: (args: unknown) => talentFindMany(args) },
+    closing_Record: { findMany: (args: unknown) => closingFindMany(args) },
   },
 }));
 
@@ -39,6 +41,7 @@ function event(over: Partial<AdminEventVM> = {}): AdminEventVM {
 }
 
 type Enrolment = { talentId: string; eventId: string; sfMemberStatus: string };
+type Closing = { eventId: string; recommendation: string | null };
 type TalentRow = {
   id: string;
   civilite: string | null;
@@ -54,9 +57,16 @@ function seed(options: {
   enrolments: Enrolment[];
   talents: TalentRow[];
   onboardingComplete?: string[];
+  closings?: Closing[];
 }) {
   listAdminEvents.mockResolvedValue(options.events);
   participationFindMany.mockResolvedValue(options.enrolments);
+  closingFindMany.mockResolvedValue(
+    (options.closings ?? []).map((c) => ({
+      recommendation: c.recommendation,
+      participation: { eventId: c.eventId },
+    })),
+  );
   talentFindMany.mockImplementation((args: { select: Record<string, true> }) =>
     Promise.resolve(
       'civilite' in args.select
@@ -70,6 +80,7 @@ beforeEach(() => {
   listAdminEvents.mockReset();
   participationFindMany.mockReset();
   talentFindMany.mockReset();
+  closingFindMany.mockReset();
 });
 
 describe('getCampusComparison', () => {
@@ -243,5 +254,93 @@ describe('getCampusComparison', () => {
     await expect(
       getCampusComparison({ schoolYear: '2099-2100' }),
     ).rejects.toThrow('2025-2026');
+  });
+});
+
+/**
+ * The two closing axes, and specifically their nulls.
+ *
+ * These are the figures the recette had to rebuild by hand from fifteen calls,
+ * and the trap they carry is the one this file exists for: a campus that ran no
+ * closing must not read as a campus whose profiles are all unsuitable.
+ */
+describe('getCampusComparison, closing axes', () => {
+  const withClosings = (over: Partial<AdminEventVM>) =>
+    event({ modules: ['closings'], closingTemplateId: 'clt', ...over });
+
+  it('takes coverage over the events that run closings, not the whole cohort', async () => {
+    seed({
+      events: [
+        withClosings({ id: 'lille-stage', campusName: 'Lille' }),
+        // Same campus, no grid: its enrolments are a configuration fact and
+        // must not dilute the rate.
+        event({ id: 'lille-club', campusName: 'Lille' }),
+      ],
+      enrolments: [
+        { talentId: 't1', eventId: 'lille-stage', sfMemberStatus: 'MEET' },
+        { talentId: 't2', eventId: 'lille-stage', sfMemberStatus: 'MEET' },
+        { talentId: 't3', eventId: 'lille-club', sfMemberStatus: 'MEET' },
+        { talentId: 't4', eventId: 'lille-club', sfMemberStatus: 'MEET' },
+      ],
+      talents: [],
+      closings: [{ eventId: 'lille-stage', recommendation: 'bon_profil' }],
+    });
+
+    const comparison = await getCampusComparison({ schoolYear: '2025-2026' });
+
+    // 1 of the 2 concerned enrolments, not 1 of 4.
+    expect(comparison.rankings.closingCoverage.value).toEqual([
+      { campus: 'Lille', value: 50, rank: 1 },
+    ]);
+  });
+
+  it('reads a campus that conducted no closing as unmeasured, never as zero', async () => {
+    seed({
+      events: [
+        withClosings({ id: 'lille', campusName: 'Lille' }),
+        event({ id: 'rennes', campusName: 'Rennes' }),
+      ],
+      enrolments: [
+        { talentId: 't1', eventId: 'lille', sfMemberStatus: 'MEET' },
+        { talentId: 't2', eventId: 'rennes', sfMemberStatus: 'MEET' },
+      ],
+      talents: [],
+      closings: [{ eventId: 'lille', recommendation: 'tres_compatible' }],
+    });
+
+    const comparison = await getCampusComparison({ schoolYear: '2025-2026' });
+
+    expect(comparison.rankings.closingCoverage.value).toEqual([
+      { campus: 'Lille', value: 100, rank: 1 },
+      { campus: 'Rennes', value: null, rank: null },
+    ]);
+    expect(comparison.rankings.favourableVerdictShare.value).toEqual([
+      { campus: 'Lille', value: 100, rank: 1 },
+      { campus: 'Rennes', value: null, rank: null },
+    ]);
+  });
+
+  it('shares the favourable verdicts against the verdicts given, not every closing', async () => {
+    seed({
+      events: [withClosings({ id: 'nantes', campusName: 'Nantes' })],
+      enrolments: [
+        { talentId: 't1', eventId: 'nantes', sfMemberStatus: 'MEET' },
+        { talentId: 't2', eventId: 'nantes', sfMemberStatus: 'MEET' },
+        { talentId: 't3', eventId: 'nantes', sfMemberStatus: 'MEET' },
+      ],
+      talents: [],
+      closings: [
+        { eventId: 'nantes', recommendation: 'tres_compatible' },
+        { eventId: 'nantes', recommendation: 'indecis' },
+        // Still open: no verdict yet, and counting it would read as a bad one.
+        { eventId: 'nantes', recommendation: null },
+      ],
+    });
+
+    const comparison = await getCampusComparison({ schoolYear: '2025-2026' });
+
+    expect(comparison.rankings.favourableVerdictShare.value).toEqual([
+      { campus: 'Nantes', value: 50, rank: 1 },
+    ]);
   });
 });

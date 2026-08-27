@@ -528,7 +528,7 @@ export const ADMIN_API_OPERATIONS = {
   stats_campus_comparison: defineOperation({
     leadership: true,
     description:
-      'The same figure across every campus, already ranked: cohort size, share of women, completed sign-ups, real show-up rate, how many high schools each one reaches, and whether talents came back. One ranking per figure, sorted highest first, so nothing has to be ordered or divided afterwards. The school year is required and no campus filter exists: this operation IS the cross-campus view, narrow it and you get one row.',
+      'The same figure across every campus, already ranked: cohort size, share of women, completed sign-ups, real show-up rate, how many high schools each one reaches, whether talents came back, how much of the closing work is done, and the share of profiles the team judged favourably. One ranking per figure, sorted highest first, so nothing has to be ordered or divided afterwards. A campus the figure cannot be computed for is unranked rather than last - a campus that conducted no closing is not a campus without a compatible profile. The school year is required and no campus filter exists: this operation IS the cross-campus view, narrow it and you get one row.',
     shape: {
       schoolYear: requiredSchoolYear.describe(
         'School year, e.g. "2026-2027". Required: comparing campuses across every year folds the programme growth into the comparison.',
