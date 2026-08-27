@@ -24,6 +24,12 @@ env:
   RESEND_API_KEY: ci-dummy
   RESEND_FROM_EMAIL: noreply@example.com
 
+# NOTE ON JOB NAMES. `Lint & Type Check`, `Unit & Integration Tests` and
+# `E2E Tests` are required status checks on the `push dev` ruleset
+# (.github/settings/repo-config.json). Renaming one takes it OUT of that list and
+# it silently stops blocking a merge, which is the exact failure this file was
+# rewritten to fix. Add steps inside a job; do not rename the job.
+
 jobs:
   lint-and-check:
     name: Lint & Type Check
@@ -42,7 +48,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           fail=0
-          for f in $(git ls-files '.githooks/*' 'scripts/*.sh'); do
+          for f in $(git ls-files '.githooks/*' 'scripts/*.sh' 'frontend/scripts/*.sh'); do
             head -1 "$f" | grep -q '^#!' || continue
             mode=$(git ls-files -s -- "$f" | awk '{print $1}')
             if [ "$mode" != "100755" ]; then
@@ -65,6 +71,13 @@ jobs:
       - name: Design Lint
         run: bun run lint:design
 
+      # The test-convention guard. Its load-bearing rule is that a test cannot be
+      # disabled: `.skip` / `.only` / `.todo` leave the suite green while it
+      # verifies nothing, which is TESTING.md §11 in writing and, until this job
+      # ran it, nothing in the pipeline.
+      - name: Test Lint
+        run: bun run lint:tests
+
       - name: Svelte Check
         run: bun run check
 
@@ -72,6 +85,31 @@ jobs:
     name: Unit & Integration Tests
     needs: lint-and-check
     runs-on: ubuntu-latest
+
+    # The reason this job's name was a lie until now: the integration suites
+    # (~190 tests over 20 files) need a real Postgres, so with no service here
+    # `bun run test:coverage` only ever ran the unit project.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: jump
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: jump_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jump"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      # `scripts/with-test-db.sh` reads this instead of starting the compose
+      # file, and still owns the database NAME. It exports DATABASE_URL itself,
+      # last, so it wins over the workspace default above.
+      TEST_DATABASE_SERVER: postgresql://jump:testpassword@localhost:5432
+
     steps:
       - uses: actions/checkout@v6
 
@@ -80,13 +118,77 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Run tests with coverage
+      # `bun install` does not run puppeteer's install script, so there is no
+      # downloaded Chromium. The runner ships Google Chrome, which is the cheapest
+      # correct answer. Resolved explicitly and FAILING LOUDLY when absent:
+      # `pdfRender.integration.test.ts` asserts three things that fail silently in
+      # production (a document printing in a fallback face, the renderer regaining
+      # the network, the renderer regaining the ability to run a stored design's
+      # scripts), so a skipped browser test is the problem this pipeline change
+      # exists to remove.
+      - name: Resolve a Chrome for Puppeteer
+        run: |
+          chrome=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)
+          if [ -z "$chrome" ]; then
+            echo "::error::No Chrome on the runner. Install one (bunx puppeteer browsers install chrome) rather than letting pdfRender skip."
+            exit 1
+          fi
+          echo "PUPPETEER_EXECUTABLE_PATH=$chrome" >> "$GITHUB_ENV"
+          echo "Using $chrome"
+
+      - name: Unit tests with coverage
         run: bun run test:coverage
+
+      - name: Integration tests
+        run: bun run test:integration
+
+      # Nothing else in the gate can see a schema that has drifted from its
+      # migrations: the unit suite mocks the database layer, and `bun run check`
+      # type-checks against a client generated FROM schema.prisma. Here, and only
+      # here, there is a database that `migrate deploy` has just built.
+      - name: Schema matches its migrations
+        run: bun run test:schema-drift
 
   e2e:
     name: E2E Tests
     needs: unit-and-integration
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: jump
+          POSTGRES_PASSWORD: testpassword
+          # The `_e2e` suffix `bun run test:e2e` asks for. The E2E fixture and the
+          # integration suites cannot share a database: the fixture is seeded once
+          # and lives for the whole run, while several integration assertions read
+          # a deliberately platform-wide aggregate that a stray talent skews.
+          POSTGRES_DB: jump_test_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jump"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_SERVER: postgresql://jump:testpassword@localhost:5432
+      # The server Playwright boots, and the origin BetterAuth derives from it.
+      PORT: '4173'
+      ORIGIN: http://localhost:4173
+      BETTER_AUTH_URL: http://localhost:4173
+      BETTER_AUTH_SECRET: e2e-only-secret-not-used-anywhere-real
+      # Arms `/api/test/login-as`, which 404s without it. That endpoint is how the
+      # suite gets a session for each role: staff log in through Microsoft OAuth
+      # and talents through an emailed OTP, neither of which a headless run walks.
+      LOAD_TEST_SECRET: e2e-only-load-test-secret
+      # Recipients of a Jump send are minors. `redirect` is the fail-safe default;
+      # restated here so a CI run can never be the thing that widens the gate.
+      OUTBOUND_MODE: redirect
+      CI: 'true'
+
     steps:
       - uses: actions/checkout@v6
 
@@ -98,11 +200,18 @@ jobs:
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
 
-      - name: Build app
-        run: bun run build
-
-      # NOTE: Real E2E tests will need a Postgres service (cf. docker-compose.test.yml)
-      - name: Run E2E tests
+      # No separate build step: `playwright.config.ts` builds and boots the
+      # server itself, with the same command a developer runs locally, so the run
+      # that gates the merge is the run they can reproduce.
+      - name: E2E tests
         run: bun run test:e2e
-        env:
-          CI: true
+
+      # The HTML report was already being produced and thrown away. A failed
+      # authenticated flow is not diagnosable from a one-line assertion error.
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
