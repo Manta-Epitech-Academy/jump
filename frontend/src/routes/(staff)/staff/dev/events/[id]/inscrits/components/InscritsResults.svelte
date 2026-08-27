@@ -59,6 +59,10 @@
     matchesAllTokens,
     searchTokens,
   } from '$lib/components/staff/datatable/search';
+  import {
+    nextSort,
+    rowComparator,
+  } from '$lib/components/staff/datatable/sort';
 
   // The streamed cohort payload plus the cheap shell values the table/rail need.
   // This component owns all filter/sort/export state, so it mounts only once the
@@ -259,14 +263,9 @@
   }
 
   function toggleSort(key: string) {
-    if (sortKey === key) {
-      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      // First click on a new column opens in its natural direction (XP starts
-      // high-to-low to surface the most engaged; text columns climb A→Z).
-      sortKey = key as SortKey;
-      sortDir = columns.find((c) => c.key === key)?.defaultSortDir ?? 'asc';
-    }
+    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
+    sortKey = next.key;
+    sortDir = next.dir;
   }
 
   function navigateWithParams(params: Record<string, string>) {
@@ -296,10 +295,8 @@
     ]);
   }
 
-  // Rows with no value for the active sort key always sink to the bottom, in
-  // either direction: sorting by Lycée (or Niveau) should surface the rows that
-  // *have* one, never lead with a block of "—". So this rule sits outside the
-  // asc/desc flip below; `compareRows` then only ever sees present values.
+  // The two columns whose value can be missing. `rowComparator` sinks those
+  // rows in either direction, so `compareRows` only ever sees present values.
   function sortsLast(r: InscritRow, key: SortKey): boolean {
     if (key === 'lycee') return !r.schoolName;
     if (key === 'niveau') return !r.niveau;
@@ -330,13 +327,13 @@
       if (statutFilter !== 'all' && r.status !== statutFilter) return false;
       return matchesAllTokens(makeHaystack(r), tokens);
     });
-    out.sort((a, b) => {
-      const aLast = sortsLast(a, sortKey);
-      const bLast = sortsLast(b, sortKey);
-      if (aLast !== bLast) return aLast ? 1 : -1;
-      const c = compareRows(a, b, sortKey);
-      return sortDir === 'asc' ? c : -c;
-    });
+    out.sort(
+      rowComparator({
+        compare: (a, b) => compareRows(a, b, sortKey),
+        dir: sortDir,
+        isMissing: (r) => sortsLast(r, sortKey),
+      }),
+    );
     return out;
   });
 

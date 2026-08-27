@@ -16,6 +16,7 @@
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import { civiliteCourtesyTitle } from '$lib/domain/profile';
   import type { NotesCohort, NoteFilters, NoteDirectoryRow } from '../query';
+  import { nextSort } from '$lib/components/staff/datatable/sort';
 
   // Renamed from `filters` to avoid shadowing the `{#snippet filters()}` passed
   // to DataTableToolbar.
@@ -110,9 +111,12 @@
   }
 
   function toggleSort(key: string) {
-    const nextDir =
-      filterState.sort === key && filterState.dir === 'asc' ? 'desc' : 'asc';
-    navigateWithParams({ sort: key, dir: nextDir });
+    const next = nextSort(
+      columns,
+      { key: filterState.sort, dir: filterState.dir },
+      key,
+    );
+    navigateWithParams({ sort: next.key, dir: next.dir });
   }
 
   function talentsLink(t: NoteDirectoryRow['talent']) {

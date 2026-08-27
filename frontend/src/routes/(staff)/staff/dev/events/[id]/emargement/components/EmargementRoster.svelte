@@ -49,6 +49,7 @@
     matchesAllTokens,
     searchTokens,
   } from '$lib/components/staff/datatable/search';
+  import { nextSort } from '$lib/components/staff/datatable/sort';
 
   // The streamed roster plus the slot context the shell owns. `activeSlotKey` is
   // bound back to the shell so its header QR button stays in sync with the slot
@@ -168,11 +169,9 @@
   );
 
   function toggleSort(key: string) {
-    if (sortKey === key) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    else {
-      sortKey = key as PresenceSortKey;
-      sortDir = 'asc';
-    }
+    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
+    sortKey = next.key;
+    sortDir = next.dir;
   }
   function resetFilters() {
     searchQuery = '';

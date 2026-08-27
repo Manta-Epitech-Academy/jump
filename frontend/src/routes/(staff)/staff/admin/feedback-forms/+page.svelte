@@ -37,6 +37,7 @@
   import { resolve } from '$app/paths';
   import type { PageData } from './$types';
   import type { FormListRow, FormsCohort } from './+page.server';
+  import { nextSort } from '$lib/components/staff/datatable/sort';
 
   let { data }: { data: PageData } = $props();
 
@@ -117,12 +118,9 @@
   ];
 
   function toggleSort(key: string) {
-    if (sortKey === key) {
-      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortKey = key;
-      sortDir = columns.find((c) => c.key === key)?.defaultSortDir ?? 'asc';
-    }
+    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
+    sortKey = next.key;
+    sortDir = next.dir;
   }
 
   function compareRows(a: FormListRow, b: FormListRow, key: string): number {

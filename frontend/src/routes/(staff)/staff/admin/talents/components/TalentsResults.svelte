@@ -50,6 +50,7 @@
   } from '../labels';
   import { track } from '$lib/analytics';
   import type { TalentsCohort, TalentFilters } from '../query';
+  import { nextSort } from '$lib/components/staff/datatable/sort';
 
   // The streamed cohort payload plus the parsed filters (the cheap shell value
   // the toolbar needs). This component owns every data-dependent surface — KPI
@@ -310,9 +311,12 @@
   // Server-side sort: clicking a header swaps `?sort=&dir=` and reloads. The
   // baseline (no `sort` param) keeps the most-recently-active-first ordering.
   function toggleSort(key: string) {
-    const nextDir =
-      filterState.sort === key && filterState.dir === 'asc' ? 'desc' : 'asc';
-    navigateWithParams({ sort: key, dir: nextDir });
+    const next = nextSort(
+      columns,
+      { key: filterState.sort, dir: filterState.dir },
+      key,
+    );
+    navigateWithParams({ sort: next.key, dir: next.dir });
   }
 
   // Campus list can be long, so it gets a searchable select.

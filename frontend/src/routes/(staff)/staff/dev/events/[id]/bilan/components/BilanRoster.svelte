@@ -22,6 +22,10 @@
     matchesAllTokens,
     searchTokens,
   } from '$lib/components/staff/datatable/search';
+  import {
+    nextSort,
+    rowComparator,
+  } from '$lib/components/staff/datatable/sort';
 
   let {
     rows,
@@ -86,12 +90,40 @@
   };
 
   function toggleSort(key: string) {
-    if (sortKey === key) {
-      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortKey = key;
-      sortDir = 'asc';
+    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
+    sortKey = next.key;
+    sortDir = next.dir;
+  }
+
+  // A talent who has not answered has no recommendation and no date. Those rows
+  // sink in either direction (`rowComparator`), which is what this roster always
+  // claimed in a comment and what its reco column did not do: the missing case
+  // lived inside the asc/desc flip, so reversing the sort led with the
+  // unanswered half of the cohort instead of burying it.
+  function sortsLast(r: BilanRow, key: string): boolean {
+    if (key === 'reco') return !r.recoLabel;
+    if (key === 'date') return !r.respondedAt;
+    return false;
+  }
+
+  function compareRows(a: BilanRow, b: BilanRow, key: string): number {
+    // Reco sorts by best→worst rank, off the canonical option order.
+    if (key === 'reco') {
+      return (
+        recoOptions.indexOf(a.recoLabel ?? '') -
+        recoOptions.indexOf(b.recoLabel ?? '')
+      );
     }
+    // ISO instants compare lexicographically, i.e. chronologically.
+    if (key === 'date') {
+      return (a.respondedAt ?? '').localeCompare(b.respondedAt ?? '');
+    }
+    if (key === 'statut') {
+      return Number(Boolean(a.respondedAt)) - Number(Boolean(b.respondedAt));
+    }
+    const av = (a[key as 'nom' | 'prenom'] as string) ?? '';
+    const bv = (b[key as 'nom' | 'prenom'] as string) ?? '';
+    return av.localeCompare(bv, 'fr');
   }
 
   const filtered = $derived.by(() => {
@@ -108,36 +140,13 @@
       }
       return matchesAllTokens(buildHaystack([r.prenom, r.nom]), tokens);
     });
-    const dir = sortDir === 'asc' ? 1 : -1;
-    out = [...out].sort((a, b) => {
-      // Reco sorts by best→worst rank; unanswered always sinks to the bottom.
-      if (sortKey === 'reco') {
-        const ra = a.recoLabel ? recoOptions.indexOf(a.recoLabel) : Infinity;
-        const rb = b.recoLabel ? recoOptions.indexOf(b.recoLabel) : Infinity;
-        return ra === rb ? 0 : ra < rb ? -dir : dir;
-      }
-      // Date sort: unanswered rows (no respondedAt) always sink to the bottom,
-      // regardless of direction, mirroring the reco column's missing-value rule.
-      // ISO strings compare lexicographically, i.e. chronologically.
-      if (sortKey === 'date') {
-        const ad = a.respondedAt ?? '';
-        const bd = b.respondedAt ?? '';
-        if (!ad && !bd) return 0;
-        if (!ad) return 1;
-        if (!bd) return -1;
-        return ad < bd ? -dir : ad > bd ? dir : 0;
-      }
-      let av: string;
-      let bv: string;
-      if (sortKey === 'statut') {
-        av = a.respondedAt ? '1' : '0';
-        bv = b.respondedAt ? '1' : '0';
-      } else {
-        av = ((a[sortKey as 'nom' | 'prenom'] as string) ?? '').toLowerCase();
-        bv = ((b[sortKey as 'nom' | 'prenom'] as string) ?? '').toLowerCase();
-      }
-      return av < bv ? -dir : av > bv ? dir : 0;
-    });
+    out = [...out].sort(
+      rowComparator({
+        compare: (a, b) => compareRows(a, b, sortKey),
+        dir: sortDir,
+        isMissing: (r) => sortsLast(r, sortKey),
+      }),
+    );
     return out;
   });
 

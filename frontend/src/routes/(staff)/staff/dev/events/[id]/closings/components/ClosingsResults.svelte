@@ -34,6 +34,10 @@
     matchesAllTokens,
     searchTokens,
   } from '$lib/components/staff/datatable/search';
+  import {
+    nextSort,
+    rowComparator,
+  } from '$lib/components/staff/datatable/sort';
 
   // The streamed cohort payload plus the two cheap shell values the table/rail
   // need (timezone for date formatting, currentStaffId to highlight the leader-
@@ -98,12 +102,9 @@
   ];
 
   function toggleSort(key: string) {
-    if (sortKey === key) {
-      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortKey = key as SortKey;
-      sortDir = 'asc';
-    }
+    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
+    sortKey = next.key;
+    sortDir = next.dir;
   }
 
   const dateFmt = (d: Date | string | null) =>
@@ -115,6 +116,17 @@
         })
       : null;
 
+  // A closing not yet conducted has no leader and no date. Those rows sink in
+  // either direction (`rowComparator`), so a reversed sort surfaces the ones
+  // that HAVE been conducted rather than leading with the empty half of the
+  // roster. It used to lead with them: the null cases lived inside the asc/desc
+  // flip, which inverted the intent along with the order.
+  function sortsLast(r: ClosingRow, key: SortKey): boolean {
+    if (key === 'staff') return !r.staffName;
+    if (key === 'date') return !r.conductedAt;
+    return false;
+  }
+
   function compareRows(a: ClosingRow, b: ClosingRow, key: SortKey): number {
     switch (key) {
       case 'prenom':
@@ -122,19 +134,12 @@
       case 'nom':
         return a.nom.localeCompare(b.nom, 'fr');
       case 'staff':
-        // Conducted closings (named) sort before the not-yet-assigned.
-        if (!a.staffName && !b.staffName) return 0;
-        if (!a.staffName) return 1;
-        if (!b.staffName) return -1;
-        return a.staffName.localeCompare(b.staffName, 'fr');
-      case 'date': {
-        const ta = a.conductedAt ? new Date(a.conductedAt).getTime() : null;
-        const tb = b.conductedAt ? new Date(b.conductedAt).getTime() : null;
-        if (ta === null && tb === null) return 0;
-        if (ta === null) return 1;
-        if (tb === null) return -1;
-        return ta - tb;
-      }
+        return (a.staffName ?? '').localeCompare(b.staffName ?? '', 'fr');
+      case 'date':
+        return (
+          new Date(a.conductedAt ?? 0).getTime() -
+          new Date(b.conductedAt ?? 0).getTime()
+        );
       case 'status':
         return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
     }
@@ -149,10 +154,13 @@
         tokens,
       );
     });
-    out.sort((a, b) => {
-      const c = compareRows(a, b, sortKey);
-      return sortDir === 'asc' ? c : -c;
-    });
+    out.sort(
+      rowComparator({
+        compare: (a, b) => compareRows(a, b, sortKey),
+        dir: sortDir,
+        isMissing: (r) => sortsLast(r, sortKey),
+      }),
+    );
     return out;
   });
 
