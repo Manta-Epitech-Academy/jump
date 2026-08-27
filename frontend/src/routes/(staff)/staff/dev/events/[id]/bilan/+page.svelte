@@ -8,11 +8,12 @@
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
+  import QrProjectionDialog from '$lib/components/staff/QrProjectionDialog.svelte';
+  import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import { eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import BilanRoster from './components/BilanRoster.svelte';
   import StatsPanel from './components/StatsPanel.svelte';
-  import QrDialog from './components/QrDialog.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -100,9 +101,34 @@
   {/await}
 </div>
 
-<QrDialog
+<QrProjectionDialog
   bind:open={qrOpen}
-  basePath={page.url.pathname}
   title={data.form.title}
-  url={data.form.url}
-/>
+  description="Scanne ce QR code pour donner ton avis. Ça prend 5 minutes."
+  qrSrc={`${page.url.pathname}/qr.png`}
+  qrAlt="QR code du formulaire de feedback"
+>
+  <!-- The same link in clear: some won't scan it (they'll type it, or staff copy
+       it to share elsewhere). Built from ORIGIN server-side, so it matches the
+       code byte for byte. -->
+  {#snippet footer()}
+    {#if data.form.url}
+      <div class="flex max-w-[90vw] flex-col items-center gap-2">
+        <p class="text-sm text-muted-foreground">
+          Pas de quoi scanner ? Ouvre ce lien dans ton navigateur :
+        </p>
+        <div
+          class="flex max-w-full items-center gap-2 rounded-sm border bg-muted/40 px-3 py-2"
+        >
+          <code class="min-w-0 truncate font-mono text-sm">{data.form.url}</code
+          >
+          <CopyButton
+            value={data.form.url}
+            label="Copier le lien"
+            class="shrink-0"
+          />
+        </div>
+      </div>
+    {/if}
+  {/snippet}
+</QrProjectionDialog>

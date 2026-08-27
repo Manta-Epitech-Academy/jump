@@ -8,14 +8,18 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import { can } from '$lib/domain/permissions';
-  import { defaultActiveSlotKey } from '$lib/domain/eventPresence';
+  import {
+    dayLabelFr,
+    defaultActiveSlotKey,
+    slotLabelFr,
+  } from '$lib/domain/eventPresence';
   import { cohortNounForms, eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import type { EmargementCohort } from './components/types';
-  import QrDialog from './components/QrDialog.svelte';
   import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import QrProjectionDialog from '$lib/components/staff/QrProjectionDialog.svelte';
   import EmargementRoster from './components/EmargementRoster.svelte';
 
   let { data }: { data: PageData } = $props();
@@ -204,10 +208,23 @@
 
 <!-- QR dialog -->
 {#if activeSlot}
-  <QrDialog
+  <QrProjectionDialog
     bind:open={qrOpen}
-    basePath={page.url.pathname}
-    day={activeSlot.day}
-    slot={activeSlot.slot}
-  />
+    title="Émargement"
+    description={`${dayLabelFr(activeSlot.day)} · ${slotLabelFr(activeSlot.slot)}. Scanne ce QR code pour t'enregistrer.`}
+    qrSrc={`${page.url.pathname}/qr.png?day=${activeSlot.day}&slot=${activeSlot.slot}`}
+    qrAlt={`QR code d'émargement - ${slotLabelFr(activeSlot.slot)}`}
+    sizeClass="h-[68vmin] w-[68vmin]"
+  >
+    {#snippet footer()}
+      <Button
+        variant="outline"
+        href={`${page.url.pathname}/qr.pdf?day=${activeSlot.day}&slot=${activeSlot.slot}`}
+        target="_blank"
+      >
+        <Download class="mr-2 h-4 w-4" />
+        Télécharger le PDF
+      </Button>
+    {/snippet}
+  </QrProjectionDialog>
 {/if}
