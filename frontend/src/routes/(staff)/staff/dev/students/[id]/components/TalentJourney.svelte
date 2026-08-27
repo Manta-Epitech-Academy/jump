@@ -82,13 +82,20 @@
                date, so the whole empty half of the row lights up as a link while
                the pointer is nowhere near the text it names. `min-w-0` is what
                truncation actually needs; growing was never part of it. -->
-          <span class="min-w-0 flex-1 truncate">
-            <a
-              href={resolve(`/staff/dev/events/${entry.eventId}/inscrits`)}
-              class="font-medium text-foreground transition-colors hover:text-epi-blue hover:underline hover:decoration-dotted hover:underline-offset-4"
-            >
+          <span class="min-w-0 flex-1 truncate font-medium text-foreground">
+            <!-- A link only where it leads somewhere this reader may open (see
+                 `eventHref`): an event from another campus, or one exposing no
+                 Inscrits list, stays plain text rather than becoming a 404. -->
+            {#if entry.eventHref}
+              <a
+                href={entry.eventHref}
+                class="cursor-pointer transition-colors hover:text-epi-blue hover:underline hover:decoration-dotted hover:underline-offset-4"
+              >
+                {entry.eventName}
+              </a>
+            {:else}
               {entry.eventName}
-            </a>
+            {/if}
           </span>
           {#if entry.presence}
             <span

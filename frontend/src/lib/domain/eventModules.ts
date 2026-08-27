@@ -144,7 +144,7 @@ export function defaultModuleSettings<K extends EventModuleKey>(
 }
 
 /** Whether a module is enabled, given a resolved set/list of an event's modules. */
-function eventHasModule(
+export function eventHasModule(
   modules: ReadonlySet<string> | readonly string[],
   key: EventModuleKey,
 ): boolean {

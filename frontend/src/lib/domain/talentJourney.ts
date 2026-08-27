@@ -22,6 +22,19 @@ export type TalentJourneyEntry = {
   participationId: string;
   eventId: string;
   eventName: string;
+  /**
+   * Where the event's name leads, or null when it leads nowhere the reader may
+   * go: the event belongs to another campus, or does not expose the Inscrits
+   * list. Those are exactly the two conditions `loadEventOr404` and
+   * `requireEventModule` enforce on the destination, so a link offered here
+   * cannot 404 - the rule the dev sidebar already follows in not offering a page
+   * that would.
+   *
+   * A journey is not campus-scoped (a talent who came to a stage in one campus
+   * and a Coding Club in another has both), so this is not hypothetical, and it
+   * is the link that is withheld rather than the row: the event still happened.
+   */
+  eventHref: string | null;
   /** Pre-formatted French date in the campus timezone, e.g. "16 juin 2026". */
   dateLabel: string;
   /** Salesforce's read on whether they turned up. Null when it says nothing. */

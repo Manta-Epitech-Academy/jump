@@ -537,7 +537,11 @@ describe("the talent's journey", () => {
       },
     });
 
-    const journey = await getTalentJourney(talent.id, 'Europe/Paris');
+    const journey = await getTalentJourney(
+      talent.id,
+      ids.campus,
+      'Europe/Paris',
+    );
 
     expect(journey.entries).toHaveLength(1);
     expect(journey.closingCount).toBe(1);
@@ -572,12 +576,82 @@ describe("the talent's journey", () => {
       data: { talentId: talent.id, eventId: event.id, campusId: ids.campus },
     });
 
-    const journey = await getTalentJourney(talent.id, 'Europe/Paris');
+    const journey = await getTalentJourney(
+      talent.id,
+      ids.campus,
+      'Europe/Paris',
+    );
     expect(journey.entries).toHaveLength(0);
 
     await prisma.participation.deleteMany({ where: { id: participation.id } });
     await prisma.talent.delete({ where: { id: talent.id } });
     await prisma.event.delete({ where: { id: event.id } });
+  });
+
+  it('names an event as a link only where the reader can open it', async () => {
+    // A journey is not campus-scoped, and an event exposes the surfaces an admin
+    // configured, so the fiche can hold rows whose destination would 404 on both
+    // counts. The row stays either way - the event happened - but the name is
+    // only a link where it leads somewhere.
+    const past = new Date('2026-03-02T09:00:00Z');
+    const [open, noModule, elsewhere] = await Promise.all([
+      prisma.event.create({
+        data: {
+          titre: `JourneyOpen-${stamp}`,
+          date: past,
+          campusId: ids.campus,
+          modules: { create: { moduleKey: 'inscrits' } },
+        },
+      }),
+      prisma.event.create({
+        data: {
+          titre: `JourneyNoModule-${stamp}`,
+          date: past,
+          campusId: ids.campus,
+          modules: { create: { moduleKey: 'emargement' } },
+        },
+      }),
+      prisma.event.create({
+        data: {
+          titre: `JourneyElsewhere-${stamp}`,
+          date: past,
+          campusId: ids.otherCampus,
+          modules: { create: { moduleKey: 'inscrits' } },
+        },
+      }),
+    ]);
+    const talent = await prisma.talent.create({
+      data: { nom: 'Links', prenom: `Test${stamp}` },
+    });
+    await prisma.participation.createMany({
+      data: [
+        { talentId: talent.id, eventId: open.id, campusId: ids.campus },
+        { talentId: talent.id, eventId: noModule.id, campusId: ids.campus },
+        {
+          talentId: talent.id,
+          eventId: elsewhere.id,
+          campusId: ids.otherCampus,
+        },
+      ],
+    });
+
+    const journey = await getTalentJourney(
+      talent.id,
+      ids.campus,
+      'Europe/Paris',
+    );
+    const href = (eventId: string) =>
+      journey.entries.find((e) => e.eventId === eventId)?.eventHref;
+
+    expect(href(open.id)).toBe(`/staff/dev/events/${open.id}/inscrits`);
+    expect(href(noModule.id)).toBeNull();
+    expect(href(elsewhere.id)).toBeNull();
+
+    await prisma.participation.deleteMany({ where: { talentId: talent.id } });
+    await prisma.talent.delete({ where: { id: talent.id } });
+    await prisma.event.deleteMany({
+      where: { id: { in: [open.id, noModule.id, elsewhere.id] } },
+    });
   });
 });
 

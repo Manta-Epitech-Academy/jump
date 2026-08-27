@@ -155,7 +155,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     // conducted at it. Past-only, as the event history it replaces was: an event
     // still to come says nothing about who this person is yet. Assembled in its
     // own service so the fiche keeps painting rather than composing.
-    const journey = await getTalentJourney(params.id, timezone);
+    const journey = await getTalentJourney(params.id, campusId, timezone);
 
     // Staff correction form for the image-rights decision, prefilled with the
     // current decision + the guardian on file (the last signer, else the parent
