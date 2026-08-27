@@ -101,7 +101,13 @@
         <span class="ml-3">{student.nom}<TitleCursor /></span>
       </h1>
       {#if subtitle}
-        <p class="mt-2 font-mono text-xs text-primary sm:mt-3">{subtitle}</p>
+        <!-- White at 80% (4.94:1 on `epiBlue`), not `text-primary`: `--primary`
+             IS `epiBlue`, and `.on-dark` re-points the ink tokens but not the
+             roles derived from the brand blue itself, so this line rendered
+             epiBlue on epiBlue - 1:1, invisible - on the one surface it only
+             ever appears on. Not `epiTech` either: the neon in this band is the
+             XP figure's, and a second use would stop it meaning progress. -->
+        <p class="mt-2 font-mono text-xs text-white/80 sm:mt-3">{subtitle}</p>
       {/if}
     </div>
 
