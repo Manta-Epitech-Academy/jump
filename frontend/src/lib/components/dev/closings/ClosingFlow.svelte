@@ -776,54 +776,56 @@
             </div>
           {/if}
 
-          <!-- No title of its own: the page header above already names the person
-               and the grid, and a second display-face heading saying "Synthèse
-               du closing" under "Closing Coding Club" was the page announcing
-               itself twice. The document opens on its provenance instead. -->
-          <div class="space-y-2.5">
-            {#if conductedBy || conductedLabel}
-              <div class="flex items-center gap-2.5">
-                {#if conductedBy}
-                  <Avatar.Root class="h-7 w-7 shrink-0">
-                    <Avatar.Image
-                      src={conductedByImage ?? undefined}
-                      alt={conductedBy}
-                      class="object-cover"
-                    />
-                    <Avatar.Fallback
-                      class="bg-epi-blue/10 text-xs font-bold text-epi-blue"
-                    >
-                      {getInitials(conductedBy)}
-                    </Avatar.Fallback>
-                  </Avatar.Root>
+          <!-- No title of its own: the page header above already names the
+               person and what this page is, and a second display-face heading
+               saying "Synthèse du closing" under "Closing · Stage de Seconde"
+               was the page announcing itself twice. The document opens on its
+               provenance instead.
+
+               The grid's name is not printed here either, and that is the same
+               rule applied once more: a grid is named after the format it
+               serves ("Closing d'orientation - stage de seconde"), so under a
+               header reading "Closing · Stage de Seconde" it repeated both
+               words a second time. Which questions were asked is what the
+               sections below ARE, and the record pins its `templateId`
+               whatever this page prints. -->
+          {#if conductedBy || conductedLabel}
+            <div class="flex items-center gap-2.5">
+              {#if conductedBy}
+                <Avatar.Root class="h-7 w-7 shrink-0">
+                  <Avatar.Image
+                    src={conductedByImage ?? undefined}
+                    alt={conductedBy}
+                    class="object-cover"
+                  />
+                  <Avatar.Fallback
+                    class="bg-epi-blue/10 text-xs font-bold text-epi-blue"
+                  >
+                    {getInitials(conductedBy)}
+                  </Avatar.Fallback>
+                </Avatar.Root>
+              {/if}
+              <p class="text-sm text-muted-foreground">
+                {#if conductedLabel && conductedBy}
+                  Mené le <span class="font-medium text-foreground"
+                    >{conductedLabel}</span
+                  >
+                  par
+                  <span class="font-semibold text-foreground"
+                    >{conductedBy}</span
+                  >
+                {:else if conductedBy}
+                  Mené par <span class="font-semibold text-foreground"
+                    >{conductedBy}</span
+                  >
+                {:else if conductedLabel}
+                  Mené le <span class="font-medium text-foreground"
+                    >{conductedLabel}</span
+                  >
                 {/if}
-                <p class="text-sm text-muted-foreground">
-                  {#if conductedLabel && conductedBy}
-                    Mené le <span class="font-medium text-foreground"
-                      >{conductedLabel}</span
-                    >
-                    par
-                    <span class="font-semibold text-foreground"
-                      >{conductedBy}</span
-                    >
-                  {:else if conductedBy}
-                    Mené par <span class="font-semibold text-foreground"
-                      >{conductedBy}</span
-                    >
-                  {:else if conductedLabel}
-                    Mené le <span class="font-medium text-foreground"
-                      >{conductedLabel}</span
-                    >
-                  {/if}
-                </p>
-              </div>
-            {/if}
-            <!-- Which questionnaire this record was conducted with. A fact about
-                 the record, so it lives with the rest of its provenance rather
-                 than in the page header, where it sat beside the event name and
-                 said the same words twice. -->
-            <p class="text-xs text-muted-foreground">{grid.label}</p>
-          </div>
+              </p>
+            </div>
+          {/if}
 
           <!-- The verdict first: it's the one thing staff come back for.
 
