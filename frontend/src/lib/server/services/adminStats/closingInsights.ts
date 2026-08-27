@@ -22,6 +22,7 @@
 
 import { prisma } from '$lib/server/db';
 import {
+  CLOSING_FAVOURABLE_RECOMMENDATIONS,
   CLOSING_RECOMMENDATIONS,
   CLOSING_RECOMMENDATION_DISPLAY_ORDER,
   CLOSING_STATUS_LABELS,
@@ -58,6 +59,20 @@ const ANSWER_SELECT = {
  */
 export const CLOSING_COVERAGE_RULE =
   "Part des inscriptions susceptibles de donner lieu à un closing qui en ont effectivement donné un, en pourcentage. Ne comptent que les événements qui mènent réellement des closings, c'est-à-dire dont la section Closings est activée ET qui nomment une grille : un événement sans grille ne fait baisser aucun taux, il relève de la configuration et se lit sur « eventsRunningClosings ».";
+
+/**
+ * What the favourable-verdict share counts, owned here and imported by the campus
+ * comparison.
+ *
+ * The names of the two levels are interpolated rather than typed out, so the
+ * sentence follows `CLOSING_FAVOURABLE_RECOMMENDATIONS` if the scale ever gains a
+ * level instead of quietly describing the old one.
+ */
+export const FAVOURABLE_VERDICT_RULE = `Part des closings dont l'avis d'équipe est favorable, en pourcentage. Sont favorables les deux avis les plus compatibles, « ${CLOSING_FAVOURABLE_RECOMMENDATIONS.map(
+  (r) => CLOSING_RECOMMENDATIONS[r].label,
+).join(
+  ' » et « ',
+)} ». Calculée sur les seuls closings où l'avis a été renseigné, comme les parts de la répartition détaillée.`;
 
 export type AnswerCount = {
   value: string;
@@ -99,6 +114,7 @@ export type ClosingInsights = {
   coverage: Metric<number | null>;
   byStatus: Metric<AnswerCount[]>;
   recommendation: Metric<AnswerCount[]>;
+  favourableVerdictShare: Metric<number | null>;
   questions: Metric<QuestionInsight[]>;
 };
 
@@ -214,6 +230,10 @@ export async function getClosingInsights(
       countRecommendations(rows),
       `« ${VERDICT_SECTION.title} » : l'avis que l'équipe a porté après le closing, du profil le plus au moins compatible. C'est un jugement d'équipe, pas une réponse de l'élève, et il n'est jamais montré au talent. Les pourcentages portent sur les closings où l'avis a été renseigné.`,
     ),
+    favourableVerdictShare: metric(
+      favourableVerdictShare(rows),
+      FAVOURABLE_VERDICT_RULE,
+    ),
     questions: metric(
       questions,
       "Réponses des élèves, question par question. Le périmètre peut mélanger plusieurs grilles de closing : une question posée par plusieurs d'entre elles est agrégée une seule fois, et « asked » dit sur combien de closings elle a réellement été posée. Les pourcentages portent sur « answered », le nombre de closings où elle a reçu une réponse, pas sur la cohorte. Pour une question à choix multiples, un élève peut apparaître dans plusieurs options, donc la somme dépasse 100 %.",
@@ -231,6 +251,23 @@ type RecordRow = {
     selectedOptions: { optionId: string }[];
   }[];
 };
+
+/**
+ * The two most compatible verdicts as one share.
+ *
+ * Beside {@link countRecommendations} rather than derived from its output: both
+ * read the same rows and the same base (verdicts actually given), so a reader
+ * comparing the detailed split with this figure cannot find them disagreeing.
+ */
+function favourableVerdictShare(rows: RecordRow[]): number | null {
+  const given = rows.filter((r) => r.recommendation != null);
+  const favourable = given.filter((r) =>
+    (CLOSING_FAVOURABLE_RECOMMENDATIONS as readonly string[]).includes(
+      r.recommendation as string,
+    ),
+  );
+  return share(favourable.length, given.length);
+}
 
 function countRecommendations(rows: RecordRow[]): AnswerCount[] {
   const given = rows

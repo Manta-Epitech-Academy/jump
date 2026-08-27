@@ -1,4 +1,10 @@
 import type { ClosingRecommendation, ClosingStatus } from '@prisma/client';
+import {
+  ANSWER_POLARITIES,
+  isAnswerPolarity,
+  optionPolarity,
+  type AnswerPolarity,
+} from './polarity';
 
 /**
  * Everything about a closing that is NOT the questionnaire.
@@ -21,18 +27,18 @@ import type { ClosingRecommendation, ClosingStatus } from '@prisma/client';
 /** Sentiment of an ordinal answer, driving a green→amber→red chip so the staff
  *  reads the valence at a glance. Set only on scale questions (oui / un peu /
  *  pas du tout); categorical options omit it, since colour there would imply a
- *  ranking that isn't real (one channel isn't "better" than another). */
-export type ChoiceTone = 'positive' | 'neutral' | 'negative';
+ *  ranking that isn't real (one channel isn't "better" than another).
+ *
+ *  The three levels are `domain/polarity`'s, shared with the feedback scales
+ *  rather than re-declared: a bank question stores its valence where a scale
+ *  derives it from position, but they are the same vocabulary and a fourth level
+ *  would have to reach both. Re-exported under the closing name the DB column and
+ *  the chips already use. */
+export type ChoiceTone = AnswerPolarity;
 
-export const CHOICE_TONES: readonly ChoiceTone[] = [
-  'positive',
-  'neutral',
-  'negative',
-];
+export const CHOICE_TONES = ANSWER_POLARITIES;
 
-export function isChoiceTone(v: string): v is ChoiceTone {
-  return (CHOICE_TONES as readonly string[]).includes(v);
-}
+export const isChoiceTone = isAnswerPolarity;
 
 /** Domain-identity glyph for the tech-domain questions, mapped to a Lucide icon
  *  in the flow (token → component, the same indirection as the verdict's tone
@@ -368,6 +374,29 @@ export const CLOSING_RECOMMENDATION_DISPLAY_ORDER: readonly ClosingRecommendatio
 export function isClosingRecommendation(v: string): v is ClosingRecommendation {
   return v in CLOSING_RECOMMENDATIONS;
 }
+
+/**
+ * The verdicts that count as favourable, DERIVED from the display order rather
+ * than listed.
+ *
+ * The order already carries the meaning - it runs "100 % compatible" to "Pas
+ * intéressé" and the flow's faces run laugh to frown along it - so naming the
+ * favourable two here would be a second decision about what good means, drifting
+ * from the first the day a level is added. `optionPolarity` is the rule the
+ * feedback scales already read, and on these four it yields exactly
+ * `tres_compatible` and `bon_profil`.
+ *
+ * It exists because the figure was being computed downstream: handed the four
+ * shares, a consumer adds the first two to say "63 % de profils compatibles ou à
+ * suivre", which is the sentence a director actually speaks. Any proportion a
+ * human asks for is a figure this platform returns.
+ */
+export const CLOSING_FAVOURABLE_RECOMMENDATIONS: readonly ClosingRecommendation[] =
+  CLOSING_RECOMMENDATION_DISPLAY_ORDER.filter(
+    (_, index) =>
+      optionPolarity(index, CLOSING_RECOMMENDATION_DISPLAY_ORDER.length) ===
+      'positive',
+  );
 
 // ─── List status (à faire / en cours / finalisé) ───
 

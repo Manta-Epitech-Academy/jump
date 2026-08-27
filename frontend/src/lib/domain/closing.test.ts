@@ -4,6 +4,8 @@ import {
   gridQuestions,
   testimonialQuestion,
   CLOSING_NOTE_LIMIT,
+  CLOSING_FAVOURABLE_RECOMMENDATIONS,
+  CLOSING_RECOMMENDATION_DISPLAY_ORDER,
   type StoredClosingTemplate,
 } from './closing';
 import { closingAnswersIssues } from '$lib/validation/closings';
@@ -285,5 +287,22 @@ describe('closingAnswersIssues', () => {
       grid,
     );
     expect(issues[0].message).toContain("n'attend pas de note");
+  });
+});
+
+describe('CLOSING_FAVOURABLE_RECOMMENDATIONS', () => {
+  // Derived from the display order, so this pins the derivation rather than the
+  // list: the point is that nobody has to decide twice what a good verdict is.
+  it('is the two most compatible verdicts, in display order', () => {
+    expect(CLOSING_FAVOURABLE_RECOMMENDATIONS).toEqual([
+      'tres_compatible',
+      'bon_profil',
+    ]);
+  });
+
+  it('takes them from the front of the display order', () => {
+    expect(CLOSING_RECOMMENDATION_DISPLAY_ORDER.slice(0, 2)).toEqual([
+      ...CLOSING_FAVOURABLE_RECOMMENDATIONS,
+    ]);
   });
 });
