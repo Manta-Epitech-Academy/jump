@@ -6,7 +6,10 @@ import { CLOSING_QUESTION_KEYS } from '$lib/domain/closing';
 import { resolveClosingGridById } from '$lib/server/closingTemplates';
 import { persistClosing } from '$lib/server/services/closingService';
 import { anonymizeTalent } from '$lib/server/services/anonymizationService';
-import { writeClosingQuestion } from '$lib/server/adminApi/writes/closings';
+import {
+  writeClosingQuestion,
+  writeClosingTemplate,
+} from '$lib/server/adminApi/writes/closings';
 import { OperationRefusedError } from '$lib/server/adminApi/errors';
 import { getTalentJourney } from '$lib/server/services/talentJourneyService';
 
@@ -357,6 +360,87 @@ describe('a second grid over the same bank', () => {
       where: { templateId: second.id },
     });
     await prisma.closing_Template.delete({ where: { id: second.id } });
+  });
+});
+
+/**
+ * Composing a grid is the one write that replaces a whole composition, and
+ * nothing used to check what it was replacing. Two authors working an hour apart
+ * on the same grid is not hypothetical: it happened on the recette database, and
+ * the second write would have carried a seven-minute-old read back over the
+ * first with only the audit row to say so.
+ */
+describe('composing a grid under the two-step contract', () => {
+  const key = `twostep-${stamp}`;
+  const compose = (title: string, digest?: string) =>
+    writeClosingTemplate({
+      templateKey: key,
+      label: 'Grille à deux temps',
+      sections: [
+        {
+          title,
+          questions: [{ questionKey: `lifecycle-choice-${stamp}` }],
+        },
+      ],
+      planDigest: digest,
+    });
+
+  afterAll(async () => {
+    await prisma.closing_TemplateQuestion.deleteMany({
+      where: { template: { key } },
+    });
+    await prisma.closing_TemplateSection.deleteMany({
+      where: { template: { key } },
+    });
+    await prisma.closing_Template.deleteMany({ where: { key } });
+  });
+
+  it('writes nothing on a dry run, and shows what it would replace', async () => {
+    const outcome = await compose('Retour');
+
+    expect(outcome.applied).toBe(false);
+    if (outcome.applied) return;
+    expect(outcome.planDigest).toMatch(/^[0-9a-f]{16}$/);
+    // A grid that does not exist yet replaces nothing, and the plan says so
+    // rather than inventing an empty composition.
+    expect((outcome.plan as { replaces: unknown }).replaces).toBeNull();
+    await expect(
+      prisma.closing_Template.findUnique({ where: { key } }),
+    ).resolves.toBeNull();
+  });
+
+  it('applies with the digest the dry run returned', async () => {
+    const dry = await compose('Retour');
+    if (dry.applied) throw new Error('expected a dry run');
+
+    const applied = await compose('Retour', dry.planDigest);
+
+    expect(applied.applied).toBe(true);
+    const stored = await prisma.closing_Template.findUnique({
+      where: { key },
+      select: { sections: { select: { title: true } } },
+    });
+    expect(stored?.sections.map((s) => s.title)).toEqual(['Retour']);
+  });
+
+  it('refuses a digest taken before somebody else recomposed the grid', async () => {
+    const dry = await compose('Retour');
+    if (dry.applied) throw new Error('expected a dry run');
+
+    // The other author, between the two calls.
+    const theirs = await compose('Leur section');
+    if (theirs.applied) throw new Error('expected a dry run');
+    await compose('Leur section', theirs.planDigest);
+
+    await expect(compose('Retour', dry.planDigest)).rejects.toThrow(
+      /empreinte/,
+    );
+    const stored = await prisma.closing_Template.findUnique({
+      where: { key },
+      select: { sections: { select: { title: true } } },
+    });
+    // Theirs stands: the stale write is refused, never merged or overwritten.
+    expect(stored?.sections.map((s) => s.title)).toEqual(['Leur section']);
   });
 });
 

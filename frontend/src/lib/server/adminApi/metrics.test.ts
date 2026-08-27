@@ -209,4 +209,20 @@ describe('rankAxisNote', () => {
     expect(event).toContain('Les événements dont la valeur');
     expect(event).toContain('Deux événements à égalité');
   });
+
+  /**
+   * The article and the participle are assembled, so they have to agree with a
+   * noun the caller chooses. `grid` is the first feminine unit, which is what
+   * exposed it: the sentence went out as « Un grille par ligne, … sont placés »,
+   * verbatim, to the reader this tier is quoted to. Caught by nothing else - the
+   * two masculine units read correctly whatever the code does.
+   */
+  it('agrees the article and the participle with a feminine unit', () => {
+    const grid = rankAxisNote(RANK_UNITS.grid);
+    expect(grid).toContain('Une grille par ligne');
+    expect(grid).toContain('sont placées en fin de liste');
+    expect(grid).toContain('Deux grilles à égalité');
+    expect(grid).not.toContain('Un grille');
+    expect(grid).not.toContain('placés');
+  });
 });

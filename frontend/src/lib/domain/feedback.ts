@@ -60,34 +60,3 @@ export function pendingFeedbackForm(
   const pending = nudgeForms.find((f) => !existingFormIds.includes(f.id));
   return pending ? { formId: pending.slug } : null;
 }
-
-/**
- * How favourable one answer of an ordered scale is.
- *
- * The order of a question's options is its meaning: a `scale` is authored best
- * first, which is the contract the respondent-facing renderer already relies on
- * ("Index 0 = best" in `components/feedback/scale.ts`) and which the editor shows
- * by numbering them. Nothing stores a score per option, and nothing needs to -
- * position already says it.
- *
- * Here rather than in the one screen that first needed it, because the moment a
- * figure is computed from it (a favourable share, a ranking between campuses) two
- * places decide what "good" means, and they drift. Thresholds are the ones the dev
- * feedback roster has been using: for the four options of the stage bilan this
- * reads positive / positive / neutral / negative.
- *
- * `index` is the position among the question's `choice` options only, in authored
- * order. An `extra` option is a legitimate answer off the scale (the escape hatch
- * beside it), so it has no place on the scale and no polarity.
- */
-export type OptionPolarity = 'positive' | 'neutral' | 'negative';
-
-export function optionPolarity(index: number, total: number): OptionPolarity {
-  // A one-option scale has no spread to read: calling its single answer positive
-  // would invent a verdict the question never offered.
-  if (total <= 1) return 'neutral';
-  const ratio = index / (total - 1);
-  if (ratio <= 0.34) return 'positive';
-  if (ratio >= 0.75) return 'negative';
-  return 'neutral';
-}

@@ -83,6 +83,7 @@ describe('no read operation leaks a talent identity (integration)', () => {
     eventId: '',
     formId: '',
     questionKey: 'satisfaction',
+    closingQuestionKey: '',
     schoolYear: '',
     closingId: '',
   };
@@ -207,6 +208,7 @@ describe('no read operation leaks a talent identity (integration)', () => {
         max: 5,
       },
     });
+    seeded.closingQuestionKey = rating.key;
     await prisma.closing_TemplateQuestion.createMany({
       data: [
         {
@@ -386,6 +388,7 @@ function requiredArgsFor(
     eventId: string;
     formId: string;
     questionKey: string;
+    closingQuestionKey: string;
     schoolYear: string;
   },
 ): Record<string, unknown> {
@@ -407,6 +410,12 @@ function requiredArgsFor(
         question: seeded.questionKey,
         groupBy: 'campus',
       };
+    // Grouped by grid, the axis this operation has and the feedback one does
+    // not: it is also the branch that labels a row with something read out of
+    // the database rather than with a campus name, which is where a leak would
+    // show up first.
+    case 'stats_closing_question':
+      return { questionKey: seeded.closingQuestionKey, groupBy: 'grid' };
     case 'stats_school_year_review':
       return { schoolYear: seeded.schoolYear };
     case 'stats_campus_comparison':

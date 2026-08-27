@@ -6,7 +6,7 @@
   import { Button } from '$lib/components/ui/button';
   import { formatGivenName } from '$lib/domain/profile';
   import { cohortNounForms } from '$lib/domain/event';
-  import { optionPolarity, type OptionPolarity } from '$lib/domain/feedback';
+  import { optionPolarity, type AnswerPolarity } from '$lib/domain/polarity';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
@@ -67,14 +67,14 @@
   // The thresholds live in the domain, shared with the figure the curated API
   // computes from the same ordering: two places deciding what "good" means is two
   // places that drift.
-  function recoTier(label: string | null): OptionPolarity | null {
+  function recoTier(label: string | null): AnswerPolarity | null {
     if (!label) return null;
     const idx = recoOptions.indexOf(label);
     if (idx < 0) return null;
     return optionPolarity(idx, recoOptions.length);
   }
 
-  const recoBadgeClass: Record<OptionPolarity, string> = {
+  const recoBadgeClass: Record<AnswerPolarity, string> = {
     positive: 'bg-success/10 text-success',
     neutral: 'bg-warning/10 text-warning',
     negative: 'bg-destructive/10 text-destructive',

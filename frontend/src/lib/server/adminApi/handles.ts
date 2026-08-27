@@ -111,6 +111,11 @@ export const HANDLES: Record<HandleKind, Handle> = {
         covers:
           'only when grouped by event, and only events that answered the question asked about',
       },
+      {
+        operation: 'stats_closing_question',
+        covers:
+          'only when grouped by event, and only events whose grid asks the question asked about',
+      },
     ],
   },
   formId: {
@@ -194,7 +199,20 @@ export const HANDLES: Record<HandleKind, Handle> = {
     what: 'Closing question key, the stable name a bank question is authored under.',
     frNoun: 'clés de question de closing',
     frGender: 'f',
-    producedBy: [{ operation: 'config_closing_questions' }],
+    producedBy: [
+      { operation: 'config_closing_questions' },
+      // The leadership tier's own producer, and the reason this is a list. The
+      // configuration read above is core-only, so a leadership token asked for a
+      // question key had nowhere to get one: the parameter would have sat in its
+      // tool list refusing every value it could have invented. Its slice is
+      // narrower than the catalogue's, and saying so is the whole point of
+      // `covers`.
+      {
+        operation: 'stats_closing_insights',
+        covers:
+          'only the questions the grids in scope actually ask, and never one answered in free text',
+      },
+    ],
   },
   closingId: {
     what: 'Closing id.',
@@ -209,10 +227,22 @@ export const HANDLES: Record<HandleKind, Handle> = {
   },
 };
 
-/** Which parameter name carries which handle. The guard checks this is complete. */
+/**
+ * Which parameter name carries which handle. The guard checks this is complete.
+ *
+ * One entry per NAME, catalogue-wide, which is a constraint on the catalogue and
+ * not only on this map: two operations may not spell two different things the
+ * same way. That is why the closing bank's key is `questionKey` wherever it is
+ * taken and `question` is the feedback form's - spelling both `question` did not
+ * fail here, it silently told `meta_operations` that `stats_closing_question`
+ * needed a value only `stats_feedback_results` hands out. `describeMismatches`
+ * in `handles.test.ts` is what now refuses that, by comparing each parameter's
+ * own `describe()` against the handle this map claims for it.
+ */
 export const PARAM_HANDLES: Record<string, HandleKind> = {
   eventId: 'eventId',
   formId: 'formId',
+  // The feedback form's question key. The closing bank's is `questionKey`, below.
   question: 'questionKey',
   templateName: 'templateName',
   // `write_event_template` spells it `name`: the same preset name, which the
@@ -231,6 +261,8 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   // same configuration read, which returns a grid's id and its key together.
   closingTemplateId: 'closingTemplateId',
   templateKey: 'closingTemplateKey',
+  // Every closing operation that takes a bank key spells it this way, reads and
+  // writes alike, precisely because `question` is taken. See the note above.
   questionKey: 'closingQuestionKey',
   closingId: 'closingId',
 };

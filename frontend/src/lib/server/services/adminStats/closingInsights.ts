@@ -22,14 +22,16 @@
 
 import { prisma } from '$lib/server/db';
 import {
+  CLOSING_FAVOURABLE_RECOMMENDATIONS,
   CLOSING_RECOMMENDATIONS,
   CLOSING_RECOMMENDATION_DISPLAY_ORDER,
   CLOSING_STATUS_LABELS,
   VERDICT_SECTION,
 } from '$lib/domain/closing';
+import { adminEventRunsClosings } from '$lib/server/services/events';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
-import { participationWhere, scopeLabels } from './cohort';
+import { participationWhere, scopedEvents, scopeLabels } from './cohort';
 
 /**
  * Structured answers only: the options picked and the rating given. `freeText`
@@ -41,6 +43,36 @@ const ANSWER_SELECT = {
   questionId: true,
   selectedOptions: { select: { optionId: true } },
 } as const;
+
+/**
+ * What the coverage rate counts, owned here and imported by the campus
+ * comparison rather than retyped.
+ *
+ * The clause about which events count is the load-bearing half, and it is the
+ * one this figure did not have. The denominator was every visible enrolment in
+ * scope, so the 270 events that run no closing at all sat in it: the national
+ * rate read 18 % where the honest figure is 78 %, and a director was told his
+ * teams were not conducting closings when what he actually had was a
+ * configuration gap. The definition already claimed the narrow reading
+ * (« susceptibles de donner lieu à un closing »), which is what made the
+ * figure quotable and wrong at the same time.
+ */
+export const CLOSING_COVERAGE_RULE =
+  "Part des inscriptions susceptibles de donner lieu à un closing qui en ont effectivement donné un, en pourcentage. Ne comptent que les événements qui mènent réellement des closings, c'est-à-dire dont la section Closings est activée ET qui nomment une grille : un événement sans grille ne fait baisser aucun taux, il relève de la configuration et se lit sur « eventsRunningClosings ».";
+
+/**
+ * What the favourable-verdict share counts, owned here and imported by the campus
+ * comparison.
+ *
+ * The names of the two levels are interpolated rather than typed out, so the
+ * sentence follows `CLOSING_FAVOURABLE_RECOMMENDATIONS` if the scale ever gains a
+ * level instead of quietly describing the old one.
+ */
+export const FAVOURABLE_VERDICT_RULE = `Part des closings dont l'avis d'équipe est favorable, en pourcentage. Sont favorables les deux avis les plus compatibles, « ${CLOSING_FAVOURABLE_RECOMMENDATIONS.map(
+  (r) => CLOSING_RECOMMENDATIONS[r].label,
+).join(
+  ' » et « ',
+)} ». Calculée sur les seuls closings où l'avis a été renseigné, comme les parts de la répartition détaillée.`;
 
 export type AnswerCount = {
   value: string;
@@ -72,28 +104,46 @@ export type QuestionInsight = {
 
 export type ClosingInsights = {
   filters: { schoolYear: string; campus: string; event: string };
+  events: Metric;
+  eventsRunningClosings: Metric;
+  eventsRunningClosingsShare: Metric<number | null>;
   enrolments: Metric;
+  enrolmentsConcerned: Metric;
   closings: Metric;
   finalised: Metric;
   coverage: Metric<number | null>;
   byStatus: Metric<AnswerCount[]>;
   recommendation: Metric<AnswerCount[]>;
+  favourableVerdictShare: Metric<number | null>;
   questions: Metric<QuestionInsight[]>;
 };
 
 export async function getClosingInsights(
   scope: Scope = {},
 ): Promise<ClosingInsights> {
-  const enrolmentWhere = await participationWhere(scope);
+  const [{ events }, enrolmentWhere] = await Promise.all([
+    scopedEvents(scope),
+    participationWhere(scope),
+  ]);
 
-  const [enrolments, rows] = await Promise.all([
+  // The events that actually conduct closings, read off the same rule the dev
+  // sidebar uses to decide whether to offer the page at all.
+  const concernedIds = new Set(
+    events.filter(adminEventRunsClosings).map((e) => e.id),
+  );
+
+  const [enrolments, enrolmentsConcerned, rows] = await Promise.all([
     prisma.participation.count({ where: enrolmentWhere }),
+    prisma.participation.count({
+      where: { AND: [enrolmentWhere, { eventId: { in: [...concernedIds] } }] },
+    }),
     prisma.closing_Record.findMany({
       where: { participation: enrolmentWhere },
       select: {
         status: true,
         recommendation: true,
         templateId: true,
+        participation: { select: { eventId: true } },
         answers: { select: ANSWER_SELECT },
       },
     }),
@@ -101,14 +151,38 @@ export async function getClosingInsights(
 
   const finalised = rows.filter((r) => r.status === 'done').length;
   const inProgress = rows.length - finalised;
+  // Numerator of the coverage rate: closings on the events the denominator is
+  // taken over. Kept separate from `rows.length` rather than assumed equal,
+  // because an event whose grid was removed afterwards keeps its closings and
+  // would otherwise push the rate past 100 %.
+  const closingsConcerned = rows.filter((r) =>
+    concernedIds.has(r.participation.eventId),
+  ).length;
+  const todo = Math.max(enrolmentsConcerned - closingsConcerned, 0);
 
   const questions = await questionInsights(rows);
 
   return {
     filters: scopeLabels(scope),
+    events: metric(
+      events.length,
+      'Événements du périmètre, quelle que soit leur configuration.',
+    ),
+    eventsRunningClosings: metric(
+      concernedIds.size,
+      "Événements du périmètre qui mènent réellement des closings : leur section Closings est activée ET ils nomment une grille. Plus strict que le décompte par section de stats_events_overview, où un événement dont la grille n'est pas choisie compte quand même.",
+    ),
+    eventsRunningClosingsShare: metric(
+      share(concernedIds.size, events.length),
+      "Part des événements du périmètre qui mènent des closings, en pourcentage. Ce qui manque à 100 % est un défaut de configuration et non de conduite : les inscriptions de ces événements n'entrent pas dans le taux de couverture.",
+    ),
     enrolments: metric(
       enrolments,
-      'Inscriptions du périmètre susceptibles de donner lieu à un closing. Sert de dénominateur au taux de couverture.',
+      "Inscriptions visibles du périmètre, tous événements confondus. Ce n'est PAS le dénominateur du taux de couverture : la plupart portent sur des événements qui ne mènent aucun closing.",
+    ),
+    enrolmentsConcerned: metric(
+      enrolmentsConcerned,
+      'Inscriptions du périmètre portant sur un événement qui mène des closings. Dénominateur du taux de couverture.',
     ),
     closings: metric(
       rows.length,
@@ -119,8 +193,8 @@ export async function getClosingInsights(
       'Closings clôturés par la personne qui les a menés. Un closing clôturé ne peut plus être modifié.',
     ),
     coverage: metric(
-      share(rows.length, enrolments),
-      "Part des inscriptions du périmètre ayant donné lieu à un closing, en pourcentage. Plus elle est basse, moins les réponses ci-dessous représentent l'ensemble de la cohorte.",
+      share(closingsConcerned, enrolmentsConcerned),
+      `${CLOSING_COVERAGE_RULE} Numérateur et dénominateur portent ici sur les mêmes événements, donc une grille retirée après coup ne peut pas faire dépasser 100 %. Plus ce taux est bas, moins les réponses ci-dessous représentent la cohorte de ces événements.`,
     ),
     byStatus: metric(
       [
@@ -139,15 +213,19 @@ export async function getClosingInsights(
         {
           value: 'todo',
           label: CLOSING_STATUS_LABELS.todo,
-          count: Math.max(enrolments - rows.length, 0),
-          share: share(Math.max(enrolments - rows.length, 0), enrolments),
+          count: todo,
+          share: share(todo, enrolmentsConcerned),
         },
       ],
-      "État d'avancement des closings sur le périmètre. « À faire » compte les inscriptions sans closing ouvert ; sa part est calculée sur les inscriptions, celle des deux autres sur les closings ouverts.",
+      "État d'avancement des closings sur le périmètre. « À faire » compte les inscriptions sans closing ouvert sur les seuls événements qui mènent des closings, la même base que le taux de couverture ; sa part est calculée sur ces inscriptions, celle des deux autres sur les closings ouverts.",
     ),
     recommendation: metric(
       countRecommendations(rows),
       `« ${VERDICT_SECTION.title} » : l'avis que l'équipe a porté après le closing, du profil le plus au moins compatible. C'est un jugement d'équipe, pas une réponse de l'élève, et il n'est jamais montré au talent. Les pourcentages portent sur les closings où l'avis a été renseigné.`,
+    ),
+    favourableVerdictShare: metric(
+      favourableVerdictShare(rows),
+      FAVOURABLE_VERDICT_RULE,
     ),
     questions: metric(
       questions,
@@ -166,6 +244,23 @@ type RecordRow = {
     selectedOptions: { optionId: string }[];
   }[];
 };
+
+/**
+ * The two most compatible verdicts as one share.
+ *
+ * Beside {@link countRecommendations} rather than derived from its output: both
+ * read the same rows and the same base (verdicts actually given), so a reader
+ * comparing the detailed split with this figure cannot find them disagreeing.
+ */
+function favourableVerdictShare(rows: RecordRow[]): number | null {
+  const given = rows.filter((r) => r.recommendation != null);
+  const favourable = given.filter((r) =>
+    (CLOSING_FAVOURABLE_RECOMMENDATIONS as readonly string[]).includes(
+      r.recommendation as string,
+    ),
+  );
+  return share(favourable.length, given.length);
+}
 
 function countRecommendations(rows: RecordRow[]): AnswerCount[] {
   const given = rows

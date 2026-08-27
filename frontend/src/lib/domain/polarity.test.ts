@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { optionPolarity } from './feedback';
+import { optionPolarity } from './polarity';
 
 describe('optionPolarity', () => {
   // The stage bilan's shape, and what the dev roster has always shown.

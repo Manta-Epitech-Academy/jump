@@ -183,16 +183,28 @@ export function rank<Row>(
  * unit is part of the sentence, and a second ranking over events would otherwise
  * either say "campus" or reword the whole rule. Same reasoning as
  * `cohortNounForms` in `domain/event.ts`.
+ *
+ * The gender is part of those forms, not an extra: the sentence is assembled
+ * around an article and a participle, so a unit that does not carry it inherits
+ * the masculine by default and the definition goes out as « Un grille par ligne,
+ * … sont placés ». Nothing catches that - it is only read, in French, by the
+ * director this tier exists to be quoted to. Same field, and the same reason, as
+ * `frGender` on a handle in `adminApi/handles.ts`.
  */
 export function rankAxisNote(unit: {
   singular: string;
   plural: string;
+  gender: 'm' | 'f';
 }): string {
-  return `Un ${unit.singular} par ligne, du plus au moins élevé, « rank » étant sa position. Les ${unit.plural} dont la valeur ne peut pas être calculée valent null, sont placés en fin de liste et n'ont pas de rang : ce n'est pas un mauvais résultat, c'est une absence de mesure. Deux ${unit.plural} à égalité partagent le même rang.`;
+  const feminine = unit.gender === 'f';
+  const one = feminine ? 'Une' : 'Un';
+  const placed = feminine ? 'placées' : 'placés';
+  return `${one} ${unit.singular} par ligne, du plus au moins élevé, « rank » étant sa position. Les ${unit.plural} dont la valeur ne peut pas être calculée valent null, sont ${placed} en fin de liste et n'ont pas de rang : ce n'est pas un mauvais résultat, c'est une absence de mesure. Deux ${unit.plural} à égalité partagent le même rang.`;
 }
 
 /** The French forms of the units this tier ranks over, so a noun is typed once. */
 export const RANK_UNITS = {
-  campus: { singular: 'campus', plural: 'campus' },
-  event: { singular: 'événement', plural: 'événements' },
+  campus: { singular: 'campus', plural: 'campus', gender: 'm' },
+  event: { singular: 'événement', plural: 'événements', gender: 'm' },
+  grid: { singular: 'grille', plural: 'grilles', gender: 'f' },
 } as const;

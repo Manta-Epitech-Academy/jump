@@ -28,6 +28,8 @@
  */
 
 import { prisma } from '$lib/server/db';
+import { CLOSING_FAVOURABLE_RECOMMENDATIONS } from '$lib/domain/closing';
+import { adminEventRunsClosings } from '$lib/server/services/events';
 import {
   pastEventPresence,
   VISIBLE_PARTICIPATION_DEFINITION,
@@ -54,6 +56,10 @@ import {
 } from './cohortProfile';
 import { isOnboardingEligible } from '$lib/domain/niveau';
 import { SHOW_UP_RATE_RULE } from './attendanceRate';
+import {
+  CLOSING_COVERAGE_RULE,
+  FAVOURABLE_VERDICT_RULE,
+} from './closingInsights';
 import { DISTINCT_SCHOOLS_RULE } from './schoolsReach';
 import { RETURNING_SHARE_RULE } from './talentRetention';
 
@@ -70,6 +76,8 @@ export type CampusComparison = {
     showUpRate: Metric<CampusFigure[]>;
     schools: Metric<CampusFigure[]>;
     returningShare: Metric<CampusFigure[]>;
+    closingCoverage: Metric<CampusFigure[]>;
+    favourableVerdictShare: Metric<CampusFigure[]>;
   };
 };
 
@@ -84,6 +92,16 @@ type Tally = {
   present: number;
   /** Enrolments whose Salesforce status concludes on attendance. */
   conclusive: number;
+  /** Enrolments on the campus's events that actually conduct closings: the
+   *  coverage denominator, never the campus's whole cohort. */
+  closingEnrolments: number;
+  /** Closings opened on those same events, so the rate cannot exceed 100 %. */
+  closings: number;
+  /** Closings where the team recorded a verdict, and the favourable half of
+   *  them. Separate from `closings`: an open closing has no verdict yet, and
+   *  reading the share against every closing would call that unfavourable. */
+  verdicts: number;
+  favourableVerdicts: number;
 };
 
 const emptyTally = (): Tally => ({
@@ -91,6 +109,10 @@ const emptyTally = (): Tally => ({
   enrolments: new Map(),
   present: 0,
   conclusive: 0,
+  closingEnrolments: 0,
+  closings: 0,
+  verdicts: 0,
+  favourableVerdicts: 0,
 });
 
 export async function getCampusComparison(
@@ -102,10 +124,17 @@ export async function getCampusComparison(
   const pastEventIds = new Set(
     events.filter((e) => e.status === 'past').map((e) => e.id),
   );
+  // The events that actually conduct closings, off the same rule the dev sidebar
+  // gates the surface on. Enrolments elsewhere belong to no closing rate: an
+  // event with no grid is a configuration fact, not a campus that fell behind.
+  const closingEventIds = new Set(
+    events.filter(adminEventRunsClosings).map((e) => e.id),
+  );
 
-  const [enrolments, talents, completedRows] = await Promise.all([
+  const enrolmentWhere = await participationWhere(scope);
+  const [enrolments, talents, completedRows, closings] = await Promise.all([
     prisma.participation.findMany({
-      where: await participationWhere(scope),
+      where: enrolmentWhere,
       select: { talentId: true, eventId: true, sfMemberStatus: true },
     }),
     prisma.talent.findMany({
@@ -117,6 +146,13 @@ export async function getCampusComparison(
         AND: [await cohortWhere(scope), onboardingCompleteWhere(scope)],
       },
       select: { id: true },
+    }),
+    prisma.closing_Record.findMany({
+      where: { participation: enrolmentWhere },
+      select: {
+        recommendation: true,
+        participation: { select: { eventId: true } },
+      },
     }),
   ]);
 
@@ -142,9 +178,13 @@ export async function getCampusComparison(
       (tally.enrolments.get(row.talentId) ?? 0) + 1,
     );
 
-    // Presence is only a question on an event that has happened, and only for a
-    // status that concludes something - the same two exclusions `attendanceRate`
-    // makes, read off the same domain rule.
+    // The coverage denominator, which is a question on every enrolment: an event
+    // that runs closings owes one per inscription whether it has happened or not.
+    if (closingEventIds.has(row.eventId)) tally.closingEnrolments += 1;
+
+    // Presence, by contrast, is only a question on an event that has happened,
+    // and only for a status that concludes something - the same two exclusions
+    // `attendanceRate` makes, read off the same domain rule.
     if (!pastEventIds.has(row.eventId)) continue;
     const presence = pastEventPresence(row.sfMemberStatus);
     if (presence === 'present') {
@@ -153,6 +193,18 @@ export async function getCampusComparison(
     } else if (presence === 'absent') {
       tally.conclusive += 1;
     }
+  }
+
+  const favourable = new Set<string>(CLOSING_FAVOURABLE_RECOMMENDATIONS);
+  for (const row of closings) {
+    const eventId = row.participation.eventId;
+    if (!closingEventIds.has(eventId)) continue;
+    const tally = tallies.get(campusOf.get(eventId) ?? '');
+    if (!tally) continue;
+    tally.closings += 1;
+    if (row.recommendation == null) continue;
+    tally.verdicts += 1;
+    if (favourable.has(row.recommendation)) tally.favourableVerdicts += 1;
   }
 
   const figure = (pick: (tally: Tally) => number | null): CampusFigure[] =>
@@ -228,6 +280,14 @@ export async function getCampusComparison(
           return share(returning, cohortSize(t));
         }),
         `${RETURNING_SHARE_RULE} Comptée ici sur les événements du campus : un talent revenu sur un autre campus ne compte pas comme revenu ici. ${AXIS_NOTE}`,
+      ),
+      closingCoverage: metric(
+        figure((t) => share(t.closings, t.closingEnrolments)),
+        `${CLOSING_COVERAGE_RULE} Portée ici sur les événements du campus ; vaut null quand aucun de ses événements ne mène de closing, ce qui est une absence de configuration et non un campus à zéro. ${AXIS_NOTE}`,
+      ),
+      favourableVerdictShare: metric(
+        figure((t) => share(t.favourableVerdicts, t.verdicts)),
+        `${FAVOURABLE_VERDICT_RULE} Portée ici sur les closings du campus ; vaut null quand aucun avis n'y a été rendu. Un campus sans closing n'est donc pas un campus sans profil compatible : c'est un campus sur lequel personne n'a été jugé. ${AXIS_NOTE}`,
       ),
     },
   };

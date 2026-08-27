@@ -108,6 +108,10 @@ import {
 import { getTalentRetention } from '$lib/server/services/adminStats/talentRetention';
 import { getClosingInsights } from '$lib/server/services/adminStats/closingInsights';
 import {
+  getClosingQuestion,
+  CLOSING_QUESTION_GROUPS_LIMIT,
+} from '$lib/server/services/adminStats/closingQuestion';
+import {
   getClosingQuestions,
   getClosingTemplates,
 } from '$lib/server/services/adminStats/closingConfiguration';
@@ -528,7 +532,7 @@ export const ADMIN_API_OPERATIONS = {
   stats_campus_comparison: defineOperation({
     leadership: true,
     description:
-      'The same figure across every campus, already ranked: cohort size, share of women, completed sign-ups, real show-up rate, how many high schools each one reaches, and whether talents came back. One ranking per figure, sorted highest first, so nothing has to be ordered or divided afterwards. The school year is required and no campus filter exists: this operation IS the cross-campus view, narrow it and you get one row.',
+      'The same figure across every campus, already ranked: cohort size, share of women, completed sign-ups, real show-up rate, how many high schools each one reaches, whether talents came back, how much of the closing work is done, and the share of profiles the team judged favourably. One ranking per figure, sorted highest first, so nothing has to be ordered or divided afterwards. A campus the figure cannot be computed for is unranked rather than last - a campus that conducted no closing is not a campus without a compatible profile. The school year is required and no campus filter exists: this operation IS the cross-campus view, narrow it and you get one row.',
     shape: {
       schoolYear: requiredSchoolYear.describe(
         'School year, e.g. "2026-2027". Required: comparing campuses across every year folds the programme growth into the comparison.',
@@ -785,8 +789,9 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_closing_template: defineWrite({
+    twoStep: true,
     description:
-      'Create or replace a closing grid, identified by its key: which bank questions it asks, in which sections, in what order. Refused if it names a question that does not exist or has been retired, asks the same one twice, marks more than one as quotable, or asks nothing at all. Composing a grid never touches an answer already recorded. Safe to repeat: the same key and the same composition leave one grid. Answers with the composition before and after.',
+      'Create or replace a closing grid, identified by its key: which bank questions it asks, in which sections, in what order. Call it WITHOUT planDigest first: it answers with the grid as it stands, the composition that would replace it, and a planDigest. Show that to the human, then call again with the digest to apply. The apply is refused if the grid has been recomposed in between, because a grid is replaced whole and the other edit would be lost without a trace. Refused too if it names a question that does not exist or has been retired, asks the same one twice, marks more than one as quotable, or asks nothing at all. Composing a grid never touches an answer already recorded. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world. Answers with the composition before and after.',
     shape: {
       templateKey: z
         .string()
@@ -838,6 +843,10 @@ export const ADMIN_API_OPERATIONS = {
           }),
         )
         .describe('The whole composition, replacing the current one.'),
+      planDigest: z
+        .string()
+        .optional()
+        .describe('Digest returned by the dry run. Omit to get a dry run.'),
     },
     run: (params) => writeClosingTemplate(params),
   }),
@@ -1071,7 +1080,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_schools_reach: defineOperation({
     leadership: true,
-    description: `Which high schools the platform reaches: how many distinct ones, how many départements they cover, the ${SCHOOLS_TOP_N} most represented with their share of the cohort, and how much of the cohort is attached to no identified school at all.`,
+    description: `Which high schools the platform reaches: how many distinct ones, how many départements they cover, the ${SCHOOLS_TOP_N} most represented with their share of the cohort, and how much of the cohort is attached to no identified school at all - split into the ones who named a school Jump could not match and the ones who named none, because those two are chased differently.`,
     shape: { schoolYear, campus, eventId },
     run: async (params) => getSchoolsReach(await resolveScope(params)),
   }),
@@ -1173,6 +1182,34 @@ export const ADMIN_API_OPERATIONS = {
       'What the closings say: how they heard about us, what motivates them, which school specialities and tech domains they are heading for, how satisfied they were, whether they want to come back, and the team verdict. One distribution per question, plus how much of the cohort had a closing at all. A périmètre can mix several grids: a question several of them ask is aggregated once, and each carries the number of closings that actually asked it. No free text, nobody named.',
     shape: { schoolYear, campus, eventId },
     run: async (params) => getClosingInsights(await resolveScope(params)),
+  }),
+
+  stats_closing_question: defineOperation({
+    leadership: true,
+    description: `One question of the closing bank, in full: every answer with a count and a share, how many closings actually asked it against how many answered, and - when its answers carry a declared order - the share of favourable ones. Pass groupBy to get the same figures per campus, per event or per grid, already ranked. Grouping by grid is how a stage and a Coding Club are compared on the same question: the bank holds it once, so both formats fall into one distribution and this is what splits it back apart. A question whose options carry no order comes back unranked rather than ordered on an invented best, and a free-text question is refused. Capped at ${CLOSING_QUESTION_GROUPS_LIMIT} groups.`,
+    shape: {
+      // `questionKey`, not `question`: the handle registry is keyed by parameter
+      // name across the whole catalogue, and `question` is already the feedback
+      // form's question key. Spelling this one the same way made
+      // `meta_operations` publish that this read needs a value produced by
+      // `stats_feedback_results`. It is also the name the closing writes already
+      // use for a bank key.
+      questionKey: z
+        .string()
+        .min(1)
+        .describe(handleDescribe('closingQuestionKey')),
+      groupBy: z
+        .enum(['campus', 'event', 'grid'])
+        .optional()
+        .describe(
+          'Break the figures down per campus, per event or per closing grid, ranked. Omit to answer for the whole périmètre at once.',
+        ),
+      schoolYear,
+      campus,
+      eventId,
+    },
+    run: async ({ questionKey, groupBy, ...scope }) =>
+      getClosingQuestion(await resolveScope(scope), { questionKey, groupBy }),
   }),
 
   stats_closing_testimonials: defineOperation({

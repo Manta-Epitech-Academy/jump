@@ -25,7 +25,7 @@
 
 import { prisma } from '$lib/server/db';
 import { eventDisplayName } from '$lib/domain/event';
-import { optionPolarity } from '$lib/domain/feedback';
+import { optionPolarity } from '$lib/domain/polarity';
 import { getFormGraphById } from '$lib/server/feedbackForms';
 import {
   buildSubmissionWhere,
