@@ -7,6 +7,7 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
   import { eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import BilanRoster from './components/BilanRoster.svelte';
@@ -67,35 +68,30 @@
   {#await data.cohort}
     <ResultsSkeleton />
   {:then cohort}
-    <!-- 70/30 split, matching the other validated stage_seconde dev pages
-         (inscrits, émargement): the roster is the working surface, the rail
-         carries the glanceable summary (taux de réponse + the recommendation
-         breakdown, the one chart that matters). `min-w-0` keeps the table from
-         blowing the grid past the viewport. The page is read-only (no poll, no
-         optimistic write), so a bare {#await} is the right pattern, like
-         inscrits/closings; no $state unwrap needed. -->
-    <div class="grid gap-6 xl:grid-cols-10">
-      <div class="min-w-0 xl:col-span-7">
+    <!-- The roster is the working surface, the rail carries the glanceable
+         summary (taux de réponse + the recommendation breakdown, the one chart
+         that matters). The page is read-only (no poll, no optimistic write), so
+         a bare {#await} is the right pattern, like inscrits/closings; no $state
+         unwrap needed. The rail holds a single card, hence no card grid. -->
+    <ResultsLayout>
+      {#snippet main()}
         <BilanRoster
           rows={cohort.rows}
           recoOptions={cohort.recoOptions}
           eventId={data.event.id}
           cohortNoun={data.event.cohortNoun}
         />
-      </div>
-      <aside class="min-w-0 xl:col-span-3">
-        <div
-          class="xl:sticky xl:top-6 xl:max-h-[calc(100dvh-6rem)] xl:overflow-y-auto xl:pr-1"
-        >
-          <StatsPanel
-            respondedCount={cohort.respondedCount}
-            total={cohort.total}
-            stats={cohort.stats}
-            cohortNoun={data.event.cohortNoun}
-          />
-        </div>
-      </aside>
-    </div>
+      {/snippet}
+
+      {#snippet rail()}
+        <StatsPanel
+          respondedCount={cohort.respondedCount}
+          total={cohort.total}
+          stats={cohort.stats}
+          cohortNoun={data.event.cohortNoun}
+        />
+      {/snippet}
+    </ResultsLayout>
   {:catch}
     <ResultsNotice
       title="Chargement impossible"

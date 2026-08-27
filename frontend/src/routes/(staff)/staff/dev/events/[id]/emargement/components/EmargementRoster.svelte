@@ -16,6 +16,7 @@
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
     ColumnDef,
@@ -303,8 +304,10 @@
       description={`Les ${noun.plural} apparaîtront ici une fois la synchronisation effectuée.`}
     />
   {:else}
-    <div class="grid gap-6 xl:grid-cols-10">
-      <div class="min-w-0 space-y-4 xl:col-span-7">
+    <ResultsLayout
+      railClass="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-1"
+    >
+      {#snippet main()}
         <DataTableToolbar
           searchValue={searchQuery}
           onSearchInput={(v) => (searchQuery = v)}
@@ -527,9 +530,9 @@
             </div>
           {/snippet}
         </SortableTable>
-      </div>
+      {/snippet}
 
-      <aside class="min-w-0 xl:col-span-3">
+      {#snippet rail()}
         {#if activeSlot}
           <!-- The active slot's open/close control, rendered into the SYNTHÈSE
                card footer so it sits with the Clôturé badge it toggles. Edit-only
@@ -637,21 +640,17 @@
 
           <!-- Same rail pattern as Inscrits: side by side below xl (the aside is
              full width there), folding to a sticky single column at xl. -->
-          <div
-            class="grid items-start gap-4 sm:grid-cols-2 xl:sticky xl:top-6 xl:max-h-[calc(100dvh-6rem)] xl:grid-cols-1 xl:overflow-y-auto xl:pr-1"
-          >
-            <SlotStatsCard
-              slotLabel={slotLabelFr(activeSlot.slot)}
-              stats={activeStats}
-              closed={isActiveClosed}
-              stageRate={attendanceRate}
-              footer={canEdit ? slotLifecycle : undefined}
-            />
-            <PresenceHelpCard {cohortNoun} />
-          </div>
+          <SlotStatsCard
+            slotLabel={slotLabelFr(activeSlot.slot)}
+            stats={activeStats}
+            closed={isActiveClosed}
+            stageRate={attendanceRate}
+            footer={canEdit ? slotLifecycle : undefined}
+          />
+          <PresenceHelpCard {cohortNoun} />
         {/if}
-      </aside>
-    </div>
+      {/snippet}
+    </ResultsLayout>
   {/if}
 </Tooltip.Provider>
 

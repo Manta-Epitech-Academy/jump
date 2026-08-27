@@ -18,6 +18,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
@@ -455,18 +456,10 @@
     description="Personne pour l'instant. Les inscrits apparaissent ici dès qu'ils sont marqués prêts dans Salesforce."
   />
 {:else}
-  <!-- Two-column (70/30) split is held back to `xl`: a 6-column roster plus
-       the overview rail simply doesn't fit side by side on a `lg` laptop once
-       the app sidebar + page padding are taken out, so below `xl` the table
-       takes the full width and the rail drops beneath it. -->
-  <div class="grid gap-6 xl:grid-cols-10">
-    <!-- Left 70% — the cohort table is the working surface. `min-w-0` is
-         load-bearing: as a grid item it defaults to `min-width: auto`, which
-         would refuse to shrink below the table's intrinsic (6-column) width
-         and blow the whole grid past the viewport. With `min-w-0` it shrinks
-         to the track; the table's own fixed layout then divides that track
-         among its columns rather than overflowing it. -->
-    <div class="min-w-0 space-y-4 xl:col-span-7">
+  <ResultsLayout
+    railClass="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1"
+  >
+    {#snippet main()}
       <DataTableToolbar
         searchValue={searchQuery}
         onSearchInput={(v) => (searchQuery = v)}
@@ -782,52 +775,42 @@
           {/snippet}
         </SortableTable>
       </Tooltip.Provider>
-    </div>
+    {/snippet}
 
-    <!-- Right 30% (xl+) — stage overview at a glance: the opening countdown
-         plus the origin breakdowns, which are the page's cohort filter
-         surface. At `xl` it's the sticky right column, with its own height cap
-         + overflow so the rail can outgrow the viewport and its bottom card
-         stays reachable (otherwise a pinned rail taller than the screen clips
-         its tail). -->
-    <!-- Content-first below `xl`: the search + list (the reason you open this
-         page) come first; this overview rail (countdown + breakdowns, the
-         glanceable secondary info) follows below, its cards laid side by side
-         so the full width reads as intentional rather than a stretched stack.
-         At `xl` the grid folds to one column → the sticky vertical rail. -->
-    <aside class="min-w-0 xl:col-span-3">
-      <div
-        class="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:sticky xl:top-6 xl:max-h-[calc(100dvh-6rem)] xl:grid-cols-1 xl:overflow-y-auto xl:pr-1"
-      >
-        <StageCountdownCard
-          status={countdown.status}
-          openDate={countdown.openDate}
-          endDate={countdown.endDate}
-          dayN={countdown.dayN}
-          totalDays={countdown.totalDays}
-          {timezone}
+    <!-- Content-first below `xl`: the search and the list (the reason you open
+         this page) come first; this overview rail (countdown + breakdowns, the
+         glanceable secondary info) follows below, its cards laid side by side so
+         the full width reads as intentional rather than a stretched stack. At
+         `xl` the grid folds to one column, giving the sticky vertical rail. -->
+    {#snippet rail()}
+      <StageCountdownCard
+        status={countdown.status}
+        openDate={countdown.openDate}
+        endDate={countdown.endDate}
+        dayN={countdown.dayN}
+        totalDays={countdown.totalDays}
+        {timezone}
+      />
+
+      {#if lyceesBreakdown.rows.length > 0}
+        <LyceesBreakdown
+          eventId={event.id}
+          breakdown={lyceesBreakdown}
+          itemNoun={[noun.singular, noun.plural]}
+          totalParticipations={cohort.total}
+          interaction="readonly"
         />
+      {/if}
 
-        {#if lyceesBreakdown.rows.length > 0}
-          <LyceesBreakdown
-            eventId={event.id}
-            breakdown={lyceesBreakdown}
-            itemNoun={[noun.singular, noun.plural]}
-            totalParticipations={cohort.total}
-            interaction="readonly"
-          />
-        {/if}
-
-        {#if interestsCloud.rows.length > 0}
-          <InterestsCloud
-            eventId={event.id}
-            breakdown={interestsCloud}
-            totalParticipations={cohort.total}
-            interaction="readonly"
-            title="Centres d’intérêt tech"
-          />
-        {/if}
-      </div>
-    </aside>
-  </div>
+      {#if interestsCloud.rows.length > 0}
+        <InterestsCloud
+          eventId={event.id}
+          breakdown={interestsCloud}
+          totalParticipations={cohort.total}
+          interaction="readonly"
+          title="Centres d’intérêt tech"
+        />
+      {/if}
+    {/snippet}
+  </ResultsLayout>
 {/if}

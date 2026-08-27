@@ -6,6 +6,7 @@
   import * as Table from '$lib/components/ui/table';
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
@@ -205,10 +206,10 @@
     description="Les closings apparaîtront ici dès que la cohorte de l'événement sera synchronisée."
   />
 {:else}
-  <div class="grid gap-6 xl:grid-cols-10">
-    <!-- Left 70%: the working list. `min-w-0` lets the fixed-layout table
-         shrink to its grid track instead of overflowing past the rail. -->
-    <div class="min-w-0 space-y-4 xl:col-span-7">
+  <ResultsLayout
+    railClass="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1"
+  >
+    {#snippet main()}
       <DataTableToolbar
         searchValue={searchQuery}
         onSearchInput={(v) => (searchQuery = v)}
@@ -322,18 +323,13 @@
           </div>
         {/snippet}
       </SortableTable>
-    </div>
+    {/snippet}
 
-    <!-- Right 30%: synthesis, the staff tally and the closing guide. Same
-         sticky-rail mechanics as Inscrits / Émargement. -->
-    <aside class="min-w-0 xl:col-span-3">
-      <div
-        class="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:sticky xl:top-6 xl:max-h-[calc(100dvh-6rem)] xl:grid-cols-1 xl:overflow-y-auto xl:pr-1"
-      >
-        <SynthesisCard {counts} {total} {recoCounts} />
-        <StaffTallyCard staff={topStaff} {currentStaffId} />
-        <GuideCard />
-      </div>
-    </aside>
-  </div>
+    <!-- Synthesis, the staff tally and the closing guide. -->
+    {#snippet rail()}
+      <SynthesisCard {counts} {total} {recoCounts} />
+      <StaffTallyCard staff={topStaff} {currentStaffId} />
+      <GuideCard />
+    {/snippet}
+  </ResultsLayout>
 {/if}
