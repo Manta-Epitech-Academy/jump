@@ -70,7 +70,9 @@ export type SchoolsReach = {
   withoutResolvedSchool: Metric;
   withoutResolvedSchoolShare: Metric<number | null>;
   schoolNamedButUnresolved: Metric;
+  schoolNamedButUnresolvedShare: Metric<number | null>;
   noSchoolDeclared: Metric;
+  noSchoolDeclaredShare: Metric<number | null>;
 };
 
 export async function getSchoolsReach(
@@ -100,6 +102,11 @@ export async function getSchoolsReach(
       },
     }),
   ]);
+
+  // The other half, by subtraction rather than a fourth count: the three figures
+  // have to add up exactly, and a separate query could disagree with them under a
+  // concurrent write.
+  const noSchoolDeclared = cohort - attributed - namedButUnresolved;
 
   const details = await schoolDetails(ranking);
   const breakdown = toBreakdown(ranking, SCHOOLS_TOP_N);
@@ -186,9 +193,22 @@ export async function getSchoolsReach(
       namedButUnresolved,
       "Première moitié du chiffre ci-dessus : talents ayant donné le nom de leur lycée, sans que Jump ait pu le rattacher à un établissement officiel par son code UAI. Ce sont des lycées à rapprocher de l'annuaire, pas des élèves à relancer.",
     ),
+    // Each half carries its own share, like the total above it does. The question
+    // that produced this split was asked in percentages ("56 % de la cohorte"),
+    // which is how it will be quoted; two counts and no proportion just move the
+    // division downstream, where the consumer picks its own denominator and its
+    // own wording for what the ratio means.
+    schoolNamedButUnresolvedShare: metric(
+      share(namedButUnresolved, cohort),
+      "Part de la cohorte dont le lycée est saisi à la main sans code UAI, en pourcentage. C'est la charge de rapprochement avec l'annuaire.",
+    ),
     noSchoolDeclared: metric(
-      cohort - attributed - namedButUnresolved,
+      noSchoolDeclared,
       "Seconde moitié : talents n'ayant déclaré aucun lycée, ni identifié ni saisi à la main. Ce sont des dossiers incomplets, donc des élèves à relancer. Les deux moitiés additionnées font « withoutResolvedSchool » : le total seul ne dit pas laquelle des deux actions il appelle.",
+    ),
+    noSchoolDeclaredShare: metric(
+      share(noSchoolDeclared, cohort),
+      "Part de la cohorte n'ayant déclaré aucun lycée, en pourcentage. C'est le volume de relance à faire auprès des élèves, et la seule des deux moitiés sur laquelle une équipe peut agir directement.",
     ),
   };
 }
