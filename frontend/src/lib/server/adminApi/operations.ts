@@ -789,8 +789,9 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_closing_template: defineWrite({
+    twoStep: true,
     description:
-      'Create or replace a closing grid, identified by its key: which bank questions it asks, in which sections, in what order. Refused if it names a question that does not exist or has been retired, asks the same one twice, marks more than one as quotable, or asks nothing at all. Composing a grid never touches an answer already recorded. Safe to repeat: the same key and the same composition leave one grid. Answers with the composition before and after.',
+      'Create or replace a closing grid, identified by its key: which bank questions it asks, in which sections, in what order. Call it WITHOUT planDigest first: it answers with the grid as it stands, the composition that would replace it, and a planDigest. Show that to the human, then call again with the digest to apply. The apply is refused if the grid has been recomposed in between, because a grid is replaced whole and the other edit would be lost without a trace. Refused too if it names a question that does not exist or has been retired, asks the same one twice, marks more than one as quotable, or asks nothing at all. Composing a grid never touches an answer already recorded. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world. Answers with the composition before and after.',
     shape: {
       templateKey: z
         .string()
@@ -842,6 +843,10 @@ export const ADMIN_API_OPERATIONS = {
           }),
         )
         .describe('The whole composition, replacing the current one.'),
+      planDigest: z
+        .string()
+        .optional()
+        .describe('Digest returned by the dry run. Omit to get a dry run.'),
     },
     run: (params) => writeClosingTemplate(params),
   }),

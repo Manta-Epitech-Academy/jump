@@ -21,7 +21,7 @@ import {
 } from '$lib/domain/closing';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
-import type { WriteOutcome } from '../plan';
+import { runTwoStep, type WriteOutcome } from '../plan';
 
 type OptionInput = {
   value: string;
@@ -247,10 +247,33 @@ const TEMPLATE_STATE_SELECT = {
   },
 } as const;
 
+/**
+ * Compose a grid, under the dry-run-then-apply contract.
+ *
+ * Two-step because the composition is replaced wholesale, and nothing else
+ * checks what it is replacing. Two authors edited grids within the same hour on
+ * one database during the MCP recette, and the model working from a read taken
+ * seven minutes earlier said so itself: its next write would have carried that
+ * stale composition back over the other author's, silently, with only the audit
+ * row to say it ever happened.
+ *
+ * `runTwoStep` recomputes the plan from live data and compares digests, so the
+ * apply is refused when the grid has moved since the plan was shown - and the
+ * refusal names the fresh digest, so the recovery is to look again rather than
+ * to retry. It also earns its keep on the first authoring: the plan IS the
+ * preview a human validates before the questions every future closing asks
+ * change under them.
+ *
+ * `write_closing_question` is deliberately NOT two-step. It edits one bank row
+ * by key, its `options` are patch-like (omit them and they stand), and the edits
+ * that would destroy meaning are already refused once answers exist. What is
+ * left to overwrite is a label, which re-renders everywhere and is visible.
+ */
 export async function writeClosingTemplate(params: {
   templateKey: string;
   label: string;
   sections: SectionInput[];
+  planDigest?: string;
 }): Promise<WriteOutcome> {
   const key = params.templateKey.trim();
   const label = params.label.trim();
@@ -304,58 +327,86 @@ export async function writeClosingTemplate(params: {
     );
   }
 
-  const before = await prisma.closing_Template.findUnique({
-    where: { key },
-    select: TEMPLATE_STATE_SELECT,
+  // What the grid would become, in the shape the stored one reads back in, so
+  // the dry run's `writes` and the apply's `after` are the same document.
+  const writes = {
+    key,
+    label,
+    sections: params.sections.map((s) => ({
+      title: s.title.trim(),
+      synthesisPosition: s.synthesisPosition ?? null,
+      questions: s.questions.map((q) => ({
+        labelOverride: q.labelOverride?.trim() || null,
+        withNote: q.withNote ?? false,
+        question: { key: q.questionKey.trim() },
+      })),
+    })),
+  };
+
+  return runTwoStep({
+    requestedDigest: params.planDigest,
+    // Read inside the plan, never before it: the digest has to describe the grid
+    // as it stands at the moment of the call, which is what makes a concurrent
+    // edit between the two calls fail instead of being overwritten.
+    buildPlan: async () => ({
+      replaces: await prisma.closing_Template.findUnique({
+        where: { key },
+        select: TEMPLATE_STATE_SELECT,
+      }),
+      writes,
+    }),
+    apply: async (plan) => {
+      await applyComposition();
+      const after = await prisma.closing_Template.findUnique({
+        where: { key },
+        select: TEMPLATE_STATE_SELECT,
+      });
+      return { before: plan.replaces, after };
+    },
   });
 
-  await prisma.$transaction(async (tx) => {
-    const template = await tx.closing_Template.upsert({
-      where: { key },
-      create: { key, label },
-      update: { label },
-      select: { id: true },
-    });
-    // The composition is replaced wholesale rather than diffed: it is a handful
-    // of rows, a diff would only add a way to get it wrong, and the answers do
-    // not hang off these rows - they reference the bank question, so nothing a
-    // student said is touched by recomposing a grid.
-    await tx.closing_TemplateSection.deleteMany({
-      where: { templateId: template.id },
-    });
-    for (const [position, s] of params.sections.entries()) {
-      const section = await tx.closing_TemplateSection.create({
-        data: {
-          templateId: template.id,
-          position,
-          synthesisPosition: s.synthesisPosition ?? null,
-          title: s.title.trim(),
-        },
+  async function applyComposition() {
+    await prisma.$transaction(async (tx) => {
+      const template = await tx.closing_Template.upsert({
+        where: { key },
+        create: { key, label },
+        update: { label },
         select: { id: true },
       });
-      for (const [qPosition, q] of s.questions.entries()) {
-        const bankQuestion = byKey.get(q.questionKey.trim());
-        if (!bankQuestion) continue;
-        await tx.closing_TemplateQuestion.create({
+      // The composition is replaced wholesale rather than diffed: it is a handful
+      // of rows, a diff would only add a way to get it wrong, and the answers do
+      // not hang off these rows - they reference the bank question, so nothing a
+      // student said is touched by recomposing a grid.
+      await tx.closing_TemplateSection.deleteMany({
+        where: { templateId: template.id },
+      });
+      for (const [position, s] of params.sections.entries()) {
+        const section = await tx.closing_TemplateSection.create({
           data: {
             templateId: template.id,
-            sectionId: section.id,
-            questionId: bankQuestion.id,
-            position: qPosition,
-            labelOverride: q.labelOverride?.trim() || null,
-            withNote: q.withNote ?? false,
+            position,
+            synthesisPosition: s.synthesisPosition ?? null,
+            title: s.title.trim(),
           },
+          select: { id: true },
         });
+        for (const [qPosition, q] of s.questions.entries()) {
+          const bankQuestion = byKey.get(q.questionKey.trim());
+          if (!bankQuestion) continue;
+          await tx.closing_TemplateQuestion.create({
+            data: {
+              templateId: template.id,
+              sectionId: section.id,
+              questionId: bankQuestion.id,
+              position: qPosition,
+              labelOverride: q.labelOverride?.trim() || null,
+              withNote: q.withNote ?? false,
+            },
+          });
+        }
       }
-    }
-  });
-
-  const after = await prisma.closing_Template.findUnique({
-    where: { key },
-    select: TEMPLATE_STATE_SELECT,
-  });
-
-  return { applied: true, before, after };
+    });
+  }
 }
 
 async function eventClosingState(eventId: string) {
