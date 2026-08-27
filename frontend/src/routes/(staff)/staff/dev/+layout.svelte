@@ -1,5 +1,6 @@
 <script lang="ts">
   import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
+  import { scrollTopOnNavigate } from '$lib/actions/scrollTopOnNavigate';
   import LogOut from '@lucide/svelte/icons/log-out';
   import Users from '@lucide/svelte/icons/users';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -435,7 +436,10 @@
       </aside>
     {/if}
 
-    <main class="flex-1 overflow-y-auto bg-background p-4 md:p-8">
+    <main
+      class="flex-1 overflow-y-auto bg-background p-4 md:p-8"
+      use:scrollTopOnNavigate
+    >
       {@render children()}
     </main>
   </div>
