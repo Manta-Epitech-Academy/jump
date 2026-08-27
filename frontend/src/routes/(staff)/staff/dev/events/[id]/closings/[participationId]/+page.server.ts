@@ -13,7 +13,7 @@ import {
 } from '$lib/server/services/stageContext';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { resolveEventClosingGrid } from '$lib/server/closingTemplates';
+import { resolveClosingGridById } from '$lib/server/closingTemplates';
 import {
   gridQuestions,
   recordSynthesisSections,
@@ -91,9 +91,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const db = scopedPrisma(campusId);
 
   // The surface is gated on the module AND on the event naming a grid, the same
-  // pair `bilan` is gated on. Without a grid there is nothing to ask.
-  const eventGrid = await resolveEventClosingGrid(event);
-  if (!eventGrid) {
+  // pair `bilan` is gated on. Without a grid there is nothing to ask, and the
+  // null FK IS that gate - no query needed to ask it.
+  if (!event.closingTemplateId) {
     throw error(
       404,
       "Aucune grille de closing n'est configurée pour cet événement.",
@@ -119,12 +119,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   // A record answers against the grid it PINNED, never the one its event points
   // at today, which is the whole reason `Closing_Record.templateId` is a column.
-  // The event's grid gates the surface above; from here on the record decides,
-  // exactly as the action does. Read off the event instead and retargeting an
-  // event would silently re-render every closing already conducted on it.
-  const grid = record
-    ? await resolveEventClosingGrid({ closingTemplateId: record.templateId })
-    : eventGrid;
+  // The event's grid only decides what a closing not yet started will ask, and
+  // gates the surface above; from here on the record decides, exactly as the
+  // action does. Read off the event instead and retargeting an event would
+  // silently re-render every closing already conducted on it.
+  const grid = await resolveClosingGridById(
+    record?.templateId ?? event.closingTemplateId,
+  );
   if (!grid) {
     throw error(404, 'Grille de closing introuvable pour ce closing.');
   }
@@ -265,9 +266,8 @@ async function persist(
   // An open record answers against the grid it was STARTED with; a new one takes
   // the event's current grid. Retargeting an event mid-closing must not silently
   // change the questions under the person conducting it.
-  const grid = existing
-    ? await resolveEventClosingGrid({ closingTemplateId: existing.templateId })
-    : await resolveEventClosingGrid(event);
+  const templateId = existing?.templateId ?? event.closingTemplateId;
+  const grid = templateId ? await resolveClosingGridById(templateId) : null;
   if (!grid) {
     return message(
       form,
