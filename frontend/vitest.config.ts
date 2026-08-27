@@ -32,6 +32,14 @@ export default defineConfig({
           name: 'integration',
           include: ['src/**/__integration__/**/*.integration.test.ts'],
           testTimeout: 15_000,
+          // One file at a time. Every suite cleans up by id, so they do not
+          // delete each other's rows, but they do share one Postgres and
+          // several of them read an aggregate over a scope wider than their own
+          // fixture. Two suites also stamp their fixture names with
+          // `Date.now()`, which collides when they start in the same
+          // millisecond. A flaky suite is worse than no suite (TESTING.md §1),
+          // and the wall-clock cost of serialising ~20 files is a minute.
+          fileParallelism: false,
         },
       },
     ],
