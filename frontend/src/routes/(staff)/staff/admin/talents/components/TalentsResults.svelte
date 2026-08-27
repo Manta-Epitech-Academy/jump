@@ -315,14 +315,6 @@
     navigateWithParams({ sort: key, dir: nextDir });
   }
 
-  const countSuffix = $derived(
-    hasActiveFilters
-      ? totalItems > 1
-        ? 'correspondent aux filtres'
-        : 'correspond aux filtres'
-      : 'au total',
-  );
-
   // Campus list can be long, so it gets a searchable select.
   const campusOptions = $derived<SelectOption[]>(
     campuses.map((c) => ({ value: c.id, label: c.name })),
@@ -389,7 +381,7 @@
     searchPlaceholder="Rechercher par nom ou email…"
     count={totalItems}
     countNoun="talent"
-    {countSuffix}
+    filtersApplied={hasActiveFilters}
   >
     {#snippet filters()}
       <div class="flex items-center gap-2">

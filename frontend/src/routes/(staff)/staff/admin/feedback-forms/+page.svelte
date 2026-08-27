@@ -250,7 +250,7 @@
       filtersAlign="end"
       count={rows.length}
       countNoun="formulaire"
-      countSuffix={anyFiltersApplied ? '(filtrés)' : 'au total'}
+      filtersApplied={anyFiltersApplied}
     >
       {#snippet filters()}
         <div class="flex items-center gap-2">

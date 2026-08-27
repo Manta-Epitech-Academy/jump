@@ -139,6 +139,7 @@
     searchPlaceholder="Rechercher un fichier…"
     count={sorted.length}
     countNoun="fichier"
+    filtersApplied={searchQuery.trim().length > 0}
   >
     {#snippet actions()}
       <form

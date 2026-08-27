@@ -156,14 +156,6 @@
   const anyFiltersApplied = $derived(
     searchQuery.trim().length > 0 || statutFilter !== 'all',
   );
-  const countSuffix = $derived(
-    anyFiltersApplied
-      ? filtered.length > 1
-        ? 'correspondent aux filtres'
-        : 'correspond aux filtres'
-      : 'au total',
-  );
-
   // A closing is an event-scoped act, so it is conducted on its own page under
   // the event rather than on the talent fiche: this roster is the way in
   // to conducting one, so the dev lands on the questions rather than on the
@@ -214,7 +206,7 @@
         filtersAlign="end"
         count={filtered.length}
         countNoun="closing"
-        {countSuffix}
+        filtersApplied={anyFiltersApplied}
       >
         {#snippet filters()}
           <div class="flex items-center gap-2">

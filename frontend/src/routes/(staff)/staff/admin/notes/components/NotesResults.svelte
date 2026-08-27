@@ -128,7 +128,7 @@
     searchPlaceholder="Rechercher une note ou un talent…"
     count={totalItems}
     countNoun="note"
-    countSuffix={hasFilters ? 'correspondent aux filtres' : undefined}
+    filtersApplied={hasFilters}
   >
     {#snippet filters()}
       <SearchableSelect

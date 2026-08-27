@@ -166,9 +166,6 @@
   const anyFilter = $derived(
     searchQuery.trim().length > 0 || statusFilter !== 'all',
   );
-  const countSuffix = $derived(
-    anyFilter ? 'correspondent aux filtres' : 'au total',
-  );
 
   function toggleSort(key: string) {
     if (sortKey === key) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
@@ -318,7 +315,7 @@
           count={filtered.length}
           countNoun={noun.singular}
           countNounPlural={noun.plural}
-          {countSuffix}
+          filtersApplied={anyFilter}
         >
           {#snippet filters()}
             <SlotNavigator {slots} bind:value={activeSlotKey} />

@@ -153,16 +153,6 @@
     searchQuery.trim() !== '' || statut !== 'all' || reco !== 'all',
   );
 
-  // Mirrors the sibling rosters (inscrits/émargement/closings): singular vs
-  // plural agreement, and "au total" when nothing is filtered.
-  const countSuffix = $derived(
-    anyFiltersApplied
-      ? filtered.length > 1
-        ? 'correspondent aux filtres'
-        : 'correspond aux filtres'
-      : 'au total',
-  );
-
   function resetFilters() {
     searchQuery = '';
     statut = 'all';
@@ -180,7 +170,7 @@
     count={filtered.length}
     countNoun={noun.singular}
     countNounPlural={noun.plural}
-    {countSuffix}
+    filtersApplied={anyFiltersApplied}
   >
     {#snippet filters()}
       <div class="flex items-center gap-2">

@@ -482,6 +482,7 @@
       searchPlaceholder="Rechercher un membre ou un campus…"
       count={sortedMembers.length}
       countNoun="membre"
+      filtersApplied={memberSearch.trim().length > 0}
     />
 
     <SortableTable
@@ -742,6 +743,7 @@
           searchPlaceholder="Rechercher un email…"
           count={sortedInvites.length}
           countNoun="invitation"
+          filtersApplied={inviteSearch.trim().length > 0}
         >
           {#snippet countActions()}
             {#if selectedInvites.size > 0}

@@ -345,14 +345,6 @@
   );
   const anyFiltersApplied = $derived(clientFiltersApplied || originActive);
 
-  const countSuffix = $derived(
-    anyFiltersApplied
-      ? filtered.length > 1
-        ? 'correspondent aux filtres'
-        : 'correspond aux filtres'
-      : 'au total',
-  );
-
   let exporting = $state(false);
 
   // Export exactly the rows the dev is looking at (current filters + sort): POST
@@ -485,7 +477,7 @@
         count={filtered.length}
         countNoun={noun.singular}
         countNounPlural={noun.plural}
-        {countSuffix}
+        filtersApplied={anyFiltersApplied}
       >
         {#snippet filters()}
           {#if showStatutColumn}
