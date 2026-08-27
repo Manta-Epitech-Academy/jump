@@ -152,6 +152,17 @@ added up, and `stats_closing_insights` groups by bank question for that reason,
 carrying `asked` beside `answered` so a question only some grids pose is never
 read against the wrong base.
 
+**And the comparison that makes legitimate is RETURNED, never left to be
+composed.** A shared bank buys nothing if reading a stage against a Coding Club
+means one call per event and a fold the consumer does by hand, which is what it
+meant until `stats_closing_question` existed: one bank question, grouped by
+campus, by event or by grid, ranked server-side on what the question actually
+declares (a rating on its average, a valence-carrying scale on its favourable
+share, a plain set not at all). `stats_campus_comparison` carries the two
+campus-level closing figures for the same reason. This is the general rule of the
+tier applied to closings, not a closings feature: a figure a director would
+otherwise compute is a figure this platform owes.
+
 Rules, each of which a reasonable-looking change breaks quietly rather than loudly:
 
 - **A grid is composed over the API, never in a migration.** `write_closing_question`
@@ -159,6 +170,15 @@ Rules, each of which a reasonable-looking change breaks quietly rather than loud
   no builder UI: composing is the team's job and a form would never fit it. The
   seed migration exists to carry the one grid that predates this across, not to be
   the catalogue.
+- **A closing figure is taken over the events that run closings, never over the
+  whole périmètre.** An event whose section is off or that names no grid holds no
+  closing, so its enrolments belong to no coverage rate: `eventRunsClosings` is
+  the one spelling of that pair, and the dev sidebar's own gate calls it too. This
+  is written down because the denominator was wrong for a release and nothing
+  could have caught it: the figure read 18 % where it should have read 78 %, and
+  the definition travelling with it already claimed the narrow reading, which is
+  what made it quotable and false at the same time. The configuration gap it was
+  hiding is now its own figure.
 - **A published key is never renamed and never reused.** Changing what a question
   MEANS is a new key; changing how it READS is an edit, and it re-renders on
   documents already produced, which is what you want for a typo. That line is
@@ -319,7 +339,7 @@ Three rules keep that surface honest, and each closed a hole that shipped once:
 
 - **Ids are judged by what they are, not by being ids.** Never one that identifies a person, and never one only a write could spend. An event id is a périmètre key many leadership reads accept, so withholding it would leave the tier holding a parameter it cannot obtain; `stats_events` is where it comes from. Which operation hands out which id is declared, not counted by hand: see the handle registry above.
 - **A leadership answer carries `fraicheur`.** Composed once in `defineOperation`, for every `leadership: true` entry, because its reader can call neither `stats_sync_health` nor the admin sync page: a dead worker would otherwise let them quote last week's platform as today's. "An unknown scope is a refusal, never a zero" has this sibling, and `dataFreshness.ts` owns the threshold for both tiers.
-- **Nothing the tier would otherwise compute is left to it.** Any proportion, *any ranking, and any year-on-year movement* is returned already computed. Two working rules follow, and both closed real holes: **a definition never asks its reader to calculate** (if it says « l'écart avec », « face à » or « la somme de », the figure is missing), and **every breakdown row carries its share**, as `SchoolRow` and `LevelRow` always did and `BreakdownRow` did not. The ranking helper is `metrics.rank`, shared rather than re-derived: hence `stats_campus_comparison` and `stats_feedback_question` (both ranked server-side, ties sharing a rank, unmeasurable values unranked rather than last) and `compareTo` on `stats_school_year_review` (`metrics.variation`, which withholds the relative gap on a rate because 20 % to 30 % is +10 points, not +50 %). Handing back two years and letting the consumer subtract them means the growth figure, the one actually quoted, is computed downstream in its own wording.
+- **Nothing the tier would otherwise compute is left to it.** Any proportion, *any ranking, and any year-on-year movement* is returned already computed. Two working rules follow, and both closed real holes: **a definition never asks its reader to calculate** (if it says « l'écart avec », « face à » or « la somme de », the figure is missing), and **every breakdown row carries its share**, as `SchoolRow` and `LevelRow` always did and `BreakdownRow` did not. The ranking helper is `metrics.rank`, shared rather than re-derived: hence `stats_campus_comparison`, `stats_feedback_question` and `stats_closing_question` (all ranked server-side, ties sharing a rank, unmeasurable values unranked rather than last) and `compareTo` on `stats_school_year_review` (`metrics.variation`, which withholds the relative gap on a rate because 20 % to 30 % is +10 points, not +50 %). Handing back two years and letting the consumer subtract them means the growth figure, the one actually quoted, is computed downstream in its own wording.
 
 **The tier names a usage, not a job title.** Every national director gets a leadership token, including the Directeur des Opérations, whose operational questions stay with the internal admin team rather than becoming an `ops_*` exception. Configuring Jump is the core team's job, so `leadership` grants reads only (asserted in `operations.test.ts`).
 
@@ -328,7 +348,7 @@ Three rules keep that surface honest, and each closed a hole that shipped once:
 | Class | Test | Treatment |
 | --- | --- | --- |
 | **A - direct** | Bounded to named rows, reversible, internal (sends no message) | A tool. Applies immediately, audited with before/after, description states whether repeating is safe |
-| **B - two-step** | Touches many rows | Mandatory dry run returning the exact rows that would change plus a `planDigest`, then an apply echoing it (`adminApi/plan.ts`) |
+| **B - two-step** | Touches many rows, or replaces a whole structure wholesale | Mandatory dry run returning the exact rows that would change plus a `planDigest`, then an apply echoing it (`adminApi/plan.ts`). The three `bulk_*` writes, and `write_closing_template`: a grid is replaced whole, so a second author's composition would be carried away without a trace |
 | **C - never a tool** | Irreversible, outbound, identity-bearing or PII-bearing | Human action. Every broadcast send or retry, `users/invite`, `impersonate`, `talents/resetToImport`, the RGPD erasure fulfilment, and every `delete` a model could aim on its own |
 
 The qualifier on that last one is the whole test, and `ops_reset_closing` is what it was written for: a closing reset is a hard delete, irreversible, and it is still a tool. What makes it one is that **no read in the catalogue returns a `Closing_Record.id`** (check `ANSWER_SELECT` in `closingInsights.ts` and the testimonial select), so a model cannot pick a victim, only carry out a reset on an id a human read off the admin closings page and handed over. Template and question ids ARE returned, and that is the distinction: they are what an author spends on a write that composes a grid, not on one that destroys a conversation. Add an id to a read and you have silently promoted the delete into class C, so before returning any row id, ask which write could spend it.
