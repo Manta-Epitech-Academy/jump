@@ -6,6 +6,9 @@ import {
   CLOSING_NOTE_LIMIT,
   CLOSING_FAVOURABLE_RECOMMENDATIONS,
   CLOSING_RECOMMENDATION_DISPLAY_ORDER,
+  recordSynthesisSections,
+  RETIRED_SECTION_ID,
+  RETIRED_SECTION_TITLE,
   type StoredClosingTemplate,
 } from './closing';
 import { closingAnswersIssues } from '$lib/validation/closings';
@@ -304,5 +307,76 @@ describe('CLOSING_FAVOURABLE_RECOMMENDATIONS', () => {
     expect(CLOSING_RECOMMENDATION_DISPLAY_ORDER.slice(0, 2)).toEqual([
       ...CLOSING_FAVOURABLE_RECOMMENDATIONS,
     ]);
+  });
+});
+
+describe('recordSynthesisSections', () => {
+  it('should leave a grid alone when nothing was dropped from it', () => {
+    // Arrange: the ordinary case, which is every record until somebody edits a
+    // composition. The same array comes back, so no renderer pays for a feature
+    // it is not using.
+    const grid = toClosingGrid(stored());
+    // Act
+    const sections = recordSynthesisSections(grid, []);
+    // Assert
+    expect(sections).toBe(grid.synthesisSections);
+  });
+
+  it('should print an answer whose question the grid no longer asks', () => {
+    // Arrange: `write_closing_template` drops a question from the composition.
+    // The answers stay in the database because they reference the BANK question,
+    // and this is what keeps them reachable: without it they render nowhere, on
+    // 1400 closings at once, with nothing failing anywhere.
+    const grid = toClosingGrid(stored());
+    const dropped = question({
+      id: 'q2',
+      key: 'other_jobs',
+      label: 'Quels autres métiers (hors tech) t’intéressent ?',
+      kind: 'multi',
+    });
+    // Act
+    const sections = recordSynthesisSections(grid, [dropped]);
+    // Assert
+    expect(sections).toHaveLength(grid.synthesisSections.length + 1);
+    const last = sections[sections.length - 1];
+    expect(last.id).toBe(RETIRED_SECTION_ID);
+    expect(last.title).toBe(RETIRED_SECTION_TITLE);
+    expect(last.questions.map((q) => q.key)).toEqual(['other_jobs']);
+  });
+
+  it('should read a retired question under the bank wording, not a grid override', () => {
+    // The composition that phrased it for this format is gone, so it has no
+    // wording to lend. The bank's own label is the only honest one left.
+    const grid = toClosingGrid(stored());
+    const dropped = question({ id: 'q2', key: 'other_jobs' });
+    const [q] = recordSynthesisSections(grid, [dropped])[1].questions;
+    expect(q.label).toBe(dropped.label);
+    expect(q.canonicalLabel).toBe(dropped.label);
+  });
+
+  it('should keep a note recorded while the question was still asked', () => {
+    // A retired question is offered a note by no composition, so projecting it
+    // like a grid question would give it `note: null` and the synthesis would
+    // silently drop what the team wrote. The renderer prints a note only when
+    // the answer carries one, so declaring the field costs nothing and is what
+    // stops a real note being buried with its question.
+    const grid = toClosingGrid(stored());
+    const [q] = recordSynthesisSections(grid, [question({ id: 'q2' })])[1]
+      .questions;
+    expect(q.note).toEqual({ placeholder: '', maxLength: CLOSING_NOTE_LIMIT });
+  });
+
+  it('should guard a retired question’s tokens exactly as a grid question’s', () => {
+    // Same projection, so a tone retired from the vocabulary after the row was
+    // written is dropped here too rather than resolving to an unstyled chip.
+    const grid = toClosingGrid(stored());
+    const dropped = question({
+      id: 'q2',
+      options: [
+        { id: 'o9', value: 'x', label: 'X', tone: 'chartreuse', icon: null },
+      ],
+    });
+    const [q] = recordSynthesisSections(grid, [dropped])[1].questions;
+    expect(q.options[0].tone).toBeUndefined();
   });
 });

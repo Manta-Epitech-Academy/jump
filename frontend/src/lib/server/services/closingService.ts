@@ -121,18 +121,20 @@ export async function persistClosing(
       });
     }
 
-    // Cleared answers go, along with anything recorded against a question this
-    // grid no longer asks: the record still pins its own template, so a question
-    // dropped from the grid is not in `questions` and would otherwise linger
-    // unreachable.
-    await tx.closing_Answer.deleteMany({
-      where: {
-        recordId: record.id,
-        ...(keep.length
-          ? { questionId: { notIn: keep.map((k) => k.questionId) } }
-          : {}),
-      },
-    });
+    // Only answers this grid ASKS and the staff CLEARED go. Named positively
+    // rather than as "everything we did not keep", because the difference is
+    // what a question dropped from the composition falls into: `notIn(keep)`
+    // deleted it, and it is precisely what must survive. An answer references
+    // the bank question, so a composition can stop asking it without the record
+    // losing it, and the synthesis prints it under "Questions retirées".
+    const keptIds = new Set(keep.map((k) => k.questionId));
+    const cleared = questions.map((q) => q.id).filter((id) => !keptIds.has(id));
+
+    if (cleared.length) {
+      await tx.closing_Answer.deleteMany({
+        where: { recordId: record.id, questionId: { in: cleared } },
+      });
+    }
 
     for (const k of keep) {
       const answer = await tx.closing_Answer.upsert({

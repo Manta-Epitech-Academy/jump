@@ -15,6 +15,11 @@ import { requireStaffGroup } from '$lib/server/auth/guards';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { resolveEventClosingGrid } from '$lib/server/closingTemplates';
 import {
+  gridQuestions,
+  recordSynthesisSections,
+  type StoredClosingQuestion,
+} from '$lib/domain/closing';
+import {
   closingAnswersIssues,
   closingConductSchema,
   type ClosingConductForm,
@@ -46,6 +51,34 @@ const RECORD_INCLUDE = {
       freeText: true,
       note: true,
       selectedOptions: { select: { optionId: true } },
+      // The bank row behind the answer, so an answer to a question the grid no
+      // longer asks can still be rendered under its own wording. An answer
+      // references the bank, never the composition, precisely so that dropping a
+      // question cannot hide what was recorded.
+      question: {
+        select: {
+          id: true,
+          key: true,
+          label: true,
+          hint: true,
+          kind: true,
+          max: true,
+          maxLength: true,
+          placeholder: true,
+          notePlaceholder: true,
+          testimonial: true,
+          options: {
+            orderBy: { position: 'asc' },
+            select: {
+              id: true,
+              value: true,
+              label: true,
+              tone: true,
+              icon: true,
+            },
+          },
+        },
+      },
     },
   },
 } as const;
@@ -59,8 +92,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   // The surface is gated on the module AND on the event naming a grid, the same
   // pair `bilan` is gated on. Without a grid there is nothing to ask.
-  const grid = await resolveEventClosingGrid(event);
-  if (!grid) {
+  const eventGrid = await resolveEventClosingGrid(event);
+  if (!eventGrid) {
     throw error(
       404,
       "Aucune grille de closing n'est configurée pour cet événement.",
@@ -84,16 +117,45 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     include: RECORD_INCLUDE,
   });
 
+  // A record answers against the grid it PINNED, never the one its event points
+  // at today, which is the whole reason `Closing_Record.templateId` is a column.
+  // The event's grid gates the surface above; from here on the record decides,
+  // exactly as the action does. Read off the event instead and retargeting an
+  // event would silently re-render every closing already conducted on it.
+  const grid = record
+    ? await resolveEventClosingGrid({ closingTemplateId: record.templateId })
+    : eventGrid;
+  if (!grid) {
+    throw error(404, 'Grille de closing introuvable pour ce closing.');
+  }
+
   // Prefill from the answer rows, keyed by bank question id - the same key the
   // form posts back, so there is no column list to keep in step here.
+  //
+  // Split in two, and the split is load-bearing. The form carries only what the
+  // grid asks, because `closingAnswersIssues` refuses an answer to a question
+  // the grid does not ask and the action returns 400 before persisting: leave a
+  // dropped question's answer in the form and every autosave fails for good.
+  // What it dropped goes to the synthesis instead, read-only, under its own
+  // heading.
+  const asked = new Set(gridQuestions(grid).map((q) => q.id));
   const answers: ClosingConductForm['answers'] = {};
+  const retiredAnswers: ClosingConductForm['answers'] = {};
+  const retiredQuestions: StoredClosingQuestion[] = [];
+
   for (const a of record?.answers ?? []) {
-    answers[a.questionId] = {
+    const answer = {
       selectedIds: a.selectedOptions.map((s) => s.optionId),
       ratingValue: a.ratingValue,
       freeText: a.freeText ?? '',
       note: a.note ?? '',
     };
+    if (asked.has(a.questionId)) {
+      answers[a.questionId] = answer;
+    } else {
+      retiredAnswers[a.questionId] = answer;
+      retiredQuestions.push(a.question);
+    }
   }
 
   const form = await superValidate(
@@ -123,8 +185,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       publicName: event.publicName,
     },
     grid,
+    // What the synthesis reads back: the grid's own sections, plus one carrying
+    // anything recorded against a question the composition has since dropped.
+    synthesisSections: recordSynthesisSections(grid, retiredQuestions),
+    retiredAnswers,
     form,
     talentId: participation.talent.id,
+    // The person, not just their name: the header draws the same monogram the
+    // fiche does, so the two pages are visibly about the same human.
+    talent: participation.talent,
     talentName: formatPersonName(
       participation.talent.prenom,
       participation.talent.nom,
