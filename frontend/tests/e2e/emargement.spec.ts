@@ -16,12 +16,27 @@
  * (desktop table or mobile cards, never both), so at the desktop viewport each
  * roster row carries exactly one switch.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { E2E, storageStatePath } from './fixtures/identities';
 
 test.use({ storageState: storageStatePath(E2E.dev.email) });
 
 const EMARGEMENT_URL = `/staff/dev/events/${E2E.eventId}/emargement`;
+
+/**
+ * The roster's own POST, not just the switch lighting up.
+ *
+ * `setStatus` writes an optimistic override BEFORE awaiting its `fetch`, so
+ * `aria-pressed` flips instantly and anything that navigates right after a click
+ * races the request: navigating cancels it, and the assertion then passed or
+ * failed on whether the server had got there first. Awaiting the response is also
+ * the stronger statement - the write was ACCEPTED, not just attempted.
+ */
+function waitForSetPresence(page: Page) {
+  return page.waitForResponse(
+    (r) => r.url().includes('setPresence') && r.request().method() === 'POST',
+  );
+}
 
 test.describe("l'émargement", () => {
   test('enregistre une présence qui survit à un rechargement', async ({
@@ -35,20 +50,22 @@ test.describe("l'émargement", () => {
     await expect(row).toHaveCount(1);
 
     const present = row.getByRole('button', { name: 'Présent', exact: true });
+
+    // Establish the starting state instead of assuming it. The fixture is seeded
+    // once per run and this is the only spec that writes, so nothing puts the
+    // cell back: a CI retry (`retries: 2`) does not re-run the setup project, so
+    // attempt 2 would open on the row attempt 1 already marked and die on the
+    // line below rather than on whatever actually broke. Cleared through the
+    // switch itself - clicking the active segment resets the cell - so the
+    // `eventsCount` projection is recomputed by the app exactly as in
+    // production, which a raw delete against the fixture's client would not do.
+    if ((await present.getAttribute('aria-pressed')) === 'true') {
+      await Promise.all([waitForSetPresence(page), present.click()]);
+    }
     await expect(present).toHaveAttribute('aria-pressed', 'false');
 
-    // Wait for the action's own response, not just for the switch to light up.
-    // The roster writes an optimistic override BEFORE awaiting its `fetch`, so
-    // `aria-pressed` flips instantly and a reload right after it races the POST:
-    // navigating cancels the in-flight request, and the test then failed or
-    // passed depending on whether the server had got there first. Asserting the
-    // response is also the stronger statement - the write was ACCEPTED, not just
-    // attempted.
     const [response] = await Promise.all([
-      page.waitForResponse(
-        (r) =>
-          r.url().includes('setPresence') && r.request().method() === 'POST',
-      ),
+      waitForSetPresence(page),
       present.click(),
     ]);
     expect(response.ok()).toBeTruthy();
