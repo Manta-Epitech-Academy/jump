@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { page } from '$app/state';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import Funnel from '@lucide/svelte/icons/funnel';
@@ -17,6 +15,11 @@
   import { civiliteCourtesyTitle } from '$lib/domain/profile';
   import type { NotesCohort, NoteFilters, NoteDirectoryRow } from '../query';
   import { nextSort } from '$lib/components/staff/datatable/sort';
+  import {
+    goToListPage,
+    setListParams,
+  } from '$lib/components/staff/datatable/urlList';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
 
   // Renamed from `filters` to avoid shadowing the `{#snippet filters()}` passed
   // to DataTableToolbar.
@@ -39,12 +42,7 @@
     deleteOpen = true;
   }
 
-  // Seeded once from the loaded filter; the input owns it after mount (server
-  // navigation re-mounts with fresh props), so capturing the initial value is
-  // intentional.
-  // svelte-ignore state_referenced_locally
-  let searchQuery = $state(filterState.q);
-  let searchTimeout: ReturnType<typeof setTimeout>;
+  const search = createUrlSearch();
 
   const hasFilters = $derived(
     !!(filterState.q || filterState.campusIds.length || filterState.author),
@@ -87,36 +85,13 @@
   }
   const when = (iso: string, tz: string) => fmtFor(tz).format(new Date(iso));
 
-  function navigateWithParams(params: Record<string, string>) {
-    const url = new URL(page.url);
-    url.searchParams.delete('page'); // any filter change resets to page 1
-    for (const [key, value] of Object.entries(params)) {
-      if (value) url.searchParams.set(key, value);
-      else url.searchParams.delete(key);
-    }
-    goto(url.toString(), { keepFocus: true });
-  }
-
-  function goToPage(p: number) {
-    const url = new URL(page.url);
-    if (p > 1) url.searchParams.set('page', String(p));
-    else url.searchParams.delete('page');
-    goto(url.toString());
-  }
-
-  function onSearchInput(value: string) {
-    searchQuery = value;
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => navigateWithParams({ q: value }), 300);
-  }
-
   function toggleSort(key: string) {
     const next = nextSort(
       columns,
       { key: filterState.sort, dir: filterState.dir },
       key,
     );
-    navigateWithParams({ sort: next.key, dir: next.dir });
+    setListParams({ sort: next.key, dir: next.dir });
   }
 
   function talentsLink(t: NoteDirectoryRow['talent']) {
@@ -127,8 +102,8 @@
 
 <div class="space-y-4">
   <DataTableToolbar
-    searchValue={searchQuery}
-    {onSearchInput}
+    searchValue={search.value}
+    onSearchInput={(v) => (search.value = v)}
     searchPlaceholder="Rechercher une note ou un talent…"
     count={totalItems}
     countNoun="note"
@@ -139,8 +114,7 @@
         multiple
         options={campusOptions}
         values={filterState.campusIds}
-        onChangeMultiple={(ids) =>
-          navigateWithParams({ campus: ids.join(',') })}
+        onChangeMultiple={(ids) => setListParams({ campus: ids.join(',') })}
         allLabel="Tous les campus"
         placeholder="Tous les campus"
         searchPlaceholder="Rechercher un campus…"
@@ -154,7 +128,7 @@
       <SearchableSelect
         options={authorOptions}
         value={filterState.author || 'all'}
-        onChange={(v) => navigateWithParams({ author: v === 'all' ? '' : v })}
+        onChange={(v) => setListParams({ author: v === 'all' ? '' : v })}
         allLabel="Tous les auteurs"
         placeholder="Tous les auteurs"
         searchPlaceholder="Rechercher un auteur…"
@@ -277,7 +251,11 @@
     {/snippet}
   </SortableTable>
 
-  <Pagination page={filterState.page} {totalPages} onPageChange={goToPage} />
+  <Pagination
+    page={filterState.page}
+    {totalPages}
+    onPageChange={goToListPage}
+  />
 </div>
 
 <ConfirmDeleteDialog

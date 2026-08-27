@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
   import Users from '@lucide/svelte/icons/users';
@@ -19,6 +18,7 @@
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
+  import { setListParams } from '$lib/components/staff/datatable/urlList';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
@@ -260,7 +260,7 @@
   );
 
   function selectLycee(value: string) {
-    navigateWithParams({ lycee: value === 'all' ? '' : value });
+    setListParams({ lycee: value === 'all' ? '' : value });
   }
 
   function toggleSort(key: string) {
@@ -269,21 +269,12 @@
     sortDir = next.dir;
   }
 
-  function navigateWithParams(params: Record<string, string>) {
-    const url = new URL(page.url);
-    for (const [key, value] of Object.entries(params)) {
-      if (value) url.searchParams.set(key, value);
-      else url.searchParams.delete(key);
-    }
-    goto(url.toString(), { keepFocus: true, noScroll: true });
-  }
-
   function resetFilters() {
     searchQuery = '';
     niveauFilter = 'all';
     statutFilter = 'all';
     // Origin lives in the URL, so clearing it is a navigation, not state.
-    if (originActive) navigateWithParams({ lycee: '', interest: '' });
+    if (originActive) setListParams({ lycee: '', interest: '' });
   }
 
   function makeHaystack(r: InscritRow): string {
