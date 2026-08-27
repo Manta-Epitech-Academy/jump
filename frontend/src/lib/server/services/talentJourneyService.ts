@@ -44,6 +44,7 @@ export async function getTalentJourney(
           status: true,
           recommendation: true,
           verdictNote: true,
+          staff: { select: { user: { select: { name: true, image: true } } } },
           answers: {
             where: { question: { testimonial: true } },
             select: { freeText: true },
@@ -93,23 +94,16 @@ export async function getTalentJourney(
               recommendation: p.closing.recommendation,
               verdictNote: p.closing.verdictNote?.trim() || null,
               quote,
+              staffName: p.closing.staff.user?.name?.trim() || null,
+              staffImage: p.closing.staff.user?.image ?? null,
             }
           : null,
       };
     });
 
-  const withQuote = entries.find((e) => e.closing?.quote);
-
   return {
     entries,
     eventCount: entries.length,
     closingCount: entries.filter((e) => e.closing?.status === 'done').length,
-    latestQuote: withQuote?.closing?.quote
-      ? {
-          text: withQuote.closing.quote,
-          eventName: withQuote.eventName,
-          participationId: withQuote.participationId,
-        }
-      : null,
   };
 }

@@ -39,6 +39,19 @@ export type TalentJourneyClosing = {
   verdictNote: string | null;
   /** The talent's own sentence about the event, where the grid asked for one. */
   quote: string | null;
+  /**
+   * Who conducted it, name and avatar. Carried so the two kinds of writing in a
+   * closing can be ATTRIBUTED rather than only styled: the reader was left to
+   * infer from a rule colour that one sentence was the student's and the next
+   * one the team's, and that inference is exactly what nobody made.
+   *
+   * The avatar is not decoration: staff prose about a talent is signed with a
+   * face everywhere else on this page (`TalentNoteCard`) and on the closing's own
+   * page, so signing it with a glyph here made the same person read as two
+   * different kinds of thing on one screen.
+   */
+  staffName: string | null;
+  staffImage: string | null;
 };
 
 export type TalentJourney = {
@@ -47,17 +60,6 @@ export type TalentJourney = {
   eventCount: number;
   /** Closings finalised, the other half of that count. */
   closingCount: number;
-  /**
-   * The most recent thing this talent said about one of our events, with the
-   * event that prompted it. Led on rather than buried in the list, because it is
-   * the one line on this page written by the person the page is about.
-   */
-  latestQuote: {
-    text: string;
-    eventName: string;
-    /** So the row it came from does not print it a second time. */
-    participationId: string;
-  } | null;
 };
 
 /** Whether anything on the journey is worth rendering. */
