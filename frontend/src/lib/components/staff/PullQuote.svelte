@@ -38,9 +38,14 @@
       {lead}
     </figcaption>
   {/if}
+  <!-- `whitespace-pre-wrap`, like the staff-note rail it is the counterpart of:
+       the paragraph breaks somebody typed are part of what they wrote, and a
+       testimony written in two paragraphs read as one run-on line here while the
+       PDF of the same closing printed it as two. Safe against the markup's own
+       indentation - Svelte trims a text node at an element boundary. -->
   <blockquote
     class={cn(
-      'border-l-2 border-epi-tech-ink/50 leading-relaxed text-foreground italic',
+      'border-l-2 border-epi-tech-ink/50 leading-relaxed whitespace-pre-wrap text-foreground italic',
       size === 'lead' ? 'pl-4 text-base' : 'pl-3 text-sm',
       clamp && 'line-clamp-2',
     )}

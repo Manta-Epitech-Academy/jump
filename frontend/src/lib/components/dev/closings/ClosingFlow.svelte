@@ -47,6 +47,7 @@
   import { Textarea } from '$lib/components/ui/textarea';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import * as Avatar from '$lib/components/ui/avatar';
+  import PullQuote from '$lib/components/staff/PullQuote.svelte';
   import { getInitials } from '$lib/avatar';
   import { cn } from '$lib/utils';
   import {
@@ -71,6 +72,8 @@
   let {
     form: data,
     grid,
+    synthesisSections,
+    retiredAnswers = {},
     talentName,
     status = $bindable(),
     step = $bindable(0),
@@ -84,6 +87,14 @@
      *  question, option and prompt below comes from it: the questionnaire is
      *  data, so this component knows nothing about which questions exist. */
     grid: ClosingGrid;
+    /** What the synthesis reads back. Not `grid.synthesisSections`: it carries
+     *  one more section when this record answers a question the composition has
+     *  since dropped, and those answers must stay readable. */
+    synthesisSections: ClosingSection[];
+    /** Answers to those dropped questions, keyed by bank question id. Kept out
+     *  of the form on purpose - the grid does not ask them, so the action would
+     *  refuse them and every autosave would fail - and read only here. */
+    retiredAnswers?: ClosingConductForm['answers'];
     talentName: string;
     // Lifecycle: null = "à faire" (not started), in_progress = "en cours"
     // (started, autosaving), done = "finalisé" (synthesis, read-only and
@@ -261,8 +272,13 @@
     freeText: '',
     note: '',
   };
+  // Reads the form first, then the read-only answers to questions the grid no
+  // longer asks. One accessor for both, so `synthesisRow` renders a retired
+  // answer through exactly the same path as a current one instead of growing a
+  // second, parallel rendering of the same thing. A retired question never
+  // appears in a conduct step, so `patch` can never reach one.
   const answerOf = (id: string): ClosingAnswerForm =>
-    $form.answers[id] ?? EMPTY;
+    $form.answers[id] ?? retiredAnswers[id] ?? EMPTY;
 
   function patch(id: string, change: Partial<ClosingAnswerForm>) {
     if (!interactive) return;
@@ -341,8 +357,13 @@
   // The trimmed per-question note, or null. Shared by the synthesis (rendered on
   // its own line so its newlines survive) and resume (a note alone marks the
   // question touched).
+  //
+  // Read off the ANSWER, never gated on `q.note`: that field says whether this
+  // grid offers a note input (which is what `noteInput` below is gated on), not
+  // whether one was written. Gating the display on it meant a grid dropping a
+  // `withNote` hid prose the team had already written - on screen only, since
+  // the PDF has always printed whatever the row holds.
   function noteText(q: ClosingQuestion): string | null {
-    if (!q.note) return null;
     return answerOf(q.id).note.trim() || null;
   }
 
@@ -599,13 +620,23 @@
   </p>
 {/snippet}
 
-<!-- Free-text prose in the synthesis (a note, the testimony, the verdict): its
-     own block, newlines preserved (whitespace-pre-wrap on the inner <p>, kept
-     inline so the markup's own indentation never leaks in), behind the epi-blue
-     left rail that marks a staff note everywhere else (see TalentNotePanel). -->
+<!-- What the TEAM wrote: a per-question note, or the verdict note. Its own block,
+     newlines preserved (whitespace-pre-wrap on the inner <p>, kept inline so the
+     markup's own indentation never leaks in), behind the neutral rail
+     `TalentNoteCard` draws for exactly this.
+
+     The rail is what tells the two voices apart on this page, and this is the
+     only screen where they sit three lines from each other: the student's
+     sentence goes through `PullQuote` (teal rail, italic, guillemets), staff
+     prose stays plain. Rendering both the same way, which is what this snippet
+     used to do, meant nobody could tell who had spoken. -->
 {#snippet prose(t: string)}
-  <div class="border-l-2 border-epi-blue/40 pl-2.5">
-    <p class="text-sm whitespace-pre-wrap text-foreground">{t}</p>
+  <div class="border-l-2 border-muted-foreground/25 pl-3">
+    <p
+      class="text-sm leading-relaxed whitespace-pre-wrap text-foreground-secondary"
+    >
+      {t}
+    </p>
   </div>
 {/snippet}
 
@@ -613,16 +644,21 @@
   <p class="text-sm text-muted-foreground/60">—</p>
 {/snippet}
 
-<!-- One synthesis entry: the question and its structured answer (chips joined or
-     stars) share a line; any free text (a note, or the testimony itself) drops
-     to its own full-width line below, behind the blue rail. Nothing at all shows
-     a muted dash next to the question. -->
+<!-- One synthesis entry: the question and its structured answer (chips or stars)
+     share a line; free text drops to its own full-width line below, in the
+     grammar of whoever wrote it. Nothing at all shows a muted dash next to the
+     question.
+
+     The label column is fixed rather than proportional (it was `2fr_3fr`, so a
+     two-line prompt pushed its own answer down and no two answers started at the
+     same x). One axis to read down, and long prompts wrap inside their column
+     instead of moving anything. -->
 {#snippet synthesisRow(q: ClosingQuestion)}
   {@const note = noteText(q)}
   {@const value = answerLabel(q)}
-  <div class="space-y-1.5 py-2">
-    <div class="grid gap-1 sm:grid-cols-[2fr_3fr] sm:gap-4">
-      <p class="text-xs text-muted-foreground sm:pt-0.5">{q.label}</p>
+  <div class="space-y-2 py-2.5">
+    <div class="grid gap-1 sm:grid-cols-[minmax(0,13rem)_1fr] sm:gap-4">
+      <p class="text-xs leading-relaxed text-muted-foreground">{q.label}</p>
       <div>
         {#if q.kind === 'rating'}
           {@const given = answerOf(q.id).ratingValue}
@@ -670,7 +706,12 @@
         {/if}
       </div>
     </div>
-    {#if q.kind === 'text' && value}{@render prose(value)}{/if}
+    <!-- The student's own sentence, in the one grammar this product reserves for
+         it. `PullQuote` rather than a fourth hand-rolled blockquote, and
+         unclamped: a synthesis is read in full. -->
+    {#if q.kind === 'text' && value}
+      <PullQuote text={value} size="inline" />
+    {/if}
     {#if note}{@render prose(note)}{/if}
   </div>
 {/snippet}
@@ -735,10 +776,11 @@
             </div>
           {/if}
 
+          <!-- No title of its own: the page header above already names the person
+               and the grid, and a second display-face heading saying "Synthèse
+               du closing" under "Closing Coding Club" was the page announcing
+               itself twice. The document opens on its provenance instead. -->
           <div class="space-y-2.5">
-            <h3 class="font-heading text-display-m text-foreground">
-              Synthèse du closing<TitleCursor />
-            </h3>
             {#if conductedBy || conductedLabel}
               <div class="flex items-center gap-2.5">
                 {#if conductedBy}
@@ -776,15 +818,22 @@
                 </p>
               </div>
             {/if}
+            <!-- Which questionnaire this record was conducted with. A fact about
+                 the record, so it lives with the rest of its provenance rather
+                 than in the page header, where it sat beside the event name and
+                 said the same words twice. -->
+            <p class="text-xs text-muted-foreground">{grid.label}</p>
           </div>
 
-          <!-- The verdict first: it's the one thing staff come back for. -->
-          <div
-            class="space-y-3 rounded-md border border-epi-blue/40 bg-epi-blue/5 p-4"
-          >
-            <p
-              class="text-xs font-semibold tracking-[0.2em] text-epi-blue uppercase"
-            >
+          <!-- The verdict first: it's the one thing staff come back for.
+
+               Neutral panel, deliberately. It used to be blue-tinted, which put
+               a blue frame and a blue overline around a chip that carries its
+               own tone colour, and left the verdict note's rail invisible
+               against its own background. The chip is the only colour in the
+               box now, which is the point of a verdict. -->
+          <div class="space-y-3 rounded-md border bg-muted/20 p-4">
+            <p class="epi-overline text-muted-foreground">
               {VERDICT_SECTION.title}
             </p>
             {#if $form.recommendation && isClosingRecommendation($form.recommendation)}
@@ -809,13 +858,14 @@
             {/if}
           </div>
 
-          {#each grid.synthesisSections as section (section.id)}
-            <div class="space-y-1">
-              <p
-                class="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase"
-              >
-                {section.title}
-              </p>
+          <!-- A section boundary has to outweigh the rules between questions,
+               so the heading takes the product's own region label (mono, via
+               `epi-overline`) and the gap above it is wider than the one inside.
+               Hand-rolled in the body face, they read as one more grey label and
+               the `divide-y` between two questions won the eye. -->
+          {#each synthesisSections as section (section.id)}
+            <div class="space-y-2 pt-2">
+              <p class="epi-overline text-muted-foreground">{section.title}</p>
               <div class="divide-y divide-border/60">
                 {#each section.questions as q (q.id)}
                   {@render synthesisRow(q)}
@@ -902,9 +952,7 @@
               {:else if currentSection}
                 <!-- ── A question section ── -->
                 <div class="space-y-6">
-                  <p
-                    class="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase"
-                  >
+                  <p class="epi-overline text-muted-foreground">
                     {currentSection.title}
                   </p>
                   <div class="space-y-14">
@@ -917,9 +965,7 @@
                 <!-- ── Verdict: staff-only, filled at the end ── -->
                 <div class="space-y-6">
                   <div class="space-y-0.5">
-                    <p
-                      class="text-xs font-semibold tracking-[0.2em] text-epi-blue uppercase"
-                    >
+                    <p class="epi-overline text-epi-blue">
                       {VERDICT_SECTION.title}
                     </p>
                     <p class="text-xs text-muted-foreground">

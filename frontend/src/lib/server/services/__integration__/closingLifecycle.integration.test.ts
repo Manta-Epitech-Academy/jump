@@ -2,7 +2,13 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { scopedPrisma } from '$lib/server/db/scoped';
 import { assertTestDatabase } from './testDatabase';
-import { CLOSING_QUESTION_KEYS } from '$lib/domain/closing';
+import {
+  CLOSING_QUESTION_KEYS,
+  gridQuestions,
+  recordSynthesisSections,
+  RETIRED_SECTION_TITLE,
+} from '$lib/domain/closing';
+import { closingAnswersIssues } from '$lib/validation/closings';
 import { resolveClosingGridById } from '$lib/server/closingTemplates';
 import { persistClosing } from '$lib/server/services/closingService';
 import { anonymizeTalent } from '$lib/server/services/anonymizationService';
@@ -127,7 +133,9 @@ afterAll(async () => {
       where: { templateId: ids.template },
     });
     await prisma.closing_Template.deleteMany({ where: { id: ids.template } });
-    await prisma.closing_Question.deleteMany({ where: { id: ids.choice } });
+    await prisma.closing_Question.deleteMany({
+      where: { id: { in: [ids.choice, ids.rating].filter(Boolean) } },
+    });
     await prisma.bauth_user.deleteMany({ where: { id: ids.staffUser } });
     await prisma.campus.deleteMany({
       where: { id: { in: [ids.campus, ids.otherCampus] } },
@@ -299,6 +307,48 @@ describe('the structural-edit lock', () => {
         options: [{ value: 'cyber', label: 'Cyber', icon: 'cyber' }],
       }),
     ).rejects.toBeInstanceOf(OperationRefusedError);
+  });
+
+  it('should refuse a barème that no longer contains a note already given', async () => {
+    // Arrange: a rating question answered 4 on 5. The same lock as the two
+    // above, on the one field of a rating that carries meaning - and the
+    // consequence is not only an unreadable answer: a 4 outside its own scale is
+    // refused by the conduct form on every autosave, so the closing holding it
+    // can no longer be saved or clôturé.
+    const key = `lock-rating-${stamp}`;
+    const label = 'Satisfaction globale';
+    await writeClosingQuestion({
+      questionKey: key,
+      label,
+      kind: 'rating',
+      max: 5,
+    });
+    const question = await prisma.closing_Question.findUniqueOrThrow({
+      where: { key },
+      select: { id: true },
+    });
+    ids.rating = question.id;
+    const record = await prisma.closing_Record.findUniqueOrThrow({
+      where: { participationId: ids.participation },
+      select: { id: true },
+    });
+    await prisma.closing_Answer.create({
+      data: { recordId: record.id, questionId: question.id, ratingValue: 4 },
+    });
+
+    // Act + Assert: 4 out of 5 must not become 4 out of 3.
+    await expect(
+      writeClosingQuestion({ questionKey: key, label, max: 3 }),
+    ).rejects.toBeInstanceOf(OperationRefusedError);
+
+    // Widening it is not a structural change, and neither is a floor that still
+    // contains what was given.
+    const raised = await writeClosingQuestion({
+      questionKey: key,
+      label,
+      max: 10,
+    });
+    expect(raised.applied).toBe(true);
   });
 });
 
@@ -487,7 +537,11 @@ describe("the talent's journey", () => {
       },
     });
 
-    const journey = await getTalentJourney(talent.id, 'Europe/Paris');
+    const journey = await getTalentJourney(
+      talent.id,
+      ids.campus,
+      'Europe/Paris',
+    );
 
     expect(journey.entries).toHaveLength(1);
     expect(journey.closingCount).toBe(1);
@@ -522,11 +576,480 @@ describe("the talent's journey", () => {
       data: { talentId: talent.id, eventId: event.id, campusId: ids.campus },
     });
 
-    const journey = await getTalentJourney(talent.id, 'Europe/Paris');
+    const journey = await getTalentJourney(
+      talent.id,
+      ids.campus,
+      'Europe/Paris',
+    );
     expect(journey.entries).toHaveLength(0);
 
     await prisma.participation.deleteMany({ where: { id: participation.id } });
     await prisma.talent.delete({ where: { id: talent.id } });
     await prisma.event.delete({ where: { id: event.id } });
+  });
+
+  it('names an event as a link only where the reader can open it', async () => {
+    // A journey is not campus-scoped, and an event exposes the surfaces an admin
+    // configured, so the fiche can hold rows whose destination would 404 on both
+    // counts. The row stays either way - the event happened - but the name is
+    // only a link where it leads somewhere.
+    const past = new Date('2026-03-02T09:00:00Z');
+    const [open, noModule, elsewhere] = await Promise.all([
+      prisma.event.create({
+        data: {
+          titre: `JourneyOpen-${stamp}`,
+          date: past,
+          campusId: ids.campus,
+          modules: { create: { moduleKey: 'inscrits' } },
+        },
+      }),
+      prisma.event.create({
+        data: {
+          titre: `JourneyNoModule-${stamp}`,
+          date: past,
+          campusId: ids.campus,
+          modules: { create: { moduleKey: 'emargement' } },
+        },
+      }),
+      prisma.event.create({
+        data: {
+          titre: `JourneyElsewhere-${stamp}`,
+          date: past,
+          campusId: ids.otherCampus,
+          modules: { create: { moduleKey: 'inscrits' } },
+        },
+      }),
+    ]);
+    const talent = await prisma.talent.create({
+      data: { nom: 'Links', prenom: `Test${stamp}` },
+    });
+    await prisma.participation.createMany({
+      data: [
+        { talentId: talent.id, eventId: open.id, campusId: ids.campus },
+        { talentId: talent.id, eventId: noModule.id, campusId: ids.campus },
+        {
+          talentId: talent.id,
+          eventId: elsewhere.id,
+          campusId: ids.otherCampus,
+        },
+      ],
+    });
+
+    const journey = await getTalentJourney(
+      talent.id,
+      ids.campus,
+      'Europe/Paris',
+    );
+    const href = (eventId: string) =>
+      journey.entries.find((e) => e.eventId === eventId)?.eventHref;
+
+    expect(href(open.id)).toBe(`/staff/dev/events/${open.id}/inscrits`);
+    expect(href(noModule.id)).toBeNull();
+    expect(href(elsewhere.id)).toBeNull();
+
+    await prisma.participation.deleteMany({ where: { talentId: talent.id } });
+    await prisma.talent.delete({ where: { id: talent.id } });
+    await prisma.event.deleteMany({
+      where: { id: { in: [open.id, noModule.id, elsewhere.id] } },
+    });
+  });
+});
+
+describe('a question dropped from a grid', () => {
+  // Its own fixtures: this walks a composition CHANGING, which the shared grid
+  // above must not see.
+  const own: Record<string, string> = {};
+
+  beforeAll(async () => {
+    const kept = await prisma.closing_Question.create({
+      data: {
+        key: `dropped-kept-${stamp}`,
+        label: 'Ça t’a donné envie ?',
+        kind: 'single',
+        options: { create: [{ position: 0, value: 'oui', label: 'Oui' }] },
+      },
+      select: { id: true, options: { select: { id: true } } },
+    });
+    own.kept = kept.id;
+    own.keptOption = kept.options[0].id;
+
+    const doomed = await prisma.closing_Question.create({
+      data: {
+        key: `dropped-doomed-${stamp}`,
+        label: 'Quels autres métiers (hors tech) t’intéressent ?',
+        kind: 'multi',
+        notePlaceholder: 'Une nuance…',
+        options: { create: [{ position: 0, value: 'droit', label: 'Droit' }] },
+      },
+      select: { id: true, options: { select: { id: true } } },
+    });
+    own.doomed = doomed.id;
+    own.doomedOption = doomed.options[0].id;
+
+    const template = await prisma.closing_Template.create({
+      data: {
+        key: `dropped-${stamp}`,
+        label: 'Grille qui perd une question',
+        sections: { create: { position: 0, title: 'Retour' } },
+      },
+      select: { id: true, sections: { select: { id: true } } },
+    });
+    own.template = template.id;
+
+    await prisma.closing_TemplateQuestion.createMany({
+      data: [
+        {
+          templateId: template.id,
+          sectionId: template.sections[0].id,
+          questionId: kept.id,
+          position: 0,
+          withNote: false,
+        },
+        {
+          templateId: template.id,
+          sectionId: template.sections[0].id,
+          questionId: doomed.id,
+          position: 1,
+          withNote: true,
+        },
+      ],
+    });
+
+    const event = await prisma.event.create({
+      data: {
+        titre: `DroppedEvent-${stamp}`,
+        date: new Date('2026-03-02T09:00:00Z'),
+        campusId: ids.campus,
+        closingTemplateId: template.id,
+      },
+    });
+    own.event = event.id;
+
+    const talent = await prisma.talent.create({
+      data: { nom: 'Dropped', prenom: `Test${stamp}` },
+    });
+    own.talent = talent.id;
+
+    const participation = await prisma.participation.create({
+      data: { talentId: talent.id, eventId: event.id, campusId: ids.campus },
+    });
+    own.participation = participation.id;
+  });
+
+  afterAll(async () => {
+    try {
+      await prisma.closing_Record.deleteMany({
+        where: { talentId: own.talent },
+      });
+      await prisma.participation.deleteMany({
+        where: { id: own.participation },
+      });
+      await prisma.talent.deleteMany({ where: { id: own.talent } });
+      await prisma.event.deleteMany({ where: { id: own.event } });
+      await prisma.closing_TemplateQuestion.deleteMany({
+        where: { templateId: own.template },
+      });
+      await prisma.closing_Template.deleteMany({ where: { id: own.template } });
+      await prisma.closing_Question.deleteMany({
+        where: { id: { in: [own.kept, own.doomed] } },
+      });
+    } catch {
+      // ignore - the test database is disposable
+    }
+  });
+
+  async function save(
+    answers: Record<
+      string,
+      {
+        selectedIds: string[];
+        ratingValue: number | null;
+        freeText: string;
+        note: string;
+      }
+    >,
+    mode: 'start' | 'save' = 'save',
+  ) {
+    const grid = await resolveClosingGridById(own.template);
+    await persistClosing({
+      participationId: own.participation,
+      talentId: own.talent,
+      campusId: ids.campus,
+      staffId: ids.staff,
+      templateId: own.template,
+      grid: grid!,
+      form: {
+        participationId: own.participation,
+        answers,
+        recommendation: 'bon_profil',
+        verdictNote: '',
+      },
+      mode,
+    });
+  }
+
+  it('should survive every later autosave, and be read back under its own heading', async () => {
+    // Arrange: a closing answers both questions, one of them with a team note.
+    await save(
+      {
+        [own.kept]: answer({ selectedIds: [own.keptOption] }),
+        [own.doomed]: answer({
+          selectedIds: [own.doomedOption],
+          note: 'Hésite avec une prépa.',
+        }),
+      },
+      'start',
+    );
+
+    // Act: the team re-composes the grid over the API and stops asking one
+    // question. Nothing touches the answers, which is the point of pointing them
+    // at the bank question rather than at the composition row.
+    await prisma.closing_TemplateQuestion.deleteMany({
+      where: { templateId: own.template, questionId: own.doomed },
+    });
+
+    // The conduct page now posts only what the grid asks: an answer to a
+    // question it does not ask is refused by `closingAnswersIssues` before the
+    // action ever persists, so it is never in the payload.
+    await save({ [own.kept]: answer({ selectedIds: [own.keptOption] }) });
+
+    // Assert: the answer is still there. `notIn(keep)` used to delete it here,
+    // which lost a real conversation the moment somebody edited a grid.
+    const record = await prisma.closing_Record.findUniqueOrThrow({
+      where: { participationId: own.participation },
+      select: {
+        answers: {
+          select: {
+            questionId: true,
+            note: true,
+            selectedOptions: { select: { optionId: true } },
+          },
+        },
+      },
+    });
+    const orphan = record.answers.find((a) => a.questionId === own.doomed);
+    expect(orphan).toBeDefined();
+    expect(orphan!.note).toBe('Hésite avec une prépa.');
+    expect(orphan!.selectedOptions.map((s) => s.optionId)).toEqual([
+      own.doomedOption,
+    ]);
+
+    // And it is reachable: the grid no longer carries it, so the synthesis has
+    // to add the section itself or the answer renders nowhere at all.
+    const grid = await resolveClosingGridById(own.template);
+    expect(gridQuestions(grid!).map((q) => q.id)).not.toContain(own.doomed);
+
+    const bankRow = await prisma.closing_Question.findUniqueOrThrow({
+      where: { id: own.doomed },
+      select: {
+        id: true,
+        key: true,
+        label: true,
+        hint: true,
+        kind: true,
+        max: true,
+        maxLength: true,
+        placeholder: true,
+        notePlaceholder: true,
+        testimonial: true,
+        options: {
+          orderBy: { position: 'asc' },
+          select: {
+            id: true,
+            value: true,
+            label: true,
+            tone: true,
+            icon: true,
+          },
+        },
+      },
+    });
+    const sections = recordSynthesisSections(grid!, [bankRow]);
+    const last = sections[sections.length - 1];
+    expect(last.title).toBe(RETIRED_SECTION_TITLE);
+    expect(last.questions.map((q) => q.id)).toEqual([own.doomed]);
+  });
+
+  it('should still clear an answer the grid does ask', async () => {
+    // The other half of the same delete: narrowing it to the grid's questions
+    // must not stop a staff member un-picking something.
+    await save({ [own.kept]: answer({ selectedIds: [] }) });
+
+    const record = await prisma.closing_Record.findUniqueOrThrow({
+      where: { participationId: own.participation },
+      select: { answers: { select: { questionId: true } } },
+    });
+    const asked = record.answers.map((a) => a.questionId);
+    expect(asked).not.toContain(own.kept);
+    expect(asked).toContain(own.doomed);
+  });
+});
+
+describe('a note whose grid stopped inviting one', () => {
+  // The sibling of the describe above, one field down. A composition can stop
+  // asking a question, and it can keep asking it while withdrawing the note
+  // under it - `write_closing_template` does the second whenever a grid is
+  // replayed without `withNote`, which defaults to false. Both must leave what
+  // was recorded exactly where it is.
+  const own: Record<string, string> = {};
+
+  beforeAll(async () => {
+    const question = await prisma.closing_Question.create({
+      data: {
+        key: `noted-${stamp}`,
+        label: 'Ça t’a donné envie ?',
+        kind: 'single',
+        notePlaceholder: 'Une nuance…',
+        options: { create: [{ position: 0, value: 'oui', label: 'Oui' }] },
+      },
+      select: { id: true, options: { select: { id: true } } },
+    });
+    own.question = question.id;
+    own.option = question.options[0].id;
+
+    const template = await prisma.closing_Template.create({
+      data: {
+        key: `noted-${stamp}`,
+        label: 'Grille qui retire sa note',
+        sections: { create: { position: 0, title: 'Retour' } },
+      },
+      select: { id: true, sections: { select: { id: true } } },
+    });
+    own.template = template.id;
+
+    await prisma.closing_TemplateQuestion.create({
+      data: {
+        templateId: template.id,
+        sectionId: template.sections[0].id,
+        questionId: question.id,
+        position: 0,
+        withNote: true,
+      },
+    });
+
+    const event = await prisma.event.create({
+      data: {
+        titre: `NotedEvent-${stamp}`,
+        date: new Date('2026-03-02T09:00:00Z'),
+        campusId: ids.campus,
+        closingTemplateId: template.id,
+      },
+    });
+    own.event = event.id;
+
+    const talent = await prisma.talent.create({
+      data: { nom: 'Noted', prenom: `Test${stamp}` },
+    });
+    own.talent = talent.id;
+
+    const participation = await prisma.participation.create({
+      data: { talentId: talent.id, eventId: event.id, campusId: ids.campus },
+    });
+    own.participation = participation.id;
+  });
+
+  afterAll(async () => {
+    try {
+      await prisma.closing_Record.deleteMany({
+        where: { talentId: own.talent },
+      });
+      await prisma.participation.deleteMany({
+        where: { id: own.participation },
+      });
+      await prisma.talent.deleteMany({ where: { id: own.talent } });
+      await prisma.event.deleteMany({ where: { id: own.event } });
+      await prisma.closing_TemplateQuestion.deleteMany({
+        where: { templateId: own.template },
+      });
+      await prisma.closing_Template.deleteMany({ where: { id: own.template } });
+      await prisma.closing_Question.deleteMany({ where: { id: own.question } });
+    } catch {
+      // ignore - the test database is disposable
+    }
+  });
+
+  /** The whole form, as the conduct page posts it back: what the load prefilled
+   *  from the record, note included. */
+  function payload(
+    over: Partial<{ selectedIds: string[]; note: string }> = {},
+  ) {
+    return {
+      participationId: own.participation,
+      answers: { [own.question]: answer(over) },
+      recommendation: 'bon_profil' as const,
+      verdictNote: '',
+    };
+  }
+
+  async function save(
+    form: ReturnType<typeof payload>,
+    mode: 'start' | 'save' = 'save',
+  ) {
+    const grid = await resolveClosingGridById(own.template);
+    // Exactly what the action does before persisting: a refusal here is a 400
+    // the staff member cannot get past, which is the failure this covers.
+    expect(closingAnswersIssues(form, grid!)).toEqual([]);
+    await persistClosing({
+      participationId: own.participation,
+      talentId: own.talent,
+      campusId: ids.campus,
+      staffId: ids.staff,
+      templateId: own.template,
+      grid: grid!,
+      form,
+      mode,
+    });
+  }
+
+  const storedNote = async () => {
+    const record = await prisma.closing_Record.findUniqueOrThrow({
+      where: { participationId: own.participation },
+      select: {
+        answers: {
+          select: {
+            questionId: true,
+            note: true,
+            selectedOptions: { select: { optionId: true } },
+          },
+        },
+      },
+    });
+    return record.answers.find((a) => a.questionId === own.question) ?? null;
+  };
+
+  it('should keep saving, and keep the note, once the grid withdraws it', async () => {
+    // Arrange: the team writes a note while the grid still invites one.
+    await save(
+      payload({ selectedIds: [own.option], note: 'Hésite avec une prépa.' }),
+      'start',
+    );
+
+    // Act: the grid is recomposed and stops offering a note under that question.
+    await prisma.closing_TemplateQuestion.updateMany({
+      where: { templateId: own.template, questionId: own.question },
+      data: { withNote: false },
+    });
+
+    // The page posts the whole form back on the next autosave, note and all.
+    // This used to be refused ("n'attend pas de note dans cette grille"), so
+    // every later save failed and the closing could never be clôturé.
+    await save(
+      payload({ selectedIds: [own.option], note: 'Hésite avec une prépa.' }),
+    );
+
+    // Assert: still there, untouched. A composition says whether a note may be
+    // ENTERED, never whether one exists.
+    expect((await storedNote())?.note).toBe('Hésite avec une prépa.');
+  });
+
+  it('should leave the row alone when only the note is left on it', async () => {
+    // The staff member un-picks the answer. The structured half goes, but the
+    // note is not this grid's to remove, so the row stays rather than being
+    // reconciled away with it.
+    await save(payload({ selectedIds: [], note: 'Hésite avec une prépa.' }));
+
+    const row = await storedNote();
+    expect(row?.note).toBe('Hésite avec une prépa.');
+    expect(row?.selectedOptions).toEqual([]);
   });
 });

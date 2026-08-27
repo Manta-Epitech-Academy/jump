@@ -3,7 +3,11 @@ import { renderPdf } from '../infra/documentRenderer';
 import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import closingTemplate from '../templates/closing-synthesis.html?raw';
-import { CLOSING_RECOMMENDATIONS, type ClosingGrid } from '$lib/domain/closing';
+import {
+  CLOSING_RECOMMENDATIONS,
+  RETIRED_SECTION_TITLE,
+  type ClosingGrid,
+} from '$lib/domain/closing';
 import type { ClosingRecommendation, Prisma } from '@prisma/client';
 
 /**
@@ -148,7 +152,7 @@ export function buildClosingSynthesis(
   const retired = record.answers.filter((a) => !asked.has(a.question.id));
   if (retired.length > 0) {
     sections.push({
-      title: 'Questions retirées de la grille',
+      title: RETIRED_SECTION_TITLE,
       questions: retired.map((a) =>
         renderAnswer(a.question.label, a.question.kind, a, a.question.max),
       ),

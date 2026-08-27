@@ -22,6 +22,19 @@ export type TalentJourneyEntry = {
   participationId: string;
   eventId: string;
   eventName: string;
+  /**
+   * Where the event's name leads, or null when it leads nowhere the reader may
+   * go: the event belongs to another campus, or does not expose the Inscrits
+   * list. Those are exactly the two conditions `loadEventOr404` and
+   * `requireEventModule` enforce on the destination, so a link offered here
+   * cannot 404 - the rule the dev sidebar already follows in not offering a page
+   * that would.
+   *
+   * A journey is not campus-scoped (a talent who came to a stage in one campus
+   * and a Coding Club in another has both), so this is not hypothetical, and it
+   * is the link that is withheld rather than the row: the event still happened.
+   */
+  eventHref: string | null;
   /** Pre-formatted French date in the campus timezone, e.g. "16 juin 2026". */
   dateLabel: string;
   /** Salesforce's read on whether they turned up. Null when it says nothing. */
@@ -39,6 +52,19 @@ export type TalentJourneyClosing = {
   verdictNote: string | null;
   /** The talent's own sentence about the event, where the grid asked for one. */
   quote: string | null;
+  /**
+   * Who conducted it, name and avatar. Carried so the two kinds of writing in a
+   * closing can be ATTRIBUTED rather than only styled: the reader was left to
+   * infer from a rule colour that one sentence was the student's and the next
+   * one the team's, and that inference is exactly what nobody made.
+   *
+   * The avatar is not decoration: staff prose about a talent is signed with a
+   * face everywhere else on this page (`TalentNoteCard`) and on the closing's own
+   * page, so signing it with a glyph here made the same person read as two
+   * different kinds of thing on one screen.
+   */
+  staffName: string | null;
+  staffImage: string | null;
 };
 
 export type TalentJourney = {
@@ -47,17 +73,6 @@ export type TalentJourney = {
   eventCount: number;
   /** Closings finalised, the other half of that count. */
   closingCount: number;
-  /**
-   * The most recent thing this talent said about one of our events, with the
-   * event that prompted it. Led on rather than buried in the list, because it is
-   * the one line on this page written by the person the page is about.
-   */
-  latestQuote: {
-    text: string;
-    eventName: string;
-    /** So the row it came from does not print it a second time. */
-    participationId: string;
-  } | null;
 };
 
 /** Whether anything on the journey is worth rendering. */

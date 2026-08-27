@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { scrollTopOnNavigate } from '$lib/actions/scrollTopOnNavigate';
   import { resolve } from '$app/paths';
   import ShieldAlert from '@lucide/svelte/icons/shield-alert';
   import LogOut from '@lucide/svelte/icons/log-out';
@@ -304,7 +305,10 @@
       </aside>
     {/if}
 
-    <main class="flex-1 overflow-y-auto bg-background p-4 md:p-8">
+    <main
+      class="flex-1 overflow-y-auto bg-background p-4 md:p-8"
+      use:scrollTopOnNavigate
+    >
       {@render children()}
     </main>
   </div>

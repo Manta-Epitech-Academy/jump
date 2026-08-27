@@ -65,9 +65,13 @@ export type ClosingAnswerIssue = { path: string; message: string };
  *
  * Returns French messages the action attaches to the form, because every one of
  * them is a bug the staff member cannot cause through the UI: a question the grid
- * does not ask, an option it does not offer, a rating off its own scale, a note
- * where this grid invites none. They exist so a stale tab or a hand-made POST
- * fails loudly rather than writing an answer nothing can render.
+ * does not ask, an option it does not offer, a rating off its own scale. They
+ * exist so a stale tab or a hand-made POST fails loudly rather than writing an
+ * answer nothing can render.
+ *
+ * What is checked here is what a payload CLAIMS about the grid. What a record
+ * already holds is not this function's business: see the note at the end of the
+ * loop, and `persistClosing`, which decides what may be written.
  */
 export function closingAnswersIssues(
   form: ClosingConductForm,
@@ -152,12 +156,14 @@ export function closingAnswersIssues(
       });
     }
 
-    if (answer.note && !q.note) {
-      issues.push({
-        path: `answers.${questionId}`,
-        message: `« ${q.label} » n'attend pas de note dans cette grille.`,
-      });
-    }
+    // A note on a question this grid invites none for is deliberately NOT
+    // refused, unlike everything above it. The payload is the whole form, and
+    // the form is what this server prefilled from the record: a note recorded
+    // while the composition still invited one round-trips through every later
+    // autosave. Refusing it made that autosave fail for good, so the closing
+    // could never be saved or clôturé again. Nothing is written either way -
+    // `persistClosing` omits a note the grid does not own - so the refusal
+    // guarded a write that cannot happen.
   }
 
   return issues;

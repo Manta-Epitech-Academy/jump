@@ -1,5 +1,7 @@
+import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import { eventDisplayName } from '$lib/domain/event';
+import { EVENT_MODULES, eventHasModule } from '$lib/domain/eventModules';
 import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
 import { pastEventPresence } from '$lib/domain/sfMemberStatus';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
@@ -14,7 +16,9 @@ import type {
  *
  * One query rather than a per-event lookup, and dates are formatted here in the
  * campus timezone so the component never has to know one - the same division of
- * labour as `xpStoryService`.
+ * labour as `xpStoryService`. Where an event's name leads is resolved here for
+ * the same reason: reachability is a fact about the event and the reader's
+ * campus, and the component has neither.
  *
  * Only the student's own sentence is selected out of the answers. The per-question
  * notes are staff prose about a minor and have no business on a page that is read
@@ -23,6 +27,7 @@ import type {
  */
 export async function getTalentJourney(
   talentId: string,
+  campusId: string,
   timezone: string,
 ): Promise<TalentJourney> {
   const participations = await prisma.participation.findMany({
@@ -37,6 +42,11 @@ export async function getTalentJourney(
           publicName: true,
           date: true,
           endDate: true,
+          // What decides whether the event's name is a link: the reader's own
+          // campus, and the module the destination is gated on. Read here rather
+          // than left to the component, which has no way to ask.
+          campusId: true,
+          modules: { select: { moduleKey: true } },
         },
       },
       closing: {
@@ -44,6 +54,7 @@ export async function getTalentJourney(
           status: true,
           recommendation: true,
           verdictNote: true,
+          staff: { select: { user: { select: { name: true, image: true } } } },
           answers: {
             where: { question: { testimonial: true } },
             select: { freeText: true },
@@ -53,6 +64,23 @@ export async function getTalentJourney(
     },
     orderBy: { event: { date: 'desc' } },
   });
+
+  // The event's Inscrits list, when the reader can actually open it: same campus
+  // (`loadEventOr404`) and the module that gates the page (`requireEventModule`).
+  // Withholding the link rather than pointing at another surface is deliberate -
+  // an event with no Inscrits list has nothing this page was sending them to
+  // read, and "the first surface it happens to expose" is a different question
+  // (`landingSurface`), asked by the workspace, which knows the event.
+  const eventHref = (event: {
+    id: string;
+    campusId: string;
+    modules: { moduleKey: string }[];
+  }): string | null => {
+    if (event.campusId !== campusId) return null;
+    const modules = event.modules.map((m) => m.moduleKey);
+    if (!eventHasModule(modules, EVENT_MODULES.INSCRITS)) return null;
+    return resolve(`/staff/dev/events/${event.id}/inscrits`);
+  };
 
   const bounds = getLifecycleBounds(timezone);
   const dateLabel = (d: Date) =>
@@ -82,6 +110,7 @@ export async function getTalentJourney(
         participationId: p.id,
         eventId: p.event.id,
         eventName: eventDisplayName(p.event),
+        eventHref: eventHref(p.event),
         dateLabel: dateLabel(p.event.date),
         // Presence is READ OFF the Salesforce status and only means anything once
         // the event is over: on a running event `READY` says "confirmed", not
@@ -93,23 +122,16 @@ export async function getTalentJourney(
               recommendation: p.closing.recommendation,
               verdictNote: p.closing.verdictNote?.trim() || null,
               quote,
+              staffName: p.closing.staff.user?.name?.trim() || null,
+              staffImage: p.closing.staff.user?.image ?? null,
             }
           : null,
       };
     });
 
-  const withQuote = entries.find((e) => e.closing?.quote);
-
   return {
     entries,
     eventCount: entries.length,
     closingCount: entries.filter((e) => e.closing?.status === 'done').length,
-    latestQuote: withQuote?.closing?.quote
-      ? {
-          text: withQuote.closing.quote,
-          eventName: withQuote.eventName,
-          participationId: withQuote.participationId,
-        }
-      : null,
   };
 }

@@ -8,9 +8,11 @@ import type { ClosingConductForm } from '$lib/validation/closings';
  *
  * The payload is always the WHOLE form, never a delta, which is what makes
  * clôture safe (it cannot drop an edit the last autosave had not yet sent). So
- * this reconciles: every question of the grid is either written or, if the staff
- * cleared it, removed. An answer row that holds nothing is deleted rather than
- * kept blank, so "answered" stays a question about rows and not about contents.
+ * this reconciles: every question of the grid is either written or, once the
+ * staff has cleared it, removed. An answer row that holds nothing is deleted
+ * rather than kept blank, so "answered" stays a question about rows and not
+ * about contents. What is never touched either way is a field the composition
+ * no longer owns - see `ownsNote` below.
  *
  * Ids reaching here are already validated by the caller (the participation
  * belongs to this talent and campus, its event exposes the surface, and the grid
@@ -102,11 +104,23 @@ export async function persistClosing(
       questionId: string;
       data: Prisma.Closing_AnswerUncheckedCreateInput;
       optionIds: string[];
+      /** Whether the note on this row is the grid's to write. See below. */
+      ownsNote: boolean;
     }[] = [];
-
+    // A composition decides what may be ASKED and EDITED; it does not decide
+    // what a record already holds. `withNote` is a write affordance - whether a
+    // note may be entered now - so a grid that stops inviting one must neither
+    // write a note nor erase the one the team wrote while it did. That is the
+    // field-level half of the rule the delete below states at row level, and
+    // `ownsNote` carries it to the upsert.
+    //
+    // Emptiness still reads the WHOLE answer, note included, so a row left
+    // holding only such a note is not reconciled away as cleared: the staff
+    // member has no input for it, so they cannot have cleared it.
     for (const q of questions) {
       const a = form.answers[q.id];
       if (!a || isEmpty(a)) continue;
+      const ownsNote = q.note !== null;
       keep.push({
         questionId: q.id,
         data: {
@@ -114,25 +128,28 @@ export async function persistClosing(
           questionId: q.id,
           ratingValue: q.kind === 'rating' ? a.ratingValue : null,
           freeText: q.kind === 'text' ? a.freeText.trim() || null : null,
-          note: q.note ? a.note.trim() || null : null,
+          note: ownsNote ? a.note.trim() || null : null,
         },
         optionIds:
           q.kind === 'single' || q.kind === 'multi' ? a.selectedIds : [],
+        ownsNote,
       });
     }
 
-    // Cleared answers go, along with anything recorded against a question this
-    // grid no longer asks: the record still pins its own template, so a question
-    // dropped from the grid is not in `questions` and would otherwise linger
-    // unreachable.
-    await tx.closing_Answer.deleteMany({
-      where: {
-        recordId: record.id,
-        ...(keep.length
-          ? { questionId: { notIn: keep.map((k) => k.questionId) } }
-          : {}),
-      },
-    });
+    // Only answers this grid ASKS and the staff CLEARED go. Named positively
+    // rather than as "everything we did not keep", because the difference is
+    // what a question dropped from the composition falls into: `notIn(keep)`
+    // deleted it, and it is precisely what must survive. An answer references
+    // the bank question, so a composition can stop asking it without the record
+    // losing it, and the synthesis prints it under "Questions retirées".
+    const keptIds = new Set(keep.map((k) => k.questionId));
+    const cleared = questions.map((q) => q.id).filter((id) => !keptIds.has(id));
+
+    if (cleared.length) {
+      await tx.closing_Answer.deleteMany({
+        where: { recordId: record.id, questionId: { in: cleared } },
+      });
+    }
 
     for (const k of keep) {
       const answer = await tx.closing_Answer.upsert({
@@ -146,7 +163,9 @@ export async function persistClosing(
         update: {
           ratingValue: k.data.ratingValue,
           freeText: k.data.freeText,
-          note: k.data.note,
+          // Omitted, not nulled, when the grid no longer invites a note: an
+          // update that names the column erases what it does not carry.
+          ...(k.ownsNote ? { note: k.data.note } : {}),
         },
         select: { id: true },
       });

@@ -193,6 +193,57 @@ export type StoredClosingTemplate = {
 };
 
 /**
+ * A bank question as stored, independent of any composition.
+ *
+ * Named apart from the template it is reached through because an answer outlives
+ * the composition that asked it: `Closing_Answer` references the BANK question,
+ * so a question dropped from a grid still resolves to one of these even though
+ * no `Closing_TemplateQuestion` points at it any more.
+ */
+export type StoredClosingQuestion =
+  StoredClosingTemplate['sections'][number]['questions'][number]['question'];
+
+/**
+ * One bank question, in the shape every renderer reads.
+ *
+ * Shared by `toClosingGrid` (a question a grid asks, with the composition's own
+ * wording) and `recordSynthesisSections` (a question it no longer asks). Both go
+ * through here so a retired question cannot render under different rules than
+ * the one beside it: same tone/icon guards, same ceilings, same fields.
+ */
+function projectQuestion(
+  q: StoredClosingQuestion,
+  composition: { label: string | null; withNote: boolean },
+): ClosingQuestion {
+  return {
+    id: q.id,
+    key: q.key,
+    kind: q.kind,
+    label: composition.label?.trim() || q.label,
+    canonicalLabel: q.label,
+    hint: q.hint,
+    placeholder: q.placeholder,
+    max: q.max,
+    maxLength: q.maxLength,
+    testimonial: q.testimonial,
+    options: q.options.map((o) => ({
+      id: o.id,
+      value: o.value,
+      label: o.label,
+      ...(o.tone && isChoiceTone(o.tone) ? { tone: o.tone } : {}),
+      ...(o.icon && isChoiceIconToken(o.icon) ? { icon: o.icon } : {}),
+    })),
+    note:
+      composition.withNote && q.notePlaceholder
+        ? {
+            placeholder: q.notePlaceholder,
+            maxLength: CLOSING_NOTE_LIMIT,
+          }
+        : null,
+  };
+}
+
+/**
  * Turn a stored grid into the shape the conduct flow, the recap and the PDF all
  * read. One projection, shared by every surface, so none of them can disagree
  * about what a grid asks (the role `projectQuestionToSchema` plays for feedback).
@@ -212,37 +263,12 @@ export function toClosingGrid(template: StoredClosingTemplate): ClosingGrid {
         title: s.title,
         questions: [...s.questions]
           .sort((a, b) => a.position - b.position)
-          .map((tq): ClosingQuestion => {
-            const q = tq.question;
-            return {
-              id: q.id,
-              key: q.key,
-              kind: q.kind,
-              label: tq.labelOverride?.trim() || q.label,
-              canonicalLabel: q.label,
-              hint: q.hint,
-              placeholder: q.placeholder,
-              max: q.max,
-              maxLength: q.maxLength,
-              testimonial: q.testimonial,
-              options: q.options.map((o) => ({
-                id: o.id,
-                value: o.value,
-                label: o.label,
-                ...(o.tone && isChoiceTone(o.tone) ? { tone: o.tone } : {}),
-                ...(o.icon && isChoiceIconToken(o.icon)
-                  ? { icon: o.icon }
-                  : {}),
-              })),
-              note:
-                tq.withNote && q.notePlaceholder
-                  ? {
-                      placeholder: q.notePlaceholder,
-                      maxLength: CLOSING_NOTE_LIMIT,
-                    }
-                  : null,
-            };
-          }),
+          .map((tq) =>
+            projectQuestion(tq.question, {
+              label: tq.labelOverride,
+              withNote: tq.withNote,
+            }),
+          ),
       }),
     );
 
@@ -259,6 +285,54 @@ export function toClosingGrid(template: StoredClosingTemplate): ClosingGrid {
       (a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0),
     ),
   };
+}
+
+/** Id of the synthetic section carrying answers to questions a grid dropped.
+ *  Not a `Closing_TemplateSection` row: it exists per record, never in a
+ *  composition, so it is keyed by a constant rather than by a cuid. */
+export const RETIRED_SECTION_ID = 'retired';
+
+/** The heading both renderers print retired answers under. Shared rather than
+ *  written twice: the PDF got this right first, and a second spelling on screen
+ *  would read as a different thing. */
+export const RETIRED_SECTION_TITLE = 'Questions retirées de la grille';
+
+/**
+ * The synthesis sections to render for ONE record: the grid's own, plus a
+ * "Questions retirées" section when the record answers questions the composition
+ * no longer asks.
+ *
+ * This is the read side of the rule that makes `Closing_Answer` point at the
+ * bank question rather than at the composition row: removing a question from a
+ * grid must never be able to hide what was recorded. Without this, dropping a
+ * question deletes it from 1400 synthèses and from every PDF at once, silently,
+ * because both renderers iterate the composition and nothing else.
+ *
+ * A record's dependency on its own answers lives here, at the call site, rather
+ * than on `ClosingGrid`: a grid stays a pure projection of its template, so two
+ * records conducted with the same grid still share one.
+ */
+export function recordSynthesisSections(
+  grid: ClosingGrid,
+  retired: StoredClosingQuestion[],
+): ClosingSection[] {
+  if (retired.length === 0) return grid.synthesisSections;
+
+  return [
+    ...grid.synthesisSections,
+    {
+      id: RETIRED_SECTION_ID,
+      title: RETIRED_SECTION_TITLE,
+      // The bank's own wording, never a composition's: the grid that phrased it
+      // for this format no longer asks it, so it has no wording to lend. And no
+      // note field, for the same reason - a note is offered by a composition.
+      // What was RECORDED against it still prints: a renderer reads the note off
+      // the answer, never off the question (see `noteText` in `ClosingFlow`).
+      questions: retired.map((q) =>
+        projectQuestion(q, { label: null, withNote: false }),
+      ),
+    },
+  ];
 }
 
 /** Every question of a grid, conduct order, flattened. */

@@ -6,6 +6,9 @@ import {
   CLOSING_NOTE_LIMIT,
   CLOSING_FAVOURABLE_RECOMMENDATIONS,
   CLOSING_RECOMMENDATION_DISPLAY_ORDER,
+  recordSynthesisSections,
+  RETIRED_SECTION_ID,
+  RETIRED_SECTION_TITLE,
   type StoredClosingTemplate,
 } from './closing';
 import { closingAnswersIssues } from '$lib/validation/closings';
@@ -278,7 +281,13 @@ describe('closingAnswersIssues', () => {
     ).toContain('hors barème');
   });
 
-  it('should refuse a note on a question this grid invites none for', () => {
+  it('should accept a note on a question this grid invites none for', () => {
+    // Deliberately not a refusal, unlike every other mismatch here. The payload
+    // is the whole form, and the load prefills it from the record: a note
+    // written while the composition still invited one comes back on every later
+    // autosave. Refusing it failed that autosave for good, so the closing could
+    // never be saved or clôturé again. `persistClosing` writes nothing either
+    // way, so there is no write left to guard.
     const template = stored();
     template.sections[0].questions[0].withNote = false;
     const grid = toClosingGrid(template);
@@ -286,7 +295,7 @@ describe('closingAnswersIssues', () => {
       form({ q1: answer({ note: 'une note' }) }),
       grid,
     );
-    expect(issues[0].message).toContain("n'attend pas de note");
+    expect(issues).toEqual([]);
   });
 });
 
@@ -304,5 +313,75 @@ describe('CLOSING_FAVOURABLE_RECOMMENDATIONS', () => {
     expect(CLOSING_RECOMMENDATION_DISPLAY_ORDER.slice(0, 2)).toEqual([
       ...CLOSING_FAVOURABLE_RECOMMENDATIONS,
     ]);
+  });
+});
+
+describe('recordSynthesisSections', () => {
+  it('should leave a grid alone when nothing was dropped from it', () => {
+    // Arrange: the ordinary case, which is every record until somebody edits a
+    // composition. The same array comes back, so no renderer pays for a feature
+    // it is not using.
+    const grid = toClosingGrid(stored());
+    // Act
+    const sections = recordSynthesisSections(grid, []);
+    // Assert
+    expect(sections).toBe(grid.synthesisSections);
+  });
+
+  it('should print an answer whose question the grid no longer asks', () => {
+    // Arrange: `write_closing_template` drops a question from the composition.
+    // The answers stay in the database because they reference the BANK question,
+    // and this is what keeps them reachable: without it they render nowhere, on
+    // 1400 closings at once, with nothing failing anywhere.
+    const grid = toClosingGrid(stored());
+    const dropped = question({
+      id: 'q2',
+      key: 'other_jobs',
+      label: 'Quels autres métiers (hors tech) t’intéressent ?',
+      kind: 'multi',
+    });
+    // Act
+    const sections = recordSynthesisSections(grid, [dropped]);
+    // Assert
+    expect(sections).toHaveLength(grid.synthesisSections.length + 1);
+    const last = sections[sections.length - 1];
+    expect(last.id).toBe(RETIRED_SECTION_ID);
+    expect(last.title).toBe(RETIRED_SECTION_TITLE);
+    expect(last.questions.map((q) => q.key)).toEqual(['other_jobs']);
+  });
+
+  it('should read a retired question under the bank wording, not a grid override', () => {
+    // The composition that phrased it for this format is gone, so it has no
+    // wording to lend. The bank's own label is the only honest one left.
+    const grid = toClosingGrid(stored());
+    const dropped = question({ id: 'q2', key: 'other_jobs' });
+    const [q] = recordSynthesisSections(grid, [dropped])[1].questions;
+    expect(q.label).toBe(dropped.label);
+    expect(q.canonicalLabel).toBe(dropped.label);
+  });
+
+  it('should offer a retired question no note field, since no grid invites one', () => {
+    // `note` is the WRITE affordance - the input a composition offers - and no
+    // composition offers this question anything any more. What the team actually
+    // wrote against it is on the answer row, and that is where a renderer reads
+    // it: nothing here decides whether a recorded note prints.
+    const grid = toClosingGrid(stored());
+    const [q] = recordSynthesisSections(grid, [question({ id: 'q2' })])[1]
+      .questions;
+    expect(q.note).toBeNull();
+  });
+
+  it('should guard a retired question’s tokens exactly as a grid question’s', () => {
+    // Same projection, so a tone retired from the vocabulary after the row was
+    // written is dropped here too rather than resolving to an unstyled chip.
+    const grid = toClosingGrid(stored());
+    const dropped = question({
+      id: 'q2',
+      options: [
+        { id: 'o9', value: 'x', label: 'X', tone: 'chartreuse', icon: null },
+      ],
+    });
+    const [q] = recordSynthesisSections(grid, [dropped])[1].questions;
+    expect(q.options[0].tone).toBeUndefined();
   });
 });
