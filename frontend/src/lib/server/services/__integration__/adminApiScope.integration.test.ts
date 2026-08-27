@@ -141,6 +141,12 @@ function requiredArgsFor(name: AdminApiOperationName): Record<string, unknown> {
     // fail rather than pass for the wrong reason.
     case 'stats_feedback_question':
       return { formId: 'form-that-does-not-exist', question: 'reco' };
+    // Same shape, same reason: the key need not exist, because `resolveScope`
+    // runs in the catalogue entry before the bank is ever read. Were that order
+    // reversed, the refusal would name the question and this sweep would fail
+    // rather than pass for the wrong reason.
+    case 'stats_closing_question':
+      return { question: 'question-that-does-not-exist' };
     default:
       return {};
   }
