@@ -281,7 +281,13 @@ describe('closingAnswersIssues', () => {
     ).toContain('hors barème');
   });
 
-  it('should refuse a note on a question this grid invites none for', () => {
+  it('should accept a note on a question this grid invites none for', () => {
+    // Deliberately not a refusal, unlike every other mismatch here. The payload
+    // is the whole form, and the load prefills it from the record: a note
+    // written while the composition still invited one comes back on every later
+    // autosave. Refusing it failed that autosave for good, so the closing could
+    // never be saved or clôturé again. `persistClosing` writes nothing either
+    // way, so there is no write left to guard.
     const template = stored();
     template.sections[0].questions[0].withNote = false;
     const grid = toClosingGrid(template);
@@ -289,7 +295,7 @@ describe('closingAnswersIssues', () => {
       form({ q1: answer({ note: 'une note' }) }),
       grid,
     );
-    expect(issues[0].message).toContain("n'attend pas de note");
+    expect(issues).toEqual([]);
   });
 });
 
@@ -354,16 +360,15 @@ describe('recordSynthesisSections', () => {
     expect(q.canonicalLabel).toBe(dropped.label);
   });
 
-  it('should keep a note recorded while the question was still asked', () => {
-    // A retired question is offered a note by no composition, so projecting it
-    // like a grid question would give it `note: null` and the synthesis would
-    // silently drop what the team wrote. The renderer prints a note only when
-    // the answer carries one, so declaring the field costs nothing and is what
-    // stops a real note being buried with its question.
+  it('should offer a retired question no note field, since no grid invites one', () => {
+    // `note` is the WRITE affordance - the input a composition offers - and no
+    // composition offers this question anything any more. What the team actually
+    // wrote against it is on the answer row, and that is where a renderer reads
+    // it: nothing here decides whether a recorded note prints.
     const grid = toClosingGrid(stored());
     const [q] = recordSynthesisSections(grid, [question({ id: 'q2' })])[1]
       .questions;
-    expect(q.note).toEqual({ placeholder: '', maxLength: CLOSING_NOTE_LIMIT });
+    expect(q.note).toBeNull();
   });
 
   it('should guard a retired question’s tokens exactly as a grid question’s', () => {

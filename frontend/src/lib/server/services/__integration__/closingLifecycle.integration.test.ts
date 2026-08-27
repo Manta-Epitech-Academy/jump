@@ -8,6 +8,7 @@ import {
   recordSynthesisSections,
   RETIRED_SECTION_TITLE,
 } from '$lib/domain/closing';
+import { closingAnswersIssues } from '$lib/validation/closings';
 import { resolveClosingGridById } from '$lib/server/closingTemplates';
 import { persistClosing } from '$lib/server/services/closingService';
 import { anonymizeTalent } from '$lib/server/services/anonymizationService';
@@ -763,5 +764,174 @@ describe('a question dropped from a grid', () => {
     const asked = record.answers.map((a) => a.questionId);
     expect(asked).not.toContain(own.kept);
     expect(asked).toContain(own.doomed);
+  });
+});
+
+describe('a note whose grid stopped inviting one', () => {
+  // The sibling of the describe above, one field down. A composition can stop
+  // asking a question, and it can keep asking it while withdrawing the note
+  // under it - `write_closing_template` does the second whenever a grid is
+  // replayed without `withNote`, which defaults to false. Both must leave what
+  // was recorded exactly where it is.
+  const own: Record<string, string> = {};
+
+  beforeAll(async () => {
+    const question = await prisma.closing_Question.create({
+      data: {
+        key: `noted-${stamp}`,
+        label: 'Ça t’a donné envie ?',
+        kind: 'single',
+        notePlaceholder: 'Une nuance…',
+        options: { create: [{ position: 0, value: 'oui', label: 'Oui' }] },
+      },
+      select: { id: true, options: { select: { id: true } } },
+    });
+    own.question = question.id;
+    own.option = question.options[0].id;
+
+    const template = await prisma.closing_Template.create({
+      data: {
+        key: `noted-${stamp}`,
+        label: 'Grille qui retire sa note',
+        sections: { create: { position: 0, title: 'Retour' } },
+      },
+      select: { id: true, sections: { select: { id: true } } },
+    });
+    own.template = template.id;
+
+    await prisma.closing_TemplateQuestion.create({
+      data: {
+        templateId: template.id,
+        sectionId: template.sections[0].id,
+        questionId: question.id,
+        position: 0,
+        withNote: true,
+      },
+    });
+
+    const event = await prisma.event.create({
+      data: {
+        titre: `NotedEvent-${stamp}`,
+        date: new Date('2026-03-02T09:00:00Z'),
+        campusId: ids.campus,
+        closingTemplateId: template.id,
+      },
+    });
+    own.event = event.id;
+
+    const talent = await prisma.talent.create({
+      data: { nom: 'Noted', prenom: `Test${stamp}` },
+    });
+    own.talent = talent.id;
+
+    const participation = await prisma.participation.create({
+      data: { talentId: talent.id, eventId: event.id, campusId: ids.campus },
+    });
+    own.participation = participation.id;
+  });
+
+  afterAll(async () => {
+    try {
+      await prisma.closing_Record.deleteMany({
+        where: { talentId: own.talent },
+      });
+      await prisma.participation.deleteMany({
+        where: { id: own.participation },
+      });
+      await prisma.talent.deleteMany({ where: { id: own.talent } });
+      await prisma.event.deleteMany({ where: { id: own.event } });
+      await prisma.closing_TemplateQuestion.deleteMany({
+        where: { templateId: own.template },
+      });
+      await prisma.closing_Template.deleteMany({ where: { id: own.template } });
+      await prisma.closing_Question.deleteMany({ where: { id: own.question } });
+    } catch {
+      // ignore - the test database is disposable
+    }
+  });
+
+  /** The whole form, as the conduct page posts it back: what the load prefilled
+   *  from the record, note included. */
+  function payload(
+    over: Partial<{ selectedIds: string[]; note: string }> = {},
+  ) {
+    return {
+      participationId: own.participation,
+      answers: { [own.question]: answer(over) },
+      recommendation: 'bon_profil' as const,
+      verdictNote: '',
+    };
+  }
+
+  async function save(
+    form: ReturnType<typeof payload>,
+    mode: 'start' | 'save' = 'save',
+  ) {
+    const grid = await resolveClosingGridById(own.template);
+    // Exactly what the action does before persisting: a refusal here is a 400
+    // the staff member cannot get past, which is the failure this covers.
+    expect(closingAnswersIssues(form, grid!)).toEqual([]);
+    await persistClosing({
+      participationId: own.participation,
+      talentId: own.talent,
+      campusId: ids.campus,
+      staffId: ids.staff,
+      templateId: own.template,
+      grid: grid!,
+      form,
+      mode,
+    });
+  }
+
+  const storedNote = async () => {
+    const record = await prisma.closing_Record.findUniqueOrThrow({
+      where: { participationId: own.participation },
+      select: {
+        answers: {
+          select: {
+            questionId: true,
+            note: true,
+            selectedOptions: { select: { optionId: true } },
+          },
+        },
+      },
+    });
+    return record.answers.find((a) => a.questionId === own.question) ?? null;
+  };
+
+  it('should keep saving, and keep the note, once the grid withdraws it', async () => {
+    // Arrange: the team writes a note while the grid still invites one.
+    await save(
+      payload({ selectedIds: [own.option], note: 'Hésite avec une prépa.' }),
+      'start',
+    );
+
+    // Act: the grid is recomposed and stops offering a note under that question.
+    await prisma.closing_TemplateQuestion.updateMany({
+      where: { templateId: own.template, questionId: own.question },
+      data: { withNote: false },
+    });
+
+    // The page posts the whole form back on the next autosave, note and all.
+    // This used to be refused ("n'attend pas de note dans cette grille"), so
+    // every later save failed and the closing could never be clôturé.
+    await save(
+      payload({ selectedIds: [own.option], note: 'Hésite avec une prépa.' }),
+    );
+
+    // Assert: still there, untouched. A composition says whether a note may be
+    // ENTERED, never whether one exists.
+    expect((await storedNote())?.note).toBe('Hésite avec une prépa.');
+  });
+
+  it('should leave the row alone when only the note is left on it', async () => {
+    // The staff member un-picks the answer. The structured half goes, but the
+    // note is not this grid's to remove, so the row stays rather than being
+    // reconciled away with it.
+    await save(payload({ selectedIds: [], note: 'Hésite avec une prépa.' }));
+
+    const row = await storedNote();
+    expect(row?.note).toBe('Hésite avec une prépa.');
+    expect(row?.selectedOptions).toEqual([]);
   });
 });

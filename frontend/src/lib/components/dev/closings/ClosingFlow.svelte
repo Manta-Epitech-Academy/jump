@@ -357,8 +357,13 @@
   // The trimmed per-question note, or null. Shared by the synthesis (rendered on
   // its own line so its newlines survive) and resume (a note alone marks the
   // question touched).
+  //
+  // Read off the ANSWER, never gated on `q.note`: that field says whether this
+  // grid offers a note input (which is what `noteInput` below is gated on), not
+  // whether one was written. Gating the display on it meant a grid dropping a
+  // `withNote` hid prose the team had already written - on screen only, since
+  // the PDF has always printed whatever the row holds.
   function noteText(q: ClosingQuestion): string | null {
-    if (!q.note) return null;
     return answerOf(q.id).note.trim() || null;
   }
 

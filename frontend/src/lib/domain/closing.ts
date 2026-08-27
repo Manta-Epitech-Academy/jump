@@ -324,15 +324,13 @@ export function recordSynthesisSections(
       id: RETIRED_SECTION_ID,
       title: RETIRED_SECTION_TITLE,
       // The bank's own wording, never a composition's: the grid that phrased it
-      // for this format no longer asks it, so it has no wording to lend.
-      questions: retired.map((q) => ({
-        ...projectQuestion(q, { label: null, withNote: false }),
-        // No composition offers this question a note any more, but one may have
-        // been recorded while one did. A renderer prints a note only when the
-        // answer carries one, so declaring the field is what keeps a recorded
-        // note from being buried with its question.
-        note: { placeholder: '', maxLength: CLOSING_NOTE_LIMIT },
-      })),
+      // for this format no longer asks it, so it has no wording to lend. And no
+      // note field, for the same reason - a note is offered by a composition.
+      // What was RECORDED against it still prints: a renderer reads the note off
+      // the answer, never off the question (see `noteText` in `ClosingFlow`).
+      questions: retired.map((q) =>
+        projectQuestion(q, { label: null, withNote: false }),
+      ),
     },
   ];
 }
