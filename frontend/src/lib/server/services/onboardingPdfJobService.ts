@@ -71,11 +71,18 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
   // in place for a later manual retry.
   let job: OnboardingPdfJob | null = null;
   try {
-    // Claim: flip a not-yet-succeeded row to `processing`. A zero count means the
-    // job already succeeded (or was deleted) — nothing left to do. `updatedAt` is
-    // bumped here, which is what marks "processing since" for stranded detection.
+    // Claim: flip a claimable row to `processing`, per {@link claimableJobWhere},
+    // which owns that rule. A zero count means somebody else owns the job - it
+    // already succeeded, it is being rendered right now, or it is gone - and
+    // there is nothing left to do. `updatedAt` is bumped here, which is what
+    // marks "processing since" for stranded detection.
+    //
+    // Postgres re-checks the predicate against the updated row under the row
+    // lock, so of two concurrent claimers exactly one sees count 1. That is what
+    // makes the guard below reachable at all: it used to be paired with a
+    // predicate that matched an already-`processing` row, so both callers got 1.
     const claimed = await prisma.onboardingPdfJob.updateMany({
-      where: { id: jobId, status: { not: 'success' } },
+      where: { id: jobId, ...claimableJobWhere() },
       data: { status: 'processing', errorMessage: null, processedAt: null },
     });
     if (claimed.count === 0) return;
@@ -274,6 +281,32 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
  * signature-keyed S3 object), so the worst case is one wasted generation.
  */
 const STRANDED_AFTER_MS = 5 * 60_000;
+
+/**
+ * The same rule as {@link isOnboardingPdfJobRetryable}, as a Prisma predicate:
+ * which rows {@link runOnboardingPdfJob} is allowed to claim.
+ *
+ * Two dialects of one rule, deliberately adjacent so they cannot drift, and they
+ * have to agree in both directions. Accepting MORE than the affordance offers
+ * re-renders a job that is legitimately in flight, and a second caller is
+ * ordinary rather than hypothetical: every caller fires
+ * `void runOnboardingPdfJob(id)` (the parent co-signature, the onboarding route,
+ * and the admin page's "Relancer" and "Relancer tout"), so an admin relaunching
+ * during a cohort signing burst used to double browser-pool work at the moment
+ * the pool is the bottleneck. Accepting LESS would give that page a button that
+ * silently does nothing, which is worse than no button.
+ */
+function claimableJobWhere() {
+  return {
+    OR: [
+      { status: { in: ['pending', 'error'] } },
+      {
+        status: 'processing',
+        updatedAt: { lt: new Date(Date.now() - STRANDED_AFTER_MS) },
+      },
+    ],
+  };
+}
 
 /**
  * Whether the admin page should offer a manual "Relancer" for a job. `error` and

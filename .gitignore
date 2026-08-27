@@ -112,6 +112,10 @@ test-results/
 frontend/playwright-report/
 frontend/test-results/
 
+# Per-role Playwright sessions, written by tests/e2e/auth.setup.ts on every run.
+# Real (if throwaway) session cookies: generated, never committed.
+frontend/tests/e2e/.auth/
+
 
 
 # Working copy for commit messages, PR and issue bodies (see .github/CONTRIBUTING.md

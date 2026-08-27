@@ -13,12 +13,21 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-    # No volume on purpose: this database is disposable by design (TESTING.md -
-    # "chaque lancement donne une instance propre"), and the integration suites
-    # create and clean up their own rows. Persisting it bought nothing and broke
-    # startup: postgres:18 stores data under /var/lib/postgresql/<major>/docker,
-    # so a volume left at the pre-18 /var/lib/postgresql/data path makes the image
-    # refuse to boot ("there appears to be PostgreSQL data in ... unused
-    # mount/volume"). Apply the schema after `up` with:
-    #   DATABASE_URL="postgresql://jump:testpassword@localhost:5434/jump_test" \
-    #     bunx prisma migrate deploy
+    # No volume declared here, but the postgres image declares its own at
+    # /var/lib/postgresql, so a container that is stopped and restarted comes back
+    # with its databases intact. Worth knowing, because it is the opposite of what
+    # this file used to claim: only `docker compose down -v` gives you a clean
+    # instance. Persisting it at the pre-18 /var/lib/postgresql/data path is what
+    # made the image refuse to boot ("there appears to be PostgreSQL data in ...
+    # unused mount/volume"), which is why nothing is declared.
+    #
+    # Do not create or migrate a database here by hand. `scripts/with-test-db.sh`
+    # owns that: it starts this container, creates ONE database per worktree
+    # (`jump_test_<worktree>`) and applies the migrations. The worktrees on a dev
+    # machine used to share the single `jump_test` above, so a `migrate deploy`
+    # from one branch left every other worktree's suite red against a schema it
+    # was never written for.
+    #
+    #   bun run test:db            # provision only
+    #   bun run test:integration   # provision, then run the integration project
+    #   bun run test:e2e           # provision, then build, boot and drive the app

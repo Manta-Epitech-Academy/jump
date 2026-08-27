@@ -26,10 +26,15 @@
     "test": "vitest run --project unit",
     "test:watch": "vitest --project unit",
     "test:coverage": "vitest run --project unit --coverage",
-    "test:integration": "bun --env-file=.env.test vitest run --project integration",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "lint:design": "bun run scripts/lint-design.ts"
+    "test:db": "sh scripts/with-test-db.sh",
+    "test:integration": "sh scripts/with-test-db.sh vitest run --project integration",
+    "test:schema-drift": "sh scripts/with-test-db.sh sh scripts/check-schema-drift.sh",
+    "test:e2e": "TEST_DB_SUITE=e2e sh scripts/with-test-db.sh playwright test",
+    "test:e2e:ui": "TEST_DB_SUITE=e2e sh scripts/with-test-db.sh playwright test --ui",
+    "lint:design": "bun run scripts/lint-design.ts",
+    "lint:tests": "bun run scripts/lint-tests.ts",
+    "lint:scripts": "sh ../scripts/check-exec-bits.sh",
+    "verify": "bun run lint:scripts && bun run lint && bun run lint:design && bun run lint:tests && bun run check && bun run test && bun run test:integration && bun run test:schema-drift && bun run test:e2e"
   },
   "devDependencies": {
     "@internationalized/date": "^3.12.2",
