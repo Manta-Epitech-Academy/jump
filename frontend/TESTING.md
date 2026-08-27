@@ -115,7 +115,7 @@ describe('validateAge', () => {
   placé part dans le projet `unit`, qui n'a pas de base de données.
 - **Appeler `assertTestDatabase()` avant d'écrire quoi que ce soit.** C'est la
   garde qui refuse un `DATABASE_URL` qui ne désigne pas une base de test, et elle
-  est vérifiée par `bun run lint:tests`. Les worktreees de la machine partagent un
+  est vérifiée par `bun run lint:tests`. Les worktrees de la machine partagent un
   Postgres, donc « le mauvais `DATABASE_URL` » est un accident réaliste.
 - **Nettoyer ce qu'on a créé, en scopant par id.** `afterAll` avec des ids
   capturés en `beforeAll` est la forme normale ici (fixture partagée par les tests
