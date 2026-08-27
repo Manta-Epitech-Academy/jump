@@ -302,41 +302,55 @@ Les tests unitaires (`*.test.ts`) vivent **à côté du fichier qu'ils testent**
 
 ## 5. Conventions d'Écriture
 
-### Structure AAA — Arrange / Act / Assert
-
-Tout test suit cette structure, sans exception :
-
-```typescript
-it('should reject registration when the event is full', async () => {
-  // Arrange
-  const event = await createTestEvent({ maxParticipants: 1 });
-  await registrationService.register(event.id, 'student-1');
-
-  // Act
-  const result = registrationService.register(event.id, 'student-2');
-
-  // Assert
-  await expect(result).rejects.toThrow('EVENT_FULL');
-});
-```
+Rien dans cette section n'est vérifié par un script, et c'est délibéré : ce sont
+des conventions de lecture, pas des invariants. Ce qui bloque un merge est en
+§9, et la liste y est courte exprès.
 
 ### Nommage des tests
 
-- `describe` : nom du module ou de la classe testée
-- `describe` imbriqué : nom de la méthode ou fonctionnalité
-- `it` : phrase commençant par **"should"**, décrivant le comportement attendu
+- `describe` : nom du module ou de la fonction testée
+- `describe` imbriqué : le cas ou la facette
+- `it` : une phrase qui décrit le COMPORTEMENT, à l'indicatif, sans préfixe
 
 ```typescript
-// ✅ Good
-it('should return null if the student does not exist');
-it('should throw if the email is already in use');
-it('should require parental consent for students under 15');
+// ✅ Ce que la codebase écrit
+it('refuses a batch of MCP calls');
+it('counts only the talents Jump shows');
+it('withholds the relative gap on a rate');
 
-// ❌ Avoid
+// ❌ À éviter
 it('test getById');
 it('error case');
 it('works correctly');
 ```
+
+Pas de préfixe `should`. Ce document l'a exigé longtemps, et `lint-tests.ts` l'a
+vérifié : 396 findings, c'est-à-dire la suite entière. La convention avait perdu
+contre la pratique, et la pratique avait raison, parce que c'est la phrase brute
+qui se lit dans un rapport d'échec (`✗ refuses a batch of MCP calls`). La règle a
+été retirée du script en même temps que cette exigence d'ici ; voir
+[scripts/LINT-TESTS.md](scripts/LINT-TESTS.md), « Règles retirées ».
+
+### Arrange, Act, Assert
+
+La forme est utile et la plupart des tests la suivent naturellement :
+
+```typescript
+it('refuses a second registration when the event is full', async () => {
+  const event = await createTestEvent({ maxParticipants: 1 });
+  await registrationService.register(event.id, 'student-1');
+
+  const result = registrationService.register(event.id, 'student-2');
+
+  await expect(result).rejects.toThrow('EVENT_FULL');
+});
+```
+
+Une ligne vide entre les trois temps suffit. Les commentaires `// Arrange`,
+`// Act`, `// Assert` ne sont ni exigés ni souhaités : sur un test de trois
+lignes ils sont de la ponctuation, et les exiger produisait 242 findings sur du
+code parfaitement clair. Ce qui compte est qu'un test couvre **un** comportement,
+ce qui rend les trois temps lisibles sans les annoter.
 
 ### Ce qu'on mock et ce qu'on ne mock pas
 
@@ -584,4 +598,3 @@ Ensuite :
 
 - [Vitest — Documentation officielle](https://vitest.dev)
 - [Playwright — Documentation officielle](https://playwright.dev)
-- [@testing-library/svelte](https://testing-library.com/docs/svelte-testing-library/intro)
