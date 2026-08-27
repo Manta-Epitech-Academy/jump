@@ -8,7 +8,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AdminEventVM } from '$lib/server/services/events';
 
 const listAdminEvents = vi.fn();
-vi.mock('$lib/server/services/events', () => ({
+// Only the query is stubbed; the rest of the module stays real. The rule under
+// the coverage denominator is read from there, so replacing the module wholesale
+// would leave the closing tests below agreeing with a stub instead of with the
+// gate.
+vi.mock('$lib/server/services/events', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$lib/server/services/events')>()),
   EventService: { listAdminEvents: () => listAdminEvents() },
 }));
 
@@ -27,6 +32,14 @@ const { getCampusComparison } = await import('./campusComparison');
 const { WOMEN_SHARE_RULE } = await import('./cohortProfile');
 const { SHOW_UP_RATE_RULE } = await import('./attendanceRate');
 
+/**
+ * Both halves of the closing gate are spelled out, never defaulted.
+ *
+ * `closingTemplateId` was missing here, so it was `undefined`, and `undefined
+ * !== ''` is true: every closing test below passed on the module half alone,
+ * and the grid half - the one the coverage bug was actually about - was
+ * unexercised.
+ */
 function event(over: Partial<AdminEventVM> = {}): AdminEventVM {
   return {
     id: 'evt',
@@ -36,6 +49,7 @@ function event(over: Partial<AdminEventVM> = {}): AdminEventVM {
     status: 'past',
     participations: 0,
     modules: [],
+    closingTemplateId: '',
     ...over,
   } as AdminEventVM;
 }
@@ -291,6 +305,39 @@ describe('getCampusComparison, closing axes', () => {
     // 1 of the 2 concerned enrolments, not 1 of 4.
     expect(comparison.rankings.closingCoverage.value).toEqual([
       { campus: 'Lille', value: 50, rank: 1 },
+    ]);
+  });
+
+  it('leaves out an event whose section is on but which names no grid', async () => {
+    seed({
+      events: [
+        withClosings({ id: 'lille-stage', campusName: 'Lille' }),
+        // Configured enough to look ready, holding no grid and therefore no
+        // closing: its enrolments belong to the configuration gap, not to the
+        // rate.
+        event({
+          id: 'lille-sans-grille',
+          campusName: 'Lille',
+          modules: ['closings'],
+        }),
+      ],
+      enrolments: [
+        { talentId: 't1', eventId: 'lille-stage', sfMemberStatus: 'MEET' },
+        {
+          talentId: 't2',
+          eventId: 'lille-sans-grille',
+          sfMemberStatus: 'MEET',
+        },
+      ],
+      talents: [],
+      closings: [{ eventId: 'lille-stage', recommendation: 'bon_profil' }],
+    });
+
+    const comparison = await getCampusComparison({ schoolYear: '2025-2026' });
+
+    // 1 of the 1 concerned enrolment, not 1 of 2.
+    expect(comparison.rankings.closingCoverage.value).toEqual([
+      { campus: 'Lille', value: 100, rank: 1 },
     ]);
   });
 
