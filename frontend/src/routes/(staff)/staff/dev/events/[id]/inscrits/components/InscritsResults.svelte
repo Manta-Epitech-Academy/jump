@@ -54,6 +54,11 @@
   } from '$lib/domain/imageRights';
 
   import type { InscritRow, SortKey, InscritsCohort } from './types';
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
 
   // The streamed cohort payload plus the cheap shell values the table/rail need.
   // This component owns all filter/sort/export state, so it mounts only once the
@@ -281,15 +286,14 @@
     if (originActive) navigateWithParams({ lycee: '', interest: '' });
   }
 
-  const norm = (s: string) =>
-    s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
   function makeHaystack(r: InscritRow): string {
-    return norm(
-      [r.nom, r.prenom, niveauLabel(r.niveau), r.schoolName, r.email]
-        .filter(Boolean)
-        .join(' '),
-    );
+    return buildHaystack([
+      r.nom,
+      r.prenom,
+      niveauLabel(r.niveau),
+      r.schoolName,
+      r.email,
+    ]);
   }
 
   // Rows with no value for the active sort key always sink to the bottom, in
@@ -320,13 +324,11 @@
   }
 
   const filtered = $derived.by(() => {
-    const tokens = norm(searchQuery).split(/\s+/).filter(Boolean);
+    const tokens = searchTokens(searchQuery);
     const out = rows.filter((r) => {
       if (niveauFilter !== 'all' && r.niveau !== niveauFilter) return false;
       if (statutFilter !== 'all' && r.status !== statutFilter) return false;
-      if (tokens.length === 0) return true;
-      const h = makeHaystack(r);
-      return tokens.every((tok) => h.includes(tok));
+      return matchesAllTokens(makeHaystack(r), tokens);
     });
     out.sort((a, b) => {
       const aLast = sortsLast(a, sortKey);

@@ -17,6 +17,11 @@
     SortDir,
   } from '$lib/components/staff/datatable/types';
   import type { BilanRow } from '../+page.server';
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
 
   let {
     rows,
@@ -90,7 +95,7 @@
   }
 
   const filtered = $derived.by(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const tokens = searchTokens(searchQuery);
     let out = rows.filter((r) => {
       if (statut === 'responded' && !r.respondedAt) return false;
       if (statut === 'pending' && r.respondedAt) return false;
@@ -101,8 +106,7 @@
           return false;
         }
       }
-      if (!q) return true;
-      return `${r.prenom ?? ''} ${r.nom ?? ''}`.toLowerCase().includes(q);
+      return matchesAllTokens(buildHaystack([r.prenom, r.nom]), tokens);
     });
     const dir = sortDir === 'asc' ? 1 : -1;
     out = [...out].sort((a, b) => {

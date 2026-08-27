@@ -29,6 +29,11 @@
   import SynthesisCard from './SynthesisCard.svelte';
   import StaffTallyCard from './StaffTallyCard.svelte';
   import GuideCard from '$lib/components/dev/closings/GuideCard.svelte';
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
 
   // The streamed cohort payload plus the two cheap shell values the table/rail
   // need (timezone for date formatting, currentStaffId to highlight the leader-
@@ -101,9 +106,6 @@
     }
   }
 
-  const norm = (s: string) =>
-    s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
   const dateFmt = (d: Date | string | null) =>
     d
       ? new Date(d).toLocaleDateString('fr-FR', {
@@ -139,12 +141,13 @@
   }
 
   const filtered = $derived.by(() => {
-    const tokens = norm(searchQuery).split(/\s+/).filter(Boolean);
+    const tokens = searchTokens(searchQuery);
     const out = rows.filter((r) => {
       if (statutFilter !== 'all' && r.status !== statutFilter) return false;
-      if (tokens.length === 0) return true;
-      const h = norm(`${r.prenom} ${r.nom} ${r.staffName ?? ''}`);
-      return tokens.every((tok) => h.includes(tok));
+      return matchesAllTokens(
+        buildHaystack([r.prenom, r.nom, r.staffName]),
+        tokens,
+      );
     });
     out.sort((a, b) => {
       const c = compareRows(a, b, sortKey);

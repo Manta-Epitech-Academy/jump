@@ -44,6 +44,11 @@
   import SlotStatsCard from './SlotStatsCard.svelte';
   import PresenceHelpCard from './PresenceHelpCard.svelte';
   import SlotNavigator from './SlotNavigator.svelte';
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
 
   // The streamed roster plus the slot context the shell owns. `activeSlotKey` is
   // bound back to the shell so its header QR button stays in sync with the slot
@@ -135,11 +140,8 @@
     { value: 'absent', label: statusLabelFr('absent') },
     { value: 'excused', label: statusLabelFr('excused') },
   ];
-  const norm = (s: string) =>
-    s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
   function haystack(r: PresenceRow): string {
-    return norm([r.nom, r.prenom].join(' '));
+    return buildHaystack([r.nom, r.prenom]);
   }
 
   function compareRows(a: PresenceRow, b: PresenceRow): number {
@@ -149,12 +151,10 @@
   }
 
   const filtered = $derived.by(() => {
-    const tokens = norm(searchQuery).split(/\s+/).filter(Boolean);
+    const tokens = searchTokens(searchQuery);
     const out = rows.filter((r) => {
       if (statusFilter !== 'all' && rowStatus(r) !== statusFilter) return false;
-      if (tokens.length === 0) return true;
-      const h = haystack(r);
-      return tokens.every((t) => h.includes(t));
+      return matchesAllTokens(haystack(r), tokens);
     });
     out.sort((a, b) => {
       const c = compareRows(a, b);
