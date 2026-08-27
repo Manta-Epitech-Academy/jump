@@ -194,7 +194,20 @@ export const HANDLES: Record<HandleKind, Handle> = {
     what: 'Closing question key, the stable name a bank question is authored under.',
     frNoun: 'clés de question de closing',
     frGender: 'f',
-    producedBy: [{ operation: 'config_closing_questions' }],
+    producedBy: [
+      { operation: 'config_closing_questions' },
+      // The leadership tier's own producer, and the reason this is a list. The
+      // configuration read above is core-only, so a leadership token asked for a
+      // question key had nowhere to get one: the parameter would have sat in its
+      // tool list refusing every value it could have invented. Its slice is
+      // narrower than the catalogue's, and saying so is the whole point of
+      // `covers`.
+      {
+        operation: 'stats_closing_insights',
+        covers:
+          'only the questions the grids in scope actually ask, and never one answered in free text',
+      },
+    ],
   },
   closingId: {
     what: 'Closing id.',

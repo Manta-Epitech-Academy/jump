@@ -108,6 +108,10 @@ import {
 import { getTalentRetention } from '$lib/server/services/adminStats/talentRetention';
 import { getClosingInsights } from '$lib/server/services/adminStats/closingInsights';
 import {
+  getClosingQuestion,
+  CLOSING_QUESTION_GROUPS_LIMIT,
+} from '$lib/server/services/adminStats/closingQuestion';
+import {
   getClosingQuestions,
   getClosingTemplates,
 } from '$lib/server/services/adminStats/closingConfiguration';
@@ -1173,6 +1177,28 @@ export const ADMIN_API_OPERATIONS = {
       'What the closings say: how they heard about us, what motivates them, which school specialities and tech domains they are heading for, how satisfied they were, whether they want to come back, and the team verdict. One distribution per question, plus how much of the cohort had a closing at all. A périmètre can mix several grids: a question several of them ask is aggregated once, and each carries the number of closings that actually asked it. No free text, nobody named.',
     shape: { schoolYear, campus, eventId },
     run: async (params) => getClosingInsights(await resolveScope(params)),
+  }),
+
+  stats_closing_question: defineOperation({
+    leadership: true,
+    description: `One question of the closing bank, in full: every answer with a count and a share, how many closings actually asked it against how many answered, and - when its answers carry a declared order - the share of favourable ones. Pass groupBy to get the same figures per campus, per event or per grid, already ranked. Grouping by grid is how a stage and a Coding Club are compared on the same question: the bank holds it once, so both formats fall into one distribution and this is what splits it back apart. A question whose options carry no order comes back unranked rather than ordered on an invented best, and a free-text question is refused. Capped at ${CLOSING_QUESTION_GROUPS_LIMIT} groups.`,
+    shape: {
+      question: z
+        .string()
+        .min(1)
+        .describe(handleDescribe('closingQuestionKey')),
+      groupBy: z
+        .enum(['campus', 'event', 'grid'])
+        .optional()
+        .describe(
+          'Break the figures down per campus, per event or per closing grid, ranked. Omit to answer for the whole périmètre at once.',
+        ),
+      schoolYear,
+      campus,
+      eventId,
+    },
+    run: async ({ question, groupBy, ...scope }) =>
+      getClosingQuestion(await resolveScope(scope), { question, groupBy }),
   }),
 
   stats_closing_testimonials: defineOperation({

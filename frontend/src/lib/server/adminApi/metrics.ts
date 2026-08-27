@@ -195,4 +195,5 @@ export function rankAxisNote(unit: {
 export const RANK_UNITS = {
   campus: { singular: 'campus', plural: 'campus' },
   event: { singular: 'événement', plural: 'événements' },
+  grid: { singular: 'grille', plural: 'grilles' },
 } as const;
