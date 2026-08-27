@@ -205,9 +205,24 @@ const rules: Rule[] = [
     name: "Les suites d'intégration appellent assertTestDatabase()",
     check() {
       const tests = findFiles(join(ROOT, 'src'), /\.integration\.test\.ts$/);
+      // Un site d'APPEL, pas la simple présence du nom : une suite qui importe la
+      // garde et oublie de l'appeler est exactement le cas que la règle existe
+      // pour attraper, et `content.includes('assertTestDatabase')` la laissait
+      // passer. Ni la ligne d'import ni un commentaire ne matchent.
+      //
+      // Deux formes, parce que les deux tournent réellement : l'appel dans un
+      // hook (`beforeAll(async () => { assertTestDatabase(); ... })`, ce que font
+      // dix-neuf suites) et la référence passée au hook
+      // (`beforeAll(assertTestDatabase)`, ce que fait `pdfRender`). La deuxième
+      // n'a été trouvée qu'en resserrant la règle, ce qui est aussi la preuve
+      // qu'un garde non testé négativement ne garde rien.
+      const callRegex =
+        /\bassertTestDatabase\s*\(|\b(?:beforeAll|beforeEach)\s*\(\s*assertTestDatabase\s*\)/;
       for (const f of tests) {
-        const content = readFileSync(f, 'utf-8');
-        if (!content.includes('assertTestDatabase')) {
+        const called = readLines(f).some(
+          (l) => !isComment(l) && callRegex.test(l),
+        );
+        if (!called) {
           fail(
             `${rel(f)} — doit appeler assertTestDatabase() (beforeAll ou beforeEach) avant d'écrire quoi que ce soit`,
           );

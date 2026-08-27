@@ -4,8 +4,9 @@
  * Here rather than in the unit project because it needs Puppeteer's Chromium,
  * an out-of-process dependency exactly like the database the other suites need.
  * `bun install` does not run puppeteer's install script (no `trustedDependencies`),
- * so CI has no browser and `bun run test` must stay browser-free. It touches no
- * database, hence no `assertTestDatabase()`.
+ * so CI has no browser and `bun run test` must stay browser-free. It reads the
+ * database (the seeded design below), so it takes the same `assertTestDatabase`
+ * rail as every other suite here.
  *
  * Three things are asserted, and all three fail silently in production rather
  * than loudly: a document quietly printing in a fallback face, the renderer

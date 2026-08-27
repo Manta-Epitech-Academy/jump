@@ -53,6 +53,10 @@ apprend à ignorer.
 - **Pas de parsing AST.** Le script est en regex, et c'est assumé : aucune règle
   restante ne dépend de la structure d'un bloc de test. Les règles qui en
   dépendaient sont celles qui ont été retirées.
+- **Deux formes acceptées pour la règle 5.** L'appel dans un hook
+  (`beforeAll(async () => { assertTestDatabase(); ... })`) et la référence passée
+  au hook (`beforeAll(assertTestDatabase)`). Les deux tournent réellement ; la
+  simple présence du nom, elle, ne prouve rien et ne passe plus.
 - **Commentaires en fin de ligne.** `isComment()` ne gère pas
   `const x = 1 // postgres://user@prod-db…`, donc la règle 8 pourrait signaler une
   URL dans un commentaire inline. En pratique ça n'arrive pas.
