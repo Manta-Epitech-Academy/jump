@@ -144,17 +144,27 @@ During implementation:
 
 ### Step 5 — Technical Gate
 
-Before any commit or PR, verify that all static checks pass cleanly:
+Before any commit or PR, run the gate:
 
 ```bash
 cd "$(git rev-parse --show-toplevel)/frontend"
-bun run check        # 0 errors, 0 warnings (TypeScript & Svelte)
-bun run lint         # Formatting & linting (Prettier/ESLint)
-bun run test         # Unit tests, incl. the DESIGN.md token contract
-bun run lint:design  # Visual contract (see scripts/LINT-DESIGN.md)
+bun run verify
 ```
 
-For branches with schema updates, ensure migrations are cleanly named and squashed into a single migration per branch (see [`AGENTS.md`](../AGENTS.md#prisma-migrations)). Since unit tests (`bun run test`) mock the database layer, branches modifying Prisma schema or tables MUST also be verified against a real PostgreSQL database (via `bunx prisma db push` or `bun run test:integration`) before declaring the feature complete.
+That is the whole step, and it is deliberately one command: `verify` chains exactly what the required
+checks execute, in the same order, through the same scripts, so a failure here is the failure CI would
+have reported. The chain is listed once, in `frontend/package.json`; the individual links and what each
+CI job runs are in [`frontend/TESTING.md`](../frontend/TESTING.md) §7 and §10.
+
+Anything needing a real database provisions itself, including one database per worktree, so there is no
+`docker compose up` and no `migrate deploy` to remember.
+
+For branches with schema updates, ensure migrations are cleanly named and squashed into a single
+migration per branch (see [`AGENTS.md`](../AGENTS.md#prisma-migrations)). You no longer have to
+remember to check the schema against a real PostgreSQL: `verify` runs the integration suite and
+`test:schema-drift`, which fails when `schema.prisma` and the migration trail disagree. That is what
+turned the Definition of Done's "verified against a real PostgreSQL database" line from a promise into
+a check.
 
 ### Step 6 — Visual Review & Definition of Done
 
