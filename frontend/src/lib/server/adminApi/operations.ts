@@ -1080,7 +1080,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_schools_reach: defineOperation({
     leadership: true,
-    description: `Which high schools the platform reaches: how many distinct ones, how many départements they cover, the ${SCHOOLS_TOP_N} most represented with their share of the cohort, and how much of the cohort is attached to no identified school at all.`,
+    description: `Which high schools the platform reaches: how many distinct ones, how many départements they cover, the ${SCHOOLS_TOP_N} most represented with their share of the cohort, and how much of the cohort is attached to no identified school at all - split into the ones who named a school Jump could not match and the ones who named none, because those two are chased differently.`,
     shape: { schoolYear, campus, eventId },
     run: async (params) => getSchoolsReach(await resolveScope(params)),
   }),
