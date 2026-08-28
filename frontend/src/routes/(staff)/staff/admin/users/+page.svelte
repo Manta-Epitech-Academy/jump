@@ -48,6 +48,12 @@
   import type { StaffRole } from '@prisma/client';
   import { track, errReason } from '$lib/analytics';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import KpiTile from '$lib/components/staff/KpiTile.svelte';
+  import StaffActivityDialog from '$lib/components/admin/StaffActivityDialog.svelte';
+  import { lastActiveLabel } from '$lib/components/staff/lastActive';
+  import { rowComparator } from '$lib/components/staff/datatable/sort';
+  import UserCheck from '@lucide/svelte/icons/user-check';
+  import UserX from '@lucide/svelte/icons/user-x';
   let { data } = $props();
 
   type MemberRow = (typeof data)['members'][number];
@@ -139,8 +145,17 @@
   let memberSortDir = $state<'asc' | 'desc'>('asc');
 
   const memberName = (u: MemberRow) => u.name || '';
+  // The tile below is a filter, not decoration: "jamais connecté" is the one
+  // actionable state on this page, and it is also the one a sort cannot surface,
+  // because a row with no date sinks in both directions by design.
+  let neverConnectedOnly = $state(false);
+  const neverConnectedCount = $derived(
+    data.members.filter((u) => !u.staffProfile?.firstLoginAt).length,
+  );
+
   const filteredMembers = $derived(
     data.members.filter((u) => {
+      if (neverConnectedOnly && u.staffProfile?.firstLoginAt) return false;
       const q = memberSearch.trim().toLowerCase();
       if (!q) return true;
       return (
@@ -151,6 +166,23 @@
     }),
   );
   const sortedMembers = $derived.by(() => {
+    // Activity is the one column whose value can be absent, and a `dir *`
+    // multiplication cannot express "sink the valueless rows in BOTH
+    // directions": flipping the sign would float "Jamais" to the top on one
+    // click. `rowComparator` owns that rule, so this column takes its path.
+    if (memberSortKey === 'activite') {
+      return [...filteredMembers].sort(
+        rowComparator({
+          dir: memberSortDir,
+          isMissing: (u: MemberRow) => !u.staffProfile?.lastActiveAt,
+          // Oldest activity first on the first click: "who has been away
+          // longest" is the question this column exists to answer.
+          compare: (a: MemberRow, b: MemberRow) =>
+            new Date(a.staffProfile?.lastActiveAt ?? 0).getTime() -
+            new Date(b.staffProfile?.lastActiveAt ?? 0).getTime(),
+        }),
+      );
+    }
     const dir = memberSortDir === 'asc' ? 1 : -1;
     return [...filteredMembers].sort(
       (a, b) => dir * compareMember(a, b, memberSortKey),
@@ -184,8 +216,17 @@
     { key: 'email', label: 'Email', sortable: true },
     { key: 'campus', label: 'Campus' },
     { key: 'role', label: 'Rôle' },
+    { key: 'activite', label: 'Activité', sortable: true },
     { key: 'actions', label: 'Actions', align: 'right' },
   ];
+
+  // ----- Activity detail ----------------------------------------------------
+  let activityOpen = $state(false);
+  let activityMember = $state<MemberRow | null>(null);
+  function openActivity(user: MemberRow) {
+    activityMember = user;
+    activityOpen = true;
+  }
 
   // ----- Pagination ---------------------------------------------------------
   // Both lists grow (invitations especially — stale ones pile up), and they
@@ -479,6 +520,29 @@
       >
     </h2>
 
+    <div class="grid gap-3 sm:grid-cols-2">
+      <KpiTile
+        label="Membres avec un rôle"
+        value={data.members.length}
+        icon={UserCheck}
+        tone="blue"
+        helpText="Les comptes qui peuvent réellement entrer dans un espace. Un profil sans rôle est bloqué partout."
+      />
+      <KpiTile
+        label="Jamais connectés"
+        value={neverConnectedCount}
+        total={data.members.length}
+        icon={UserX}
+        tone="orange"
+        helpText="Comptes invités dont aucune connexion réelle n’a jamais été enregistrée. Les sessions d’impersonation ne comptent pas : un administrateur qui teste l’espace d’un membre n’est pas ce membre qui se connecte."
+        onclick={() => {
+          neverConnectedOnly = !neverConnectedOnly;
+          memberPage = 1;
+        }}
+        pressed={neverConnectedOnly}
+      />
+    </div>
+
     <DataTableToolbar
       searchValue={memberSearch}
       onSearchInput={(v) => {
@@ -488,7 +552,7 @@
       searchPlaceholder="Rechercher un membre ou un campus…"
       count={sortedMembers.length}
       countNoun="membre"
-      filtersApplied={memberSearch.trim().length > 0}
+      filtersApplied={memberSearch.trim().length > 0 || neverConnectedOnly}
     />
 
     <SortableTable
@@ -642,6 +706,21 @@
               </Select.Content>
             </Select.Root>
           </form>
+        </Table.Cell>
+        <Table.Cell>
+          <!-- A button and not text: the label answers "still around?", the
+               detail answers "doing what?", and the second is a click away
+               rather than a column nobody can read. -->
+          <button
+            type="button"
+            onclick={() => openActivity(user)}
+            class="cursor-pointer rounded-lg px-2 py-1 text-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring {user
+              .staffProfile?.firstLoginAt
+              ? 'text-foreground-secondary'
+              : 'font-bold text-warning'}"
+          >
+            {lastActiveLabel(user.staffProfile?.lastActiveAt ?? null)}
+          </button>
         </Table.Cell>
         <Table.Cell class="text-right">
           <div class="flex items-center justify-end gap-1">
@@ -999,4 +1078,18 @@
       </form>
     </Dialog.Content>
   </Dialog.Root>
+
+  <!-- Keyed on the member so the dialog refetches when a different row is
+       opened, rather than showing the previous member's rows for an instant. -->
+  {#if activityMember}
+    {#key activityMember.id}
+      <StaffActivityDialog
+        bind:open={activityOpen}
+        profileId={activityMember.staffProfile?.id ?? null}
+        name={activityMember.name || activityMember.email || 'ce membre'}
+        firstLoginAt={activityMember.staffProfile?.firstLoginAt ?? null}
+        lastActiveAt={activityMember.staffProfile?.lastActiveAt ?? null}
+      />
+    {/key}
+  {/if}
 </div>

@@ -139,6 +139,7 @@ export const USAGE_FEATURES = {
   ADMIN_TALENT_PARENT_EMAIL_UPDATE: 'admin_talent_parent_email_update',
   ADMIN_USER_INVITE_CANCEL: 'admin_user_invite_cancel',
   ADMIN_ONBOARDING_PDF_OPEN: 'admin_onboarding_pdf_open',
+  ADMIN_STAFF_ACTIVITY_OPEN: 'admin_staff_activity_open',
 
   // ── Talent space (pseudonymous) ───────────────────────────────────
   TALENT_SESSION: 'talent_session',
@@ -1214,6 +1215,17 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     kind: 'action',
     scope: 'global',
     dedupe: 'each',
+  }),
+  [USAGE_FEATURES.ADMIN_STAFF_ACTIVITY_OPEN]: def({
+    key: USAGE_FEATURES.ADMIN_STAFF_ACTIVITY_OPEN,
+    label: 'Activité d’un membre consultée',
+    definition:
+      'Ouvertures du détail d’activité d’un membre de l’équipe depuis le répertoire. Cette page-là se mesure elle-même : elle est née de ce chantier, donc savoir si elle sert est la première question à lui poser.',
+    audience: 'staff',
+    space: 'admin',
+    kind: 'view',
+    scope: 'global',
+    dedupe: 'bucket',
   }),
   [USAGE_FEATURES.ADMIN_ONBOARDING_PDF_OPEN]: def({
     key: USAGE_FEATURES.ADMIN_ONBOARDING_PDF_OPEN,

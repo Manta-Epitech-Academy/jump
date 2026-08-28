@@ -56,6 +56,7 @@
     setListParams,
   } from '$lib/components/staff/datatable/urlList';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  import { lastActiveLabel } from '$lib/components/staff/lastActive';
 
   // The streamed cohort payload plus the parsed filters (the cheap shell value
   // the toolbar needs). This component owns every data-dependent surface — KPI
@@ -208,19 +209,6 @@
     complete: 'border-epi-tech/30 bg-epi-tech/10 text-epi-tech-ink',
     pending: 'border-epi-together/30 bg-epi-together/10 text-epi-together',
   } as const;
-
-  function lastActiveLabel(date: Date | string | null): string {
-    if (!date) return 'Jamais';
-    const diff = Date.now() - new Date(date).getTime();
-    const day = 86_400_000;
-    if (diff < day) return "Aujourd'hui";
-    if (diff < 2 * day) return 'Hier';
-    if (diff < 7 * day) return `Il y a ${Math.floor(diff / day)} j`;
-    if (diff < 30 * day) return `Il y a ${Math.floor(diff / (7 * day))} sem`;
-    if (diff < 365 * day) return `Il y a ${Math.floor(diff / (30 * day))} mois`;
-    const years = Math.floor(diff / (365 * day));
-    return `Il y a ${years} an${years > 1 ? 's' : ''}`;
-  }
 
   // KPI tiles report the *scoped* population (campus multiselect + type + niveau
   // + search), so the admin can read onboarding progress for a chosen set of

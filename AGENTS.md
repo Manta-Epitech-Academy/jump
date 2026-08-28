@@ -302,6 +302,76 @@ Talent profile fields have two sources — the worker sync (Salesforce) and onbo
 - **No-clobber rule:** before a field is talent-confirmed (its `*ValidatedAt` is set), sync re-seeds it on `Talent`; after, sync writes **only the mirror**. Never let SF overwrite a confirmed value. (This fixed a real bug where every sync overwrote the talent's confirmed phone/name.)
 - **Conflict** = field is talent-confirmed **AND** `Talent` ≠ `TalentSfImport` (school compared by FK). Computed in `reconciliationService`, never stored. Surfaced at `/staff/admin/sf-conflicts` (list + accept/reject + CSV export); `acceptJump` realigns the mirror optimistically. `niveau` is SF-owned (onboarding never sets it) → always synced, never a conflict.
 
+### Usage analytics: a catalogue of features, recorded server-side
+
+Jump could say who was enrolled, who had signed and who was present, and nothing
+about which of its own screens anybody opened. `Usage_FeatureUse` is that fact,
+`Usage_FeatureMonthly` its actor-free monthly cube, and `domain/usage.ts` the
+catalogue both read.
+
+- **A key enters the catalogue only if a product decision depends on it.**
+  Micro-interactions (a theme toggle, confetti seen, a collapsible opened) stay
+  with Umami in aggregate. The boundary decides where a new measurement belongs:
+  Umami answers "how much traffic", this catalogue answers "which campus adopted
+  which feature", and only the second can be joined to `Participation`, `Campus`
+  and `Event`, which is the whole reason it lives in our own database. A key is
+  never added for a fact the database already records; `USAGE_MEASURED_ELSEWHERE`
+  names those and the API carries the list, so a consumer is told where to look
+  rather than reading a zero.
+- **What is absent from the fact table is the PII boundary, and it is structural.**
+  No `path`, no `url`, no `referer`, no `userAgent`, no `ip`, no `params`, no free
+  text, and no `talentId`. The question is answerable from counts, so per-person
+  identity for a minor is not necessary, and under art. 6(1)(f) what is not
+  necessary has no basis. Before adding a column, say which figure it makes
+  possible that the existing ones cannot.
+- **Two actor regimes, deliberately asymmetric.** Staff are identified
+  (`staffProfileId`), because they are adults, employees, and per-person history is
+  what was asked for; the FK cascades, so a departure takes the history with it.
+  That is the opposite of `AdminApi_Call.actorUserId`, which carries no FK
+  precisely so an audit row outlives the person: an audit must, a behavioural log
+  of an ex-employee must not. Talents get `actorHash` only, a monthly-rotating
+  pseudonym, so the talent metric is **monthly active, never annual**. There is no
+  `parent` value, because measuring a data subject on legitimate interest owes them
+  an operable art. 21 objection and there is nowhere to store one for a guardian
+  today (no Parent entity, `/parent/settings` holds no preferences).
+- **Nothing is recorded by client code, and no view is recorded from a `load`.**
+  Instructing a browser to post a result back is an access to the terminal under
+  art. 5(3) ePD, which would drag the whole thing into art. 82 consent; a pure
+  server log does not. There is no `/api/usage` endpoint and there must not be one.
+  Visits and sessions come from `USAGE_VIEW_ROUTES` in `hooks.server.ts`, after the
+  guards, which also keeps writes out of `load` functions that SvelteKit runs on
+  hover-preload.
+- **Where a use is recorded is a rule, not a judgement call per site.** An endpoint
+  that produces an artifact records once the artifact exists, so an event issuing
+  no certificate never counts a 404 as a render. Everything else records when the
+  control is invoked.
+- **`dedupeKey` must stay composed.** Only `feature` and `dedupeKey` are in the
+  unique constraint, so the actor, the event and the impersonation flag all live
+  inside the key. Drop any one of them and `skipDuplicates` silently discards a
+  legitimate row; `record.test.ts` pins all three.
+- **Fold before you purge.** `/api/jobs/usage-rollup` is one job for that reason:
+  it folds every month present in the raw table, then purges past
+  `USAGE_RAW_RETENTION_DAYS`. Two jobs would make the ordering a scheduling
+  assumption, and the purge would win a race nobody would notice until a month was
+  missing from every year-on-year figure.
+- **`USAGE_SALT` fails closed.** Unset means no talent recording at all, rather
+  than hashing against an empty salt and producing a stable identifier for a
+  minor. Same doctrine as `OUTBOUND_MODE`.
+- **`db/scoped.ts` deliberately carries no delegate for these tables.** They are
+  written by the recorder and read only through the admin API, which resolves its
+  own scope; they are never reached through `scopedPrisma`. Same treatment, and the
+  same kind of comment, as `Closing_Answer`.
+- **A per-campus talent cell is masked below five distinct actors**
+  (`USAGE_SMALL_CELL_FLOOR`), because a cell of one or two in a small campus is
+  nearly a statement about named children. A zero is never masked: it discloses
+  nobody and it is the most actionable answer the matrix produces.
+
+Reads are `stats_feature_usage`, `stats_feature_adoption_gaps`,
+`stats_campus_feature_coverage` (leadership) and `ops_staff_activity` (core), over
+`services/adminStats/{featureUsage,staffActivity}.ts`. The weekly digest's
+Adoption section reads the same service, so an inbox figure and an asked figure
+cannot disagree.
+
 ### UI, API, or both
 
 The admin space stopping its UI growth (below) is often read as "admin work goes to the API". That is not the axis. What the freeze reacted to is **pages that restate the database**: one screen per question, none fitting anyone exactly. Five tests instead, and they cut across spaces:
@@ -400,6 +470,9 @@ The weekly PO digest (`services/adminDigest.ts`, `POST /api/jobs/admin-digest`) 
 - **`services/schoolService.ts`** / **`annuaire.ts`** — lazy `School` resolution from UAI via the éducation-nationale annuaire
 - **`services/anonymizationService.ts`** — RGPD anonymization job
 - **`infra/browserPool.ts`** — pooled Puppeteer instances (max 5 concurrent, 60s idle timeout)
+- **`usage/record.ts`** — the one usage recorder: fire-and-forget, server-only, composes the dedupe key, honours a talent's objection, and refuses rather than guesses when the salt is unset
+- **`usage/rollup.ts`** — folds the monthly cube then purges the raw window, in that order
+- **`services/adminStats/featureUsage.ts`** / **`staffActivity.ts`** — feature adoption per campus, and whether the team logs in at all
 - **`db/scoped.ts`** — campus-scoped DB query helpers
 
 ### Client Libraries (`src/lib/`)
@@ -480,7 +553,7 @@ or reworking a staff list page.
 
 ## Environment Variables
 
-See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OAuth credentials (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`), and mail provider keys per `MAIL_PROVIDER` (`RESEND_API_KEY` for `resend`, or `MAILJET_API_KEY` + `MAILJET_API_SECRET` for `mailjet`). Optional: `CRON_SECRET`, `WORKER_API_TOKEN`, `MAIL_PROVIDER`, `MAIL_FROM`, `SMS_PROVIDER` (+ `BREVO_API_KEY`, `SMS_SENDER`, `SMS_DEV_RECIPIENTS`), `OUTBOUND_MODE` (the outbound gate — set `=real` in prod only; fail-safe to `redirect` otherwise), `EMAIL_DEV_RECIPIENTS`.
+See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OAuth credentials (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`), and mail provider keys per `MAIL_PROVIDER` (`RESEND_API_KEY` for `resend`, or `MAILJET_API_KEY` + `MAILJET_API_SECRET` for `mailjet`). Optional: `CRON_SECRET`, `WORKER_API_TOKEN`, `USAGE_SALT` (the usage-analytics pseudonym salt - unset means no talent usage is recorded at all, which is the intended failure mode), `MAIL_PROVIDER`, `MAIL_FROM`, `SMS_PROVIDER` (+ `BREVO_API_KEY`, `SMS_SENDER`, `SMS_DEV_RECIPIENTS`), `OUTBOUND_MODE` (the outbound gate — set `=real` in prod only; fail-safe to `redirect` otherwise), `EMAIL_DEV_RECIPIENTS`.
 
 ### Outbound: `MAIL_PROVIDER` / `SMS_PROVIDER`
 
