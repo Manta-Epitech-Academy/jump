@@ -75,8 +75,10 @@ export type AdminDigest = {
     lastSyncAgeHours: number | null;
     failedPdfJobs: number;
     overdueDeletionRequests: number;
-    unusedFeatures: number;
-    singleCampusFeatures: number;
+    /** Null when the monthly cube holds no measurement for the window. */
+    unusedFeatures: number | null;
+    abandonedFeatures: number | null;
+    singleCampusFeatures: number | null;
   };
 };
 
@@ -203,25 +205,45 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
   // Adoption. Two lists rather than a score, because the two decisions differ: a
   // feature no campus touched is a candidate for removal, one a single campus
   // uses is the opposite and a training question.
+  //
+  // `aRetirer` is null when the monthly cube holds nothing for the window, which
+  // is an absence of MEASUREMENT and not an absence of use. Saying so beats the
+  // alternative: with an empty cube the never-used list is every feature in
+  // Jump, and a mail naming all of them would read as a finding.
+  const measured = adoption.aRetirer.value !== null;
   const unused = adoption.jamaisUtilisees.value;
+  const abandoned = adoption.devenuesInutilisees.value;
   const singleCampus = adoption.unSeulCampus.value;
   const listedUnused = unused.slice(0, LISTED_UNUSED);
   const remainingUnused = unused.length - listedUnused.length;
-  const adoptionLines = [
-    unused.length > 0
-      ? `<strong>${unused.length}</strong> ${plural(unused.length, 'fonctionnalité n’a', 'fonctionnalités n’ont')} servi à personne depuis ${ADOPTION_WINDOW_DAYS} jours : ${listedUnused.map((f) => escapeHtml(f.libelle)).join(', ')}${remainingUnused > 0 ? `, et ${remainingUnused} ${plural(remainingUnused, 'autre', 'autres')}` : ''}.`
-      : '',
-    singleCampus.length > 0
-      ? `<strong>${singleCampus.length}</strong> ${plural(singleCampus.length, 'fonctionnalité n’est utilisée que par un seul campus', 'fonctionnalités ne sont utilisées que par un seul campus')} : ${singleCampus
-          .slice(0, LISTED_UNUSED)
-          .map((f) => `${escapeHtml(f.libelle)} (${escapeHtml(f.campus)})`)
-          .join(', ')}.`
-      : '',
-  ].filter(Boolean);
+  const adoptionLines = !measured
+    ? []
+    : [
+        // First, because it is the strong signal: a feature that was never used
+        // may never have been found, one that stopped being used was found and
+        // then abandoned.
+        abandoned.length > 0
+          ? `<strong>${abandoned.length}</strong> ${plural(abandoned.length, 'fonctionnalité servait', 'fonctionnalités servaient')} l’an dernier et ne ${plural(abandoned.length, 'sert', 'servent')} plus : ${abandoned
+              .slice(0, LISTED_UNUSED)
+              .map((f) => escapeHtml(f.libelle))
+              .join(', ')}.`
+          : '',
+        unused.length > 0
+          ? `<strong>${unused.length}</strong> ${plural(unused.length, 'fonctionnalité n’a', 'fonctionnalités n’ont')} servi à personne depuis ${ADOPTION_WINDOW_DAYS} jours : ${listedUnused.map((f) => escapeHtml(f.libelle)).join(', ')}${remainingUnused > 0 ? `, et ${remainingUnused} ${plural(remainingUnused, 'autre', 'autres')}` : ''}.`
+          : '',
+        singleCampus.length > 0
+          ? `<strong>${singleCampus.length}</strong> ${plural(singleCampus.length, 'fonctionnalité n’est utilisée que par un seul campus', 'fonctionnalités ne sont utilisées que par un seul campus')} : ${singleCampus
+              .slice(0, LISTED_UNUSED)
+              .map((f) => `${escapeHtml(f.libelle)} (${escapeHtml(f.campus)})`)
+              .join(', ')}.`
+          : '',
+      ].filter(Boolean);
 
-  const adoptionSection = adoptionLines.length
-    ? `<ul style="margin:0 0 16px;padding-left:18px;">${adoptionLines.map((line) => `<li>${line}</li>`).join('')}</ul>`
-    : `<p style="margin:0 0 16px;">Toutes les fonctionnalités mesurées ont servi au moins une fois sur les ${ADOPTION_WINDOW_DAYS} derniers jours, et aucune n’est restée cantonnée à un seul campus.</p>`;
+  const adoptionSection = !measured
+    ? `<p style="margin:0 0 16px;">Adoption non mesurable cette semaine : les totaux mensuels n’ont pas été calculés sur la période, ce qui n’est pas la même chose qu’une absence d’usage.</p>`
+    : adoptionLines.length
+      ? `<ul style="margin:0 0 16px;padding-left:18px;">${adoptionLines.map((line) => `<li>${line}</li>`).join('')}</ul>`
+      : `<p style="margin:0 0 16px;">Toutes les fonctionnalités mesurées ont servi au moins une fois sur les ${ADOPTION_WINDOW_DAYS} derniers jours, et aucune n’est restée cantonnée à un seul campus.</p>`;
 
   const shellHtml = `
       <h1 style="font-size:20px;font-weight:700;margin:0 0 4px;color:${INK};">Point hebdomadaire</h1>
@@ -264,13 +286,23 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
     `Demandes de suppression en attente : ${pendingDeletions}${overdueDeletions > 0 ? ` (dont ${overdueDeletions} hors délai)` : ''}`,
     overdueDeletions > 0 ? `  Voir : ${accountDeletionsUrl}` : '',
     '',
-    `Fonctionnalités sans aucune utilisation depuis ${ADOPTION_WINDOW_DAYS} jours : ${unused.length}`,
-    ...listedUnused.map((f) => `  - ${f.libelle} (${f.espace})`),
-    remainingUnused > 0 ? `  ... et ${remainingUnused} autre(s).` : '',
-    `Fonctionnalités utilisées par un seul campus : ${singleCampus.length}`,
-    ...singleCampus
-      .slice(0, LISTED_UNUSED)
-      .map((f) => `  - ${f.libelle} (${f.campus})`),
+    ...(measured
+      ? [
+          `Fonctionnalités qui servaient l'an dernier et ne servent plus : ${abandoned.length}`,
+          ...abandoned
+            .slice(0, LISTED_UNUSED)
+            .map((f) => `  - ${f.libelle} (${f.espace})`),
+          `Fonctionnalités sans aucune utilisation depuis ${ADOPTION_WINDOW_DAYS} jours : ${unused.length}`,
+          ...listedUnused.map((f) => `  - ${f.libelle} (${f.espace})`),
+          remainingUnused > 0 ? `  ... et ${remainingUnused} autre(s).` : '',
+          `Fonctionnalités utilisées par un seul campus : ${singleCampus.length}`,
+          ...singleCampus
+            .slice(0, LISTED_UNUSED)
+            .map((f) => `  - ${f.libelle} (${f.campus})`),
+        ]
+      : [
+          "Adoption non mesurable cette semaine : les totaux mensuels n'ont pas été calculés sur la période.",
+        ]),
     '',
     last
       ? `Dernière synchronisation Salesforce : il y a ${last.ageHours} h${last.stale ? ' (à vérifier)' : ''}.`
@@ -290,8 +322,9 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
       lastSyncAgeHours: last?.ageHours ?? null,
       failedPdfJobs,
       overdueDeletionRequests: overdueDeletions,
-      unusedFeatures: unused.length,
-      singleCampusFeatures: singleCampus.length,
+      unusedFeatures: adoption.aRetirer.value,
+      abandonedFeatures: adoption.aSurveiller.value,
+      singleCampusFeatures: adoption.aFormer.value,
     },
   };
 }

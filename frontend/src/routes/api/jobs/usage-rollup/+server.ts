@@ -4,7 +4,7 @@ import { env } from '$env/dynamic/private';
 import { safeTokenEquals } from '$lib/server/auth/safeTokenCompare';
 import {
   rollUpUsage,
-  USAGE_RAW_RETENTION_DAYS,
+  USAGE_RAW_RETENTION_MONTHS,
 } from '$lib/server/usage/rollup';
 
 /**
@@ -26,7 +26,7 @@ export const POST: RequestHandler = async ({ request }) => {
   try {
     const result = await rollUpUsage();
     console.log(
-      `[Job] usage-rollup completed: ${result.monthsFolded} month(s) folded into ${result.rowsWritten} row(s), ${result.rawPurged} raw row(s) older than ${USAGE_RAW_RETENTION_DAYS} days removed.`,
+      `[Job] usage-rollup completed: ${result.monthsFolded} month(s) folded into ${result.rowsWritten} row(s), ${result.rawPurged} raw row(s) older than ${USAGE_RAW_RETENTION_MONTHS} months removed.`,
     );
     return json({ success: true, ...result });
   } catch (err) {

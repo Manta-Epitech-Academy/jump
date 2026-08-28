@@ -40,7 +40,7 @@
 
   let loading = $state(false);
   let failed = $state(false);
-  let windowDays = $state(0);
+  let windowMonths = $state(0);
   let uses = $state<Use[]>([]);
   let sessions = $state<string[]>([]);
 
@@ -55,7 +55,7 @@
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error())))
       .then((body) => {
         if (profileId !== id) return; // a newer row was opened meanwhile
-        windowDays = body.windowDays ?? 0;
+        windowMonths = body.windowMonths ?? 0;
         uses = body.uses ?? [];
         sessions = body.sessions ?? [];
       })
@@ -103,7 +103,7 @@
           </h3>
           {#if uses.length === 0}
             <p class="text-sm text-muted-foreground">
-              Aucune utilisation enregistrée sur les {windowDays} derniers jours.
+              Aucune utilisation enregistrée sur les {windowMonths} derniers mois.
             </p>
           {:else}
             <ul

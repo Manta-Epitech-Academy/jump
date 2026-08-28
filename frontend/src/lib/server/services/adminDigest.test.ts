@@ -121,13 +121,51 @@ function deletionsPayload(over: { pending?: number; overdue?: number } = {}) {
 function adoptionPayload(
   unused: { feature: string; libelle: string; espace: string }[] = [],
   singleCampus: { feature: string; libelle: string; campus: string }[] = [],
+  abandoned: {
+    feature: string;
+    libelle: string;
+    espace: string;
+    utilisationsPeriodeReference: number;
+  }[] = [],
 ) {
   return {
     filters: { schoolYear: 'toutes', campus: 'tous', jours: 90 },
+    source: metric(
+      {
+        store: 'lignes détaillées' as const,
+        du: '2026-05-30T00:00:00.000Z',
+        au: '2026-08-28T00:00:00.000Z',
+        mois: null,
+        calculeLe: null,
+      },
+      'def',
+    ),
     jamaisUtilisees: metric(unused, 'def'),
+    devenuesInutilisees: metric(abandoned, 'def'),
     unSeulCampus: metric(singleCampus, 'def'),
     aRetirer: metric(unused.length, 'def'),
+    aSurveiller: metric(abandoned.length, 'def'),
     aFormer: metric(singleCampus.length, 'def'),
+  };
+}
+
+/** The shape the service returns when the monthly cube holds nothing. */
+function unmeasurableAdoptionPayload() {
+  return {
+    ...adoptionPayload(),
+    source: metric(
+      {
+        store: 'totaux mensuels' as const,
+        du: '2025-01-01T00:00:00.000Z',
+        au: '2025-04-01T00:00:00.000Z',
+        mois: ['2025-01', '2025-02', '2025-03'],
+        calculeLe: null,
+      },
+      'def',
+    ),
+    aRetirer: metric(null, 'def'),
+    aSurveiller: metric(null, 'def'),
+    aFormer: metric(null, 'def'),
   };
 }
 
@@ -175,6 +213,7 @@ describe('buildAdminDigest', () => {
       failedPdfJobs: 0,
       overdueDeletionRequests: 0,
       unusedFeatures: 0,
+      abandonedFeatures: 0,
       singleCampusFeatures: 0,
     });
   });
@@ -345,5 +384,58 @@ describe('buildAdminDigest', () => {
 
     expect(digest.html).toContain('ont servi au moins une fois');
     expect(digest.summary.unusedFeatures).toBe(0);
+  });
+
+  it('names what used to serve before what never did, since it is the stronger signal', async () => {
+    // A feature nobody ever used may simply never have been found. One that
+    // served last year and serves nobody now was found and then abandoned, so
+    // it is the retire decision and it goes first.
+    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload());
+    getFeatureAdoptionGaps.mockResolvedValue(
+      adoptionPayload(
+        [
+          {
+            feature: 'admin_signatory_write',
+            libelle: 'Signataire créé ou modifié',
+            espace: 'admin',
+          },
+        ],
+        [],
+        [
+          {
+            feature: 'dev_badges_render',
+            libelle: 'Génération des badges',
+            espace: 'dev',
+            utilisationsPeriodeReference: 42,
+          },
+        ],
+      ),
+    );
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain('l’an dernier et ne sert plus');
+    expect(digest.html.indexOf('Génération des badges')).toBeLessThan(
+      digest.html.indexOf('Signataire créé ou modifié'),
+    );
+    expect(digest.summary.abandonedFeatures).toBe(1);
+  });
+
+  it('says adoption is unmeasurable rather than naming every feature in Jump', async () => {
+    // With an empty cube the never-used list is the whole catalogue. Printing it
+    // would read as a finding, and it is the opposite: an absence of
+    // measurement, not an absence of use.
+    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload());
+    getFeatureAdoptionGaps.mockResolvedValue(unmeasurableAdoptionPayload());
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain('Adoption non mesurable');
+    expect(digest.html).not.toContain('ont servi au moins une fois');
+    expect(digest.text).toContain('Adoption non mesurable');
+    expect(digest.summary.unusedFeatures).toBeNull();
+    expect(digest.summary.singleCampusFeatures).toBeNull();
   });
 });

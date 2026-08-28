@@ -2256,9 +2256,15 @@ enum UsageActorKind {
 ///     consequence to keep in mind when reading a figure: the talent metric is
 ///     MONTHLY active, not annual.
 ///
-/// Raw rows live 60 days (`/api/jobs/usage-rollup` purges them). The long-lived
-/// answer is the actor-free monthly rollup, which is the main safeguard the
-/// legitimate-interest balancing rests on.
+/// Raw rows live twelve calendar months (`USAGE_RAW_RETENTION_MONTHS`,
+/// purged by `/api/jobs/usage-rollup`), which is the top of the CNIL's logging
+/// recommendation band. A year and not less because two answers the platform
+/// owes need detailed rows going back that far: a feature's year-on-year
+/// movement, and a full school year of per-member activity. Beyond it, the cube
+/// is the only store, and being actor-free is what lets it be kept without a
+/// limit. Note for the balancing: the talent half ages out of relinkability on
+/// its own, since the pseudonym rotates monthly, while the staff half stays
+/// identified for the whole year, and that is the half the DPIA has to carry.
 model Usage_FeatureUse {
   id String @id @default(cuid())
   /// Catalogue key from `domain/usage.ts`. A plain String, not an enum, so

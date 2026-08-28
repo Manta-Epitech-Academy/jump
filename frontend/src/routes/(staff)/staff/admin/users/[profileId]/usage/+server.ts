@@ -4,8 +4,9 @@ import { prisma } from '$lib/server/db';
 import {
   USAGE_FEATURES,
   USAGE_FEATURE_DEFS,
-  USAGE_RAW_RETENTION_DAYS,
+  USAGE_RAW_RETENTION_MONTHS,
   isUsageFeatureKey,
+  usageRawCutoff,
 } from '$lib/domain/usage';
 import { recordUsage } from '$lib/server/usage/record';
 
@@ -30,9 +31,7 @@ const SESSIONS_LIMIT = 20;
 export const GET: RequestHandler = async ({ params, locals }) => {
   recordUsage(USAGE_FEATURES.ADMIN_STAFF_ACTIVITY_OPEN, { locals });
 
-  const since = new Date(
-    Date.now() - USAGE_RAW_RETENTION_DAYS * 24 * 60 * 60 * 1000,
-  );
+  const since = usageRawCutoff();
 
   const profile = await prisma.staffProfile.findUnique({
     where: { id: params.profileId },
@@ -59,7 +58,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   ]);
 
   return json({
-    windowDays: USAGE_RAW_RETENTION_DAYS,
+    windowMonths: USAGE_RAW_RETENTION_MONTHS,
     uses: uses.map((use) => ({
       // The key is resolved to its French label here rather than in the
       // component, so the catalogue stays the only place that names a feature.

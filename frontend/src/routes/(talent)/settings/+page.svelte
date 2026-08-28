@@ -23,6 +23,10 @@
   import { track, daysBetween } from '$lib/analytics';
   import { toast } from 'svelte-sonner';
   import { formatDateFr } from '$lib/utils';
+  // The same constant the purge reads. This sentence is a retention promise
+  // made to a minor, so it must never be able to state a delay we do not keep,
+  // which is exactly what a literal here did.
+  import { USAGE_RAW_RETENTION_MONTHS } from '$lib/domain/usage';
 
   let { data }: { data: PageData } = $props();
 
@@ -178,8 +182,8 @@
           change chaque mois et qui ne permet pas de remonter jusqu’à toi.
         </p>
         <p>
-          Ces lignes sont effacées au bout de 60 jours. Il ne reste ensuite
-          qu’un total par mois, sans aucun code.
+          Ces lignes sont effacées au bout de {USAGE_RAW_RETENTION_MONTHS} mois. Il
+          ne reste ensuite qu’un total par mois, sans aucun code.
         </p>
         <p>
           Si tu coupes ce réglage, plus rien n’est enregistré à partir de là. Ça

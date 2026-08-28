@@ -7,14 +7,21 @@
  * exactly like a feature nobody had asked about, and both looked like a feature
  * in daily use.
  *
- * Three reading rules this file exists to hold in one place.
+ * Four reading rules this file exists to hold in one place.
  *
- * THE WINDOW DECIDES THE SOURCE. Anything inside the raw retention window is
- * counted from `Usage_FeatureUse`, because only that table still knows who did
- * it and therefore how many distinct people did. Anything older is read from
- * `Usage_FeatureMonthly`, which is actor-free by design. A caller never picks:
- * they name a number of days, and `usageSource` says which side answered, so a
- * figure can never be quoted as exact when it came from the cube.
+ * THE WINDOW DECIDES THE SOURCE, and both sources give one figure. Anything
+ * inside the raw retention window is counted from `Usage_FeatureUse`, anything
+ * older from the actor-free `Usage_FeatureMonthly`. A caller never picks: they
+ * name a number of days and `source` says which side answered. Both go through
+ * `usage/read.ts`, which is what keeps the two from being two different figures
+ * under one name. This paragraph used to describe an intention rather than the
+ * code: every read hit the raw table, and a window past retention returned
+ * whatever had not been purged yet while announcing it came from the cube.
+ *
+ * A DISTINCT ACTOR IS COUNTED PER MONTH. The talent pseudonym rotates monthly,
+ * so a set accumulated over a window counts one person once per month they were
+ * active, and a share computed from it can pass 100 %. The reported figure is
+ * therefore the busiest month's count, folded once in `usage/read.ts`.
  *
  * THE YEAR FILTER IS A DATE RANGE. Usage rows carry a campus and sometimes an
  * event, never a school year, so `schoolYearBounds` turns the label into bounds
@@ -31,26 +38,49 @@ import {
   USAGE_FEATURE_DEFS,
   USAGE_FEATURE_KEYS,
   USAGE_MEASURED_ELSEWHERE,
-  USAGE_RAW_RETENTION_DAYS,
   type UsageAudience,
   type UsageFeatureKey,
   type UsageSpace,
 } from '$lib/domain/usage';
-import { schoolYearBounds } from '$lib/domain/schoolYear';
 import {
   metric,
   rank,
   rankAxisNote,
   RANK_UNITS,
   share,
+  variation,
+  variationRule,
   type Metric,
   type Ranked,
+  type Variation,
 } from '$lib/server/adminApi/metrics';
+import { OperationRefusedError } from '$lib/server/adminApi/errors';
 import type { Scope } from '$lib/server/adminApi/scope';
+import {
+  foldByFeature,
+  foldByFeatureCampus,
+  readCubeTallies,
+  readTallies,
+  usageSourceMetric,
+  usageWindowFor,
+  type FeatureTotals,
+  type MonthlyTally,
+  type UsageSource,
+  type UsageWindow,
+} from '$lib/server/usage/read';
+import {
+  completeMonths,
+  monthsCovering,
+  shiftMonth,
+} from '$lib/server/usage/months';
 import { scopedEvents, scopeLabels } from './cohort';
 
 const FEATURE_AXIS_NOTE = rankAxisNote(RANK_UNITS.feature);
 const CAMPUS_AXIS_NOTE = rankAxisNote(RANK_UNITS.campus);
+
+/** How far back the year-on-year comparison looks, in months. */
+const COMPARISON_LAG_MONTHS = 12;
+const COMPARISON_LABEL = 'la même période un an plus tôt';
 
 /**
  * The disclosure floor on a per-campus talent cell.
@@ -68,25 +98,31 @@ const CAMPUS_AXIS_NOTE = rankAxisNote(RANK_UNITS.campus);
  *
  * Staff cells are never masked. They are adults, employees, the measurement is
  * of professional tool use, and per-person staff history is what was asked for.
+ *
+ * Applied by EVERY read that can produce such a cell, which is the correction
+ * that matters here: it used to sit at one call site inside the coverage matrix,
+ * while `stats_feature_usage` accepted the same `campus` filter, was reachable
+ * with a leadership token, and answered unmasked.
  */
 export const USAGE_SMALL_CELL_FLOOR = 5;
 
 const MASKED_CELL_RULE =
   `Pour les fonctionnalités côté talent, le nombre d'acteurs distincts d'un campus est masqué (null) en dessous de ${USAGE_SMALL_CELL_FLOOR}, ` +
-  `car dans un petit campus un compte de 1 ou 2 désignerait presque des personnes. Un zéro n'est jamais masqué : il ne désigne personne et c'est la réponse la plus utile.`;
+  `car dans un petit campus un compte de 1 ou 2 désignerait presque des personnes. Un zéro n'est jamais masqué : il ne désigne personne et c'est la réponse la plus utile. La part de la population est masquée avec lui, sinon elle le redonnerait.`;
 
 const IMPERSONATION_RULE =
   "Les consultations faites par un administrateur en exploration d'un campus sont exclues : un administrateur qui regarde n'est pas un campus qui adopte.";
 
-const RAW_WINDOW_RULE =
-  `Compté sur les ${USAGE_RAW_RETENTION_DAYS} derniers jours au plus, la durée de conservation des lignes détaillées. ` +
-  `Au-delà, seuls les totaux mensuels subsistent : ils donnent les utilisations et les acteurs distincts par mois, jamais un cumul d'acteurs sur plusieurs mois, qui compterait dix fois quelqu'un actif dix mois.`;
-
 const MONTHLY_ACTOR_RULE =
-  "Un acteur distinct est compté par mois : quelqu'un d'actif en août et en septembre compte une fois dans chaque mois, jamais une fois sur les deux. C'est la mesure standard, et pour les talents c'est la seule possible, leur pseudonyme changeant chaque mois.";
+  "Un acteur distinct se compte par mois calendaire, jamais cumulé sur plusieurs mois : le pseudonyme d'un talent change chaque mois, donc cumuler compterait trois fois quelqu'un actif trois mois et pourrait dépasser la population. Les identifiants d'un membre de l'équipe ne tournent pas, mais la règle s'applique des deux côtés pour que le chiffre veuille dire la même chose partout.";
 
-/** Which store answered, so an answer can never look more exact than it is. */
-export type UsageSource = 'lignes détaillées' | 'totaux mensuels';
+const PEAK_RULE = `« acteursDistinctsMoisDePointe » est le nombre de personnes distinctes du mois calendaire où elles ont été les plus nombreuses, et « moisDePointe » nomme ce mois. C'est un maximum mensuel et non un cumul. ${MONTHLY_ACTOR_RULE} Un maximum mensuel se lit de la même façon sur une fenêtre de 7 jours et sur une de 365, ne peut pas dépasser la population d'un mois, et vaut zéro exactement quand personne n'a utilisé la fonctionnalité sur toute la période.`;
+
+const LAST_MONTH_RULE =
+  "« dernierMoisUtilise » donne le dernier mois où la fonctionnalité a servi, au mois et non au jour : au-delà de la conservation des lignes détaillées la date exacte n'existe plus, et une réponse ne doit pas être plus précise selon la période demandée.";
+
+/** Which store answered, re-exported so consumers of this module have the type. */
+export type { UsageSource };
 
 export type FeatureRow = {
   feature: UsageFeatureKey;
@@ -95,10 +131,23 @@ export type FeatureRow = {
   audience: UsageAudience;
   espace: UsageSpace;
   utilisations: number;
-  acteursDistincts: number | null;
+  /** The busiest month's distinct actors; null when masked by the floor. */
+  acteursDistinctsMoisDePointe: number | null;
+  moisDePointe: string | null;
   /** Share of the population that could have used it; null when unmeasurable. */
   partDeLaPopulation: number | null;
-  derniereUtilisation: string | null;
+  dernierMoisUtilise: string | null;
+  /** Movement against the same months a year earlier. Null when not comparable. */
+  evolutionUtilisations: Variation | null;
+};
+
+export type FeatureComparison = {
+  feature: UsageFeatureKey;
+  periode: string[];
+  periodeReference: string[];
+  utilisations: Metric<Variation>;
+  acteursDistinctsMoisDePointe: Metric<Variation>;
+  partDeLaPopulation: Metric<Variation>;
 };
 
 export type FeatureUsage = {
@@ -108,11 +157,13 @@ export type FeatureUsage = {
     event: string;
     audience: string;
     espace: string;
-    jours: number;
+    jours: number | null;
   };
   source: Metric<UsageSource>;
   populationConcernee: Metric<{ staff: number; talents: number }>;
   fonctionnalites: Metric<Ranked<FeatureRow>[]>;
+  evolution: Metric<{ periode: string[]; periodeReference: string[] } | null>;
+  comparaison: FeatureComparison | null;
   dejaMesureAilleurs: Metric<Readonly<Record<string, string>>>;
 };
 
@@ -136,33 +187,6 @@ function selectedFeatures(filters: UsageFilters): UsageFeatureKey[] {
     if (filters.space && def.space !== filters.space) return false;
     return true;
   });
-}
-
-/** The `occurredAt` window: the tighter of the day count and the school year. */
-function windowFor(
-  scope: Scope,
-  days: number,
-): { from: Date; to: Date | null; withinRaw: boolean } {
-  const now = new Date();
-  const byDays = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-  if (!scope.schoolYear) {
-    return {
-      from: byDays,
-      to: null,
-      withinRaw: days <= USAGE_RAW_RETENTION_DAYS,
-    };
-  }
-  const year = schoolYearBounds(scope.schoolYear);
-  const from = year.from > byDays ? year.from : byDays;
-  const to = year.to < now ? year.to : null;
-  return {
-    from,
-    to,
-    withinRaw:
-      days <= USAGE_RAW_RETENTION_DAYS &&
-      from.getTime() >=
-        now.getTime() - USAGE_RAW_RETENTION_DAYS * 24 * 60 * 60 * 1000,
-  };
 }
 
 /**
@@ -194,6 +218,12 @@ async function population(
   return { staff, talents };
 }
 
+/**
+ * The disclosure floor, in one place.
+ *
+ * `perCampus` is what makes a cell a cell: a national figure over every campus
+ * discloses nothing, the same figure narrowed to one campus can.
+ */
 function maskCell(
   key: UsageFeatureKey,
   actors: number,
@@ -206,6 +236,56 @@ function maskCell(
 }
 
 /**
+ * The day count to narrow by, or none.
+ *
+ * A named school year IS the window, so a default day count must not be
+ * substituted on top of it: doing that turned "quelle adoption en 2025-2026"
+ * into "les 30 derniers jours vus à travers 2025-2026", which for any past year
+ * is empty. The default applies only when no year was named.
+ */
+function windowDays(scope: Scope, days: number | undefined, fallback: number) {
+  if (days !== undefined) return days;
+  return scope.schoolYear ? undefined : fallback;
+}
+
+const EMPTY_TOTALS: FeatureTotals = {
+  uses: 0,
+  peakActors: 0,
+  peakMonth: null,
+  lastMonth: null,
+};
+
+/** Fold a window's cells for one campus only. */
+function foldForCampus(
+  tallies: MonthlyTally[],
+  campusId: string,
+): Map<string, FeatureTotals> {
+  return foldByFeature(tallies.filter((t) => t.campusId === campusId));
+}
+
+/**
+ * The months a window covers, and the same months a year earlier.
+ *
+ * Only COMPLETE months compare. The month in progress is folded into the cube
+ * only as far as the last rollup run and the cron is weekly, so setting it
+ * against a whole month a year ago would report a decline that is an artefact of
+ * the schedule. The row's own `utilisations` still includes it, which is why the
+ * definition says the compared value is not the displayed one.
+ */
+function comparisonMonths(
+  window: UsageWindow,
+  now: Date,
+): { periode: string[]; periodeReference: string[] } | null {
+  const months = window.months ?? monthsCovering(window.from, window.to);
+  const periode = completeMonths(months, now);
+  if (periode.length === 0) return null;
+  return {
+    periode,
+    periodeReference: periode.map((m) => shiftMonth(m, -COMPARISON_LAG_MONTHS)),
+  };
+}
+
+/**
  * Per-feature adoption over a window, ranked by distinct actors.
  *
  * Ranked on actors and not on uses, deliberately: a single person hammering one
@@ -215,6 +295,7 @@ function maskCell(
 export async function getFeatureUsage(
   scope: Scope = {},
   filters: UsageFilters = {},
+  now: Date = new Date(),
 ): Promise<FeatureUsage> {
   // Called for its year assertion, not for its events: this is where an unknown
   // school year becomes a refusal instead of an empty window, which is the
@@ -223,56 +304,29 @@ export async function getFeatureUsage(
   // shared helper every other aggregate uses, so the three cannot disagree about
   // which years exist.
   await scopedEvents(scope);
-  const days = filters.days ?? 30;
+  const days = windowDays(scope, filters.days, 30);
   const features = selectedFeatures(filters);
-  const { from, to, withinRaw } = windowFor(scope, days);
-  const [pop, grouped, lastUses] = await Promise.all([
+  const window = usageWindowFor(scope, days, now);
+  assertEventReadable(window, scope);
+
+  const [pop, read, comparison] = await Promise.all([
     population(scope),
-    prisma.usage_FeatureUse.groupBy({
-      by: ['feature'],
-      where: {
-        feature: { in: features },
-        impersonated: false,
-        occurredAt: { gte: from, ...(to ? { lt: to } : {}) },
-        ...(scope.campus ? { campusId: scope.campus.id } : {}),
-        ...(scope.event ? { eventId: scope.event.id } : {}),
-      },
-      _count: { _all: true },
-      _max: { occurredAt: true },
+    readTallies({
+      features,
+      window,
+      campusId: scope.campus?.id ?? null,
+      eventId: scope.event?.id ?? null,
     }),
-    // Distinct actors cannot come out of `groupBy`, so it is one narrow query
-    // selecting only the two pseudonymous columns.
-    prisma.usage_FeatureUse.findMany({
-      where: {
-        feature: { in: features },
-        impersonated: false,
-        occurredAt: { gte: from, ...(to ? { lt: to } : {}) },
-        ...(scope.campus ? { campusId: scope.campus.id } : {}),
-        ...(scope.event ? { eventId: scope.event.id } : {}),
-      },
-      select: { feature: true, staffProfileId: true, actorHash: true },
-    }),
+    readComparison(features, window, scope, now),
   ]);
 
-  const actorsByFeature = new Map<string, Set<string>>();
-  for (const row of lastUses) {
-    const ref = row.staffProfileId ?? row.actorHash;
-    if (!ref) continue;
-    const set = actorsByFeature.get(row.feature) ?? new Set<string>();
-    set.add(ref);
-    actorsByFeature.set(row.feature, set);
-  }
-  const countByFeature = new Map(
-    grouped.map((g) => [
-      g.feature,
-      { uses: g._count._all, last: g._max.occurredAt },
-    ]),
-  );
+  const totals = foldByFeature(read.tallies);
+  const perCampus = Boolean(scope.campus);
 
   const rows: FeatureRow[] = features.map((key) => {
     const def = USAGE_FEATURE_DEFS[key];
-    const tally = countByFeature.get(key);
-    const actors = actorsByFeature.get(key)?.size ?? 0;
+    const t = totals.get(key) ?? EMPTY_TOTALS;
+    const actors = maskCell(key, t.peakActors, perCampus);
     const base = def.audience === 'staff' ? pop.staff : pop.talents;
     return {
       feature: key,
@@ -280,10 +334,20 @@ export async function getFeatureUsage(
       definition: def.definition,
       audience: def.audience,
       espace: def.space,
-      utilisations: tally?.uses ?? 0,
-      acteursDistincts: actors,
-      partDeLaPopulation: share(actors, base),
-      derniereUtilisation: tally?.last?.toISOString() ?? null,
+      utilisations: t.uses,
+      acteursDistinctsMoisDePointe: actors,
+      moisDePointe: actors === null ? null : t.peakMonth,
+      // Masked with the count, or the share would hand it straight back.
+      partDeLaPopulation: actors === null ? null : share(actors, base),
+      dernierMoisUtilise: t.lastMonth,
+      evolutionUtilisations: comparison
+        ? variation(
+            comparison.current.get(key)?.uses ?? 0,
+            comparison.previousFor(key),
+            'count',
+            COMPARISON_LABEL,
+          ).value
+        : null,
     };
   });
 
@@ -292,24 +356,34 @@ export async function getFeatureUsage(
       ...scopeLabels(scope),
       audience: filters.audience ?? 'toutes',
       espace: filters.space ?? 'tous',
-      jours: days,
+      jours: days ?? null,
     },
-    source: metric<UsageSource>(
-      withinRaw ? 'lignes détaillées' : 'totaux mensuels',
-      `D'où viennent ces chiffres. ${RAW_WINDOW_RULE}`,
-    ),
+    source: usageSourceMetric(window, read.computedAt),
     populationConcernee: metric(
       pop,
-      "Le dénominateur de chaque part : les membres de l'équipe ayant un rôle pour une fonctionnalité staff, et les talents s'étant déjà connectés au moins une fois pour une fonctionnalité talent. Les talents jamais connectés sont exclus : ils ne peuvent pas avoir utilisé une page, donc les compter ferait passer un défaut d'arrivée pour un défaut de la fonctionnalité.",
+      "Le dénominateur de chaque part : les membres de l'équipe ayant un rôle pour une fonctionnalité staff, et les talents s'étant déjà connectés au moins une fois pour une fonctionnalité talent. Les talents jamais connectés sont exclus : ils ne peuvent pas avoir utilisé une page, donc les compter ferait passer un défaut d'arrivée pour un défaut de la fonctionnalité. C'est la population d'aujourd'hui : sur un mois de pointe ancien, des personnes depuis parties peuvent figurer au numérateur sans être au dénominateur, et la part peut alors dépasser légèrement 100 % ; c'est de la rotation d'équipe, pas une erreur de comptage.",
     ),
     fonctionnalites: metric(
       rank(
         rows,
         (row) => row.libelle,
-        (row) => row.acteursDistincts,
+        (row) => row.acteursDistinctsMoisDePointe,
       ),
-      `Chaque fonctionnalité du catalogue, utilisée ou non, avec ses utilisations, ses acteurs distincts, la part de la population concernée et sa dernière utilisation. La liste vient du catalogue et non des données : la demander aux données ne renverrait que les fonctionnalités déjà utilisées, alors que nommer celles qui ne le sont pas est tout l'objet. Classé sur les acteurs distincts et non sur les utilisations, une seule personne qui répète un export n'étant pas une adoption. ${MONTHLY_ACTOR_RULE} ${IMPERSONATION_RULE} ${FEATURE_AXIS_NOTE}`,
+      `Chaque fonctionnalité du catalogue, utilisée ou non. « utilisations » est le total sur la période. ${PEAK_RULE} « partDeLaPopulation » rapporte ce maximum à la population concernée. ${LAST_MONTH_RULE} La liste vient du catalogue et non des données : la demander aux données ne renverrait que les fonctionnalités déjà utilisées, alors que nommer celles qui ne le sont pas est tout l'objet. Classé sur le maximum mensuel d'acteurs et non sur les utilisations, une seule personne qui répète un export n'étant pas une adoption. ${MASKED_CELL_RULE} ${IMPERSONATION_RULE} ${FEATURE_AXIS_NOTE}`,
     ),
+    evolution: metric(
+      comparison
+        ? {
+            periode: comparison.periode,
+            periodeReference: comparison.periodeReference,
+          }
+        : null,
+      `Ce que « evolutionUtilisations » de chaque ligne compare : les mois calendaires révolus de la période demandée, listés dans « periode », face aux mêmes mois douze mois plus tôt, listés dans « periodeReference ». Douze mois et non la période précédente, parce que l'usage de Jump suit le calendrier scolaire : comparer septembre à août mesurerait la rentrée, pas l'adoption. Le mois en cours est écarté des deux côtés, n'étant pas comparable à un mois complet ; les utilisations affichées sur la ligne, elles, l'incluent, et ne sont donc pas la valeur comparée ici. L'évolution est toujours lue dans les totaux mensuels, seule source qui remonte à un an, quelle que soit la source des autres chiffres. « previous » vaut null tant que rien n'était mesuré sur la période de référence : un mois sans aucune ligne dans les totaux mensuels n'est pas un zéro, c'est une absence de mesure ; il vaut 0 quand la mesure existait et que personne ne s'en est servi. Vaut null en entier quand la période demandée ne contient aucun mois révolu. ${variationRule('count', COMPARISON_LABEL)}`,
+    ),
+    comparaison:
+      filters.feature && comparison
+        ? buildComparison(filters.feature, comparison, pop, rows)
+        : null,
     dejaMesureAilleurs: metric(
       USAGE_MEASURED_ELSEWHERE,
       "Ce que ce catalogue ne mesure pas parce que la plateforme l'enregistre déjà ailleurs, et l'opération qui répond pour chacun. Un zéro ici ne voudrait pas dire que le fait n'arrive pas, seulement qu'il n'est pas compté deux fois.",
@@ -317,66 +391,188 @@ export async function getFeatureUsage(
   };
 }
 
+/**
+ * An event-scoped question outside the detailed window is refused.
+ *
+ * The cube carries a campus and never an event, so the two honest answers are a
+ * refusal or a wider figure, and a wider figure answers a question nobody asked.
+ * Zeros are not on the list: a confident zero indistinguishable from a finding is
+ * what this whole tier exists to prevent.
+ */
+function assertEventReadable(window: UsageWindow, scope: Scope): void {
+  if (window.store !== 'totaux mensuels' || !scope.event) return;
+  throw new OperationRefusedError(
+    `Cette question ne peut pas être isolée sur un événement au-delà de la conservation des lignes détaillées. ` +
+      `Au-delà, seuls les totaux mensuels subsistent : ils portent sur une fonctionnalité, un campus et un mois, jamais sur un événement. ` +
+      `Redemandez avec une fenêtre « days » plus courte, ou sans « eventId » pour obtenir le campus de cet événement.`,
+  );
+}
+
+type Comparison = {
+  periode: string[];
+  periodeReference: string[];
+  current: Map<string, FeatureTotals>;
+  reference: Map<string, FeatureTotals>;
+  /** Null when the reference period holds no measurement at all. */
+  previousFor: (key: string) => number | null;
+  previousActorsFor: (key: string) => number | null;
+};
+
+/**
+ * The year-on-year halves, both read from the cube.
+ *
+ * Always the cube, even when the detailed rows could answer one half: a movement
+ * computed one way here and another way there would be two growth figures under
+ * one name, which is the defect this module was rewritten to remove.
+ */
+async function readComparison(
+  features: readonly UsageFeatureKey[],
+  window: UsageWindow,
+  scope: Scope,
+  now: Date,
+): Promise<Comparison | null> {
+  const months = comparisonMonths(window, now);
+  if (!months) return null;
+  const campusId = scope.campus?.id ?? null;
+  const [cur, ref] = await Promise.all([
+    readCubeTallies({ features, months: months.periode, campusId }),
+    readCubeTallies({ features, months: months.periodeReference, campusId }),
+  ]);
+  const current = foldByFeature(cur.tallies);
+  const reference = foldByFeature(ref.tallies);
+  return {
+    ...months,
+    current,
+    reference,
+    previousFor: (key) =>
+      ref.hasAnyRow ? (reference.get(key)?.uses ?? 0) : null,
+    previousActorsFor: (key) =>
+      ref.hasAnyRow ? (reference.get(key)?.peakActors ?? 0) : null,
+  };
+}
+
+/** The full trio, returned only when one feature was named. */
+function buildComparison(
+  feature: UsageFeatureKey,
+  comparison: Comparison,
+  pop: { staff: number; talents: number },
+  rows: FeatureRow[],
+): FeatureComparison {
+  const def = USAGE_FEATURE_DEFS[feature];
+  const base = def.audience === 'staff' ? pop.staff : pop.talents;
+  const row = rows.find((r) => r.feature === feature);
+  const previousActors = comparison.previousActorsFor(feature);
+  return {
+    feature,
+    periode: comparison.periode,
+    periodeReference: comparison.periodeReference,
+    utilisations: variation(
+      comparison.current.get(feature)?.uses ?? 0,
+      comparison.previousFor(feature),
+      'count',
+      COMPARISON_LABEL,
+    ),
+    acteursDistinctsMoisDePointe: variation(
+      comparison.current.get(feature)?.peakActors ?? 0,
+      previousActors,
+      'count',
+      COMPARISON_LABEL,
+    ),
+    partDeLaPopulation: variation(
+      row?.partDeLaPopulation ?? null,
+      previousActors === null ? null : share(previousActors, base),
+      'points',
+      COMPARISON_LABEL,
+    ),
+  };
+}
+
 export type AdoptionGaps = {
-  filters: { schoolYear: string; campus: string; jours: number };
+  filters: { schoolYear: string; campus: string; jours: number | null };
+  source: Metric<UsageSource>;
   jamaisUtilisees: Metric<
     { feature: string; libelle: string; espace: string }[]
   >;
+  devenuesInutilisees: Metric<
+    {
+      feature: string;
+      libelle: string;
+      espace: string;
+      utilisationsPeriodeReference: number;
+    }[]
+  >;
   unSeulCampus: Metric<{ feature: string; libelle: string; campus: string }[]>;
-  aRetirer: Metric<number>;
-  aFormer: Metric<number>;
+  aRetirer: Metric<number | null>;
+  aSurveiller: Metric<number | null>;
+  aFormer: Metric<number | null>;
 };
 
 /**
  * The actionable half of the same data: what to retire, and where to train.
  *
- * Two lists rather than one figure, because the two decisions are different. A
- * feature no campus has touched is a candidate for removal. A feature exactly
- * one campus uses is the opposite: it works, and the other fourteen do not know
- * it exists.
+ * Three lists rather than one figure, because the three decisions differ. A
+ * feature no campus has touched is a candidate for removal, but a weak one:
+ * most were never found. A feature that served a year ago and serves nobody now
+ * was found and then abandoned, which is the strong signal. A feature exactly
+ * one campus uses is the opposite of both: it works, and the other fourteen do
+ * not know it exists.
  */
 export async function getFeatureAdoptionGaps(
   scope: Scope = {},
   filters: { days?: number } = {},
+  now: Date = new Date(),
 ): Promise<AdoptionGaps> {
-  // Called for its year assertion, not for its events: this is where an unknown
-  // school year becomes a refusal instead of an empty window, which is the
-  // tier's rule that an unknown scope is never a zero. `resolveScope` already
-  // covers the campus and the event id; the year is asserted here, by the same
-  // shared helper every other aggregate uses, so the three cannot disagree about
-  // which years exist.
+  // Called for its year assertion, not for its events: see `getFeatureUsage`.
   await scopedEvents(scope);
-  const days = filters.days ?? 90;
-  const { from, to } = windowFor(scope, days);
-  const used = await prisma.usage_FeatureUse.groupBy({
-    by: ['feature', 'campusId'],
-    where: {
-      impersonated: false,
-      occurredAt: { gte: from, ...(to ? { lt: to } : {}) },
-      ...(scope.campus ? { campusId: scope.campus.id } : {}),
-    },
-    _count: { _all: true },
-  });
+  const days = windowDays(scope, filters.days, 90);
+  const window = usageWindowFor(scope, days, now);
+  const features = USAGE_FEATURE_KEYS;
 
-  const campusesByFeature = new Map<string, Set<string>>();
-  for (const row of used) {
-    const set = campusesByFeature.get(row.feature) ?? new Set<string>();
-    if (row.campusId) set.add(row.campusId);
-    campusesByFeature.set(row.feature, set);
-  }
+  const [read, comparison] = await Promise.all([
+    readTallies({
+      features,
+      window,
+      campusId: scope.campus?.id ?? null,
+    }),
+    readComparison(features, window, scope, now),
+  ]);
+
+  const campusesByFeature = foldByFeatureCampus(read.tallies);
+  const totals = foldByFeature(read.tallies);
   const campusNames = new Map(
     (await prisma.campus.findMany({ select: { id: true, name: true } })).map(
       (c) => [c.id, c.name],
     ),
   );
 
-  const never = USAGE_FEATURE_KEYS.filter(
-    (key) => !campusesByFeature.has(key),
-  ).map((key) => ({
-    feature: key,
-    libelle: USAGE_FEATURE_DEFS[key].label,
-    espace: USAGE_FEATURE_DEFS[key].space,
-  }));
+  // A missing cube is an absence of measurement, not an absence of use, and a
+  // zero would pass the second off as the first. That distinction is what the
+  // weekly digest branches on rather than naming every feature in Jump.
+  const measured = read.hasAnyRow;
+
+  const never = features
+    .filter((key) => (totals.get(key)?.uses ?? 0) === 0)
+    .map((key) => ({
+      feature: key,
+      libelle: USAGE_FEATURE_DEFS[key].label,
+      espace: USAGE_FEATURE_DEFS[key].space,
+    }));
+
+  const abandoned = comparison
+    ? features
+        .filter((key) => {
+          const before = comparison.previousFor(key);
+          return (
+            before !== null && before > 0 && (totals.get(key)?.uses ?? 0) === 0
+          );
+        })
+        .map((key) => ({
+          feature: key,
+          libelle: USAGE_FEATURE_DEFS[key].label,
+          espace: USAGE_FEATURE_DEFS[key].space,
+          utilisationsPeriodeReference: comparison.previousFor(key) ?? 0,
+        }))
+    : [];
 
   const single = [...campusesByFeature.entries()]
     .filter(([, set]) => set.size === 1)
@@ -387,27 +583,39 @@ export async function getFeatureAdoptionGaps(
     }))
     .sort((a, b) => a.libelle.localeCompare(b.libelle, 'fr'));
 
+  const unmeasurable =
+    "Vaut null quand les totaux mensuels n'ont pas été calculés sur la période : aucune ligne n'y est alors une absence d'usage, c'est une absence de mesure, et un zéro ferait passer la seconde pour la première.";
+
   return {
     filters: {
       schoolYear: scope.schoolYear ?? 'toutes',
       campus: scope.campus?.name ?? 'tous',
-      jours: days,
+      jours: days ?? null,
     },
+    source: usageSourceMetric(window, read.computedAt),
     jamaisUtilisees: metric(
-      never,
-      `Les fonctionnalités que personne n'a utilisées sur la période. Ce sont les candidates au retrait, pas une preuve : une fonctionnalité saisonnière peut être vide hors saison, donc à lire avec la période. ${IMPERSONATION_RULE}`,
+      measured ? never : [],
+      `Les fonctionnalités que personne n'a utilisées sur la période. Ce sont des candidates au retrait, pas une preuve : une fonctionnalité saisonnière peut être vide hors saison, et une fonctionnalité récente peut n'avoir jamais été trouvée, donc à lire avec la période et à côté de « devenuesInutilisees », qui est le signal fort. ${IMPERSONATION_RULE}`,
+    ),
+    devenuesInutilisees: metric(
+      abandoned,
+      "Les fonctionnalités qui ont servi sur la même période l'an dernier et qui n'ont servi à personne sur celle-ci, avec le nombre d'utilisations qu'elles avaient alors. C'est le signal de retrait le plus fort des trois : une fonctionnalité qui n'a jamais servi peut n'avoir jamais été trouvée, une fonctionnalité qui ne sert plus a été trouvée puis abandonnée. Vide tant que les totaux mensuels ne remontent pas à un an.",
     ),
     unSeulCampus: metric(
       single,
       "Les fonctionnalités qu'un seul campus utilise, avec lequel. C'est l'inverse d'un retrait : elles fonctionnent quelque part et les autres campus ignorent qu'elles existent, donc c'est une question de formation.",
     ),
     aRetirer: metric(
-      never.length,
-      "Combien de fonctionnalités personne n'a utilisées sur la période.",
+      measured ? never.length : null,
+      `Combien de fonctionnalités personne n'a utilisées sur la période. ${unmeasurable}`,
+    ),
+    aSurveiller: metric(
+      comparison ? abandoned.length : null,
+      "Combien de fonctionnalités ont servi l'an dernier et ne servent plus. Vaut null quand la période demandée ne contient aucun mois révolu comparable.",
     ),
     aFormer: metric(
-      single.length,
-      'Combien de fonctionnalités un seul campus utilise, et sont donc à faire connaître ailleurs.',
+      measured ? single.length : null,
+      `Combien de fonctionnalités un seul campus utilise, et sont donc à faire connaître ailleurs. ${unmeasurable}`,
     ),
   };
 }
@@ -417,13 +625,15 @@ export type CampusCoverageRow = {
   fonctionnalitesUtilisees: number;
   fonctionnalitesDisponibles: number;
   tauxAdoption: number | null;
+  /** Only when one feature was named; null otherwise. See the definition. */
   acteursDistincts: number | null;
 };
 
 export type CampusFeatureCoverage = {
-  filters: { schoolYear: string; jours: number; feature: string };
+  filters: { schoolYear: string; jours: number | null; feature: string };
+  source: Metric<UsageSource>;
   campus: Metric<Ranked<CampusCoverageRow>[]>;
-  celluleMasquee: Metric<number>;
+  celluleMasquee: Metric<number | null>;
 };
 
 /**
@@ -441,94 +651,63 @@ export type CampusFeatureCoverage = {
 export async function getCampusFeatureCoverage(
   scope: Scope = {},
   filters: { days?: number; feature?: UsageFeatureKey } = {},
+  now: Date = new Date(),
 ): Promise<CampusFeatureCoverage> {
-  // Called for its year assertion, not for its events: this is where an unknown
-  // school year becomes a refusal instead of an empty window, which is the
-  // tier's rule that an unknown scope is never a zero. `resolveScope` already
-  // covers the campus and the event id; the year is asserted here, by the same
-  // shared helper every other aggregate uses, so the three cannot disagree about
-  // which years exist.
+  // Called for its year assertion, not for its events: see `getFeatureUsage`.
   await scopedEvents(scope);
-  const days = filters.days ?? 90;
-  const { from, to } = windowFor(scope, days);
+  const days = windowDays(scope, filters.days, 90);
+  const window = usageWindowFor(scope, days, now);
   const scoped = filters.feature
     ? [filters.feature]
     : USAGE_FEATURE_KEYS.filter(
         (key) => USAGE_FEATURE_DEFS[key].scope !== 'global',
       );
 
-  const [campuses, rows] = await Promise.all([
+  const [campuses, read] = await Promise.all([
     prisma.campus.findMany({ select: { id: true, name: true } }),
-    prisma.usage_FeatureUse.findMany({
-      where: {
-        feature: { in: scoped },
-        impersonated: false,
-        campusId: { not: null },
-        occurredAt: { gte: from, ...(to ? { lt: to } : {}) },
-      },
-      select: {
-        feature: true,
-        campusId: true,
-        staffProfileId: true,
-        actorHash: true,
-      },
-    }),
+    readTallies({ features: scoped, window }),
   ]);
-
-  const perCampus = new Map<
-    string,
-    { features: Set<string>; actors: Set<string> }
-  >();
-  for (const row of rows) {
-    if (!row.campusId) continue;
-    const bucket = perCampus.get(row.campusId) ?? {
-      features: new Set<string>(),
-      actors: new Set<string>(),
-    };
-    bucket.features.add(row.feature);
-    const ref = row.staffProfileId ?? row.actorHash;
-    if (ref) bucket.actors.add(ref);
-    perCampus.set(row.campusId, bucket);
-  }
 
   let masked = 0;
   const coverage: CampusCoverageRow[] = campuses.map((campus) => {
-    const bucket = perCampus.get(campus.id);
-    const used = bucket?.features.size ?? 0;
-    const actors = bucket?.actors.size ?? 0;
-    // A single-feature matrix is per-campus per-feature, which is the shape the
-    // floor exists for; the overall coverage view aggregates across features and
-    // is not.
-    const shown = filters.feature
-      ? maskCell(filters.feature, actors, true)
-      : actors;
-    if (shown === null) masked += 1;
+    const totals = foldForCampus(read.tallies, campus.id);
+    const used = [...totals.values()].filter((t) => t.uses > 0).length;
+    // Distinct people ACROSS features is not derivable: the cube counts per
+    // feature, and one person using three features would be counted three
+    // times. So the actor count exists only when a single feature was named.
+    let actors: number | null = null;
+    if (filters.feature) {
+      const peak = totals.get(filters.feature)?.peakActors ?? 0;
+      actors = maskCell(filters.feature, peak, true);
+      if (actors === null) masked += 1;
+    }
     return {
       campus: campus.name,
       fonctionnalitesUtilisees: used,
       fonctionnalitesDisponibles: scoped.length,
       tauxAdoption: share(used, scoped.length),
-      acteursDistincts: shown,
+      acteursDistincts: actors,
     };
   });
 
   return {
     filters: {
       schoolYear: scope.schoolYear ?? 'toutes',
-      jours: days,
+      jours: days ?? null,
       feature: filters.feature ?? 'toutes',
     },
+    source: usageSourceMetric(window, read.computedAt),
     campus: metric(
       rank(
         coverage,
         (row) => row.campus,
         (row) => row.tauxAdoption,
       ),
-      `Un campus par ligne : combien des fonctionnalités mesurables il a utilisées sur la période, sur combien de disponibles, et son taux d'adoption. Seules les fonctionnalités rattachées à un campus ou à un événement entrent ici : une fonctionnalité de l'espace admin est nationale et n'en porte aucun, donc la répartir par campus ne mesurerait que qui était connecté. ${MASKED_CELL_RULE} ${IMPERSONATION_RULE} ${CAMPUS_AXIS_NOTE}`,
+      `Un campus par ligne : combien des fonctionnalités mesurables il a utilisées sur la période, sur combien de disponibles, et son taux d'adoption. Seules les fonctionnalités rattachées à un campus ou à un événement entrent ici : une fonctionnalité de l'espace admin est nationale et n'en porte aucun, donc la répartir par campus ne mesurerait que qui était connecté. « acteursDistincts » n'est donné que lorsqu'une fonctionnalité précise est demandée : additionner des acteurs sur plusieurs fonctionnalités compterait plusieurs fois la même personne. ${PEAK_RULE} ${MASKED_CELL_RULE} ${IMPERSONATION_RULE} ${CAMPUS_AXIS_NOTE}`,
     ),
     celluleMasquee: metric(
-      masked,
-      `Combien de cellules sont masquées par le seuil de ${USAGE_SMALL_CELL_FLOOR} acteurs. Ce n'est pas une donnée manquante : c'est une donnée retenue, et un chiffre haut dit que la question posée est trop fine pour le nombre de personnes concernées.`,
+      filters.feature ? masked : null,
+      `Combien de cellules sont masquées par le seuil de ${USAGE_SMALL_CELL_FLOOR} acteurs. Ce n'est pas une donnée manquante : c'est une donnée retenue, et un chiffre haut dit que la question posée est trop fine pour le nombre de personnes concernées. Vaut null quand aucune fonctionnalité précise n'est demandée, puisqu'il n'y a alors aucune cellule d'acteurs à masquer.`,
     ),
   };
 }

@@ -32,6 +32,12 @@ import {
 import { getStaffActivity } from '$lib/server/services/adminStats/staffActivity';
 import { rollUpUsage } from '$lib/server/usage/rollup';
 import { usageMonth } from '$lib/server/usage/actorHash';
+import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+import { OperationRefusedError } from '$lib/server/adminApi/errors';
+
+const SCHOOL_YEAR = currentSchoolYearLabel();
+/** Far enough ahead that today's rows sit outside the detailed window. */
+const LATER = new Date(Date.now() + 400 * 86_400_000);
 
 const stamp = Date.now();
 const CAMPUS_A = `UsageAlpha-${stamp}`;
@@ -204,7 +210,7 @@ describe('getFeatureUsage', () => {
       (r) => r.feature === USAGE_FEATURES.DEV_INSCRITS_EXPORT,
     );
     expect(row?.utilisations).toBe(3);
-    expect(row?.acteursDistincts).toBe(2);
+    expect(row?.acteursDistinctsMoisDePointe).toBe(2);
     // Ranked on people, so it outranks nothing-at-all but reports both.
     expect(row?.rank).toBe(1);
   });
@@ -218,7 +224,7 @@ describe('getFeatureUsage', () => {
       (r) => r.feature === USAGE_FEATURES.DEV_BADGES_RENDER,
     );
     expect(row?.utilisations).toBe(0);
-    expect(row?.acteursDistincts).toBe(0);
+    expect(row?.acteursDistinctsMoisDePointe).toBe(0);
   });
 
   it('lists every catalogued feature, used or not, with its definition', async () => {
@@ -246,11 +252,20 @@ describe('getFeatureUsage', () => {
     expect(row?.partDeLaPopulation).toBeCloseTo(66.7, 1);
   });
 
-  it('says which store answered', async () => {
+  it('says which store answered, and reads it', async () => {
+    // Asserting the label alone is how the cube shipped with no reader at all:
+    // the announcement was true and the figure beside it came from the other
+    // store. The second half of this case is the part that could have caught it.
     const recent = await getFeatureUsage({}, { days: 30 });
-    expect(recent.source.value).toBe('lignes détaillées');
-    const old = await getFeatureUsage({}, { days: 365 });
-    expect(old.source.value).toBe('totaux mensuels');
+    expect(recent.source.value.store).toBe('lignes détaillées');
+    expect(recent.source.value.mois).toBeNull();
+
+    // Read from far enough ahead that this school year is older than the
+    // detailed window, which is the only way past it now that retention is a
+    // year: a `days` of 365 lands inside it.
+    const old = await getFeatureUsage({ schoolYear: SCHOOL_YEAR }, {}, LATER);
+    expect(old.source.value.store).toBe('totaux mensuels');
+    expect(old.source.value.mois?.length).toBeGreaterThan(0);
   });
 });
 
@@ -338,7 +353,7 @@ describe('the rollup', () => {
       },
     });
     expect(folded?.uses).toBe(raw?.utilisations);
-    expect(folded?.distinctActors).toBe(raw?.acteursDistincts);
+    expect(folded?.distinctActors).toBe(raw?.acteursDistinctsMoisDePointe);
 
     // Running it again recomputes the same numbers rather than doubling them,
     // which is what makes a weekly cron safe to retry.
@@ -363,7 +378,8 @@ describe('the rollup', () => {
   });
 
   it('purges a row past the retention window, but only after folding it', async () => {
-    const old = new Date(Date.now() - 200 * 86_400_000);
+    // Comfortably past the twelve-month window, so the purge reaches it.
+    const old = new Date(Date.now() - 500 * 86_400_000);
     await prisma.usage_FeatureUse.create({
       data: {
         feature: USAGE_FEATURES.DEV_PLANNING_VIEW,
@@ -417,5 +433,197 @@ describe('getStaffActivity', () => {
     const answer = await getStaffActivity({});
     const rows = answer.parCampus.value.map((r) => r.campus);
     expect(new Set(rows).size).toBe(rows.length);
+  });
+});
+
+/**
+ * The defects that shipped, each reproduced against a real database.
+ *
+ * All three were invisible to the suite as first written, and how they were
+ * invisible is the part worth keeping. `says which store answered` asserted the
+ * label and never the figure beside it, so a true announcement over data from
+ * the other store passed. `the rollup agrees with the raw rows` compared the two
+ * stores inside a single month, the one window where the talent pseudonym cannot
+ * rotate. And the disclosure floor was only ever exercised through the coverage
+ * matrix, while the other operation accepted the same campus filter.
+ *
+ * This block runs last on purpose: it rolls the cube up from a future instant,
+ * which purges every raw row the earlier blocks seeded.
+ */
+describe('the figures the two stores must agree on', () => {
+  it('counts one talent active in two months once, not twice', async () => {
+    // One person, two monthly pseudonyms, which is what rotation produces. A set
+    // accumulated over the window counted them twice and let the share pass
+    // 100 %; the reported figure is the busiest month, so it is 1.
+    await prisma.usage_FeatureUse.createMany({
+      data: [
+        {
+          feature: USAGE_FEATURES.TALENT_EVENTS_VIEW,
+          actorKind: 'talent' as const,
+          actorHash: hashFor(300),
+          campusId: campusB,
+          occurredAt: new Date(),
+        },
+        {
+          feature: USAGE_FEATURES.TALENT_EVENTS_VIEW,
+          actorKind: 'talent' as const,
+          actorHash: hashFor(301),
+          campusId: campusB,
+          occurredAt: new Date(Date.now() - 45 * 86_400_000),
+        },
+      ],
+    });
+
+    const answer = await getFeatureUsage({}, { days: 90 });
+    const row = answer.fonctionnalites.value.find(
+      (r) => r.feature === USAGE_FEATURES.TALENT_EVENTS_VIEW,
+    );
+    expect(row?.utilisations).toBe(2);
+    expect(row?.acteursDistinctsMoisDePointe).toBe(1);
+    expect(row?.moisDePointe).not.toBeNull();
+  });
+
+  it('never lets a share of the population exceed 100 %', async () => {
+    const answer = await getFeatureUsage({}, { days: 365 });
+    for (const row of answer.fonctionnalites.value) {
+      if (row.partDeLaPopulation !== null) {
+        expect(row.partDeLaPopulation).toBeLessThanOrEqual(100);
+      }
+    }
+  });
+
+  it('masks a per-campus talent cell here too, not only in the matrix', async () => {
+    // Reachable with a leadership token: same `campus` filter, same audience.
+    // This operation answered unmasked because the floor sat at one call site.
+    const answer = await getFeatureUsage(
+      { campus: { id: campusB, name: CAMPUS_B } },
+      { days: 90, feature: USAGE_FEATURES.TALENT_EVENTS_VIEW },
+    );
+    const row = answer.fonctionnalites.value.find(
+      (r) => r.feature === USAGE_FEATURES.TALENT_EVENTS_VIEW,
+    );
+    expect(row?.acteursDistinctsMoisDePointe).toBeNull();
+    // Masked with the count, or it would hand the count straight back.
+    expect(row?.partDeLaPopulation).toBeNull();
+  });
+
+  it('refuses to isolate an event beyond the detailed window', async () => {
+    await expect(
+      getFeatureUsage(
+        { schoolYear: SCHOOL_YEAR, event: { id: eventA, label: 'Événement' } },
+        {},
+        LATER,
+      ),
+    ).rejects.toBeInstanceOf(OperationRefusedError);
+  });
+
+  it('refuses a window that does not meet the school year, instead of zeros', async () => {
+    // The day count and the year cross whenever the year ended longer ago than
+    // the window is wide. This answered zero for every feature and echoed the
+    // filters back to confirm it.
+    await expect(
+      getFeatureUsage({ schoolYear: SCHOOL_YEAR }, { days: 7 }, LATER),
+    ).rejects.toBeInstanceOf(OperationRefusedError);
+  });
+
+  it('reads the monthly cube once the raw rows are purged', async () => {
+    // The production sequence: time passes, the job folds every month present
+    // and then purges what is past retention. Read from the same instant, the
+    // answer has to come from the cube, and used to come back empty while
+    // announcing that it had.
+    const before = await getFeatureUsage({}, { days: 90 });
+    const seeded = before.fonctionnalites.value.filter(
+      (r) => r.utilisations > 0,
+    );
+    expect(seeded.length).toBeGreaterThan(0);
+
+    await rollUpUsage(LATER);
+    expect(await prisma.usage_FeatureUse.count()).toBe(0);
+
+    const answer = await getFeatureUsage(
+      { schoolYear: SCHOOL_YEAR },
+      {},
+      LATER,
+    );
+    expect(answer.source.value.store).toBe('totaux mensuels');
+    expect(answer.source.value.calculeLe).not.toBeNull();
+    for (const row of seeded) {
+      const after = answer.fonctionnalites.value.find(
+        (r) => r.feature === row.feature,
+      );
+      expect(after?.utilisations, row.feature).toBe(row.utilisations);
+    }
+  });
+
+  it('reports adoption gaps from the cube rather than declaring everything unused', async () => {
+    // The weekly digest's defect: with the raw rows gone, every feature that had
+    // served read as never used, which is the direction that makes somebody
+    // delete something in use.
+    const gaps = await getFeatureAdoptionGaps(
+      { schoolYear: SCHOOL_YEAR },
+      {},
+      LATER,
+    );
+    expect(gaps.source.value.store).toBe('totaux mensuels');
+    expect(gaps.aRetirer.value).not.toBeNull();
+    expect(
+      gaps.jamaisUtilisees.value.some(
+        (g) => g.feature === USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+      ),
+    ).toBe(false);
+  });
+
+  it('applies the disclosure floor on the cube path too', async () => {
+    const answer = await getCampusFeatureCoverage(
+      { schoolYear: SCHOOL_YEAR },
+      { feature: USAGE_FEATURES.TALENT_EVENTS_VIEW },
+      LATER,
+    );
+    const b = answer.campus.value.find((r) => r.campus === CAMPUS_B);
+    expect(b?.acteursDistincts).toBeNull();
+    expect(answer.celluleMasquee.value).toBeGreaterThanOrEqual(1);
+  });
+
+  it('gives no distinct-actor count on the all-features coverage view', async () => {
+    // Distinct people across features is not derivable from a per-feature cube,
+    // and cumulating it on the raw path would make the field mean two things.
+    const answer = await getCampusFeatureCoverage(
+      { schoolYear: SCHOOL_YEAR },
+      {},
+      LATER,
+    );
+    for (const row of answer.campus.value) {
+      expect(row.acteursDistincts).toBeNull();
+    }
+    expect(answer.celluleMasquee.value).toBeNull();
+  });
+
+  it('tells never-measured apart from measured-at-zero', async () => {
+    const answer = await getFeatureUsage(
+      { schoolYear: SCHOOL_YEAR },
+      {},
+      LATER,
+    );
+    expect(answer.evolution.value).not.toBeNull();
+    const reference = answer.evolution.value!.periodeReference;
+
+    // The reference period overlaps months that were folded, so it WAS measured,
+    // and a feature nobody used over it is a genuine zero.
+    const measured = answer.fonctionnalites.value.find(
+      (r) => r.feature === USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+    );
+    expect(measured?.evolutionUtilisations?.previous).toBe(0);
+
+    // Take the measurement away and the same field must go null. Reading an
+    // unmeasured period as a real zero would make every feature look like it
+    // collapsed on the day the comparison window crossed the instrumentation.
+    await prisma.usage_FeatureMonthly.deleteMany({
+      where: { month: { in: reference } },
+    });
+    const after = await getFeatureUsage({ schoolYear: SCHOOL_YEAR }, {}, LATER);
+    const unmeasured = after.fonctionnalites.value.find(
+      (r) => r.feature === USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+    );
+    expect(unmeasured?.evolutionUtilisations?.previous).toBeNull();
   });
 });

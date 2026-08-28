@@ -1,12 +1,17 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { USAGE_RAW_RETENTION_DAYS } from '$lib/domain/usage';
+import { USAGE_RAW_RETENTION_MONTHS, usageRawCutoff } from '$lib/domain/usage';
 
-export { USAGE_RAW_RETENTION_DAYS };
+export { USAGE_RAW_RETENTION_MONTHS };
 
 /**
  * Fold every month present in the raw table into `Usage_FeatureMonthly`, then
  * purge raw rows past the retention window.
+ *
+ * The cutoff comes from `usageRawCutoff` rather than being computed here, so the
+ * purge and the reader in `usage/read.ts` cannot disagree about where the
+ * detailed window ends. They could before: the reader compared a day COUNT
+ * against the retention while this compared a DATE.
  *
  * ONE job and not two, and the ordering is the entire reason. Folding first
  * guarantees no month is purged before it was counted; two jobs would make that
@@ -34,9 +39,7 @@ export async function rollUpUsage(now = new Date()): Promise<{
   rowsWritten: number;
   rawPurged: number;
 }> {
-  const cutoff = new Date(
-    now.getTime() - USAGE_RAW_RETENTION_DAYS * 24 * 60 * 60 * 1000,
-  );
+  const cutoff = usageRawCutoff(now);
 
   return prisma.$transaction(async (tx) => {
     const months = await tx.$queryRaw<{ month: string }[]>(

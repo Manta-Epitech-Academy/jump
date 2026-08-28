@@ -12,8 +12,6 @@ import {
   listTalentDocuments,
 } from '$lib/server/services/onboardingDocuments';
 import { resolveTalentDocumentStatus } from '$lib/server/services/onboardingPdfJobService';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) {
@@ -134,8 +132,10 @@ export const actions: Actions = {
       });
     }
 
-    recordUsage(USAGE_FEATURES.TALENT_DELETION_REQUEST, { locals });
-
+    // No usage key here on purpose: `TalentDeletionRequest` is an append-only
+    // row with its own `requestedAt`, and `ops_account_deletion_queue` already
+    // answers from it. A key would be a second count of one fact, which is the
+    // thing `USAGE_MEASURED_ELSEWHERE` exists to prevent.
     return { deletionRequested: true };
   },
 

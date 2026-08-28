@@ -201,7 +201,7 @@ import {
 import { getStaffActivity } from '$lib/server/services/adminStats/staffActivity';
 import {
   USAGE_FEATURE_KEYS,
-  USAGE_RAW_RETENTION_DAYS,
+  USAGE_RAW_RETENTION_MONTHS,
 } from '$lib/domain/usage';
 
 // One format check, two arities. The operations that compare or rank across
@@ -236,7 +236,7 @@ const usageDays = z
   .enum(['7', '30', '90', '365'])
   .optional()
   .describe(
-    `Window in days. Beyond ${USAGE_RAW_RETENTION_DAYS} days the answer comes from the monthly rollup, and says so. Omit for 30.`,
+    `Window in days. Beyond ${USAGE_RAW_RETENTION_MONTHS} months the answer comes from the monthly rollup, which knows only whole months: the window is then rounded outward to the months it touches, and the answer's "source" says so. Omit for 30.`,
   );
 
 const usageAudience = z
@@ -1141,7 +1141,7 @@ export const ADMIN_API_OPERATIONS = {
   stats_feature_usage: defineOperation({
     leadership: true,
     description:
-      'Which features of Jump are actually used: per feature, the number of uses, the number of distinct people who used it in the month, the share of the population that could have, and the last time it happened. Every catalogued feature is listed whether or not it was used, because naming the ones nobody touches is the point. Ranked on distinct people, not on uses. Counts only, nobody is named.',
+      'Which features of Jump are actually used: per feature, the number of uses, the distinct people who used it in its busiest calendar month, the share of the population that could have, the last month it served, and its movement against the same months a year earlier. Every catalogued feature is listed whether or not it was used, because naming the ones nobody touches is the point. Ranked on distinct people, not on uses. Counts only, nobody is named.',
     shape: {
       schoolYear,
       campus,
@@ -1163,7 +1163,7 @@ export const ADMIN_API_OPERATIONS = {
   stats_feature_adoption_gaps: defineOperation({
     leadership: true,
     description:
-      'The actionable half of feature adoption: the features nobody used over the window, which are the candidates for removal, and the features exactly one campus uses, which are the opposite and a training question. Two lists, because the two decisions are different.',
+      'The actionable half of feature adoption: the features nobody used over the window, the features that served a year ago and serve nobody now, and the features exactly one campus uses. Three lists, because the three decisions differ. The second is the strong retire signal, since a feature that was never used may simply never have been found, while one that stopped being used was found and then abandoned; the third is a training question, not a removal one.',
     shape: { schoolYear, campus, days: usageDays },
     run: async ({ days, ...scope }) =>
       getFeatureAdoptionGaps(await resolveScope(scope), {
@@ -1174,7 +1174,7 @@ export const ADMIN_API_OPERATIONS = {
   stats_campus_feature_coverage: defineOperation({
     leadership: true,
     description:
-      'Which campus uses what, ranked: one row per campus with how many of the measurable features it used, out of how many available, and its adoption rate. Pass a feature to compare that one feature across every campus. Only features attached to a campus or an event appear, since an admin-space feature is national.',
+      'Which campus uses what, ranked: one row per campus with how many of the measurable features it used, out of how many available, and its adoption rate. Pass a feature to compare that one feature across every campus, which is also the only way an actor count is returned, since people who use several features cannot be added up. Only features attached to a campus or an event appear, since an admin-space feature is national.',
     shape: { schoolYear, days: usageDays, feature: usageFeature },
     run: async ({ days, feature, ...scope }) =>
       getCampusFeatureCoverage(await resolveScope(scope), {

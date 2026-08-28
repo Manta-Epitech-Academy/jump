@@ -7,7 +7,8 @@ import {
   USAGE_FEATURE_DEFS,
   USAGE_VIEW_ROUTES,
   USAGE_MEASURED_ELSEWHERE,
-  USAGE_RAW_RETENTION_DAYS,
+  USAGE_RAW_RETENTION_MONTHS,
+  usageRawCutoff,
   usageSessionFeature,
   isUsageFeatureKey,
   type UsageFeatureKey,
@@ -75,8 +76,9 @@ describe('the usage catalogue', () => {
       // The admin space is national, so a per-campus reading of it would not
       // hold; only dev and talent surfaces carry a campus.
       if (space === 'admin') expect(scope, key).toBe('global');
-      // Only an event-scoped feature may name an event.
-      if (scope === 'event') expect(space, key).toBe('dev');
+      // An event-scoped feature lives on a surface that is about one event, so
+      // dev or talent, never the national admin space.
+      if (scope === 'event') expect(['dev', 'talent'], key).toContain(space);
       expect(audience === 'talent' ? space : 'talent', key).toBe('talent');
     }
   });
@@ -89,14 +91,30 @@ describe('the usage catalogue', () => {
   });
 
   it('states a retention window the purge and the charte can both read', () => {
-    expect(USAGE_RAW_RETENTION_DAYS).toBeGreaterThan(0);
+    expect(USAGE_RAW_RETENTION_MONTHS).toBeGreaterThan(0);
     // The charte a minor accepts quotes this number, so it may not silently
     // become a value the purge does not keep.
     const charte = readFileSync(
       'src/lib/content/charte-informatique.md',
       'utf-8',
     );
-    expect(charte).toContain('{{usageRetentionDays}}');
+    expect(charte).toContain('{{usageRetentionMonths}}');
+    // And the talent settings page states the same delay. It used to state it
+    // as a literal, which is the drift the constant exists to prevent.
+    const settings = readFileSync(
+      'src/routes/(talent)/settings/+page.svelte',
+      'utf-8',
+    );
+    expect(settings).toContain('USAGE_RAW_RETENTION_MONTHS');
+  });
+
+  it('subtracts calendar months, not a fixed number of days', () => {
+    // 29 Feb is the case a day-count gets wrong: twelve months before it is
+    // 29 Feb 2024, not "365 days earlier".
+    const cutoff = usageRawCutoff(new Date('2027-03-15T12:00:00Z'));
+    expect(cutoff.getFullYear()).toBe(2026);
+    expect(cutoff.getMonth()).toBe(2);
+    expect(cutoff.getDate()).toBe(15);
   });
 });
 

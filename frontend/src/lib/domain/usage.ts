@@ -151,7 +151,7 @@ export const USAGE_FEATURES = {
   TALENT_SETTINGS_VIEW: 'talent_settings_view',
   TALENT_DOCUMENT_VIEW: 'talent_document_view',
   TALENT_MINIGAME_OPEN: 'talent_minigame_open',
-  TALENT_DELETION_REQUEST: 'talent_deletion_request',
+  TALENT_FEEDBACK_OPEN: 'talent_feedback_open',
 } as const;
 
 export type UsageFeatureKey =
@@ -197,23 +197,50 @@ export type UsageDedupe = 'bucket' | 'each';
 export const USAGE_BUCKET_MS = 30 * 60 * 1000;
 
 /**
- * How long a raw `Usage_FeatureUse` row lives, in days.
+ * How long a raw `Usage_FeatureUse` row lives, in calendar months.
  *
- * Sixty, not the thirteen months usually quoted around web analytics: those are
- * the lifetime of a TRACKER under the CNIL's audience-measurement exemption, a
+ * NOT the thirteen months usually quoted around web analytics: those are the
+ * lifetime of a TRACKER under the CNIL's audience-measurement exemption, a
  * regime this does not qualify for, so they are no authority for keeping
- * behavioural logs. The closest applicable guidance is the logging
- * recommendation, a rolling six months to a year, and this sits well inside it
- * because the long-lived answer never needs the raw rows: it is the actor-free
- * monthly cube. Long enough to cover a stage plus its debrief, and to answer
- * "what has this member been doing lately" on the staff page.
+ * behavioural logs. The applicable guidance is the logging recommendation, a
+ * rolling six months to a year, and twelve sits at the top of that band.
  *
- * Lives here rather than beside the purge because two surfaces have to agree on
- * it or we breach our own notice: the purge in `server/usage/rollup.ts`, and the
- * charte informatique a minor accepts. Exactly why `DATA_RETENTION_MONTHS` lives
- * in `domain/retention.ts`.
+ * Twelve rather than the two months this shipped with, because two answers the
+ * platform owes need a year of detailed rows and cannot be had from the cube:
+ * the year-on-year movement of a feature, and a full school year of "what has
+ * this member been doing", which is the span a staff review actually covers.
+ * Two months could answer neither, and the argument first written here for the
+ * shorter window (that the long-lived answer never needs the raw rows) was
+ * false: the aggregates read raw and the cube had no reader at all.
+ *
+ * Months and not days because the number is quoted to a minor. The charte reads
+ * "12 mois" beside the neighbouring "18 mois" of {@link DATA_RETENTION_MONTHS},
+ * where "365 jours" would make a reader convert. Same shape as that constant,
+ * down to the `setMonth` subtraction in {@link usageRawCutoff}.
+ *
+ * Lives here rather than beside the purge because three surfaces have to agree
+ * on it or we breach our own notice: the purge in `server/usage/rollup.ts`, the
+ * window in `server/usage/read.ts`, and the charte informatique a minor accepts.
  */
-export const USAGE_RAW_RETENTION_DAYS = 60;
+export const USAGE_RAW_RETENTION_MONTHS = 12;
+
+/**
+ * The instant before which raw rows no longer exist.
+ *
+ * One function, so the purge and the reader cannot disagree about where the
+ * detailed window ends. That disagreement was real: the reader used to decide by
+ * comparing a day COUNT against the retention while the purge compared a DATE,
+ * so the two could answer differently for the same request.
+ *
+ * Calendar subtraction rather than a multiple of 86 400 000, matching
+ * `anonymizationService.anonymizeInactiveStudents`, so "twelve months" means the
+ * same day of the month rather than drifting by the leap day and the short ones.
+ */
+export function usageRawCutoff(now: Date = new Date()): Date {
+  const cutoff = new Date(now);
+  cutoff.setMonth(cutoff.getMonth() - USAGE_RAW_RETENTION_MONTHS);
+  return cutoff;
+}
 
 export interface UsageFeatureDef {
   key: UsageFeatureKey;
@@ -1333,16 +1360,16 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     scope: 'campus',
     dedupe: 'each',
   }),
-  [USAGE_FEATURES.TALENT_DELETION_REQUEST]: def({
-    key: USAGE_FEATURES.TALENT_DELETION_REQUEST,
-    label: 'Ta demande de suppression',
+  [USAGE_FEATURES.TALENT_FEEDBACK_OPEN]: def({
+    key: USAGE_FEATURES.TALENT_FEEDBACK_OPEN,
+    label: 'L’ouverture du questionnaire de fin',
     definition:
-      'Demandes de suppression de compte ouvertes par le talent lui-même.',
+      'Ouvertures du questionnaire de fin d’événement, comptées à l’ouverture et non à l’envoi. C’est le terme intermédiaire qui manquait : les réponses envoyées sont un fait enregistré ailleurs et la cohorte de l’événement donne le nombre d’invités, mais rien ne disait jusqu’ici combien avaient ouvert sans répondre. Les deux manques appellent des correctifs opposés, relancer l’envoi ou revoir le questionnaire.',
     audience: 'talent',
     space: 'talent',
-    kind: 'action',
-    scope: 'campus',
-    dedupe: 'each',
+    kind: 'view',
+    scope: 'event',
+    dedupe: 'bucket',
   }),
 };
 
@@ -1409,6 +1436,7 @@ export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
   '/(talent)/minigames/[publicationId]/leaderboard':
     USAGE_FEATURES.TALENT_LEADERBOARD_VIEW,
   '/(talent)/settings': USAGE_FEATURES.TALENT_SETTINGS_VIEW,
+  '/(talent)/feedback/[eventId]/[formId]': USAGE_FEATURES.TALENT_FEEDBACK_OPEN,
 };
 
 /**
@@ -1447,4 +1475,5 @@ export const USAGE_MEASURED_ELSEWHERE: Readonly<Record<string, string>> = {
   'Charte, règlement intérieur et droit à l’image signés':
     'stats_compliance_status',
   'Avancement des dossiers d’inscription': 'stats_onboarding_funnel',
+  'Demandes de suppression de compte': 'ops_account_deletion_queue',
 };

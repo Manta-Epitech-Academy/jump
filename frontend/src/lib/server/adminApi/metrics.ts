@@ -110,10 +110,24 @@ export function variation(
           ? Math.round((gap / previous) * 1000) / 10
           : null,
     },
-    definition: isCount
-      ? `Évolution de cette figure par rapport à ${comparedTo} : « previous » est sa valeur sur ${comparedTo}, « absolute » l'écart en valeur absolue, « relative » ce même écart en pourcentage de ${comparedTo}. « relative » vaut null quand la valeur de ${comparedTo} est nulle ou inconnue, car il n'y a rien à rapporter. Ce que la figure compte est dit dans sa propre définition, à côté de sa valeur.`
-      : `Évolution de cette figure par rapport à ${comparedTo} : « previous » est sa valeur sur ${comparedTo} et « absolute » l'écart exprimé en points sur la même échelle que la figure. « relative » vaut toujours null ici : l'évolution relative d'un taux ou d'une moyenne se lit de travers (passer de 20 % à 30 % est un écart de 10 points, pas une hausse de 50 %). Ce que la figure mesure est dit dans sa propre définition, à côté de sa valeur.`,
+    definition: variationRule(kind, comparedTo),
   };
+}
+
+/**
+ * What a {@link Variation} means, as one sentence.
+ *
+ * Extracted so a container holding MANY bare `Variation` values can state the
+ * rule once. Repeating a full `Metric` per row would repeat this paragraph per
+ * row, and a definition is owned once by whatever owns the rule it states.
+ */
+export function variationRule(
+  kind: 'count' | 'points',
+  comparedTo: string,
+): string {
+  return kind === 'count'
+    ? `Évolution de cette figure par rapport à ${comparedTo} : « previous » est sa valeur sur ${comparedTo}, « absolute » l'écart en valeur absolue, « relative » ce même écart en pourcentage de ${comparedTo}. « relative » vaut null quand la valeur de ${comparedTo} est nulle ou inconnue, car il n'y a rien à rapporter. Ce que la figure compte est dit dans sa propre définition, à côté de sa valeur.`
+    : `Évolution de cette figure par rapport à ${comparedTo} : « previous » est sa valeur sur ${comparedTo} et « absolute » l'écart exprimé en points sur la même échelle que la figure. « relative » vaut toujours null ici : l'évolution relative d'un taux ou d'une moyenne se lit de travers (passer de 20 % à 30 % est un écart de 10 points, pas une hausse de 50 %). Ce que la figure mesure est dit dans sa propre définition, à côté de sa valeur.`;
 }
 
 /**

@@ -1,5 +1,5 @@
 import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
-import { USAGE_RAW_RETENTION_DAYS } from '$lib/domain/usage';
+import { USAGE_RAW_RETENTION_MONTHS } from '$lib/domain/usage';
 import charteMd from './charte-informatique.md?raw';
 
 /**
@@ -12,8 +12,8 @@ import charteMd from './charte-informatique.md?raw';
  * a minor consents to would drift on the first correction.
  *
  * `{{retentionMonths}}` is filled from `DATA_RETENTION_MONTHS`, the same
- * constant the anonymisation job reads, and `{{usageRetentionDays}}` from
- * `USAGE_RAW_RETENTION_DAYS`, the same constant the usage purge reads, so
+ * constant the anonymisation job reads, and `{{usageRetentionMonths}}` from
+ * `USAGE_RAW_RETENTION_MONTHS`, the same constant the usage purge reads, so
  * neither promise made here can state a delay the platform does not keep. Same
  * placeholder convention as the droit-image content files.
  *
@@ -23,4 +23,4 @@ import charteMd from './charte-informatique.md?raw';
  */
 export const CHARTE_INFORMATIQUE_BODY = charteMd
   .replace('{{retentionMonths}}', String(DATA_RETENTION_MONTHS))
-  .replace('{{usageRetentionDays}}', String(USAGE_RAW_RETENTION_DAYS));
+  .replace('{{usageRetentionMonths}}', String(USAGE_RAW_RETENTION_MONTHS));
