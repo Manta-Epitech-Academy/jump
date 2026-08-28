@@ -13,17 +13,16 @@ import { readDevRedirectPin } from '$lib/server/devRedirectPin';
 import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
 import { env } from '$env/dynamic/private';
 
-const UMAMI_HOST = 'https://jump-umami.epiboost.eu';
-
-// Crisp live-chat (talent space). Hosts whitelisted unconditionally; the widget
-// only actually loads when PUBLIC_CRISP_WEBSITE_ID is set (see Crisp.svelte).
-const CRISP_HOST = 'https://client.crisp.chat';
-const CRISP_RELAY = 'wss://client.relay.crisp.chat';
-
-// Allow the configured jump-games origin to be embedded as an iframe. Deployed
-// hosts already match the `*.epiboost.eu` wildcard below, but a local
-// jump-games (e.g. http://localhost:5174) does not — derive its origin so
-// frame-src follows JUMP_GAMES_URL in every environment.
+// Every other CSP directive is a fixed constant (or gone with the recorder,
+// issue #275) and lives in `kit.csp` (svelte.config.js) now, which hands out a
+// real per-request script-src nonce instead of `'unsafe-inline'`. `frame-src`
+// is the one exception: its `JUMP_GAMES_URL`-derived entry is genuinely
+// per-deployment, and svelte.config.js only ever runs at build time (see the
+// Dockerfile — one image, built before any environment's env vars exist, then
+// deployed everywhere with different ones), so it has to stay here and be
+// appended onto the header kit.csp already set. Deployed games hosts already
+// match the `*.epiboost.eu` wildcard below; only a local jump-games (e.g.
+// http://localhost:5174) needs the extra entry.
 const GAMES_FRAME_SRC = (() => {
   try {
     return env.JUMP_GAMES_URL ? new URL(env.JUMP_GAMES_URL).origin : '';
@@ -32,33 +31,21 @@ const GAMES_FRAME_SRC = (() => {
   }
 })();
 
-// Built manually rather than via `kit.csp` because SvelteKit's auto-CSP injects
-// a per-request nonce in `script-src`, which makes browsers ignore
-// `'unsafe-inline'`.
-//
-// THAT CONCESSION NO LONGER HAS A REASON. It existed for the Umami session
-// recorder, which evaluated ad-hoc inline scripts and `on*` attribute handlers
-// we could not pre-hash. The recorder is gone (issue #275), so `'unsafe-inline'`
-// and `'unsafe-hashes'` are now weakening XSS mitigation for nothing. Removing
-// them means moving to `kit.csp` with nonces, which SvelteKit's own inline
-// hydration script needs and which has to be re-verified against Crisp and every
-// route, so it is its own change rather than a line to delete here.
-const CSP_HEADER = [
-  "default-src 'self'",
-  `script-src 'self' ${UMAMI_HOST} ${CRISP_HOST} 'unsafe-inline' 'unsafe-hashes'`,
-  `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${CRISP_HOST}`,
-  "img-src 'self' data: https:",
-  `font-src 'self' https://fonts.gstatic.com ${CRISP_HOST}`,
-  `connect-src 'self' ${UMAMI_HOST} ${CRISP_HOST} ${CRISP_RELAY}`,
-  "frame-ancestors 'none'",
-  `frame-src 'self' https://*.epiboost.eu https://*.epiboost.fr${GAMES_FRAME_SRC ? ` ${GAMES_FRAME_SRC}` : ''}`,
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-].join('; ');
+const FRAME_SRC_DIRECTIVE = `frame-src 'self' https://*.epiboost.eu https://*.epiboost.fr${GAMES_FRAME_SRC ? ` ${GAMES_FRAME_SRC}` : ''}`;
+
+// Nothing runs a script or embeds a frame on these: an early guard redirect, a
+// JSON action result, a `+server.ts` endpoint. None of them go through kit's
+// page renderer, so none of them carry the `kit.csp` header — refuse
+// everything rather than leave the response with no policy at all.
+const LOCKED_DOWN_CSP =
+  "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 
 function setSecurityHeaders(response: Response) {
-  response.headers.set('Content-Security-Policy', CSP_HEADER);
+  const renderedCsp = response.headers.get('Content-Security-Policy');
+  response.headers.set(
+    'Content-Security-Policy',
+    renderedCsp ? `${renderedCsp}; ${FRAME_SRC_DIRECTIVE}` : LOCKED_DOWN_CSP,
+  );
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
