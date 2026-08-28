@@ -92,14 +92,11 @@ export const HANDLES: Record<HandleKind, Handle> = {
     what: 'Usage feature key, the catalogue name of a measurable feature of Jump.',
     frNoun: 'clés de fonctionnalité',
     frGender: 'f',
-    producedBy: [
-      { operation: 'stats_feature_usage' },
-      {
-        operation: 'stats_campus_feature_coverage',
-        covers:
-          'only the features attached to a campus or an event, never one of the national admin surfaces',
-      },
-    ],
+    // `stats_feature_usage` and it alone. `stats_campus_feature_coverage` TAKES a
+    // feature key and echoes it back in its filters, but its rows are campuses,
+    // so it hands out no key a caller did not already hold: listing it here
+    // would have sent a model looking for the catalogue where it is not.
+    producedBy: [{ operation: 'stats_feature_usage' }],
   },
 
   eventId: {
