@@ -32,11 +32,17 @@ const GAMES_FRAME_SRC = (() => {
   }
 })();
 
-// Built manually rather than via `kit.csp` because SvelteKit's auto-CSP
-// injects a per-request nonce in `script-src`, which makes browsers ignore
-// `'unsafe-inline'`. The Umami session-replay recorder needs to evaluate
-// ad-hoc inline scripts and `on*` attribute handlers we cannot pre-hash,
-// so `'unsafe-inline'` must actually take effect here.
+// Built manually rather than via `kit.csp` because SvelteKit's auto-CSP injects
+// a per-request nonce in `script-src`, which makes browsers ignore
+// `'unsafe-inline'`.
+//
+// THAT CONCESSION NO LONGER HAS A REASON. It existed for the Umami session
+// recorder, which evaluated ad-hoc inline scripts and `on*` attribute handlers
+// we could not pre-hash. The recorder is gone (issue #275), so `'unsafe-inline'`
+// and `'unsafe-hashes'` are now weakening XSS mitigation for nothing. Removing
+// them means moving to `kit.csp` with nonces, which SvelteKit's own inline
+// hydration script needs and which has to be re-verified against Crisp and every
+// route, so it is its own change rather than a line to delete here.
 const CSP_HEADER = [
   "default-src 'self'",
   `script-src 'self' ${UMAMI_HOST} ${CRISP_HOST} 'unsafe-inline' 'unsafe-hashes'`,

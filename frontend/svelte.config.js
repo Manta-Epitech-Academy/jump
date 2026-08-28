@@ -18,9 +18,12 @@ const config = {
     // CSP is set manually in `hooks.server.ts` (`setSecurityHeaders`).
     // We can't use `kit.csp` here: it auto-injects a per-request nonce into
     // `script-src`, and once a nonce or hash is present in `script-src`,
-    // modern browsers IGNORE `'unsafe-inline'`. The Umami session-replay
-    // recorder injects ad-hoc inline scripts and `on*` attribute handlers
-    // that we can't pre-hash, so we need `'unsafe-inline'` to be effective.
+    // modern browsers IGNORE `'unsafe-inline'`.
+    //
+    // The thing that needed `'unsafe-inline'` to be effective was the Umami
+    // session recorder, and it is gone (issue #275). Switching to `kit.csp` is
+    // now possible and wanted; it is held back only because it has to be
+    // re-verified against Crisp and every route first.
     adapter: adapter(),
     // Stale-client recovery after a prod deploy. Each build stamps a version
     // into `_app/version.json`; the client polls it every 60s. When it changes
