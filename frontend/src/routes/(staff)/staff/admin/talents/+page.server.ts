@@ -5,6 +5,8 @@ import { prisma } from '$lib/server/db';
 import { resetTalentToImport } from '$lib/server/services/talentAccount';
 import { changeParentEmail } from '$lib/server/services/parentAccount';
 import { parentCompleteWhere } from '$lib/server/db/dossierCompliance';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   parseTalentFilters,
   buildTalentWhere,
@@ -107,6 +109,7 @@ export const actions: Actions = {
   // verdicts) so they're left exactly as the worker leaves a fresh import. The
   // heavy cleanup affordance for after testing the talent experience in prod.
   resetToImport: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_TALENT_RESET_TO_IMPORT, { locals });
     if (locals.staffProfile?.staffRole !== 'admin') return fail(403);
 
     const data = await request.formData();
@@ -128,6 +131,7 @@ export const actions: Actions = {
   // changeParentEmail; optionally re-sends the connection link to the new
   // address.
   updateParentEmail: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_TALENT_PARENT_EMAIL_UPDATE, { locals });
     if (locals.staffProfile?.staffRole !== 'admin') return fail(403);
 
     const data = await request.formData();

@@ -1,4 +1,5 @@
 import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
+import { USAGE_RAW_RETENTION_MONTHS } from '$lib/domain/usage';
 import charteMd from './charte-informatique.md?raw';
 
 /**
@@ -11,15 +12,15 @@ import charteMd from './charte-informatique.md?raw';
  * a minor consents to would drift on the first correction.
  *
  * `{{retentionMonths}}` is filled from `DATA_RETENTION_MONTHS`, the same
- * constant the anonymisation job reads, so the promise made here cannot state a
- * delay the platform does not keep. Same placeholder convention as the
- * droit-image content files.
+ * constant the anonymisation job reads, and `{{usageRetentionMonths}}` from
+ * `USAGE_RAW_RETENTION_MONTHS`, the same constant the usage purge reads, so
+ * neither promise made here can state a delay the platform does not keep. Same
+ * placeholder convention as the droit-image content files.
  *
  * Unlike the règlement, this one is not versioned: no signed artifact embeds
  * it. `charterAcceptedAt` is a checkbox acceptance with no generated PDF, so
  * there is nothing a later edit could retroactively rewrite.
  */
-export const CHARTE_INFORMATIQUE_BODY = charteMd.replace(
-  '{{retentionMonths}}',
-  String(DATA_RETENTION_MONTHS),
-);
+export const CHARTE_INFORMATIQUE_BODY = charteMd
+  .replace('{{retentionMonths}}', String(DATA_RETENTION_MONTHS))
+  .replace('{{usageRetentionMonths}}', String(USAGE_RAW_RETENTION_MONTHS));

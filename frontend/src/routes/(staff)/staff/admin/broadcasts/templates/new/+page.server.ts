@@ -5,6 +5,8 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { messageTemplateSchema } from '$lib/validation/broadcasts';
 import { isSmsEnabled } from '$lib/server/sms';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const form = await superValidate(zod4(messageTemplateSchema), {
@@ -19,6 +21,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   default: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_TEMPLATE_SAVE, { locals });
     const form = await superValidate(request, zod4(messageTemplateSchema));
     if (!form.valid) return fail(400, { form });
     if (!locals.user) return fail(401, { form });

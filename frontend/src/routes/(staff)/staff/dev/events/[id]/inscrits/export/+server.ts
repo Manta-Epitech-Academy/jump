@@ -22,6 +22,8 @@ import { buildXlsx } from '$lib/server/xlsx';
 import { INSCRIT_EXPORT_PARTICIPATION_SELECT } from '../components/types';
 import { loadEventDossierSignatures, NO_DOSSIER_SIGNATURES } from '../dossiers';
 import { schoolYearOf } from '$lib/domain/schoolYear';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 /**
  * Filtered-cohort XLSX export. The inscrits page filters/sorts ~200 rows client
@@ -136,6 +138,11 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
   // `buildXlsx` returns an exactly-sized Uint8Array, so its backing buffer is
   // the whole payload. Hand the ArrayBuffer to Response (BodyInit) directly.
+  recordUsage(USAGE_FEATURES.DEV_INSCRITS_EXPORT, {
+    locals,
+    eventId: params.id,
+  });
+
   return new Response(xlsx.buffer as ArrayBuffer, {
     headers: {
       'Content-Type':

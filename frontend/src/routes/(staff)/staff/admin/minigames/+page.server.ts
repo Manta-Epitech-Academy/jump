@@ -3,6 +3,8 @@ import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   forcePublication,
   getActivePublication,
@@ -115,7 +117,8 @@ export const load: PageServerLoad = async () => {
 
 export const actions: Actions = {
   // Curate rotation for a single catalogue game: on/off + weight.
-  saveGame: async ({ request }) => {
+  saveGame: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_MINIGAME_WRITE, { locals });
     const form = await superValidate(request, zod4(gameConfigSchema));
     if (!form.valid) return fail(400, { configForm: form });
 
@@ -140,7 +143,8 @@ export const actions: Actions = {
   // Remove a stale config row (only ever an orphan — catalogue games are
   // toggled off, not deleted). Publications are self-contained, so this is
   // always safe.
-  removeGame: async ({ url }) => {
+  removeGame: async ({ url, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_MINIGAME_WRITE, { locals });
     const game = url.searchParams.get('game');
     if (!game) return fail(400);
     await prisma.minigameConfig.deleteMany({ where: { game } });
@@ -148,6 +152,7 @@ export const actions: Actions = {
   },
 
   forcePublish: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_MINIGAME_WRITE, { locals });
     const form = await superValidate(request, zod4(forcePublicationSchema));
     if (!form.valid) return fail(400, { forceForm: form });
 

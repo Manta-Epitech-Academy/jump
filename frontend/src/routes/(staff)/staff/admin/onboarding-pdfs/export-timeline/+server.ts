@@ -1,6 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { loadFinishedOnboardingTimeline } from '$lib/server/services/onboardingDocuments';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // Completion timeline of every finished onboarding document (type + instant, no
 // identity). It feeds only the bulk-download menu's per-period / per-type counts,
@@ -8,7 +10,8 @@ import { loadFinishedOnboardingTimeline } from '$lib/server/services/onboardingD
 // feed, and this is a full talent-table scan we don't want on that cadence. The
 // menu fetches it lazily when its popover opens instead. Admin-gated by the
 // /staff/admin/* route guard, same as the sibling export endpoint.
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ locals }) => {
+  recordUsage(USAGE_FEATURES.ADMIN_ONBOARDING_PDFS_EXPORT, { locals });
   const timeline = await loadFinishedOnboardingTimeline();
   // One shape for every export-menu timeline (`{ at, type? }`), so the menu needs
   // no per-caller parser.

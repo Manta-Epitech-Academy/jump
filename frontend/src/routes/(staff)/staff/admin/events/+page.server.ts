@@ -7,6 +7,8 @@ import { EventService } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
 import { listDiplomaTemplates } from '$lib/server/diplomaTemplates';
 import { listClosingTemplates } from '$lib/server/closingTemplates';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   requireAdmin,
   duplicateForm,
@@ -92,7 +94,8 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-  update: async ({ request }) => {
+  update: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_EVENT_CONFIG_SAVE, { locals });
     const form = await superValidate(request, zod4(adminEventSchema));
     if (!form.valid) return fail(400, { form });
 
@@ -129,7 +132,8 @@ export const actions: Actions = {
   // Bulk module edit over the list selection. Posted from a plain enhanced form
   // (not superform), so the payload is hand-parsed and validated here. `ids`
   // arrives comma-joined, `modules` as repeated fields.
-  bulkModules: async ({ request }) => {
+  bulkModules: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_EVENT_BULK_MODULES, { locals });
     const fd = await request.formData();
     const parsed = bulkEventModulesSchema.safeParse({
       ids: String(fd.get('ids') ?? '')
@@ -153,7 +157,8 @@ export const actions: Actions = {
 
   // Bulk show/hide in the dev workspace over the selection. Same plain-form
   // parsing as bulkModules; `activate` arrives as "true"/"false".
-  bulkActivation: async ({ request }) => {
+  bulkActivation: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_EVENT_BULK_ACTIVATION, { locals });
     const fd = await request.formData();
     const parsed = bulkEventActivationSchema.safeParse({
       ids: String(fd.get('ids') ?? '')
@@ -183,6 +188,7 @@ export const actions: Actions = {
   // description + a JSON `config` blob (modules + per-module settings + default
   // feedback form), since the config is nested.
   saveAsTemplate: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_EVENT_TEMPLATE_SAVE, { locals });
     const fd = await request.formData();
     let config: unknown;
     try {
@@ -223,7 +229,8 @@ export const actions: Actions = {
 
   // Delete a config template from the wizard's step 1. The list is managed
   // optimistically client-side, so this just removes the row server-side.
-  deleteTemplate: async ({ request }) => {
+  deleteTemplate: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_EVENT_TEMPLATE_DELETE, { locals });
     const fd = await request.formData();
     const id = String(fd.get('id') ?? '').trim();
     if (!id) return fail(400, { templateError: 'Modèle manquant.' });
@@ -244,6 +251,7 @@ export const actions: Actions = {
   // copy becomes selectable like any other form; the admin renames/edits it in
   // the builder.
   duplicateFeedbackForm: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_FEEDBACK_FORM_WRITE, { locals });
     const { staffId } = requireAdmin(locals);
     const fd = await request.formData();
     const sourceId = String(fd.get('sourceId') ?? '').trim();

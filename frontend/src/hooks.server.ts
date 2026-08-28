@@ -1,6 +1,12 @@
 import type { Handle } from '@sveltejs/kit';
 import { auth } from '$lib/server/auth';
 import { prisma } from '$lib/server/db';
+import { recordUsage } from '$lib/server/usage/record';
+import {
+  USAGE_FEATURE_DEFS,
+  USAGE_VIEW_ROUTES,
+  usageSessionFeature,
+} from '$lib/domain/usage';
 import { applyRouteGuards } from '$lib/server/auth/guards';
 import { slideImpersonationExpiry } from '$lib/server/auth/impersonation';
 import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
@@ -90,6 +96,40 @@ function recordOpenIfTracked(event: Parameters<Handle>[0]['event']) {
   markRecipientOpened(trackingId);
 }
 
+/**
+ * One visit row and one session row per request that reaches a mapped route.
+ *
+ * GET only: a form POST is an action, and actions record themselves on site.
+ *
+ * AN EVENT-SCOPED VIEW CARRIES ITS EVENT, and it has to come from the route
+ * params here because nothing else in the request knows it. Leaving it null cost
+ * twice over: `stats_feature_usage` filtered by `eventId` answered zero for
+ * every dev view, and, worse, `eventId` is part of the composed dedupe key, so
+ * one member opening two events' émargement inside the same 30-minute bucket
+ * wrote a single row and the second was silently dropped by `skipDuplicates`.
+ *
+ * Read only when the catalogue says the feature is event-scoped, so a route with
+ * an `[id]` that is not an event (the talent fiche) cannot leak that id into the
+ * event column. `[id]` on the dev event routes and `[eventId]` on the talent
+ * feedback route are the two spellings in the map.
+ */
+function recordVisit(event: Parameters<Handle>[0]['event']) {
+  if (event.request.method !== 'GET') return;
+  const routeId = event.route.id;
+  if (!routeId) return;
+  const ctx = { locals: event.locals, sessionId: event.locals.session?.id };
+  const view = USAGE_VIEW_ROUTES[routeId];
+  if (view) {
+    const eventId =
+      USAGE_FEATURE_DEFS[view].scope === 'event'
+        ? (event.params.eventId ?? event.params.id ?? null)
+        : null;
+    recordUsage(view, { ...ctx, eventId });
+  }
+  const session = usageSessionFeature(routeId);
+  if (session) recordUsage(session, ctx);
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
   recordOpenIfTracked(event);
 
@@ -106,6 +146,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.planningPreview = null;
   event.locals.impersonator = null;
   event.locals.talentCampusName = null;
+  event.locals.talentCampusId = null;
   event.locals.armedRealSends = false;
   event.locals.armedRealSendsUntil = null;
   event.locals.devRedirectPin = null;
@@ -150,6 +191,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         event.locals.talent.id,
       );
       event.locals.talentCampusName = talentCampus.campusName;
+      event.locals.talentCampusId = talentCampus.campusId;
     }
 
     // Resolve the real admin behind an impersonated session so analytics can
@@ -232,6 +274,41 @@ export const handle: Handle = async ({ event, resolve }) => {
         if (needFirstLogin) talent.firstLoginAt = now;
       }
     }
+
+    // 2.6 The same two projections for a staff member, and the same reasoning
+    // line for line. `StaffProfile` carried no activity column at all until
+    // this, so an account invited and never opened was indistinguishable from
+    // one in daily use.
+    //
+    // They are not redundant with `Usage_FeatureUse`: that table is purged at
+    // the raw retention window, so a MAX over it loses exactly the interesting
+    // case, "never opened since the invitation", which has no row at any
+    // retention. Skipped under impersonation for the same reason as above, and
+    // because an admin testing a dev screen is not that dev working.
+    if (event.locals.staffProfile && !impersonatedById) {
+      const now = new Date();
+      const profile = event.locals.staffProfile;
+      const needFirstLogin = profile.firstLoginAt == null;
+      const lastActive = profile.lastActiveAt;
+      const lastActiveStale =
+        !lastActive ||
+        now.getTime() - lastActive.getTime() > 1000 * 60 * 60 * 24;
+      if (needFirstLogin || lastActiveStale) {
+        prisma.staffProfile
+          .update({
+            where: { id: profile.id },
+            data: {
+              lastActiveAt: now,
+              ...(needFirstLogin ? { firstLoginAt: now } : {}),
+            },
+          })
+          .catch((e) =>
+            console.warn('[staff activity] update failed:', e.message),
+          );
+        profile.lastActiveAt = now;
+        if (needFirstLogin) profile.firstLoginAt = now;
+      }
+    }
   }
 
   // 3. Route guards
@@ -240,6 +317,21 @@ export const handle: Handle = async ({ event, resolve }) => {
     setSecurityHeaders(guardResponse);
     return guardResponse;
   }
+
+  // 3.5 Record the visit and the session (fire-and-forget, see `recordUsage`).
+  //
+  // AFTER the guards, so a request that gets redirected is never counted as a
+  // visit to the page it never reached. Every `*_view` and `*_session` key is
+  // recorded here and nowhere else: one rule instead of a judgement call per
+  // page, and it keeps usage writes out of `load` functions, which SvelteKit
+  // also runs on speculative hover-preload.
+  //
+  // A hover-preload is indistinguishable from a click on the server, so visit
+  // counts do include preloads. That is what the 30-minute bucket is for, and it
+  // is also why no product decision rests on a visit count alone: the keys that
+  // carry decisions are the actions, exports and documents, which a hover never
+  // reaches.
+  recordVisit(event);
 
   // Run the route (loads + actions) inside a request context carrying the
   // acting human's email, so the dev-redirect trap can route trapped mail to

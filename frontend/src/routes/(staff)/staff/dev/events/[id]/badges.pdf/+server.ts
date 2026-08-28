@@ -9,6 +9,8 @@ import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { imageRightsStance, imageRightsStatus } from '$lib/domain/imageRights';
 import { latestImageRightsDecisions } from '$lib/server/services/imageRightsService';
 import { generateBadgesPDF } from '$lib/server/services/badgeGenerator';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // Generates the printable badge sheet for every talent registered to this event
 // (no selection — all inscrits). Campus-scoped via the event load. The `mode`
@@ -67,6 +69,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
   }));
 
   const pdf = await generateBadgesPDF(badges, mode);
+
+  recordUsage(USAGE_FEATURES.DEV_BADGES_RENDER, { locals, eventId: params.id });
 
   return new Response(
     new Blob([pdf as BlobPart], { type: 'application/pdf' }),

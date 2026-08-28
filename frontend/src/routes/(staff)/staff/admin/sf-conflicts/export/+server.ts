@@ -7,6 +7,8 @@ import {
 } from '$lib/server/services/reconciliationService';
 import { FIELD_LABELS } from '$lib/domain/reconciliation';
 import { csvResponse } from '$lib/server/csv';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // One row per (talent, field): the actionable unit for whoever pushes the data
 // back into Salesforce. `type` separates a real divergence (SF disagrees) from
@@ -46,6 +48,7 @@ function fileDateSuffix(
 }
 
 export const GET: RequestHandler = async ({ locals, url }) => {
+  recordUsage(USAGE_FEATURES.ADMIN_SF_CONFLICTS_EXPORT, { locals });
   // The /staff/admin layout already redirects non-admins; this is defence in
   // depth for an endpoint that streams minors' personal data.
   const staffProfile = locals.staffProfile;

@@ -178,6 +178,19 @@ model StaffProfile {
   // completeness guarantee (the all-time export stays authoritative); null =
   // never exported.
   sfExportedAt             DateTime?
+  /// Last real (non-impersonated) request, stamped at most once a day in
+  /// hooks.server.ts. Exact mirror of `Talent.lastActiveAt`.
+  lastActiveAt             DateTime?
+  /// First real (non-impersonated) request, stamped once and never cleared.
+  ///
+  /// Both of these are projections, and neither is redundant with
+  /// `Usage_FeatureUse`: that table is purged at the raw retention window
+  /// (`USAGE_RAW_RETENTION_MONTHS`), so a MAX over it loses exactly the
+  /// interesting case, "this account has never been opened since the invitation
+  /// was sent", which has no row at any retention. Same reasoning as
+  /// `Talent.firstLoginAt`, which also explains why probing bauth_session is not
+  /// an option (its rows are deleted by logout, identity repair and relinks).
+  firstLoginAt             DateTime?
   createdAt                DateTime   @default(now())
   updatedAt                DateTime   @updatedAt
 
@@ -195,6 +208,7 @@ model StaffProfile {
   feedbackFormsCreated   Feedback_Form[]             @relation("Feedback_FormCreator")
   feedbackFormsUpdated   Feedback_Form[]             @relation("Feedback_FormEditor")
   eventConfigTemplates   EventConfig_Template[]      @relation("EventConfigTemplateCreator")
+  featureUses            Usage_FeatureUse[]
 
   @@index([campusId])
 }
@@ -333,6 +347,11 @@ model Talent {
   // "Jamais" once its session row is gone. Paired with lastActiveAt (MAX
   // activity); this is the MIN.
   firstLoginAt                DateTime?
+  /// When this talent objected to usage measurement (RGPD art. 21). Set, and the
+  /// recorder writes nothing for them. Null means no objection, which is the
+  /// default: the basis is legitimate interest, not consent, so measurement runs
+  /// until it is refused. Objection is per person and permanent until cleared.
+  usageAnalyticsOptOutAt      DateTime?
   welcomeSeenAt               DateTime?
   createdAt                   DateTime             @default(now())
   updatedAt                   DateTime             @updatedAt
@@ -2195,4 +2214,117 @@ model AdminApi_Call {
 
   @@index([tokenId, createdAt])
   @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Usage analytics: which features are actually used, and by whom
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Two regimes, and the asymmetry is the design: staff are identified, talents
+/// are pseudonymous. There is deliberately no `parent` value. Measuring a data
+/// subject on legitimate interest owes them an operable art. 21 objection, and
+/// there is nowhere to store or offer one for a guardian today: Jump has no
+/// Parent entity (`parentEmail` is a column on `Talent`) and `/parent/settings`
+/// holds no preferences. Inventing a parent-preferences store to measure three
+/// view keys is not worth it; the parent portal's aggregate traffic stays with
+/// Umami. Adding the value later is one migration.
+enum UsageActorKind {
+  talent
+  staff
+}
+
+/// One recorded use of one catalogued feature. Append-only fact; the aggregate
+/// is `Usage_FeatureMonthly`, recomputed by the rollup job.
+///
+/// WHAT IS ABSENT IS THE POINT, and it is structural rather than a convention:
+/// no `path`, no `url`, no `referer`, no `userAgent`, no `ip`, no `params`, no
+/// free text, and NO `talentId`. The question this table answers ("which campus
+/// uses which feature") is answerable from counts, so per-person identity for a
+/// minor is not necessary, and under art. 6(1)(f) what is not necessary has no
+/// legal basis. Before adding a column here, say which figure it makes possible
+/// that the existing ones cannot.
+///
+/// Two actor regimes, deliberately asymmetric:
+///   - staff are identified (`staffProfileId`), because they are adults, they
+///     are employees, and per-person history is what the feature was asked for.
+///     The FK cascades, so a departure takes the history with it. That is the
+///     opposite of `AdminApi_Call.actorUserId`, which carries no FK precisely so
+///     an audit row outlives the person: an audit must, a behavioural log of an
+///     ex-employee must not.
+///   - talents and parents get `actorHash` only, a monthly-rotating pseudonym
+///     (see `server/usage/actorHash.ts`). Distinct counts stay possible, a join
+///     back to the person does not, and the pseudonym decays on its own. The
+///     consequence to keep in mind when reading a figure: the talent metric is
+///     MONTHLY active, not annual.
+///
+/// Raw rows live twelve calendar months (`USAGE_RAW_RETENTION_MONTHS`,
+/// purged by `/api/jobs/usage-rollup`), which is the top of the CNIL's logging
+/// recommendation band. A year and not less because two answers the platform
+/// owes need detailed rows going back that far: a feature's year-on-year
+/// movement, and a full school year of per-member activity. Beyond it, the cube
+/// is the only store, and being actor-free is what lets it be kept without a
+/// limit. Note for the balancing: the talent half ages out of relinkability on
+/// its own, since the pseudonym rotates monthly, while the staff half stays
+/// identified for the whole year, and that is the half the DPIA has to carry.
+model Usage_FeatureUse {
+  id String @id @default(cuid())
+  /// Catalogue key from `domain/usage.ts`. A plain String, not an enum, so
+  /// adding a feature needs no migration (same call as `EventConfig_Module`).
+  feature   String
+  actorKind UsageActorKind
+
+  staffProfileId String?
+  actorHash      String?
+
+  /// The column that answers "which campus used X". Null for a `global`-scope
+  /// feature: the admin space is national, so a per-campus breakdown of it would
+  /// invite a reading the data does not support.
+  campusId String?
+  /// Set for `event`-scope features only (emargement, bilan, diplomas, badges).
+  eventId String?
+  /// True when an admin was impersonating a staff member. Aggregates filter it
+  /// out, so an admin checking a campus never inflates that campus's adoption.
+  /// Nothing at all is recorded while impersonating a talent or a parent.
+  impersonated Boolean @default(false)
+  /// Idempotency key, composed by the recorder. It MUST carry everything that
+  /// distinguishes two legitimate rows, because only `feature` and this column
+  /// are in the unique constraint: the actor (or two people collide), the event
+  /// (or one event silently loses its row), and the impersonation flag.
+  /// Null for a `each` feature, and Postgres treats NULLs as distinct.
+  dedupeKey  String?
+  occurredAt DateTime @default(now())
+
+  staffProfile StaffProfile? @relation(fields: [staffProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([feature, dedupeKey])
+  @@index([feature, occurredAt])
+  @@index([campusId, occurredAt])
+  @@index([staffProfileId, occurredAt])
+  @@index([occurredAt])
+}
+
+/// The monthly cube: uses and distinct actors per feature, per actor kind, per
+/// campus. Every month still present in the raw table is deleted and reinserted
+/// on each rollup run, the month in progress included, so no month can be purged
+/// before it was folded. Deleted and reinserted rather than upserted because
+/// `campusId` is nullable and a UNIQUE index treats NULLs as distinct, so
+/// `ON CONFLICT` would never match a global-scope row; see `usage/rollup.ts`.
+///
+/// It carries NO actor column of any kind. That is what justifies keeping it
+/// long after the raw rows are gone, and it is also the layer every year-on-year
+/// figure reads: a precomputed cube small enough that no separate analytics
+/// engine buys anything (~49k rows a year at current volume).
+model Usage_FeatureMonthly {
+  id             String         @id @default(cuid())
+  feature        String
+  actorKind      UsageActorKind
+  campusId       String?
+  /// "YYYY-MM", the calendar month of `occurredAt`.
+  month          String
+  uses           Int
+  distinctActors Int
+  computedAt     DateTime
+
+  @@unique([feature, actorKind, campusId, month])
+  @@index([month])
 }

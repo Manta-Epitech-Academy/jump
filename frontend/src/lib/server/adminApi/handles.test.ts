@@ -41,6 +41,11 @@ const TIERS: AdminApiTier[] = ['core', 'leadership'];
  * failed `publicName`, which is backwards.
  */
 const PARAMS_THAT_NAME_NOTHING = new Set([
+  // Closed enums naming a facet of the catalogue, not a row: 'staff' or
+  // 'talent', and one of the three workspaces. There is nothing to obtain
+  // them from because they are spelled out in the parameter's own schema.
+  'audience',
+  'space',
   // Scope vocabularies: a closed list published by meta_scope and refused by
   // value in scope.ts, which is this same job already done for those two.
   'campus',

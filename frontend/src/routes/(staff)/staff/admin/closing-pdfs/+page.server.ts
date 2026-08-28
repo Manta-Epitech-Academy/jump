@@ -4,6 +4,8 @@ import { prisma } from '$lib/server/db';
 import { resetClosing } from '$lib/server/services/closingResetService';
 import { CLOSING_RECOMMENDATIONS } from '$lib/domain/closing';
 import { fail } from '@sveltejs/kit';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 const RESET_REASON_MAX = 500;
 
@@ -105,6 +107,7 @@ export const actions: Actions = {
   // on top of the /staff/admin/* route guard, since this destroys a colleague's
   // finalised work on a minor's record. Mirrors the account-deletions guard.
   reset: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_CLOSING_RESET, { locals });
     if (locals.staffProfile?.staffRole !== 'admin') {
       return fail(403, { error: 'Réservé aux administrateurs.' });
     }

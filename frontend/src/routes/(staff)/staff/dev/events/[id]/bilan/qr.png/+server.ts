@@ -12,6 +12,8 @@ import { requireStaffGroup } from '$lib/server/auth/guards';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
 import { feedbackFormPath } from '$lib/domain/feedback';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // On-screen QR for the event's feedback form. Encodes the AUTHENTICATED feedback
 // link for this event, so a talent who scans logs in (if needed) and their
@@ -38,6 +40,11 @@ export const GET: RequestHandler = async ({ locals, params }) => {
     width: 1024,
     margin: 1,
     errorCorrectionLevel: 'M',
+  });
+
+  recordUsage(USAGE_FEATURES.DEV_BILAN_QR_DISPLAY, {
+    locals,
+    eventId: params.id,
   });
 
   return new Response(new Uint8Array(png), {

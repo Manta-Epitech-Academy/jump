@@ -12,6 +12,8 @@ import {
   type AuthRepairAction,
 } from '$lib/server/services/authIdentityRepairService';
 import type { SfConflictsData } from './components/types';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 export const load: PageServerLoad = async ({ locals }) => {
   // Two families of conflict surfaced as two tabs on this page:
@@ -65,6 +67,7 @@ function isAuthAction(v: unknown): v is AuthRepairAction {
 export const actions: Actions = {
   // ── DATA tab: adopt Salesforce for one field (overwrite the talent value). ──
   adoptSf: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SF_CONFLICT_ADOPT, { locals });
     if (locals.staffProfile?.staffRole !== 'admin') return fail(403);
     const target = readDiffTarget(await request.formData());
     if (!target) return fail(400);
@@ -77,6 +80,7 @@ export const actions: Actions = {
   // core re-verifies the precondition inside its transaction and throws if the
   // state no longer matches, which we surface as a failed action.
   repairAuth: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SF_AUTH_REPAIR, { locals });
     if (locals.staffProfile?.staffRole !== 'admin' || !locals.user)
       return fail(403);
     const data = await request.formData();

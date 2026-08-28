@@ -48,6 +48,12 @@
   import type { StaffRole } from '@prisma/client';
   import { track, errReason } from '$lib/analytics';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import StaffActivityDialog from '$lib/components/admin/StaffActivityDialog.svelte';
+  import {
+    compareLastActive,
+    lastActiveLabel,
+  } from '$lib/components/staff/lastActive';
+  import { rowComparator } from '$lib/components/staff/datatable/sort';
   let { data } = $props();
 
   type MemberRow = (typeof data)['members'][number];
@@ -139,6 +145,7 @@
   let memberSortDir = $state<'asc' | 'desc'>('asc');
 
   const memberName = (u: MemberRow) => u.name || '';
+
   const filteredMembers = $derived(
     data.members.filter((u) => {
       const q = memberSearch.trim().toLowerCase();
@@ -151,6 +158,36 @@
     }),
   );
   const sortedMembers = $derived.by(() => {
+    // Activité is deliberately NOT an `isMissing` column, and it is the only
+    // place on the staff tables where that is true. Everywhere else an absent
+    // value means the column cannot describe the row, so `rowComparator` sinks
+    // it in both directions and sorting by Lycée never leads with a block of
+    // "—". Here the absence IS the value: `lastActive.ts` says so in as many
+    // words, "Jamais" is a real answer and an account nobody has ever opened is
+    // the single most actionable row on the page. So it takes its natural place
+    // at the far end of the axis, which puts every never-connected member at the
+    // top on the first click and at the bottom on the second. That is what
+    // replaced a "Jamais connectés" tile whose whole job was this one filter.
+    //
+    // The two projections are stamped together on the first real request
+    // (`hooks.server.ts`), so ordering on `lastActiveAt` groups exactly the
+    // members `firstLoginAt` calls never connected: no profile in the database
+    // has one without the other.
+    if (memberSortKey === 'activite') {
+      return [...filteredMembers].sort(
+        rowComparator({
+          dir: memberSortDir,
+          // Oldest activity first on the first click: "who has been away
+          // longest" is the question this column exists to answer, and never
+          // opened is the longest of all.
+          compare: (a: MemberRow, b: MemberRow) =>
+            compareLastActive(
+              a.staffProfile?.lastActiveAt,
+              b.staffProfile?.lastActiveAt,
+            ),
+        }),
+      );
+    }
     const dir = memberSortDir === 'asc' ? 1 : -1;
     return [...filteredMembers].sort(
       (a, b) => dir * compareMember(a, b, memberSortKey),
@@ -184,8 +221,17 @@
     { key: 'email', label: 'Email', sortable: true },
     { key: 'campus', label: 'Campus' },
     { key: 'role', label: 'Rôle' },
+    { key: 'activite', label: 'Activité', sortable: true },
     { key: 'actions', label: 'Actions', align: 'right' },
   ];
+
+  // ----- Activity detail ----------------------------------------------------
+  let activityOpen = $state(false);
+  let activityMember = $state<MemberRow | null>(null);
+  function openActivity(user: MemberRow) {
+    activityMember = user;
+    activityOpen = true;
+  }
 
   // ----- Pagination ---------------------------------------------------------
   // Both lists grow (invitations especially — stale ones pile up), and they
@@ -273,6 +319,7 @@
       exploreTarget.id,
       exploreTarget.staffProfile?.staffRole ?? null,
       exploreCampusName || null,
+      'campus_exploration',
     );
   }
 
@@ -334,6 +381,7 @@
     userId: string,
     staffRole: StaffRole | null,
     targetCampus: string | null,
+    reason: 'person' | 'campus_exploration' = 'person',
   ) {
     if (impersonating) return;
     impersonating = userId;
@@ -341,7 +389,7 @@
       const res = await fetch(resolve('/staff/admin/impersonate'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ kind: 'staff', id: userId }),
+        body: JSON.stringify({ kind: 'staff', id: userId, reason }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as {
@@ -470,12 +518,7 @@
 
   <!-- Members -->
   <section id="members" class="scroll-mt-20 space-y-3">
-    <h2 class="font-heading text-display-s">
-      Membres actifs
-      <span class="ml-2 text-sm text-muted-foreground"
-        >({data.members.length})</span
-      >
-    </h2>
+    <h2 class="font-heading text-display-s">Membres actifs</h2>
 
     <DataTableToolbar
       searchValue={memberSearch}
@@ -640,6 +683,21 @@
               </Select.Content>
             </Select.Root>
           </form>
+        </Table.Cell>
+        <Table.Cell>
+          <!-- A button and not text: the label answers "still around?", the
+               detail answers "doing what?", and the second is a click away
+               rather than a column nobody can read. -->
+          <button
+            type="button"
+            onclick={() => openActivity(user)}
+            class="cursor-pointer rounded-lg px-2 py-1 text-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring {user
+              .staffProfile?.firstLoginAt
+              ? 'text-foreground-secondary'
+              : 'font-bold text-warning'}"
+          >
+            {lastActiveLabel(user.staffProfile?.lastActiveAt ?? null)}
+          </button>
         </Table.Cell>
         <Table.Cell class="text-right">
           <div class="flex items-center justify-end gap-1">
@@ -997,4 +1055,18 @@
       </form>
     </Dialog.Content>
   </Dialog.Root>
+
+  <!-- Keyed on the member so the dialog refetches when a different row is
+       opened, rather than showing the previous member's rows for an instant. -->
+  {#if activityMember}
+    {#key activityMember.id}
+      <StaffActivityDialog
+        bind:open={activityOpen}
+        profileId={activityMember.staffProfile?.id ?? null}
+        name={activityMember.name || activityMember.email || 'ce membre'}
+        firstLoginAt={activityMember.staffProfile?.firstLoginAt ?? null}
+        lastActiveAt={activityMember.staffProfile?.lastActiveAt ?? null}
+      />
+    {/key}
+  {/if}
 </div>

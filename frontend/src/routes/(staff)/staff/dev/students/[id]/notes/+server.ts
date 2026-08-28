@@ -8,6 +8,8 @@ import {
   serializeNote,
 } from '$lib/server/talentNotes';
 import type { RequestHandler } from './$types';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 /**
  * Staff notes about a talent (the multi-note feed that replaced the single
@@ -62,5 +64,7 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
     },
     include: NOTE_INCLUDE,
   });
+  recordUsage(USAGE_FEATURES.DEV_TALENT_NOTE_CREATE, { locals });
+
   return json({ note: serializeNote(note) }, { status: 201 });
 };

@@ -3,6 +3,8 @@ import type { Prisma } from '@prisma/client';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server/db';
 import { getStorage } from '$lib/server/infra/storage';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   isOnboardingPdfJobRetryable,
   runOnboardingPdfJob,
@@ -123,7 +125,8 @@ export const load: PageServerLoad = async ({ url, depends, locals }) => {
 // in `pending`/`processing` by a crash. Fire-and-forget — the page reloads to
 // show the job back in `processing`, then `success` on the next refresh.
 export const actions: Actions = {
-  retry: async ({ request }) => {
+  retry: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_ONBOARDING_PDF_RETRY, { locals });
     const formData = await request.formData();
     const id = formData.get('id');
     if (typeof id !== 'string' || !id) return fail(400);
@@ -140,7 +143,8 @@ export const actions: Actions = {
     return { success: true };
   },
 
-  retryAll: async () => {
+  retryAll: async ({ locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_ONBOARDING_PDF_RETRY, { locals });
     const failed = await prisma.onboardingPdfJob.findMany({
       where: { status: 'error' },
       select: { id: true },
@@ -150,7 +154,8 @@ export const actions: Actions = {
   },
 
   // Mints a short-lived signed URL for a generated PDF so the admin can open it.
-  view: async ({ request }) => {
+  view: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_ONBOARDING_PDF_OPEN, { locals });
     const formData = await request.formData();
     const id = formData.get('id');
     if (typeof id !== 'string' || !id) return fail(400);

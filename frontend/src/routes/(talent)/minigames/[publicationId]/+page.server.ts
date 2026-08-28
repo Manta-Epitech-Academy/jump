@@ -1,6 +1,8 @@
 import type { Actions, PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   checkTalentEligibility,
   mintAttempt,
@@ -50,6 +52,8 @@ export const actions: Actions = {
       }
       throw redirect(303, '/');
     }
+
+    recordUsage(USAGE_FEATURES.TALENT_MINIGAME_OPEN, { locals });
 
     return { token: result.result.token };
   },

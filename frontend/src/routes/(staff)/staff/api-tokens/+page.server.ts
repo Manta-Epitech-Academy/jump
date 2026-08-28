@@ -5,6 +5,8 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { requireAdminSession } from '$lib/server/auth/guards';
 import { mintToken, revokeToken } from '$lib/server/adminApi/tokens';
 import { createApiTokenSchema } from '$lib/validation/adminApiToken';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // Action-only route, exactly like `/staff/settings`: the UI is a dialog rendered
 // by the admin layout (API tokens are an admin-only control), so a direct GET has
@@ -15,6 +17,7 @@ export const load: PageServerLoad = async () => {
 
 export const actions: Actions = {
   create: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_API_TOKEN_MINT, { locals });
     requireAdminSession(locals);
     const userId = locals.user?.id;
     if (!userId) throw redirect(303, '/staff/login');
@@ -38,6 +41,7 @@ export const actions: Actions = {
   },
 
   revoke: async ({ url, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_API_TOKEN_REVOKE, { locals });
     requireAdminSession(locals);
     const userId = locals.user?.id;
     if (!userId) throw redirect(303, '/staff/login');

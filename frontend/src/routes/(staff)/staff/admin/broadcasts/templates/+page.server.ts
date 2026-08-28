@@ -1,6 +1,8 @@
 import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 export const load: PageServerLoad = async () => {
   const templates = await prisma.messageTemplate.findMany({
@@ -19,6 +21,7 @@ export const load: PageServerLoad = async () => {
 
 export const actions: Actions = {
   duplicate: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_TEMPLATE_SAVE, { locals });
     if (!locals.user) return fail(401);
     const formData = await request.formData();
     const id = formData.get('id');
@@ -48,7 +51,8 @@ export const actions: Actions = {
     redirect(303, `/staff/admin/broadcasts/templates/${copy.id}`);
   },
 
-  delete: async ({ request }) => {
+  delete: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_TEMPLATE_SAVE, { locals });
     const formData = await request.formData();
     const id = formData.get('id');
     if (typeof id !== 'string' || !id) return fail(400);

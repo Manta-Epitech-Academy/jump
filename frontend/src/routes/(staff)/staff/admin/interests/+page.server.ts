@@ -4,6 +4,8 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
 import { prisma } from '$lib/server/db';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 const createSchema = z.object({
   nom: z.string().min(1, 'Le nom est requis').trim(),
@@ -32,7 +34,8 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-  create: async ({ request }) => {
+  create: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_INTEREST_WRITE, { locals });
     const form = await superValidate(request, zod4(createSchema));
     if (!form.valid) return fail(400, { form });
 
@@ -55,7 +58,8 @@ export const actions: Actions = {
     }
   },
 
-  update: async ({ request }) => {
+  update: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_INTEREST_WRITE, { locals });
     const formData = await request.formData();
     const form = await superValidate(formData, zod4(updateSchema));
     const id = formData.get('id') as string;
@@ -75,7 +79,8 @@ export const actions: Actions = {
     }
   },
 
-  delete: async ({ url }) => {
+  delete: async ({ url, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_INTEREST_WRITE, { locals });
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
 

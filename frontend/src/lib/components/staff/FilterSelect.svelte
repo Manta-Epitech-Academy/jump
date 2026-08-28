@@ -6,9 +6,11 @@
 
   // The dropdown counterpart to SegmentedFilter: same `SegmentOption[]` shape and
   // single-value contract, but collapsed behind a Select trigger instead of an
-  // always-visible button row. Reach for it over SegmentedFilter when the choices
-  // are too many (or too wide) to sit inline in a toolbar without crowding it, yet
-  // still a short, known list — so SearchableSelect's search box would be overkill.
+  // always-visible button row. Reach for it from the FIFTH option onwards, or
+  // sooner when the labels are long enough to wrap the toolbar; the ceiling and
+  // the reasoning behind it live on `SegmentedFilter`, which is the control being
+  // bounded. Still a short, known list either way, so SearchableSelect's search
+  // box would be overkill.
   // (SearchableSelect stays for long, typeable lists like lycées or campuses.)
   // By convention the first option is the no-filter sentinel (`all`).
   let {

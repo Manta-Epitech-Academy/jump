@@ -1,6 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   parseNoteFilters,
   buildNoteWhere,
@@ -65,6 +67,7 @@ export const actions: Actions = {
   // an inappropriate note about a minor. The route is already admin-gated by
   // hooks; the role check is defensive.
   delete: async ({ url, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_NOTE_DELETE, { locals });
     if (locals.staffProfile?.staffRole !== 'admin') {
       return fail(403, { message: 'Action réservée aux admins.' });
     }

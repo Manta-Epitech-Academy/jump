@@ -224,7 +224,20 @@ export function buildOrderBy(
     case 'xp':
       return [{ xp: dir }, { nom: 'asc' }];
     case 'activite':
-      return [{ lastActiveAt: { sort: dir, nulls: 'last' } }, { nom: 'asc' }];
+      // Never active sorts to the FAR END of the axis, not to the bottom in both
+      // directions, which is what every other nullable column here does. The
+      // absence is the value: `lastActiveLabel` prints "Jamais" rather than a
+      // dash for exactly that reason, and a talent nobody has ever seen log in is
+      // the least recently active there is. So one click groups them at the top,
+      // matching the members directory, where the same ordering replaced a filter
+      // tile. The account-status filter still reaches them directly; the sort is
+      // what makes the column mean what its header says.
+      return [
+        {
+          lastActiveAt: { sort: dir, nulls: dir === 'asc' ? 'first' : 'last' },
+        },
+        { nom: 'asc' },
+      ];
     default:
       return [
         { lastActiveAt: { sort: 'desc', nulls: 'last' } },

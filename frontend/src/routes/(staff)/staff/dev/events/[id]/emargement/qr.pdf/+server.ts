@@ -5,6 +5,8 @@ import { requireStaffGroup } from '$lib/server/auth/guards';
 import { resolveSlotCheckinLink } from '$lib/server/presence/slotCheckin';
 import { generatePresenceQrPdf } from '$lib/server/presence/qrPdf';
 import { dayLabelFr, slotLabelFr } from '$lib/domain/eventPresence';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // Printable A4 émargement sheet for the chosen (day, slot): same signed link as
 // the on-screen QR, rendered big for a TV or a wall poster.
@@ -30,6 +32,11 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
     eventLabel,
     dayLabel: dayLabelFr(day),
     slotLabel: slotLabelFr(slot),
+  });
+
+  recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_QR_PRINT, {
+    locals,
+    eventId: params.id,
   });
 
   return new Response(pdf, {

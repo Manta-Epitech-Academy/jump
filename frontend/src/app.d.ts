@@ -24,6 +24,14 @@ declare global {
        */
       talentCampusName: string | null;
       /**
+       * Campus id for the current talent, from the same resolve that produces
+       * `talentCampusName` (so it costs no extra query). Null for staff (use
+       * `staffProfile.campusId`) and anonymous requests. Usage recording needs
+       * the id rather than the name: the name is display, the id is what a
+       * per-campus figure groups on.
+       */
+      talentCampusId: string | null;
+      /**
        * Dev-tooling override of the perceived stage phase. Only set when
        * an admin is impersonating a dev/superdev *and* on a /staff/dev
        * path. Lets developers preview phase-specific UI without mutating
