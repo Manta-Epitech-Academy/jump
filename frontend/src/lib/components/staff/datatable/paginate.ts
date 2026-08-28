@@ -1,9 +1,9 @@
 /**
  * Client-side paging for a list already held in memory. Used where the whole
- * cohort is streamed at once and paging is only there to keep the DOM small
- * (`/staff/admin/sf-conflicts` renders three such lists), never where the
- * server decides the page - there the page number rides the URL and the query
- * does the slicing.
+ * list is loaded at once and paging is only there to keep the DOM small
+ * (`/staff/admin/sf-conflicts` pages three such lists, `/staff/admin/users`
+ * two), never where the server decides the page - there the page number rides
+ * the URL and the query does the slicing.
  */
 
 /** Number of pages, and 0 for an empty list so `Pagination` renders nothing. */
