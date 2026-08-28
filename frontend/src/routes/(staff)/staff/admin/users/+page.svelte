@@ -48,11 +48,12 @@
   import type { StaffRole } from '@prisma/client';
   import { track, errReason } from '$lib/analytics';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import StaffActivityDialog from '$lib/components/admin/StaffActivityDialog.svelte';
-  import { lastActiveLabel } from '$lib/components/staff/lastActive';
+  import {
+    compareLastActive,
+    lastActiveLabel,
+  } from '$lib/components/staff/lastActive';
   import { rowComparator } from '$lib/components/staff/datatable/sort';
-  import UserX from '@lucide/svelte/icons/user-x';
   let { data } = $props();
 
   type MemberRow = (typeof data)['members'][number];
@@ -145,34 +146,8 @@
 
   const memberName = (u: MemberRow) => u.name || '';
 
-  // Both tiles count members WITH A ROLE, which is what their labels claim and
-  // what `ops_staff_activity` counts: a profile with no role is blocked from
-  // every space, so counting it would report a dormant account as an inactive
-  // member and put a number in an admin's face that the same figure asked over
-  // the API contradicts. The roster below still lists those rows, and has to:
-  // the role select three columns to the right offers "Aucun rôle", so filtering
-  // them out of the load would make that choice unrecoverable.
-  const membersWithRole = $derived(
-    data.members.filter((u) => u.staffProfile?.staffRole),
-  );
-  // The tile below is a filter, not decoration: "jamais connecté" is the one
-  // actionable state on this page, and it is also the one a sort cannot surface,
-  // because a row with no date sinks in both directions by design.
-  let neverConnectedOnly = $state(false);
-  const neverConnectedCount = $derived(
-    membersWithRole.filter((u) => !u.staffProfile?.firstLoginAt).length,
-  );
-
   const filteredMembers = $derived(
     data.members.filter((u) => {
-      // Filtering on the same predicate the tile counts, so the rows shown and
-      // the number clicked cannot differ.
-      if (
-        neverConnectedOnly &&
-        (!u.staffProfile?.staffRole || u.staffProfile.firstLoginAt)
-      ) {
-        return false;
-      }
       const q = memberSearch.trim().toLowerCase();
       if (!q) return true;
       return (
@@ -183,20 +158,33 @@
     }),
   );
   const sortedMembers = $derived.by(() => {
-    // Activity is the one column whose value can be absent, and a `dir *`
-    // multiplication cannot express "sink the valueless rows in BOTH
-    // directions": flipping the sign would float "Jamais" to the top on one
-    // click. `rowComparator` owns that rule, so this column takes its path.
+    // Activité is deliberately NOT an `isMissing` column, and it is the only
+    // place on the staff tables where that is true. Everywhere else an absent
+    // value means the column cannot describe the row, so `rowComparator` sinks
+    // it in both directions and sorting by Lycée never leads with a block of
+    // "—". Here the absence IS the value: `lastActive.ts` says so in as many
+    // words, "Jamais" is a real answer and an account nobody has ever opened is
+    // the single most actionable row on the page. So it takes its natural place
+    // at the far end of the axis, which puts every never-connected member at the
+    // top on the first click and at the bottom on the second. That is what
+    // replaced a "Jamais connectés" tile whose whole job was this one filter.
+    //
+    // The two projections are stamped together on the first real request
+    // (`hooks.server.ts`), so ordering on `lastActiveAt` groups exactly the
+    // members `firstLoginAt` calls never connected: no profile in the database
+    // has one without the other.
     if (memberSortKey === 'activite') {
       return [...filteredMembers].sort(
         rowComparator({
           dir: memberSortDir,
-          isMissing: (u: MemberRow) => !u.staffProfile?.lastActiveAt,
           // Oldest activity first on the first click: "who has been away
-          // longest" is the question this column exists to answer.
+          // longest" is the question this column exists to answer, and never
+          // opened is the longest of all.
           compare: (a: MemberRow, b: MemberRow) =>
-            new Date(a.staffProfile?.lastActiveAt ?? 0).getTime() -
-            new Date(b.staffProfile?.lastActiveAt ?? 0).getTime(),
+            compareLastActive(
+              a.staffProfile?.lastActiveAt,
+              b.staffProfile?.lastActiveAt,
+            ),
         }),
       );
     }
@@ -532,29 +520,6 @@
   <section id="members" class="scroll-mt-20 space-y-3">
     <h2 class="font-heading text-display-s">Membres actifs</h2>
 
-    <!-- One tile, and it is the one you can click. The screen used to carry the
-         same number three times: this heading, a "Membres avec un rôle" tile and
-         the toolbar's count line, all reading 138 because no profile is without a
-         role. Three identical figures under three labels leave a reader guessing
-         which one the search box will move, and only one of the three was ever
-         actionable. The tile's own `total` carries the denominator the others
-         were standing in for. -->
-    <div class="grid gap-3 sm:grid-cols-2">
-      <KpiTile
-        label="Jamais connectés"
-        value={neverConnectedCount}
-        total={membersWithRole.length}
-        icon={UserX}
-        tone="orange"
-        helpText="Comptes invités dont aucune connexion réelle n’a jamais été enregistrée. Les sessions d’impersonation ne comptent pas : un administrateur qui teste l’espace d’un membre n’est pas ce membre qui se connecte. Le total est celui des membres ayant un rôle : un profil sans rôle est bloqué partout, donc il n’est pas compté, même s’il reste dans la liste ci-dessous pour que vous puissiez lui rendre un rôle."
-        onclick={() => {
-          neverConnectedOnly = !neverConnectedOnly;
-          memberPage = 1;
-        }}
-        pressed={neverConnectedOnly}
-      />
-    </div>
-
     <DataTableToolbar
       searchValue={memberSearch}
       onSearchInput={(v) => {
@@ -564,7 +529,7 @@
       searchPlaceholder="Rechercher un membre ou un campus…"
       count={sortedMembers.length}
       countNoun="membre"
-      filtersApplied={memberSearch.trim().length > 0 || neverConnectedOnly}
+      filtersApplied={memberSearch.trim().length > 0}
     />
 
     <SortableTable
