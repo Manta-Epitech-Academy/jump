@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Input } from '$lib/components/ui/input';
   import Search from '@lucide/svelte/icons/search';
+  import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import SfConflictsResults from './components/SfConflictsResults.svelte';
@@ -14,25 +15,11 @@
   // tab's list by name or email. Passed down to the results once they resolve.
   let query = $state('');
 
-  // Resolve the streamed scans into local state rather than a bare `{#await}`: the
-  // adopt/repair actions re-run the load (which re-runs the heavy scans), and a
-  // template `{#await}` would flash the skeleton + remount the tables on every
-  // resolution. Holding the last result keeps the tables (and the expanded rows)
-  // in place; the skeleton shows only on the first load. The `=== p` guard drops
-  // a stale resolution arriving after a newer rescan has started.
-  let resolved = $state<SfConflictsData | null>(null);
-  let failed = $state(false);
-  $effect(() => {
-    const p = data.deferred;
-    p.then((d) => {
-      if (data.deferred === p) {
-        resolved = d;
-        failed = false;
-      }
-    }).catch(() => {
-      if (data.deferred === p) failed = true;
-    });
-  });
+  // The adopt/repair actions re-run the load, and with it the heavy scans, so
+  // each one hands `data.deferred` a fresh promise: the tables (and their
+  // expanded rows) are held across them rather than re-awaited. See
+  // `createStreamedCohort`.
+  const scans = createStreamedCohort<SfConflictsData>(() => data.deferred);
 </script>
 
 <svelte:head>
@@ -60,15 +47,15 @@
     />
   </div>
 
-  {#if resolved}
+  {#if scans.value}
     <SfConflictsResults
-      diffs={resolved.diffs}
-      enrichment={resolved.enrichment}
-      authConflicts={resolved.authConflicts}
+      diffs={scans.value.diffs}
+      enrichment={scans.value.enrichment}
+      authConflicts={scans.value.authConflicts}
       lastExportAt={data.lastExportAt}
       {query}
     />
-  {:else if failed}
+  {:else if scans.failed}
     <ResultsNotice
       title="Chargement impossible"
       description="Les divergences n'ont pas pu être chargées. Rechargez la page pour réessayer."
