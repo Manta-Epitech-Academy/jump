@@ -104,7 +104,13 @@ export const load: PageServerLoad = async ({ locals }) => {
       ),
     }));
 
-  return { talent: locals.talent, participationsCount, deletion, documents };
+  return {
+    talent: locals.talent,
+    participationsCount,
+    deletion,
+    documents,
+    usageAnalyticsOptedOut: locals.talent.usageAnalyticsOptOutAt !== null,
+  };
 };
 
 export const actions: Actions = {
@@ -127,6 +133,33 @@ export const actions: Actions = {
     }
 
     return { deletionRequested: true };
+  },
+
+  // The talent's right to object (RGPD art. 21). Usage measurement runs on
+  // legitimate interest rather than consent, so it is on until it is refused,
+  // and refusing it has to actually stop the recording rather than hide it: the
+  // recorder reads this timestamp before every write.
+  //
+  // Storing the date and not a boolean because that is what the flat-column
+  // convention on `Talent` does everywhere else, and because "since when" is the
+  // question anyone auditing the objection will ask.
+  setUsageAnalytics: async ({ locals, request }) => {
+    if (!locals.talent || !locals.user) {
+      return fail(401, { message: 'Non autorisé' });
+    }
+
+    const optOut = (await request.formData()).get('optOut') === 'true';
+    try {
+      await prisma.talent.update({
+        where: { id: locals.talent.id },
+        data: { usageAnalyticsOptOutAt: optOut ? new Date() : null },
+      });
+    } catch (err) {
+      console.error('Error updating usage analytics preference:', err);
+      return fail(500, { message: 'Erreur lors de l’enregistrement' });
+    }
+
+    return { usageAnalyticsUpdated: true };
   },
 
   // Talent withdraws their own pending request.
