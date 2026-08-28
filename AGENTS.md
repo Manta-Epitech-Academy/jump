@@ -318,6 +318,19 @@ catalogue both read.
   never added for a fact the database already records; `USAGE_MEASURED_ELSEWHERE`
   names those and the API carries the list, so a consumer is told where to look
   rather than reading a zero.
+
+  The Umami half of that line is narrower than "traffic", and stating it loosely
+  invites a cleanup that would lose something. **Umami keeps what the server
+  cannot see**: a failure that never reaches an action, a duration
+  (`secondsToSign`, `sessionDurationSec`), the OTP funnel before a session
+  exists, and the low-cardinality dimensions this catalogue refuses on purpose
+  (`sizeBucket`, `daysOpen`, `fromRole`/`toRole`). Several of its events name the
+  same act as a catalogue key, and that is not duplication to remove: they are
+  measured at different moments (a `track()` in `use:enhance` usually fires on
+  success, `recordUsage` fires when the control is invoked), each success event
+  is the denominator of a `_failed` twin, and Jump has no Sentry, so those twins
+  are the only client error signal there is. Neither system is the other's check;
+  quote one or the other, never both at once.
 - **What is absent from the fact table is the PII boundary, and it is structural.**
   No `path`, no `url`, no `referer`, no `userAgent`, no `ip`, no `params`, no free
   text, and no `talentId`. The question is answerable from counts, so per-person
@@ -351,7 +364,7 @@ catalogue both read.
   legitimate row; `record.test.ts` pins all three.
 - **Fold before you purge.** `/api/jobs/usage-rollup` is one job for that reason:
   it folds every month present in the raw table, then purges past
-  `USAGE_RAW_RETENTION_DAYS`. Two jobs would make the ordering a scheduling
+  `USAGE_RAW_RETENTION_MONTHS`. Two jobs would make the ordering a scheduling
   assumption, and the purge would win a race nobody would notice until a month was
   missing from every year-on-year figure.
 - **`USAGE_SALT` fails closed.** Unset means no talent recording at all, rather
@@ -364,13 +377,38 @@ catalogue both read.
 - **A per-campus talent cell is masked below five distinct actors**
   (`USAGE_SMALL_CELL_FLOOR`), because a cell of one or two in a small campus is
   nearly a statement about named children. A zero is never masked: it discloses
-  nobody and it is the most actionable answer the matrix produces.
+  nobody and it is the most actionable answer the matrix produces. The floor
+  belongs to the READ, not to one operation: it shipped applied inside the
+  coverage matrix while `stats_feature_usage` took the same `campus` filter, was
+  reachable with a leadership token, and answered unmasked. Any read that can
+  narrow a talent count to one campus goes through `maskCell`, and the share is
+  masked with the count or it hands the count straight back.
+- **Two stores, one figure, and a distinct actor is counted per month.** Inside
+  the retention window the answer comes from `Usage_FeatureUse`, beyond it from
+  the actor-free cube, and both go through `server/usage/read.ts` so the store
+  boundary cannot change what a number means. The month is not a formatting
+  detail: the talent pseudonym rotates monthly, so distinct actors are additive
+  across campuses and actor kinds INSIDE a month and across nothing else. The
+  reported figure is therefore the busiest month's count, never a running total,
+  which is also why it can never exceed a month's population. Both halves shipped
+  broken and neither was visible to a test that asserted only the announced
+  source or that compared the stores inside a single month.
+- **A named school year IS the window.** Asking about 2025-2026 asks about
+  2025-2026, so a `days` count narrows the year only when it was actually passed.
+  Defaulting it and intersecting made every question about a past year an empty
+  range, answered as zeros with the filters echoed back to confirm them. When
+  both are given and they do not meet, that is a refusal, exactly as an unknown
+  campus is.
 
 Reads are `stats_feature_usage`, `stats_feature_adoption_gaps`,
 `stats_campus_feature_coverage` (leadership) and `ops_staff_activity` (core), over
-`services/adminStats/{featureUsage,staffActivity}.ts`. The weekly digest's
-Adoption section reads the same service, so an inbox figure and an asked figure
-cannot disagree.
+`services/adminStats/{featureUsage,staffActivity}.ts`, all reading through
+`server/usage/read.ts`. The weekly digest's Adoption section reads the same
+service, so an inbox figure and an asked figure cannot disagree, and it says
+"adoption non mesurable" rather than naming every feature when the cube holds
+nothing for the window: an empty cube is an absence of measurement, and printing
+it as a list of unused features is the one error that makes somebody delete
+something in use.
 
 ### UI, API, or both
 
