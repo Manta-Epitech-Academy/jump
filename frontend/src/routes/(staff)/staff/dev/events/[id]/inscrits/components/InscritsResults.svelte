@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
   import Users from '@lucide/svelte/icons/users';
@@ -18,6 +17,9 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
+  import { setListParams } from '$lib/components/staff/datatable/urlList';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
     ColumnDef,
@@ -53,6 +55,15 @@
   } from '$lib/domain/imageRights';
 
   import type { InscritRow, SortKey, InscritsCohort } from './types';
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
+  import {
+    nextSort,
+    rowComparator,
+  } from '$lib/components/staff/datatable/sort';
 
   // The streamed cohort payload plus the cheap shell values the table/rail need.
   // This component owns all filter/sort/export state, so it mounts only once the
@@ -249,27 +260,13 @@
   );
 
   function selectLycee(value: string) {
-    navigateWithParams({ lycee: value === 'all' ? '' : value });
+    setListParams({ lycee: value === 'all' ? '' : value });
   }
 
   function toggleSort(key: string) {
-    if (sortKey === key) {
-      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      // First click on a new column opens in its natural direction (XP starts
-      // high-to-low to surface the most engaged; text columns climb A→Z).
-      sortKey = key as SortKey;
-      sortDir = columns.find((c) => c.key === key)?.defaultSortDir ?? 'asc';
-    }
-  }
-
-  function navigateWithParams(params: Record<string, string>) {
-    const url = new URL(page.url);
-    for (const [key, value] of Object.entries(params)) {
-      if (value) url.searchParams.set(key, value);
-      else url.searchParams.delete(key);
-    }
-    goto(url.toString(), { keepFocus: true, noScroll: true });
+    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
+    sortKey = next.key;
+    sortDir = next.dir;
   }
 
   function resetFilters() {
@@ -277,24 +274,21 @@
     niveauFilter = 'all';
     statutFilter = 'all';
     // Origin lives in the URL, so clearing it is a navigation, not state.
-    if (originActive) navigateWithParams({ lycee: '', interest: '' });
+    if (originActive) setListParams({ lycee: '', interest: '' });
   }
-
-  const norm = (s: string) =>
-    s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
   function makeHaystack(r: InscritRow): string {
-    return norm(
-      [r.nom, r.prenom, niveauLabel(r.niveau), r.schoolName, r.email]
-        .filter(Boolean)
-        .join(' '),
-    );
+    return buildHaystack([
+      r.nom,
+      r.prenom,
+      niveauLabel(r.niveau),
+      r.schoolName,
+      r.email,
+    ]);
   }
 
-  // Rows with no value for the active sort key always sink to the bottom, in
-  // either direction: sorting by Lycée (or Niveau) should surface the rows that
-  // *have* one, never lead with a block of "—". So this rule sits outside the
-  // asc/desc flip below; `compareRows` then only ever sees present values.
+  // The two columns whose value can be missing. `rowComparator` sinks those
+  // rows in either direction, so `compareRows` only ever sees present values.
   function sortsLast(r: InscritRow, key: SortKey): boolean {
     if (key === 'lycee') return !r.schoolName;
     if (key === 'niveau') return !r.niveau;
@@ -319,21 +313,19 @@
   }
 
   const filtered = $derived.by(() => {
-    const tokens = norm(searchQuery).split(/\s+/).filter(Boolean);
+    const tokens = searchTokens(searchQuery);
     const out = rows.filter((r) => {
       if (niveauFilter !== 'all' && r.niveau !== niveauFilter) return false;
       if (statutFilter !== 'all' && r.status !== statutFilter) return false;
-      if (tokens.length === 0) return true;
-      const h = makeHaystack(r);
-      return tokens.every((tok) => h.includes(tok));
+      return matchesAllTokens(makeHaystack(r), tokens);
     });
-    out.sort((a, b) => {
-      const aLast = sortsLast(a, sortKey);
-      const bLast = sortsLast(b, sortKey);
-      if (aLast !== bLast) return aLast ? 1 : -1;
-      const c = compareRows(a, b, sortKey);
-      return sortDir === 'asc' ? c : -c;
-    });
+    out.sort(
+      rowComparator({
+        compare: (a, b) => compareRows(a, b, sortKey),
+        dir: sortDir,
+        isMissing: (r) => sortsLast(r, sortKey),
+      }),
+    );
     return out;
   });
 
@@ -343,14 +335,6 @@
       statutFilter !== 'all',
   );
   const anyFiltersApplied = $derived(clientFiltersApplied || originActive);
-
-  const countSuffix = $derived(
-    anyFiltersApplied
-      ? filtered.length > 1
-        ? 'correspondent aux filtres'
-        : 'correspond aux filtres'
-      : 'au total',
-  );
 
   let exporting = $state(false);
 
@@ -455,35 +439,18 @@
 {/snippet}
 
 {#if cohort.total === 0}
-  <div
-    class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-  >
-    <Users class="h-10 w-10 text-muted-foreground opacity-30" />
-    <h3
-      class="mt-4 text-sm font-bold tracking-widest text-foreground uppercase"
-    >
-      Aucun {noun.singular} inscrit
-    </h3>
-    <!-- The cohort is synced from Salesforce by the worker, not imported by
-         hand, so there is no manual-import action here. -->
-    <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-      Personne pour l'instant. Les inscrits apparaissent ici dès qu'ils sont
-      marqués prêts dans Salesforce.
-    </p>
-  </div>
+  <!-- The cohort is synced from Salesforce by the worker, not imported by hand,
+       so this is a notice and not an EmptyState: there is no action to offer. -->
+  <ResultsNotice
+    icon={Users}
+    title={`Aucun ${noun.singular} inscrit`}
+    description="Personne pour l'instant. Les inscrits apparaissent ici dès qu'ils sont marqués prêts dans Salesforce."
+  />
 {:else}
-  <!-- Two-column (70/30) split is held back to `xl`: a 6-column roster plus
-       the overview rail simply doesn't fit side by side on a `lg` laptop once
-       the app sidebar + page padding are taken out, so below `xl` the table
-       takes the full width and the rail drops beneath it. -->
-  <div class="grid gap-6 xl:grid-cols-10">
-    <!-- Left 70% — the cohort table is the working surface. `min-w-0` is
-         load-bearing: as a grid item it defaults to `min-width: auto`, which
-         would refuse to shrink below the table's intrinsic (6-column) width
-         and blow the whole grid past the viewport. With `min-w-0` it shrinks
-         to the track; the table's own fixed layout then divides that track
-         among its columns rather than overflowing it. -->
-    <div class="min-w-0 space-y-4 xl:col-span-7">
+  <ResultsLayout
+    railClass="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1"
+  >
+    {#snippet main()}
       <DataTableToolbar
         searchValue={searchQuery}
         onSearchInput={(v) => (searchQuery = v)}
@@ -493,7 +460,7 @@
         count={filtered.length}
         countNoun={noun.singular}
         countNounPlural={noun.plural}
-        {countSuffix}
+        filtersApplied={anyFiltersApplied}
       >
         {#snippet filters()}
           {#if showStatutColumn}
@@ -799,52 +766,42 @@
           {/snippet}
         </SortableTable>
       </Tooltip.Provider>
-    </div>
+    {/snippet}
 
-    <!-- Right 30% (xl+) — stage overview at a glance: the opening countdown
-         plus the origin breakdowns, which are the page's cohort filter
-         surface. At `xl` it's the sticky right column, with its own height cap
-         + overflow so the rail can outgrow the viewport and its bottom card
-         stays reachable (otherwise a pinned rail taller than the screen clips
-         its tail). -->
-    <!-- Content-first below `xl`: the search + list (the reason you open this
-         page) come first; this overview rail (countdown + breakdowns, the
-         glanceable secondary info) follows below, its cards laid side by side
-         so the full width reads as intentional rather than a stretched stack.
-         At `xl` the grid folds to one column → the sticky vertical rail. -->
-    <aside class="min-w-0 xl:col-span-3">
-      <div
-        class="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:sticky xl:top-6 xl:max-h-[calc(100dvh-6rem)] xl:grid-cols-1 xl:overflow-y-auto xl:pr-1"
-      >
-        <StageCountdownCard
-          status={countdown.status}
-          openDate={countdown.openDate}
-          endDate={countdown.endDate}
-          dayN={countdown.dayN}
-          totalDays={countdown.totalDays}
-          {timezone}
+    <!-- Content-first below `xl`: the search and the list (the reason you open
+         this page) come first; this overview rail (countdown + breakdowns, the
+         glanceable secondary info) follows below, its cards laid side by side so
+         the full width reads as intentional rather than a stretched stack. At
+         `xl` the grid folds to one column, giving the sticky vertical rail. -->
+    {#snippet rail()}
+      <StageCountdownCard
+        status={countdown.status}
+        openDate={countdown.openDate}
+        endDate={countdown.endDate}
+        dayN={countdown.dayN}
+        totalDays={countdown.totalDays}
+        {timezone}
+      />
+
+      {#if lyceesBreakdown.rows.length > 0}
+        <LyceesBreakdown
+          eventId={event.id}
+          breakdown={lyceesBreakdown}
+          itemNoun={[noun.singular, noun.plural]}
+          totalParticipations={cohort.total}
+          interaction="readonly"
         />
+      {/if}
 
-        {#if lyceesBreakdown.rows.length > 0}
-          <LyceesBreakdown
-            eventId={event.id}
-            breakdown={lyceesBreakdown}
-            itemNoun={[noun.singular, noun.plural]}
-            totalParticipations={cohort.total}
-            interaction="readonly"
-          />
-        {/if}
-
-        {#if interestsCloud.rows.length > 0}
-          <InterestsCloud
-            eventId={event.id}
-            breakdown={interestsCloud}
-            totalParticipations={cohort.total}
-            interaction="readonly"
-            title="Centres d’intérêt tech"
-          />
-        {/if}
-      </div>
-    </aside>
-  </div>
+      {#if interestsCloud.rows.length > 0}
+        <InterestsCloud
+          eventId={event.id}
+          breakdown={interestsCloud}
+          totalParticipations={cohort.total}
+          interaction="readonly"
+          title="Centres d’intérêt tech"
+        />
+      {/if}
+    {/snippet}
+  </ResultsLayout>
 {/if}

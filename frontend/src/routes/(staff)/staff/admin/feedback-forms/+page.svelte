@@ -15,6 +15,8 @@
   import FormStatusSelect from '$lib/components/admin/feedback/FormStatusSelect.svelte';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
+  import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import type {
     ColumnDef,
     SortDir,
@@ -36,6 +38,7 @@
   import { resolve } from '$app/paths';
   import type { PageData } from './$types';
   import type { FormListRow, FormsCohort } from './+page.server';
+  import { nextSort } from '$lib/components/staff/datatable/sort';
 
   let { data }: { data: PageData } = $props();
 
@@ -50,18 +53,10 @@
     if (page.url.searchParams.has('create')) createOpen = true;
   });
 
-  // The cohort streams in as an un-awaited promise. We resolve it into local
-  // `$state` (rather than binding `{#await}` directly) because this page writes
-  // optimistically: a status change mutates the row in place, and the delete
-  // dialog's `update()` rebuilds `data.cohort`. The stale-promise guard swaps
-  // later resolutions in silently, so neither reflashes the whole table.
-  let cohort = $state<FormsCohort | null>(null);
-  $effect(() => {
-    const p = data.cohort;
-    void p.then((c) => {
-      if (data.cohort === p) cohort = c;
-    });
-  });
+  // This page writes optimistically - a status change mutates the row in place,
+  // and the delete dialog's `update()` rebuilds `data.cohort` - so the list is
+  // held across those rather than re-awaited. See `createStreamedCohort`.
+  const cohort = createStreamedCohort<FormsCohort>(() => data.cohort);
 
   const { form, errors, enhance } = superForm(
     untrack(() => data.createFormForm),
@@ -116,12 +111,9 @@
   ];
 
   function toggleSort(key: string) {
-    if (sortKey === key) {
-      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortKey = key;
-      sortDir = columns.find((c) => c.key === key)?.defaultSortDir ?? 'asc';
-    }
+    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
+    sortKey = next.key;
+    sortDir = next.dir;
   }
 
   function compareRows(a: FormListRow, b: FormListRow, key: string): number {
@@ -141,9 +133,9 @@
   }
 
   const rows = $derived.by(() => {
-    if (!cohort) return [];
+    if (!cohort.value) return [];
     const q = search.trim().toLowerCase();
-    const out = cohort.rows.filter((r) => {
+    const out = cohort.value.rows.filter((r) => {
       if (statusFilter !== 'all' && r.status !== statusFilter) return false;
       if (!q) return true;
       return (
@@ -236,14 +228,15 @@
     {/snippet}
   </PageHeader>
 
-  {#if cohort === null}
+  {#if cohort.failed}
+    <ResultsNotice
+      title="Chargement impossible"
+      description="La liste des formulaires n'a pas pu être chargée. Rechargez la page pour réessayer."
+    />
+  {:else if cohort.value === null}
     <p class="text-sm text-muted-foreground">Chargement…</p>
-  {:else if cohort.rows.length === 0}
-    <div
-      class="rounded-sm border border-dashed bg-muted/10 p-16 text-center text-sm text-muted-foreground"
-    >
-      Aucun formulaire pour le moment.
-    </div>
+  {:else if cohort.value.rows.length === 0}
+    <ResultsNotice description="Aucun formulaire pour le moment." />
   {:else}
     <DataTableToolbar
       searchValue={search}
@@ -253,7 +246,7 @@
       filtersAlign="end"
       count={rows.length}
       countNoun="formulaire"
-      countSuffix={anyFiltersApplied ? '(filtrés)' : 'au total'}
+      filtersApplied={anyFiltersApplied}
     >
       {#snippet filters()}
         <div class="flex items-center gap-2">

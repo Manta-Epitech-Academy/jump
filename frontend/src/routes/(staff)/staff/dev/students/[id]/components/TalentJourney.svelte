@@ -84,12 +84,21 @@
                truncation actually needs; growing was never part of it. -->
           <span class="min-w-0 flex-1 truncate font-medium text-foreground">
             <!-- A link only where it leads somewhere this reader may open (see
-                 `eventHref`): an event from another campus, or one exposing no
-                 Inscrits list, stays plain text rather than becoming a 404. -->
+                 `eventHref`): an event from another campus, one an admin never
+                 activated in the dev space, or one exposing no Inscrits list
+                 stays plain text rather than becoming a 404 or opening under
+                 another event's sidebar.
+
+                 The dotted underline is worn at rest, not on hover, which is
+                 what tells the two apart: half a list linking and half not,
+                 with both drawn identically until the pointer lands, reads as
+                 rows that are broken rather than as rows that lead nowhere.
+                 Same affordance `OriginBreakdownCard` gives its clickable
+                 rows. -->
             {#if entry.eventHref}
               <a
                 href={entry.eventHref}
-                class="cursor-pointer transition-colors hover:text-epi-blue hover:underline hover:decoration-dotted hover:underline-offset-4"
+                class="cursor-pointer underline decoration-muted-foreground/40 decoration-dotted underline-offset-4 transition-colors hover:text-epi-blue hover:decoration-epi-blue"
               >
                 {entry.eventName}
               </a>

@@ -28,6 +28,10 @@
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
+  import {
+    pageCount,
+    paginate,
+  } from '$lib/components/staff/datatable/paginate';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import SearchableSelect, {
     type SelectOption,
@@ -190,14 +194,14 @@
   const PER_PAGE = 10;
   let invitePage = $state(1);
   let memberPage = $state(1);
-  const inviteTotalPages = $derived(Math.ceil(sortedInvites.length / PER_PAGE));
-  const pagedInvites = $derived(
-    sortedInvites.slice((invitePage - 1) * PER_PAGE, invitePage * PER_PAGE),
-  );
-  const memberTotalPages = $derived(Math.ceil(sortedMembers.length / PER_PAGE));
-  const pagedMembers = $derived(
-    sortedMembers.slice((memberPage - 1) * PER_PAGE, memberPage * PER_PAGE),
-  );
+  // Through `paginate` rather than a hand-rolled slice: revoking the only row on
+  // the last page shrinks the list under the page you are on, and a bare slice
+  // then renders an empty table while `Pagination` hides itself (one page left),
+  // leaving no control to get back. `paginate` clamps onto the last page instead.
+  const inviteTotalPages = $derived(pageCount(sortedInvites.length, PER_PAGE));
+  const pagedInvites = $derived(paginate(sortedInvites, invitePage, PER_PAGE));
+  const memberTotalPages = $derived(pageCount(sortedMembers.length, PER_PAGE));
+  const pagedMembers = $derived(paginate(sortedMembers, memberPage, PER_PAGE));
 
   // ----- Explorer un campus : campus-first impersonation --------------------
   // Most admin visits here are to drop into a campus's space ("what does a
@@ -482,6 +486,7 @@
       searchPlaceholder="Rechercher un membre ou un campus…"
       count={sortedMembers.length}
       countNoun="membre"
+      filtersApplied={memberSearch.trim().length > 0}
     />
 
     <SortableTable
@@ -742,6 +747,7 @@
           searchPlaceholder="Rechercher un email…"
           count={sortedInvites.length}
           countNoun="invitation"
+          filtersApplied={inviteSearch.trim().length > 0}
         >
           {#snippet countActions()}
             {#if selectedInvites.size > 0}

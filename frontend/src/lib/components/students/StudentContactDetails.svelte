@@ -6,7 +6,7 @@
   import TalentName from '$lib/components/students/TalentName.svelte';
   import { civiliteCourtesyTitle } from '$lib/domain/profile';
   import { formatPhoneForDisplay } from '$lib/domain/phone';
-  import type { ContactPerson } from './contact';
+  import type { ContactPerson } from '$lib/domain/contact';
 
   let {
     student,

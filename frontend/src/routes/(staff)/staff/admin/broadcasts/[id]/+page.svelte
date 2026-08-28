@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
+  import { goToListPage } from '$lib/components/staff/datatable/urlList';
   import { toast } from 'svelte-sonner';
   import { Button } from '$lib/components/ui/button';
   import * as Table from '$lib/components/ui/table';
@@ -26,13 +27,6 @@
   const totalPages = $derived(
     Math.max(1, Math.ceil(data.recipientsTotal / data.recipientsPageSize)),
   );
-
-  function goToPage(p: number) {
-    const url = new URL(page.url);
-    if (p <= 1) url.searchParams.delete('page');
-    else url.searchParams.set('page', String(p));
-    goto(url.toString(), { keepFocus: true, noScroll: false });
-  }
 
   const formatter = new Intl.DateTimeFormat('fr-FR', {
     dateStyle: 'short',
@@ -192,7 +186,7 @@
           size="sm"
           class="rounded-sm"
           disabled={data.recipientsPage <= 1}
-          onclick={() => goToPage(data.recipientsPage - 1)}
+          onclick={() => goToListPage(data.recipientsPage - 1)}
         >
           ← Précédent
         </Button>
@@ -205,7 +199,7 @@
           size="sm"
           class="rounded-sm"
           disabled={data.recipientsPage >= totalPages}
-          onclick={() => goToPage(data.recipientsPage + 1)}
+          onclick={() => goToListPage(data.recipientsPage + 1)}
         >
           Suivant →
         </Button>

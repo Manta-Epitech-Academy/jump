@@ -15,6 +15,8 @@
   import { Button } from '$lib/components/ui/button';
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
     ColumnDef,
@@ -43,6 +45,12 @@
   import SlotStatsCard from './SlotStatsCard.svelte';
   import PresenceHelpCard from './PresenceHelpCard.svelte';
   import SlotNavigator from './SlotNavigator.svelte';
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
+  import { nextSort } from '$lib/components/staff/datatable/sort';
 
   // The streamed roster plus the slot context the shell owns. `activeSlotKey` is
   // bound back to the shell so its header QR button stays in sync with the slot
@@ -134,11 +142,8 @@
     { value: 'absent', label: statusLabelFr('absent') },
     { value: 'excused', label: statusLabelFr('excused') },
   ];
-  const norm = (s: string) =>
-    s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
   function haystack(r: PresenceRow): string {
-    return norm([r.nom, r.prenom].join(' '));
+    return buildHaystack([r.nom, r.prenom]);
   }
 
   function compareRows(a: PresenceRow, b: PresenceRow): number {
@@ -148,12 +153,10 @@
   }
 
   const filtered = $derived.by(() => {
-    const tokens = norm(searchQuery).split(/\s+/).filter(Boolean);
+    const tokens = searchTokens(searchQuery);
     const out = rows.filter((r) => {
       if (statusFilter !== 'all' && rowStatus(r) !== statusFilter) return false;
-      if (tokens.length === 0) return true;
-      const h = haystack(r);
-      return tokens.every((t) => h.includes(t));
+      return matchesAllTokens(haystack(r), tokens);
     });
     out.sort((a, b) => {
       const c = compareRows(a, b);
@@ -165,16 +168,11 @@
   const anyFilter = $derived(
     searchQuery.trim().length > 0 || statusFilter !== 'all',
   );
-  const countSuffix = $derived(
-    anyFilter ? 'correspondent aux filtres' : 'au total',
-  );
 
   function toggleSort(key: string) {
-    if (sortKey === key) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    else {
-      sortKey = key as PresenceSortKey;
-      sortDir = 'asc';
-    }
+    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
+    sortKey = next.key;
+    sortDir = next.dir;
   }
   function resetFilters() {
     searchQuery = '';
@@ -300,22 +298,16 @@
      slot-lifecycle controls all surface tooltips from here. -->
 <Tooltip.Provider delayDuration={150}>
   {#if rows.length === 0}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-    >
-      <Users class="h-10 w-10 text-muted-foreground opacity-30" />
-      <h3
-        class="mt-4 text-sm font-bold tracking-widest text-foreground uppercase"
-      >
-        Aucun {noun.singular} inscrit
-      </h3>
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        Les {noun.plural} apparaîtront ici une fois la synchronisation effectuée.
-      </p>
-    </div>
+    <ResultsNotice
+      icon={Users}
+      title={`Aucun ${noun.singular} inscrit`}
+      description={`Les ${noun.plural} apparaîtront ici une fois la synchronisation effectuée.`}
+    />
   {:else}
-    <div class="grid gap-6 xl:grid-cols-10">
-      <div class="min-w-0 space-y-4 xl:col-span-7">
+    <ResultsLayout
+      railClass="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-1"
+    >
+      {#snippet main()}
         <DataTableToolbar
           searchValue={searchQuery}
           onSearchInput={(v) => (searchQuery = v)}
@@ -325,7 +317,7 @@
           count={filtered.length}
           countNoun={noun.singular}
           countNounPlural={noun.plural}
-          {countSuffix}
+          filtersApplied={anyFilter}
         >
           {#snippet filters()}
             <SlotNavigator {slots} bind:value={activeSlotKey} />
@@ -538,9 +530,9 @@
             </div>
           {/snippet}
         </SortableTable>
-      </div>
+      {/snippet}
 
-      <aside class="min-w-0 xl:col-span-3">
+      {#snippet rail()}
         {#if activeSlot}
           <!-- The active slot's open/close control, rendered into the SYNTHÈSE
                card footer so it sits with the Clôturé badge it toggles. Edit-only
@@ -648,21 +640,17 @@
 
           <!-- Same rail pattern as Inscrits: side by side below xl (the aside is
              full width there), folding to a sticky single column at xl. -->
-          <div
-            class="grid items-start gap-4 sm:grid-cols-2 xl:sticky xl:top-6 xl:max-h-[calc(100dvh-6rem)] xl:grid-cols-1 xl:overflow-y-auto xl:pr-1"
-          >
-            <SlotStatsCard
-              slotLabel={slotLabelFr(activeSlot.slot)}
-              stats={activeStats}
-              closed={isActiveClosed}
-              stageRate={attendanceRate}
-              footer={canEdit ? slotLifecycle : undefined}
-            />
-            <PresenceHelpCard {cohortNoun} />
-          </div>
+          <SlotStatsCard
+            slotLabel={slotLabelFr(activeSlot.slot)}
+            stats={activeStats}
+            closed={isActiveClosed}
+            stageRate={attendanceRate}
+            footer={canEdit ? slotLifecycle : undefined}
+          />
+          <PresenceHelpCard {cohortNoun} />
         {/if}
-      </aside>
-    </div>
+      {/snippet}
+    </ResultsLayout>
   {/if}
 </Tooltip.Provider>
 

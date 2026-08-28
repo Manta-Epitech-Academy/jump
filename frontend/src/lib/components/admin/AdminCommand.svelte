@@ -10,6 +10,7 @@
   import type { Icon as IconType } from '@lucide/svelte';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { ADMIN_NAV } from '$lib/components/admin/adminNav';
+  import { foldForSearch } from '$lib/components/staff/datatable/search';
 
   // Admin-only command palette (Cmd/Ctrl+K), two surfaces in one list:
   //  - Navigation: jump to any admin page, filtered client-side (instant, no
@@ -35,14 +36,6 @@
   let searching = $state(false);
   let searchTimeout: ReturnType<typeof setTimeout>;
 
-  // Lowercase + strip diacritics so "themes" matches "Thèmes", "genapdf" the
-  // "Génération…" page, etc.
-  const norm = (s: string) =>
-    s
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/\p{Diacritic}/gu, '');
-
   // Navigation is the same `ADMIN_NAV` the sidebar renders, grouped by section
   // so the short labels stay unambiguous (a section heading supplies the
   // context the palette used to bake into longer labels). Filtered client-side
@@ -50,13 +43,13 @@
   // opens as a menu. People stay server-filtered. Sidebar badge counts are
   // deliberately omitted here.
   const matchedSections = $derived.by(() => {
-    const q = norm(inputValue.trim());
+    const q = foldForSearch(inputValue.trim());
     if (!q) return ADMIN_NAV;
     return ADMIN_NAV.map((section) => ({
       title: section.title,
       items: section.items.filter(
         (p) =>
-          norm(p.label).includes(q) ||
+          foldForSearch(p.label).includes(q) ||
           (p.keywords ?? []).some((k) => k.includes(q)),
       ),
     })).filter((section) => section.items.length > 0);

@@ -10,10 +10,12 @@ import { loadFinishedOnboardingTimeline } from '$lib/server/services/onboardingD
 // /staff/admin/* route guard, same as the sibling export endpoint.
 export const GET: RequestHandler = async () => {
   const timeline = await loadFinishedOnboardingTimeline();
+  // One shape for every export-menu timeline (`{ at, type? }`), so the menu needs
+  // no per-caller parser.
   return json({
     timeline: timeline.map((d) => ({
+      at: d.finishedAt.toISOString(),
       type: d.type,
-      finishedAt: d.finishedAt.toISOString(),
     })),
   });
 };

@@ -8,12 +8,18 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import { can } from '$lib/domain/permissions';
-  import { defaultActiveSlotKey } from '$lib/domain/eventPresence';
+  import {
+    dayLabelFr,
+    defaultActiveSlotKey,
+    slotLabelFr,
+  } from '$lib/domain/eventPresence';
   import { cohortNounForms, eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import type { EmargementCohort } from './components/types';
-  import QrDialog from './components/QrDialog.svelte';
+  import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import QrProjectionDialog from '$lib/components/staff/QrProjectionDialog.svelte';
   import EmargementRoster from './components/EmargementRoster.svelte';
 
   let { data }: { data: PageData } = $props();
@@ -69,26 +75,11 @@
       : false,
   );
 
-  // Resolve the streamed roster into local state rather than a bare `{#await}`:
-  // the 5s poll (and every optimistic edit) replaces `data.cohort` with a fresh
-  // promise, and a template `{#await}` would flash the skeleton + remount the
-  // roster each time (wiping in-flight edits and the search box). Holding the
-  // last resolved value keeps the roster mounted; the skeleton shows only on the
-  // first load. The `=== p` guard drops a stale resolution arriving after a newer
-  // poll has already started.
-  let roster = $state<EmargementCohort | null>(null);
-  let rosterFailed = $state(false);
-  $effect(() => {
-    const p = data.cohort;
-    p.then((d) => {
-      if (data.cohort === p) {
-        roster = d;
-        rosterFailed = false;
-      }
-    }).catch(() => {
-      if (data.cohort === p) rosterFailed = true;
-    });
-  });
+  // The 5s poll and every optimistic edit replace `data.cohort` with a fresh
+  // promise, so the roster is held across them rather than re-awaited: a
+  // template `{#await}` would remount it each tick and wipe the in-flight edits
+  // along with the search box. See `createStreamedCohort`.
+  const roster = createStreamedCohort<EmargementCohort>(() => data.cohort);
 
   let qrOpen = $state(false);
   // Reported up by the roster: true while any of its edit dialogs is open. ORed
@@ -189,11 +180,11 @@
     </PageHeader>
   </Tooltip.Provider>
 
-  {#if roster}
+  {#if roster.value}
     <EmargementRoster
-      rows={roster.rows}
-      presences={roster.presences}
-      attendanceRate={roster.attendanceRate}
+      rows={roster.value.rows}
+      presences={roster.value.presences}
+      attendanceRate={roster.value.attendanceRate}
       slots={data.slots}
       {activeSlot}
       {isActiveClosed}
@@ -205,18 +196,11 @@
       bind:activeSlotKey
       bind:dialogOpen={rosterDialogOpen}
     />
-  {:else if rosterFailed}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-    >
-      <h3 class="text-sm font-bold tracking-widest text-foreground uppercase">
-        Chargement impossible
-      </h3>
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        La liste d'émargement n'a pas pu être chargée. Rechargez la page pour
-        réessayer.
-      </p>
-    </div>
+  {:else if roster.failed}
+    <ResultsNotice
+      title="Chargement impossible"
+      description="La liste d'émargement n'a pas pu être chargée. Rechargez la page pour réessayer."
+    />
   {:else}
     <ResultsSkeleton />
   {/if}
@@ -224,10 +208,23 @@
 
 <!-- QR dialog -->
 {#if activeSlot}
-  <QrDialog
+  <QrProjectionDialog
     bind:open={qrOpen}
-    basePath={page.url.pathname}
-    day={activeSlot.day}
-    slot={activeSlot.slot}
-  />
+    title="Émargement"
+    description={`${dayLabelFr(activeSlot.day)} · ${slotLabelFr(activeSlot.slot)}. Scanne ce QR code pour t'enregistrer.`}
+    qrSrc={`${page.url.pathname}/qr.png?day=${activeSlot.day}&slot=${activeSlot.slot}`}
+    qrAlt={`QR code d'émargement - ${slotLabelFr(activeSlot.slot)}`}
+    sizeClass="h-[68vmin] w-[68vmin]"
+  >
+    {#snippet footer()}
+      <Button
+        variant="outline"
+        href={`${page.url.pathname}/qr.pdf?day=${activeSlot.day}&slot=${activeSlot.slot}`}
+        target="_blank"
+      >
+        <Download class="mr-2 h-4 w-4" />
+        Télécharger le PDF
+      </Button>
+    {/snippet}
+  </QrProjectionDialog>
 {/if}

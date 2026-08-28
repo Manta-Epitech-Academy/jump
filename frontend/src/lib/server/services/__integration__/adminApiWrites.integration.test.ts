@@ -18,6 +18,7 @@ import { adminApiWrite } from '$lib/server/adminApi/route';
 import { planDigest } from '$lib/server/adminApi/plan';
 
 const postConfig = adminApiWrite('write_event_config');
+const postActivation = adminApiWrite('write_event_activation');
 const postFeedbackForm = adminApiWrite('write_event_feedback_form');
 const postBulkModules = adminApiWrite('bulk_event_modules');
 
@@ -186,6 +187,86 @@ describe('admin API writes (integration)', () => {
       orderBy: { createdAt: 'desc' },
     });
     expect(row?.status).toBe(400);
+  });
+
+  // The activation rule reaching the path that writes the name and the gate in
+  // one call. `write_event_activation` has always refused an activation with no
+  // public name, but patch semantics carry the STORED activation into a call
+  // that only meant to edit a name, so this one could take a live event down to
+  // no public name and leave it live: in the dev switcher, under its raw
+  // Salesforce title. Same rule, same sentence, third spelling.
+  it('refuses to strip the public name of an event that stays visible', async () => {
+    const live = await prisma.event.create({
+      data: {
+        titre: `WriteLive-${stamp}`,
+        publicName: 'Coding Club visible',
+        date: new Date(Date.now() + 30 * 86_400_000),
+        endDate: new Date(Date.now() + 31 * 86_400_000),
+        campusId,
+        devActivatedAt: new Date(),
+        modules: { create: { moduleKey: 'inscrits' } },
+      },
+    });
+
+    const { status, payload } = await call(postConfig, writeSecret, {
+      eventId: live.id,
+      publicName: '',
+    });
+
+    expect(status).toBe(400);
+    expect(String(payload.error)).toContain('nom public');
+
+    // Refused before the transaction, so the event is untouched rather than
+    // half-written.
+    const after = await prisma.event.findUniqueOrThrow({
+      where: { id: live.id },
+    });
+    expect(after.publicName).toBe('Coding Club visible');
+    expect(after.devActivatedAt).not.toBeNull();
+
+    await prisma.eventConfig_Module.deleteMany({ where: { eventId: live.id } });
+    await prisma.event.delete({ where: { id: live.id } });
+  });
+
+  // And the way through, so the refusal above is a detour rather than a dead
+  // end: hide it, then rename it. The rule is about what may be VISIBLE, never
+  // about what may be named, and over this tier the two are separate operations
+  // by design.
+  it('accepts clearing the public name once the event is hidden', async () => {
+    const hidden = await prisma.event.create({
+      data: {
+        titre: `WriteHidden-${stamp}`,
+        publicName: 'Coding Club à masquer',
+        date: new Date(Date.now() + 30 * 86_400_000),
+        endDate: new Date(Date.now() + 31 * 86_400_000),
+        campusId,
+        devActivatedAt: new Date(),
+        modules: { create: { moduleKey: 'inscrits' } },
+      },
+    });
+
+    const hide = await call(postActivation, writeSecret, {
+      eventId: hidden.id,
+      visible: false,
+    });
+    expect(hide.status).toBe(200);
+
+    const { status } = await call(postConfig, writeSecret, {
+      eventId: hidden.id,
+      publicName: '',
+    });
+
+    expect(status).toBe(200);
+    const after = await prisma.event.findUniqueOrThrow({
+      where: { id: hidden.id },
+    });
+    expect(after.publicName).toBeNull();
+    expect(after.devActivatedAt).toBeNull();
+
+    await prisma.eventConfig_Module.deleteMany({
+      where: { eventId: hidden.id },
+    });
+    await prisma.event.delete({ where: { id: hidden.id } });
   });
 
   it('plans a bulk change before applying it, and applies it on the digest', async () => {

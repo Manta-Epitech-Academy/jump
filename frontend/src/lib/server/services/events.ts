@@ -16,6 +16,7 @@ import {
   type EventLifecycleStatus,
 } from '$lib/domain/eventLifecycle';
 import {
+  activationRefusal,
   eventConfigState,
   type EventConfigState,
 } from '$lib/domain/eventReadiness';
@@ -334,6 +335,26 @@ export const EventService = {
         campus: { select: { timezone: true } },
       },
     });
+    // The third spelling of the activation rule, and the one that was missing.
+    // `bulkSetActivation` refuses through `activatableEventWhere` and
+    // `write_event_activation` refuses through `activationBlockers`, but this
+    // path writes `publicName` and `devActivatedAt` in the same call and checked
+    // neither against the other: clearing the public name of an activated event
+    // left it live in the dev workspace under its raw Salesforce title, which is
+    // the one state the rule exists to prevent. It reaches here from both
+    // consumers - the config dialog, and `write_event_config`, whose patch
+    // semantics carry the stored activation forward into a call that only meant
+    // to edit a name.
+    const refusal = data.devActivated
+      ? activationRefusal({
+          publicName: data.publicName.trim() || null,
+          cohortNoun: data.cohortNoun.trim() || null,
+          endDate: data.endDate || null,
+          modules: data.modules,
+          devActivated: data.devActivated,
+        })
+      : null;
+    if (refusal) throw error(400, refusal);
     // 23:59 campus-local on the chosen day: `getEventStatus` only flips the
     // event to "past" once that whole day has elapsed, and `toDateKey` still
     // resolves it to that day for the émargement créneaux.

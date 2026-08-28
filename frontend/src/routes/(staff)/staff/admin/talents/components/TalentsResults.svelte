@@ -34,9 +34,8 @@
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import StudentContactDialog from '$lib/components/students/StudentContactDialog.svelte';
   import EditParentEmailDialog from '../EditParentEmailDialog.svelte';
-  import type { ContactPerson } from '$lib/components/students/contact';
+  import type { ContactPerson } from '$lib/domain/contact';
   import { enhance } from '$app/forms';
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
@@ -50,6 +49,13 @@
   } from '../labels';
   import { track } from '$lib/analytics';
   import type { TalentsCohort, TalentFilters } from '../query';
+  import { nextSort } from '$lib/components/staff/datatable/sort';
+  import {
+    goToListPage,
+    resetListParams,
+    setListParams,
+  } from '$lib/components/staff/datatable/urlList';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
 
   // The streamed cohort payload plus the parsed filters (the cheap shell value
   // the toolbar needs). This component owns every data-dependent surface — KPI
@@ -67,17 +73,7 @@
     filters: filterState,
   }: TalentsCohort & { filters: TalentFilters } = $props();
 
-  let searchQuery = $state(page.url.searchParams.get('q') || '');
-  let searchTimeout: ReturnType<typeof setTimeout>;
-  // The page now keeps this component mounted across navigations (it resolves the
-  // streamed cohort into state rather than re-awaiting it), so the initialiser
-  // above only reads `?q` once. Re-sync on navigation so a command-palette
-  // deep-link (`talents?q=…`) fills the search box even when we're already here.
-  // Typing drives the URL, not the reverse, so this only fires on real navigations.
-  $effect(() => {
-    const q = page.url.searchParams.get('q');
-    if (q !== null) searchQuery = q;
-  });
+  const search = createUrlSearch();
   let impersonating = $state<string | null>(null);
 
   // Log in as a talent through the shared admin endpoint — the same one the
@@ -222,16 +218,6 @@
     return `Il y a ${years} an${years > 1 ? 's' : ''}`;
   }
 
-  function navigateWithParams(params: Record<string, string>) {
-    const url = new URL(page.url);
-    url.searchParams.delete('page');
-    for (const [key, value] of Object.entries(params)) {
-      if (value) url.searchParams.set(key, value);
-      else url.searchParams.delete(key);
-    }
-    goto(url.toString(), { keepFocus: true });
-  }
-
   // KPI tiles report the *scoped* population (campus multiselect + type + niveau
   // + search), so the admin can read onboarding progress for a chosen set of
   // campuses; the status/parent breakdown filters narrow the table, not the
@@ -286,14 +272,8 @@
   );
 
   function resetFilters() {
-    searchQuery = '';
-    goto(page.url.pathname, { keepFocus: true });
-  }
-
-  function onSearchInput(value: string) {
-    searchQuery = value;
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => navigateWithParams({ q: value }), 300);
+    search.clear();
+    resetListParams();
   }
 
   const columns: ColumnDef[] = [
@@ -310,30 +290,18 @@
   // Server-side sort: clicking a header swaps `?sort=&dir=` and reloads. The
   // baseline (no `sort` param) keeps the most-recently-active-first ordering.
   function toggleSort(key: string) {
-    const nextDir =
-      filterState.sort === key && filterState.dir === 'asc' ? 'desc' : 'asc';
-    navigateWithParams({ sort: key, dir: nextDir });
+    const next = nextSort(
+      columns,
+      { key: filterState.sort, dir: filterState.dir },
+      key,
+    );
+    setListParams({ sort: next.key, dir: next.dir });
   }
-
-  const countSuffix = $derived(
-    hasActiveFilters
-      ? totalItems > 1
-        ? 'correspondent aux filtres'
-        : 'correspond aux filtres'
-      : 'au total',
-  );
 
   // Campus list can be long, so it gets a searchable select.
   const campusOptions = $derived<SelectOption[]>(
     campuses.map((c) => ({ value: c.id, label: c.name })),
   );
-
-  function goToPage(p: number) {
-    const url = new URL(page.url);
-    if (p > 1) url.searchParams.set('page', String(p));
-    else url.searchParams.delete('page');
-    goto(url.toString());
-  }
 </script>
 
 <div class="space-y-6">
@@ -374,7 +342,7 @@
       helpText="Talent importé sans compte de connexion : jamais venu sur la plateforme. Cliquez pour filtrer."
       tone="orange"
       icon={UserX}
-      onclick={() => navigateWithParams({ status: 'never', parentStatus: '' })}
+      onclick={() => setListParams({ status: 'never', parentStatus: '' })}
       pressed={neverConnectedActive}
     />
   </div>
@@ -384,12 +352,12 @@
        and Statut are independent segmented radios; niveau/campus stay dropdowns
        (too many options for a segmented control). -->
   <DataTableToolbar
-    searchValue={searchQuery}
-    {onSearchInput}
+    searchValue={search.value}
+    onSearchInput={(v) => (search.value = v)}
     searchPlaceholder="Rechercher par nom ou email…"
     count={totalItems}
     countNoun="talent"
-    {countSuffix}
+    filtersApplied={hasActiveFilters}
   >
     {#snippet filters()}
       <div class="flex items-center gap-2">
@@ -398,7 +366,7 @@
           ariaLabel="Filtrer par statut de compte"
           options={statutOptions}
           value={filterState.status}
-          onChange={(v) => navigateWithParams({ status: v === 'all' ? '' : v })}
+          onChange={(v) => setListParams({ status: v === 'all' ? '' : v })}
         />
       </div>
 
@@ -409,7 +377,7 @@
           options={parentStatusOptions}
           value={filterState.parentStatus || 'all'}
           onChange={(v) =>
-            navigateWithParams({ parentStatus: v === 'all' ? '' : v })}
+            setListParams({ parentStatus: v === 'all' ? '' : v })}
         />
       </div>
 
@@ -417,8 +385,7 @@
         <Select.Root
           type="single"
           value={filterState.niveau || 'all'}
-          onValueChange={(v) =>
-            navigateWithParams({ niveau: v === 'all' ? '' : v })}
+          onValueChange={(v) => setListParams({ niveau: v === 'all' ? '' : v })}
         >
           <Select.Trigger class="w-full rounded-sm">
             <Funnel class="mr-2 h-4 w-4 text-muted-foreground" />
@@ -440,8 +407,7 @@
           multiple
           options={campusOptions}
           values={filterState.campusIds}
-          onChangeMultiple={(ids) =>
-            navigateWithParams({ campus: ids.join(',') })}
+          onChangeMultiple={(ids) => setListParams({ campus: ids.join(',') })}
           allLabel="Tous les campus"
           placeholder="Tous les campus"
           searchPlaceholder="Rechercher un campus…"
@@ -700,7 +666,11 @@
     {/snippet}
   </SortableTable>
 
-  <Pagination page={filterState.page} {totalPages} onPageChange={goToPage} />
+  <Pagination
+    page={filterState.page}
+    {totalPages}
+    onPageChange={goToListPage}
+  />
 </div>
 
 <StudentContactDialog

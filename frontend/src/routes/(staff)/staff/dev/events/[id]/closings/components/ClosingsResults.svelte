@@ -6,6 +6,8 @@
   import * as Table from '$lib/components/ui/table';
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
     ColumnDef,
@@ -28,6 +30,15 @@
   import SynthesisCard from './SynthesisCard.svelte';
   import StaffTallyCard from './StaffTallyCard.svelte';
   import GuideCard from '$lib/components/dev/closings/GuideCard.svelte';
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
+  import {
+    nextSort,
+    rowComparator,
+  } from '$lib/components/staff/datatable/sort';
 
   // The streamed cohort payload plus the two cheap shell values the table/rail
   // need (timezone for date formatting, currentStaffId to highlight the leader-
@@ -92,16 +103,10 @@
   ];
 
   function toggleSort(key: string) {
-    if (sortKey === key) {
-      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortKey = key as SortKey;
-      sortDir = 'asc';
-    }
+    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
+    sortKey = next.key;
+    sortDir = next.dir;
   }
-
-  const norm = (s: string) =>
-    s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
   const dateFmt = (d: Date | string | null) =>
     d
@@ -112,6 +117,17 @@
         })
       : null;
 
+  // A closing not yet conducted has no leader and no date. Those rows sink in
+  // either direction (`rowComparator`), so a reversed sort surfaces the ones
+  // that HAVE been conducted rather than leading with the empty half of the
+  // roster. It used to lead with them: the null cases lived inside the asc/desc
+  // flip, which inverted the intent along with the order.
+  function sortsLast(r: ClosingRow, key: SortKey): boolean {
+    if (key === 'staff') return !r.staffName;
+    if (key === 'date') return !r.conductedAt;
+    return false;
+  }
+
   function compareRows(a: ClosingRow, b: ClosingRow, key: SortKey): number {
     switch (key) {
       case 'prenom':
@@ -119,50 +135,39 @@
       case 'nom':
         return a.nom.localeCompare(b.nom, 'fr');
       case 'staff':
-        // Conducted closings (named) sort before the not-yet-assigned.
-        if (!a.staffName && !b.staffName) return 0;
-        if (!a.staffName) return 1;
-        if (!b.staffName) return -1;
-        return a.staffName.localeCompare(b.staffName, 'fr');
-      case 'date': {
-        const ta = a.conductedAt ? new Date(a.conductedAt).getTime() : null;
-        const tb = b.conductedAt ? new Date(b.conductedAt).getTime() : null;
-        if (ta === null && tb === null) return 0;
-        if (ta === null) return 1;
-        if (tb === null) return -1;
-        return ta - tb;
-      }
+        return (a.staffName ?? '').localeCompare(b.staffName ?? '', 'fr');
+      case 'date':
+        return (
+          new Date(a.conductedAt ?? 0).getTime() -
+          new Date(b.conductedAt ?? 0).getTime()
+        );
       case 'status':
         return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
     }
   }
 
   const filtered = $derived.by(() => {
-    const tokens = norm(searchQuery).split(/\s+/).filter(Boolean);
+    const tokens = searchTokens(searchQuery);
     const out = rows.filter((r) => {
       if (statutFilter !== 'all' && r.status !== statutFilter) return false;
-      if (tokens.length === 0) return true;
-      const h = norm(`${r.prenom} ${r.nom} ${r.staffName ?? ''}`);
-      return tokens.every((tok) => h.includes(tok));
+      return matchesAllTokens(
+        buildHaystack([r.prenom, r.nom, r.staffName]),
+        tokens,
+      );
     });
-    out.sort((a, b) => {
-      const c = compareRows(a, b, sortKey);
-      return sortDir === 'asc' ? c : -c;
-    });
+    out.sort(
+      rowComparator({
+        compare: (a, b) => compareRows(a, b, sortKey),
+        dir: sortDir,
+        isMissing: (r) => sortsLast(r, sortKey),
+      }),
+    );
     return out;
   });
 
   const anyFiltersApplied = $derived(
     searchQuery.trim().length > 0 || statutFilter !== 'all',
   );
-  const countSuffix = $derived(
-    anyFiltersApplied
-      ? filtered.length > 1
-        ? 'correspondent aux filtres'
-        : 'correspond aux filtres'
-      : 'au total',
-  );
-
   // A closing is an event-scoped act, so it is conducted on its own page under
   // the event rather than on the talent fiche: this roster is the way in
   // to conducting one, so the dev lands on the questions rather than on the
@@ -195,25 +200,16 @@
 {/snippet}
 
 {#if total === 0}
-  <div
-    class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-  >
-    <MessageSquare class="h-10 w-10 text-muted-foreground opacity-30" />
-    <h3
-      class="mt-4 text-sm font-bold tracking-widest text-foreground uppercase"
-    >
-      Aucun {noun.singular} inscrit
-    </h3>
-    <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-      Les closings apparaîtront ici dès que la cohorte de l'événement sera
-      synchronisée.
-    </p>
-  </div>
+  <ResultsNotice
+    icon={MessageSquare}
+    title={`Aucun ${noun.singular} inscrit`}
+    description="Les closings apparaîtront ici dès que la cohorte de l'événement sera synchronisée."
+  />
 {:else}
-  <div class="grid gap-6 xl:grid-cols-10">
-    <!-- Left 70%: the working list. `min-w-0` lets the fixed-layout table
-         shrink to its grid track instead of overflowing past the rail. -->
-    <div class="min-w-0 space-y-4 xl:col-span-7">
+  <ResultsLayout
+    railClass="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1"
+  >
+    {#snippet main()}
       <DataTableToolbar
         searchValue={searchQuery}
         onSearchInput={(v) => (searchQuery = v)}
@@ -222,7 +218,7 @@
         filtersAlign="end"
         count={filtered.length}
         countNoun="closing"
-        {countSuffix}
+        filtersApplied={anyFiltersApplied}
       >
         {#snippet filters()}
           <div class="flex items-center gap-2">
@@ -327,18 +323,13 @@
           </div>
         {/snippet}
       </SortableTable>
-    </div>
+    {/snippet}
 
-    <!-- Right 30%: synthesis, the staff tally and the closing guide. Same
-         sticky-rail mechanics as Inscrits / Émargement. -->
-    <aside class="min-w-0 xl:col-span-3">
-      <div
-        class="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:sticky xl:top-6 xl:max-h-[calc(100dvh-6rem)] xl:grid-cols-1 xl:overflow-y-auto xl:pr-1"
-      >
-        <SynthesisCard {counts} {total} {recoCounts} />
-        <StaffTallyCard staff={topStaff} {currentStaffId} />
-        <GuideCard />
-      </div>
-    </aside>
-  </div>
+    <!-- Synthesis, the staff tally and the closing guide. -->
+    {#snippet rail()}
+      <SynthesisCard {counts} {total} {recoCounts} />
+      <StaffTallyCard staff={topStaff} {currentStaffId} />
+      <GuideCard />
+    {/snippet}
+  </ResultsLayout>
 {/if}

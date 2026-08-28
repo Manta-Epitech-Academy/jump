@@ -12,6 +12,11 @@
   import { enhance } from '$app/forms';
   import { goto, invalidate } from '$app/navigation';
   import { page } from '$app/state';
+  import {
+    resetListParams,
+    setListParams,
+  } from '$lib/components/staff/datatable/urlList';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
@@ -114,29 +119,11 @@
     return data.countByStatus.error;
   }
 
-  function navigateWithParams(params: Record<string, string>) {
-    const url = new URL(page.url);
-    for (const [key, value] of Object.entries(params)) {
-      if (value) url.searchParams.set(key, value);
-      else url.searchParams.delete(key);
-    }
-    goto(url.toString(), { keepFocus: true, noScroll: true });
-  }
-
-  let searchQuery = $state(page.url.searchParams.get('q') ?? '');
-  let searchTimeout: ReturnType<typeof setTimeout>;
-  function handleSearchInput(e: Event) {
-    searchQuery = (e.target as HTMLInputElement).value;
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(
-      () => navigateWithParams({ q: searchQuery.trim() }),
-      300,
-    );
-  }
+  const search = createUrlSearch();
 
   function clearFilters() {
-    searchQuery = '';
-    goto(page.url.pathname, { keepFocus: true, noScroll: true });
+    search.clear();
+    resetListParams();
   }
 
   // Live feed: jobs move pending → processing → success within seconds, so poll
@@ -248,7 +235,7 @@
         sub={card.caption}
         icon={card.Icon}
         tone={card.tone}
-        onclick={() => navigateWithParams({ status: card.key })}
+        onclick={() => setListParams({ status: card.key })}
         pressed={data.filters.status === card.key}
       />
     {/each}
@@ -273,8 +260,9 @@
             <Input
               type="search"
               placeholder="Rechercher un talent…"
-              value={searchQuery}
-              oninput={handleSearchInput}
+              value={search.value}
+              oninput={(e) =>
+                (search.value = (e.currentTarget as HTMLInputElement).value)}
               class="h-9 w-56 rounded-sm pl-8"
             />
           </div>
@@ -282,7 +270,7 @@
           <FilterSelect
             options={documentTypeFilterOptions}
             value={data.filters.type}
-            onChange={(v) => navigateWithParams({ type: v })}
+            onChange={(v) => setListParams({ type: v })}
             ariaLabel="Filtrer par document"
             triggerClass="text-xs"
           />

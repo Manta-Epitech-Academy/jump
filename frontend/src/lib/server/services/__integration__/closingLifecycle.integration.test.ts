@@ -593,11 +593,26 @@ describe("the talent's journey", () => {
     // configured, so the fiche can hold rows whose destination would 404 on both
     // counts. The row stays either way - the event happened - but the name is
     // only a link where it leads somewhere.
+    //
+    // `notActivated` is the case that does NOT 404: `loadEventOr404` gates on
+    // campus, never on activation, so the page opens - under the sidebar and
+    // switcher of whatever event the workspace defaults to, since the URL names
+    // one the workspace has no member for. Hence the link is withheld on dev
+    // visibility too, not only on the module.
     const past = new Date('2026-03-02T09:00:00Z');
-    const [open, noModule, elsewhere] = await Promise.all([
+    const [open, notActivated, noModule, elsewhere] = await Promise.all([
       prisma.event.create({
         data: {
           titre: `JourneyOpen-${stamp}`,
+          date: past,
+          campusId: ids.campus,
+          devActivatedAt: new Date(),
+          modules: { create: { moduleKey: 'inscrits' } },
+        },
+      }),
+      prisma.event.create({
+        data: {
+          titre: `JourneyHidden-${stamp}`,
           date: past,
           campusId: ids.campus,
           modules: { create: { moduleKey: 'inscrits' } },
@@ -608,6 +623,7 @@ describe("the talent's journey", () => {
           titre: `JourneyNoModule-${stamp}`,
           date: past,
           campusId: ids.campus,
+          devActivatedAt: new Date(),
           modules: { create: { moduleKey: 'emargement' } },
         },
       }),
@@ -616,6 +632,7 @@ describe("the talent's journey", () => {
           titre: `JourneyElsewhere-${stamp}`,
           date: past,
           campusId: ids.otherCampus,
+          devActivatedAt: new Date(),
           modules: { create: { moduleKey: 'inscrits' } },
         },
       }),
@@ -626,6 +643,7 @@ describe("the talent's journey", () => {
     await prisma.participation.createMany({
       data: [
         { talentId: talent.id, eventId: open.id, campusId: ids.campus },
+        { talentId: talent.id, eventId: notActivated.id, campusId: ids.campus },
         { talentId: talent.id, eventId: noModule.id, campusId: ids.campus },
         {
           talentId: talent.id,
@@ -644,13 +662,20 @@ describe("the talent's journey", () => {
       journey.entries.find((e) => e.eventId === eventId)?.eventHref;
 
     expect(href(open.id)).toBe(`/staff/dev/events/${open.id}/inscrits`);
+    expect(href(notActivated.id)).toBeNull();
     expect(href(noModule.id)).toBeNull();
     expect(href(elsewhere.id)).toBeNull();
+
+    // Withheld link, kept row: the events are the talent's history, not the
+    // workspace's configuration.
+    expect(journey.entries).toHaveLength(4);
 
     await prisma.participation.deleteMany({ where: { talentId: talent.id } });
     await prisma.talent.delete({ where: { id: talent.id } });
     await prisma.event.deleteMany({
-      where: { id: { in: [open.id, noModule.id, elsewhere.id] } },
+      where: {
+        id: { in: [open.id, notActivated.id, noModule.id, elsewhere.id] },
+      },
     });
   });
 });

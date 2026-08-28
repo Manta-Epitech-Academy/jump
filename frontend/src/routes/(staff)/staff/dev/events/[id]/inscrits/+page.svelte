@@ -12,6 +12,7 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import InscritsResults from './components/InscritsResults.svelte';
   import LoadingCeremony from '$lib/components/LoadingCeremony.svelte';
 
@@ -195,17 +196,10 @@
       showStatutColumn={data.showStatutColumn}
     />
   {:catch}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-    >
-      <h3 class="text-sm font-bold tracking-widest text-foreground uppercase">
-        Chargement impossible
-      </h3>
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        La liste des inscrits n'a pas pu être chargée. Rechargez la page pour
-        réessayer.
-      </p>
-    </div>
+    <ResultsNotice
+      title="Chargement impossible"
+      description="La liste des inscrits n'a pas pu être chargée. Rechargez la page pour réessayer."
+    />
   {/await}
 </div>
 

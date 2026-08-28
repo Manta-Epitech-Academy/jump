@@ -7,6 +7,10 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
+  import {
+    pageCount,
+    paginate,
+  } from '$lib/components/staff/datatable/paginate';
   import SalesforceIconLink from '$lib/components/salesforce/SalesforceIconLink.svelte';
   import CloudDownload from '@lucide/svelte/icons/cloud-download';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
@@ -218,24 +222,19 @@
   });
 
   const conflictsTotalPages = $derived(
-    Math.ceil(visibleConflicts.length / PER_PAGE),
+    pageCount(visibleConflicts.length, PER_PAGE),
   );
   const pagedConflicts = $derived(
-    visibleConflicts.slice(
-      (conflictsPage - 1) * PER_PAGE,
-      conflictsPage * PER_PAGE,
-    ),
+    paginate(visibleConflicts, conflictsPage, PER_PAGE),
   );
   const pushTotalPages = $derived(
-    Math.ceil(visiblePushGroups.length / PER_PAGE),
+    pageCount(visiblePushGroups.length, PER_PAGE),
   );
   const pagedPushGroups = $derived(
-    visiblePushGroups.slice((pushPage - 1) * PER_PAGE, pushPage * PER_PAGE),
+    paginate(visiblePushGroups, pushPage, PER_PAGE),
   );
-  const authTotalPages = $derived(Math.ceil(visibleAuth.length / PER_PAGE));
-  const pagedAuth = $derived(
-    visibleAuth.slice((authPage - 1) * PER_PAGE, authPage * PER_PAGE),
-  );
+  const authTotalPages = $derived(pageCount(visibleAuth.length, PER_PAGE));
+  const pagedAuth = $derived(paginate(visibleAuth, authPage, PER_PAGE));
 
   // Detail rows are revealed on demand (chevron) so the table stays light; the
   // data is already in `authConflicts`, no extra request.

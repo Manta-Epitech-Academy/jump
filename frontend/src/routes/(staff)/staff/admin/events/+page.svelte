@@ -47,6 +47,7 @@
   import { untrack } from 'svelte';
   import type { AdminEventVM } from './+page.server';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import { nextSort } from '$lib/components/staff/datatable/sort';
 
   let { data } = $props();
 
@@ -105,12 +106,9 @@
   };
 
   function toggleSort(key: string) {
-    if (sortKey === key) {
-      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortKey = key;
-      sortDir = columns.find((c) => c.key === key)?.defaultSortDir ?? 'asc';
-    }
+    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
+    sortKey = next.key;
+    sortDir = next.dir;
   }
 
   function compareEvents(

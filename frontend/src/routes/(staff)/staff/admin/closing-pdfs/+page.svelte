@@ -12,8 +12,12 @@
   import Frown from '@lucide/svelte/icons/frown';
   import { resolve } from '$app/paths';
   import { enhance } from '$app/forms';
-  import { goto } from '$app/navigation';
   import { page } from '$app/state';
+  import {
+    resetListParams,
+    setListParams,
+  } from '$lib/components/staff/datatable/urlList';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
@@ -30,7 +34,9 @@
   import type { ClosingRecommendation } from '@prisma/client';
   import { cn, formatDateTimeFr } from '$lib/utils';
   import { toast } from 'svelte-sonner';
+  import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import ExportMenu from './components/ExportMenu.svelte';
   import ResetClosingDialog from './components/ResetClosingDialog.svelte';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
@@ -39,27 +45,11 @@
 
   let { data }: { data: PageData } = $props();
 
-  // Resolve the streamed cohort into local state rather than a bare `{#await}`:
-  // search and the reco tiles re-navigate (and the reset action re-runs the
-  // load), each handing `data.cohort` a fresh promise. A template `{#await}`
-  // would flash the skeleton + remount the table + KPI tiles on every one of
-  // those; holding the last result keeps them in place and shows the skeleton
-  // only on the first load. The `=== p` guard drops a stale resolution arriving
-  // after a newer navigation has started. Mirrors talents / sf-conflicts.
+  // The search and the reco tiles re-navigate, and the reset action re-runs the
+  // load, so each one hands `data.cohort` a fresh promise: the table and the KPI
+  // tiles are held across them rather than re-awaited. See `createStreamedCohort`.
   type Cohort = Awaited<PageData['cohort']>;
-  let cohort = $state<Cohort | null>(null);
-  let cohortFailed = $state(false);
-  $effect(() => {
-    const p = data.cohort;
-    p.then((d) => {
-      if (data.cohort === p) {
-        cohort = d;
-        cohortFailed = false;
-      }
-    }).catch(() => {
-      if (data.cohort === p) cohortFailed = true;
-    });
-  });
+  const cohort = createStreamedCohort<Cohort>(() => data.cohort);
 
   type ResetTarget = {
     id: string;
@@ -141,34 +131,16 @@
   ];
 
   function cardValue(key: string): number {
-    if (!cohort) return 0;
-    if (key === 'all') return cohort.totalDone;
-    return cohort.recoCounts[key] ?? 0;
+    if (!cohort.value) return 0;
+    if (key === 'all') return cohort.value.totalDone;
+    return cohort.value.recoCounts[key] ?? 0;
   }
 
-  function navigateWithParams(params: Record<string, string>) {
-    const url = new URL(page.url);
-    for (const [key, value] of Object.entries(params)) {
-      if (value) url.searchParams.set(key, value);
-      else url.searchParams.delete(key);
-    }
-    goto(url.toString(), { keepFocus: true, noScroll: true });
-  }
-
-  let searchQuery = $state(page.url.searchParams.get('q') ?? '');
-  let searchTimeout: ReturnType<typeof setTimeout>;
-  function handleSearchInput(e: Event) {
-    searchQuery = (e.target as HTMLInputElement).value;
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(
-      () => navigateWithParams({ q: searchQuery.trim() }),
-      300,
-    );
-  }
+  const search = createUrlSearch();
 
   function clearFilters() {
-    searchQuery = '';
-    goto(page.url.pathname, { keepFocus: true, noScroll: true });
+    search.clear();
+    resetListParams();
   }
 
   const th = 'font-mono text-xs font-normal uppercase tracking-wider';
@@ -187,8 +159,8 @@
     {/snippet}
   </PageHeader>
 
-  {#if cohort}
-    {@const c = cohort}
+  {#if cohort.value}
+    {@const c = cohort.value}
     <!-- KPI tiles as filter toggles -->
     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
       {#each cards as card (card.key)}
@@ -198,7 +170,7 @@
           sub={card.caption}
           icon={card.Icon}
           tone={card.tone}
-          onclick={() => navigateWithParams({ reco: card.key })}
+          onclick={() => setListParams({ reco: card.key })}
           pressed={data.filters.reco === card.key}
         />
       {/each}
@@ -223,8 +195,9 @@
               <Input
                 type="search"
                 placeholder="Rechercher un talent..."
-                value={searchQuery}
-                oninput={handleSearchInput}
+                value={search.value}
+                oninput={(e) =>
+                  (search.value = (e.currentTarget as HTMLInputElement).value)}
                 class="h-9 w-56 rounded-sm pl-8"
               />
             </div>
@@ -346,18 +319,11 @@
         </Table.Root>
       </Card.Content>
     </Card.Root>
-  {:else if cohortFailed}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-    >
-      <h3 class="text-sm font-bold tracking-widest text-foreground uppercase">
-        Chargement impossible
-      </h3>
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        Les closings n'ont pas pu être chargés. Rechargez la page pour
-        réessayer.
-      </p>
-    </div>
+  {:else if cohort.failed}
+    <ResultsNotice
+      title="Chargement impossible"
+      description="Les closings n'ont pas pu être chargés. Rechargez la page pour réessayer."
+    />
   {:else}
     <ResultsSkeleton rows={8} rail={false} />
   {/if}

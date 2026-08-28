@@ -14,5 +14,9 @@ export const GET: RequestHandler = async () => {
     select: { conductedAt: true },
     orderBy: { conductedAt: 'desc' },
   });
-  return json({ timeline: rows.map((r) => r.conductedAt.toISOString()) });
+  // One shape for every export-menu timeline (`{ at, type? }`), so the menu needs
+  // no per-caller parser. A closing synthesis has no type axis, so no `type`.
+  return json({
+    timeline: rows.map((r) => ({ at: r.conductedAt.toISOString() })),
+  });
 };
