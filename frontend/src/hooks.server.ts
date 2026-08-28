@@ -2,7 +2,11 @@ import type { Handle } from '@sveltejs/kit';
 import { auth } from '$lib/server/auth';
 import { prisma } from '$lib/server/db';
 import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_VIEW_ROUTES, usageSessionFeature } from '$lib/domain/usage';
+import {
+  USAGE_FEATURE_DEFS,
+  USAGE_VIEW_ROUTES,
+  usageSessionFeature,
+} from '$lib/domain/usage';
 import { applyRouteGuards } from '$lib/server/auth/guards';
 import { slideImpersonationExpiry } from '$lib/server/auth/impersonation';
 import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
@@ -95,8 +99,19 @@ function recordOpenIfTracked(event: Parameters<Handle>[0]['event']) {
 /**
  * One visit row and one session row per request that reaches a mapped route.
  *
- * GET only: a form POST is an action, and actions record themselves on site with
- * the event id the hook cannot know.
+ * GET only: a form POST is an action, and actions record themselves on site.
+ *
+ * AN EVENT-SCOPED VIEW CARRIES ITS EVENT, and it has to come from the route
+ * params here because nothing else in the request knows it. Leaving it null cost
+ * twice over: `stats_feature_usage` filtered by `eventId` answered zero for
+ * every dev view, and, worse, `eventId` is part of the composed dedupe key, so
+ * one member opening two events' émargement inside the same 30-minute bucket
+ * wrote a single row and the second was silently dropped by `skipDuplicates`.
+ *
+ * Read only when the catalogue says the feature is event-scoped, so a route with
+ * an `[id]` that is not an event (the talent fiche) cannot leak that id into the
+ * event column. `[id]` on the dev event routes and `[eventId]` on the talent
+ * feedback route are the two spellings in the map.
  */
 function recordVisit(event: Parameters<Handle>[0]['event']) {
   if (event.request.method !== 'GET') return;
@@ -104,7 +119,13 @@ function recordVisit(event: Parameters<Handle>[0]['event']) {
   if (!routeId) return;
   const ctx = { locals: event.locals, sessionId: event.locals.session?.id };
   const view = USAGE_VIEW_ROUTES[routeId];
-  if (view) recordUsage(view, ctx);
+  if (view) {
+    const eventId =
+      USAGE_FEATURE_DEFS[view].scope === 'event'
+        ? (event.params.eventId ?? event.params.id ?? null)
+        : null;
+    recordUsage(view, { ...ctx, eventId });
+  }
   const session = usageSessionFeature(routeId);
   if (session) recordUsage(session, ctx);
 }
