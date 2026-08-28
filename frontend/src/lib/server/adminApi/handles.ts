@@ -42,7 +42,8 @@ export type HandleKind =
   | 'closingTemplateId'
   | 'closingTemplateKey'
   | 'closingQuestionKey'
-  | 'closingId';
+  | 'closingId'
+  | 'usageFeatureKey';
 
 /**
  * Deliberately only the operation and the slice it covers, never where the value
@@ -87,6 +88,20 @@ type Handle = {
 };
 
 export const HANDLES: Record<HandleKind, Handle> = {
+  usageFeatureKey: {
+    what: 'Usage feature key, the catalogue name of a measurable feature of Jump.',
+    frNoun: 'clés de fonctionnalité',
+    frGender: 'f',
+    producedBy: [
+      { operation: 'stats_feature_usage' },
+      {
+        operation: 'stats_campus_feature_coverage',
+        covers:
+          'only the features attached to a campus or an event, never one of the national admin surfaces',
+      },
+    ],
+  },
+
   eventId: {
     what: 'Event id.',
     frNoun: "identifiants d'événement",
@@ -240,6 +255,7 @@ export const HANDLES: Record<HandleKind, Handle> = {
  * own `describe()` against the handle this map claims for it.
  */
 export const PARAM_HANDLES: Record<string, HandleKind> = {
+  feature: 'usageFeatureKey',
   eventId: 'eventId',
   formId: 'formId',
   // The feedback form's question key. The closing bank's is `questionKey`, below.

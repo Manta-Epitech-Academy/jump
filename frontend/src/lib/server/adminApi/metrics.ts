@@ -207,4 +207,9 @@ export const RANK_UNITS = {
   campus: { singular: 'campus', plural: 'campus', gender: 'm' },
   event: { singular: 'événement', plural: 'événements', gender: 'm' },
   grid: { singular: 'grille', plural: 'grilles', gender: 'f' },
+  feature: {
+    singular: 'fonctionnalité',
+    plural: 'fonctionnalités',
+    gender: 'f',
+  },
 } as const;

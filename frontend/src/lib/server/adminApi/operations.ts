@@ -63,9 +63,10 @@ import { z } from 'zod';
 import type { AdminApi_TokenTier } from '@prisma/client';
 import { EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
 import { isCalendarDay, isWallClock } from '$lib/domain/planningTime';
-import { resolveScope } from './scope';
+import { resolveScope, UnknownScopeError } from './scope';
 import {
   handleDescribe,
+  handleProvenanceFr,
   handlesProvidedBy,
   handlesRequiredBy,
 } from './handles';
@@ -192,6 +193,16 @@ import {
   getAttendanceRate,
   ATTENDANCE_EVENTS_LIMIT,
 } from '$lib/server/services/adminStats/attendanceRate';
+import {
+  getFeatureUsage,
+  getFeatureAdoptionGaps,
+  getCampusFeatureCoverage,
+} from '$lib/server/services/adminStats/featureUsage';
+import { getStaffActivity } from '$lib/server/services/adminStats/staffActivity';
+import {
+  USAGE_FEATURE_KEYS,
+  USAGE_RAW_RETENTION_DAYS,
+} from '$lib/domain/usage';
 
 // One format check, two arities. The operations that compare or rank across
 // campuses require a year rather than defaulting to all of them, so the required
@@ -216,6 +227,36 @@ const campus = z
 
 // The lifecycle axis, kept apart from the configuration one: an event is upcoming,
 // ongoing or past by the calendar, and configured or not by what an admin did.
+/**
+ * The window, in days. Closed rather than free so a caller cannot ask for a span
+ * the raw rows no longer cover without being told which store answered; the
+ * answer's `source` field says which one did.
+ */
+const usageDays = z
+  .enum(['7', '30', '90', '365'])
+  .optional()
+  .describe(
+    `Window in days. Beyond ${USAGE_RAW_RETENTION_DAYS} days the answer comes from the monthly rollup, and says so. Omit for 30.`,
+  );
+
+const usageAudience = z
+  .enum(['staff', 'talent'])
+  .optional()
+  .describe(
+    'Restrict to features used by the team, or by talents. Omit for both.',
+  );
+
+const usageSpace = z
+  .enum(['dev', 'admin', 'talent'])
+  .optional()
+  .describe('Restrict to one workspace. Omit for all of them.');
+
+const usageFeature = z
+  .string()
+  .min(1)
+  .optional()
+  .describe(`${handleDescribe('usageFeatureKey')} Omit for every feature.`);
+
 const eventStatus = z
   .enum(['upcoming', 'ongoing', 'past'])
   .optional()
@@ -297,6 +338,25 @@ export type AdminApiOperation = {
     ctx: OperationContext,
   ) => Promise<unknown>;
 };
+
+/**
+ * A feature key the catalogue does not know is a refusal, not an empty answer.
+ *
+ * Same rule as an unknown campus in `scope.ts`, and it matters more here: the
+ * honest answer for a real feature nobody used is a zero, so a typo returning a
+ * zero would be indistinguishable from the finding this whole operation exists
+ * to produce.
+ */
+function assertUsageFeature(value: string | undefined) {
+  if (value === undefined) return undefined;
+  const known = USAGE_FEATURE_KEYS.find((key) => key === value);
+  if (!known) {
+    throw new UnknownScopeError(
+      `Fonctionnalité « ${value} » inconnue. ${handleProvenanceFr('usageFeatureKey')}`,
+    );
+  }
+  return known;
+}
 
 function defineOperation<Shape extends z.ZodRawShape>(op: {
   description: string;
@@ -1076,6 +1136,58 @@ export const ADMIN_API_OPERATIONS = {
       'Who the talents in scope are: how many, the split by declared civilité and by school level, the share who finished the online sign-up, and the share who ever logged in. Every proportion is returned computed, with the denominator it used. Counts only, nobody is named.',
     shape: { schoolYear, campus, eventId },
     run: async (params) => getCohortProfile(await resolveScope(params)),
+  }),
+
+  stats_feature_usage: defineOperation({
+    leadership: true,
+    description:
+      'Which features of Jump are actually used: per feature, the number of uses, the number of distinct people who used it in the month, the share of the population that could have, and the last time it happened. Every catalogued feature is listed whether or not it was used, because naming the ones nobody touches is the point. Ranked on distinct people, not on uses. Counts only, nobody is named.',
+    shape: {
+      schoolYear,
+      campus,
+      eventId,
+      audience: usageAudience,
+      space: usageSpace,
+      days: usageDays,
+      feature: usageFeature,
+    },
+    run: async ({ audience, space, days, feature, ...scope }) =>
+      getFeatureUsage(await resolveScope(scope), {
+        audience,
+        space,
+        days: days ? Number(days) : undefined,
+        feature: assertUsageFeature(feature),
+      }),
+  }),
+
+  stats_feature_adoption_gaps: defineOperation({
+    leadership: true,
+    description:
+      'The actionable half of feature adoption: the features nobody used over the window, which are the candidates for removal, and the features exactly one campus uses, which are the opposite and a training question. Two lists, because the two decisions are different.',
+    shape: { schoolYear, campus, days: usageDays },
+    run: async ({ days, ...scope }) =>
+      getFeatureAdoptionGaps(await resolveScope(scope), {
+        days: days ? Number(days) : undefined,
+      }),
+  }),
+
+  stats_campus_feature_coverage: defineOperation({
+    leadership: true,
+    description:
+      'Which campus uses what, ranked: one row per campus with how many of the measurable features it used, out of how many available, and its adoption rate. Pass a feature to compare that one feature across every campus. Only features attached to a campus or an event appear, since an admin-space feature is national.',
+    shape: { schoolYear, days: usageDays, feature: usageFeature },
+    run: async ({ days, feature, ...scope }) =>
+      getCampusFeatureCoverage(await resolveScope(scope), {
+        days: days ? Number(days) : undefined,
+        feature: assertUsageFeature(feature),
+      }),
+  }),
+
+  ops_staff_activity: defineOperation({
+    description:
+      'Whether the team logs in at all: headcount with a role, accounts never opened, active in the last 7 days, inactive for over 30, and the median days since last activity, broken down per campus and per role. Nobody is named; open the members page for that.',
+    shape: { campus },
+    run: async (params) => getStaffActivity(await resolveScope(params)),
   }),
 
   stats_schools_reach: defineOperation({

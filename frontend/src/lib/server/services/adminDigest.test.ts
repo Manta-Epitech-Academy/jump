@@ -5,6 +5,7 @@ const getUnconfiguredEvents = vi.fn();
 const getSyncHealth = vi.fn();
 const getPdfJobsHealth = vi.fn();
 const getAccountDeletionQueue = vi.fn();
+const getFeatureAdoptionGaps = vi.fn();
 
 vi.mock('$lib/server/services/adminStats/unconfiguredEvents', () => ({
   getUnconfiguredEvents: () => getUnconfiguredEvents(),
@@ -16,6 +17,9 @@ vi.mock('$lib/server/services/adminStats/syncHealth', () => ({
 vi.mock('$lib/server/services/adminStats/opsQueues', () => ({
   getPdfJobsHealth: () => getPdfJobsHealth(),
   getAccountDeletionQueue: () => getAccountDeletionQueue(),
+}));
+vi.mock('$lib/server/services/adminStats/featureUsage', () => ({
+  getFeatureAdoptionGaps: () => getFeatureAdoptionGaps(),
 }));
 
 const { buildAdminDigest } = await import('./adminDigest');
@@ -109,12 +113,31 @@ function deletionsPayload(over: { pending?: number; overdue?: number } = {}) {
   };
 }
 
+/**
+ * Adoption gaps, empty by default: the section has to render nothing when there
+ * is nothing to say, or every other test's "quiet digest" assertions would be
+ * measuring this section instead.
+ */
+function adoptionPayload(
+  unused: { feature: string; libelle: string; espace: string }[] = [],
+  singleCampus: { feature: string; libelle: string; campus: string }[] = [],
+) {
+  return {
+    filters: { schoolYear: 'toutes', campus: 'tous', jours: 90 },
+    jamaisUtilisees: metric(unused, 'def'),
+    unSeulCampus: metric(singleCampus, 'def'),
+    aRetirer: metric(unused.length, 'def'),
+    aFormer: metric(singleCampus.length, 'def'),
+  };
+}
+
 beforeEach(() => {
   getUnconfiguredEvents.mockReset();
   getSyncHealth.mockReset();
   // Quiet queues by default, so a test that cares about them says so.
   getPdfJobsHealth.mockReset().mockResolvedValue(pdfJobsPayload());
   getAccountDeletionQueue.mockReset().mockResolvedValue(deletionsPayload());
+  getFeatureAdoptionGaps.mockReset().mockResolvedValue(adoptionPayload());
 });
 
 describe('buildAdminDigest', () => {
@@ -151,6 +174,8 @@ describe('buildAdminDigest', () => {
       lastSyncAgeHours: 0.5,
       failedPdfJobs: 0,
       overdueDeletionRequests: 0,
+      unusedFeatures: 0,
+      singleCampusFeatures: 0,
     });
   });
 
@@ -277,5 +302,48 @@ describe('buildAdminDigest', () => {
     expect(digest.html).toContain('jamais été enregistrée');
     expect(digest.html).toContain('Pourtant, <strong>4</strong> erreurs');
     expect(digest.html).toContain('/staff/admin/sync-errors');
+  });
+
+  it('names the features nobody used, and the ones a single campus uses', async () => {
+    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload());
+    getFeatureAdoptionGaps.mockResolvedValue(
+      adoptionPayload(
+        [
+          {
+            feature: 'admin_signatory_write',
+            libelle: 'Signataire créé ou modifié',
+            espace: 'admin',
+          },
+        ],
+        [
+          {
+            feature: 'dev_badges_render',
+            libelle: 'Génération des badges',
+            campus: 'Lille',
+          },
+        ],
+      ),
+    );
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain('Adoption');
+    expect(digest.html).toContain('Signataire créé ou modifié');
+    expect(digest.html).toContain('Génération des badges');
+    expect(digest.html).toContain('Lille');
+    expect(digest.text).toContain('Signataire créé ou modifié');
+    expect(digest.summary.unusedFeatures).toBe(1);
+    expect(digest.summary.singleCampusFeatures).toBe(1);
+  });
+
+  it('says so plainly when every measured feature has served', async () => {
+    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload());
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain('ont servi au moins une fois');
+    expect(digest.summary.unusedFeatures).toBe(0);
   });
 });
