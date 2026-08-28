@@ -12,6 +12,8 @@ import {
   listTalentDocuments,
 } from '$lib/server/services/onboardingDocuments';
 import { resolveTalentDocumentStatus } from '$lib/server/services/onboardingPdfJobService';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) {
@@ -131,6 +133,8 @@ export const actions: Actions = {
         message: 'Erreur lors de la demande de suppression',
       });
     }
+
+    recordUsage(USAGE_FEATURES.TALENT_DELETION_REQUEST, { locals });
 
     return { deletionRequested: true };
   },

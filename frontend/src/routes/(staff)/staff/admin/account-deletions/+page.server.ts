@@ -1,6 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   fulfillTalentDeletion,
   isDeletionRequestOverdue,
@@ -73,6 +75,7 @@ export const actions: Actions = {
   // Fulfil = erase. Belt-and-braces admin assert on top of the /staff/admin/*
   // route guard, since this destroys a talent's PII.
   fulfill: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_ACCOUNT_DELETION_FULFIL, { locals });
     if (locals.staffProfile?.staffRole !== 'admin' || !locals.user) {
       return fail(403);
     }
@@ -94,6 +97,7 @@ export const actions: Actions = {
   },
 
   reject: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_ACCOUNT_DELETION_REJECT, { locals });
     if (locals.staffProfile?.staffRole !== 'admin' || !locals.user) {
       return fail(403);
     }

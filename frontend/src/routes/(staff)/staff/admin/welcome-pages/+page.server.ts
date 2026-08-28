@@ -3,6 +3,8 @@ import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { eventWindowEnd } from '$lib/domain/event';
 import { sanitizeWelcomeHtml } from '$lib/server/cms/sanitize';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 const SLUG = 'welcome';
 
@@ -123,6 +125,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
 export const actions: Actions = {
   save: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_WELCOME_PAGE_SAVE, { locals });
     const userId = locals.user!.id;
     const formData = await request.formData();
     const eventId = formData.get('eventId');

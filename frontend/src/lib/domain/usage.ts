@@ -24,6 +24,17 @@
  * Keys stay plain strings, validated here rather than as a DB enum, so adding
  * one needs no migration. Same call as `EVENT_MODULES`, for the same reason.
  *
+ * WHEN A USE IS RECORDED, because the answer is not the same everywhere and the
+ * difference is a decision rather than drift:
+ *   - an endpoint that PRODUCES AN ARTIFACT records once the artifact exists (a
+ *     badge sheet, a certificate, an xlsx, a QR image). The artifact either was
+ *     produced or it was not, and an event that issues no certificate must not
+ *     count a 404 as a render.
+ *   - everything else records when the CONTROL IS INVOKED. A form somebody
+ *     deliberately submitted is a use of the feature whether or not the server
+ *     accepted the payload, and it keeps the count from depending on one
+ *     judgement call per action across sixty-odd call sites.
+ *
  * Naming: `space_object_action`.
  */
 
@@ -103,7 +114,7 @@ export const USAGE_FEATURES = {
   ADMIN_BROADCAST_RETRY: 'admin_broadcast_retry',
   ADMIN_BROADCAST_RECIPIENTS_EXPORT: 'admin_broadcast_recipients_export',
   ADMIN_TEMPLATE_SAVE: 'admin_template_save',
-  ADMIN_FEEDBACK_FORM_EDIT: 'admin_feedback_form_edit',
+  ADMIN_FEEDBACK_FORM_WRITE: 'admin_feedback_form_write',
   ADMIN_FEEDBACK_RESPONSES_EXPORT: 'admin_feedback_responses_export',
   ADMIN_CAMPUS_WRITE: 'admin_campus_write',
   ADMIN_USER_INVITE: 'admin_user_invite',
@@ -123,6 +134,11 @@ export const USAGE_FEATURES = {
   ADMIN_ACCOUNT_DELETION_REJECT: 'admin_account_deletion_reject',
   ADMIN_FILE_UPLOAD: 'admin_file_upload',
   ADMIN_FILE_DOWNLOAD: 'admin_file_download',
+  ADMIN_FILE_DELETE: 'admin_file_delete',
+  ADMIN_NOTE_DELETE: 'admin_note_delete',
+  ADMIN_TALENT_PARENT_EMAIL_UPDATE: 'admin_talent_parent_email_update',
+  ADMIN_USER_INVITE_CANCEL: 'admin_user_invite_cancel',
+  ADMIN_ONBOARDING_PDF_OPEN: 'admin_onboarding_pdf_open',
 
   // ── Talent space (pseudonymous) ───────────────────────────────────
   TALENT_SESSION: 'talent_session',
@@ -479,7 +495,8 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   [USAGE_FEATURES.DEV_TALENT_NOTE_DELETE]: def({
     key: USAGE_FEATURES.DEV_TALENT_NOTE_DELETE,
     label: 'Note supprimée',
-    definition: 'Suppressions d’une note.',
+    definition:
+      'Suppressions d’une note depuis la fiche d’un jeune. À lire avec les ajouts : beaucoup de suppressions pour peu d’ajouts dit que le fil sert de brouillon.',
     audience: 'staff',
     space: 'dev',
     kind: 'action',
@@ -900,7 +917,8 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   [USAGE_FEATURES.ADMIN_BROADCAST_TEST_SEND]: def({
     key: USAGE_FEATURES.ADMIN_BROADCAST_TEST_SEND,
     label: 'Envoi de test',
-    definition: 'Envois de test d’une campagne.',
+    definition:
+      'Envois de test d’une campagne, avant tout envoi réel. À lire face aux campagnes lancées : peu de tests pour beaucoup d’envois est un risque, pas une économie.',
     audience: 'staff',
     space: 'admin',
     kind: 'action',
@@ -941,15 +959,16 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   [USAGE_FEATURES.ADMIN_TEMPLATE_SAVE]: def({
     key: USAGE_FEATURES.ADMIN_TEMPLATE_SAVE,
     label: 'Modèle de message enregistré',
-    definition: 'Enregistrements d’un modèle de message.',
+    definition:
+      'Créations, modifications, duplications et suppressions d’un modèle de message.',
     audience: 'staff',
     space: 'admin',
     kind: 'action',
     scope: 'global',
     dedupe: 'each',
   }),
-  [USAGE_FEATURES.ADMIN_FEEDBACK_FORM_EDIT]: def({
-    key: USAGE_FEATURES.ADMIN_FEEDBACK_FORM_EDIT,
+  [USAGE_FEATURES.ADMIN_FEEDBACK_FORM_WRITE]: def({
+    key: USAGE_FEATURES.ADMIN_FEEDBACK_FORM_WRITE,
     label: 'Questionnaire édité',
     definition: `Sessions d’édition d’un questionnaire. L’éditeur enregistre en continu, donc ce chiffre compte des sessions d’édition et non des enregistrements. ${BUCKET_NOTE}`,
     audience: 'staff',
@@ -972,7 +991,7 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   [USAGE_FEATURES.ADMIN_CAMPUS_WRITE]: def({
     key: USAGE_FEATURES.ADMIN_CAMPUS_WRITE,
     label: 'Campus créé ou modifié',
-    definition: 'Créations et modifications d’un campus.',
+    definition: 'Créations, modifications et suppressions d’un campus.',
     audience: 'staff',
     space: 'admin',
     kind: 'action',
@@ -1063,7 +1082,7 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   [USAGE_FEATURES.ADMIN_SIGNATORY_WRITE]: def({
     key: USAGE_FEATURES.ADMIN_SIGNATORY_WRITE,
     label: 'Signataire créé ou modifié',
-    definition: 'Créations et modifications d’un signataire.',
+    definition: 'Créations, modifications et suppressions d’un signataire.',
     audience: 'staff',
     space: 'admin',
     kind: 'action',
@@ -1073,7 +1092,8 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   [USAGE_FEATURES.ADMIN_INTEREST_WRITE]: def({
     key: USAGE_FEATURES.ADMIN_INTEREST_WRITE,
     label: 'Centre d’intérêt créé ou modifié',
-    definition: 'Créations et modifications d’un centre d’intérêt.',
+    definition:
+      'Créations, modifications et suppressions d’un centre d’intérêt.',
     audience: 'staff',
     space: 'admin',
     kind: 'action',
@@ -1083,7 +1103,8 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   [USAGE_FEATURES.ADMIN_MINIGAME_WRITE]: def({
     key: USAGE_FEATURES.ADMIN_MINIGAME_WRITE,
     label: 'Jeu créé ou modifié',
-    definition: 'Créations et modifications d’un jeu au catalogue.',
+    definition:
+      'Créations, modifications, retraits et publications forcées d’un jeu au catalogue.',
     audience: 'staff',
     space: 'admin',
     kind: 'action',
@@ -1148,6 +1169,60 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     audience: 'staff',
     space: 'admin',
     kind: 'export',
+    scope: 'global',
+    dedupe: 'each',
+  }),
+  [USAGE_FEATURES.ADMIN_FILE_DELETE]: def({
+    key: USAGE_FEATURES.ADMIN_FILE_DELETE,
+    label: 'Fichier supprimé',
+    definition: 'Suppressions d’un fichier de la bibliothèque.',
+    audience: 'staff',
+    space: 'admin',
+    kind: 'action',
+    scope: 'global',
+    dedupe: 'each',
+  }),
+  [USAGE_FEATURES.ADMIN_NOTE_DELETE]: def({
+    key: USAGE_FEATURES.ADMIN_NOTE_DELETE,
+    label: 'Note supprimée depuis l’admin',
+    definition:
+      'Suppressions d’une note depuis le fil admin. C’est la seule action de cette page, donc le seul chiffre qui dit si elle sert à modérer et pas seulement à lire.',
+    audience: 'staff',
+    space: 'admin',
+    kind: 'action',
+    scope: 'global',
+    dedupe: 'each',
+  }),
+  [USAGE_FEATURES.ADMIN_TALENT_PARENT_EMAIL_UPDATE]: def({
+    key: USAGE_FEATURES.ADMIN_TALENT_PARENT_EMAIL_UPDATE,
+    label: 'Email du parent corrigé',
+    definition:
+      'Corrections de l’adresse du représentant légal saisies par l’équipe. Un chiffre haut dit que l’adresse arrive mal, pas que la correction est mal faite.',
+    audience: 'staff',
+    space: 'admin',
+    kind: 'action',
+    scope: 'global',
+    dedupe: 'each',
+  }),
+  [USAGE_FEATURES.ADMIN_USER_INVITE_CANCEL]: def({
+    key: USAGE_FEATURES.ADMIN_USER_INVITE_CANCEL,
+    label: 'Invitation annulée',
+    definition:
+      'Annulations d’une invitation en attente, à l’unité comme en masse. Une par opération.',
+    audience: 'staff',
+    space: 'admin',
+    kind: 'action',
+    scope: 'global',
+    dedupe: 'each',
+  }),
+  [USAGE_FEATURES.ADMIN_ONBOARDING_PDF_OPEN]: def({
+    key: USAGE_FEATURES.ADMIN_ONBOARDING_PDF_OPEN,
+    label: 'Document d’inscription ouvert',
+    definition:
+      'Ouvertures d’un document d’inscription à l’unité depuis l’archive, distinctes du téléchargement de l’archive entière.',
+    audience: 'staff',
+    space: 'admin',
+    kind: 'document',
     scope: 'global',
     dedupe: 'each',
   }),

@@ -32,6 +32,8 @@ import {
 } from '$lib/domain/sfMemberStatus';
 import { eventDisplayName } from '$lib/domain/event';
 import { getLifecycleBounds, getEventStatus } from '$lib/domain/eventLifecycle';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // The scoped-down fiche keeps only the latest handful of communications, shown
 // one-line each in the sticky right rail, no pagination. Volume per talent is
@@ -321,6 +323,8 @@ async function correctImageRights({ request, locals, params }: RequestEvent) {
     recordedByStaffId: locals.staffProfile.id,
     note: form.data.note,
   });
+
+  recordUsage(USAGE_FEATURES.DEV_IMAGE_RIGHTS_CORRECT, { locals });
 
   return message(form, "Décision de droit à l'image mise à jour.");
 }

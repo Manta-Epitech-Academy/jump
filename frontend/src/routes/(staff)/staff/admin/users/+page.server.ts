@@ -4,6 +4,8 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { createAdminInvitationSchema } from '$lib/validation/staff';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   inviteStaff,
   cancelInvitation,
@@ -68,6 +70,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   invite: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_USER_INVITE, { locals });
     if (!locals.user) return fail(401);
 
     const form = await superValidate(
@@ -105,7 +108,8 @@ export const actions: Actions = {
     }
   },
 
-  cancelInvitation: async ({ url }) => {
+  cancelInvitation: async ({ url, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_USER_INVITE_CANCEL, { locals });
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
 
@@ -117,7 +121,8 @@ export const actions: Actions = {
   },
 
   // `ids` arrives as repeated form fields (the page posts the current selection).
-  cancelInvitationsBulk: async ({ request }) => {
+  cancelInvitationsBulk: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_USER_INVITE_CANCEL, { locals });
     const data = await request.formData();
     const ids = data
       .getAll('ids')
@@ -131,7 +136,8 @@ export const actions: Actions = {
     return { success: true, count: result.count };
   },
 
-  updateCampus: async ({ request }) => {
+  updateCampus: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_USER_CAMPUS_UPDATE, { locals });
     const data = await request.formData();
     const userId = data.get('userId') as string;
     const campusId = data.get('campusId') as string;
@@ -148,6 +154,7 @@ export const actions: Actions = {
   },
 
   updateRole: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_USER_ROLE_UPDATE, { locals });
     const data = await request.formData();
     const userId = data.get('userId') as string;
     const staffRole = data.get('staffRole') as string;
@@ -169,6 +176,7 @@ export const actions: Actions = {
   },
 
   deleteUser: async ({ url, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_USER_DELETE, { locals });
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
     if (id === locals.user?.id) {

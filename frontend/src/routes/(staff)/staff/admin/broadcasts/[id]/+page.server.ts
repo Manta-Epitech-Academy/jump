@@ -2,6 +2,8 @@ import type { Actions, PageServerLoad } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { processBroadcast } from '$lib/server/services/broadcast/orchestrator';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 const RECIPIENTS_PAGE_SIZE = 100;
 
@@ -120,7 +122,8 @@ export const load: PageServerLoad = async ({ params, url }) => {
 
 export const actions: Actions = {
   // Retry a single failed recipient.
-  retry: async ({ params, request }) => {
+  retry: async ({ params, request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_BROADCAST_RETRY, { locals });
     const formData = await request.formData();
     const recipientId = formData.get('recipientId');
     if (typeof recipientId !== 'string' || !recipientId) return fail(400);
@@ -140,7 +143,8 @@ export const actions: Actions = {
   },
 
   // Retry every failed recipient of this broadcast.
-  retryAll: async ({ params }) => {
+  retryAll: async ({ params, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_BROADCAST_RETRY, { locals });
     const reset = await prisma.broadcastRecipient.updateMany({
       where: { broadcastId: params.id, status: 'failed' },
       data: RETRY_RESET,

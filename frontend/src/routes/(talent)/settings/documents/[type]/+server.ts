@@ -1,6 +1,8 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getStorage } from '$lib/server/infra/storage';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   isTalentViewableDocument,
   onboardingDownloadFilename,
@@ -43,5 +45,7 @@ export const GET: RequestHandler = async ({ params, url: reqUrl, locals }) => {
     ),
     contentType: 'application/pdf',
   });
+  recordUsage(USAGE_FEATURES.TALENT_DOCUMENT_VIEW, { locals });
+
   throw redirect(302, url);
 };

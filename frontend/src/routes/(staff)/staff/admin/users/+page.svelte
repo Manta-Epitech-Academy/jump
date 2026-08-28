@@ -273,6 +273,7 @@
       exploreTarget.id,
       exploreTarget.staffProfile?.staffRole ?? null,
       exploreCampusName || null,
+      'campus_exploration',
     );
   }
 
@@ -334,6 +335,7 @@
     userId: string,
     staffRole: StaffRole | null,
     targetCampus: string | null,
+    reason: 'person' | 'campus_exploration' = 'person',
   ) {
     if (impersonating) return;
     impersonating = userId;
@@ -341,7 +343,7 @@
       const res = await fetch(resolve('/staff/admin/impersonate'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ kind: 'staff', id: userId }),
+        body: JSON.stringify({ kind: 'staff', id: userId, reason }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as {

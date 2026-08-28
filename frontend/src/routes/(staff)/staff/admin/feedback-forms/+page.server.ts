@@ -4,6 +4,8 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { formCreateSchema } from '$lib/validation/feedbackForms';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   requireAdmin,
   createForm,
@@ -66,6 +68,7 @@ export const load: PageServerLoad = async () => {
 
 export const actions: Actions = {
   create: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_FEEDBACK_FORM_WRITE, { locals });
     const { staffId } = requireAdmin(locals);
     const form = await superValidate(request, zod4(formCreateSchema));
     if (!form.valid) return fail(400, { form });
@@ -74,6 +77,7 @@ export const actions: Actions = {
   },
 
   duplicate: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_FEEDBACK_FORM_WRITE, { locals });
     const { staffId } = requireAdmin(locals);
     const data = await request.formData();
     const id = data.get('id');
@@ -83,6 +87,7 @@ export const actions: Actions = {
   },
 
   delete: async ({ url, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_FEEDBACK_FORM_WRITE, { locals });
     requireAdmin(locals);
     // id arrives as an action query param (?/delete&id=…) because the shared
     // ConfirmDeleteDialog renders no hidden field.

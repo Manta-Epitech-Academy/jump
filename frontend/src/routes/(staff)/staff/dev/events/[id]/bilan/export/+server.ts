@@ -10,6 +10,8 @@ import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
 import { answerCells, buildSubmissionWhere } from '$lib/server/feedbackStats';
 import { buildXlsx } from '$lib/server/xlsx';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // Event-scoped XLSX of the feedback responses, the dev-space counterpart of the
 // QR. Resolves the event's form exactly like the page (override else type
@@ -71,6 +73,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
       .trim();
   const formLabel = ascii(graph.title) || 'Feedback';
   const eventLabel = ascii(event.titre) || 'evenement';
+
+  recordUsage(USAGE_FEATURES.DEV_BILAN_EXPORT, { locals, eventId: params.id });
 
   return new Response(xlsx.buffer as ArrayBuffer, {
     headers: {

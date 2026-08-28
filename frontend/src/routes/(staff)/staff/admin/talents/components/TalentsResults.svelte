@@ -86,7 +86,11 @@
       const res = await fetch(resolve('/staff/admin/impersonate'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ kind: 'talent', id: talentId }),
+        body: JSON.stringify({
+          kind: 'talent',
+          id: talentId,
+          reason: 'person',
+        }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as {

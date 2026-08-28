@@ -19,6 +19,8 @@ import {
 } from '$lib/domain/eventPresence';
 import { isSlotPastCutoff } from '$lib/server/presence/slotClosure';
 import { PRESENCE_EXPORT_SELECT } from '../components/types';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 /**
  * Full-period émargement export: one row per enrolled talent, one column per
@@ -122,6 +124,11 @@ export const GET: RequestHandler = async ({ params, locals }) => {
       .replace(/[̀-ͯ]/g, '')
       .replace(/[^A-Za-z0-9 _-]/g, '')
       .trim() || 'emargement';
+
+  recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_EXPORT, {
+    locals,
+    eventId: params.id,
+  });
 
   return new Response(xlsx.buffer as ArrayBuffer, {
     headers: {

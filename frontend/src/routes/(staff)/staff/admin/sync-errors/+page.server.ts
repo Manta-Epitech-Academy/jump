@@ -1,6 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   resolveSyncError,
   resolveAllSyncErrors,
@@ -58,7 +60,8 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-  resolve: async ({ request }) => {
+  resolve: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SYNC_ERROR_RESOLVE, { locals });
     const formData = await request.formData();
     const id = formData.get('id') as string;
     if (!id) return fail(400);
@@ -67,12 +70,14 @@ export const actions: Actions = {
     return { success: true };
   },
 
-  resolveAll: async () => {
+  resolveAll: async ({ locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SYNC_ERROR_RESOLVE, { locals });
     await resolveAllSyncErrors();
     return { success: true };
   },
 
-  resolveSelected: async ({ request }) => {
+  resolveSelected: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SYNC_ERROR_RESOLVE, { locals });
     const formData = await request.formData();
     const ids = formData
       .getAll('ids')
@@ -83,7 +88,8 @@ export const actions: Actions = {
     return { success: true, count };
   },
 
-  rebind: async ({ request }) => {
+  rebind: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SYNC_ERROR_REBIND, { locals });
     const formData = await request.formData();
     const id = formData.get('id');
     if (typeof id !== 'string' || !id) return fail(400);

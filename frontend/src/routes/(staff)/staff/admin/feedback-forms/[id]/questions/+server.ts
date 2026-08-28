@@ -3,6 +3,8 @@ import { z } from 'zod';
 import type { RequestHandler } from './$types';
 import { prisma } from '$lib/server/db';
 import { questionSchema } from '$lib/validation/feedbackForms';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   requireAdmin,
   createQuestion,
@@ -10,6 +12,7 @@ import {
 } from '$lib/server/feedbackFormsAdmin';
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
+  recordUsage(USAGE_FEATURES.ADMIN_FEEDBACK_FORM_WRITE, { locals });
   requireAdmin(locals);
   const body = await request.json();
   const parsed = questionSchema.safeParse(body);
