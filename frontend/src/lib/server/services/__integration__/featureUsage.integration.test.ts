@@ -507,6 +507,57 @@ describe('the figures the two stores must agree on', () => {
     expect(row?.partDeLaPopulation).toBeNull();
   });
 
+  it('masks an event-scoped talent cell, which is narrower than a campus', async () => {
+    // The floor keyed on the campus filter alone, while the same operation also
+    // takes `eventId` and is reachable with a leadership token. An event names
+    // one campus, one date and a roster a dev can read by name, so it discloses
+    // more than the cell that was already withheld, not less.
+    await prisma.usage_FeatureUse.createMany({
+      data: [0, 1].map((i) => ({
+        feature: USAGE_FEATURES.TALENT_FEEDBACK_OPEN,
+        actorKind: 'talent' as const,
+        actorHash: hashFor(400 + i),
+        campusId: campusA,
+        eventId: eventA,
+      })),
+    });
+
+    const answer = await getFeatureUsage(
+      { event: { id: eventA, label: 'Événement' } },
+      { days: 90, feature: USAGE_FEATURES.TALENT_FEEDBACK_OPEN },
+    );
+    const row = answer.fonctionnalites.value.find(
+      (r) => r.feature === USAGE_FEATURES.TALENT_FEEDBACK_OPEN,
+    );
+    expect(row?.utilisations).toBe(2);
+    expect(row?.acteursDistinctsMoisDePointe).toBeNull();
+    expect(row?.moisDePointe).toBeNull();
+    expect(row?.partDeLaPopulation).toBeNull();
+  });
+
+  it('still answers the same event cell once it clears the floor', async () => {
+    // The floor withholds a small cell, it does not withhold the feature: a
+    // mask that never lifts would be indistinguishable from a broken read.
+    await prisma.usage_FeatureUse.createMany({
+      data: Array.from({ length: USAGE_SMALL_CELL_FLOOR }, (_, i) => ({
+        feature: USAGE_FEATURES.TALENT_FEEDBACK_OPEN,
+        actorKind: 'talent' as const,
+        actorHash: hashFor(500 + i),
+        campusId: campusA,
+        eventId: eventA,
+      })),
+    });
+
+    const answer = await getFeatureUsage(
+      { event: { id: eventA, label: 'Événement' } },
+      { days: 90, feature: USAGE_FEATURES.TALENT_FEEDBACK_OPEN },
+    );
+    const row = answer.fonctionnalites.value.find(
+      (r) => r.feature === USAGE_FEATURES.TALENT_FEEDBACK_OPEN,
+    );
+    expect(row?.acteursDistinctsMoisDePointe).toBe(USAGE_SMALL_CELL_FLOOR + 2);
+  });
+
   it('refuses to isolate an event beyond the detailed window', async () => {
     await expect(
       getFeatureUsage(

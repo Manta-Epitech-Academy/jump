@@ -374,15 +374,19 @@ catalogue both read.
   written by the recorder and read only through the admin API, which resolves its
   own scope; they are never reached through `scopedPrisma`. Same treatment, and the
   same kind of comment, as `Closing_Answer`.
-- **A per-campus talent cell is masked below five distinct actors**
+- **A NARROWED talent cell is masked below five distinct actors**
   (`USAGE_SMALL_CELL_FLOOR`), because a cell of one or two in a small campus is
   nearly a statement about named children. A zero is never masked: it discloses
   nobody and it is the most actionable answer the matrix produces. The floor
-  belongs to the READ, not to one operation: it shipped applied inside the
-  coverage matrix while `stats_feature_usage` took the same `campus` filter, was
-  reachable with a leadership token, and answered unmasked. Any read that can
-  narrow a talent count to one campus goes through `maskCell`, and the share is
-  masked with the count or it hands the count straight back.
+  belongs to the READ, not to one operation, and not to one filter: it shipped
+  applied inside the coverage matrix while `stats_feature_usage` took the same
+  `campus` filter, was reachable with a leadership token, and answered unmasked;
+  it then keyed on the campus filter alone while that operation also takes
+  `eventId`, which names one campus, one date and a roster a dev can read by
+  name, so it discloses more than the cell already withheld. The rule is the
+  narrowing and not the word campus: any filter that can bring a talent count
+  below the whole platform goes through `maskCell`, and the share is masked with
+  the count or it hands the count straight back.
 - **Two stores, one figure, and a distinct actor is counted per month.** Inside
   the retention window the answer comes from `Usage_FeatureUse`, beyond it from
   the actor-free cube, and both go through `server/usage/read.ts` so the store

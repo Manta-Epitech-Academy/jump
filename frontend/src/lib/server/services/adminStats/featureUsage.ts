@@ -83,7 +83,7 @@ const COMPARISON_LAG_MONTHS = 12;
 const COMPARISON_LABEL = 'la même période un an plus tôt';
 
 /**
- * The disclosure floor on a per-campus talent cell.
+ * The disclosure floor on a NARROWED talent cell.
  *
  * 869 talents have ever logged in, spread over fifteen campuses, so a per-campus
  * average near sixty and some campuses far smaller. A cell reading "2 talents de
@@ -99,16 +99,21 @@ const COMPARISON_LABEL = 'la même période un an plus tôt';
  * Staff cells are never masked. They are adults, employees, the measurement is
  * of professional tool use, and per-person staff history is what was asked for.
  *
- * Applied by EVERY read that can produce such a cell, which is the correction
- * that matters here: it used to sit at one call site inside the coverage matrix,
- * while `stats_feature_usage` accepted the same `campus` filter, was reachable
- * with a leadership token, and answered unmasked.
+ * WHAT MAKES A CELL A CELL IS THE NARROWING, NOT THE WORD "CAMPUS", and reading
+ * that too literally is how the same hole shipped twice. The floor first sat at
+ * one call site inside the coverage matrix while `stats_feature_usage` took the
+ * same `campus` filter and answered unmasked; it then keyed on the campus filter
+ * alone while that operation also takes `eventId`, which is narrower still. An
+ * event names one campus, one date and a roster a dev can read by name, so a
+ * question it isolates earns the floor a fortiori. The test to apply before
+ * adding any filter to a talent-bearing read: can it narrow the count below the
+ * whole platform? Then it goes through {@link maskCell}.
  */
 export const USAGE_SMALL_CELL_FLOOR = 5;
 
 const MASKED_CELL_RULE =
-  `Pour les fonctionnalités côté talent, le nombre d'acteurs distincts d'un campus est masqué (null) en dessous de ${USAGE_SMALL_CELL_FLOOR}, ` +
-  `car dans un petit campus un compte de 1 ou 2 désignerait presque des personnes. Un zéro n'est jamais masqué : il ne désigne personne et c'est la réponse la plus utile. La part de la population est masquée avec lui, sinon elle le redonnerait.`;
+  `Pour les fonctionnalités côté talent, le nombre d'acteurs distincts est masqué (null) en dessous de ${USAGE_SMALL_CELL_FLOOR} dès que la question porte sur un seul campus ou sur un seul événement, ` +
+  `car sur un périmètre aussi étroit un compte de 1 ou 2 désignerait presque des personnes. Un zéro n'est jamais masqué : il ne désigne personne et c'est la réponse la plus utile. La part de la population est masquée avec lui, sinon elle le redonnerait.`;
 
 const IMPERSONATION_RULE =
   "Les consultations faites par un administrateur en exploration d'un campus sont exclues : un administrateur qui regarde n'est pas un campus qui adopte.";
@@ -221,15 +226,16 @@ async function population(
 /**
  * The disclosure floor, in one place.
  *
- * `perCampus` is what makes a cell a cell: a national figure over every campus
- * discloses nothing, the same figure narrowed to one campus can.
+ * `narrowed` is what makes a cell a cell: a national figure over every campus
+ * discloses nobody, the same figure narrowed to one campus, or to one event,
+ * can. See {@link USAGE_SMALL_CELL_FLOOR} for why the second belongs here.
  */
 function maskCell(
   key: UsageFeatureKey,
   actors: number,
-  perCampus: boolean,
+  narrowed: boolean,
 ): number | null {
-  if (!perCampus) return actors;
+  if (!narrowed) return actors;
   if (USAGE_FEATURE_DEFS[key].audience !== 'talent') return actors;
   if (actors === 0) return 0;
   return actors < USAGE_SMALL_CELL_FLOOR ? null : actors;
@@ -321,12 +327,15 @@ export async function getFeatureUsage(
   ]);
 
   const totals = foldByFeature(read.tallies);
-  const perCampus = Boolean(scope.campus);
+  // An event, not only a campus: `eventId` narrows a talent count harder than
+  // `campus` does, so keying the floor on the campus filter alone left the same
+  // disclosure one parameter away.
+  const narrowed = Boolean(scope.campus || scope.event);
 
   const rows: FeatureRow[] = features.map((key) => {
     const def = USAGE_FEATURE_DEFS[key];
     const t = totals.get(key) ?? EMPTY_TOTALS;
-    const actors = maskCell(key, t.peakActors, perCampus);
+    const actors = maskCell(key, t.peakActors, narrowed);
     const base = def.audience === 'staff' ? pop.staff : pop.talents;
     return {
       feature: key,
