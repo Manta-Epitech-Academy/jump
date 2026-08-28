@@ -13,6 +13,7 @@
   import Phone from '@lucide/svelte/icons/phone';
   import Pencil from '@lucide/svelte/icons/pencil';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
+  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import SegmentedFilter, {
     type SegmentOption,
   } from '$lib/components/staff/SegmentedFilter.svelte';
@@ -340,9 +341,10 @@
   </div>
 
   <!-- Filter toolbar — search + filtered count on the shared DataTableToolbar,
-       with the admin-specific composing filters dropped into its snippet. Type
-       and Statut are independent segmented radios; niveau/campus stay dropdowns
-       (too many options for a segmented control). -->
+       with the admin-specific composing filters dropped into its snippet. Parent
+       stays a segmented radio at three options; Statut, Niveau and Campus are
+       dropdowns, the first for crossing the four-option ceiling and the other two
+       for having far more than that. -->
   <DataTableToolbar
     searchValue={search.value}
     onSearchInput={(v) => (search.value = v)}
@@ -352,9 +354,14 @@
     filtersApplied={hasActiveFilters}
   >
     {#snippet filters()}
+      <!-- Statut is the one filter here past the four-option ceiling (see
+           `SegmentedFilter`): five uppercase labels came to 51 characters, twice
+           the widest segmented group in the app, on a row that also carries the
+           search box, Parent, Niveau and Campus. Parent stays segmented at three:
+           the rule is the ceiling, not the neighbourhood. -->
       <div class="flex items-center gap-2">
         <span class="epi-overline text-muted-foreground"> Statut </span>
-        <SegmentedFilter
+        <FilterSelect
           ariaLabel="Filtrer par statut de compte"
           options={statutOptions}
           value={filterState.status}

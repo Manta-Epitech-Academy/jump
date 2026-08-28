@@ -15,6 +15,25 @@
   // value; picking one calls `onChange`. Distinct from `Select` (used for the
   // many-option niveau/campus filters) — this is for short, frequently-toggled
   // dimensions where every choice should be visible at a glance.
+  //
+  // FOUR OPTIONS IS THE CEILING. Past that it becomes a `FilterSelect`, which
+  // takes the same `SegmentOption[]` so the swap is one component name. The
+  // number is not a taste: readable at a glance is the ONLY thing this control
+  // buys over a dropdown, and it is what a fifth option spends. Every other
+  // segmented filter in the app sat between two and four while the admin talents
+  // status filter sat at five, and it was the one that read as a wall: five
+  // uppercase French labels came to 51 characters against 26 for the widest of
+  // the others, on a toolbar that also carries a search box and three more
+  // filters.
+  //
+  // Width is the second half of the same test, and it can bite below the
+  // ceiling: four long labels that push the toolbar onto a second line have
+  // already lost the at-a-glance property, so they take the select too. The
+  // count is what makes the rule checkable; the wrap is what makes it true.
+  //
+  // None of this applies to a `fullWidth` group on a row of its own (the export
+  // period picker, the broadcast channel switch): it is competing with nothing,
+  // so only the reading of the labels themselves bounds it.
   let {
     options,
     value,
