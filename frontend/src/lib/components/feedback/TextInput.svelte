@@ -47,8 +47,7 @@
       placeholder={question.placeholder ?? 'Ta réponse...'}
       rows={3}
       class="flex-1 resize-none rounded-xl border border-border bg-background px-4 py-2.5 text-sm transition-colors outline-none focus:border-epi-blue focus:ring-1 focus:ring-epi-blue"
-      {onkeydown}
-    ></textarea>
+      {onkeydown}></textarea>
   {:else}
     <input
       type={inputKindMap[question.inputKind ?? 'text'] ?? 'text'}
