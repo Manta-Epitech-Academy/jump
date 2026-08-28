@@ -145,17 +145,35 @@
   let memberSortDir = $state<'asc' | 'desc'>('asc');
 
   const memberName = (u: MemberRow) => u.name || '';
+
+  // Both tiles count members WITH A ROLE, which is what their labels claim and
+  // what `ops_staff_activity` counts: a profile with no role is blocked from
+  // every space, so counting it would report a dormant account as an inactive
+  // member and put a number in an admin's face that the same figure asked over
+  // the API contradicts. The roster below still lists those rows, and has to:
+  // the role select three columns to the right offers "Aucun rôle", so filtering
+  // them out of the load would make that choice unrecoverable.
+  const membersWithRole = $derived(
+    data.members.filter((u) => u.staffProfile?.staffRole),
+  );
   // The tile below is a filter, not decoration: "jamais connecté" is the one
   // actionable state on this page, and it is also the one a sort cannot surface,
   // because a row with no date sinks in both directions by design.
   let neverConnectedOnly = $state(false);
   const neverConnectedCount = $derived(
-    data.members.filter((u) => !u.staffProfile?.firstLoginAt).length,
+    membersWithRole.filter((u) => !u.staffProfile?.firstLoginAt).length,
   );
 
   const filteredMembers = $derived(
     data.members.filter((u) => {
-      if (neverConnectedOnly && u.staffProfile?.firstLoginAt) return false;
+      // Filtering on the same predicate the tile counts, so the rows shown and
+      // the number clicked cannot differ.
+      if (
+        neverConnectedOnly &&
+        (!u.staffProfile?.staffRole || u.staffProfile.firstLoginAt)
+      ) {
+        return false;
+      }
       const q = memberSearch.trim().toLowerCase();
       if (!q) return true;
       return (
@@ -523,15 +541,15 @@
     <div class="grid gap-3 sm:grid-cols-2">
       <KpiTile
         label="Membres avec un rôle"
-        value={data.members.length}
+        value={membersWithRole.length}
         icon={UserCheck}
         tone="blue"
-        helpText="Les comptes qui peuvent réellement entrer dans un espace. Un profil sans rôle est bloqué partout."
+        helpText="Les comptes qui peuvent réellement entrer dans un espace. Un profil sans rôle est bloqué partout, et n’est donc pas compté ici, même s’il reste dans la liste ci-dessous pour que vous puissiez lui rendre un rôle."
       />
       <KpiTile
         label="Jamais connectés"
         value={neverConnectedCount}
-        total={data.members.length}
+        total={membersWithRole.length}
         icon={UserX}
         tone="orange"
         helpText="Comptes invités dont aucune connexion réelle n’a jamais été enregistrée. Les sessions d’impersonation ne comptent pas : un administrateur qui teste l’espace d’un membre n’est pas ce membre qui se connecte."
