@@ -167,6 +167,23 @@ export type UsageSpace = 'talent' | 'dev' | 'admin';
 export type UsageKind = 'session' | 'view' | 'action' | 'export' | 'document';
 
 /**
+ * What a space is called in French, for a surface that shows WHERE a use
+ * happened rather than which feature it was.
+ *
+ * Here rather than at the call site because a space's name is catalogue
+ * vocabulary, exactly like a feature's label: the members-page dialog lists a
+ * member's connections and has to say whether each one opened the dev space or
+ * the admin one, which is a real question (`usageSessionFeature` records the two
+ * separately for that reason). A second spelling elsewhere would be a second
+ * name for one thing.
+ */
+export const USAGE_SPACE_LABELS: Readonly<Record<UsageSpace, string>> = {
+  talent: 'Espace talent',
+  dev: 'Espace dev',
+  admin: 'Espace admin',
+};
+
+/**
  * What a use belongs to, and therefore which columns the recorder populates:
  * `event` stamps the campus and the event, `campus` stamps the campus only,
  * `global` stamps neither. That last one is not laziness: the admin space is
@@ -1452,6 +1469,26 @@ export function usageSessionFeature(routeId: string): UsageFeatureKey | null {
     return USAGE_FEATURES.DEV_SESSION;
   if (routeId.startsWith('/(talent)')) return USAGE_FEATURES.TALENT_SESSION;
   return null;
+}
+
+/**
+ * Every session key of one audience, derived from the catalogue rather than
+ * listed by hand, so a space added to `usageSessionFeature` above is covered
+ * here without a second edit that nothing would fail to remind you of.
+ *
+ * Read by the members-page dialog, which shows a member's connections apart from
+ * everything else they did: a session and a feature use answer different
+ * questions ("do they come" against "what do they do"), and rendering them in
+ * one list made the first unreadable inside the second.
+ */
+export function usageSessionFeatures(
+  audience: UsageAudience,
+): UsageFeatureKey[] {
+  return USAGE_FEATURE_KEYS.filter(
+    (key) =>
+      USAGE_FEATURE_DEFS[key].kind === 'session' &&
+      USAGE_FEATURE_DEFS[key].audience === audience,
+  );
 }
 
 export function isUsageFeatureKey(value: string): value is UsageFeatureKey {

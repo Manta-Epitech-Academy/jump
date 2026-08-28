@@ -7,19 +7,28 @@
   Viewport-relative so it grows with the screen instead of leaving a letterbox on
   a laptop. Precedent: `TalentXpDetailDialog`.
 
-  The window is stated in the copy on purpose. The raw rows are purged, so the
-  honest thing is to say what the list can and cannot cover; the two dates above
-  it come from the projections and go back further, which is what makes "jamais
-  ouvert depuis l'invitation" answerable at all.
+  Connections lead, because "does this person come at all" is the question the
+  members directory is being read for; what they did once inside answers a
+  narrower one. Both lists carry a time, not just a day: two logins on one
+  morning rendered as two identical lines, which reads as a display bug rather
+  than as data.
+
+  The window is stated once, on the connections figures, and the two dates above
+  are stated as durable on purpose. They come from the projections on
+  `StaffProfile` and reach back further than any retention, which is what makes
+  "invité, jamais ouvert" answerable at all; the lists cannot, and saying so is
+  what stops an empty list from reading as an absent member.
 -->
 <script lang="ts">
   import * as Dialog from '$lib/components/ui/dialog';
   import { lastActiveLabel } from '$lib/components/staff/lastActive';
-  import { formatDateFr } from '$lib/utils';
+  import { countNounForm } from '$lib/components/staff/datatable/countLabel';
+  import { formatDateFr, formatDateTimeFr } from '$lib/utils';
   import Loader from '@lucide/svelte/icons/loader';
   import Eye from '@lucide/svelte/icons/eye';
 
   type Use = { libelle: string; at: string; impersonated: boolean };
+  type Session = { espace: string; at: string; impersonated: boolean };
 
   type Props = {
     open: boolean;
@@ -41,8 +50,10 @@
   let loading = $state(false);
   let failed = $state(false);
   let windowMonths = $state(0);
+  let activeDays = $state(0);
+  let loginCount = $state(0);
   let uses = $state<Use[]>([]);
-  let sessions = $state<string[]>([]);
+  let sessions = $state<Session[]>([]);
 
   // Fetched when the dialog opens rather than with the roster: 138 members each
   // holding hundreds of rows inside the window would be a payload nobody reads.
@@ -56,6 +67,8 @@
       .then((body) => {
         if (profileId !== id) return; // a newer row was opened meanwhile
         windowMonths = body.windowMonths ?? 0;
+        activeDays = body.activeDays ?? 0;
+        loginCount = body.loginCount ?? 0;
         uses = body.uses ?? [];
         sessions = body.sessions ?? [];
       })
@@ -98,6 +111,49 @@
     {:else}
       <div class="space-y-5">
         <section>
+          <h3 class="mb-2 epi-overline text-muted-foreground">Connexions</h3>
+          {#if sessions.length === 0}
+            <p class="text-sm text-muted-foreground">
+              Aucune connexion enregistrée sur les {windowMonths} derniers mois. Les
+              deux dates ci-dessus remontent plus loin : elles ne dépendent pas de
+              cette fenêtre.
+            </p>
+          {:else}
+            <p class="mb-2 text-sm text-foreground-secondary">
+              <span class="font-bold text-foreground">{loginCount}</span>
+              {countNounForm(loginCount, 'connexion')} et
+              <span class="font-bold text-foreground">{activeDays}</span>
+              {countNounForm(activeDays, "jour d'activité", "jours d'activité")}
+              sur les {windowMonths} derniers mois.
+            </p>
+            <ul
+              class="max-h-[25svh] space-y-1.5 overflow-y-auto rounded-lg border border-border p-3"
+            >
+              {#each sessions as session, i (`${session.at}-${i}`)}
+                <li
+                  class="flex items-baseline justify-between gap-3 text-sm text-foreground-secondary"
+                >
+                  <span class="min-w-0 flex-1">
+                    {session.espace}
+                    {#if session.impersonated}
+                      <span
+                        class="ml-1 inline-flex items-center gap-1 text-xs text-muted-foreground"
+                      >
+                        <Eye class="h-3 w-3" />
+                        en exploration
+                      </span>
+                    {/if}
+                  </span>
+                  <span class="shrink-0 text-xs text-muted-foreground">
+                    {formatDateTimeFr(session.at)}
+                  </span>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </section>
+
+        <section>
           <h3 class="mb-2 epi-overline text-muted-foreground">
             Fonctionnalités utilisées
           </h3>
@@ -124,30 +180,9 @@
                       </span>
                     {/if}
                   </span>
-                  <span class="shrink-0 epi-overline text-muted-foreground">
-                    {formatDateFr(use.at)}
+                  <span class="shrink-0 text-xs text-muted-foreground">
+                    {formatDateTimeFr(use.at)}
                   </span>
-                </li>
-              {/each}
-            </ul>
-          {/if}
-        </section>
-
-        <section>
-          <h3 class="mb-2 epi-overline text-muted-foreground">Connexions</h3>
-          {#if sessions.length === 0}
-            <p class="text-sm text-muted-foreground">
-              Aucune session en cours. Les sessions closes ne sont pas
-              conservées, donc cette liste ne remonte pas dans le temps ; les
-              deux dates ci-dessus, elles, sont durables.
-            </p>
-          {:else}
-            <ul
-              class="max-h-[25svh] space-y-1.5 overflow-y-auto rounded-lg border border-border p-3"
-            >
-              {#each sessions as at (at)}
-                <li class="text-sm text-foreground-secondary">
-                  {formatDateFr(at)}
                 </li>
               {/each}
             </ul>

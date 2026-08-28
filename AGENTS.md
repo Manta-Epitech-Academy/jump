@@ -406,6 +406,18 @@ catalogue both read.
   has not opened yet. The second needs no day count, which is why the guard sits
   after the whole branch rather than inside it; while it did not, a year still
   ahead answered zeros through a `source` whose « au » preceded its « du ».
+- **A connection is a `*_session` row, never a `bauth_session` row.** The session
+  table is not a login history, which the schema states twice, on both
+  `StaffProfile.firstLoginAt` and `Talent.firstLoginAt`: logout, identity repair
+  and relinks delete from it, so it under-reports whoever signs out and
+  over-reports whoever never does. It shipped once as the source of the members
+  page's connection list, where 6046 of the development database's 6049 rows were
+  expired sessions nobody had closed. The two projections answer "has this
+  account ever been opened, and when", the session keys answer "how often", and
+  neither question is ever asked of `bauth_session`. The figure that answers "how
+  much does this person come" is then the count of DISTINCT DAYS, not of logins:
+  a BetterAuth session lives a fortnight, so somebody working daily and never
+  signing out produces about two logins a month.
 
 Reads are `stats_feature_usage`, `stats_feature_adoption_gaps`,
 `stats_campus_feature_coverage` (leadership) and `ops_staff_activity` (core), over
@@ -522,6 +534,7 @@ The weekly PO digest (`services/adminDigest.ts`, `POST /api/jobs/admin-digest`) 
 - **`usage/record.ts`** — the one usage recorder: fire-and-forget, server-only, composes the dedupe key, honours a talent's objection, and refuses rather than guesses when the salt is unset
 - **`usage/rollup.ts`** — folds the monthly cube then purges the raw window, in that order
 - **`services/adminStats/featureUsage.ts`** / **`staffActivity.ts`** — feature adoption per campus, and whether the team logs in at all
+- **`usage/memberActivity.ts`** — the one named-member read, for the dialog on `/staff/admin/users`. Deliberately not an operation: `ops_staff_activity` answers the same question in counts with no names, and a named-member read reachable with a token would put per-employee behaviour behind a credential minted for figures
 - **`db/scoped.ts`** — campus-scoped DB query helpers
 
 ### Client Libraries (`src/lib/`)
