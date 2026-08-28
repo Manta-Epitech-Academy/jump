@@ -1,18 +1,9 @@
 export type QuestionType =
-  | 'single'
-  | 'multiple'
-  | 'scale'
-  | 'text'
-  | 'textarea';
+  'single' | 'multiple' | 'scale' | 'text' | 'textarea';
 export type InputKind = 'email' | 'tel' | 'name' | 'text';
 
 export type IdentityField =
-  | 'email'
-  | 'phone'
-  | 'firstName'
-  | 'lastName'
-  | 'civility'
-  | 'campus';
+  'email' | 'phone' | 'firstName' | 'lastName' | 'civility' | 'campus';
 
 /**
  * Runtime input kind derived from an identity field, so identity text questions

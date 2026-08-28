@@ -13,8 +13,7 @@ export type ImpersonationTarget =
   | { kind: 'staff'; id: string };
 
 export type ImpersonationResult =
-  | { ok: true; redirect: string }
-  | { ok: false; reason: 'no_email' | 'failed' };
+  { ok: true; redirect: string } | { ok: false; reason: 'no_email' | 'failed' };
 
 /**
  * The single entry point for admin impersonation, shared by the talents

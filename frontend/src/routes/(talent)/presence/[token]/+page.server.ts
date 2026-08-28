@@ -14,11 +14,7 @@ import {
 } from '$lib/domain/eventPresence';
 
 type CheckinState =
-  | 'present'
-  | 'already'
-  | 'closed'
-  | 'not_registered'
-  | 'invalid';
+  'present' | 'already' | 'closed' | 'not_registered' | 'invalid';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const talent = locals.talent;

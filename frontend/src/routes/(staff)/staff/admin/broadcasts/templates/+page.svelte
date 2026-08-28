@@ -130,8 +130,7 @@
                         await invalidateAll();
                       } else if (result.type === 'failure') {
                         const data = result.data as
-                          | { deleteError?: string }
-                          | undefined;
+                          { deleteError?: string } | undefined;
                         toast.error(
                           data?.deleteError ?? 'Suppression impossible.',
                         );

@@ -6,11 +6,7 @@
    * meaning (e.g. plain data tables).
    */
   export type SectionAccent =
-    | 'blue'
-    | 'tech'
-    | 'together'
-    | 'tomorrow'
-    | 'neutral';
+    'blue' | 'tech' | 'together' | 'tomorrow' | 'neutral';
 </script>
 
 <script lang="ts">

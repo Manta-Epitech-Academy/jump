@@ -221,8 +221,7 @@
                               await update();
                             } else if (result.type === 'failure') {
                               const data = result.data as
-                                | { rebindError?: string }
-                                | undefined;
+                                { rebindError?: string } | undefined;
                               toast.error(
                                 data?.rebindError ?? 'Migration impossible.',
                               );

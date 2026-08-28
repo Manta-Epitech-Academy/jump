@@ -257,20 +257,18 @@ function projectQuestion(
 export function toClosingGrid(template: StoredClosingTemplate): ClosingGrid {
   const sections = [...template.sections]
     .sort((a, b) => a.position - b.position)
-    .map(
-      (s): ClosingSection => ({
-        id: s.id,
-        title: s.title,
-        questions: [...s.questions]
-          .sort((a, b) => a.position - b.position)
-          .map((tq) =>
-            projectQuestion(tq.question, {
-              label: tq.labelOverride,
-              withNote: tq.withNote,
-            }),
-          ),
-      }),
-    );
+    .map((s): ClosingSection => ({
+      id: s.id,
+      title: s.title,
+      questions: [...s.questions]
+        .sort((a, b) => a.position - b.position)
+        .map((tq) =>
+          projectQuestion(tq.question, {
+            label: tq.labelOverride,
+            withNote: tq.withNote,
+          }),
+        ),
+    }));
 
   const order = new Map(
     template.sections.map((s) => [s.id, s.synthesisPosition ?? s.position]),
@@ -385,10 +383,7 @@ export const VERDICT_SECTION = {
 } as const;
 
 export type RecommendationToneToken =
-  | 'epi-tech'
-  | 'epi-blue'
-  | 'epi-tomorrow'
-  | 'epi-drift';
+  'epi-tech' | 'epi-blue' | 'epi-tomorrow' | 'epi-drift';
 
 /** Face glyph for the recommendation options, mapped to a Lucide icon in the
  *  verdict step (token kept out of this module, like the chip icons). The faces

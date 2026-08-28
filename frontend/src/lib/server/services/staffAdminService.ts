@@ -19,9 +19,7 @@ import { staffRoles, bauthRoleForStaffRole } from '$lib/domain/staff';
 import type { ServiceResult } from './result';
 
 export type InviteStaffFailure =
-  | 'staff_exists'
-  | 'invitation_exists'
-  | 'unknown';
+  'staff_exists' | 'invitation_exists' | 'unknown';
 
 /**
  * Create a pending staff invitation. Invitations are pending by construction:

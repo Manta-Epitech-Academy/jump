@@ -2214,13 +2214,12 @@ async function seedStudents(): Promise<
     ['zoe.dubois@mail.com', 'nathan.blanc@epitech.eu'],
   ]);
 
-  const lifecycles = STUDENTS.map(
-    (s, i): StudentLifecycle =>
-      mintConflictSfEmails.has(s.email)
-        ? 'imported'
-        : s.skipOnboarding !== true && ongoingStageEmails.has(s.email)
-          ? 'fresh'
-          : studentLifecycle(s, i),
+  const lifecycles = STUDENTS.map((s, i): StudentLifecycle =>
+    mintConflictSfEmails.has(s.email)
+      ? 'imported'
+      : s.skipOnboarding !== true && ongoingStageEmails.has(s.email)
+        ? 'fresh'
+        : studentLifecycle(s, i),
   );
 
   // Talents deliberately routed to a different School than Salesforce claims, so
