@@ -8,9 +8,12 @@
  * and not leadership: it is about staffing and enablement, not about the cohort.
  *
  * It reads the two projections on `StaffProfile` rather than the usage rows, and
- * that is the whole reason those columns exist: raw usage is purged at 60 days,
- * so a MAX over it would report "never opened" for anyone who last logged in two
- * months ago, which is precisely the person worth finding.
+ * that is the whole reason those columns exist: raw usage is purged at
+ * `USAGE_RAW_RETENTION_MONTHS`, so a MAX over it reports "never opened" for
+ * anyone whose last login predates that window, which is precisely the person
+ * worth finding. A retention that is a year rather than two months narrows the
+ * gap without closing it: an account invited and never opened has no row at any
+ * retention.
  *
  * No names, per the tier's rule, and the counts are the useful shape anyway: the
  * question is "combien" and "où", and an admin who needs the person opens

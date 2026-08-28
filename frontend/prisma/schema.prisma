@@ -184,11 +184,12 @@ model StaffProfile {
   /// First real (non-impersonated) request, stamped once and never cleared.
   ///
   /// Both of these are projections, and neither is redundant with
-  /// `Usage_FeatureUse`: that table is purged at 60 days, so a MAX over it loses
-  /// exactly the interesting case, "this account has never been opened since the
-  /// invitation was sent". Same reasoning as `Talent.firstLoginAt`, which also
-  /// explains why probing bauth_session is not an option (its rows are deleted
-  /// by logout, identity repair and relinks).
+  /// `Usage_FeatureUse`: that table is purged at the raw retention window
+  /// (`USAGE_RAW_RETENTION_MONTHS`), so a MAX over it loses exactly the
+  /// interesting case, "this account has never been opened since the invitation
+  /// was sent", which has no row at any retention. Same reasoning as
+  /// `Talent.firstLoginAt`, which also explains why probing bauth_session is not
+  /// an option (its rows are deleted by logout, identity repair and relinks).
   firstLoginAt             DateTime?
   createdAt                DateTime   @default(now())
   updatedAt                DateTime   @updatedAt
@@ -2303,8 +2304,11 @@ model Usage_FeatureUse {
 }
 
 /// The monthly cube: uses and distinct actors per feature, per actor kind, per
-/// campus. Refreshed by upsert on every rollup run, including for the month in
-/// progress, so no month can be purged before it was folded.
+/// campus. Every month still present in the raw table is deleted and reinserted
+/// on each rollup run, the month in progress included, so no month can be purged
+/// before it was folded. Deleted and reinserted rather than upserted because
+/// `campusId` is nullable and a UNIQUE index treats NULLs as distinct, so
+/// `ON CONFLICT` would never match a global-scope row; see `usage/rollup.ts`.
 ///
 /// It carries NO actor column of any kind. That is what justifies keeping it
 /// long after the raw rows are gone, and it is also the layer every year-on-year

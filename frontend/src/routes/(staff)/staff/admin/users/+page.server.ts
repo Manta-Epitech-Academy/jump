@@ -37,9 +37,9 @@ export const load: PageServerLoad = async ({ locals }) => {
             campus: { select: { name: true } },
             // The two activity projections. They ride the existing narrow
             // select rather than a second query, and they are not redundant
-            // with `Usage_FeatureUse`: those rows are purged at 60 days, so a
-            // MAX over them would report "never opened" for exactly the member
-            // worth finding, the one who stopped two months ago.
+            // with `Usage_FeatureUse`: those rows are purged at the raw
+            // retention window, so a MAX over them reports "never opened" for
+            // exactly the member worth finding, the one who stopped before it.
             lastActiveAt: true,
             firstLoginAt: true,
           },

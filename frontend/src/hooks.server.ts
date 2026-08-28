@@ -280,10 +280,11 @@ export const handle: Handle = async ({ event, resolve }) => {
     // this, so an account invited and never opened was indistinguishable from
     // one in daily use.
     //
-    // They are not redundant with `Usage_FeatureUse`: that table is purged at 60
-    // days, so a MAX over it loses exactly the interesting case, "never opened
-    // since the invitation". Skipped under impersonation for the same reason as
-    // above, and because an admin testing a dev screen is not that dev working.
+    // They are not redundant with `Usage_FeatureUse`: that table is purged at
+    // the raw retention window, so a MAX over it loses exactly the interesting
+    // case, "never opened since the invitation", which has no row at any
+    // retention. Skipped under impersonation for the same reason as above, and
+    // because an admin testing a dev screen is not that dev working.
     if (event.locals.staffProfile && !impersonatedById) {
       const now = new Date();
       const profile = event.locals.staffProfile;
