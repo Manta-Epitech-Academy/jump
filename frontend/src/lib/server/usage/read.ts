@@ -74,6 +74,36 @@ export type FeatureTotals = {
 /** The window when no school year and no day count are named. */
 export const USAGE_DEFAULT_DAYS = 30;
 
+const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+
+/**
+ * The two ways a school-year window can cover no time, each said in its own
+ * words, because the caller fixes them differently.
+ *
+ * One message for both would have to be vague enough to fit "drop the day count"
+ * and "ask about a year that has started", and a refusal that does not name the
+ * way out is a refusal the caller retries verbatim.
+ */
+function refuseEmptyYearWindow(
+  label: string,
+  year: { from: Date; to: Date },
+  days: number | undefined,
+  now: Date,
+): never {
+  if (year.from >= now) {
+    throw new OperationRefusedError(
+      `L'année scolaire ${label} n'a pas encore commencé : elle s'ouvre le ${isoDay(year.from)}. ` +
+        `Aucun usage n'a pu y être enregistré, il n'y a donc pas de période à lire. ` +
+        `Redemandez sur une année déjà commencée.`,
+    );
+  }
+  throw new OperationRefusedError(
+    `La fenêtre de ${days} jours et l'année scolaire ${label} ne se recouvrent pas : ` +
+      `cette année s'est terminée le ${isoDay(year.to)}, avant le début de la fenêtre demandée. ` +
+      `Redemandez sans « days » pour lire l'année scolaire entière, ou sans « schoolYear » pour lire la fenêtre seule.`,
+  );
+}
+
 /**
  * The period to read and the store that holds it.
  *
@@ -83,12 +113,15 @@ export const USAGE_DEFAULT_DAYS = 30;
  * to default to thirty and intersect regardless, which made every question about
  * a past year empty.
  *
- * And when both are named and they do not meet, this refuses rather than
- * returning that empty range. They cross whenever the year ended longer ago than
- * the window is wide, and the old code took `from` from the day count and `to`
- * from the year, so the range inverted and every feature read zero with the
- * filters echoed back to confirm it. An unknown scope is a refusal and never a
- * zero; a scope that cannot be covered is the same rule one step along.
+ * AND AN EMPTY PERIOD IS A REFUSAL, never that empty range answered as zeros.
+ * The guard sits after the whole school-year branch rather than inside the day
+ * count, because the period collapses two different ways and only one of them
+ * used to be caught: the year ended longer ago than the window is wide (the old
+ * code took `from` from the day count and `to` from the year, so the range
+ * inverted), or the year has not opened yet, which needs no day count at all and
+ * produced an answer whose own `du` was later than its `au`. An unknown scope is
+ * a refusal and never a zero; a scope that covers no time is the same rule one
+ * step along.
  */
 export function usageWindowFor(
   scope: Scope,
@@ -101,19 +134,12 @@ export function usageWindowFor(
   if (scope.schoolYear) {
     const year = schoolYearBounds(scope.schoolYear);
     to = year.to < now ? year.to : now;
-    if (days === undefined) {
-      from = year.from;
-    } else {
+    from = year.from;
+    if (days !== undefined) {
       const byDays = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-      from = year.from > byDays ? year.from : byDays;
-      if (from >= to) {
-        throw new OperationRefusedError(
-          `La fenêtre de ${days} jours et l'année scolaire ${scope.schoolYear} ne se recouvrent pas : ` +
-            `cette année s'est terminée le ${year.to.toISOString().slice(0, 10)}, avant le début de la fenêtre demandée. ` +
-            `Redemandez sans « days » pour lire l'année scolaire entière, ou sans « schoolYear » pour lire la fenêtre seule.`,
-        );
-      }
+      if (byDays > from) from = byDays;
     }
+    if (from >= to) refuseEmptyYearWindow(scope.schoolYear, year, days, now);
   } else {
     from = new Date(
       now.getTime() - (days ?? USAGE_DEFAULT_DAYS) * 24 * 60 * 60 * 1000,

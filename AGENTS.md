@@ -400,9 +400,12 @@ catalogue both read.
 - **A named school year IS the window.** Asking about 2025-2026 asks about
   2025-2026, so a `days` count narrows the year only when it was actually passed.
   Defaulting it and intersecting made every question about a past year an empty
-  range, answered as zeros with the filters echoed back to confirm them. When
-  both are given and they do not meet, that is a refusal, exactly as an unknown
-  campus is.
+  range, answered as zeros with the filters echoed back to confirm them. A
+  period covering no time at all is a refusal, exactly as an unknown campus is,
+  and it collapses two ways: the day count and the year do not meet, or the year
+  has not opened yet. The second needs no day count, which is why the guard sits
+  after the whole branch rather than inside it; while it did not, a year still
+  ahead answered zeros through a `source` whose « au » preceded its « du ».
 
 Reads are `stats_feature_usage`, `stats_feature_adoption_gaps`,
 `stats_campus_feature_coverage` (leadership) and `ops_staff_activity` (core), over

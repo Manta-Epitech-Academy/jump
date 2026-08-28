@@ -45,9 +45,25 @@ describe('usageWindowFor', () => {
     );
   });
 
+  it('refuses a school year that has not opened yet, with or without a day count', () => {
+    // The other half of the same guard, and the half that used to slip through:
+    // it lived inside the `days` branch, so a year still ahead produced an
+    // inverted range nothing checked, answered as zeros for every feature with a
+    // `source` whose « au » preceded its « du ».
+    expect(() =>
+      usageWindowFor({ schoolYear: '2027-2028' }, undefined, NOW),
+    ).toThrow(/n'a pas encore commencé/);
+    expect(() => usageWindowFor({ schoolYear: '2027-2028' }, 30, NOW)).toThrow(
+      OperationRefusedError,
+    );
+  });
+
   it('accepts the school year in progress', () => {
     expect(() =>
       usageWindowFor({ schoolYear: '2026-2027' }, 30, NOW),
+    ).not.toThrow();
+    expect(() =>
+      usageWindowFor({ schoolYear: '2026-2027' }, undefined, NOW),
     ).not.toThrow();
   });
 });
