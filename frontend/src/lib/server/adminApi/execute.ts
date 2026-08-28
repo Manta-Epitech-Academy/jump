@@ -33,8 +33,7 @@ import type { AdminApiOperation, AdminApiOperationName } from './operations';
  * `ops_api_usage` count refusals across transports.
  */
 export type OperationOutcome =
-  | { ok: true; data: unknown }
-  | { ok: false; status: number; message: string };
+  { ok: true; data: unknown } | { ok: false; status: number; message: string };
 
 /**
  * Authorise this credential for this operation, run it, and record the call

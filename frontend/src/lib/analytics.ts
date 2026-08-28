@@ -151,8 +151,7 @@ export function errReason(input: unknown): string {
     const obj = input as Record<string, unknown>;
     const data = obj.data as Record<string, unknown> | undefined;
     const form = (data?.form ?? obj.form) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
 
     // Explicit machine codes win, wherever they sit.
     const code = firstString(obj.code, obj.errorCode, obj.reason);

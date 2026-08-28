@@ -84,8 +84,7 @@
     invalidateAll: true,
     onUpdated({ form }) {
       const msg = form.message as
-        | { type: 'created'; label: string; secret: string }
-        | undefined;
+        { type: 'created'; label: string; secret: string } | undefined;
       if (msg?.type === 'created') {
         minted = { label: msg.label, secret: msg.secret };
         toast.success('Token créé.');

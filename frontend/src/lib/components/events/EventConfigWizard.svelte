@@ -232,8 +232,7 @@
 
   function getModuleSetting<T>(moduleKey: string, key: string, fallback: T): T {
     const cur = $form.moduleSettings[moduleKey] as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     return (cur?.[key] as T | undefined) ?? fallback;
   }
 

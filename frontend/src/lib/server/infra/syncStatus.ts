@@ -6,11 +6,7 @@
 import { prisma } from '$lib/server/db';
 
 export type SyncType =
-  | 'campus_list'
-  | 'events'
-  | 'talents'
-  | 'ref_comp'
-  | 'subject_import';
+  'campus_list' | 'events' | 'talents' | 'ref_comp' | 'subject_import';
 
 export type SyncRecord = {
   type: SyncType;

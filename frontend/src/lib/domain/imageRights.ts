@@ -56,9 +56,7 @@ export function imageRightsStatus(talent: {
  * that has in fact been asked.
  */
 export type ImageRightsDisplayStatus =
-  | ImageRightsDecision
-  | 'awaiting_parent'
-  | 'pending';
+  ImageRightsDecision | 'awaiting_parent' | 'pending';
 
 /** UI labels (French); the two undecided splits mirror `RULES_STATUS_LABELS`. */
 export const IMAGE_RIGHTS_DISPLAY_LABELS: Record<

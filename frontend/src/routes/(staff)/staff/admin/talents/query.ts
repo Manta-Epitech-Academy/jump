@@ -37,11 +37,7 @@ import { guardiansOf } from '$lib/domain/contact';
 // `never` = no login account, `no_dossier` = a collégien, who has no onboarding
 // to do at all. `all` clears the filter.
 export type StatusFilter =
-  | 'all'
-  | 'active'
-  | 'onboarding'
-  | 'never'
-  | 'no_dossier';
+  'all' | 'active' | 'onboarding' | 'never' | 'no_dossier';
 // Parent completion: "complete" once the guardian co-signed the règlement AND
 // settled the image-rights decision; "pending" = still blocked on one. `all`
 // clears it. Both buckets presuppose a parent on file (see buildTalentWhere).

@@ -48,8 +48,7 @@
     invalidateAll: true,
     onUpdated({ form }) {
       const msg = form.message as
-        | { type: 'success' | 'error'; text: string }
-        | undefined;
+        { type: 'success' | 'error'; text: string } | undefined;
       if (!msg) return;
       if (msg.type === 'success') {
         toast.success(msg.text);

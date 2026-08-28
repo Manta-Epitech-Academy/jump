@@ -55,8 +55,7 @@ export async function reopenPresenceSlot(
 }
 
 export type MarkAllPresentResult =
-  | { status: 'closed' }
-  | { status: 'done'; marked: number };
+  { status: 'closed' } | { status: 'done'; marked: number };
 
 /**
  * Bulk "tout présent" for one créneau: fill every still-"en attente" cell with a

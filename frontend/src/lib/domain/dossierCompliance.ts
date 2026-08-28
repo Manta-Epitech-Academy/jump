@@ -102,10 +102,7 @@ export function rulesStatus(
  * export so they never drift.
  */
 export type InscritStatus =
-  | 'no_dossier'
-  | 'never_connected'
-  | 'in_progress'
-  | 'ready';
+  'no_dossier' | 'never_connected' | 'in_progress' | 'ready';
 
 /**
  * UI labels (French) keyed by the funnel state. `never_connected` is the short
