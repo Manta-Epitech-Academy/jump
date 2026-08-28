@@ -1163,7 +1163,7 @@ export const ADMIN_API_OPERATIONS = {
   stats_feature_adoption_gaps: defineOperation({
     leadership: true,
     description:
-      'The actionable half of feature adoption: the features nobody used over the window, the features that served a year ago and serve nobody now, and the features exactly one campus uses. Three lists, because the three decisions differ. The second is the strong retire signal, since a feature that was never used may simply never have been found, while one that stopped being used was found and then abandoned; the third is a training question, not a removal one.',
+      'The actionable half of feature adoption: the features nobody used over the window, the features that served a year ago and serve nobody now, and the features exactly one campus uses. Three lists, because the three decisions differ. The second is the strong retire signal, since a feature that was never used may simply never have been found, while one that stopped being used was found and then abandoned; the third is a training question, not a removal one. The campus filter narrows the first two lists only: how many campuses use a feature is a national fact, so narrowing it to one campus would make it true of everything that campus uses.',
     shape: { schoolYear, campus, days: usageDays },
     run: async ({ days, ...scope }) =>
       getFeatureAdoptionGaps(await resolveScope(scope), {

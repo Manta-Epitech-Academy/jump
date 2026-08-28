@@ -320,15 +320,63 @@ describe('getCampusFeatureCoverage', () => {
 });
 
 describe('getFeatureAdoptionGaps', () => {
+  beforeAll(async () => {
+    // One feature both campuses use, so "only one campus uses it" has something
+    // it must exclude. Without it the list is right by accident.
+    await prisma.usage_FeatureUse.createMany({
+      data: [
+        {
+          feature: USAGE_FEATURES.DEV_EMARGEMENT_EXPORT,
+          actorKind: 'staff' as const,
+          staffProfileId: staffIds[0],
+          campusId: campusA,
+          eventId: eventA,
+        },
+        {
+          feature: USAGE_FEATURES.DEV_EMARGEMENT_EXPORT,
+          actorKind: 'staff' as const,
+          staffProfileId: staffIds[2],
+          campusId: campusB,
+        },
+      ],
+    });
+  });
+
   it('separates what nobody uses from what one campus uses', async () => {
     const answer = await getFeatureAdoptionGaps({});
     const single = answer.unSeulCampus.value.map((f) => f.feature);
     // Seeded on campus A only.
     expect(single).toContain(USAGE_FEATURES.DEV_INSCRITS_EXPORT);
+    // Seeded on both, so it is adopted rather than confined.
+    expect(single).not.toContain(USAGE_FEATURES.DEV_EMARGEMENT_EXPORT);
     const never = answer.jamaisUtilisees.value.map((f) => f.feature);
     expect(never).not.toContain(USAGE_FEATURES.DEV_INSCRITS_EXPORT);
     expect(answer.aRetirer.value).toBe(never.length);
     expect(answer.aFormer.value).toBe(single.length);
+  });
+
+  it('does not let a campus filter make every feature it uses look confined', async () => {
+    // The campus filter narrows the périmètre, and inside one campus every
+    // feature it touched trivially has a one-element campus set. Folding the
+    // FILTERED read made `unSeulCampus` return everything campus A uses and
+    // `aFormer` count it, under a definition saying the other campuses do not
+    // know it exists. How many campuses use a feature is a national fact.
+    const answer = await getFeatureAdoptionGaps({
+      campus: { id: campusA, name: CAMPUS_A },
+    });
+    const single = answer.unSeulCampus.value.map((f) => f.feature);
+    expect(single).not.toContain(USAGE_FEATURES.DEV_EMARGEMENT_EXPORT);
+    expect(single).toContain(USAGE_FEATURES.DEV_INSCRITS_EXPORT);
+
+    // The other two lists ARE campus questions and must stay narrowed. Only
+    // campus A ever exported the inscrits, so asking about campus B has to list
+    // that feature as never used there, whatever campus A did with it.
+    const scoped = await getFeatureAdoptionGaps({
+      campus: { id: campusB, name: CAMPUS_B },
+    });
+    expect(scoped.jamaisUtilisees.value.map((f) => f.feature)).toContain(
+      USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+    );
   });
 });
 

@@ -537,16 +537,26 @@ export async function getFeatureAdoptionGaps(
   const window = usageWindowFor(scope, days, now);
   const features = USAGE_FEATURE_KEYS;
 
-  const [read, comparison] = await Promise.all([
+  const [read, nationalRead, comparison] = await Promise.all([
     readTallies({
       features,
       window,
       campusId: scope.campus?.id ?? null,
     }),
+    // HOW MANY CAMPUSES USE A FEATURE IS A NATIONAL FACT, so it is read over
+    // every campus even when the périmètre names one. Folding the filtered read
+    // instead made the third list trivially true: inside one campus every
+    // feature it touched has a one-element campus set, so `unSeulCampus`
+    // returned everything that campus used and `aFormer` counted it, under a
+    // definition saying the other campuses do not know it exists.
+    //
+    // The other two lists ARE campus questions ("qu'est-ce que Lille n'a jamais
+    // ouvert"), which is why the filter stays and only this one read escapes it.
+    scope.campus ? readTallies({ features, window }) : null,
     readComparison(features, window, scope, now),
   ]);
 
-  const campusesByFeature = foldByFeatureCampus(read.tallies);
+  const campusesByFeature = foldByFeatureCampus((nationalRead ?? read).tallies);
   const totals = foldByFeature(read.tallies);
   const campusNames = new Map(
     (await prisma.campus.findMany({ select: { id: true, name: true } })).map(
@@ -557,7 +567,13 @@ export async function getFeatureAdoptionGaps(
   // Nothing recorded is an absence of measurement, not an absence of use, and a
   // zero would pass the second off as the first. That distinction is what the
   // weekly digest branches on rather than naming every feature in Jump.
+  //
+  // Two guards because there are two questions: the first two lists are about
+  // the périmètre asked for, the confinement list is national, and a list must
+  // be gated by the read it was folded from or it can be non-empty beside a null
+  // count of itself.
   const measured = read.hasAnyRow;
+  const nationallyMeasured = (nationalRead ?? read).hasAnyRow;
 
   const never = features
     .filter((key) => (totals.get(key)?.uses ?? 0) === 0)
@@ -595,6 +611,9 @@ export async function getFeatureAdoptionGaps(
   const unmeasurable =
     "Vaut null quand rien n'a été mesuré sur la période, que ce soit faute de ligne détaillée enregistrée ou faute de totaux mensuels calculés : l'absence n'est alors pas une absence d'usage mais une absence de mesure, et un zéro ferait passer la seconde pour la première.";
 
+  const nationalListRule =
+    "Cette liste ne dépend pas du filtre « campus » : « un seul campus l'utilise » est un fait national, et le restreindre à un campus le rendrait vrai pour tout ce que ce campus utilise.";
+
   return {
     filters: {
       schoolYear: scope.schoolYear ?? 'toutes',
@@ -611,8 +630,8 @@ export async function getFeatureAdoptionGaps(
       "Les fonctionnalités qui ont servi sur la même période l'an dernier et qui n'ont servi à personne sur celle-ci, avec le nombre d'utilisations qu'elles avaient alors. C'est le signal de retrait le plus fort des trois : une fonctionnalité qui n'a jamais servi peut n'avoir jamais été trouvée, une fonctionnalité qui ne sert plus a été trouvée puis abandonnée. Vide tant que les totaux mensuels ne remontent pas à un an.",
     ),
     unSeulCampus: metric(
-      single,
-      "Les fonctionnalités qu'un seul campus utilise, avec lequel. C'est l'inverse d'un retrait : elles fonctionnent quelque part et les autres campus ignorent qu'elles existent, donc c'est une question de formation.",
+      nationallyMeasured ? single : [],
+      `Les fonctionnalités qu'un seul campus utilise, avec lequel. C'est l'inverse d'un retrait : elles fonctionnent quelque part et les autres campus ignorent qu'elles existent, donc c'est une question de formation. ${nationalListRule}`,
     ),
     aRetirer: metric(
       measured ? never.length : null,
@@ -623,8 +642,8 @@ export async function getFeatureAdoptionGaps(
       "Combien de fonctionnalités ont servi l'an dernier et ne servent plus. Vaut null quand la période demandée ne contient aucun mois révolu comparable.",
     ),
     aFormer: metric(
-      measured ? single.length : null,
-      `Combien de fonctionnalités un seul campus utilise, et sont donc à faire connaître ailleurs. ${unmeasurable}`,
+      nationallyMeasured ? single.length : null,
+      `Combien de fonctionnalités un seul campus utilise, et sont donc à faire connaître ailleurs. ${nationalListRule} ${unmeasurable}`,
     ),
   };
 }
