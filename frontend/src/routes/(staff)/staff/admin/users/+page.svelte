@@ -52,7 +52,6 @@
   import StaffActivityDialog from '$lib/components/admin/StaffActivityDialog.svelte';
   import { lastActiveLabel } from '$lib/components/staff/lastActive';
   import { rowComparator } from '$lib/components/staff/datatable/sort';
-  import UserCheck from '@lucide/svelte/icons/user-check';
   import UserX from '@lucide/svelte/icons/user-x';
   let { data } = $props();
 
@@ -531,28 +530,23 @@
 
   <!-- Members -->
   <section id="members" class="scroll-mt-20 space-y-3">
-    <h2 class="font-heading text-display-s">
-      Membres actifs
-      <span class="ml-2 text-sm text-muted-foreground"
-        >({data.members.length})</span
-      >
-    </h2>
+    <h2 class="font-heading text-display-s">Membres actifs</h2>
 
+    <!-- One tile, and it is the one you can click. The screen used to carry the
+         same number three times: this heading, a "Membres avec un rôle" tile and
+         the toolbar's count line, all reading 138 because no profile is without a
+         role. Three identical figures under three labels leave a reader guessing
+         which one the search box will move, and only one of the three was ever
+         actionable. The tile's own `total` carries the denominator the others
+         were standing in for. -->
     <div class="grid gap-3 sm:grid-cols-2">
-      <KpiTile
-        label="Membres avec un rôle"
-        value={membersWithRole.length}
-        icon={UserCheck}
-        tone="blue"
-        helpText="Les comptes qui peuvent réellement entrer dans un espace. Un profil sans rôle est bloqué partout, et n’est donc pas compté ici, même s’il reste dans la liste ci-dessous pour que vous puissiez lui rendre un rôle."
-      />
       <KpiTile
         label="Jamais connectés"
         value={neverConnectedCount}
         total={membersWithRole.length}
         icon={UserX}
         tone="orange"
-        helpText="Comptes invités dont aucune connexion réelle n’a jamais été enregistrée. Les sessions d’impersonation ne comptent pas : un administrateur qui teste l’espace d’un membre n’est pas ce membre qui se connecte."
+        helpText="Comptes invités dont aucune connexion réelle n’a jamais été enregistrée. Les sessions d’impersonation ne comptent pas : un administrateur qui teste l’espace d’un membre n’est pas ce membre qui se connecte. Le total est celui des membres ayant un rôle : un profil sans rôle est bloqué partout, donc il n’est pas compté, même s’il reste dans la liste ci-dessous pour que vous puissiez lui rendre un rôle."
         onclick={() => {
           neverConnectedOnly = !neverConnectedOnly;
           memberPage = 1;
