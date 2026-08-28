@@ -412,10 +412,14 @@ Reads are `stats_feature_usage`, `stats_feature_adoption_gaps`,
 `services/adminStats/{featureUsage,staffActivity}.ts`, all reading through
 `server/usage/read.ts`. The weekly digest's Adoption section reads the same
 service, so an inbox figure and an asked figure cannot disagree, and it says
-"adoption non mesurable" rather than naming every feature when the cube holds
-nothing for the window: an empty cube is an absence of measurement, and printing
-it as a list of unused features is the one error that makes somebody delete
-something in use.
+"adoption non mesurable" rather than naming every feature when nothing was
+measured over the window: an absence of rows is an absence of measurement, and
+printing it as a list of unused features is the one error that makes somebody
+delete something in use. **Whichever store answers**, which is the half that was
+missing: the detailed path asserted it had measured, and the digest asks for
+ninety days, which always sits inside the retention window, so its own guard was
+unreachable and the first mails after a deploy would have named the whole
+catalogue.
 
 ### UI, API, or both
 

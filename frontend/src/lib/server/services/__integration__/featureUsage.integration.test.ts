@@ -677,4 +677,21 @@ describe('the figures the two stores must agree on', () => {
     );
     expect(unmeasured?.evolutionUtilisations?.previous).toBeNull();
   });
+
+  it('reports nothing measured on the detailed path too, not every feature unused', async () => {
+    // The raw rows are gone by now, so a window inside the retention period has
+    // measured nothing. That is the shape of the first weeks after deploy, and
+    // it is the window the weekly digest asks for: ninety days always sits
+    // inside retention, so the cube is never consulted and the detailed path
+    // asserting it had measured made the digest's own guard unreachable. With
+    // it inert, the never-used list is the whole catalogue and a mail naming it
+    // reads as a finding.
+    const answer = await getFeatureAdoptionGaps({
+      campus: { id: campusA, name: CAMPUS_A },
+    });
+    expect(answer.source.value.store).toBe('lignes détaillées');
+    expect(answer.aRetirer.value).toBeNull();
+    expect(answer.aFormer.value).toBeNull();
+    expect(answer.jamaisUtilisees.value).toEqual([]);
+  });
 });

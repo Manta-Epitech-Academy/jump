@@ -554,7 +554,7 @@ export async function getFeatureAdoptionGaps(
     ),
   );
 
-  // A missing cube is an absence of measurement, not an absence of use, and a
+  // Nothing recorded is an absence of measurement, not an absence of use, and a
   // zero would pass the second off as the first. That distinction is what the
   // weekly digest branches on rather than naming every feature in Jump.
   const measured = read.hasAnyRow;
@@ -593,7 +593,7 @@ export async function getFeatureAdoptionGaps(
     .sort((a, b) => a.libelle.localeCompare(b.libelle, 'fr'));
 
   const unmeasurable =
-    "Vaut null quand les totaux mensuels n'ont pas été calculés sur la période : aucune ligne n'y est alors une absence d'usage, c'est une absence de mesure, et un zéro ferait passer la seconde pour la première.";
+    "Vaut null quand rien n'a été mesuré sur la période, que ce soit faute de ligne détaillée enregistrée ou faute de totaux mensuels calculés : l'absence n'est alors pas une absence d'usage mais une absence de mesure, et un zéro ferait passer la seconde pour la première.";
 
   return {
     filters: {

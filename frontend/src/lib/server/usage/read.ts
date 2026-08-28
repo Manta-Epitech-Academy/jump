@@ -222,6 +222,37 @@ export async function readRawTallies(args: {
 }
 
 /**
+ * Whether ANYTHING was recorded over this window, whatever the feature.
+ *
+ * The detailed twin of the cube's `hasAnyRow`, and it carries the same weight:
+ * it is what tells "measured, and nobody used it" apart from "not measured at
+ * all". It used to be hardcoded `true` here, which made the distinction inert on
+ * every window inside the retention period, which is every window the weekly
+ * digest asks for: on an empty table the never-used list is the whole catalogue,
+ * and a mail naming all of it reads as a finding rather than as an absence.
+ *
+ * Deliberately NOT filtered by feature, exactly like the cube's probe: the
+ * question is whether the period was measured at all, not whether these features
+ * appear in it. Impersonated rows do not count, because nothing that folds these
+ * tallies counts them either, and a window holding only an admin's exploration
+ * has measured nobody's adoption.
+ */
+async function hasAnyRawRow(
+  window: UsageWindow,
+  campusId: string | null,
+): Promise<boolean> {
+  const row = await prisma.usage_FeatureUse.findFirst({
+    where: {
+      impersonated: false,
+      occurredAt: { gte: window.from, lt: window.to },
+      ...(campusId ? { campusId } : {}),
+    },
+    select: { id: true },
+  });
+  return row !== null;
+}
+
+/**
  * The cube path.
  *
  * `hasAnyRow` is not a convenience: it is what tells "measured, and nobody used
@@ -290,8 +321,11 @@ export async function readTallies(args: {
   hasAnyRow: boolean;
 }> {
   if (args.window.store === 'lignes détaillées') {
-    const tallies = await readRawTallies(args);
-    return { tallies, computedAt: null, hasAnyRow: true };
+    const [tallies, hasAnyRow] = await Promise.all([
+      readRawTallies(args),
+      hasAnyRawRow(args.window, args.campusId ?? null),
+    ]);
+    return { tallies, computedAt: null, hasAnyRow };
   }
   return readCubeTallies({
     features: args.features,

@@ -206,10 +206,16 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
   // feature no campus touched is a candidate for removal, one a single campus
   // uses is the opposite and a training question.
   //
-  // `aRetirer` is null when the monthly cube holds nothing for the window, which
-  // is an absence of MEASUREMENT and not an absence of use. Saying so beats the
-  // alternative: with an empty cube the never-used list is every feature in
+  // `aRetirer` is null when NOTHING was measured over the window, which is an
+  // absence of MEASUREMENT and not an absence of use. Saying so beats the
+  // alternative: with nothing recorded the never-used list is every feature in
   // Jump, and a mail naming all of them would read as a finding.
+  //
+  // "Nothing measured" has to mean it whichever store answers, and this window
+  // is the case in point: ninety days always sits inside the raw retention, so
+  // the cube is never consulted here. While the detailed path asserted it had
+  // measured, this branch was unreachable and the first digests after deploy
+  // would have named the whole catalogue as unused.
   const measured = adoption.aRetirer.value !== null;
   const unused = adoption.jamaisUtilisees.value;
   const abandoned = adoption.devenuesInutilisees.value;
