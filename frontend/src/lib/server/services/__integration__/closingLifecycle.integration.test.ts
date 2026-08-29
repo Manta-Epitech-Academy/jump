@@ -568,6 +568,69 @@ describe("the talent's journey", () => {
     await prisma.event.delete({ where: { id: event.id } });
   });
 
+  /**
+   * The journey-side half of "a closing outliving its enrolment" above: a
+   * closing that survives the Salesforce prune in the database must also stay
+   * on the one screen that exists to show it, not just in a direct query.
+   * Before this, `entries` was built by mapping `participations` alone, so a
+   * closing with no participation left to join it never got iterated at all -
+   * un-deleted in the database, invisible on the fiche.
+   */
+  it('keeps a closing whose participation the Salesforce sync has since pruned', async () => {
+    const event = await prisma.event.create({
+      data: {
+        titre: `ClosingOutlived-${stamp}`,
+        date: new Date('2026-03-02T00:00:00.000Z'),
+        campusId: ids.campus,
+        closingTemplateId: ids.template,
+      },
+    });
+    const talent = await prisma.talent.create({
+      data: { nom: 'Outlived', prenom: `Test${stamp}` },
+    });
+    const participation = await prisma.participation.create({
+      data: { talentId: talent.id, eventId: event.id, campusId: ids.campus },
+    });
+    await prisma.closing_Record.create({
+      data: {
+        talentId: talent.id,
+        eventId: event.id,
+        staffId: ids.staff,
+        campusId: ids.campus,
+        templateId: ids.template,
+        status: 'done',
+        conductedAt: new Date(),
+        recommendation: 'bon_profil',
+        verdictNote: 'Suivi à prévoir.',
+      },
+    });
+
+    // Exactly what the end-of-sync prune does to a member dropped from the
+    // campaign: the participation goes, the closing does not.
+    await prisma.participation.delete({ where: { id: participation.id } });
+
+    const journey = await getTalentJourney(
+      talent.id,
+      ids.campus,
+      'Europe/Paris',
+    );
+
+    expect(journey.entries).toHaveLength(1);
+    expect(journey.closingCount).toBe(1);
+    expect(journey.entries[0].eventId).toBe(event.id);
+    // No participation left to read a Salesforce status off.
+    expect(journey.entries[0].presence).toBeNull();
+    expect(journey.entries[0].closing).toMatchObject({
+      status: 'done',
+      recommendation: 'bon_profil',
+      verdictNote: 'Suivi à prévoir.',
+    });
+
+    await prisma.closing_Record.deleteMany({ where: { talentId: talent.id } });
+    await prisma.talent.delete({ where: { id: talent.id } });
+    await prisma.event.delete({ where: { id: event.id } });
+  });
+
   it('leaves out an event that is still to come and has no closing', async () => {
     const nextMonth = new Date(Date.now() + 30 * 24 * 3600 * 1000);
     const event = await prisma.event.create({
