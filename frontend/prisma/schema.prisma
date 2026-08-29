@@ -749,39 +749,39 @@ model CmsPage {
   @@index([eventId])
 }
 
-model Planning {
-  id        String   @id @default(cuid())
-  eventId   String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  timeSlots TimeSlot[]
-}
-
-model TimeSlot {
-  id         String   @id @default(cuid())
-  planningId String
-  startTime  DateTime
-  endTime    DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  planning Planning  @relation(fields: [planningId], references: [id], onDelete: Cascade)
-  activity Activity?
-
-  @@index([planningId])
-}
-
-model Activity {
+/// One activity in an event's programme, at the hour it runs.
+///
+/// This replaces three tables - `Planning`, `TimeSlot`, `Activity` - that
+/// modelled one thing. `Planning` held an `eventId` and two timestamps and
+/// nothing else, auto-created empty for every synced event (286 of 292 rows
+/// carried no slot at all); `Activity` held `nom` and `activityType` against a
+/// unique `timeSlotId`, so it was a column-holder with the same row count as the
+/// table it hung off and not one slot without one.
+///
+/// The cost was not storage, it was `db/scoped.ts`: campus scoping had to walk
+/// `activity -> timeSlot -> planning -> event -> campusId` at every level, which
+/// took about 288 of that file's 707 lines - 41 % of the layer that cloisters a
+/// campus's data - and half of it guarded create/update/delete paths the app
+/// does not have. One hop now, exactly like `EventPresence`.
+///
+/// `nom` and `activityType` are required. A slot with no activity rendered as
+/// nothing at all (the viewer skipped it), so it was an invisible row rather
+/// than a meaningful state, and none existed.
+///
+/// Written only by the seed scripts today; the dev planning page reads it.
+model Planning_Slot {
   id           String       @id @default(cuid())
+  eventId      String
+  startTime    DateTime
+  endTime      DateTime
   nom          String
   activityType ActivityType
-  timeSlotId   String       @unique
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  timeSlot TimeSlot @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, startTime])
 }
 
 model Event {
@@ -846,7 +846,7 @@ model Event {
   closingTemplate     Closing_Template?      @relation("EventClosingTemplate", fields: [closingTemplateId], references: [id], onDelete: Restrict)
   participations      Participation[]
   closings            Closing_Record[]
-  planning            Planning?
+  planningSlots       Planning_Slot[]
   cmsPages            CmsPage[]
   broadcasts          Broadcast[]
   minigameAttempts    MinigameAttempt[]

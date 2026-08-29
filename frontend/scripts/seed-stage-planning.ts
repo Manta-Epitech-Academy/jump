@@ -1218,17 +1218,12 @@ async function seedCampus(plan: CampusPlanning): Promise<void> {
   const event = await prisma.event.findFirst({
     where: { campusId: campus.id, endDate: { not: null } },
     orderBy: { date: 'asc' },
-    include: { planning: true },
   });
   if (!event) {
     throw new Error(
       `No multi-day stage event for ${plan.campus}. Create the stage event (with an end date) first.`,
     );
   }
-
-  const planning =
-    event.planning ??
-    (await prisma.planning.create({ data: { eventId: event.id } }));
 
   const tz = campus.timezone;
   const slotData = plan.days.flatMap((day) =>
@@ -1241,36 +1236,28 @@ async function seedCampus(plan: CampusPlanning): Promise<void> {
         );
       }
       return {
-        planningId: planning.id,
+        eventId: event.id,
         startTime,
         endTime,
-        activity: {
-          create: {
-            nom: s.nom,
-            activityType: s.type ?? inferActivityType(s.nom),
-          },
-        },
+        nom: s.nom,
+        activityType: s.type ?? inferActivityType(s.nom),
       };
     }),
   );
 
   // Count what the rebuild is about to destroy, so a re-run over an existing
   // (possibly staff-edited) planning is never silent. See the header note.
-  const replaced = await prisma.timeSlot.count({
-    where: { planningId: planning.id },
+  const replaced = await prisma.planning_Slot.count({
+    where: { eventId: event.id },
   });
 
-  // Full rebuild (cascades to activities) so the script is idempotent. Use an
-  // interactive transaction with a generous timeout: against a remote DB the
-  // per-slot round-trips blow past the default 5s interactive limit (the batch
-  // array form gives no way to raise it).
-  await prisma.$transaction(
-    async (tx) => {
-      await tx.timeSlot.deleteMany({ where: { planningId: planning.id } });
-      await Promise.all(slotData.map((data) => tx.timeSlot.create({ data })));
-    },
-    { timeout: 120_000, maxWait: 15_000 },
-  );
+  // Full rebuild so the script is idempotent. One `createMany` now that a slot
+  // is one row: the nested per-slot creates this replaces were what needed an
+  // interactive transaction with a raised timeout against a remote database.
+  await prisma.$transaction([
+    prisma.planning_Slot.deleteMany({ where: { eventId: event.id } }),
+    prisma.planning_Slot.createMany({ data: slotData }),
+  ]);
 
   console.log(
     `✓ ${plan.campus.padEnd(14)} ${slotData.length} slots across ${plan.days.length} days (tz ${tz}) → "${event.titre}"` +

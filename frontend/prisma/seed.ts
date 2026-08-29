@@ -2017,9 +2017,7 @@ async function wipeAll() {
     prisma.messageTemplate.deleteMany(),
     prisma.participation.deleteMany(),
     prisma.closing_Record.deleteMany(),
-    prisma.activity.deleteMany(),
-    prisma.timeSlot.deleteMany(),
-    prisma.planning.deleteMany(),
+    prisma.planning_Slot.deleteMany(),
     prisma.event.deleteMany(),
     prisma.talentInterest.deleteMany(),
     prisma.interest.deleteMany(),
@@ -2812,11 +2810,10 @@ async function seedEvents(
       blueprint.days ??
       (blueprint.slots ? [{ dayOffset: 0, slots: blueprint.slots }] : []);
 
-    // Whole planning skeleton (timeSlots -> activity), built as nested-create
-    // input so the entire event ships in one round trip.
-    // 1 activity = 1 slot; multi-activity blueprints write as parallel slots
-    // at the same time.
-    const timeSlotData = dayList.flatMap((day) =>
+    // The event's programme, built as nested-create input so the whole event
+    // ships in one round trip. 1 activity = 1 slot; multi-activity blueprints
+    // write as parallel slots at the same time.
+    const planningSlotData = dayList.flatMap((day) =>
       day.slots.flatMap((slot) => {
         const slotStart = dayAt(
           blueprint.daysOffset + day.dayOffset,
@@ -2835,12 +2832,8 @@ async function seedEvents(
           return {
             startTime: slotStart,
             endTime: slotEnd,
-            activity: {
-              create: {
-                nom: act.nom,
-                activityType,
-              },
-            },
+            nom: act.nom,
+            activityType,
           };
         });
       }),
@@ -2877,7 +2870,7 @@ async function seedEvents(
             (moduleKey) => ({ moduleKey }),
           ),
         },
-        planning: { create: { timeSlots: { create: timeSlotData } } },
+        planningSlots: { create: planningSlotData },
       },
     });
     eventIds.push(event.id);
