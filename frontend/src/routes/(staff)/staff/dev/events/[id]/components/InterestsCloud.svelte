@@ -14,7 +14,7 @@
 
   /**
    * The server caps `rows` to a top-N; `others.count` is the sum of tail
-   * declarations (one inscrit picking 3 tail interests adds 3) — labelled
+   * declarations (one inscrit picking 3 tail interests adds 3), labelled
    * "déclarations" rather than a head count because it's not a unique-person count.
    */
   type Breakdown = {
@@ -25,7 +25,7 @@
   type Props = {
     eventId: string;
     breakdown: Breakdown;
-    /** Cohort size — denominator for the proportion bar. */
+    /** Cohort size: denominator for the proportion bar. */
     totalParticipations: number;
     /**
      * When the surrounding page is already filtered to an interest, its row is
@@ -45,7 +45,7 @@
      */
     tailRows?: InterestRow[];
     interaction?: 'navigate' | 'filter' | 'readonly';
-    /** Filter mode — href that clears the active interest facet. */
+    /** Filter mode: href that clears the active interest facet. */
     clearHref?: string;
     /** Header label. Override when the breakdown is scoped (e.g. tech-only). */
     title?: string;

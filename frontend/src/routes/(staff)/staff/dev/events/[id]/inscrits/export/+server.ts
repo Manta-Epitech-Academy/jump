@@ -31,7 +31,7 @@ import { USAGE_FEATURES } from '$lib/domain/usage';
  * the server re-queries them campus + event scoped and recomputes the dossier
  * verdicts from the DB (never trusting the client), then streams the workbook.
  *
- * The sheet is richer than the on-screen table on purpose — a download is where
+ * The sheet is richer than the on-screen table on purpose: a download is where
  * the dev actually works the cohort: it adds student + parent phone/email and
  * splits the folded "Statut" into its two gates (règlement, droit à l'image) so
  * the file doubles as a contact list and a "who owes what" triage sheet.

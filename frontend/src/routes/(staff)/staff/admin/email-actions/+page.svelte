@@ -142,8 +142,8 @@
                   value={selectedTemplate[action.key] || 'all'}
                   onChange={(v) =>
                     (selectedTemplate[action.key] = v === 'all' ? '' : v)}
-                  allLabel="— Aucun (email ignoré) —"
-                  placeholder="— Aucun (email ignoré) —"
+                  allLabel="- Aucun (email ignoré) -"
+                  placeholder="- Aucun (email ignoré) -"
                   searchPlaceholder="Rechercher un modèle…"
                   emptyLabel="Aucun modèle."
                   triggerClass="h-9 flex-1"
@@ -154,7 +154,7 @@
               </form>
               {#if !mapping}
                 <p class="mt-2 text-xs font-semibold text-destructive">
-                  Non configuré — emails ignorés
+                  Non configuré : emails ignorés
                 </p>
               {/if}
             </Table.Cell>

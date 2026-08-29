@@ -141,7 +141,7 @@ export async function validateTalentInterests(
 
 /**
  * Close onboarding: stamp the signature + charter, grant the arrival XP facts,
- * and enqueue the signed-rules PDF — all in one transaction of fast DB writes,
+ * and enqueue the signed-rules PDF, all in one transaction of fast DB writes,
  * so the caller can redirect immediately and run the PDF out of band.
  *
  * Returns the enqueued job's id; the caller kicks off `runOnboardingPdfJob`
@@ -162,7 +162,7 @@ export async function signOnboardingRules(input: {
   const job = await prisma.$transaction(async (tx) => {
     // Resolve the talent's campus (most-recent participation) and their 0-based
     // position among completers in that campus, BEFORE stamping this talent's
-    // own rulesSignedAt below — so the count is "those who finished before me".
+    // own rulesSignedAt below, so the count is "those who finished before me".
     // The position query holds a per-campus advisory lock for the rest of this
     // transaction, so concurrent completions can't tie for the same tier. A
     // campus-less talent (no participation yet) earns no early-bird: you can't
@@ -212,7 +212,7 @@ export async function signOnboardingRules(input: {
       amount: WELCOME_XP_BONUS,
       campusId,
     });
-    // Layered bonus fact for the earliest finishers in the campus — separate
+    // Layered bonus fact for the earliest finishers in the campus, separate
     // from the base so the arrival reward stays explainable and the tier is
     // auditable. Idempotent on (onboarding_early_bird, talentId).
     if (earlyBirdBonus > 0) {

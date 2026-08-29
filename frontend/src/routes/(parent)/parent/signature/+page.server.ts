@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   // Règlement intérieur comes first in the flow. If any child's is still
-  // unsigned, send the parent back to that step — even on a direct hit here.
+  // unsigned, send the parent back to that step, even on a direct hit here.
   const unsignedRules = await prisma.talent.count({
     where: { parentEmail: locals.user.email, parentRulesSignedAt: null },
   });
@@ -26,7 +26,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, resolve('/parent/reglement'));
   }
 
-  // Children whose guardian has not yet decided for the dossier in hand — a
+  // Children whose guardian has not yet decided for the dossier in hand: a
   // refusal is a settled decision and drops out here just as an authorization
   // does. The column is a projection of the talent's most recent dossier, so a
   // returning family reappears here the year their child reopens one: the

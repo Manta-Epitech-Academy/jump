@@ -18,7 +18,7 @@
   //  - People: talents + parents + staff, searched globally server-side, each
   //    jumping to the relevant admin list pre-filtered via `?q=`.
   // Admin-specific by design: cross-campus, spanning talents + parents + staff
-  // and jumping to admin lists — not a campus-scoped, talent-only palette.
+  // and jumping to admin lists, not a campus-scoped, talent-only palette.
   // Reuses the same ui/command kit.
   let { open = $bindable(false) }: { open?: boolean } = $props();
 
@@ -77,7 +77,7 @@
     const q = encodeURIComponent(r.navQ);
     if (r.type === 'staff') {
       // The members roster sits below the invitations queue, so jump straight to
-      // it via the #members anchor — the section reads the ?q and filters to this
+      // it via the #members anchor: the section reads the ?q and filters to this
       // person, in view immediately instead of buried below the invitations.
       go(`${resolve('/staff/admin/users')}?q=${q}#members`);
     } else {

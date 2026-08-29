@@ -35,7 +35,7 @@ export function lastActiveLabel(date: Date | string | null): string {
  * missing value, and that is the one column on the staff tables where this is
  * the right call. `rowComparator` sinks valueless rows in both directions
  * because an absent Lycée means the column cannot describe the row, so leading
- * with a block of "—" says nothing. Here the absence IS the value, for the same
+ * with a block of "-" says nothing. Here the absence IS the value, for the same
  * reason `lastActiveLabel` returns "Jamais" rather than an em dash: an account
  * nobody has ever opened is the single most actionable row on the page, and
  * "away the longest" is exactly what it is.

@@ -28,7 +28,7 @@
   });
 
   function pct(v: number | null): string {
-    return v == null ? '—' : `${Math.round(v)} %`;
+    return v == null ? '-' : `${Math.round(v)} %`;
   }
 
   // ── Client-side filtering over the 50 most recent sends ──────────────────
@@ -188,7 +188,7 @@
                 >{b.campus.name}</Table.Cell
               >
               <Table.Cell class="text-muted-foreground">
-                {b.event?.titre ?? '—'}
+                {b.event?.titre ?? '-'}
               </Table.Cell>
               <Table.Cell><BroadcastStatusBadge status={b.status} /></Table.Cell
               >

@@ -5,7 +5,7 @@ import type { SubmitFunction } from '@sveltejs/kit';
  *
  * The wizard never navigates between steps: `data.step` is recomputed from the
  * DB on each `invalidateAll`, so SvelteKit never clears the page `form` prop on
- * its own. `update()` is what keeps `form` in sync with the step now shown — on
+ * its own. `update()` is what keeps `form` in sync with the step now shown: on
  * success it applies the (error-free) result and invalidates the load, advancing
  * the step; on failure it applies the field errors in place.
  *
@@ -23,8 +23,8 @@ export function onboardingSubmit(
     return async ({ result, update }) => {
       await update();
       // On success the step advances and this component is torn down, so leave
-      // `submitting` as-is — flipping it back would flash the button re-enabling
-      // mid-exit. On failure we stay on the step, so release it.
+      // `submitting` as-is (flipping it back would flash the button re-enabling
+      // mid-exit). On failure we stay on the step, so release it.
       if (result.type !== 'success') setSubmitting?.(false);
     };
   };

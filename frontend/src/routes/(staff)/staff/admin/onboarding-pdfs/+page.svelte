@@ -78,7 +78,7 @@
       data.filters.q !== '',
   );
 
-  // Status tiles double as the primary filter — the summary you read and the
+  // Status tiles double as the primary filter: the summary you read and the
   // control you click are the same object. Same KpiTile as the dev event
   // onboarding cockpit, so the chrome reads consistently across staff.
   const cards = [
@@ -106,7 +106,7 @@
     {
       key: 'error',
       label: 'Erreurs',
-      caption: 'Échecs — relançables',
+      caption: 'Échecs, relançables',
       tone: 'orange',
       Icon: TriangleAlert,
     },
@@ -169,7 +169,7 @@
       {relativeTime(iso)}
     </span>
   {:else}
-    <span class="font-mono text-xs text-muted-foreground">—</span>
+    <span class="font-mono text-xs text-muted-foreground">-</span>
   {/if}
 {/snippet}
 
@@ -317,7 +317,7 @@
                 </Badge>
               </Table.Cell>
               <Table.Cell class="font-medium">
-                {job.talent?.name ?? '—'}
+                {job.talent?.name ?? '-'}
               </Table.Cell>
               <Table.Cell>
                 {documentTypeLabels[job.documentType] ?? job.documentType}
@@ -359,7 +359,7 @@
                     </Button>
                   </form>
                 {:else}
-                  <span class="text-xs text-muted-foreground">—</span>
+                  <span class="text-xs text-muted-foreground">-</span>
                 {/if}
               </Table.Cell>
               <Table.Cell class="text-right">

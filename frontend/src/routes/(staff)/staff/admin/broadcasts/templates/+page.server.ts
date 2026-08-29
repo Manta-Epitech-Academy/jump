@@ -60,7 +60,7 @@ export const actions: Actions = {
     // Block when either a broadcast OR an EmailActionMapping references this
     // template. The EmailActionMapping relation is `onDelete: Cascade`, so
     // without this guard a one-click delete from the list silently wipes the
-    // mapping for actions like `otp_login` — and `sendActionEmail` only logs
+    // mapping for actions like `otp_login`, and `sendActionEmail` only logs
     // a warn and returns `{ ok: false }`, leaving students stuck at login
     // with no front-side feedback.
     const [used, mapped] = await Promise.all([

@@ -1,5 +1,5 @@
 /**
- * Mailjet provider. Uses the v3.1 Send API via `fetch` — no SDK.
+ * Mailjet provider. Uses the v3.1 Send API via `fetch`, no SDK.
  *
  * The Resend SDK swallowed per-call errors, which is why this codebase
  * keeps a `SendEmailResult` wrapper. Mailjet's REST API is small enough
@@ -20,7 +20,7 @@ import type { MailMessage, MailProvider, SendEmailResult } from '../types';
 
 /**
  * Mailjet v3.1 Send caps the TOTAL number of recipients (summed `To` across
- * every Message) per call at 50 — *not* the message count. Most broadcast
+ * every Message) per call at 50 (*not* the message count). Most broadcast
  * messages carry a single recipient, so message-count and recipient-count
  * chunking coincide in prod. But the dev-redirect rewrites each message's
  * `to` to the tester's list (see `dev-redirect.ts`), so 50 single-recipient
@@ -139,7 +139,7 @@ async function postSend(
       body: JSON.stringify({ Messages: messages }),
     });
   } catch (err) {
-    // Pre-response throw (DNS, TLS, abort). Always transient — caller
+    // Pre-response throw (DNS, TLS, abort). Always transient: caller
     // marks recipients retryable.
     return messages.map(() => ({
       ok: false as const,
@@ -192,7 +192,7 @@ async function sendBatch(payloads: MailMessage[]): Promise<SendEmailResult[]> {
   let chunkRecipients = 0;
   for (const message of messages) {
     // A single message that alone exceeds the cap (a >50-address redirect
-    // list — absurd config) still ships solo so Mailjet rejects only it,
+    // list, absurd config) still ships solo so Mailjet rejects only it,
     // rather than starving its neighbours' slots; one message's recipients
     // can't be split across calls.
     const count = Math.max(message.To.length, 1);

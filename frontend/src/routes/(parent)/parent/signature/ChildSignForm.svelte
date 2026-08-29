@@ -43,7 +43,7 @@
   let decision = $state<ImageRightsDecision | ''>('');
 
   // A refusal is a legitimate, unpressured choice, so both branches carry equal
-  // brand weight — never red, never a greyed-out "lesser" state. Authorize uses
+  // brand weight, never red, never a greyed-out "lesser" state. Authorize uses
   // the brand teal, refuse the brand blue: two distinct but equally vivid
   // options, told apart by colour + icon + label rather than by valence.
   const submitClass = $derived(

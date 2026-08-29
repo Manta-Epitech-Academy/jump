@@ -54,14 +54,14 @@
     <div class="w-full max-w-sm space-y-8">
       <!-- Header -->
       <header class="space-y-5">
-        <!-- Compact logo — mobile only (the brand panel carries it on desktop) -->
+        <!-- Compact logo: mobile only (the brand panel carries it on desktop) -->
         <EpitechLogo class="h-7 w-auto lg:hidden" />
         <div class="space-y-2">
           <h2 class="font-heading text-display-l">
             Jump<TitleCursor />
           </h2>
           <p class="text-sm text-muted-foreground">
-            Espace staff — connectez-vous pour accéder à votre espace.
+            Espace staff : connectez-vous pour accéder à votre espace.
           </p>
         </div>
       </header>

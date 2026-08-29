@@ -1,5 +1,5 @@
 /**
- * lint-design.ts — Vérifie que les composants respectent le contrat visuel
+ * lint-design.ts : Vérifie que les composants respectent le contrat visuel
  * défini dans DESIGN.md (racine du dépôt).
  *
  * Usage : npx tsx scripts/lint-design.ts   (ou bun run lint:design)
@@ -79,13 +79,13 @@ const rules: Rule[] = [
     pattern:
       /\b(?:[a-z-]+:)*(?:bg|text|border|ring|divide|placeholder|decoration|from|to|via|shadow|fill|stroke|accent|outline|caret)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b/,
     message:
-      'famille Tailwind hors palette — utiliser un token (voir DESIGN.md § Colors)',
+      'famille Tailwind hors palette : utiliser un token (voir DESIGN.md § Colors)',
   },
   {
     name: 'Aucune taille de police arbitraire',
     pattern: /\btext-\[\d+px\]/,
     message:
-      'taille en px arbitraire — utiliser epi-overline, text-xs ou un token display',
+      'taille en px arbitraire : utiliser epi-overline, text-xs ou un token display',
   },
   {
     name: 'Aucune graisse que la police ne sait pas rendre',
@@ -103,7 +103,7 @@ const rules: Rule[] = [
     name: 'Aucun fond en dégradé',
     pattern: /\bbg-(?:gradient|linear|radial|conic)-/,
     message:
-      'pas de fond en dégradé — la texture de marque est blueprint-grid + carrés pixel',
+      'pas de fond en dégradé : la texture de marque est blueprint-grid + carrés pixel',
     // A fade used as a truncation mask or a scrim is not a background.
     unless: /to-transparent|from-transparent/,
   },
@@ -122,7 +122,7 @@ const rules: Rule[] = [
     name: 'Aucune transition non nommée',
     pattern: /\btransition-all\b/,
     message:
-      'transition-all anime aussi les propriétés de layout — utiliser transition-ui',
+      'transition-all anime aussi les propriétés de layout : utiliser transition-ui',
   },
   {
     name: 'Aucune durée au-dessus du plafond',
@@ -148,7 +148,7 @@ const rules: Rule[] = [
     pattern:
       /(?:class(?:Name)?\s*=\s*["'{][^"'}]*|@apply[^;]*|cn\([^)]*)(?<![-\w])overline(?![-\w])|[\w[\]&.\-/]+:overline(?![-\w])/,
     message:
-      '`overline` est la décoration Tailwind — le label mono est `epi-overline`',
+      '`overline` est la décoration Tailwind : le label mono est `epi-overline`',
     files: /\.svelte$|\.css$/,
   },
   {
@@ -168,7 +168,7 @@ const rules: Rule[] = [
     name: 'Aucun accent brut en remplissage de bouton',
     pattern: /bg-epi-(?:tomorrow|together)\b(?![-/])[^"'`]*\btext-white\b/,
     message:
-      'blanc sur un accent brut est à 3,1:1 — l’action principale est bg-primary',
+      'blanc sur un accent brut est à 3,1:1 : l’action principale est bg-primary',
   },
   {
     name: 'Aucun blanc figé sur un remplissage qui s’inverse',
@@ -180,13 +180,13 @@ const rules: Rule[] = [
     pattern:
       /\bbg-(?:destructive|success|warning|epi-[a-z]+-ink)\b(?![-/])[^"'`]*\btext-white\b|\btext-white\b[^"'`]*\bbg-(?:destructive|success|warning|epi-[a-z]+-ink)\b(?![-/])/,
     message:
-      'blanc figé sur un fond qui s’inverse — utiliser text-status-foreground (DESIGN.md § Dark theme)',
+      'blanc figé sur un fond qui s’inverse : utiliser text-status-foreground (DESIGN.md § Dark theme)',
   },
   {
     name: 'Aucun indicateur de focus supprimé sans remplacement',
     pattern: /\boutline-none\b/,
     message:
-      'outline-none masque le focus — le supprimer, ou dessiner une bordure sur :focus',
+      'outline-none masque le focus : le supprimer, ou dessiner une bordure sur :focus',
     // A container that only receives focus programmatically, and the seamless
     // inline editors, which draw a border instead.
     unless: /focus:border-|focus-visible:border-|focus-within:border-/,
@@ -248,7 +248,7 @@ for (const rule of rules) {
       // has to go above the opening tag.
       const preceding = lines.slice(Math.max(0, i - 12), i + 1).join(' ');
       if (/design-lint-ignore:\s*\S/.test(preceding)) continue;
-      fail(`${rel(f)}:${i + 1} — ${rule.message}`);
+      fail(`${rel(f)}:${i + 1} - ${rule.message}`);
     }
   }
   if (errors === before) green(rule.name);

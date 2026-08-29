@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Full-screen "+N XP" reward float — the talent's XP gain celebration.
+  // Full-screen "+N XP" reward float: the talent's XP gain celebration.
   // Used for both the onboarding arrival (+200) and the daily minigame (+50);
   // the caller toggles mount and pairs it with confetti. The number counts up
   // for extra game-juice; the `animate-xp-float` rise/fade keyframes live in
@@ -10,7 +10,7 @@
   let { amount, label }: { amount: number; label?: string } = $props();
 
   // Count up to the awarded amount with an ease-out so it decelerates into place
-  // as the float pops — the rising number is the satisfying beat.
+  // as the float pops: the rising number is the satisfying beat.
   let display = $state(0);
   onMount(() => {
     const duration = 900;

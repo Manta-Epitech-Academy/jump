@@ -2,7 +2,7 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 
   // `until` arrives from the server as a Date but is serialized to a string
-  // across the load boundary — accept both.
+  // across the load boundary: accept both.
   let { until }: { until: Date | string | null } = $props();
 
   const untilLabel = $derived(
@@ -21,7 +21,7 @@
 >
   <span class="inline-flex items-center gap-2">
     <TriangleAlert class="h-4 w-4 shrink-0" />
-    ENVOIS RÉELS ACTIVÉS — emails et SMS partent aux vrais destinataires.
+    ENVOIS RÉELS ACTIVÉS : emails et SMS partent aux vrais destinataires.
   </span>
   {#if untilLabel}
     <span class="font-normal opacity-90">Se désactive à {untilLabel}.</span>

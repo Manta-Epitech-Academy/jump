@@ -110,7 +110,7 @@
         <Icon class="h-4 w-4" />
         {label}
       </span>
-      <span class="font-mono text-xs">{disabled ? '—' : 0}</span>
+      <span class="font-mono text-xs">{disabled ? '-' : 0}</span>
     </div>
   {/if}
 {/snippet}

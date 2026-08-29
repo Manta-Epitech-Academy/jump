@@ -1,7 +1,7 @@
 /**
  * One-off: inject 200 Lyon talents with a Participation in the campus so
  * they show up under broadcast resolvers (which filter by
- * `Participation.campusId`). Idempotent enough for local dev — re-runs
+ * `Participation.campusId`). Idempotent enough for local dev: re-runs
  * just add 200 more.
  */
 import { PrismaClient } from '@prisma/client';
@@ -106,7 +106,7 @@ async function main() {
   const COUNT = 200;
 
   const campus = await prisma.campus.findFirst({ where: { name: 'Lyon' } });
-  if (!campus) throw new Error('Lyon campus not found — run the seed first.');
+  if (!campus) throw new Error('Lyon campus not found, run the seed first.');
 
   // We need any Lyon event so each talent has a Participation row that the
   // broadcast resolver picks up.
@@ -117,7 +117,7 @@ async function main() {
   });
   if (!event) {
     throw new Error(
-      'No Lyon event found — broadcasts need at least one event in the campus.',
+      'No Lyon event found, broadcasts need at least one event in the campus.',
     );
   }
   console.log(
@@ -144,7 +144,7 @@ async function main() {
     };
   });
 
-  // createMany is fast but doesn't return ids — and we need ids to create
+  // createMany is fast but doesn't return ids, and we need ids to create
   // Participations. Do it as a transaction so a mid-loop failure leaves no
   // half-inserted state.
   const created = await prisma.$transaction(

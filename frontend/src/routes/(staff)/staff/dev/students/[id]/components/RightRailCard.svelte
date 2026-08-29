@@ -29,7 +29,7 @@
   import ImageRightsCorrectionDialog from './ImageRightsCorrectionDialog.svelte';
 
   // Decision history row as projected by the page load. Kept loose here (the
-  // dialog owns the precise type) — this card only forwards it.
+  // dialog owns the precise type), this card only forwards it.
   type ImageRightsRecordVM = {
     id: string;
     schoolYear: string;

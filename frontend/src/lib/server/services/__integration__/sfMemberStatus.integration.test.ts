@@ -6,7 +6,7 @@ import { assertTestDatabase } from './testDatabase';
 
 describe('Salesforce member status sync (integration)', () => {
   // Unique per run so re-runs never collide and cleanup targets exactly what
-  // this suite created — the test owns its own event, it never reuses existing
+  // this suite created: the test owns its own event, it never reuses existing
   // data.
   const stamp = Date.now();
   const eventExternalId = `test_sf_event_${stamp}`;
@@ -92,7 +92,7 @@ describe('Salesforce member status sync (integration)', () => {
         await prisma.campus.delete({ where: { id: campusId } }).catch(() => {});
       }
     } catch {
-      // ignore — the test database is disposable
+      // ignore: the test database is disposable
     }
   });
 
@@ -120,7 +120,7 @@ describe('Salesforce member status sync (integration)', () => {
     expect(statuses.get(talents[3].external_id)).toBe('DESISTED');
 
     // Dev-space visibility follows isVisibleInDevSpace: READY/MEET shown, the
-    // rest hidden — the whole point of ingesting the status.
+    // rest hidden: the whole point of ingesting the status.
     expect(
       isVisibleInDevSpace(statuses.get(talents[0].external_id) ?? null),
     ).toBe(true);

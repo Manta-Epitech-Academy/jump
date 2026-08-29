@@ -9,9 +9,9 @@
 
   // Shared signature shell for the parent flow's two co-signed acts: the
   // règlement intérieur (single accept) and the droit-à-l'image decision
-  // (accept *or* refuse). Both surface the same legal frame — "Je soussigné(e),
+  // (accept *or* refuse). Both surface the same legal frame: "Je soussigné(e),
   // … agissant en qualité de …, Fait à …, le …" plus a per-child signer
-  // identity — and differ only in how the declaration sentence ends and which
+  // identity, and differ only in how the declaration sentence ends and which
   // decision artifact the parent ticks. Callers inject those two pieces as
   // snippets along with the form action, submit visuals, and analytics hook,
   // so each act keeps its own colour-coded button without the shell knowing
@@ -23,7 +23,7 @@
       prenom: string;
       nom: string;
       /**
-       * Talent-entered guardian identity from onboarding — used to pre-fill the
+       * Talent-entered guardian identity from onboarding, used to pre-fill the
        * signer fields below. The guardian can still override (e.g. their legal
        * name differs from what the talent typed in casually).
        */
@@ -49,19 +49,19 @@
     /**
      * Inline tail of the "Je soussigné(e)…" sentence, rendered immediately
      * after the relationship select. Each act terminates the sentence
-     * differently — image: "concernant l'utilisation…" / rules: "reconnais
-     * avoir pris connaissance…".
+     * differently (image: "concernant l'utilisation…" / rules: "reconnais
+     * avoir pris connaissance…").
      */
     declarationTail: Snippet;
     /**
      * Decision artifact rendered between the declaration and the place+date
-     * row — the rules accept checkbox, or the image accept/refuse buttons +
+     * row: the rules accept checkbox, or the image accept/refuse buttons +
      * legal body. Caller also owns any extra hidden inputs (e.g. `decision`):
      * a `<input type="hidden">` rendered inside this snippet lands inside the
      * <form> and is submitted with the rest.
      */
     artifact?: Snippet;
-    /** Tailwind classes for the submit button — caller controls colour. */
+    /** Tailwind classes for the submit button: caller controls colour. */
     submitClass: string;
     /** Idle label of the submit button. A spinner replaces it while submitting. */
     submitLabel: Snippet;
@@ -84,7 +84,7 @@
   // Pre-fill from the talent-entered guardian identity; the parent can edit if
   // their legal name differs. Structured as prénom + nom so the signed PDF
   // reads symmetrically with the talent's own signature. `untrack` makes the
-  // initial-value capture explicit — once the form mounts, the parent's edits
+  // initial-value capture explicit: once the form mounts, the parent's edits
   // own the state, not later changes to the `child` prop.
   let signerPrenom = $state(untrack(() => child.parentPrenom ?? ''));
   let signerNom = $state(untrack(() => child.parentNom ?? ''));

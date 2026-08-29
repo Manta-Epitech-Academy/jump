@@ -28,7 +28,7 @@ const CRISP_RELAY = 'wss://client.relay.crisp.chat';
 
 // Allow the configured jump-games origin to be embedded as an iframe. Deployed
 // hosts already match the `*.epiboost.eu` wildcard below, but a local
-// jump-games (e.g. http://localhost:5174) does not — derive its origin so
+// jump-games (e.g. http://localhost:5174) does not: derive its origin so
 // frame-src follows JUMP_GAMES_URL in every environment.
 const GAMES_FRAME_SRC = (() => {
   try {
@@ -166,7 +166,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         staffProfile: { include: { campus: true } },
         // Staff notes about a talent live in their own table (`Note_TalentNote`),
         // never on the Talent row, so there is nothing staff-only to strip from
-        // `locals.talent` here — the leak the old `note` column had to omit is
+        // `locals.talent` here: the leak the old `note` column had to omit is
         // structurally gone.
         talent: true,
       },
@@ -241,12 +241,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     // 2.5 Stamp the talent's activity projections (fire-and-forget). Two durable
     // facts derived from this real request:
-    //   - `firstLoginAt` — set once, on the first real request, never cleared.
+    //   - `firstLoginAt`: set once, on the first real request, never cleared.
     //     It is the durable source for "première connexion" / the cohort funnel's
     //     "connected" gate, replacing a probe of bauth_session (whose rows are
     //     deleted by logout, identity repair and account relinks, so a real
     //     login would read "Jamais" once its session vanished).
-    //   - `lastActiveAt` — throttled to once per day.
+    //   - `lastActiveAt`: throttled to once per day.
     // Skip both while impersonated: the request is an admin testing the talent's
     // experience, not the talent being active. Counting it would falsely mark a
     // never-logged-in talent as connected.
@@ -341,7 +341,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   //
   // Prefer the impersonator: when staff impersonate a talent to test the
   // onboarding flow, the *real* human is the admin behind the session, and
-  // their `@epitech.eu` address is a real mailbox — whereas the impersonated
+  // their `@epitech.eu` address is a real mailbox, whereas the impersonated
   // talent's email is often a seeded placeholder no one can receive. So the
   // designed "experience it as a talent" path (impersonation) traps mail to
   // the tester regardless of the talent's email. The same human owns the
@@ -355,11 +355,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   // Dev-redirect pin (trapped envs only). Two roles:
   //   - logged OUT: make the arming admin look like the request actor, so the
-  //     OTP login mail routes to their inbox — the functional case the pin
+  //     OTP login mail routes to their inbox: the functional case the pin
   //     exists for (a logged-out send otherwise has no actor and falls to the
   //     shared env list). The pin can only pick a destination inside the trap,
   //     never lift it.
-  //   - logged IN as the armer: cosmetic only — surface the amber confirmation
+  //   - logged IN as the armer: cosmetic only, surface the amber confirmation
   //     banner (mirrors the real-sends banner) so the admin sees the pin is
   //     armed and can log out to test. The actor is already correct here, so
   //     we do NOT let the pin override it.

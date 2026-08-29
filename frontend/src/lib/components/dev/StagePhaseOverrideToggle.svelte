@@ -89,7 +89,7 @@
       disabled={busy}
       aria-pressed={isOverride}
       title={isOverride
-        ? `Aperçu actif — recliquer pour revenir au réel${isReal ? ' (phase réelle)' : ''}`
+        ? `Aperçu actif : recliquer pour revenir au réel${isReal ? ' (phase réelle)' : ''}`
         : isReal
           ? 'Phase réelle actuelle'
           : `Prévisualiser la phase « ${opt.label} »`}

@@ -48,7 +48,7 @@
         `parent de ${r.parentOf.prenom} ${r.parentOf.nom}`
       );
     if (r.staffUser?.name) return r.staffUser.name;
-    return '—';
+    return '-';
   }
 
   function recipientRole(r: (typeof data.recipients)[number]): string {
@@ -172,7 +172,7 @@
   <div class="flex items-center justify-between text-xs text-muted-foreground">
     <span>
       Destinataires {(data.recipientsPage - 1) * data.recipientsPageSize +
-        1}–{Math.min(
+        1}-{Math.min(
         data.recipientsPage * data.recipientsPageSize,
         data.recipientsTotal,
       )}
@@ -229,17 +229,17 @@
             >
             <Table.Cell class="text-xs text-muted-foreground">
               {#if data.broadcast.channel === 'sms'}
-                {r.recipientPhone ?? r.recipientEmail ?? '—'}
+                {r.recipientPhone ?? r.recipientEmail ?? '-'}
               {:else}
-                {r.recipientEmail ?? r.recipientPhone ?? '—'}
+                {r.recipientEmail ?? r.recipientPhone ?? '-'}
               {/if}
             </Table.Cell>
             <Table.Cell><RecipientStatusBadge status={r.status} /></Table.Cell>
             <Table.Cell class="text-xs text-muted-foreground">
-              {r.sentAt ? formatter.format(r.sentAt) : '—'}
+              {r.sentAt ? formatter.format(r.sentAt) : '-'}
             </Table.Cell>
             <Table.Cell class="text-xs text-muted-foreground">
-              {r.openedAt ? formatter.format(r.openedAt) : '—'}
+              {r.openedAt ? formatter.format(r.openedAt) : '-'}
             </Table.Cell>
             <Table.Cell class="text-xs text-destructive">
               {#if data.broadcast.channel === 'sms' && r.status === 'failed'}

@@ -32,7 +32,7 @@
   );
 
   // "Tout résoudre" clears every unresolved row in the DB, not just the ones
-  // on screen — only offer it on the unfiltered view so a narrowed list can't
+  // on screen: only offer it on the unfiltered view so a narrowed list can't
   // mislead an admin into a global wipe.
   const isFiltered = $derived(filterCampus !== 'all');
   // When filtered, the active filter *is* the selection: resolve exactly the
@@ -169,7 +169,7 @@
                     />
                   </span>
                 {:else}
-                  —
+                  -
                 {/if}
               </Table.Cell>
               <Table.Cell class="font-bold">{error.talentName}</Table.Cell>
@@ -177,11 +177,11 @@
                 {#if error.eventName}
                   <div class="font-bold">{error.eventName}</div>
                   <div class="text-xs text-muted-foreground">
-                    {error.campusName ?? '—'}
+                    {error.campusName ?? '-'}
                   </div>
                 {:else}
                   <span class="font-mono text-xs"
-                    >{error.eventExtId ?? '—'}</span
+                    >{error.eventExtId ?? '-'}</span
                   >
                 {/if}
               </Table.Cell>
@@ -198,7 +198,7 @@
                         action="?/rebind"
                         use:enhance={({ cancel }) => {
                           // Migrer extId means flipping the talent's identity
-                          // in our DB — confirm explicitly so an admin doesn't
+                          // in our DB: confirm explicitly so an admin doesn't
                           // misclick from a row that's actually a real email
                           // collision between two people.
                           const ok = confirm(

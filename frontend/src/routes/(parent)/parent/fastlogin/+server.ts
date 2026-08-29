@@ -3,7 +3,7 @@
  * (audience `jump:parent_fastlogin`) and creates a BetterAuth session for
  * the `bauth_user` whose email matches the token's `sub`, provided their
  * role is `parent`. Mirrors `/fastlogin` for talents, but never bootstraps
- * a new account — a parent user must already exist (the welcome flow
+ * a new account: a parent user must already exist (the welcome flow
  * provisions them).
  */
 
@@ -35,7 +35,7 @@ export const GET: RequestHandler = async ({ url, request, cookies }) => {
 
   const email = payload.email.toLowerCase().trim();
 
-  // Require an existing parent user — unlike `/fastlogin` we don't
+  // Require an existing parent user: unlike `/fastlogin` we don't
   // bootstrap one here. Parent accounts are provisioned by the welcome
   // flow once their child completes onboarding.
   const user = await prisma.bauth_user.findUnique({

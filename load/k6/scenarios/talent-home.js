@@ -32,7 +32,7 @@ const { baseUrl, secret } = requireEnv();
 
 export function setup() {
   if (data().talents.length === 0)
-    fail('Manifest has no talents — cannot run.');
+    fail('Manifest has no talents: cannot run.');
 }
 
 export default function () {

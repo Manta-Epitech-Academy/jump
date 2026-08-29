@@ -36,7 +36,7 @@
     aria-hidden="true"
   ></div>
 
-  <!-- Pixel overlays — 50%-opacity squares, charte signature texture -->
+  <!-- Pixel overlays (50%-opacity squares, charte signature texture) -->
   <div
     class="pointer-events-none absolute top-4 right-4 hidden md:block"
     aria-hidden="true"

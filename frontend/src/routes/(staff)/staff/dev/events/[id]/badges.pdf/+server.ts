@@ -13,7 +13,7 @@ import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // Generates the printable badge sheet for every talent registered to this event
-// (no selection — all inscrits). Campus-scoped via the event load. The `mode`
+// (no selection, all inscrits). Campus-scoped via the event load. The `mode`
 // query param picks the simple or foldable layout.
 export const GET: RequestHandler = async ({ params, locals, url }) => {
   requireStaffGroup(locals, 'devMember');

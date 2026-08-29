@@ -22,7 +22,7 @@ import { USAGE_FEATURES } from '$lib/domain/usage';
 /**
  * Filtered-directory XLSX export. Unlike the dev inscrits export (which posts
  * the ~200 ids it holds client-side), the admin talents list is server
- * paginated — only the current page of 50 is ever in the browser — so this
+ * paginated (only the current page of 50 is ever in the browser), so this
  * endpoint re-derives the filter `where` from the URL params via the shared
  * builder and exports EVERY matching row, in the table's sort order. The shared
  * `projectTalentRow` is what guarantees the "Statut" / "Parent" columns read the

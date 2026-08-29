@@ -1,7 +1,7 @@
 import { prisma } from '$lib/server/db';
 
 /**
- * True when `email` belongs to a parent contact or a staff / parent account —
+ * True when `email` belongs to a parent contact or a staff / parent account:
  * an address a student's login identity must never be moved onto.
  *
  * Bad Salesforce data (a minor onboarded or synced with a parent's email in the

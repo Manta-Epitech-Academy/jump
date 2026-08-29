@@ -1,11 +1,11 @@
 /**
- * Canonical platform-onboarding ladder — the single source of truth for both
+ * Canonical platform-onboarding ladder: the single source of truth for both
  * the wizard's resume logic (`(talent)/onboarding/+page.server.ts`) and the
  * staff-facing progress label (`(staff)/staff/admin/talents`).
  *
  * Each step writes its own timestamp; the wizard resumes at the first one still
  * null, so the step a talent is "on" is purely a function of which timestamps
- * are set — there is no hidden cursor state. The dashboard guard (`guards.ts`)
+ * are set: there is no hidden cursor state. The dashboard guard (`guards.ts`)
  * gates on the whole ladder being complete plus the charter being accepted.
  *
  * "Platform onboarding" (login → fill profile → sign règlement online) overlaps
@@ -53,7 +53,7 @@ export const ONBOARDING_STEP_LABELS: Record<OnboardingStep, string> = {
 
 /**
  * The timestamps each step posts. `interests` is the one step backed by two
- * timestamps — tech and general interests are validated together — so it is
+ * timestamps (tech and general interests are validated together) so it is
  * only "done" once both are set.
  */
 export type OnboardingStepFields = {
@@ -94,7 +94,7 @@ export type TalentOnboardingFields = OnboardingStepFields & {
 
 /**
  * Whether a talent has cleared the whole funnel. "Done" means every step
- * timestamp is set *and* the charter is accepted — the charter is signed
+ * timestamp is set *and* the charter is accepted: the charter is signed
  * alongside the rules step but kept explicit to mirror `guards.ts`.
  */
 export function deriveOnboardingStatus(
@@ -359,7 +359,7 @@ export type OnboardingProgress = {
 /**
  * Classifies a talent's onboarding into a phase + completed-step count. The
  * distinction worth surfacing is `not-started` (account exists but the first
- * step — identity — is still untouched) vs `in-progress`: since identity is
+ * step, identity, is still untouched) vs `in-progress`: since identity is
  * written atomically, a talent resuming at it has done nothing yet, so
  * labelling it "1/7" would overstate their progress.
  */

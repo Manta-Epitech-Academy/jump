@@ -1,12 +1,12 @@
 /**
- * SMS sizing — the single source for "how long is this message, and how many
+ * SMS sizing: the single source for "how long is this message, and how many
  * SMS will it cost?". Shared by the broadcast template editor and the relance
  * compose dialog so both count segments identically.
  *
  * GSM-7 assumed (the default templates are plain ASCII). A single SMS holds 160
  * characters; once a message spills over, the carrier splits it into
  * concatenated segments of 153 chars each, and you are billed *per segment*. (A
- * non-GSM-7 character — typographic apostrophe, emoji, … — would force UCS-2 at
+ * non-GSM-7 character (typographic apostrophe, emoji, ...) would force UCS-2 at
  * 70/segment; we don't model that, so the count drifts if such chars are pasted.)
  */
 export const SMS_SINGLE_SEGMENT_CHARS = 160;

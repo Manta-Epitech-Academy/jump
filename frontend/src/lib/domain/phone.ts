@@ -91,7 +91,7 @@ export function toBrevoRecipient(
  * Every number comes back in international grouping with its country code
  * visible ("+33 6 12 34 56 78", "+44 7911 123456"), French numbers included,
  * so staff always see the dialable form. Returns `null` for an empty value (so
- * callers can `?? '—'` / `|| 'Aucun numéro'`), and falls back to the trimmed
+ * callers can `?? '-'` / `|| 'Aucun numéro'`), and falls back to the trimmed
  * input verbatim when the value won't parse, so a malformed-but-present number
  * is shown as-is rather than hidden. Display only: the `tel:` href and SMS
  * sends keep deriving from the raw value.

@@ -5,7 +5,7 @@ import { prisma } from '$lib/server/db';
  *
  * The `openedAt: null` filter makes the first hit win, so repeat clicks are
  * no-ops; `updateMany` silently no-ops on an unknown id. The write is never
- * awaited — open-tracking must not block or fail the request it rides on (an
+ * awaited: open-tracking must not block or fail the request it rides on (an
  * email-link page load, a fastlogin redirect), so errors are swallowed.
  *
  * Two paths reach this: the `tracking_id` query param appended by

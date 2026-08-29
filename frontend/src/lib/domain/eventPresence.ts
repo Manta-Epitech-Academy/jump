@@ -203,7 +203,7 @@ export function defaultActiveSlotKey(
   // Today carries no créneau of its own: before the stage, after it, or a weekend
   // (or gap) in the middle. Land on the next créneau on or after today, and only
   // fall back to the last one when the whole stage is already past. (Before this,
-  // any non-créneau day past the start jumped to the last day — a Sunday mid-stage
+  // any non-créneau day past the start jumped to the last day: a Sunday mid-stage
   // opened on the final Friday.)
   const upcoming = slots.find((s) => s.day >= todayKey);
   return upcoming ? upcoming.key : slots[slots.length - 1].key;
@@ -361,7 +361,7 @@ export function computeSlotStats(statuses: CellStatus[]): SlotStats {
  * talents count as absent. Dividing by decided cells, not by every future
  * créneau, keeps the rate meaningful from day one instead of reading ~0% while
  * most slots haven't happened yet. Returns null when nothing is decided yet
- * (caller shows "—").
+ * (caller shows "-").
  */
 export function computeAttendanceRate(statuses: CellStatus[]): number | null {
   const decided = statuses.filter((s) => s !== 'pending');

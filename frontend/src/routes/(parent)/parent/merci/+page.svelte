@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-  <title>Merci — Espace Parent</title>
+  <title>Merci - Espace Parent</title>
 </svelte:head>
 
 <ParentFlowShell>

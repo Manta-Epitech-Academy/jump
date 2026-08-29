@@ -2,7 +2,7 @@
   import MailCheck from '@lucide/svelte/icons/mail-check';
 
   // `until` arrives from the server as a Date but is serialized to a string
-  // across the load boundary — accept both. `to` is the predicted destination.
+  // across the load boundary, accept both. `to` is the predicted destination.
   let { until, to }: { until: Date | string | null; to: readonly string[] } =
     $props();
 

@@ -1,7 +1,7 @@
 /**
  * Resend provider. Uses the official `resend` SDK.
  *
- * The SDK does **not** throw on 4xx/5xx responses — `emails.send` resolves
+ * The SDK does **not** throw on 4xx/5xx responses: `emails.send` resolves
  * with `{ data: null, error }`. Treating the awaited promise as "delivered"
  * therefore lets bounces, rate limits, suppressed recipients, and validation
  * errors slip through silently. We collapse the discriminated-union return
@@ -68,11 +68,11 @@ async function send(msg: MailMessage): Promise<SendEmailResult> {
 /**
  * Batch send. Permissive validation: one bad email won't tank the whole
  * batch. Successful entries come back in input-order in `data`, and `errors`
- * lists the failed indices — we splice them back together so the caller
+ * lists the failed indices: we splice them back together so the caller
  * doesn't need to know the SDK shape.
  *
- * Attachments and `scheduledAt` are not supported by Resend's batch endpoint
- * — callers that need either must use `send` per message.
+ * Attachments and `scheduledAt` are not supported by Resend's batch endpoint:
+ * callers that need either must use `send` per message.
  */
 async function sendBatch(payloads: MailMessage[]): Promise<SendEmailResult[]> {
   if (payloads.length === 0) return [];

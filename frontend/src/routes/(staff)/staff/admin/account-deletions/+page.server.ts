@@ -53,7 +53,7 @@ export const load: PageServerLoad = async () => {
     talent: {
       id: r.talent.id,
       // Keep nom/prenom split so the client renders them through the shared
-      // <TalentName> (NOM uppercased + Prénom) — same format as /admin/talents.
+      // <TalentName> (NOM uppercased + Prénom), same format as /admin/talents.
       nom: r.talent.nom,
       prenom: r.talent.prenom,
       email: r.talent.user?.email ?? null,

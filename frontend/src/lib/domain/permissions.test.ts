@@ -11,7 +11,7 @@ describe('Staff Group Permissions Domain Logic', () => {
     it('denies devMember access to admin, student, and null roles', () => {
       // Admins carry no campus, so they reach the dev space only by
       // impersonating a dev (that session resolves to role 'dev'), never with
-      // their own session — see STAFF_GROUPS.devMember in permissions.ts.
+      // their own session: see STAFF_GROUPS.devMember in permissions.ts.
       expect(can('devMember', 'admin')).toBe(false);
       expect(can('devMember', 'student' as any)).toBe(false);
       expect(can('devMember', 'parent' as any)).toBe(false);

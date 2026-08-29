@@ -241,7 +241,7 @@ export const actions: Actions = {
 
     // A UAI resolves to a canonical School (lazy-created); without one we keep the
     // typed name in the free-text fallback. This is the talent's confirmed lycée
-    // (Jump truth) — the optimistic write that may later diverge from Salesforce.
+    // (Jump truth), the optimistic write that may later diverge from Salesforce.
     const schoolId = result.data.schoolUai
       ? await resolveSchoolByUai(result.data.schoolUai, result.data.schoolName)
       : null;
@@ -304,7 +304,7 @@ export const actions: Actions = {
     // Provision the parent-1 login first, so a validated address always has a
     // working parent account (the welcome link / co-signature flow are useless
     // without one). `refused` means the address already belongs to another
-    // (non-parent) Jump account — a student's or a staff member's: one email is
+    // (non-parent) Jump account, a student's or a staff member's: one email is
     // one account with one role, so it can never also host a parent login.
     // Reject the step before anything is persisted and tell the talent to use a
     // different address, rather than silently leave the parent unable to connect.
@@ -355,7 +355,7 @@ export const actions: Actions = {
     // fire-and-forget (the only slow step) so a mail hiccup never blocks the
     // talent's onboarding. A re-submit / back-and-forth doesn't re-send: the
     // address is skipped when it was already stored on the talent before this
-    // submit. Parent 2 is persisted above as onboarding-collected data only — no
+    // submit. Parent 2 is persisted above as onboarding-collected data only: no
     // account, no email, no portal access (the whole parent flow is parent-1).
     const alreadyWelcomed =
       (locals.talent.parentEmail ?? '').toLowerCase().trim() === parentEmail;
@@ -487,7 +487,7 @@ export const actions: Actions = {
         break;
       case 'rules':
         // `processing` is a non-navigable auto-advancing interstitial (it
-        // re-submits itself on mount), so it can't be a back target — landing on
+        // re-submits itself on mount), so it can't be a back target: landing on
         // it just replays the animation and bounces straight back to rules.
         // Rewind past it to the last real input step (equipment), clearing both
         // gates so the timestamp chain stays monotonic.
@@ -533,7 +533,7 @@ export const actions: Actions = {
       city: result.data.city,
     });
 
-    // Generate the PDF + upload to S3 in the background — NOT awaited, so the
+    // Generate the PDF + upload to S3 in the background: NOT awaited, so the
     // student reaches the dashboard immediately and the file lands a few seconds
     // later. Failures are visible and re-runnable at /staff/admin/onboarding-pdfs.
     void runOnboardingPdfJob(jobId);

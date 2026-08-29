@@ -68,7 +68,7 @@
           <span class="text-muted-foreground/60">·</span>
           <Clock class="h-3 w-3" />
           <span>
-            {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
+            {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
           </span>
         </ResponsiveDialog.Description>
         {#if slot.event}

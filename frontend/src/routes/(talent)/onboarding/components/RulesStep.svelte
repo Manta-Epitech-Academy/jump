@@ -14,7 +14,7 @@
   } from '$lib/content/reglement';
   import ContinueButton from './ContinueButton.svelte';
 
-  // Single source of truth for the règlement body — same text the PDF embeds
+  // Single source of truth for the règlement body: same text the PDF embeds
   // and the parent reads on /parent/reglement. Inline paraphrases would let
   // the student agree to text A while signing PDF text B.
   //

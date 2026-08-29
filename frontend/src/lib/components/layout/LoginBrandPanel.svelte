@@ -5,7 +5,7 @@
 
   type Props = {
     /**
-     * Page-specific baseline — the headline + copy that sits between the logo
+     * Page-specific baseline: the headline + copy that sits between the logo
      * and the signature. The surrounding brand chrome (grid, pixels, logo,
      * signature) is constant across every login surface.
      */
@@ -16,7 +16,7 @@
   let { children, class: className }: Props = $props();
 </script>
 
-<!-- Brand panel — full-bleed Epitech blue, blueprint grid + pixel overlays.
+<!-- Brand panel: full-bleed Epitech blue, blueprint grid + pixel overlays.
      Hidden below lg; consuming pages carry a compact logo on mobile. -->
 <aside
   class={cn(
@@ -26,7 +26,7 @@
 >
   <!-- Blueprint grid texture -->
   <div aria-hidden="true" class="absolute inset-0 blueprint-grid-inverse"></div>
-  <!-- Pixel overlays — 50% squares, offset, overlapping (brand signature) -->
+  <!-- Pixel overlays: 50% squares, offset, overlapping (brand signature) -->
   <div aria-hidden="true" class="absolute inset-0">
     <div class="absolute top-[18%] right-[22%] h-16 w-24 bg-white/15"></div>
     <div class="absolute top-[24%] right-[12%] h-20 w-16 bg-white/10"></div>

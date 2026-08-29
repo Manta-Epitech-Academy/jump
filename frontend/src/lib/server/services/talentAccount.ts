@@ -21,12 +21,12 @@ import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService
  *
  * Seeded / Salesforce-imported talents exist as `Talent` rows long before they
  * ever sign in, so they carry no `bauth_user`. Every flow that needs a real
- * auth identity for them — OTP login, fastlogin links, admin impersonation —
+ * auth identity for them (OTP login, fastlogin links, admin impersonation)
  * has to bootstrap that user first. This is the single place that does it:
  * reuse an existing `bauth_user` with the same email if one is around (e.g.
  * created by a sibling flow), otherwise create one, then link it back.
  *
- * Throws if the talent has neither a linked user nor an email — without an
+ * Throws if the talent has neither a linked user nor an email: without an
  * email BetterAuth has no identifier to hang a sign-in identity off.
  */
 export async function ensureTalentUser(talentId: string): Promise<string> {
@@ -65,7 +65,7 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
   const email = talent.sfImport?.sfEmail?.toLowerCase().trim();
   if (!email) {
     throw new Error(
-      "Le talent n'a pas d'adresse email SF — impossible de créer un compte de connexion.",
+      "Le talent n'a pas d'adresse email SF : impossible de créer un compte de connexion.",
     );
   }
 
@@ -86,7 +86,7 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
     // hand, not papered over by silently linking.
     if (existing.staffProfile || existing.role === 'parent') {
       throw new Error(
-        "L'adresse du talent correspond à un compte parent ou staff — résolution manuelle requise (conflit d'identité).",
+        "L'adresse du talent correspond à un compte parent ou staff : résolution manuelle requise (conflit d'identité).",
       );
     }
     // Nor an account already linked to another talent: two SF records sharing
@@ -96,7 +96,7 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
     // can resolve it.
     if (existing.talent) {
       throw new Error(
-        `L'adresse du talent est déjà utilisée par le talent externalId="${existing.talent.externalId}" — résolution manuelle requise (conflit d'identité).`,
+        `L'adresse du talent est déjà utilisée par le talent externalId="${existing.talent.externalId}" : résolution manuelle requise (conflit d'identité).`,
       );
     }
     userId = existing.id;
@@ -115,7 +115,7 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
     } catch (err) {
       // Lost a create race with a sibling flow firing for the same talent at
       // once (login / fastlogin / impersonate): the email-unique constraint
-      // tripped. The winner's row exists now — adopt it instead of failing.
+      // tripped. The winner's row exists now: adopt it instead of failing.
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
         err.code === 'P2002'
@@ -157,7 +157,7 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
  *
  * Everything else a talent accrues after import is deleted: the XP ledger and
  * its cached projections (`xp`/`eventsCount` → 0), the émargement marks
- * (`EventPresence` — the source `eventsCount` projects from, so the zeroed
+ * (`EventPresence`, the source `eventsCount` projects from, so the zeroed
  * count stays consistent and a later presence write can't resurrect it),
  * minigame attempts, closings
  * (and the audit trail of any admin reset), interests, reminders, PDF jobs,

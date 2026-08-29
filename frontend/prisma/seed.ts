@@ -64,7 +64,7 @@ const CODING_CLUB_MODULE_KEYS = ['inscrits', 'emargement'];
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
-// Onboarding arrival bonus — mirrors WELCOME_XP_BONUS in src/lib/domain/xp.ts.
+// Onboarding arrival bonus: mirrors WELCOME_XP_BONUS in src/lib/domain/xp.ts.
 const WELCOME_XP_BONUS = 200;
 
 // ─── Time helpers (anchored to run-time `today`) ───
@@ -81,7 +81,7 @@ function dayAt(offsetDays: number, hour: number, minute = 0): Date {
 }
 
 // Real stage de seconde campaigns are named after their kickoff date so
-// admissions can spot the cohort at a glance — e.g. `STAGE - Marseille -
+// admissions can spot the cohort at a glance, e.g. `STAGE - Marseille -
 // 2026/06/15 - stage seconde`. Build the title from the seed's relative
 // offset so the format stays stable whenever the seed is replayed.
 function formatStageSecondeTitle(
@@ -287,7 +287,7 @@ const STAFF_MEMBERS = [
     email: 'camille.reader@epitech.eu',
     name: 'Camille Reader',
     campus: 'Paris',
-    role: null, // Unassigned — tests the "contact admin" guard
+    role: null, // Unassigned: tests the "contact admin" guard
     image: null,
   },
   // ── Extra staff for grid density ──
@@ -990,7 +990,7 @@ const FUTURE_LYON_STAGE_TITLE = formatStageSecondeTitle(
 );
 
 const EVENTS: EventBlueprint[] = [
-  // 1. Past cyber workshop (2 weeks ago) — certificate-ready
+  // 1. Past cyber workshop (2 weeks ago): certificate-ready
   {
     titre: 'Atelier Cybersécurité',
     daysOffset: -14,
@@ -1012,9 +1012,9 @@ const EVENTS: EventBlueprint[] = [
     // Niveau mix: stage cohort (2nde) + extras from other class levels.
     studentEmails: [
       ...parisStudents.slice(0, 8),
-      parisStudents[19], // ethan.bonnet — 1ere
-      parisStudents[20], // mathis.perrin — 5eme
-      parisStudents[21], // eva.lambert — 3eme
+      parisStudents[19], // ethan.bonnet (1ere)
+      parisStudents[20], // mathis.perrin (5eme)
+      parisStudents[21], // eva.lambert (3eme)
     ],
     presentEmails: [
       ...parisStudents.slice(0, 7),
@@ -1044,9 +1044,9 @@ const EVENTS: EventBlueprint[] = [
     // Niveau mix: stage cohort (2nde) + extras from other class levels.
     studentEmails: [
       ...parisStudents.slice(0, 10),
-      parisStudents[22], // raphael.mercier — 4eme
-      parisStudents[24], // noah.brun — 6eme
-      parisStudents[25], // camille.lopez — Terminale
+      parisStudents[22], // raphael.mercier (4eme)
+      parisStudents[24], // noah.brun (6eme)
+      parisStudents[25], // camille.lopez (Terminale)
     ],
     presentEmails: [
       ...parisStudents.slice(0, 9),
@@ -1056,7 +1056,7 @@ const EVENTS: EventBlueprint[] = [
     delays: { [parisStudents[1]]: 10, [parisStudents[5]]: 5 },
   },
 
-  // 3. Past STAGE DE SECONDE (promotion précédente — historique + portfolio)
+  // 3. Past STAGE DE SECONDE (promotion précédente, historique + portfolio)
   {
     titre: PAST_PARIS_STAGE_TITLE,
     eventType: EVENT_TYPES.STAGE_SECONDE,
@@ -1073,7 +1073,7 @@ const EVENTS: EventBlueprint[] = [
             startMinute: 45,
             endHour: 15,
             endMinute: 45,
-            label: 'Web — Matin',
+            label: 'Web - Matin',
             activities: [
               { nom: 'Ma première page HTML' },
               { nom: 'CSS : Styliser sa page' },
@@ -1123,7 +1123,7 @@ const EVENTS: EventBlueprint[] = [
     presentEmails: parisStudents.slice(0, 6), // all attended
   },
 
-  // 4. LIVE EVENT (today) — IA workshop
+  // 4. LIVE EVENT (today): IA workshop
   {
     titre: "Atelier IA : L'intelligence artificielle",
     daysOffset: 0,
@@ -1156,8 +1156,8 @@ const EVENTS: EventBlueprint[] = [
     // Niveau mix: stage cohort (2nde) + extras from other class levels.
     studentEmails: [
       ...parisStudents.slice(0, 8),
-      parisStudents[27], // tristan.roussel — 4eme
-      parisStudents[28], // leon.marin — 1ere
+      parisStudents[27], // tristan.roussel (4eme)
+      parisStudents[28], // leon.marin (1ere)
     ],
     presentEmails: parisStudents.slice(0, 6), // 6 already checked in
     delays: { [parisStudents[4]]: 15 },
@@ -1185,8 +1185,8 @@ const EVENTS: EventBlueprint[] = [
     // Niveau mix: stage cohort (2nde) + extras from other class levels.
     studentEmails: [
       ...parisStudents.slice(10, 16),
-      parisStudents[26], // elise.pierre — 3eme
-      parisStudents[29], // anais.vasseur — 5eme
+      parisStudents[26], // elise.pierre (3eme)
+      parisStudents[29], // anais.vasseur (5eme)
     ],
   },
 
@@ -1199,8 +1199,8 @@ const EVENTS: EventBlueprint[] = [
     // Niveau mix: stage cohort (2nde) + extras from other class levels.
     studentEmails: [
       ...parisStudents.slice(5, 12),
-      parisStudents[19], // ethan.bonnet — 1ere
-      parisStudents[31], // lou.carpentier — 6eme
+      parisStudents[19], // ethan.bonnet (1ere)
+      parisStudents[31], // lou.carpentier (6eme)
     ],
   },
 
@@ -1222,13 +1222,13 @@ const EVENTS: EventBlueprint[] = [
     // Niveau mix: stage cohort (2nde) + extras from other class levels.
     studentEmails: [
       ...parisStudents.slice(0, 10),
-      parisStudents[20], // mathis.perrin — 5eme
-      parisStudents[22], // raphael.mercier — 4eme
-      parisStudents[27], // tristan.roussel — 4eme
+      parisStudents[20], // mathis.perrin (5eme)
+      parisStudents[22], // raphael.mercier (4eme)
+      parisStudents[27], // tristan.roussel (4eme)
     ],
   },
 
-  // 8. Ongoing STAGE DE SECONDE — En-cours phase QA (today = J3 of 14)
+  // 8. Ongoing STAGE DE SECONDE: En-cours phase QA (today = J3 of 14)
   {
     titre: ONGOING_PARIS_STAGE_TITLE,
     eventType: EVENT_TYPES.STAGE_SECONDE,
@@ -1236,7 +1236,7 @@ const EVENTS: EventBlueprint[] = [
     durationDays: STAGE_DURATION_DAYS,
     campus: 'Paris',
     days: [
-      // Day 0 — Lundi (déjà passé, J1)
+      // Day 0: Lundi (déjà passé, J1)
       {
         dayOffset: 0,
         slots: [
@@ -1251,7 +1251,7 @@ const EVENTS: EventBlueprint[] = [
             startHour: 9,
             startMinute: 30,
             endHour: 12,
-            label: 'Web — démarrage',
+            label: 'Web - démarrage',
             activities: [{ nom: 'Ma première page HTML' }],
           },
           {
@@ -1262,7 +1262,7 @@ const EVENTS: EventBlueprint[] = [
           },
         ],
       },
-      // Day 1 — Mardi (déjà passé, J2)
+      // Day 1: Mardi (déjà passé, J2)
       {
         dayOffset: 1,
         slots: [
@@ -1276,7 +1276,7 @@ const EVENTS: EventBlueprint[] = [
           {
             startHour: 10,
             endHour: 12,
-            label: 'IA — découverte',
+            label: 'IA - découverte',
             activities: [{ nom: "L'IA et moi" }],
           },
           {
@@ -1287,7 +1287,7 @@ const EVENTS: EventBlueprint[] = [
           },
         ],
       },
-      // Day 2 — Aujourd'hui (J3)
+      // Day 2: Aujourd'hui (J3)
       {
         dayOffset: 2,
         slots: [
@@ -1312,7 +1312,7 @@ const EVENTS: EventBlueprint[] = [
           },
         ],
       },
-      // Day 3 — Jeudi (à venir, J4)
+      // Day 3: Jeudi (à venir, J4)
       {
         dayOffset: 3,
         slots: [
@@ -1331,7 +1331,7 @@ const EVENTS: EventBlueprint[] = [
           },
         ],
       },
-      // Day 4 — Vendredi (à venir, J5 — Demo Day)
+      // Day 4: Vendredi (à venir, J5, Demo Day)
       {
         dayOffset: 4,
         slots: [
@@ -1347,14 +1347,14 @@ const EVENTS: EventBlueprint[] = [
             endHour: 16,
             label: 'Demo Day',
             activities: [
-              { nom: 'Demo Day — final', activityType: 'conference' },
+              { nom: 'Demo Day - final', activityType: 'conference' },
             ],
           },
         ],
       },
     ],
     // parisStudents[0] (alice.martin) already did her stage de seconde with
-    // the previous cohort — one stage per talent, ever — so the current
+    // the previous cohort (one stage per talent, ever) so the current
     // edition only registers the new cohort at indices 6..17.
     studentEmails: parisStudents.slice(6, 18),
     presentEmails: parisStudents.slice(6, 16), // 10/12 émargés
@@ -1379,8 +1379,8 @@ const EVENTS: EventBlueprint[] = [
     // Niveau mix: stage cohort (2nde) + Lyon extras from other class levels.
     studentEmails: [
       ...lyonStudents.slice(0, 4),
-      lyonStudents[10], // jules.riviere — 1ere
-      lyonStudents[11], // lilou.renaud — 6eme
+      lyonStudents[10], // jules.riviere (1ere)
+      lyonStudents[11], // lilou.renaud (6eme)
     ],
     presentEmails: [
       ...lyonStudents.slice(0, 4),
@@ -1654,7 +1654,7 @@ type BroadcastBlueprint = {
 };
 
 const BROADCASTS: BroadcastBlueprint[] = [
-  // Headline campaign sent at stage kickoff — drives the "opened" + "sent
+  // Headline campaign sent at stage kickoff: drives the "opened" + "sent
   // not opened" variants in the fiche timeline. Event-scoped to the
   // ongoing Paris stage (eventIds[7]).
   {
@@ -1674,7 +1674,7 @@ Demain, c'est le grand jour : ton stage de seconde commence à Epitech Paris !
 
 📍 Rendez-vous à 9h, 14-16 rue Voltaire, 94270 Le Kremlin-Bicêtre.
 🎒 Apporte-toi de quoi noter et ta carte d'identité.
-💻 Pas besoin d'ordinateur — tout est fourni sur place.
+💻 Pas besoin d'ordinateur, tout est fourni sur place.
 
 On se voit demain !
 L'équipe Epitech Academy`,
@@ -1700,7 +1700,7 @@ L'équipe Epitech Academy`,
         status: 'sent',
         sentDaysOffset: -8,
         sentHour: 8,
-        // No openedAt — surfaces the "Non ouvert" tooltip in the UI.
+        // No openedAt: surfaces the "Non ouvert" tooltip in the UI.
       },
       {
         studentEmail: parisStudents[7],
@@ -1712,10 +1712,10 @@ L'équipe Epitech Academy`,
       },
     ],
   },
-  // Parent-side reminder — exercises audience=parent + parentSide on the
+  // Parent-side reminder: exercises audience=parent + parentSide on the
   // recipient + the "Échec" delivery state.
   {
-    name: 'Rappel — Signature de la convention',
+    name: 'Rappel : Signature de la convention',
     channel: 'mail',
     audience: 'parent',
     campus: 'Paris',
@@ -1724,7 +1724,7 @@ L'équipe Epitech Academy`,
     createdDaysOffset: -5,
     createdHour: 10,
     status: 'partial_failed',
-    subject: 'Convention de stage — à signer avant vendredi',
+    subject: 'Convention de stage : à signer avant vendredi',
     body: `Bonjour,
 
 Le stage de votre enfant approche et nous n'avons pas encore reçu la
@@ -1735,7 +1735,7 @@ Vous le trouverez dans l'espace Jump de votre enfant (rubrique
 Documents). N'hésitez pas à nous écrire en cas de besoin.
 
 Bien cordialement,
-Pauline Marchand — Epitech Academy Paris`,
+Pauline Marchand, Epitech Academy Paris`,
     recipients: [
       {
         studentEmail: parisStudents[14],
@@ -1761,10 +1761,10 @@ Pauline Marchand — Epitech Academy Paris`,
       },
     ],
   },
-  // SMS J-1 — exercises the channel switch (MessageSquare icon, no opened
+  // SMS J-1: exercises the channel switch (MessageSquare icon, no opened
   // state since SMS has no open tracking).
   {
-    name: 'Démarrage demain — checklist & adresse',
+    name: 'Démarrage demain : checklist & adresse',
     channel: 'sms',
     audience: 'talent',
     campus: 'Paris',
@@ -1774,7 +1774,7 @@ Pauline Marchand — Epitech Academy Paris`,
     createdHour: 17,
     status: 'sent',
     subject: null,
-    body: `Salut {{prenom}}, RDV demain 9h au 14-16 rue Voltaire (Kremlin-Bicêtre). Apporte ta carte d'identité, on s'occupe du reste. — Epitech Academy`,
+    body: `Salut {{prenom}}, RDV demain 9h au 14-16 rue Voltaire (Kremlin-Bicêtre). Apporte ta carte d'identité, on s'occupe du reste, Epitech Academy`,
     recipients: [
       {
         studentEmail: parisStudents[6],
@@ -1796,11 +1796,11 @@ Pauline Marchand — Epitech Academy Paris`,
       },
     ],
   },
-  // Queued campaign — recipients are still pending (no sentAt yet), so the
+  // Queued campaign: recipients are still pending (no sentAt yet), so the
   // timeline falls back to broadcast.createdAt for ordering. Demonstrates
   // the "En attente" pill.
   {
-    name: 'Récap de stage — bravo et retours',
+    name: 'Récap de stage : bravo et retours',
     channel: 'mail',
     audience: 'talent',
     campus: 'Paris',
@@ -1809,7 +1809,7 @@ Pauline Marchand — Epitech Academy Paris`,
     createdDaysOffset: 0,
     createdHour: 9,
     status: 'queued',
-    subject: 'Ton stage est fini — un dernier message',
+    subject: 'Ton stage est fini : un dernier message',
     body: `Bravo {{prenom}} !
 
 Tu viens de boucler ton stage de seconde à Epitech. On a passé une
@@ -1830,8 +1830,8 @@ L'équipe Epitech Academy`,
 // ─── Main ───
 
 /**
- * A few staff notes across several authors — including one edited by a different
- * staff member than its author — so the fiche feed, the émargement note count and
+ * A few staff notes across several authors (including one edited by a different
+ * staff member than its author) so the fiche feed, the émargement note count and
  * the admin gallery all have multi-note, multi-author data to render. Author ids
  * are StaffProfile ids (note `authorId` / `editedById`).
  */
@@ -1887,7 +1887,7 @@ async function main() {
   const campuses = await seedCampuses();
   console.log(`✓  Campuses (${Object.keys(campuses).length})`);
 
-  // 2. Staff (no default admin — admins are provisioned via
+  // 2. Staff (no default admin, admins are provisioned via
   //    scripts/add-admin-user.ts and authenticate via Microsoft OAuth only)
   const staffByKey = await seedStaff(campuses);
   console.log(`✓  Users (${Object.keys(staffByKey).length} staff)`);
@@ -1942,7 +1942,7 @@ async function main() {
   const closingCount = await seedClosings(staffByKey, talentByEmail, campuses);
   console.log(`✓  Closings (${closingCount})`);
 
-  // 8b. Broadcasts (mass mail / SMS campaigns) — feed the unified
+  // 8b. Broadcasts (mass mail / SMS campaigns): feed the unified
   //      communications timeline on the fiche talent.
   const broadcastRecipientCount = await seedBroadcasts(
     staffByKey,
@@ -1978,13 +1978,13 @@ async function seedWelcomePages(
 <p>Salut, et <strong>bienvenue dans l'aventure !</strong> Tu viens de rejoindre Jump, la plateforme de ton stage de seconde à Epitech. Pendant ces quelques jours, découvre l'univers du <strong>code</strong>, de la <strong>tech</strong> et de la <strong>création numérique</strong> en <em>construisant</em> tes propres projets.</p>
 <h3>Ce qui t'attend</h3>
 <ul>
-  <li>🧩 <strong>Des ateliers concrets :</strong> tu vas coder, créer, recommencer — c'est comme ça qu'on apprend.</li>
+  <li>🧩 <strong>Des ateliers concrets :</strong> tu vas coder, créer, recommencer, c'est comme ça qu'on apprend.</li>
   <li>🏆 <strong>Des XP et des niveaux :</strong> gagne de l'expérience à chaque activité pour grimper de Novice à <em>Expert</em> !</li>
   <li>🎮 <strong>Un mini-jeu par jour :</strong> un défi quotidien pour des XP bonus.</li>
 </ul>
 <img src="https://placehold.co/600x400/blue/white?text=Photo%20du%20campus" alt="Bannière bleue: Photo du campus à venir" />
 <h3>Comment ça marche</h3>
-<p>Chaque jour, retrouve tes <strong>activités</strong> sur ton tableau de bord. Participe et gagne tes XP. Si tu bloques, <strong>pas de panique</strong> — l'équipe est là pour t'aider.</p>
+<p>Chaque jour, retrouve tes <strong>activités</strong> sur ton tableau de bord. Participe et gagne tes XP. Si tu bloques, <strong>pas de panique</strong> : l'équipe est là pour t'aider.</p>
 <blockquote><p>« Ne cherche pas à tout réussir du premier coup. Le code, c'est essayer, se tromper, et recommencer. »</p></blockquote>`;
 
   const rows = stageEventIndices.flatMap((idx) => {
@@ -2006,10 +2006,10 @@ async function seedWelcomePages(
 async function wipeAll() {
   // One transaction, children first, parents last. Order matters: each
   // deleteMany must run after the rows referencing it are gone, so the array
-  // order is the FK dependency order — keep it.
+  // order is the FK dependency order: keep it.
   await prisma.$transaction([
     prisma.note_TalentNote.deleteMany(),
-    // Broadcasts + email-action mappings — dropped before staff so the
+    // Broadcasts + email-action mappings: dropped before staff so the
     // `MessageTemplate.createdById` FK doesn't block.
     prisma.emailActionMapping.deleteMany(),
     prisma.broadcastRecipient.deleteMany(),
@@ -2036,7 +2036,7 @@ async function wipeAll() {
 
 async function assignTalentInterests() {
   // TalentInterest rows are written by the (atomic) interests step, which
-  // validates tech and general together — so any talent past that step has both
+  // validates tech and general together, so any talent past that step has both
   // kinds, never tech alone. Gate on `techInterestsValidatedAt` and seed both.
   const talents = await prisma.talent.findMany({
     where: { techInterestsValidatedAt: { not: null } },
@@ -2053,7 +2053,7 @@ async function assignTalentInterests() {
   });
 
   const rows = talents.flatMap((talent) => {
-    // 1-2 tech, 1-5 general — shuffle-and-slice per talent (validation schema:
+    // 1-2 tech, 1-5 general: shuffle-and-slice per talent (validation schema:
     // tech 1-2, general 1-5).
     const techCount = 1 + Math.floor(Math.random() * 2);
     const selectedTech = [...techIds]
@@ -2133,7 +2133,7 @@ async function seedStaff(
 
 /**
  * The talent admissions/onboarding funnel, as a single per-student state.
- * Since eager mint, every emailful lead carries a `bauth_user` from import —
+ * Since eager mint, every emailful lead carries a `bauth_user` from import,
  * so the axis this drives is no longer whether an account exists, but whether
  * the talent ever logged in (`lastActiveAt`, email verification) and how far
  * onboarding got:
@@ -2151,7 +2151,7 @@ async function seedStaff(
  * (impersonate → walk the full parcours). `skipOnboarding` fixtures pin the
  * extremes so there are always ready-to-test accounts. The admin "Jamais
  * connecté" filter (`userId = null`) is fed separately by the anchored
- * mint-conflict talent in `seedStudents` — the only accountless state eager
+ * mint-conflict talent in `seedStudents`, the only accountless state eager
  * mint leaves behind.
  */
 type StudentLifecycle = 'imported' | 'fresh' | 'in-progress' | 'onboarded';
@@ -2167,7 +2167,7 @@ function studentLifecycle(s: StudentDef, i: number): StudentLifecycle {
 }
 
 // The canonical onboarding ladder has 7 gated steps (identity → school →
-// parents → interests → equipment → processing → rules) — see
+// parents → interests → equipment → processing → rules), see
 // ONBOARDING_STEP_ORDER in src/lib/domain/talentOnboarding.ts. Seeded onboarding
 // is a monotonic prefix of that ladder, so a partial talent is byte-identical to
 // a real one who stopped at the same point.
@@ -2178,9 +2178,9 @@ function onboardingStepsFor(lifecycle: StudentLifecycle, i: number): number {
     case 'onboarded':
       return ONBOARDING_FULL_STEPS;
     case 'in-progress':
-      return 1 + (i % 6); // 1..6 — stalls spread across the funnel
+      return 1 + (i % 6); // 1..6: stalls spread across the funnel
     default:
-      return 0; // imported & fresh — nothing done
+      return 0; // imported & fresh: nothing done
   }
 }
 
@@ -2202,7 +2202,7 @@ async function seedStudents(): Promise<
   // One talent whose SF-claimed email belongs to a staff account: the worker's
   // eager mint refuses to adopt it ("never hand a student login to a
   // parent/staff address", see ensureTalentUser), so the talent stays
-  // accountless — the only way a lead lacks a `bauth_user` since eager mint.
+  // accountless, the only way a lead lacks a `bauth_user` since eager mint.
   // Feeds the admin "Jamais connecté" filter and the impersonation conflict
   // path. Anchored on an event-free student so no émargement/compliance
   // fixture depends on her; the claimed address is a stable STAFF_MEMBERS
@@ -2225,12 +2225,12 @@ async function seedStudents(): Promise<
   // "missing"). Anchored by email rather than a modulus: a divergence only
   // surfaces once the talent has confirmed the school step, so the anchor must
   // be a fully-onboarded talent (here, eliot via `skipOnboarding`). The other
-  // half — SF must itself assert a school, else the row downgrades to *missing*
-  // and the alternate School is left an orphan — is guaranteed below, where
+  // half (SF must itself assert a school, else the row downgrades to *missing*
+  // and the alternate School is left an orphan) is guaranteed below, where
   // these emails are forced to carry an `sfSchoolId`.
   const schoolConflictEmails = new Set(['eliot.amanieu@epitech.eu']);
 
-  // Two talents whose SF-claimed emails are swapped — the classic Salesforce
+  // Two talents whose SF-claimed emails are swapped, the classic Salesforce
   // inversion, the recurring root cause of auth-identity drift (see
   // authIdentityService). Each linked account still carries the talent's own
   // address while the mirror claims the other one's, which the sync refuses to
@@ -2243,7 +2243,7 @@ async function seedStudents(): Promise<
   ]);
 
   // Eager mint, as the worker does at import: every emailful lead gets a
-  // `bauth_user` from day one — `imported` leads included (they simply never
+  // `bauth_user` from day one, `imported` leads included (they simply never
   // logged in, so their email is still unverified). The one exception is the
   // anchored mint-conflict talent above. Users first, then talents referencing
   // them; both batched. Talent rows map back to their user by email
@@ -2293,11 +2293,11 @@ async function seedStudents(): Promise<
   });
 
   // Each seeded talent carries two independent axes, mirroring production:
-  //  1. What Salesforce populated at lead creation (school, civilité) — present
+  //  1. What Salesforce populated at lead creation (school, civilité), present
   //     for most leads, absent for some. The worker seeds these onto Talent
   //     BEFORE onboarding, so even pending talents already carry SF data.
   //  2. How far the talent's own onboarding got (the monotonic step prefix),
-  //     which may confirm — and possibly change — what SF sent.
+  //     which may confirm (and possibly change) what SF sent.
   // The TalentSfImport mirror always holds the SF claim; a few confirmed talents
   // diverge from it (and some fill in what SF lacked) to populate the
   // reconciliation page realistically.
@@ -2319,7 +2319,7 @@ async function seedStudents(): Promise<
     // wizard's own order: identity → school → parents → interests → equipment →
     // processing → rules. Each step posts its own timestamp(s); the interests
     // step is atomic (tech + general + recap land together, as the reworked
-    // wizard writes them), so there is no tech-without-general state — exactly
+    // wizard writes them), so there is no tech-without-general state: exactly
     // what the real flow can produce. `charterAcceptedAt` lands with
     // `rulesSignedAt` at the final step.
     const onboardingSteps = onboardingStepsFor(lifecycle, i);
@@ -2337,7 +2337,7 @@ async function seedStudents(): Promise<
     // ~90% of leads carry a gender, ~80% a school; the rest SF never populated.
     // Conflict anchors are forced to carry an SF school: a divergence is only a
     // *conflict* (not a downgraded *missing*) when SF asserts a school too, and
-    // that side is otherwise index-derived — so pinning the talent by email
+    // that side is otherwise index-derived, so pinning the talent by email
     // isn't enough on its own.
     const sfCivilite = i % 10 === 0 ? null : i % 2 === 0 ? 'homme' : 'femme';
     const sfSchoolId = schoolConflictEmails.has(s.email)
@@ -2354,7 +2354,7 @@ async function seedStudents(): Promise<
     const phoneDiverges = profileConfirmed && i % 12 === 7;
 
     // ── Talent (Jump truth) ──
-    // Pending: keep the SF seed. Confirmed: the talent's own value — may differ
+    // Pending: keep the SF seed. Confirmed: the talent's own value, may differ
     // from SF (divergence) or fill in what SF lacked.
     const civilite =
       sfCivilite ??
@@ -2367,14 +2367,14 @@ async function seedStudents(): Promise<
 
     // ── Image-rights decision (parent-driven, strictly downstream of the
     // parents step) ──
-    // The parent_welcome mail — the only path to a decision — is sent when the
+    // The parent_welcome mail (the only path to a decision) is sent when the
     // talent completes the parents step (provisionParentAccount). So a decision
     // can exist ONLY once parentsConfirmed; before that the field stays null
     // ('undecided'), exactly as the real flow leaves it (and why an ongoing,
     // not-yet-onboarded cohort lands their parents on /parent/signature, not
     // straight to /parent/merci). Of the parents who were mailed, a
-    // deterministic ~25% haven't answered yet — these feed the image-rights
-    // relances ("dossiers en attente") — and of those who did, a minority
+    // deterministic ~25% haven't answered yet, these feed the image-rights
+    // relances ("dossiers en attente"), and of those who did, a minority
     // refuse, enough to exercise the refusal paths (staff badge, broadcast
     // filter, "ne pas photographier", PDF).
     const parentMailed = parentsConfirmed;
@@ -2476,7 +2476,7 @@ async function seedStudents(): Promise<
       // Welcome strictly precedes onboarding: "On y va" stamps welcomeSeenAt
       // and hands off to step 1. So anyone who has cleared a single step has
       // necessarily passed the gate. Leaving it null on an onboarded talent is
-      // a state the real flow can't produce — it would re-trap them on
+      // a state the real flow can't produce: it would re-trap them on
       // /welcome at next login (seed bug, not a runtime one).
       welcomeSeenAt: profileConfirmed ? ts : null,
       charterAcceptedAt: fullyOnboarded ? ts : null,
@@ -2501,14 +2501,14 @@ async function seedStudents(): Promise<
       lastActiveAt,
       // The hooks stamp firstLoginAt on the first session; anyone with
       // activity necessarily has it (first ≤ last, collapsed to one date
-      // here — the seed doesn't model a login history).
+      // here, the seed doesn't model a login history).
       firstLoginAt: lastActiveAt,
       externalId: mockSalesforceLeadId(i),
     };
 
     // ── Salesforce mirror (the SF claim, as the worker would have written it) ──
     const sf = {
-      // SF's claimed login email — the student's own address, except for the
+      // SF's claimed login email: the student's own address, except for the
       // two anchored anomalies (mint conflict, inversion pair).
       sfEmail:
         mintConflictSfEmails.get(s.email) ??
@@ -2548,7 +2548,7 @@ async function seedStudents(): Promise<
       byEmail[x.email] = { id, nom: x.talent.nom, prenom: x.talent.prenom };
   }
 
-  // SF mirror per talent — every seeded talent is an SF lead, so each gets one.
+  // SF mirror per talent: every seeded talent is an SF lead, so each gets one.
   // It holds what SF sent (null where SF had nothing); a few confirmed talents'
   // values diverge from it, surfacing on the reconciliation page.
   const sfImportData = seeded
@@ -2665,7 +2665,7 @@ async function seedParents(
   // In prod the parent's bauth_user is created in the SAME action that writes
   // Talent.parentEmail (provisionParentAccount, called from the onboarding
   // parents step). So a non-null parentEmail always implies a matching
-  // role:'parent' account — without it /parent/login and /parent/fastlogin
+  // role:'parent' account, without it /parent/login and /parent/fastlogin
   // reject the address ("Aucun compte parent trouvé") and the magic link in the
   // image-rights mail can never resolve. Mirror that here: provision an account
   // for every distinct parentEmail a talent carries, not just Sophie's.
@@ -2698,7 +2698,7 @@ async function seedParents(
 // with `presenceDays`/`presenceSlots`: a stage de seconde covers two working
 // weeks (10 workdays) from its start even with no endDate; every other type
 // covers its own calendar days. Days are emitted as UTC-midnight Dates to match
-// how the app stores `EventPresence.day` (a `@db.Date`) — building them from the
+// how the app stores `EventPresence.day` (a `@db.Date`): building them from the
 // event's local Y/M/D avoids a timezone off-by-one against the émargement grid.
 const PRESENCE_SLOTS = ['morning', 'afternoon'] as const;
 type PresenceSlotName = (typeof PRESENCE_SLOTS)[number];
@@ -2878,7 +2878,7 @@ async function seedEvents(
     // Per-student context, derived once and reused across participation and
     // émargement rows. `isPresent`/`delay` are blueprint
     // attendance hints (from presentEmails/delays) that drive the EventPresence
-    // status below — attendance no longer lives on Participation.
+    // status below: attendance no longer lives on Participation.
     const students = blueprint.studentEmails
       .map((email, i) => {
         const talent = talentByEmail[email];
@@ -2893,7 +2893,7 @@ async function seedEvents(
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
 
-    // Participations (pure enrollment) — batched, then mapped back by talentId
+    // Participations (pure enrollment): batched, then mapped back by talentId
     // (unique per event) to wire up the compliance child row.
     const participations = await prisma.participation.createManyAndReturn({
       data: students.map((s) => ({
@@ -2910,7 +2910,7 @@ async function seedEvents(
     // EventPresence rows (émargement). Reproduce what staff would have recorded
     // for this event up to now: a present student is présent on every elapsed
     // créneau (en retard on their first one if they arrived late), everyone else
-    // absent — with a deterministic slice excused. Créneaux that haven't closed
+    // absent, with a deterministic slice excused. Créneaux that haven't closed
     // yet get no row, so an ongoing stage is half-filled and a future event
     // empty, like real data. Stage presence spans two working weeks; coding
     // clubs and other types span their own calendar days.
@@ -2957,7 +2957,7 @@ async function seedEvents(
 
 async function recomputeXp(): Promise<number> {
   // Rebuild the XP ledger the way the app does (XpGrant rows), then set the
-  // cached projections (Talent.xp / eventsCount) to match — so seeded talents
+  // cached projections (Talent.xp / eventsCount) to match, so seeded talents
   // stay consistent with the ledger and survive any later recompute (onboarding
   // reset, émargement edit) instead of getting zeroed.
   //   - XP    → a single `onboarding` grant (WELCOME_XP_BONUS) per talent who
@@ -3146,7 +3146,7 @@ async function seedClosings(
 /**
  * Seed mass campaigns (mail + SMS) and their per-talent / per-parent
  * recipient rows. Each broadcast references a `MessageTemplate` (we
- * create one per channel up-front and reuse it across campaigns — the
+ * create one per channel up-front and reuse it across campaigns, the
  * snapshot lives on the `Broadcast` row itself, so reusing a template is
  * realistic and keeps the seed tight). Returns the number of recipient
  * rows created so `main()` can log it.
@@ -3171,7 +3171,7 @@ async function seedBroadcasts(
         name: 'Communications stage (mail)',
         channel: 'mail',
         subject: 'Communication Epitech Academy',
-        body: 'Snapshot par défaut — chaque diffusion injecte son propre contenu.',
+        body: 'Snapshot par défaut : chaque diffusion injecte son propre contenu.',
         createdById: templateAuthor,
       },
     }),
@@ -3180,7 +3180,7 @@ async function seedBroadcasts(
         name: 'Communications stage (SMS)',
         channel: 'sms',
         subject: null,
-        body: 'Snapshot par défaut — chaque diffusion injecte son propre contenu.',
+        body: 'Snapshot par défaut : chaque diffusion injecte son propre contenu.',
         createdById: templateAuthor,
       },
     }),
@@ -3284,7 +3284,7 @@ async function printSummary(parentEmail: string) {
 
   console.log('🔑 Credentials');
   console.log(
-    `   admin      Microsoft OAuth only — bun run scripts/add-admin-user.ts`,
+    `   admin      Microsoft OAuth only: bun run scripts/add-admin-user.ts`,
   );
   console.log(`   staff      *@epitech.eu (Microsoft OAuth)`);
   console.log(`              (pauline.marchand/hugo.lefebvre=superdev,`);
@@ -3301,10 +3301,10 @@ async function printSummary(parentEmail: string) {
   console.log('');
 
   console.log('🎯 Feature trigger points');
-  console.log(`   Closings — finalisés:          ${doneClosings}`);
-  console.log(`   Closings — en cours:            ${inProgressClosings}`);
+  console.log(`   Closings - finalisés:          ${doneClosings}`);
+  console.log(`   Closings - en cours:            ${inProgressClosings}`);
   console.log(
-    `   Task queue — missing planning: 1 event (Atelier Game Design, +4d)`,
+    `   Task queue - missing planning: 1 event (Atelier Game Design, +4d)`,
   );
   console.log('');
 

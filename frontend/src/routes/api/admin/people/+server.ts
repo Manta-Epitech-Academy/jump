@@ -46,7 +46,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         niveau: true,
       },
     }),
-    // Parent-1 only — the active guardian flow (parent-2 accounts are action-less).
+    // Parent-1 only: the active guardian flow (parent-2 accounts are action-less).
     prisma.talent.findMany({
       where: {
         OR: [
@@ -100,7 +100,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       name: fullName(t.parentPrenom, t.parentNom) || t.parentEmail || 'Parent',
       email: t.parentEmail,
       sub: `Parent de ${fullName(t.prenom, t.nom)}`,
-      // A parent isn't a row of its own — jump to the child in the directory.
+      // A parent isn't a row of its own: jump to the child in the directory.
       navQ: t.user?.email || fullName(t.prenom, t.nom),
     })),
     ...staff.map((s) => ({

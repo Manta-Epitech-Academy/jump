@@ -13,7 +13,7 @@ import {
  * Records the legal guardian's online co-signature of the règlement intérieur
  * and enqueues a regeneration of the shared rules PDF, atomically. Sibling of
  * {@link recordImageRightsDecision}: a règlement signature is a single act
- * (no accept/refuse — agreeing is the only outcome), so there is no decision
+ * (no accept/refuse, agreeing is the only outcome), so there is no decision
  * field, only the timestamp + signer details.
  *
  * The règlement PDF is a *shared* artifact carrying both the student's and the

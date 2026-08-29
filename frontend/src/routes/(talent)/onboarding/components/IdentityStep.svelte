@@ -122,7 +122,7 @@
   >
     <div>
       <Label for="email" class={fieldLabel}>Email</Label>
-      <!-- Account/login identity (OTP) — fixed here. Read-only and unnamed, so
+      <!-- Account/login identity (OTP): fixed here. Read-only and unnamed, so
            it's never submitted; editing it would be a no-op (see identitySchema). -->
       <Input
         id="email"

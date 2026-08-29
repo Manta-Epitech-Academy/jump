@@ -23,7 +23,7 @@
   });
 
   function pct(v: number | null): string {
-    return v == null ? '—' : `${Math.round(v)} %`;
+    return v == null ? '-' : `${Math.round(v)} %`;
   }
 
   const th = 'text-xs uppercase';
@@ -113,7 +113,7 @@
           <strong>{data.transactional.missingCount}</strong> action{data
             .transactional.missingCount > 1
             ? 's'
-            : ''} sans template — ces emails ne partent pas (login OTP inclus).
+            : ''} sans template : ces emails ne partent pas (login OTP inclus).
         </p>
       </div>
     {/if}

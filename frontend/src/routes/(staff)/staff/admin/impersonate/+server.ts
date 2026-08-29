@@ -45,7 +45,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
     error(
       result.reason === 'no_email' ? 400 : 500,
       result.reason === 'no_email'
-        ? "Ce talent n'a pas d'email — impossible de créer un compte de connexion."
+        ? "Ce talent n'a pas d'email : impossible de créer un compte de connexion."
         : 'Impersonation refusée.',
     );
   }

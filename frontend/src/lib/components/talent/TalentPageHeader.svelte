@@ -19,7 +19,7 @@
              second row at all (the dashboard, which carries a `lead` instead).
 
   Whatever those extras are, the first row (logo + controls) keeps the same
-  position and height on every page — that is the part that must not move.
+  position and height on every page: that is the part that must not move.
 
   Props:
     title     page title; when set, renders the back + title second row.

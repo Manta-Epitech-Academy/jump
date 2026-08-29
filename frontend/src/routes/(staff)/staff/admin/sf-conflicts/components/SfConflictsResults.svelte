@@ -51,7 +51,7 @@
     $props();
 
   function displayValue(field: DiffField, value: string | null): string {
-    if (!value) return '—';
+    if (!value) return '-';
     if (field === 'civilite') return civiliteLabel(value);
     return value;
   }
@@ -64,7 +64,7 @@
     `${prenom} ${nom} ${email ?? ''}`.toLowerCase().includes(needle);
 
   // ════════════════════════════════════════════════════════════════════════
-  //  DATA tab — Talent ⇆ TalentSfImport field diffs (unchanged behaviour)
+  //  DATA tab: Talent ⇆ TalentSfImport field diffs (unchanged behaviour)
   // ════════════════════════════════════════════════════════════════════════
   type ConflictRow = {
     talentId: string;
@@ -193,7 +193,7 @@
   }
 
   // ════════════════════════════════════════════════════════════════════════
-  //  AUTH tab — Talent ⇆ bauth_user identity drift, with per-verdict repairs
+  //  AUTH tab: Talent ⇆ bauth_user identity drift, with per-verdict repairs
   // ════════════════════════════════════════════════════════════════════════
   const visibleAuth = $derived(
     authConflicts.filter((c) => matches(c.prenom, c.nom, c.targetEmail)),
@@ -205,7 +205,7 @@
 
   // Client-side pagination. The streamed payload is whole-cohort, so all three
   // lists (conflicts to arbitrate, fields to push, identity conflicts) could each
-  // run to hundreds of rows × multiple fields — rendering them all at once made
+  // run to hundreds of rows × multiple fields, rendering them all at once made
   // this the longest page in the admin space. The data is already in memory, so
   // page it here; the CSV export stays exhaustive regardless of the page shown.
   const PER_PAGE = 25;
@@ -311,7 +311,7 @@
     </div>
     {#if acc}
       <div class="font-mono text-xs break-all">{acc.email}</div>
-      <div>{acc.name ?? '—'} · rôle « {acc.role} »</div>
+      <div>{acc.name ?? '-'} · rôle « {acc.role} »</div>
       <div class="text-muted-foreground">
         créé le {fmtDate(acc.createdAt)} · {acc.sessions} session(s) active(s)
       </div>
@@ -407,7 +407,7 @@
                         <div
                           class="flex items-center gap-1 font-mono text-xs text-muted-foreground"
                         >
-                          {c.email ?? '—'}
+                          {c.email ?? '-'}
                           <SalesforceIconLink
                             externalId={c.externalId}
                             kind="lead"
@@ -478,7 +478,7 @@
               </span>
             </h2>
             <p class="font-mono text-xs tracking-wide text-muted-foreground">
-              <CodeTag>poussé via l'export CSV — aucune action ici</CodeTag>
+              <CodeTag>poussé via l'export CSV, aucune action ici</CodeTag>
             </p>
           </div>
 
@@ -491,7 +491,7 @@
                     <span
                       class="flex items-center gap-1 font-mono text-xs text-muted-foreground"
                     >
-                      {g.email ?? '—'}
+                      {g.email ?? '-'}
                       <SalesforceIconLink
                         externalId={g.externalId}
                         kind="lead"

@@ -28,7 +28,7 @@ export async function resolveAllSyncErrors(): Promise<{ count: number }> {
 }
 
 /**
- * Resolve a specific set of rows — the page passes the currently-filtered
+ * Resolve a specific set of rows: the page passes the currently-filtered
  * unresolved ids, so an admin can clear "all Coding Club errors" without the
  * DB-wide `resolveAllSyncErrors`. Scoped to `resolved: false` so a stale id
  * can't un-resolve a row.
@@ -48,7 +48,7 @@ export type RebindFailure = 'not_found' | 'no_existing_ext_id' | 'ext_id_taken';
 /**
  * Rebind a talent's externalId from the dead one (`existingExtId`) to the one
  * Salesforce is now sending (`attemptedExtId`), then mark the row resolved.
- * Used for the "Salesforce regenerated the extId" case — the same human, new
+ * Used for the "Salesforce regenerated the extId" case: the same human, new
  * identifier, our DB needs to catch up.
  *
  * Safety:
@@ -57,7 +57,7 @@ export type RebindFailure = 'not_found' | 'no_existing_ext_id' | 'ext_id_taken';
  *   - If the prior talent no longer exists (someone already rebound it), just
  *     resolve the row idempotently.
  *   - If the target `attemptedExtId` is already taken by *another* talent in
- *     our DB, refuse — that's a different conflict the admin needs to inspect
+ *     our DB, refuse: that's a different conflict the admin needs to inspect
  *     manually.
  */
 export async function rebindTalentExtId(
@@ -72,7 +72,7 @@ export async function rebindTalentExtId(
     select: { id: true },
   });
   if (!existing) {
-    // Prior talent gone (manual delete or already rebound) — clean up the row
+    // Prior talent gone (manual delete or already rebound), clean up the row
     // instead of failing.
     await resolveSyncError(syncErrorId);
     return { ok: true };

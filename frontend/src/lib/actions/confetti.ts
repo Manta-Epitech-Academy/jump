@@ -5,11 +5,11 @@ import confetti, { type CreateTypes } from 'canvas-confetti';
 //
 //  1. canvas-confetti's default canvas is a plain `position: fixed` element on
 //     <body>. A cross-origin iframe renders on its own compositing layer, and
-//     that plain canvas composites *behind* it — invisible over the game. We
+//     that plain canvas composites *behind* it, invisible over the game. We
 //     render onto our own canvas promoted to its own layer (`translateZ(0)`) at
 //     the top of the stack, so it paints above the iframe.
 //  2. `useWorker: true` runs the renderer in a Worker created from a `blob:`
-//     URL, which the app's CSP blocks (no worker/blob in script-src) — the
+//     URL, which the app's CSP blocks (no worker/blob in script-src): the
 //     worker dies silently and nothing draws. We render on the main thread.
 let instance: CreateTypes | null = null;
 

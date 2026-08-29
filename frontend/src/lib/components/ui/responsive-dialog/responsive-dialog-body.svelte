@@ -10,8 +10,8 @@
   // can't scroll against an auto-sized row), so here the body is a padded
   // passthrough.
   //
-  // Mobile: the drawer `Content` is the vaul drag target — scrolling it fights
-  // the dismiss gesture — so the scroll must live on an inner flex child. The
+  // Mobile: the drawer `Content` is the vaul drag target, scrolling it fights
+  // the dismiss gesture, so the scroll must live on an inner flex child. The
   // body becomes that child (`flex-1 min-h-0 overflow-y-auto`) and adds the
   // horizontal padding the edge-to-edge drawer lacks plus a bottom inset.
   let {

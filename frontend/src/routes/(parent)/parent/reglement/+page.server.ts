@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   // Children whose guardian has not yet co-signed the règlement intérieur.
   // Pre-fill the signer-name inputs from what the talent entered for their
-  // guardian during onboarding — same rationale as the image-rights flow.
+  // guardian during onboarding, same rationale as the image-rights flow.
   const unsignedChildren = await prisma.talent.findMany({
     where: {
       parentEmail: locals.user.email,
@@ -31,7 +31,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     },
   });
 
-  // Règlement done for everyone — move on to the image-rights step (which in
+  // Règlement done for everyone, move on to the image-rights step (which in
   // turn forwards to /parent/merci once it too is settled).
   if (unsignedChildren.length === 0) {
     throw redirect(303, resolve('/parent/signature'));

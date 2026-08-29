@@ -35,7 +35,7 @@
     talentId: string;
     notes: SerializedNote[];
     // Campus IANA timezone, forwarded to each card so note timestamps read in the
-    // campus wall clock (see TalentNoteCard — the fiche feed is SSR'd under UTC).
+    // campus wall clock (see TalentNoteCard: the fiche feed is SSR'd under UTC).
     timezone: string;
     eventId?: string | null;
     // The active émargement créneau (the dialog passes the slot on screen). Two

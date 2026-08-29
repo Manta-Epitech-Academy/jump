@@ -256,7 +256,7 @@ model Talent {
   imageRightsDecidedAt        DateTime?
   // Guardian's typed legal name at the moment of the image-rights decision,
   // captured as prénom + nom to mirror the talent's own identity columns
-  // (`prenom` / `nom`) — a single free-text field invited "first name only" /
+  // (`prenom` / `nom`): a single free-text field invited "first name only" /
   // "last name only" entries that read asymmetrically on the signed PDF.
   imageRightsSignerPrenom     String?
   imageRightsSignerNom        String?
@@ -341,7 +341,7 @@ model Talent {
   externalId                  String?              @unique
   lastActiveAt                DateTime?
   // First real (non-impersonated) login, stamped once in hooks.server.ts and
-  // never cleared. A durable projection of "has this talent ever connected" —
+  // never cleared. A durable projection of "has this talent ever connected",
   // distinct from probing bauth_session, whose rows are deleted by logout,
   // identity repair and account relinks, so a real login would otherwise read
   // "Jamais" once its session row is gone. Paired with lastActiveAt (MAX
@@ -381,8 +381,8 @@ model Talent {
 }
 
 /// Canonical high-school directory, keyed by the national UAI (RNE) code.
-/// Rows are created lazily the first time a UAI is seen — Salesforce sync or a
-/// talent picking from the annuaire — then enriched from the official
+/// Rows are created lazily the first time a UAI is seen (Salesforce sync or a
+/// talent picking from the annuaire), then enriched from the official
 /// éducation-nationale annuaire. Only schools actually attended by a talent ever
 /// land here, never the full ~69k national dataset.
 model School {
@@ -525,7 +525,7 @@ model Onboarding_Record {
   @@unique([talentId, schoolYear])
 }
 
-/// 1:1 mirror of what Salesforce last claimed for a talent — the anti-corruption
+/// 1:1 mirror of what Salesforce last claimed for a talent: the anti-corruption
 /// boundary. Upserted by the worker sync (only when the inbound payload differs),
 /// never written by onboarding. Reconciliation compares this against the `Talent`
 /// row: a divergence on a talent-confirmed field is a conflict. School is compared
@@ -553,7 +553,7 @@ model TalentSfImport {
 }
 
 // RGPD erasure as a fact log, not an instant destructive action. A talent's
-// "delete my account" no longer wipes rows on the spot — it appends a pending
+// "delete my account" no longer wipes rows on the spot: it appends a pending
 // request here. Staff fulfil it (→ anonymisation, the real erasure mechanism)
 // or reject it; the talent can withdraw their own pending request. Each
 // transition is a status on the same row, so the request doubles as the audit
@@ -567,8 +567,8 @@ enum TalentDeletionRequestStatus {
 }
 
 /// The legal guardian's image-rights decision for their child. `null` on Talent
-/// means undecided (still to be chased); a non-null value is a settled decision
-/// — `refused` is as final as `accepted`, it just means "do not photograph".
+/// means undecided (still to be chased); a non-null value is a settled decision:
+/// `refused` is as final as `accepted`, it just means "do not photograph".
 enum ImageRightsDecision {
   accepted
   refused
@@ -583,13 +583,13 @@ enum ImageRightsDecisionSource {
   staff_correction
 }
 
-/// Append-only fact log of image-rights decisions — one row per choice or
+/// Append-only fact log of image-rights decisions: one row per choice or
 /// revision, never overwritten. The current value cached on
 /// `Talent.imageRights*` is a projection of the latest row here (same shape as
 /// the XP ledger: facts as rows, state as projection; see CLAUDE.md "Data
 /// modeling"). A guardian revoking "à tout moment" or staff correcting an
 /// offline change of mind both append a new row, so the full history of who
-/// decided what and when survives — which matters legally for a minor's consent.
+/// decided what and when survives, which matters legally for a minor's consent.
 ///
 /// `relationship` and `city` are persisted here (they previously lived only in
 /// the transient PDF job payload, so they were unqueryable after generation).
@@ -622,7 +622,7 @@ model ImageRightsDecisionRecord {
   /// Signer identity + context. Nullable only because rows backfilled from the
   /// pre-ledger projection carry just what `Talent` persisted (signer name, if
   /// any; relationship/city were never stored). Every row written going forward
-  /// fills all four — the parent and staff forms require them.
+  /// fills all four: the parent and staff forms require them.
   signerPrenom      String?
   signerNom         String?
   relationship      String?
@@ -670,9 +670,9 @@ model TalentDeletionRequest {
 
 /// One staff note about a talent. Replaces the single free-text `Talent.note`
 /// column with a 1:N feed: many notes per talent, each authored and timestamped
-/// (created + last-edited). Mutable in place — editing fixes the document, hence
+/// (created + last-edited). Mutable in place: editing fixes the document, hence
 /// `updatedAt`, NOT an append-only ledger (nothing aggregates from it, so the
-/// facts-as-rows shape — XpGrant, ImageRightsDecisionRecord — would be over-built
+/// facts-as-rows shape (XpGrant, ImageRightsDecisionRecord) would be over-built
 /// here). Any dev member can edit/delete any note (small internal team; the
 /// predecessor was a single shared note anyone could overwrite). Staff-only;
 /// NEVER loaded in a talent request. Optional `eventId` anchors the screen the
@@ -806,8 +806,8 @@ model Event {
   date              DateTime
   // Salesforce gives us the calendar day (`date`/`endDate`) but never a
   // start time, so the time-of-day is Jump-owned: wall-clock minutes from
-  // local midnight (0–1439), `null` until staff set it. Kept separate from
-  // `date` precisely so the SF sync — which rewrites `date` — can never
+  // local midnight (0-1439), `null` until staff set it. Kept separate from
+  // `date` precisely so the SF sync, which rewrites `date`, can never
   // clobber it. Compose with the campus timezone for a real instant.
   startMinutes      Int?
   endDate           DateTime?
@@ -1709,12 +1709,12 @@ model AdminFile {
 //
 // Whether an image is still used is determined by the content itself (the
 // `/api/cms/images/<id>` URL inside some `CmsPage.content`), not by a column
-// here — so there is no event link to keep in sync. A row whose id appears in
+// here, so there is no event link to keep in sync. A row whose id appears in
 // no content is garbage: an abandoned upload, an image edited out of a message,
 // or one whose page was deleted. The GC sweep (`/api/jobs/gc-cms-images`)
 // reclaims those, freeing both the row and the S3 object. This reconciliation
 // exists because S3 and Postgres cannot commit atomically and an abandoned
-// upload fires no server event — it is the safety net, not a substitute for
+// upload fires no server event: it is the safety net, not a substitute for
 // correctness on the happy path. `uploadedById` is kept for attribution and is
 // SetNull so deleting the author never deletes the image.
 model CmsImage {
@@ -1951,8 +1951,8 @@ enum MinigameAttemptStatus {
 }
 
 // Host-side curation of the game catalogue: which games (by slug) are in the
-// daily rotation and with what weight. Everything *about* a game — its display
-// name, level count, scoring mode — is owned by jump-games and read live from
+// daily rotation and with what weight. Everything *about* a game (its display
+// name, level count, scoring mode) is owned by jump-games and read live from
 // its `GET /api/games` catalogue (src/lib/server/services/minigameCatalog.ts),
 // never duplicated here. A game is in rotation iff it has a row with
 // enabled = true; no row means "not curated yet" (off).
@@ -1999,7 +1999,7 @@ model MinigameAttempt {
   finishedAt    DateTime?
   jti           String                @unique
   // XP granted for finishing this attempt (null = none, e.g. an invalid run or
-  // a pre-feature row). Source of truth for the award — set once in the
+  // a pre-feature row). Source of truth for the award: set once in the
   // callback, so a retried callback can't double-pay.
   xpAwarded     Int?
   // When the talent saw the "+XP" arrival celebration on the dashboard. Null
@@ -2008,7 +2008,7 @@ model MinigameAttempt {
   xpSeenAt      DateTime?
   // Bonus XP for placing top-N on the campus board (null = no bonus). Set once
   // in the finish callback, the same way xpAwarded is, from the attempt's rank
-  // against the board at that moment — so a retried callback can't double-pay.
+  // against the board at that moment, so a retried callback can't double-pay.
   rankXpAwarded Int?
   // One-shot float gate for the rank bonus, mirroring xpSeenAt. The play page
   // floats only the base finish reward, so the rank bonus is celebrated on the
@@ -2028,7 +2028,7 @@ model MinigameAttempt {
 
 // Append-only XP ledger. One row per granting fact, so a talent's balance is
 // always explainable ("which event gave how much"). Talent.xp is a cached
-// projection = SUM(amount), recomputed transactionally on every write — see
+// projection = SUM(amount), recomputed transactionally on every write: see
 // services/xpService.ts. Grants are upserted on (source, sourceId) and deleted
 // on reversal (unmark presence, remove participation, onboarding/dev reset), so
 // there is never a clamped Math.max() refund to drift out of sync.
@@ -2121,8 +2121,8 @@ model OtpAttempt {
 
 /// Append-only audit ledger of manual auth-identity repairs (see
 /// `authIdentityRepairCore.ts`). When an admin (or the Salesforce sync) resolves a
-/// login-identity conflict — a talent linked to the wrong `bauth_user` after a
-/// Salesforce email change/inversion — the resolution is recorded here as one
+/// login-identity conflict (a talent linked to the wrong `bauth_user` after a
+/// Salesforce email change/inversion), the resolution is recorded here as one
 /// immutable fact. This is identity surgery on minors' accounts (RGPD), so it
 /// must stay explainable and auditable after the fact: who repaired which
 /// talent, how, and which accounts were repointed / renamed / dropped. Follows
@@ -2131,14 +2131,14 @@ model OtpAttempt {
 model AuthIdentityRepair {
   id         String   @id @default(cuid())
   talentId   String
-  /// repoint_drop | rename | swap | sever — kept a `String` (the vocabulary
+  /// repoint_drop | rename | swap | sever, kept a `String` (the vocabulary
   /// lives in code as `AuthRepairKind`), so a new operation needs no migration.
   kind       String
   /// The account kept / linked after the repair (null for `sever`).
   toUserId   String?
   /// The account renamed-from or hard-dropped by the repair (null where N/A).
   fromUserId String?
-  /// Emails captured at repair time, for the trail — the rows they describe may
+  /// Emails captured at repair time, for the trail: the rows they describe may
   /// be gone by the time anyone reads this.
   fromEmail  String?
   toEmail    String?
