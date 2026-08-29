@@ -122,7 +122,7 @@ export const load: PageServerLoad = async ({ url, depends, locals }) => {
 
 // Re-runs the background generation for a job. The runner claims any
 // not-yet-succeeded row, so this recovers both `error` jobs and ones stranded
-// in `pending`/`processing` by a crash. Fire-and-forget — the page reloads to
+// in `pending`/`processing` by a crash. Fire-and-forget: the page reloads to
 // show the job back in `processing`, then `success` on the next refresh.
 export const actions: Actions = {
   retry: async ({ request, locals }) => {

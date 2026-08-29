@@ -41,7 +41,7 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
   }
   const { body, eventId, presenceDay, presenceSlot } = parsed.data;
 
-  // Optional context anchor — only accept an event on this staff's campus, so a
+  // Optional context anchor: only accept an event on this staff's campus, so a
   // forged id can't link a note to another campus's event.
   if (eventId) {
     const ok = await prisma.event.findFirst({

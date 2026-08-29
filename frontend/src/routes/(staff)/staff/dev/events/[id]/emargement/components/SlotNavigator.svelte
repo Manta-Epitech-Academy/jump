@@ -91,7 +91,7 @@
           class="inline-flex h-8 min-w-44 cursor-pointer items-center justify-center gap-2 rounded-sm border bg-background px-3 text-xs font-bold uppercase disabled:cursor-default"
         >
           <CalendarClock class="h-4 w-4 text-muted-foreground" />
-          {active ? dayLabelFr(active.day) : '—'}
+          {active ? dayLabelFr(active.day) : '-'}
         </DropdownMenu.Trigger>
         <DropdownMenu.Content class="max-h-80 overflow-y-auto">
           {#each days as day (day)}

@@ -81,7 +81,7 @@
     messages.length ? messages[messageIndex % messages.length] : '',
   );
 
-  // Pixel-square loader — the brand signature motif, staggered so it shimmers
+  // Pixel-square loader: the brand signature motif, staggered so it shimmers
   // left to right. Delays are full literal classes so Tailwind's scanner keeps
   // them (an interpolated `[animation-delay:{n}ms]` would never be generated).
   const PIXEL_DELAYS = [
@@ -103,7 +103,7 @@
       aria-hidden="true"
       class="absolute inset-0 bg-[image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:32px_32px]"
     ></div>
-    <!-- Pixel overlays — offset squares, the brand signature. -->
+    <!-- Pixel overlays: offset squares, the brand signature. -->
     <div aria-hidden="true" class="absolute inset-0">
       <div
         class="absolute top-[16%] right-[20%] h-16 w-24 bg-white/10 motion-safe:animate-pulse"

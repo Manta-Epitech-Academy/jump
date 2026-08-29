@@ -78,7 +78,7 @@ export const STAFF_SPACES: readonly {
 /**
  * StaffProfile.staffRole is the source of truth for what a user can do inside
  * the app; bauth_user.role is BetterAuth's admin-plugin gate. They must agree
- * (`admin` ↔ `admin`, anything else ↔ `staff`) — otherwise impersonation,
+ * (`admin` ↔ `admin`, anything else ↔ `staff`); otherwise impersonation,
  * banning, etc. desync with the in-app role.
  *
  * Callers that change one MUST change the other in the same transaction. Use

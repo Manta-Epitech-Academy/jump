@@ -1,7 +1,7 @@
 /**
  * Shared types + labels for the auth-identity conflict surface, importable from
  * both the server (`authIdentityService` / `authIdentityRepairService`) and the
- * client page. Pure domain data, no DB access — mirrors how
+ * client page. Pure domain data, no DB access, mirrors how
  * `$lib/domain/reconciliation` lets the sf-conflicts page share the field
  * catalogue with its server service.
  */

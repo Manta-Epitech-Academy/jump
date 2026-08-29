@@ -56,7 +56,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     // Always computed, even when the campus runs its schedule outside Jump
     // (planning flag off): this is participation-derived (Participation → Event),
     // never planning rows, so a talent there still has events to surface. The
-    // flag only gates the detailed /calendar grid — the widget drops its "Voir
+    // flag only gates the detailed /calendar grid: the widget drops its "Voir
     // le planning" CTA client-side when it's off, keeping the state itself.
     const eventSelect = {
       event: {
@@ -307,7 +307,7 @@ export const actions: Actions = {
 
     if (existing && existing.status !== 'pending') {
       // Reset: revoke this attempt's ledger grants before dropping the row, so
-      // repeated dev toggles don't inflate the talent's balance. Revoke first —
+      // repeated dev toggles don't inflate the talent's balance. Revoke first:
       // the grants key on the attempt id, which the delete would take away. Both
       // the base finish reward and any rank bonus earned at finish are reverted.
       await prisma.$transaction(async (tx) => {

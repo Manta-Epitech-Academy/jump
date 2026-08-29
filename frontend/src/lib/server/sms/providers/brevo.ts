@@ -1,5 +1,5 @@
 /**
- * Brevo (ex-Sendinblue) transactional SMS provider. REST via fetch, no SDK —
+ * Brevo (ex-Sendinblue) transactional SMS provider. REST via fetch, no SDK:
  * the surface is one endpoint.
  *
  *   POST https://api.brevo.com/v3/transactionalSMS/sms
@@ -7,7 +7,7 @@
  *   body:    { sender, recipient, content, type: 'transactional', tag }
  *
  * A 2xx returns `{ reference, messageId, … }`; everything else returns
- * `{ code, message }`. We collapse both — plus network throws — into a single
+ * `{ code, message }`. We collapse both (plus network throws) into a single
  * `SendSmsResult` so callers branch once before committing any "sent"
  * side-effect (matches the email provider contract).
  */

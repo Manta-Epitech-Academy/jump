@@ -1,4 +1,4 @@
-# AGENTS.md — Vendor-Neutral AI Agent Instructions
+# AGENTS.md: Vendor-Neutral AI Agent Instructions
 
 This document is the primary entrypoint and source of truth for all AI coding agents (Claude Code, Gemini, Cursor, Copilot, Codex, etc.) working in this repository.
 
@@ -24,7 +24,7 @@ This document is the primary entrypoint and source of truth for all AI coding ag
 
 ## Project Overview
 
-Jump — an internal Epitech Academy platform for managing training events, student progress, and certifications. French-language UI. Built with SvelteKit + Prisma + PostgreSQL.
+Jump: an internal Epitech Academy platform for managing training events, student progress, and certifications. French-language UI. Built with SvelteKit + Prisma + PostgreSQL.
 
 ## Philosophy
 
@@ -46,7 +46,7 @@ Task-to-script mapping lives in `frontend/package.json`.
 
 **Docker** (from repo root): `docker-compose up` starts PostgreSQL + SvelteKit.
 
-**Git worktrees:** a freshly-added worktree has no `.env` (untracked) and no `node_modules`. The `.githooks/post-checkout` hook auto-provisions it on creation — links `.env` from the main checkout and runs `bun install`. If your editor adds worktrees without firing git hooks, run `bun run setup:worktree` once to do the same. It also has no `.env.test`: copy it from `.env.test.example` once, and note that it deliberately carries no `DATABASE_URL`.
+**Git worktrees:** a freshly-added worktree has no `.env` (untracked) and no `node_modules`. The `.githooks/post-checkout` hook auto-provisions it on creation: links `.env` from the main checkout and runs `bun install`. If your editor adds worktrees without firing git hooks, run `bun run setup:worktree` once to do the same. It also has no `.env.test`: copy it from `.env.test.example` once, and note that it deliberately carries no `DATABASE_URL`.
 
 **A worktree gets its own test database, and that is not a nicety.** `scripts/with-test-db.sh` derives the name from the worktree (`jump_test` in the main checkout, `jump_test_<worktree>` elsewhere) on the one container from `docker-compose.test.yml`, and derives the E2E server's port and `ORIGIN` from that same discriminant: a value that is per-worktree in one layer and shared in the other is not isolated, and the port being the shared half let one worktree's gate run green against another's build. They used to share the single `jump_test`, so a `migrate deploy` run from one branch left every other worktree's integration suite red against a schema it was never written for, with nothing to say so. Two traps the script exists to absorb: `prisma.config.ts` loads the repo-root `.env`, which points at the shared DEV database, and an already-set `DATABASE_URL` only wins because the script exports its own last; and the test container is not clean per launch (the postgres image declares its own volume, so a restart keeps its data - only `docker compose -f docker-compose.test.yml down -v` resets it).
 
@@ -54,7 +54,7 @@ Task-to-script mapping lives in `frontend/package.json`.
 
 **`.svelte-kit/` belongs to the dev server, and to nothing else.** Anything that loads the SvelteKit vite plugin regenerates that directory when it runs, `generated/root.svelte` and `generated/client/app.js` included, so doing it while a dev server is live blanks the page in the browser until that server is restarted. Every other command therefore gets its own directory through `KIT_OUTDIR`, which `svelte.config.js` reads: `bun run check` uses `.svelte-kit-check/` (set in the script, since `svelte-check` has no config file of its own), vitest uses `.svelte-kit-test/` (set in `vitest.config.ts`, so an editor's test runner obeys it too), and the E2E suite's build uses `.svelte-kit-e2e/` (set in the `webServer` command in `playwright.config.ts`). A new command that touches the plugin needs the same treatment, plus an entry in `server.watch.ignored`.
 
-**When a `package.json` script exists for the task, use `bun run <script>` rather than invoking the tool directly.** The scripts often set env vars (`KIT_OUTDIR=.svelte-kit-check`) or flags (`--tsconfig ./tsconfig.check.json`) that a bare `bun svelte-check` or `bunx svelte-check` will silently skip — leading to types being written to the default `.svelte-kit/` dir or the wrong strictness. For one-shots without a matching script, `bun <tool>` is fine; reach for `bunx` only when the tool isn't installed locally.
+**When a `package.json` script exists for the task, use `bun run <script>` rather than invoking the tool directly.** The scripts often set env vars (`KIT_OUTDIR=.svelte-kit-check`) or flags (`--tsconfig ./tsconfig.check.json`) that a bare `bun svelte-check` or `bunx svelte-check` will silently skip, leading to types being written to the default `.svelte-kit/` dir or the wrong strictness. For one-shots without a matching script, `bun <tool>` is fine; reach for `bunx` only when the tool isn't installed locally.
 
 ## Architecture
 
@@ -104,7 +104,7 @@ Inside a workspace, role-based gating goes through **one table** of named role g
 
 **There is no superdev-only group today.** `superdev` and `dev` are permission-identical; the only thing the enum still separates is which roles a superdev may invite (`INVITABLE_STAFF_ROLES`, a catalogue, not a gate). Add a group back to `STAFF_GROUPS` the day a lead-only action exists. Never inline a `['superdev']` array at a call site.
 
-**UI pattern rule — pick one per site, do not mix:**
+**UI pattern rule: pick one per site, do not mix:**
 
 | Pattern           | When                                                       |
 | ----------------- | ---------------------------------------------------------- |
@@ -252,19 +252,19 @@ Prisma schema at `frontend/prisma/schema.prisma`. Data is campus-scoped.
 
 ### Data modeling: facts as rows, state as projection
 
-Several domain tables are append-only fact/log records — `MinigameAttempt`, `BroadcastRecipient`, `XpGrant`, `ImageRightsDecisionRecord`. Current values that derive from them are **cached projections** recomputed transactionally on each write, not independently mutated (e.g. `Talent.xp` = `SUM(XpGrant.amount)`).
+Several domain tables are append-only fact/log records: `MinigameAttempt`, `BroadcastRecipient`, `XpGrant`, `ImageRightsDecisionRecord`. Current values that derive from them are **cached projections** recomputed transactionally on each write, not independently mutated (e.g. `Talent.xp` = `SUM(XpGrant.amount)`).
 
-When persisting a new domain fact, follow this shape rather than a mutable counter or a `Json` blob: the fact gets a row, and any aggregate is a projection refreshed in the same transaction. A bare counter is lossy — you can't explain, audit, or timestamp the value, and ad-hoc `Math.max(0, x - n)` adjustments drift. The XP ledger is the reference implementation (see below).
+When persisting a new domain fact, follow this shape rather than a mutable counter or a `Json` blob: the fact gets a row, and any aggregate is a projection refreshed in the same transaction. A bare counter is lossy: you can't explain, audit, or timestamp the value, and ad-hoc `Math.max(0, x - n)` adjustments drift. The XP ledger is the reference implementation (see below).
 
-**Not for polled external state.** The ledger shape fits discrete domain facts that happen once. Do *not* append a row per poll of a mutable external system — the Salesforce sync runs every ~30 min, so an append-only log would bloat with no payoff. Mirror the external system's current state in a 1:1 typed row, upserted only when the inbound payload differs (see `TalentSfImport` under Salesforce reconciliation).
+**Not for polled external state.** The ledger shape fits discrete domain facts that happen once. Do *not* append a row per poll of a mutable external system: the Salesforce sync runs every ~30 min, so an append-only log would bloat with no payoff. Mirror the external system's current state in a 1:1 typed row, upserted only when the inbound payload differs (see `TalentSfImport` under Salesforce reconciliation).
 
 ### Relational modeling
 
-Model relationships and entities by their real shape. These are deliberate calls, not defaults to reach for — each is anchored to a model in this schema:
+Model relationships and entities by their real shape. These are deliberate calls, not defaults to reach for: each is anchored to a model in this schema:
 
 - **Many-to-many → join table.** A pure junction with a composite PK, e.g. `TalentInterest` (`@@id([talentId, interestId])`). Use one only when **both** sides are genuinely many.
 - **One-to-many → foreign key on the "many" side, not a join table.** A talent has one current school → `Talent.schoolId`, never a `TalentSchool` link table. The tell that you've mismodeled a 1:N as M:N: you find yourself adding a `@@unique` on the FK column to stop duplicates.
-- **A link table *with attributes* is an associative entity — a separate decision.** A bare junction glues two keys; the moment the relationship itself carries data (a `source`, a `confirmedAt`, a quantity), that's a deliberate entity. Don't reach for it speculatively, and don't refuse it when the data genuinely belongs on the relationship.
+- **A link table *with attributes* is an associative entity: a separate decision.** A bare junction glues two keys; the moment the relationship itself carries data (a `source`, a `confirmedAt`, a quantity), that's a deliberate entity. Don't reach for it speculatively, and don't refuse it when the data genuinely belongs on the relationship.
 - **A domain entity gets its own table + FK, not loose strings/JSON.** A thing referenced repeatedly (a high school) gets a typed, deduplicated row (`School`), not `name`/`city`/`uai` columns copied onto every referrer. "Normalize later" tends to never happen.
 - **External-system data → anti-corruption mirror, kept apart from your truth.** Don't fold a third party's claims into your aggregate root. Keep what *you* believe (`Talent`) separate from what an external system *claims* (`TalentSfImport`), and reconcile explicitly (see Salesforce reconciliation).
 - **A relationship already carried by a foreign key needs no second marker.** If A already points at B via an FK, don't add an `ownerB`/`belongsToB` column that re-encodes the same link: it duplicates a tie you can already query, and it drifts. Before adding a column to bind two rows, check whether an existing FK (or a count over it) already answers the question. When the tie is incidental, don't model it at all: prefer computing the answer to storing a flag.
@@ -292,7 +292,7 @@ XP follows the ledger pattern above. Each granting fact is one `XpGrant` row (un
 
 - **Never mutate `Talent.xp` directly.** It's a cached projection of `XpGrant`; go through `xpService` so the recompute stays atomic.
 - Activity difficulty → XP: Débutant=20, Intermédiaire=45, Avancé=75 (`src/lib/domain/xp.ts`).
-- **Level is derived, not stored** (`Talent.level` was dropped). Use `computeLevel(xp)` (tiers: Novice 0–199, Apprentice 200–499, Expert 500+). `JUMP_LEVELS` is canonical in `domain/xp.ts`; `xpRangeForLevel` maps a tier back to an `xp` range for the broadcast filter. No level tier is surfaced in the dev workspace, so there is no French label helper.
+- **Level is derived, not stored** (`Talent.level` was dropped). Use `computeLevel(xp)` (tiers: Novice 0-199, Apprentice 200-499, Expert 500+). `JUMP_LEVELS` is canonical in `domain/xp.ts`; `xpRangeForLevel` maps a tier back to an `xp` range for the broadcast filter. No level tier is surfaced in the dev workspace, so there is no French label helper.
 - Backfill/repair: `scripts/backfill-xp-ledger.ts` (idempotent, `--dry-run`).
 
 ### Onboarding: one dossier per school year
@@ -320,10 +320,10 @@ Each is a **versioned catalogue** (`lib/content/reglement/`, `lib/content/droit-
 
 ### Salesforce reconciliation
 
-Talent profile fields have two sources — the worker sync (Salesforce) and onboarding (the student). They are **reconciled, not blindly overwritten**.
+Talent profile fields have two sources: the worker sync (Salesforce) and onboarding (the student). They are **reconciled, not blindly overwritten**.
 
-- **`Talent` = Jump's current truth.** Onboarding writes it directly (**optimistic**: the student's input shows on their dashboard immediately; staff arbitrate divergences afterward — there is no pending-validation gate).
-- **`TalentSfImport` = 1:1 typed mirror of Salesforce's last claim** — the anti-corruption boundary. Written *only* by `syncService.syncTalents`, never by onboarding, and upserted only when the inbound payload differs.
+- **`Talent` = Jump's current truth.** Onboarding writes it directly (**optimistic**: the student's input shows on their dashboard immediately; staff arbitrate divergences afterward, there is no pending-validation gate).
+- **`TalentSfImport` = 1:1 typed mirror of Salesforce's last claim**: the anti-corruption boundary. Written *only* by `syncService.syncTalents`, never by onboarding, and upserted only when the inbound payload differs.
 - **`School` = canonical UAI-keyed directory**, resolved lazily from the éducation-nationale annuaire (`server/annuaire.ts` + `schoolService.resolveSchoolByUai`). Only schools actually attended ever land here, never the ~69k national set. It replaced the old free-text `highSchoolName/City/Uai` columns: `Talent` now carries a `schoolId` FK (+ `highSchoolNameManual`, used *only* when a lycée has no UAI). The student's school and SF's claimed school (`TalentSfImport.sfSchoolId`) both FK the same `School`.
 - **No-clobber rule:** before a field is talent-confirmed (its `*ValidatedAt` is set), sync re-seeds it on `Talent`; after, sync writes **only the mirror**. Never let SF overwrite a confirmed value. (This fixed a real bug where every sync overwrote the talent's confirmed phone/name.)
 - **Conflict** = field is talent-confirmed **AND** `Talent` ≠ `TalentSfImport` (school compared by FK). Computed in `reconciliationService`, never stored. Surfaced at `/staff/admin/sf-conflicts` (list + accept/reject + CSV export); `acceptJump` realigns the mirror optimistically. `niveau` is SF-owned (onboarding never sets it) → always synced, never a conflict.
@@ -479,37 +479,37 @@ The admin space **stops growing UI**: new admin capabilities ship as curated nam
 consumable over HTTP and as MCP tools, never as new admin UI. Read
 [`frontend/src/lib/server/adminApi/CLAUDE.md`](./frontend/src/lib/server/adminApi/CLAUDE.md) before
 adding, changing, or reasoning about an operation, a write's class (A/B/C), the leadership tier, or
-anything under `src/lib/server/adminApi/` — it carries the non-negotiable rules (PII, audit, scope
+anything under `src/lib/server/adminApi/`: it carries the non-negotiable rules (PII, audit, scope
 refusal, handles) and the file-by-file map of the tier.
 
 ### Key Server Services (`src/lib/server/`)
 
-- **`auth.ts`** — BetterAuth config (Prisma adapter, Microsoft OAuth, email OTP, admin plugin with impersonation)
-- **`adminApi/`** — curated admin API: token auth (tier + write capability), quotas, audit log with before/after, operation catalogue, write implementations, two-step plan digest, MCP server (see above)
-- **`services/adminStats/`** — the curated aggregates (cohort profile, school reach and lycée churn, attendance, the cross-campus comparison, closing insights and testimonials, feedback results, engagement, onboarding funnel and velocity, compliance, the operational queues, configuration state, the school-year review), each figure carrying its definition
-- **`services/adminDigest.ts`** — weekly French digest to every admin-role login, built on `adminStats/`
-- **`services/staffAdminService.ts`** — staff roster writes for `/staff/admin/users` (the role change moves `StaffProfile.staffRole` + `bauth_user.role` in one transaction)
-- **`services/syncErrorService.ts`** — admin remediation of sync errors, including the extId rebind and its refusal branches
-- **`services/onboardingService.ts`** — the onboarding transactions: parent-1 account provisioning, interest swap, rules signature (timestamps + XP facts + PDF job)
+- **`auth.ts`**: BetterAuth config (Prisma adapter, Microsoft OAuth, email OTP, admin plugin with impersonation)
+- **`adminApi/`**: curated admin API: token auth (tier + write capability), quotas, audit log with before/after, operation catalogue, write implementations, two-step plan digest, MCP server (see above)
+- **`services/adminStats/`**: the curated aggregates (cohort profile, school reach and lycée churn, attendance, the cross-campus comparison, closing insights and testimonials, feedback results, engagement, onboarding funnel and velocity, compliance, the operational queues, configuration state, the school-year review), each figure carrying its definition
+- **`services/adminDigest.ts`**: weekly French digest to every admin-role login, built on `adminStats/`
+- **`services/staffAdminService.ts`**: staff roster writes for `/staff/admin/users` (the role change moves `StaffProfile.staffRole` + `bauth_user.role` in one transaction)
+- **`services/syncErrorService.ts`**: admin remediation of sync errors, including the extId rebind and its refusal branches
+- **`services/onboardingService.ts`**: the onboarding transactions: parent-1 account provisioning, interest swap, rules signature (timestamps + XP facts + PDF job)
 - **`infra/documentRenderer.ts`** - the one browser-render path: PDFs for what gets printed, PNGs for what gets looked at, both over the same page setup so a preview cannot disagree with the document it previews. Owns the page lifecycle and turns off **both script execution and the network**, so no caller can render a stored design with either switched off by forgetting to switch it on; no template wants page JS anyway (a QR code arrives as a data URI its caller built). Fonts therefore carry their own bytes (`templates/fonts.ts`, `@font-face` built from the `@fontsource` packages with `?inline`)
 - **`services/diplomaGenerator.ts`** - certificates: takes the design off a `Diploma_Template` row, substitutes the `{placeholders}`, and renders one page per recipient
-- **`services/syncService.ts`** — Salesforce worker sync → seeds `Talent` + upserts the `TalentSfImport` mirror (no-clobber; see Salesforce reconciliation)
-- **`services/reconciliationService.ts`** — computes `Talent` ↔ `TalentSfImport` conflicts; accept/reject + CSV for `/staff/admin/sf-conflicts`
-- **`services/schoolService.ts`** / **`annuaire.ts`** — lazy `School` resolution from UAI via the éducation-nationale annuaire
-- **`services/anonymizationService.ts`** — RGPD anonymization job
-- **`infra/browserPool.ts`** — pooled Puppeteer instances (max 5 concurrent, 60s idle timeout)
-- **`usage/record.ts`** — the one usage recorder: fire-and-forget, server-only, composes the dedupe key, honours a talent's objection, and refuses rather than guesses when the salt is unset
-- **`usage/rollup.ts`** — folds the monthly cube then purges the raw window, in that order
-- **`services/adminStats/featureUsage.ts`** / **`staffActivity.ts`** — feature adoption per campus, and whether the team logs in at all
-- **`usage/memberActivity.ts`** — the one named-member read, for the dialog on `/staff/admin/users`. Deliberately not an operation: `ops_staff_activity` answers the same question in counts with no names, and a named-member read reachable with a token would put per-employee behaviour behind a credential minted for figures
-- **`db/scoped.ts`** — campus-scoped DB query helpers
+- **`services/syncService.ts`**: Salesforce worker sync → seeds `Talent` + upserts the `TalentSfImport` mirror (no-clobber; see Salesforce reconciliation)
+- **`services/reconciliationService.ts`**: computes `Talent` ↔ `TalentSfImport` conflicts; accept/reject + CSV for `/staff/admin/sf-conflicts`
+- **`services/schoolService.ts`** / **`annuaire.ts`**: lazy `School` resolution from UAI via the éducation-nationale annuaire
+- **`services/anonymizationService.ts`**: RGPD anonymization job
+- **`infra/browserPool.ts`**: pooled Puppeteer instances (max 5 concurrent, 60s idle timeout)
+- **`usage/record.ts`**: the one usage recorder: fire-and-forget, server-only, composes the dedupe key, honours a talent's objection, and refuses rather than guesses when the salt is unset
+- **`usage/rollup.ts`**: folds the monthly cube then purges the raw window, in that order
+- **`services/adminStats/featureUsage.ts`** / **`staffActivity.ts`**: feature adoption per campus, and whether the team logs in at all
+- **`usage/memberActivity.ts`**: the one named-member read, for the dialog on `/staff/admin/users`. Deliberately not an operation: `ops_staff_activity` answers the same question in counts with no names, and a named-member read reachable with a token would put per-employee behaviour behind a credential minted for figures
+- **`db/scoped.ts`**: campus-scoped DB query helpers
 
 ### Client Libraries (`src/lib/`)
 
-- **`domain/`** — business logic (XP calculation in `xp.ts`, event lifecycle in `eventLifecycle.ts`)
-- **`validation/`** — Zod schemas for forms (auth, events, students, templates, planning)
-- **`components/ui/`** — Bits UI primitives (shadcn pattern)
-- **`utils.ts`** — `cn()` helper (clsx + twMerge) for conditional classes
+- **`domain/`**: business logic (XP calculation in `xp.ts`, event lifecycle in `eventLifecycle.ts`)
+- **`validation/`**: Zod schemas for forms (auth, events, students, templates, planning)
+- **`components/ui/`**: Bits UI primitives (shadcn pattern)
+- **`utils.ts`**: `cn()` helper (clsx + twMerge) for conditional classes
 
 ### Staff cohort tables
 
@@ -527,7 +527,7 @@ or reworking a staff list page.
   Being machine-facing is also not a licence to use our own vocabulary. "Operation" is what `operations.ts` calls a catalogue entry; an admin reading a dialog thinks "les chiffres et l'état de configuration". And the reverse trap is real: **`token` stays `token`** on an ops surface. The no-jargon rule says name what the person experiences, and what they experience is a credential they paste after `Authorization: Bearer`; "jeton" makes them translate back to the word they actually type. Talent-facing copy is where jargon gets replaced, not the admin token dialog.
 - **Register (vous / tu):** Pick by who reads the string. **Staff-facing copy uses _vous_** (dev and admin spaces: buttons, tooltips, help cards, confirms). **Talent-facing copy uses _tu_** (the student portal and anything a talent reads, e.g. the QR check-in page). A single feature often spans both: the émargement staff page vouvoie the staff, while its talent check-in page tutoie the student. Match the surrounding screen's register, don't mix within one audience.
 - **Forms:** Use sveltekit-superforms with Zod validation. Never use raw `<form>` handling.
-- **DB access:** Import `prisma` from `$lib/server/db`. Never pass the Prisma client as a function parameter — it's a singleton. Always scope queries by `campusId` for staff/student data.
+- **DB access:** Import `prisma` from `$lib/server/db`. Never pass the Prisma client as a function parameter, it's a singleton. Always scope queries by `campusId` for staff/student data.
 - **Auth checks:** Don't call BetterAuth directly in page server loads; `hooks.server.ts` already hydrates `locals.{user, staffProfile, talent}`.
 - **Styling:** Tailwind utility classes only, no inline styles.
 - **UI components:** always use the shadcn-style components in `src/lib/components/ui/` (Tooltip, Select, Breadcrumb, Dialog...) instead of native HTML equivalents (`title=` attributes, bare `<select>`). If a needed component isn't there yet, add it via shadcn-svelte rather than hand-rolling one.
@@ -566,23 +566,23 @@ or reworking a staff list page.
   // ✅ correct
   import Trash2 from "@lucide/svelte/icons/trash-2";
 
-  // ❌ wrong — barrel import
+  // ❌ wrong: barrel import
   import { Trash2 } from "@lucide/svelte";
   ```
 
-- **Prose punctuation:** Never write em-dashes (`—`, U+2014) or en-dashes (`–`, U+2013) in any prose AI agents generate. This covers code comments, commit messages, PR descriptions, chat responses, and documentation. Use a regular hyphen `-`, a comma, a colon, parentheses, or two sentences instead. Reason: em-dashes are a tell of AI-generated text and we want our writing to read as human. Pre-existing em-dashes in this file and in unrelated prose are not in scope to retrofit; the rule is forward-looking.
+- **Prose punctuation:** Never write em-dashes (`—`, U+2014) or en-dashes (`–`, U+2013) in any prose AI agents generate. This covers code comments, commit messages, PR descriptions, chat responses, and documentation. Use a regular hyphen `-`, a comma, a colon, parentheses, or two sentences instead. Reason: em-dashes are a tell of AI-generated text and we want our writing to read as human. A dedicated pass swept pre-existing em-dashes and en-dashes from the repo's prose (comments, docs, this file included); the rule stays forward-looking for anything written from here on.
 
 ## Constraints
 
 - **RGPD:** Some users are minors. The charter must be signed before accessing the app. Anonymization job available via `POST /api/jobs/anonymize` with `Authorization: Bearer <CRON_SECRET>`. Never store personal data unnecessarily.
 - **Salesforce:** `Event.externalId` optionally links events to Salesforce campaigns.
-- **Scale:** typical stage de seconde event = ~200 students. Cohort-wide views (origin breakdowns, interest distributions, attendance lists) hit this volume — keep it in mind when designing layouts and queries.
+- **Scale:** typical stage de seconde event = ~200 students. Cohort-wide views (origin breakdowns, interest distributions, attendance lists) hit this volume: keep it in mind when designing layouts and queries.
 - **Stateless pods:** SvelteKit pods scale horizontally on kube. Don't put source-of-truth state in process memory; each replica would carry its own and a pod restart would wipe it.
 - **Outbound sends:** mail and SMS are trapped unless `OUTBOUND_MODE=real`, and prod is the only environment that sets it. Never widen that gate to debug a send, and never arm real sends from a non-prod environment: recipients are minors (RGPD).
 
 ## Environment Variables
 
-See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OAuth credentials (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`), and mail provider keys per `MAIL_PROVIDER` (`RESEND_API_KEY` for `resend`, or `MAILJET_API_KEY` + `MAILJET_API_SECRET` for `mailjet`). Optional: `CRON_SECRET`, `WORKER_API_TOKEN`, `USAGE_SALT` (the usage-analytics pseudonym salt - unset means no talent usage is recorded at all, which is the intended failure mode), `MAIL_PROVIDER`, `MAIL_FROM`, `SMS_PROVIDER` (+ `BREVO_API_KEY`, `SMS_SENDER`, `SMS_DEV_RECIPIENTS`), `OUTBOUND_MODE` (the outbound gate — set `=real` in prod only; fail-safe to `redirect` otherwise), `EMAIL_DEV_RECIPIENTS`.
+See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OAuth credentials (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`), and mail provider keys per `MAIL_PROVIDER` (`RESEND_API_KEY` for `resend`, or `MAILJET_API_KEY` + `MAILJET_API_SECRET` for `mailjet`). Optional: `CRON_SECRET`, `WORKER_API_TOKEN`, `USAGE_SALT` (the usage-analytics pseudonym salt - unset means no talent usage is recorded at all, which is the intended failure mode), `MAIL_PROVIDER`, `MAIL_FROM`, `SMS_PROVIDER` (+ `BREVO_API_KEY`, `SMS_SENDER`, `SMS_DEV_RECIPIENTS`), `OUTBOUND_MODE` (the outbound gate: set `=real` in prod only; fail-safe to `redirect` otherwise), `EMAIL_DEV_RECIPIENTS`.
 
 ### Outbound: `MAIL_PROVIDER` / `SMS_PROVIDER`
 

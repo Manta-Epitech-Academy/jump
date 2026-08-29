@@ -70,7 +70,7 @@
 </script>
 
 <svelte:head>
-  <title>{pageTitle} — Bienvenue</title>
+  <title>{pageTitle} - Bienvenue</title>
 </svelte:head>
 
 <div

@@ -15,7 +15,7 @@ export type { AuthRepairAction } from '$lib/domain/authIdentity';
  * the acting admin's id as `resolvedBy` (recorded in the `AuthIdentityRepair`
  * ledger). The core re-verifies the precondition inside the transaction, so an
  * action that no longer applies (state moved since the page loaded) throws and
- * rolls back — the caller surfaces it as a failed action.
+ * rolls back: the caller surfaces it as a failed action.
  *
  * This module is the `$lib`-bound entry point for the page actions; the
  * Salesforce sync drives the same core through `autoResolveAuthIdentity` below.
@@ -49,7 +49,7 @@ export type AutoResolveOutcome = 'repoint_drop' | 'skipped';
  * the stale one. Used by the Salesforce sync (on a `changeUserEmail` collision)
  * to self-heal that case each pass.
  *
- * The simple no-collision case ("nobody holds the SF email") needs no repair —
+ * The simple no-collision case ("nobody holds the SF email") needs no repair:
  * `changeUserEmail` renames the account directly, so it never reaches here.
  * Everything else (swap/inversion, parent/staff holders, exposures) returns
  * `'skipped'` and stays a conflict for an admin: an inversion originates from
@@ -58,7 +58,7 @@ export type AutoResolveOutcome = 'repoint_drop' | 'skipped';
  *
  * The verdict is probed read-only first (`planRepointAndDrop` throws when its
  * precondition fails), then applied in its own transaction, which re-verifies
- * inside — so a race between probe and apply can't act on stale state (it rolls
+ * inside, so a race between probe and apply can't act on stale state (it rolls
  * back and the next sync retries).
  */
 export async function autoResolveAuthIdentity(

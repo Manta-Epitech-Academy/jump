@@ -132,13 +132,13 @@ export const NO_DOSSIER_HINT =
  *                        "Jamais" would read as something to chase and
  *                        "En cours" would be untrue. They would otherwise sit
  *                        in `in_progress` for good.
- *  - `never_connected` — the talent never logged in (no real `bauth_session`).
+ *  - `never_connected` : the talent never logged in (no real `bauth_session`).
  *                        Most urgent of the remaining three: nothing in the
  *                        dossier can move until they connect, so it reads red
  *                        regardless of document state.
- *  - `ready`           — connected AND both gates done: règlement signed AND
+ *  - `ready`           : connected AND both gates done: règlement signed AND
  *                        image-rights decided.
- *  - `in_progress`     — connected but not both gates done. Subsumes the old
+ *  - `in_progress`     : connected but not both gates done. Subsumes the old
  *                        "partial" (some motion) and the connected slice of the
  *                        old "empty" (nothing signed yet).
  *

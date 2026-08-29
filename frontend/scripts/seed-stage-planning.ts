@@ -1,7 +1,7 @@
 /**
  * Provision the "stage de seconde" planning for one or more campuses from a
  * bare schedule: per day, a list of slots carrying only a start/end wall-clock
- * time and a title. That is all a campus hands us — no description, no body
+ * time and a title. That is all a campus hands us: no description, no body
  * content, no difficulty. The app is built to degrade cleanly to this (a
  * title-only activity shows as an info card on the talent calendar and is not
  * openable; see src/lib/domain/activity.ts), so we deliberately seed nothing
@@ -22,11 +22,11 @@
  * slots it replaced, so a destructive re-run is never silent.
  *
  * Timezone: slot instants are built from the campus's OWN IANA timezone
- * (`Campus.timezone`), so 10:00 means 10:00 there — correct for La Réunion
+ * (`Campus.timezone`), so 10:00 means 10:00 there, correct for La Réunion
  * (UTC+4) as well as metropolitan campuses (UTC+2 in June). The wall-clock to
  * instant conversion is inlined from src/lib/domain/planningTime.ts because
  * this script must run against the production image, where `$lib` does not
- * resolve (no Vite) — same reason scripts/backfill-xp-ledger.ts inlines its
+ * resolve (no Vite), same reason scripts/backfill-xp-ledger.ts inlines its
  * domain constants. `@internationalized/date` is a plain npm dep, so importing
  * it directly is fine. Keep the conversion in sync with planningTime.ts.
  *
@@ -289,7 +289,7 @@ const SCHEDULES: CampusPlanning[] = [
         date: '2026-06-19',
         slots: [
           // Remote day: this 9h45 slot is an info banner, not the campus
-          // check-in, so it must stay visible to talents — pin it to `special`
+          // check-in, so it must stay visible to talents: pin it to `special`
           // (inference would default it to `atelier`).
           {
             start: '09:45',
@@ -399,7 +399,7 @@ const SCHEDULES: CampusPlanning[] = [
       // Lucca, La Trace, Capgemini). Vendredi 26 : journée remote (le CSV ne
       // liste qu’une conférence et un atelier à distance, pas de créneau campus
       // ni de pause).
-      // J6 — Lundi 22 juin : Build with IA / Fast Design Sprint
+      // J6 - Lundi 22 juin : Build with IA / Fast Design Sprint
       {
         date: '2026-06-22',
         slots: [
@@ -413,7 +413,7 @@ const SCHEDULES: CampusPlanning[] = [
           { start: '13:30', end: '17:00', nom: 'Kick-off Hackathon' },
         ],
       },
-      // J7 — Mardi 23 juin : Product Design & Prompt Engineering
+      // J7 - Mardi 23 juin : Product Design & Prompt Engineering
       {
         date: '2026-06-23',
         slots: [
@@ -431,7 +431,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J8 — Mercredi 24 juin : Entrepreneuriat & Pitch
+      // J8 - Mercredi 24 juin : Entrepreneuriat & Pitch
       {
         date: '2026-06-24',
         slots: [
@@ -449,7 +449,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J9 — Jeudi 25 juin : IA, Soft Skills & Tech Responsable
+      // J9 - Jeudi 25 juin : IA, Soft Skills & Tech Responsable
       // Le CSV fixe « 17h : Présentation finale » ; fin estimée à 18h (durée non
       // précisée). Milestone visible → pin `special`.
       {
@@ -471,7 +471,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J10 — Vendredi 26 juin : Restitution & Clôture (remote)
+      // J10 - Vendredi 26 juin : Restitution & Clôture (remote)
       // Journée à distance : Live Twitch / contenus à distance. Pin `special`
       // pour rester visible et marquer le distanciel (comme les autres remote).
       {
@@ -498,7 +498,7 @@ const SCHEDULES: CampusPlanning[] = [
     campus: 'Montpellier',
     days: [
       // ── Semaine 1 : « Vis ma vie de… » (découverte) ──
-      // J1 — Lundi 15 juin
+      // J1 - Lundi 15 juin
       {
         date: '2026-06-15',
         slots: [
@@ -516,7 +516,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J2 — Mardi 16 juin : Vis ma vie d’Expert Cybersécurité
+      // J2 - Mardi 16 juin : Vis ma vie d’Expert Cybersécurité
       {
         date: '2026-06-16',
         slots: [
@@ -538,7 +538,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J3 — Mercredi 17 juin : Vis ma vie de Développeur
+      // J3 - Mercredi 17 juin : Vis ma vie de Développeur
       {
         date: '2026-06-17',
         slots: [
@@ -560,7 +560,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J4 — Jeudi 18 juin : Vis ma vie d’Ingénieur DevOps
+      // J4 - Jeudi 18 juin : Vis ma vie d’Ingénieur DevOps
       {
         date: '2026-06-18',
         slots: [
@@ -582,7 +582,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J5 — Vendredi 19 juin : journée remote
+      // J5 - Vendredi 19 juin : journée remote
       {
         date: '2026-06-19',
         slots: [
@@ -608,7 +608,7 @@ const SCHEDULES: CampusPlanning[] = [
         ],
       },
       // ── Semaine 2 : projet (TOOLS → PRODUCT → SUCCESS) ──
-      // J6 — Lundi 22 juin : TOOLS, Lancement
+      // J6 - Lundi 22 juin : TOOLS, Lancement
       {
         date: '2026-06-22',
         slots: [
@@ -637,7 +637,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J7 — Mardi 23 juin : PRODUCT, Design & Construction
+      // J7 - Mardi 23 juin : PRODUCT, Design & Construction
       {
         date: '2026-06-23',
         slots: [
@@ -659,7 +659,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J8 — Mercredi 24 juin : SUCCESS, Finalisation & Pitchs
+      // J8 - Mercredi 24 juin : SUCCESS, Finalisation & Pitchs
       {
         date: '2026-06-24',
         slots: [
@@ -688,7 +688,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J9 — Jeudi 25 juin : Ingénieur IA + Demo Day
+      // J9 - Jeudi 25 juin : Ingénieur IA + Demo Day
       {
         date: '2026-06-25',
         slots: [
@@ -717,7 +717,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J10 — Vendredi 26 juin : journée remote
+      // J10 - Vendredi 26 juin : journée remote
       {
         date: '2026-06-26',
         slots: [
@@ -743,7 +743,7 @@ const SCHEDULES: CampusPlanning[] = [
     // Remote “à la carte” Fridays carry only morning/afternoon ateliers.
     campus: 'Strasbourg',
     days: [
-      // J1 — Lundi 15 juin : 100% local
+      // J1 - Lundi 15 juin : 100% local
       {
         date: '2026-06-15',
         slots: [
@@ -765,7 +765,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J2 — Mardi 16 juin : Cybersécurité
+      // J2 - Mardi 16 juin : Cybersécurité
       {
         date: '2026-06-16',
         slots: [
@@ -783,7 +783,7 @@ const SCHEDULES: CampusPlanning[] = [
           { start: '13:30', end: '17:00', nom: 'Atelier : Cloud' },
         ],
       },
-      // J3 — Mercredi 17 juin : Dev & Code
+      // J3 - Mercredi 17 juin : Dev & Code
       {
         date: '2026-06-17',
         slots: [
@@ -805,7 +805,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J4 — Jeudi 18 juin : DevOps
+      // J4 - Jeudi 18 juin : DevOps
       {
         date: '2026-06-18',
         slots: [
@@ -823,7 +823,7 @@ const SCHEDULES: CampusPlanning[] = [
           { start: '13:30', end: '17:00', nom: 'Atelier : Discover Linux' },
         ],
       },
-      // J5 — Vendredi 19 juin : remote à la carte
+      // J5 - Vendredi 19 juin : remote à la carte
       {
         date: '2026-06-19',
         slots: [
@@ -839,7 +839,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J6 — Lundi 22 juin : Tools (Hackathon)
+      // J6 - Lundi 22 juin : Tools (Hackathon)
       {
         date: '2026-06-22',
         slots: [
@@ -861,7 +861,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J7 — Mardi 23 juin : Product
+      // J7 - Mardi 23 juin : Product
       {
         date: '2026-06-23',
         slots: [
@@ -883,7 +883,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J8 — Mercredi 24 juin : Success
+      // J8 - Mercredi 24 juin : Success
       {
         date: '2026-06-24',
         slots: [
@@ -905,7 +905,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J9 — Jeudi 25 juin : AI
+      // J9 - Jeudi 25 juin : AI
       {
         date: '2026-06-25',
         slots: [
@@ -927,7 +927,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J10 — Vendredi 26 juin : remote à la carte
+      // J10 - Vendredi 26 juin : remote à la carte
       {
         date: '2026-06-26',
         slots: [

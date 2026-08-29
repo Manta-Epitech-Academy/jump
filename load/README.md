@@ -1,4 +1,4 @@
-# Load testing — k6
+# Load testing : k6
 
 Tests de montée en charge ciblant **preprod** (ou localhost).
 
@@ -16,7 +16,7 @@ Tests de montée en charge ciblant **preprod** (ou localhost).
 Les quatre sont **inactifs tant que `LOAD_TEST_SECRET` n'est pas défini côté serveur** (réponse 404 sinon), et exigent un bearer correct (401 sinon). C'est du **code applicatif** : il doit être déployé sur la cible (comme login-as). Un 404 sur seed/manifest = endpoints pas encore déployés.
 
 ```
-# .env preprod uniquement — JAMAIS en prod
+# .env preprod uniquement, JAMAIS en prod
 LOAD_TEST_SECRET=<token long aléatoire, openssl rand -hex 32>
 ```
 
@@ -66,15 +66,15 @@ BASE_URL=https://jump-preprod.epiboost.eu ./load/run.sh manifest
 # SAMPLE=100 ./load/run.sh manifest   # pool plus large
 ```
 
-`GET /api/test/manifest` côté serveur, écrit dans `load/data.json`. Comme le manifest vient de la cible, il reflète toujours la **même** base que k6 va taper — pas de désync local/preprod. À re-générer quand les fixtures changent.
+`GET /api/test/manifest` côté serveur, écrit dans `load/data.json`. Comme le manifest vient de la cible, il reflète toujours la **même** base que k6 va taper : pas de désync local/preprod. À re-générer quand les fixtures changent.
 
-### 3. (Optionnel — pour signature-burst / stress-2k) Seed le pool de talents jetables
+### 3. (Optionnel, pour signature-burst / stress-2k) Seed le pool de talents jetables
 
 ```sh
 COUNT=500 ./load/run.sh seed   # POST /api/test/seed-talents (chunké) + refresh manifest
 ```
 
-Les talents seedés ont **tous les gates onboarding set sauf `rulesSignedAt`** — chaque signature les pousse à 100% mais peut être ré-amorcée par re-seed (idempotent).
+Les talents seedés ont **tous les gates onboarding set sauf `rulesSignedAt`** : chaque signature les pousse à 100% mais peut être ré-amorcée par re-seed (idempotent).
 
 ### 4. Lancer un scénario
 
@@ -114,7 +114,7 @@ Enchaîne seed → manifest → run, tout à distance. Le seed **réinitialise**
 | `mixed.js` | 3 scénarios concurrents | mix lectures+écritures | Ratio ~70%/30%, le plus proche du réel. |
 | `stress-2k.js` | 0→2000 VUs + 50 staff | `signRules` (1×/talent) + `togglePresent` | Storm d'inscription : `signRules` est terminal (1 signature par talent, puis lectures dashboard) ; staff répète `togglePresent` sur des lignes partagées. ⚠ `togglePresent` mute de **vraies** participations (pool manifest), non annulées par `cleanup`. Lancer via `stress-2k.sh`. |
 
-Tous (sauf `smoke`) utilisent `data.json` — pas de variables d'env à passer.
+Tous (sauf `smoke`) utilisent `data.json`, pas de variables d'env à passer.
 
 ## Métriques & observation
 
@@ -128,12 +128,12 @@ k6 run --out experimental-prometheus-rw=http://localhost:9090/api/v1/write ...
 
 **À surveiller côté preprod pendant un test:**
 
-- **Postgres** — `pg_stat_statements`, slow queries, contention sur `bauth_session`.
-- **App container** — CPU/mem, GC pauses.
-- **Browser pool (Puppeteer)** — capé à 5 concurrents; saturation visible via les logs `[onboarding-pdf-job]`.
-- **OnboardingPdfJob queue** — `/staff/admin/onboarding-pdfs` montre la taille en temps réel.
-- **Garage S3** — espace disque sur preprod (chaque signature = 1 PDF de quelques KB).
-- **Mailjet/Resend** — vérifier que `EMAIL_DEV_RECIPIENTS` est set (sinon les parents seedés reçoivent de vrais mails).
+- **Postgres** : `pg_stat_statements`, slow queries, contention sur `bauth_session`.
+- **App container** : CPU/mem, GC pauses.
+- **Browser pool (Puppeteer)** : capé à 5 concurrents; saturation visible via les logs `[onboarding-pdf-job]`.
+- **OnboardingPdfJob queue** : `/staff/admin/onboarding-pdfs` montre la taille en temps réel.
+- **Garage S3** : espace disque sur preprod (chaque signature = 1 PDF de quelques KB).
+- **Mailjet/Resend** : vérifier que `EMAIL_DEV_RECIPIENTS` est set (sinon les parents seedés reçoivent de vrais mails).
 
 ## Quelques recettes utiles
 

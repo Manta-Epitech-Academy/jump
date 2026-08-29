@@ -31,8 +31,8 @@ const { baseUrl, secret } = requireEnv();
 
 export function setup() {
   const d = data();
-  if (d.staffDev.length === 0) fail('Manifest has no staffDev — cannot run.');
-  if (d.events.length === 0) fail('Manifest has no events — cannot run.');
+  if (d.staffDev.length === 0) fail('Manifest has no staffDev, cannot run.');
+  if (d.events.length === 0) fail('Manifest has no events, cannot run.');
 }
 
 export default function () {

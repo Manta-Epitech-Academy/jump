@@ -46,11 +46,11 @@
   });
 
   function formatChrono(ms: number | null): string {
-    if (ms === null) return '—';
+    if (ms === null) return '-';
     return `${(ms / 1000).toFixed(1)}s`;
   }
 
-  // Minors are involved — show first name + last initial only.
+  // Minors are involved, show first name + last initial only.
   function displayName(prenom: string, nom: string): string {
     const initial = nom.trim().charAt(0).toUpperCase();
     return initial ? `${prenom} ${initial}.` : prenom;
@@ -184,7 +184,7 @@
                 </td>
                 {#if isScore}
                   <td class="py-2 text-right font-semibold text-foreground">
-                    {row.score ?? '—'}
+                    {row.score ?? '-'}
                   </td>
                 {/if}
                 <td

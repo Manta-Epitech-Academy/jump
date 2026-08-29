@@ -61,7 +61,7 @@ const AUDIENCE_TO_STAFF_ROLE: Record<
  * - For retargeting: starts from the source broadcast's recipients (filtered
  *   by openedAt) and re-resolves through the new audience type.
  *
- * Charter status is not enforced here — admins control it via the explicit
+ * Charter status is not enforced here: admins control it via the explicit
  * "charterSigned" filter.
  */
 export async function resolveRecipients(
@@ -221,7 +221,7 @@ function talentWhere(spec: RecipientSpec): Prisma.TalentWhereInput {
   const and: Prisma.TalentWhereInput[] = [];
 
   if (f.niveau?.length) and.push({ niveau: { in: f.niveau } });
-  // Level is derived from xp (no stored column) — translate each chosen tier
+  // Level is derived from xp (no stored column): translate each chosen tier
   // into its xp range and OR them together.
   if (f.jumpLevel?.length) {
     and.push({

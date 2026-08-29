@@ -162,7 +162,7 @@
     // place on the staff tables where that is true. Everywhere else an absent
     // value means the column cannot describe the row, so `rowComparator` sinks
     // it in both directions and sorting by Lycée never leads with a block of
-    // "—". Here the absence IS the value: `lastActive.ts` says so in as many
+    // "-". Here the absence IS the value: `lastActive.ts` says so in as many
     // words, "Jamais" is a real answer and an account nobody has ever opened is
     // the single most actionable row on the page. So it takes its natural place
     // at the far end of the axis, which puts every never-connected member at the
@@ -234,7 +234,7 @@
   }
 
   // ----- Pagination ---------------------------------------------------------
-  // Both lists grow (invitations especially — stale ones pile up), and they
+  // Both lists grow (invitations especially, stale ones pile up), and they
   // stack, so an unpaginated invitations table buries the members roster below
   // it. Page each so neither runs long; searching resets to page 1.
   const PER_PAGE = 10;
@@ -566,7 +566,7 @@
         </Table.Cell>
         <Table.Cell>
           {#if user.staffProfile?.staffRole === 'admin'}
-            <span class="text-sm text-muted-foreground">—</span>
+            <span class="text-sm text-muted-foreground">-</span>
           {:else}
             {@const fromCampus = user.staffProfile?.campus?.name ?? null}
             <form
@@ -843,9 +843,9 @@
             </Table.Cell>
             <Table.Cell>
               {#if inv.staffRole === 'admin'}
-                <span class="text-muted-foreground">—</span>
+                <span class="text-muted-foreground">-</span>
               {:else}
-                {inv.campus?.name ?? '—'}
+                {inv.campus?.name ?? '-'}
               {/if}
             </Table.Cell>
             <Table.Cell>
@@ -854,7 +854,7 @@
               >
             </Table.Cell>
             <Table.Cell class="text-sm text-muted-foreground">
-              {inv.invitedBy?.name ?? inv.invitedBy?.email ?? '—'}
+              {inv.invitedBy?.name ?? inv.invitedBy?.email ?? '-'}
             </Table.Cell>
             <Table.Cell class="text-sm text-muted-foreground">
               {relativeAge(inv.createdAt)}

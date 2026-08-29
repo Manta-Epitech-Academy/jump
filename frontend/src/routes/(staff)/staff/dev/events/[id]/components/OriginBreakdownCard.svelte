@@ -21,9 +21,9 @@
   // One ranked-bar card shared by the event dashboard and the Inscrits sidebar,
   // so the two surfaces can never drift on how a cohort breakdown looks. The
   // `interaction` prop is the only behavioural fork:
-  //   • 'navigate' (dashboard) — each row is a link to the filtered Inscrits
+  //   • 'navigate' (dashboard): each row is a link to the filtered Inscrits
   //     page, so the trailing chevron reads as "go there". This is the default.
-  //   • 'filter'   (Inscrits)  — rows toggle an in-page facet. No chevron (it
+  //   • 'filter'   (Inscrits): rows toggle an in-page facet. No chevron (it
   //     would imply leaving), the active row flips to a clear (×) affordance,
   //     and a header hint spells out that clicking filters the list in place.
   // Domain specifics (icon, title, row labels, tail nouns) live in the thin
@@ -42,19 +42,19 @@
     /** Pre-summarised tail for surfaces that don't pass `tailRows`. */
     others?: { count: number; categories: number } | null;
     tailNoun: TailNoun;
-    /** Cohort size — denominator for each proportion bar. */
+    /** Cohort size: denominator for each proportion bar. */
     totalParticipations: number;
     activeId?: string;
     /**
-     * 'navigate' (dashboard) — rows link to the filtered Inscrits page, trailing
-     * chevron. 'filter' (Inscrits sidebar, when this card *is* the filter) — rows
-     * toggle an in-page facet. 'readonly' — plain non-clickable rows, for when
+     * 'navigate' (dashboard): rows link to the filtered Inscrits page, trailing
+     * chevron. 'filter' (Inscrits sidebar, when this card *is* the filter): rows
+     * toggle an in-page facet. 'readonly': plain non-clickable rows, for when
      * the facet is filtered elsewhere (e.g. a toolbar dropdown) or not at all.
      */
     interaction?: 'navigate' | 'filter' | 'readonly';
     /** Required for the clickable modes; ignored when 'readonly'. */
     hrefFor?: (id: string) => string;
-    /** Filter mode only — href that drops the active facet (active row link). */
+    /** Filter mode only: href that drops the active facet (active row link). */
     clearHref?: string;
     emptyText: string;
   };
@@ -92,7 +92,7 @@
       : null,
   );
   // If the active facet lives in the tail, keep the tail open so its row (and
-  // its clear affordance) stay on screen — collapsing would hide the filter.
+  // its clear affordance) stay on screen: collapsing would hide the filter.
   const activeInTail = $derived(
     !!activeId && (tailRows ?? []).some((r) => r.id === activeId),
   );
@@ -112,7 +112,7 @@
         class={cn(
           'truncate font-medium',
           // The link affordance (dotted underline + hover tint) only makes
-          // sense on the clickable modes — a readonly row is just a label.
+          // sense on the clickable modes: a readonly row is just a label.
           isInteractive &&
             'underline decoration-muted-foreground/40 decoration-dotted underline-offset-4 group-hover:text-epi-blue group-hover:decoration-epi-blue',
         )}>{r.label}</span

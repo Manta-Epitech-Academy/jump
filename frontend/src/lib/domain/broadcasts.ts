@@ -22,7 +22,7 @@ export const BROADCAST_CHANNEL_LABELS: Record<BroadcastChannel, string> = {
 };
 
 // Broadcast-level status (a whole send). French labels surfaced in the list,
-// detail and overview. Single source of truth — the colour mapping lives in the
+// detail and overview. Single source of truth: the colour mapping lives in the
 // `BroadcastStatusBadge` component, the label is presentation-neutral here.
 export const BROADCAST_STATUS_LABELS: Record<BroadcastStatus, string> = {
   queued: 'En file',
@@ -282,12 +282,12 @@ export const IMAGE_RIGHTS_FILTER_LABELS = IMAGE_RIGHTS_STATUS_LABELS;
 
 export interface BroadcastFilters {
   niveau?: Niveau[];
-  /** RGPD data-protection charter — `Talent.charterAcceptedAt`. */
+  /** RGPD data-protection charter: `Talent.charterAcceptedAt`. */
   charterSigned?: TristateFilter;
-  /** Règlement intérieur signed by the talent — `Talent.rulesSignedAt`. */
+  /** Règlement intérieur signed by the talent: `Talent.rulesSignedAt`. */
   rulesSigned?: TristateFilter;
   /** Règlement intérieur co-signed by the legal guardian (canonical minor
-   *  compliance) — `Talent.parentRulesSignedAt`. */
+   *  compliance): `Talent.parentRulesSignedAt`. */
   parentRulesSigned?: TristateFilter;
   /** Overall parent-démarches status: `pending` = either act still owed
    *  (image-rights undecided OR règlement not co-signed), `complete` = both

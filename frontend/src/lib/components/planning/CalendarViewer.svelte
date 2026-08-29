@@ -180,7 +180,7 @@
   });
 
   // Hour range: tight to the week's slots, with a small pad. Falls back to
-  // 8–20 when the week has no slots.
+  // 8-20 when the week has no slots.
   let hourRange = $derived.by(() => {
     const visible = [...slotsByDay.values()].flat();
     if (visible.length === 0) return { start: 8, end: 20 };
@@ -339,7 +339,7 @@
                 class="flex items-center gap-1 text-xs font-medium text-muted-foreground"
               >
                 <span>
-                  {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
+                  {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
                 </span>
               </div>
             </button>

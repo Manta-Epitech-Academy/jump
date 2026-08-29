@@ -31,7 +31,7 @@
 </script>
 
 <svelte:head>
-  <title>Règlement intérieur — Espace Parent</title>
+  <title>Règlement intérieur : Espace Parent</title>
 </svelte:head>
 
 <ParentFlowShell>
@@ -79,7 +79,7 @@
       <!-- ═══ Sécurité des données ═══
            Mirrors the talent's last onboarding step: every page that asks the
            family to sign on the dotted line names the data it captures. The
-           guardian's footprint is intentionally minimal — just what the signed
+           guardian's footprint is intentionally minimal: just what the signed
            PDF needs to identify them. -->
       <div class="mb-6">
         <h2

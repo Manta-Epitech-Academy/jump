@@ -8,7 +8,7 @@
 </script>
 
 <svelte:head>
-  <title>Bienvenue — Espace Parent</title>
+  <title>Bienvenue - Espace Parent</title>
 </svelte:head>
 
 <ParentFlowShell>

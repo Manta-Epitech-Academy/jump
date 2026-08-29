@@ -53,7 +53,7 @@
 </script>
 
 <svelte:head>
-  <title>Centres d'intérêt — Admin</title>
+  <title>Centres d'intérêt - Admin</title>
 </svelte:head>
 
 <div class="space-y-8">

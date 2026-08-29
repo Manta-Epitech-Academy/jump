@@ -12,7 +12,7 @@ export type OnboardingPdfDocumentType = OnboardingDocumentType;
 /**
  * Records a PDF-generation job in the SAME transaction as the signature it
  * documents, so the queue entry can never diverge from the signed fact.
- * Does not run it — call {@link runOnboardingPdfJob} once the transaction has
+ * Does not run it: call {@link runOnboardingPdfJob} once the transaction has
  * committed (the row must be visible before the background worker reads it).
  */
 export function enqueueOnboardingPdfJob(
@@ -53,12 +53,12 @@ export function enqueueOnboardingPdfJob(
  *
  * Fire-and-forget: callers do `void runOnboardingPdfJob(id)` right after the
  * enqueueing transaction commits, so the HTTP response (the redirect to the
- * dashboard) is never blocked by Puppeteer/S3 latency — the file lands a few
+ * dashboard) is never blocked by Puppeteer/S3 latency: the file lands a few
  * seconds later. The browser pool (max 5 concurrent) is the natural backpressure
  * when a whole cohort signs at once.
  *
  * Idempotent and safe to re-invoke from the admin dashboard to recover a failed
- * — or crash-stranded — job: it claims any not-yet-succeeded row, regenerates,
+ * (or crash-stranded) job: it claims any not-yet-succeeded row, regenerates,
  * and overwrites the same signature-timestamp-keyed S3 object.
  */
 export async function runOnboardingPdfJob(jobId: string): Promise<void> {
@@ -249,7 +249,7 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
     const message = err instanceof Error ? err.message : String(err);
     // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
     console.error(`[onboarding-pdf-job] ${jobId} failed:`, err);
-    // Record the failure only if the claim succeeded — otherwise we have no row we
+    // Record the failure only if the claim succeeded: otherwise we have no row we
     // own. Guard the write itself so a secondary DB failure can't re-leak.
     if (job) {
       await prisma.onboardingPdfJob
@@ -274,7 +274,7 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
  * crash-stranded rather than legitimately in-flight, and re-exposed for retry.
  *
  * Generation itself is seconds, but a whole cohort signing at once queues jobs
- * behind the browser pool (cap 5) — a job can sit in `processing` for a few
+ * behind the browser pool (cap 5): a job can sit in `processing` for a few
  * minutes simply waiting for a slot. The window is deliberately generous so a
  * queued job is never mistaken for a dead one; on the off chance a still-queued
  * job is retried anyway, {@link runOnboardingPdfJob} is idempotent (same
@@ -332,9 +332,9 @@ export function isOnboardingPdfJobRetryable(job: {
  * The lifecycle of a signed document's PDF as the owning talent should see it,
  * folding the cached `Talent.*FilePath` projection together with the document's
  * latest generation job:
- *   ready       the file exists — offer to view it.
+ *   ready       the file exists: offer to view it.
  *   generating  signed, no file yet, but the job is still pending or actively
- *               processing within the stranded window — a spinner is honest.
+ *               processing within the stranded window: a spinner is honest.
  *   failed      signed, no file, and the job errored or has sat in `processing`
  *               past {@link STRANDED_AFTER_MS}: nothing is happening until an
  *               admin retries, so a spinner would lie forever; surface an

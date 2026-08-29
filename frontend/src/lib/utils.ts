@@ -75,7 +75,7 @@ export function formatDateFr(
  * Formats a Date or ISO string to a French datetime string (DD/MM/YYYY HH:mm)
  */
 export function formatDateTimeFr(date: Date | string | undefined): string {
-  if (!date) return '—';
+  if (!date) return '-';
   const jsDate = typeof date === 'string' ? new Date(date) : date;
   return jsDate.toLocaleDateString('fr-FR', {
     day: '2-digit',

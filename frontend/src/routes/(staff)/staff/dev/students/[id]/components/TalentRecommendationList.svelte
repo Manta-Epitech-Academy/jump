@@ -12,7 +12,7 @@
 
   // Secondary, utilitarian panel: the suggested actions for this talent's current
   // state. Each row names the suggestion and, when it targets someone (parent or
-  // talent), surfaces that person to reach as copyable email + phone — no
+  // talent), surfaces that person to reach as copyable email + phone, no
   // canned-relance button, the dev calls/writes themselves.
   type Contacts = {
     parentEmail: string | null;
@@ -41,8 +41,8 @@
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
   // Render a recommendation message with `**…**` segments shown in bold (e.g.
-  // the interest topic in REC-005). Text is escaped first — messages interpolate
-  // the talent's first name — so the only markup reaching {@html} is our own
+  // the interest topic in REC-005). Text is escaped first: messages interpolate
+  // the talent's first name, so the only markup reaching {@html} is our own
   // <strong> wrappers. Messages without `**` (REC-001..004) render verbatim.
   function boldify(message: string): string {
     return message

@@ -1,15 +1,15 @@
 import { env } from '$env/dynamic/private';
 
 /**
- * THE OUTBOUND GATE — the single, environment-bound switch that decides whether
+ * THE OUTBOUND GATE: the single, environment-bound switch that decides whether
  * outbound transactional comms (email **and** SMS) may reach real recipients.
  *
  * Two properties make this the safety floor for a platform that messages minors
  * (RGPD):
  *
  *   1. **Fail-safe.** The default is `redirect` (trapped). Reaching real people
- *      requires an *explicit* `OUTBOUND_MODE=real`; anything else — unset, a
- *      typo, an empty string — resolves to `redirect`. So a forgotten or
+ *      requires an *explicit* `OUTBOUND_MODE=real`; anything else (unset, a
+ *      typo, an empty string) resolves to `redirect`. So a forgotten or
  *      mis-set var never mails/texts a minor. The worst failure is real users
  *      not getting mail, never the reverse. Production is the *only* place that
  *      opts into `real`, on purpose.
@@ -45,10 +45,10 @@ export function outboundTrapped(): boolean {
  * destination ladder. A tagged union so the façade can't accidentally conflate
  * "deliver for real" with "trapped but nowhere to land":
  *
- *   - `real`     — deliver to the real recipient (prod, or a deliberate bypass /
+ *   - `real`     - deliver to the real recipient (prod, or a deliberate bypass /
  *                  armed real-send).
- *   - `redirect` — trapped: deliver to `to` instead (debug inboxes / numbers).
- *   - `drop`     — trapped, but no safe destination resolved. The send is NOT
+ *   - `redirect` - trapped: deliver to `to` instead (debug inboxes / numbers).
+ *   - `drop`     - trapped, but no safe destination resolved. The send is NOT
  *                  delivered: dropping is the fail-closed choice, since the only
  *                  alternative would be reaching a real recipient. Surfaced as a
  *                  permanent failure so it's loud, not silent.

@@ -8,7 +8,7 @@ export const manifest = new SharedArray('manifest', () => {
     return [JSON.parse(open('../../data.json'))];
   } catch (e) {
     fail(
-      'Missing load/data.json — run `bun load/scripts/manifest.ts` first.\n' + e,
+      'Missing load/data.json: run `bun load/scripts/manifest.ts` first.\n' + e,
     );
   }
 });

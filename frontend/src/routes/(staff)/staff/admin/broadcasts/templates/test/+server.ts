@@ -7,11 +7,11 @@ import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // Live test-send for the template editor (/broadcasts/templates/new + [id]).
-// Sends the in-progress draft — no saved template needed — rendered with demo
+// Sends the in-progress draft (no saved template needed), rendered with demo
 // variables, exactly like /broadcasts/new's "test send" but keyed on the
 // editor content instead of a templateId. Admin-only access is enforced by
 // `applyRouteGuards` in hooks.server.ts (the `/staff/admin/*` sub-guard runs
-// for endpoints too — layout loads do NOT); the `locals.user` check below is
+// for endpoints too, layout loads do NOT); the `locals.user` check below is
 // belt-and-braces, not the primary gate.
 const testSchema = z.object({
   channel: z.enum(BROADCAST_CHANNELS),

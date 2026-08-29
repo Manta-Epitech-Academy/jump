@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the image-rights *decision* — the legal guardian's
+ * Single source of truth for the image-rights *decision*: the legal guardian's
  * choice to authorize, or refuse, the use of their child's image.
  *
  * The decision is talent-level and ternary: `accepted`, `refused`, or undecided
  * (modelled as `null` on {@link Talent.imageRightsDecision}). A refusal is a
- * settled, final outcome — it is not "not yet signed", it means *do not
+ * settled, final outcome: it is not "not yet signed", it means *do not
  * photograph this student*. Keep that distinction here so the parent flow, the
  * staff cohort view, broadcasts and relances all agree on the three states.
  */

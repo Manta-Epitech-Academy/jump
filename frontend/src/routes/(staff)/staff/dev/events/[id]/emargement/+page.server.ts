@@ -122,7 +122,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
         prenom: t.prenom,
         noteCount: t._count.notes,
         // The distinct créneaux this talent carries a note for, from each note's
-        // stored anchor (notes without one — fiche notes — never light a trigger).
+        // stored anchor (notes without one, fiche notes, never light a trigger).
         noteSlotKeys: [
           ...new Set(
             t.notes

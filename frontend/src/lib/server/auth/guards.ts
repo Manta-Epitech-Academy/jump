@@ -123,7 +123,7 @@ export async function applyRouteGuards(
 
     // Onboarding guard: redirect until every step of the canonical ladder is
     // done. `getOnboardingStep` is the single source of truth shared with the
-    // wizard's resume logic and the admin progress label — so a step added there
+    // wizard's resume logic and the admin progress label, so a step added there
     // is gated here automatically, with no parallel field list to keep in sync.
     if (event.locals.talent && walksOnboarding) {
       const needsOnboarding =
@@ -252,7 +252,7 @@ export async function applyRouteGuards(
   // --- Parent Guards ---
   if (isParentRoute) {
     // `/parent/fastlogin` forges the session itself (magic-link token), so it
-    // must be reachable without one — same exemption as `/parent/login`.
+    // must be reachable without one: same exemption as `/parent/login`.
     // Without this the guard bounces the unauthenticated clicker to login and
     // the endpoint never runs.
     const isParentPublic =
@@ -272,7 +272,7 @@ export async function applyRouteGuards(
     }
 
     // Parent flow: welcome → règlement → droit-image → merci
-    // The guardian has two legal acts per child — co-signing the règlement
+    // The guardian has two legal acts per child: co-signing the règlement
     // intérieur and deciding image rights. A child is "pending" until both are
     // settled (a refusal counts as a settled image-rights decision). While any
     // child is pending the parent stays inside the flow pages, which order the
@@ -303,7 +303,7 @@ export async function applyRouteGuards(
           );
         }
       } else {
-        // All signed — always land on merci (no dashboard in this release)
+        // All signed: always land on merci (no dashboard in this release)
         if (currentPath !== pathParentMerci) {
           return Response.redirect(
             new URL(pathParentMerci, event.url).href,

@@ -8,7 +8,7 @@
 export const WELCOME_XP_BONUS = 200;
 
 /**
- * XP granted for finishing the daily minigame. Flat — it rewards showing up and
+ * XP granted for finishing the daily minigame. Flat: it rewards showing up and
  * completing the challenge, not performance (placing on the board is the
  * performance reward, see `minigameRankBonus`). Kept below the top activity tier
  * (Avancé = 75) so a repeatable daily game never out-earns the most demanding
@@ -93,7 +93,7 @@ export function minigameRankBonus(rank: number, fieldSize: number): number {
 }
 
 /**
- * Talent level tiers, derived purely from XP. Single source of truth — the
+ * Talent level tiers, derived purely from XP. Single source of truth: the
  * `Talent.level` column was dropped (it was never written and always read
  * 'Novice'). `JUMP_LEVELS` (used by the broadcast audience filter) and
  * `computeLevel` both flow from here so display, filtering, and DB stay
@@ -131,7 +131,7 @@ export const XP_EXPLAINER_FR =
   "Les XP mesurent l'engagement du stagiaire sur JUMP : il en gagne en s'entraînant régulièrement (mini-jeux quotidiens), en participant aux événements et en complétant son onboarding.";
 
 /**
- * Resolves a level name back to its XP bounds — used by the broadcast filter to
+ * Resolves a level name back to its XP bounds, used by the broadcast filter to
  * translate a chosen tier into an `xp` range query now that `level` is no
  * longer a column. Falls back to the first tier for unknown names.
  */

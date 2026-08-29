@@ -39,7 +39,7 @@ export type TalentEnrichment = {
   confirmedAt: string;
 };
 
-/** The payload streamed behind the page shell's resolve — three full-cohort
+/** The payload streamed behind the page shell's resolve: three full-cohort
  *  reconciliation scans. Shared by the load and `SfConflictsResults` so the
  *  streamed shape and the consuming component can never drift. */
 export type SfConflictsData = {

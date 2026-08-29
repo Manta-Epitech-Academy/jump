@@ -641,7 +641,7 @@
 {/snippet}
 
 {#snippet dash()}
-  <p class="text-sm text-muted-foreground/60">—</p>
+  <p class="text-sm text-muted-foreground/60">-</p>
 {/snippet}
 
 <!-- One synthesis entry: the question and its structured answer (chips or stars)

@@ -13,7 +13,7 @@ import { check, fail, sleep } from 'k6';
  * the target autoscales: a freshly-spun pod that lacks `LOAD_TEST_SECRET` in its
  * env answers this endpoint with 404, and an overloaded pod may 5xx. Both are
  * transient at the fleet level (other pods are fine), so a short backoff rides
- * them out instead of killing the VU. A 401 (wrong token) is NOT retried — it's
+ * them out instead of killing the VU. A 401 (wrong token) is NOT retried: it's
  * a config error that won't fix itself.
  */
 export function loginAs(baseUrl, secret, { email, userId, retries = 3 } = {}) {
@@ -34,7 +34,7 @@ export function loginAs(baseUrl, secret, { email, userId, retries = 3 } = {}) {
     });
 
     if (res.status === 200 && res.headers['Set-Cookie']) break;
-    if (res.status === 401) break; // bad secret — fatal, don't waste retries
+    if (res.status === 401) break; // bad secret, fatal, don't waste retries
     if (attempt < retries) sleep(0.2 * attempt);
   }
 

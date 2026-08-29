@@ -1,5 +1,5 @@
 /**
- * lint-tests.ts — Vérifie que les fichiers de test respectent les conventions
+ * lint-tests.ts : Vérifie que les fichiers de test respectent les conventions
  * définies dans TESTING.md.
  *
  * Usage      : bun run lint:tests
@@ -119,7 +119,7 @@ const rules: Rule[] = [
       );
       for (const f of unitInTests) {
         fail(
-          `${rel(f)} — un fichier .test.ts ne doit pas être dans tests/ (réservé aux .spec.ts E2E)`,
+          `${rel(f)} : un fichier .test.ts ne doit pas être dans tests/ (réservé aux .spec.ts E2E)`,
         );
       }
 
@@ -132,7 +132,7 @@ const rules: Rule[] = [
       for (const f of unitInSrc) {
         if (f.includes('__integration__')) {
           fail(
-            `${rel(f)} — un fichier .test.ts (non integration) ne doit pas être dans __integration__/`,
+            `${rel(f)} : un fichier .test.ts (non integration) ne doit pas être dans __integration__/`,
           );
         }
       }
@@ -145,7 +145,7 @@ const rules: Rule[] = [
       for (const f of integrationTests) {
         if (!f.includes('__integration__/')) {
           fail(
-            `${rel(f)} — un fichier .integration.test.ts doit être dans un dossier __integration__/`,
+            `${rel(f)} : un fichier .integration.test.ts doit être dans un dossier __integration__/`,
           );
         }
       }
@@ -155,7 +155,7 @@ const rules: Rule[] = [
       for (const f of allSpecs) {
         const r = rel(f);
         if (!r.startsWith('tests/e2e/')) {
-          fail(`${r} — un fichier .spec.ts doit être dans tests/e2e/`);
+          fail(`${r} : un fichier .spec.ts doit être dans tests/e2e/`);
         }
       }
 
@@ -163,7 +163,7 @@ const rules: Rule[] = [
       const specsInSrc = findFiles(join(ROOT, 'src'), /\.spec\.ts$/);
       for (const f of specsInSrc) {
         fail(
-          `${rel(f)} — un fichier .spec.ts ne doit pas être dans src/ (utiliser .test.ts pour les unitaires)`,
+          `${rel(f)} : un fichier .spec.ts ne doit pas être dans src/ (utiliser .test.ts pour les unitaires)`,
         );
       }
     },
@@ -187,7 +187,7 @@ const rules: Rule[] = [
           const match = disabledRegex.exec(lines[i]);
           if (match) {
             fail(
-              `${rel(f)}:${i + 1} — .${match[1]}() interdit : le test ne vérifie plus rien mais la CI reste verte. Corriger le test ou le code (TESTING.md §11).`,
+              `${rel(f)}:${i + 1} : .${match[1]}() interdit : le test ne vérifie plus rien mais la CI reste verte. Corriger le test ou le code (TESTING.md §11).`,
             );
           }
         }
@@ -224,7 +224,7 @@ const rules: Rule[] = [
         );
         if (!called) {
           fail(
-            `${rel(f)} — doit appeler assertTestDatabase() (beforeAll ou beforeEach) avant d'écrire quoi que ce soit`,
+            `${rel(f)} : doit appeler assertTestDatabase() (beforeAll ou beforeEach) avant d'écrire quoi que ce soit`,
           );
         }
       }
@@ -242,11 +242,11 @@ const rules: Rule[] = [
           !content.includes("from 'vitest'") &&
           !content.includes('from "vitest"')
         ) {
-          fail(`${rel(f)} — doit importer depuis 'vitest'`);
+          fail(`${rel(f)} : doit importer depuis 'vitest'`);
         }
         if (content.includes('@playwright/test')) {
           fail(
-            `${rel(f)} — ne doit pas importer depuis '@playwright/test' (c'est un test vitest)`,
+            `${rel(f)} : ne doit pas importer depuis '@playwright/test' (c'est un test vitest)`,
           );
         }
       }
@@ -256,14 +256,14 @@ const rules: Rule[] = [
       for (const f of e2eTests) {
         const content = readFileSync(f, 'utf-8');
         if (!content.includes('@playwright/test')) {
-          fail(`${rel(f)} — doit importer depuis '@playwright/test'`);
+          fail(`${rel(f)} : doit importer depuis '@playwright/test'`);
         }
         if (
           content.includes("from 'vitest'") ||
           content.includes('from "vitest"')
         ) {
           fail(
-            `${rel(f)} — ne doit pas importer depuis 'vitest' (c'est un test E2E)`,
+            `${rel(f)} : ne doit pas importer depuis 'vitest' (c'est un test E2E)`,
           );
         }
       }
@@ -280,7 +280,7 @@ const rules: Rule[] = [
           (l) => !isComment(l) && /\bdescribe\s*\(/.test(l),
         );
         if (!hasDescribe) {
-          fail(`${rel(f)} — doit contenir au moins un describe()`);
+          fail(`${rel(f)} : doit contenir au moins un describe()`);
         }
       }
     },
@@ -304,7 +304,7 @@ const rules: Rule[] = [
           for (const pattern of prodPatterns) {
             if (pattern.test(lines[i])) {
               fail(
-                `${rel(f)}:${i + 1} — URL de prod/staging détectée dans un test`,
+                `${rel(f)}:${i + 1} : URL de prod/staging détectée dans un test`,
               );
               break;
             }
@@ -325,7 +325,7 @@ const rules: Rule[] = [
           if (isComment(lines[i])) continue;
           if (/\bconsole\.(log|debug|info)\s*\(/.test(lines[i])) {
             warn(
-              `${rel(f)}:${i + 1} — console.log() dans un test — probablement un oubli de debug`,
+              `${rel(f)}:${i + 1} : console.log() dans un test : probablement un oubli de debug`,
             );
           }
         }
@@ -353,7 +353,7 @@ if (errors > 0) {
   process.exit(1);
 } else if (warnings > 0) {
   console.log(
-    `\x1b[33m⚠ ${warnings} warning(s) — pas bloquant mais à corriger. Voir TESTING.md.\x1b[0m`,
+    `\x1b[33m⚠ ${warnings} warning(s) : pas bloquant mais à corriger. Voir TESTING.md.\x1b[0m`,
   );
 } else {
   console.log(

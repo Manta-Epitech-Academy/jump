@@ -9,7 +9,7 @@
   <PageHeader
     title="Nouveau"
     accent="template"
-    subtitle="Canal et contenu — réutilisable pour un envoi en masse ou un mail transactionnel"
+    subtitle="Canal et contenu : réutilisable pour un envoi en masse ou un mail transactionnel"
   />
   <TemplateForm
     data={data.form}

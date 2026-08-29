@@ -1,7 +1,7 @@
 import { CalendarDateTime, fromDate, parseDate } from '@internationalized/date';
 
 // Planning slots are stored as UTC instants in the DB but always *meant* in
-// the campus's wall-clock time — drag a slot at 14:00, the staff means 14:00
+// the campus's wall-clock time: drag a slot at 14:00, the staff means 14:00
 // at their campus, regardless of where they happen to be browsing from. These
 // helpers are the single place that bridges the two representations.
 //

@@ -127,7 +127,7 @@ export const actions: Actions = {
 
     // Pick the recipient field by channel; mail falls back to the sender's
     // own address. `sendTestMessage` bypasses the dev-redirect trap, so this
-    // reaches the typed address even on dev/staging — that's the point of a
+    // reaches the typed address even on dev/staging: that's the point of a
     // test-send (the bulk `enqueue` path below stays trapped).
     const to =
       template.channel === 'sms'
@@ -203,7 +203,7 @@ export const actions: Actions = {
       template.channel === 'sms' &&
       estimateSmsLength(body) > SMS_BROADCAST_MAX_CHARS
     ) {
-      setError(form, 'body', 'Message SMS trop long — raccourcissez le texte');
+      setError(form, 'body', 'Message SMS trop long : raccourcissez le texte');
     }
     if (
       (form.errors.body?.length ?? 0) > 0 ||

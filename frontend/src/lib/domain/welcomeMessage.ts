@@ -6,7 +6,7 @@
 // owns BOTH the catalogue (so the admin editor's insert buttons and the
 // substitution stay in lockstep) and the substitution itself (so every render
 // site produces identical output). Add a variable here and it lights up
-// everywhere — never substitute tokens ad hoc at a call site.
+// everywhere: never substitute tokens ad hoc at a call site.
 
 export type WelcomeMessageContext = {
   prenom: string;
@@ -83,7 +83,7 @@ function tokenPattern(token: string): RegExp {
 /**
  * Replaces every known token in the (already DOMPurify-sanitized) HTML content
  * with its resolved value. Resolved values are HTML-escaped because they land
- * in markup rendered with `{@html}` — a campus name or email must never be able
+ * in markup rendered with `{@html}`: a campus name or email must never be able
  * to inject tags.
  */
 export function renderWelcomeMessage(

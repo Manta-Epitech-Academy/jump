@@ -162,7 +162,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     // Staff correction form for the image-rights decision, prefilled with the
     // current decision + the guardian on file (the last signer, else the parent
     // captured at onboarding) so a correction is a small edit, not a re-entry.
-    // Note is intentionally left blank — staff must state a reason.
+    // Note is intentionally left blank: staff must state a reason.
     const imageRightsForm = await superValidate(
       {
         decision: student.imageRightsDecision ?? undefined,
@@ -276,7 +276,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
  * Record a staff correction of the guardian's image-rights decision after an
  * offline change of mind. Routes through the same {@link recordImageRightsDecision}
  * service as the parent flow, so the projection, the ledger fact and the
- * regenerated PDF stay in lockstep — staff never touch a field by hand. The
+ * regenerated PDF stay in lockstep: staff never touch a field by hand. The
  * fact is stamped `staff_correction` with the acting staff id + a mandatory
  * reason, keeping it auditable and distinct from a guardian's own decision.
  *

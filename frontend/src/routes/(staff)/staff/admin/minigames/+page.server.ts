@@ -53,7 +53,7 @@ export const load: PageServerLoad = async () => {
   // jump-games). They can't rotate; surface them so an admin can clean up.
   // Only meaningful when the catalogue actually loaded: an unreachable
   // jump-games yields an empty catalogue, which must not be misread as "every
-  // game was removed" — that would invite deleting live rotation config during
+  // game was removed", that would invite deleting live rotation config during
   // a transient outage.
   const catalogAvailable = catalog.length > 0;
   const catalogNames = new Set(catalog.map((g) => g.name));
@@ -140,7 +140,7 @@ export const actions: Actions = {
     return message(form, 'Jeu enregistré.');
   },
 
-  // Remove a stale config row (only ever an orphan — catalogue games are
+  // Remove a stale config row (only ever an orphan: catalogue games are
   // toggled off, not deleted). Publications are self-contained, so this is
   // always safe.
   removeGame: async ({ url, locals }) => {
@@ -161,7 +161,7 @@ export const actions: Actions = {
       return message(form, 'Jeu absent du catalogue.', { status: 400 });
     }
     if (form.data.level < 1 || form.data.level > game.levelCount) {
-      return message(form, `Niveau hors plage (1–${game.levelCount}).`, {
+      return message(form, `Niveau hors plage (1-${game.levelCount}).`, {
         status: 400,
       });
     }

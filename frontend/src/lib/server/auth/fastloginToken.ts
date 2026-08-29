@@ -44,7 +44,7 @@ import { base } from '$app/paths';
 // (T+0 / T+7 / T+14 / T+21 emails) with slack, so the first email's link
 // still works when the last reminder lands. Shorter values frustrated parents
 // who get the image-rights email, set it aside, and come back weeks later.
-// TTL is a stale-link hygiene call, not a security floor — the token only
+// TTL is a stale-link hygiene call, not a security floor: the token only
 // grants what an OTP to the same mailbox would, and OTP requests carry no
 // such limit.
 const FASTLOGIN_TTL_SECONDS = 60 * 60 * 24 * 30;
@@ -59,7 +59,7 @@ function getKey(): Uint8Array {
 }
 
 export interface FastloginPayload {
-  /** Email at mint time — used to look up (or bootstrap) `bauth_user`. */
+  /** Email at mint time, used to look up (or bootstrap) `bauth_user`. */
   email: string;
   /** Talent id at mint time. Mostly diagnostic; lookup happens by email. */
   talentId?: string;
@@ -130,10 +130,10 @@ export function buildFastloginLink(token: string): string {
 /**
  * Parent variant of the fastlogin token. Same JWT structure as the talent
  * token but signed with a separate audience claim so the two can't be used
- * interchangeably — a talent token presented to `/parent/fastlogin` (or
+ * interchangeably: a talent token presented to `/parent/fastlogin` (or
  * vice versa) fails verification.
  *
- * `email` is the parent's address — the bauth_user lookup at the route
+ * `email` is the parent's address: the bauth_user lookup at the route
  * filters by `role: 'parent'` to refuse mismatched users. `talentId` is
  * carried for diagnostics only; the session is keyed off the parent email.
  */

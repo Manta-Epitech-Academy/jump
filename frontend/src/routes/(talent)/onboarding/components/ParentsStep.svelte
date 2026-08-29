@@ -52,7 +52,7 @@
 
   // This form is long (two referents + civilité chips), so a validation error
   // can land below the fold and read as "nothing happened" after submit. Bring
-  // the first error into view — error spans all carry .text-destructive next to
+  // the first error into view: error spans all carry .text-destructive next to
   // their field, so the first match in document order is the topmost failure.
   $effect(() => {
     if (errors && Object.keys(errors).length > 0) {
@@ -201,7 +201,7 @@
       </div>
     </div>
 
-    <!-- Stacked so the phone field gets full width — see IdentityStep. -->
+    <!-- Stacked so the phone field gets full width, see IdentityStep. -->
     <div
       class="space-y-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
     >
@@ -355,7 +355,7 @@
             >{/if}
         </div>
       </div>
-      <!-- Stacked so the phone field gets full width — see IdentityStep. -->
+      <!-- Stacked so the phone field gets full width, see IdentityStep. -->
       <div
         class="space-y-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
       >

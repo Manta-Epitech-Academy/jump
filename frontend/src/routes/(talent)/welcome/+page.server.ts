@@ -14,8 +14,8 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
 
   // /welcome is a one-shot gate before onboarding, not a destination. It shows
   // to a fresh talent who hasn't seen it AND still has onboarding to do (the
-  // same talent-state gate the route guard applies). Anyone else — already
-  // welcomed, or already fully onboarded — is sent home. Not event-gated: the
+  // same talent-state gate the route guard applies). Anyone else (already
+  // welcomed, or already fully onboarded) is sent home. Not event-gated: the
   // splash copy is generic (no per-event content).
   if (
     locals.talent.welcomeSeenAt ||

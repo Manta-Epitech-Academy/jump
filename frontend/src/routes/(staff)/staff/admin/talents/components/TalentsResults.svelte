@@ -60,8 +60,8 @@
   import { lastActiveLabel } from '$lib/components/staff/lastActive';
 
   // The streamed cohort payload plus the parsed filters (the cheap shell value
-  // the toolbar needs). This component owns every data-dependent surface — KPI
-  // tiles, toolbar, table, pagination and the row dialogs — so it mounts only
+  // the toolbar needs). This component owns every data-dependent surface (KPI
+  // tiles, toolbar, table, pagination and the row dialogs), so it mounts only
   // once the cohort resolves behind the page shell.
   let {
     talents,
@@ -70,7 +70,7 @@
     totalPages,
     stats,
     // Bound as `filterState` because the toolbar's `{#snippet filters()}` already
-    // owns the name `filters` in this scope — the prop and the snippet would
+    // owns the name `filters` in this scope: the prop and the snippet would
     // otherwise shadow each other.
     filters: filterState,
   }: TalentsCohort & { filters: TalentFilters } = $props();
@@ -78,7 +78,7 @@
   const search = createUrlSearch();
   let impersonating = $state<string | null>(null);
 
-  // Log in as a talent through the shared admin endpoint — the same one the
+  // Log in as a talent through the shared admin endpoint: the same one the
   // users page drives for staff, so both paths bootstrap the account + forward
   // the session cookie identically.
   async function impersonate(talentId: string) {
@@ -298,7 +298,7 @@
 </script>
 
 <div class="space-y-6">
-  <!-- Onboarding KPIs — scoped to the active campus/type/niveau/search filters
+  <!-- Onboarding KPIs, scoped to the active campus/type/niveau/search filters
        so the admin reads progress for the chosen cohort. -->
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
     <KpiTile
@@ -340,7 +340,7 @@
     />
   </div>
 
-  <!-- Filter toolbar — search + filtered count on the shared DataTableToolbar,
+  <!-- Filter toolbar: search + filtered count on the shared DataTableToolbar,
        with the admin-specific composing filters dropped into its snippet. Parent
        stays a segmented radio at three options; Statut, Niveau and Campus are
        dropdowns, the first for crossing the four-option ceiling and the other two
@@ -496,14 +496,14 @@
             {niveauLabel(talent.niveau)}
           </Badge>
         {:else}
-          <span class="text-sm text-muted-foreground">—</span>
+          <span class="text-sm text-muted-foreground">-</span>
         {/if}
       </Table.Cell>
       <Table.Cell>
         {#if talent.campus}
           <span class="text-sm">{talent.campus}</span>
         {:else}
-          <span class="text-sm text-muted-foreground">—</span>
+          <span class="text-sm text-muted-foreground">-</span>
         {/if}
       </Table.Cell>
       <Table.Cell>
@@ -517,7 +517,7 @@
               {PARENT_STATUS_LABELS[talent.parentStatus]}
             </span>
           {:else if talent.guardians.length > 0}
-            <span class="text-sm text-muted-foreground">—</span>
+            <span class="text-sm text-muted-foreground">-</span>
           {:else}
             <span class="text-sm text-muted-foreground">Aucun parent</span>
           {/if}
@@ -647,7 +647,7 @@
                     ? talent.status === 'never'
                       ? 'Crée un compte puis ouvre sa session'
                       : 'Ouvre la session de ce talent'
-                    : 'Aucun email — impossible de se connecter'}
+                    : 'Aucun email : impossible de se connecter'}
                 </p>
               </Tooltip.Content>
             </Tooltip.Root>

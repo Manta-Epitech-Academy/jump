@@ -25,7 +25,7 @@
  *
  * Call pattern (both endpoints, both routes):
  *
- *   1. `await checkRateLimit(bucket, email)` BEFORE the work — pure read of the
+ *   1. `await checkRateLimit(bucket, email)` BEFORE the work: pure read of the
  *      current count, no row written. Bail with 429 if blocked.
  *   2. Run the work. `await recordAttempt(bucket, email)` only when the attempt
  *      was "real":
@@ -33,7 +33,7 @@
  *          or provider error; only successful sends cost real money / fill
  *          mailboxes).
  *        - `verify`: in the catch branch of the verify call (clean sign-ins
- *          don't consume budget — same reason as the cohort case).
+ *          don't consume budget, same reason as the cohort case).
  *
  * Deploy notes:
  *
@@ -88,7 +88,7 @@ function normalize(email: string): string {
 
 /**
  * Pure read of the current attempt count for `(bucket, email)`. Does not
- * record anything — call {@link recordAttempt} after a real one.
+ * record anything: call {@link recordAttempt} after a real one.
  */
 export async function checkRateLimit(
   bucket: OtpAttemptBucket,

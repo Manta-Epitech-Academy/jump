@@ -23,7 +23,7 @@ import { sendParentWelcomeEmail } from '$lib/server/otp';
  *
  * When the new address already hosts a parent account (a sibling's, say), the
  * talent is pointed at it and the previous login is dropped if nothing else
- * references it — the same no-orphan rule the reset / anonymization paths follow
+ * references it: the same no-orphan rule the reset / anonymization paths follow
  * (see {@link findUnreferencedParentAccount}).
  *
  * Salesforce never writes parent fields, so there is no sync-clobber to guard
@@ -189,8 +189,8 @@ async function trySendWelcome(
 /**
  * The parent-login lifecycle keeps one invariant: no parent `bauth_user` row
  * outlives the last talent that points at it. Three flows can sever that final
- * pointer — a full reset to import, an RGPD anonymization, and a parent-email
- * correction — and each must apply the SAME guard before touching the account,
+ * pointer: a full reset to import, an RGPD anonymization, and a parent-email
+ * correction, and each must apply the SAME guard before touching the account,
  * or a drifting copy risks clobbering a sibling's shared login or a staff /
  * student account that merely happens to hold the address. This is that single
  * guard: it returns the parent account safe to act on, or `null`.

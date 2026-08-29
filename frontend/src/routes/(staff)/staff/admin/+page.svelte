@@ -179,7 +179,7 @@
           {/if}
         </p>
       {:else}
-        <div class="text-2xl font-bold text-muted-foreground">—</div>
+        <div class="text-2xl font-bold text-muted-foreground">-</div>
         <p class="text-xs text-muted-foreground">
           Aucune synchro depuis le dernier redémarrage
         </p>

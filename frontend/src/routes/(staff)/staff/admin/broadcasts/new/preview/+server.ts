@@ -15,7 +15,7 @@ import {
 // Live recipient preview for /staff/admin/broadcasts/new. Called from the
 // page on every relevant field change (debounced client-side). Looser than
 // the full `broadcastSchema`: `templateId` is optional so users can see the
-// recipient count before they've picked a template — we just fall back to
+// recipient count before they've picked a template: we just fall back to
 // `mail` channel for the email/phone exclusion. `name` is dropped entirely
 // since this endpoint never persists anything.
 const previewSchema = z.object({
@@ -57,7 +57,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     channel,
   );
 
-  // Full, exact roster — no sampling. The composer renders the whole list so
+  // Full, exact roster (no sampling). The composer renders the whole list so
   // staff see precisely who is (and isn't) contacted before sending.
   const included: IncludedRecipient[] = recipients.map((r) => ({
     prenom: r.prenom,

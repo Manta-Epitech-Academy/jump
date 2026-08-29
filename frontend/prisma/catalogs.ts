@@ -20,8 +20,8 @@
  * These writes are idempotent and CREATE-ONLY (no wipe, no overwrite): they
  * insert catalogue rows that are missing and leave every existing row alone, so
  * the catalogue is a first-time populator, not an authority over live data. A
- * row that has shipped — including one staff later edited in prod (interest
- * emoji/name via /staff/admin/interests, a hand-tuned template body) — survives
+ * row that has shipped, including one staff later edited in prod (interest
+ * emoji/name via /staff/admin/interests, a hand-tuned template body), survives
  * a re-seed untouched. Fixing an already-shipped default is a manual/migration
  * step, deliberately. The lone additive exception is
  * `seedInterestRecommendationMessages`, which fills the new `recommendationMessage`
@@ -136,7 +136,7 @@ export const INTEREST_GENERAL: { nom: string; emoji: string }[] = [
 /**
  * Idempotently populate the interests catalogue, CREATE-ONLY: insert each entry
  * whose unique `nom` is missing, and never touch a row that already exists. The
- * catalogue is a first-time populator, not an authority over live rows — staff
+ * catalogue is a first-time populator, not an authority over live rows: staff
  * can rename or re-emoji an interest via `/staff/admin/interests`, and a re-seed
  * must not undo that. Existing `interestId`s stay stable, so the `TalentInterest`
  * rows a student selected survive a re-run.
@@ -172,12 +172,12 @@ export async function seedInterests(prisma: PrismaClient): Promise<number> {
 /**
  * Backfill the dev-fiche event-recommendation messages (REC-005): set
  * `Interest.recommendationMessage` only on tech rows where it is still null. Pure
- * additive + idempotent — safe to run against prod repeatedly, and it never
+ * additive and idempotent: safe to run against prod repeatedly, and it never
  * clobbers a message already set (a prior run, a data migration, or a future
  * admin edit). Called by `seedInterests`, so any seed run (the full `seed.ts` or
  * the narrow `seed-catalogs` top-up) rolls new messages out additively. Now that
  * every seeder here is create-only, re-running `seed-catalogs` is itself the safe
- * rollout — no dedicated backfill script needed.
+ * rollout, no dedicated backfill script needed.
  */
 export async function seedInterestRecommendationMessages(
   prisma: PrismaClient,
@@ -215,7 +215,7 @@ export const EMAIL_TEMPLATE_DEFAULTS: {
 }[] = [
   {
     actionKey: 'otp_talent',
-    name: 'OTP — Login talent (par défaut)',
+    name: 'OTP - Login talent (par défaut)',
     subject: "Ton code d'accès secret pour Jump 🔑",
     body: `Salut **{{prenom}}** !
 
@@ -230,8 +230,8 @@ L'équipe Epitech Academy`,
   },
   {
     actionKey: 'otp_parent',
-    name: 'OTP — Login parent (par défaut)',
-    subject: "Votre code d'accès Jump — Espace Parent",
+    name: 'OTP - Login parent (par défaut)',
+    subject: "Votre code d'accès Jump : Espace Parent",
     body: `Bonjour **{{parent_prenom}}**,
 
 Voici votre code de connexion à l'Espace Parent :
@@ -273,7 +273,7 @@ L'équipe Epitech {{campus}}`,
   },
   {
     actionKey: 'relance_student',
-    name: 'Relance — étudiant (par défaut)',
+    name: 'Relance - étudiant (par défaut)',
     subject:
       'J-{{jours_restants}}, {{prenom}} : dernière étape pour finaliser ton inscription au stage à Epitech.',
     body: `Salut {{prenom}},
@@ -289,7 +289,7 @@ L'équipe Epitech {{campus}}`,
   },
   {
     actionKey: 'relance_parent',
-    name: 'Relance — parent (par défaut)',
+    name: 'Relance - parent (par défaut)',
     subject:
       'Rappel : finaliser le dossier de {{child_prenom}} pour le stage à Epitech',
     body: `Bonjour,
@@ -309,7 +309,7 @@ L'équipe Epitech {{campus}}`,
   },
   {
     actionKey: 'account_deletion_refused',
-    name: 'Suppression de compte — refus (par défaut)',
+    name: 'Suppression de compte - refus (par défaut)',
     subject: 'Ta demande de suppression de compte',
     body: `Salut **{{prenom}}**,
 
@@ -325,7 +325,7 @@ L'équipe Epitech Academy`,
   },
   {
     actionKey: 'account_deletion_done',
-    name: 'Suppression de compte — confirmation (par défaut)',
+    name: 'Suppression de compte - confirmation (par défaut)',
     subject: 'Ton compte Jump a été supprimé',
     body: `Salut **{{prenom}}**,
 
@@ -340,7 +340,7 @@ L'équipe Epitech Academy`,
 
 /**
  * Populate the default templates, CREATE-ONLY. For each `actionKey`: if a mapping
- * already exists, skip it entirely — the bound template may have been edited in
+ * already exists, skip it entirely: the bound template may have been edited in
  * prod and a re-seed must not revert that. Only a missing `actionKey` is created
  * (template + mapping), so adding a new default lights up, but existing ones are
  * never rewritten. Admin-authored broadcast templates (no action mapping) and the
@@ -348,7 +348,7 @@ L'équipe Epitech Academy`,
  * creates. Needs no prior wipe. Returns the number of default templates.
  *
  * Fixing an already-shipped default is therefore a manual/migration step, not a
- * re-seed — deliberately, so hand-tuned prod copy survives.
+ * re-seed, deliberately, so hand-tuned prod copy survives.
  */
 export async function seedEmailTemplates(
   prisma: PrismaClient,
@@ -447,7 +447,7 @@ L'équipe Epitech {{campus}}`,
 /**
  * Populate the default broadcast templates, CREATE-ONLY: insert each by its
  * unique `seedKey` only when missing (`skipDuplicates`), and never rewrite one
- * that already exists — a prod copy may have been hand-tuned and a re-seed must
+ * that already exists: a prod copy may have been hand-tuned and a re-seed must
  * not revert it. `createdById` authors the rows it creates. Only ever inserts the
  * seeded rows; admin-authored templates (null `seedKey`) are untouched. Returns
  * the number of default broadcast templates.

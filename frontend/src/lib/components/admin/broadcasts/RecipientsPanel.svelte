@@ -135,7 +135,7 @@
                     {r.nom}
                   </p>
                   <p class="truncate text-xs text-muted-foreground">
-                    {r.email ?? formatPhoneForDisplay(r.phone) ?? '—'}
+                    {r.email ?? formatPhoneForDisplay(r.phone) ?? '-'}
                   </p>
                 </div>
                 <span

@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       parentEmail: true,
       imageRightsDecision: true,
       // Pre-fill the signer-name inputs from what the talent entered during
-      // onboarding — same rationale as `/parent/signature` and `/parent/reglement`.
+      // onboarding: same rationale as `/parent/signature` and `/parent/reglement`.
       parentPrenom: true,
       parentNom: true,
       // Which dossier the decision on this page belongs to, so the reminder
@@ -172,7 +172,7 @@ function isDecision(value: unknown): value is ImageRightsDecision {
 }
 
 export const actions: Actions = {
-  // Lets a guardian record — or later revise — the image-rights decision for one
+  // Lets a guardian record (or later revise) the image-rights decision for one
   // child straight from their dashboard. The legal text promises revocation "à
   // tout moment", so a settled decision must stay editable, not lock the parent
   // out. Reuses the same write path as the onboarding signature flow.

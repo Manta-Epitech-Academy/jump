@@ -114,7 +114,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  // A talent can't wipe their own account on the spot — a stage de seconde
+  // A talent can't wipe their own account on the spot: a stage de seconde
   // cohort depends on these accounts and GDPR allows a fulfilment window. This
   // opens a pending deletion request that staff fulfil (→ anonymisation) or
   // reject. The account stays fully usable in the meantime. Idempotent.

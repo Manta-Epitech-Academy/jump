@@ -4,22 +4,22 @@ import { outboundTrapped } from '$lib/server/outbound';
 import { parseCookieToken, signCookieToken } from '$lib/server/signedCookie';
 
 /**
- * "Real sends" arming — the gun safety for outbound on a trapped env.
+ * "Real sends" arming: the gun safety for outbound on a trapped env.
  *
  * The env var stays the immutable *gate* ("is this environment trapped at
  * all"), because it survives DB restores: a `pg_dump` from prod into staging
  * can't carry a "send for real" flag across the boundary the way a DB row
  * would. On top of that gate, an authorized human can deliberately *arm* real
- * sends for a short window — lifting the redirect so their own sends reach real
+ * sends for a short window, lifting the redirect so their own sends reach real
  * recipients (testing a real broadcast / onboarding mail from staging).
  *
  * Three properties make this safe rather than a loaded gun left on the table:
- *   - **per-user** — the armed state lives in a signed cookie bound to the
+ *   - **per-user**: the armed state lives in a signed cookie bound to the
  *     arming user's id, so it can never make someone else's session (or a
  *     background cron, which has no cookie) send for real;
- *   - **auto-expiring** — it lapses after `ARM_REAL_SENDS_MS`, re-engaging the
+ *   - **auto-expiring**: it lapses after `ARM_REAL_SENDS_MS`, re-engaging the
  *     safety on its own;
- *   - **role-gated + loud** — only `realSendArmers` can arm, and a red banner
+ *   - **role-gated + loud**: only `realSendArmers` can arm, and a red banner
  *     shows everywhere while armed (see the root layout).
  *
  * The cookie is HMAC-signed with `BETTER_AUTH_SECRET` (via `signedCookie`) so it
@@ -43,11 +43,11 @@ function effectiveStaffRole(locals: App.Locals) {
 }
 
 /**
- * User id of the human driving the request — the impersonator when staff
+ * User id of the human driving the request: the impersonator when staff
  * impersonate someone, otherwise the logged-in user. The arm binds to *this*,
  * not `locals.user.id`, which is the whole point: an admin who arms and then
  * impersonates a talent has their session swapped to the talent
- * (`locals.user.id` becomes the talent's), but the human — and the arm — is
+ * (`locals.user.id` becomes the talent's), but the human (and the arm) is
  * still the admin. Binding to `locals.user.id` would silently disarm on the
  * exact path the feature exists for. Mirrors `effectiveStaffRole`'s
  * impersonator-wins rule so the role gate and the identity binding stay in
@@ -66,7 +66,7 @@ export function canArmRealSends(locals: App.Locals): boolean {
  * Resolve the armed state for this request from the signed cookie. Inert
  * (never armed) in prod, and only honored for the human the cookie is bound to
  * (impersonator-aware, see `effectiveUserId`), so a stale or copied cookie
- * can't arm a different session — and an admin's arm carries across the swap
+ * can't arm a different session, and an admin's arm carries across the swap
  * into an impersonated talent's session.
  */
 export function readArmedState(event: RequestEvent): {

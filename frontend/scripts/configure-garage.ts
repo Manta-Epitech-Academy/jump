@@ -4,9 +4,9 @@
  * on every startup. Deletes and recreates the API key each time it runs.
  *
  * Required env vars:
- *   DATABASE_URL           — PostgreSQL connection string
- *   GARAGE_ADMIN_ENDPOINT  — Garage admin API (e.g. http://garage:3903)
- *   GARAGE_ADMIN_TOKEN     — Bearer token matching garage.toml admin_token
+ *   DATABASE_URL           - PostgreSQL connection string
+ *   GARAGE_ADMIN_ENDPOINT  - Garage admin API (e.g. http://garage:3903)
+ *   GARAGE_ADMIN_TOKEN     - Bearer token matching garage.toml admin_token
  *
  * Usage: bun run garage:generate
  */
@@ -88,7 +88,7 @@ async function main() {
     process.exit(1);
   }
 
-  // 2. Cluster layout — skip if already applied
+  // 2. Cluster layout: skip if already applied
   const layout = await api<{ version: number }>('GET', 'GetClusterLayout');
   if (layout.version === 0) {
     const status = await api<{ nodes: { id: string }[] }>(
@@ -109,7 +109,7 @@ async function main() {
     console.log('✓ Cluster layout applied');
   }
 
-  // 3. API key — delete old, create fresh
+  // 3. API key: delete old, create fresh
   const keys = await api<{ id: string; name: string }[]>('GET', 'ListKeys');
   const existingKey = keys.find((k) => k.name === KEY_NAME);
   if (existingKey) {
@@ -126,7 +126,7 @@ async function main() {
   console.log(`  S3_ACCESS_KEY_ID=${key.accessKeyId}`);
   console.log(`  S3_SECRET_ACCESS_KEY=${key.secretAccessKey}`);
 
-  // 4. Bucket — skip if already exists
+  // 4. Bucket: skip if already exists
   const buckets = await api<{ id: string; globalAliases: string[] }[]>(
     'GET',
     'ListBuckets',

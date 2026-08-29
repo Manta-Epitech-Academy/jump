@@ -73,7 +73,7 @@
               timeZone: timezone,
             },
           )}{#if event.endDate}
-            – {new Date(event.endDate).toLocaleDateString('fr-FR', {
+            - {new Date(event.endDate).toLocaleDateString('fr-FR', {
               day: 'numeric',
               month: 'short',
               timeZone: timezone,

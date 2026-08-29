@@ -32,7 +32,7 @@ jobs:
             | tail -1 || true)
 
           if [ -z "$latest_on_base" ]; then
-            echo "No existing migrations on origin/$BASE_REF — nothing to compare."
+            echo "No existing migrations on origin/$BASE_REF, nothing to compare."
             exit 0
           fi
           echo "Latest migration on origin/$BASE_REF: $latest_on_base"

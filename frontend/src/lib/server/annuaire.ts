@@ -3,9 +3,9 @@
  * open dataset (~69k établissements, keyed by national UAI/RNE code).
  *
  * Two access shapes:
- *   - `searchAnnuaire(q)` — type-ahead by name/city, used by the onboarding lycée
+ *   - `searchAnnuaire(q)`: type-ahead by name/city, used by the onboarding lycée
  *     picker (`/api/lycees`).
- *   - `fetchSchoolByUai(uai)` — exact lookup by UAI, used to lazily enrich a
+ *   - `fetchSchoolByUai(uai)`: exact lookup by UAI, used to lazily enrich a
  *     canonical `School` row the first time a UAI is seen (Salesforce sync or a
  *     talent picking from the list).
  *
@@ -16,7 +16,7 @@
 const API_URL =
   'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-annuaire-education/records';
 
-// Both lookups sit in a latency-sensitive path — the type-ahead picker and, via
+// Both lookups sit in a latency-sensitive path: the type-ahead picker and, via
 // the school resolver, the onboarding submit and the worker sync. Cap the wait
 // so an unresponsive gov API degrades to the fallback (the catch blocks below)
 // instead of holding the request open for undici's multi-minute default.

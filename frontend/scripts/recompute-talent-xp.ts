@@ -60,7 +60,7 @@ function die(msg: string): never {
 
 async function main() {
   console.log(
-    `Recompute Talent.xp from XpGrant — ${dryRun ? 'DRY RUN (no writes)' : 'LIVE'}${
+    `Recompute Talent.xp from XpGrant: ${dryRun ? 'DRY RUN (no writes)' : 'LIVE'}${
       force ? ' [--force]' : ''
     }\n`,
   );

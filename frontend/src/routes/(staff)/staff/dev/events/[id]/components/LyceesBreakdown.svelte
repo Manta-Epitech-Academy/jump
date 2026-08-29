@@ -45,7 +45,7 @@
      */
     tailRows?: LyceeRow[];
     interaction?: 'navigate' | 'filter' | 'readonly';
-    /** Filter mode — href that clears the active lycée facet. */
+    /** Filter mode: href that clears the active lycée facet. */
     clearHref?: string;
   };
 
