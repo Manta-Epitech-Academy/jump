@@ -13,6 +13,7 @@ import {
 import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
+import type { WorkerTalent } from '$lib/validation/workerSync';
 
 // Salesforce ships a binary gender ('m' | 'f'); map it onto the civilité enum
 // the rest of the app uses. SF has no equivalent for 'autre', so it stays null.
@@ -150,18 +151,7 @@ async function logSyncError(params: {
 
 export async function syncTalents(
   eventExternalId: string,
-  talents: {
-    external_id: string;
-    first_name: string;
-    last_name: string;
-    email?: string | null;
-    phone?: string | null;
-    gender?: string | null;
-    school?: string | null;
-    school_uai?: string | null;
-    class_level?: string | null;
-    status?: string | null;
-  }[],
+  talents: WorkerTalent[],
 ) {
   const event = await prisma.event.findUnique({
     where: { externalId: eventExternalId },
