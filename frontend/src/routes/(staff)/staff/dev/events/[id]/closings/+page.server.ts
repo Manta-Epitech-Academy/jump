@@ -97,8 +97,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         nom: p.talent.nom,
         prenom: p.talent.prenom,
         status: closingListStatus(closing),
-        staffName: closing?.staff.user?.name ?? null,
-        staffImage: closing?.staff.user?.image ?? null,
+        staffName: closing?.staff?.user?.name ?? null,
+        staffImage: closing?.staff?.user?.image ?? null,
         conductedAt: closing?.conductedAt ?? null,
         recommendation: closing?.recommendation ?? null,
       };
@@ -122,8 +122,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     }
 
     // Resolve the grouped staff ids to display names (one extra query, only for
-    // the handful that actually conducted a closing).
-    const staffIds = byStaff.map((g) => g.staffId);
+    // the handful that actually conducted a closing). The null bucket is dropped
+    // rather than labelled: this card ranks who is conducting them, and closings
+    // whose conductor has left the school are not a person to rank.
+    const conducted = byStaff.filter(
+      (g): g is typeof g & { staffId: string } => g.staffId !== null,
+    );
+    const staffIds = conducted.map((g) => g.staffId);
     const staff = staffIds.length
       ? await db.staffProfile.findMany({
           where: { id: { in: staffIds } },
@@ -134,7 +139,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         })
       : [];
     const staffById = new Map(staff.map((s) => [s.id, s]));
-    const topStaff: StaffTally[] = byStaff.map((g) => {
+    const topStaff: StaffTally[] = conducted.map((g) => {
       const u = staffById.get(g.staffId)?.user;
       return {
         id: g.staffId,

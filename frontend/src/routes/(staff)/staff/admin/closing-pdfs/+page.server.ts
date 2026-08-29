@@ -6,6 +6,7 @@ import { CLOSING_RECOMMENDATIONS } from '$lib/domain/closing';
 import { fail } from '@sveltejs/kit';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
+import { FORMER_STAFF_LABEL } from '$lib/domain/staff';
 
 const RESET_REASON_MAX = 500;
 
@@ -81,7 +82,7 @@ export const load: PageServerLoad = async ({ url, locals, depends }) => {
         conductedAt: c.conductedAt.toISOString(),
         recommendation: c.recommendation,
         talentName: `${c.talent.prenom} ${c.talent.nom}`,
-        staffName: c.staff.user.name ?? 'Staff',
+        staffName: c.staff?.user?.name ?? FORMER_STAFF_LABEL,
         campusName: c.campus.name,
         eventTitle: c.event.titre,
       })),

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { FORMER_STAFF_LABEL } from '$lib/domain/staff';
   import Upload from '@lucide/svelte/icons/upload';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Download from '@lucide/svelte/icons/download';
@@ -74,8 +75,11 @@
   let sortKey = $state<string | null>('createdAt');
   let sortDir = $state<'asc' | 'desc'>('desc');
 
+  // One label for the column and for the sort, so a file whose uploader has
+  // left the school reads the same in both places instead of sorting under an
+  // empty string.
   const uploaderLabel = (f: FileRow) =>
-    f.uploadedBy.user.name || f.uploadedBy.user.email || '';
+    f.uploadedBy?.user.name || f.uploadedBy?.user.email || FORMER_STAFF_LABEL;
 
   const filtered = $derived(
     data.files.filter((f) =>
@@ -215,7 +219,7 @@
         {formatSize(file.size)}
       </Table.Cell>
       <Table.Cell class="text-muted-foreground">
-        {file.uploadedBy.user.name || file.uploadedBy.user.email}
+        {uploaderLabel(file)}
       </Table.Cell>
       <Table.Cell class="text-xs text-muted-foreground">
         {formatDate(file.createdAt)}

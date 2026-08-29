@@ -9,6 +9,7 @@ import {
   type ClosingGrid,
 } from '$lib/domain/closing';
 import type { ClosingRecommendation, Prisma } from '@prisma/client';
+import { FORMER_STAFF_LABEL } from '$lib/domain/staff';
 
 /**
  * The synthesis PDF for one closing, generated on demand and never stored: it is
@@ -200,7 +201,7 @@ export async function generateClosingPdf(
     // here rather than maintaining a second 26 KB copy.
     logoSvgWhite: epitechLogoSvg.replaceAll('#013AFB', '#ffffff'),
     talentName: formatTalentName(record.talent.prenom, record.talent.nom),
-    staffName: record.staff.user.name ?? 'Staff',
+    staffName: record.staff?.user?.name ?? FORMER_STAFF_LABEL,
     campusName: record.campus.name,
     conductedAt: formatDate(record.conductedAt),
     eventTitle: record.event.titre,
