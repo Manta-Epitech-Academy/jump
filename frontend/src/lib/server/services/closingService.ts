@@ -14,16 +14,18 @@ import type { ClosingConductForm } from '$lib/validation/closings';
  * about contents. What is never touched either way is a field the composition
  * no longer owns - see `ownsNote` below.
  *
- * Ids reaching here are already validated by the caller (the participation
- * belongs to this talent and campus, its event exposes the surface, and the grid
- * is the one the record pinned), so this file does no authorisation of its own.
+ * Ids reaching here are already validated by the caller (the talent is enrolled
+ * in this event and campus, the event exposes the surface, and the grid is the
+ * one the record pinned), so this file does no authorisation of its own.
  */
 
 export type ClosingMode = 'start' | 'save' | 'close';
 
 export type PersistClosingInput = {
-  participationId: string;
   talentId: string;
+  /** The pair `(talentId, eventId)` is the record's key: see `Closing_Record`
+   *  for why it is not the participation's id. */
+  eventId: string;
   campusId: string;
   staffId: string;
   /** Pinned on create, never re-read off the event afterwards. */
@@ -79,10 +81,15 @@ export async function persistClosing(
 
   await prisma.$transaction(async (tx) => {
     const record = await tx.closing_Record.upsert({
-      where: { participationId: input.participationId },
+      where: {
+        talentId_eventId: {
+          talentId: input.talentId,
+          eventId: input.eventId,
+        },
+      },
       create: {
-        participationId: input.participationId,
         talentId: input.talentId,
+        eventId: input.eventId,
         campusId: input.campusId,
         staffId: input.staffId,
         templateId: input.templateId,

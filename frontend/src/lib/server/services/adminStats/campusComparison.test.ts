@@ -55,7 +55,13 @@ function event(over: Partial<AdminEventVM> = {}): AdminEventVM {
 }
 
 type Enrolment = { talentId: string; eventId: string; sfMemberStatus: string };
-type Closing = { eventId: string; recommendation: string | null };
+/** A closing names its talent as well as its event: the record keys on the pair,
+ *  and the service matches it back to the cohort on it. */
+type Closing = {
+  talentId: string;
+  eventId: string;
+  recommendation: string | null;
+};
 type TalentRow = {
   id: string;
   civilite: string | null;
@@ -75,12 +81,7 @@ function seed(options: {
 }) {
   listAdminEvents.mockResolvedValue(options.events);
   participationFindMany.mockResolvedValue(options.enrolments);
-  closingFindMany.mockResolvedValue(
-    (options.closings ?? []).map((c) => ({
-      recommendation: c.recommendation,
-      participation: { eventId: c.eventId },
-    })),
-  );
+  closingFindMany.mockResolvedValue(options.closings ?? []);
   talentFindMany.mockImplementation((args: { select: Record<string, true> }) =>
     Promise.resolve(
       'civilite' in args.select
@@ -297,7 +298,13 @@ describe('getCampusComparison, closing axes', () => {
         { talentId: 't4', eventId: 'lille-club', sfMemberStatus: 'MEET' },
       ],
       talents: [],
-      closings: [{ eventId: 'lille-stage', recommendation: 'bon_profil' }],
+      closings: [
+        {
+          talentId: 't1',
+          eventId: 'lille-stage',
+          recommendation: 'bon_profil',
+        },
+      ],
     });
 
     const comparison = await getCampusComparison({ schoolYear: '2025-2026' });
@@ -330,7 +337,13 @@ describe('getCampusComparison, closing axes', () => {
         },
       ],
       talents: [],
-      closings: [{ eventId: 'lille-stage', recommendation: 'bon_profil' }],
+      closings: [
+        {
+          talentId: 't1',
+          eventId: 'lille-stage',
+          recommendation: 'bon_profil',
+        },
+      ],
     });
 
     const comparison = await getCampusComparison({ schoolYear: '2025-2026' });
@@ -352,7 +365,9 @@ describe('getCampusComparison, closing axes', () => {
         { talentId: 't2', eventId: 'rennes', sfMemberStatus: 'MEET' },
       ],
       talents: [],
-      closings: [{ eventId: 'lille', recommendation: 'tres_compatible' }],
+      closings: [
+        { talentId: 't1', eventId: 'lille', recommendation: 'tres_compatible' },
+      ],
     });
 
     const comparison = await getCampusComparison({ schoolYear: '2025-2026' });
@@ -377,10 +392,14 @@ describe('getCampusComparison, closing axes', () => {
       ],
       talents: [],
       closings: [
-        { eventId: 'nantes', recommendation: 'tres_compatible' },
-        { eventId: 'nantes', recommendation: 'indecis' },
+        {
+          talentId: 't1',
+          eventId: 'nantes',
+          recommendation: 'tres_compatible',
+        },
+        { talentId: 't2', eventId: 'nantes', recommendation: 'indecis' },
         // Still open: no verdict yet, and counting it would read as a bad one.
-        { eventId: 'nantes', recommendation: null },
+        { talentId: 't3', eventId: 'nantes', recommendation: null },
       ],
     });
 

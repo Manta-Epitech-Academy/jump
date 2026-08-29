@@ -44,7 +44,8 @@ export const closingAnswerSchema = z.object({
 export type ClosingAnswerForm = z.infer<typeof closingAnswerSchema>;
 
 export const closingConductSchema = z.object({
-  participationId: z.string().min(1, 'Participation requise'),
+  /** The talent half of the record's key; the event comes from the route. */
+  talentId: z.string().min(1, 'Talent requis'),
   /** Keyed by `Closing_Question.id`, which is what an answer row references. */
   answers: z.record(z.string(), closingAnswerSchema).default({}),
   /** The team's verdict. Not a bank question: staff-only, Jump-wide. */

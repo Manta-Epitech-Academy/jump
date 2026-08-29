@@ -3091,9 +3091,10 @@ async function seedClosings(
       );
       continue;
     }
-    const participationId =
-      participationByTalentEvent.get(`${talent.id}_${eventId}`) ?? null;
-    if (!participationId) {
+    // Still gated on the enrolment even though the record no longer references
+    // it: a closing is conducted off the roster, so seeding one for a talent who
+    // is not enrolled would seed a state the app cannot produce.
+    if (!participationByTalentEvent.has(`${talent.id}_${eventId}`)) {
       console.warn(
         `⚠ Closing for ${bp.studentEmail} has no participation in "${bp.forEventTitre}"`,
       );
@@ -3134,7 +3135,7 @@ async function seedClosings(
         talentId: talent.id,
         staffId: staff.id,
         campusId: staff.campusId,
-        participationId,
+        eventId,
         templateId: template.id,
         status: bp.status,
         recommendation: bp.recommendation ?? null,

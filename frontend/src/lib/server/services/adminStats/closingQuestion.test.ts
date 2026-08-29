@@ -27,8 +27,11 @@ vi.mock('$lib/server/db', () => ({
     closing_Record: { findMany: (args: unknown) => recordFindMany(args) },
   },
 }));
+const scopedEnrolments = vi.fn();
 vi.mock('./cohort', () => ({
-  participationWhere: () => Promise.resolve({}),
+  scopedEnrolments: (scope: unknown) => scopedEnrolments(scope),
+  enrolmentKey: (e: { talentId: string; eventId: string }) =>
+    `${e.talentId}:${e.eventId}`,
   scopeLabels: () => ({
     schoolYear: 'toutes',
     campus: 'tous',
@@ -95,16 +98,28 @@ function seed(options: {
       (template) => ({ template }),
     ),
   );
+  // One talent per record, and the cohort is exactly those pairs: a closing
+  // keys on (talent, event) and is matched back to the cohort on it, so records
+  // belonging to nobody enrolled would be filtered out and every count here
+  // would read zero.
+  const rows = options.records.map((r, i) => ({
+    ...r,
+    talentId: `t${i}`,
+    eventId: r.eventId ?? 'evt',
+  }));
+  scopedEnrolments.mockResolvedValue(
+    rows.map(({ talentId, eventId }) => ({ talentId, eventId })),
+  );
   recordFindMany.mockResolvedValue(
-    options.records.map((r) => ({
+    rows.map((r) => ({
+      talentId: r.talentId,
+      eventId: r.eventId,
       templateId: r.templateId,
-      participation: {
-        event: {
-          id: r.eventId ?? 'evt',
-          titre: 'Stage de Seconde',
-          publicName: null,
-          campus: { name: r.campus },
-        },
+      event: {
+        id: r.eventId,
+        titre: 'Stage de Seconde',
+        publicName: null,
+        campus: { name: r.campus },
       },
       answers:
         r.optionIds || r.rating != null
@@ -122,6 +137,7 @@ function seed(options: {
 }
 
 beforeEach(() => {
+  scopedEnrolments.mockReset();
   questionFindUnique.mockReset();
   templateQuestionFindMany.mockReset();
   recordFindMany.mockReset();
