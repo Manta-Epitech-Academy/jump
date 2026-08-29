@@ -77,27 +77,12 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
   const planningInclude = {
     event: {
       include: {
-        planning: {
-          include: {
-            timeSlots: {
-              include: {
-                activity: {
-                  select: {
-                    id: true,
-                    nom: true,
-                    activityType: true,
-                  },
-                },
-              },
-              orderBy: { startTime: 'asc' as const },
-            },
-          },
-        },
+        planningSlots: { orderBy: { startTime: 'asc' as const } },
       },
     },
   };
 
-  // Fetch today's participation with full planning chain (timeSlots → activity)
+  // Fetch today's participation with its programme slots
   const todayParticipation = await prisma.participation.findFirst({
     where: {
       talentId,
@@ -109,7 +94,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
     orderBy: { event: { date: 'asc' } },
   });
 
-  // Fetch upcoming events with full planning chain
+  // Fetch upcoming events with their programme slots
   const upcomingParticipations = await prisma.participation.findMany({
     where: {
       talentId,
@@ -126,22 +111,9 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       ? {
           eventName: todayParticipation.event.titre,
           eventDate: todayParticipation.event.date,
-          timeSlots: (todayParticipation.event.planning?.timeSlots ?? [])
-            .filter(
-              (slot) => slot.activity && slot.activity.activityType !== 'orga',
-            )
-            .map((slot) => ({
-              id: slot.id,
-              startTime: slot.startTime,
-              endTime: slot.endTime,
-              activities: [
-                {
-                  id: slot.activity!.id,
-                  name: slot.activity!.nom,
-                  type: slot.activity!.activityType,
-                },
-              ],
-            })),
+          timeSlots: todayParticipation.event.planningSlots
+            .filter((slot) => slot.activityType !== 'orga')
+            .map(toParentSlot),
         }
       : null,
     child: {
@@ -165,25 +137,33 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       id: p.event.id,
       name: p.event.titre,
       date: p.event.date,
-      timeSlots: (p.event.planning?.timeSlots ?? [])
-        .filter(
-          (slot) => slot.activity && slot.activity.activityType !== 'orga',
-        )
-        .map((slot) => ({
-          id: slot.id,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          activities: [
-            {
-              id: slot.activity!.id,
-              name: slot.activity!.nom,
-              type: slot.activity!.activityType,
-            },
-          ],
-        })),
+      timeSlots: p.event.planningSlots
+        .filter((slot) => slot.activityType !== 'orga')
+        .map(toParentSlot),
     })),
   };
 };
+
+/**
+ * One programme slot in the shape the parent page renders.
+ *
+ * `activities` stays a one-element list: the component reads a list, and a slot
+ * has held exactly one activity since the schema stopped pretending otherwise.
+ */
+function toParentSlot(slot: {
+  id: string;
+  startTime: Date;
+  endTime: Date;
+  nom: string;
+  activityType: string;
+}) {
+  return {
+    id: slot.id,
+    startTime: slot.startTime,
+    endTime: slot.endTime,
+    activities: [{ id: slot.id, name: slot.nom, type: slot.activityType }],
+  };
+}
 
 function isDecision(value: unknown): value is ImageRightsDecision {
   return (IMAGE_RIGHTS_DECISIONS as readonly string[]).includes(

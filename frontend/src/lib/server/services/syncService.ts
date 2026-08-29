@@ -87,7 +87,6 @@ export async function syncEvents(
           date: e.date ? new Date(e.date) : new Date(),
           titre: e.title,
           campusId: campus.id,
-          planning: { create: {} },
           modules: {
             create: defaultEventModules().map((moduleKey) => ({ moduleKey })),
           },

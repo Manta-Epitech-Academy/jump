@@ -286,7 +286,7 @@ export async function resolveWorkspaceEvents(
         feedbackFormId: true,
         closingTemplateId: true,
         modules: { select: { moduleKey: true } },
-        planning: { select: { _count: { select: { timeSlots: true } } } },
+        _count: { select: { planningSlots: true } },
       },
       orderBy: { date: 'desc' },
     }),
@@ -317,7 +317,7 @@ export async function resolveWorkspaceEvents(
       schoolYear: schoolYearOf(e.date, timezone),
       monthKey: toDateKey(e.date, timezone).slice(0, 7),
       modules: e.modules.map((m) => m.moduleKey).filter(isEventModuleKey),
-      hasPlanning: (e.planning?._count.timeSlots ?? 0) > 0,
+      hasPlanning: e._count.planningSlots > 0,
       hasFeedbackForm: eventResolvesLiveForm(e),
       hasClosingTemplate: e.closingTemplateId !== null,
     };

@@ -7,16 +7,11 @@
     activityTypeStyles,
   } from '$lib/validation/templates';
 
-  type ActivityLike = {
-    id: string;
-    nom: string;
-    activityType: string;
-  };
-
   type SlotLike = {
     startTime: Date | string;
     endTime: Date | string;
-    activity: ActivityLike | null;
+    nom: string;
+    activityType: string;
     // Present on the multi-event calendar so the dialog can name which event the
     // activity belongs to. Optional so single-event callers stay valid.
     event?: { id: string; titre: string };
@@ -30,19 +25,16 @@
     slot: SlotLike | null;
   } = $props();
 
-  let activity = $derived(slot?.activity ?? null);
   let styles = $derived(
-    activity
-      ? activityTypeStyles[
-          activity.activityType as keyof typeof activityTypeStyles
-        ]
+    slot
+      ? activityTypeStyles[slot.activityType as keyof typeof activityTypeStyles]
       : null,
   );
   let typeLabel = $derived(
-    activity
+    slot
       ? (activityTypeLabels[
-          activity.activityType as keyof typeof activityTypeLabels
-        ] ?? activity.activityType)
+          slot.activityType as keyof typeof activityTypeLabels
+        ] ?? slot.activityType)
       : '',
   );
 
@@ -64,10 +56,10 @@
 
 <ResponsiveDialog.Root bind:open>
   <ResponsiveDialog.Content class="sm:max-w-md">
-    {#if activity && slot}
+    {#if slot}
       <ResponsiveDialog.Header>
         <ResponsiveDialog.Title class="text-lg leading-tight break-words">
-          {activity.nom}
+          {slot.nom}
         </ResponsiveDialog.Title>
         <ResponsiveDialog.Description
           class="flex flex-wrap items-center gap-1.5 text-xs"

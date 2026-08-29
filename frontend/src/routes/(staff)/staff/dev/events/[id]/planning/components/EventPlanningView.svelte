@@ -11,7 +11,7 @@
     startOfDay,
     type WeekView,
   } from '$lib/domain/calendarWeek';
-  import type { TimeSlotWithActivity } from '$lib/types';
+  import type { PlanningSlot } from '$lib/types';
   import type { PageData } from '../$types';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
@@ -23,17 +23,16 @@
   // first, opening the next one on a blank week.
   let {
     event,
-    planning,
+    slots,
     timezone,
     serverNow,
   }: {
     event: PageData['event'];
-    planning: PageData['planning'];
+    slots: PageData['slots'];
     timezone: PageData['timezone'];
     serverNow: PageData['serverNow'];
   } = $props();
 
-  let slots = $derived(planning.timeSlots as TimeSlotWithActivity[]);
   let range = $derived({
     start: startOfDay(new Date(event.date)),
     end: startOfDay(new Date(event.endDate ?? event.date)),
@@ -41,21 +40,15 @@
 
   let weekStart = $state<Date>(
     untrack(() =>
-      pickInitialWeek(
-        serverNow,
-        planning.timeSlots,
-        startOfDay(new Date(event.date)),
-      ),
+      pickInitialWeek(serverNow, slots, startOfDay(new Date(event.date))),
     ),
   );
 
   // Open full-week when the event has a weekend slot, else work-week, so the
   // default never hides a slot. WeekViewToggle's stored choice overrides it.
-  let weekView = $state<WeekView>(
-    untrack(() => pickInitialWeekView(planning.timeSlots)),
-  );
+  let weekView = $state<WeekView>(untrack(() => pickInitialWeekView(slots)));
 
-  let previewSlot = $state<TimeSlotWithActivity | null>(null);
+  let previewSlot = $state<PlanningSlot | null>(null);
   let previewOpen = $state(false);
   $effect(() => {
     if (!previewOpen) previewSlot = null;

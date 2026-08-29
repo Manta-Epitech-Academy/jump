@@ -88,18 +88,13 @@ export type CalendarParticipation = {
     titre: string;
     date: Date;
     endDate: Date | null;
-    planning: {
-      timeSlots: Array<{
-        id: string;
-        startTime: Date;
-        endTime: Date;
-        activity: {
-          id: string;
-          nom: string;
-          activityType: string;
-        } | null;
-      }>;
-    } | null;
+    planningSlots: Array<{
+      id: string;
+      startTime: Date;
+      endTime: Date;
+      nom: string;
+      activityType: string;
+    }>;
   };
 };
 
@@ -112,11 +107,8 @@ export type CalendarSlot = {
   id: string;
   startTime: Date;
   endTime: Date;
-  activity: {
-    id: string;
-    nom: string;
-    activityType: string;
-  } | null;
+  nom: string;
+  activityType: string;
   event: { id: string; titre: string };
 };
 
@@ -131,8 +123,9 @@ export type CalendarPlanning = {
 };
 
 /**
- * Flatten every participation's timeSlots into one event-tagged, start-sorted
- * list and compute the overall date range. The range is derived from the events'* own [date, endDate] spans (not the slots) so a multi-day event's activity-free
+ * Flatten every participation's slots into one event-tagged, start-sorted list
+ * and compute the overall date range. The range is derived from the events' own
+ * [date, endDate] spans (not the slots) so a multi-day event's activity-free
  * edge days still count as in-range on the grid.
  */
 export function toCalendarPlanning(
@@ -148,19 +141,13 @@ export function toCalendarPlanning(
     if (!start || eventStart < start) start = eventStart;
     if (!end || eventEnd > end) end = eventEnd;
 
-    for (const slot of event.planning?.timeSlots ?? []) {
-      const a = slot.activity;
+    for (const slot of event.planningSlots) {
       slots.push({
         id: slot.id,
         startTime: slot.startTime,
         endTime: slot.endTime,
-        activity: a
-          ? {
-              id: a.id,
-              nom: a.nom,
-              activityType: a.activityType,
-            }
-          : null,
+        nom: slot.nom,
+        activityType: slot.activityType,
         event: {
           id: event.id,
           titre: event.titre,
