@@ -1,0 +1,28 @@
+{
+  // `scripts/` sits outside the tsconfig SvelteKit generates (it includes
+  // `src/`, `test/` and `tests/` only), so nothing type-checked the tools in
+  // here. That was survivable for a 150-line backfill; it is not for a
+  // generator this size. `bun run check` runs this config after svelte-check,
+  // which keeps the type check where type checks already live instead of
+  // adding a link to the `verify` chain.
+  //
+  // No `extends`: the generator must not see SvelteKit's ambient types. It runs
+  // under plain `bun`, where `$lib`, `$env` and `$app` do not resolve - which is
+  // exactly why it reaches `src/lib/domain` by relative path. Letting the alias
+  // types in would make a broken import compile.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "types": ["bun"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": true
+  },
+  "include": ["**/*.ts", "**/*.json"]
+}

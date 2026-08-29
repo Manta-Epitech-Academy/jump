@@ -1,39 +1,29 @@
 /**
- * Seed the DB-backed feedback forms ("Bilan du stage") from the original JSON
- * fixtures (stage / w1 / w2). The forms now live in the database so staff can
- * create / duplicate / edit them at runtime; these fixtures are the initial
- * content.
+ * The feedback forms, from the JSON fixtures that were their original home.
  *
- * Create-only and idempotent: a form is inserted only when its slug does not
- * already exist, so a re-run never clobbers edits staff made in the builder
- * (same contract as scripts/seed-catalogs.ts). Safe to run as an additive
- * top-up. To re-seed a form from scratch, delete it in the builder first.
+ * A form is a referential the same way the interest catalogue is: staff author
+ * and edit these at runtime in the builder, so the fixtures are an initial
+ * content, never an authority. Create-only and idempotent, keyed on the slug: a
+ * re-run inserts what is missing and never touches a form somebody has since
+ * edited. To rebuild one from scratch, delete it in the builder first.
  *
- * Run: bun run seed:feedback-forms
+ * Only one of the four forms in production has ever collected an answer. The
+ * `bilan` scenario submits against that one, and leaves the others empty on
+ * purpose - an unanswered form is the ordinary case and its empty states are
+ * what break.
  */
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-import dotenv from 'dotenv';
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import {
-  PrismaClient,
+  type PrismaClient,
   type Feedback_OptionKind,
   type Feedback_QuestionType,
   type Feedback_InputKind,
   type Feedback_IdentityField,
 } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
 
 import stage from './feedbackForms/stage.json' with { type: 'json' };
 import w1 from './feedbackForms/w1.json' with { type: 'json' };
 import w2 from './feedbackForms/w2.json' with { type: 'json' };
-
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
-const prisma = new PrismaClient({ adapter });
 
 // An option is either a bare label or a label carrying the bot's reaction to it.
 type JsonOption = string | { label: string; reaction?: string };
@@ -123,7 +113,7 @@ function buildOptions(q: JsonQuestion): {
   return rows;
 }
 
-async function seedForm(spec: FormSpec): Promise<void> {
+async function seedForm(prisma: PrismaClient, spec: FormSpec): Promise<void> {
   const { json } = spec;
   const existing = await prisma.feedback_Form.findUnique({
     where: { slug: json.id },
@@ -202,15 +192,17 @@ async function seedForm(spec: FormSpec): Promise<void> {
   });
 }
 
-async function main() {
+/** Returns how many forms were inserted; 0 means everything was already there. */
+export async function seedFeedbackForms(prisma: PrismaClient): Promise<number> {
+  let created = 0;
   for (const spec of SPECS) {
-    await seedForm(spec);
+    const before = await prisma.feedback_Form.count({ where: { slug: spec.json.id } });
+    await seedForm(prisma, spec);
+    const after = await prisma.feedback_Form.count({ where: { slug: spec.json.id } });
+    if (after > before) created += 1;
   }
+  return created;
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exitCode = 1;
-  })
-  .finally(() => prisma.$disconnect());
+/** The slugs the catalogue owns, so a scenario can point an event at one. */
+export const FEEDBACK_FORM_SLUGS = SPECS.map((spec) => spec.json.id);
