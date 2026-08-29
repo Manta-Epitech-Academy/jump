@@ -217,16 +217,9 @@ export async function buildLoadManifest(sample = 50) {
   ]);
 
   const recentEventIds = events.slice(0, 5).map((e) => e.id);
-  const activities = await prisma.activity.findMany({
-    where: {
-      activityType: 'orga',
-      timeSlot: { planning: { eventId: { in: recentEventIds } } },
-    },
-    select: {
-      id: true,
-      nom: true,
-      timeSlot: { select: { planning: { select: { eventId: true } } } },
-    },
+  const activities = await prisma.planning_Slot.findMany({
+    where: { activityType: 'orga', eventId: { in: recentEventIds } },
+    select: { id: true, nom: true, eventId: true },
     take: sample,
   });
 
@@ -268,7 +261,7 @@ export async function buildLoadManifest(sample = 50) {
     })),
     activities: activities.map((a) => ({
       id: a.id,
-      eventId: a.timeSlot.planning.eventId,
+      eventId: a.eventId,
       title: a.nom,
     })),
     participations: participations

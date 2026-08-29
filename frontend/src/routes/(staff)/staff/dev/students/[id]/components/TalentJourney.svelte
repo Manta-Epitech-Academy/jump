@@ -70,7 +70,7 @@
          is decided by the data: it scrolls in its own box, sized against the
          viewport rather than a pixel cap. -->
   <ul class="max-h-[45svh] space-y-2 overflow-y-auto pr-1 text-sm">
-    {#each journey.entries as entry (entry.participationId)}
+    {#each journey.entries as entry (entry.eventId)}
       <li>
         <!-- The event line, and only the event: its name goes to the event, as
                an event name anywhere else in this space does. It used to link to
@@ -144,7 +144,7 @@
               {/if}
               <a
                 href={resolve(
-                  `/staff/dev/events/${entry.eventId}/closings/${entry.participationId}`,
+                  `/staff/dev/events/${entry.eventId}/closings/${journey.talentId}`,
                 )}
                 class="ml-auto inline-flex shrink-0 cursor-pointer items-center gap-1 text-xs font-medium text-epi-blue transition-colors hover:underline"
               >

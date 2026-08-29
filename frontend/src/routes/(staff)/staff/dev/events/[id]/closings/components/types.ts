@@ -4,7 +4,6 @@ import type { ClosingListStatus } from '$lib/domain/closing';
 /** One row of the Closings list: an event participant plus their closing (if
  *  any). Absence of a closing is the "à faire" status. */
 export type ClosingRow = {
-  participationId: string;
   talentId: string;
   nom: string;
   prenom: string;

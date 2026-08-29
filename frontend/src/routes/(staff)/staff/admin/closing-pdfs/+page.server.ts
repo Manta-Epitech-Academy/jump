@@ -6,6 +6,7 @@ import { CLOSING_RECOMMENDATIONS } from '$lib/domain/closing';
 import { fail } from '@sveltejs/kit';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
+import { FORMER_STAFF_LABEL } from '$lib/domain/staff';
 
 const RESET_REASON_MAX = 500;
 
@@ -56,7 +57,7 @@ export const load: PageServerLoad = async ({ url, locals, depends }) => {
           talent: { select: { prenom: true, nom: true } },
           staff: { select: { user: { select: { name: true } } } },
           campus: { select: { name: true } },
-          participation: { select: { event: { select: { titre: true } } } },
+          event: { select: { titre: true } },
         },
         orderBy: { conductedAt: 'desc' },
         take: PAGE_SIZE,
@@ -81,9 +82,9 @@ export const load: PageServerLoad = async ({ url, locals, depends }) => {
         conductedAt: c.conductedAt.toISOString(),
         recommendation: c.recommendation,
         talentName: `${c.talent.prenom} ${c.talent.nom}`,
-        staffName: c.staff.user.name ?? 'Staff',
+        staffName: c.staff?.user?.name ?? FORMER_STAFF_LABEL,
         campusName: c.campus.name,
-        eventTitle: c.participation.event.titre,
+        eventTitle: c.event.titre,
       })),
       matchCount,
       truncated: matchCount > PAGE_SIZE,

@@ -46,7 +46,7 @@
          behind a toggle; it is an event-scoped act and now has its own page under
          its event, so the fiche reads closings back rather than conducting them. -->
     <div class="min-w-0 space-y-6 lg:col-span-7">
-      <EpiSection title="Centres d'intérêt" accent="tech">
+      <EpiSection title="Ses centres d'intérêt" accent="tech">
         {@const hasChips = (data.student.interests ?? []).length > 0}
         {@const hasQuotes = Boolean(
           data.student.interestsFreeText?.trim() ||

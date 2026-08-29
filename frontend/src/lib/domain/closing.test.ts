@@ -215,7 +215,7 @@ describe('closingAnswersIssues', () => {
   const form = (
     answers: ClosingConductForm['answers'],
   ): ClosingConductForm => ({
-    participationId: 'p1',
+    talentId: 't1',
     answers,
     recommendation: null,
     verdictNote: '',

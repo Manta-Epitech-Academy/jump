@@ -326,13 +326,18 @@ type BroadcastForSend = {
   bodySnapshot: string;
   eventId: string | null;
   event: { titre: string; date: Date } | null;
+  /** Null once the creator's account has been deleted. The send itself is
+   *  unaffected: this only feeds the per-staff dev-redirect on a trapped
+   *  environment, and an absent creator yields no personal destination, which
+   *  is the same "fall back to the env list" the helpers already return for a
+   *  staff member who configured none. */
   createdBy: {
     email: string;
     staffProfile: {
       devRedirectEmails: string[];
       devRedirectPhones: string[];
     } | null;
-  };
+  } | null;
 };
 
 /**
@@ -420,8 +425,8 @@ async function sendMailBatch(
         // fallback — staff accounts carry no login phone).
         {
           devRedirectTo: staffBulkDevRedirectEmails(
-            broadcast.createdBy.staffProfile?.devRedirectEmails,
-            broadcast.createdBy.email,
+            broadcast.createdBy?.staffProfile?.devRedirectEmails,
+            broadcast.createdBy?.email,
           ),
         },
       );
@@ -489,7 +494,7 @@ async function sendSmsSerial(
           // or drops. A no-op in prod.
           {
             devRedirectTo: staffBulkDevRedirectPhones(
-              broadcast.createdBy.staffProfile?.devRedirectPhones,
+              broadcast.createdBy?.staffProfile?.devRedirectPhones,
             ),
           },
         );

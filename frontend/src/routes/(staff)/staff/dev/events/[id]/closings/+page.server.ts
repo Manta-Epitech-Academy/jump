@@ -46,55 +46,63 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const timezone = getCampusTimezone(locals);
 
   // Stream the cohort: the page shell (header + rail skeleton) paints immediately
-  // while this resolves, instead of the client navigation blocking on it. One
-  // driving query for the table (every participant left-joined with their
-  // closing) plus a grouped count for the "closings menés" rail card; the
-  // status buckets, the recommendation breakdown and the per-staff tally
-  // are all derived from rows already in memory (a stage cohort is ~200).
+  // while this resolves, instead of the client navigation blocking on it. The
+  // roster comes from `Participation` (Salesforce owns who is enrolled) and the
+  // closings alongside it, joined by talent id: a closing keys on
+  // (talent, event) rather than hanging off a participation row, so the sync
+  // pruning an enrolment can no longer take a conducted closing with it. Same
+  // shape the émargement screens already use. The status buckets, the
+  // recommendation breakdown and the per-staff tally are all derived from rows
+  // already in memory (a stage cohort is ~200).
   const cohort: Promise<ClosingsCohort> = (async () => {
-    const [participations, byStaff] = await Promise.all([
+    const [participations, closings, byStaff] = await Promise.all([
       db.participation.findMany({
         where: { eventId: event.id },
         select: {
-          id: true,
           talentId: true,
           talent: { select: { nom: true, prenom: true } },
-          closing: {
-            select: {
-              status: true,
-              conductedAt: true,
-              recommendation: true,
-              staff: {
-                select: {
-                  id: true,
-                  user: { select: { name: true, image: true } },
-                },
-              },
-            },
-          },
         },
         orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
       }),
+      db.closing_Record.findMany({
+        where: { eventId: event.id },
+        select: {
+          talentId: true,
+          status: true,
+          conductedAt: true,
+          recommendation: true,
+          staff: {
+            select: {
+              id: true,
+              user: { select: { name: true, image: true } },
+            },
+          },
+        },
+      }),
       db.closing_Record.groupBy({
         by: ['staffId'],
-        where: { participation: { eventId: event.id } },
+        where: { eventId: event.id },
         _count: { staffId: true },
         orderBy: { _count: { staffId: 'desc' } },
         take: TOP_STAFF,
       }),
     ]);
 
-    const rows: ClosingRow[] = participations.map((p) => ({
-      participationId: p.id,
-      talentId: p.talentId,
-      nom: p.talent.nom,
-      prenom: p.talent.prenom,
-      status: closingListStatus(p.closing),
-      staffName: p.closing?.staff.user?.name ?? null,
-      staffImage: p.closing?.staff.user?.image ?? null,
-      conductedAt: p.closing?.conductedAt ?? null,
-      recommendation: p.closing?.recommendation ?? null,
-    }));
+    const closingOf = new Map(closings.map((c) => [c.talentId, c]));
+
+    const rows: ClosingRow[] = participations.map((p) => {
+      const closing = closingOf.get(p.talentId) ?? null;
+      return {
+        talentId: p.talentId,
+        nom: p.talent.nom,
+        prenom: p.talent.prenom,
+        status: closingListStatus(closing),
+        staffName: closing?.staff?.user?.name ?? null,
+        staffImage: closing?.staff?.user?.image ?? null,
+        conductedAt: closing?.conductedAt ?? null,
+        recommendation: closing?.recommendation ?? null,
+      };
+    });
 
     // Status buckets (à faire / en cours / finalisé) for the synthesis card.
     const counts = { todo: 0, in_progress: 0, done: 0 };
@@ -106,15 +114,21 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       pas_interesse: 0,
     };
     for (const p of participations) {
-      counts[closingListStatus(p.closing)]++;
-      if (p.closing?.status === 'done' && p.closing.recommendation) {
-        recoCounts[p.closing.recommendation]++;
+      const closing = closingOf.get(p.talentId) ?? null;
+      counts[closingListStatus(closing)]++;
+      if (closing?.status === 'done' && closing.recommendation) {
+        recoCounts[closing.recommendation]++;
       }
     }
 
     // Resolve the grouped staff ids to display names (one extra query, only for
-    // the handful that actually conducted a closing).
-    const staffIds = byStaff.map((g) => g.staffId);
+    // the handful that actually conducted a closing). The null bucket is dropped
+    // rather than labelled: this card ranks who is conducting them, and closings
+    // whose conductor has left the school are not a person to rank.
+    const conducted = byStaff.filter(
+      (g): g is typeof g & { staffId: string } => g.staffId !== null,
+    );
+    const staffIds = conducted.map((g) => g.staffId);
     const staff = staffIds.length
       ? await db.staffProfile.findMany({
           where: { id: { in: staffIds } },
@@ -125,7 +139,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         })
       : [];
     const staffById = new Map(staff.map((s) => [s.id, s]));
-    const topStaff: StaffTally[] = byStaff.map((g) => {
+    const topStaff: StaffTally[] = conducted.map((g) => {
       const u = staffById.get(g.staffId)?.user;
       return {
         id: g.staffId,

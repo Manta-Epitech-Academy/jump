@@ -231,7 +231,7 @@ describe('no read operation leaks a talent identity (integration)', () => {
         talentId: talent.id,
         staffId: staff.staffProfile!.id,
         campusId,
-        participationId: participation.id,
+        eventId: participation.eventId,
         templateId: template.id,
         status: 'done',
         recommendation: 'bon_profil',

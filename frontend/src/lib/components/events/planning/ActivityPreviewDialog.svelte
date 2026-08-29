@@ -6,7 +6,7 @@
     activityTypeLabels,
     activityTypeStyles,
   } from '$lib/validation/templates';
-  import type { TimeSlotWithActivity } from '$lib/types';
+  import type { PlanningSlot } from '$lib/types';
 
   // Read-only preview: the dev planning view mounts it with `slot` + `timezone`
   // to inspect an activity. There is no edit/train footer (planning is authored
@@ -17,23 +17,20 @@
     timezone,
   }: {
     open?: boolean;
-    slot: TimeSlotWithActivity | null;
+    slot: PlanningSlot | null;
     timezone: string;
   } = $props();
 
-  let activity = $derived(slot?.activity ?? null);
   let styles = $derived(
-    activity
-      ? activityTypeStyles[
-          activity.activityType as keyof typeof activityTypeStyles
-        ]
+    slot
+      ? activityTypeStyles[slot.activityType as keyof typeof activityTypeStyles]
       : null,
   );
   let typeLabel = $derived(
-    activity
+    slot
       ? (activityTypeLabels[
-          activity.activityType as keyof typeof activityTypeLabels
-        ] ?? activity.activityType)
+          slot.activityType as keyof typeof activityTypeLabels
+        ] ?? slot.activityType)
       : '',
   );
 
@@ -57,12 +54,12 @@
 
 <Dialog.Root bind:open>
   <Dialog.Content class="flex max-h-[85vh] flex-col sm:max-w-2xl">
-    {#if activity && slot}
+    {#if slot}
       <Dialog.Header class="shrink-0">
         <div class="flex items-start gap-3">
           <div class="flex min-w-0 flex-1 flex-col gap-1">
             <Dialog.Title class="text-xl leading-tight break-words">
-              {activity.nom}
+              {slot.nom}
             </Dialog.Title>
             <Dialog.Description
               class="flex flex-wrap items-center gap-1.5 text-xs"

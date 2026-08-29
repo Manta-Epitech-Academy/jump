@@ -31,7 +31,7 @@
 import { prisma } from '$lib/server/db';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
-import { participationWhere, scopeLabels } from './cohort';
+import { scopedEnrolments, scopeLabels } from './cohort';
 
 export const TESTIMONIALS_DEFAULT_LIMIT = 50;
 export const TESTIMONIALS_MAX_LIMIT = 200;
@@ -62,10 +62,21 @@ export async function getClosingTestimonials(
     Math.max(params.limit ?? TESTIMONIALS_DEFAULT_LIMIT, 1),
     TESTIMONIALS_MAX_LIMIT,
   );
+  // Narrowed on the closing's own event rather than on a participation row,
+  // which a closing no longer hangs off. The pair-level visibility clause that
+  // `scopedEnrolments` carries is deliberately NOT applied here, and this is the
+  // one closing read where dropping it is right: `take: limit` means an
+  // in-memory filter would silently hand back fewer quotes than asked for, and
+  // there is no rate here whose denominator could fall out of step - a student
+  // who sat the closing and wrote the sentence wrote it, whatever Salesforce
+  // says about their enrolment afterwards.
+  const eventIds = [
+    ...new Set((await scopedEnrolments(scope)).map((e) => e.eventId)),
+  ];
   const where = {
     question: { testimonial: true },
     freeText: { not: null },
-    record: { participation: await participationWhere(scope) },
+    record: { eventId: { in: eventIds } },
   };
 
   const [collected, rows] = await Promise.all([
@@ -81,9 +92,7 @@ export async function getClosingTestimonials(
         record: {
           select: {
             campus: { select: { name: true } },
-            participation: {
-              select: { event: { select: { titre: true, publicName: true } } },
-            },
+            event: { select: { titre: true, publicName: true } },
             answers: {
               where: { question: { kind: 'rating' } },
               select: { ratingValue: true },
@@ -97,7 +106,7 @@ export async function getClosingTestimonials(
   const testimonials = rows.flatMap<Testimonial>((row) => {
     const quote = row.freeText?.trim();
     if (!quote) return [];
-    const event = row.record.participation.event;
+    const event = row.record.event;
     const ratings = row.record.answers.filter((a) => a.ratingValue != null);
     return [
       {

@@ -48,6 +48,7 @@ import {
   scopedEvents,
   participationWhere,
   cohortWhere,
+  enrolmentKey,
   onboardingCompleteWhere,
 } from './cohort';
 import {
@@ -148,11 +149,8 @@ export async function getCampusComparison(
       select: { id: true },
     }),
     prisma.closing_Record.findMany({
-      where: { participation: enrolmentWhere },
-      select: {
-        recommendation: true,
-        participation: { select: { eventId: true } },
-      },
+      where: { eventId: { in: [...closingEventIds] } },
+      select: { talentId: true, eventId: true, recommendation: true },
     }),
   ]);
 
@@ -195,11 +193,16 @@ export async function getCampusComparison(
     }
   }
 
+  // The same cohort the denominator above was taken over, as a set of pairs. A
+  // closing keys on (talent, event) rather than on a participation row, so the
+  // visibility clause has to be applied here: a talent who withdrew after their
+  // closing has already left `closingEnrolments`, and counting them here would
+  // push the campus's coverage past 100 %.
+  const enrolled = new Set(enrolments.map(enrolmentKey));
   const favourable = new Set<string>(CLOSING_FAVOURABLE_RECOMMENDATIONS);
   for (const row of closings) {
-    const eventId = row.participation.eventId;
-    if (!closingEventIds.has(eventId)) continue;
-    const tally = tallies.get(campusOf.get(eventId) ?? '');
+    if (!enrolled.has(enrolmentKey(row))) continue;
+    const tally = tallies.get(campusOf.get(row.eventId) ?? '');
     if (!tally) continue;
     tally.closings += 1;
     if (row.recommendation == null) continue;

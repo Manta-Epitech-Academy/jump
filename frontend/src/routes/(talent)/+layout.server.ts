@@ -11,11 +11,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
       where: {
         talentId: locals.talent.id,
         event: {
-          planning: {
-            timeSlots: {
-              some: { activity: { activityType: { not: 'orga' } } },
-            },
-          },
+          planningSlots: { some: { activityType: { not: 'orga' } } },
         },
       },
       select: { id: true },

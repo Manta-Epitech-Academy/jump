@@ -7,6 +7,7 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
+import { prisma } from '$lib/server/db';
 import {
   loadEventOr404,
   requireEventModule,
@@ -100,22 +101,34 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     );
   }
 
-  const participation = await db.participation.findUnique({
-    where: { id: params.participationId },
-    select: {
-      id: true,
-      eventId: true,
-      talent: { select: { id: true, nom: true, prenom: true } },
-    },
-  });
-  if (!participation || participation.eventId !== event.id) {
+  // The roster is still read from `Participation` - Salesforce owns who is
+  // enrolled - but the record is addressed by (talent, event), so a closing
+  // whose enrolment the sync has since pruned stays reachable here instead of
+  // 404ing on a row that no longer exists.
+  const key = { talentId: params.talentId, eventId: event.id };
+  const [participation, record] = await Promise.all([
+    db.participation.findUnique({
+      where: { talentId_eventId: key },
+      select: { talentId: true },
+    }),
+    db.closing_Record.findUnique({
+      where: { talentId_eventId: key },
+      include: RECORD_INCLUDE,
+    }),
+  ]);
+
+  // Either tie will do, and accepting the record alone is the point: Salesforce
+  // prunes an enrolment it no longer carries, and a closing already conducted
+  // must stay readable afterwards rather than 404 on a row that has gone.
+  if (!participation && !record) {
     throw error(404, 'Participant introuvable pour cet événement.');
   }
 
-  const record = await db.closing_Record.findUnique({
-    where: { participationId: participation.id },
-    include: RECORD_INCLUDE,
+  const talent = await prisma.talent.findUnique({
+    where: { id: params.talentId },
+    select: { id: true, nom: true, prenom: true },
   });
+  if (!talent) throw error(404, 'Talent introuvable.');
 
   // A record answers against the grid it PINNED, never the one its event points
   // at today, which is the whole reason `Closing_Record.templateId` is a column.
@@ -161,7 +174,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   const form = await superValidate(
     {
-      participationId: participation.id,
+      talentId: params.talentId,
       answers,
       recommendation: record?.recommendation ?? null,
       verdictNote: record?.verdictNote ?? '',
@@ -191,18 +204,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     synthesisSections: recordSynthesisSections(grid, retiredQuestions),
     retiredAnswers,
     form,
-    talentId: participation.talent.id,
+    talentId: talent.id,
     // The person, not just their name: the header draws the same monogram the
     // fiche does, so the two pages are visibly about the same human.
-    talent: participation.talent,
-    talentName: formatPersonName(
-      participation.talent.prenom,
-      participation.talent.nom,
-    ),
+    talent,
+    talentName: formatPersonName(talent.prenom, talent.nom),
     status: record?.status ?? null,
     conductedLabel: record?.status === 'done' ? conductedLabel : null,
-    conductedBy: record?.staff.user?.name ?? null,
-    conductedByImage: record?.staff.user?.image ?? null,
+    conductedBy: record?.staff?.user?.name ?? null,
+    conductedByImage: record?.staff?.user?.image ?? null,
   };
 };
 
@@ -232,13 +242,14 @@ async function persist(
   requireEventModule(event, EVENT_MODULES.CLOSINGS);
 
   const participation = await db.participation.findUnique({
-    where: { id: form.data.participationId },
-    select: { id: true, eventId: true, talentId: true, campusId: true },
+    where: {
+      talentId_eventId: { talentId: params.talentId, eventId: event.id },
+    },
+    select: { campusId: true },
   });
   if (
+    form.data.talentId !== params.talentId ||
     !participation ||
-    participation.id !== params.participationId ||
-    participation.eventId !== event.id ||
     participation.campusId !== campusId
   ) {
     return message(form, 'Closing impossible pour ce participant.', {
@@ -247,7 +258,9 @@ async function persist(
   }
 
   const existing = await db.closing_Record.findUnique({
-    where: { participationId: participation.id },
+    where: {
+      talentId_eventId: { talentId: params.talentId, eventId: event.id },
+    },
     select: { status: true, templateId: true },
   });
 
@@ -286,8 +299,8 @@ async function persist(
   }
 
   await persistClosing({
-    participationId: participation.id,
-    talentId: participation.talentId,
+    talentId: params.talentId,
+    eventId: event.id,
     campusId,
     staffId: locals.staffProfile.id,
     templateId: grid.templateId,

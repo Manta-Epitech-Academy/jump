@@ -31,7 +31,12 @@ import {
 import { adminEventRunsClosings } from '$lib/server/services/events';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
-import { participationWhere, scopedEvents, scopeLabels } from './cohort';
+import {
+  enrolmentKey,
+  scopedEnrolments,
+  scopedEvents,
+  scopeLabels,
+} from './cohort';
 
 /**
  * Structured answers only: the options picked and the rating given. `freeText`
@@ -121,9 +126,9 @@ export type ClosingInsights = {
 export async function getClosingInsights(
   scope: Scope = {},
 ): Promise<ClosingInsights> {
-  const [{ events }, enrolmentWhere] = await Promise.all([
+  const [{ events }, enrolmentPairs] = await Promise.all([
     scopedEvents(scope),
-    participationWhere(scope),
+    scopedEnrolments(scope),
   ]);
 
   // The events that actually conduct closings, read off the same rule the dev
@@ -132,22 +137,30 @@ export async function getClosingInsights(
     events.filter(adminEventRunsClosings).map((e) => e.id),
   );
 
-  const [enrolments, enrolmentsConcerned, rows] = await Promise.all([
-    prisma.participation.count({ where: enrolmentWhere }),
-    prisma.participation.count({
-      where: { AND: [enrolmentWhere, { eventId: { in: [...concernedIds] } }] },
-    }),
-    prisma.closing_Record.findMany({
-      where: { participation: enrolmentWhere },
+  const enrolments = enrolmentPairs.length;
+  const enrolmentsConcerned = enrolmentPairs.filter((p) =>
+    concernedIds.has(p.eventId),
+  ).length;
+  // The cohort as a set of pairs. A closing keys on (talent, event) now, so this
+  // is where the visibility clause lands: without it a talent who withdrew after
+  // their closing would count in the numerator and not in the denominator.
+  const enrolled = new Set(enrolmentPairs.map(enrolmentKey));
+
+  const rows = (
+    await prisma.closing_Record.findMany({
+      where: {
+        eventId: { in: [...new Set(enrolmentPairs.map((p) => p.eventId))] },
+      },
       select: {
+        talentId: true,
+        eventId: true,
         status: true,
         recommendation: true,
         templateId: true,
-        participation: { select: { eventId: true } },
         answers: { select: ANSWER_SELECT },
       },
-    }),
-  ]);
+    })
+  ).filter((r) => enrolled.has(enrolmentKey(r)));
 
   const finalised = rows.filter((r) => r.status === 'done').length;
   const inProgress = rows.length - finalised;
@@ -156,7 +169,7 @@ export async function getClosingInsights(
   // because an event whose grid was removed afterwards keeps its closings and
   // would otherwise push the rate past 100 %.
   const closingsConcerned = rows.filter((r) =>
-    concernedIds.has(r.participation.eventId),
+    concernedIds.has(r.eventId),
   ).length;
   const todo = Math.max(enrolmentsConcerned - closingsConcerned, 0);
 
