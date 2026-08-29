@@ -180,8 +180,8 @@ export async function getTalentJourney(
               recommendation: closing.recommendation,
               verdictNote: closing.verdictNote?.trim() || null,
               quote,
-              staffName: closing.staff.user?.name?.trim() || null,
-              staffImage: closing.staff.user?.image ?? null,
+              staffName: closing.staff?.user?.name?.trim() || null,
+              staffImage: closing.staff?.user?.image ?? null,
             }
           : null,
       };

@@ -73,7 +73,7 @@ export const load: PageServerLoad = async ({ url }) => {
           status,
           hasContent,
           updatedAt: page?.updatedAt.toISOString() ?? null,
-          updatedByName: page?.user.name ?? page?.user.email ?? null,
+          updatedByName: page?.user?.name ?? page?.user?.email ?? null,
         };
       })
       // Keep current/upcoming events plus any archived event that still has a

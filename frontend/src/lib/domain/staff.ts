@@ -1,6 +1,17 @@
 import type { StaffRole } from '@prisma/client';
 import type { StaffGroup } from './permissions';
 
+/**
+ * How a staff attribution reads once the account behind it is gone.
+ *
+ * Every attribution FK on a shared record is `SetNull`, so what a colleague
+ * wrote, conducted or uploaded outlives their departure and only loses their
+ * name. One string rather than a fallback per screen, because a closing, a
+ * document and a welcome page all have to say the same thing about the same
+ * absent person.
+ */
+export const FORMER_STAFF_LABEL = 'Ancien membre';
+
 export const staffRoles = ['admin', 'superdev', 'dev'] as const;
 
 export const STAFF_ROLES: readonly {

@@ -211,8 +211,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     talentName: formatPersonName(talent.prenom, talent.nom),
     status: record?.status ?? null,
     conductedLabel: record?.status === 'done' ? conductedLabel : null,
-    conductedBy: record?.staff.user?.name ?? null,
-    conductedByImage: record?.staff.user?.image ?? null,
+    conductedBy: record?.staff?.user?.name ?? null,
+    conductedByImage: record?.staff?.user?.image ?? null,
   };
 };
 

@@ -736,10 +736,14 @@ model CmsPage {
   eventId   String
   content   String   @db.Text
   updatedAt DateTime @updatedAt
-  updatedBy String
+  /// Attribution, not ownership: SetNull so deleting the author's account leaves
+  /// the page standing. It defaulted to RESTRICT, which made anyone who had ever
+  /// edited a page undeletable, reported to the admin as a bare "Erreur lors de
+  /// la suppression du membre".
+  updatedBy String?
 
-  event Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user  bauth_user @relation(fields: [updatedBy], references: [id])
+  event Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  bauth_user? @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
 
   @@unique([slug, eventId])
   @@index([eventId])
@@ -852,6 +856,15 @@ model Event {
   talentNotes         Note_TalentNote[]
   modules             EventConfig_Module[]
 
+  /// Not a second identity - `id` alone is already unique. It exists so the rows
+  /// that denormalise `campusId` for one-hop campus scoping can reference the
+  /// PAIR, which is what makes `ON UPDATE CASCADE` carry a campus move down to
+  /// them. Salesforce does reassign a campaign: the event sync has an explicit
+  /// branch for `existing.campusId !== campus.id`, and it updated `Event` alone,
+  /// stranding `Participation.campusId` and `Closing_Record.campusId` on the old
+  /// campus - the very columns `db/scoped.ts` reads to cloister a campus's data,
+  /// so the old campus kept seeing the cohort and the new one never did.
+  @@unique([id, campusId])
   @@index([campusId])
   @@index([feedbackFormId])
   @@index([diplomaTemplateId])
@@ -1006,9 +1019,13 @@ model Participation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  talent    Talent     @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  campus    Campus     @relation(fields: [campusId], references: [id])
+  talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  /// Bound to the event by the PAIR, so Prisma's `ON UPDATE CASCADE` rewrites
+  /// `campusId` here when the event moves campus. The column stays denormalised
+  /// on purpose - it is the one-hop scoping key - and this is what stops it
+  /// drifting away from the event that owns it.
+  event  Event  @relation(fields: [eventId, campusId], references: [id, campusId], onDelete: Cascade)
+  campus Campus @relation(fields: [campusId], references: [id])
 
   @@unique([talentId, eventId])
   @@index([eventId])
@@ -1497,7 +1514,7 @@ model Closing_Record {
   /// reasoning, and the same shape, as `EventPresence`, `Note_TalentNote` and
   /// `Feedback_Submission`, which all key on the pair for this exact reason.
   eventId    String
-  staffId    String
+  staffId    String?
   campusId   String
   /// The grid this closing was conducted with, pinned when it starts. `Event`
   /// carries the same FK as configuration; pinning it here is what stops
@@ -1521,9 +1538,18 @@ model Closing_Record {
   updatedAt DateTime @updatedAt
 
   talent   Talent           @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  event    Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  staff    StaffProfile     @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  campus   Campus           @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  /// By the pair, for the same reason as `Participation.event`.
+  event    Event            @relation(fields: [eventId, campusId], references: [id, campusId], onDelete: Cascade)
+  /// SetNull, never Cascade. A closing is a record about a minor and the input
+  /// to the admin archive, the school-year review and the testimonials, so a
+  /// colleague leaving must not delete it - and it did: every one of the 83
+  /// people who had conducted one took their closings into the bin with their
+  /// account, silently. Same rule and same reason as `Note_TalentNote.author`;
+  /// the conductor simply reads as a former member afterwards.
+  staff    StaffProfile?    @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  /// Restrict, matching `Participation.campus`: a campus still holding closings
+  /// is not one to delete out from under them.
+  campus   Campus           @relation(fields: [campusId], references: [id])
   template Closing_Template @relation(fields: [templateId], references: [id], onDelete: Restrict)
   answers  Closing_Answer[]
 
@@ -1666,10 +1692,13 @@ model AdminFile {
   s3Key        String   @unique
   contentType  String
   size         Int
-  uploadedById String
+  /// SetNull, like its twin `CmsImage` below: this is a SHARED library, so a
+  /// departure must not take everyone's files with it - and cascading also
+  /// stranded the S3 objects, since nothing sweeps a bucket on a foreign key.
+  uploadedById String?
   createdAt    DateTime @default(now())
 
-  uploadedBy StaffProfile @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  uploadedBy StaffProfile? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([uploadedById])
 }
@@ -1786,11 +1815,12 @@ model MessageTemplate {
   channel     BroadcastChannel
   subject     String?
   body        String
-  createdById String
+  /// Attribution only, SetNull: see `CmsPage.updatedBy`.
+  createdById String?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  createdBy           bauth_user           @relation("MessageTemplateCreator", fields: [createdById], references: [id])
+  createdBy           bauth_user?          @relation("MessageTemplateCreator", fields: [createdById], references: [id], onDelete: SetNull)
   broadcasts          Broadcast[]
   emailActionMappings EmailActionMapping[]
 
@@ -1826,7 +1856,9 @@ model Broadcast {
   subjectSnapshot   String?
   bodySnapshot      String
   status            BroadcastStatus        @default(queued)
-  createdById       String
+  /// Attribution only, SetNull: see `CmsPage.updatedBy`. A send that has already
+  /// gone out is a fact, so it outlives the account that triggered it.
+  createdById       String?
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @default(now()) @updatedAt
 
@@ -1835,7 +1867,7 @@ model Broadcast {
   event           Event?               @relation(fields: [eventId], references: [id])
   sourceBroadcast Broadcast?           @relation("BroadcastRetargeting", fields: [sourceBroadcastId], references: [id])
   retargets       Broadcast[]          @relation("BroadcastRetargeting")
-  createdBy       bauth_user           @relation("BroadcastCreator", fields: [createdById], references: [id])
+  createdBy       bauth_user?          @relation("BroadcastCreator", fields: [createdById], references: [id], onDelete: SetNull)
   recipients      BroadcastRecipient[]
 
   @@index([campusId])
