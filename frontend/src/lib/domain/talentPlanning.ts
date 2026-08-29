@@ -78,9 +78,9 @@ export function toPlanningView(
  * The full talent calendar (route `(talent)/calendar`) is no longer scoped to a
  * single event: it lays every activity of every event the talent participates in
  * onto one continuous week-grid. As with {@link toPlanningView}, the server folds
- * the nested Participation → Event → Planning → TimeSlot → Activity rows into a
- * flat view-model so the grid component branches on plain slots with no DB-row
- * shapes leaking into it.
+ * the nested Participation → Event → Planning_Slot rows into a flat, event-tagged
+ * view-model so the grid component branches on plain slots with no DB-row shapes
+ * leaking into it.
  */
 export type CalendarParticipation = {
   event: {

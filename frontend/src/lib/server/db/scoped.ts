@@ -367,13 +367,6 @@ export function scopedPrisma(campusId: string) {
           };
           return query(args);
         },
-        async count({ args, query }) {
-          args.where = {
-            ...args.where,
-            event: { ...((args.where as any)?.event ?? {}), campusId },
-          };
-          return query(args);
-        },
       },
 
       closing_Record: {
