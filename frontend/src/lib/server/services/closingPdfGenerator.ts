@@ -53,7 +53,7 @@ export const closingPdfSelect = {
   talent: { select: { prenom: true, nom: true, externalId: true } },
   staff: { select: { user: { select: { name: true } } } },
   campus: { select: { name: true } },
-  participation: { select: { event: { select: { titre: true } } } },
+  event: { select: { titre: true } },
 } as const satisfies Prisma.Closing_RecordSelect;
 
 /** The full record with relations the generator consumes, derived from
@@ -203,7 +203,7 @@ export async function generateClosingPdf(
     staffName: record.staff.user.name ?? 'Staff',
     campusName: record.campus.name,
     conductedAt: formatDate(record.conductedAt),
-    eventTitle: record.participation.event.titre,
+    eventTitle: record.event.titre,
     sections: buildClosingSynthesis(record, grid),
     recommendation: recoLabel,
     recommendationKey: recoKey,

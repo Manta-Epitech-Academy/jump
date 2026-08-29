@@ -35,6 +35,7 @@ export async function getTalentJourney(
     where: { talentId, ...visibleParticipationWhere },
     select: {
       id: true,
+      eventId: true,
       sfMemberStatus: true,
       event: {
         select: {
@@ -52,21 +53,28 @@ export async function getTalentJourney(
           modules: { select: { moduleKey: true } },
         },
       },
-      closing: {
-        select: {
-          status: true,
-          recommendation: true,
-          verdictNote: true,
-          staff: { select: { user: { select: { name: true, image: true } } } },
-          answers: {
-            where: { question: { testimonial: true } },
-            select: { freeText: true },
-          },
-        },
-      },
     },
     orderBy: { event: { date: 'desc' } },
   });
+
+  // Fetched alongside rather than included: a closing keys on (talent, event),
+  // not on a participation row, so that there is no cascade for the Salesforce
+  // sync to destroy one through. Joined back by event id.
+  const closings = await prisma.closing_Record.findMany({
+    where: { talentId },
+    select: {
+      eventId: true,
+      status: true,
+      recommendation: true,
+      verdictNote: true,
+      staff: { select: { user: { select: { name: true, image: true } } } },
+      answers: {
+        where: { question: { testimonial: true } },
+        select: { freeText: true },
+      },
+    },
+  });
+  const closingOf = new Map(closings.map((c) => [c.eventId, c]));
 
   // The event's Inscrits list, when the reader can actually open it: same campus
   // (`loadEventOr404`), a member of the dev workspace (`isDevVisibleEvent`), and
@@ -114,11 +122,11 @@ export async function getTalentJourney(
   // Coding Club's the same afternoon. Past-only would hide the verdict for
   // exactly as long as it is the freshest thing anybody knows about the talent.
   const entries: TalentJourneyEntry[] = participations
-    .filter((p) => isPast(p) || p.closing !== null)
-    .map((p) => {
-      const quote = p.closing?.answers[0]?.freeText?.trim() || null;
+    .map((p) => ({ p, closing: closingOf.get(p.eventId) ?? null }))
+    .filter(({ p, closing }) => isPast(p) || closing !== null)
+    .map(({ p, closing }) => {
+      const quote = closing?.answers[0]?.freeText?.trim() || null;
       return {
-        participationId: p.id,
         eventId: p.event.id,
         eventName: eventDisplayName(p.event),
         eventHref: eventHref(p.event),
@@ -127,20 +135,21 @@ export async function getTalentJourney(
         // the event is over: on a running event `READY` says "confirmed", not
         // "absent". So an event carried here by its closing alone shows none.
         presence: isPast(p) ? pastEventPresence(p.sfMemberStatus) : null,
-        closing: p.closing
+        closing: closing
           ? {
-              status: p.closing.status,
-              recommendation: p.closing.recommendation,
-              verdictNote: p.closing.verdictNote?.trim() || null,
+              status: closing.status,
+              recommendation: closing.recommendation,
+              verdictNote: closing.verdictNote?.trim() || null,
               quote,
-              staffName: p.closing.staff.user?.name?.trim() || null,
-              staffImage: p.closing.staff.user?.image ?? null,
+              staffName: closing.staff.user?.name?.trim() || null,
+              staffImage: closing.staff.user?.image ?? null,
             }
           : null,
       };
     });
 
   return {
+    talentId,
     entries,
     eventCount: entries.length,
     closingCount: entries.filter((e) => e.closing?.status === 'done').length,

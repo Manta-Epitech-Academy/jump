@@ -168,6 +168,32 @@ export async function syncTalents(
   });
   if (!event) return { error: 'Event not found' as const };
 
+  // An empty payload for an event that HAS enrolments is refused, never applied.
+  // The prune at the end of this function deletes every participation the
+  // payload does not mention, so an empty one wipes a whole cohort - and the
+  // endpoint had no schema, so a truncated or failed fetch upstream arrived
+  // looking exactly like a legitimately empty campaign.
+  //
+  // Refused rather than logged-and-applied, and with no SyncError row: that
+  // table is keyed on (email, attemptedExtId) and shaped around one person's
+  // identity collision, so an event-level fact does not belong in it. The
+  // refusal reaches a human the honest way instead - the endpoint answers 400,
+  // so `recordSync` never runs and `stats_sync_health` reports this event as
+  // stale, which is exactly what happened.
+  //
+  // Emptying a campaign on purpose is therefore a deliberate act: it needs the
+  // enrolments removed in Jump, not a silent sweep nobody asked for.
+  if (talents.length === 0) {
+    const enrolled = await prisma.participation.count({
+      where: { eventId: event.id },
+    });
+    if (enrolled > 0) {
+      return {
+        error: `Refused: empty payload for "${eventExternalId}", which has ${enrolled} enrolment(s). Applying it would delete every one of them.`,
+      };
+    }
+  }
+
   let created = 0;
   let updated = 0;
   let skipped = 0;

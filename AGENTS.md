@@ -216,6 +216,24 @@ Rules, each of which a reasonable-looking change breaks quietly rather than loud
   a year is the expected shape, deliberately: the successive verdicts and how they
   moved are what "Son parcours" on the fiche is for, which is also why that list
   is bounded against the viewport rather than at a pixel cap.
+- **It is keyed on `(talentId, eventId)`, though, never on the participation's
+  id.** That pair IS `Participation`'s natural key, so the line above still holds
+  as a statement about the domain; what does not is a foreign key. `syncTalents`
+  ends by deleting every participation the Salesforce payload omits, so a cascade
+  from one let the CRM destroy a conducted closing - answers, verdict,
+  testimonial - with none of the trace `Closing_ResetEvent` exists to guarantee,
+  and a truncated payload took a whole cohort's worth at once. Every sibling
+  artifact had already drawn this line for the same reason and said so
+  (`EventPresence`, `Note_TalentNote`, `Feedback_Submission`,
+  `EventPresenceClosure`); closings were the last to be brought over. The roster
+  is still READ from `Participation`, exactly as émargement reads it: only the
+  storage is decoupled. Two consequences to keep. The conduct route is addressed
+  `/closings/[talentId]` under its event, because a closing whose enrolment has
+  been pruned has to stay reachable. And the visibility clause
+  `participationWhere` carries can no longer travel as a relation filter, so a
+  figure whose denominator is enrolments applies it against
+  `scopedEnrolments`' pairs instead - `closingInsights` and `campusComparison`
+  both do, and dropping it is what pushes a coverage rate past 100 %.
 - **`conductedAt` means FINALISED**, re-stamped at clôture, with `createdAt` beside
   it. The admin archive's ordering and windowing, each admin's export high-water
   mark, testimonial recency and the reset snapshot all read it.

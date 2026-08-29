@@ -159,14 +159,14 @@ async function conduct(
 ) {
   const grid = await resolveClosingGridById(ids.template);
   await persistClosing({
-    participationId: ids.participation,
     talentId: ids.talent,
+    eventId: ids.event,
     campusId: ids.campus,
     staffId: ids.staff,
     templateId: ids.template,
     grid: grid!,
     form: {
-      participationId: ids.participation,
+      talentId: ids.talent,
       answers,
       recommendation: 'bon_profil',
       verdictNote: 'Bon échange.',
@@ -197,7 +197,9 @@ describe('conducting a closing', () => {
 
     // Assert
     let record = await prisma.closing_Record.findUniqueOrThrow({
-      where: { participationId: ids.participation },
+      where: {
+        talentId_eventId: { talentId: ids.talent, eventId: ids.event },
+      },
       include: { answers: { include: { selectedOptions: true } } },
     });
     expect(record.status).toBe('in_progress');
@@ -211,7 +213,9 @@ describe('conducting a closing', () => {
     await conduct('save', { [ids.choice]: answer() });
 
     record = await prisma.closing_Record.findUniqueOrThrow({
-      where: { participationId: ids.participation },
+      where: {
+        talentId_eventId: { talentId: ids.talent, eventId: ids.event },
+      },
       include: { answers: { include: { selectedOptions: true } } },
     });
     expect(record.answers).toHaveLength(0);
@@ -222,7 +226,9 @@ describe('conducting a closing', () => {
       [ids.choice]: answer({ selectedIds: [ids.dev] }),
     });
     const record = await prisma.closing_Record.findUniqueOrThrow({
-      where: { participationId: ids.participation },
+      where: {
+        talentId_eventId: { talentId: ids.talent, eventId: ids.event },
+      },
       select: { status: true },
     });
     expect(record.status).toBe('done');
@@ -329,7 +335,9 @@ describe('the structural-edit lock', () => {
     });
     ids.rating = question.id;
     const record = await prisma.closing_Record.findUniqueOrThrow({
-      where: { participationId: ids.participation },
+      where: {
+        talentId_eventId: { talentId: ids.talent, eventId: ids.event },
+      },
       select: { id: true },
     });
     await prisma.closing_Answer.create({
@@ -525,8 +533,8 @@ describe("the talent's journey", () => {
     });
     await prisma.closing_Record.create({
       data: {
-        participationId: participation.id,
         talentId: talent.id,
+        eventId: event.id,
         staffId: ids.staff,
         campusId: ids.campus,
         templateId: ids.template,
@@ -797,14 +805,14 @@ describe('a question dropped from a grid', () => {
   ) {
     const grid = await resolveClosingGridById(own.template);
     await persistClosing({
-      participationId: own.participation,
       talentId: own.talent,
+      eventId: own.event,
       campusId: ids.campus,
       staffId: ids.staff,
       templateId: own.template,
       grid: grid!,
       form: {
-        participationId: own.participation,
+        talentId: own.talent,
         answers,
         recommendation: 'bon_profil',
         verdictNote: '',
@@ -841,7 +849,9 @@ describe('a question dropped from a grid', () => {
     // Assert: the answer is still there. `notIn(keep)` used to delete it here,
     // which lost a real conversation the moment somebody edited a grid.
     const record = await prisma.closing_Record.findUniqueOrThrow({
-      where: { participationId: own.participation },
+      where: {
+        talentId_eventId: { talentId: own.talent, eventId: own.event },
+      },
       select: {
         answers: {
           select: {
@@ -901,7 +911,9 @@ describe('a question dropped from a grid', () => {
     await save({ [own.kept]: answer({ selectedIds: [] }) });
 
     const record = await prisma.closing_Record.findUniqueOrThrow({
-      where: { participationId: own.participation },
+      where: {
+        talentId_eventId: { talentId: own.talent, eventId: own.event },
+      },
       select: { answers: { select: { questionId: true } } },
     });
     const asked = record.answers.map((a) => a.questionId);
@@ -999,7 +1011,7 @@ describe('a note whose grid stopped inviting one', () => {
     over: Partial<{ selectedIds: string[]; note: string }> = {},
   ) {
     return {
-      participationId: own.participation,
+      talentId: own.talent,
       answers: { [own.question]: answer(over) },
       recommendation: 'bon_profil' as const,
       verdictNote: '',
@@ -1015,8 +1027,8 @@ describe('a note whose grid stopped inviting one', () => {
     // the staff member cannot get past, which is the failure this covers.
     expect(closingAnswersIssues(form, grid!)).toEqual([]);
     await persistClosing({
-      participationId: own.participation,
       talentId: own.talent,
+      eventId: own.event,
       campusId: ids.campus,
       staffId: ids.staff,
       templateId: own.template,
@@ -1028,7 +1040,9 @@ describe('a note whose grid stopped inviting one', () => {
 
   const storedNote = async () => {
     const record = await prisma.closing_Record.findUniqueOrThrow({
-      where: { participationId: own.participation },
+      where: {
+        talentId_eventId: { talentId: own.talent, eventId: own.event },
+      },
       select: {
         answers: {
           select: {
@@ -1076,5 +1090,86 @@ describe('a note whose grid stopped inviting one', () => {
     const row = await storedNote();
     expect(row?.note).toBe('Hésite avec une prépa.');
     expect(row?.selectedOptions).toEqual([]);
+  });
+});
+
+describe('a closing outliving its enrolment', () => {
+  /**
+   * The regression this whole shape exists for.
+   *
+   * `syncTalents` ends by deleting every `Participation` the Salesforce payload
+   * does not mention. While a closing hung off that row with `ON DELETE
+   * CASCADE`, the CRM could destroy a conducted closing - the record, its
+   * answers, the team's verdict, the student's testimonial - leaving none of the
+   * trace `Closing_ResetEvent` exists to guarantee. A campaign tidied up after
+   * the event was enough.
+   *
+   * So the assertion is deliberately blunt: delete the participation the way the
+   * sync does, and everything must still be there.
+   */
+  it('should survive the Salesforce sync deleting its participation', async () => {
+    const campus = await prisma.campus.create({
+      data: { name: `Outlive ${stamp}`, timezone: 'Europe/Paris' },
+    });
+    const event = await prisma.event.create({
+      data: {
+        titre: `Outlive ${stamp}`,
+        date: new Date('2026-03-02T00:00:00.000Z'),
+        campusId: campus.id,
+        closingTemplateId: ids.template,
+      },
+    });
+    const talent = await prisma.talent.create({
+      data: { nom: 'Outlive', prenom: `Test${stamp}` },
+    });
+    const participation = await prisma.participation.create({
+      data: { talentId: talent.id, eventId: event.id, campusId: campus.id },
+    });
+
+    const grid = await resolveClosingGridById(ids.template);
+    await persistClosing({
+      talentId: talent.id,
+      eventId: event.id,
+      campusId: campus.id,
+      staffId: ids.staff,
+      templateId: ids.template,
+      grid: grid!,
+      form: {
+        talentId: talent.id,
+        // No per-question note: an earlier test in this file rewords this bank
+        // question through `writeClosingQuestion`, which replaces rather than
+        // patches, so by the time this runs the grid offers none. Nothing to do
+        // with what is under test here.
+        answers: { [ids.choice]: answer({ selectedIds: [ids.dev] }) },
+        recommendation: 'tres_compatible',
+        verdictNote: 'À suivre de près.',
+      },
+      mode: 'close',
+    });
+
+    // Exactly what the end-of-sync prune does to a member dropped from the
+    // campaign.
+    await prisma.participation.delete({ where: { id: participation.id } });
+
+    const record = await prisma.closing_Record.findUnique({
+      where: { talentId_eventId: { talentId: talent.id, eventId: event.id } },
+      include: { answers: { include: { selectedOptions: true } } },
+    });
+
+    expect(record).not.toBeNull();
+    expect(record!.status).toBe('done');
+    expect(record!.recommendation).toBe('tres_compatible');
+    expect(record!.verdictNote).toBe('À suivre de près.');
+    expect(record!.answers).toHaveLength(1);
+    expect(record!.answers[0].selectedOptions).toHaveLength(1);
+    expect(record!.answers[0].selectedOptions[0].optionId).toBe(ids.dev);
+    // And it still names the event it was conducted at, which is what keeps it
+    // reachable from the talent fiche and the admin archive.
+    expect(record!.eventId).toBe(event.id);
+
+    await prisma.closing_Record.deleteMany({ where: { talentId: talent.id } });
+    await prisma.talent.delete({ where: { id: talent.id } });
+    await prisma.event.delete({ where: { id: event.id } });
+    await prisma.campus.delete({ where: { id: campus.id } });
   });
 });

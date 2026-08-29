@@ -173,7 +173,7 @@
   // to conducting one, so the dev lands on the questions rather than on the
   // dossier with a toggle left to find.
   const conductHref = (r: ClosingRow) =>
-    resolve(`/staff/dev/events/${eventId}/closings/${r.participationId}`);
+    resolve(`/staff/dev/events/${eventId}/closings/${r.talentId}`);
 </script>
 
 {#snippet statusBadge(status: ClosingListStatus, full: boolean)}
@@ -241,7 +241,7 @@
         {sortKey}
         {sortDir}
         onSort={toggleSort}
-        rowKey={(r) => r.participationId}
+        rowKey={(r) => r.talentId}
         rowHref={conductHref}
         rowLabel={(r) => `Mener le closing de ${r.prenom} ${r.nom}`}
         stickyHeader

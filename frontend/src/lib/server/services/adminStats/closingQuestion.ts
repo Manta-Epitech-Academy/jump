@@ -42,7 +42,7 @@ import {
   type Ranked,
 } from '$lib/server/adminApi/metrics';
 import { UnknownScopeError, type Scope } from '$lib/server/adminApi/scope';
-import { participationWhere, scopeLabels } from './cohort';
+import { enrolmentKey, scopedEnrolments, scopeLabels } from './cohort';
 
 /** Groups detailed before the answer stops listing them. */
 export const CLOSING_QUESTION_GROUPS_LIMIT = 40;
@@ -118,14 +118,14 @@ type AnswerRow = {
 };
 
 type RecordRow = {
+  talentId: string;
+  eventId: string;
   templateId: string;
-  participation: {
-    event: {
-      id: string;
-      titre: string;
-      publicName: string | null;
-      campus: { name: string };
-    };
+  event: {
+    id: string;
+    titre: string;
+    publicName: string | null;
+    campus: { name: string };
   };
   answers: AnswerRow[];
 };
@@ -161,31 +161,36 @@ export async function getClosingQuestion(
     );
   }
 
-  const enrolmentWhere = await participationWhere(scope);
-  const [askedBy, rows] = await Promise.all([
+  const enrolments = await scopedEnrolments(scope);
+  // The cohort as pairs: a closing keys on (talent, event) rather than on a
+  // participation row, so the visibility clause is applied here rather than as a
+  // relation filter. Without it a talent who withdrew after their closing would
+  // still be counted among those the question was asked of.
+  const enrolled = new Set(enrolments.map(enrolmentKey));
+  const [askedBy, allRows] = await Promise.all([
     prisma.closing_TemplateQuestion.findMany({
       where: { questionId: question.id },
       select: { template: { select: { id: true, label: true } } },
     }),
     prisma.closing_Record.findMany({
-      where: { participation: enrolmentWhere },
+      where: {
+        eventId: { in: [...new Set(enrolments.map((e) => e.eventId))] },
+      },
       // The buckets below are filled in this order, and `rank` breaks a tie on
       // the group name. Without an order here two identical calls could hand the
       // same two rows back the other way round, and a ranking that reshuffles
       // reads as a change.
       orderBy: { id: 'asc' },
       select: {
+        talentId: true,
+        eventId: true,
         templateId: true,
-        participation: {
+        event: {
           select: {
-            event: {
-              select: {
-                id: true,
-                titre: true,
-                publicName: true,
-                campus: { select: { name: true } },
-              },
-            },
+            id: true,
+            titre: true,
+            publicName: true,
+            campus: { select: { name: true } },
           },
         },
         answers: {
@@ -198,6 +203,8 @@ export async function getClosingQuestion(
       },
     }),
   ]);
+
+  const rows = allRows.filter((r) => enrolled.has(enrolmentKey(r)));
 
   const gridOf = new Map(askedBy.map((r) => [r.template.id, r.template.label]));
   // `asked` comes from the grids, not from the answers: a closing conducted with
@@ -314,7 +321,7 @@ export async function getClosingQuestion(
     const buckets = new Map<string, Bucket>();
 
     for (const record of records) {
-      const event = record.participation.event;
+      const event = record.event;
       const identity: Omit<Bucket, 'records'> =
         by === 'campus'
           ? { group: event.campus.name, eventId: null }

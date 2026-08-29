@@ -1413,7 +1413,7 @@ export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
   '/(staff)/staff/dev/events/[id]/bilan': USAGE_FEATURES.DEV_BILAN_VIEW,
   '/(staff)/staff/dev/events/[id]/closings':
     USAGE_FEATURES.DEV_CLOSINGS_ROSTER_VIEW,
-  '/(staff)/staff/dev/events/[id]/closings/[participationId]':
+  '/(staff)/staff/dev/events/[id]/closings/[talentId]':
     USAGE_FEATURES.DEV_CLOSING_CONDUCT_VIEW,
   '/(staff)/staff/dev/events/[id]/planning': USAGE_FEATURES.DEV_PLANNING_VIEW,
   '/(staff)/staff/dev/students/[id]': USAGE_FEATURES.DEV_TALENT_FICHE_VIEW,
