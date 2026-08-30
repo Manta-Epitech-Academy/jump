@@ -1,7 +1,17 @@
 # Profil des données de production
 
 Relevé unique du **2026-08-29**, en agrégats seulement : aucune ligne, aucune donnée
-personnelle n'a été lue, et rien de nominatif ne figure ici.
+personnelle n'a été lue, et rien de nominatif ne figure ici. Il porte sur un
+**instantané de production restauré**, pas sur la production interrogée en direct.
+
+**Tout ce qui vient du worker Salesforce est arrêté au 2026-07-09** : la
+synchronisation a été mise en pause pour l'été, faute d'activité sur les campus.
+`AppSetting['sync.last']` le date précisément, et les dernières lignes créées le
+confirment (`Event` le 08/07, `Talent` et `Participation` le 09/07), là où ce que
+l'application écrit elle-même va jusqu'au 28/08 (`EventPresence`,
+`Onboarding_Record`, `Closing_Record`). Il manque donc sept semaines
+d'inscriptions aux volumes. Pour un profil de **formes et de proportions**, ça ne
+change rien, et ce n'est pas une raison de re-relever.
 
 **Cet accès est refermé.** Ce fichier est la référence durable : il remplace toute
 nouvelle lecture de la base de production. Un chiffre qui manque ici se demande,
@@ -94,7 +104,12 @@ produit un monde que personne n'a jamais vu.
 
 - Par événement : min 1, p25 10, **p50 23**, p75 39, p90 66, **max 247**, moyenne 30.
 - **41 événements ont zéro inscrit**, soit 14 %.
-- `sfMemberStatus` : **NULL sur 100 % des 7 638 lignes.**
+- `sfMemberStatus` : **NULL sur 100 % des 7 638 lignes**, et ce n'est pas une
+  propriété de la production. La migration qui ajoute la colonne date du 21
+  juillet, la dernière sync du 9 : aucune n'a eu lieu depuis qu'elle existe, donc
+  les `NULL` sont arithmétiquement obligatoires. Le générateur ne reproduit
+  délibérément pas ce chiffre - voir `World.enrol` et le scénario
+  `statuts-salesforce`.
 - Par talent : 0 pour 81, 1 pour 3 665, 2 pour 1 243, 3 pour 276, 4 et plus pour
   129 (jusqu'à 11).
 - Au moins un talent est inscrit sur deux campus.

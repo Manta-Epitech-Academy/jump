@@ -220,6 +220,16 @@ produced that is malformed, the accumulation of several years of history, and ho
 to apply. That last one matters here because migrations run from the container's `CMD`, so the incoming
 pod applies the DDL while the outgoing one is still serving.
 
+**No Salesforce worker writes into `staging`, and that is a property of the data, not of a setting.** The
+worker takes its scope from Jump, and the generator writes campuses with no external name, so a seeded
+environment is outside every sync's scope (see the *Development data* section of
+[`AGENTS.md`](../AGENTS.md)). Two things follow. A multi-day window stays frozen, which is the whole
+reason it is held here rather than on `dev`. And the real personal data of minors stops arriving through
+a side door, which is the reason the generator exists at all. What that costs is the question « does the
+sync still hold against the real org », and that question belongs to `preprod` alongside the migration
+rehearsal - not to a rung the PO is reading. The parsing itself is covered continuously by an
+integration test that calls the real `syncTalents` over a crafted payload, on every pull request.
+
 ### Step 7: PR, Self-Review & Merge
 
 Writing the commits and the pull request copy is the agent's job, not a tool's. What follows is the

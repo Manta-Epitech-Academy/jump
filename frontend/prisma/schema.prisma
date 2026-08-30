@@ -8,12 +8,16 @@ datasource db {
 
 // ─── Enums ───
 
-// Difficulty stored as plain string: "Débutant", "Intermédiaire", "Avancé"
-// This avoids enum mapping issues between Prisma TS names and French display values.
-
-// StudentLevel stored as plain string: "Novice", "Apprentice", "Expert"
 // Niveau stored as plain string from the canonical catalogue in
 // `src/lib/domain/niveau.ts` (NIVEAUX); values match jump-sf-worker's ClassLevel.
+// A String column carries no vocabulary of its own, so this one is covered by
+// `scripts/seed/assert/stringCatalogues.ts` rather than by the enum check.
+//
+// Two more comments used to stand here, describing a Difficulty and a
+// StudentLevel column. Neither column exists any more - the XP difficulty scale
+// was retired and `Talent.level` was dropped for `computeLevel(xp)` - and the
+// comments outlived them long enough to be read as a live vocabulary and
+// planned for.
 
 enum ActivityType {
   atelier

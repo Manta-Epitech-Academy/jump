@@ -607,7 +607,13 @@ Four rules, and each is enforced rather than hoped for:
   fails `bun run test:seed` until some scenario produces a row, because the enum
   list is read out of `schema.prisma` (via `getDMMF`) rather than maintained by
   hand. That check is in the `verify` chain, so it fails on the branch that
-  caused it.
+  caused it. A vocabulary carried by a `String` column instead of an enum is
+  covered too (`assert/stringCatalogues.ts`), and there the check runs both ways:
+  every declared value needs a row, and no seeded row may carry a value the
+  catalogue does not declare. That second direction is not pedantry - it caught
+  four invented `Usage_FeatureUse.feature` keys the generator was writing, which
+  no screen would ever have shown as wrong. That half is a hand-kept table,
+  because a `String` column cannot announce its own vocabulary.
 - **Nothing reads the wall clock and nothing draws from `Math.random()`.** Every
   date derives from `--today` and every choice from `--seed`, both printed in the
   manifest the run emits. A scenario written as "an event that has not happened
@@ -621,6 +627,16 @@ Four rules, and each is enforced rather than hoped for:
   and is not re-measured. It was taken once, in aggregates, with no row ever read;
   a figure that is missing from it gets asked for rather than looked up in
   production.
+
+- **A seeded database is inert to the Salesforce worker, by construction.** The
+  worker takes its scope from Jump - `GET /api/worker/campus` hands out
+  `listCampuses()`, and `syncEvents` resolves what comes back against
+  `Campus.externalName` - so the generator writes no external name at all and
+  `listCampuses` only returns campuses that have one. A generated environment
+  therefore answers an empty list, on any machine, and no real minor's data can
+  land in it. This is not a flag somebody re-enables by forgetting: there is no
+  campus to resolve. Turning the sync on for one campus is an explicit act on
+  `/staff/admin/campuses`, where a blank external name already means null.
 
 The seed deliberately over-represents what production barely contains. There are
 three part-way dossiers in production out of 887; the generator stands one on
