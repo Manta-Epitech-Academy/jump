@@ -397,7 +397,7 @@ bun run verify
 C'est le contrat de ce document. `verify` enchaîne exactement ce que les checks
 requis exécutent, dans le même ordre, avec les mêmes scripts : `lint:scripts`,
 `lint`, `lint:design`, `lint:tests`, `check`, `test`, `test:integration`,
-`test:schema-drift`, `test:e2e`. Un agent (ou un humain) peut donc produire du
+`test:schema-drift`, `test:seed`, `test:e2e`. Un agent (ou un humain) peut donc produire du
 code, le vérifier, corriger et revérifier avant d'ouvrir la PR, et « j'ai
 vérifié » devient une affirmation que quelqu'un d'autre peut recontrôler.
 
@@ -416,10 +416,43 @@ bun run test:db             # provisionne seulement
 # Le schéma correspond-il à sa trace de migrations ?
 bun run test:schema-drift
 
+# Le générateur de données couvre-t-il encore le schéma ?
+bun run test:seed
+
 # E2E : provisionne la base, build, lève le serveur, pilote Chromium
 bun run test:e2e
 bun run test:e2e:ui         # mode debug
 ```
+
+### Le générateur de données
+
+`bun run test:seed` sème le profil `ci` puis exécute sa propre passe de
+vérification. Ce n'est pas une suite de tests, c'est un mode du générateur
+(`--check`), et cette distinction est délibérée : une vérification qu'il faut
+penser à lancer séparément est une vérification qui cesse d'être lancée.
+
+Ce qu'elle prouve, et pourquoi c'est elle qui vous préviendra en premier :
+
+- **Chaque valeur de chaque énumération du schéma a au moins une ligne.** La
+  liste des énumérations est lue de `schema.prisma` (via `getDMMF`, comme
+  `scripts/gen-db-erd.ts`), jamais écrite à la main. Donc le jour où vous ajoutez
+  une clé de module, une source de XP ou un statut de présence, cette
+  vérification réclame une ligne pour elle **dans votre PR**, sans que personne
+  ait eu à mettre une liste à jour.
+- **Les projections valent leurs faits** : `Talent.xp` égale la somme du registre
+  XP, `eventsCount` les présences distinctes, et les colonnes plates
+  d'inscription correspondent au dossier le plus récent, champ par champ.
+- **Les états sont atteignables**, vérifiés avec le domaine lui-même :
+  `getOnboardingStep` renvoie chaque étape de l'échelle, `imageRightsStance`
+  renvoie ses trois positions, `eventRunsClosings` répond vrai et faux.
+
+Un échec se corrige en ajoutant un scénario dans `frontend/scripts/seed/`, pas en
+retirant la vérification.
+
+La base est distincte de celle des tests d'intégration (`TEST_DB_SUITE=seed`),
+pour la même raison que l'E2E a la sienne : plusieurs suites d'intégration lisent
+des agrégats à l'échelle de la plateforme, qu'un jeu de données complet
+fausserait sans rien dire.
 
 ### Prérequis : il n'y en a qu'un
 
@@ -537,11 +570,11 @@ merge. Pour le détail, et pour les quatre règles cosmétiques retirées quand 
 Trois jobs dans `.github/workflows/test.yml`, tous trois checks **requis** sur la
 règle `push dev` (voir `.github/settings/repo-config.json`) :
 
-| Job                          | Ce qu'il exécute                                                                           |
-| ---------------------------- | ------------------------------------------------------------------------------------------ |
-| **Lint & Type Check**        | `lint:scripts` (bit exécutable), `lint`, `lint:design`, `lint:tests`, `check`              |
-| **Unit & Integration Tests** | `test:coverage`, puis `test:integration` contre un vrai Postgres, puis `test:schema-drift` |
-| **E2E Tests**                | build + serveur + les specs Playwright, avec le rapport HTML uploadé en cas d'échec        |
+| Job                          | Ce qu'il exécute                                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Lint & Type Check**        | `lint:scripts` (bit exécutable), `lint`, `lint:design`, `lint:tests`, `check`                                |
+| **Unit & Integration Tests** | `test:coverage`, puis `test:integration` contre un vrai Postgres, puis `test:schema-drift`, puis `test:seed` |
+| **E2E Tests**                | build + serveur + les specs Playwright, avec le rapport HTML uploadé en cas d'échec                          |
 
 **Une PR ne peut pas être mergée si un de ces jobs échoue** (à une réserve près,
 documentée dans `CONTRIBUTING.md` : une exception de bypass sur la règle `push dev`

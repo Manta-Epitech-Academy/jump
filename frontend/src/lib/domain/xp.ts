@@ -10,9 +10,12 @@ export const WELCOME_XP_BONUS = 200;
 /**
  * XP granted for finishing the daily minigame. Flat — it rewards showing up and
  * completing the challenge, not performance (placing on the board is the
- * performance reward, see `minigameRankBonus`). Kept below the top activity tier
- * (Avancé = 75) so a repeatable daily game never out-earns the most demanding
- * real activity.
+ * performance reward, see `minigameRankBonus`).
+ *
+ * The amount was chosen to sit below the old per-activity difficulty scale, which
+ * was retired with event-linked presence XP (5fb78617): there is no longer an
+ * activity grant for a daily game to out-earn. It is kept where it is because the
+ * balance against `reward` and `minigameRankBonus` still holds.
  */
 export const MINIGAME_XP_REWARD = 50;
 

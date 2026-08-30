@@ -137,6 +137,16 @@ jobs:
       - name: Schema matches its migrations
         run: bun run test:schema-drift
 
+      # A step inside this job rather than a job of its own, deliberately. A new
+      # job would need adding to the required-check list in
+      # .github/settings/repo-config.json to block anything, and the note at the
+      # top of this file explains what happens when that list and these names
+      # drift. The seed generator gets its own database (TEST_DB_SUITE=seed), so
+      # it cannot disturb the integration suites that just ran: several of them
+      # read platform-wide aggregates a full dataset would widen.
+      - name: Seed generator covers the schema
+        run: bun run test:seed
+
   e2e:
     name: E2E Tests
     needs: unit-and-integration

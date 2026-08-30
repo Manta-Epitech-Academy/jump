@@ -288,7 +288,7 @@ The safe default here is the smallest thing that meets the need. Four rules, lea
 
 ### XP System
 
-XP follows the ledger pattern above. Each granting fact is one `XpGrant` row (unique on `(source, sourceId)`; sources: `onboarding`, `minigame`, `activity_presence`, `admin_adjustment`). `Talent.xp` = `SUM(amount)` and `Talent.eventsCount` = present-participation count, both cached projections.
+XP follows the ledger pattern above. Each granting fact is one `XpGrant` row (unique on `(source, sourceId)`; sources: `onboarding`, `onboarding_early_bird`, `minigame`, `minigame_rank`, `reward`, `admin_adjustment`). `Talent.xp` = `SUM(amount)` and `Talent.eventsCount` = present-participation count, both cached projections.
 
 - **Never mutate `Talent.xp` directly.** It's a cached projection of `XpGrant`; go through `xpService` so the recompute stays atomic.
 - Activity difficulty → XP: Débutant=20, Intermédiaire=45, Avancé=75 (`src/lib/domain/xp.ts`).
@@ -576,7 +576,7 @@ or reworking a staff list page.
 
 - **RGPD:** Some users are minors. The charter must be signed before accessing the app. Anonymization job available via `POST /api/jobs/anonymize` with `Authorization: Bearer <CRON_SECRET>`. Never store personal data unnecessarily.
 - **Salesforce:** `Event.externalId` optionally links events to Salesforce campaigns.
-- **Scale:** typical stage de seconde event = ~200 students. Cohort-wide views (origin breakdowns, interest distributions, attendance lists) hit this volume — keep it in mind when designing layouts and queries.
+- **Scale: design for the tail AND for the long tail, they are different problems.** A stage de seconde runs to ~200 students and that is the volume cohort-wide views are judged at (origin breakdowns, interest distributions, attendance lists, exports). But it is the tail of the distribution, not the norm: the median event carries 23 enrolments, three quarters carry under 40, and 41 of 292 carry none at all. Most events are also unconfigured - 235 of 292 have no module. So a screen has to survive 200 rows and has to survive being empty, and the second case is the one that is more common and gets tested less. The measured distributions live in `frontend/scripts/seed/PROFILE.md`; the generator applies them, so both cases are in front of you by default.
 - **Stateless pods:** SvelteKit pods scale horizontally on kube. Don't put source-of-truth state in process memory; each replica would carry its own and a pod restart would wipe it.
 - **Outbound sends:** mail and SMS are trapped unless `OUTBOUND_MODE=real`, and prod is the only environment that sets it. Never widen that gate to debug a send, and never arm real sends from a non-prod environment: recipients are minors (RGPD).
 
@@ -591,6 +591,47 @@ Both are provider façades (`$lib/server/email/`, `$lib/server/sms/`) fronted by
 dev-redirect priority order live in `.claude/skills/outbound-messaging/SKILL.md` (Claude Code loads it
 as the `/outbound-messaging` skill; other agents read the file). Read it before touching any code path
 that sends.
+
+## Development data
+
+`bun run seed` fills a database from named scenarios (`frontend/scripts/seed/`).
+It replaced a 3326-line demo seed, and the reason it exists is not tidiness: the
+only credible dataset used to be a clone of production, so that is where feature
+validation happened, which put real minors' personal data on non-prod
+environments for days at a time and put the validation gate after the release
+freeze. Both problems are downstream of the data.
+
+Four rules, and each is enforced rather than hoped for:
+
+- **A pull request that adds a behaviour adds its example.** A new enum value
+  fails `bun run test:seed` until some scenario produces a row, because the enum
+  list is read out of `schema.prisma` (via `getDMMF`) rather than maintained by
+  hand. That check is in the `verify` chain, so it fails on the branch that
+  caused it.
+- **Nothing reads the wall clock and nothing draws from `Math.random()`.** Every
+  date derives from `--today` and every choice from `--seed`, both printed in the
+  manifest the run emits. A scenario written as "an event that has not happened
+  yet" must still mean that in six months.
+- **The domain is imported, never restated.** `src/lib/domain` is alias-free, so
+  a plain `bun` script reaches it by relative path. The services are not: they
+  reach `$lib/server/db` and do not resolve outside Vite, so the generator writes
+  rows and `--check` runs the domain's own functions over the result. The
+  generator constructs, the domain verifies.
+- **The measured shape of production lives in `frontend/scripts/seed/PROFILE.md`**
+  and is not re-measured. It was taken once, in aggregates, with no row ever read;
+  a figure that is missing from it gets asked for rather than looked up in
+  production.
+
+The seed deliberately over-represents what production barely contains. There are
+three part-way dossiers in production out of 887; the generator stands one on
+every rung of the ladder, because those are the states the wizard is made of and
+no amount of realistic volume produces them.
+
+Two things it does not touch. The E2E fixtures
+(`frontend/tests/e2e/fixtures/seed.ts`) keep their own six accounts: a spec
+anchored to a large dataset breaks the first time somebody adjusts it. And the
+integration suites keep building their own fixtures per file, several of them
+reading platform-wide aggregates a full dataset would silently widen.
 
 ## Prisma Migrations
 
