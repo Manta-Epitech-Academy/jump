@@ -14,10 +14,14 @@
  */
 
 import { ONBOARDING_STEP_ORDER } from '../../../src/lib/domain/talentOnboarding';
-import { CURRENT_DROIT_IMAGE_VERSION } from '../catalog/documentVersions';
+import {
+  DROIT_IMAGE_VERSIONS,
+  versionForYear,
+} from '../catalog/documentVersions';
 import { MANUAL_SCHOOL_NAMES } from '../catalog/schools';
 import { NOMS, PRENOMS } from '../catalog/people';
 import { addDossier } from '../factories/onboarding';
+import { NIVEAUX } from '../../../src/lib/domain/niveau';
 import type { Scenario } from './types';
 
 export const edgeTalents: Scenario = {
@@ -131,11 +135,25 @@ export const edgeTalents: Scenario = {
       talent: corrected,
       decision: 'refused',
       schoolYear,
-      version: CURRENT_DROIT_IMAGE_VERSION,
+      version: versionForYear(DROIT_IMAGE_VERSIONS, schoolYear),
       decidedAt: clock.days(-12),
       source: 'staff_correction',
       recordedByStaffId: world.staff[0]?.id ?? null,
     });
+
+    // One talent on every niveau the domain declares.
+    //
+    // Production's distribution is dominated by 2nde (55.7%) and thins out to a
+    // tenth of a percent, so realistic volume alone leaves ten of the sixteen
+    // with no row at all - and `isOnboardingEligible` branches on collège
+    // against lycée, while the broadcast filters and the cohort profile all read
+    // this column. Same reason a talent stands on every rung of the onboarding
+    // ladder: these are states the code is made of, not states volume produces.
+    for (const niveau of NIVEAUX) {
+      const talent = spawn(`Niveau${niveau}`, niveau);
+      world.enrol(event, talent);
+      world.addSchoolingRecord(talent, schoolYear, null);
+    }
 
     // No login account at all: 70 talents are in this state, and every screen
     // that offers impersonation has to say so instead of offering it.

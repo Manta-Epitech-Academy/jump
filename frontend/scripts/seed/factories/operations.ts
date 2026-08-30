@@ -11,6 +11,7 @@
 import type { StaffRole, TalentDeletionRequestStatus } from '@prisma/client';
 import type { World, TalentRef, StaffRef, CampusRef, EventRef } from '../world';
 import { id, seq } from '../ids';
+import { USAGE_FEATURES } from '../../../src/lib/domain/usage';
 
 /**
  * Unresolved sync errors.
@@ -207,11 +208,15 @@ export function addUsage(
   },
 ): void {
   const clock = world.ctx.clock;
+  // Read from the catalogue, never spelled out. Four invented keys sat here
+  // until the string-catalogue check refused them: a feature key that is not in
+  // `USAGE_FEATURES` is a row the adoption matrix can never attribute, and no
+  // screen would have shown the mistake.
   const features = [
-    'emargement_open',
-    'inscrits_export',
-    'closing_conduct',
-    'broadcast_send',
+    USAGE_FEATURES.DEV_EMARGEMENT_VIEW,
+    USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+    USAGE_FEATURES.DEV_CLOSING_CONDUCT_VIEW,
+    USAGE_FEATURES.ADMIN_BROADCAST_ENQUEUE,
   ];
 
   for (const [index, member] of opts.staff.entries()) {

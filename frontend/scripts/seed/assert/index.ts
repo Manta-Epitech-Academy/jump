@@ -8,21 +8,27 @@
  */
 
 import type { PrismaClient } from '@prisma/client';
+import type { Clock } from '../clock';
 import { clockFailures } from './clock';
 import { missingEnumValues } from './enums';
+import { stringCatalogueFailures } from './stringCatalogues';
 import { projectionFailures } from './projections';
 import { reachabilityFailures } from './reachability';
 
 export async function runChecks(
   prisma: PrismaClient,
   log: (message: string) => void,
-  anchor: Date,
+  clock: Clock,
 ): Promise<number> {
   const groups: [string, string[]][] = [
     ['couverture des énumérations', await missingEnumValues(prisma)],
     ['projections', await projectionFailures(prisma)],
-    ['états atteignables', await reachabilityFailures(prisma, anchor)],
-    ['horodatages ancrés', await clockFailures(prisma, anchor)],
+    ['états atteignables', await reachabilityFailures(prisma, clock.today)],
+    ['horodatages ancrés', await clockFailures(prisma, clock.today)],
+    [
+      'catalogues texte',
+      await stringCatalogueFailures(prisma, clock.schoolYear),
+    ],
   ];
 
   let failed = 0;

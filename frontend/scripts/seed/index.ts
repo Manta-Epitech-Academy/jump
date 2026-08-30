@@ -285,7 +285,7 @@ async function main(): Promise<void> {
 
     if (args.check) {
       log('Vérification :');
-      const failures = await runChecks(prisma, log, clock.today);
+      const failures = await runChecks(prisma, log, clock);
       if (failures > 0) {
         throw new Error(
           `${failures} vérification(s) en échec. Une valeur d’énumération sans ligne se corrige en ajoutant son scénario, pas en retirant la vérification.`,

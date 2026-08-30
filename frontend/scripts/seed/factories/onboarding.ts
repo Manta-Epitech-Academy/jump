@@ -30,8 +30,9 @@ import {
   type OnboardingStep,
 } from '../../../src/lib/domain/talentOnboarding';
 import {
-  CURRENT_DROIT_IMAGE_VERSION,
-  CURRENT_REGLEMENT_VERSION,
+  DROIT_IMAGE_VERSIONS,
+  REGLEMENT_VERSIONS,
+  versionForYear,
 } from '../catalog/documentVersions';
 import type { World, TalentRef } from '../world';
 import { id } from '../ids';
@@ -70,6 +71,10 @@ export function addDossier(
 ): void {
   const clock = world.ctx.clock;
   const filed = clock.days(opts.filedOffset ?? -60);
+  const imageRightsVersion = versionForYear(
+    DROIT_IMAGE_VERSIONS,
+    opts.schoolYear,
+  );
   const dossier: Prisma.Onboarding_RecordCreateManyInput = {
     id: id('onb', opts.talent.id.replace(/^sd_/, ''), opts.schoolYear),
     talentId: opts.talent.id,
@@ -93,7 +98,10 @@ export function addDossier(
   const signedRules = opts.stopAt === null;
   if (signedRules) {
     dossier.rulesSignedCity = 'Paris';
-    dossier.reglementVersion = CURRENT_REGLEMENT_VERSION;
+    dossier.reglementVersion = versionForYear(
+      REGLEMENT_VERSIONS,
+      opts.schoolYear,
+    );
     dossier.rulesFilePath = `documents/${opts.talent.id}/rules-${opts.schoolYear}.pdf`;
     if (opts.parentCoSigned ?? true) {
       dossier.parentRulesSignedAt = clock.days((opts.filedOffset ?? -60) + 8);
@@ -112,13 +120,13 @@ export function addDossier(
     dossier.imageRightsSignerNom = opts.talent.nom;
     dossier.imageRightsRelationship = 'Parent';
     dossier.imageRightsSignedCity = 'Paris';
-    dossier.imageRightsVersion = CURRENT_DROIT_IMAGE_VERSION;
+    dossier.imageRightsVersion = imageRightsVersion;
     dossier.imageRightsFilePath = `documents/${opts.talent.id}/image-rights-${opts.schoolYear}.pdf`;
     world.imageRightsDecision({
       talent: opts.talent,
       decision: opts.imageRights,
       schoolYear: opts.schoolYear,
-      version: CURRENT_DROIT_IMAGE_VERSION,
+      version: imageRightsVersion,
       decidedAt,
     });
   }
@@ -168,7 +176,22 @@ export function addDossier(
     row.onboardingSchoolYear = opts.schoolYear;
     // Account-scoped, not dossier-scoped: the RGPD charter is accepted once per
     // account and never re-asked, and the welcome splash is seen once.
-    row.charterAcceptedAt = clock.days((opts.filedOffset ?? -60) - 1);
+    const charterAcceptedAt = clock.days((opts.filedOffset ?? -60) - 1);
+    row.charterAcceptedAt = charterAcceptedAt;
+    // Its own artifact, and account-scoped rather than annual: the charter is a
+    // once-per-account consent, so the job carries the year it was rendered in
+    // and never gets a second one. Without this the whole `charter` branch of
+    // the PDF worker had no example - and it is the only document a collégien
+    // ever signs, since they have no dossier at all.
+    world.buffer.onboardingPdfJob.push({
+      id: id('opj', opts.talent.id.replace(/^sd_/, ''), 'charter'),
+      talentId: opts.talent.id,
+      documentType: 'charter',
+      schoolYear: opts.schoolYear,
+      status: 'success',
+      filePath: `documents/${opts.talent.id}/charter.pdf`,
+      processedAt: charterAcceptedAt,
+    });
     row.welcomeSeenAt = clock.days((opts.filedOffset ?? -60) - 1);
     row.firstLoginAt = clock.days((opts.filedOffset ?? -60) - 1);
     row.lastActiveAt = clock.days(-5);
