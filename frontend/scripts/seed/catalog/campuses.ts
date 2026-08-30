@@ -8,8 +8,11 @@
  * five-actor floor the usage figures mask below. Moulins exists in this list for
  * exactly that reason.
  *
- * `externalName` is what Salesforce calls the campus, which is how the event
- * sync finds it.
+ * There is deliberately no `externalName` here. That column is what the event
+ * sync resolves a campus by, so leaving it unset is what keeps a seeded database
+ * out of every sync's scope - see the comment on `listCampuses`. These campuses
+ * carry real names because a screen has to read like the real thing; they are
+ * not the real campuses, and nothing here comes from Salesforce.
  */
 
 export type CampusSpec = {

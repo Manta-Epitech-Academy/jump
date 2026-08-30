@@ -44,8 +44,30 @@ async function resolveSchools(
   return idByUai;
 }
 
+/**
+ * The campuses the worker is asked to sync, which is to say: the ones Jump has
+ * mapped to Salesforce.
+ *
+ * The `externalName` filter is what makes a generated database inert. The scope
+ * of a sync is data in THIS database, not configuration on the worker's side, so
+ * that is where the isolation belongs: `scripts/seed/` writes no `externalName`
+ * at all, so a seeded environment answers an empty list and the worker has
+ * nothing to do. A flag on the worker would be re-enabled by whoever forgets;
+ * this cannot be, because there is no campus to resolve. Turning the sync back
+ * on for one campus is then an explicit act on /staff/admin/campuses, where the
+ * field already exists and an empty box already means null.
+ *
+ * Nothing changes in production, where every campus carries its external name.
+ *
+ * Known wart, deliberately left alone: this hands out `name` while `syncEvents`
+ * below resolves the path parameter against `externalName`, and nothing in this
+ * repository maps one to the other - they coincide by convention. The consumer
+ * lives in the worker repository, so changing the shape of this payload blind
+ * would break an integration nothing here can test.
+ */
 export async function listCampuses() {
   return prisma.campus.findMany({
+    where: { externalName: { not: null } },
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
   });
