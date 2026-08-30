@@ -85,8 +85,13 @@ if [ -f "$TEMPLATE" ] && ! grep -qiE '^#+[[:space:]]+definition of done' "$BODY_
     printf '\n'
     awk '
       /^##[[:space:]]+Definition of Done/ { found = 1 }
-      found && /^[[:space:]]*<!--/ { exit }
-      found { print }
+      !found { next }
+      # Skip the template comment blocks rather than stopping at the first one:
+      # the guidance comment sits between the prose and the items, so exiting
+      # there appended a Definition of Done with no boxes in it.
+      /<!--/ { comment = 1 }
+      comment { if (/-->/) comment = 0; next }
+      { print }
     ' "$TEMPLATE"
   } >> "$BODY_FILE"
   echo "appended the Definition of Done from $TEMPLATE"
