@@ -36,8 +36,14 @@ export const BANK_KEYS = {
   nextYearEvents: 'next_year_events',
 } as const;
 
-export const STAGE_TEMPLATE_KEY = 'clt_stage_seconde';
-export const CLUB_TEMPLATE_KEY = 'clt_coding_club';
+/**
+ * The grid key, which is not the row id: the migration writes id
+ * `clt_stage_seconde` and key `stage_seconde`. Looking one up by the other is a
+ * silent miss, so the lookup is by key and the runner refuses when it finds
+ * nothing rather than writing a dangling reference.
+ */
+export const STAGE_TEMPLATE_KEY = 'stage_seconde';
+export const CLUB_TEMPLATE_KEY = 'coding_club';
 
 export type TemplateQuestionSpec = {
   readonly questionKey: string;

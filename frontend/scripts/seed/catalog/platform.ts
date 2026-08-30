@@ -58,11 +58,15 @@ export const MINIGAMES: readonly MinigameSpec[] = [
     weight: 1,
   },
   { game: 'zip', gameName: 'Zip', levels: 4, scoringType: 'chrono', weight: 2 },
+  // jump-games publishes only chrono-ranked games today, so `score` has no
+  // production example. It is seeded anyway: the enum, the publication snapshot
+  // and the ranking all still support it, and a branch with no row is a branch
+  // nobody can look at. A deliberate departure from PROFILE.md.
   {
     game: 'queens',
     gameName: 'Queens',
     levels: 4,
-    scoringType: 'chrono',
+    scoringType: 'score',
     weight: 2,
   },
 ];

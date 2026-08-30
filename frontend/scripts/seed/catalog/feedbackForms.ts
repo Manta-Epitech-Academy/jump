@@ -15,11 +15,14 @@
 
 import {
   type PrismaClient,
+  type Feedback_FormStatus,
   type Feedback_OptionKind,
   type Feedback_QuestionType,
   type Feedback_InputKind,
   type Feedback_IdentityField,
 } from '@prisma/client';
+
+import { IDENTITY_FIELD_TO_INPUT_KIND } from '../../../src/lib/domain/feedbackForms/schema';
 
 import stage from './feedbackForms/stage.json' with { type: 'json' };
 import w1 from './feedbackForms/w1.json' with { type: 'json' };
@@ -57,6 +60,13 @@ interface FormSpec {
   dashboardNudge: boolean;
   allowsPublicAccess: boolean;
   personaName: string | null;
+  /**
+   * A form is not always published. The builder produces drafts and archives
+   * old forms, and both states change what the talent-facing side may show, so
+   * the seeded set carries one of each rather than three published forms.
+   */
+  status: Feedback_FormStatus;
+  extraAuthoredQuestion?: JsonQuestion;
 }
 
 const SPECS: FormSpec[] = [
@@ -65,18 +75,34 @@ const SPECS: FormSpec[] = [
     dashboardNudge: true,
     allowsPublicAccess: true,
     personaName: 'Bernard le canard',
+    status: 'published',
   },
   {
     json: w1 as JsonForm,
     dashboardNudge: false,
     allowsPublicAccess: false,
     personaName: null,
+    status: 'draft',
+    // A short-answer question with an explicit input kind. The three fixtures
+    // are transcriptions of forms authored before `inputKind` existed, so none
+    // of them carries one on a content question - only the builder produces
+    // that, and it is the only way `Feedback_InputKind.text` is reachable. It
+    // is attached to the draft because a draft is a form being authored.
+    extraAuthoredQuestion: {
+      id: 'prenom_usage',
+      prompt: 'Sous quel prénom préfères-tu qu’on t’appelle ?',
+      required: false,
+      type: 'text',
+      inputKind: 'text',
+      placeholder: 'Ton prénom d’usage',
+    },
   },
   {
     json: w2 as JsonForm,
     dashboardNudge: false,
     allowsPublicAccess: false,
     personaName: null,
+    status: 'archived',
   },
 ];
 
@@ -114,7 +140,12 @@ function buildOptions(q: JsonQuestion): {
 }
 
 async function seedForm(prisma: PrismaClient, spec: FormSpec): Promise<void> {
-  const { json } = spec;
+  const json: JsonForm = spec.extraAuthoredQuestion
+    ? {
+        ...spec.json,
+        questions: [...spec.json.questions, spec.extraAuthoredQuestion],
+      }
+    : spec.json;
   const existing = await prisma.feedback_Form.findUnique({
     where: { slug: json.id },
     select: { id: true },
@@ -132,7 +163,7 @@ async function seedForm(prisma: PrismaClient, spec: FormSpec): Promise<void> {
         intro: json.intro,
         outro: json.outro ?? null,
         personaName: spec.personaName,
-        status: 'published',
+        status: spec.status,
         allowsAuthenticatedAccess: true,
         allowsPublicAccess: spec.allowsPublicAccess,
         dashboardNudge: spec.dashboardNudge,
@@ -177,7 +208,14 @@ async function seedForm(prisma: PrismaClient, spec: FormSpec): Promise<void> {
           type: q.type,
           required: q.required,
           identityField: q.identityField ?? null,
-          inputKind: q.inputKind ?? null,
+          // An identity question derives its validation kind from the field,
+          // exactly as `domain/feedbackForms/schema.ts` does when the builder
+          // projects a form. The fixtures predate `inputKind` and carry none,
+          // so without this a seeded email field would validate as free text
+          // and the enum would have no rows at all.
+          inputKind: q.identityField
+            ? (IDENTITY_FIELD_TO_INPUT_KIND[q.identityField] ?? null)
+            : (q.inputKind ?? null),
           minSelections: q.minSelections ?? null,
           maxSelections: q.maxSelections ?? null,
           placeholder: q.placeholder ?? null,
@@ -196,9 +234,13 @@ async function seedForm(prisma: PrismaClient, spec: FormSpec): Promise<void> {
 export async function seedFeedbackForms(prisma: PrismaClient): Promise<number> {
   let created = 0;
   for (const spec of SPECS) {
-    const before = await prisma.feedback_Form.count({ where: { slug: spec.json.id } });
+    const before = await prisma.feedback_Form.count({
+      where: { slug: spec.json.id },
+    });
     await seedForm(prisma, spec);
-    const after = await prisma.feedback_Form.count({ where: { slug: spec.json.id } });
+    const after = await prisma.feedback_Form.count({
+      where: { slug: spec.json.id },
+    });
     if (after > before) created += 1;
   }
   return created;

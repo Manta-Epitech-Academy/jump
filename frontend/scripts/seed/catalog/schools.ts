@@ -144,6 +144,55 @@ export const SCHOOLS: readonly SchoolSpec[] = [
 ];
 
 /**
+ * The tail.
+ *
+ * The named list above is the head of the distribution: the lycées a campus
+ * actually sees several students from. Production carries 891 schools, and 432
+ * of them have exactly one talent - anything measuring school reach, or lycée
+ * churn between two years, is judged on that tail rather than on the head.
+ *
+ * Generated rather than listed, because 900 invented school names carry no
+ * information and would be 900 lines nobody reads. The UAI keeps the real
+ * format (department code, sequence, check letter) so anything parsing it works.
+ */
+export function tailSchools(count: number): SchoolSpec[] {
+  const departments = [
+    '075',
+    '013',
+    '069',
+    '059',
+    '044',
+    '067',
+    '035',
+    '034',
+    '006',
+    '974',
+    '031',
+    '033',
+    '068',
+    '054',
+    '003',
+  ];
+  const kinds = ['Lycée', 'Lycée polyvalent', 'Lycée professionnel', 'Collège'];
+  const out: SchoolSpec[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const department = departments[i % departments.length]!;
+    const sequence = String(1000 + Math.floor(i / departments.length)).padStart(
+      4,
+      '0',
+    );
+    const letter = String.fromCharCode(65 + (i % 26));
+    out.push({
+      uai: `${department}${sequence}${letter}`,
+      name: `${kinds[i % kinds.length]} ${department}-${sequence}`,
+      city: `Commune ${department}`,
+      postalCode: `${department}00`,
+    });
+  }
+  return out;
+}
+
+/**
  * A lycée with no UAI at all. Some students name a school the annuaire does not
  * know, and the app stores that as free text in `Talent.highSchoolNameManual`
  * instead of an FK. 57 talents are in that state in production, and every screen
