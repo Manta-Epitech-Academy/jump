@@ -128,10 +128,13 @@ export function addFeedbackSubmission(
   });
 
   for (const question of form.questions) {
+    // Both halves whole, never a suffix: the catalogue's question ids are
+    // derived and readable now, so their last characters are no longer the
+    // unique part they were when Prisma minted a cuid.
     const answerId = id(
       'fba',
       submissionId.replace(/^sd_/, ''),
-      question.id.slice(-8),
+      question.id.replace(/^sd_ffq_/, ''),
     );
     const free = question.optionIds.length === 0;
     world.buffer.feedback_Answer.push({

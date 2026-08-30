@@ -17,10 +17,8 @@
  * optional column in the schema.
  */
 
-import path from 'node:path';
-import { getDMMF } from '@prisma/internals';
-import { readFile } from 'node:fs/promises';
 import type { PrismaClient } from '@prisma/client';
+import { loadDatamodel } from '../schema';
 
 export type EnumTarget = {
   enumName: string;
@@ -31,19 +29,17 @@ export type EnumTarget = {
 
 /** Where each enum is actually used, so a value can be counted somewhere. */
 export async function enumTargets(): Promise<EnumTarget[]> {
-  const schemaPath = path.resolve(__dirname, '../../../prisma/schema.prisma');
-  const datamodel = await readFile(schemaPath, 'utf8');
-  const dmmf = await getDMMF({ datamodel });
+  const datamodel = await loadDatamodel();
 
   const byName = new Map(
-    dmmf.datamodel.enums.map((entry) => [
+    datamodel.enums.map((entry) => [
       entry.name,
       entry.values.map((v) => v.name),
     ]),
   );
   const targets: EnumTarget[] = [];
 
-  for (const model of dmmf.datamodel.models) {
+  for (const model of datamodel.models) {
     for (const field of model.fields) {
       if (field.kind !== 'enum') continue;
       const values = byName.get(field.type);

@@ -21,6 +21,7 @@
 
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { SEED_ID_PREFIX } from './ids';
+import { loadDatamodel } from './schema';
 
 /**
  * One array per model, flushed in this declaration order.
@@ -144,15 +145,116 @@ export function createBuffer(): Buffered {
   ) as unknown as Buffered;
 }
 
+/**
+ * The columns of one model that Prisma would fill from the wall clock.
+ *
+ * Read out of `schema.prisma`, not listed here, for the reason the enum check
+ * is: 55 models carry `@default(now())` and a hand-kept list would be wrong the
+ * first time somebody adds the 56th. It is read from the SCHEMA rather than the
+ * client's own `Prisma.dmmf` because that one is trimmed at build time and
+ * carries neither a field's default nor its `@updatedAt` flag - which is how
+ * `TalentSfImport.syncedAt` slipped through a first version of this that matched
+ * on the column NAME. A rule that keys on names only holds while everybody names
+ * things the same way.
+ */
+type StampPlan = {
+  /** `@default(now())` columns: the moment the row came into existence. */
+  readonly created: readonly string[];
+  /** `@updatedAt` columns: the moment it was last touched. */
+  readonly updated: readonly string[];
+  /** Every other DateTime column, which is what a plausible stamp is derived from. */
+  readonly otherDates: readonly string[];
+};
+
+/** Prisma's delegate name is the model name with a lowercased first character. */
+function delegateName(modelName: string): string {
+  return modelName.charAt(0).toLowerCase() + modelName.slice(1);
+}
+
+async function stampPlans(): Promise<Map<string, StampPlan>> {
+  const datamodel = await loadDatamodel();
+  return new Map(
+    datamodel.models.map((model) => {
+      const dates = model.fields.filter((field) => field.type === 'DateTime');
+      return [
+        delegateName(model.name),
+        {
+          created: dates
+            .filter(
+              (field) => field.default !== undefined && !field.isUpdatedAt,
+            )
+            .map((field) => field.name),
+          updated: dates
+            .filter((field) => field.isUpdatedAt)
+            .map((field) => field.name),
+          otherDates: dates
+            .filter(
+              (field) => field.default === undefined && !field.isUpdatedAt,
+            )
+            .map((field) => field.name),
+        },
+      ];
+    }),
+  );
+}
+
+/**
+ * Stamps the audit columns the generator does not set, from the anchor.
+ *
+ * Prisma fills `@default(now())` and `@updatedAt` from the WALL CLOCK, which
+ * breaks the generator's one hard rule two ways at once. It makes a run
+ * irreproducible - same `--seed`, same `--today`, different rows - and it writes
+ * rows that contradict themselves: a broadcast recipient whose `sentAt` is in
+ * June and whose `createdAt` is whatever afternoon the seed happened to run,
+ * which is a row the application could never have produced.
+ *
+ * So a creation column takes the earliest moment the row itself mentions and an
+ * update column the latest, both clamped to the anchor: nothing is created after
+ * it happened, nothing is touched in the future, and a row that mentions no date
+ * at all falls back to the anchor. A value the caller set explicitly always wins.
+ */
+function stamp(
+  row: Record<string, unknown>,
+  plan: StampPlan,
+  anchor: Date,
+): void {
+  if (plan.created.length === 0 && plan.updated.length === 0) return;
+
+  const moments: number[] = [];
+  for (const field of plan.otherDates) {
+    const value = row[field];
+    if (value instanceof Date) moments.push(value.getTime());
+  }
+
+  const anchorMs = anchor.getTime();
+  const latestMs = moments.length > 0 ? Math.max(...moments) : anchorMs;
+  const createdMs = Math.min(anchorMs, ...moments);
+  const updatedMs = Math.max(createdMs, Math.min(anchorMs, latestMs));
+
+  for (const field of plan.created) {
+    if (row[field] === undefined) row[field] = new Date(createdMs);
+  }
+  for (const field of plan.updated) {
+    if (row[field] === undefined) row[field] = new Date(updatedMs);
+  }
+}
+
 export async function flush(
   prisma: PrismaClient,
   buffer: Buffered,
   log: (message: string) => void,
+  anchor: Date,
 ): Promise<number> {
+  const plans = await stampPlans();
   let total = 0;
   for (const key of MODEL_ORDER) {
     const rows = buffer[key];
     if (rows.length === 0) continue;
+    const plan = plans.get(key);
+    if (plan) {
+      for (const row of rows)
+        stamp(row as Record<string, unknown>, plan, anchor);
+    }
     const delegate = prisma[key as keyof PrismaClient] as unknown as {
       createMany(args: { data: unknown[] }): Promise<{ count: number }>;
     };

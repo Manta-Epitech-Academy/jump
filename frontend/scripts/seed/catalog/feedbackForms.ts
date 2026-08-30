@@ -27,6 +27,7 @@ import { IDENTITY_FIELD_TO_INPUT_KIND } from '../../../src/lib/domain/feedbackFo
 import stage from './feedbackForms/stage.json' with { type: 'json' };
 import w1 from './feedbackForms/w1.json' with { type: 'json' };
 import w2 from './feedbackForms/w2.json' with { type: 'json' };
+import { id } from '../ids';
 
 // An option is either a bare label or a label carrying the bot's reaction to it.
 type JsonOption = string | { label: string; reaction?: string };
@@ -112,34 +113,49 @@ const optionReaction = (o: JsonOption): string | null =>
   typeof o === 'string' ? null : (o.reaction ?? null);
 
 /** Builds the (label, kind, position, reaction) option rows for one question. */
-function buildOptions(q: JsonQuestion): {
+type OptionRow = {
+  id: string;
   label: string;
   kind: Feedback_OptionKind;
   position: number;
   reaction: string | null;
-}[] {
-  const rows: {
-    label: string;
-    kind: Feedback_OptionKind;
-    position: number;
-    reaction: string | null;
-  }[] = [];
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+function buildOptions(
+  formSlug: string,
+  q: JsonQuestion,
+  anchor: Date,
+): OptionRow[] {
+  const rows: OptionRow[] = [];
   let pos = 0;
-  for (const o of q.options ?? []) {
+  const push = (
+    label: string,
+    kind: Feedback_OptionKind,
+    reaction: string | null,
+  ): void => {
     rows.push({
-      label: optionLabel(o),
-      kind: 'choice',
+      id: id('ffo', formSlug, q.id, pos),
+      label,
+      kind,
       position: pos++,
-      reaction: optionReaction(o),
+      reaction,
+      createdAt: anchor,
+      updatedAt: anchor,
     });
-  }
-  for (const label of q.extraOptions ?? []) {
-    rows.push({ label, kind: 'extra', position: pos++, reaction: null });
-  }
+  };
+  for (const o of q.options ?? [])
+    push(optionLabel(o), 'choice', optionReaction(o));
+  for (const label of q.extraOptions ?? []) push(label, 'extra', null);
   return rows;
 }
 
-async function seedForm(prisma: PrismaClient, spec: FormSpec): Promise<void> {
+async function seedForm(
+  prisma: PrismaClient,
+  spec: FormSpec,
+  anchor: Date,
+): Promise<void> {
   const json: JsonForm = spec.extraAuthoredQuestion
     ? {
         ...spec.json,
@@ -158,6 +174,9 @@ async function seedForm(prisma: PrismaClient, spec: FormSpec): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const form = await tx.feedback_Form.create({
       data: {
+        id: id('ffm', json.id),
+        createdAt: anchor,
+        updatedAt: anchor,
         slug: json.id,
         title: json.title,
         intro: json.intro,
@@ -178,6 +197,7 @@ async function seedForm(prisma: PrismaClient, spec: FormSpec): Promise<void> {
       if (!q.section || sectionId.has(q.section)) continue;
       const created = await tx.feedback_Section.create({
         data: {
+          id: id('ffs', json.id, sectionId.size),
           formId: form.id,
           position: sectionId.size,
           title: q.section,
@@ -200,6 +220,9 @@ async function seedForm(prisma: PrismaClient, spec: FormSpec): Promise<void> {
       if (q.section) currentSectionId = sectionId.get(q.section) ?? null;
       await tx.feedback_Question.create({
         data: {
+          id: id('ffq', json.id, q.id),
+          createdAt: anchor,
+          updatedAt: anchor,
           formId: form.id,
           sectionId: currentSectionId,
           key: q.id,
@@ -219,7 +242,7 @@ async function seedForm(prisma: PrismaClient, spec: FormSpec): Promise<void> {
           minSelections: q.minSelections ?? null,
           maxSelections: q.maxSelections ?? null,
           placeholder: q.placeholder ?? null,
-          options: { create: buildOptions(q) },
+          options: { create: buildOptions(json.id, q, anchor) },
         },
       });
     }
@@ -231,13 +254,16 @@ async function seedForm(prisma: PrismaClient, spec: FormSpec): Promise<void> {
 }
 
 /** Returns how many forms were inserted; 0 means everything was already there. */
-export async function seedFeedbackForms(prisma: PrismaClient): Promise<number> {
+export async function seedFeedbackForms(
+  prisma: PrismaClient,
+  anchor: Date,
+): Promise<number> {
   let created = 0;
   for (const spec of SPECS) {
     const before = await prisma.feedback_Form.count({
       where: { slug: spec.json.id },
     });
-    await seedForm(prisma, spec);
+    await seedForm(prisma, spec, anchor);
     const after = await prisma.feedback_Form.count({
       where: { slug: spec.json.id },
     });

@@ -8,6 +8,7 @@
  */
 
 import type { PrismaClient } from '@prisma/client';
+import { clockFailures } from './clock';
 import { missingEnumValues } from './enums';
 import { projectionFailures } from './projections';
 import { reachabilityFailures } from './reachability';
@@ -15,11 +16,13 @@ import { reachabilityFailures } from './reachability';
 export async function runChecks(
   prisma: PrismaClient,
   log: (message: string) => void,
+  anchor: Date,
 ): Promise<number> {
   const groups: [string, string[]][] = [
     ['couverture des énumérations', await missingEnumValues(prisma)],
     ['projections', await projectionFailures(prisma)],
     ['états atteignables', await reachabilityFailures(prisma)],
+    ['horodatages ancrés', await clockFailures(prisma, anchor)],
   ];
 
   let failed = 0;

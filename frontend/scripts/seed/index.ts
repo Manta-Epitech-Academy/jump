@@ -84,12 +84,20 @@ function parseArgs(argv: string[]): Args {
  * decision about which games are in play, keyed on the game slug rather than on
  * an id, and re-running the generator has no business resetting it.
  */
-async function seedMinigameRotation(prisma: PrismaClient): Promise<void> {
+async function seedMinigameRotation(
+  prisma: PrismaClient,
+  anchor: Date,
+): Promise<void> {
   for (const game of MINIGAMES) {
     await prisma.minigameConfig.upsert({
       where: { game: game.game },
       update: {},
-      create: { game: game.game, weight: game.weight, enabled: true },
+      create: {
+        game: game.game,
+        weight: game.weight,
+        enabled: true,
+        updatedAt: anchor,
+      },
     });
   }
 }
@@ -176,6 +184,10 @@ async function main(): Promise<void> {
     );
   }
   const profile = PROFILES[args.profile];
+  // Built before the catalogue branch, not inside the full run: the catalogues
+  // carry timestamps too, and a row stamped from the wall clock is a row this
+  // generator cannot reproduce.
+  const clock = createClock(parseAnchor(args.today));
 
   const prisma = createClient();
   const log = (message: string) => console.log(message);
@@ -187,8 +199,10 @@ async function main(): Promise<void> {
       log(`Catalogues seulement, cible ${target}.`);
       log(`  intérêts               ${await seedInterests(prisma)}`);
       await seedInterestRecommendationMessages(prisma);
-      log(`  formulaires de bilan   ${await seedFeedbackForms(prisma)}`);
-      await seedMinigameRotation(prisma);
+      log(
+        `  formulaires de bilan   ${await seedFeedbackForms(prisma, clock.today)}`,
+      );
+      await seedMinigameRotation(prisma, clock.today);
       const author = await prisma.staffProfile.findFirst({
         select: { userId: true },
       });
@@ -203,7 +217,6 @@ async function main(): Promise<void> {
       return;
     }
 
-    const clock = createClock(parseAnchor(args.today));
     const manifest: ManifestEntry[] = [];
     const ctx: SeedContext = {
       prisma,
@@ -226,8 +239,10 @@ async function main(): Promise<void> {
     log('Catalogues :');
     log(`  intérêts               ${await seedInterests(prisma)}`);
     await seedInterestRecommendationMessages(prisma);
-    log(`  formulaires de bilan   ${await seedFeedbackForms(prisma)}`);
-    await seedMinigameRotation(prisma);
+    log(
+      `  formulaires de bilan   ${await seedFeedbackForms(prisma, clock.today)}`,
+    );
+    await seedMinigameRotation(prisma, clock.today);
 
     const world = new World(ctx);
     await loadMigrationOwnedRows(prisma, world);
@@ -246,7 +261,7 @@ async function main(): Promise<void> {
     world.finalize();
 
     log('Écriture :');
-    const rows = await flush(prisma, world.buffer, log);
+    const rows = await flush(prisma, world.buffer, log, clock.today);
     log(`  ${rows} lignes écrites.`);
 
     const markdown = renderManifest(ctx, {
@@ -256,8 +271,12 @@ async function main(): Promise<void> {
     });
     await prisma.appSetting.upsert({
       where: { key: MANIFEST_SETTING_KEY },
-      update: { value: markdown },
-      create: { key: MANIFEST_SETTING_KEY, value: markdown },
+      update: { value: markdown, updatedAt: clock.today },
+      create: {
+        key: MANIFEST_SETTING_KEY,
+        value: markdown,
+        updatedAt: clock.today,
+      },
     });
     if (args.out) {
       await writeFile(path.resolve(args.out), markdown, 'utf8');
@@ -266,7 +285,7 @@ async function main(): Promise<void> {
 
     if (args.check) {
       log('Vérification :');
-      const failures = await runChecks(prisma, log);
+      const failures = await runChecks(prisma, log, clock.today);
       if (failures > 0) {
         throw new Error(
           `${failures} vérification(s) en échec. Une valeur d’énumération sans ligne se corrige en ajoutant son scénario, pas en retirant la vérification.`,
