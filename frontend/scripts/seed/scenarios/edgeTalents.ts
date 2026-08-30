@@ -36,9 +36,7 @@ export const edgeTalents: Scenario = {
     const spawn = (
       nom: string,
       niveau: string | null,
-      extra: Parameters<typeof world.addTalent>[0] extends infer T
-        ? Partial<T>
-        : never = {},
+      extra: Partial<Parameters<typeof world.addTalent>[0]> = {},
     ) =>
       world.addTalent({
         prenom: rng.pick(PRENOMS),
