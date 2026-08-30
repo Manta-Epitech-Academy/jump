@@ -6,7 +6,7 @@ import { ensureTalentUser } from '$lib/server/services/talentAccount';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 
 export type ImpersonationTarget =
-  // `id` is a Talent id — a seeded talent may have no login account yet, so it is
+  // `id` is a Talent id: a seeded talent may have no login account yet, so it is
   // bootstrapped on the fly via ensureTalentUser.
   | { kind: 'talent'; id: string }
   // `id` is a bauth_user id (a staff member always already has one).

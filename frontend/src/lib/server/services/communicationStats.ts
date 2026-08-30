@@ -1,10 +1,10 @@
 /**
- * Communication analytics — read-only projections over existing rows.
+ * Communication analytics: read-only projections over existing rows.
  *
  * Spans two outbound surfaces of the admin Communication hub: bulk broadcasts
  * (`Broadcast`/`BroadcastRecipient`) and transactional mail mappings
  * (`EmailActionMapping`). It owns no state: every figure is a read-time
- * projection via `groupBy`/`count` (the facts-as-rows convention — see
+ * projection via `groupBy`/`count` (the facts-as-rows convention, see
  * CLAUDE.md), so there is nothing to keep in sync and no migration.
  *
  * Admin space is cross-campus by design ("global system overview"), so this

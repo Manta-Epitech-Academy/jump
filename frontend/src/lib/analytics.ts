@@ -16,7 +16,7 @@ declare global {
 }
 
 const QUEUE_RETRY_MS = 100;
-const QUEUE_MAX_RETRIES = 50; // ~5s before giving up — script.js loads with `defer`.
+const QUEUE_MAX_RETRIES = 50; // ~5s before giving up, script.js loads with `defer`.
 
 function call<T extends keyof UmamiTracker>(
   method: T,
@@ -126,7 +126,7 @@ function messageText(m: unknown): string | undefined {
 /**
  * Extract a stable `reason` slug from the things our call sites actually hand
  * us: a SuperForm `ActionResult`, a `form.message`, a fetch `Response`, or a
- * thrown `Error`. Never emits raw user copy — see {@link slugify}.
+ * thrown `Error`. Never emits raw user copy, see {@link slugify}.
  *
  * For SuperForm failures, pass the whole `result` (not `result.data`): the
  * HTTP `status` lives on the result and is the fallback when no message or
@@ -135,10 +135,10 @@ function messageText(m: unknown): string | undefined {
 export function errReason(input: unknown): string {
   if (input == null) return 'unknown';
 
-  // fetch Response — status is the most stable signal.
+  // fetch Response: status is the most stable signal.
   if (input instanceof Response) return `http_${input.status}`;
 
-  // Thrown Error — prefer an explicit code, else the message (often already a
+  // Thrown Error: prefer an explicit code, else the message (often already a
   // slug like `http_500`), else the constructor name.
   if (input instanceof Error) {
     const code = (input as { code?: unknown }).code;

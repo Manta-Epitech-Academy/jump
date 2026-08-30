@@ -24,7 +24,7 @@
 </script>
 
 <svelte:head>
-  <title>Droit à l'image — Espace Parent</title>
+  <title>Droit à l'image - Espace Parent</title>
 </svelte:head>
 
 <ParentFlowShell>

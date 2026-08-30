@@ -31,13 +31,13 @@ export const LATEST_IMAGE_RIGHTS_DECISION_ORDER: Prisma.ImageRightsDecisionRecor
  * Records a legal guardian's image-rights decision (authorize *or* refuse) and
  * enqueues the matching PDF, atomically. The single entry point for the parent
  * signing flow, a later change of mind from the child dashboard, AND a staff
- * correction recorded on the guardian's behalf — keeping the write in one place
+ * correction recorded on the guardian's behalf: keeping the write in one place
  * stops the talent decision and the generated document from drifting apart.
  *
  * Three layers, and each answers a question the others cannot:
  *
  *  1. **The fact.** Each call appends one `ImageRightsDecisionRecord` row
- *     (append-only, the prior decision is never overwritten — a minor's consent
+ *     (append-only, the prior decision is never overwritten: a minor's consent
  *     is revocable "à tout moment", so its history is worth keeping). The row
  *     carries the school year it answers for and the wording it committed to.
  *  2. **The year's current decision**, on that year's `Onboarding_Record`,
@@ -86,7 +86,7 @@ export async function recordImageRightsDecision(args: {
   const job = await prisma.$transaction(async (tx) => {
     const schoolYear = await guardianActSchoolYear(tx, args.talentId);
 
-    // Append the fact. Never an update — re-deciding is a new row, not a clobber.
+    // Append the fact. Never an update: re-deciding is a new row, not a clobber.
     // A single signer means the act always commits to the wording in force now,
     // unlike the règlement, where a guardian joins the version their child
     // already pinned. That holds for a staff correction too: it records a choice

@@ -70,7 +70,7 @@
 
   // Toggle a chip, capping the selection at its max. At the limit, unselected
   // chips are disabled (see markup) rather than silently evicting an earlier
-  // pick — the limit stays visible and the user explicitly deselects to swap.
+  // pick: the limit stays visible and the user explicitly deselects to swap.
   function toggleTech(id: string) {
     const next = new Set(techSelected);
     if (next.has(id)) next.delete(id);

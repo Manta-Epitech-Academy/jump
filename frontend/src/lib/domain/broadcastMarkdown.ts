@@ -3,7 +3,7 @@
  *
  * Templates store **markdown** in `MessageTemplate.body`. At send time (and
  * for live preview), we render that markdown into the Epitech-branded email
- * shell — same teal top bar + centered white card as relance mails — with
+ * shell (same teal top bar + centered white card as relance mails) with
  * inline styles so it survives email clients that strip <style> tags.
  *
  * Custom shortcode for buttons: `:button[Label](https://example.com)` on
@@ -35,7 +35,7 @@ interface BroadcastButtonToken extends Tokens.Generic {
 
 /**
  * URLs allowed in `<a href>` after markdown rendering. `javascript:`,
- * `data:`, `vbscript:` are blocked — even though most email clients strip
+ * `data:`, `vbscript:` are blocked: even though most email clients strip
  * scripts, the same rendered HTML powers in-app previews (compose dialog,
  * dev broadcast detail) where a script execution context exists.
  *
@@ -59,7 +59,7 @@ function sanitizeHref(raw: string): string {
 }
 
 // `[^)\n]*` (not `+`) so the tokenizer still claims `:button[…]()` when the
-// URL variable hasn't been substituted yet — otherwise marked falls back to
+// URL variable hasn't been substituted yet: otherwise marked falls back to
 // inline link parsing and the `:button` prefix leaks into the rendered HTML
 // as literal text (`:buttonLabel` artefact). The renderer below handles the
 // empty-href case explicitly.

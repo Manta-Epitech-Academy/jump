@@ -64,7 +64,7 @@
 
   /**
    * Insert raw text at the cursor. Exposed as a component method (`bind:this`)
-   * for callers that offer template-variable buttons — e.g. the admin
+   * for callers that offer template-variable buttons, e.g. the admin
    * welcome-page editor inserting `{{PRENOM}}` (see `domain/welcomeMessage.ts`).
    */
   export function insertText(text: string) {

@@ -41,7 +41,7 @@
   // dedicated /staff/settings action route (this dialog has no page of its own).
   // svelte-ignore state_referenced_locally
   const { form, errors, enhance, submitting } = superForm(formData, {
-    // Keep the typed values in the fields after a save — the default
+    // Keep the typed values in the fields after a save, the default
     // `resetForm: true` clears them, which reads as "my input vanished".
     resetForm: false,
     // Refresh the layout load so `staffProfile`-derived data reflects the save.
@@ -93,10 +93,10 @@
       <Dialog.Title>Mes paramètres</Dialog.Title>
       <Dialog.Description>
         Sur un environnement de test, les emails et SMS qui vous sont attribués
-        — vos envois, ou ceux d'un talent que vous incarnez — sont redirigés
-        vers vos adresses plutôt que vers la liste partagée. Ainsi chacun ne
-        reçoit que son propre trafic de test. En production, ces réglages sont
-        sans effet : les messages partent aux vrais destinataires.
+        (vos envois, ou ceux d'un talent que vous incarnez) sont redirigés vers
+        vos adresses plutôt que vers la liste partagée. Ainsi chacun ne reçoit
+        que son propre trafic de test. En production, ces réglages sont sans
+        effet : les messages partent aux vrais destinataires.
       </Dialog.Description>
     </Dialog.Header>
 
@@ -184,7 +184,7 @@
               Lève temporairement la redirection : vos envois (et ceux d'un
               talent que vous incarnez) partiront aux <strong
                 >vrais destinataires</strong
-              >. Se désactive automatiquement, et n'affecte que votre session —
+              >. Se désactive automatiquement, et n'affecte que votre session :
               jamais les tâches de fond (relances, cron).
             </p>
           </div>
@@ -195,7 +195,7 @@
             >
               <span class="font-semibold text-destructive">
                 Armé{armedUntilLabel
-                  ? ` — se désactive à ${armedUntilLabel}`
+                  ? ` (se désactive à ${armedUntilLabel})`
                   : ''}.
               </span>
               <form method="POST" action="/api/dev/real-sends">

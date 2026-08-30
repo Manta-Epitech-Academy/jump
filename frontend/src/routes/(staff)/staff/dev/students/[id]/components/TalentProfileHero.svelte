@@ -42,7 +42,7 @@
 </script>
 
 <PageHero>
-  <!-- Desktop (`sm+`): one centered row — avatar, name, XP medallion, then the
+  <!-- Desktop (`sm+`): one centered row: avatar, name, XP medallion, then the
        Salesforce utility pushed to the far right (`ml-auto`), never reading as
        paired with the XP. Mobile: the avatar and the medallion share the top row
        (the `sm:contents` wrapper groups them on mobile, then dissolves at `sm` so

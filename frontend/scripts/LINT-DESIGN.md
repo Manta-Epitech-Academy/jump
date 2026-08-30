@@ -1,4 +1,4 @@
-# lint-design.ts — Vérification du contrat visuel
+# lint-design.ts : Vérification du contrat visuel
 
 Script TypeScript qui vérifie que les composants respectent le contrat défini dans [`DESIGN.md`](../../DESIGN.md) (racine du dépôt).
 

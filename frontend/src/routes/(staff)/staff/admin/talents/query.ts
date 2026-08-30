@@ -26,7 +26,7 @@ import { guardiansOf } from '$lib/domain/contact';
  * Single source of truth for the admin talents directory query. Both the page
  * `load` and the XLSX `export/+server.ts` parse the same URL params, build the
  * same `where`, select the same columns and project the same row shape through
- * this module — so the on-screen badges and the exported file can never drift,
+ * this module, so the on-screen badges and the exported file can never drift,
  * and a filter added in one place is honoured in both.
  */
 
@@ -104,7 +104,7 @@ export function parseTalentFilters(
 // ---- where building -------------------------------------------------------
 
 /**
- * Prisma predicate for a talent who has fully cleared platform onboarding —
+ * Prisma predicate for a talent who has fully cleared platform onboarding:
  * every step gate set AND the charter accepted. The Prisma mirror of
  * `deriveOnboardingStatus(...) === 'done'`; the Statut filter splits accounts
  * into done (`active`) vs not-done (`onboarding`) by negating this, so a new
@@ -147,7 +147,7 @@ export function onboardingDoneWhere(): Prisma.TalentWhereInput {
  *
  * `where` layers the status + parentStatus narrowing on top. Everything is
  * accumulated into a single `AND` array (search included, as an `AND[].OR`
- * entry) so the clauses compose instead of clobbering each other — the old code
+ * entry) so the clauses compose instead of clobbering each other: the old code
  * assigned `where.AND` twice, which silently dropped the status filter whenever
  * a parent filter was also set, making "onboardé + en attente parent"
  * inexpressible.
@@ -170,7 +170,7 @@ export function buildTalentWhere(f: TalentFilters): {
   }
   if (f.niveau) scope.push({ niveau: f.niveau });
 
-  // A talent's campus isn't a column — `some` matches any campus they've
+  // A talent's campus isn't a column: `some` matches any campus they've
   // attended, the useful net for "anyone tied to campus X".
   if (f.campusIds.length) {
     scope.push({
@@ -317,7 +317,7 @@ function onboardingStatus(
 }
 
 /**
- * Human label for where a `pending` talent will resume — what the admin walks
+ * Human label for where a `pending` talent will resume: what the admin walks
  * into on impersonation. "Non démarré" when the account exists but no step is
  * done; "N/total · <étape>" mid-flow. `null` for `never`/`active`, and unused
  * for `no_dossier`, which has no rung to name.
@@ -399,8 +399,8 @@ export type TalentDirectoryRow = ReturnType<typeof projectTalentRow>;
  * The streamed directory payload: the page chrome (heading) paints immediately
  * while the current page of rows, the total count and the six scoped KPI counts
  * resolve behind the shell skeleton. Shared by the page `load` and
- * `TalentsResults` so the streamed shape and the consuming component can't drift
- * — the admin sibling of the dev `InscritsCohort`.
+ * `TalentsResults` so the streamed shape and the consuming component can't drift:
+ * the admin sibling of the dev `InscritsCohort`.
  */
 export type TalentsCohort = {
   talents: TalentDirectoryRow[];

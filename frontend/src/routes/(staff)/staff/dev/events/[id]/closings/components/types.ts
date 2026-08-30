@@ -35,7 +35,7 @@ export type ClosingCounts = {
 /** Recommendation breakdown over finalised closings. */
 export type RecoCounts = Record<ClosingRecommendation, number>;
 
-/** The cohort payload streamed behind the page shell's `{#await}` — everything
+/** The cohort payload streamed behind the page shell's `{#await}`: everything
  *  that needs the DB. Shared by the page load and `ClosingsResults` so the
  *  streamed shape and the consuming component can never drift. */
 export type ClosingsCohort = {

@@ -131,15 +131,15 @@
   );
 
   function formatChrono(ms: number | null): string {
-    return ms === null ? '—' : `${(ms / 1000).toFixed(1)}s`;
+    return ms === null ? '-' : `${(ms / 1000).toFixed(1)}s`;
   }
   function formatScore(s: number | null): string {
-    return s === null ? '—' : Math.round(s).toString();
+    return s === null ? '-' : Math.round(s).toString();
   }
 </script>
 
 <svelte:head>
-  <title>Mini-jeux — Admin</title>
+  <title>Mini-jeux : Admin</title>
 </svelte:head>
 
 <div class="space-y-8">
@@ -262,7 +262,7 @@
         </p>
         <p class="mb-3 text-xs text-muted-foreground">
           Ces réglages pointent vers des jeux qui ne sont plus exposés par
-          <code>jump-games</code>. Ils ne peuvent plus tourner — tu peux les
+          <code>jump-games</code>. Ils ne peuvent plus tourner, tu peux les
           retirer.
         </p>
         <div class="space-y-2">
@@ -347,7 +347,7 @@
           </div>
           {#if forceGame}
             <p class="text-xs text-muted-foreground">
-              1–{forceGame.levelCount}
+              1-{forceGame.levelCount}
             </p>
           {/if}
         </div>
@@ -402,7 +402,7 @@
           />
           {#if testMeta}
             <p class="text-xs text-muted-foreground">
-              1–{testMeta.levelCount}
+              1-{testMeta.levelCount}
             </p>
           {/if}
         </div>
@@ -446,7 +446,7 @@
               </Table.Cell>
               <Table.Cell class="text-right">{p.attemptsCount}</Table.Cell>
               <Table.Cell class="text-right">
-                {p.scoringType === 'score' ? formatScore(p.avgScore) : '—'}
+                {p.scoringType === 'score' ? formatScore(p.avgScore) : '-'}
               </Table.Cell>
               <Table.Cell class="text-right"
                 >{formatChrono(p.avgChrono)}</Table.Cell

@@ -1,6 +1,6 @@
 # Contributing to Jump
 
-This document formalises how features are built on Jump — from the PO's initial
+This document formalises how features are built on Jump, from the PO's initial
 need to the merged PR. Objective: enable any developer or AI agent to execute
 tasks with the exact same standard of quality.
 
@@ -66,13 +66,13 @@ Read it there before contributing.
 
 ## Feature Pipeline
 
-### Step 0 — PO Alignment
+### Step 0: PO Alignment
 
 Before writing any code or specifications, talk with the Product Owner (PO) to grasp
 the core user need and business requirements. The PO's implementation suggestions are
 inputs to challenge, not fixed specifications. Start from the user problem, not the technical solution.
 
-### Step 1 — User Stories in GitHub Issues
+### Step 1: User Stories in GitHub Issues
 
 Open the issue **before the branch**, with the *Feature* template. It carries the two headings the
 `Work item` check reads, `User Stories` and `Acceptance Criteria`, and GitHub refuses to submit
@@ -91,7 +91,7 @@ Each story must include clear acceptance criteria (`Given X, when Y, then Z`).
 The PO reviews and validates these criteria before moving forward. Acceptance criteria
 directly serve as the foundation for tests (unit, integration, E2E).
 
-### Step 2 — Functional Plan (No-Code Context)
+### Step 2: Functional Plan (No-Code Context)
 
 Before opening a branch, generate a functional plan with the AI assistant. This plan outlines:
 
@@ -110,13 +110,13 @@ traceability.
 > brainstorming phase, do not generate any code for now"* forces clean architectural reflection
 > before execution.
 
-### Step 3 — Technical Execution Plan
+### Step 3: Technical Execution Plan
 
 The detailed technical plan (DB schemas, function signatures, migrations, implementation phases)
 is generated locally under `docs/plans/` using `/plan` and referenced in the GitHub item.
 This directory is `gitignored`: plans are working documents that guide execution and live in the GitHub item.
 
-### Step 4 — Branching & Implementation
+### Step 4: Branching & Implementation
 
 Always branch off `dev` (never from `main`), and carry the issue number in the branch name:
 
@@ -138,7 +138,7 @@ The board is no longer yours to move afterwards: `board-sync.yml` sets **In Prog
 request opens and **Done** when it merges.
 
 During implementation:
-- Refactor and share existing utilities — never duplicate logic locally.
+- Refactor and share existing utilities, never duplicate logic locally.
 - The PO steps in at two moments, and not between them: at scoping (steps 0 and 1),
   and at release validation (step 6), over a window of several days on `staging`.
   In between, autonomy is the rule, and the issue's acceptance criteria are the
@@ -149,7 +149,7 @@ During implementation:
   over the parts that are still enforced.
 - If a technical decision diverges from the initial plan, update the GitHub item accordingly.
 
-### Step 5 — Technical Gate
+### Step 5: Technical Gate
 
 Before any commit or PR, run the gate:
 
@@ -173,7 +173,7 @@ remember to check the schema against a real PostgreSQL: `verify` runs the integr
 turned the Definition of Done's "verified against a real PostgreSQL database" line from a promise into
 a check.
 
-### Step 6 — Visual Review & Definition of Done
+### Step 6: Visual Review & Definition of Done
 
 The Definition of Done lives in [`pull_request_template.md`](./pull_request_template.md), as a
 checklist in the pull request body. It is deliberately not repeated here: it is ticked in the PR, so
@@ -220,7 +220,7 @@ produced that is malformed, the accumulation of several years of history, and ho
 to apply. That last one matters here because migrations run from the container's `CMD`, so the incoming
 pod applies the DDL while the outgoing one is still serving.
 
-### Step 7 — PR, Self-Review & Merge
+### Step 7: PR, Self-Review & Merge
 
 Writing the commits and the pull request copy is the agent's job, not a tool's. What follows is the
 part that is easy to get wrong.
@@ -269,7 +269,7 @@ When reviewing a PR, start by testing the **Test Plan** checkboxes in the PR des
 
 Next, evaluate the Definition of Done checklist against the diff. Key points to double-check:
 
-- **Business Alignment:** compare the diff against the issue's User Stories to verify it fulfills the exact requirement — no more, no less.
+- **Business Alignment:** compare the diff against the issue's User Stories to verify it fulfills the exact requirement, no more, no less.
 - **Database Migrations:** cleanly named, squashed into one, atomic SQL backfill included if needed.
 - **Copy & Tone:** correct *_vous_* / *_tu_* register, no dev jargon, no em-dashes.
 - **Space Integrity:** audience targets, border radii, `cursor-pointer`, component reuse.

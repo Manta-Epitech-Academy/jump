@@ -9,13 +9,13 @@ import {
 } from '$lib/server/devRedirectPin';
 
 /**
- * Arm / disarm the dev-redirect pin on a trapped (dev/staging) env — route
+ * Arm / disarm the dev-redirect pin on a trapped (dev/staging) env: route
  * trapped login (OTP) mail to the arming admin so they can test the real
  * logged-out login flow. See `$lib/server/devRedirectPin`.
  *
  * Lives under `/api` (not behind `/staff/*` guards) for the same reason as
  * `/api/dev/real-sends`: the disarm button rides the global banner, which is
- * shown on logged-out pages too — the whole point is to arm, then log out and
+ * shown on logged-out pages too: the whole point is to arm, then log out and
  * test. So **disarm carries no auth**: clearing your own cookie is harmless,
  * and the actor is logged out by design. **Arm** is admin-gated (reuses the
  * `realSendArmers` group via `canArmRealSends`), since minting a pin is only

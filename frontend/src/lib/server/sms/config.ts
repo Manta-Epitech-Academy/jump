@@ -9,7 +9,7 @@ import { env } from '$env/dynamic/private';
  *   - `brevo`: Brevo (ex-Sendinblue) transactional SMS REST API via fetch.
  *     Requires `BREVO_API_KEY`.
  *
- * Picked at server start. Flipping providers is an env change + redeploy —
+ * Picked at server start. Flipping providers is an env change + redeploy:
  * call sites depend only on `$lib/server/sms`.
  */
 export type SmsProviderKind = 'brevo' | 'null';

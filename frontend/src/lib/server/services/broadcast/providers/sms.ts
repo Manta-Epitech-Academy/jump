@@ -4,7 +4,7 @@ import type { SmsProvider, SendOutcome } from './types';
 
 /**
  * Adapts the provider-agnostic SMS façade (`$lib/server/sms`) into the
- * broadcast orchestrator's `SmsProvider`/`SendOutcome` contract — the SMS
+ * broadcast orchestrator's `SmsProvider`/`SendOutcome` contract: the SMS
  * twin of `./mail.ts`. Transport, dev-redirect and Brevo wiring all live in
  * the façade; this file only translates the result shape and retry semantics.
  */
@@ -25,7 +25,7 @@ function isRetryableFailure(failure: SendSmsFailure): boolean {
 const transactionalSmsProvider: SmsProvider = {
   async sendSms({ to, body }, opts): Promise<SendOutcome> {
     // Recipients carry the raw, French-entered phone; the façade expects an
-    // already-normalized number. An unparseable value can never succeed —
+    // already-normalized number. An unparseable value can never succeed:
     // fail it permanently rather than handing Brevo a number it rejects.
     const recipient = toBrevoRecipient(to);
     if (!recipient) {

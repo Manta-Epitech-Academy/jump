@@ -31,7 +31,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     throw redirect(303, '/');
   }
   if (eligibility.publication.id !== params.publicationId) {
-    // Stale link — today's publication has rotated.
+    // Stale link: today's publication has rotated.
     throw redirect(303, '/');
   }
 

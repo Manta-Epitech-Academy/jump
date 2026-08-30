@@ -270,11 +270,11 @@
                 </span>
               </span>
             {:else}
-              <span class="text-muted-foreground">—</span>
+              <span class="text-muted-foreground">-</span>
             {/if}
           </Table.Cell>
           <Table.Cell class="text-sm text-muted-foreground">
-            {dateFmt(r.conductedAt) ?? '—'}
+            {dateFmt(r.conductedAt) ?? '-'}
           </Table.Cell>
           <Table.Cell>
             {@render statusBadge(r.status, false)}

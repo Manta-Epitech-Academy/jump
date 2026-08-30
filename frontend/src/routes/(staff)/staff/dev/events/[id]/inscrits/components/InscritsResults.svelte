@@ -188,7 +188,7 @@
   );
 
   // The table runs `table-layout: fixed` (SortableTable `layout="fixed"`) so it
-  // can never outgrow its grid track and spill over the overview rail — auto
+  // can never outgrow its grid track and spill over the overview rail: auto
   // layout did, because `stickyHeader` drops the table's own x-scroll on desktop
   // (it pins the header to the page scroller). Under fixed layout these widths
   // are the budget: the fixed-width columns are honoured first and Lycée
@@ -250,7 +250,7 @@
   ];
 
   // Every lycée in the cohort, ranked by headcount, for the toolbar picker.
-  // (Interests have no picker — their sidebar card is read-only.)
+  // (Interests have no picker: their sidebar card is read-only.)
   const lyceeOptions = $derived<SelectOption[]>(
     lyceeStats.map((l) => ({
       value: l.schoolId,
@@ -371,7 +371,7 @@
 
 <!-- Statut badge tooltip: the three triage signals at a glance (did the student
      connect, do they still owe a règlement, a droit-à-l'image), so staff can
-     triage the cohort without opening each fiche — the fiche stays the place for
+     triage the cohort without opening each fiche: the fiche stays the place for
      the full history and next actions. -->
 {#snippet statusBreakdown(r: InscritRow)}
   {#if r.status === 'no_dossier'}
@@ -638,7 +638,7 @@
                   {r.schoolName}
                 </span>
               {:else}
-                <span class="text-muted-foreground">—</span>
+                <span class="text-muted-foreground">-</span>
               {/if}
             </Table.Cell>
             <Table.Cell>
@@ -650,7 +650,7 @@
                   {niveauLabel(r.niveau)}
                 </Badge>
               {:else}
-                <span class="text-sm text-muted-foreground">—</span>
+                <span class="text-sm text-muted-foreground">-</span>
               {/if}
             </Table.Cell>
             {#if showStatutColumn}
@@ -730,7 +730,7 @@
                   <span
                     class="min-w-0 flex-1 truncate text-xs text-muted-foreground"
                   >
-                    {r.schoolName || '—'}
+                    {r.schoolName || '-'}
                   </span>
                   {#if r.niveau}
                     <Badge

@@ -12,7 +12,7 @@
     ...restProps
   }: {
     class?: string;
-    /** Desktop only — the drawer uses a drag handle instead. */
+    /** Desktop only: the drawer uses a drag handle instead. */
     showCloseButton?: boolean;
     children: Snippet;
     [key: string]: unknown;

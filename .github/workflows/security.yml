@@ -81,7 +81,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # Pinned rulesets only — no `--config auto`. `auto` resolves rules from
+      # Pinned rulesets only, no `--config auto`. `auto` resolves rules from
       # the registry at run time (and sends telemetry), which makes a blocking
       # `--error` gate non-deterministic: a new community rule could fail an
       # unrelated PR with no diff change, defeating the pinned image above.
@@ -114,7 +114,7 @@ jobs:
   dast:
     name: DAST (OWASP ZAP)
     runs-on: ubuntu-latest
-    # Run only on schedule and main push — not on every PR (slow + needs running app)
+    # Run only on schedule and main push, not on every PR (slow + needs running app)
     if: github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     services:
       postgres:
@@ -148,7 +148,7 @@ jobs:
         run: bun run build
 
       # `bun run start` runs the adapter-node build (./build/index.js), which
-      # honors PORT + ORIGIN — that's the production surface we want ZAP to hit.
+      # honors PORT + ORIGIN: that's the production surface we want ZAP to hit.
       # `bun run preview` (vite preview) ignores PORT and binds 4173, so the
       # wait loop below would never see the app.
       - name: Start app

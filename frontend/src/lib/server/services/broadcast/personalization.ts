@@ -3,7 +3,7 @@
  *
  *   - `fastlogin_link`: signed magic link valid 30 days. The `/fastlogin`
  *     route verifies the JWT and creates a BetterAuth session for the
- *     talent — same end-state as completing the OTP flow at `/login`.
+ *     talent, same end-state as completing the OTP flow at `/login`.
  *   - `parent_fastlogin_link`: same idea for the parent of a talent. Signed
  *     with a separate audience claim and consumed by `/parent/fastlogin`,
  *     which signs in the bauth_user with `role: 'parent'`.
@@ -24,13 +24,13 @@ import { auth } from '$lib/server/auth';
 /**
  * Mint a sign-in OTP for the given email through BetterAuth. The OTP is
  * stored in `bauth_verification` exactly as if the user had requested it
- * themselves, so the matching login page accepts it as-is — `/login` for a
+ * themselves, so the matching login page accepts it as-is: `/login` for a
  * talent, `/parent/login` for a parent (both drive BetterAuth's `sign-in`
  * email OTP, keyed off the address).
  *
  * Inherits the plugin's `expiresIn` (10 min). Callers should be aware that
  * a broadcast sent days before the action will expire by the time the
- * recipient reads it — the fastlogin links are the right tool for that.
+ * recipient reads it, the fastlogin links are the right tool for that.
  */
 export async function mintSigninOtp(email: string): Promise<string> {
   return await auth.api.createVerificationOTP({

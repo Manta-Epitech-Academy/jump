@@ -1,12 +1,12 @@
 /**
- * Fast-login entry point — consumes a JWT minted at broadcast time and
+ * Fast-login entry point: consumes a JWT minted at broadcast time and
  * creates a BetterAuth session for the target talent, then redirects to
  * the talent dashboard.
  *
  * Mirrors the bootstrap logic of the regular `/login` OTP flow: if the
  * talent has no linked `bauth_user` yet (seeded profile that never logged
  * in), we create it on the fly. After that we mint and immediately consume
- * an OTP through BetterAuth to obtain the session cookies — same end state
+ * an OTP through BetterAuth to obtain the session cookies, same end state
  * as if the recipient had typed the OTP themselves.
  */
 

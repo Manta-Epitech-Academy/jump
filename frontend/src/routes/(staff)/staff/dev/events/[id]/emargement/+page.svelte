@@ -103,7 +103,7 @@
 </script>
 
 <svelte:head>
-  <title>Émargement — {eventDisplayName(data.event)}</title>
+  <title>Émargement - {eventDisplayName(data.event)}</title>
 </svelte:head>
 
 <div class="space-y-6 pb-10">

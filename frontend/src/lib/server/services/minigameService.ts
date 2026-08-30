@@ -25,7 +25,7 @@ export interface CallbackPayload {
 }
 
 /**
- * Minigames are intrinsic to the platform — eligibility no longer depends on
+ * Minigames are intrinsic to the platform: eligibility no longer depends on
  * an event. A talent is eligible as soon as there's an active publication they
  * haven't played. `eventId`/`campusId` are optional context snapshotted from
  * the talent's closest event (null when they have no participations at all):
@@ -55,7 +55,7 @@ export async function getActivePublication(): Promise<MinigamePublication | null
 }
 
 /**
- * Pick the event "closest" to the talent — its `eventId` tags a new
+ * Pick the event "closest" to the talent: its `eventId` tags a new
  * `MinigameAttempt` (feeding the staff per-event board) and its `campusId`
  * scopes the talent-facing leaderboard.
  *
@@ -128,7 +128,7 @@ export async function checkTalentEligibility(
   });
   // Only a *finalized* attempt counts as played. A leftover `pending` row
   // (e.g. the talent opened the play page but never finished, or a stray
-  // mint) is recoverable — they can still play, reusing that row.
+  // mint) is recoverable: they can still play, reusing that row.
   if (existing && existing.status !== 'pending') {
     return {
       ok: false,
@@ -138,7 +138,7 @@ export async function checkTalentEligibility(
     };
   }
 
-  // Optional context — null when the talent has no participations at all.
+  // Optional context: null when the talent has no participations at all.
   const closest = await getClosestEventForTalent(talentId);
   return {
     ok: true,
@@ -175,7 +175,7 @@ export async function mintAttempt(
   );
   // Upsert: reuse a leftover pending row (refreshing token + start time)
   // rather than colliding with the @@unique([talentId, publicationId]).
-  // A finalized attempt can't reach here — eligibility blocks it above.
+  // A finalized attempt can't reach here: eligibility blocks it above.
   const attempt = await prisma.minigameAttempt.upsert({
     where: {
       talentId_publicationId: { talentId, publicationId: publication.id },
@@ -212,7 +212,7 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
     include: { publication: { select: { scoringType: true } } },
   });
   if (!attempt) return; // Unknown attempt: silently ignore (idempotent on retry of a deleted attempt).
-  if (attempt.status !== 'pending') return; // Already finalized — idempotent: never re-pay XP.
+  if (attempt.status !== 'pending') return; // Already finalized, idempotent: never re-pay XP.
 
   // Decide the board this run belongs to at FINISH, not mint. Mint context is
   // provisional: a talent can open the game before they have any participation
@@ -295,7 +295,7 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
 
 /**
  * Stamp `xpSeenAt` on the talent's awarded-but-unseen attempts so the "+XP"
- * float fires exactly once — whether it played on the daily-training page (right
+ * float fires exactly once, whether it played on the daily-training page (right
  * after the win) or on the next dashboard visit. Idempotent: a double-fire or a
  * stale tab is harmless.
  */
@@ -350,7 +350,7 @@ export async function pickNextPublication(): Promise<MinigamePublication | null>
   const catalog = await getGameCatalog();
   if (catalog.length === 0) {
     console.warn(
-      '[minigames] Catalogue unavailable or empty — skipping publication.',
+      '[minigames] Catalogue unavailable or empty, skipping publication.',
     );
     return null;
   }
@@ -365,7 +365,7 @@ export async function pickNextPublication(): Promise<MinigamePublication | null>
     .map((config) => ({ config, game: byName.get(config.game) }))
     .filter((c): c is RotationCandidate => !!c.game && c.game.levelCount > 0);
   if (candidates.length === 0) {
-    console.warn('[minigames] No eligible game config — skipping publication.');
+    console.warn('[minigames] No eligible game config, skipping publication.');
     return null;
   }
 
@@ -375,7 +375,7 @@ export async function pickNextPublication(): Promise<MinigamePublication | null>
     : candidates;
 
   // The inaugural publication is a newcomer's very first daily challenge, so it
-  // must never open on a `hard` game (e.g. the Démineur — deductive and fiddly
+  // must never open on a `hard` game (e.g. the Démineur, deductive and fiddly
   // on touch). Once a publication exists, the normal weighted rotation resumes
   // and every enabled game is back in play.
   if (!active) {
@@ -385,7 +385,7 @@ export async function pickNextPublication(): Promise<MinigamePublication | null>
 
   if (pool.length === 0) {
     console.warn(
-      '[minigames] All games excluded by current publication — skipping.',
+      '[minigames] All games excluded by current publication, skipping.',
     );
     return null;
   }
@@ -408,7 +408,7 @@ export async function pickNextPublication(): Promise<MinigamePublication | null>
 /**
  * Publish a specific game/level on demand. The caller (admin) has already
  * validated `game` against the catalogue, so the resolved snapshot is passed
- * in — keeping this a pure write and avoiding a second catalogue fetch.
+ * in, keeping this a pure write and avoiding a second catalogue fetch.
  */
 export async function forcePublication(input: {
   game: string;
@@ -538,7 +538,7 @@ async function buildLeaderboard(
 
 /**
  * Where the viewer themselves stands on a board: they `won` (a `done` run, so
- * they're ranked on it) or they `lost` (an `invalid` run — they played, but the
+ * they're ranked on it) or they `lost` (an `invalid` run: they played, but the
  * board only lists wins, so they're absent from it). A leftover `pending` mint,
  * or no attempt at all, is neither. Lets the board explain a loss ("ta partie
  * n'a pas été validée") instead of letting it read as "nobody played".

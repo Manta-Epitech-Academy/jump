@@ -24,17 +24,17 @@ import { prisma } from '$lib/server/db';
 export type OnboardingDocumentType = 'charter' | 'rules' | 'image-rights';
 
 interface OnboardingDocumentDescriptor {
-  /** French title — shared by the PDF header and the talent-facing list. */
+  /** French title, shared by the PDF header and the talent-facing list. */
   label: string;
   /**
    * Which record carries this kind's signature and its rendered PDF.
    *
-   * `account` — accepted at most once per talent, so the column lives on
+   * `account`: accepted at most once per talent, so the column lives on
    * `Talent`. Only the charte, and only because a talent who comes back is never
    * asked for it again: it is a once-per-account RGPD consent, not a yearly
    * contract.
    *
-   * `dossier` — settled once per school year, so both the act and the render
+   * `dossier`: settled once per school year, so both the act and the render
    * live on the matching `Onboarding_Record`: the règlement intérieur, and the
    * droit-à-l'image decision since it became annual too.
    *
@@ -71,7 +71,7 @@ export const ONBOARDING_DOCUMENTS: Record<
     scope: 'account',
     downloadSlug: 'charter',
   },
-  // Shared règlement intérieur PDF — one artifact per school year, carrying the
+  // Shared règlement intérieur PDF, one artifact per school year, carrying the
   // student's signature block and (for minors) the legal guardian's co-signature
   // block. The worker regenerates it whenever either signer commits, reading both
   // signature columns from that year's dossier so the file always reflects the

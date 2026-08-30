@@ -77,7 +77,7 @@ export const load: PageServerLoad = async ({ url }) => {
         };
       })
       // Keep current/upcoming events plus any archived event that still has a
-      // welcome page worth reviewing — drop empty past events to cut clutter.
+      // welcome page worth reviewing, drop empty past events to cut clutter.
       .filter((r) => r.status !== 'past' || r.hasContent)
       .sort(
         (a, b) =>

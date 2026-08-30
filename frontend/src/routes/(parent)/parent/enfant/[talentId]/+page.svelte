@@ -52,7 +52,7 @@
 </script>
 
 <svelte:head>
-  <title>{data.child.prenom} — Espace Parent</title>
+  <title>{data.child.prenom} - Espace Parent</title>
 </svelte:head>
 
 <div class="mx-auto max-w-5xl px-4 py-8 sm:py-12">
@@ -201,7 +201,7 @@
                   <div class="mb-2 flex items-center gap-2">
                     <Clock class="h-3.5 w-3.5 shrink-0 text-epi-blue" />
                     <span class="epi-overline text-muted-foreground">
-                      {formatTime(slot.startTime)} — {formatTime(slot.endTime)}
+                      {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
                     </span>
                   </div>
 
@@ -317,7 +317,7 @@
                                 class="h-3.5 w-3.5 shrink-0 text-epi-blue"
                               />
                               <span class="epi-overline text-muted-foreground">
-                                {formatTime(slot.startTime)} — {formatTime(
+                                {formatTime(slot.startTime)} - {formatTime(
                                   slot.endTime,
                                 )}
                               </span>

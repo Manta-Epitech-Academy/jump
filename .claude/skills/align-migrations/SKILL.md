@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Align Prisma migrations after a merge
 
-The CI check `.github/workflows/migrations-order.yml` fails any migration added on the PR branch whose timestamp is `≤` the latest migration on the target branch. After merging `dev` (or `main`/`staging`) into a feature branch, branch-local migrations can end up "in the past" relative to migrations the base picked up in the meantime — rename those folders to fresh timestamps that preserve SQL dependency order.
+The CI check `.github/workflows/migrations-order.yml` fails any migration added on the PR branch whose timestamp is `≤` the latest migration on the target branch. After merging `dev` (or `main`/`staging`) into a feature branch, branch-local migrations can end up "in the past" relative to migrations the base picked up in the meantime: rename those folders to fresh timestamps that preserve SQL dependency order.
 
 ## Steps
 
@@ -29,7 +29,7 @@ The CI check `.github/workflows/migrations-order.yml` fails any migration added 
 
 4. **For each branch-local migration whose timestamp ≤ base latest, plan a rename.** Pick a new timestamp that:
    - Is **strictly greater** than base's latest.
-   - Preserves the **relative order vs other branch-local migrations** that depend on it (e.g. a later migration references a table created by an earlier one — keep the creation first).
+   - Preserves the **relative order vs other branch-local migrations** that depend on it (e.g. a later migration references a table created by an earlier one, keep the creation first).
    - A good default is base's latest + 1 second (`20260416142044` → `20260416142045`). If several renames are needed, increment by 1s each, keeping relative order.
 
 5. **Rename with `git mv` (not plain `mv`)** so the move is tracked:
@@ -55,7 +55,7 @@ The CI check `.github/workflows/migrations-order.yml` fails any migration added 
 
 ## Rules
 
-- **Never edit `migration.sql`** — only rename the enclosing folder.
-- **Never rename migrations already on the base branch** — only branch-local ones (`--diff-filter=A` against `origin/<base>`).
-- **Confirm with the user before renaming** if the branch has already been pushed and others may have pulled it — renames rewrite future migration history for collaborators.
-- Check with `grep` whether downstream branch-local migrations reference tables/columns introduced by the one being renamed — if so, keep the renamed migration before them.
+- **Never edit `migration.sql`**, only rename the enclosing folder.
+- **Never rename migrations already on the base branch**, only branch-local ones (`--diff-filter=A` against `origin/<base>`).
+- **Confirm with the user before renaming** if the branch has already been pushed and others may have pulled it: renames rewrite future migration history for collaborators.
+- Check with `grep` whether downstream branch-local migrations reference tables/columns introduced by the one being renamed: if so, keep the renamed migration before them.

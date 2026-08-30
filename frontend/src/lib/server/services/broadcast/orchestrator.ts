@@ -41,7 +41,7 @@ export interface EnqueueBroadcastInput {
   createdById: string;
   /**
    * Per-send content overrides. When provided, these are snapshotted onto the
-   * Broadcast instead of the template's own subject/body — letting the composer
+   * Broadcast instead of the template's own subject/body, letting the composer
    * tweak the message for this send without mutating the reusable template.
    * `null`/omitted falls back to the template (the historical behaviour).
    */
@@ -73,7 +73,7 @@ export class EmptyBroadcastError extends Error {
  * The template body/subject are snapshotted onto the Broadcast so later
  * edits to the template don't rewrite history.
  *
- * No messages are sent here — call `processBroadcast()` after.
+ * No messages are sent here: call `processBroadcast()` after.
  *
  * The template is resolved through `loadBroadcastTemplate`, so a transactional
  * one (an OTP/relance template wired to an action) is rejected here, not just
@@ -156,7 +156,7 @@ export async function enqueueBroadcast(
  */
 export async function processBroadcast(broadcastId: string): Promise<void> {
   // Atomic claim. Only one caller can flip `queued → sending` (or take over
-  // a stuck `sending` row) for a given broadcast — the others see count=0
+  // a stuck `sending` row) for a given broadcast: the others see count=0
   // and bail. Without this, the fire-and-forget call from the create action
   // and a concurrent cron tick (or two cron ticks) would both page the same
   // `pending` recipients and double-send.
@@ -260,7 +260,7 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
 
   // Final tally from DB so it covers rows persisted across earlier runs
   // (resumed broadcasts). If any rows are still `pending`, the broadcast
-  // has retry candidates in cooldown — leave at `sending`, the worker will
+  // has retry candidates in cooldown: leave at `sending`, the worker will
   // pick it back up after the stuck timeout (or after the cooldown elapses,
   // whichever fires first, given the heartbeat goes stale once we return).
   const counts = await prisma.broadcastRecipient.groupBy({
@@ -271,7 +271,7 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
   const tally = { pending: 0, sent: 0, failed: 0 };
   for (const c of counts) tally[c.status] = c._count._all;
 
-  if (tally.pending > 0) return; // not finalized yet — retry candidates remain
+  if (tally.pending > 0) return; // not finalized yet: retry candidates remain
 
   const finalStatus =
     tally.failed === 0
@@ -343,7 +343,7 @@ type BroadcastForSend = {
 /**
  * Build the per-recipient mail payload: subject + body with variable
  * substitution, branded HTML render, and tracking_id link rewrite.
- * Returns null if the recipient is unsendable (no email address) — caller
+ * Returns null if the recipient is unsendable (no email address); caller
  * marks it failed without burning a slot in the upstream batch.
  */
 function buildMailMessage(
@@ -370,7 +370,7 @@ function buildMailMessage(
 
 /**
  * Mail path: render every recipient's payload, ship them in one batch API
- * call (Resend caps at 100 — matches PAGE), then persist per-recipient
+ * call (Resend caps at 100, matches PAGE), then persist per-recipient
  * status. Recipients with no email are marked failed without consuming a
  * batch slot.
  */
@@ -383,7 +383,7 @@ async function sendMailBatch(
     parentFastlogin: templateUses(broadcast, 'parent_fastlogin_link'),
     otp: templateUses(broadcast, 'otp_code'),
   };
-  // Mint per-recipient secrets concurrently — JWT signing is in-memory,
+  // Mint per-recipient secrets concurrently: JWT signing is in-memory,
   // OTP minting is one DB insert per talent. Cap concurrency to avoid
   // saturating the Prisma connection pool when needs.otp is true. Errors
   // are swallowed inside buildPersonalization so one bad mint doesn't fail
@@ -422,7 +422,7 @@ async function sendMailBatch(
         // the shared debug list; a no-op in prod. Prefer their configured
         // dev-redirect inbox, falling back to their login email. `sendSmsSerial`
         // does the same with the creator's configured phones (no login-phone
-        // fallback — staff accounts carry no login phone).
+        // fallback: staff accounts carry no login phone).
         {
           devRedirectTo: staffBulkDevRedirectEmails(
             broadcast.createdBy?.staffProfile?.devRedirectEmails,
@@ -489,7 +489,7 @@ async function sendSmsSerial(
           },
           // Mirror the mail path: on a trapped env route copies to the
           // creator's configured phones (resolved from the row, since this can
-          // run in the worker). No login-phone fallback — an unconfigured
+          // run in the worker). No login-phone fallback: an unconfigured
           // creator yields `[]`, so the façade falls back to SMS_DEV_RECIPIENTS
           // or drops. A no-op in prod.
           {
@@ -599,7 +599,7 @@ function buildContext(
   // For broadcasts with audience=parent, the parent_* variables surface
   // the parent's own identity (already in prenom/nom) and child_* the
   // talent they're tied to. For talent recipients, parent_* mirror the
-  // talent's parent info if present. login_link is null here — broadcasts
+  // talent's parent info if present. login_link is null here: broadcasts
   // use fastlogin_link instead (the JWT carries the session).
   const isParentRecipient = !!recipient.parentOf;
   return {
@@ -638,7 +638,7 @@ function buildContext(
 /**
  * Whether the template references `{{fastlogin_link}}` / `{{otp_code}}` /
  * `{{parent_fastlogin_link}}`. Used to skip the cost of minting secrets we'd
- * never inject — JWT signing is cheap, but `mintSigninOtp` writes a row to
+ * never inject: JWT signing is cheap, but `mintSigninOtp` writes a row to
  * `bauth_verification` per call which adds up at 200 recipients.
  */
 function templateUses(
@@ -703,9 +703,9 @@ const EMPTY_PERSONALIZATION: Personalization = {
  * The two link kinds are deliberately never crossed. Minting a parent link
  * for a talent recipient would drop a live parent session into the student's
  * own inbox, letting them sign in as their parent and self-sign image-rights
- * consent — so the parent link only mints when the recipient *is* the parent.
+ * consent, so the parent link only mints when the recipient *is* the parent.
  *
- * Failures are isolated so one bad mint doesn't tank a 200-recipient batch —
+ * Failures are isolated so one bad mint doesn't tank a 200-recipient batch:
  * that recipient just gets a null for the failed variable.
  */
 async function buildPersonalization(
@@ -777,7 +777,7 @@ const SENDING_STUCK_TIMEOUT_MS = 10 * 60 * 1000;
 
 /**
  * Max number of send attempts per recipient before giving up. Includes the
- * initial attempt — so MAX_RETRIES=3 means up to 2 retries after the first
+ * initial attempt, so MAX_RETRIES=3 means up to 2 retries after the first
  * failure. Tuned conservatively to avoid burning the Resend quota on
  * persistent (mis-classified-permanent) errors.
  */
@@ -798,7 +798,7 @@ const RETRY_COOLDOWN_MS = 5 * 60 * 1000;
  *     owning process is gone, resume it.
  *
  * Recipients already marked `sent` or beyond `MAX_RETRIES` are skipped by
- * the page query, so resumption is idempotent — never double-sends.
+ * the page query, so resumption is idempotent: never double-sends.
  *
  * Note: a `sending` broadcast with retry candidates still in cooldown but
  * a fresh heartbeat (`updatedAt` recent because the loop just exited)

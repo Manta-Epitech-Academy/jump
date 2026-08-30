@@ -11,7 +11,7 @@ import {
 
 /**
  * Serves a talent their own signed onboarding PDF. The key is resolved from the
- * authenticated talent's own records — never from a client-supplied id — so the
+ * authenticated talent's own records, never from a client-supplied id, so the
  * route can only ever hand back the caller's own document, then 302s to a
  * short-lived presigned URL rather than proxying the bytes.
  *

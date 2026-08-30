@@ -5,7 +5,7 @@ import {
 
 /**
  * The dev-facing "Recommandations" list on a talent fiche. Pure derivation from
- * the talent's current state — each recommendation is a short bold title plus a
+ * the talent's current state: each recommendation is a short bold title plus a
  * one-sentence suggested action (call the student, contact the parents, plan the
  * closing, invite to an event). Kept in `domain/` so it is testable without
  * prisma and shared between the page load and any future cohort-level view.
@@ -16,10 +16,10 @@ import {
  *
  * Two INDEPENDENT groups make up the list:
  *   1. The readiness funnel (never connected → onboarding not done → parent
- *      signatures pending) — mutually exclusive: a talent sits at exactly one
+ *      signatures pending), mutually exclusive: a talent sits at exactly one
  *      rung, so we surface only the first unmet gate, or none once ready.
  *   2. Opportunity / action recommendations (plan the closing, invite to an
- *      event for an interest) — each shows on its own condition, regardless of
+ *      event for an interest), each shows on its own condition, regardless of
  *      where the talent is in the funnel. An event opportunity is actionable the
  *      moment the talent picks the interest; it is not blocked by a missing
  *      parent signature, so it must not hide behind the funnel.
@@ -40,7 +40,7 @@ export type TalentRecommendationContact = 'parent' | 'student' | null;
  * Which of the two groups (see the module doc) this recommendation belongs to:
  * `funnel` = a readiness gate, an urgent single nudge to unblock the dossier;
  * `opportunity` = an action to engage the talent (plan the closing, invite to
- * an event). It drives how the contact panel renders — a funnel nudge wants the
+ * an event). It drives how the contact panel renders: a funnel nudge wants the
  * one fastest way to reach the person, an opportunity surfaces every channel.
  */
 export type TalentRecommendationKind = 'funnel' | 'opportunity';
@@ -56,15 +56,15 @@ export type TalentRecommendation = {
 };
 
 export type TalentRecommendationInput = TalentOnboardingFields & {
-  /** The talent's first name, already capitalized — used to address them by name. */
+  /** The talent's first name, already capitalized, used to address them by name. */
   prenom: string;
   /**
-   * Student's login email — named in the "jamais connecté" reco when present.
+   * Student's login email: named in the "jamais connecté" reco when present.
    * Nullable: an SF-imported talent can lack one (and, having no auth identity,
    * can never log in), so the reco omits the clause rather than render a blank.
    */
   email: string | null;
-  /** Guardian's email — named in the "signatures parents" reco. */
+  /** Guardian's email: named in the "signatures parents" reco. */
   parentEmail: string | null;
   /**
    * Public app origin (`env.ORIGIN`, e.g. https://jump.epiboost.fr in prod),
@@ -149,7 +149,7 @@ export function deriveTalentRecommendations(
   if (funnelRec) recommendations.push(funnelRec);
 
   // Opportunities: evaluated independently of the funnel. A closing only needs
-  // the talent to be reachable (connected), not the dossier complete — a parent
+  // the talent to be reachable (connected), not the dossier complete. A parent
   // signature has no bearing on sitting down with them.
   if (t.connected && !t.hasCompletedClosing) {
     recommendations.push({
@@ -165,8 +165,8 @@ export function deriveTalentRecommendations(
     });
   }
 
-  // Event opportunities: naturally data-gated — only talents who reached the
-  // interests step have any, so a never-connected talent surfaces none. The
+  // Event opportunities: naturally data-gated (only talents who reached the
+  // interests step have any), so a never-connected talent surfaces none. The
   // action is "invite the student", so surface the student's contact to act on.
   t.techRecommendationMessages.forEach((message, i) => {
     recommendations.push({

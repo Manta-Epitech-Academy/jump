@@ -15,7 +15,7 @@ import type {
 /**
  * Network errors are always transient (the transport threw before getting
  * a response). API errors are transient only on 429 (rate limit) or 5xx.
- * 4xx (validation, suppressed, invalid email) are permanent — retrying
+ * 4xx (validation, suppressed, invalid email) are permanent, retrying
  * won't help. When the statusCode is unknown, default to non-retryable
  * to avoid wasting API calls on inputs that will never work.
  */

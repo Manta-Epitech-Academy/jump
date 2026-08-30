@@ -1,13 +1,13 @@
 /**
  * Provider-agnostic SMS façade, mirroring `$lib/server/email`. Picks the
  * active backend at module load from `SMS_PROVIDER`. Callers depend only on
- * this file — flip the env var, redeploy, no code changes.
+ * this file: flip the env var, redeploy, no code changes.
  *
  *   - null  (default) → `./providers/null.ts` (fail-loud stub)
  *   - brevo           → `./providers/brevo.ts` (REST via fetch)
  *
  * The dev-redirect (see `./dev-redirect.ts`) is applied here, before the
- * provider sees the payload, so it works uniformly regardless of backend — and
+ * provider sees the payload, so it works uniformly regardless of backend, and
  * so a misconfigured dev env can never text a real minor. The trap is gated by
  * `OUTBOUND_MODE` (`$lib/server/outbound`); see `resolveSmsRouting`.
  */

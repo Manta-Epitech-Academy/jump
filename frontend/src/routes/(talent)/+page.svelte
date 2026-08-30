@@ -104,7 +104,7 @@
     planning.state === 'upcoming' ? minutesToHHMM(planning.startMinutes) : '',
   );
 
-  // The daily minigame is the first mission inside the "Mission du jour" card —
+  // The daily minigame is the first mission inside the "Mission du jour" card:
   // a distinct, accented row, playable or already-played, independent of any
   // event. The rich campus leaderboard now lives on the game's own page.
   let hasMinigame = $derived(
@@ -120,8 +120,8 @@
   let minigameAttempt = $derived(
     data.minigame && !data.minigame.ok ? data.minigame.lastAttempt : null,
   );
-  // A finalized attempt is either a win (`done` — ranked on the board, earned
-  // XP) or a loss (`invalid` — played, but no XP and absent from the board).
+  // A finalized attempt is either a win (`done`: ranked on the board, earned
+  // XP) or a loss (`invalid`: played, but no XP and absent from the board).
   // The played card must tell these apart: a loss shown as "Défi relevé !"
   // reads as a win the talent never actually got.
   let minigameWon = $derived(minigameAttempt?.status === 'done');
@@ -131,7 +131,7 @@
   const DAILY_TRAINING_LABEL = 'Entraîne ton cerveau';
 
   function formatChrono(ms: number | null): string {
-    return ms === null ? '—' : `${(ms / 1000).toFixed(1)}s`;
+    return ms === null ? '-' : `${(ms / 1000).toFixed(1)}s`;
   }
 
   // Long, words-based date ("23 mai 2026") for the upcoming-session copy.
@@ -335,7 +335,7 @@
            the next upcoming session, or a quiet rest state).
            On mobile the wrapper collapses (display: contents) so its children
            join the outer grid as siblings and `order-*` can interleave them
-           with the right column — keeping Actualités right under the profile
+           with the right column, keeping Actualités right under the profile
            card. `order` is inert on desktop (block children, not flex/grid
            items), so the two-column layout is untouched. -->
       <div
@@ -591,6 +591,6 @@
     </div>
   </div>
 
-  <!-- Footer: what Jump is — pinned to the bottom of the page -->
+  <!-- Footer: what Jump is, pinned to the bottom of the page -->
   <TalentFooter />
 </div>

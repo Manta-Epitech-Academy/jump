@@ -156,7 +156,7 @@
               pressed ? 'text-white' : toneText,
             )}
           >
-            {value ?? '—'}{#if total != null}<span
+            {value ?? '-'}{#if total != null}<span
                 class={cn(
                   'ml-1 font-mono text-base font-bold',
                   pressed ? 'text-white/70' : 'text-muted-foreground',
@@ -222,7 +222,7 @@
                   pressed ? 'text-white' : toneText,
                 )}
               >
-                {value ?? '—'}{#if total != null}<span
+                {value ?? '-'}{#if total != null}<span
                     class={cn(
                       'ml-1 font-mono text-base font-bold',
                       pressed ? 'text-white/70' : 'text-muted-foreground',

@@ -125,7 +125,7 @@
             ? 's'
             : ''}
         {:else}
-          Aucun filtre — toute l'audience est ciblée.
+          Aucun filtre : toute l'audience est ciblée.
         {/if}
       </p>
       {#if activeCount > 0}

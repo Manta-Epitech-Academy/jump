@@ -56,7 +56,7 @@ export const PRESENCE_EXPORT_SELECT = {
 
 export type PresenceSortKey = 'prenom' | 'nom';
 
-/** The cohort payload streamed behind the page shell — the heavy roster join and
+/** The cohort payload streamed behind the page shell: the heavy roster join and
  *  the per-cell attendance computation. The slot grid, closures and cutoffs stay
  *  synchronous in the load (cheap, and the header QR button reads them on first
  *  paint), so only these three fields stream. Shared by the load and

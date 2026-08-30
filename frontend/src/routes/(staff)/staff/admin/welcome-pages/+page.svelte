@@ -22,7 +22,7 @@
     Le message de bienvenue affiché aux talents dans le fil « Actualités » de
     leur tableau de bord, pendant toute la durée du stage. Vous éditez ici la
     page de <strong>n'importe quel campus</strong> et de
-    <strong>n'importe quel stage</strong> — au-delà du seul stage en cours
+    <strong>n'importe quel stage</strong>, au-delà du seul stage en cours
     accessible à l'équipe dev. Insérez des <strong>variables</strong> (prénom, campus,
     email de contact…) ; elles sont remplacées par les valeurs réelles de chaque talent.
   </p>
@@ -109,7 +109,7 @@
     {:else}
       <!--
         Keyed on the stage id: navigating the picker re-runs `load`, the id
-        changes, and the editor remounts with the new stage's content — so the
+        changes, and the editor remounts with the new stage's content, so the
         Tiptap instance reloads correctly instead of keeping the old text.
       -->
       {#key data.selected.id}

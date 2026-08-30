@@ -254,7 +254,7 @@
                       {/if}
                     </Table.Cell>
                     <Table.Cell class="font-mono text-xs text-muted-foreground">
-                      {row.email ?? '—'}
+                      {row.email ?? '-'}
                     </Table.Cell>
                     <Table.Cell>
                       <Badge variant="outline" class="text-xs {sb.class}">

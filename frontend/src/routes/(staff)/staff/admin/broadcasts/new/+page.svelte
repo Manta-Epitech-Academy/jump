@@ -108,7 +108,7 @@
 
   // ── Seed editable content from the picked template ──────────────────────
   // Choosing a template fills the (editable) subject/body once. Editing them
-  // afterwards never touches the template — the send snapshots this content.
+  // afterwards never touches the template: the send snapshots this content.
   let seededFor = $state('');
   $effect(() => {
     const tid = $form.templateId;
@@ -384,7 +384,7 @@
 <PageHeader
   title="Nouvel"
   accent="envoi"
-  subtitle="Choisis le canal, rédige le message, cible l'audience — l'aperçu est à droite"
+  subtitle="Choisis le canal, rédige le message, cible l'audience : l'aperçu est à droite"
 />
 
 <form
@@ -411,7 +411,7 @@
             options={templateOptions}
             value={$form.templateId}
             onChange={(v) => ($form.templateId = v ?? '')}
-            placeholder="— Sélectionner un modèle —"
+            placeholder="- Sélectionner un modèle -"
             searchPlaceholder="Rechercher un modèle…"
             emptyLabel={`Aucun modèle ${BROADCAST_CHANNEL_LABELS[channelChoice]}.`}
             triggerClass="flex-1"
@@ -439,7 +439,7 @@
       {@render sectionLabel(2, 'Message')}
       {#if !$form.templateId}
         <p class="text-sm text-muted-foreground">
-          Choisis un modèle ci-dessus pour pré-remplir le message — tu pourras
+          Choisis un modèle ci-dessus pour pré-remplir le message : tu pourras
           l'ajuster ici pour cet envoi sans modifier le modèle.
         </p>
       {:else}
@@ -478,7 +478,7 @@
           options={campusOptions}
           value={$form.campusId}
           onChange={(v) => onCampusChange(v ?? '')}
-          placeholder="— Sélectionner —"
+          placeholder="- Sélectionner -"
           searchPlaceholder="Rechercher un campus…"
           emptyLabel="Aucun campus."
           triggerClass="w-full"
@@ -511,7 +511,7 @@
 
       {#if eventScoped}
         <div class="grid gap-2">
-          <Label>Event (optionnel — vide = tous)</Label>
+          <Label>Event (optionnel, vide = tous)</Label>
           <SearchableSelect
             options={eventOptions}
             value={$form.eventId || 'all'}
@@ -718,7 +718,7 @@
       </div>
       {#if channel === 'sms' && !data.smsEnabled}
         <p class="text-xs text-destructive">
-          SMS non configuré (<code>SMS_PROVIDER</code>) — test indisponible.
+          SMS non configuré (<code>SMS_PROVIDER</code>) : test indisponible.
         </p>
       {/if}
     </div>

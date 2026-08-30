@@ -1,4 +1,4 @@
-# lint-tests.ts — Vérification des conventions de test
+# lint-tests.ts : Vérification des conventions de test
 
 Script TypeScript qui vérifie que les fichiers de test respectent les conventions
 définies dans [TESTING.md](../TESTING.md).

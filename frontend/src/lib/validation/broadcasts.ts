@@ -77,7 +77,7 @@ export const broadcastSourceFilterSchema = z.enum([
 ]);
 
 // Structural shape of the broadcast composer form, shared by the page load,
-// the `testSend` action (template-only — no audience/campus needed) and the
+// the `testSend` action (template-only, no audience/campus needed) and the
 // `enqueue` action. `campusId` and `audience` are required to *enqueue* but
 // not structurally: that rule lives in the enqueue action so test-send and
 // the live preview can reuse this schema without being blocked by it. The

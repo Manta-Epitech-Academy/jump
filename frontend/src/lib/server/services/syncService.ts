@@ -26,7 +26,7 @@ function mapGender(gender: string | null | undefined): string | null {
 // Resolve every distinct SF-claimed UAI to a canonical School id once, up front.
 // A cohort of ~200 talents shares far fewer schools, so this runs the lazy
 // create/enrich (and its annuaire lookup) a single time per school instead of
-// once per talent — and never re-hits the annuaire for a UAI twice in one sync.
+// once per talent, and never re-hits the annuaire for a UAI twice in one sync.
 async function resolveSchools(
   talents: { school?: string | null; school_uai?: string | null }[],
 ): Promise<Map<string, string | null>> {
@@ -214,7 +214,7 @@ export async function syncTalents(
         eventExtId: eventExternalId,
         message: `Compte de connexion non créé pour "${loginEmail}" : ${
           err instanceof Error ? err.message : 'erreur inconnue'
-        } — à arbitrer (Divergences Salesforce › Connexion) ou réessai au prochain sync.`,
+        }. À arbitrer (Divergences Salesforce › Connexion) ou réessai au prochain sync.`,
       });
     }
   };
@@ -326,7 +326,7 @@ export async function syncTalents(
           err instanceof Prisma.PrismaClientKnownRequestError &&
           err.code === 'P2002'
         ) {
-          // Only `externalId` is unique on create now (Talent.email is gone) — a
+          // Only `externalId` is unique on create now (Talent.email is gone): a
           // concurrent pass created the same SF record. Adopt the winner's row
           // and fall through: the participation upsert below must still run
           // (and the id must land in `syncedTalentIds`), or the end-of-sync
@@ -344,7 +344,7 @@ export async function syncTalents(
       }
 
       // Eager-mint the login account at import so `bauth_user.email` is the
-      // identity from day one (same shape as the CSV campaign path) — no window
+      // identity from day one (same shape as the CSV campaign path), no window
       // where a Talent exists without an account. A parent/staff-owned email
       // can't be forced into a student login (`ensureTalentUser` throws); log it
       // and move on. The talent is still imported, just accountless until an
@@ -354,7 +354,7 @@ export async function syncTalents(
       talentId = existing.id;
 
       // 1. Refresh the SF mirror to the latest claim. Skip the write when the
-      //    payload is identical to the stored mirror — on the steady state
+      //    payload is identical to the stored mirror: on the steady state
       //    (200 talents, ~0 changes / 30 min) this means near-zero writes.
       const m = existing.sfImport;
       const mirrorChanged =
@@ -485,7 +485,7 @@ export async function syncTalents(
                 existingExtId: null,
                 talentName: `${t.first_name} ${t.last_name}`,
                 eventExtId: eventExternalId,
-                message: `Divergence d'identité de connexion non auto-résoluble pour "${email}" — à arbitrer dans Divergences Salesforce › Connexion.`,
+                message: `Divergence d'identité de connexion non auto-résoluble pour "${email}", à arbitrer dans Divergences Salesforce › Connexion.`,
               });
             }
           }

@@ -3,7 +3,7 @@ import { outboundTrapped } from '$lib/server/outbound';
 import { parseCookieToken, signCookieToken } from '$lib/server/signedCookie';
 
 /**
- * Dev-redirect pin — a runtime way to test the *logged-out* OTP login flow.
+ * Dev-redirect pin: a runtime way to test the *logged-out* OTP login flow.
  *
  * The dev-redirect trap routes a trapped send to the human driving the request
  * (the request actor in `requestContext`). But a regular OTP login (a talent or
@@ -13,7 +13,7 @@ import { parseCookieToken, signCookieToken } from '$lib/server/signedCookie';
  * own inbox.
  *
  * The pin closes that gap: an admin arms it from the settings dialog, logs out,
- * and triggers the OTP flow — `hooks.server.ts` then resolves this cookie and
+ * and triggers the OTP flow: `hooks.server.ts` then resolves this cookie and
  * makes the pinned admin *look like* the request actor, so the existing routing
  * ladder sends the login mail to their personal list (or login email). It lives
  * in a signed cookie in the tester's **own browser**, so two admins testing the
@@ -23,13 +23,13 @@ import { parseCookieToken, signCookieToken } from '$lib/server/signedCookie';
  * auto-expiring, admin-gated) with one deliberate difference:
  *
  *   `armRealSends` verifies the cookie's `userId` against the *live*
- *   `effectiveUserId(locals)` — a gun-safety property, since arming may lift the
+ *   `effectiveUserId(locals)`, a gun-safety property, since arming may lift the
  *   trap and must only ever affect a human actively driving a session.
  *
  *   The pin does the opposite: it is consulted ONLY when there is no session
  *   (see `hooks.server.ts`) and trusts the signed `userId` embedded in the
  *   cookie. That relaxation is safe because the pin grants *zero* power beyond
- *   choosing a redirect destination *inside* the trap — it can never lift the
+ *   choosing a redirect destination *inside* the trap: it can never lift the
  *   trap to reach a real recipient (that still requires prod or armed real
  *   sends). The cookie was minted by an admin-gated action and is HMAC-signed,
  *   so the worst a forged/stale pin could do is land a trapped copy in some
@@ -52,7 +52,7 @@ export function makePinCookie(expiresAt: number, userId: string): string {
 /**
  * Resolve the pinned tester from the signed cookie, or null. Inert off a
  * trapped env. Unlike `readArmedState`, this does NOT match against
- * `locals.user` — the pin exists for logged-out requests, where there is none.
+ * `locals.user`: the pin exists for logged-out requests, where there is none.
  * Returns the bound `userId` (the caller resolves the staff record from it) and
  * the auto-clear deadline.
  */

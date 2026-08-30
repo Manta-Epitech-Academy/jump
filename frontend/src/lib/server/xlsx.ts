@@ -4,7 +4,7 @@
  * A `.xlsx` is an Office Open XML package: a ZIP archive of a handful of XML
  * parts. For our needs (a single sheet of text cells with a bold header) the
  * XML is trivial, and the only thing a library would really buy us is the ZIP
- * container — which we sidestep with *stored* (uncompressed) entries, so no
+ * container, which we sidestep with *stored* (uncompressed) entries, so no
  * deflate and no dependency. Strings are written inline (`t="inlineStr"`), so
  * there is no shared-strings table to maintain either.
  *

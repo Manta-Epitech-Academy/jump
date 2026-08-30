@@ -3,7 +3,7 @@
     value: string;
     label: string;
     /** Optional reference count shown after the label (full-population, not the
-     *  filtered result — it's a "how many exist" hint, not a live row count). */
+     *  filtered result: it's a "how many exist" hint, not a live row count). */
     count?: number;
   };
 </script>
@@ -13,7 +13,7 @@
 
   // A one-click radio rendered as a button group. Each option maps to a single
   // value; picking one calls `onChange`. Distinct from `Select` (used for the
-  // many-option niveau/campus filters) — this is for short, frequently-toggled
+  // many-option niveau/campus filters): this is for short, frequently-toggled
   // dimensions where every choice should be visible at a glance.
   //
   // FOUR OPTIONS IS THE CEILING. Past that it becomes a `FilterSelect`, which

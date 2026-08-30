@@ -7,8 +7,8 @@ import type { StaffRole } from '@prisma/client';
  * gate we need. If you're about to inline a role array somewhere, add a group
  * here instead.
  *
- *   devMember       — dev workspace member (superdev + dev)
- *   realSendArmers  — may arm real outbound sends on a trapped env (admin)
+ *   devMember       : dev workspace member (superdev + dev)
+ *   realSendArmers  : may arm real outbound sends on a trapped env (admin)
  *
  * There is deliberately no superdev-only group: today `superdev` and `dev` can
  * do exactly the same things, and the last gate that told them apart went away
@@ -22,16 +22,16 @@ import type { StaffRole } from '@prisma/client';
  *              one mutation
  *
  * UI pattern rule (pick one per site):
- *   • Hide                 — nav entries to restricted destinations (sidebars, menus)
- *   • Disable + tooltip    — mutating controls visible on shared screens
- *   • Redirect / 403       — direct URL access, via requireStaffGroup in the load
+ *   • Hide                 : nav entries to restricted destinations (sidebars, menus)
+ *   • Disable + tooltip    : mutating controls visible on shared screens
+ *   • Redirect / 403       : direct URL access, via requireStaffGroup in the load
  */
 const STAFF_GROUPS = {
   devMember: ['superdev', 'dev'],
   // Roles allowed to manage the dev-redirect controls on a trapped (dev/staging)
   // env: arming "real sends" (lifting the mail/SMS redirect to reach real
-  // recipients — dangerous, recipients are minors) and arming a login-redirect
-  // pin (routing trapped OTP mail to themselves — benign, stays trapped).
+  // recipients: dangerous, recipients are minors) and arming a login-redirect
+  // pin (routing trapped OTP mail to themselves: benign, stays trapped).
   // Restricted to admin only; the controls live in the admin space. See
   // `$lib/server/armRealSends` and `$lib/server/devRedirectPin`.
   realSendArmers: ['admin'],

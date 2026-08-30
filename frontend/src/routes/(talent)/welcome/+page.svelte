@@ -25,7 +25,7 @@
 >
   <BrandBackdrop />
 
-  <!-- Header — logo lives in the top bar, matching the onboarding pages -->
+  <!-- Header: logo lives in the top bar, matching the onboarding pages -->
   <header class="relative z-10 shrink-0 border-b border-border/50 bg-muted">
     <div class="mx-auto flex w-full max-w-lg items-center px-4 py-3">
       <a href={resolve('/')} aria-label="Accueil">

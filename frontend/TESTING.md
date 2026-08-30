@@ -1,4 +1,4 @@
-# Politique de Tests — Epitech Intra Lycéens
+# Politique de Tests : Epitech Intra Lycéens
 
 > Stack : SvelteKit · TypeScript · Vitest · Playwright · Prisma · PostgreSQL · BetterAuth
 
@@ -6,13 +6,13 @@
 
 ## 1. Philosophie
 
-Les tests ne sont pas une contrainte — ils sont le filet de sécurité qui permet de refactorer et de livrer sereinement. Ce document définit **ce qu'on teste, comment, et comment on maintient cette qualité dans le temps**.
+Les tests ne sont pas une contrainte : ils sont le filet de sécurité qui permet de refactorer et de livrer sereinement. Ce document définit **ce qu'on teste, comment, et comment on maintient cette qualité dans le temps**.
 
 Trois principes directeurs :
 
 - **Un test = un comportement**, pas une fonction
-- **Les tests doivent être lisibles** — un test qui échoue doit expliquer ce qui s'est cassé sans avoir à lire le code
-- **Un test lent ou fragile est pire qu'un test absent** — on préfère moins de tests, fiables, que beaucoup de tests qui flappent
+- **Les tests doivent être lisibles** : un test qui échoue doit expliquer ce qui s'est cassé sans avoir à lire le code
+- **Un test lent ou fragile est pire qu'un test absent** : on préfère moins de tests, fiables, que beaucoup de tests qui flappent
 
 ---
 
@@ -33,15 +33,15 @@ sans être installé.
 
 ```
            /\
-          /E2E\          Playwright — full user journeys (10%)
+          /E2E\          Playwright: full user journeys (10%)
          /------\
-        / Integr. \      Vitest — services + DB interactions (20%)
+        / Integr. \      Vitest: services + DB interactions (20%)
        /------------\
-      /    Unit      \   Vitest — business logic, utils, schemas (70%)
+      /    Unit      \   Vitest: business logic, utils, schemas (70%)
      /________________\
 ```
 
-### 3.1 Tests Unitaires — Vitest (70%)
+### 3.1 Tests Unitaires : Vitest (70%)
 
 **Ce qu'on teste :**
 
@@ -95,7 +95,7 @@ describe('validateAge', () => {
 
 ---
 
-### 3.2 Tests d'Intégration — Vitest (20%)
+### 3.2 Tests d'Intégration : Vitest (20%)
 
 **Ce qu'on teste :**
 
@@ -169,7 +169,7 @@ describe('studentService (integration)', () => {
 
 ---
 
-### 3.3 Tests E2E — Playwright (10%)
+### 3.3 Tests E2E : Playwright (10%)
 
 **Ce qu'on teste :**
 
@@ -243,7 +243,7 @@ test.describe("un membre de l'espace dev", () => {
 | Fichier         | Rôle                                                                                                                                                        |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `identities.ts` | Qui la suite est (six comptes sous `@e2e.invalid`, ids littéraux) et où chaque session est stockée. Sans Prisma, parce que `playwright.config.ts` l'importe |
-| `db.ts`         | Le client Prisma des fixtures, derrière `assertTestDatabase()` — la même garde que l'intégration, pas une copie                                             |
+| `db.ts`         | Le client Prisma des fixtures, derrière `assertTestDatabase()` (la même garde que l'intégration, pas une copie)                                             |
 | `seed.ts`       | La purge et la reconstruction. Volontairement pas `prisma/seed.ts` : 3000 lignes de jeu de démo, auxquelles une spec ne doit pas être accrochée             |
 
 ---
@@ -291,10 +291,10 @@ nommé n'est pas mal rangé : il ne tourne pas. C'est pour ça que
 
 Les tests unitaires (`*.test.ts`) vivent **à côté du fichier qu'ils testent**, et non dans un dossier `tests/` séparé. C'est la convention recommandée par Vitest et la majorité des projets SvelteKit/Vite pour plusieurs raisons :
 
-- **Proximité = maintenabilité** — quand on modifie un fichier, le test correspondant est juste à côté. Pas besoin de naviguer dans une arborescence miroir.
-- **Imports simplifiés** — les imports relatifs sont courts (`./validation` au lieu de `../../../src/lib/utils/validation`), ce qui réduit la fragilité face aux refactors.
-- **Détection des fichiers non testés** — un fichier sans `.test.ts` à côté de lui est immédiatement visible. Dans un dossier `tests/` séparé, les oublis passent inaperçus.
-- **Convention de l'écosystème** — c'est la convention recommandée par SvelteKit qui précise : _"your unit tests will live in the `src` directory with a `.test.js` extension"_ ([Project structure - SvelteKit docs](https://svelte.dev/docs/kit/project-structure)). Pour un argumentaire détaillé des avantages (navigation, imports simplifiés, visibilité des fichiers non testés), voir [Co-locate Your Unit Tests - Yockyard](https://www.yockyard.com/post/co-locate-unit-tests/).
+- **Proximité = maintenabilité** : quand on modifie un fichier, le test correspondant est juste à côté. Pas besoin de naviguer dans une arborescence miroir.
+- **Imports simplifiés** : les imports relatifs sont courts (`./validation` au lieu de `../../../src/lib/utils/validation`), ce qui réduit la fragilité face aux refactors.
+- **Détection des fichiers non testés** : un fichier sans `.test.ts` à côté de lui est immédiatement visible. Dans un dossier `tests/` séparé, les oublis passent inaperçus.
+- **Convention de l'écosystème** : c'est la convention recommandée par SvelteKit qui précise : _"your unit tests will live in the `src` directory with a `.test.js` extension"_ ([Project structure - SvelteKit docs](https://svelte.dev/docs/kit/project-structure)). Pour un argumentaire détaillé des avantages (navigation, imports simplifiés, visibilité des fichiers non testés), voir [Co-locate Your Unit Tests - Yockyard](https://www.yockyard.com/post/co-locate-unit-tests/).
 
 > Seuls les tests E2E (Playwright) vivent dans `tests/e2e/` car ils ne sont pas liés à un fichier source spécifique mais à des parcours utilisateur complets.
 
@@ -365,20 +365,20 @@ ce qui rend les trois temps lisibles sans les annoter.
 
 ## 6. Priorités de Tests
 
-### Critique — À couvrir en premier
+### Critique : À couvrir en premier
 
 - Authentication (login, logout, expired token, unauthorized access)
 - Route guards (access without role, access with wrong role)
 - Input validation (emails, dates, required fields)
 - DB wrapper (create, read, update, delete on main entities)
 
-### Haute — À couvrir en semaine 2-3
+### Haute : À couvrir en semaine 2-3
 
 - Business services (`studentService`, `eventService`, `internshipService`)
 - Data transformations between layers
 - Error handling propagated to the UI
 
-### Normale — À couvrir progressivement
+### Normale : À couvrir progressivement
 
 - Reusable Svelte components (forms, lists)
 - Secondary utilities
@@ -593,7 +593,7 @@ comportement par défaut).
 
 ### Si le test échoue en CI sur ta branche
 
-1. **Ne pas ignorer** — ne jamais utiliser `it.skip()` pour contourner un test cassé. Ce n'est plus seulement une règle écrite : `bun run lint:tests` la refuse, dans un check requis (§9)
+1. **Ne pas ignorer** : ne jamais utiliser `it.skip()` pour contourner un test cassé. Ce n'est plus seulement une règle écrite : `bun run lint:tests` la refuse, dans un check requis (§9)
 2. Analyser le rapport d'erreur dans la CI
 3. Identifier si c'est **le code qui est cassé** ou **le test qui est obsolète** :
    - Code cassé → corriger le code
@@ -629,5 +629,5 @@ Ensuite :
 
 ## 12. Ressources
 
-- [Vitest — Documentation officielle](https://vitest.dev)
-- [Playwright — Documentation officielle](https://playwright.dev)
+- [Vitest, Documentation officielle](https://vitest.dev)
+- [Playwright, Documentation officielle](https://playwright.dev)
