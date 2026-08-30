@@ -39,6 +39,13 @@ export const PRESENCE_MIX = [
   ['late', 1],
 ] as const;
 
+/**
+ * The Salesforce member status distribution is NOT here, on purpose: it is
+ * applied by `World.enrol` rather than by a scenario, and `world.ts` deliberately
+ * imports nothing from this directory. It lives beside the code that draws it,
+ * which is what this file's header actually asks for.
+ */
+
 /** How a cell got marked: system 42%, QR 35%, manual 23%. */
 export const PRESENCE_SOURCE_MIX = [
   ['system', 42],

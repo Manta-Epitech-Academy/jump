@@ -26,6 +26,8 @@ import { SEED_MAIL_DOMAIN, STAFF_MAIL_DOMAIN } from './catalog/people';
 import type { CampusSpec } from './catalog/campuses';
 import type { SchoolSpec } from './catalog/schools';
 import type { SlotBlueprint } from './catalog/planning';
+import type { Rng } from './rng';
+import type { SfMemberStatus } from '../../src/lib/domain/sfMemberStatus';
 
 export type CampusRef = { id: string; name: string; timezone: string };
 export type StaffRef = {
@@ -71,6 +73,38 @@ export type EventRef = {
   days: Date[];
 };
 
+/**
+ * The Salesforce member status a participation gets when nobody says otherwise.
+ *
+ * Only VISIBLE statuses are ever drawn, and that is what keeps every cohort on
+ * the size PROFILE.md measured. Production's enrolments were counted when the
+ * column was null on every row, so the measured distribution (median 23) is a
+ * distribution of the rows a screen SHOWS. Draw a hidden status here and every
+ * cohort quietly falls below its own target, and two manifest lines that promise
+ * "200 inscrits" stop being true. `CONNECTED`, `DESISTED` and the legacy `null`
+ * are therefore PLACED, in fixed numbers, by the `statuts-salesforce` scenario.
+ *
+ * The two weights are PROFILE.md's presence figures rather than new numbers:
+ * `pastEventPresence` maps MEET to present and READY to absent, so the share of
+ * each is the share of présents and absents. Left as 81 and 16 instead of a
+ * normalised 83.5 / 16.5 so the provenance stays readable; `weighted` does not
+ * need them to sum to 100.
+ */
+const STARTED_EVENT_SF_MIX = [
+  ['MEET', 81],
+  ['READY', 16],
+] as const satisfies readonly (readonly [SfMemberStatus, number])[];
+
+/**
+ * An event that has not happened yet: nobody attended it, so `MEET` is not a
+ * state the world can be in. One weighted entry rather than an early return, so
+ * a derived enrolment always consumes exactly one draw - otherwise moving an
+ * event from the past to the future desynchronises every status after it.
+ */
+const UPCOMING_EVENT_SF_MIX = [
+  ['READY', 100],
+] as const satisfies readonly (readonly [SfMemberStatus, number])[];
+
 export class World {
   readonly buffer: Buffered = createBuffer();
   readonly campuses = new Map<string, CampusRef>();
@@ -105,8 +139,20 @@ export class World {
   private talentCounter = 0;
   private xpByTalent = new Map<string, number>();
   private presentEventsByTalent = new Map<string, Set<string>>();
+  /**
+   * Its own stream, so adding this draw does not shift the numbers every other
+   * scenario gets. Assigned in the constructor BODY and not as a field
+   * initialiser: this directory targets ES2022 without `useDefineForClassFields`,
+   * so field initialisers run before the parameter property `ctx` is assigned and
+   * would read it as undefined. Stored rather than forked per call, since forking
+   * on every `enrol` rebuilds the same generator and hands every participation
+   * the same status.
+   */
+  private readonly sfRng: Rng;
 
-  constructor(readonly ctx: SeedContext) {}
+  constructor(readonly ctx: SeedContext) {
+    this.sfRng = ctx.rng.fork('sfMemberStatus');
+  }
 
   /** Monotonic, so ids stay unique however scenarios are ordered. */
   nextTalentIndex(): number {
@@ -395,11 +441,32 @@ export class World {
     return ref;
   }
 
+  /**
+   * Enrols a talent, deriving the Salesforce member status unless told one.
+   *
+   * Omit `opts` and the row is VISIBLE in the dev space, and plausible for when
+   * the event happens: `MEET` or `READY` once it has started, `READY` only
+   * before. Pass `{ sfMemberStatus: null }` for a legacy row synced before the
+   * column existed, or a hidden status to put one where a screen needs it - both
+   * of which the `statuts-salesforce` scenario does, and nothing else should.
+   *
+   * An explicit status consumes no draw, so placing one has no effect on any
+   * other row in the dataset.
+   */
   enrol(
     event: EventRef,
     talent: TalentRef,
-    sfMemberStatus: string | null = null,
+    opts?: { sfMemberStatus: SfMemberStatus | null },
   ): void {
+    const sfMemberStatus =
+      opts === undefined
+        ? this.sfRng.weighted(
+            event.date > this.ctx.clock.today
+              ? UPCOMING_EVENT_SF_MIX
+              : STARTED_EVENT_SF_MIX,
+          )
+        : opts.sfMemberStatus;
+
     this.buffer.participation.push({
       id: id(
         'prt',

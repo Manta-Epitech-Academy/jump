@@ -23,9 +23,16 @@ import {
   imageRightsStatus,
 } from '../../../src/lib/domain/imageRights';
 import { eventRunsClosings } from '../../../src/lib/domain/eventModules';
+import {
+  SF_MEMBER_STATUSES,
+  isVisibleInDevSpace,
+  pastEventPresence,
+} from '../../../src/lib/domain/sfMemberStatus';
+import { effectiveStatus } from '../../../src/lib/domain/eventPresence';
 
 export async function reachabilityFailures(
   prisma: PrismaClient,
+  anchor: Date,
 ): Promise<string[]> {
   const failures: string[] = [];
 
@@ -125,6 +132,145 @@ export async function reachabilityFailures(
       `${mismatched[0]!.count} talents dont l'adresse CRM et l'adresse de connexion divergent`,
     );
   }
+
+  // The Salesforce member statuses, and the presence they imply.
+  //
+  // This block carries more weight than the ones above, and the reason is worth
+  // knowing before anybody trims it: `Participation.sfMemberStatus` is a
+  // `String?`, not a Prisma enum, so `assert/enums.ts` cannot see it. The rule
+  // that a behaviour ships with its example is enforced by the DMMF everywhere
+  // else in this file's neighbourhood; here it is enforced by nothing but these
+  // lines.
+  const participations = await prisma.participation.findMany({
+    where: { eventId: { startsWith: 'sd_' } },
+    select: {
+      talentId: true,
+      sfMemberStatus: true,
+      event: { select: { id: true, date: true, endDate: true } },
+    },
+  });
+
+  const seenStatuses = new Set(
+    participations.map((row) => row.sfMemberStatus ?? '(null)'),
+  );
+  for (const status of SF_MEMBER_STATUSES) {
+    if (!seenStatuses.has(status))
+      failures.push(`Aucune inscription au statut Salesforce ${status}`);
+  }
+  if (!seenStatuses.has('(null)'))
+    failures.push(
+      'Aucune inscription sans statut, alors que celles importées avant juillet 2026 en sont dépourvues',
+    );
+
+  // Nobody attended an event that has not happened. A drawn `MEET` on a future
+  // event is the one illegal state this generator could produce silently.
+  const impossible = participations.filter(
+    (row) => row.event.date > anchor && row.sfMemberStatus === 'MEET',
+  );
+  if (impossible.length > 0)
+    failures.push(
+      `${impossible.length} inscriptions au statut MEET sur un événement qui n'a pas eu lieu`,
+    );
+
+  // One event carrying both sides of the filter, which is what the admin
+  // inspector exists to explain and what its visible / masqué split needs.
+  const byEvent = new Map<string, boolean[]>();
+  for (const row of participations) {
+    const seen = byEvent.get(row.event.id) ?? [];
+    seen.push(isVisibleInDevSpace(row.sfMemberStatus));
+    byEvent.set(row.event.id, seen);
+  }
+  const mixedEvent = [...byEvent.values()].some(
+    (visibilities) =>
+      visibilities.includes(true) && visibilities.includes(false),
+  );
+  if (!mixedEvent)
+    failures.push(
+      'Aucun événement ne porte à la fois une inscription visible et une inscription masquée',
+    );
+
+  const derivedPresences = new Set(
+    participations
+      .filter((row) => row.event.date <= anchor)
+      .map((row) => pastEventPresence(row.sfMemberStatus)),
+  );
+  for (const expected of ['present', 'absent', null] as const) {
+    if (!derivedPresences.has(expected))
+      failures.push(
+        `pastEventPresence ne produit jamais ${expected ?? 'null'} sur un événement passé`,
+      );
+  }
+
+  // The one presence shape that consults Salesforce at all: a cell nobody
+  // marked, in a closed slot, on a single-day event. Run the product's own
+  // `effectiveStatus` over what was written rather than restating its rule.
+  const closures = await prisma.eventPresenceClosure.findMany({
+    where: { eventId: { startsWith: 'sd_' } },
+    select: { eventId: true, day: true, slot: true },
+  });
+  const marks = await prisma.eventPresence.findMany({
+    where: { eventId: { startsWith: 'sd_' } },
+    select: {
+      eventId: true,
+      talentId: true,
+      day: true,
+      slot: true,
+      status: true,
+    },
+  });
+  const markKey = (
+    eventId: string,
+    talentId: string,
+    day: Date,
+    slot: string,
+  ) => `${eventId}|${talentId}|${day.toISOString().slice(0, 10)}|${slot}`;
+  const markByKey = new Map(
+    marks.map((mark) => [
+      markKey(mark.eventId, mark.talentId, mark.day, mark.slot),
+      mark.status,
+    ]),
+  );
+
+  const projected = new Set<string>();
+  let overridden = 0;
+  for (const closure of closures) {
+    const roster = participations.filter(
+      (row) => row.event.id === closure.eventId,
+    );
+    // `isSingleDayEvent` in the émargement loader is `slots.length <= 2`, which
+    // for a generated event is exactly "one weekday".
+    const singleDay = roster[0]?.event.endDate === null;
+    for (const row of roster) {
+      const stored = markByKey.get(
+        markKey(closure.eventId, row.talentId, closure.day, closure.slot),
+      );
+      const resolved = effectiveStatus(stored ?? 'pending', true, {
+        isSingleDayEvent: singleDay,
+        sfMemberStatus: row.sfMemberStatus,
+      });
+      if (stored === undefined) projected.add(resolved);
+      else if (
+        stored !==
+        effectiveStatus('pending', true, {
+          isSingleDayEvent: singleDay,
+          sfMemberStatus: row.sfMemberStatus,
+        })
+      )
+        overridden += 1;
+    }
+  }
+  if (!projected.has('present'))
+    failures.push(
+      'Aucune cellule non marquée d’un créneau clos ne se lit « présent » depuis Salesforce',
+    );
+  if (!projected.has('absent'))
+    failures.push(
+      'Aucune cellule non marquée d’un créneau clos ne se lit « absent »',
+    );
+  if (overridden === 0)
+    failures.push(
+      'Aucune marque manuelle ne contredit le statut Salesforce, donc « la saisie humaine l’emporte » n’est démontré nulle part',
+    );
 
   return failures;
 }

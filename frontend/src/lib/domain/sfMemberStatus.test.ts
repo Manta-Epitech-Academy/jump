@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   SF_VISIBLE_STATUSES,
+  SF_HIDDEN_STATUSES,
+  SF_MEMBER_STATUSES,
   isVisibleInDevSpace,
   pastEventPresence,
   normalizeSfStatus,
@@ -8,6 +10,33 @@ import {
 } from './sfMemberStatus';
 
 describe('sfMemberStatus domain logic', () => {
+  describe('the status catalogue', () => {
+    it('is the visible and the hidden halves, with nothing in common', () => {
+      expect(SF_MEMBER_STATUSES).toEqual([
+        ...SF_VISIBLE_STATUSES,
+        ...SF_HIDDEN_STATUSES,
+      ]);
+      const overlap = SF_VISIBLE_STATUSES.filter((status) =>
+        (SF_HIDDEN_STATUSES as readonly string[]).includes(status),
+      );
+      expect(overlap).toEqual([]);
+    });
+
+    it('agrees with isVisibleInDevSpace on every value it declares', () => {
+      for (const status of SF_VISIBLE_STATUSES) {
+        expect(isVisibleInDevSpace(status)).toBe(true);
+      }
+      for (const status of SF_HIDDEN_STATUSES) {
+        expect(isVisibleInDevSpace(status)).toBe(false);
+      }
+    });
+
+    it('stays open: a word it does not declare is still stored as it arrives', () => {
+      expect(normalizeSfStatus(' rescheduled ')).toBe('RESCHEDULED');
+      expect(isVisibleInDevSpace('RESCHEDULED')).toBe(false);
+    });
+  });
+
   describe('isVisibleInDevSpace', () => {
     it('returns true for null (legacy participations)', () => {
       expect(isVisibleInDevSpace(null)).toBe(true);

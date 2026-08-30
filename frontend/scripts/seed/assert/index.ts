@@ -21,7 +21,7 @@ export async function runChecks(
   const groups: [string, string[]][] = [
     ['couverture des énumérations', await missingEnumValues(prisma)],
     ['projections', await projectionFailures(prisma)],
-    ['états atteignables', await reachabilityFailures(prisma)],
+    ['états atteignables', await reachabilityFailures(prisma, anchor)],
     ['horodatages ancrés', await clockFailures(prisma, anchor)],
   ];
 
