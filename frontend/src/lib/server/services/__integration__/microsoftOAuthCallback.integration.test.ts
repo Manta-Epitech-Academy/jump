@@ -67,7 +67,12 @@ describe('Microsoft OAuth callback (integration)', () => {
   it('creates a valid bauth_account row through the real BetterAuth callback', async () => {
     assertTestDatabase();
 
-    const oid = `oid-${stamp}`;
+    // Discriminated by the file's own prefix, not by the stamp alone:
+    // `bauthAccountSchema.integration.test.ts` builds its accountId as
+    // `oid-${Date.now()}` against this same issuer, and that pair is UNIQUE,
+    // so two files whose module loads land in the same millisecond would
+    // collide on it and fail here as a phantom OAuth regression.
+    const oid = `microsoft-oauth-${stamp}`;
     const issuer = 'https://login.microsoftonline.com/test-tenant/v2.0';
     const email = `microsoft-oauth-${stamp}@e2e.invalid`;
 
