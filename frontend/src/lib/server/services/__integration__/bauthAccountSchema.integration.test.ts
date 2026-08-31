@@ -4,14 +4,14 @@
  * `schema.prisma` still matches what the installed BetterAuth version expects
  * on that table. A dependency bump silently outran the schema once already: a
  * required `issuer` column landed in BetterAuth 1.7, and every Microsoft
- * sign-in on that version fails a Prisma validation error at query time,
- * caught by nothing short of an actual OAuth round-trip, which nothing in the
- * suite attempts (staff E2E specs mint a `bauth_session` row directly).
+ * sign-in on that version failed a Prisma validation error at query time.
  *
- * This test is the next-best signal: it writes and reads a `bauth_account`
- * row the same shape the Prisma adapter does on an OAuth callback, keyed on
- * (issuer, accountId), which is the pair a bump changing that shape again
- * would break.
+ * `microsoftOAuthCallback.integration.test.ts` is the round-trip regression
+ * for that: it drives a real callback through BetterAuth and checks the row
+ * it produces. This test stays alongside it, narrower and faster, as a direct
+ * check on the `(issuer, accountId)` uniqueness constraint specifically - it
+ * still catches a constraint regression even if the round-trip test's fake
+ * provider setup ever changes shape.
  */
 import { describe, it, expect, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
