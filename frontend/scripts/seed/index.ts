@@ -22,7 +22,11 @@ import {
   type SeedContext,
   type ManifestEntry,
 } from './context';
-import { assertWritableTarget, SEED_TARGETS } from './guard';
+import {
+  assertGeneratorOwnsDataset,
+  assertWritableTarget,
+  SEED_TARGETS,
+} from './guard';
 import { createClock, parseAnchor } from './clock';
 import { createRng } from './rng';
 import { isProfileName, PROFILES } from './profiles';
@@ -267,6 +271,12 @@ async function main(): Promise<void> {
     log(
       `Profil ${profile.name}, cible ${target}, ancre ${clock.dateKey(clock.today)}, graine ${args.seed}.`,
     );
+
+    // The third gate, and the only one that needs the database open. It sits
+    // before the wipe rather than beside the other two because `--catalog-only`
+    // returns above: that mode is create-only and is meant to run against a
+    // populated database, which is the one case this refusal would be wrong for.
+    await assertGeneratorOwnsDataset(prisma);
 
     log('Nettoyage :');
     const removed = await wipe(prisma, log, FEEDBACK_FORM_SLUGS);
