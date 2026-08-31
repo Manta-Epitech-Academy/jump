@@ -23,7 +23,7 @@ import {
   WELCOME_XP_BONUS,
   onboardingEarlyBirdBonus,
 } from '../../../src/lib/domain/xp';
-import { addDossier } from '../factories/onboarding';
+import { addDossier, DOSSIER_SPAN_DAYS } from '../factories/onboarding';
 import { conductClosing } from '../factories/closing';
 import { addFeedbackSubmission } from '../factories/communications';
 import {
@@ -46,6 +46,24 @@ const VERDICT_COVER: readonly ClosingRecommendation[] = [
   'indecis',
   'pas_interesse',
 ];
+
+/**
+ * When the cohort's dossiers were filed, as a window rather than a step.
+ *
+ * They are filed in enrolment order, which is what makes the early-bird ranking
+ * below mean anything, and the position inside the window is derived from the
+ * cohort's SIZE. Deriving it from the index alone (`-70 + index`) is a date
+ * computed from a count: it held at the fourteen-talent `ci` cohort the seed
+ * check runs, and put 115 dossiers - with their signatures, their guardian
+ * co-signatures and their rendered PDFs - after the anchor at the two profiles
+ * anybody actually opens.
+ *
+ * The window closes `DOSSIER_SPAN_DAYS` before the anchor because a dossier
+ * keeps writing after it is filed: the guardian's own two acts trail the
+ * talent's by a week.
+ */
+const FILING_WINDOW_START = -70;
+const FILING_WINDOW_END = -(DOSSIER_SPAN_DAYS + 1);
 
 const STAGE_QUESTIONS = [
   BANK_KEYS.discoveryChannel,
@@ -121,7 +139,11 @@ export const stage: Scenario = {
         stopAt: null,
         parentCoSigned: rng.chance(0.93),
         imageRights: rng.chance(0.13) ? 'refused' : 'accepted',
-        filedOffset: -70 + index,
+        filedOffset:
+          FILING_WINDOW_START +
+          Math.floor(
+            (index / size) * (FILING_WINDOW_END - FILING_WINDOW_START),
+          ),
       });
       world.grantXp({
         talent,

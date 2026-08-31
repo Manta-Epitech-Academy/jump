@@ -30,7 +30,7 @@
     "test:integration": "sh scripts/with-test-db.sh vitest run --project integration",
     "test:schema-drift": "sh scripts/with-test-db.sh sh scripts/check-schema-drift.sh",
     "seed": "bun run scripts/seed/index.ts",
-    "test:seed": "TEST_DB_SUITE=seed sh scripts/with-test-db.sh bun run scripts/seed/index.ts --env test --profile ci --today 2026-06-15 --check",
+    "test:seed": "TEST_DB_SUITE=seed sh scripts/with-test-db.sh sh scripts/check-seed-profiles.sh",
     "test:e2e": "TEST_DB_SUITE=e2e sh scripts/with-test-db.sh playwright test",
     "test:e2e:ui": "TEST_DB_SUITE=e2e sh scripts/with-test-db.sh playwright test --ui",
     "lint:design": "bun run scripts/lint-design.ts",

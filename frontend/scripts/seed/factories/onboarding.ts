@@ -40,6 +40,23 @@ import { id } from '../ids';
 /** Where the talent stopped. `null` means they went all the way through. */
 export type DossierProgress = OnboardingStep | null;
 
+/**
+ * How far past its filing date a dossier's own acts fall: the guardian signs a
+ * week after the talent, and decides image rights the day after that.
+ *
+ * Exported because a caller spreading dossiers over a window has to leave that
+ * much room before the anchor, and the caller is the only one who knows the
+ * window. `addDossier` refuses rather than trusting each of them to remember:
+ * `stage` computed the offset from the enrolment index, so a cohort of more
+ * than seventy filed dossiers dated after `--today` - 115 of them at the `dev`
+ * profile and the same at `staging`, with signatures and rendered PDFs to
+ * match. Nothing caught it because `test:seed` runs the `ci` profile, whose
+ * cohort never reaches the index where it starts.
+ */
+const PARENT_SIGNATURE_DELAY = 8;
+const IMAGE_RIGHTS_DELAY = 9;
+export const DOSSIER_SPAN_DAYS = IMAGE_RIGHTS_DELAY;
+
 const STEP_TIMESTAMPS: Record<OnboardingStep, readonly string[]> = {
   identity: ['infoValidatedAt'],
   school: ['highSchoolValidatedAt'],
@@ -65,12 +82,18 @@ export function addDossier(
     imageRights?: ImageRightsDecision | null;
     /** False when a later dossier exists, so this one must not project. */
     projects?: boolean;
-    /** Day offset the dossier was filed on. */
+    /** Day offset the dossier was filed on. Negative, and see DOSSIER_SPAN_DAYS. */
     filedOffset?: number;
   },
 ): void {
   const clock = world.ctx.clock;
-  const filed = clock.days(opts.filedOffset ?? -60);
+  const filedOffset = opts.filedOffset ?? -60;
+  if (filedOffset + DOSSIER_SPAN_DAYS > 0) {
+    throw new Error(
+      `addDossier(${opts.talent.id}): filed at D${filedOffset}, which puts its last act ${filedOffset + DOSSIER_SPAN_DAYS} days after the anchor. Nothing this generator writes may be dated after --today.`,
+    );
+  }
+  const filed = clock.days(filedOffset);
   const imageRightsVersion = versionForYear(
     DROIT_IMAGE_VERSIONS,
     opts.schoolYear,
@@ -90,7 +113,7 @@ export function addDossier(
   for (const [offset, step] of reached.entries()) {
     for (const column of STEP_TIMESTAMPS[step]) {
       (dossier as Record<string, unknown>)[column] = clock.days(
-        (opts.filedOffset ?? -60) + offset,
+        filedOffset + offset,
       );
     }
   }
@@ -104,7 +127,9 @@ export function addDossier(
     );
     dossier.rulesFilePath = `documents/${opts.talent.id}/rules-${opts.schoolYear}.pdf`;
     if (opts.parentCoSigned ?? true) {
-      dossier.parentRulesSignedAt = clock.days((opts.filedOffset ?? -60) + 8);
+      dossier.parentRulesSignedAt = clock.days(
+        filedOffset + PARENT_SIGNATURE_DELAY,
+      );
       dossier.parentRulesSignerPrenom = 'Responsable';
       dossier.parentRulesSignerNom = opts.talent.nom;
       dossier.parentRulesRelationship = 'Parent';
@@ -113,7 +138,7 @@ export function addDossier(
   }
 
   if (opts.imageRights) {
-    const decidedAt = clock.days((opts.filedOffset ?? -60) + 9);
+    const decidedAt = clock.days(filedOffset + IMAGE_RIGHTS_DELAY);
     dossier.imageRightsDecision = opts.imageRights;
     dossier.imageRightsDecidedAt = decidedAt;
     dossier.imageRightsSignerPrenom = 'Responsable';
@@ -176,7 +201,7 @@ export function addDossier(
     row.onboardingSchoolYear = opts.schoolYear;
     // Account-scoped, not dossier-scoped: the RGPD charter is accepted once per
     // account and never re-asked, and the welcome splash is seen once.
-    const charterAcceptedAt = clock.days((opts.filedOffset ?? -60) - 1);
+    const charterAcceptedAt = clock.days(filedOffset - 1);
     row.charterAcceptedAt = charterAcceptedAt;
     // Its own artifact, and account-scoped rather than annual: the charter is a
     // once-per-account consent, so the job carries the year it was rendered in
@@ -192,8 +217,8 @@ export function addDossier(
       filePath: `documents/${opts.talent.id}/charter.pdf`,
       processedAt: charterAcceptedAt,
     });
-    row.welcomeSeenAt = clock.days((opts.filedOffset ?? -60) - 1);
-    row.firstLoginAt = clock.days((opts.filedOffset ?? -60) - 1);
+    row.welcomeSeenAt = clock.days(filedOffset - 1);
+    row.firstLoginAt = clock.days(filedOffset - 1);
     row.lastActiveAt = clock.days(-5);
   }
 }

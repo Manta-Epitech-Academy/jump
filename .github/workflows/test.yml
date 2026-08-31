@@ -144,7 +144,7 @@ jobs:
       # drift. The seed generator gets its own database (TEST_DB_SUITE=seed), so
       # it cannot disturb the integration suites that just ran: several of them
       # read platform-wide aggregates a full dataset would widen.
-      - name: Seed generator covers the schema
+      - name: Seed generator covers the schema, and holds at volume
         run: bun run test:seed
 
   e2e:

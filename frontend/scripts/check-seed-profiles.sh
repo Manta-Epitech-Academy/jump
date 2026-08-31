@@ -1,0 +1,34 @@
+#!/bin/sh
+# Generate and verify the seed, at more than one volume.
+#
+# Not inlined in package.json, because the reason there are two profiles here is
+# the whole point and package.json cannot carry it.
+#
+# `ci` is the small one: wide enough that every enum value and every reachable
+# state is present, small enough to run inside `verify` without anybody noticing.
+# It is what proves the generator COVERS the schema.
+#
+# `dev` is the second one, and it exists because a check that only ever runs at
+# the smallest volume is blind to any defect whose trigger IS volume. That is not
+# hypothetical: `stage` derived a dossier's filing date from the enrolment index,
+# which held at a cohort of fourteen and dated 115 dossiers after `--today` at
+# every profile a person actually opens. `assert/clock.ts` would have said so on
+# the first run, and never got one.
+#
+# `staging` is deliberately NOT here. It runs the same scenarios at production
+# volume, so it exercises no branch `dev` does not, and it costs about 45 seconds
+# against `dev`'s few. It is what somebody runs before a release freeze, not what
+# every pull request pays for.
+#
+# Called through scripts/with-test-db.sh, which owns the database and exports
+# DATABASE_URL, so both runs land on the same disposable one: the second wipes
+# what the first wrote, which is itself the wipe path getting exercised.
+set -eu
+
+ANCHOR=2026-06-15
+
+for profile in ci dev; do
+  echo "[seed] profile ${profile}" >&2
+  bun run scripts/seed/index.ts \
+    --env test --profile "$profile" --today "$ANCHOR" --check
+done

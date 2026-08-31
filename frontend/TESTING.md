@@ -240,11 +240,11 @@ test.describe("un membre de l'espace dev", () => {
 
 **Les fixtures** vivent dans `tests/e2e/fixtures/` :
 
-| Fichier         | Rôle                                                                                                                                                        |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `identities.ts` | Qui la suite est (six comptes sous `@e2e.invalid`, ids littéraux) et où chaque session est stockée. Sans Prisma, parce que `playwright.config.ts` l'importe |
-| `db.ts`         | Le client Prisma des fixtures, derrière `assertTestDatabase()` (la même garde que l'intégration, pas une copie)                                             |
-| `seed.ts`       | La purge et la reconstruction. Volontairement pas `prisma/seed.ts` : 3000 lignes de jeu de démo, auxquelles une spec ne doit pas être accrochée             |
+| Fichier         | Rôle                                                                                                                                                                          |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `identities.ts` | Qui la suite est (six comptes sous `@e2e.invalid`, ids littéraux) et où chaque session est stockée. Sans Prisma, parce que `playwright.config.ts` l'importe                   |
+| `db.ts`         | Le client Prisma des fixtures, derrière `assertTestDatabase()` (la même garde que l'intégration, pas une copie)                                                               |
+| `seed.ts`       | La purge et la reconstruction. Volontairement pas le générateur (`scripts/seed/`) : un jeu de données à la forme de la production, auquel une spec ne doit pas être accrochée |
 
 ---
 
@@ -426,10 +426,23 @@ bun run test:e2e:ui         # mode debug
 
 ### Le générateur de données
 
-`bun run test:seed` sème le profil `ci` puis exécute sa propre passe de
-vérification. Ce n'est pas une suite de tests, c'est un mode du générateur
-(`--check`), et cette distinction est délibérée : une vérification qu'il faut
-penser à lancer séparément est une vérification qui cesse d'être lancée.
+`bun run test:seed` sème puis vérifie, à deux volumes
+(`scripts/check-seed-profiles.sh`). Ce n'est pas une suite de tests, c'est un
+mode du générateur (`--check`), et cette distinction est délibérée : une
+vérification qu'il faut penser à lancer séparément est une vérification qui cesse
+d'être lancée.
+
+**Deux profils, et le second n'est pas une redondance.** `ci` est le petit :
+assez large pour porter chaque valeur d'énumération et chaque état atteignable,
+assez court pour passer dans `verify` sans que personne le remarque. C'est lui
+qui prouve la _couverture_. `dev` suit, parce qu'une vérification qui ne tourne
+qu'au plus petit volume est aveugle à tout défaut dont le déclencheur EST le
+volume. Ce n'est pas théorique : `stage` dérivait la date de dépôt d'un dossier
+de l'indice d'inscription, ce qui tenait à quatorze inscrits et datait 115
+dossiers après `--today` à tous les profils qu'on ouvre vraiment.
+`assert/clock.ts` l'aurait dit dès le premier passage, et n'en a jamais eu un.
+`staging` reste dehors : mêmes scénarios, même branches, 45 secondes contre
+quelques-unes.
 
 Ce qu'elle prouve, et pourquoi c'est elle qui vous préviendra en premier :
 
@@ -445,6 +458,14 @@ Ce qu'elle prouve, et pourquoi c'est elle qui vous préviendra en premier :
 - **Les états sont atteignables**, vérifiés avec le domaine lui-même :
   `getOnboardingStep` renvoie chaque étape de l'échelle, `imageRightsStance`
   renvoie ses trois positions, `eventRunsClosings` répond vrai et faux.
+- **Aucune ligne n'est datée après l'ancre.** C'est la vérification qui garde la
+  reproductibilité honnête : Prisma remplit `@default(now())` et `@updatedAt` à
+  l'horloge murale dès qu'un appelant les omet, et une ligne créée après l'acte
+  qu'elle enregistre est une ligne que l'application n'aurait pas pu écrire.
+- **Les vocabulaires portés par une colonne `String`** (statut Salesforce,
+  niveau, clé de module, version de règlement) sont couverts dans les deux sens :
+  chaque valeur déclarée a une ligne, et aucune ligne semée ne porte une valeur
+  hors catalogue.
 
 Un échec se corrige en ajoutant un scénario dans `frontend/scripts/seed/`, pas en
 retirant la vérification.
