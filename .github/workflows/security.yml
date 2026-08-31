@@ -71,7 +71,16 @@ jobs:
           sudo mv gitleaks /usr/local/bin/
 
       - name: Run Gitleaks
-        run: gitleaks detect --source . --verbose
+        # `fetch-depth: 0` fetches every branch on the remote (actions/checkout
+        # cannot deepen a single ref without unshallowing the lot), and
+        # gitleaks' default git log invocation scans every ref it finds, not
+        # just the one checked out. Without --log-opts, this job fails on a
+        # secret sitting on any OTHER open branch, merged or not, unrelated to
+        # the PR under test: a required check that reports on commits it does
+        # not match, the exact thing CONTRIBUTING.md's guards rule forbids.
+        # Restricting to HEAD scans the checked-out ref's own history (the
+        # base branch plus this PR's commits) and nothing else.
+        run: gitleaks detect --source . --verbose --log-opts="HEAD"
 
   sast:
     name: SAST (Semgrep)
