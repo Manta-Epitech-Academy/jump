@@ -6,11 +6,12 @@ import { z } from 'zod';
 import { prisma } from '$lib/server/db';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
+import { INTEREST_KINDS } from '$lib/domain/interests';
 
 const createSchema = z.object({
   nom: z.string().min(1, 'Le nom est requis').trim(),
   emoji: z.string().optional().or(z.literal('')),
-  kind: z.enum(['tech', 'general']),
+  kind: z.enum(INTEREST_KINDS),
 });
 
 const updateSchema = createSchema.omit({ kind: true });

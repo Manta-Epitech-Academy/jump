@@ -190,18 +190,33 @@ export const parentsSchema = z
   );
 
 // --- Étape 4 & 5 : Intérêts et Matériel ---
+
+/**
+ * How many interests of each kind the wizard accepts.
+ *
+ * Named rather than inlined into the schema because a second writer needs the
+ * same bound: the development seed attaches interests to every dossier that
+ * passed the step, and a talent carrying three tech interests is a row the
+ * wizard could not have produced. Restating the numbers there would let the two
+ * drift the first time the step is retuned.
+ */
+export const INTEREST_COUNTS = {
+  tech: { min: 1, max: 2 },
+  general: { min: 1, max: 3 },
+} as const;
+
 export const interestsSchema = z.object({
   // IDs are internal cuid v1 keys, but the action count-checks each against the
   // DB (interest.count must equal the submitted length), so a plain string is
   // enough: no point in Zod's now-deprecated cuid v1 format check.
   techInterestIds: z
     .array(z.string())
-    .min(1, 'Choisis au moins 1 domaine tech')
-    .max(2, '2 domaines tech maximum'),
+    .min(INTEREST_COUNTS.tech.min, 'Choisis au moins 1 domaine tech')
+    .max(INTEREST_COUNTS.tech.max, '2 domaines tech maximum'),
   generalInterestIds: z
     .array(z.string())
-    .min(1, "Choisis au moins 1 centre d'intérêt")
-    .max(3, "3 centres d'intérêt maximum"),
+    .min(INTEREST_COUNTS.general.min, "Choisis au moins 1 centre d'intérêt")
+    .max(INTEREST_COUNTS.general.max, "3 centres d'intérêt maximum"),
   freeText: z
     .string()
     .max(500, 'Maximum 500 caractères')

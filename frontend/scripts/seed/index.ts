@@ -115,10 +115,16 @@ async function seedMinigameRotation(
 }
 
 /**
- * Reads what the migrations own, which the generator composes against and never
- * recreates: the closing question bank, the stage grid, the certificate.
+ * Reads the rows that already exist when the scenarios start, and that the
+ * generator composes against rather than recreating.
+ *
+ * Two provenances, and the distinction does not matter to a scenario: what a
+ * migration owns (the closing question bank, the stage grid, the certificate)
+ * and what the catalogue seeders just wrote a few lines above (the interests,
+ * the bilan forms). Both are outside the buffer, so both have to be read back
+ * for their ids.
  */
-async function loadMigrationOwnedRows(
+async function loadPreexistingRows(
   prisma: PrismaClient,
   world: World,
 ): Promise<void> {
@@ -168,6 +174,17 @@ async function loadMigrationOwnedRows(
       },
     },
   });
+  // Ordered, so which interests a dossier carries depends on the draw alone and
+  // not on the order Postgres happened to return them in.
+  const interests = await prisma.interest.findMany({
+    select: { id: true, kind: true },
+    orderBy: { order: 'asc' },
+  });
+  for (const interest of interests) {
+    if (interest.kind === 'tech') world.interests.tech.push(interest.id);
+    else world.interests.general.push(interest.id);
+  }
+
   for (const form of forms) {
     world.feedbackForms.set(form.slug, {
       id: form.id,
@@ -261,7 +278,7 @@ async function main(): Promise<void> {
     await seedMinigameRotation(prisma, clock.today);
 
     const world = new World(ctx);
-    await loadMigrationOwnedRows(prisma, world);
+    await loadPreexistingRows(prisma, world);
     if (world.bank.size === 0) {
       throw new Error(
         'La banque de questions de closing est vide. Lancez `prisma migrate deploy` avant de semer : la banque vient d’une migration, pas d’ici.',

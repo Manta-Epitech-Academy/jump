@@ -32,6 +32,7 @@ import {
   CIVILITE_OPTIONS,
   PARENT_TYPE_OPTIONS,
 } from '../../src/lib/domain/profile';
+import { INTEREST_COUNTS } from '../../src/lib/validation/onboarding';
 
 /**
  * What a guardian is called. One first name for all of them, paired with the
@@ -141,6 +142,18 @@ export class World {
   /** Feedback forms, read from the database after the catalogue writes them. */
   readonly feedbackForms = new Map<string, FeedbackFormRef>();
 
+  /**
+   * The interest catalogue, read back after the catalogue seeder writes it.
+   *
+   * Split by `kind` because the wizard asks the two questions separately and
+   * bounds them separately, and a talent holding three tech interests is a row
+   * the application could not have produced.
+   */
+  readonly interests: { tech: string[]; general: string[] } = {
+    tech: [],
+    general: [],
+  };
+
   /** Broadcast templates, written by the catalogue and read back by the runner. */
   readonly broadcastTemplates: { id: string; channel: 'mail' | 'sms' }[] = [];
 
@@ -162,9 +175,12 @@ export class World {
    * the same status.
    */
   private readonly sfRng: Rng;
+  /** Its own stream, for the same reason `sfRng` is one. */
+  private readonly interestRng: Rng;
 
   constructor(readonly ctx: SeedContext) {
     this.sfRng = ctx.rng.fork('sfMemberStatus');
+    this.interestRng = ctx.rng.fork('interests');
   }
 
   /** Monotonic, so ids stay unique however scenarios are ordered. */
@@ -409,6 +425,37 @@ export class World {
 
     talent.parentEmail = email;
     return { email, secondEmail };
+  }
+
+  /**
+   * What the talent picked at the interests step.
+   *
+   * Written here rather than in a scenario for the reason `setGuardian` is: the
+   * step's timestamps and its rows are one act, and splitting them is what
+   * produced a dataset where every dossier had walked past the interests rung
+   * and `TalentInterest` held not one row. Nothing failed. The buffer key was
+   * declared, the flush ordered it and the wipe deleted it; only the push was
+   * missing, so the talent fiche's interests section, the cohort's interest
+   * distribution and the broadcast filter that selects on one were all
+   * permanently empty, on every profile, with all five checks green.
+   *
+   * The counts come from `interestsSchema`'s own bounds rather than from numbers
+   * repeated here, so a talent carrying more than the wizard accepts cannot be
+   * generated.
+   */
+  pickInterests(talent: TalentRef): void {
+    for (const kind of ['tech', 'general'] as const) {
+      const catalogue = this.interests[kind];
+      if (catalogue.length === 0) continue;
+      const { min, max } = INTEREST_COUNTS[kind];
+      const chosen = this.interestRng.sample(
+        catalogue,
+        this.interestRng.int(min, max),
+      );
+      for (const interestId of chosen) {
+        this.buffer.talentInterest.push({ talentId: talent.id, interestId });
+      }
+    }
   }
 
   /** The schooling record, which is CRM-owned and exists for every talent. */

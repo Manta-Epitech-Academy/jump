@@ -40,6 +40,7 @@ import {
   CHOICE_ICON_TOKENS,
 } from '../../../src/lib/domain/closing';
 import { SF_MEMBER_STATUSES } from '../../../src/lib/domain/sfMemberStatus';
+import { INTEREST_KINDS } from '../../../src/lib/domain/interests';
 import {
   REGLEMENT_VERSIONS,
   DROIT_IMAGE_VERSIONS,
@@ -163,6 +164,14 @@ const CATALOGUES: readonly Catalogue[] = [
       { table: 'ImageRightsDecisionRecord', field: 'version', ownedBy: BY_ID },
     ],
     values: (schoolYear) => versionsInForceAt(DROIT_IMAGE_VERSIONS, schoolYear),
+    requireEveryValue: true,
+  },
+  {
+    // Both values branch: the wizard asks the two questions separately and
+    // bounds them separately, and the fiche renders the two groups apart.
+    vocabulary: 'nature d’intérêt',
+    columns: [{ table: 'Interest', field: 'kind', ownedBy: EVERY_ROW }],
+    values: () => INTEREST_KINDS,
     requireEveryValue: true,
   },
   {
