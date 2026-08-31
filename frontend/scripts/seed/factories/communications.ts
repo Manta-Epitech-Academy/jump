@@ -13,6 +13,7 @@ import type {
   BroadcastAudience,
   BroadcastChannel,
   BroadcastStatus,
+  Prisma,
 } from '@prisma/client';
 import type { World, TalentRef, EventRef, CampusRef, StaffRef } from '../world';
 import { id, seq } from '../ids';
@@ -27,8 +28,15 @@ export function addBroadcast(
     status: BroadcastStatus;
     campus: CampusRef;
     event?: EventRef;
-    createdBy: StaffRef;
+    /** Null for a campaign whose author has since left. */
+    createdBy: StaffRef | null;
     recipients: readonly TalentRef[];
+    /** Staff recipients, for a campaign addressed to the team. */
+    staffRecipients?: readonly StaffRef[];
+    /** The audience filter the composer was left on, frozen with the send. */
+    filters?: Prisma.InputJsonValue;
+    /** Set when this campaign is a retarget of an earlier one. */
+    sourceBroadcastKey?: string;
     /** How many of them failed. Non-zero is what `partial_failed` means. */
     failures?: number;
     sourceFilter?: 'opened' | 'not_opened' | 'all';
@@ -52,12 +60,40 @@ export function addBroadcast(
     audience: opts.audience,
     eventId: opts.event?.id ?? null,
     sourceFilter: opts.sourceFilter ?? null,
+    // The filter the composer was set to, frozen alongside the body. It answers
+    // « à qui est-ce parti » after the cohort has moved on, and it was null on
+    // every seeded campaign - so the recap that reads it back rendered nothing.
+    filters: opts.filters,
+    sourceBroadcastId: opts.sourceBroadcastKey
+      ? id('bcs', opts.sourceBroadcastKey)
+      : null,
     subjectSnapshot: opts.channel === 'mail' ? opts.name : null,
     bodySnapshot: `${opts.name} - contenu figé au moment de l'envoi.`,
     status: opts.status,
-    createdById: opts.createdBy.userId,
+    // `SetNull`, not RESTRICT: it was the second once, and anyone who had ever
+    // sent a campaign became undeletable behind a bare « Erreur lors de la
+    // suppression du membre ». A campaign whose author has left keeps its
+    // history and renders `FORMER_STAFF_LABEL`.
+    createdById: opts.createdBy?.userId ?? null,
     createdAt: clock.days(-14),
   });
+
+  // A campaign addressed to the team reaches staff accounts, which is the other
+  // half of the « exactly one actor » shape on a recipient row: `talentId`,
+  // `parentOfTalentId` and `staffUserId` are three columns of which one is set,
+  // and the third had no row at all.
+  for (const [index, member] of (opts.staffRecipients ?? []).entries()) {
+    world.buffer.broadcastRecipient.push({
+      id: id('bcr', opts.key, 'staff', seq(index, 4)),
+      broadcastId,
+      staffUserId: member.userId,
+      recipientEmail: member.email,
+      status: sent ? 'sent' : 'pending',
+      sentAt: sent ? clock.days(-14) : null,
+      lastTriedAt: sent ? clock.days(-14) : null,
+      retryCount: 0,
+    });
+  }
 
   const failures = opts.failures ?? 0;
   const toParent = opts.audience === 'parent';

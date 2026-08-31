@@ -21,6 +21,7 @@ import {
 import { MANUAL_SCHOOL_NAMES } from '../catalog/schools';
 import { NOMS, PRENOMS } from '../catalog/people';
 import { addDossier } from '../factories/onboarding';
+import { addMinigameAttempt } from '../factories/engagement';
 import { NIVEAUX } from '../../../src/lib/domain/niveau';
 import type { Scenario } from './types';
 
@@ -157,6 +158,7 @@ export const edgeTalents: Scenario = {
       decidedAt: clock.days(-12),
       source: 'staff_correction',
       recordedByStaffId: world.staff[0]?.id ?? null,
+      note: 'Refus transmis par téléphone par le responsable légal, saisi par l’équipe.',
     });
 
     // One talent on every niveau the domain declares.
@@ -213,6 +215,93 @@ export const edgeTalents: Scenario = {
         schoolYear,
         stopAt: null,
         imageRights: 'accepted',
+      });
+    }
+
+    // A talent who never came from Salesforce, and a talent Jump holds no phone
+    // number for. Both columns are nullable and neither had a null row, so the
+    // « fiche créée dans Jump » badge and every « pas de téléphone » fallback
+    // were unreachable - and the second is what the SMS relance skips on.
+    const native = spawn('Sanscrm', '1ere', { externalId: null, phone: null });
+    world.enrol(event, native);
+    world.addSchoolingRecord(native, schoolYear, null);
+
+    // A talent with no campus at all: imported before any enrolment resolved
+    // one. The campus columns on `XpGrant` and `MinigameAttempt` are unbound
+    // snapshots of what was true at the time, so « on ne savait pas encore » is
+    // a state they are nullable for and that nothing else produces.
+    const unplaced = world.addTalent({
+      prenom: rng.pick(PRENOMS),
+      nom: 'Sanscampus',
+      niveau: '2nde',
+      campus: null,
+      index: world.nextTalentIndex(),
+    });
+    world.addSchoolingRecord(unplaced, schoolYear, null);
+    world.grantXp({
+      talent: unplaced,
+      source: 'onboarding',
+      sourceId: unplaced.id,
+      amount: 20,
+    });
+    const anyPublication = world.buffer.minigamePublication[0]?.id as
+      string | undefined;
+    if (anyPublication) {
+      addMinigameAttempt(world, {
+        talent: unplaced,
+        publicationId: anyPublication,
+        status: 'done',
+        scored: true,
+        xpSeen: true,
+        index: 500,
+      });
+    }
+
+    // A talent who has objected to usage analytics. `usage/record.ts` honours
+    // the objection by writing nothing at all for them, so a dataset without one
+    // exercises the opt-out branch never - and it is the operable art. 21 right
+    // the whole legitimate-interest basis rests on.
+    const objector = spawn('Opposition', 'terminale');
+    world.enrol(event, objector);
+    world.addSchoolingRecord(objector, schoolYear, null);
+    (
+      world.talentRow(objector.id) as Record<string, unknown>
+    ).usageAnalyticsOptOutAt = clock.days(-18);
+
+    // The pre-annual document keys, which the schema still carries as LEGACY and
+    // which `talentAccount.ts` still collects when it erases somebody. They
+    // belong to a talent whose PDFs were rendered before the documents became
+    // annual, so nothing writes them any more and nothing but this can prove the
+    // erasure sweep still picks them up.
+    const preAnnual = spawn('Documentslegacy', 'terminale');
+    world.enrol(event, preAnnual);
+    world.addSchoolingRecord(preAnnual, schoolYear, null);
+    addDossier(world, {
+      talent: preAnnual,
+      schoolYear,
+      stopAt: null,
+      imageRights: 'accepted',
+      filedOffset: -70,
+    });
+    const legacyRow = world.talentRow(preAnnual.id) as Record<string, unknown>;
+    legacyRow.rulesFilePath = `documents/${preAnnual.id}/rules.pdf`;
+    legacyRow.imageRightsFilePath = `documents/${preAnnual.id}/image-rights.pdf`;
+
+    // The two PDF renders that did not succeed. Placed rather than drawn, at
+    // one talent each: a failure rate applied to a cohort produces nothing at
+    // all on the smallest profile, and the queue screen these are for would then
+    // be tested on some profiles and not others.
+    for (const outcome of ['failed', 'pending'] as const) {
+      const talent = spawn(`Rendu${outcome}`, '2nde');
+      world.enrol(event, talent);
+      world.addSchoolingRecord(talent, schoolYear, null);
+      addDossier(world, {
+        talent,
+        schoolYear,
+        stopAt: null,
+        imageRights: 'accepted',
+        filedOffset: -35,
+        renderOutcome: outcome,
       });
     }
 

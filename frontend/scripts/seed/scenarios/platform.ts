@@ -25,6 +25,7 @@ import {
   STAGE_TEMPLATE_KEY,
 } from '../catalog/closings';
 import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
+import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { addMinigamePublications, addXpRewards } from '../factories/engagement';
 import { addAdminApiTokens, addInvitations } from '../factories/operations';
 import { id, seq } from '../ids';
@@ -70,6 +71,9 @@ export const platform: Scenario = {
           // Somebody who was given an account and never opened it. The members
           // page has to say so rather than showing a blank date.
           neverLoggedIn: staffIndex % 11 === 0,
+          // Roughly a third of the team has already pulled the exports at least
+          // once, so both the first-run and the incremental path are present.
+          hasExported: staffIndex % 3 === 0,
         });
         staffIndex += 1;
       }
@@ -80,6 +84,7 @@ export const platform: Scenario = {
       nom: 'Lemoine',
       role: 'admin',
       campus: null,
+      hasExported: true,
     });
     world.addStaff({
       prenom: 'Marc',
@@ -105,6 +110,20 @@ export const platform: Scenario = {
         });
       }
     }
+
+    // One signature that belongs to no campus: the national one, used where a
+    // document is issued by the school rather than by a site. `campusId` is
+    // nullable for exactly that, and a dataset attaching every signature to a
+    // campus never renders the « tous les campus » case.
+    world.buffer.signatory.push({
+      id: id('sig', 'national'),
+      campusId: null,
+      name: `${STAFF_PRENOMS[0]} ${NOMS[2]}`,
+      role: SIGNATORY_ROLES[0]!,
+      signatureKey: 'signatures/national.png',
+      contentType: 'image/png',
+      position: 0,
+    });
 
     // The Coding Club grid, composed from the bank the migration carries. One
     // grid proves nothing: a shared bank only earns its keep when the same
@@ -182,11 +201,17 @@ export const platform: Scenario = {
       world.feedbackForms.get(FEEDBACK_FORM_SLUGS[0] ?? '')?.id ?? null;
     for (const preset of EVENT_TEMPLATES) {
       const templateId = id('ect', preset.name);
+      // The bare preset is the one worth holding: a preset is allowed to carry
+      // nothing but its modules, its author can have left since, and the wizard
+      // has to render all of that. Every field being filled on every row is what
+      // hid the « aucune description » and « ancien membre » cases.
+      const bare = preset.name === 'Portes ouvertes';
       world.buffer.eventConfig_Template.push({
         id: templateId,
         name: preset.name,
-        description: preset.description,
-        cohortNoun: preset.cohortNoun,
+        description: bare ? null : preset.description,
+        cohortNoun: bare ? null : preset.cohortNoun,
+        publicName: bare ? null : `${preset.name} Epitech`,
         startMinutes: preset.startMinutes,
         closingTemplateId: preset.withClosingGrid
           ? preset.name === 'Coding Club'
@@ -195,10 +220,21 @@ export const platform: Scenario = {
           : null,
         feedbackFormId: preset.withFeedbackForm ? stageFormId : null,
         diplomaTemplateId: preset.withDiploma ? world.diplomaTemplateId : null,
-        createdById: admin.id,
+        createdById: bare ? null : admin.id,
       });
       for (const moduleKey of preset.modules) {
-        world.buffer.eventConfig_TemplateModule.push({ templateId, moduleKey });
+        world.buffer.eventConfig_TemplateModule.push({
+          templateId,
+          moduleKey,
+          // The settings bag, carried by the preset and copied onto an event
+          // when it is applied. It was null on every row, so the per-module Zod
+          // schema that validates it had nothing to validate anywhere in the
+          // dataset, on either side of the copy.
+          settings:
+            moduleKey === EVENT_MODULES.INSCRITS
+              ? { showParentContact: true }
+              : undefined,
+        });
       }
     }
 
@@ -214,7 +250,13 @@ export const platform: Scenario = {
         channel: 'mail',
         subject: template.subject,
         body: template.body,
-        createdById: admin.userId,
+        // The first one was written by somebody who has left. `SetNull`, not
+        // RESTRICT: a template outlives its author, and its author has to stay
+        // deletable.
+        createdById:
+          template.actionKey === EMAIL_TEMPLATE_DEFAULTS[0]?.actionKey
+            ? null
+            : admin.userId,
       });
       world.buffer.emailActionMapping.push({
         actionKey: template.actionKey,
@@ -238,8 +280,8 @@ export const platform: Scenario = {
       });
     }
 
-    addMinigamePublications(world);
-    addXpRewards(world, null);
+    addMinigamePublications(world, admin);
+    addXpRewards(world, campuses[0]?.id ?? null);
     addAdminApiTokens(world, admin);
     if (campuses[0]) addInvitations(world, campuses[0], admin);
 

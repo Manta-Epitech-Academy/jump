@@ -20,11 +20,27 @@ export type CampusSpec = {
   readonly timezone: string;
   /** Relative share of the platform's enrolments, from PROFILE.md. */
   readonly weight: number;
+  /**
+   * False for a campus that has published no contact address. Declared here
+   * rather than derived in `World.addCampus`, because which campuses are
+   * incomplete is a property of the catalogue and not of the writer - and a
+   * rule keyed on a name that a small profile never reaches silently stops
+   * applying.
+   */
+  readonly withContactEmail?: boolean;
 };
 
 export const CAMPUSES: readonly CampusSpec[] = [
   { name: 'Paris', timezone: 'Europe/Paris', weight: 1372 },
-  { name: 'Marseille', timezone: 'Europe/Paris', weight: 944 },
+  // No contact address published. Every screen offering « contacter le campus »
+  // has to cope with that, and it is the second campus of every profile, so the
+  // case is present even in CI.
+  {
+    name: 'Marseille',
+    timezone: 'Europe/Paris',
+    weight: 944,
+    withContactEmail: false,
+  },
   { name: 'Lyon', timezone: 'Europe/Paris', weight: 679 },
   { name: 'Lille', timezone: 'Europe/Paris', weight: 556 },
   { name: 'Nantes', timezone: 'Europe/Paris', weight: 506 },

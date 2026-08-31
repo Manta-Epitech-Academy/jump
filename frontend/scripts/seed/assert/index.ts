@@ -14,6 +14,7 @@ import { missingEnumValues } from './enums';
 import { stringCatalogueFailures } from './stringCatalogues';
 import { projectionFailures } from './projections';
 import { reachabilityFailures } from './reachability';
+import { coverageFailures, KNOWN_GAP_COUNT } from './coverage';
 
 export async function runChecks(
   prisma: PrismaClient,
@@ -22,6 +23,7 @@ export async function runChecks(
 ): Promise<number> {
   const groups: [string, string[]][] = [
     ['couverture des énumérations', await missingEnumValues(prisma)],
+    ['couverture du schéma', await coverageFailures(prisma)],
     ['projections', await projectionFailures(prisma)],
     ['états atteignables', await reachabilityFailures(prisma, clock.today)],
     ['horodatages ancrés', await clockFailures(prisma, clock.today)],
@@ -41,5 +43,16 @@ export async function runChecks(
     log(`  ÉCHEC ${label}`);
     for (const failure of failures) log(`         ${failure}`);
   }
+
+  // Printed whether it is zero or not. The number is the length of
+  // `NOT_YET_SEEDED`, and the check above is what guarantees it is exact: a gap
+  // that has been closed fails until its line goes. So this is a measurement,
+  // not a claim, and it is the one line to watch move.
+  if (KNOWN_GAP_COUNT > 0) {
+    log(
+      `  dette couverture : ${KNOWN_GAP_COUNT} écart(s) connu(s) et acceptés`,
+    );
+  }
+
   return failed;
 }

@@ -27,6 +27,16 @@ export type Clock = {
   at(offset: number, hour: number, minute?: number): Date;
   /** Like `days`, but skipping Saturdays and Sundays. */
   weekdays(offset: number): Date;
+  /**
+   * `months(-3, -2)` is two days before the same day-of-month three calendar
+   * months back. Calendar months rather than a fixed number of days, because the
+   * usage cube buckets on `YYYY-MM` and a 30-day step lands in the wrong bucket
+   * twice a year. The day is clamped, so a 31st never overflows into the next
+   * month.
+   */
+  months(offset: number, dayOffset?: number): Date;
+  /** `YYYY-MM` for a date: the usage cube's bucket key. */
+  monthKey(date: Date): string;
   /** The school-year label the anchor falls in, e.g. `2026-2027`. */
   readonly schoolYear: string;
   /** The label `n` school years before the anchor. */
@@ -73,6 +83,16 @@ export function createClock(anchor: Date): Clock {
     return days(cursor);
   };
 
+  const months = (offset: number, dayOffset = 0): Date => {
+    const year = anchor.getUTCFullYear();
+    const month = anchor.getUTCMonth() + offset;
+    // Day 0 of the following month is the last day of the target one, which is
+    // how the clamp avoids 31 March minus one month landing in March again.
+    const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    const day = Math.min(anchor.getUTCDate(), lastDay);
+    return new Date(Date.UTC(year, month, day + dayOffset));
+  };
+
   // Paris, matching `currentSchoolYearLabel`: the cycle belongs to the platform,
   // not to a campus, and the July cutover must not land a day apart per campus.
   const schoolYear = schoolYearOf(anchor, 'Europe/Paris').label;
@@ -82,6 +102,8 @@ export function createClock(anchor: Date): Clock {
     days,
     at,
     weekdays,
+    months,
+    monthKey: (date) => date.toISOString().slice(0, 7),
     schoolYear,
     schoolYearBefore: (n) => {
       const [start] = schoolYear.split('-').map(Number);

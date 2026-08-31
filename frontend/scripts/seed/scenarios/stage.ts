@@ -119,6 +119,9 @@ export const stage: Scenario = {
         EVENT_MODULES.CLOSINGS,
         EVENT_MODULES.BILAN,
       ],
+      moduleSettings: {
+        [EVENT_MODULES.INSCRITS]: { showParentContact: true },
+      },
       closingTemplateId: stageTemplateId,
       feedbackFormId:
         world.feedbackForms.get(FEEDBACK_FORM_SLUGS[0] ?? '')?.id ?? null,
@@ -183,7 +186,16 @@ export const stage: Scenario = {
             markedBy: team.length > 0 ? rng.pick(team) : null,
           });
         }
-        world.closeSlot(event, day, slot, team[0] ?? null);
+        // The first half-day is closed by the clock rather than by anybody:
+        // `closedById` is nullable FOR that case, and a dataset where a member
+        // closed every slot never renders « clôturé automatiquement ».
+        const closedByClock = day === event.days[0] && slot === 'morning';
+        world.closeSlot(
+          event,
+          day,
+          slot,
+          closedByClock ? null : (team[0] ?? null),
+        );
       }
     }
 
@@ -200,7 +212,12 @@ export const stage: Scenario = {
       conductClosing(world, {
         talent,
         event,
-        staff: team.length > 0 ? rng.pick(team) : null,
+        // One closing conducted by somebody who has since left. `staffId` is
+        // `SetNull` so the closing survives the departure - it was cascading
+        // once, and deleting an account destroyed every closing that person had
+        // ever conducted. Without a null row the « Ancien membre » rendering
+        // that replaced it has no example.
+        staff: index === 1 || team.length === 0 ? null : rng.pick(team),
         templateId: stageTemplateId,
         questionKeys: STAGE_QUESTIONS,
         // One answered question that the grid no longer composes, so the
@@ -246,6 +263,30 @@ export const stage: Scenario = {
       });
     }
 
+    // The three other shapes the feed has to render, and that a note born from
+    // émargement never produces: one written from the fiche with no event
+    // behind it, one somebody has since edited, and one whose author has left
+    // the company. That last one is the whole point of the `SetNull` on
+    // `authorId`: the note outlives the account, and the screen prints
+    // `FORMER_STAFF_LABEL` where the name was.
+    if (team[0] && cohort[0]) {
+      addTalentNote(world, { talent: cohort[0], author: team[0], index: 90 });
+    }
+    if (team[0] && team[1] && cohort[1]) {
+      addTalentNote(world, {
+        talent: cohort[1],
+        author: team[0],
+        editedBy: team[1],
+        event,
+        day: event.days[0]!,
+        slot: 'morning',
+        index: 91,
+      });
+    }
+    if (cohort[2]) {
+      addTalentNote(world, { talent: cohort[2], author: null, index: 92 });
+    }
+
     // The end-of-stage scoreboard: the largest XP amounts in the dataset, which
     // is what makes a leaderboard look like production's rather than flat.
     for (const [rank, talent] of rng
@@ -275,6 +316,18 @@ export const stage: Scenario = {
           index % 7 === 0 ? 'pending' : index % 11 === 0 ? 'invalid' : 'done',
         rank: index + 1,
         fieldSize: Math.min(20, size),
+        // Half the runs happened during the stage, half from home, and both
+        // states carry meaning: `eventId` is what attributes a run to an event.
+        event: index % 2 === 0 ? event : undefined,
+        // The freshest win has not been celebrated yet and the rest have,
+        // which is the state the one-shot float on the dashboard is gated on.
+        // It has to straddle the ranking bonus too: the rank float is gated on
+        // its own column, so a dataset where every ranked win is unseen leaves
+        // `rankXpSeenAt` null everywhere and replays that celebration forever.
+        xpSeen: index !== 0,
+        // Both scoring families, so a leaderboard is never sorted on a column
+        // that is null for everybody.
+        scored: index % 3 === 0,
         index,
       });
     }

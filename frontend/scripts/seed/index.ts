@@ -100,14 +100,17 @@ async function seedMinigameRotation(
   prisma: PrismaClient,
   anchor: Date,
 ): Promise<void> {
-  for (const game of MINIGAMES) {
+  for (const [index, game] of MINIGAMES.entries()) {
     await prisma.minigameConfig.upsert({
       where: { game: game.game },
       update: {},
       create: {
         game: game.game,
         weight: game.weight,
-        enabled: true,
+        // One game switched off. `enabled` is the whole curation control, and a
+        // rotation where every game is on renders the off state nowhere - so
+        // neither the toggle nor the filter that honours it is ever exercised.
+        enabled: index !== 1,
         updatedAt: anchor,
       },
     });

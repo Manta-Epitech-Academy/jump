@@ -66,6 +66,11 @@ export const longTail: Scenario = {
         // picker do anything.
         weekdays: index === 1 || index % 12 === 0 ? 3 : 1,
         devActivated: configured,
+        // One event created inside Jump rather than synced from a campaign.
+        // `externalId` is nullable for exactly that, and with no null row the
+        // « pas de campagne Salesforce » rendering, and every branch that skips
+        // an event the sync does not own, had no example.
+        externalId: index === 3 ? null : undefined,
         modules: configured
           ? offset < 0
             ? [EVENT_MODULES.INSCRITS, EVENT_MODULES.EMARGEMENT]

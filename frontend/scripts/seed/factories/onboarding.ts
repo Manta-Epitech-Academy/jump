@@ -35,6 +35,7 @@ import {
   versionForYear,
 } from '../catalog/documentVersions';
 import type { World, TalentRef } from '../world';
+import { CIVILITE_OPTIONS } from '../../../src/lib/domain/profile';
 import { id } from '../ids';
 
 /** Where the talent stopped. `null` means they went all the way through. */
@@ -84,6 +85,11 @@ export function addDossier(
     projects?: boolean;
     /** Day offset the dossier was filed on. Negative, and see DOSSIER_SPAN_DAYS. */
     filedOffset?: number;
+    /**
+     * How the image-rights PDF render ended. `success` unless a caller places
+     * one of the other two, which exactly one scenario does.
+     */
+    renderOutcome?: 'success' | 'failed' | 'pending';
   },
 ): void {
   const clock = world.ctx.clock;
@@ -128,6 +134,19 @@ export function addDossier(
   // wizard cannot produce and every reader of that relation reads as empty.
   if (reached.includes('interests')) world.pickInterests(opts.talent);
 
+  // The two remaining optional answers, each written by the step that asks it.
+  // Optional means BOTH branches have to exist: filling them on every talent
+  // renders the block on every fiche and never its absence, which is the same
+  // defect as never filling them, only harder to notice.
+  const talentRow = world.talentRow(opts.talent.id) as Record<string, unknown>;
+  if (reached.includes('identity') && world.wizardRng.chance(0.7)) {
+    talentRow.civilite = world.wizardRng.pick(CIVILITE_OPTIONS).value;
+  }
+  if (reached.includes('equipment') && world.wizardRng.chance(0.4)) {
+    talentRow.setupDescription =
+      'Un portable de 2019, 8 Go de RAM, et un écran externe à la maison.';
+  }
+
   const signedRules = opts.stopAt === null;
   if (signedRules) {
     dossier.rulesSignedCity = 'Paris';
@@ -147,6 +166,22 @@ export function addDossier(
     }
   }
 
+  // How the image-rights render went. Resolved before the file path is written,
+  // because the two are one fact: the dossier points at a document only once a
+  // document exists. A failed job carries the error and no file, a queued one
+  // has not been processed at all, and a dataset of nothing but successes
+  // produces neither - which is the whole reason the PDF queue screen exists.
+  //
+  // PLACED by the caller, never drawn. Production's failure rate is a few per
+  // cent, and a few per cent of the `ci` profile's 26 dossiers rounds to none:
+  // coverage would then depend on the profile rather than on the generator,
+  // which is the same trap `stage.ts` avoids by placing every verdict.
+  const renderOutcome = opts.renderOutcome ?? 'success';
+  const renderedImageRightsPath =
+    renderOutcome === 'success'
+      ? `documents/${opts.talent.id}/image-rights-${opts.schoolYear}.pdf`
+      : null;
+
   if (opts.imageRights) {
     const decidedAt = clock.days(filedOffset + IMAGE_RIGHTS_DELAY);
     dossier.imageRightsDecision = opts.imageRights;
@@ -156,7 +191,7 @@ export function addDossier(
     dossier.imageRightsRelationship = 'Parent';
     dossier.imageRightsSignedCity = 'Paris';
     dossier.imageRightsVersion = imageRightsVersion;
-    dossier.imageRightsFilePath = `documents/${opts.talent.id}/image-rights-${opts.schoolYear}.pdf`;
+    dossier.imageRightsFilePath = renderedImageRightsPath;
     world.imageRightsDecision({
       talent: opts.talent,
       decision: opts.imageRights,
@@ -197,9 +232,14 @@ export function addDossier(
       talentId: opts.talent.id,
       documentType: 'image-rights',
       schoolYear: opts.schoolYear,
-      status: 'success',
-      filePath: dossier.imageRightsFilePath as string,
-      processedAt: filed,
+      status: renderOutcome,
+      filePath: renderedImageRightsPath,
+      errorMessage:
+        renderOutcome === 'failed'
+          ? 'Rendu interrompu : le navigateur n’a pas répondu dans le délai imparti.'
+          : null,
+      // A queued job has not run, so there is no moment it finished at.
+      processedAt: renderOutcome === 'pending' ? null : filed,
     });
   }
 

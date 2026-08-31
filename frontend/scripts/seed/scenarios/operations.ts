@@ -12,6 +12,11 @@
 
 import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
 import {
+  addAdminFiles,
+  addImpersonationAudit,
+  addWelcomePages,
+} from '../factories/adminContent';
+import {
   addBroadcast,
   addFeedbackSubmission,
 } from '../factories/communications';
@@ -21,6 +26,7 @@ import {
   addIdentityRepair,
   addSyncErrors,
   addUsage,
+  foldUsageMonthly,
 } from '../factories/operations';
 import type { Scenario } from './types';
 
@@ -40,15 +46,43 @@ export const operations: Scenario = {
     // Adoption figures are seeded in every profile: they carry no failure and
     // an empty usage table reads as "nobody uses the product", which is the one
     // wrong answer that makes somebody delete a feature that is in use.
+    //
+    // Every campus and every member, not a slice of six: the coverage matrix is
+    // a campus-by-feature grid and a dataset touching one campus renders it as a
+    // single populated column beside empty ones, which reads as a broken query.
     addUsage(world, {
-      staff: world.staff.slice(0, 6),
-      campus,
-      event,
+      staff: world.staff,
+      campuses: [...world.campuses.values()],
+      events: world.events,
       // Above the five-actor floor on purpose, so the coverage matrix has at
       // least one cell it does NOT have to mask. A dataset producing only
       // masked cells cannot tell a working mask from a broken query.
       talentCount: 8,
     });
+    // Folded after the raw rows exist, in the order `usage/rollup.ts` folds then
+    // purges: two stores that disagree about a month they both cover is the
+    // defect this dataset has to be able to show.
+    foldUsageMonthly(world);
+
+    // The admin space's stored content, in every profile: none of it carries a
+    // failure, and all four tables render an untested screen as a tidy empty
+    // state rather than as a gap.
+    const admin =
+      world.staff.find((member) => member.role === 'admin') ?? world.staff[0];
+    if (admin) {
+      addAdminFiles(world, admin);
+      addWelcomePages(world, {
+        events: world.events.filter(
+          (candidate) => candidate.date > world.ctx.clock.today,
+        ),
+        author: admin,
+      });
+      addImpersonationAudit(world, {
+        admin,
+        staffTarget: world.staff[1] ?? admin,
+        talentUserId: world.talents.find((t) => t.userId)?.userId ?? null,
+      });
+    }
 
     // Campaigns, in every status and both channels. The partially failed one is
     // the row somebody has to act on, and it only exists if it is seeded.
@@ -64,6 +98,7 @@ export const operations: Scenario = {
         event,
         createdBy: team[0],
         recipients: audience,
+        filters: { dossierIncomplet: true, niveaux: ['2nde'] },
       });
       addBroadcast(world, {
         key: 'rappel-veille-sms',
@@ -107,6 +142,7 @@ export const operations: Scenario = {
         createdBy: team[0],
         recipients: audience.slice(0, 8),
         sourceFilter: 'not_opened',
+        sourceBroadcastKey: 'relance-dossier',
       });
       addBroadcast(world, {
         key: 'note-interne-equipe',
@@ -115,8 +151,11 @@ export const operations: Scenario = {
         audience: 'dev',
         status: 'failed',
         campus,
-        createdBy: team[0],
+        // Nobody: the member who sent it has left, and the campaign history
+        // survives them rather than blocking their deletion.
+        createdBy: null,
         recipients: [],
+        staffRecipients: team,
       });
       addBroadcast(world, {
         key: 'note-referents',
@@ -127,6 +166,9 @@ export const operations: Scenario = {
         campus,
         createdBy: team[0],
         recipients: [],
+        staffRecipients: world.staff.filter(
+          (member) => member.role === 'superdev',
+        ),
       });
       // The other two retarget filters. A campaign built on « ceux qui ont
       // ouvert » selects nobody unless opened rows exist upstream, which the
@@ -195,9 +237,9 @@ export const operations: Scenario = {
       world,
       rng.sample(world.talents, Math.min(12, world.talents.length)),
     );
-    addDeletionRequests(world, rng.sample(world.talents, 4));
     if (team[0]) {
-      addClosingReset(world, rng.pick(world.talents), team[0]);
+      addDeletionRequests(world, rng.sample(world.talents, 4), team[0].userId);
+      addClosingReset(world, rng.sample(world.talents, 3), team[0]);
       addIdentityRepair(world, rng.pick(world.talents), team[0]);
     }
 

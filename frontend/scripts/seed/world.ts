@@ -163,6 +163,7 @@ export class World {
   diplomaTemplateId: string | null = null;
 
   private talentCounter = 0;
+  private readonly talentsWithInterests = new Set<string>();
   private xpByTalent = new Map<string, number>();
   private presentEventsByTalent = new Map<string, Set<string>>();
   /**
@@ -175,12 +176,17 @@ export class World {
    * the same status.
    */
   private readonly sfRng: Rng;
-  /** Its own stream, for the same reason `sfRng` is one. */
-  private readonly interestRng: Rng;
+  /**
+   * The stream every optional answer the wizard collects is drawn from, for the
+   * same reason `sfRng` is one: adding a draw here must not shift the numbers
+   * every scenario gets. Readable by `factories/onboarding.ts`, which walks the
+   * same steps; scenarios draw from `ctx.rng`.
+   */
+  readonly wizardRng: Rng;
 
   constructor(readonly ctx: SeedContext) {
     this.sfRng = ctx.rng.fork('sfMemberStatus');
-    this.interestRng = ctx.rng.fork('interests');
+    this.wizardRng = ctx.rng.fork('wizard');
   }
 
   /** Monotonic, so ids stay unique however scenarios are ordered. */
@@ -206,7 +212,10 @@ export class World {
       // these a real external name and real minors' data starts landing on it.
       externalName: null,
       timezone: spec.timezone,
-      contactEmail: `${slug(spec.name)}@${STAFF_MAIL_DOMAIN}`,
+      contactEmail:
+        spec.withContactEmail === false
+          ? null
+          : `${slug(spec.name)}@${STAFF_MAIL_DOMAIN}`,
     });
     this.campuses.set(spec.name, ref);
     return ref;
@@ -251,6 +260,13 @@ export class World {
     campus: CampusRef | null;
     /** A member who has an account but has never opened it. */
     neverLoggedIn?: boolean;
+    /**
+     * Whether this member has already run the three incremental exports. Each
+     * one stores its own high-water mark, and every export is a full one until
+     * a mark exists - so a roster where nobody had ever exported left all three
+     * columns null and the incremental half of the feature unreachable.
+     */
+    hasExported?: boolean;
   }): StaffRef {
     const email = `${slug(opts.prenom)}.${slug(opts.nom)}@${STAFF_MAIL_DOMAIN}`;
     const userId = id('usr', 'staff', opts.prenom, opts.nom);
@@ -272,6 +288,11 @@ export class World {
       staffRole: opts.role,
       firstLoginAt: opts.neverLoggedIn ? null : this.ctx.clock.days(-480),
       lastActiveAt: opts.neverLoggedIn ? null : this.ctx.clock.days(-2),
+      sfExportedAt: opts.hasExported ? this.ctx.clock.days(-7) : null,
+      onboardingDocsExportedAt: opts.hasExported
+        ? this.ctx.clock.days(-21)
+        : null,
+      closingDocsExportedAt: opts.hasExported ? this.ctx.clock.days(-14) : null,
     });
 
     const ref: StaffRef = {
@@ -343,7 +364,9 @@ export class World {
       nom: opts.nom,
       prenom: opts.prenom,
       niveau: opts.niveau,
-      phone: opts.phone ?? '+33600000000',
+      // `?? default` would swallow an explicit null, which is the whole point
+      // of passing one: Jump holds no number for this talent.
+      phone: opts.phone === null ? null : (opts.phone ?? '+33600000000'),
       externalId:
         opts.externalId === null
           ? null
@@ -444,17 +467,36 @@ export class World {
    * generated.
    */
   pickInterests(talent: TalentRef): void {
+    // Once per talent, however many dossiers walk the step. `TalentInterest` is
+    // keyed on the pair and belongs to the TALENT, not to the year: a returning
+    // student re-answering the question replaces their picks, it does not add a
+    // second set. Without this the second dossier redraws and collides on the
+    // primary key - and only sometimes, since two draws can happen to be
+    // disjoint, which is the worst way for it to fail.
+    if (this.talentsWithInterests.has(talent.id)) return;
+    this.talentsWithInterests.add(talent.id);
+
     for (const kind of ['tech', 'general'] as const) {
       const catalogue = this.interests[kind];
       if (catalogue.length === 0) continue;
       const { min, max } = INTEREST_COUNTS[kind];
-      const chosen = this.interestRng.sample(
+      const chosen = this.wizardRng.sample(
         catalogue,
-        this.interestRng.int(min, max),
+        this.wizardRng.int(min, max),
       );
       for (const interestId of chosen) {
         this.buffer.talentInterest.push({ talentId: talent.id, interestId });
       }
+    }
+
+    // The free-text box beside the checkboxes. Optional on the form, so both
+    // branches have to exist: a dataset where everybody wrote something renders
+    // the prose block on every fiche and never its absence, and one where
+    // nobody did renders it never.
+    if (this.wizardRng.chance(0.35)) {
+      const row = this.talentRow(talent.id) as Record<string, unknown>;
+      row.interestsFreeText =
+        'J’aimerais surtout comprendre comment on fabrique un jeu de A à Z.';
     }
   }
 
@@ -489,6 +531,8 @@ export class World {
     startMinutes?: number | null;
     devActivated?: boolean;
     modules?: readonly string[];
+    /** Per-module options, keyed by module. Only some modules take any. */
+    moduleSettings?: Readonly<Record<string, Prisma.InputJsonValue>>;
     closingTemplateId?: string | null;
     feedbackFormId?: string | null;
     diplomaTemplateId?: string | null;
@@ -531,7 +575,11 @@ export class World {
       this.buffer.eventConfig_Module.push({
         eventId,
         moduleKey,
-        settings: undefined,
+        // The optional settings bag, validated app-side by a per-module Zod
+        // schema. It was `undefined` on every row in the dataset, so neither the
+        // schema nor the readers that branch on a setting had anything to run
+        // against; the module that actually carries options gets one.
+        settings: opts.moduleSettings?.[moduleKey],
       });
     }
 
@@ -608,6 +656,18 @@ export class World {
     }
   }
 
+  /**
+   * One émargement cell.
+   *
+   * Who marked it is DERIVED from how it was produced, never passed through: a
+   * `qr` row is the talent scanning themselves in and a `system` row is the
+   * platform filling a half-day nobody touched, so neither has a staff member
+   * behind it, and a `system` row was never "marked" at all. The generator used
+   * to attribute all three to whoever the scenario happened to pick, which put a
+   * team member's name on every self-check-in on the émargement screen and left
+   * both nullable columns without a single null row - so the "aucun marqueur"
+   * rendering that `markedById` is nullable FOR had no example anywhere.
+   */
   markPresence(opts: {
     event: EventRef;
     talent: TalentRef;
@@ -615,8 +675,10 @@ export class World {
     slot: PresenceSlot;
     status: PresenceStatus;
     source: PresenceSource;
+    /** Attributed only to a `manual` mark. Ignored for `qr` and `system`. */
     markedBy: StaffRef | null;
   }): void {
+    const markedBy = opts.source === 'manual' ? opts.markedBy : null;
     this.buffer.eventPresence.push({
       id: id(
         'epr',
@@ -631,8 +693,10 @@ export class World {
       slot: opts.slot,
       status: opts.status,
       source: opts.source,
-      markedById: opts.markedBy?.id ?? null,
-      markedAt: opts.day,
+      markedById: markedBy?.id ?? null,
+      // A `system` cell was never marked: it is what the platform recorded for a
+      // half-day nobody opened, so there is no moment to stamp.
+      markedAt: opts.source === 'system' ? null : opts.day,
     });
     if (opts.status === 'present' || opts.status === 'late') {
       const seen =
@@ -696,6 +760,18 @@ export class World {
     );
   }
 
+  /**
+   * One image-rights decision, as the source that produced it would have left
+   * it.
+   *
+   * The two sources write different columns, and writing both blocks on every
+   * row is what the generator used to do. A staff correction is not a signature:
+   * nobody signed anything, so there is no signer, no relationship, no city and
+   * no document version to pin - there is a member of the team, a note saying
+   * why, and the decision itself. Filling a signer's name in anyway produces a
+   * record that reads, on the archive screen and in the exported document, as
+   * though a guardian had signed something they never saw.
+   */
   imageRightsDecision(opts: {
     talent: TalentRef;
     decision: ImageRightsDecision;
@@ -704,7 +780,10 @@ export class World {
     decidedAt: Date;
     source?: 'parent_portal' | 'staff_correction';
     recordedByStaffId?: string | null;
+    note?: string;
   }): void {
+    const source = opts.source ?? 'parent_portal';
+    const signed = source === 'parent_portal';
     this.buffer.imageRightsDecisionRecord.push({
       id: id(
         'ird',
@@ -715,13 +794,14 @@ export class World {
       talentId: opts.talent.id,
       decision: opts.decision,
       schoolYear: opts.schoolYear,
-      version: opts.version,
+      version: signed ? opts.version : null,
       decidedAt: opts.decidedAt,
-      signerPrenom: 'Responsable',
-      signerNom: opts.talent.nom,
-      relationship: 'Parent',
-      city: 'Paris',
-      source: opts.source ?? 'parent_portal',
+      signerPrenom: signed ? 'Responsable' : null,
+      signerNom: signed ? opts.talent.nom : null,
+      relationship: signed ? 'Parent' : null,
+      city: signed ? 'Paris' : null,
+      note: opts.note ?? null,
+      source,
       recordedByStaffId: opts.recordedByStaffId ?? null,
     });
   }
