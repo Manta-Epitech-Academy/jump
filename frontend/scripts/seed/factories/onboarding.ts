@@ -118,6 +118,12 @@ export function addDossier(
     }
   }
 
+  // Written exactly where the application writes it: `Talent.parentEmail` is
+  // only ever set by the wizard's parents step. Putting it here rather than in
+  // the scenarios is what makes it impossible to have a dossier that passed the
+  // rung and a parent workspace that cannot resolve anybody.
+  if (reached.includes('parents')) world.setGuardian(opts.talent);
+
   const signedRules = opts.stopAt === null;
   if (signedRules) {
     dossier.rulesSignedCity = 'Paris';

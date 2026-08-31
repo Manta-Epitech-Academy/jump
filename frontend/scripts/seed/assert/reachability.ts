@@ -61,6 +61,26 @@ export async function reachabilityFailures(
   }
   if (!stepsSeen.has('complete')) failures.push('Aucun dossier terminé');
 
+  // A guardian the parent workspace can resolve.
+  //
+  // `guards.ts` finds a guardian's children by matching `Talent.parentEmail`
+  // against the address they signed in with, so a dossier that passed the
+  // parents rung without one leaves that whole space unreachable and every
+  // « parent en attente » count at zero, with no screen anywhere saying so. It
+  // is not vacuous: the ladder check above guarantees dossiers past that rung.
+  const guardianless = await prisma.talent.count({
+    where: {
+      id: { startsWith: 'sd_' },
+      parentEmail: null,
+      onboardingRecords: { some: { parentsValidatedAt: { not: null } } },
+    },
+  });
+  if (guardianless > 0) {
+    failures.push(
+      `${guardianless} talents dont le dossier a passé l'étape « parents » sans adresse de responsable légal`,
+    );
+  }
+
   // The three stances. A lapsed authorisation must read `unknown`, never
   // `authorized`; a lapsed refusal must still read `forbidden`. Reading the
   // projection alone collapses the two, and the marker silently drops off a

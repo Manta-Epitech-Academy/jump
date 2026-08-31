@@ -127,6 +127,24 @@ export const edgeTalents: Scenario = {
       filedOffset: -50,
     });
 
+    // A guardian who still owes both acts, which is where the parent flow
+    // actually starts. Every other dossier in the dataset is settled or nearly
+    // so, and `/parent/welcome` lands on « merci » the moment nothing is
+    // pending - so without this the flow is reachable and empty. Two declared
+    // guardians on the same family besides, because `parent2Email` is a real
+    // column that the auth-conflict check reads and that nothing else fills.
+    const owing = spawn('Responsableenattente', '2nde');
+    world.enrol(event, owing);
+    world.addSchoolingRecord(owing, schoolYear, null);
+    addDossier(world, {
+      talent: owing,
+      schoolYear,
+      stopAt: null,
+      parentCoSigned: false,
+      imageRights: null,
+    });
+    const owingGuardian = world.setGuardian(owing, { withSecond: true });
+
     // A staff correction rather than a parent-portal decision.
     const corrected = spawn('Correction', '2nde');
     world.enrol(event, corrected);
@@ -223,6 +241,7 @@ export const edgeTalents: Scenario = {
         'une autorisation périmée, qui doit se lire « sans autorisation » et non « autorisé »',
         'un talent avec deux dossiers annuels et deux PDF distincts',
         "une correction de droit à l'image saisie par l'équipe",
+        'un responsable légal qui doit encore la co-signature et la décision, avec un second responsable déclaré',
         'un talent sans compte de connexion, un lycée sans UAI',
         'quatre divergences CRM pour /staff/admin/sf-conflicts',
         'un talent inscrit sur deux campus',
@@ -231,6 +250,11 @@ export const edgeTalents: Scenario = {
         {
           role: 'talent bloqué',
           email: '(nom de famille commençant par « Bloque »)',
+        },
+        {
+          role: 'responsable légal',
+          email: owingGuardian.email,
+          note: 'espace parent, règlement et droit à l’image encore à régler',
         },
       ],
     });

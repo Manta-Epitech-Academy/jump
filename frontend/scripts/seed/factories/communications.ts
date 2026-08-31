@@ -60,9 +60,19 @@ export function addBroadcast(
   });
 
   const failures = opts.failures ?? 0;
-  for (const [index, talent] of opts.recipients.entries()) {
+  const toParent = opts.audience === 'parent';
+  // The app's recipient builder only enqueues somebody it holds an address for,
+  // so a row here with a null `recipientEmail` on a mail campaign is a row it
+  // could never have written. A parent campaign therefore reaches the guardians
+  // a dossier actually declared, and nobody else.
+  const reachable = opts.recipients.filter(
+    (talent) =>
+      opts.channel !== 'mail' ||
+      (toParent ? talent.parentEmail : talent.email) !== null,
+  );
+
+  for (const [index, talent] of reachable.entries()) {
     const failed = index < failures;
-    const toParent = opts.audience === 'parent';
     world.buffer.broadcastRecipient.push({
       id: id('bcr', opts.key, seq(index, 4)),
       broadcastId,

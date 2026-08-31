@@ -86,7 +86,13 @@ export const operations: Scenario = {
         campus,
         event,
         createdBy: team[0],
-        recipients: audience.slice(0, 10),
+        // The guardians the dossiers actually declared, which is the audience
+        // the app's own recipient builder resolves. Taking the first ten of the
+        // roster made the campaign's size an accident of enrolment order: on a
+        // cohort where the first few have no dossier, it silently shrank.
+        recipients: audience
+          .filter((talent) => talent.parentEmail !== null)
+          .slice(0, 10),
       });
       // A retarget, which is the only thing `sourceFilter` is for: it selects on
       // who opened the previous send, so opened rows have to exist upstream.

@@ -28,6 +28,19 @@ import type { SchoolSpec } from './catalog/schools';
 import type { SlotBlueprint } from './catalog/planning';
 import type { Rng } from './rng';
 import type { SfMemberStatus } from '../../src/lib/domain/sfMemberStatus';
+import {
+  CIVILITE_OPTIONS,
+  PARENT_TYPE_OPTIONS,
+} from '../../src/lib/domain/profile';
+
+/**
+ * What a guardian is called. One first name for all of them, paired with the
+ * child's surname, matching the signature blocks `addDossier` already writes:
+ * a document signed « Responsable <Nom> » and a contact card naming somebody
+ * else would be two people.
+ */
+const GUARDIAN_PRENOM = 'Responsable';
+const GUARDIAN_PHONE = '+33700000000';
 
 export type CampusRef = { id: string; name: string; timezone: string };
 export type StaffRef = {
@@ -348,6 +361,54 @@ export class World {
     };
     this.talents.push(ref);
     return ref;
+  }
+
+  /**
+   * The legal guardian's contact details.
+   *
+   * `Talent.parentEmail` is the whole parent workspace: `guards.ts` resolves a
+   * guardian's children by matching it against the address they signed in with,
+   * so a dataset that never writes it leaves that space with nothing in it, no
+   * guardian able to log in, and every « parent en attente » count at zero. The
+   * generator wrote it nowhere, which also put ten `BroadcastRecipient` rows in
+   * the dataset with a null address on a mail campaign - a row the application
+   * could not have produced.
+   *
+   * Derived from the talent's own address rather than drawn, so it is stable
+   * across runs and legible in a mailbox: `responsable.<talent>@seed.invalid`.
+   * The reserved TLD is the point, exactly as for the talent (RFC 2606): if an
+   * outbound guard is ever wrong, the mail fails at DNS rather than reaching
+   * somebody's parent.
+   *
+   * Returns the addresses so a scenario can name them in the manifest instead of
+   * restating how they are built.
+   */
+  setGuardian(
+    talent: TalentRef,
+    opts: { withSecond?: boolean } = {},
+  ): { email: string; secondEmail: string | null } {
+    const email = `responsable.${talent.email}`;
+    const secondEmail = opts.withSecond ? `responsable2.${talent.email}` : null;
+    const row = this.talentRow(talent.id) as Record<string, unknown>;
+
+    row.parentEmail = email;
+    row.parentPrenom = GUARDIAN_PRENOM;
+    row.parentNom = talent.nom;
+    row.parentPhone = GUARDIAN_PHONE;
+    row.parentType = PARENT_TYPE_OPTIONS[0].value;
+    row.parentCivilite = CIVILITE_OPTIONS[0].value;
+
+    if (secondEmail) {
+      row.parent2Email = secondEmail;
+      row.parent2Prenom = GUARDIAN_PRENOM;
+      row.parent2Nom = talent.nom;
+      row.parent2Phone = GUARDIAN_PHONE;
+      row.parent2Type = PARENT_TYPE_OPTIONS[1].value;
+      row.parent2Civilite = CIVILITE_OPTIONS[1].value;
+    }
+
+    talent.parentEmail = email;
+    return { email, secondEmail };
   }
 
   /** The schooling record, which is CRM-owned and exists for every talent. */
