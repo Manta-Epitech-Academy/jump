@@ -1810,7 +1810,7 @@ enum BroadcastSourceFilter {
 model MessageTemplate {
   id          String           @id @default(cuid())
   /// Stable identity for a seeded *broadcast* template (free-standing, no
-  /// EmailActionMapping). Lets `seed-catalogs` upsert these defaults
+  /// EmailActionMapping). Lets the seed catalogue upsert these defaults
   /// idempotently without colliding on the non-unique `name`. Null for admin-
   /// and demo-authored templates. Seeded *transactional* defaults need no
   /// seedKey: they are anchored by their EmailActionMapping.actionKey instead.

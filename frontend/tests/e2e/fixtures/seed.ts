@@ -1,9 +1,9 @@
 /**
  * The world the E2E suite drives, and nothing more.
  *
- * Deliberately NOT `prisma/seed.ts`: that is a 3000-line demo dataset built to
- * look plausible in a browser, and a spec anchored to it breaks the next time
- * somebody adjusts a demo talent. This seeds the six accounts and the one event
+ * Deliberately NOT the seed generator (`scripts/seed/`): that builds a dataset
+ * shaped like production, and a spec anchored to it breaks the next time
+ * somebody adjusts a scenario. This seeds the six accounts and the one event
  * the specs actually assert on. Who those accounts are is declared in
  * `./identities.ts`, which the config and the specs share.
  *

@@ -165,9 +165,9 @@ export async function seedInterests(prisma: PrismaClient): Promise<number> {
  * `Interest.recommendationMessage` only on tech rows where it is still null. Pure
  * additive and idempotent: safe to run against prod repeatedly, and it never
  * clobbers a message already set (a prior run, a data migration, or a future
- * admin edit). Called by `seedInterests`, so any seed run (the full `seed.ts` or
- * the narrow `seed-catalogs` top-up) rolls new messages out additively. Now that
- * every seeder here is create-only, re-running `seed-catalogs` is itself the safe
+ * admin edit). Called by `seedInterests`, so any seed run (a full generation or
+ * the narrow `--catalog-only` top-up) rolls new messages out additively. Now that
+ * every seeder here is create-only, re-running `--catalog-only` is itself the safe
  * rollout, no dedicated backfill script needed.
  */
 export async function seedInterestRecommendationMessages(
