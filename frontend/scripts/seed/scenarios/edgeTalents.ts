@@ -334,6 +334,10 @@ export const edgeTalents: Scenario = {
         'un talent sans compte de connexion, un lycée sans UAI',
         'quatre divergences CRM pour /staff/admin/sf-conflicts',
         'un talent inscrit sur deux campus',
+        'un talent sans fiche Salesforce et sans téléphone, un autre sans campus',
+        'un talent opposé à la mesure d’usage (aucune ligne d’usage écrite pour lui)',
+        'un rendu PDF en échec et un autre encore en file, pour la file de génération',
+        'un talent portant les anciennes clés de document, d’avant le passage à l’annuel',
       ],
       accounts: [
         {

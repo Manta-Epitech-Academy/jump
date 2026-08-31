@@ -338,6 +338,8 @@ export const stage: Scenario = {
       campus: campus.name,
       event: event.titre,
       covers: [
+        'un closing conduit par un membre depuis parti, et trois notes : autonome, éditée, sans auteur',
+        'un créneau d’émargement clôturé par l’horloge et non par quelqu’un',
         `${size} inscrits, la cohorte la plus large du jeu de données`,
         `${event.days.length} jours d'émargement matin et après-midi, créneaux clôturés`,
         'planning complet, six types de créneaux',

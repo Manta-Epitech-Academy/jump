@@ -216,6 +216,7 @@ export const operations: Scenario = {
         covers: [
           'campagnes mail et SMS',
           'chiffres d’adoption au-dessus du plancher de masquage',
+          'bibliothèque de fichiers, pages d’accueil et audit d’impersonation',
         ],
       });
       return;
@@ -255,6 +256,11 @@ export const operations: Scenario = {
         'des relances ciblées sur les ouvreurs, les non-ouvreurs et toute la cohorte',
         'une correction XP manuelle, négative',
         'des chiffres d’adoption au-dessus du plancher de masquage à cinq acteurs',
+        'l’adoption sur ~80 % du catalogue de fonctionnalités, le reste laissé sans usage pour que les « écarts d’adoption » aient un sens',
+        'le cube mensuel d’usage, dont un mois au-delà de la fenêtre de rétention',
+        'trois fichiers dans la bibliothèque partagée, dont un déposé par un membre parti',
+        'deux pages d’accueil rédigées, une image utilisée et une orpheline',
+        'deux impersonations tracées, dont une jamais quittée',
       ],
     });
   },

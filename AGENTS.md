@@ -602,7 +602,7 @@ validation happened, which put real minors' personal data on non-prod
 environments for days at a time and put the validation gate after the release
 freeze. Both problems are downstream of the data.
 
-Five rules, and each is enforced rather than hoped for:
+Six rules, and each is enforced rather than hoped for:
 
 - **A pull request that adds a behaviour adds its example.** A new enum value
   fails `bun run test:seed` until some scenario produces a row, because the enum
@@ -615,6 +615,30 @@ Five rules, and each is enforced rather than hoped for:
   four invented `Usage_FeatureUse.feature` keys the generator was writing, which
   no screen would ever have shown as wrong. That half is a hand-kept table,
   because a `String` column cannot announce its own vocabulary.
+- **And a state the schema can express needs a row, not only an enum value.**
+  Every check above validates the CONTENT of rows that exist, so none of them can
+  see a table with nothing in it or a nullable column that is null on every row -
+  which was the shape of 104 gaps, `TalentInterest` (declared in the buffer,
+  ordered in the flush, never pushed) and `Usage_FeatureMonthly` (the store that
+  answers beyond the retention window, never written) among them. `assert/coverage.ts`
+  asks `getDMMF` what is expressible and the database whether it is present: every
+  model has a row, every nullable column has both a null and a non-null one, every
+  boolean has both values.
+
+  It carries two exemption lists and the split is the load-bearing part, because a
+  check whose exemption list is comfortable to append to dies of a thousand
+  additions. `NEVER_SEEDED` is structural, one-directional, one reason per line -
+  **`Campus.externalName` heads it, since that column being empty IS the worker
+  isolation**. `NOT_YET_SEEDED` is debt and **two-directional**: an entry whose gap
+  has been closed fails until its line is deleted, so the list is an exact
+  description of what is missing rather than a place to hide things, and its length
+  is printed on every run as a number that only goes down. Moving a line between
+  the two is possible and meant to be; doing it by accident is not.
+
+  A rare state is **placed, never drawn.** A few per cent of the `ci` profile's
+  couple of dozen dossiers rounds to none, so a failure rate makes coverage depend
+  on the profile rather than on the generator. The PDF renders that fail and the
+  closing verdicts are both placed for this reason.
 - **Nothing reads the wall clock and nothing draws from `Math.random()`.** Every
   date derives from `--today` and every choice from `--seed`, both printed in the
   manifest the run emits. A scenario written as "an event that has not happened
