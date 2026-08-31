@@ -33,6 +33,7 @@ import {
 } from '../factories/engagement';
 import { makeCohort, PRESENCE_MIX, PRESENCE_SOURCE_MIX } from './helpers';
 import type { Scenario } from './types';
+import type { TalentRef } from '../world';
 
 /**
  * Every verdict, in order, on the first four closings. The rest are drawn from
@@ -131,8 +132,14 @@ export const stage: Scenario = {
 
     // Dossiers. 16% of the platform has one, but a stage cohort is the part that
     // does: these are the students who logged in, so most of them completed.
+    const withDossier: TalentRef[] = [];
+    const withoutDossier: TalentRef[] = [];
     for (const [index, talent] of cohort.entries()) {
-      if (rng.chance(0.12)) continue;
+      if (rng.chance(0.12)) {
+        withoutDossier.push(talent);
+        continue;
+      }
+      withDossier.push(talent);
       addDossier(world, {
         talent,
         schoolYear,
@@ -285,11 +292,22 @@ export const stage: Scenario = {
         'bilan avec des réponses publiques non appariées',
         'diplôme configuré, classement de fin de stage, minijeux dans les trois états',
       ],
-      accounts: cohort.slice(0, 2).map((talent, index) => ({
-        role: index === 0 ? 'talent (dossier complet)' : 'talent',
-        email: talent.email,
-        note: 'code de connexion à usage unique',
-      })),
+      // Reported, not asserted. Naming `cohort[0]` « dossier complet » was a
+      // claim about a coin flip: the dossier loop skips one talent in eight, so
+      // a different `--seed` made the manifest describe a dossier the dataset
+      // did not contain - the one thing this page is built not to do.
+      accounts: [
+        withDossier[0] && {
+          role: 'talent (dossier complet)',
+          email: withDossier[0].email,
+          note: 'code de connexion à usage unique',
+        },
+        withoutDossier[0] && {
+          role: 'talent (inscription jamais commencée)',
+          email: withoutDossier[0].email,
+          note: 'code de connexion à usage unique',
+        },
+      ].filter((account) => account !== undefined),
     });
   },
 };

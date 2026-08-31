@@ -77,7 +77,12 @@ export async function projectionFailures(
         ),
       },
     },
-    take: 400,
+    // Uncapped. It used to `take: 400` with no `orderBy`, which is two problems
+    // rather than one: at the staging profile it left most of the projections
+    // unchecked, and WHICH ones it checked was Postgres's choice, so the same
+    // run could pass twice and fail the third time. The set is bounded by the
+    // dossiers that exist (about a thousand at staging), which is a query this
+    // pass can afford to do properly.
   });
 
   for (const talent of projected) {

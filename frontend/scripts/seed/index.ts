@@ -22,7 +22,7 @@ import {
   type SeedContext,
   type ManifestEntry,
 } from './context';
-import { assertWritableTarget } from './guard';
+import { assertWritableTarget, SEED_TARGETS } from './guard';
 import { createClock, parseAnchor } from './clock';
 import { createRng } from './rng';
 import { isProfileName, PROFILES } from './profiles';
@@ -54,6 +54,7 @@ type Args = {
   check: boolean;
   catalogOnly: boolean;
   out?: string;
+  help: boolean;
 };
 
 function parseArgs(argv: string[]): Args {
@@ -62,6 +63,7 @@ function parseArgs(argv: string[]): Args {
     seed: DEFAULT_SEED,
     check: false,
     catalogOnly: false,
+    help: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i]!;
@@ -73,11 +75,21 @@ function parseArgs(argv: string[]): Args {
     else if (token === '--out') args.out = value();
     else if (token === '--check') args.check = true;
     else if (token === '--catalog-only') args.catalogOnly = true;
-    else if (token === '--help' || token === '-h') args.env = undefined;
+    else if (token === '--help' || token === '-h') args.help = true;
     else throw new Error(`Unknown argument "${token}".`);
   }
   return args;
 }
+
+const USAGE = `bun run seed --env <cible> --profile <profil> --today <YYYY-MM-DD> [options]
+
+  --env           ${SEED_TARGETS.join(' | ')}. Obligatoire : rien n'est écrit sans.
+  --profile       ${Object.keys(PROFILES).join(' | ')}. Défaut : dev.
+  --today         L'ancre. Obligatoire : le générateur ne lit jamais l'horloge.
+  --seed          Graine du tirage. Défaut : ${DEFAULT_SEED}.
+  --check         Vérifie le résultat avec le domaine, après l'écriture.
+  --catalog-only  N'écrit que les référentiels, sans toucher aux données.
+  --out           Écrit le manifeste « où trouver quoi » dans ce fichier.`;
 
 /**
  * The rotation curation. Not part of the wipe: `MinigameConfig` is a host
@@ -173,6 +185,10 @@ async function loadMigrationOwnedRows(
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+  if (args.help) {
+    console.log(USAGE);
+    return;
+  }
   loadEnv();
 
   // Before anything else, including reading the rest of the arguments.
