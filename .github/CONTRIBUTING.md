@@ -215,12 +215,19 @@ generator emits a « où trouver quoi » page naming every scenario and its sign
 what the window rests on: the frustration a generated dataset causes is almost never that the names are
 invented, it is not being able to find a case that exercises the thing under review.
 
+**Not true of the live `staging` yet, and the two halves are named.** It still carries what the
+Salesforce worker and a restored production dump put there, and the generator refuses such a database
+rather than filling it half-way, so the switchover is a `prisma migrate reset`, then a generation, then
+`frontend/scripts/bootstrap-admins.ts` for the admin accounts the reset destroys. That, and the Job that
+re-seeds at each freeze, is #294. Until it lands, read this section as the target and not as the state.
+
 **What generated data will never catch**, and what preprod is therefore still for: whatever Salesforce
 produced that is malformed, the accumulation of several years of history, and how long a migration takes
 to apply. That last one matters here because migrations run from the container's `CMD`, so the incoming
 pod applies the DDL while the outgoing one is still serving.
 
-**No Salesforce worker writes into `staging`, and that is a property of the data, not of a setting.** The
+**No Salesforce worker writes into a seeded `staging`, and that is a property of the data, not of a
+setting.** The
 worker takes its scope from Jump, and the generator writes campuses with no external name, so a seeded
 environment is outside every sync's scope (see the *Development data* section of
 [`AGENTS.md`](../AGENTS.md)). Two things follow. A multi-day window stays frozen, which is the whole
@@ -229,6 +236,11 @@ a side door, which is the reason the generator exists at all. What that costs is
 sync still hold against the real org », and that question belongs to `preprod` alongside the migration
 rehearsal - not to a rung the PO is reading. The parsing itself is covered continuously by an
 integration test that calls the real `syncTalents` over a crafted payload, on every pull request.
+
+Being a property of the data also means it arrives with the data. While `staging` still carries campuses
+a sync created, those campuses have an external name, so the worker resolves them and is fully in scope.
+Pointing it at production and preproduction only is #295, and it closes that window rather than waiting
+for it.
 
 ### Step 7: PR, Self-Review & Merge
 
