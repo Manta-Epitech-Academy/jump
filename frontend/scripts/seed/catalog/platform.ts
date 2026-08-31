@@ -11,6 +11,7 @@
  */
 
 import type { MinigameScoring } from '@prisma/client';
+import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 
 export type MinigameSpec = {
   readonly game: string;
@@ -141,7 +142,12 @@ export const EVENT_TEMPLATES: readonly EventTemplateSpec[] = [
       'Deux semaines, émargement matin et après-midi, closings et diplôme.',
     cohortNoun: 'stagiaires',
     startMinutes: 10 * 60,
-    modules: ['inscrits', 'emargement', 'closings', 'bilan'],
+    modules: [
+      EVENT_MODULES.INSCRITS,
+      EVENT_MODULES.EMARGEMENT,
+      EVENT_MODULES.CLOSINGS,
+      EVENT_MODULES.BILAN,
+    ],
     withClosingGrid: true,
     withFeedbackForm: true,
     withDiploma: true,
@@ -151,7 +157,11 @@ export const EVENT_TEMPLATES: readonly EventTemplateSpec[] = [
     description: 'Journée unique récurrente, émargement et closing court.',
     cohortNoun: 'participants',
     startMinutes: 14 * 60,
-    modules: ['inscrits', 'emargement', 'closings'],
+    modules: [
+      EVENT_MODULES.INSCRITS,
+      EVENT_MODULES.EMARGEMENT,
+      EVENT_MODULES.CLOSINGS,
+    ],
     withClosingGrid: true,
     withFeedbackForm: false,
     withDiploma: false,
@@ -161,7 +171,7 @@ export const EVENT_TEMPLATES: readonly EventTemplateSpec[] = [
     description: 'Liste des inscrits seule.',
     cohortNoun: 'visiteurs',
     startMinutes: null,
-    modules: ['inscrits'],
+    modules: [EVENT_MODULES.INSCRITS],
     withClosingGrid: false,
     withFeedbackForm: false,
     withDiploma: false,

@@ -107,12 +107,21 @@ const CATALOGUES: readonly Catalogue[] = [
     requireEveryValue: true,
   },
   {
+    // Two tables, and the second is the one that was missing. A preset carries
+    // module keys of its own, they are copied onto an event when it is applied,
+    // and a key the catalogue no longer declares would have travelled that far
+    // with nothing to stop it.
     vocabulary: 'module d’événement',
     columns: [
       {
         table: 'EventConfig_Module',
         field: 'moduleKey',
         ownedBy: `"eventId" LIKE 'sd_%'`,
+      },
+      {
+        table: 'EventConfig_TemplateModule',
+        field: 'moduleKey',
+        ownedBy: `"templateId" LIKE 'sd_%'`,
       },
     ],
     values: () => EVENT_MODULE_KEYS,

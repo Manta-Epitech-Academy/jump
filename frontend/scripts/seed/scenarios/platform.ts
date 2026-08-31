@@ -24,6 +24,7 @@ import {
   RETIRED_QUESTION,
   STAGE_TEMPLATE_KEY,
 } from '../catalog/closings';
+import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
 import { addMinigamePublications, addXpRewards } from '../factories/engagement';
 import { addAdminApiTokens, addInvitations } from '../factories/operations';
 import { id, seq } from '../ids';
@@ -172,6 +173,13 @@ export const platform: Scenario = {
 
     // The presets the config wizard applies. A preset is a point-in-time copy:
     // applying one writes modules onto the event and leaves no live link.
+    //
+    // All three typed FKs are carried, not just the grid. A preset that declares
+    // « closings et diplôme » and hands the applied event a null certificate is
+    // the exact failure `EventConfig_Template.diplomaTemplateId` was added to
+    // prevent, and it left the wizard's own apply path with no example.
+    const stageFormId =
+      world.feedbackForms.get(FEEDBACK_FORM_SLUGS[0] ?? '')?.id ?? null;
     for (const preset of EVENT_TEMPLATES) {
       const templateId = id('ect', preset.name);
       world.buffer.eventConfig_Template.push({
@@ -185,6 +193,8 @@ export const platform: Scenario = {
             ? clubTemplateId
             : (world.stageTemplateId ?? null)
           : null,
+        feedbackFormId: preset.withFeedbackForm ? stageFormId : null,
+        diplomaTemplateId: preset.withDiploma ? world.diplomaTemplateId : null,
         createdById: admin.id,
       });
       for (const moduleKey of preset.modules) {
