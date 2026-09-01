@@ -56,8 +56,7 @@
   // single gated exception: the image-rights row carries a "Corriger" action so
   // staff can record a guardian's offline change of mind (the decision is a
   // legal artifact a guardian can revoke "à tout moment", and they sometimes
-  // tell us by phone). Everything else stays a display; the rest of the actions
-  // live in the recommendations list on the left.
+  // tell us by phone). Everything else stays a display.
   let {
     lastActiveAt,
     firstLoginAt,

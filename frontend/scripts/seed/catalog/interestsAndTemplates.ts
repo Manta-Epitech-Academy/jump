@@ -14,9 +14,7 @@
  * one staff later edited in production (an interest emoji renamed through
  * /staff/admin/interests, a hand-tuned template body), survives a re-run
  * untouched. Fixing an already-shipped default is a deliberate manual or
- * migration step. The lone additive exception is
- * `seedInterestRecommendationMessages`, which fills `recommendationMessage` only
- * where it is still null.
+ * migration step.
  *
  * The client is passed in rather than imported: the generator owns its own
  * `PrismaClient`, and there is no singleton to reach for outside Vite.
@@ -28,71 +26,17 @@ import type { BroadcastChannel, PrismaClient } from '@prisma/client';
 
 /**
  * Tech-leaning interests. Order within the array is the displayed order.
- * `recommendationMessage`, when set, is the sentence shown as the dev-fiche
- * event-opportunity recommendation (REC-005) for a student who picked this
- * interest. The `{prenom}` token is substituted with the talent's first name at
- * render time. Null means the interest never triggers one. First-pass copy,
- * meant to be tuned by the team.
  */
-export const INTEREST_TECH: {
-  nom: string;
-  emoji: string;
-  recommendationMessage?: string;
-}[] = [
-  {
-    nom: 'Créer des sites web',
-    emoji: '🌐',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour la création de **sites web**. Pensez à l'inviter à votre prochain atelier web, ça devrait lui plaire.",
-  },
-  {
-    nom: 'Créer des apps',
-    emoji: '📱',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour la création d'**applications**. Proposez-lui un atelier de maquettage d'application mobile (Figma).",
-  },
-  {
-    nom: 'Créer des jeux vidéo',
-    emoji: '🕹️',
-    recommendationMessage:
-      '{prenom} a montré un intérêt pour la création de **jeux vidéo**. Gardez-lui une place à votre prochain atelier jeux vidéos.',
-  },
-  {
-    nom: 'Programmation',
-    emoji: '💻',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour la **programmation**. Pensez à l'inviter à votre prochain Coding Club.",
-  },
-  {
-    nom: 'Intelligence artificielle',
-    emoji: '🤖',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour l'**intelligence artificielle**. Pensez à l'inviter à votre prochaine conférence IA.",
-  },
-  {
-    nom: 'Robotique',
-    emoji: '🦾',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour la **robotique**. Pensez à l'inviter à votre prochain atelier robotique.",
-  },
-  {
-    nom: 'Data science / Analyse de données',
-    emoji: '📊',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour la **data science**. Pensez à l'inviter à votre prochain atelier ou événement data.",
-  },
-  {
-    nom: 'Cloud / Infrastructure',
-    emoji: '☁️',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour le **cloud**. Pensez à l'inviter à votre prochain atelier cloud.",
-  },
-  {
-    nom: 'Cybersécurité / Hacking',
-    emoji: '🔒',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour la **cybersécurité**. Pensez à l'inviter à votre prochain CTF, ça va lui plaire.",
-  },
+export const INTEREST_TECH: { nom: string; emoji: string }[] = [
+  { nom: 'Créer des sites web', emoji: '🌐' },
+  { nom: 'Créer des apps', emoji: '📱' },
+  { nom: 'Créer des jeux vidéo', emoji: '🕹️' },
+  { nom: 'Programmation', emoji: '💻' },
+  { nom: 'Intelligence artificielle', emoji: '🤖' },
+  { nom: 'Robotique', emoji: '🦾' },
+  { nom: 'Data science / Analyse de données', emoji: '📊' },
+  { nom: 'Cloud / Infrastructure', emoji: '☁️' },
+  { nom: 'Cybersécurité / Hacking', emoji: '🔒' },
 ];
 
 /** General-interest options. Order within the array is the displayed order. */
@@ -153,33 +97,7 @@ export async function seedInterests(prisma: PrismaClient): Promise<number> {
   ];
   await prisma.interest.createMany({ data: catalogue, skipDuplicates: true });
 
-  // The one additive exception: fill the REC-005 message on rows that predate
-  // the column. Null-guarded, so it never overwrites a value already present.
-  await seedInterestRecommendationMessages(prisma);
-
   return catalogue.length;
-}
-
-/**
- * Backfill the dev-fiche event-recommendation messages (REC-005): set
- * `Interest.recommendationMessage` only on tech rows where it is still null. Pure
- * additive and idempotent: safe to run against prod repeatedly, and it never
- * clobbers a message already set (a prior run, a data migration, or a future
- * admin edit). Called by `seedInterests`, so any seed run (a full generation or
- * the narrow `--catalog-only` top-up) rolls new messages out additively. Now that
- * every seeder here is create-only, re-running `--catalog-only` is itself the safe
- * rollout, no dedicated backfill script needed.
- */
-export async function seedInterestRecommendationMessages(
-  prisma: PrismaClient,
-): Promise<void> {
-  for (const it of INTEREST_TECH) {
-    if (!it.recommendationMessage) continue;
-    await prisma.interest.updateMany({
-      where: { nom: it.nom, recommendationMessage: null },
-      data: { recommendationMessage: it.recommendationMessage },
-    });
-  }
 }
 
 // ─── Email templates + action mappings ───

@@ -10,7 +10,6 @@
   import TalentInterestChips from './components/TalentInterestChips.svelte';
   import TalentInterestQuotes from './components/TalentInterestQuotes.svelte';
   import TalentJourney from './components/TalentJourney.svelte';
-  import TalentRecommendationList from './components/TalentRecommendationList.svelte';
   import ContactCard from './components/ContactCard.svelte';
   import RightRailCard from './components/RightRailCard.svelte';
   import TalentNotesFeed from '$lib/components/dev/notes/TalentNotesFeed.svelte';
@@ -23,15 +22,6 @@
   // The notes composer is driven from the card header ("Ajouter une note"), so
   // the feed's own inline button is hidden and its open-state is bound here.
   let notesComposing = $state(false);
-
-  // Contacts surfaced (copyable) next to the recommendations that need a
-  // call/email. The fiche is read-only for dev staff, no talent edits here.
-  const contacts = $derived({
-    parentEmail: data.student.parentEmail,
-    parentPhone: data.student.parentPhone,
-    studentEmail: data.student.user?.email ?? null,
-    studentPhone: data.student.phone,
-  });
 </script>
 
 <svelte:head>
@@ -86,13 +76,6 @@
           </p>
         {/snippet}
         <TalentJourney journey={data.journey} firstName={data.student.prenom} />
-      </EpiSection>
-
-      <EpiSection title="Recommandations" accent="together">
-        <TalentRecommendationList
-          recommendations={data.recommendations}
-          {contacts}
-        />
       </EpiSection>
 
       <ContactCard student={data.student} />
