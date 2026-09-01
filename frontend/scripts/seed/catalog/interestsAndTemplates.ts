@@ -79,8 +79,7 @@ export const INTEREST_GENERAL: { nom: string; emoji: string }[] = [
  * Deliberately does NOT prune rows absent from the catalogue (same reason: the
  * `Interest` table is shared with admin-added interests). Removing or editing a
  * default that already shipped is therefore a manual/migration step, not this
- * function's job. The one exception is the additive backfill below.
- * Returns the catalogue size.
+ * function's job. Returns the catalogue size.
  */
 export async function seedInterests(prisma: PrismaClient): Promise<number> {
   const catalogue = [
