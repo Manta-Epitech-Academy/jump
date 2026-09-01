@@ -88,9 +88,7 @@ export const stage: Scenario = {
     'La grosse cohorte : 200 inscrits, deux semaines, émargement complet, closings, diplôme.',
   run(world) {
     const { profile, rng, clock } = world.ctx;
-    const campus = world.campuses.has('Lyon')
-      ? world.campus('Lyon')
-      : [...world.campuses.values()][0]!;
+    const campus = world.pickCampus('Lyon');
     const team = world.staffFor(campus.id);
     const schoolYear = clock.schoolYear;
 

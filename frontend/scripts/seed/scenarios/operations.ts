@@ -54,9 +54,10 @@ export const operations: Scenario = {
       staff: world.staff,
       campuses: [...world.campuses.values()],
       events: world.events,
-      // Above the five-actor floor on purpose, so the coverage matrix has at
-      // least one cell it does NOT have to mask. A dataset producing only
-      // masked cells cannot tell a working mask from a broken query.
+      // Above the five-actor floor on purpose, on the one feature `addUsage`
+      // places on the heaviest campus - see its own comment. A dataset
+      // producing only masked cells cannot tell a working mask from a broken
+      // query.
       talentCount: 8,
     });
     // Folded after the raw rows exist, in the order `usage/rollup.ts` folds then
@@ -239,9 +240,14 @@ export const operations: Scenario = {
       rng.sample(world.talents, Math.min(12, world.talents.length)),
     );
     if (team[0]) {
-      addDeletionRequests(world, rng.sample(world.talents, 4), team[0].userId);
+      const deletionTalents = rng.sample(world.talents, 4);
+      addDeletionRequests(world, deletionTalents, team[0].userId);
       addClosingReset(world, rng.sample(world.talents, 3), team[0]);
-      addIdentityRepair(world, rng.pick(world.talents), team[0]);
+      // The PENDING request's talent (index 0, see `addDeletionRequests`),
+      // so fulfilling this exact request in the admin UI has an
+      // `AuthIdentityRepair` row to actually observe `anonymizeTalent`
+      // scrub - independent draws almost never coincide.
+      addIdentityRepair(world, deletionTalents[0]!, team[0]);
     }
 
     world.ctx.manifest.push({

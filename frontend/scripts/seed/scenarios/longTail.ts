@@ -15,6 +15,8 @@
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { WELCOME_XP_BONUS } from '../../../src/lib/domain/xp';
 import { addDossier } from '../factories/onboarding';
+import { CLUB_TEMPLATE } from '../catalog/closings';
+import { id } from '../ids';
 import {
   makeCohort,
   cohortSize,
@@ -40,7 +42,11 @@ export const longTail: Scenario = {
     let unconfigured = 0;
 
     for (let index = 0; index < target; index += 1) {
-      const campus = campuses[index % campuses.length]!;
+      // One guaranteed per campus first (index < campuses.length visits each
+      // exactly once), then the rest by real weight: PROFILE.md's own skew,
+      // which is what gives a cross-campus comparison something to compare.
+      const campus =
+        index < campuses.length ? campuses[index]! : world.pickWeightedCampus();
       const team = world.staffFor(campus.id);
 
       // 14% of events have nobody on them, and 80% were never configured. Both
@@ -49,8 +55,25 @@ export const longTail: Scenario = {
       const configured = index % 5 === 0;
 
       // One of each lifecycle branch, then a spread across the school year.
+      // Index 5 (the first naturally `configured` index past the fixed
+      // lifecycle ones) is placed at the far end of that spread rather than
+      // drawn, because the school-year switcher needs at least one NAVIGABLE
+      // event to land in the PRECEDING year and a random draw either crosses
+      // the cutover or it does not - see the anchor's own comment in
+      // check-seed-profiles.sh for why -300 is far enough. An unconfigured
+      // event carries no module, so it is never navigable and could not do
+      // this job even placed correctly, which is why index 3 (unconfigured)
+      // is not the one used here.
       const offset =
-        index === 0 ? 3 : index === 1 ? 0 : index === 2 ? -1 : -rng.int(5, 300);
+        index === 0
+          ? 3
+          : index === 1
+            ? 0
+            : index === 2
+              ? -1
+              : index === 5
+                ? -300
+                : -rng.int(5, 300);
 
       const event = world.addEvent({
         key: `evt-${index}`,
@@ -141,6 +164,42 @@ export const longTail: Scenario = {
       }
     }
 
+    // A closing-coverage figure distinguishes null (never configured) from a
+    // real zero (configured, past, nobody's closing conducted) - see
+    // `campusComparison.ts`'s own doc comment on `closingCoverage`. Stage and
+    // club always conduct at least one closing wherever they configure the
+    // module, so neither ever produces the zero branch: this is the one
+    // event in the dataset that does, on a campus neither of them claimed.
+    const zeroClosingCampus = world.pickWeightedCampus(
+      world.reservedCampusNames,
+    );
+    const zeroClosingTemplateId = id('clt', CLUB_TEMPLATE.key);
+    const zeroClosingEvent = world.addEvent({
+      key: 'evt-closings-zero',
+      titre: `Journée découverte ${zeroClosingCampus.name} #closings`,
+      publicName: `Découverte ${zeroClosingCampus.name}`,
+      cohortNoun: 'participants',
+      campus: zeroClosingCampus,
+      startOffset: -45,
+      weekdays: 1,
+      devActivated: true,
+      modules: [
+        EVENT_MODULES.INSCRITS,
+        EVENT_MODULES.EMARGEMENT,
+        EVENT_MODULES.CLOSINGS,
+      ],
+      closingTemplateId: zeroClosingTemplateId,
+    });
+    const zeroClosingCohort = makeCohort(world, {
+      size: cohortSize(world, scale),
+      campus: zeroClosingCampus,
+      schoolYear,
+    });
+    for (const talent of zeroClosingCohort)
+      world.enrol(zeroClosingEvent, talent);
+    // Deliberately no `conductClosing` call: the absence is the point.
+    created += 1;
+
     world.ctx.manifest.push({
       scenario: longTail.name,
       summary: longTail.summary,
@@ -148,6 +207,7 @@ export const longTail: Scenario = {
         `${created} événements ordinaires répartis sur tous les campus`,
         `${empty} sans aucun inscrit, ${unconfigured} sans aucun module configuré`,
         'un événement à venir, un en cours, un terminé hier',
+        `${zeroClosingCampus.name} : closings configurés, inscrits réels, aucun closing conduit`,
         'des cohortes tirées sur la vraie distribution : médiane autour de 23',
       ],
     });

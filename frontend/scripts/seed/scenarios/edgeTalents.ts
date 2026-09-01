@@ -112,6 +112,11 @@ export const edgeTalents: Scenario = {
     const returning = spawn('Revenant', 'terminale');
     world.enrol(event, returning);
     world.addSchoolingRecord(returning, schoolYear, null);
+    // Last year's record too, so this talent carries two: the ledger's
+    // central invariant (the projection describes the MOST RECENT record,
+    // not the current year) has an example to stand on. Every other call in
+    // this generator writes only the current year.
+    world.addSchoolingRecord(returning, lastYear, null);
     addDossier(world, {
       talent: returning,
       schoolYear: lastYear,
@@ -297,7 +302,7 @@ export const edgeTalents: Scenario = {
     // one talent each: a failure rate applied to a cohort produces nothing at
     // all on the smallest profile, and the queue screen these are for would then
     // be tested on some profiles and not others.
-    for (const outcome of ['failed', 'pending'] as const) {
+    for (const outcome of ['error', 'pending'] as const) {
       const talent = spawn(`Rendu${outcome}`, '2nde');
       world.enrol(event, talent);
       world.addSchoolingRecord(talent, schoolYear, null);

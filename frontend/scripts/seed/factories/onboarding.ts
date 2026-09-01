@@ -89,7 +89,7 @@ export function addDossier(
      * How the image-rights PDF render ended. `success` unless a caller places
      * one of the other two, which exactly one scenario does.
      */
-    renderOutcome?: 'success' | 'failed' | 'pending';
+    renderOutcome?: 'success' | 'error' | 'pending';
   },
 ): void {
   const clock = world.ctx.clock;
@@ -241,7 +241,7 @@ export function addDossier(
       status: renderOutcome,
       filePath: renderedImageRightsPath,
       errorMessage:
-        renderOutcome === 'failed'
+        renderOutcome === 'error'
           ? 'Rendu interrompu : le navigateur n’a pas répondu dans le délai imparti.'
           : null,
       // A queued job has not run, so there is no moment it finished at.

@@ -15,8 +15,10 @@ import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { conductClosing } from '../factories/closing';
 import { addDossier } from '../factories/onboarding';
 import { id } from '../ids';
+import { withGuaranteed } from '../rng';
 import { makeCohort, PRESENCE_MIX, PRESENCE_SOURCE_MIX } from './helpers';
 import type { Scenario } from './types';
+import type { EventRef } from '../world';
 
 const CLUB_QUESTIONS = [
   BANK_KEYS.discoveryChannel,
@@ -34,9 +36,7 @@ export const club: Scenario = {
     'Format court et récurrent : trois séances, la grille Coding Club, des habitués.',
   run(world) {
     const { profile, rng, clock } = world.ctx;
-    const campus = world.campuses.has('Nice')
-      ? world.campus('Nice')
-      : [...world.campuses.values()][0]!;
+    const campus = world.pickCampus('Nice');
     const team = world.staffFor(campus.id);
     const clubTemplateId = id('clt', CLUB_TEMPLATE.key);
     const size = profile.name === 'ci' ? 8 : 24;
@@ -49,6 +49,15 @@ export const club: Scenario = {
       campus,
       schoolYear: clock.schoolYear,
     });
+
+    // The first regular is guaranteed onto every session below, and onto the
+    // first session's closed set - placed rather than drawn, because the
+    // participation prune after the loop depends on it: it must land on
+    // someone who is both closed on the first past session and enrolled on a
+    // later one, and a random sample either produces that talent or it does
+    // not.
+    const anchorRegular = regulars[0]!;
+    const sessionEvents: EventRef[] = [];
 
     for (const [session, offset] of [-60, -30, 6].entries()) {
       const upcoming = offset > 0;
@@ -69,11 +78,12 @@ export const club: Scenario = {
         ],
         closingTemplateId: clubTemplateId,
       });
+      sessionEvents.push(event);
       world.addPlanning(event, CODING_CLUB_PLANNING);
 
-      const attending = rng.sample(
-        regulars,
-        rng.int(Math.ceil(size / 2), size),
+      const attending = withGuaranteed(
+        rng.sample(regulars, rng.int(Math.ceil(size / 2), size)),
+        anchorRegular,
       );
       for (const talent of attending) world.enrol(event, talent);
 
@@ -93,10 +103,13 @@ export const club: Scenario = {
         }
       }
 
-      for (const talent of rng.sample(
+      const closed = rng.sample(
         attending,
         Math.max(2, Math.round(attending.length * 0.4)),
-      )) {
+      );
+      for (const talent of session === 0
+        ? withGuaranteed(closed, anchorRegular)
+        : closed) {
         conductClosing(world, {
           talent,
           event,
@@ -107,6 +120,14 @@ export const club: Scenario = {
         });
       }
     }
+
+    // Simulate the exact state PR #284 protects: a closing surviving a
+    // participation the Salesforce sync has since pruned. `anchorRegular` is
+    // guaranteed above to be closed on the first past session and enrolled on
+    // both later ones, so pruning only the first session's participation
+    // leaves them reachable through scoped access via the others, and their
+    // closing standing with no participation behind it.
+    world.pruneParticipation(sessionEvents[0]!.id, anchorRegular.id);
 
     // A handful of club regulars have a dossier too, so the fiche shows a
     // student who is both enrolled everywhere and fully in order.
@@ -136,6 +157,14 @@ export const club: Scenario = {
         'la grille Coding Club, plus courte, avec deux libellés réécrits pour le format',
         'des questions de banque partagées avec le stage, donc comparables entre formats',
         'un talent avec plusieurs closings, ce que « Son parcours » affiche',
+        'un closing qui survit à la suppression de sa participation par le worker Salesforce',
+      ],
+      accounts: [
+        {
+          role: 'talent (closing sans participation)',
+          email: anchorRegular.email,
+          note: 'la participation de la première séance a été supprimée après coup ; le closing tient toujours',
+        },
       ],
     });
   },

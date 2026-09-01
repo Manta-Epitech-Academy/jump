@@ -22,7 +22,11 @@ import {
   imageRightsStance,
   imageRightsStatus,
 } from '../../../src/lib/domain/imageRights';
-import { eventRunsClosings } from '../../../src/lib/domain/eventModules';
+import {
+  eventRunsClosings,
+  reachableSurfaces,
+} from '../../../src/lib/domain/eventModules';
+import { schoolYearOf } from '../../../src/lib/domain/schoolYear';
 import {
   SF_MEMBER_STATUSES,
   isVisibleInDevSpace,
@@ -114,6 +118,23 @@ export async function reachabilityFailures(
       );
   }
 
+  // The school-year ledger's central invariant: a talent's projection
+  // describes the MOST RECENT record, not the current year. That is only
+  // demonstrable from a talent who carries a record for a past year as well
+  // as the current one - `Schooling_YearRecord`'s unique constraint on
+  // `(talentId, schoolYear)` means each grouped row IS a distinct year, so
+  // counting rows per talent is enough.
+  const schoolingSpread = await prisma.schooling_YearRecord.groupBy({
+    by: ['talentId'],
+    where: { talentId: { startsWith: 'sd_' } },
+    _count: { _all: true },
+  });
+  if (!schoolingSpread.some((row) => row._count._all >= 2)) {
+    failures.push(
+      'Aucun talent ne porte deux Schooling_YearRecord sur des années différentes',
+    );
+  }
+
   // An event that runs closings and one that does not. A coverage rate whose
   // denominator is taken over the whole périmètre instead of over the events
   // that actually run them read 18% where it should have read 78%, and nothing
@@ -122,9 +143,11 @@ export async function reachabilityFailures(
     where: { id: { startsWith: 'sd_' } },
     select: {
       id: true,
+      date: true,
       closingTemplateId: true,
       feedbackFormId: true,
       modules: { select: { moduleKey: true } },
+      campus: { select: { timezone: true } },
     },
   });
   const gates = events.map((event) => ({
@@ -138,8 +161,110 @@ export async function reachabilityFailures(
   if (!gates.some((gate) => !eventRunsClosings(gate)))
     failures.push('Tous les événements conduisent des closings');
 
+  // The school-year switcher's own list: at least two years' worth of
+  // navigable events, or `SchoolYearMenu` has nothing to switch between.
+  // Built from the same `gates` above rather than a second query, and from
+  // the real `reachableSurfaces` + `schoolYearOf` rather than restating
+  // either's rule.
+  const navigableYears = new Set(
+    events
+      .filter((event, index) => reachableSurfaces(gates[index]!).length > 0)
+      .map((event) => schoolYearOf(event.date, event.campus.timezone).label),
+  );
+  if (navigableYears.size < 2) {
+    failures.push(
+      `Un seul millésime scolaire d'événements navigables (${[...navigableYears].join(', ') || 'aucun'}), le sélecteur d'année n'a rien à changer`,
+    );
+  }
+
+  // A closing-coverage figure distinguishes null (never configured) from a
+  // real zero (configured, past, enrolled, nobody's closing conducted) - see
+  // `campusComparison.ts`'s own doc comment on `closingCoverage`. Both counts
+  // are queried once and matched back onto `events` by id rather than
+  // per-event, for the same reason the model coverage check reads one row
+  // per table instead of one query per column.
+  const enrolmentCounts = await prisma.participation.groupBy({
+    by: ['eventId'],
+    where: { eventId: { startsWith: 'sd_' } },
+    _count: { _all: true },
+  });
+  const enrolmentCountByEvent = new Map(
+    enrolmentCounts.map((row) => [row.eventId, row._count._all]),
+  );
+  const closingCounts = await prisma.closing_Record.groupBy({
+    by: ['eventId'],
+    where: { id: { startsWith: 'sd_' } },
+    _count: { _all: true },
+  });
+  const closingCountByEvent = new Map(
+    closingCounts.map((row) => [row.eventId, row._count._all]),
+  );
+  const hasGenuineZeroCoverage = events.some((event, index) => {
+    const gate = gates[index]!;
+    if (!eventRunsClosings(gate)) return false;
+    if (event.date > anchor) return false;
+    const enrolled = enrolmentCountByEvent.get(event.id) ?? 0;
+    const conducted = closingCountByEvent.get(event.id) ?? 0;
+    return enrolled > 0 && conducted === 0;
+  });
+  if (!hasGenuineZeroCoverage) {
+    failures.push(
+      "Aucun événement configuré pour les closings, passé et inscrit, ne montre une couverture à zéro plutôt qu'une absence de configuration",
+    );
+  }
+
+  // `Closing_Record` carries no foreign key to `Participation` on purpose,
+  // so a closing can survive a participation the Salesforce sync has since
+  // deleted - see the schema's own comment on `Closing_Record` and
+  // `closingLifecycle.integration.test.ts`'s test on keeping a closing whose
+  // participation the sync has since pruned.
+  const orphanedClosings = await prisma.$queryRaw<{ count: number }[]>`
+    SELECT COUNT(*)::int AS count
+    FROM "Closing_Record" cr
+    WHERE cr."id" LIKE 'sd_%'
+      AND NOT EXISTS (
+        SELECT 1 FROM "Participation" p
+        WHERE p."talentId" = cr."talentId" AND p."eventId" = cr."eventId"
+      )
+  `;
+  if ((orphanedClosings[0]?.count ?? 0) === 0) {
+    failures.push(
+      'Aucun closing ne survit à une participation supprimée derrière lui',
+    );
+  }
+
+  // The usage coverage matrix masks a campus × fonctionnalité cell below
+  // five distinct talent actors in one month (`USAGE_SMALL_CELL_FLOOR` in
+  // `adminStats/featureUsage.ts`, a `$lib/server` module unreachable from
+  // this Vite-free script, which is why the threshold is restated rather
+  // than imported). A dataset producing only masked cells cannot tell a
+  // working mask from a broken query.
+  const unmaskedCells = await prisma.$queryRaw<{ count: number }[]>`
+    SELECT COUNT(*)::int AS count
+    FROM (
+      SELECT COUNT(DISTINCT "actorHash") AS distinct_actors
+      FROM "Usage_FeatureUse"
+      WHERE "id" LIKE 'sd_%'
+        AND "actorKind" = 'talent'
+        AND "campusId" IS NOT NULL
+        AND "impersonated" = false
+      GROUP BY "feature", "campusId", to_char("occurredAt", 'YYYY-MM')
+    ) cells
+    WHERE distinct_actors >= 5
+  `;
+  if ((unmaskedCells[0]?.count ?? 0) === 0) {
+    failures.push(
+      'Aucune cellule campus × fonctionnalité talent ne dépasse le plancher de masquage à cinq acteurs',
+    );
+  }
+
   // A talent can only sign in when the mirror's address and the login address
   // agree; the app refuses otherwise, and a seed gets this wrong silently.
+  //
+  // This is also, deliberately, the one divergence this generator can never
+  // place: it is an integrity invariant the seed asserts holds, not debt.
+  // `/staff/admin/sf-conflicts`' AUTH tab is therefore validated live, by
+  // demonstrating a real duplicate-email import, never from seed.
   const mismatched = await prisma.$queryRaw<{ count: number }[]>`
     SELECT COUNT(*)::int AS count
     FROM "Talent" t

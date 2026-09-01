@@ -25,7 +25,16 @@
 # what the first wrote, which is itself the wipe path getting exercised.
 set -eu
 
-ANCHOR=2026-06-15
+# Early enough in the calendar year that a school-year switcher has two
+# years to switch between: this anchor is inside 2025-2026 (the cycle opens
+# 31 July), and `longTail.ts` places one event 300 days back on purpose,
+# which is more than the ~227 days between this anchor and the preceding
+# 31 July 2025 cutover, so it lands in 2024-2025. The previous anchor,
+# 2026-06-15, sat 319 days after that same cutover - past every offset the
+# generator draws - so every event stayed inside one school year and
+# `SchoolYearMenu` had nothing to switch between in the exact configuration
+# this check runs.
+ANCHOR=2026-03-15
 
 for profile in ci dev; do
   echo "[seed] profile ${profile}" >&2

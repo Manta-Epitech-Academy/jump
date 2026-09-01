@@ -97,3 +97,17 @@ export function createRng(seed: number): Rng {
     fork: (label) => createRng(hashLabel(seed, label)),
   };
 }
+
+/**
+ * `items`, guaranteed to include `member`, without changing its size when it
+ * is already there.
+ *
+ * For the rare state a check depends on rather than merely hopes for: a
+ * random sample either contains the state that matters or it does not, and a
+ * check that only sometimes sees it is worse than no check. This is the same
+ * doctrine as `stage.ts`'s `VERDICT_COVER` - placed, never drawn - applied to
+ * membership in a sample rather than to a value at a fixed index.
+ */
+export function withGuaranteed<T>(items: readonly T[], member: T): T[] {
+  return items.includes(member) ? [...items] : [member, ...items];
+}

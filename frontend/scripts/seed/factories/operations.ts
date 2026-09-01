@@ -11,6 +11,7 @@
 import type { StaffRole, TalentDeletionRequestStatus } from '@prisma/client';
 import type { World, TalentRef, StaffRef, CampusRef, EventRef } from '../world';
 import { id, seq } from '../ids';
+import { withGuaranteed } from '../rng';
 import {
   USAGE_FEATURES,
   USAGE_FEATURE_DEFS,
@@ -321,10 +322,23 @@ export function addUsage(
   const staff = opts.staff;
   if (staff.length === 0 || opts.campuses.length === 0) return;
 
-  const adopted = rng.sample(
+  const adoptedSample = rng.sample(
     USAGE_FEATURE_KEYS,
     Math.round(USAGE_FEATURE_KEYS.length * FEATURE_ADOPTION_SHARE),
   );
+  // Placed, not drawn: the matrix needs at least one cell it does NOT have to
+  // mask, and a random sample of ~80% of the catalogue either lands on a
+  // talent+campus-scoped feature or it does not. Guaranteeing this one is
+  // adopted is what lets the campus it is placed on (below) clear the floor
+  // deterministically, on every profile.
+  const talentCampusFeature = USAGE_FEATURE_KEYS.find(
+    (key) =>
+      USAGE_FEATURE_DEFS[key].audience === 'talent' &&
+      USAGE_FEATURE_DEFS[key].scope === 'campus',
+  );
+  const adopted = talentCampusFeature
+    ? withGuaranteed(adoptedSample, talentCampusFeature)
+    : adoptedSample;
 
   for (const [index, feature] of adopted.entries()) {
     const definition = USAGE_FEATURE_DEFS[feature];
@@ -372,8 +386,16 @@ export function addUsage(
     // Enough distinct pseudonyms to sit above the five-actor floor, so the
     // matrix has at least one cell it does NOT have to mask. A dataset that only
     // produces masked cells cannot tell a working mask from a broken query.
+    // Every feature but the guaranteed one spreads by real campus weight,
+    // which is where most cells legitimately stay under the floor and stay
+    // masked; the guaranteed one is placed entirely on the platform's
+    // heaviest campus, so that specific cell clears it deterministically
+    // instead of depending on how a weighted spread happens to land.
     for (let i = 0; i < opts.talentCount; i += 1) {
-      const campus = opts.campuses[i % opts.campuses.length]!;
+      const campus =
+        feature === talentCampusFeature
+          ? opts.campuses[0]!
+          : world.pickWeightedCampus();
       pushUse(world, {
         key: ['talent', seq(index, 3), seq(i, 3)],
         feature,
