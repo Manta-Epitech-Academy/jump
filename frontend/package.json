@@ -138,6 +138,7 @@
     "dompurify": "^3.4.13",
     "linkify-it": "^5.0.2",
     "markdown-it": "^14.2.0",
-    "undici": "^7.29.0"
+    "undici": "^7.29.0",
+    "mysql2": "^3.24.2"
   }
 }
