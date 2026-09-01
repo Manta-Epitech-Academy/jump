@@ -144,7 +144,13 @@ export const edgeTalents: Scenario = {
       parentCoSigned: false,
       imageRights: null,
     });
-    const owingGuardian = world.setGuardian(owing, { withSecond: true });
+    // The primary account was already minted above, inside `addDossier`'s own
+    // parents-rung handling: this call only layers the second guardian on, so
+    // `createdAt` is never read (the account exists and `setGuardian` dedupes).
+    const owingGuardian = world.setGuardian(owing, {
+      withSecond: true,
+      createdAt: clock.today,
+    });
 
     // A staff correction rather than a parent-portal decision.
     const corrected = spawn('Correction', '2nde');

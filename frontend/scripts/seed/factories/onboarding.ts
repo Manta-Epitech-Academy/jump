@@ -128,7 +128,13 @@ export function addDossier(
   // only ever set by the wizard's parents step. Putting it here rather than in
   // the scenarios is what makes it impossible to have a dossier that passed the
   // rung and a parent workspace that cannot resolve anybody.
-  if (reached.includes('parents')) world.setGuardian(opts.talent);
+  if (reached.includes('parents')) {
+    world.setGuardian(opts.talent, {
+      createdAt: clock.days(
+        filedOffset + ONBOARDING_STEP_ORDER.indexOf('parents'),
+      ),
+    });
+  }
   // The same rule, one rung further along, and it was the one missing: a dossier
   // stamped past the interests step with no interest attached is a state the
   // wizard cannot produce and every reader of that relation reads as empty.

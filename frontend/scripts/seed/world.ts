@@ -164,6 +164,10 @@ export class World {
 
   private talentCounter = 0;
   private readonly talentsWithInterests = new Set<string>();
+  /** Guardian addresses already minted a `bauth_user`, so a returning dossier
+   * and the second-guardian scenario calling `setGuardian` on the same talent
+   * never push a second row and collide on `bauth_user.email`'s unique index. */
+  private readonly guardianAccounts = new Set<string>();
   private xpByTalent = new Map<string, number>();
   private presentEventsByTalent = new Map<string, Set<string>>();
   /**
@@ -403,7 +407,8 @@ export class World {
   }
 
   /**
-   * The legal guardian's contact details.
+   * The legal guardian's contact details, and the account that lets them
+   * actually sign in.
    *
    * `Talent.parentEmail` is the whole parent workspace: `guards.ts` resolves a
    * guardian's children by matching it against the address they signed in with,
@@ -412,6 +417,19 @@ export class World {
    * generator wrote it nowhere, which also put ten `BroadcastRecipient` rows in
    * the dataset with a null address on a mail campaign - a row the application
    * could not have produced.
+   *
+   * Writing the column is not enough on its own: the app never authenticates
+   * against it directly, only against a separate `bauth_user` (role `parent`)
+   * that `ensureParentAccount` (`onboardingService.ts`) mints the moment the
+   * wizard's parents step is submitted. A dataset that writes the column and not
+   * the account looks identical everywhere a screen only reads `Talent` - the
+   * fiche, the broadcast audience, the compliance figures - and only fails at
+   * the one place that matters, the parent login form, which is exactly the gap
+   * that made the address-only fix above look complete.
+   *
+   * `createdAt` is the caller's already-computed parents-step timestamp, so the
+   * account is stamped consistently with `Onboarding_Record.parentsValidatedAt`
+   * rather than carrying a second, disagreeing date for the same act.
    *
    * Derived from the talent's own address rather than drawn, so it is stable
    * across runs and legible in a mailbox: `responsable.<talent>@seed.invalid`.
@@ -424,7 +442,7 @@ export class World {
    */
   setGuardian(
     talent: TalentRef,
-    opts: { withSecond?: boolean } = {},
+    opts: { createdAt: Date; withSecond?: boolean },
   ): { email: string; secondEmail: string | null } {
     const email = `responsable.${talent.email}`;
     const secondEmail = opts.withSecond ? `responsable2.${talent.email}` : null;
@@ -436,7 +454,12 @@ export class World {
     row.parentPhone = GUARDIAN_PHONE;
     row.parentType = PARENT_TYPE_OPTIONS[0].value;
     row.parentCivilite = CIVILITE_OPTIONS[0].value;
+    this.provisionGuardianAccount(email, talent.nom, opts.createdAt);
 
+    // Parent-2 is onboarding-collected data only, never a login: the wizard's
+    // own comment on the write path is explicit that the whole parent flow is
+    // parent-1 - "no account, no email, no portal access" - so this deliberately
+    // never calls `provisionGuardianAccount` for `secondEmail`.
     if (secondEmail) {
       row.parent2Email = secondEmail;
       row.parent2Prenom = GUARDIAN_PRENOM;
@@ -448,6 +471,36 @@ export class World {
 
     talent.parentEmail = email;
     return { email, secondEmail };
+  }
+
+  /**
+   * Mints the guardian's login, deduped by email.
+   *
+   * Two callers can name the same address: a talent's own dossier reaching the
+   * parents rung, and (for the one family carrying a second guardian) a scenario
+   * calling `setGuardian` again to layer `parent2Email` on. `bauth_user.email` is
+   * unique, so a second unconditional push would fail the write rather than
+   * merely duplicate a row - the same reason `ensureParentAccount` itself looks
+   * an existing row up before creating one, and the one part of it worth
+   * mirroring here (that function also refreshes the account's `name` on an
+   * existing row; nothing in this dataset ever changes a guardian's declared
+   * name after the fact, so there is nothing to re-apply on the dedup path).
+   */
+  private provisionGuardianAccount(
+    email: string,
+    talentNom: string,
+    createdAt: Date,
+  ): void {
+    if (this.guardianAccounts.has(email)) return;
+    this.guardianAccounts.add(email);
+    this.buffer.bauth_user.push({
+      id: id('usr', 'guardian', email),
+      email,
+      name: `${GUARDIAN_PRENOM} ${talentNom}`.trim(),
+      emailVerified: true,
+      role: 'parent',
+      createdAt,
+    });
   }
 
   /**
