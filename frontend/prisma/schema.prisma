@@ -120,6 +120,11 @@ model Audit_ImpersonationEvent {
 model bauth_account {
   id                    String    @id @default(cuid())
   userId                String
+  /// The account's stable namespace (e.g. the Microsoft tenant's OIDC issuer
+  /// URL). BetterAuth 1.7 keys an OAuth account on (issuer, accountId) rather
+  /// than (providerId, accountId), because a bare provider id is not unique
+  /// across multi-tenant issuers.
+  issuer                String
   accountId             String
   providerId            String
   accessToken           String?
@@ -133,6 +138,8 @@ model bauth_account {
   updatedAt             DateTime  @updatedAt
 
   user bauth_user @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([issuer, accountId])
 }
 
 model bauth_verification {

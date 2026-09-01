@@ -83,14 +83,19 @@ TEMPLATE="$ROOT/.github/pull_request_template.md"
 if [ -f "$TEMPLATE" ] && ! grep -qiE '^#+[[:space:]]+definition of done' "$BODY_FILE"; then
   {
     printf '\n'
+    # The template wraps its own authoring instructions in HTML comments
+    # (the "delete non-applicable items" note, and the trailing "Process
+    # exception" section, guarded for the no-issue label). Exiting at the
+    # first `<!--` used to drop everything after it, checklist included -
+    # this skips comment lines instead of stopping at them, which is also
+    # what makes the trailing comment's "## Process exception" text never
+    # leak into the Definition of Done section: it stays inside a comment
+    # that gets skipped, not printed.
     awk '
       /^##[[:space:]]+Definition of Done/ { found = 1 }
       !found { next }
-      # Skip the template comment blocks rather than stopping at the first one:
-      # the guidance comment sits between the prose and the items, so exiting
-      # there appended a Definition of Done with no boxes in it.
-      /<!--/ { comment = 1 }
-      comment { if (/-->/) comment = 0; next }
+      in_comment { if ($0 ~ /-->/) in_comment = 0; next }
+      /<!--/ { if ($0 !~ /-->/) in_comment = 1; next }
       { print }
     ' "$TEMPLATE"
   } >> "$BODY_FILE"
