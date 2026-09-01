@@ -17,6 +17,33 @@ import type { Prisma } from '@prisma/client';
 /** Statuses shown in the dev workspace. Null (legacy) is also visible. */
 export const SF_VISIBLE_STATUSES = ['READY', 'MEET'] as const;
 
+/** Statuses the dev workspace never shows. Retained in the DB for diagnosis. */
+export const SF_HIDDEN_STATUSES = ['CONNECTED', 'DESISTED'] as const;
+
+/**
+ * Every status we know Salesforce sends, visible and hidden together.
+ *
+ * A CATALOGUE OF KNOWN VALUES, NOT A CLOSED SET. The worker syncs every campaign
+ * member whatever its status, and `normalizeSfStatus` only trims and uppercases:
+ * a fifth word invented in Salesforce tomorrow is stored as it arrives. That is
+ * the whole reason `Participation.sfMemberStatus` is a `String` and not a Prisma
+ * enum - turning it into one would make an unknown status a write failure in the
+ * middle of a sync, which is the opposite of what an anti-corruption boundary is
+ * for.
+ *
+ * It exists because the two hidden words used to live in a comment here, in a
+ * table in JARGON.md, and in the keys of a component-local record - so anything
+ * needing the full list (the seed generator, its coverage check) had no choice
+ * but to restate them a fourth time.
+ */
+export const SF_MEMBER_STATUSES = [
+  ...SF_VISIBLE_STATUSES,
+  ...SF_HIDDEN_STATUSES,
+] as const;
+
+/** One of the statuses we know about. Raw input is still a plain `string`. */
+export type SfMemberStatus = (typeof SF_MEMBER_STATUSES)[number];
+
 /**
  * Prisma where-fragment for the participations visible in the dev workspace:
  * the visible SF statuses plus legacy rows synced before the column existed

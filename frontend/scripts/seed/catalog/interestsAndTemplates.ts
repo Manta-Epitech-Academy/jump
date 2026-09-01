@@ -1,34 +1,25 @@
 /**
- * Reference catalogues shared by both seed entry points.
+ * Reference catalogues: talent interests, the default transactional email
+ * templates with their action mappings, and the broadcast templates staff pick
+ * in the composer.
  *
- * Single source of truth for the prod-relevant reference catalogues:
- *   - talent interests (`Interest`)
- *   - default transactional email templates + their action mappings
- *     (`MessageTemplate` + `EmailActionMapping`)
- *   - default broadcast templates staff pick in the broadcast composer
- *     (`MessageTemplate`, anchored by `seedKey`, no action mapping)
+ * These are a referential, not a scenario: they are the same rows in every
+ * environment, they are not scaled by profile, and they are the one part of the
+ * generator that is safe to run against an already-populated database. That is
+ * what `--catalog-only` exposes, and it is why this file kept its own shape when
+ * the rest of the seed was replaced.
  *
- * `seed.ts` (full local seed, run by `prisma db seed`) and `seed-catalogs.ts`
- * (narrow re-runnable prod catalogue top-up) both import from here, so the
- * data can never drift between them. Edit a body once, in this file.
+ * The writes are idempotent and CREATE-ONLY: they insert catalogue rows that are
+ * missing and leave every existing row alone. A row that has shipped, including
+ * one staff later edited in production (an interest emoji renamed through
+ * /staff/admin/interests, a hand-tuned template body), survives a re-run
+ * untouched. Fixing an already-shipped default is a deliberate manual or
+ * migration step. The lone additive exception is
+ * `seedInterestRecommendationMessages`, which fills `recommendationMessage` only
+ * where it is still null.
  *
- * STANDALONE RULE (mirrors seed.ts): this module must depend only on `node:*`,
- * npm packages, and `@prisma/client`. It ships inside `prisma/` alongside the
- * seeds, so a relative sibling import (`./catalogs`) resolves in the deploy /
- * migration environments where `src/` and the `$lib` alias are absent.
- *
- * These writes are idempotent and CREATE-ONLY (no wipe, no overwrite): they
- * insert catalogue rows that are missing and leave every existing row alone, so
- * the catalogue is a first-time populator, not an authority over live data. A
- * row that has shipped, including one staff later edited in prod (interest
- * emoji/name via /staff/admin/interests, a hand-tuned template body), survives
- * a re-seed untouched. Fixing an already-shipped default is a manual/migration
- * step, deliberately. The lone additive exception is
- * `seedInterestRecommendationMessages`, which fills the new `recommendationMessage`
- * only where it is still null. The two seeders differ only in how they resolve
- * the template author: the full seed already holds a seeded superdev, the narrow
- * top-up looks one up. Both pass their own client in (each seed script owns a
- * distinct PrismaClient, so there is no shared singleton to thread).
+ * The client is passed in rather than imported: the generator owns its own
+ * `PrismaClient`, and there is no singleton to reach for outside Vite.
  */
 
 import type { BroadcastChannel, PrismaClient } from '@prisma/client';
@@ -174,9 +165,9 @@ export async function seedInterests(prisma: PrismaClient): Promise<number> {
  * `Interest.recommendationMessage` only on tech rows where it is still null. Pure
  * additive and idempotent: safe to run against prod repeatedly, and it never
  * clobbers a message already set (a prior run, a data migration, or a future
- * admin edit). Called by `seedInterests`, so any seed run (the full `seed.ts` or
- * the narrow `seed-catalogs` top-up) rolls new messages out additively. Now that
- * every seeder here is create-only, re-running `seed-catalogs` is itself the safe
+ * admin edit). Called by `seedInterests`, so any seed run (a full generation or
+ * the narrow `--catalog-only` top-up) rolls new messages out additively. Now that
+ * every seeder here is create-only, re-running `--catalog-only` is itself the safe
  * rollout, no dedicated backfill script needed.
  */
 export async function seedInterestRecommendationMessages(

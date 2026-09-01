@@ -11,4 +11,10 @@ regexes = [
   # The grant-reward CLI docstring uses one as an example; gitleaks flags it as
   # a generic-api-key. The script itself reads every credential from the env.
   '''[a-z0-9]+(?:-[a-z0-9]+)*-\d{4}-\d{2}-\d{2}''',
+  # The same keys in their snake_case spelling, which is the one the seed
+  # catalogue writes (`key: 'projet_stage_2nde'`). Anchored, so this allows a
+  # value that is entirely lowercase words joined by underscores and nothing
+  # that merely contains one: no credential format looks like that, and the
+  # rule catching these is the entropy heuristic, not a format rule.
+  '''^[a-z0-9]+(?:_[a-z0-9]+)+$''',
 ]

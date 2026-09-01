@@ -62,12 +62,12 @@ Task-to-script mapping lives in `frontend/package.json`.
 
 The app splits into four workspaces, each serving a distinct audience and business goal:
 
-| Workspace  | Path           | Audience          | Objective                                              |
-| ---------- | -------------- | ----------------- | ------------------------------------------------------ |
-| **Dev**    | `/staff/dev/`  | `superdev`, `dev` | Talent Acquisition & Recruitment (admissions pipeline) |
-| **Admin**  | `/staff/admin/`| `admin`           | Global system overview; account impersonation          |
-| **Talent** | `(talent)/`    | students          | Student experience: gamification, progression          |
-| **Parent** | `(parent)/`    | legal guardians   | Règlement co-signature, image-rights decision          |
+| Workspace  | Path            | Audience          | Objective                                              |
+| ---------- | --------------- | ----------------- | ------------------------------------------------------ |
+| **Dev**    | `/staff/dev/`   | `superdev`, `dev` | Talent Acquisition & Recruitment (admissions pipeline) |
+| **Admin**  | `/staff/admin/` | `admin`           | Global system overview; account impersonation          |
+| **Talent** | `(talent)/`     | students          | Student experience: gamification, progression          |
+| **Parent** | `(parent)/`     | legal guardians   | Règlement co-signature, image-rights decision          |
 
 **Terminology:** See [`JARGON.md`](.github/JARGON.md) for shared vocabulary. Critical for reading this codebase: `dev` roles and `/dev/` routes refer to the recruitment team (Business Development), not software engineers.
 
@@ -94,10 +94,10 @@ Client-side auth at `src/lib/auth-client.ts` (browser-side BetterAuth).
 
 Inside a workspace, role-based gating goes through **one table** of named role groups in `src/lib/domain/permissions.ts`:
 
-| Group            | Roles             | Use for                                                    |
-| ---------------- | ----------------- | ---------------------------------------------------------- |
+| Group            | Roles             | Use for                                                  |
+| ---------------- | ----------------- | -------------------------------------------------------- |
 | `devMember`      | `superdev`, `dev` | Dev workspace daily ops (participants, closings, update) |
-| `realSendArmers` | `admin`           | Arming real outbound sends / login-redirect pin            |
+| `realSendArmers` | `admin`           | Arming real outbound sends / login-redirect pin          |
 
 - **Client:** `const canEdit = $derived(can('devMember', page.data.staffProfile?.staffRole))`, then apply one of the UI patterns below. Import: `$lib/domain/permissions`.
 - **Server:** `requireStaffGroup(locals, 'devMember')`. Import: `$lib/server/auth/guards`. Call it in every mutating action, or at the top of a `load` to gate a whole route.
@@ -106,11 +106,11 @@ Inside a workspace, role-based gating goes through **one table** of named role g
 
 **UI pattern rule: pick one per site, do not mix:**
 
-| Pattern           | When                                                       |
-| ----------------- | ---------------------------------------------------------- |
-| Hide              | Nav entries to restricted destinations (sidebar, menus)    |
-| Disable + tooltip | Mutating controls visible on shared screens                |
-| Redirect / 403    | Direct URL access, via `requireStaffGroup` in the `load`   |
+| Pattern           | When                                                     |
+| ----------------- | -------------------------------------------------------- |
+| Hide              | Nav entries to restricted destinations (sidebar, menus)  |
+| Disable + tooltip | Mutating controls visible on shared screens              |
+| Redirect / 403    | Direct URL access, via `requireStaffGroup` in the `load` |
 
 ### Event modules
 
@@ -131,7 +131,7 @@ Don't hardcode module keys.
 ### Closings: a question bank, composed per event
 
 A **closing** is the 1:1 a dev-team member conducts with a talent at the end of an
-event. It is what the codebase used to call an *entretien*; the July 2026 seminar
+event. It is what the codebase used to call an _entretien_; the July 2026 seminar
 renamed it, and real PGE admission interviews stay out of Jump for good. Every
 event format has them: a stage closing runs ten minutes, a Coding Club one five,
 a camp asks about the format itself.
@@ -256,7 +256,7 @@ Several domain tables are append-only fact/log records: `MinigameAttempt`, `Broa
 
 When persisting a new domain fact, follow this shape rather than a mutable counter or a `Json` blob: the fact gets a row, and any aggregate is a projection refreshed in the same transaction. A bare counter is lossy: you can't explain, audit, or timestamp the value, and ad-hoc `Math.max(0, x - n)` adjustments drift. The XP ledger is the reference implementation (see below).
 
-**Not for polled external state.** The ledger shape fits discrete domain facts that happen once. Do *not* append a row per poll of a mutable external system: the Salesforce sync runs every ~30 min, so an append-only log would bloat with no payoff. Mirror the external system's current state in a 1:1 typed row, upserted only when the inbound payload differs (see `TalentSfImport` under Salesforce reconciliation).
+**Not for polled external state.** The ledger shape fits discrete domain facts that happen once. Do _not_ append a row per poll of a mutable external system: the Salesforce sync runs every ~30 min, so an append-only log would bloat with no payoff. Mirror the external system's current state in a 1:1 typed row, upserted only when the inbound payload differs (see `TalentSfImport` under Salesforce reconciliation).
 
 ### Relational modeling
 
@@ -264,9 +264,9 @@ Model relationships and entities by their real shape. These are deliberate calls
 
 - **Many-to-many → join table.** A pure junction with a composite PK, e.g. `TalentInterest` (`@@id([talentId, interestId])`). Use one only when **both** sides are genuinely many.
 - **One-to-many → foreign key on the "many" side, not a join table.** A talent has one current school → `Talent.schoolId`, never a `TalentSchool` link table. The tell that you've mismodeled a 1:N as M:N: you find yourself adding a `@@unique` on the FK column to stop duplicates.
-- **A link table *with attributes* is an associative entity: a separate decision.** A bare junction glues two keys; the moment the relationship itself carries data (a `source`, a `confirmedAt`, a quantity), that's a deliberate entity. Don't reach for it speculatively, and don't refuse it when the data genuinely belongs on the relationship.
+- **A link table _with attributes_ is an associative entity: a separate decision.** A bare junction glues two keys; the moment the relationship itself carries data (a `source`, a `confirmedAt`, a quantity), that's a deliberate entity. Don't reach for it speculatively, and don't refuse it when the data genuinely belongs on the relationship.
 - **A domain entity gets its own table + FK, not loose strings/JSON.** A thing referenced repeatedly (a high school) gets a typed, deduplicated row (`School`), not `name`/`city`/`uai` columns copied onto every referrer. "Normalize later" tends to never happen.
-- **External-system data → anti-corruption mirror, kept apart from your truth.** Don't fold a third party's claims into your aggregate root. Keep what *you* believe (`Talent`) separate from what an external system *claims* (`TalentSfImport`), and reconcile explicitly (see Salesforce reconciliation).
+- **External-system data → anti-corruption mirror, kept apart from your truth.** Don't fold a third party's claims into your aggregate root. Keep what _you_ believe (`Talent`) separate from what an external system _claims_ (`TalentSfImport`), and reconcile explicitly (see Salesforce reconciliation).
 - **A relationship already carried by a foreign key needs no second marker.** If A already points at B via an FK, don't add an `ownerB`/`belongsToB` column that re-encodes the same link: it duplicates a tie you can already query, and it drifts. Before adding a column to bind two rows, check whether an existing FK (or a count over it) already answers the question. When the tie is incidental, don't model it at all: prefer computing the answer to storing a flag.
 - **A denormalised key is bound to its source by a composite foreign key, not by discipline.** Some columns are copied on purpose - `Participation.campusId` and `Closing_Record.campusId` exist so campus scoping is one hop instead of a walk through `Event` - and a copy that nothing binds drifts the first time the source moves. Salesforce does reassign a campaign, the event sync has an explicit branch for it, and it updated `Event` alone: the enrolments stayed on the old campus, which is the column `db/scoped.ts` reads to cloister a campus's data, so the old campus kept seeing the cohort and the new one never did. Both tables now reference the pair `(Event.id, Event.campusId)` against a `@@unique([id, campusId])` on `Event`, and Prisma's default `ON UPDATE CASCADE` carries the move down. A snapshot is the opposite case and stays unbound on purpose (`MinigameAttempt.campusId`, `XpGrant.campusId`, both documented as such): the test is whether the column is meant to track the source or to record what was true once.
 - **Attribution outlives the person; ownership does not.** A staff foreign key on a record other people read is `SetNull` on a nullable column, and `$lib/domain/staff.ts` holds the one label (`FORMER_STAFF_LABEL`) every screen renders in their place. Both other options had shipped and both were wrong: `Closing_Record.staffId` and `AdminFile.uploadedById` cascaded, so deleting one account destroyed every closing that person had conducted and the files they had put in a shared library, while `Broadcast.createdById`, `MessageTemplate.createdById` and `CmsPage.updatedBy` defaulted to `RESTRICT`, which made anyone who had ever sent a campaign undeletable behind a bare "Erreur lors de la suppression du membre". Cascade is for what belongs to the person alone (`Usage_FeatureUse.staffProfileId`, a behavioural log that must not outlive them); a plain unconstrained `String` is for an audit row that must survive even the FK (`AdminApi_Call.actorUserId`, `AuthIdentityRepair.resolvedBy`).
@@ -288,10 +288,9 @@ The safe default here is the smallest thing that meets the need. Four rules, lea
 
 ### XP System
 
-XP follows the ledger pattern above. Each granting fact is one `XpGrant` row (unique on `(source, sourceId)`; sources: `onboarding`, `minigame`, `activity_presence`, `admin_adjustment`). `Talent.xp` = `SUM(amount)` and `Talent.eventsCount` = present-participation count, both cached projections.
+XP follows the ledger pattern above. Each granting fact is one `XpGrant` row (unique on `(source, sourceId)`; sources: `onboarding`, `onboarding_early_bird`, `minigame`, `minigame_rank`, `reward`, `admin_adjustment`). `Talent.xp` = `SUM(amount)` and `Talent.eventsCount` = present-participation count, both cached projections.
 
 - **Never mutate `Talent.xp` directly.** It's a cached projection of `XpGrant`; go through `xpService` so the recompute stays atomic.
-- Activity difficulty → XP: Débutant=20, Intermédiaire=45, Avancé=75 (`src/lib/domain/xp.ts`).
 - **Level is derived, not stored** (`Talent.level` was dropped). Use `computeLevel(xp)` (tiers: Novice 0-199, Apprentice 200-499, Expert 500+). `JUMP_LEVELS` is canonical in `domain/xp.ts`; `xpRangeForLevel` maps a tier back to an `xp` range for the broadcast filter. No level tier is surfaced in the dev workspace, so there is no French label helper.
 - Backfill/repair: `scripts/backfill-xp-ledger.ts` (idempotent, `--dry-run`).
 
@@ -310,11 +309,11 @@ Collégiens have no dossier at all. `isOnboardingEligible` is a property of the 
 
 **Two documents are settled once per school year: the règlement intérieur and the droit à l'image.** Everything below applies to both, and the second one earned the rule the hard way rather than by analogy, so do not treat either as a special case.
 
-Each is a **versioned catalogue** (`lib/content/reglement/`, `lib/content/droit-image/`), pinned at signature time (`reglementVersion` on the dossier, `version` on each `ImageRightsDecisionRecord`). **A published version file is never edited and never deleted:** the PDF is regenerated from DB state on every later act, so editing one rewrites the wording of documents already signed. A new wording is a new key. The rules themselves live once in `content/versionedDocument.ts`; each file opens with a comment saying whether it is frozen or in force, and a unit test keeps those comments out of the rendered document. A droit-à-l'image version holds *two* texts, the authorization and the refusal, keyed together so a version cannot exist on one branch and not the other.
+Each is a **versioned catalogue** (`lib/content/reglement/`, `lib/content/droit-image/`), pinned at signature time (`reglementVersion` on the dossier, `version` on each `ImageRightsDecisionRecord`). **A published version file is never edited and never deleted:** the PDF is regenerated from DB state on every later act, so editing one rewrites the wording of documents already signed. A new wording is a new key. The rules themselves live once in `content/versionedDocument.ts`; each file opens with a comment saying whether it is frozen or in force, and a unit test keeps those comments out of the rendered document. A droit-à-l'image version holds _two_ texts, the authorization and the refusal, keyed together so a version cannot exist on one branch and not the other.
 
-**The rendered PDF belongs to the dossier, not to the talent** (`Onboarding_Record.rulesFilePath` and `imageRightsFilePath`, keys `documents/{talentId}/{kind}-{schoolYear}.pdf`). Version-pinning protects the *wording* of a signed document; this protects the *document*. One key per talent meant the second year's render overwrote a PDF a legal guardian had already signed for a minor, with no way to rebuild it, and it silently dropped the previous year out of `/settings/documents` and the staff archive. Three consequences to keep: an `OnboardingPdfJob` carries the `schoolYear` it renders, **not null and with no fallback**, because a job can be queued or retried long after the act that asked for it and "the current dossier" will have moved (a nullable column with the worker falling back to the most recent dossier is the same bug wearing a default, and it stays dormant until the talent comes back); the worker renders **from that dossier row**, which is now the only thing it can do, since the job's payload snapshot was dropped rather than left unread (a snapshot re-publishes a decision that has since been reversed, and a job that carries generator inputs invites somebody to render from them again); and both reset paths (`resetTalentToImport`, `anonymizeTalent`) collect the keys from **every** dossier row, since deleting the rows is what drops the references. A document kind declares `scope` and `dossierFilePathField` in `ONBOARDING_DOCUMENTS` rather than naming a `Talent` column, which is what let the règlement keep pointing at a per-talent artifact after it became annual.
+**The rendered PDF belongs to the dossier, not to the talent** (`Onboarding_Record.rulesFilePath` and `imageRightsFilePath`, keys `documents/{talentId}/{kind}-{schoolYear}.pdf`). Version-pinning protects the _wording_ of a signed document; this protects the _document_. One key per talent meant the second year's render overwrote a PDF a legal guardian had already signed for a minor, with no way to rebuild it, and it silently dropped the previous year out of `/settings/documents` and the staff archive. Three consequences to keep: an `OnboardingPdfJob` carries the `schoolYear` it renders, **not null and with no fallback**, because a job can be queued or retried long after the act that asked for it and "the current dossier" will have moved (a nullable column with the worker falling back to the most recent dossier is the same bug wearing a default, and it stays dormant until the talent comes back); the worker renders **from that dossier row**, which is now the only thing it can do, since the job's payload snapshot was dropped rather than left unread (a snapshot re-publishes a decision that has since been reversed, and a job that carries generator inputs invites somebody to render from them again); and both reset paths (`resetTalentToImport`, `anonymizeTalent`) collect the keys from **every** dossier row, since deleting the rows is what drops the references. A document kind declares `scope` and `dossierFilePathField` in `ONBOARDING_DOCUMENTS` rather than naming a `Talent` column, which is what let the règlement keep pointing at a per-talent artifact after it became annual.
 
-**A consent expires; an interdiction does not.** The image-rights decision is asked once per school year, so its projection goes blank when a talent reopens a dossier, which is right for every "what does this family still owe" reader. It is wrong for the only question that is not about a year: whether this student may be photographed today. That one is `imageRightsStance` (`domain/imageRights.ts`), fed by the latest `ImageRightsDecisionRecord` across all years, so a refusal nobody has revisited keeps forbidding while the dossier reads "En attente", and a *lapsed authorization* resolves to `unknown` rather than to consent. Read the projection alone and the marker silently drops off a refused student's printed badge on the first day of the new school year. Only `forbidden` is marked on printed material; marking every `unknown` would flag most of the cohort each September and the marker would stop being read. The figures obey the same split, and the reason is that one of them is quoted to people: `stats_compliance_status` returns the three-state decision **for the year in scope**, which is the state of that year's campaign and what the relance reads, plus `imageUseForbidden`, the standing interdictions, which is the only figure to consult before publishing a photo and the only one in that answer no school-year filter narrows. Returning the per-year `refused` count alone answers "combien ne doivent pas être photographiés" with a number that goes to nearly zero every September.
+**A consent expires; an interdiction does not.** The image-rights decision is asked once per school year, so its projection goes blank when a talent reopens a dossier, which is right for every "what does this family still owe" reader. It is wrong for the only question that is not about a year: whether this student may be photographed today. That one is `imageRightsStance` (`domain/imageRights.ts`), fed by the latest `ImageRightsDecisionRecord` across all years, so a refusal nobody has revisited keeps forbidding while the dossier reads "En attente", and a _lapsed authorization_ resolves to `unknown` rather than to consent. Read the projection alone and the marker silently drops off a refused student's printed badge on the first day of the new school year. Only `forbidden` is marked on printed material; marking every `unknown` would flag most of the cohort each September and the marker would stop being read. The figures obey the same split, and the reason is that one of them is quoted to people: `stats_compliance_status` returns the three-state decision **for the year in scope**, which is the state of that year's campaign and what the relance reads, plus `imageUseForbidden`, the standing interdictions, which is the only figure to consult before publishing a photo and the only one in that answer no school-year filter narrows. Returning the per-year `refused` count alone answers "combien ne doivent pas être photographiés" with a number that goes to nearly zero every September.
 
 **Collégiens are out of the image-rights flow, and not because of the ladder.** The blocker is upstream: `parentEmail` is only ever written by the wizard's parents step and `TalentSfImport` carries no guardian fields, so Jump holds no address to ask. Nothing in the model forecloses them, since their decision would simply open a dossier row carrying only the image-rights block. If they are photographed at a Coding Club, the consent gap is real and is handled off-platform.
 
@@ -323,8 +322,8 @@ Each is a **versioned catalogue** (`lib/content/reglement/`, `lib/content/droit-
 Talent profile fields have two sources: the worker sync (Salesforce) and onboarding (the student). They are **reconciled, not blindly overwritten**.
 
 - **`Talent` = Jump's current truth.** Onboarding writes it directly (**optimistic**: the student's input shows on their dashboard immediately; staff arbitrate divergences afterward, there is no pending-validation gate).
-- **`TalentSfImport` = 1:1 typed mirror of Salesforce's last claim**: the anti-corruption boundary. Written *only* by `syncService.syncTalents`, never by onboarding, and upserted only when the inbound payload differs.
-- **`School` = canonical UAI-keyed directory**, resolved lazily from the éducation-nationale annuaire (`server/annuaire.ts` + `schoolService.resolveSchoolByUai`). Only schools actually attended ever land here, never the ~69k national set. It replaced the old free-text `highSchoolName/City/Uai` columns: `Talent` now carries a `schoolId` FK (+ `highSchoolNameManual`, used *only* when a lycée has no UAI). The student's school and SF's claimed school (`TalentSfImport.sfSchoolId`) both FK the same `School`.
+- **`TalentSfImport` = 1:1 typed mirror of Salesforce's last claim**: the anti-corruption boundary. Written _only_ by `syncService.syncTalents`, never by onboarding, and upserted only when the inbound payload differs.
+- **`School` = canonical UAI-keyed directory**, resolved lazily from the éducation-nationale annuaire (`server/annuaire.ts` + `schoolService.resolveSchoolByUai`). Only schools actually attended ever land here, never the ~69k national set. It replaced the old free-text `highSchoolName/City/Uai` columns: `Talent` now carries a `schoolId` FK (+ `highSchoolNameManual`, used _only_ when a lycée has no UAI). The student's school and SF's claimed school (`TalentSfImport.sfSchoolId`) both FK the same `School`.
 - **No-clobber rule:** before a field is talent-confirmed (its `*ValidatedAt` is set), sync re-seeds it on `Talent`; after, sync writes **only the mirror**. Never let SF overwrite a confirmed value. (This fixed a real bug where every sync overwrote the talent's confirmed phone/name.)
 - **Conflict** = field is talent-confirmed **AND** `Talent` ≠ `TalentSfImport` (school compared by FK). Computed in `reconciliationService`, never stored. Surfaced at `/staff/admin/sf-conflicts` (list + accept/reject + CSV export); `acceptJump` realigns the mirror optimistically. `niveau` is SF-owned (onboarding never sets it) → always synced, never a conflict.
 
@@ -357,6 +356,7 @@ catalogue both read.
   is the denominator of a `_failed` twin, and Jump has no Sentry, so those twins
   are the only client error signal there is. Neither system is the other's check;
   quote one or the other, never both at once.
+
 - **What is absent from the fact table is the PII boundary, and it is structural.**
   No `path`, no `url`, no `referer`, no `userAgent`, no `ip`, no `params`, no free
   text, and no `talentId`. The question is answerable from counts, so per-person
@@ -464,7 +464,7 @@ catalogue.
 The admin space stopping its UI growth (below) is often read as "admin work goes to the API". That is not the axis. What the freeze reacted to is **pages that restate the database**: one screen per question, none fitting anyone exactly. Five tests instead, and they cut across spaces:
 
 1. **Is the output a fact, a figure, or a bounded state change?** → API. A chat composes the exact answer; a screen freezes one shape of it forever.
-2. **Does the human need to *see* the result to decide?** → UI. When the acceptance test is "does this look right", no JSON substitutes for a render.
+2. **Does the human need to _see_ the result to decide?** → UI. When the acceptance test is "does this look right", no JSON substitutes for a render.
 3. **Is it done while already on a screen that exists?** → put the control there. That is not growing the admin space; the certificate picker in `EventConfigWizard` replaced a switch that was already in that dialog.
 4. **Is it done under time pressure, in the field, repeatedly?** → UI. Nobody opens a chat client to check in 200 students at 9am, which is why émargement is a screen.
 5. **Is it for someone who will never hold a token?** → UI. Talents, parents, campus staff.
@@ -522,9 +522,10 @@ or reworking a staff list page.
 
 - **Language:** All UI text and user-facing strings are in **French**. Code identifiers (functions, variables) are in English.
 
-  For a string no human reads *directly*, the test is **relay, not audience**: does it reach a French-speaking human, even through a machine? A cron job's `'Unauthorized: Invalid or missing token'` dies in a pod log, so it stays English, and so does anything a model reads as *instruction* rather than content (MCP tool descriptions, Zod `.describe()`, validation messages, the server-level MCP instructions). But an API error an MCP client paraphrases to an admin is French, and a `metric()` definition is French without exception: it is quoted verbatim into a chat answer and into the weekly digest, and English there would make the model translate before quoting, which is a re-derived definition, the one thing that tier exists to prevent.
+  For a string no human reads _directly_, the test is **relay, not audience**: does it reach a French-speaking human, even through a machine? A cron job's `'Unauthorized: Invalid or missing token'` dies in a pod log, so it stays English, and so does anything a model reads as _instruction_ rather than content (MCP tool descriptions, Zod `.describe()`, validation messages, the server-level MCP instructions). But an API error an MCP client paraphrases to an admin is French, and a `metric()` definition is French without exception: it is quoted verbatim into a chat answer and into the weekly digest, and English there would make the model translate before quoting, which is a re-derived definition, the one thing that tier exists to prevent.
 
   Being machine-facing is also not a licence to use our own vocabulary. "Operation" is what `operations.ts` calls a catalogue entry; an admin reading a dialog thinks "les chiffres et l'état de configuration". And the reverse trap is real: **`token` stays `token`** on an ops surface. The no-jargon rule says name what the person experiences, and what they experience is a credential they paste after `Authorization: Bearer`; "jeton" makes them translate back to the word they actually type. Talent-facing copy is where jargon gets replaced, not the admin token dialog.
+
 - **Register (vous / tu):** Pick by who reads the string. **Staff-facing copy uses _vous_** (dev and admin spaces: buttons, tooltips, help cards, confirms). **Talent-facing copy uses _tu_** (the student portal and anything a talent reads, e.g. the QR check-in page). A single feature often spans both: the émargement staff page vouvoie the staff, while its talent check-in page tutoie the student. Match the surrounding screen's register, don't mix within one audience.
 - **Forms:** Use sveltekit-superforms with Zod validation. Never use raw `<form>` handling.
 - **DB access:** Import `prisma` from `$lib/server/db`. Never pass the Prisma client as a function parameter, it's a singleton. Always scope queries by `campusId` for staff/student data.
@@ -535,7 +536,7 @@ or reworking a staff list page.
 - **UI & Interaction Skills:** Optional design skills live in `.claude/skills/`:
   - `impeccable` (`.claude/skills/impeccable/SKILL.md`): UX audit, spacing, contrast, and anti-slop review.
   - `emil-design-eng` (`.claude/skills/emil-design-eng/SKILL.md`): interaction design, spring physics, and micro-animations.
-  `DESIGN.md` and the existing shadcn-svelte components in `src/lib/components/ui/` remain the absolute source of truth: skills must never introduce out-of-palette colors or ad-hoc raw HTML replacements for standard UI components.
+    `DESIGN.md` and the existing shadcn-svelte components in `src/lib/components/ui/` remain the absolute source of truth: skills must never introduce out-of-palette colors or ad-hoc raw HTML replacements for standard UI components.
 - **User-facing copy:** no developer jargon in strings a talent or staff member reads. "Scan", "QR", "flag", "mini games" and similar are implementation vocabulary; describe what the person experiences instead. (Register rules: see the vous/tu bullet above.)
 - **Copy density: a control gets one line, the rest goes behind a ⓘ.** A screen is read to be acted on, so a sentence that does not change what the person clicks pushes the control that does further down, and past a few of those they stop reading the ones that mattered too. The order to apply, in this order:
 
@@ -576,7 +577,7 @@ or reworking a staff list page.
 
 - **RGPD:** Some users are minors. The charter must be signed before accessing the app. Anonymization job available via `POST /api/jobs/anonymize` with `Authorization: Bearer <CRON_SECRET>`. Never store personal data unnecessarily.
 - **Salesforce:** `Event.externalId` optionally links events to Salesforce campaigns.
-- **Scale:** typical stage de seconde event = ~200 students. Cohort-wide views (origin breakdowns, interest distributions, attendance lists) hit this volume: keep it in mind when designing layouts and queries.
+- **Scale: design for the tail AND for the long tail, they are different problems.** A stage de seconde runs to ~200 students and that is the volume cohort-wide views are judged at (origin breakdowns, interest distributions, attendance lists, exports). But it is the tail of the distribution, not the norm: the median event carries 23 enrolments, three quarters carry under 40, and 41 of 292 carry none at all. Most events are also unconfigured - 235 of 292 have no module. So a screen has to survive 200 rows and has to survive being empty, and the second case is the one that is more common and gets tested less. The measured distributions live in `frontend/scripts/seed/PROFILE.md`; the generator applies them, so both cases are in front of you by default.
 - **Stateless pods:** SvelteKit pods scale horizontally on kube. Don't put source-of-truth state in process memory; each replica would carry its own and a pod restart would wipe it.
 - **Outbound sends:** mail and SMS are trapped unless `OUTBOUND_MODE=real`, and prod is the only environment that sets it. Never widen that gate to debug a send, and never arm real sends from a non-prod environment: recipients are minors (RGPD).
 
@@ -592,6 +593,86 @@ dev-redirect priority order live in `.claude/skills/outbound-messaging/SKILL.md`
 as the `/outbound-messaging` skill; other agents read the file). Read it before touching any code path
 that sends.
 
+## Development data
+
+`bun run seed` fills a database from named scenarios (`frontend/scripts/seed/`).
+It replaced a 3326-line demo seed, and the reason it exists is not tidiness: the
+only credible dataset used to be a clone of production, so that is where feature
+validation happened, which put real minors' personal data on non-prod
+environments for days at a time and put the validation gate after the release
+freeze. Both problems are downstream of the data.
+
+Six rules, and each is enforced rather than hoped for:
+
+- **A pull request that adds a behaviour adds its example.** A new enum value
+  fails `bun run test:seed` until some scenario produces a row, because the enum
+  list is read out of `schema.prisma` (via `getDMMF`) rather than maintained by
+  hand. That check is in the `verify` chain, so it fails on the branch that
+  caused it. A vocabulary carried by a `String` column instead of an enum is
+  covered too (`assert/stringCatalogues.ts`), and there the check runs both ways:
+  every declared value needs a row, and no seeded row may carry a value the
+  catalogue does not declare. That second direction is not pedantry - it caught
+  four invented `Usage_FeatureUse.feature` keys the generator was writing, which
+  no screen would ever have shown as wrong. That half is a hand-kept table,
+  because a `String` column cannot announce its own vocabulary.
+- **And a state the schema can express needs a row, not only an enum value.**
+  Every check above validates the CONTENT of rows that exist, so none of them can
+  see a table with nothing in it or a nullable column that is null on every row -
+  which was the shape of 104 gaps, `TalentInterest` (declared in the buffer,
+  ordered in the flush, never pushed) and `Usage_FeatureMonthly` (the store that
+  answers beyond the retention window, never written) among them. `assert/coverage.ts`
+  asks `getDMMF` what is expressible and the database whether it is present: every
+  model has a row, every nullable column has both a null and a non-null one, every
+  boolean has both values.
+
+  It carries two exemption lists and the split is the load-bearing part, because a
+  check whose exemption list is comfortable to append to dies of a thousand
+  additions. `NEVER_SEEDED` is structural, one-directional, one reason per line -
+  **`Campus.externalName` heads it, since that column being empty IS the worker
+  isolation**. `NOT_YET_SEEDED` is debt and **two-directional**: an entry whose gap
+  has been closed fails until its line is deleted, so the list is an exact
+  description of what is missing rather than a place to hide things, and its length
+  is printed on every run as a number that only goes down. Moving a line between
+  the two is possible and meant to be; doing it by accident is not.
+
+  A rare state is **placed, never drawn.** A few per cent of the `ci` profile's
+  couple of dozen dossiers rounds to none, so a failure rate makes coverage depend
+  on the profile rather than on the generator. The PDF renders that fail and the
+  closing verdicts are both placed for this reason.
+- **Nothing reads the wall clock and nothing draws from `Math.random()`.** Every
+  date derives from `--today` and every choice from `--seed`, both printed in the
+  manifest the run emits. A scenario written as "an event that has not happened
+  yet" must still mean that in six months.
+- **The domain is imported, never restated.** `src/lib/domain` is alias-free, so
+  a plain `bun` script reaches it by relative path. The services are not: they
+  reach `$lib/server/db` and do not resolve outside Vite, so the generator writes
+  rows and `--check` runs the domain's own functions over the result. The
+  generator constructs, the domain verifies.
+- **The measured shape of production lives in `frontend/scripts/seed/PROFILE.md`**
+  and is not re-measured. It was taken once, in aggregates, with no row ever read;
+  a figure that is missing from it gets asked for rather than looked up in
+  production.
+- **A seeded database is inert to the Salesforce worker, by construction.** The
+  worker takes its scope from Jump - `GET /api/worker/campus` hands out
+  `listCampuses()`, and `syncEvents` resolves what comes back against
+  `Campus.externalName` - so the generator writes no external name at all and
+  `listCampuses` only returns campuses that have one. A generated environment
+  therefore answers an empty list, on any machine, and no real minor's data can
+  land in it. This is not a flag somebody re-enables by forgetting: there is no
+  campus to resolve. Turning the sync on for one campus is an explicit act on
+  `/staff/admin/campuses`, where a blank external name already means null.
+
+The seed deliberately over-represents what production barely contains. There are
+three part-way dossiers in production out of 887; the generator stands one on
+every rung of the ladder, because those are the states the wizard is made of and
+no amount of realistic volume produces them.
+
+Two things it does not touch. The E2E fixtures
+(`frontend/tests/e2e/fixtures/seed.ts`) keep their own six accounts: a spec
+anchored to a large dataset breaks the first time somebody adjusts it. And the
+integration suites keep building their own fixtures per file, several of them
+reading platform-wide aggregates a full dataset would silently widen.
+
 ## Prisma Migrations
 
 Always include `--name` when creating migrations:
@@ -604,9 +685,9 @@ bunx prisma migrate dev --name descriptive_name
 
 **Put one-shot backfills in the migration SQL, not a script.** When a schema change needs existing rows updated (a new non-null column, a split, a projection recompute), write the `UPDATE`/`INSERT` directly in the generated migration so the data change ships atomically with the schema and every environment applies it exactly once. Fall back to a standalone script only when the backfill is large or batched (needs chunking to avoid a long lock) or needs application logic raw SQL can't express.
 
-**A destructive drop ships with the change that retires it, in the same PR.** Holding it back for a follow-up migration reads like the careful move and buys nothing here, so don't spend a PR on it. Two reasons, both structural. Migrations run from the container `CMD` (`frontend/Dockerfile`), so on a rolling update the *incoming* pod applies the DDL and the outgoing pod is drained only afterwards: the window where old code meets the new schema exists whichever PR the migration rode in on. And a branch is not a release, because `dev` promotes to staging, preprod and prod in batches, so a follow-up merged before the next promotion crosses every environment boundary in the same deploy as the change it was meant to trail.
+**A destructive drop ships with the change that retires it, in the same PR.** Holding it back for a follow-up migration reads like the careful move and buys nothing here, so don't spend a PR on it. Two reasons, both structural. Migrations run from the container `CMD` (`frontend/Dockerfile`), so on a rolling update the _incoming_ pod applies the DDL and the outgoing pod is drained only afterwards: the window where old code meets the new schema exists whichever PR the migration rode in on. And a branch is not a release, because `dev` promotes to staging, preprod and prod in batches, so a follow-up merged before the next promotion crosses every environment boundary in the same deploy as the change it was meant to trail.
 
-Know what that window actually costs, because it is wider than the feature being retired: Prisma Client selects a model's scalar fields **by name**, never `SELECT *`, so a dropped column fails *every* query on that table, including each `include` of it from elsewhere, until the last old pod is gone.
+Know what that window actually costs, because it is wider than the feature being retired: Prisma Client selects a model's scalar fields **by name**, never `SELECT *`, so a dropped column fails _every_ query on that table, including each `include` of it from elsewhere, until the last old pod is gone.
 
 And know the mitigation that looks like it works and doesn't: leaving the column in `schema.prisma` marked retired for one release. That release's client still lists the column by name, so it would break on the drop exactly like its predecessor. The only build safe to drop a column under is one whose `schema.prisma` has already lost the field, which means shipping deliberate drift and breaking `migrate dev` for everyone until the follow-up lands. Not worth it for a dead column.
 

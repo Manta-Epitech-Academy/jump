@@ -10,6 +10,7 @@ import {
   requireEventModule,
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { resolveEventClosingIdentity } from '$lib/server/closingTemplates';
 import { closingListStatus } from '$lib/domain/closing';
 import type { ClosingRecommendation } from '@prisma/client';
@@ -57,7 +58,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const cohort: Promise<ClosingsCohort> = (async () => {
     const [participations, closings, byStaff] = await Promise.all([
       db.participation.findMany({
-        where: { eventId: event.id },
+        // Same cohort definition as every other dev screen. This was the one
+        // roster built without it, which nothing could show while every
+        // `sfMemberStatus` was null: as soon as the sync writes a status, a
+        // withdrawn member would be listed for a closing here and absent from
+        // the inscrits list of the same event.
+        where: { eventId: event.id, ...visibleParticipationWhere },
         select: {
           talentId: true,
           talent: { select: { nom: true, prenom: true } },

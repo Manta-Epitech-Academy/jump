@@ -240,11 +240,11 @@ test.describe("un membre de l'espace dev", () => {
 
 **Les fixtures** vivent dans `tests/e2e/fixtures/` :
 
-| Fichier         | Rôle                                                                                                                                                        |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `identities.ts` | Qui la suite est (six comptes sous `@e2e.invalid`, ids littéraux) et où chaque session est stockée. Sans Prisma, parce que `playwright.config.ts` l'importe |
-| `db.ts`         | Le client Prisma des fixtures, derrière `assertTestDatabase()` (la même garde que l'intégration, pas une copie)                                             |
-| `seed.ts`       | La purge et la reconstruction. Volontairement pas `prisma/seed.ts` : 3000 lignes de jeu de démo, auxquelles une spec ne doit pas être accrochée             |
+| Fichier         | Rôle                                                                                                                                                                          |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `identities.ts` | Qui la suite est (six comptes sous `@e2e.invalid`, ids littéraux) et où chaque session est stockée. Sans Prisma, parce que `playwright.config.ts` l'importe                   |
+| `db.ts`         | Le client Prisma des fixtures, derrière `assertTestDatabase()` (la même garde que l'intégration, pas une copie)                                                               |
+| `seed.ts`       | La purge et la reconstruction. Volontairement pas le générateur (`scripts/seed/`) : un jeu de données à la forme de la production, auquel une spec ne doit pas être accrochée |
 
 ---
 
@@ -397,7 +397,7 @@ bun run verify
 C'est le contrat de ce document. `verify` enchaîne exactement ce que les checks
 requis exécutent, dans le même ordre, avec les mêmes scripts : `lint:scripts`,
 `lint`, `lint:design`, `lint:tests`, `check`, `test`, `test:integration`,
-`test:schema-drift`, `test:e2e`. Un agent (ou un humain) peut donc produire du
+`test:schema-drift`, `test:seed`, `test:e2e`. Un agent (ou un humain) peut donc produire du
 code, le vérifier, corriger et revérifier avant d'ouvrir la PR, et « j'ai
 vérifié » devient une affirmation que quelqu'un d'autre peut recontrôler.
 
@@ -416,10 +416,64 @@ bun run test:db             # provisionne seulement
 # Le schéma correspond-il à sa trace de migrations ?
 bun run test:schema-drift
 
+# Le générateur de données couvre-t-il encore le schéma ?
+bun run test:seed
+
 # E2E : provisionne la base, build, lève le serveur, pilote Chromium
 bun run test:e2e
 bun run test:e2e:ui         # mode debug
 ```
+
+### Le générateur de données
+
+`bun run test:seed` sème puis vérifie, à deux volumes
+(`scripts/check-seed-profiles.sh`). Ce n'est pas une suite de tests, c'est un
+mode du générateur (`--check`), et cette distinction est délibérée : une
+vérification qu'il faut penser à lancer séparément est une vérification qui cesse
+d'être lancée.
+
+**Deux profils, et le second n'est pas une redondance.** `ci` est le petit :
+assez large pour porter chaque valeur d'énumération et chaque état atteignable,
+assez court pour passer dans `verify` sans que personne le remarque. C'est lui
+qui prouve la _couverture_. `dev` suit, parce qu'une vérification qui ne tourne
+qu'au plus petit volume est aveugle à tout défaut dont le déclencheur EST le
+volume. Ce n'est pas théorique : `stage` dérivait la date de dépôt d'un dossier
+de l'indice d'inscription, ce qui tenait à quatorze inscrits et datait 115
+dossiers après `--today` à tous les profils qu'on ouvre vraiment.
+`assert/clock.ts` l'aurait dit dès le premier passage, et n'en a jamais eu un.
+`staging` reste dehors : mêmes scénarios, même branches, 45 secondes contre
+quelques-unes.
+
+Ce qu'elle prouve, et pourquoi c'est elle qui vous préviendra en premier :
+
+- **Chaque valeur de chaque énumération du schéma a au moins une ligne.** La
+  liste des énumérations est lue de `schema.prisma` (via `getDMMF`, comme
+  `scripts/gen-db-erd.ts`), jamais écrite à la main. Donc le jour où vous ajoutez
+  une clé de module, une source de XP ou un statut de présence, cette
+  vérification réclame une ligne pour elle **dans votre PR**, sans que personne
+  ait eu à mettre une liste à jour.
+- **Les projections valent leurs faits** : `Talent.xp` égale la somme du registre
+  XP, `eventsCount` les présences distinctes, et les colonnes plates
+  d'inscription correspondent au dossier le plus récent, champ par champ.
+- **Les états sont atteignables**, vérifiés avec le domaine lui-même :
+  `getOnboardingStep` renvoie chaque étape de l'échelle, `imageRightsStance`
+  renvoie ses trois positions, `eventRunsClosings` répond vrai et faux.
+- **Aucune ligne n'est datée après l'ancre.** C'est la vérification qui garde la
+  reproductibilité honnête : Prisma remplit `@default(now())` et `@updatedAt` à
+  l'horloge murale dès qu'un appelant les omet, et une ligne créée après l'acte
+  qu'elle enregistre est une ligne que l'application n'aurait pas pu écrire.
+- **Les vocabulaires portés par une colonne `String`** (statut Salesforce,
+  niveau, clé de module, version de règlement) sont couverts dans les deux sens :
+  chaque valeur déclarée a une ligne, et aucune ligne semée ne porte une valeur
+  hors catalogue.
+
+Un échec se corrige en ajoutant un scénario dans `frontend/scripts/seed/`, pas en
+retirant la vérification.
+
+La base est distincte de celle des tests d'intégration (`TEST_DB_SUITE=seed`),
+pour la même raison que l'E2E a la sienne : plusieurs suites d'intégration lisent
+des agrégats à l'échelle de la plateforme, qu'un jeu de données complet
+fausserait sans rien dire.
 
 ### Prérequis : il n'y en a qu'un
 
@@ -537,11 +591,11 @@ merge. Pour le détail, et pour les quatre règles cosmétiques retirées quand 
 Trois jobs dans `.github/workflows/test.yml`, tous trois checks **requis** sur la
 règle `push dev` (voir `.github/settings/repo-config.json`) :
 
-| Job                          | Ce qu'il exécute                                                                           |
-| ---------------------------- | ------------------------------------------------------------------------------------------ |
-| **Lint & Type Check**        | `lint:scripts` (bit exécutable), `lint`, `lint:design`, `lint:tests`, `check`              |
-| **Unit & Integration Tests** | `test:coverage`, puis `test:integration` contre un vrai Postgres, puis `test:schema-drift` |
-| **E2E Tests**                | build + serveur + les specs Playwright, avec le rapport HTML uploadé en cas d'échec        |
+| Job                          | Ce qu'il exécute                                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Lint & Type Check**        | `lint:scripts` (bit exécutable), `lint`, `lint:design`, `lint:tests`, `check`                                |
+| **Unit & Integration Tests** | `test:coverage`, puis `test:integration` contre un vrai Postgres, puis `test:schema-drift`, puis `test:seed` |
+| **E2E Tests**                | build + serveur + les specs Playwright, avec le rapport HTML uploadé en cas d'échec                          |
 
 **Une PR ne peut pas être mergée si un de ces jobs échoue** (à une réserve près,
 documentée dans `CONTRIBUTING.md` : une exception de bypass sur la règle `push dev`

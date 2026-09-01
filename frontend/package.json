@@ -19,7 +19,7 @@
     "start": "bun --env-file=../.env ./build/index.js",
     "prepare": "cd .. && git config core.hooksPath .githooks || true && cd frontend && svelte-kit sync || echo ''",
     "postinstall": "prisma generate",
-    "check": "KIT_OUTDIR=.svelte-kit-check svelte-kit sync && KIT_OUTDIR=.svelte-kit-check svelte-check --tsconfig ./tsconfig.check.json",
+    "check": "KIT_OUTDIR=.svelte-kit-check svelte-kit sync && KIT_OUTDIR=.svelte-kit-check svelte-check --tsconfig ./tsconfig.check.json && tsc -p scripts/seed/tsconfig.json",
     "check:watch": "KIT_OUTDIR=.svelte-kit-check svelte-kit sync && KIT_OUTDIR=.svelte-kit-check svelte-check --tsconfig ./tsconfig.check.json --watch",
     "format": "prettier --write .",
     "lint": "prettier --check .",
@@ -29,12 +29,14 @@
     "test:db": "sh scripts/with-test-db.sh",
     "test:integration": "sh scripts/with-test-db.sh vitest run --project integration",
     "test:schema-drift": "sh scripts/with-test-db.sh sh scripts/check-schema-drift.sh",
+    "seed": "bun run scripts/seed/index.ts",
+    "test:seed": "TEST_DB_SUITE=seed sh scripts/with-test-db.sh sh scripts/check-seed-profiles.sh",
     "test:e2e": "TEST_DB_SUITE=e2e sh scripts/with-test-db.sh playwright test",
     "test:e2e:ui": "TEST_DB_SUITE=e2e sh scripts/with-test-db.sh playwright test --ui",
     "lint:design": "bun run scripts/lint-design.ts",
     "lint:tests": "bun run scripts/lint-tests.ts",
     "lint:scripts": "sh ../scripts/check-exec-bits.sh",
-    "verify": "bun run lint:scripts && bun run lint && bun run lint:design && bun run lint:tests && bun run check && bun run test && bun run test:integration && bun run test:schema-drift && bun run test:e2e"
+    "verify": "bun run lint:scripts && bun run lint && bun run lint:design && bun run lint:tests && bun run check && bun run test && bun run test:integration && bun run test:schema-drift && bun run test:seed && bun run test:e2e"
   },
   "devDependencies": {
     "@internationalized/date": "^3.12.3",
@@ -108,9 +110,6 @@
     "sveltekit-superforms": "^2.30.2",
     "tiptap-markdown": "^0.9.0",
     "zod": "^4.4.3"
-  },
-  "prisma": {
-    "seed": "bun run prisma/seed.ts"
   },
   "overrides": {
     "ts-deepmerge": "^8.0.0",

@@ -139,7 +139,14 @@ request opens and **Done** when it merges.
 
 During implementation:
 - Refactor and share existing utilities, never duplicate logic locally.
-- Keep the PO in the loop during development (screenshots, questions): an early feedback loop prevents costly rework.
+- The PO steps in at two moments, and not between them: at scoping (steps 0 and 1),
+  and at release validation (step 6), over a window of several days on `staging`.
+  In between, autonomy is the rule, and the issue's acceptance criteria are the
+  contract validated at step 6. A mid-development review is opportunistic
+  (`livedev`, `livedev2`), never expected. This bullet used to say "keep the PO in
+  the loop during development"; that stopped being true when the PO's time on Jump
+  shrank, and a protocol describing a practice nobody follows loses its authority
+  over the parts that are still enforced.
 - If a technical decision diverges from the initial plan, update the GitHub item accordingly.
 
 ### Step 5: Technical Gate
@@ -172,9 +179,68 @@ The Definition of Done lives in [`pull_request_template.md`](./pull_request_temp
 checklist in the pull request body. It is deliberately not repeated here: it is ticked in the PR, so
 that is where it belongs, and one copy cannot drift from the other.
 
-Two of its lines are worth reading before you start rather than at the end, because they change how
-you build: new behaviours need automated coverage, and a schema change needs verifying against a
-real PostgreSQL database.
+Three of its lines are worth reading before you start rather than at the end, because they change how
+you build: new behaviours need automated coverage, a schema change needs verifying against a
+real PostgreSQL database, and a new behaviour needs an example in the seed generator.
+
+#### The validation window
+
+The checklist is generated, not transcribed: `scripts/release-validation.sh`
+collects the acceptance criteria of every issue closed by a pull request merged
+into `dev` and not yet promoted, and prints them as one markdown checklist for the
+`release: vX` body. It invents nothing - the `Work item` check already refuses an
+issue whose criteria section is missing or empty, so the material is guaranteed to
+be there.
+
+Once a release is cut (the `dev` into `staging` pull request, step 7's `release: vX`), the PO validates
+it on **`staging`**, over several days, against the acceptance criteria of the issues it closes.
+
+The environment is not a matter of taste. **A multi-day validation window is a multi-day code freeze**,
+and `staging` is the only environment whose freeze is its definition: `dev` takes merges while the PO
+is looking at it, and `livedev` follows the tip of a branch. Remarks come back as commits on `dev` and
+are re-promoted; the draft release targets the `staging` branch and its tag is only created on publish,
+so a retouch costs no re-tag.
+
+Each rung answers one question, and only one:
+
+| Rung | The question it answers | Who |
+| --- | --- | --- |
+| local + CI | does it work at all | `bun run verify` |
+| `dev` | do the features coexist | automatic on merge |
+| `staging` | does it match the acceptance criteria | **the PO, several days, on generated data** |
+| `preprod` | does the migration survive real data | rehearsal, a short smoke pass |
+
+`staging` runs on the generated dataset (`frontend/scripts/seed/`), re-seeded at the freeze, and the
+generator emits a « où trouver quoi » page naming every scenario and its sign-in accounts. That page is
+what the window rests on: the frustration a generated dataset causes is almost never that the names are
+invented, it is not being able to find a case that exercises the thing under review.
+
+**Not true of the live `staging` yet, and the two halves are named.** It still carries what the
+Salesforce worker and a restored production dump put there, and the generator refuses such a database
+rather than filling it half-way, so the switchover is a `prisma migrate reset`, then a generation, then
+`frontend/scripts/bootstrap-admins.ts` for the admin accounts the reset destroys. That, and the Job that
+re-seeds at each freeze, is #294. Until it lands, read this section as the target and not as the state.
+
+**What generated data will never catch**, and what preprod is therefore still for: whatever Salesforce
+produced that is malformed, the accumulation of several years of history, and how long a migration takes
+to apply. That last one matters here because migrations run from the container's `CMD`, so the incoming
+pod applies the DDL while the outgoing one is still serving.
+
+**No Salesforce worker writes into a seeded `staging`, and that is a property of the data, not of a
+setting.** The
+worker takes its scope from Jump, and the generator writes campuses with no external name, so a seeded
+environment is outside every sync's scope (see the *Development data* section of
+[`AGENTS.md`](../AGENTS.md)). Two things follow. A multi-day window stays frozen, which is the whole
+reason it is held here rather than on `dev`. And the real personal data of minors stops arriving through
+a side door, which is the reason the generator exists at all. What that costs is the question « does the
+sync still hold against the real org », and that question belongs to `preprod` alongside the migration
+rehearsal - not to a rung the PO is reading. The parsing itself is covered continuously by an
+integration test that calls the real `syncTalents` over a crafted payload, on every pull request.
+
+Being a property of the data also means it arrives with the data. While `staging` still carries campuses
+a sync created, those campuses have an external name, so the worker resolves them and is fully in scope.
+Pointing it at production and preproduction only is #295, and it closes that window rather than waiting
+for it.
 
 ### Step 7: PR, Self-Review & Merge
 
@@ -252,6 +318,7 @@ Next, evaluate the Definition of Done checklist against the diff. Key points to 
 | `scripts/start-work.sh` | Open the issue (or reuse one), put it on the board in `In Progress`, cut `type/<issue>-slug` |
 | `scripts/finish-work.sh` | Open the draft PR against `dev` with the `Closes #<issue>` line |
 | `scripts/check-work-item.sh` | Run the `Work item` guard locally, exactly the code CI runs |
+| `scripts/release-validation.sh` | Aggregate the acceptance criteria of a release's issues into the PO's checklist |
 | `scripts/apply-repo-config.sh` | Apply the versioned repo config in `.github/settings/repo-config.json` (required checks, labels) |
 
 **Custom Repository Skills** encode Jump-specific workflows. They live in `.claude/skills/`, one
