@@ -1,24 +1,26 @@
 # Carte de la base de données
 
 > Généré automatiquement par `bun run db:erd` depuis `prisma/schema.prisma`.
-> **Ne pas éditer à la main** — toute modification est écrasée à la régénération.
+> **Ne pas éditer à la main** : toute modification est écrasée à la régénération.
 > Le diff git de ce fichier = le journal lisible des changements de schéma.
 
 ## Vue d'ensemble
 
-- **57** modèles · **35** enums · **84** relations
+- **65** modèles · **27** enums · **97** relations
 
 | Domaine | Modèles |
 | --- | ---: |
 | Authentification & Profils | 12 |
 | Cycle de vie talent & RGPD | 6 |
-| Événements & Participations | 9 |
-| Planning & Activités | 3 |
+| Événements & Participations | 8 |
+| Closings | 9 |
+| Planning & Activités | 1 |
 | Progression, Portfolio & XP | 2 |
 | Minijeux | 3 |
 | Feedback | 7 |
 | Communication & Support | 5 |
 | Contenus & Centres d'intérêt | 4 |
+| Analytique d'usage | 2 |
 | Configuration & Système | 6 |
 
 ## 1 · Authentification & Profils
@@ -52,7 +54,8 @@ erDiagram
   bauth_account {
     String id PK
     String userId FK
-    String accountId
+    String issuer UK
+    String accountId UK
     String providerId
     String accessToken
     String refreshToken
@@ -97,8 +100,10 @@ erDiagram
     String[] devRedirectEmails
     String[] devRedirectPhones
     DateTime onboardingDocsExportedAt
-    DateTime interviewDocsExportedAt
+    DateTime closingDocsExportedAt
     DateTime sfExportedAt
+    DateTime lastActiveAt
+    DateTime firstLoginAt
     DateTime createdAt
     DateTime updatedAt
   }
@@ -163,6 +168,7 @@ erDiagram
     String externalId UK
     DateTime lastActiveAt
     DateTime firstLoginAt
+    DateTime usageAnalyticsOptOutAt
     DateTime welcomeSeenAt
     DateTime createdAt
     DateTime updatedAt
@@ -229,6 +235,8 @@ erDiagram
     String id PK
     String talentId FK
     ImageRightsDecision decision
+    String schoolYear
+    String version
     DateTime decidedAt
     String signerPrenom
     String signerNom
@@ -282,6 +290,14 @@ erDiagram
     String parentRulesSignerNom
     String parentRulesRelationship
     String parentRulesSignedCity
+    ImageRightsDecision imageRightsDecision
+    DateTime imageRightsDecidedAt
+    String imageRightsSignerPrenom
+    String imageRightsSignerNom
+    String imageRightsRelationship
+    String imageRightsSignedCity
+    String imageRightsVersion
+    String imageRightsFilePath
     DateTime createdAt
     DateTime updatedAt
   }
@@ -318,15 +334,17 @@ erDiagram
 ```mermaid
 erDiagram
   Event {
-    String id PK
+    String id PK,UK
     String titre
     String publicName
     String cohortNoun
     DateTime date
     Int startMinutes
     DateTime endDate
-    String campusId FK
+    String campusId FK,UK
     String feedbackFormId FK
+    String diplomaTemplateId FK
+    String closingTemplateId FK
     String externalId UK
     DateTime devActivatedAt
     DateTime createdAt
@@ -346,6 +364,8 @@ erDiagram
     String cohortNoun
     Int startMinutes
     String feedbackFormId FK
+    String diplomaTemplateId FK
+    String closingTemplateId FK
     String createdById FK
     DateTime createdAt
     DateTime updatedAt
@@ -363,51 +383,6 @@ erDiagram
     String sfMemberStatus
     DateTime createdAt
     DateTime updatedAt
-  }
-  Interview {
-    String id PK
-    String talentId FK
-    String staffId FK
-    String campusId FK
-    String participationId FK,UK
-    InterviewStatus status
-    DateTime conductedAt
-    DiscoveryChannel discoveryChannel
-    InterviewMotivation motivation
-    OrientationTalkFrequency orientationTalkAtSchool
-    PassionateTeacherAnswer passionateTeacher
-    WantsMoreAnswer wantsMore
-    InterviewRecommendation recommendation
-    TechProjection[] techProjection
-    Specialty[] specialties
-    OtherJobDomain[] otherJobs
-    InfoSource[] infoSources
-    NextYearEvent[] nextYearEvents
-    Int satisfactionStars
-    String oneSentence
-    String verdictNote
-    String discoveryChannelNote
-    String motivationNote
-    String specialtiesNote
-    String orientationTalkNote
-    String passionateTeacherNote
-    String techProjectionNote
-    String otherJobsNote
-    String infoSourcesNote
-    String wantsMoreNote
-    String satisfactionNote
-    String nextYearEventsNote
-    DateTime createdAt
-    DateTime updatedAt
-  }
-  InterviewReset {
-    String id PK
-    String talentId FK
-    String conductedByStaffId
-    DateTime conductedAt
-    String resetByStaffId FK
-    String reason
-    DateTime createdAt
   }
   EventPresence {
     String id PK
@@ -430,6 +405,17 @@ erDiagram
     String closedById FK
     DateTime closedAt
   }
+  Diploma_Template {
+    String id PK
+    String code UK
+    String label
+    String styleCss
+    String bodyHtml
+    Int pageWidthPx
+    Int pageHeightPx
+    DateTime createdAt
+    DateTime updatedAt
+  }
   StaffProfile {
   }
   Talent {
@@ -438,62 +424,162 @@ erDiagram
   }
   Feedback_Form {
   }
-  StaffProfile ||--o{ Interview : "interviewsConducted"
+  Closing_Template {
+  }
   StaffProfile |o--o{ EventPresence : "presencesMarked"
   StaffProfile |o--o{ EventPresenceClosure : "presenceClosuresMade"
-  StaffProfile |o--o{ InterviewReset : "interviewResets"
   StaffProfile |o--o{ EventConfig_Template : "eventConfigTemplates"
   Talent ||--o{ Participation : "participations"
-  Talent ||--o{ Interview : "interviews"
   Talent ||--o{ EventPresence : "eventPresences"
-  Talent ||--o{ InterviewReset : "interviewResets"
   Campus ||--o{ Event : "events"
   Campus ||--o{ Participation : "participations"
-  Campus ||--o{ Interview : "interviews"
   Feedback_Form |o--o{ Event : "events"
+  Diploma_Template |o--o{ Event : "events"
+  Closing_Template |o--o{ Event : "events"
   Event ||--o{ Participation : "participations"
   Event ||--o{ EventPresenceClosure : "presenceClosures"
   Event ||--o{ EventPresence : "eventPresences"
   Event ||--o{ EventConfig_Module : "modules"
   Feedback_Form |o--o{ EventConfig_Template : "configTemplates"
+  Diploma_Template |o--o{ EventConfig_Template : "configTemplates"
+  Closing_Template |o--o{ EventConfig_Template : "configTemplates"
   EventConfig_Template ||--o{ EventConfig_TemplateModule : "modules"
-  Participation ||--|| Interview : "interview"
 ```
 
-## 4 · Planning & Activités
+## 4 · Closings
 
 ```mermaid
 erDiagram
-  Planning {
+  Closing_Question {
     String id PK
-    String eventId FK,UK
+    String key UK
+    String label
+    String hint
+    Closing_QuestionKind kind
+    Int max
+    Int maxLength
+    String placeholder
+    String notePlaceholder
+    Boolean testimonial
+    DateTime retiredAt
     DateTime createdAt
     DateTime updatedAt
   }
-  TimeSlot {
+  Closing_Option {
     String id PK
-    String planningId FK
+    String questionId FK,UK
+    Int position
+    String value UK
+    String label
+    String tone
+    String icon
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  Closing_Template {
+    String id PK
+    String key UK
+    String label
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  Closing_TemplateSection {
+    String id PK
+    String templateId FK
+    Int position
+    Int synthesisPosition
+    String title
+  }
+  Closing_TemplateQuestion {
+    String id PK
+    String templateId FK,UK
+    String sectionId FK
+    String questionId FK,UK
+    Int position
+    String labelOverride
+    Boolean withNote
+  }
+  Closing_Record {
+    String id PK
+    String talentId FK,UK
+    String eventId FK,UK
+    String staffId FK
+    String campusId FK
+    String templateId FK
+    ClosingStatus status
+    DateTime conductedAt
+    ClosingRecommendation recommendation
+    String verdictNote
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  Closing_Answer {
+    String id PK
+    String recordId FK,UK
+    String questionId FK,UK
+    Int ratingValue
+    String freeText
+    String note
+  }
+  Closing_AnswerOption {
+    String answerId PK,FK
+    String optionId PK,FK
+  }
+  Closing_ResetEvent {
+    String id PK
+    String talentId FK
+    String conductedByStaffId
+    DateTime conductedAt
+    String resetByStaffId FK
+    String reason
+    DateTime createdAt
+  }
+  StaffProfile {
+  }
+  Talent {
+  }
+  Campus {
+  }
+  Event {
+  }
+  StaffProfile |o--o{ Closing_Record : "closingsConducted"
+  StaffProfile |o--o{ Closing_ResetEvent : "closingResets"
+  Talent ||--o{ Closing_Record : "closings"
+  Talent ||--o{ Closing_ResetEvent : "closingResets"
+  Campus ||--o{ Closing_Record : "closings"
+  Event ||--o{ Closing_Record : "closings"
+  Closing_Question ||--o{ Closing_Option : "options"
+  Closing_Question ||--o{ Closing_TemplateQuestion : "templateQuestions"
+  Closing_Question ||--o{ Closing_Answer : "answers"
+  Closing_Option ||--o{ Closing_AnswerOption : "answerOptions"
+  Closing_Template ||--o{ Closing_TemplateSection : "sections"
+  Closing_Template ||--o{ Closing_TemplateQuestion : "questions"
+  Closing_Template ||--o{ Closing_Record : "records"
+  Closing_TemplateSection ||--o{ Closing_TemplateQuestion : "questions"
+  Closing_Record ||--o{ Closing_Answer : "answers"
+  Closing_Answer ||--o{ Closing_AnswerOption : "selectedOptions"
+```
+
+## 5 · Planning & Activités
+
+```mermaid
+erDiagram
+  Planning_Slot {
+    String id PK
+    String eventId FK
     DateTime startTime
     DateTime endTime
-    DateTime createdAt
-    DateTime updatedAt
-  }
-  Activity {
-    String id PK
     String nom
     ActivityType activityType
-    String timeSlotId FK,UK
     DateTime createdAt
     DateTime updatedAt
   }
   Event {
   }
-  Event ||--|| Planning : "planning"
-  Planning ||--o{ TimeSlot : "timeSlots"
-  TimeSlot ||--|| Activity : "activity"
+  Event ||--o{ Planning_Slot : "planningSlots"
 ```
 
-## 5 · Progression, Portfolio & XP
+## 6 · Progression, Portfolio & XP
 
 ```mermaid
 erDiagram
@@ -526,7 +612,7 @@ erDiagram
   Campus |o--o{ XpReward : "xpRewards"
 ```
 
-## 6 · Minijeux
+## 7 · Minijeux
 
 ```mermaid
 erDiagram
@@ -576,7 +662,7 @@ erDiagram
   MinigamePublication ||--o{ MinigameAttempt : "attempts"
 ```
 
-## 7 · Feedback
+## 8 · Feedback
 
 ```mermaid
 erDiagram
@@ -678,7 +764,7 @@ erDiagram
   Feedback_Answer ||--o{ Feedback_AnswerOption : "selectedOptions"
 ```
 
-## 8 · Communication & Support
+## 9 · Communication & Support
 
 ```mermaid
 erDiagram
@@ -740,7 +826,6 @@ erDiagram
     String status
     String filePath
     String errorMessage
-    Json payload
     DateTime createdAt
     DateTime updatedAt
     DateTime processedAt
@@ -753,8 +838,8 @@ erDiagram
   }
   Event {
   }
-  bauth_user ||--o{ Broadcast : "broadcastsCreated"
-  bauth_user ||--o{ MessageTemplate : "templatesCreated"
+  bauth_user |o--o{ Broadcast : "broadcastsCreated"
+  bauth_user |o--o{ MessageTemplate : "templatesCreated"
   bauth_user |o--o{ BroadcastRecipient : "broadcastsReceivedAsStaff"
   Talent ||--o{ OnboardingPdfJob : "pdfJobs"
   Talent |o--o{ BroadcastRecipient : "broadcastsReceived"
@@ -767,7 +852,7 @@ erDiagram
   Broadcast ||--o{ BroadcastRecipient : "recipients"
 ```
 
-## 9 · Contenus & Centres d'intérêt
+## 10 · Contenus & Centres d'intérêt
 
 ```mermaid
 erDiagram
@@ -795,7 +880,6 @@ erDiagram
     String emoji
     String kind
     Int order
-    String recommendationMessage
   }
   TalentInterest {
     String talentId PK,FK
@@ -809,14 +893,45 @@ erDiagram
   }
   Event {
   }
-  bauth_user ||--o{ CmsPage : "cmsPages"
+  bauth_user |o--o{ CmsPage : "cmsPages"
   StaffProfile |o--o{ CmsImage : "cmsImages"
   Talent ||--o{ TalentInterest : "interests"
   Event ||--o{ CmsPage : "cmsPages"
   Interest ||--o{ TalentInterest : "talentInterests"
 ```
 
-## 10 · Configuration & Système
+## 11 · Analytique d'usage
+
+```mermaid
+erDiagram
+  Usage_FeatureUse {
+    String id PK
+    String feature UK
+    UsageActorKind actorKind
+    String staffProfileId FK
+    String actorHash
+    String campusId
+    String eventId
+    Boolean impersonated
+    String dedupeKey UK
+    DateTime occurredAt
+  }
+  Usage_FeatureMonthly {
+    String id PK
+    String feature UK
+    UsageActorKind actorKind UK
+    String campusId UK
+    String month UK
+    Int uses
+    Int distinctActors
+    DateTime computedAt
+  }
+  StaffProfile {
+  }
+  StaffProfile |o--o{ Usage_FeatureUse : "featureUses"
+```
+
+## 12 · Configuration & Système
 
 ```mermaid
 erDiagram
@@ -891,7 +1006,7 @@ erDiagram
   Campus {
   }
   bauth_user ||--o{ AdminApi_Token : "adminApiTokens"
-  StaffProfile ||--o{ AdminFile : "adminFiles"
+  StaffProfile |o--o{ AdminFile : "adminFiles"
   Campus |o--o{ Signatory : "signatories"
   AdminApi_Token |o--o{ AdminApi_Call : "calls"
 ```
