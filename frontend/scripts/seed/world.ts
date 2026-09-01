@@ -43,7 +43,13 @@ import { INTEREST_COUNTS } from '../../src/lib/validation/onboarding';
 const GUARDIAN_PRENOM = 'Responsable';
 const GUARDIAN_PHONE = '+33700000000';
 
-export type CampusRef = { id: string; name: string; timezone: string };
+export type CampusRef = {
+  id: string;
+  name: string;
+  timezone: string;
+  /** Relative share of the platform's enrolments, from PROFILE.md. */
+  weight: number;
+};
 export type StaffRef = {
   id: string;
   userId: string;
@@ -127,6 +133,15 @@ const UPCOMING_EVENT_SF_MIX = [
 export class World {
   readonly buffer: Buffered = createBuffer();
   readonly campuses = new Map<string, CampusRef>();
+  /**
+   * Campus names a flagship scenario (stage, club) has already claimed via
+   * `pickCampus`. `pickWeightedCampus` never has to consult it - the whole
+   * platform's weighted volume can land anywhere - but it is what keeps a
+   * later deliberately-placed state (a campus with zero conducted closings,
+   * say) from landing on Lyon or Nice by accident and reading as configured
+   * noise instead of the state it is meant to be.
+   */
+  readonly reservedCampusNames = new Set<string>();
   readonly schools = new Map<string, string>();
   readonly staff: StaffRef[] = [];
   readonly talents: TalentRef[] = [];
@@ -211,6 +226,7 @@ export class World {
       id: id('cmp', spec.name),
       name: spec.name,
       timezone: spec.timezone,
+      weight: spec.weight,
     };
     this.buffer.campus.push({
       id: ref.id,
@@ -243,6 +259,40 @@ export class World {
     const found = this.campuses.get(name);
     if (!found) throw new Error(`No campus "${name}" in this profile.`);
     return found;
+  }
+
+  /**
+   * A named campus for a flagship scenario, preferring `name` when it exists
+   * and nobody has claimed it yet; otherwise the first unclaimed campus, or
+   * the platform's first if every one already is. Claims the campus it
+   * resolves to (see `reservedCampusNames`), so stage and club can each ask
+   * for their own without a caller having to reason about the other's pick.
+   */
+  pickCampus(preferred: string): CampusRef {
+    const all = [...this.campuses.values()];
+    const free = all.filter((c) => !this.reservedCampusNames.has(c.name));
+    const campus =
+      this.campuses.has(preferred) && !this.reservedCampusNames.has(preferred)
+        ? this.campus(preferred)
+        : (free[0] ?? all[0])!;
+    this.reservedCampusNames.add(campus.name);
+    return campus;
+  }
+
+  /**
+   * A campus drawn by its real enrolment share (PROFILE.md's `weight`), so a
+   * distribution built from many draws reproduces the platform's own
+   * Paris/Moulins-style skew instead of landing flat across every campus,
+   * which is as false as a single one.
+   */
+  pickWeightedCampus(exclude?: ReadonlySet<string>): CampusRef {
+    const pool = [...this.campuses.values()].filter(
+      (c) => !exclude?.has(c.name),
+    );
+    const bag = (pool.length > 0 ? pool : [...this.campuses.values()]).map(
+      (c) => [c, c.weight] as const,
+    );
+    return this.ctx.rng.weighted(bag);
   }
 
   addSchool(spec: SchoolSpec): string {
@@ -694,6 +744,39 @@ export class World {
       sfMemberStatus,
     });
     this.roster.get(event.id)!.push(talent);
+  }
+
+  /**
+   * Removes a participation the world already buffered, leaving whatever it
+   * already produced (a closing, a presence mark) standing.
+   *
+   * This is not a general-purpose delete: it exists to simulate the one thing
+   * this generator cannot otherwise reach, an external system's hard delete
+   * arriving after the fact. `Closing_Record` carries no foreign key to
+   * `Participation` for exactly this reason - see the schema's own comment on
+   * that model - and the only way to prove the decoupling holds is a dataset
+   * that actually contains a closing whose participation is gone.
+   */
+  pruneParticipation(eventId: string, talentId: string): void {
+    const participationId = id(
+      'prt',
+      eventId.replace(/^sd_/, ''),
+      talentId.replace(/^sd_/, ''),
+    );
+    const index = this.buffer.participation.findIndex(
+      (row) => row.id === participationId,
+    );
+    if (index === -1) {
+      throw new Error(
+        `pruneParticipation: no participation ${participationId} to prune.`,
+      );
+    }
+    this.buffer.participation.splice(index, 1);
+    const roster = this.roster.get(eventId);
+    if (roster) {
+      const rosterIndex = roster.findIndex((talent) => talent.id === talentId);
+      if (rosterIndex !== -1) roster.splice(rosterIndex, 1);
+    }
   }
 
   addPlanning(event: EventRef, blueprint: readonly SlotBlueprint[]): void {
