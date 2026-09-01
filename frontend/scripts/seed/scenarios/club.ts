@@ -126,6 +126,10 @@ export const club: Scenario = {
       scenario: club.name,
       summary: club.summary,
       campus: campus.name,
+      // Not `eventDisplayName(event)`: `event` only names the last loop
+      // iteration's session and is out of scope here anyway. All three sessions
+      // share this publicName by construction (only `titre`'s séance number
+      // varies), so the literal is exact, not a restatement of a live value.
       event: `Coding Club ${campus.name}`,
       covers: [
         'trois séances dont une à venir, avec des inscrits qui reviennent',

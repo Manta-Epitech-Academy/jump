@@ -19,6 +19,7 @@ import { STAGE_PLANNING } from '../catalog/planning';
 import { BANK_KEYS, RETIRED_QUESTION } from '../catalog/closings';
 import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
+import { eventDisplayName } from '../../../src/lib/domain/event';
 import {
   WELCOME_XP_BONUS,
   onboardingEarlyBirdBonus,
@@ -336,7 +337,7 @@ export const stage: Scenario = {
       scenario: stage.name,
       summary: stage.summary,
       campus: campus.name,
-      event: event.titre,
+      event: eventDisplayName(event),
       covers: [
         'un closing conduit par un membre depuis parti, et trois notes : autonome, éditée, sans auteur',
         'un créneau d’émargement clôturé par l’horloge et non par quelqu’un',

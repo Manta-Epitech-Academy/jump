@@ -27,6 +27,7 @@
  */
 
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
+import { eventDisplayName } from '../../../src/lib/domain/event';
 import { makeCohort } from './helpers';
 import type { Scenario } from './types';
 
@@ -121,7 +122,7 @@ export const sfStatuses: Scenario = {
       scenario: sfStatuses.name,
       summary: sfStatuses.summary,
       campus: campus.name,
-      event: event.titre,
+      event: eventDisplayName(event),
       covers: [
         'Inscrits : le compte visible est inférieur au compte inscrit, deux participations étant masquées',
         'Inspecter les statuts Salesforce (espace admin) : les quatre statuts bruts et le partage visible / masqué',

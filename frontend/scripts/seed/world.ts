@@ -79,6 +79,11 @@ export type FeedbackFormRef = {
 export type EventRef = {
   id: string;
   titre: string;
+  /** Admin-set name, if any. Carried so a caller can resolve the same
+   * display name `eventDisplayName` (`src/lib/domain/event.ts`) resolves for a
+   * human, instead of a manifest quoting the internal `titre` a screen never
+   * shows. */
+  publicName: string | null;
   campusId: string;
   campusName: string;
   date: Date;
@@ -639,6 +644,7 @@ export class World {
     const ref: EventRef = {
       id: eventId,
       titre: opts.titre,
+      publicName: opts.publicName ?? null,
       campusId: opts.campus.id,
       campusName: opts.campus.name,
       date,
