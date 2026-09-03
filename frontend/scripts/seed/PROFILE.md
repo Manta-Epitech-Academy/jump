@@ -180,9 +180,9 @@ sur-représenter : ils portent les bugs que personne ne voit.
 Sur la cohorte de stage (relevé du 2026-09-03, même instantané) : **765 des
 1 640 inscriptions se sont connectées (47 %), et 759 de ces 765 ont terminé leur
 dossier (99 %)**. Le filtre, c'est la première connexion, pas l'abandon en cours
-de route. Le générateur reproduit fidèlement le second chiffre et pas le premier
-— voir le commentaire dans `scenarios/stage.ts`, qui dit lequel des deux il
-tord et pourquoi.
+de route. Le générateur reproduit fidèlement le second chiffre et pas le
+premier : voir le commentaire dans `scenarios/stage.ts`, qui dit lequel des deux
+il tord et pourquoi.
 
 ## Droit à l'image (850 décisions)
 
