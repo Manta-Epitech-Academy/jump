@@ -305,8 +305,12 @@ export class World {
       name: spec.name,
       city: spec.city,
       postalCode: spec.postalCode,
-      inseeCode: spec.postalCode,
-      resolvedAt: this.ctx.clock.days(-400),
+      // Not `postalCode`: the two are different numbers, and copying one into
+      // the other wrote a value no annuaire ever returns (Nancy is postal
+      // 54000, INSEE 54395). Anything joining on the commune read a code that
+      // does not exist.
+      inseeCode: spec.inseeCode,
+      resolvedAt: spec.resolved === false ? null : this.ctx.clock.days(-400),
     });
     this.schools.set(spec.uai, schoolId);
     return schoolId;

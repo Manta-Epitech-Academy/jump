@@ -134,14 +134,6 @@ const NOT_YET_SEEDED: Readonly<Record<string, string>> = {
   'TalentSfImport.civilite':
     'la civilité n’est jamais réclamée au CRM, donc la colonne est nulle partout et le côté « ce que Salesforce prétend » de cette ligne ne s’affiche jamais.',
 
-  // ── L'annuaire des lycées. ──
-  'School.city':
-    'l’annuaire de l’éducation nationale renvoie une fiche complète pour chaque UAI semé. Une fiche trouée existe en vrai et le rendu d’un lycée sans ville n’a pas d’exemple.',
-  'School.postalCode': 'voir `School.city`.',
-  'School.inseeCode': 'voir `School.city`.',
-  'School.resolvedAt':
-    'toute école semée est écrite comme déjà résolue. Une école connue par une référence du CRM mais pas encore résolue contre l’annuaire est un état atteignable qui n’est pas produit ici.',
-
   // ── Divers, un par lot. ──
   'Closing_TemplateSection.synthesisPosition':
     'toutes les sections des grilles semées se placent dans la synthèse. Une section posée au talent mais absente du document produit est une composition légitime, sans exemple.',
