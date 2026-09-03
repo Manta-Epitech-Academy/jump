@@ -29,20 +29,44 @@
  * sequence, check letter - so anything parsing it works.
  */
 
-export type SchoolSpec = {
-  readonly uai: string;
-  readonly name: string;
-  /** Null for a fiche the annuaire answered incompletely. */
-  readonly city: string | null;
-  readonly postalCode: string | null;
-  readonly inseeCode: string | null;
-  /**
-   * False for a school known only by a CRM reference, with no annuaire lookup
-   * behind it yet. `resolvedAt` is nullable FOR that state and every screen
-   * rendering a lycée has to survive it.
-   */
-  readonly resolved?: boolean;
-};
+/**
+ * A school, as one of the two rows the application can actually write - which
+ * is not two shapes of one row, and a union rather than a flag beside three
+ * nullable columns for exactly that reason.
+ *
+ * `resolveSchoolByUai` has two create payloads. The annuaire answered, and
+ * `resolvedAt` is stamped alongside whatever commune came back, holes included;
+ * or it did not, and the row is the reference the CRM sent and nothing else.
+ * `enrichSchool` then writes the commune AND `resolvedAt` in one update, and no
+ * path anywhere clears either. So a pending row carrying a commune is a state
+ * no code produces, and this type is where the generator is stopped from
+ * composing one - the `never`s are what make it a compile error rather than a
+ * plausible-looking row nobody would ever read as wrong.
+ */
+export type SchoolSpec =
+  | {
+      readonly uai: string;
+      readonly name: string;
+      readonly resolved?: true;
+      /** Null for a fiche the annuaire answered incompletely. */
+      readonly city: string | null;
+      readonly postalCode: string | null;
+      readonly inseeCode: string | null;
+    }
+  | {
+      readonly uai: string;
+      /** Whatever name the CRM or the picker already carried. */
+      readonly name: string;
+      /**
+       * A school known only by a CRM reference, with no annuaire lookup behind
+       * it yet. `resolvedAt` is nullable FOR that state and every screen
+       * rendering a lycée has to survive it.
+       */
+      readonly resolved: false;
+      readonly city?: never;
+      readonly postalCode?: never;
+      readonly inseeCode?: never;
+    };
 
 /**
  * The head of the distribution: the lycées a campus actually sees several
@@ -406,13 +430,13 @@ export const SCHOOLS: readonly SchoolSpec[] = [
   },
   // And one known only by the reference the CRM sent, never looked up. That is
   // what `resolvedAt` is nullable for: a school arrives from an enrolment and
-  // the annuaire call happens later, or not at all.
+  // the annuaire call happens later, or not at all. It carries a name and
+  // nothing else, because that is all `resolveSchoolByUai` writes when the
+  // lookup does not answer - a commune here would be the one state that makes
+  // « lycée non résolu » render as a complete fiche.
   {
     uai: '0759005V',
     name: 'Lycée Voltaire',
-    city: 'Paris',
-    postalCode: '75011',
-    inseeCode: '75111',
     resolved: false,
   },
 ];

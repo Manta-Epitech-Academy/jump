@@ -299,18 +299,29 @@ export class World {
 
   addSchool(spec: SchoolSpec): string {
     const schoolId = id('sch', spec.uai);
+    // The commune and `resolvedAt` travel together, because `enrichSchool`
+    // writes them in one update: a row holding one and not the other is a state
+    // the application has no path to. Written as one branch rather than four
+    // fields so the pair cannot come apart here either.
+    //
+    // And `inseeCode` is not `postalCode`. The two are different numbers, and
+    // copying one into the other wrote a value no annuaire ever returns (Nancy
+    // is postal 54000, INSEE 54395), so anything joining on the commune read a
+    // code that does not exist.
+    const annuaire =
+      spec.resolved === false
+        ? { city: null, postalCode: null, inseeCode: null, resolvedAt: null }
+        : {
+            city: spec.city,
+            postalCode: spec.postalCode,
+            inseeCode: spec.inseeCode,
+            resolvedAt: this.ctx.clock.days(-400),
+          };
     this.buffer.school.push({
       id: schoolId,
       uai: spec.uai,
       name: spec.name,
-      city: spec.city,
-      postalCode: spec.postalCode,
-      // Not `postalCode`: the two are different numbers, and copying one into
-      // the other wrote a value no annuaire ever returns (Nancy is postal
-      // 54000, INSEE 54395). Anything joining on the commune read a code that
-      // does not exist.
-      inseeCode: spec.inseeCode,
-      resolvedAt: spec.resolved === false ? null : this.ctx.clock.days(-400),
+      ...annuaire,
     });
     this.schools.set(spec.uai, schoolId);
     return schoolId;
