@@ -54,6 +54,20 @@ export const longTail: Scenario = {
       const noEnrolment = index % 7 === 0;
       const configured = index % 5 === 0;
 
+      // The one event standing between « à configurer » and « visible »:
+      // sections enabled, a public name typed, and no end date yet - so
+      // `eventConfigState` reads « prêt à publier » while
+      // `activationBlockerKeys` still refuses the toggle. That gap is the whole
+      // reason those are two separate rules, and it had no example: every
+      // configured event here was activated in the same breath, which is also
+      // how a fifth of the dataset ended up ACTIVATED with no end date, a state
+      // the configuration screen would have refused. Index 0 because it is the
+      // upcoming one, which is when a human is actually mid-preparation, and
+      // because it is the only `configured` index the smallest profile reaches
+      // besides index 5 - and index 5 has to stay visible for the school-year
+      // switcher.
+      const beingPrepared = index === 0;
+
       // One of each lifecycle branch, then a spread across the school year.
       // Index 5 (the first naturally `configured` index past the fixed
       // lifecycle ones) is placed at the far end of that spread rather than
@@ -88,7 +102,8 @@ export const longTail: Scenario = {
         // multi-day event is the only thing that makes the émargement day
         // picker do anything.
         weekdays: index === 1 || index % 12 === 0 ? 3 : 1,
-        devActivated: configured,
+        withEndDate: beingPrepared ? false : undefined,
+        devActivated: configured && !beingPrepared,
         // One event created inside Jump rather than synced from a campaign.
         // `externalId` is nullable for exactly that, and with no null row the
         // « pas de campagne Salesforce » rendering, and every branch that skips
@@ -207,6 +222,7 @@ export const longTail: Scenario = {
         `${created} événements ordinaires répartis sur tous les campus`,
         `${empty} sans aucun inscrit, ${unconfigured} sans aucun module configuré`,
         'un événement à venir, un en cours, un terminé hier',
+        'un événement « prêt à publier » que l’activation refuse : il lui manque la date de fin',
         `${zeroClosingCampus.name} : closings configurés, inscrits réels, aucun closing conduit`,
         'des cohortes tirées sur la vraie distribution : médiane autour de 23',
       ],

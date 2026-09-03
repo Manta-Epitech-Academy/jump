@@ -109,8 +109,20 @@ export function eventMissingConfig(event: EventConfigFields): string[] {
   return missing;
 }
 
+/**
+ * Everything that can stop an activation, in the order a human would fix it.
+ * A list rather than a bare union so a caller can iterate the rule - the seed's
+ * reachability check proves each of the three has an example somewhere - and so
+ * a fourth blocker is added in one place.
+ */
+export const ACTIVATION_BLOCKERS = [
+  'publicName',
+  'endDate',
+  'modules',
+] as const;
+
 /** One thing that can stop an activation. See {@link activationBlockerKeys}. */
-export type ActivationBlocker = 'publicName' | 'endDate' | 'modules';
+export type ActivationBlocker = (typeof ACTIVATION_BLOCKERS)[number];
 
 /**
  * What stops this event from being made visible, empty when nothing does.

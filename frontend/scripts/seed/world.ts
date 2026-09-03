@@ -28,6 +28,8 @@ import type { SchoolSpec } from './catalog/schools';
 import type { SlotBlueprint } from './catalog/planning';
 import type { Rng } from './rng';
 import type { SfMemberStatus } from '../../src/lib/domain/sfMemberStatus';
+import { activationBlockers } from '../../src/lib/domain/eventReadiness';
+import { fromWallClock } from '../../src/lib/domain/planningTime';
 import {
   CIVILITE_OPTIONS,
   PARENT_TYPE_OPTIONS,
@@ -637,6 +639,13 @@ export class World {
     /** How many weekdays the event runs. 1 for a single-day format. */
     weekdays: number;
     startMinutes?: number | null;
+    /**
+     * Whether the event carries a « date de fin ». Defaults to the two states
+     * the application itself produces - see the comment beside `withEndDate`
+     * below - so a caller only passes this to place the one in between: an
+     * event configured but not activatable because the date is still missing.
+     */
+    withEndDate?: boolean;
     devActivated?: boolean;
     modules?: readonly string[];
     /** Per-module options, keyed by module. Only some modules take any. */
@@ -658,7 +667,49 @@ export class World {
       cursor += 1;
     }
     const date = days[0]!;
-    const endDate = opts.weekdays > 1 ? days[days.length - 1]! : null;
+
+    // « Date de fin ». The Salesforce sync never sends one - it is typed on the
+    // configuration screen - which is why `activationBlockerKeys` refuses to
+    // make an event visible without it. So the default IS that rule: an
+    // activated event has one, an untouched Salesforce row has none, and 36 of
+    // production's 277 events carry one for exactly that reason.
+    const withEndDate =
+      opts.withEndDate ?? (opts.weekdays > 1 || opts.devActivated === true);
+    // 23:59 in the CAMPUS's timezone, the way production stores it, not midnight
+    // UTC - and both readers depend on the difference. `presenceDays` keys the
+    // day off the campus clock, so a Réunion event ending at 23:59 UTC would
+    // grow a second émargement day; `getEventStatus` compares the instant, so an
+    // event ending at midnight reads « passé » from its own first minute.
+    const endDate = withEndDate
+      ? fromWallClock(
+          clock.dateKey(days[days.length - 1]!),
+          '23:59',
+          opts.campus.timezone,
+        )
+      : null;
+
+    // The activation gate, enforced where the row is written instead of checked
+    // afterwards. `activationBlockerKeys` is what both the configuration dialog
+    // and the admin API refuse an activation on, so an activated event missing
+    // any of the three is a state no human could have reached - and a dev space
+    // showing an event its own configuration screen calls impossible is the one
+    // thing a seeded environment must not do. It was reachable: every
+    // single-day event had a null `endDate`, and `longTail` activated a fifth of
+    // them.
+    if (opts.devActivated) {
+      const blockers = activationBlockers({
+        publicName: opts.publicName ?? null,
+        cohortNoun: opts.cohortNoun ?? null,
+        endDate: endDate === null ? null : endDate.toISOString(),
+        modules: opts.modules ?? [],
+        devActivated: true,
+      });
+      if (blockers.length > 0) {
+        throw new Error(
+          `addEvent(${opts.key}) active un événement que l’application refuserait d’activer, il lui manque : ${blockers.join(', ')}.`,
+        );
+      }
+    }
 
     this.buffer.event.push({
       id: eventId,
