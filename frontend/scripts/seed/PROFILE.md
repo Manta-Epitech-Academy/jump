@@ -17,6 +17,12 @@ change rien, et ce n'est pas une raison de re-relever.
 nouvelle lecture de la base de production. Un chiffre qui manque ici se demande,
 il ne se re-relève pas.
 
+Deux exceptions, datées et signalées sur place : la couverture des closings par
+format et le taux de connexion d'une cohorte de stage ont été relevés le
+**2026-09-03** sur le même instantané restauré, parce que le générateur en
+dépendait et qu'ils manquaient. Les deux blocs disent d'où ils viennent et ce
+qui prouve qu'il s'agit bien du même jeu de données.
+
 Il existe pour une raison précise : le générateur de `scripts/seed/` ne doit pas
 inventer des proportions. Chaque distribution qu'il applique vient d'une ligne de
 ce document, et chaque écart délibéré (les états rares, sur-représentés exprès)
@@ -171,6 +177,13 @@ Une fois commencé, le parcours se termine. Les états intermédiaires sont donc
 quasi absents de la production, et ce sont précisément eux qu'il faut
 sur-représenter : ils portent les bugs que personne ne voit.
 
+Sur la cohorte de stage (relevé du 2026-09-03, même instantané) : **765 des
+1 640 inscriptions se sont connectées (47 %), et 759 de ces 765 ont terminé leur
+dossier (99 %)**. Le filtre, c'est la première connexion, pas l'abandon en cours
+de route. Le générateur reproduit fidèlement le second chiffre et pas le
+premier : voir le commentaire dans `scenarios/stage.ts`, qui dit lequel des deux
+il tord et pourquoi.
+
 ## Droit à l'image (850 décisions)
 
 | Année     | Décision | Source           | Nombre |
@@ -193,6 +206,26 @@ sur-représenter : ils portent les bugs que personne ne voit.
 - Grilles : l'une 4 sections et 12 questions, l'autre 3 sections et 7 questions.
 - Banque : 12 questions (5 multi, 5 single, 1 texte, 1 note).
 - Réponses : **7 635 notes d'équipe, 1 540 verbatims d'élèves, 1 661 notes chiffrées.**
+
+### Couverture, par format
+
+Relevé le **2026-09-03**, sur le même instantané restauré, parce que le
+générateur en avait besoin et que le chiffre manquait ici. C'est la seule
+addition postérieure au relevé du 29/08 ; `Closing_Record` totalise toujours
+1 694 lignes sur 25 événements, donc les deux lectures portent bien sur les
+mêmes données.
+
+| Format           | Inscriptions | Closings | Part      |
+| ---------------- | ------------ | -------- | --------- |
+| Stage de seconde | 1 640        | 1 412    | **86 %**  |
+| Tout le reste    | 5 998        | 282      | **4,7 %** |
+
+Deux régimes, et pas une moyenne. Un stage, c'est deux semaines qui finissent par
+un entretien : les 14 stages qui portent des closings couvrent de 42 à 100 % de
+leur liste, médiane 93. Les 11 autres événements qui en portent tiennent entre 68
+et 79 %. Et les 267 restants n'en ont aucun. **Sur un événement qui conduit des
+closings, l'absence de closing est l'exception** - c'est l'inverse de ce qu'un
+taux global laisse croire.
 
 ## Présence (27 167)
 

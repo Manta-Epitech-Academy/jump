@@ -28,6 +28,8 @@ import type { SchoolSpec } from './catalog/schools';
 import type { SlotBlueprint } from './catalog/planning';
 import type { Rng } from './rng';
 import type { SfMemberStatus } from '../../src/lib/domain/sfMemberStatus';
+import { activationBlockers } from '../../src/lib/domain/eventReadiness';
+import { fromWallClock } from '../../src/lib/domain/planningTime';
 import {
   CIVILITE_OPTIONS,
   PARENT_TYPE_OPTIONS,
@@ -297,14 +299,29 @@ export class World {
 
   addSchool(spec: SchoolSpec): string {
     const schoolId = id('sch', spec.uai);
+    // The commune and `resolvedAt` travel together, because `enrichSchool`
+    // writes them in one update: a row holding one and not the other is a state
+    // the application has no path to. Written as one branch rather than four
+    // fields so the pair cannot come apart here either.
+    //
+    // And `inseeCode` is not `postalCode`. The two are different numbers, and
+    // copying one into the other wrote a value no annuaire ever returns (Nancy
+    // is postal 54000, INSEE 54395), so anything joining on the commune read a
+    // code that does not exist.
+    const annuaire =
+      spec.resolved === false
+        ? { city: null, postalCode: null, inseeCode: null, resolvedAt: null }
+        : {
+            city: spec.city,
+            postalCode: spec.postalCode,
+            inseeCode: spec.inseeCode,
+            resolvedAt: this.ctx.clock.days(-400),
+          };
     this.buffer.school.push({
       id: schoolId,
       uai: spec.uai,
       name: spec.name,
-      city: spec.city,
-      postalCode: spec.postalCode,
-      inseeCode: spec.postalCode,
-      resolvedAt: this.ctx.clock.days(-400),
+      ...annuaire,
     });
     this.schools.set(spec.uai, schoolId);
     return schoolId;
@@ -626,17 +643,44 @@ export class World {
 
   // ─── Events ───────────────────────────────────────────────────────────────
 
+  /**
+   * The weekdays an event starting `startOffset` days from the anchor runs on,
+   * skipping the weekends it would otherwise straddle.
+   *
+   * Public, and computed by the caller rather than by `addEvent`, because the
+   * CRM builds an event's `titre` out of its first day: a scenario cannot name
+   * the event it is about to create without knowing the window. The walk itself
+   * belongs here - repeated per scenario it would be four chances to disagree
+   * about which day an event starts on.
+   */
+  eventWindow(startOffset: number, weekdays: number): Date[] {
+    const days: Date[] = [];
+    let cursor = startOffset;
+    while (days.length < weekdays) {
+      const day = this.ctx.clock.days(cursor);
+      const weekday = day.getUTCDay();
+      if (weekday !== 0 && weekday !== 6) days.push(day);
+      cursor += 1;
+    }
+    return days;
+  }
+
   addEvent(opts: {
     key: string;
     titre: string;
     publicName?: string | null;
     cohortNoun?: string | null;
     campus: CampusRef;
-    /** Day offset from the anchor. Negative is in the past. */
-    startOffset: number;
-    /** How many weekdays the event runs. 1 for a single-day format. */
-    weekdays: number;
+    /** The weekdays it runs, from {@link eventWindow}. */
+    days: readonly Date[];
     startMinutes?: number | null;
+    /**
+     * Whether the event carries a « date de fin ». Defaults to the two states
+     * the application itself produces - see the comment beside `withEndDate`
+     * below - so a caller only passes this to place the one in between: an
+     * event configured but not activatable because the date is still missing.
+     */
+    withEndDate?: boolean;
     devActivated?: boolean;
     modules?: readonly string[];
     /** Per-module options, keyed by module. Only some modules take any. */
@@ -649,16 +693,64 @@ export class World {
   }): EventRef {
     const eventId = id('evt', opts.campus.name, opts.key);
     const clock = this.ctx.clock;
-    const days: Date[] = [];
-    let cursor = opts.startOffset;
-    while (days.length < opts.weekdays) {
-      const day = clock.days(cursor);
-      const weekday = day.getUTCDay();
-      if (weekday !== 0 && weekday !== 6) days.push(day);
-      cursor += 1;
-    }
+    const days = [...opts.days];
     const date = days[0]!;
-    const endDate = opts.weekdays > 1 ? days[days.length - 1]! : null;
+
+    // « Date de fin ». The Salesforce sync never sends one - it is typed on the
+    // configuration screen - which is why `activationBlockerKeys` refuses to
+    // make an event visible without it. So the default IS that rule: an
+    // activated event has one, an untouched Salesforce row has none, and 36 of
+    // production's 277 events carry one for exactly that reason.
+    const withEndDate =
+      opts.withEndDate ?? (days.length > 1 || opts.devActivated === true);
+    // `endDate` is the ONLY column that says an event runs more than one day:
+    // every reader derives its days from `date`..`endDate` (`presenceDays`,
+    // `stageCountdown`, `talentPlanning`, `dateRangeLabel`), so a caller asking
+    // for a window of several days and no end date is asking for a row that
+    // cannot carry the second one. The days would be silently dropped, and the
+    // caller would keep a `days` array nothing it writes agrees with. Refused
+    // here for the same reason the activation gate below is: the generator's
+    // own claims about an event have to hold in the row it writes.
+    if (!withEndDate && days.length > 1) {
+      throw new Error(
+        `addEvent(${opts.key}) demande ${days.length} jours sans date de fin, or c’est la date de fin qui porte la durée : les jours suivants ne seraient lus par personne.`,
+      );
+    }
+    // 23:59 in the CAMPUS's timezone, the way production stores it, not midnight
+    // UTC - and both readers depend on the difference. `presenceDays` keys the
+    // day off the campus clock, so a Réunion event ending at 23:59 UTC would
+    // grow a second émargement day; `getEventStatus` compares the instant, so an
+    // event ending at midnight reads « passé » from its own first minute.
+    const endDate = withEndDate
+      ? fromWallClock(
+          clock.dateKey(days[days.length - 1]!),
+          '23:59',
+          opts.campus.timezone,
+        )
+      : null;
+
+    // The activation gate, enforced where the row is written instead of checked
+    // afterwards. `activationBlockerKeys` is what both the configuration dialog
+    // and the admin API refuse an activation on, so an activated event missing
+    // any of the three is a state no human could have reached - and a dev space
+    // showing an event its own configuration screen calls impossible is the one
+    // thing a seeded environment must not do. It was reachable: every
+    // single-day event had a null `endDate`, and `longTail` activated a fifth of
+    // them.
+    if (opts.devActivated) {
+      const blockers = activationBlockers({
+        publicName: opts.publicName ?? null,
+        cohortNoun: opts.cohortNoun ?? null,
+        endDate: endDate === null ? null : endDate.toISOString(),
+        modules: opts.modules ?? [],
+        devActivated: true,
+      });
+      if (blockers.length > 0) {
+        throw new Error(
+          `addEvent(${opts.key}) active un événement que l’application refuserait d’activer, il lui manque : ${blockers.join(', ')}.`,
+        );
+      }
+    }
 
     this.buffer.event.push({
       id: eventId,

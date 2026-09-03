@@ -18,6 +18,7 @@ import type { ClosingRecommendation } from '@prisma/client';
 import { STAGE_PLANNING } from '../catalog/planning';
 import { BANK_KEYS, RETIRED_QUESTION } from '../catalog/closings';
 import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
+import { STAGE_PUBLIC_NAME, stageTitre } from '../catalog/events';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { eventDisplayName } from '../../../src/lib/domain/event';
 import {
@@ -83,7 +84,9 @@ const STAGE_QUESTIONS = [
 ];
 
 export const stage: Scenario = {
-  name: 'stage-seconde-lyon',
+  // The campus is reported by the manifest, not named here: `pickCampus` falls
+  // back when the preferred one is outside the profile. See `club.ts`.
+  name: 'stage-seconde',
   summary:
     'La grosse cohorte : 200 inscrits, deux semaines, émargement complet, closings, diplôme.',
   run(world) {
@@ -100,16 +103,16 @@ export const stage: Scenario = {
 
     const size =
       profile.name === 'ci' ? 14 : profile.name === 'demo' ? 60 : 200;
+    // Finished a fortnight ago, so closings, the bilan and the certificate all
+    // have a reason to exist. An event still running would have none of them.
+    const days = world.eventWindow(-24, 10);
     const event = world.addEvent({
       key: 'stage-2nde',
-      titre: `Stage de seconde ${campus.name} - ${schoolYear}`,
-      publicName: `Stage de découverte ${campus.name}`,
+      titre: stageTitre({ campus: campus.name, date: days[0]! }),
+      publicName: STAGE_PUBLIC_NAME,
       cohortNoun: 'stagiaires',
       campus,
-      // Finished a fortnight ago, so closings, the bilan and the certificate all
-      // have a reason to exist. An event still running would have none of them.
-      startOffset: -24,
-      weekdays: 10,
+      days,
       startMinutes: 10 * 60,
       devActivated: true,
       modules: [
@@ -118,8 +121,17 @@ export const stage: Scenario = {
         EVENT_MODULES.CLOSINGS,
         EVENT_MODULES.BILAN,
       ],
+      // The dossier funnel column on the Inscrits table - connexion, règlement,
+      // droit à l'image. Opt-in per event, and in production it is on for 8 of
+      // the 15 stages and for NOTHING else: a stage is the format where the
+      // documents have to be chased, a Coding Club is an afternoon nobody signs
+      // anything for. So it belongs here and not in `longTail`.
+      //
+      // It was `showParentContact`, a key the module's Zod schema does not
+      // declare and therefore strips: the column has been silently off on the
+      // one event whose whole point is that it should be on.
       moduleSettings: {
-        [EVENT_MODULES.INSCRITS]: { showParentContact: true },
+        [EVENT_MODULES.INSCRITS]: { showStatutColumn: true },
       },
       closingTemplateId: stageTemplateId,
       feedbackFormId:
@@ -132,8 +144,17 @@ export const stage: Scenario = {
     const cohort = makeCohort(world, { size, campus, schoolYear });
     for (const talent of cohort) world.enrol(event, talent);
 
-    // Dossiers. 16% of the platform has one, but a stage cohort is the part that
-    // does: these are the students who logged in, so most of them completed.
+    // Dossiers. 16% of the platform has one, and a stage cohort is the part
+    // that does - but this is a DELIBERATE departure from PROFILE.md and it is
+    // worth being exact about which half. In production 765 of the 1640 stage
+    // enrolments logged in at all (47%), and 759 of those 765 finished (99%):
+    // the gate is the first login, not the wizard. So the wizard's completion
+    // rate is reproduced faithfully and its login rate is not, because a stage
+    // is the one event where the règlement and the droit à l'image have to be
+    // chased, and half a cohort with no dossier at all leaves the compliance
+    // column, the relance audience and the parent portal reading against a
+    // handful of rows. The platform-wide 16% is carried by `longTail`, which is
+    // where the honest figure belongs.
     const withDossier: TalentRef[] = [];
     const withoutDossier: TalentRef[] = [];
     for (const [index, talent] of cohort.entries()) {
@@ -198,14 +219,25 @@ export const stage: Scenario = {
       }
     }
 
-    // Closings on a quarter of the cohort, which is roughly production's ratio,
-    // plus one still in progress. A grid that is only ever seen finished hides
-    // the resume path entirely.
+    // Closings on nearly the whole cohort, plus one still in progress. A grid
+    // that is only ever seen finished hides the resume path entirely.
+    //
+    // A quarter, which is what this was, is not production's ratio: the 14
+    // stages that carry closings run them on 42 to 100% of their roster, median
+    // 93, and 1412 of the 1640 stage enrolments have one. A stage is two weeks
+    // with a 1:1 at the end of it - the team closes everybody they can - and
+    // it is the non-stage events that sit at 70% and the ordinary event that
+    // has none at all. Seeding a quarter here made « pas encore de closing »
+    // the majority state on the one event where it is the exception, which is
+    // the wrong answer for every screen that ranks, chases or exports them.
+    //
+    // Not 100%: the remainder is what the « closings restants » counter, the
+    // coverage rate and the chase list are all read off.
     // At least one more than the verdicts being covered, so the in-progress
     // record has an index to sit on whatever the profile's cohort size is.
     const interviewed = rng.sample(
       cohort,
-      Math.max(VERDICT_COVER.length + 1, Math.round(size * 0.25)),
+      Math.max(VERDICT_COVER.length + 1, Math.round(size * 0.9)),
     );
     for (const [index, talent] of interviewed.entries()) {
       conductClosing(world, {

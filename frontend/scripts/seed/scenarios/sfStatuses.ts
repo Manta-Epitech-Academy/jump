@@ -26,6 +26,7 @@
  * and `--check` runs the smallest profile there is.
  */
 
+import { codingClubTitre } from '../catalog/events';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { eventDisplayName } from '../../../src/lib/domain/event';
 import { makeCohort } from './helpers';
@@ -40,19 +41,27 @@ export const sfStatuses: Scenario = {
     const campus = [...world.campuses.values()][0]!;
     const team = world.staffFor(campus.id);
 
+    // Far enough back that the weekday walk in `eventWindow`, which only ever
+    // moves forward to clear a weekend, cannot land on or after the anchor.
+    //
+    // Single-day, and this is load-bearing rather than incidental: the
+    // Salesforce fallback in `effectiveStatus` only fires when the event has
+    // two slots or fewer.
+    const days = world.eventWindow(-3, 1);
     const event = world.addEvent({
       key: 'statuts-salesforce',
-      titre: `Portes ouvertes ${campus.name} - statuts Salesforce`,
+      // An open day, which the campus runs as a Coding Club and the CRM names
+      // like every other one. `publicName` is what carries « portes ouvertes »,
+      // and it is the whole reason that column exists.
+      titre: codingClubTitre({
+        campus: campus.name,
+        date: days[0]!,
+        suffix: 'JPO',
+      }),
       publicName: `Portes ouvertes ${campus.name}`,
       cohortNoun: 'participants',
       campus,
-      // Far enough back that the weekday walk in `addEvent`, which only ever
-      // moves forward to clear a weekend, cannot land on or after the anchor.
-      startOffset: -3,
-      // Single-day, and this is load-bearing rather than incidental: the
-      // Salesforce fallback in `effectiveStatus` only fires when the event has
-      // two slots or fewer.
-      weekdays: 1,
+      days,
       startMinutes: 9 * 60,
       devActivated: true,
       modules: [EVENT_MODULES.INSCRITS, EVENT_MODULES.EMARGEMENT],

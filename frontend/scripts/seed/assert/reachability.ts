@@ -32,7 +32,14 @@ import {
   isVisibleInDevSpace,
   pastEventPresence,
 } from '../../../src/lib/domain/sfMemberStatus';
-import { effectiveStatus } from '../../../src/lib/domain/eventPresence';
+import {
+  effectiveStatus,
+  presenceSlots,
+} from '../../../src/lib/domain/eventPresence';
+import {
+  ACTIVATION_BLOCKERS,
+  activationBlockerKeys,
+} from '../../../src/lib/domain/eventReadiness';
 
 export async function reachabilityFailures(
   prisma: PrismaClient,
@@ -144,6 +151,10 @@ export async function reachabilityFailures(
     select: {
       id: true,
       date: true,
+      endDate: true,
+      publicName: true,
+      cohortNoun: true,
+      devActivatedAt: true,
       closingTemplateId: true,
       feedbackFormId: true,
       modules: { select: { moduleKey: true } },
@@ -160,6 +171,42 @@ export async function reachabilityFailures(
     failures.push('Aucun événement ne conduit de closings');
   if (!gates.some((gate) => !eventRunsClosings(gate)))
     failures.push('Tous les événements conduisent des closings');
+
+  // The visibility gate, from both sides.
+  //
+  // `World.addEvent` already refuses to activate an event the application would
+  // refuse, so the first half below can only fail if somebody bypasses it. The
+  // half that earns its keep is the second: each of the three blockers has to
+  // have an example, because the admin cockpit's « il manque : ... » inventory
+  // and the configuration dialog's refusal are both read off this rule, and a
+  // blocker no event carries is a sentence nobody has ever seen rendered.
+  const activationBlockerFields = events.map((event) => ({
+    publicName: event.publicName,
+    cohortNoun: event.cohortNoun,
+    endDate: event.endDate === null ? null : event.endDate.toISOString(),
+    modules: event.modules,
+    devActivated: event.devActivatedAt !== null,
+  }));
+  const activatedButRefused = events.filter(
+    (event, index) =>
+      event.devActivatedAt !== null &&
+      activationBlockerKeys(activationBlockerFields[index]!).length > 0,
+  );
+  if (activatedButRefused.length > 0) {
+    failures.push(
+      `${activatedButRefused.length} événements visibles dans l'espace dev que l'écran de configuration refuserait d'activer`,
+    );
+  }
+  const blockersSeen = new Set(
+    activationBlockerFields.flatMap((fields) => activationBlockerKeys(fields)),
+  );
+  for (const blocker of ACTIVATION_BLOCKERS) {
+    if (!blockersSeen.has(blocker)) {
+      failures.push(
+        `Aucun événement bloqué à l'activation par « ${blocker} », donc ce motif de refus n'a pas d'exemple`,
+      );
+    }
+  }
 
   // The school-year switcher's own list: at least two years' worth of
   // navigable events, or `SchoolYearMenu` has nothing to switch between.
@@ -291,7 +338,14 @@ export async function reachabilityFailures(
     select: {
       talentId: true,
       sfMemberStatus: true,
-      event: { select: { id: true, date: true, endDate: true } },
+      event: {
+        select: {
+          id: true,
+          date: true,
+          endDate: true,
+          campus: { select: { timezone: true } },
+        },
+      },
     },
   });
 
@@ -382,9 +436,15 @@ export async function reachabilityFailures(
     const roster = participations.filter(
       (row) => row.event.id === closure.eventId,
     );
-    // `isSingleDayEvent` in the émargement loader is `slots.length <= 2`, which
-    // for a generated event is exactly "one weekday".
-    const singleDay = roster[0]?.event.endDate === null;
+    // `isSingleDayEvent` in the émargement loader is `slots.length <= 2`, so
+    // ask `presenceSlots` rather than restate it. A null `endDate` is NOT the
+    // same question: every event configured for the dev space now carries one,
+    // set to 23:59 on its own last day, and reading the column alone would have
+    // silently turned this whole block into a no-op.
+    const event = roster[0]?.event;
+    const singleDay =
+      event !== undefined &&
+      presenceSlots(event, event.campus.timezone).length <= 2;
     for (const row of roster) {
       const stored = markByKey.get(
         markKey(closure.eventId, row.talentId, closure.day, closure.slot),

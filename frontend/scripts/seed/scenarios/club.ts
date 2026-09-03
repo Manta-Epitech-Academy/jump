@@ -10,7 +10,12 @@
  */
 
 import { CODING_CLUB_PLANNING } from '../catalog/planning';
-import { BANK_KEYS, CLUB_TEMPLATE } from '../catalog/closings';
+import {
+  CLUB_TEMPLATE,
+  CLUB_TEMPLATE_QUESTION_KEYS,
+} from '../catalog/closings';
+import { codingClubPublicName, codingClubTitre } from '../catalog/events';
+import { eventDisplayName } from '../../../src/lib/domain/event';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { conductClosing } from '../factories/closing';
 import { addDossier } from '../factories/onboarding';
@@ -20,18 +25,13 @@ import { makeCohort, PRESENCE_MIX, PRESENCE_SOURCE_MIX } from './helpers';
 import type { Scenario } from './types';
 import type { EventRef } from '../world';
 
-const CLUB_QUESTIONS = [
-  BANK_KEYS.discoveryChannel,
-  BANK_KEYS.motivation,
-  BANK_KEYS.techProjection,
-  BANK_KEYS.otherJobs,
-  BANK_KEYS.wantsMore,
-  BANK_KEYS.satisfaction,
-  BANK_KEYS.oneSentence,
-];
-
 export const club: Scenario = {
-  name: 'coding-club-nice',
+  // Not `coding-club-nice`: `pickCampus` falls back when the preferred campus
+  // is outside the profile, and at every profile under nine campuses this runs
+  // on Paris - so the name contradicted the « Campus : » line the manifest
+  // prints from the row that was actually written. The campus is reported, never
+  // named here.
+  name: 'coding-club',
   summary:
     'Format court et récurrent : trois séances, la grille Coding Club, des habitués.',
   run(world) {
@@ -61,14 +61,15 @@ export const club: Scenario = {
 
     for (const [session, offset] of [-60, -30, 6].entries()) {
       const upcoming = offset > 0;
+      const days = world.eventWindow(offset, 1);
+      const day = days[0]!;
       const event = world.addEvent({
         key: `coding-club-${session + 1}`,
-        titre: `Coding Club ${campus.name} - séance ${session + 1}`,
-        publicName: `Coding Club ${campus.name}`,
+        titre: codingClubTitre({ campus: campus.name, date: day }),
+        publicName: codingClubPublicName(day),
         cohortNoun: 'participants',
         campus,
-        startOffset: offset,
-        weekdays: 1,
+        days,
         startMinutes: 14 * 60,
         devActivated: true,
         modules: [
@@ -103,9 +104,13 @@ export const club: Scenario = {
         }
       }
 
+      // Seven in ten, which is what the non-stage events that run closings
+      // actually do: production's eleven of them sit between 68% and 79% of
+      // their roster. It also gives the regulars two and three closings each
+      // rather than one, which is the history « Son parcours » is built to show.
       const closed = rng.sample(
         attending,
-        Math.max(2, Math.round(attending.length * 0.4)),
+        Math.max(2, Math.round(attending.length * 0.7)),
       );
       for (const talent of session === 0
         ? withGuaranteed(closed, anchorRegular)
@@ -115,7 +120,7 @@ export const club: Scenario = {
           event,
           staff: team.length > 0 ? rng.pick(team) : null,
           templateId: clubTemplateId,
-          questionKeys: CLUB_QUESTIONS,
+          questionKeys: CLUB_TEMPLATE_QUESTION_KEYS,
           conductedOffset: offset + 1,
         });
       }
@@ -147,11 +152,12 @@ export const club: Scenario = {
       scenario: club.name,
       summary: club.summary,
       campus: campus.name,
-      // Not `eventDisplayName(event)`: `event` only names the last loop
-      // iteration's session and is out of scope here anyway. All three sessions
-      // share this publicName by construction (only `titre`'s séance number
-      // varies), so the literal is exact, not a restatement of a live value.
-      event: `Coding Club ${campus.name}`,
+      // The three sessions, read back off the rows that were written. Each one
+      // now carries its own public name - the CRM dates every campaign and the
+      // campus names it after the month or the camp it falls in - so a single
+      // literal could not name all three, and quoting one would send the reader
+      // looking for a session the switcher shows under two other names.
+      event: sessionEvents.map(eventDisplayName).join(' · '),
       covers: [
         'trois séances dont une à venir, avec des inscrits qui reviennent',
         'la grille Coding Club, plus courte, avec deux libellés réécrits pour le format',

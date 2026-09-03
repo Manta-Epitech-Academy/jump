@@ -230,9 +230,17 @@ export const platform: Scenario = {
           // when it is applied. It was null on every row, so the per-module Zod
           // schema that validates it had nothing to validate anywhere in the
           // dataset, on either side of the copy.
+          //
+          // On the stage preset only, and with the key the schema actually
+          // declares. It was `showParentContact`, which Zod strips, so the copy
+          // path was being exercised with a bag that arrived empty on the other
+          // side - the one outcome that proves nothing. And the option is not
+          // format-neutral: chasing dossiers is what a stage does, which is why
+          // production carries it on stages and on nothing else.
           settings:
-            moduleKey === EVENT_MODULES.INSCRITS
-              ? { showParentContact: true }
+            moduleKey === EVENT_MODULES.INSCRITS &&
+            preset.name === 'Stage de seconde'
+              ? { showStatutColumn: true }
               : undefined,
         });
       }
