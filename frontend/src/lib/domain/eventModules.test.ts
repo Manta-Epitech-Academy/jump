@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
+  EVENT_MODULE_KEYS,
   landingSurface,
+  reachableSurfaces,
   surfaceFromPath,
+  surfaceLabel,
+  surfaceSegment,
   type EventSurfaceGates,
 } from './eventModules';
 
@@ -12,6 +16,10 @@ const gates = (over: Partial<EventSurfaceGates> = {}): EventSurfaceGates => ({
   hasClosingTemplate: true,
   ...over,
 });
+
+/** Everything on, so `reachableSurfaces` enumerates the whole surface set. */
+const everySurface = (): EventSurfaceGates =>
+  gates({ modules: EVENT_MODULE_KEYS, hasPlanning: true });
 
 describe('landingSurface', () => {
   it('should keep the preferred surface when the event exposes it', () => {
@@ -53,6 +61,28 @@ describe('landingSurface', () => {
         gates({ modules: ['closings'], hasClosingTemplate: false }),
       ),
     ).toBeNull();
+  });
+});
+
+describe('surfaceSegment / surfaceLabel', () => {
+  // Both read one `Record` over the surface union, so a surface added without a
+  // label or a segment is a type error rather than a blank nav entry. What a type
+  // cannot state is that the segment it declares is the one `surfaceFromPath`
+  // reads back, which is what makes switching event from a page keep that page.
+  it('should give every surface a segment that reads back as that surface', () => {
+    // Arrange
+    const surfaces = reachableSurfaces(everySurface());
+    // Act
+    const roundTripped = surfaces.map((key) =>
+      surfaceFromPath(`/staff/dev/events/abc/${surfaceSegment(key)}`),
+    );
+    // Assert
+    expect(roundTripped).toEqual(surfaces);
+  });
+
+  it('should give every surface a non-empty label', () => {
+    const labels = reachableSurfaces(everySurface()).map(surfaceLabel);
+    expect(labels.every((l) => l.trim().length > 0)).toBe(true);
   });
 });
 

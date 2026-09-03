@@ -184,6 +184,37 @@ const EVENT_SURFACE_ORDER: EventSurfaceKey[] = [
   EVENT_MODULES.CLOSINGS,
 ];
 
+interface EventSurfaceMeta {
+  /** Sidebar label (FR, staff-facing → vous). */
+  label: string;
+  /** URL sub-path under `/staff/dev/events/[id]/`. */
+  segment: EventSurfaceKey;
+}
+
+const moduleSurface = (key: EventModuleKey): EventSurfaceMeta => ({
+  label: EVENT_MODULE_DEFS[key].label,
+  segment: EVENT_MODULE_DEFS[key].segment,
+});
+
+/**
+ * Label and segment per surface, in one table.
+ *
+ * A module surface takes both off its `EventModuleDef`; a module-less surface
+ * declares them here. `surfaceSegment` and `surfaceLabel` used to special-case
+ * `planning` with a ternary each, which reads fine while exactly one surface
+ * carries no module and stops reading fine the moment a second one does: the
+ * same per-surface fact would then be spelled as a two-branch switch on the key,
+ * in two functions, neither of which the compiler can tell you is incomplete.
+ * As a `Record` over the union it cannot be incomplete.
+ */
+const EVENT_SURFACE_META: Record<EventSurfaceKey, EventSurfaceMeta> = {
+  [EVENT_MODULES.INSCRITS]: moduleSurface(EVENT_MODULES.INSCRITS),
+  [EVENT_MODULES.EMARGEMENT]: moduleSurface(EVENT_MODULES.EMARGEMENT),
+  [EVENT_MODULES.BILAN]: moduleSurface(EVENT_MODULES.BILAN),
+  [EVENT_MODULES.CLOSINGS]: moduleSurface(EVENT_MODULES.CLOSINGS),
+  planning: { label: 'Planning', segment: 'planning' },
+};
+
 /** The per-event signals a surface's reachability folds in. */
 export interface EventSurfaceGates {
   modules: ReadonlySet<string> | readonly string[];
@@ -268,7 +299,7 @@ export function landingSurface(
  * the built `/staff/dev/events/[id]/<segment>` path against the real route tree.
  */
 export function surfaceSegment(key: EventSurfaceKey): EventSurfaceKey {
-  return key === 'planning' ? 'planning' : EVENT_MODULE_DEFS[key].segment;
+  return EVENT_SURFACE_META[key].segment;
 }
 
 /**
@@ -298,5 +329,5 @@ export function surfaceFromPath(pathname: string): EventSurfaceKey | null {
 
 /** Sidebar label for a surface (FR, staff-facing → vous). */
 export function surfaceLabel(key: EventSurfaceKey): string {
-  return key === 'planning' ? 'Planning' : EVENT_MODULE_DEFS[key].label;
+  return EVENT_SURFACE_META[key].label;
 }
