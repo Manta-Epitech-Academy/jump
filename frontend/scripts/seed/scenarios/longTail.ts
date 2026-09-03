@@ -122,9 +122,15 @@ export const longTail: Scenario = {
       // configuration screen, typed the window, and never enabled a section -
       // which is the one shape that gives `endDate` a row where `publicName`
       // is still null.
+      //
+      // Which is also why `beingPrepared` is excluded rather than left to the
+      // arithmetic: index 0 satisfies `% 12` too, and the event that exists to
+      // be MISSING its end date cannot be one of the events whose duration that
+      // date carries. `addEvent` refuses the pair outright, so the two
+      // placements have to be reconciled here rather than discovered later.
       const days = world.eventWindow(
         offset,
-        index === 1 || index % 12 === 0 ? 2 : 1,
+        index === 1 || (index % 12 === 0 && !beingPrepared) ? 2 : 1,
       );
       const firstDay = days[0]!;
       // The theme the campus typed after the date, on the sessions the season

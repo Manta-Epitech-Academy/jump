@@ -703,6 +703,19 @@ export class World {
     // production's 277 events carry one for exactly that reason.
     const withEndDate =
       opts.withEndDate ?? (days.length > 1 || opts.devActivated === true);
+    // `endDate` is the ONLY column that says an event runs more than one day:
+    // every reader derives its days from `date`..`endDate` (`presenceDays`,
+    // `stageCountdown`, `talentPlanning`, `dateRangeLabel`), so a caller asking
+    // for a window of several days and no end date is asking for a row that
+    // cannot carry the second one. The days would be silently dropped, and the
+    // caller would keep a `days` array nothing it writes agrees with. Refused
+    // here for the same reason the activation gate below is: the generator's
+    // own claims about an event have to hold in the row it writes.
+    if (!withEndDate && days.length > 1) {
+      throw new Error(
+        `addEvent(${opts.key}) demande ${days.length} jours sans date de fin, or c’est la date de fin qui porte la durée : les jours suivants ne seraient lus par personne.`,
+      );
+    }
     // 23:59 in the CAMPUS's timezone, the way production stores it, not midnight
     // UTC - and both readers depend on the difference. `presenceDays` keys the
     // day off the campus clock, so a Réunion event ending at 23:59 UTC would
