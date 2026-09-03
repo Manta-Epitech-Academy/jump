@@ -37,7 +37,6 @@ import { MANIFEST_SETTING_KEY, renderManifest } from './manifest';
 import { runChecks } from './assert';
 import {
   seedInterests,
-  seedInterestRecommendationMessages,
   seedEmailTemplates,
   seedBroadcastTemplates,
 } from './catalog/interestsAndTemplates';
@@ -238,7 +237,6 @@ async function main(): Promise<void> {
       // never overwriting a row somebody has since edited.
       log(`Catalogues seulement, cible ${target}.`);
       log(`  intérêts               ${await seedInterests(prisma)}`);
-      await seedInterestRecommendationMessages(prisma);
       log(
         `  formulaires de bilan   ${await seedFeedbackForms(prisma, clock.today)}`,
       );
@@ -284,7 +282,6 @@ async function main(): Promise<void> {
 
     log('Catalogues :');
     log(`  intérêts               ${await seedInterests(prisma)}`);
-    await seedInterestRecommendationMessages(prisma);
     log(
       `  formulaires de bilan   ${await seedFeedbackForms(prisma, clock.today)}`,
     );

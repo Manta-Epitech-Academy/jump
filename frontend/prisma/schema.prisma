@@ -1923,16 +1923,11 @@ model BroadcastRecipient {
 // ─── Interests ───
 
 model Interest {
-  id                    String  @id @default(cuid())
-  nom                   String  @unique
-  emoji                 String?
-  kind                  String  @default("general") // "tech" | "general"
-  order                 Int
-  // Full event-opportunity message for the dev fiche recommendations (REC-005),
-  // shown verbatim. When set on a tech interest, a student who picked it gets
-  // this exact sentence as a recommendation; null means the interest never
-  // triggers one.
-  recommendationMessage String?
+  id    String  @id @default(cuid())
+  nom   String  @unique
+  emoji String?
+  kind  String  @default("general") // "tech" | "general"
+  order Int
 
   talentInterests TalentInterest[]
 }
