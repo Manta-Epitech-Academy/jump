@@ -18,7 +18,8 @@ import {
   imageRightsDisplayStatus,
   IMAGE_RIGHTS_DISPLAY_LABELS,
 } from '$lib/domain/imageRights';
-import { buildXlsx } from '$lib/server/xlsx';
+import { asciiFilename, xlsxAttachment } from '$lib/server/attachments';
+import type { XlsxSheet } from '$lib/server/xlsx';
 import { INSCRIT_EXPORT_PARTICIPATION_SELECT } from '../components/types';
 import { loadEventDossierSignatures, NO_DOSSIER_SIGNATURES } from '../dossiers';
 import { schoolYearOf } from '$lib/domain/schoolYear';
@@ -106,7 +107,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     ];
   });
 
-  const xlsx = buildXlsx({
+  const sheet: XlsxSheet = {
     name: 'Inscrits',
     headers: [
       'Prénom',
@@ -125,29 +126,16 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     ],
     rows,
     colWidths: [16, 16, 30, 10, 12, 11, 18, 16, 26, 16, 22, 26, 16],
-  });
+  };
 
-  // ASCII-safe filename for the Content-Disposition header (the client sets its
-  // own accented download name; this is just the fallback).
-  const safeTitle =
-    event.titre
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^A-Za-z0-9 _-]/g, '')
-      .trim() || 'inscrits';
-
-  // `buildXlsx` returns an exactly-sized Uint8Array, so its backing buffer is
-  // the whole payload. Hand the ArrayBuffer to Response (BodyInit) directly.
   recordUsage(USAGE_FEATURES.DEV_INSCRITS_EXPORT, {
     locals,
     eventId: params.id,
   });
 
-  return new Response(xlsx.buffer as ArrayBuffer, {
-    headers: {
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="Inscrits - ${safeTitle}.xlsx"`,
-    },
-  });
+  // The client sets its own accented download name; this is the fallback.
+  return xlsxAttachment(
+    sheet,
+    `Inscrits - ${asciiFilename(event.titre, 'inscrits')}.xlsx`,
+  );
 };

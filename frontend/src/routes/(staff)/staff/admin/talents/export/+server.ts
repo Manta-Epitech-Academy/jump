@@ -1,7 +1,8 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import { buildXlsx } from '$lib/server/xlsx';
+import { xlsxAttachment } from '$lib/server/attachments';
+import type { XlsxSheet } from '$lib/server/xlsx';
 import { niveauLabel } from '$lib/domain/niveau';
 import { civiliteLabel } from '$lib/domain/profile';
 import {
@@ -84,7 +85,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     ];
   });
 
-  const xlsx = buildXlsx({
+  const sheet: XlsxSheet = {
     name: 'Talents',
     headers: [
       'Nom',
@@ -109,15 +110,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     colWidths: [
       16, 16, 26, 16, 10, 10, 18, 16, 18, 22, 26, 16, 12, 14, 8, 11, 16,
     ],
-  });
+  };
 
-  // `buildXlsx` returns an exactly-sized Uint8Array, so its backing buffer is
-  // the whole payload. Hand the ArrayBuffer to Response (BodyInit) directly.
-  return new Response(xlsx.buffer as ArrayBuffer, {
-    headers: {
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': 'attachment; filename="Talents.xlsx"',
-    },
-  });
+  return xlsxAttachment(sheet, 'Talents.xlsx');
 };

@@ -17,7 +17,7 @@ import {
   buildClosingsSheet,
   closingsSheetSelect,
 } from '$lib/server/services/closingsSheet';
-import { buildXlsx } from '$lib/server/xlsx';
+import { asciiFilename, xlsxAttachment } from '$lib/server/attachments';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 
@@ -76,38 +76,26 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   const currentGrid = grids.get(event.closingTemplateId);
   if (!currentGrid) throw error(404, 'Grille de closing introuvable.');
 
-  const xlsx = buildXlsx(
-    buildClosingsSheet({
-      roster: roster.map((p) => ({
-        talentId: p.talentId,
-        prenom: p.talent.prenom,
-        nom: p.talent.nom,
-        externalId: p.talent.externalId,
-      })),
-      records,
-      grids,
-      currentGrid,
-      timezone,
-    }),
-  );
-
-  const safeTitle =
-    event.titre
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^A-Za-z0-9 _-]/g, '')
-      .trim() || 'closings';
+  const sheet = buildClosingsSheet({
+    roster: roster.map((p) => ({
+      talentId: p.talentId,
+      prenom: p.talent.prenom,
+      nom: p.talent.nom,
+      externalId: p.talent.externalId,
+    })),
+    records,
+    grids,
+    currentGrid,
+    timezone,
+  });
 
   recordUsage(USAGE_FEATURES.DEV_CLOSINGS_EXPORT, {
     locals,
     eventId: event.id,
   });
 
-  return new Response(xlsx.buffer as ArrayBuffer, {
-    headers: {
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="Closings - ${safeTitle}.xlsx"`,
-    },
-  });
+  return xlsxAttachment(
+    sheet,
+    `Closings - ${asciiFilename(event.titre, 'closings')}.xlsx`,
+  );
 };

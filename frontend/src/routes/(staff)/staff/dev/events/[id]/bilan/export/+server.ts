@@ -9,7 +9,8 @@ import {
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
 import { answerCells, buildSubmissionWhere } from '$lib/server/feedbackStats';
-import { buildXlsx } from '$lib/server/xlsx';
+import { asciiFilename, xlsxAttachment } from '$lib/server/attachments';
+import type { XlsxSheet } from '$lib/server/xlsx';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 
@@ -56,31 +57,18 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     ...answerCells(sub.answers, columns),
   ]);
 
-  const xlsx = buildXlsx({
+  const sheet: XlsxSheet = {
     name: 'Reponses',
     headers,
     rows,
     colWidths: [16, 16, 24, ...columns.map(() => 28)],
-  });
-
-  // ASCII-only filename label, fed by the form title (whatever form the event
-  // uses) and the event title, so the download names itself per attached form.
-  const ascii = (s: string) =>
-    s
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^A-Za-z0-9 _-]/g, '')
-      .trim();
-  const formLabel = ascii(graph.title) || 'Feedback';
-  const eventLabel = ascii(event.titre) || 'evenement';
+  };
 
   recordUsage(USAGE_FEATURES.DEV_BILAN_EXPORT, { locals, eventId: params.id });
 
-  return new Response(xlsx.buffer as ArrayBuffer, {
-    headers: {
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="${formLabel} - ${eventLabel}.xlsx"`,
-    },
-  });
+  // Named after the form as well as the event, so the download says which
+  // questionnaire the event had attached.
+  const formLabel = asciiFilename(graph.title, 'Feedback');
+  const eventLabel = asciiFilename(event.titre, 'evenement');
+  return xlsxAttachment(sheet, `${formLabel} - ${eventLabel}.xlsx`);
 };

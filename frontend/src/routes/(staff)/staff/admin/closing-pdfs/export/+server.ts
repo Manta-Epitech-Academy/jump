@@ -5,6 +5,7 @@ import { prisma } from '$lib/server/db';
 import { closingPdfSelect } from '$lib/server/services/closingPdfGenerator';
 import { streamClosingPdfArchive } from '$lib/server/services/closingPdfArchive';
 import { resolveClosingGrids } from '$lib/server/closingTemplates';
+import { zipAttachment } from '$lib/server/attachments';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 
@@ -83,11 +84,5 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   else if (from) stem += `-depuis-${ymd(from)}`;
   else stem += `-${ymd(exportedAt)}`;
 
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename="${stem}.zip"`,
-      'Cache-Control': 'no-store',
-    },
-  });
+  return zipAttachment(stream, `${stem}.zip`);
 };

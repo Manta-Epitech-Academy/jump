@@ -7,7 +7,8 @@ import {
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { niveauLabel } from '$lib/domain/niveau';
-import { buildXlsx } from '$lib/server/xlsx';
+import { asciiFilename, xlsxAttachment } from '$lib/server/attachments';
+import type { XlsxSheet } from '$lib/server/xlsx';
 import {
   presenceSlots,
   slotKey,
@@ -104,7 +105,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     return [...base, ...slotCells];
   });
 
-  const xlsx = buildXlsx({
+  const sheet: XlsxSheet = {
     name: 'Émargement',
     headers: [
       'Prénom',
@@ -116,25 +117,15 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     ],
     rows,
     colWidths: [16, 16, 10, 16, 16, ...slots.map(() => 18)],
-  });
-
-  const safeTitle =
-    event.titre
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^A-Za-z0-9 _-]/g, '')
-      .trim() || 'emargement';
+  };
 
   recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_EXPORT, {
     locals,
     eventId: params.id,
   });
 
-  return new Response(xlsx.buffer as ArrayBuffer, {
-    headers: {
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="Emargement - ${safeTitle}.xlsx"`,
-    },
-  });
+  return xlsxAttachment(
+    sheet,
+    `Emargement - ${asciiFilename(event.titre, 'emargement')}.xlsx`,
+  );
 };
