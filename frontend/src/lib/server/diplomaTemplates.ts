@@ -11,7 +11,7 @@ import { UnknownScopeError } from '$lib/server/adminApi/scope';
  * about which document an event delivers.
  *
  * There is no fallback. An event with no `diplomaTemplateId` issues nothing, and
- * that is the gate the Inscrits export reads.
+ * that is the gate the event's Exports page reads.
  */
 
 /** Minimal event shape the resolvers read. */

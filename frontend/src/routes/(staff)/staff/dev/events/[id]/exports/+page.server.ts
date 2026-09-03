@@ -55,36 +55,56 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     throw error(404, 'Cet événement ne produit aucun document ni export.');
   }
 
-  // One count per base actually needed, so an event with only badges does not
-  // pay for a closings query. Each says what the button is about to act on, and
-  // a zero disables it rather than leaving it dead.
+  // One read per base actually needed, so an event with only badges does not pay
+  // for a closings query. Each says what the button is about to act on, and a
+  // zero disables it rather than leaving it dead.
   const bases = BASES_OF(producers);
-  const [roster, closingsDone, submissions] = await Promise.all([
-    bases.has('roster')
-      ? db.participation.count({
-          where: { eventId: event.id, ...visibleParticipationWhere },
-        })
-      : Promise.resolve(0),
-    bases.has('closingsDone')
-      ? db.closing_Record.count({
-          where: { eventId: event.id, status: 'done' },
-        })
-      : Promise.resolve(0),
-    // Submissions are not campus-scoped rows; the campus check is the event
-    // lookup above, which is how the bilan export reads them too.
-    bases.has('submissions') && form
-      ? prisma.feedback_Submission.count({
-          where: buildSubmissionWhere(form.id, { eventId: event.id }),
-        })
-      : Promise.resolve(0),
-  ]);
+  const needsRoster = bases.has('roster') || bases.has('closingRows');
+  const [rosterIds, closingTalentIds, closingsDone, submissions] =
+    await Promise.all([
+      needsRoster
+        ? db.participation.findMany({
+            where: { eventId: event.id, ...visibleParticipationWhere },
+            select: { talentId: true },
+          })
+        : Promise.resolve([]),
+      // Ids rather than a count, because the closings sheet's row count is the
+      // UNION of the roster and the closings: a closing whose enrolment the
+      // Salesforce sync pruned still gets a row, and counting enrolments alone
+      // would disable the only file that still holds it.
+      bases.has('closingRows')
+        ? db.closing_Record.findMany({
+            where: { eventId: event.id },
+            select: { talentId: true },
+          })
+        : Promise.resolve([]),
+      bases.has('closingsDone')
+        ? db.closing_Record.count({
+            where: { eventId: event.id, status: 'done' },
+          })
+        : Promise.resolve(0),
+      // Submissions are not campus-scoped rows; the campus check is the event
+      // lookup above, which is how the bilan export reads them too.
+      bases.has('submissions') && form
+        ? prisma.feedback_Submission.count({
+            where: buildSubmissionWhere(form.id, { eventId: event.id }),
+          })
+        : Promise.resolve(0),
+    ]);
+
+  const closingRows = new Set([
+    ...rosterIds.map((p) => p.talentId),
+    ...closingTalentIds.map((c) => c.talentId),
+  ]).size;
 
   return {
     event,
     producers,
-    counts: { roster, closingsDone, submissions } satisfies Record<
-      EventProducerBase,
-      number
-    >,
+    counts: {
+      roster: rosterIds.length,
+      closingRows,
+      closingsDone,
+      submissions,
+    } satisfies Record<EventProducerBase, number>,
   };
 };

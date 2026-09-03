@@ -93,7 +93,8 @@ export type EventRecord = {
   feedbackFormId: string | null;
   /**
    * Which certificate this event issues, from the `Diploma_Template` catalogue.
-   * Null = it issues none, which is what hides the Inscrits export. Resolve it
+   * Null = it issues none, which is what hides the certificate producer on the
+   * event's Exports page. Resolve it
    * through `server/diplomaTemplates.ts` rather than querying it here.
    */
   diplomaTemplateId: string | null;

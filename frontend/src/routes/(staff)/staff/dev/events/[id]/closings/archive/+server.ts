@@ -53,11 +53,16 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   // has one, and two when it has been retargeted mid-run.
   const grids = await resolveClosingGrids(closings.map((c) => c.templateId));
 
-  const stream = streamClosingPdfArchive(closings, grids);
-
-  recordUsage(USAGE_FEATURES.DEV_CLOSINGS_PDFS_EXPORT, {
-    locals,
-    eventId: event.id,
+  const stream = streamClosingPdfArchive(closings, grids, {
+    // Once the archive exists, never at construction: its own definition says
+    // "une par archive assemblée", and a document feature counts the artifact
+    // rather than the request. `onAssembled` is the hook the admin route uses
+    // for its own after-assembly write.
+    onAssembled: () =>
+      recordUsage(USAGE_FEATURES.DEV_CLOSINGS_PDFS_EXPORT, {
+        locals,
+        eventId: event.id,
+      }),
   });
 
   return zipAttachment(

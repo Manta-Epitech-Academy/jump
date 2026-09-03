@@ -5,7 +5,11 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
+import {
+  loadEventOr404,
+  requireEventModule,
+} from '$lib/server/services/stageContext';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { niveauLabel } from '$lib/domain/niveau';
 import { asciiFilename, xlsxAttachment } from '$lib/server/attachments';
 import type { XlsxSheet } from '$lib/server/xlsx';
@@ -35,6 +39,13 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
   const timezone = getCampusTimezone(locals);
   const event = await loadEventOr404(params.id, campusId);
+  // The one export in the set that was not gated on its own section, while its
+  // page and its four actions all are. The file is the whole attendance record,
+  // so a direct GET must not hand it over for an event whose Émargement is off -
+  // the reason `badges.pdf` and `diplomes.pdf` spell out for the cohort they
+  // print. The Exports page hides the card on this same condition, and hiding a
+  // control was never the gate.
+  requireEventModule(event, EVENT_MODULES.EMARGEMENT);
   const db = scopedPrisma(campusId);
 
   const slots = presenceSlots(event, timezone);

@@ -69,6 +69,11 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `inline; filename="${filename}"`,
+      // The extension-less path keeps it out of Cloudflare's cache; this keeps
+      // it out of the browser's. Both matter: the document is rebuilt from live
+      // records, so after an admin resets and re-conducts a closing, a
+      // heuristically cached copy would print the verdict that was withdrawn.
+      'Cache-Control': 'no-store',
     },
   });
 };

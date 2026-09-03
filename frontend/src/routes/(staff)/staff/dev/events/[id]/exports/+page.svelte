@@ -16,6 +16,7 @@
   import ProducerCard from '$lib/components/dev/exports/ProducerCard.svelte';
   import { downloadArtifact } from '$lib/components/staff/export/downloadArtifact';
   import { eventDisplayName } from '$lib/domain/event';
+  import { cn } from '$lib/utils';
   import {
     EVENT_PRODUCERS,
     EVENT_PRODUCER_BASE_LABELS,
@@ -69,19 +70,39 @@
     'Presque prêt…',
   ];
 
-  // Four distinct colours, reused in both illustration grids so the foldable
-  // preview visibly mirrors the simple one (same colours, doubled and flipped).
-  const BADGE_MODE_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b'];
+  /**
+   * Four distinct inks, reused in both illustration grids so the foldable
+   * preview visibly mirrors the simple one (same inks, doubled and flipped).
+   *
+   * Brand inks through Tailwind classes rather than the four arbitrary hex
+   * values this dialog carried on the Inscrits page: they were inline styles,
+   * which the design contract forbids and `lint:design` cannot see, and they
+   * told the reader nothing since the printed badge uses neither of them (its
+   * accent is `epi-blue` and its image-rights marker is red). What the
+   * illustration owes the reader is four telling-apart colours, which the
+   * palette already has.
+   */
+  const BADGE_MODE_INKS = [
+    'text-epi-blue',
+    'text-epi-tech-ink',
+    'text-epi-tomorrow-ink',
+    'text-muted-foreground',
+  ];
 
   const endpointOf = (key: EventProducerKey): string =>
     resolve(
       `/staff/dev/events/${data.event.id}/${EVENT_PRODUCER_DEFS[key].segment}`,
     );
 
-  const filenameOf = (key: EventProducerKey): string => {
+  /**
+   * The catalogue's `format` IS the extension for all three kinds. `variant`
+   * names the one producer that takes an option: without it both badge layouts
+   * land as the same filename, so generating one after the other leaves two
+   * indistinguishable files in the download folder.
+   */
+  const filenameOf = (key: EventProducerKey, variant = ''): string => {
     const def = EVENT_PRODUCER_DEFS[key];
-    const ext = def.format === 'zip' ? 'zip' : def.format;
-    return `${def.label} - ${eventName}.${ext}`;
+    return `${def.label}${variant} - ${eventName}.${def.format}`;
   };
 
   /**
@@ -91,7 +112,10 @@
    * staff staring at a spinner, fearing it had hung - the actual reported
    * complaint. `query` carries the one producer that takes an option.
    */
-  async function run(key: EventProducerKey, query = ''): Promise<void> {
+  async function run(
+    key: EventProducerKey,
+    { query = '', variant = '' } = {},
+  ): Promise<void> {
     if (busy) return;
     busy = key;
     const def = EVENT_PRODUCER_DEFS[key];
@@ -104,8 +128,7 @@
     try {
       await downloadArtifact(
         `${endpointOf(key)}${query}`,
-        filenameOf(key),
-        undefined,
+        filenameOf(key, variant),
       );
       if (toastId !== undefined) {
         toast.success('Fichier généré.', { id: toastId });
@@ -122,7 +145,10 @@
 
   function generateBadges(mode: 'simple' | 'foldable') {
     badgeModeOpen = false;
-    void run(EVENT_PRODUCERS.BADGES, `?mode=${mode}`);
+    void run(EVENT_PRODUCERS.BADGES, {
+      query: `?mode=${mode}`,
+      variant: mode === 'foldable' ? ' pliables' : '',
+    });
   }
 </script>
 
@@ -178,11 +204,11 @@
         class="flex cursor-pointer flex-col items-center gap-3 rounded-sm border p-4 text-center transition hover:border-epi-tech-ink hover:bg-epi-tech-ink/5"
       >
         <div class="grid grid-cols-2 gap-1 rounded-sm bg-muted/50 p-2">
-          {#each BADGE_MODE_COLORS as c}
+          {#each BADGE_MODE_INKS as ink}
             <div
               class="flex items-center justify-center rounded bg-card py-1.5"
             >
-              <Smile class="h-5 w-5" style="color: {c}" />
+              <Smile class={cn('h-5 w-5', ink)} />
             </div>
           {/each}
         </div>
@@ -200,15 +226,15 @@
         class="flex cursor-pointer flex-col items-center gap-3 rounded-sm border p-4 text-center transition hover:border-epi-tech-ink hover:bg-epi-tech-ink/5"
       >
         <div class="grid grid-cols-2 gap-1 rounded-sm bg-muted/50 p-2">
-          {#each BADGE_MODE_COLORS as c}
+          {#each BADGE_MODE_INKS as ink}
             <div class="flex flex-col overflow-hidden rounded bg-card">
               <div class="flex items-center justify-center py-1">
-                <Smile class="h-4 w-4" style="color: {c}" />
+                <Smile class={cn('h-4 w-4', ink)} />
               </div>
               <div
                 class="flex items-center justify-center border-t border-dashed border-muted-foreground/40 py-1"
               >
-                <Smile class="h-4 w-4 rotate-180" style="color: {c}" />
+                <Smile class={cn('h-4 w-4 rotate-180', ink)} />
               </div>
             </div>
           {/each}

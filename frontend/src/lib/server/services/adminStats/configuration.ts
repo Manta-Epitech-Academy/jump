@@ -250,7 +250,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
             label: certificate.label,
           }
         : null,
-      "Le certificat que cet événement délivre depuis la page Inscrits, une page par inscrit, ou null s'il n'en délivre aucun : le bouton de génération est alors absent. « templateId » est l'identifiant à passer à write_event_diploma_template.",
+      "Le certificat que cet événement délivre depuis sa page Exports, une page par inscrit, ou null s'il n'en délivre aucun : la carte de génération est alors absente. « templateId » est l'identifiant à passer à write_event_diploma_template.",
     ),
     participants: metric(
       event.participations,

@@ -378,7 +378,7 @@ export const EventService = {
       });
       if (!form) throw error(400, 'Formulaire de feedback introuvable.');
     }
-    // Which certificate the event issues. Empty = none, and the Inscrits export
+    // Which certificate the event issues. Empty = none, and the certificate card
     // disappears. Same shape as the form above, and checked here rather than in
     // the transaction for the same reason.
     const diplomaTemplateId = data.diplomaTemplateId.trim() || null;

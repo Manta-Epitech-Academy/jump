@@ -308,7 +308,8 @@ export type EventProducerKey =
  * Named per base rather than per producer, because two producers over the same
  * base must not count it in two different ways.
  */
-export type EventProducerBase = 'roster' | 'closingsDone' | 'submissions';
+export type EventProducerBase =
+  'roster' | 'closingRows' | 'closingsDone' | 'submissions';
 
 const plural = (n: number, one: string, many: string): string =>
   `${n} ${n === 1 ? one : many}`;
@@ -319,6 +320,10 @@ export const EVENT_PRODUCER_BASE_LABELS: Record<
   (n: number) => string
 > = {
   roster: (n) => plural(n, 'inscrit', 'inscrits'),
+  // Not the roster: the closings sheet also carries a closing whose enrolment
+  // the Salesforce sync has pruned, so counting enrolments alone would disable
+  // the only file that still holds those closings.
+  closingRows: (n) => plural(n, 'ligne', 'lignes'),
   closingsDone: (n) => plural(n, 'closing finalisé', 'closings finalisés'),
   submissions: (n) => plural(n, 'réponse', 'réponses'),
 };
@@ -406,11 +411,11 @@ export const EVENT_PRODUCER_DEFS: Record<EventProducerKey, EventProducerDef> = {
   [EVENT_PRODUCERS.CLOSINGS_XLSX]: producer({
     key: EVENT_PRODUCERS.CLOSINGS_XLSX,
     label: 'Closings',
-    description: 'Verdicts et réponses, une ligne par inscrit.',
+    description: 'Verdicts, réponses et notes, une ligne par jeune.',
     format: 'xlsx',
-    help: 'Une ligne par inscrit : son statut, son verdict, ses réponses et les notes de l’équipe, chacune dans sa colonne. Les closings conduits dont l’inscription a été retirée depuis y figurent aussi. Ce fichier ne suit aucun filtre.',
+    help: 'Une ligne par inscrit : son statut, son verdict, ses réponses et les notes de l’équipe, chacune dans sa colonne. Un closing conduit dont l’inscription a été retirée depuis garde sa ligne, signalée comme telle. Ce fichier ne suit aucun filtre.',
     segment: 'closings/export',
-    base: 'roster',
+    base: 'closingRows',
     available: eventRunsClosings,
   }),
   [EVENT_PRODUCERS.CLOSINGS_PDFS]: producer({

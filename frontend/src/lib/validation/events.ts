@@ -47,7 +47,7 @@ export const adminEventSchema = z.object({
   // the bilan surface stays hidden; there is no per-type fallback any more. A
   // non-empty value is a form id, checked server-side against an existing form.
   feedbackFormId: z.string().default(''),
-  // Which certificate the event issues on its Inscrits export. Empty = none, and
+  // Which certificate the event issues on its Exports page. Empty = none, and
   // the export disappears. A non-empty value is a `Diploma_Template` id, checked
   // server-side against an existing row.
   diplomaTemplateId: z.string().default(''),

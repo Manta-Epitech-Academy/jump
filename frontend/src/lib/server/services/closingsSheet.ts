@@ -84,7 +84,7 @@ const OFF_GRID_SUFFIX = ' [hors grille actuelle]';
 const FIXED_HEADERS = [
   'Prénom',
   'Nom',
-  'Identifiant SF',
+  'Identifiant Salesforce',
   'Statut',
   'Conduit par',
   'Conduit le',
@@ -170,7 +170,33 @@ interface QuestionColumn {
   width: number;
 }
 
-function questionColumns(input: ClosingsSheetInput): QuestionColumn[] {
+/**
+ * Each record's synthesis, folded once.
+ *
+ * Both halves of the sheet need it - the columns are discovered from it and
+ * every row reads its own out of it - so folding it per row as well would run
+ * `buildClosingSynthesis` twice for every closing of the event.
+ */
+function foldSyntheses(
+  input: ClosingsSheetInput,
+): Map<string, Map<string, SynthesisQuestion>> {
+  const byRecord = new Map<string, Map<string, SynthesisQuestion>>();
+  for (const record of input.records) {
+    const grid = input.grids.get(record.templateId);
+    if (!grid) continue;
+    const answers = new Map<string, SynthesisQuestion>();
+    for (const section of buildClosingSynthesis(record, grid)) {
+      for (const q of section.questions) answers.set(q.id, q);
+    }
+    byRecord.set(record.id, answers);
+  }
+  return byRecord;
+}
+
+function questionColumns(
+  input: ClosingsSheetInput,
+  syntheses: Map<string, Map<string, SynthesisQuestion>>,
+): QuestionColumn[] {
   const answerHeaders = new Map<string, string>();
   const order: string[] = [];
   const onCurrentGrid = new Set<string>();
@@ -197,15 +223,11 @@ function questionColumns(input: ClosingsSheetInput): QuestionColumn[] {
   // Records in the order the caller listed them, so the columns a second grid
   // contributes are stable rather than dependent on who was seen first.
   for (const record of input.records) {
-    const grid = input.grids.get(record.templateId);
-    if (!grid) continue;
-    for (const section of buildClosingSynthesis(record, grid)) {
-      for (const q of section.questions) {
-        if (q.note) needsNote.add(q.id);
-        if (answerHeaders.has(q.id)) continue;
-        order.push(q.id);
-        answerHeaders.set(q.id, questionHeader(q, onCurrentGrid.has(q.id)));
-      }
+    for (const q of syntheses.get(record.id)?.values() ?? []) {
+      if (q.note) needsNote.add(q.id);
+      if (answerHeaders.has(q.id)) continue;
+      order.push(q.id);
+      answerHeaders.set(q.id, questionHeader(q, onCurrentGrid.has(q.id)));
     }
   }
 
@@ -231,7 +253,8 @@ function questionColumns(input: ClosingsSheetInput): QuestionColumn[] {
 }
 
 export function buildClosingsSheet(input: ClosingsSheetInput): XlsxSheet {
-  const columns = questionColumns(input);
+  const syntheses = foldSyntheses(input);
+  const columns = questionColumns(input, syntheses);
   const byTalent = new Map(input.records.map((r) => [r.talentId, r]));
 
   const rowFor = (
@@ -243,13 +266,7 @@ export function buildClosingsSheet(input: ClosingsSheetInput): XlsxSheet {
       CLOSING_STATUS_LABELS[closingListStatus(record)] +
       (orphan ? ORPHAN_STATUS_SUFFIX : '');
 
-    const grid = record ? input.grids.get(record.templateId) : undefined;
-    const answers = new Map<string, SynthesisQuestion>();
-    if (record && grid) {
-      for (const section of buildClosingSynthesis(record, grid)) {
-        for (const q of section.questions) answers.set(q.id, q);
-      }
-    }
+    const answers = record ? syntheses.get(record.id) : undefined;
 
     const conductedBy = record
       ? (record.staff?.user?.name ?? FORMER_STAFF_LABEL)
@@ -274,7 +291,7 @@ export function buildClosingsSheet(input: ClosingsSheetInput): XlsxSheet {
       // closing", which is not a zero. Same distinction `stats_closing_insights`
       // draws by carrying `asked` beside `answered`.
       ...columns.map((column) => {
-        const q = answers.get(column.questionId);
+        const q = answers?.get(column.questionId);
         if (!q) return null;
         return column.holds === 'note' ? (q.note ?? null) : answerCell(q);
       }),
