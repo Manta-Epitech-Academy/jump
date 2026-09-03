@@ -84,7 +84,9 @@ const STAGE_QUESTIONS = [
 ];
 
 export const stage: Scenario = {
-  name: 'stage-seconde-lyon',
+  // The campus is reported by the manifest, not named here: `pickCampus` falls
+  // back when the preferred one is outside the profile. See `club.ts`.
+  name: 'stage-seconde',
   summary:
     'La grosse cohorte : 200 inscrits, deux semaines, émargement complet, closings, diplôme.',
   run(world) {

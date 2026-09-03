@@ -26,7 +26,12 @@ import type { Scenario } from './types';
 import type { EventRef } from '../world';
 
 export const club: Scenario = {
-  name: 'coding-club-nice',
+  // Not `coding-club-nice`: `pickCampus` falls back when the preferred campus
+  // is outside the profile, and at every profile under nine campuses this runs
+  // on Paris - so the name contradicted the « Campus : » line the manifest
+  // prints from the row that was actually written. The campus is reported, never
+  // named here.
+  name: 'coding-club',
   summary:
     'Format court et récurrent : trois séances, la grille Coding Club, des habitués.',
   run(world) {
