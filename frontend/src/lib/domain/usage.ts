@@ -62,6 +62,7 @@ export const USAGE_FEATURES = {
   DEV_CLOSING_CONDUCT_VIEW: 'dev_closing_conduct_view',
   DEV_CLOSING_PDF_SINGLE: 'dev_closing_pdf_single',
   DEV_CLOSINGS_EXPORT: 'dev_closings_export',
+  DEV_CLOSINGS_PDFS_EXPORT: 'dev_closings_pdfs_export',
   DEV_PLANNING_VIEW: 'dev_planning_view',
   DEV_TALENT_FICHE_VIEW: 'dev_talent_fiche_view',
   DEV_TALENT_NOTE_CREATE: 'dev_talent_note_create',
@@ -519,6 +520,17 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     label: 'Export xlsx des closings',
     definition:
       'Exports xlsx des closings d’un événement. Un par téléchargement demandé ; le fichier couvre tout l’événement, il ne suit aucun filtre.',
+    audience: 'staff',
+    space: 'dev',
+    kind: 'export',
+    scope: 'event',
+    dedupe: 'each',
+  }),
+  [USAGE_FEATURES.DEV_CLOSINGS_PDFS_EXPORT]: def({
+    key: USAGE_FEATURES.DEV_CLOSINGS_PDFS_EXPORT,
+    label: 'Archive des synthèses de closing',
+    definition:
+      'Téléchargements de l’archive des synthèses de closing d’un événement. Un par archive assemblée ; les synthèses sont rendues à la demande, donc un événement sans closing finalisé n’en produit aucune.',
     audience: 'staff',
     space: 'dev',
     kind: 'export',
