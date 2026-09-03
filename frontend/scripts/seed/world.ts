@@ -628,16 +628,36 @@ export class World {
 
   // ─── Events ───────────────────────────────────────────────────────────────
 
+  /**
+   * The weekdays an event starting `startOffset` days from the anchor runs on,
+   * skipping the weekends it would otherwise straddle.
+   *
+   * Public, and computed by the caller rather than by `addEvent`, because the
+   * CRM builds an event's `titre` out of its first day: a scenario cannot name
+   * the event it is about to create without knowing the window. The walk itself
+   * belongs here - repeated per scenario it would be four chances to disagree
+   * about which day an event starts on.
+   */
+  eventWindow(startOffset: number, weekdays: number): Date[] {
+    const days: Date[] = [];
+    let cursor = startOffset;
+    while (days.length < weekdays) {
+      const day = this.ctx.clock.days(cursor);
+      const weekday = day.getUTCDay();
+      if (weekday !== 0 && weekday !== 6) days.push(day);
+      cursor += 1;
+    }
+    return days;
+  }
+
   addEvent(opts: {
     key: string;
     titre: string;
     publicName?: string | null;
     cohortNoun?: string | null;
     campus: CampusRef;
-    /** Day offset from the anchor. Negative is in the past. */
-    startOffset: number;
-    /** How many weekdays the event runs. 1 for a single-day format. */
-    weekdays: number;
+    /** The weekdays it runs, from {@link eventWindow}. */
+    days: readonly Date[];
     startMinutes?: number | null;
     /**
      * Whether the event carries a « date de fin ». Defaults to the two states
@@ -658,14 +678,7 @@ export class World {
   }): EventRef {
     const eventId = id('evt', opts.campus.name, opts.key);
     const clock = this.ctx.clock;
-    const days: Date[] = [];
-    let cursor = opts.startOffset;
-    while (days.length < opts.weekdays) {
-      const day = clock.days(cursor);
-      const weekday = day.getUTCDay();
-      if (weekday !== 0 && weekday !== 6) days.push(day);
-      cursor += 1;
-    }
+    const days = [...opts.days];
     const date = days[0]!;
 
     // « Date de fin ». The Salesforce sync never sends one - it is typed on the
@@ -674,7 +687,7 @@ export class World {
     // activated event has one, an untouched Salesforce row has none, and 36 of
     // production's 277 events carry one for exactly that reason.
     const withEndDate =
-      opts.withEndDate ?? (opts.weekdays > 1 || opts.devActivated === true);
+      opts.withEndDate ?? (days.length > 1 || opts.devActivated === true);
     // 23:59 in the CAMPUS's timezone, the way production stores it, not midnight
     // UTC - and both readers depend on the difference. `presenceDays` keys the
     // day off the campus clock, so a Réunion event ending at 23:59 UTC would

@@ -11,6 +11,8 @@
 
 import { CODING_CLUB_PLANNING } from '../catalog/planning';
 import { BANK_KEYS, CLUB_TEMPLATE } from '../catalog/closings';
+import { codingClubPublicName, codingClubTitre } from '../catalog/events';
+import { eventDisplayName } from '../../../src/lib/domain/event';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { conductClosing } from '../factories/closing';
 import { addDossier } from '../factories/onboarding';
@@ -61,14 +63,15 @@ export const club: Scenario = {
 
     for (const [session, offset] of [-60, -30, 6].entries()) {
       const upcoming = offset > 0;
+      const days = world.eventWindow(offset, 1);
+      const day = days[0]!;
       const event = world.addEvent({
         key: `coding-club-${session + 1}`,
-        titre: `Coding Club ${campus.name} - séance ${session + 1}`,
-        publicName: `Coding Club ${campus.name}`,
+        titre: codingClubTitre({ campus: campus.name, date: day }),
+        publicName: codingClubPublicName(day),
         cohortNoun: 'participants',
         campus,
-        startOffset: offset,
-        weekdays: 1,
+        days,
         startMinutes: 14 * 60,
         devActivated: true,
         modules: [
@@ -147,11 +150,12 @@ export const club: Scenario = {
       scenario: club.name,
       summary: club.summary,
       campus: campus.name,
-      // Not `eventDisplayName(event)`: `event` only names the last loop
-      // iteration's session and is out of scope here anyway. All three sessions
-      // share this publicName by construction (only `titre`'s séance number
-      // varies), so the literal is exact, not a restatement of a live value.
-      event: `Coding Club ${campus.name}`,
+      // The three sessions, read back off the rows that were written. Each one
+      // now carries its own public name - the CRM dates every campaign and the
+      // campus names it after the month or the camp it falls in - so a single
+      // literal could not name all three, and quoting one would send the reader
+      // looking for a session the switcher shows under two other names.
+      event: sessionEvents.map(eventDisplayName).join(' · '),
       covers: [
         'trois séances dont une à venir, avec des inscrits qui reviennent',
         'la grille Coding Club, plus courte, avec deux libellés réécrits pour le format',

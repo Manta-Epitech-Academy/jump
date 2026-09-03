@@ -16,6 +16,12 @@ import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { WELCOME_XP_BONUS } from '../../../src/lib/domain/xp';
 import { addDossier } from '../factories/onboarding';
 import { CLUB_TEMPLATE } from '../catalog/closings';
+import {
+  CLUB_THEMES,
+  campLabel,
+  codingClubPublicName,
+  codingClubTitre,
+} from '../catalog/events';
 import { id } from '../ids';
 import {
   makeCohort,
@@ -89,19 +95,45 @@ export const longTail: Scenario = {
                 ? -300
                 : -rng.int(5, 300);
 
+      // A handful run over two days. Production's short formats are a single
+      // day or that day plus the next - only the stages run longer - and a
+      // multi-day event is the only thing that makes the émargement day picker
+      // do anything.
+      //
+      // Those carry an end date whether or not anybody configured them, which
+      // is not an oversight: the end date IS the second day, so an event
+      // running two of them cannot be expressed without one. It leaves a few
+      // events holding a date and nothing else - somebody opened the
+      // configuration screen, typed the window, and never enabled a section -
+      // which is the one shape that gives `endDate` a row where `publicName`
+      // is still null.
+      const days = world.eventWindow(
+        offset,
+        index === 1 || index % 12 === 0 ? 2 : 1,
+      );
+      const firstDay = days[0]!;
+      // The theme the campus typed after the date, on the sessions the season
+      // does not already name. Cycled rather than drawn: a title list is what a
+      // reader scans first, and one built entirely from the same three words
+      // reads as a fixture whatever the dates say.
+      const theme =
+        campLabel(firstDay) === null && index % 3 === 0
+          ? CLUB_THEMES[index % CLUB_THEMES.length]
+          : null;
+
       const event = world.addEvent({
         key: `evt-${index}`,
-        titre: `Journée découverte ${campus.name} #${index + 1}`,
+        titre: codingClubTitre({
+          campus: campus.name,
+          date: firstDay,
+          suffix: theme,
+        }),
         // Only a fifth of events carry a public name; the rest show the raw
         // Salesforce title, which is what staff actually read most of the time.
-        publicName: configured ? `Découverte ${campus.name}` : null,
+        publicName: configured ? codingClubPublicName(firstDay) : null,
         cohortNoun: configured ? 'participants' : null,
         campus,
-        startOffset: offset,
-        // A handful run over several days. Production has 16 of them, and a
-        // multi-day event is the only thing that makes the émargement day
-        // picker do anything.
-        weekdays: index === 1 || index % 12 === 0 ? 3 : 1,
+        days,
         withEndDate: beingPrepared ? false : undefined,
         devActivated: configured && !beingPrepared,
         // One event created inside Jump rather than synced from a campaign.
@@ -189,14 +221,17 @@ export const longTail: Scenario = {
       world.reservedCampusNames,
     );
     const zeroClosingTemplateId = id('clt', CLUB_TEMPLATE.key);
+    const zeroClosingDays = world.eventWindow(-45, 1);
     const zeroClosingEvent = world.addEvent({
       key: 'evt-closings-zero',
-      titre: `Journée découverte ${zeroClosingCampus.name} #closings`,
-      publicName: `Découverte ${zeroClosingCampus.name}`,
+      titre: codingClubTitre({
+        campus: zeroClosingCampus.name,
+        date: zeroClosingDays[0]!,
+      }),
+      publicName: codingClubPublicName(zeroClosingDays[0]!),
       cohortNoun: 'participants',
       campus: zeroClosingCampus,
-      startOffset: -45,
-      weekdays: 1,
+      days: zeroClosingDays,
       devActivated: true,
       modules: [
         EVENT_MODULES.INSCRITS,

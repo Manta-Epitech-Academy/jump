@@ -18,6 +18,7 @@ import type { ClosingRecommendation } from '@prisma/client';
 import { STAGE_PLANNING } from '../catalog/planning';
 import { BANK_KEYS, RETIRED_QUESTION } from '../catalog/closings';
 import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
+import { STAGE_PUBLIC_NAME, stageTitre } from '../catalog/events';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { eventDisplayName } from '../../../src/lib/domain/event';
 import {
@@ -100,16 +101,16 @@ export const stage: Scenario = {
 
     const size =
       profile.name === 'ci' ? 14 : profile.name === 'demo' ? 60 : 200;
+    // Finished a fortnight ago, so closings, the bilan and the certificate all
+    // have a reason to exist. An event still running would have none of them.
+    const days = world.eventWindow(-24, 10);
     const event = world.addEvent({
       key: 'stage-2nde',
-      titre: `Stage de seconde ${campus.name} - ${schoolYear}`,
-      publicName: `Stage de découverte ${campus.name}`,
+      titre: stageTitre({ campus: campus.name, date: days[0]! }),
+      publicName: STAGE_PUBLIC_NAME,
       cohortNoun: 'stagiaires',
       campus,
-      // Finished a fortnight ago, so closings, the bilan and the certificate all
-      // have a reason to exist. An event still running would have none of them.
-      startOffset: -24,
-      weekdays: 10,
+      days,
       startMinutes: 10 * 60,
       devActivated: true,
       modules: [
