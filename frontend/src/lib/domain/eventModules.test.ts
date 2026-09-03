@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  availableProducers,
   EVENT_MODULE_KEYS,
   landingSurface,
   reachableSurfaces,
@@ -14,6 +15,7 @@ const gates = (over: Partial<EventSurfaceGates> = {}): EventSurfaceGates => ({
   hasPlanning: false,
   hasFeedbackForm: true,
   hasClosingTemplate: true,
+  hasDiplomaTemplate: false,
   ...over,
 });
 
@@ -61,6 +63,148 @@ describe('landingSurface', () => {
         gates({ modules: ['closings'], hasClosingTemplate: false }),
       ),
     ).toBeNull();
+  });
+});
+
+describe('availableProducers', () => {
+  it('should expose nothing on an event with no module', () => {
+    // The common case in production: 235 events out of 292 carry no module, so
+    // "produces nothing" is the shape the page has to survive, not the corner.
+    expect(availableProducers(gates({ modules: [] }))).toEqual([]);
+  });
+
+  it('should expose the badges with the inscrits section alone', () => {
+    expect(availableProducers(gates({ modules: ['inscrits'] }))).toEqual([
+      'badges',
+    ]);
+  });
+
+  it('should expose the certificates only once the event names one', () => {
+    // Arrange: `Event.diplomaTemplateId` being null IS the gate - there is no
+    // companion boolean anywhere, so this is the whole condition.
+    const withoutTemplate = gates({ modules: ['inscrits'] });
+    const withTemplate = gates({
+      modules: ['inscrits'],
+      hasDiplomaTemplate: true,
+    });
+    // Act & Assert
+    expect(availableProducers(withoutTemplate)).not.toContain('diplomas');
+    expect(availableProducers(withTemplate)).toContain('diplomas');
+  });
+
+  it('should expose no closing producer when the event names no grid', () => {
+    // Same pair `eventRunsClosings` draws: the section alone is not enough, and
+    // an event with no grid has no closing to export or to archive.
+    const produced = availableProducers(
+      gates({ modules: ['closings'], hasClosingTemplate: false }),
+    );
+    expect(produced).toEqual([]);
+  });
+
+  it('should expose no questionnaire export while its form is not live', () => {
+    // A form unpublished after it was picked resolves to none on the bilan
+    // surface, so offering its export here would hand out a 404.
+    const produced = availableProducers(
+      gates({ modules: ['bilan'], hasFeedbackForm: false }),
+    );
+    expect(produced).toEqual([]);
+  });
+
+  it('should order producers by the moment of the event, not by format', () => {
+    const produced = availableProducers(
+      gates({ modules: EVENT_MODULE_KEYS, hasDiplomaTemplate: true }),
+    );
+    expect(produced).toEqual([
+      'badges',
+      'emargement_xlsx',
+      'bilan_xlsx',
+      'closings_xlsx',
+      'closings_pdfs',
+      'diplomas',
+    ]);
+  });
+});
+
+describe('the exports surface', () => {
+  // Its gate is DERIVED from `availableProducers` rather than configured, and a
+  // derived gate is exactly what breaks quietly: written twice, the nav entry
+  // and the page contents drift into an entry that opens an empty page.
+  it('should be reachable exactly when the event produces something', () => {
+    // Arrange
+    const cases = [
+      gates({ modules: [] }),
+      gates({ modules: ['inscrits'] }),
+      gates({ modules: ['bilan'], hasFeedbackForm: false }),
+      gates({ modules: ['closings'], hasClosingTemplate: false }),
+      gates({ modules: ['closings'] }),
+      gates({ modules: [], hasPlanning: true }),
+    ];
+    // Act
+    const pairs = cases.map((g) => [
+      reachableSurfaces(g).includes('exports'),
+      availableProducers(g).length > 0,
+    ]);
+    // Assert
+    expect(pairs.map(([reachable]) => reachable)).toEqual(
+      pairs.map(([, produces]) => produces),
+    );
+  });
+
+  it('should never be the only surface an event exposes', () => {
+    // Every producer requires another surface's module, so this holds by
+    // construction - and it is what keeps `isNavigable` (domain/devWorkspace)
+    // counting exactly the events it counted before this surface existed. A
+    // producer added on a gate of its own would break it here rather than by
+    // quietly making an unconfigured event look navigable.
+    const flags = [true, false];
+    for (const modules of [
+      [],
+      ['inscrits'],
+      ['emargement'],
+      ['bilan'],
+      ['closings'],
+      EVENT_MODULE_KEYS,
+    ]) {
+      for (const hasFeedbackForm of flags) {
+        for (const hasClosingTemplate of flags) {
+          for (const hasDiplomaTemplate of flags) {
+            for (const hasPlanning of flags) {
+              const g = gates({
+                modules,
+                hasFeedbackForm,
+                hasClosingTemplate,
+                hasDiplomaTemplate,
+                hasPlanning,
+              });
+              const reachable = reachableSurfaces(g);
+              if (!reachable.includes('exports')) continue;
+              expect(
+                reachable.length,
+                `exports alone for ${JSON.stringify({ modules, hasFeedbackForm, hasClosingTemplate, hasDiplomaTemplate, hasPlanning })}`,
+              ).toBeGreaterThanOrEqual(2);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('should never be where a context switch lands', () => {
+    // `landingSurface` hands back the first reachable surface, and landing a dev
+    // on the page that produces files rather than on the one that shows the
+    // cohort would be wrong on every event. Being last in the order plus the
+    // invariant above is what makes it impossible.
+    const g = gates({ modules: EVENT_MODULE_KEYS, hasDiplomaTemplate: true });
+    expect(landingSurface(g)).toBe('inscrits');
+    expect(landingSurface(gates({ modules: ['closings'] }))).toBe('closings');
+  });
+
+  it('should be preserved when it IS the surface in view', () => {
+    // The other half of `landingSurface`: switching event from the Exports page
+    // keeps you on Exports when the target exposes it.
+    const g = gates({ modules: ['inscrits'] });
+    expect(landingSurface(g, 'exports')).toBe('exports');
+    expect(landingSurface(gates({ modules: [] }), 'exports')).toBeNull();
   });
 });
 

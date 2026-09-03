@@ -58,6 +58,7 @@ export const USAGE_FEATURES = {
   DEV_BILAN_VIEW: 'dev_bilan_view',
   DEV_BILAN_EXPORT: 'dev_bilan_export',
   DEV_BILAN_QR_DISPLAY: 'dev_bilan_qr_display',
+  DEV_EXPORTS_VIEW: 'dev_exports_view',
   DEV_CLOSINGS_ROSTER_VIEW: 'dev_closings_roster_view',
   DEV_CLOSING_CONDUCT_VIEW: 'dev_closing_conduct_view',
   DEV_CLOSING_PDF_SINGLE: 'dev_closing_pdf_single',
@@ -474,6 +475,16 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     key: USAGE_FEATURES.DEV_BILAN_QR_DISPLAY,
     label: 'Affichage du QR du questionnaire',
     definition: `Affichages du code à partager pour remplir le questionnaire de fin. ${BUCKET_NOTE}`,
+    audience: 'staff',
+    space: 'dev',
+    kind: 'view',
+    scope: 'event',
+    dedupe: 'bucket',
+  }),
+  [USAGE_FEATURES.DEV_EXPORTS_VIEW]: def({
+    key: USAGE_FEATURES.DEV_EXPORTS_VIEW,
+    label: 'Exports de l’événement',
+    definition: `Consultations de la page listant ce qu’un événement permet de produire. La page n’existe que pour un événement qui produit quelque chose, donc un événement sans configuration n’y compte jamais. ${BUCKET_NOTE}`,
     audience: 'staff',
     space: 'dev',
     kind: 'view',
@@ -1456,6 +1467,7 @@ export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
   '/(staff)/staff/dev/events/[id]/closings/[talentId]':
     USAGE_FEATURES.DEV_CLOSING_CONDUCT_VIEW,
   '/(staff)/staff/dev/events/[id]/planning': USAGE_FEATURES.DEV_PLANNING_VIEW,
+  '/(staff)/staff/dev/events/[id]/exports': USAGE_FEATURES.DEV_EXPORTS_VIEW,
   '/(staff)/staff/dev/students/[id]': USAGE_FEATURES.DEV_TALENT_FICHE_VIEW,
 
   // Admin space

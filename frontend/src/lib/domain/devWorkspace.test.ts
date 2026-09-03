@@ -20,6 +20,7 @@ function ev({ id, date, ...rest }: Overrides): DevWorkspaceEvent {
     hasPlanning: false,
     hasFeedbackForm: false,
     hasClosingTemplate: false,
+    hasDiplomaTemplate: false,
     ...rest,
   };
 }

@@ -23,6 +23,7 @@ import {
   imageRightsStatus,
 } from '../../../src/lib/domain/imageRights';
 import {
+  availableProducers,
   eventRunsClosings,
   reachableSurfaces,
 } from '../../../src/lib/domain/eventModules';
@@ -146,6 +147,7 @@ export async function reachabilityFailures(
       date: true,
       closingTemplateId: true,
       feedbackFormId: true,
+      diplomaTemplateId: true,
       modules: { select: { moduleKey: true } },
       campus: { select: { timezone: true } },
     },
@@ -155,11 +157,20 @@ export async function reachabilityFailures(
     hasPlanning: false,
     hasFeedbackForm: event.feedbackFormId !== null,
     hasClosingTemplate: event.closingTemplateId !== null,
+    hasDiplomaTemplate: event.diplomaTemplateId !== null,
   }));
   if (!gates.some((gate) => eventRunsClosings(gate)))
     failures.push('Aucun événement ne conduit de closings');
   if (!gates.some((gate) => !eventRunsClosings(gate)))
     failures.push('Tous les événements conduisent des closings');
+
+  // The Exports surface is derived from what an event can produce, so both
+  // sides of that gate need an example: an event with something to produce, and
+  // one with nothing (a bare event, of which production has plenty).
+  if (!gates.some((gate) => availableProducers(gate).length > 0))
+    failures.push('Aucun événement n’expose de production (surface Exports)');
+  if (!gates.some((gate) => availableProducers(gate).length === 0))
+    failures.push('Tous les événements exposent une production');
 
   // The school-year switcher's own list: at least two years' worth of
   // navigable events, or `SchoolYearMenu` has nothing to switch between.

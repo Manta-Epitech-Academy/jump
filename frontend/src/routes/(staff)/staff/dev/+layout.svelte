@@ -10,6 +10,7 @@
   import UserCheck from '@lucide/svelte/icons/user-check';
   import MessageSquareText from '@lucide/svelte/icons/message-square-text';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import FileDown from '@lucide/svelte/icons/file-down';
   import School from '@lucide/svelte/icons/school';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
@@ -50,6 +51,7 @@
     planning: CalendarDays,
     bilan: MessageSquareText,
     closings: MessageSquare,
+    exports: FileDown,
   };
 
   let { children, data } = $props();
