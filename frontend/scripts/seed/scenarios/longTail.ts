@@ -15,7 +15,11 @@
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { WELCOME_XP_BONUS } from '../../../src/lib/domain/xp';
 import { addDossier } from '../factories/onboarding';
-import { CLUB_TEMPLATE } from '../catalog/closings';
+import {
+  CLUB_TEMPLATE,
+  CLUB_TEMPLATE_QUESTION_KEYS,
+} from '../catalog/closings';
+import { conductClosing } from '../factories/closing';
 import {
   CLUB_THEMES,
   campLabel,
@@ -42,6 +46,7 @@ export const longTail: Scenario = {
     const scale =
       profile.name === 'staging' ? 1 : profile.name === 'ci' ? 0.08 : 0.25;
     const target = Math.max(6, Math.round(profile.events * 0.7));
+    const clubTemplateId = id('clt', CLUB_TEMPLATE.key);
 
     let created = 0;
     let empty = 0;
@@ -73,6 +78,16 @@ export const longTail: Scenario = {
       // besides index 5 - and index 5 has to stay visible for the school-year
       // switcher.
       const beingPrepared = index === 0;
+
+      // Half the configured ones also run closings, which is roughly the share
+      // production shows: the module is on for 33 events out of 292, and 25
+      // events actually carry a record. It matters that some of them are
+      // ordinary events rather than only the two flagship scenarios - a closing
+      // distribution, a per-campus coverage rate and the « à closer » list all
+      // read across the whole périmètre, and with closings living on one stage
+      // and one club every one of those figures was a single campus wearing a
+      // platform's clothes.
+      const runsClosings = configured && !beingPrepared && index % 10 === 5;
 
       // One of each lifecycle branch, then a spread across the school year.
       // Index 5 (the first naturally `configured` index past the fixed
@@ -143,9 +158,16 @@ export const longTail: Scenario = {
         externalId: index === 3 ? null : undefined,
         modules: configured
           ? offset < 0
-            ? [EVENT_MODULES.INSCRITS, EVENT_MODULES.EMARGEMENT]
+            ? runsClosings
+              ? [
+                  EVENT_MODULES.INSCRITS,
+                  EVENT_MODULES.EMARGEMENT,
+                  EVENT_MODULES.CLOSINGS,
+                ]
+              : [EVENT_MODULES.INSCRITS, EVENT_MODULES.EMARGEMENT]
             : [EVENT_MODULES.INSCRITS]
           : [],
+        closingTemplateId: runsClosings ? clubTemplateId : null,
       });
       created += 1;
       if (!configured) unconfigured += 1;
@@ -184,6 +206,26 @@ export const longTail: Scenario = {
         });
       }
 
+      // The closings, on seven in ten of the roster: production's non-stage
+      // events that run them sit between 68% and 79%, and the remainder is what
+      // a coverage rate and a chase list are read off. Conducted a day after
+      // the event, the way a team actually does it.
+      if (runsClosings) {
+        for (const talent of rng.sample(
+          cohort,
+          Math.max(1, Math.round(cohort.length * 0.72)),
+        )) {
+          conductClosing(world, {
+            talent,
+            event,
+            staff: team.length > 0 ? rng.pick(team) : null,
+            templateId: clubTemplateId,
+            questionKeys: CLUB_TEMPLATE_QUESTION_KEYS,
+            conductedOffset: offset + 1,
+          });
+        }
+      }
+
       // Émargement on every past event, not only the configured ones. That
       // looks inconsistent and matches production exactly: 229 events carry
       // presence rows while 38 carry the émargement module, because a marked
@@ -220,7 +262,6 @@ export const longTail: Scenario = {
     const zeroClosingCampus = world.pickWeightedCampus(
       world.reservedCampusNames,
     );
-    const zeroClosingTemplateId = id('clt', CLUB_TEMPLATE.key);
     const zeroClosingDays = world.eventWindow(-45, 1);
     const zeroClosingEvent = world.addEvent({
       key: 'evt-closings-zero',
@@ -238,7 +279,7 @@ export const longTail: Scenario = {
         EVENT_MODULES.EMARGEMENT,
         EVENT_MODULES.CLOSINGS,
       ],
-      closingTemplateId: zeroClosingTemplateId,
+      closingTemplateId: clubTemplateId,
     });
     const zeroClosingCohort = makeCohort(world, {
       size: cohortSize(world, scale),

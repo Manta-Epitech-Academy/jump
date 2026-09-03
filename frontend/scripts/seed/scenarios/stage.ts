@@ -119,8 +119,17 @@ export const stage: Scenario = {
         EVENT_MODULES.CLOSINGS,
         EVENT_MODULES.BILAN,
       ],
+      // The dossier funnel column on the Inscrits table - connexion, règlement,
+      // droit à l'image. Opt-in per event, and in production it is on for 8 of
+      // the 15 stages and for NOTHING else: a stage is the format where the
+      // documents have to be chased, a Coding Club is an afternoon nobody signs
+      // anything for. So it belongs here and not in `longTail`.
+      //
+      // It was `showParentContact`, a key the module's Zod schema does not
+      // declare and therefore strips: the column has been silently off on the
+      // one event whose whole point is that it should be on.
       moduleSettings: {
-        [EVENT_MODULES.INSCRITS]: { showParentContact: true },
+        [EVENT_MODULES.INSCRITS]: { showStatutColumn: true },
       },
       closingTemplateId: stageTemplateId,
       feedbackFormId:
@@ -199,14 +208,25 @@ export const stage: Scenario = {
       }
     }
 
-    // Closings on a quarter of the cohort, which is roughly production's ratio,
-    // plus one still in progress. A grid that is only ever seen finished hides
-    // the resume path entirely.
+    // Closings on nearly the whole cohort, plus one still in progress. A grid
+    // that is only ever seen finished hides the resume path entirely.
+    //
+    // A quarter, which is what this was, is not production's ratio: the 14
+    // stages that carry closings run them on 42 to 100% of their roster, median
+    // 93, and 1412 of the 1640 stage enrolments have one. A stage is two weeks
+    // with a 1:1 at the end of it - the team closes everybody they can - and
+    // it is the non-stage events that sit at 70% and the ordinary event that
+    // has none at all. Seeding a quarter here made « pas encore de closing »
+    // the majority state on the one event where it is the exception, which is
+    // the wrong answer for every screen that ranks, chases or exports them.
+    //
+    // Not 100%: the remainder is what the « closings restants » counter, the
+    // coverage rate and the chase list are all read off.
     // At least one more than the verdicts being covered, so the in-progress
     // record has an index to sit on whatever the profile's cohort size is.
     const interviewed = rng.sample(
       cohort,
-      Math.max(VERDICT_COVER.length + 1, Math.round(size * 0.25)),
+      Math.max(VERDICT_COVER.length + 1, Math.round(size * 0.9)),
     );
     for (const [index, talent] of interviewed.entries()) {
       conductClosing(world, {

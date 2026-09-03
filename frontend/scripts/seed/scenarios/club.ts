@@ -10,7 +10,10 @@
  */
 
 import { CODING_CLUB_PLANNING } from '../catalog/planning';
-import { BANK_KEYS, CLUB_TEMPLATE } from '../catalog/closings';
+import {
+  CLUB_TEMPLATE,
+  CLUB_TEMPLATE_QUESTION_KEYS,
+} from '../catalog/closings';
 import { codingClubPublicName, codingClubTitre } from '../catalog/events';
 import { eventDisplayName } from '../../../src/lib/domain/event';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
@@ -21,16 +24,6 @@ import { withGuaranteed } from '../rng';
 import { makeCohort, PRESENCE_MIX, PRESENCE_SOURCE_MIX } from './helpers';
 import type { Scenario } from './types';
 import type { EventRef } from '../world';
-
-const CLUB_QUESTIONS = [
-  BANK_KEYS.discoveryChannel,
-  BANK_KEYS.motivation,
-  BANK_KEYS.techProjection,
-  BANK_KEYS.otherJobs,
-  BANK_KEYS.wantsMore,
-  BANK_KEYS.satisfaction,
-  BANK_KEYS.oneSentence,
-];
 
 export const club: Scenario = {
   name: 'coding-club-nice',
@@ -106,9 +99,13 @@ export const club: Scenario = {
         }
       }
 
+      // Seven in ten, which is what the non-stage events that run closings
+      // actually do: production's eleven of them sit between 68% and 79% of
+      // their roster. It also gives the regulars two and three closings each
+      // rather than one, which is the history « Son parcours » is built to show.
       const closed = rng.sample(
         attending,
-        Math.max(2, Math.round(attending.length * 0.4)),
+        Math.max(2, Math.round(attending.length * 0.7)),
       );
       for (const talent of session === 0
         ? withGuaranteed(closed, anchorRegular)
@@ -118,7 +115,7 @@ export const club: Scenario = {
           event,
           staff: team.length > 0 ? rng.pick(team) : null,
           templateId: clubTemplateId,
-          questionKeys: CLUB_QUESTIONS,
+          questionKeys: CLUB_TEMPLATE_QUESTION_KEYS,
           conductedOffset: offset + 1,
         });
       }
