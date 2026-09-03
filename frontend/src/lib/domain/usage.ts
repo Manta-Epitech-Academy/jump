@@ -60,6 +60,7 @@ export const USAGE_FEATURES = {
   DEV_BILAN_QR_DISPLAY: 'dev_bilan_qr_display',
   DEV_CLOSINGS_ROSTER_VIEW: 'dev_closings_roster_view',
   DEV_CLOSING_CONDUCT_VIEW: 'dev_closing_conduct_view',
+  DEV_CLOSING_PDF_SINGLE: 'dev_closing_pdf_single',
   DEV_PLANNING_VIEW: 'dev_planning_view',
   DEV_TALENT_FICHE_VIEW: 'dev_talent_fiche_view',
   DEV_TALENT_NOTE_CREATE: 'dev_talent_note_create',
@@ -496,6 +497,21 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     kind: 'view',
     scope: 'event',
     dedupe: 'bucket',
+  }),
+  // Counted apart from the admin archive's own single-PDF figure rather than
+  // folded into it: the same document produced by the person who conducted the
+  // closing and by an admin reading the archive months later are two different
+  // uses, and telling them apart is the whole question this key answers.
+  [USAGE_FEATURES.DEV_CLOSING_PDF_SINGLE]: def({
+    key: USAGE_FEATURES.DEV_CLOSING_PDF_SINGLE,
+    label: 'Synthèse de closing en PDF',
+    definition:
+      'Générations de la synthèse PDF d’un closing depuis l’espace dev. Une par document produit ; un closing non finalisé n’en a pas, donc il ne compte pas.',
+    audience: 'staff',
+    space: 'dev',
+    kind: 'document',
+    scope: 'event',
+    dedupe: 'each',
   }),
   [USAGE_FEATURES.DEV_PLANNING_VIEW]: def({
     key: USAGE_FEATURES.DEV_PLANNING_VIEW,

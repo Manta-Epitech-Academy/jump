@@ -1,7 +1,9 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import FileText from '@lucide/svelte/icons/file-text';
   import type { PageData } from './$types';
+  import { buttonVariants } from '$lib/components/ui/button';
   import TalentPersonHeader from '$lib/components/students/TalentPersonHeader.svelte';
   import ClosingFlow from '$lib/components/dev/closings/ClosingFlow.svelte';
   import ClosingSectionNav from '$lib/components/dev/closings/ClosingSectionNav.svelte';
@@ -53,13 +55,34 @@
        while the closing is in progress, so `done` left a third of the page
        carrying two buttons and nothing else. -->
   {#if isDone}
-    <a
-      href={resolve(`/staff/dev/events/${data.event.id}/closings`)}
-      class="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-    >
-      <ArrowLeft class="h-4 w-4 shrink-0" />
-      Retour à la liste
-    </a>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <a
+        href={resolve(`/staff/dev/events/${data.event.id}/closings`)}
+        class="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft class="h-4 w-4 shrink-0" />
+        Retour à la liste
+      </a>
+
+      <!-- The document's own toolbar, and the only producer that stays on a
+           surface page rather than moving to the event's Exports page: it is
+           addressed by talent, so it belongs to the closing on screen. Opens in
+           a tab rather than downloading, because it is read before it is sent. -->
+      <a
+        href={resolve(
+          `/staff/dev/events/${data.event.id}/closings/${data.talentId}/pdf`,
+        )}
+        target="_blank"
+        rel="noreferrer"
+        class={cn(
+          buttonVariants({ variant: 'outline', size: 'sm' }),
+          'cursor-pointer rounded-sm',
+        )}
+      >
+        <FileText class="mr-1.5 h-4 w-4" />
+        Synthèse en PDF
+      </a>
+    </div>
   {/if}
 
   <!-- This page is about a person, not about a screen, so it is headed like one.
