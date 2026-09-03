@@ -408,7 +408,7 @@ export const EVENT_PRODUCER_DEFS: Record<EventProducerKey, EventProducerDef> = {
     label: 'Closings',
     description: 'Verdicts et réponses, une ligne par inscrit.',
     format: 'xlsx',
-    help: 'Une ligne par inscrit, son statut, son verdict et ses réponses. Les closings conduits dont l’inscription a été retirée depuis y figurent aussi. Ce fichier ne suit aucun filtre.',
+    help: 'Une ligne par inscrit : son statut, son verdict, ses réponses et les notes de l’équipe, chacune dans sa colonne. Les closings conduits dont l’inscription a été retirée depuis y figurent aussi. Ce fichier ne suit aucun filtre.',
     segment: 'closings/export',
     base: 'roster',
     available: eventRunsClosings,

@@ -90,13 +90,30 @@ const FIXED_HEADERS = [
   'Conduit le',
   'Verdict',
   'Note du verdict',
-  "Notes de l'équipe",
 ] as const;
 
-const FIXED_WIDTHS = [16, 16, 20, 28, 22, 18, 20, 40, 44];
+const FIXED_WIDTHS = [16, 16, 20, 28, 22, 18, 20, 40];
 
 /** Width of a per-question column: room for a sentence of free text. */
 const QUESTION_WIDTH = 32;
+/** A team note is prose, so it gets the width the verdict note gets. */
+const NOTE_WIDTH = 40;
+
+/**
+ * Prefix for the column holding what the TEAM wrote under a question, next to
+ * the column holding what the student answered.
+ *
+ * Its own column rather than one aggregate cell of every note, and that is not a
+ * layout preference. A single cell would have to separate the notes with a
+ * newline, and `buildXlsx` writes no cell styles on purpose - its own comment
+ * says to reach for a real library rather than grow it - so without `wrapText`
+ * a spreadsheet shows such a cell as one unbroken line and the notes past the
+ * first are effectively invisible. Verified against a generated workbook, not
+ * assumed. One column per note also keeps the student's voice and the team's
+ * voice visibly apart, which is the split the talent fiche already draws with
+ * `PullQuote` rather than merely documenting.
+ */
+const NOTE_HEADER_PREFIX = "Note de l'équipe : ";
 
 function formatInstant(date: Date, timezone: string): string {
   return date.toLocaleString('fr-FR', {
@@ -145,22 +162,35 @@ function answerCell(q: SynthesisQuestion): XlsxCell {
  * Keyed on the BANK question's id, never on its wording: a grid reads a question
  * aloud in its own words, so two grids asking the same question share a column.
  */
-function questionColumns(input: ClosingsSheetInput): {
-  ids: string[];
-  headers: Map<string, string>;
-} {
-  const headers = new Map<string, string>();
-  const ids: string[] = [];
+interface QuestionColumn {
+  questionId: string;
+  /** `answer` holds the student's, `note` the team's. */
+  holds: 'answer' | 'note';
+  header: string;
+  width: number;
+}
+
+function questionColumns(input: ClosingsSheetInput): QuestionColumn[] {
+  const answerHeaders = new Map<string, string>();
+  const order: string[] = [];
   const onCurrentGrid = new Set<string>();
+  /**
+   * Which questions get a note column: the ones this grid offers a note on,
+   * plus any that actually carry one. The second half is not redundant - a
+   * grid can withdraw its `withNote` while the notes taken under it remain, and
+   * dropping their column would hide what the team wrote.
+   */
+  const needsNote = new Set<string>();
 
   for (const section of input.currentGrid.synthesisSections) {
     for (const q of section.questions) {
       onCurrentGrid.add(q.id);
-      if (headers.has(q.id)) continue;
-      ids.push(q.id);
+      if (q.note) needsNote.add(q.id);
+      if (answerHeaders.has(q.id)) continue;
+      order.push(q.id);
       // Named off the grid, with no record involved, which is what keeps a
       // question nobody has answered yet visible as an empty column.
-      headers.set(q.id, questionHeader(q, true));
+      answerHeaders.set(q.id, questionHeader(q, true));
     }
   }
 
@@ -171,18 +201,37 @@ function questionColumns(input: ClosingsSheetInput): {
     if (!grid) continue;
     for (const section of buildClosingSynthesis(record, grid)) {
       for (const q of section.questions) {
-        if (headers.has(q.id)) continue;
-        ids.push(q.id);
-        headers.set(q.id, questionHeader(q, onCurrentGrid.has(q.id)));
+        if (q.note) needsNote.add(q.id);
+        if (answerHeaders.has(q.id)) continue;
+        order.push(q.id);
+        answerHeaders.set(q.id, questionHeader(q, onCurrentGrid.has(q.id)));
       }
     }
   }
 
-  return { ids, headers };
+  return order.flatMap((questionId): QuestionColumn[] => {
+    const header = answerHeaders.get(questionId) ?? questionId;
+    const answer: QuestionColumn = {
+      questionId,
+      holds: 'answer',
+      header,
+      width: QUESTION_WIDTH,
+    };
+    if (!needsNote.has(questionId)) return [answer];
+    return [
+      answer,
+      {
+        questionId,
+        holds: 'note',
+        header: `${NOTE_HEADER_PREFIX}${header}`,
+        width: NOTE_WIDTH,
+      },
+    ];
+  });
 }
 
 export function buildClosingsSheet(input: ClosingsSheetInput): XlsxSheet {
-  const { ids, headers } = questionColumns(input);
+  const columns = questionColumns(input);
   const byTalent = new Map(input.records.map((r) => [r.talentId, r]));
 
   const rowFor = (
@@ -196,16 +245,9 @@ export function buildClosingsSheet(input: ClosingsSheetInput): XlsxSheet {
 
     const grid = record ? input.grids.get(record.templateId) : undefined;
     const answers = new Map<string, SynthesisQuestion>();
-    const notes: string[] = [];
     if (record && grid) {
       for (const section of buildClosingSynthesis(record, grid)) {
-        for (const q of section.questions) {
-          answers.set(q.id, q);
-          // The team's own words, kept out of the answer cells: they are a
-          // different voice from the student's, and one column of them reads as
-          // prose where one per question would double the sheet's width.
-          if (q.note) notes.push(`${q.label} : ${q.note}`);
-        }
+        for (const q of section.questions) answers.set(q.id, q);
       }
     }
 
@@ -228,13 +270,13 @@ export function buildClosingsSheet(input: ClosingsSheetInput): XlsxSheet {
         ? CLOSING_RECOMMENDATIONS[record.recommendation].label
         : '',
       record?.verdictNote ?? '',
-      notes.join('\n'),
-      // A blank here is "this question was not asked of this closing", which is
-      // not a zero. Same distinction `stats_closing_insights` draws by carrying
-      // `asked` beside `answered`.
-      ...ids.map((id) => {
-        const q = answers.get(id);
-        return q ? answerCell(q) : null;
+      // A blank in an answer cell is "this question was not asked of this
+      // closing", which is not a zero. Same distinction `stats_closing_insights`
+      // draws by carrying `asked` beside `answered`.
+      ...columns.map((column) => {
+        const q = answers.get(column.questionId);
+        if (!q) return null;
+        return column.holds === 'note' ? (q.note ?? null) : answerCell(q);
       }),
     ];
   };
@@ -266,9 +308,9 @@ export function buildClosingsSheet(input: ClosingsSheetInput): XlsxSheet {
 
   return {
     name: 'Closings',
-    headers: [...FIXED_HEADERS, ...ids.map((id) => headers.get(id) ?? id)],
+    headers: [...FIXED_HEADERS, ...columns.map((c) => c.header)],
     rows,
-    colWidths: [...FIXED_WIDTHS, ...ids.map(() => QUESTION_WIDTH)],
+    colWidths: [...FIXED_WIDTHS, ...columns.map((c) => c.width)],
   };
 }
 

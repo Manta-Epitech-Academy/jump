@@ -63,6 +63,8 @@ const templateWith = (
   questions: {
     question: StoredClosingQuestion;
     labelOverride?: string | null;
+    /** Whether this grid offers the team a note under the question. */
+    withNote?: boolean;
   }[],
 ): StoredClosingTemplate => ({
   id,
@@ -78,7 +80,7 @@ const templateWith = (
         sectionId: `${id}_s1`,
         position,
         labelOverride: q.labelOverride ?? null,
-        withNote: true,
+        withNote: q.withNote ?? true,
         question: q.question,
       })),
     },
@@ -262,7 +264,7 @@ describe('buildClosingsSheet', () => {
     expect(cell).toBe('Dev, Cyber');
   });
 
-  it('should gather the team notes in one column, and only the non-empty ones', () => {
+  it("should put a team note in its own column, beside the student's answer", () => {
     // Arrange: a note on the rating, none on the choice.
     const built = sheet({
       roster: [person('lucie')],
@@ -276,9 +278,69 @@ describe('buildClosingsSheet', () => {
       ],
     });
     // Act
-    const cell = built.rows[0][col(built.headers, "Notes de l'équipe")];
-    // Assert: the team's words, labelled and trimmed, apart from the student's.
-    expect(cell).toBe('Satisfaction globale du stage : très motivée');
+    const answerAt = col(built.headers, 'Satisfaction globale du stage (');
+    const noteAt = col(built.headers, "Note de l'équipe : Satisfaction");
+    // Assert: the team's words trimmed, in the column right after the
+    // student's, and never mixed into the answer cell. One aggregate cell would
+    // have to separate notes with a newline, which a spreadsheet does not show
+    // without a `wrapText` style `buildXlsx` deliberately does not write.
+    expect(noteAt).toBe(answerAt + 1);
+    expect(built.rows[0][answerAt]).toBe(5);
+    expect(built.rows[0][noteAt]).toBe('très motivée');
+  });
+
+  it('should give no note column to a question the grid takes no note on', () => {
+    // Arrange: same grid with the note field withdrawn from both questions.
+    const noNotes = toClosingGrid(
+      templateWith('t_plain', [
+        { question: CHOICE, withNote: false },
+        {
+          question: RATING,
+          labelOverride: 'Satisfaction globale du stage',
+          withNote: false,
+        },
+      ]),
+    );
+    // Act
+    const built = sheet({
+      roster: [person('lucie')],
+      grids: grids(noNotes),
+      currentGrid: noNotes,
+    });
+    // Assert: no empty note column widening the sheet for nothing.
+    expect(built.headers.some((h) => h.startsWith("Note de l'équipe :"))).toBe(
+      false,
+    );
+  });
+
+  it('should keep a note whose grid has since withdrawn its note field', () => {
+    // Arrange: the note was taken, then the grid stopped offering one. The
+    // integration suite pins that the note survives in the database; here the
+    // column has to survive too, or the export hides what the team wrote.
+    const withdrawn = toClosingGrid(
+      templateWith('t_withdrawn', [
+        {
+          question: RATING,
+          labelOverride: 'Satisfaction globale du stage',
+          withNote: false,
+        },
+      ]),
+    );
+    // Act
+    const built = sheet({
+      roster: [person('lucie')],
+      grids: grids(withdrawn),
+      currentGrid: withdrawn,
+      records: [
+        record({
+          templateId: withdrawn.templateId,
+          answers: [answer(RATING, { ratingValue: 3, note: 'à revoir' })],
+        }),
+      ],
+    });
+    // Assert
+    const noteAt = col(built.headers, "Note de l'équipe :");
+    expect(built.rows[0][noteAt]).toBe('à revoir');
   });
 
   it('should name the current grid columns even when nothing has been conducted', () => {
