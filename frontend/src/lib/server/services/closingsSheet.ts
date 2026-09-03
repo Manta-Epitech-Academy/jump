@@ -1,3 +1,4 @@
+import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
 import {
   CLOSING_RECOMMENDATIONS,
@@ -5,7 +6,10 @@ import {
   closingListStatus,
   type ClosingGrid,
 } from '$lib/domain/closing';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { FORMER_STAFF_LABEL } from '$lib/domain/staff';
+import type { ScopedPrismaClient } from '$lib/server/db/scoped';
+import { resolveClosingGrids } from '$lib/server/closingTemplates';
 import type { XlsxCell, XlsxSheet } from '$lib/server/xlsx';
 import {
   buildClosingSynthesis,
@@ -23,8 +27,12 @@ import {
  * (`labelOverride`), the option order (`position`) and the questions a grid has
  * since dropped are all already handled there.
  *
- * Kept out of the route and free of Prisma calls so the column algebra below -
- * the part that can be subtly wrong - is testable without a database.
+ * Two halves on purpose. `buildClosingsSheet` touches no database, so the column
+ * algebra - the part that can be subtly wrong - is unit-tested without one.
+ * `loadClosingsSheet` gathers what it needs, and lives here rather than in the
+ * route so the wiring between the two queries is testable too: the roster
+ * excludes a pruned enrolment while the records still carry its closing, and
+ * that pairing is the whole reason the sheet is a union rather than a list.
  */
 
 /** `closingPdfSelect` plus what a sheet needs and one document does not: the
@@ -262,4 +270,69 @@ export function buildClosingsSheet(input: ClosingsSheetInput): XlsxSheet {
     rows,
     colWidths: [...FIXED_WIDTHS, ...ids.map(() => QUESTION_WIDTH)],
   };
+}
+
+/**
+ * Gather one event's closings and build the sheet.
+ *
+ * `db` is already campus-scoped, so this can only ever read the caller's own
+ * campus. The event is passed resolved rather than by id for the same reason:
+ * `loadEventOr404` is what checked the campus, and re-reading it here would
+ * invite reading it unscoped.
+ */
+export async function loadClosingsSheet(
+  db: ScopedPrismaClient,
+  event: { id: string; closingTemplateId: string | null },
+  timezone: string,
+): Promise<XlsxSheet> {
+  if (!event.closingTemplateId) {
+    // The module is only half the gate: without a grid there is nothing to ask,
+    // so there is nothing to export either. Same 404 the roster page throws.
+    throw error(
+      404,
+      "Aucune grille de closing n'est configurée pour cet événement.",
+    );
+  }
+
+  const [roster, records] = await Promise.all([
+    db.participation.findMany({
+      // Same cohort definition as the roster page and as every other dev
+      // screen, so the export and the list agree on who is enrolled.
+      where: { eventId: event.id, ...visibleParticipationWhere },
+      select: {
+        talentId: true,
+        talent: { select: { nom: true, prenom: true, externalId: true } },
+      },
+      orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
+    }),
+    db.closing_Record.findMany({
+      where: { eventId: event.id },
+      select: closingsSheetSelect,
+      orderBy: { createdAt: 'asc' },
+    }),
+  ]);
+
+  // Every grid involved, resolved once each: the records of one event sit on one
+  // grid in the ordinary case and on two when the event has been retargeted, and
+  // the event's own grid is needed even when nothing has been conducted yet,
+  // since it is what names the columns.
+  const grids = await resolveClosingGrids([
+    event.closingTemplateId,
+    ...records.map((r) => r.templateId),
+  ]);
+  const currentGrid = grids.get(event.closingTemplateId);
+  if (!currentGrid) throw error(404, 'Grille de closing introuvable.');
+
+  return buildClosingsSheet({
+    roster: roster.map((p) => ({
+      talentId: p.talentId,
+      prenom: p.talent.prenom,
+      nom: p.talent.nom,
+      externalId: p.talent.externalId,
+    })),
+    records,
+    grids,
+    currentGrid,
+    timezone,
+  });
 }
