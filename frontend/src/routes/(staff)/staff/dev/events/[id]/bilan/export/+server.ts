@@ -9,6 +9,7 @@ import {
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
 import { answerCells, buildSubmissionWhere } from '$lib/server/feedbackStats';
+import { requireStaffGroup } from '$lib/server/auth/guards';
 import { asciiFilename, xlsxAttachment } from '$lib/server/attachments';
 import type { XlsxSheet } from '$lib/server/xlsx';
 import { recordUsage } from '$lib/server/usage/record';
@@ -21,6 +22,11 @@ import { USAGE_FEATURES } from '$lib/domain/usage';
 // strings are inert, so no CSV-style formula guard is needed on the untrusted
 // respondent input.
 export const GET: RequestHandler = async ({ params, locals }) => {
+  // Defence in depth, like its two sibling exports: the hook-level `isDevPath`
+  // check in `applyRouteGuards` already refuses a non-dev, but an endpoint that
+  // streams minors' answers should not be the one route in the set whose only
+  // gate is somewhere else.
+  requireStaffGroup(locals, 'devMember');
   const campusId = getCampusId(locals);
   const event = await loadEventOr404(params.id, campusId);
   requireEventModule(event, EVENT_MODULES.BILAN);

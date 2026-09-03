@@ -1,7 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
   import QrCode from '@lucide/svelte/icons/qr-code';
-  import Download from '@lucide/svelte/icons/download';
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
@@ -29,16 +28,9 @@
     <PageHeader title={data.form.title} subtitle={eventDisplayName(data.event)}>
       {#snippet actions()}
         <div class="flex items-center gap-2">
-          <Button
-            href={`${page.url.pathname}/export`}
-            download
-            variant="outline"
-            size="sm"
-            class="rounded-sm"
-          >
-            <Download class="mr-1.5 h-4 w-4" />
-            Exporter XLSX
-          </Button>
+          <!-- The QR code stays here, and the xlsx export moved to the event's
+               Exports page: a QR is shown in the room you are standing in, a file
+               is taken away. -->
           <Tooltip.Root>
             <Tooltip.Trigger>
               {#snippet child({ props })}
