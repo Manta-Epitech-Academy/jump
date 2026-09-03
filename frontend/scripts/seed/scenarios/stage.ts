@@ -142,8 +142,17 @@ export const stage: Scenario = {
     const cohort = makeCohort(world, { size, campus, schoolYear });
     for (const talent of cohort) world.enrol(event, talent);
 
-    // Dossiers. 16% of the platform has one, but a stage cohort is the part that
-    // does: these are the students who logged in, so most of them completed.
+    // Dossiers. 16% of the platform has one, and a stage cohort is the part
+    // that does - but this is a DELIBERATE departure from PROFILE.md and it is
+    // worth being exact about which half. In production 765 of the 1640 stage
+    // enrolments logged in at all (47%), and 759 of those 765 finished (99%):
+    // the gate is the first login, not the wizard. So the wizard's completion
+    // rate is reproduced faithfully and its login rate is not, because a stage
+    // is the one event where the règlement and the droit à l'image have to be
+    // chased, and half a cohort with no dossier at all leaves the compliance
+    // column, the relance audience and the parent portal reading against a
+    // handful of rows. The platform-wide 16% is carried by `longTail`, which is
+    // where the honest figure belongs.
     const withDossier: TalentRef[] = [];
     const withoutDossier: TalentRef[] = [];
     for (const [index, talent] of cohort.entries()) {
