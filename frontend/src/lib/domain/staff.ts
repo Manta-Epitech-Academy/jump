@@ -89,3 +89,19 @@ export function bauthRoleForStaffRole(
 ): 'admin' | 'staff' {
   return staffRole === 'admin' ? 'admin' : 'staff';
 }
+
+/**
+ * The `bauth_user.role` values that mean "this login is a staff member".
+ *
+ * Derived from `bauthRoleForStaffRole` over every `StaffRole` rather than
+ * written out, so it is exactly what that mapping can produce and cannot come
+ * to disagree with it. The OTP audience resolver
+ * (`$lib/server/auth/otpAudience`) refuses on this in addition to the presence
+ * of a `StaffProfile`: the profile is the truth about what someone can do in
+ * the app, but this column is what BetterAuth's admin plugin gates
+ * impersonation on, so a row carrying it is staff-capable even with no profile
+ * attached.
+ */
+export const BAUTH_STAFF_ROLES: readonly string[] = [
+  ...new Set(staffRoles.map(bauthRoleForStaffRole)),
+];
