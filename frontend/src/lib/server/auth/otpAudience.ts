@@ -33,11 +33,25 @@ export type OtpIdentity =
   | { audience: 'talent'; talentId: string; name: string | null }
   | { audience: 'parent'; name: string | null };
 
-export async function resolveOtpIdentity(
-  email: string,
-): Promise<OtpIdentity | null> {
+/**
+ * Why an address may or may not use the OTP door.
+ *
+ * `refused` and `unknown` both mean "no OTP for this address", which is all
+ * three of the callers above need, so they read {@link resolveOtpIdentity}
+ * instead. The gate is the one caller that has to tell them apart: it makes a
+ * refused address indistinguishable from an unknown one by handing BetterAuth
+ * an address BetterAuth has never seen, and it can only do that for an address
+ * that is actually refused. Answering an unknown address itself would put our
+ * response where the plugin's own belongs.
+ */
+export type OtpDoor =
+  | { verdict: 'allowed'; identity: OtpIdentity }
+  | { verdict: 'refused' }
+  | { verdict: 'unknown' };
+
+export async function resolveOtpDoor(email: string): Promise<OtpDoor> {
   const normalized = email.toLowerCase().trim();
-  if (!normalized) return null;
+  if (!normalized) return { verdict: 'unknown' };
 
   const user = await prisma.bauth_user.findUnique({
     where: { email: normalized },
@@ -48,13 +62,36 @@ export async function resolveOtpIdentity(
       talent: { select: { id: true } },
     },
   });
-  if (!user) return null;
+  if (!user) return { verdict: 'unknown' };
 
-  if (user.staffProfile || BAUTH_STAFF_ROLES.includes(user.role)) return null;
-
-  if (user.role === 'parent') return { audience: 'parent', name: user.name };
-  if (user.talent) {
-    return { audience: 'talent', talentId: user.talent.id, name: user.name };
+  if (user.staffProfile || BAUTH_STAFF_ROLES.includes(user.role)) {
+    return { verdict: 'refused' };
   }
-  return null;
+
+  if (user.role === 'parent') {
+    return {
+      verdict: 'allowed',
+      identity: { audience: 'parent', name: user.name },
+    };
+  }
+  if (user.talent) {
+    return {
+      verdict: 'allowed',
+      identity: {
+        audience: 'talent',
+        talentId: user.talent.id,
+        name: user.name,
+      },
+    };
+  }
+  // A login with neither a Talent nor a guardian role: nothing this door can
+  // sign in, even though the row exists.
+  return { verdict: 'refused' };
+}
+
+export async function resolveOtpIdentity(
+  email: string,
+): Promise<OtpIdentity | null> {
+  const door = await resolveOtpDoor(email);
+  return door.verdict === 'allowed' ? door.identity : null;
 }

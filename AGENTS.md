@@ -97,17 +97,28 @@ account creation.
   `talent` first (as the action did) admits the row carrying both that bad
   Salesforce data produces.
 - **`emailOtpAudienceGate`** (`server/auth/emailOtpAudienceGate.ts`) is a
-  BetterAuth `before` hook over the whole `/email-otp/*` prefix, so an endpoint a
-  future release adds is refused on arrival. It is **not** a check inside
+  BetterAuth `before` hook over every path carrying `email-otp`, so an endpoint a
+  future release adds is covered on arrival, inside the `/email-otp/` prefix or
+  beside it (two of today's nine already are). It is **not** a check inside
   `sendVerificationOTP`, and that is the load-bearing part: the send endpoint
   writes the `bauth_verification` row **before** it looks the user up, and awaits
   the callback through `runInBackgroundOrAwait`, which swallows the rejection and
-  still answers `200`. Refusing in the callback leaves a live, usable code
-  behind. A `before` hook also covers `auth.api.*`, since both surfaces reach the
-  endpoint through the same dispatcher.
-- **A refusal discloses nothing.** `200 {success:true}` on the emitting routes,
-  byte for byte what an unknown address gets under `disableSignUp`, and
-  `INVALID_OTP` on the consuming ones, which is what a wrong code gets.
+  still answers `200`. Refusing in the callback leaves a live code behind under
+  the refused address. A `before` hook also covers `auth.api.*`, since both
+  surfaces reach the endpoint through the same dispatcher.
+- **A refusal discloses nothing, because it is not an answer of ours.** The hook
+  substitutes an address BetterAuth has never seen (`.invalid`, one per request)
+  and lets the plugin's own unknown-address path reply: `200 {success:true}` on
+  the emitting routes under `disableSignUp`, `INVALID_OTP` on the consuming
+  ones. Reproducing those two responses instead is the shape that shipped and
+  had to be replaced, and the reason is the one a `before` hook cannot avoid: it
+  runs ahead of body validation, so it would also have to answer for every
+  request the endpoint rejects before its user lookup (`{email}` with no `type`,
+  or `type: 'change-email'`), where a 400 for an eligible address against a 200
+  for every other one discloses on an unauthenticated route precisely the bit
+  the silent success exists to hide. Substituting keeps validation, error
+  shapes and timing upstream where they belong; the parity is asserted per
+  route, per malformed body, in `emailOtpAudience.integration.test.ts`.
 - **The plugin's two server-only endpoints carry no path**, so a matcher cannot
   see them. `server/auth/otpSession.ts` owns both halves of the credential
   (`mintSigninOtp`, `establishOtpSession`) and checks the audience itself.

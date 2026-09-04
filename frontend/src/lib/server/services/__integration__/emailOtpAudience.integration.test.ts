@@ -60,6 +60,27 @@ function postAuth(path: string, body: unknown): Promise<Response> {
 
 const signInIdentifier = (email: string) => `sign-in-otp-${email}`;
 
+/**
+ * An address with no `bauth_user` row at all. Every refusal below is asserted
+ * against this rather than against a literal: the gate refuses by handing
+ * BetterAuth an address it has never seen, so what a refused caller gets is
+ * whatever the plugin gives an unknown one, and hard-coding those two
+ * responses is what made the first version of the gate wrong.
+ */
+const unknownEmail = `otp.nobody.${stamp}@e2e.invalid`;
+
+/** Status plus raw body, so parity is compared byte for byte. */
+async function outcome(path: string, body: unknown) {
+  const response = await postAuth(path, body);
+  return {
+    status: response.status,
+    body: await response.text(),
+    setCookie: response.headers.get('set-cookie'),
+  };
+}
+
+const SEND = '/api/auth/email-otp/send-verification-otp';
+
 function storedOtp(email: string): Promise<string | null> {
   return prisma.bauth_verification
     .findFirst({
@@ -202,6 +223,104 @@ describe('email OTP audience (integration)', () => {
         where: { identifier: signInIdentifier(staffEmail) },
       }),
     ).toBe(1);
+  });
+
+  it('answers a refused address exactly as it answers an unknown one', async () => {
+    const [staff, unknown] = await Promise.all([
+      outcome(SEND, { email: staffEmail, type: 'sign-in' }),
+      outcome(SEND, { email: unknownEmail, type: 'sign-in' }),
+    ]);
+
+    expect(staff).toEqual(unknown);
+    expect(staff.status).toBe(200);
+
+    // On the consuming side the same way. The code is planted against the
+    // staff address and CORRECT, so this is the one comparison that would
+    // still hold if the code were simply wrong: a right code has to buy a
+    // staff caller exactly what a wrong one buys an address nobody has.
+    await prisma.bauth_verification.create({
+      data: {
+        identifier: signInIdentifier(staffEmail),
+        value: '654321:0',
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    });
+
+    const [staffSignIn, unknownSignIn] = await Promise.all([
+      outcome('/api/auth/sign-in/email-otp', {
+        email: staffEmail,
+        otp: '654321',
+      }),
+      outcome('/api/auth/sign-in/email-otp', {
+        email: unknownEmail,
+        otp: '654321',
+      }),
+    ]);
+
+    expect(staffSignIn).toEqual(unknownSignIn);
+    expect(staffSignIn.status).toBe(400);
+    expect(staffSignIn.setCookie).toBeNull();
+    expect(
+      await prisma.bauth_session.count({ where: { userId: staffUserId } }),
+    ).toBe(0);
+
+    // Left behind, it would break the next test's row count, which is a
+    // deliberate 1.
+    await prisma.bauth_verification.deleteMany({
+      where: { identifier: signInIdentifier(staffEmail) },
+    });
+  });
+
+  it('leaves the endpoint to answer for a body it would reject anyway', async () => {
+    // A `before` hook runs ahead of body validation, so a gate that answered
+    // `200 {success:true}` itself would answer these too - and the endpoint
+    // rejects them for an eligible address, which turns the difference into an
+    // account-existence probe. Every address must get the same thing here.
+    const rejected = [
+      { label: 'no type', partial: {} },
+      // The plugin refuses this type on this route and says to use
+      // /email-otp/request-email-change, before it looks any address up.
+      { label: 'change-email type', partial: { type: 'change-email' } },
+    ];
+
+    for (const { label, partial } of rejected) {
+      const [staff, talent, unknown] = await Promise.all([
+        outcome(SEND, { email: staffEmail, ...partial }),
+        outcome(SEND, { email: talentEmail, ...partial }),
+        outcome(SEND, { email: unknownEmail, ...partial }),
+      ]);
+
+      expect(staff, label).toEqual(talent);
+      expect(unknown, label).toEqual(talent);
+      expect(talent.status, label).toBe(400);
+    }
+
+    // Same rule for a malformed address: the endpoint's own INVALID_EMAIL, not
+    // a silent success of ours.
+    const malformed = await outcome(SEND, {
+      email: 'not-an-email',
+      type: 'sign-in',
+    });
+    expect(malformed.status).toBe(400);
+    expect(malformed.body).toContain('INVALID_EMAIL');
+  });
+
+  it('stores nothing that outlives a refused call', async () => {
+    await postAuth(SEND, { email: staffEmail, type: 'sign-in' });
+
+    // The substitute address the gate hands BetterAuth takes the plugin's
+    // unknown-address path, which writes a row and deletes it again before it
+    // answers. Nothing may be left behind under either address.
+    expect(
+      await prisma.bauth_verification.count({
+        where: { identifier: { contains: 'otp-door-refused' } },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.bauth_user.count({
+        where: { email: { contains: 'otp-door-refused' } },
+      }),
+    ).toBe(0);
   });
 
   it('refuses an address that is both staff and a talent', async () => {
