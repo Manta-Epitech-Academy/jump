@@ -14,6 +14,7 @@ import { missingEnumValues } from './enums';
 import { stringCatalogueFailures } from './stringCatalogues';
 import { projectionFailures } from './projections';
 import { reachabilityFailures } from './reachability';
+import { inertnessFailures } from './inertness';
 import { coverageFailures, KNOWN_GAP_COUNT } from './coverage';
 
 export async function runChecks(
@@ -26,6 +27,7 @@ export async function runChecks(
     ['couverture du schéma', await coverageFailures(prisma)],
     ['projections', await projectionFailures(prisma)],
     ['états atteignables', await reachabilityFailures(prisma, clock.today)],
+    ['inertie aux workers', await inertnessFailures(prisma)],
     ['horodatages ancrés', await clockFailures(prisma, clock.today)],
     [
       'catalogues texte',

@@ -85,8 +85,14 @@ export const operations: Scenario = {
       });
     }
 
-    // Campaigns, in every status and both channels. The partially failed one is
-    // the row somebody has to act on, and it only exists if it is seeded.
+    // Campaigns, in every TERMINAL status and both channels. The partially
+    // failed one is the row somebody has to act on, and it only exists if it is
+    // seeded.
+    //
+    // `queued` and `sending` are deliberately absent, and that absence is the
+    // broadcast worker's isolation, exactly as an empty `Campus.externalName` is
+    // the Salesforce worker's: a row in either status is work the cron claims and
+    // sends. Four used to be seeded here. See `assert/inertness.ts`.
     if (team[0] && roster.length > 0) {
       const audience = roster.slice(0, Math.min(30, roster.length));
       addBroadcast(world, {
@@ -137,7 +143,7 @@ export const operations: Scenario = {
         name: 'Relance des non-ouvreurs',
         channel: 'mail',
         audience: 'talent',
-        status: 'queued',
+        status: 'sent',
         campus,
         event,
         createdBy: team[0],
@@ -151,6 +157,10 @@ export const operations: Scenario = {
         channel: 'mail',
         audience: 'dev',
         status: 'failed',
+        // Every recipient failed at once, which is what a `failed` campaign is.
+        // A per-address message would be nonsense on a roomful of @epitech.eu
+        // addresses, so this one fails the way a whole batch actually does.
+        failureMessage: 'Fournisseur indisponible (502)',
         campus,
         // Nobody: the member who sent it has left, and the campaign history
         // survives them rather than blocking their deletion.
@@ -163,7 +173,7 @@ export const operations: Scenario = {
         name: 'Note aux référents',
         channel: 'mail',
         audience: 'superdev',
-        status: 'sending',
+        status: 'sent',
         campus,
         createdBy: team[0],
         recipients: [],
@@ -179,7 +189,7 @@ export const operations: Scenario = {
         name: 'Relance des ouvreurs',
         channel: 'mail',
         audience: 'talent',
-        status: 'queued',
+        status: 'sent',
         campus,
         event,
         createdBy: team[0],
@@ -191,7 +201,7 @@ export const operations: Scenario = {
         name: 'Relance de toute la cohorte',
         channel: 'sms',
         audience: 'talent',
-        status: 'queued',
+        status: 'sent',
         campus,
         event,
         createdBy: team[0],

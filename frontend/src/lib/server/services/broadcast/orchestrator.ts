@@ -6,7 +6,10 @@ import type {
 } from '@prisma/client';
 import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
-import type { BroadcastFilters } from '$lib/domain/broadcasts';
+import type {
+  BroadcastFilters,
+  BroadcastTerminalStatus,
+} from '$lib/domain/broadcasts';
 import { rewriteHtmlLinks, rewriteSmsLinks } from './linkRewriter';
 import {
   substituteVariables,
@@ -160,6 +163,12 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
   // and bail. Without this, the fire-and-forget call from the create action
   // and a concurrent cron tick (or two cron ticks) would both page the same
   // `pending` recipients and double-send.
+  //
+  // Those two statuses are the outstanding half of `BROADCAST_STATUS_KIND`
+  // (`$lib/domain/broadcasts`), which is what the seed generator's inertness
+  // check reads to refuse writing a row this claim could ever match. The
+  // condition per status stays here, because only the worker knows that a
+  // `sending` row is claimable exactly once its heartbeat is stale.
   const stuckBefore = new Date(Date.now() - SENDING_STUCK_TIMEOUT_MS);
   const claim = await prisma.broadcast.updateMany({
     where: {
@@ -273,7 +282,10 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
 
   if (tally.pending > 0) return; // not finalized yet: retry candidates remain
 
-  const finalStatus =
+  // Typed, so the three conclusions here and the statuses the claim above
+  // matches stay two halves of one classification (`BROADCAST_STATUS_KIND`)
+  // rather than two lists that can drift.
+  const finalStatus: BroadcastTerminalStatus =
     tally.failed === 0
       ? 'sent'
       : tally.sent === 0
