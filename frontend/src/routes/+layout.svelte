@@ -121,7 +121,10 @@
   <link rel="icon" href={dev ? faviconDev : faviconProd} />
 </svelte:head>
 
-<ModeWatcher />
+<!-- The FOUC-prevention script it would inject here carries no nonce and
+     `kit.csp` blocks it; `src/app.html` emits a nonce-carrying copy instead
+     (see `THEME_INIT` in hooks.server.ts, issue #277). -->
+<ModeWatcher disableHeadScriptInjection />
 <Umami />
 <ImpersonationAutoExit />
 

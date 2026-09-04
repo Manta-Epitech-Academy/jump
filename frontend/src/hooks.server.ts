@@ -18,35 +18,40 @@ import { readArmedState, effectiveUserId } from '$lib/server/armRealSends';
 import { readDevRedirectPin } from '$lib/server/devRedirectPin';
 import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
 import { env } from '$env/dynamic/private';
+import { frameSrcDirective, LOCKED_DOWN_CSP } from '$lib/security/csp';
+import { createInitialModeExpression } from 'mode-watcher';
 
-// Every other CSP directive is a fixed constant (or gone with the recorder,
-// issue #275) and lives in `kit.csp` (svelte.config.js) now, which hands out a
-// real per-request script-src nonce instead of `'unsafe-inline'`. `frame-src`
-// is the one exception: its `JUMP_GAMES_URL`-derived entry is genuinely
-// per-deployment, and svelte.config.js only ever runs at build time (see the
-// Dockerfile: one image, built before any environment's env vars exist, then
-// deployed everywhere with different ones), so it has to stay here and be
-// appended onto the header kit.csp already set. Deployed games hosts already
-// match the `*.epiboost.eu` wildcard below; only a local jump-games (e.g.
-// http://localhost:5174) needs the extra entry.
-const GAMES_FRAME_SRC = (() => {
-  try {
-    return env.JUMP_GAMES_URL ? new URL(env.JUMP_GAMES_URL).origin : '';
-  } catch {
-    return '';
-  }
-})();
+// Every CSP directive that is a fixed constant (or gone with the recorder, issue
+// #275) lives in `kit.csp` (svelte.config.js) now, which hands out a real
+// per-request script-src nonce. The two values below are what a build-time
+// config cannot express; both live in `$lib/security/csp`, which says why.
+//
+// Computed once at module load rather than per request: `JUMP_GAMES_URL` is a
+// container env var, so it cannot change while the process runs.
+const FRAME_SRC_DIRECTIVE = frameSrcDirective(env.JUMP_GAMES_URL);
 
-const FRAME_SRC_DIRECTIVE = `frame-src 'self' https://*.epiboost.eu https://*.epiboost.fr${GAMES_FRAME_SRC ? ` ${GAMES_FRAME_SRC}` : ''}`;
-
-// Nothing runs a script or embeds a frame on these: an early guard redirect, a
-// JSON action result, a `+server.ts` endpoint. None of them go through kit's
-// page renderer, so none of them carry the `kit.csp` header: refuse
-// everything rather than leave the response with no policy at all.
-const LOCKED_DOWN_CSP =
-  "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+/**
+ * The light/dark class, applied before the first paint.
+ *
+ * `<ModeWatcher />` injects this script itself, and the copy it injects carries
+ * no nonce, so `kit.csp` blocks it: the theme class then lands only once
+ * hydration has run, and a talent whose mode is dark gets a flash of the light
+ * theme on every full page load. `%sveltekit.nonce%` is substituted in
+ * `src/app.html` and nowhere else, so the app template is the only place a
+ * nonce-carrying inline script can live, and the component is passed
+ * `disableHeadScriptInjection` so it stops emitting the blocked one.
+ *
+ * The expression comes from mode-watcher's own public generator rather than
+ * being written out here, which is what keeps this from drifting from the
+ * component's runtime on an upgrade. `{}` means its documented defaults, which
+ * is exactly what a bare `<ModeWatcher />` uses.
+ */
+const THEME_INIT_TOKEN = '/* jump:theme-init */';
+const THEME_INIT = createInitialModeExpression({});
 
 function setSecurityHeaders(response: Response) {
+  // A header already set is kit's, so append to it. Nothing here rebuilds a
+  // policy, and `security/csp.test.ts` fails if that changes.
   const renderedCsp = response.headers.get('Content-Security-Policy');
   response.headers.set(
     'Content-Security-Policy',
@@ -407,7 +412,11 @@ export const handle: Handle = async ({ event, resolve }) => {
         actingStaff?.devRedirectPhones ?? pinnedStaff?.devRedirectPhones ?? [],
       armedRealSends: armed.armed,
     },
-    () => resolve(event),
+    () =>
+      resolve(event, {
+        transformPageChunk: ({ html }) =>
+          html.replace(THEME_INIT_TOKEN, THEME_INIT),
+      }),
   );
   setSecurityHeaders(response);
 
