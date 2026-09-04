@@ -33,7 +33,11 @@ import { resolveOtpIdentity } from './otpAudience';
  * failure as an empty variable, so enforcing it costs a batch nothing.
  */
 export async function mintSigninOtp(email: string): Promise<string> {
-  await assertOtpEligible(email);
+  if (!(await resolveOtpIdentity(email))) {
+    throw new Error(
+      'Email OTP is reserved for talents and legal guardians; staff sign in through Microsoft OAuth',
+    );
+  }
   return await auth.api.createVerificationOTP({
     body: { email, type: 'sign-in' },
   });
@@ -64,7 +68,13 @@ export async function establishOtpSession({
   request: Request;
   cookies: Cookies;
 }): Promise<void> {
-  await assertOtpEligible(email);
+  if (!(await resolveOtpIdentity(email))) {
+    // A refusal the visitor can read, in the shape the fastlogin routes
+    // already answer their own failures with. `mintSigninOtp` above throws a
+    // plain Error instead: nobody is waiting on a broadcast batch, and its
+    // caller logs the mint and carries on.
+    throw error(403, "Ce lien ne permet pas d'ouvrir une session.");
+  }
 
   const otp = await auth.api.createVerificationOTP({
     body: { email, type: 'sign-in' },
@@ -79,11 +89,4 @@ export async function establishOtpSession({
   }
 
   forwardAuthCookies(authResponse, cookies);
-}
-
-async function assertOtpEligible(email: string): Promise<void> {
-  if (await resolveOtpIdentity(email)) return;
-  throw new Error(
-    'Email OTP is reserved for talents and legal guardians; staff sign in through Microsoft OAuth',
-  );
 }
