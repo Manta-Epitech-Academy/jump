@@ -10,8 +10,9 @@
  *
  * Kept free of any `$lib/server/auth` import on purpose: BetterAuth's OTP
  * callback imports `otp.ts`, which mints parent links here, so routing the
- * token helpers through `auth` would close an import cycle. Only `mintSigninOtp`
- * (in `broadcast/personalization.ts`) needs the BetterAuth instance.
+ * token helpers through `auth` would close an import cycle. The sibling that
+ * does need the BetterAuth instance is `otpSession.ts`, which mints and
+ * consumes the OTP credential.
  *
  * Security model:
  *

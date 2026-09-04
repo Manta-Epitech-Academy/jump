@@ -89,3 +89,17 @@ export function bauthRoleForStaffRole(
 ): 'admin' | 'staff' {
   return staffRole === 'admin' ? 'admin' : 'staff';
 }
+
+/**
+ * The `bauth_user.role` values that mean "this login is a staff member",
+ * i.e. exactly what `bauthRoleForStaffRole` above can produce.
+ *
+ * Named here so a reader asking "is this account staff" has one list to
+ * consult instead of an inlined `['admin', 'staff']` at each call site. The
+ * email-OTP audience gate (`$lib/server/auth/otpAudience`) refuses on it in
+ * addition to the presence of a `StaffProfile`: the profile is the truth about
+ * what someone can do in the app, but this column is what BetterAuth's admin
+ * plugin gates impersonation on, so a row carrying it is staff-capable even
+ * with no profile attached.
+ */
+export const BAUTH_STAFF_ROLES: readonly string[] = ['admin', 'staff'];

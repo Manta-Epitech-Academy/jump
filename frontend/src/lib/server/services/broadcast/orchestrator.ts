@@ -24,7 +24,7 @@ import {
   mintParentFastloginToken,
   buildParentFastloginLink,
 } from '$lib/server/auth/fastloginToken';
-import { mintSigninOtp } from './personalization';
+import { mintSigninOtp } from '$lib/server/auth/otpSession';
 import { loadBroadcastTemplate } from './templates';
 import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
 import { staffBulkDevRedirectPhones } from '$lib/server/sms/dev-redirect';
