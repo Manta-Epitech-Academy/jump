@@ -86,7 +86,7 @@ export function eventWindowEnd(date: Date, endDate: Date | null): Date {
 // tz-aware composition into a real instant lives server-side (eventTime.ts).
 
 /**
- * Canonical "HH:MM" 24-hour pattern — the single source shared by the parser
+ * Canonical "HH:MM" 24-hour pattern: the single source shared by the parser
  * below and the Zod form schema, so the two can never drift. Capturing groups
  * are used by `hhmmToMinutes`; a `.test()` ignores them.
  */
@@ -113,7 +113,7 @@ const DEFAULT_START_MINUTES = 10 * 60;
 
 /**
  * The time we actually show: the confirmed `startMinutes` if set, else a single
- * default (10:00). So talents never see "00:00" even before staff touch it —
+ * default (10:00). So talents never see "00:00" even before staff touch it:
  * `startMinutes === null` means "unconfirmed, showing the default" (staff are
  * nudged to validate), a non-null value means a human set it.
  */

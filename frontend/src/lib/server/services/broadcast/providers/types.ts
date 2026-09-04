@@ -6,7 +6,7 @@ export type SendOutcome =
       /**
        * Whether the failure looks transient (network error, 429, 5xx).
        * Orchestrator uses this to decide between "retry later" and
-       * "give up permanently". Default `false` — caller must opt-in by
+       * "give up permanently". Default `false`: caller must opt-in by
        * proving the failure is recoverable.
        */
       retryable: boolean;
@@ -22,7 +22,7 @@ export interface MailMessage {
 
 /**
  * Steers the dev-redirect destination for a bulk send. Honoured only when the
- * env trap is active (dev/staging) — a no-op in prod. A broadcast passes its
+ * env trap is active (dev/staging): a no-op in prod. A broadcast passes its
  * creator's address so trapped copies land in the inbox of the staff member
  * who triggered it, rather than the shared `*_DEV_RECIPIENTS` list: each
  * tester sees only their own sends, and can verify real rendering without

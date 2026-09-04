@@ -1,6 +1,8 @@
 import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 export const load: PageServerLoad = async () => {
   const templates = await prisma.messageTemplate.findMany({
@@ -19,6 +21,7 @@ export const load: PageServerLoad = async () => {
 
 export const actions: Actions = {
   duplicate: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_TEMPLATE_SAVE, { locals });
     if (!locals.user) return fail(401);
     const formData = await request.formData();
     const id = formData.get('id');
@@ -48,7 +51,8 @@ export const actions: Actions = {
     redirect(303, `/staff/admin/broadcasts/templates/${copy.id}`);
   },
 
-  delete: async ({ request }) => {
+  delete: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_TEMPLATE_SAVE, { locals });
     const formData = await request.formData();
     const id = formData.get('id');
     if (typeof id !== 'string' || !id) return fail(400);
@@ -56,7 +60,7 @@ export const actions: Actions = {
     // Block when either a broadcast OR an EmailActionMapping references this
     // template. The EmailActionMapping relation is `onDelete: Cascade`, so
     // without this guard a one-click delete from the list silently wipes the
-    // mapping for actions like `otp_login` — and `sendActionEmail` only logs
+    // mapping for actions like `otp_login`, and `sendActionEmail` only logs
     // a warn and returns `{ ok: false }`, leaving students stuck at login
     // with no front-side feedback.
     const [used, mapped] = await Promise.all([

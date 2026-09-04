@@ -187,7 +187,7 @@
         <dl class="mt-3 space-y-1.5 text-sm">
           <div class="flex items-baseline justify-between gap-3">
             <dt class="shrink-0 text-muted-foreground">Nom externe</dt>
-            <dd class="text-right">{campus.externalName ?? '—'}</dd>
+            <dd class="text-right">{campus.externalName ?? '-'}</dd>
           </div>
           <div class="flex items-baseline justify-between gap-3">
             <dt class="shrink-0 text-muted-foreground">Fuseau horaire</dt>
@@ -219,7 +219,7 @@
             >
             <Table.Cell class="font-bold">{campus.name}</Table.Cell>
             <Table.Cell class="text-muted-foreground"
-              >{campus.externalName ?? '—'}</Table.Cell
+              >{campus.externalName ?? '-'}</Table.Cell
             >
             <Table.Cell class="text-xs text-muted-foreground"
               >{getTimezoneLabel(campus.timezone ?? 'Europe/Paris')}</Table.Cell

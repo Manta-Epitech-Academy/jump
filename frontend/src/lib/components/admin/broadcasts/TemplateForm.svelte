@@ -97,7 +97,7 @@
       <Label for="name">Nom interne</Label>
       <Input id="name" name="name" bind:value={$form.name} required />
       <p class="text-xs text-muted-foreground">
-        Repère ce modèle dans la liste — non visible par le destinataire.
+        Repère ce modèle dans la liste : non visible par le destinataire.
       </p>
       {#if $errors.name}
         <p class="text-xs text-destructive">{$errors.name}</p>
@@ -192,7 +192,7 @@
       </div>
       {#if smsBlocked}
         <p class="text-xs text-destructive">
-          SMS non configuré (<code>SMS_PROVIDER</code>) — test indisponible.
+          SMS non configuré (<code>SMS_PROVIDER</code>) : test indisponible.
         </p>
       {/if}
     </div>

@@ -1,6 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   uploadFile,
   deleteFile,
@@ -21,6 +23,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   upload: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_FILE_UPLOAD, { locals });
     const staffProfile = locals.staffProfile;
     if (!staffProfile) return fail(403, { message: 'Accès refusé.' });
 
@@ -56,6 +59,7 @@ export const actions: Actions = {
   },
 
   delete: async ({ url, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_FILE_DELETE, { locals });
     const staffProfile = locals.staffProfile;
     if (!staffProfile) return fail(403, { message: 'Accès refusé.' });
 
@@ -76,6 +80,7 @@ export const actions: Actions = {
   },
 
   download: async ({ url, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_FILE_DOWNLOAD, { locals });
     if (!locals.staffProfile) return fail(403, { message: 'Acces refuse.' });
     const id = url.searchParams.get('id');
     if (!id) return fail(400);

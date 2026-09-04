@@ -4,7 +4,6 @@ import type { ClosingListStatus } from '$lib/domain/closing';
 /** One row of the Closings list: an event participant plus their closing (if
  *  any). Absence of a closing is the "à faire" status. */
 export type ClosingRow = {
-  participationId: string;
   talentId: string;
   nom: string;
   prenom: string;
@@ -36,7 +35,7 @@ export type ClosingCounts = {
 /** Recommendation breakdown over finalised closings. */
 export type RecoCounts = Record<ClosingRecommendation, number>;
 
-/** The cohort payload streamed behind the page shell's `{#await}` — everything
+/** The cohort payload streamed behind the page shell's `{#await}`: everything
  *  that needs the DB. Shared by the page load and `ClosingsResults` so the
  *  streamed shape and the consuming component can never drift. */
 export type ClosingsCohort = {

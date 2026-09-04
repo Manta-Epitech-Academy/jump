@@ -5,6 +5,7 @@ const getUnconfiguredEvents = vi.fn();
 const getSyncHealth = vi.fn();
 const getPdfJobsHealth = vi.fn();
 const getAccountDeletionQueue = vi.fn();
+const getFeatureAdoptionGaps = vi.fn();
 
 vi.mock('$lib/server/services/adminStats/unconfiguredEvents', () => ({
   getUnconfiguredEvents: () => getUnconfiguredEvents(),
@@ -16,6 +17,9 @@ vi.mock('$lib/server/services/adminStats/syncHealth', () => ({
 vi.mock('$lib/server/services/adminStats/opsQueues', () => ({
   getPdfJobsHealth: () => getPdfJobsHealth(),
   getAccountDeletionQueue: () => getAccountDeletionQueue(),
+}));
+vi.mock('$lib/server/services/adminStats/featureUsage', () => ({
+  getFeatureAdoptionGaps: () => getFeatureAdoptionGaps(),
 }));
 
 const { buildAdminDigest } = await import('./adminDigest');
@@ -109,12 +113,69 @@ function deletionsPayload(over: { pending?: number; overdue?: number } = {}) {
   };
 }
 
+/**
+ * Adoption gaps, empty by default: the section has to render nothing when there
+ * is nothing to say, or every other test's "quiet digest" assertions would be
+ * measuring this section instead.
+ */
+function adoptionPayload(
+  unused: { feature: string; libelle: string; espace: string }[] = [],
+  singleCampus: { feature: string; libelle: string; campus: string }[] = [],
+  abandoned: {
+    feature: string;
+    libelle: string;
+    espace: string;
+    utilisationsPeriodeReference: number;
+  }[] = [],
+) {
+  return {
+    filters: { schoolYear: 'toutes', campus: 'tous', jours: 90 },
+    source: metric(
+      {
+        store: 'lignes détaillées' as const,
+        du: '2026-05-30T00:00:00.000Z',
+        au: '2026-08-28T00:00:00.000Z',
+        mois: null,
+        calculeLe: null,
+      },
+      'def',
+    ),
+    jamaisUtilisees: metric(unused, 'def'),
+    devenuesInutilisees: metric(abandoned, 'def'),
+    unSeulCampus: metric(singleCampus, 'def'),
+    aRetirer: metric(unused.length, 'def'),
+    aSurveiller: metric(abandoned.length, 'def'),
+    aFormer: metric(singleCampus.length, 'def'),
+  };
+}
+
+/** The shape the service returns when the monthly cube holds nothing. */
+function unmeasurableAdoptionPayload() {
+  return {
+    ...adoptionPayload(),
+    source: metric(
+      {
+        store: 'totaux mensuels' as const,
+        du: '2025-01-01T00:00:00.000Z',
+        au: '2025-04-01T00:00:00.000Z',
+        mois: ['2025-01', '2025-02', '2025-03'],
+        calculeLe: null,
+      },
+      'def',
+    ),
+    aRetirer: metric(null, 'def'),
+    aSurveiller: metric(null, 'def'),
+    aFormer: metric(null, 'def'),
+  };
+}
+
 beforeEach(() => {
   getUnconfiguredEvents.mockReset();
   getSyncHealth.mockReset();
   // Quiet queues by default, so a test that cares about them says so.
   getPdfJobsHealth.mockReset().mockResolvedValue(pdfJobsPayload());
   getAccountDeletionQueue.mockReset().mockResolvedValue(deletionsPayload());
+  getFeatureAdoptionGaps.mockReset().mockResolvedValue(adoptionPayload());
 });
 
 describe('buildAdminDigest', () => {
@@ -151,6 +212,9 @@ describe('buildAdminDigest', () => {
       lastSyncAgeHours: 0.5,
       failedPdfJobs: 0,
       overdueDeletionRequests: 0,
+      unusedFeatures: 0,
+      abandonedFeatures: 0,
+      singleCampusFeatures: 0,
     });
   });
 
@@ -277,5 +341,101 @@ describe('buildAdminDigest', () => {
     expect(digest.html).toContain('jamais été enregistrée');
     expect(digest.html).toContain('Pourtant, <strong>4</strong> erreurs');
     expect(digest.html).toContain('/staff/admin/sync-errors');
+  });
+
+  it('names the features nobody used, and the ones a single campus uses', async () => {
+    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload());
+    getFeatureAdoptionGaps.mockResolvedValue(
+      adoptionPayload(
+        [
+          {
+            feature: 'admin_signatory_write',
+            libelle: 'Signataire créé ou modifié',
+            espace: 'admin',
+          },
+        ],
+        [
+          {
+            feature: 'dev_badges_render',
+            libelle: 'Génération des badges',
+            campus: 'Lille',
+          },
+        ],
+      ),
+    );
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain('Adoption');
+    expect(digest.html).toContain('Signataire créé ou modifié');
+    expect(digest.html).toContain('Génération des badges');
+    expect(digest.html).toContain('Lille');
+    expect(digest.text).toContain('Signataire créé ou modifié');
+    expect(digest.summary.unusedFeatures).toBe(1);
+    expect(digest.summary.singleCampusFeatures).toBe(1);
+  });
+
+  it('says so plainly when every measured feature has served', async () => {
+    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload());
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain('ont servi au moins une fois');
+    expect(digest.summary.unusedFeatures).toBe(0);
+  });
+
+  it('names what used to serve before what never did, since it is the stronger signal', async () => {
+    // A feature nobody ever used may simply never have been found. One that
+    // served last year and serves nobody now was found and then abandoned, so
+    // it is the retire decision and it goes first.
+    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload());
+    getFeatureAdoptionGaps.mockResolvedValue(
+      adoptionPayload(
+        [
+          {
+            feature: 'admin_signatory_write',
+            libelle: 'Signataire créé ou modifié',
+            espace: 'admin',
+          },
+        ],
+        [],
+        [
+          {
+            feature: 'dev_badges_render',
+            libelle: 'Génération des badges',
+            espace: 'dev',
+            utilisationsPeriodeReference: 42,
+          },
+        ],
+      ),
+    );
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain('l’an dernier et ne sert plus');
+    expect(digest.html.indexOf('Génération des badges')).toBeLessThan(
+      digest.html.indexOf('Signataire créé ou modifié'),
+    );
+    expect(digest.summary.abandonedFeatures).toBe(1);
+  });
+
+  it('says adoption is unmeasurable rather than naming every feature in Jump', async () => {
+    // With an empty cube the never-used list is the whole catalogue. Printing it
+    // would read as a finding, and it is the opposite: an absence of
+    // measurement, not an absence of use.
+    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload());
+    getFeatureAdoptionGaps.mockResolvedValue(unmeasurableAdoptionPayload());
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain('Adoption non mesurable');
+    expect(digest.html).not.toContain('ont servi au moins une fois');
+    expect(digest.text).toContain('Adoption non mesurable');
+    expect(digest.summary.unusedFeatures).toBeNull();
+    expect(digest.summary.singleCampusFeatures).toBeNull();
   });
 });

@@ -2,6 +2,8 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { getFormGraphById, countSubmissions } from '$lib/server/feedbackForms';
 import { requireAdmin, duplicateForm } from '$lib/server/feedbackFormsAdmin';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 export const load: PageServerLoad = async ({ params, locals, depends }) => {
   requireAdmin(locals);
@@ -62,6 +64,7 @@ export const actions: Actions = {
   // Escape hatch for a locked form: clone it into a fresh editable draft and
   // jump straight to the copy's editor.
   duplicate: async ({ params, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_FEEDBACK_FORM_WRITE, { locals });
     const { staffId } = requireAdmin(locals);
     const { id } = await duplicateForm(staffId, params.id);
     throw redirect(303, `/staff/admin/feedback-forms/${id}`);

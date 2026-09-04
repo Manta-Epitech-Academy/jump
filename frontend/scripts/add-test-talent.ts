@@ -74,7 +74,7 @@ async function main() {
     // Fallback: create a stage-like event running from today for two weeks.
     event = await prisma.event.create({
       data: {
-        titre: 'Stage de Seconde – Test',
+        titre: 'Stage de Seconde - Test',
         cohortNoun: 'stagiaire',
         date: now,
         endDate: new Date(now.getTime() + defaultDuration * 86_400_000),

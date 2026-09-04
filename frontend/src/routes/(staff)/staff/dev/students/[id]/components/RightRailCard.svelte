@@ -29,7 +29,7 @@
   import ImageRightsCorrectionDialog from './ImageRightsCorrectionDialog.svelte';
 
   // Decision history row as projected by the page load. Kept loose here (the
-  // dialog owns the precise type) — this card only forwards it.
+  // dialog owns the precise type), this card only forwards it.
   type ImageRightsRecordVM = {
     id: string;
     schoolYear: string;
@@ -56,8 +56,7 @@
   // single gated exception: the image-rights row carries a "Corriger" action so
   // staff can record a guardian's offline change of mind (the decision is a
   // legal artifact a guardian can revoke "à tout moment", and they sometimes
-  // tell us by phone). Everything else stays a display; the rest of the actions
-  // live in the recommendations list on the left.
+  // tell us by phone). Everything else stays a display.
   let {
     lastActiveAt,
     firstLoginAt,

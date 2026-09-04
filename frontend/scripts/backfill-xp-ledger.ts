@@ -3,7 +3,7 @@
  * each talent's cached `xp` and `eventsCount` from the reconstructed facts.
  *
  * Run AFTER the `xp_ledger` migration (which creates the empty table and drops
- * `Talent.level`) and BEFORE reopening traffic — the app now derives `Talent.xp`
+ * `Talent.level`) and BEFORE reopening traffic: the app now derives `Talent.xp`
  * from the ledger, so a write before this backfill would recompute from an empty
  * ledger and zero a talent. See the plan's deploy section.
  *
@@ -15,8 +15,8 @@
  * distinct per event), mirroring recomputeEventsCount in services/xpService.ts.
  *
  * Idempotent: all grants upsert on (source, sourceId), so re-running converges.
- * Drift between the old stored `xp` and the rebuilt SUM is expected and reported
- * — past `Math.max(0, …)` refund clamps inflated balances (positive delta) and
+ * Drift between the old stored `xp` and the rebuilt SUM is expected and reported:
+ * past `Math.max(0, …)` refund clamps inflated balances (positive delta) and
  * stacked onboarding re-runs collapse to a single +200 (negative delta).
  *
  * Run: bun run scripts/backfill-xp-ledger.ts [--dry-run]
@@ -33,7 +33,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 // Inlined from `src/lib/domain/xp.ts` so the script can run inside the
 // production image, which only ships the built app (no raw `src/`, and the
 // `$lib` alias resolves only under Vite). Keep in sync by inspection with the
-// upstream definition — the value below is deploy-critical (a drift here
+// upstream definition: the value below is deploy-critical (a drift here
 // silently rebuilds wrong balances).
 
 // One-off XP granted when a talent finishes onboarding.
@@ -54,7 +54,7 @@ type PlannedGrant = {
 
 async function main() {
   console.log(
-    `XP ledger backfill — ${dryRun ? 'DRY RUN (no writes)' : 'LIVE'}\n`,
+    `XP ledger backfill: ${dryRun ? 'DRY RUN (no writes)' : 'LIVE'}\n`,
   );
 
   const talents = await prisma.talent.findMany({
@@ -87,7 +87,7 @@ async function main() {
   for (const t of talents) {
     const grants: PlannedGrant[] = [];
 
-    // onboarding — campus = most-recent participation (already date-desc), else null
+    // onboarding: campus = most-recent participation (already date-desc), else null
     if (t.charterAcceptedAt) {
       grants.push({
         talentId: t.id,
@@ -98,7 +98,7 @@ async function main() {
       });
     }
 
-    // minigame — one grant per awarded attempt
+    // minigame: one grant per awarded attempt
     for (const a of t.minigameAttempts) {
       grants.push({
         talentId: t.id,
@@ -109,7 +109,7 @@ async function main() {
       });
     }
 
-    // eventsCount — distinct events attended (présent/en-retard), from émargement
+    // eventsCount: distinct events attended (présent/en-retard), from émargement
     const eventsCount = new Set(t.eventPresences.map((p) => p.eventId)).size;
 
     const xp = grants.reduce((sum, g) => sum + g.amount, 0);
@@ -131,7 +131,7 @@ async function main() {
   );
 
   if (dryRun) {
-    console.log('\nDRY RUN — no rows written.');
+    console.log('\nDRY RUN: no rows written.');
     return;
   }
 

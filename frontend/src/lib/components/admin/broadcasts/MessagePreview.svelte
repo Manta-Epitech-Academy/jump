@@ -26,7 +26,7 @@
   const previewMailHtml = $derived(
     channel === 'mail' ? renderBroadcastMail(previewBody) : '',
   );
-  // Tokens the author typed that aren't real variables — they would render
+  // Tokens the author typed that aren't real variables: they would render
   // empty at send time, so warn rather than silently drop them.
   const unknown = $derived(
     findUnknownTokens(`${subject ?? ''}\n${body ?? ''}`),
@@ -86,7 +86,7 @@
   {/if}
 
   <p class="text-xs text-muted-foreground">
-    Rendu avec des données fictives — chaque destinataire reçoit ses propres
+    Rendu avec des données fictives : chaque destinataire reçoit ses propres
     valeurs.
   </p>
 </div>

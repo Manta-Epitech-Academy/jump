@@ -28,7 +28,7 @@
 
   type Row = (typeof data.pending)[number];
 
-  // Single page-level dialog per action, parameterised by the selected row —
+  // Single page-level dialog per action, parameterised by the selected row,
   // mirrors the talents page pattern rather than minting a dialog per table row.
   let fulfillTarget = $state<Row | null>(null);
   let fulfilling = $state(false);
@@ -68,7 +68,7 @@
           {data.overdueCount} demande{data.overdueCount > 1 ? 's' : ''} en retard
         </Alert.Title>
         <Alert.Description>
-          En attente depuis plus de 21 jours — à traiter pour rester conforme au
+          En attente depuis plus de 21 jours : à traiter pour rester conforme au
           droit à l'effacement.
         </Alert.Description>
       </Alert.Root>
@@ -92,7 +92,7 @@
             <EmptyState
               icon={ShieldCheck}
               title="Tout est traité"
-              description="Aucune demande de suppression en attente. Tu es à jour — le pipeline est serein."
+              description="Aucune demande de suppression en attente. Tu es à jour. Le pipeline est serein."
             />
           </div>
         {:else}
@@ -128,7 +128,7 @@
                     {/if}
                   </Table.Cell>
                   <Table.Cell class="text-epi-tomorrow">
-                    {req.talent.campus ?? '—'}
+                    {req.talent.campus ?? '-'}
                   </Table.Cell>
                   <Table.Cell class="font-mono text-xs text-muted-foreground">
                     {req.talent.eventsCount} évén. / {req.talent.xp} XP
@@ -221,10 +221,10 @@
                     {formatDateTimeFr(req.requestedAt)}
                   </Table.Cell>
                   <Table.Cell class="font-mono text-xs text-muted-foreground">
-                    {req.resolvedAt ? formatDateTimeFr(req.resolvedAt) : '—'}
+                    {req.resolvedAt ? formatDateTimeFr(req.resolvedAt) : '-'}
                   </Table.Cell>
                   <Table.Cell class="max-w-xs text-xs text-muted-foreground">
-                    {req.resolutionNote ?? '—'}
+                    {req.resolutionNote ?? '-'}
                   </Table.Cell>
                 </Table.Row>
               {/each}

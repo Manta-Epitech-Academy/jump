@@ -1,6 +1,6 @@
 # Intra Epitech Academy (Jump)
 
-Internal platform for managing Epitech coding workshops — staff organize events, track attendance, and generate diplomas while students earn XP, level up, and build a portfolio.
+Internal platform for managing Epitech coding workshops: staff organize events, track attendance, and generate diplomas while students earn XP, level up, and build a portfolio.
 
 Built for the **stage de seconde** (2-week high school internship, ~2000 students) and year-round **coding clubs**.
 
@@ -105,7 +105,7 @@ The app is served from the root path.
 
 ### Data Model
 
-Data is **campus-scoped** — staff and themes belong to a specific campus.
+Data is **campus-scoped**: staff and themes belong to a specific campus.
 
 Core entities: `Campus` > `Theme` > `Subject` > `Event` > `Participation`
 
@@ -163,4 +163,4 @@ alike live in [`AGENTS.md`](AGENTS.md).
 
 ## License
 
-Private — Epitech internal use only.
+Private, Epitech internal use only.

@@ -1,6 +1,8 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getStorage } from '$lib/server/infra/storage';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   isTalentViewableDocument,
   onboardingDownloadFilename,
@@ -9,7 +11,7 @@ import {
 
 /**
  * Serves a talent their own signed onboarding PDF. The key is resolved from the
- * authenticated talent's own records — never from a client-supplied id — so the
+ * authenticated talent's own records, never from a client-supplied id, so the
  * route can only ever hand back the caller's own document, then 302s to a
  * short-lived presigned URL rather than proxying the bytes.
  *
@@ -43,5 +45,7 @@ export const GET: RequestHandler = async ({ params, url: reqUrl, locals }) => {
     ),
     contentType: 'application/pdf',
   });
+  recordUsage(USAGE_FEATURES.TALENT_DOCUMENT_VIEW, { locals });
+
   throw redirect(302, url);
 };

@@ -16,7 +16,7 @@
 </script>
 
 <svelte:head>
-  <title>Paramètres — Espace Parent</title>
+  <title>Paramètres - Espace Parent</title>
 </svelte:head>
 
 <div

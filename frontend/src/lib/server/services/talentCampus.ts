@@ -33,7 +33,7 @@ export async function resolveTalentCampus(
  * The talent's 0-based early-bird position within `campusId` for `schoolYear`:
  * how many talents have ALREADY completed onboarding there that year, capped at
  * `limit`. Positions at or
- * beyond the limit earn no bonus, so the exact count past it is never needed —
+ * beyond the limit earn no bonus, so the exact count past it is never needed:
  * the cap lets the scan stop early and returns `min(completers, limit)`.
  *
  * MUST be called inside the transaction that stamps this talent's own
@@ -44,7 +44,7 @@ export async function resolveTalentCampus(
  * commits, so concurrent completions in the same campus serialize. Without it
  * two students finishing in the same instant each read a snapshot taken before
  * the other committed (READ COMMITTED), both see the same count, and tie for the
- * same decaying tier — diluting the "first finisher" reward the tiers exist to
+ * same decaying tier, diluting the "first finisher" reward the tiers exist to
  * grant. A timestamp comparison would not fix this: the cutoff is each
  * transaction's own captured `now`, whose order can disagree with commit order.
  * The lock makes positions exact and gap-free, and is per-campus so unrelated

@@ -16,11 +16,13 @@ import {
   projectTalentRow,
 } from '../query';
 import { TALENT_STATUS_LABELS, PARENT_STATUS_LABELS } from '../labels';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 /**
  * Filtered-directory XLSX export. Unlike the dev inscrits export (which posts
  * the ~200 ids it holds client-side), the admin talents list is server
- * paginated — only the current page of 50 is ever in the browser — so this
+ * paginated (only the current page of 50 is ever in the browser), so this
  * endpoint re-derives the filter `where` from the URL params via the shared
  * builder and exports EVERY matching row, in the table's sort order. The shared
  * `projectTalentRow` is what guarantees the "Statut" / "Parent" columns read the
@@ -31,6 +33,7 @@ import { TALENT_STATUS_LABELS, PARENT_STATUS_LABELS } from '../labels';
  * the download doubles as a contact list and a "who owes what" triage sheet.
  */
 export const GET: RequestHandler = async ({ url, locals }) => {
+  recordUsage(USAGE_FEATURES.ADMIN_TALENTS_EXPORT, { locals });
   // Belt-and-braces: /staff/admin/* is already gated in hooks, but assert here
   // too since an endpoint isn't covered by the +layout.server guard (mirrors
   // the impersonate action).

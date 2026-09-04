@@ -3,7 +3,6 @@ import { error, fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { Prisma } from '@prisma/client';
-import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 import {
   getCampusId,
@@ -14,11 +13,7 @@ import { requireStaffGroup } from '$lib/server/auth/guards';
 import { NOTE_INCLUDE, serializeNote } from '$lib/server/talentNotes';
 import { getTalentJourney } from '$lib/server/services/talentJourneyService';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { formatGivenName } from '$lib/domain/profile';
-import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
-import { isRulesCompliant } from '$lib/domain/dossierCompliance';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
-import { isImageRightsDecided } from '$lib/domain/imageRights';
 import {
   LATEST_IMAGE_RIGHTS_DECISION_ORDER,
   recordImageRightsDecision,
@@ -32,6 +27,8 @@ import {
 } from '$lib/domain/sfMemberStatus';
 import { eventDisplayName } from '$lib/domain/event';
 import { getLifecycleBounds, getEventStatus } from '$lib/domain/eventLifecycle';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // The scoped-down fiche keeps only the latest handful of communications, shown
 // one-line each in the sticky right rail, no pagination. Volume per talent is
@@ -47,84 +44,75 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     OR: [{ talentId: params.id }, { parentOfTalentId: params.id }],
   };
   try {
-    const [
-      student,
-      participations,
-      broadcastRows,
-      completedClosingCount,
-      xpStory,
-      noteRows,
-    ] = await Promise.all([
-      db.talent.findUniqueOrThrow({
-        where: { id: params.id },
-        include: {
-          user: true,
-          interests: { include: { interest: true } },
-          school: { select: { name: true } },
-          // Image-rights decision history (newest first) for the audit trail in
-          // the rail: who decided what and when, parent vs staff correction.
-          // Ordered on the decision instant first, so the head of this list is
-          // the last thing a guardian actually decided - which is what the rail
-          // resolves the publishing stance from.
-          imageRightsRecords: {
-            orderBy: LATEST_IMAGE_RIGHTS_DECISION_ORDER,
-            include: {
-              recordedBy: { select: { user: { select: { name: true } } } },
+    const [student, participations, broadcastRows, xpStory, noteRows] =
+      await Promise.all([
+        db.talent.findUniqueOrThrow({
+          where: { id: params.id },
+          include: {
+            user: true,
+            interests: { include: { interest: true } },
+            school: { select: { name: true } },
+            // Image-rights decision history (newest first) for the audit trail in
+            // the rail: who decided what and when, parent vs staff correction.
+            // Ordered on the decision instant first, so the head of this list is
+            // the last thing a guardian actually decided - which is what the rail
+            // resolves the publishing stance from.
+            imageRightsRecords: {
+              orderBy: LATEST_IMAGE_RIGHTS_DECISION_ORDER,
+              include: {
+                recordedBy: { select: { user: { select: { name: true } } } },
+              },
             },
           },
-        },
-      }),
-      db.participation.findMany({
-        where: { talentId: params.id, ...visibleParticipationWhere },
-        select: {
-          id: true,
-          sfMemberStatus: true,
-          event: {
-            select: {
-              id: true,
-              titre: true,
-              publicName: true,
-              date: true,
-              endDate: true,
-              modules: { select: { moduleKey: true } },
+        }),
+        db.participation.findMany({
+          where: { talentId: params.id, ...visibleParticipationWhere },
+          select: {
+            id: true,
+            sfMemberStatus: true,
+            event: {
+              select: {
+                id: true,
+                titre: true,
+                publicName: true,
+                date: true,
+                endDate: true,
+                modules: { select: { moduleKey: true } },
+              },
             },
           },
-        },
-        orderBy: { event: { date: 'desc' } },
-      }),
-      prisma.broadcastRecipient.findMany({
-        where: broadcastsWhere,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          status: true,
-          sentAt: true,
-          openedAt: true,
-          parentOfTalentId: true,
-          broadcast: {
-            select: {
-              id: true,
-              name: true,
-              channel: true,
-              subjectSnapshot: true,
-              createdAt: true,
-              template: { select: { name: true } },
+          orderBy: { event: { date: 'desc' } },
+        }),
+        prisma.broadcastRecipient.findMany({
+          where: broadcastsWhere,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            status: true,
+            sentAt: true,
+            openedAt: true,
+            parentOfTalentId: true,
+            broadcast: {
+              select: {
+                id: true,
+                name: true,
+                channel: true,
+                subjectSnapshot: true,
+                createdAt: true,
+                template: { select: { name: true } },
+              },
             },
           },
-        },
-      }),
-      db.closing_Record.count({
-        where: { talentId: params.id, status: 'done' },
-      }),
-      getTalentXpStory(params.id, timezone),
-      // Staff notes feed (newest first). Visibility is already asserted by the
-      // scoped `student` query above resolving for this campus.
-      prisma.note_TalentNote.findMany({
-        where: { talentId: params.id },
-        orderBy: { createdAt: 'desc' },
-        include: NOTE_INCLUDE,
-      }),
-    ]);
+        }),
+        getTalentXpStory(params.id, timezone),
+        // Staff notes feed (newest first). Visibility is already asserted by the
+        // scoped `student` query above resolving for this campus.
+        prisma.note_TalentNote.findMany({
+          where: { talentId: params.id },
+          orderBy: { createdAt: 'desc' },
+          include: NOTE_INCLUDE,
+        }),
+      ]);
 
     const notes = noteRows.map(serializeNote);
 
@@ -160,7 +148,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     // Staff correction form for the image-rights decision, prefilled with the
     // current decision + the guardian on file (the last signer, else the parent
     // captured at onboarding) so a correction is a small edit, not a re-entry.
-    // Note is intentionally left blank — staff must state a reason.
+    // Note is intentionally left blank: staff must state a reason.
     const imageRightsForm = await superValidate(
       {
         decision: student.imageRightsDecision ?? undefined,
@@ -216,31 +204,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     // a real login read "Jamais".
     const firstLoginAt = student.firstLoginAt;
 
-    // Event-opportunity recommendations (REC-005): one per tech interest the
-    // student picked that carries a curated `recommendationMessage`, shown
-    // verbatim.
-    const techRecommendationMessages = student.interests
-      .map((ti) => ti.interest)
-      .filter((i) => i.kind === 'tech' && i.recommendationMessage != null)
-      .map((i) => i.recommendationMessage as string);
-
-    // REC-001/003 name the public app URL the student and their parents should
-    // reach. Pull it from config so it auto-tracks the environment instead of
-    // hardcoding (ORIGIN = https://jump.epiboost.fr in prod).
-    const appUrl = env.ORIGIN ?? '';
-
-    const recommendations = deriveTalentRecommendations({
-      ...student,
-      email: student.user?.email ?? null,
-      prenom: formatGivenName(student.prenom),
-      appUrl,
-      connected: firstLoginAt != null,
-      rulesCompliant: isRulesCompliant(student.parentRulesSignedAt),
-      imageRightsDecided: isImageRightsDecided(student),
-      hasCompletedClosing: completedClosingCount > 0,
-      techRecommendationMessages,
-    });
-
     return {
       student,
       notes,
@@ -248,7 +211,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       journey,
       communications,
       firstLoginAt,
-      recommendations,
       timezone,
       imageRightsForm,
       imageRightsRecords,
@@ -274,7 +236,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
  * Record a staff correction of the guardian's image-rights decision after an
  * offline change of mind. Routes through the same {@link recordImageRightsDecision}
  * service as the parent flow, so the projection, the ledger fact and the
- * regenerated PDF stay in lockstep — staff never touch a field by hand. The
+ * regenerated PDF stay in lockstep: staff never touch a field by hand. The
  * fact is stamped `staff_correction` with the acting staff id + a mandatory
  * reason, keeping it auditable and distinct from a guardian's own decision.
  *
@@ -321,6 +283,8 @@ async function correctImageRights({ request, locals, params }: RequestEvent) {
     recordedByStaffId: locals.staffProfile.id,
     note: form.data.note,
   });
+
+  recordUsage(USAGE_FEATURES.DEV_IMAGE_RIGHTS_CORRECT, { locals });
 
   return message(form, "Décision de droit à l'image mise à jour.");
 }

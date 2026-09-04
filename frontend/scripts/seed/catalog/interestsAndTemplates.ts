@@ -1,34 +1,23 @@
 /**
- * Reference catalogues shared by both seed entry points.
+ * Reference catalogues: talent interests, the default transactional email
+ * templates with their action mappings, and the broadcast templates staff pick
+ * in the composer.
  *
- * Single source of truth for the prod-relevant reference catalogues:
- *   - talent interests (`Interest`)
- *   - default transactional email templates + their action mappings
- *     (`MessageTemplate` + `EmailActionMapping`)
- *   - default broadcast templates staff pick in the broadcast composer
- *     (`MessageTemplate`, anchored by `seedKey`, no action mapping)
+ * These are a referential, not a scenario: they are the same rows in every
+ * environment, they are not scaled by profile, and they are the one part of the
+ * generator that is safe to run against an already-populated database. That is
+ * what `--catalog-only` exposes, and it is why this file kept its own shape when
+ * the rest of the seed was replaced.
  *
- * `seed.ts` (full local seed, run by `prisma db seed`) and `seed-catalogs.ts`
- * (narrow re-runnable prod catalogue top-up) both import from here, so the
- * data can never drift between them. Edit a body once, in this file.
+ * The writes are idempotent and CREATE-ONLY: they insert catalogue rows that are
+ * missing and leave every existing row alone. A row that has shipped, including
+ * one staff later edited in production (an interest emoji renamed through
+ * /staff/admin/interests, a hand-tuned template body), survives a re-run
+ * untouched. Fixing an already-shipped default is a deliberate manual or
+ * migration step.
  *
- * STANDALONE RULE (mirrors seed.ts): this module must depend only on `node:*`,
- * npm packages, and `@prisma/client`. It ships inside `prisma/` alongside the
- * seeds, so a relative sibling import (`./catalogs`) resolves in the deploy /
- * migration environments where `src/` and the `$lib` alias are absent.
- *
- * These writes are idempotent and CREATE-ONLY (no wipe, no overwrite): they
- * insert catalogue rows that are missing and leave every existing row alone, so
- * the catalogue is a first-time populator, not an authority over live data. A
- * row that has shipped — including one staff later edited in prod (interest
- * emoji/name via /staff/admin/interests, a hand-tuned template body) — survives
- * a re-seed untouched. Fixing an already-shipped default is a manual/migration
- * step, deliberately. The lone additive exception is
- * `seedInterestRecommendationMessages`, which fills the new `recommendationMessage`
- * only where it is still null. The two seeders differ only in how they resolve
- * the template author: the full seed already holds a seeded superdev, the narrow
- * top-up looks one up. Both pass their own client in (each seed script owns a
- * distinct PrismaClient, so there is no shared singleton to thread).
+ * The client is passed in rather than imported: the generator owns its own
+ * `PrismaClient`, and there is no singleton to reach for outside Vite.
  */
 
 import type { BroadcastChannel, PrismaClient } from '@prisma/client';
@@ -37,71 +26,17 @@ import type { BroadcastChannel, PrismaClient } from '@prisma/client';
 
 /**
  * Tech-leaning interests. Order within the array is the displayed order.
- * `recommendationMessage`, when set, is the sentence shown as the dev-fiche
- * event-opportunity recommendation (REC-005) for a student who picked this
- * interest. The `{prenom}` token is substituted with the talent's first name at
- * render time. Null means the interest never triggers one. First-pass copy,
- * meant to be tuned by the team.
  */
-export const INTEREST_TECH: {
-  nom: string;
-  emoji: string;
-  recommendationMessage?: string;
-}[] = [
-  {
-    nom: 'Créer des sites web',
-    emoji: '🌐',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour la création de **sites web**. Pensez à l'inviter à votre prochain atelier web, ça devrait lui plaire.",
-  },
-  {
-    nom: 'Créer des apps',
-    emoji: '📱',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour la création d'**applications**. Proposez-lui un atelier de maquettage d'application mobile (Figma).",
-  },
-  {
-    nom: 'Créer des jeux vidéo',
-    emoji: '🕹️',
-    recommendationMessage:
-      '{prenom} a montré un intérêt pour la création de **jeux vidéo**. Gardez-lui une place à votre prochain atelier jeux vidéos.',
-  },
-  {
-    nom: 'Programmation',
-    emoji: '💻',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour la **programmation**. Pensez à l'inviter à votre prochain Coding Club.",
-  },
-  {
-    nom: 'Intelligence artificielle',
-    emoji: '🤖',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour l'**intelligence artificielle**. Pensez à l'inviter à votre prochaine conférence IA.",
-  },
-  {
-    nom: 'Robotique',
-    emoji: '🦾',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour la **robotique**. Pensez à l'inviter à votre prochain atelier robotique.",
-  },
-  {
-    nom: 'Data science / Analyse de données',
-    emoji: '📊',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour la **data science**. Pensez à l'inviter à votre prochain atelier ou événement data.",
-  },
-  {
-    nom: 'Cloud / Infrastructure',
-    emoji: '☁️',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour le **cloud**. Pensez à l'inviter à votre prochain atelier cloud.",
-  },
-  {
-    nom: 'Cybersécurité / Hacking',
-    emoji: '🔒',
-    recommendationMessage:
-      "{prenom} a montré un intérêt pour la **cybersécurité**. Pensez à l'inviter à votre prochain CTF, ça va lui plaire.",
-  },
+export const INTEREST_TECH: { nom: string; emoji: string }[] = [
+  { nom: 'Créer des sites web', emoji: '🌐' },
+  { nom: 'Créer des apps', emoji: '📱' },
+  { nom: 'Créer des jeux vidéo', emoji: '🕹️' },
+  { nom: 'Programmation', emoji: '💻' },
+  { nom: 'Intelligence artificielle', emoji: '🤖' },
+  { nom: 'Robotique', emoji: '🦾' },
+  { nom: 'Data science / Analyse de données', emoji: '📊' },
+  { nom: 'Cloud / Infrastructure', emoji: '☁️' },
+  { nom: 'Cybersécurité / Hacking', emoji: '🔒' },
 ];
 
 /** General-interest options. Order within the array is the displayed order. */
@@ -136,7 +71,7 @@ export const INTEREST_GENERAL: { nom: string; emoji: string }[] = [
 /**
  * Idempotently populate the interests catalogue, CREATE-ONLY: insert each entry
  * whose unique `nom` is missing, and never touch a row that already exists. The
- * catalogue is a first-time populator, not an authority over live rows — staff
+ * catalogue is a first-time populator, not an authority over live rows: staff
  * can rename or re-emoji an interest via `/staff/admin/interests`, and a re-seed
  * must not undo that. Existing `interestId`s stay stable, so the `TalentInterest`
  * rows a student selected survive a re-run.
@@ -144,8 +79,7 @@ export const INTEREST_GENERAL: { nom: string; emoji: string }[] = [
  * Deliberately does NOT prune rows absent from the catalogue (same reason: the
  * `Interest` table is shared with admin-added interests). Removing or editing a
  * default that already shipped is therefore a manual/migration step, not this
- * function's job. The one exception is the additive backfill below.
- * Returns the catalogue size.
+ * function's job. Returns the catalogue size.
  */
 export async function seedInterests(prisma: PrismaClient): Promise<number> {
   const catalogue = [
@@ -162,33 +96,7 @@ export async function seedInterests(prisma: PrismaClient): Promise<number> {
   ];
   await prisma.interest.createMany({ data: catalogue, skipDuplicates: true });
 
-  // The one additive exception: fill the REC-005 message on rows that predate
-  // the column. Null-guarded, so it never overwrites a value already present.
-  await seedInterestRecommendationMessages(prisma);
-
   return catalogue.length;
-}
-
-/**
- * Backfill the dev-fiche event-recommendation messages (REC-005): set
- * `Interest.recommendationMessage` only on tech rows where it is still null. Pure
- * additive + idempotent — safe to run against prod repeatedly, and it never
- * clobbers a message already set (a prior run, a data migration, or a future
- * admin edit). Called by `seedInterests`, so any seed run (the full `seed.ts` or
- * the narrow `seed-catalogs` top-up) rolls new messages out additively. Now that
- * every seeder here is create-only, re-running `seed-catalogs` is itself the safe
- * rollout — no dedicated backfill script needed.
- */
-export async function seedInterestRecommendationMessages(
-  prisma: PrismaClient,
-): Promise<void> {
-  for (const it of INTEREST_TECH) {
-    if (!it.recommendationMessage) continue;
-    await prisma.interest.updateMany({
-      where: { nom: it.nom, recommendationMessage: null },
-      data: { recommendationMessage: it.recommendationMessage },
-    });
-  }
 }
 
 // ─── Email templates + action mappings ───
@@ -215,7 +123,7 @@ export const EMAIL_TEMPLATE_DEFAULTS: {
 }[] = [
   {
     actionKey: 'otp_talent',
-    name: 'OTP — Login talent (par défaut)',
+    name: 'OTP - Login talent (par défaut)',
     subject: "Ton code d'accès secret pour Jump 🔑",
     body: `Salut **{{prenom}}** !
 
@@ -230,8 +138,8 @@ L'équipe Epitech Academy`,
   },
   {
     actionKey: 'otp_parent',
-    name: 'OTP — Login parent (par défaut)',
-    subject: "Votre code d'accès Jump — Espace Parent",
+    name: 'OTP - Login parent (par défaut)',
+    subject: "Votre code d'accès Jump : Espace Parent",
     body: `Bonjour **{{parent_prenom}}**,
 
 Voici votre code de connexion à l'Espace Parent :
@@ -273,7 +181,7 @@ L'équipe Epitech {{campus}}`,
   },
   {
     actionKey: 'relance_student',
-    name: 'Relance — étudiant (par défaut)',
+    name: 'Relance - étudiant (par défaut)',
     subject:
       'J-{{jours_restants}}, {{prenom}} : dernière étape pour finaliser ton inscription au stage à Epitech.',
     body: `Salut {{prenom}},
@@ -289,7 +197,7 @@ L'équipe Epitech {{campus}}`,
   },
   {
     actionKey: 'relance_parent',
-    name: 'Relance — parent (par défaut)',
+    name: 'Relance - parent (par défaut)',
     subject:
       'Rappel : finaliser le dossier de {{child_prenom}} pour le stage à Epitech',
     body: `Bonjour,
@@ -309,7 +217,7 @@ L'équipe Epitech {{campus}}`,
   },
   {
     actionKey: 'account_deletion_refused',
-    name: 'Suppression de compte — refus (par défaut)',
+    name: 'Suppression de compte - refus (par défaut)',
     subject: 'Ta demande de suppression de compte',
     body: `Salut **{{prenom}}**,
 
@@ -325,7 +233,7 @@ L'équipe Epitech Academy`,
   },
   {
     actionKey: 'account_deletion_done',
-    name: 'Suppression de compte — confirmation (par défaut)',
+    name: 'Suppression de compte - confirmation (par défaut)',
     subject: 'Ton compte Jump a été supprimé',
     body: `Salut **{{prenom}}**,
 
@@ -340,7 +248,7 @@ L'équipe Epitech Academy`,
 
 /**
  * Populate the default templates, CREATE-ONLY. For each `actionKey`: if a mapping
- * already exists, skip it entirely — the bound template may have been edited in
+ * already exists, skip it entirely: the bound template may have been edited in
  * prod and a re-seed must not revert that. Only a missing `actionKey` is created
  * (template + mapping), so adding a new default lights up, but existing ones are
  * never rewritten. Admin-authored broadcast templates (no action mapping) and the
@@ -348,7 +256,7 @@ L'équipe Epitech Academy`,
  * creates. Needs no prior wipe. Returns the number of default templates.
  *
  * Fixing an already-shipped default is therefore a manual/migration step, not a
- * re-seed — deliberately, so hand-tuned prod copy survives.
+ * re-seed, deliberately, so hand-tuned prod copy survives.
  */
 export async function seedEmailTemplates(
   prisma: PrismaClient,
@@ -447,7 +355,7 @@ L'équipe Epitech {{campus}}`,
 /**
  * Populate the default broadcast templates, CREATE-ONLY: insert each by its
  * unique `seedKey` only when missing (`skipDuplicates`), and never rewrite one
- * that already exists — a prod copy may have been hand-tuned and a re-seed must
+ * that already exists: a prod copy may have been hand-tuned and a re-seed must
  * not revert it. `createdById` authors the rows it creates. Only ever inserts the
  * seeded rows; admin-authored templates (null `seedKey`) are untouched. Returns
  * the number of default broadcast templates.

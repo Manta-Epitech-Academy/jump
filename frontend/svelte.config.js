@@ -37,7 +37,7 @@ const config = {
     // `JUMP_GAMES_URL`-derived entry is a genuine per-deployment value, and
     // this file only ever runs at build time (see the Dockerfile: the image is
     // built once, before any environment's env vars exist, then deployed
-    // everywhere with different ones) — anything read from `process.env` here
+    // everywhere with different ones). Anything read from `process.env` here
     // would freeze to whatever the CI build happened to have. So `frame-src`
     // stays computed at request time in hooks.server.ts, appended onto the
     // header kit.csp sets here.

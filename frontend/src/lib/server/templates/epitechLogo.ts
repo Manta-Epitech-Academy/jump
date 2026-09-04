@@ -1,4 +1,4 @@
-// Epitech Official Logo SVG — used inline in PDF templates rendered by Puppeteer.
+// Epitech Official Logo SVG: used inline in PDF templates rendered by Puppeteer.
 // The viewBox is sized for embedding at width="200" height="48" in certificate headers.
 export const epitechLogoSvg = `
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="200" height="48" viewBox="0 0 2133 516">

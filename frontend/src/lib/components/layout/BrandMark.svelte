@@ -6,7 +6,7 @@
   type Props = {
     /** Resolved link target (e.g. resolve('/staff/dev')). */
     href: string;
-    /** Small label next to/under the wordmark — role label, "Admin", … */
+    /** Small label next to/under the wordmark, role label, "Admin", … */
     sublabel?: string;
     /** Campus name, shown as a mono caption (stacked orientation only). */
     campus?: string | null;

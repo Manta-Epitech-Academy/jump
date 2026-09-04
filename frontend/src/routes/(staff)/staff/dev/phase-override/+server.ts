@@ -8,7 +8,7 @@ import {
 import type { RequestHandler } from './$types';
 
 const COOKIE_PATH = '/staff/dev';
-const COOKIE_MAX_AGE = 60 * 60 * 8; // 8h — long enough for a working session
+const COOKIE_MAX_AGE = 60 * 60 * 8; // 8h, long enough for a working session
 
 /**
  * Sets or clears the dev phase-override cookie. Gated to admin-impersonating

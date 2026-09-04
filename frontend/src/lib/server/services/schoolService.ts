@@ -5,7 +5,7 @@ import { fetchSchoolByUai } from '$lib/server/annuaire';
 /**
  * Resolve a national UAI to a canonical `School.id`, creating the row lazily on
  * first sight. Only schools actually attended by a talent ever land in the
- * table — the full annuaire is never imported.
+ * table: the full annuaire is never imported.
  *
  * On first sight we enrich from the official annuaire (name + commune + postal/
  * INSEE). If the annuaire is unreachable, the row is created from `fallbackName`
@@ -49,7 +49,7 @@ export async function resolveSchoolByUai(
     });
     return created.id;
   } catch (err) {
-    // Lost a create race with a concurrent sync/onboarding for the same UAI —
+    // Lost a create race with a concurrent sync/onboarding for the same UAI:
     // the unique(uai) constraint tripped. Adopt the winner's row.
     if (
       err instanceof Prisma.PrismaClientKnownRequestError &&

@@ -3,7 +3,7 @@
   import PullQuote from '$lib/components/staff/PullQuote.svelte';
 
   // Free-text the talent wrote about themselves during onboarding, surfaced as
-  // warm pull-quotes so they speak in their own words — the human, "shiny"
+  // warm pull-quotes so they speak in their own words: the human, "shiny"
   // counterpart to the structured interest chips. Each line is optional and the
   // block self-hides when empty; interestsFreeText leads (broader), the setup
   // description follows.

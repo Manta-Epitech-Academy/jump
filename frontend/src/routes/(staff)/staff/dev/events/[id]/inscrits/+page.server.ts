@@ -116,7 +116,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   // immediately while this resolves, instead of the client navigation blocking on
   // it. One phase-agnostic query: every inscrit, sorted by nom for a stable order
   // (the client applies the user-chosen sort on top). The cohort overview
-  // (counter + origin breakdowns + lycée picker) is whole-event on purpose —
+  // (counter + origin breakdowns + lycée picker) is whole-event on purpose:
   // it ignores the `?lycee`/`?interest` origin filter so it stays a stable map
   // the user drills into, never collapsing to the row currently filtered.
   // The règlement applying to this event is the one of the event's own school

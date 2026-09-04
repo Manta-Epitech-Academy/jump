@@ -493,7 +493,7 @@
   }
 }
 
-/* --- Login step transitions — shared by the talent + parent OTP flows --- */
+/* --- Login step transitions: shared by the talent + parent OTP flows --- */
 @keyframes slide-in-right {
   from {
     opacity: 0;
@@ -526,13 +526,13 @@
 
 /* --- Markdown Prose Overrides (Notion-like with Epitech branding) --- */
 
-/* Base text — crisp rendering for body text */
+/* Base text: crisp rendering for body text */
 .prose {
   -webkit-font-smoothing: auto;
   -moz-osx-font-smoothing: auto;
 }
 
-/* Headings — clean, no uppercase, sans-serif, weighted sizing like Notion */
+/* Headings: clean, no uppercase, sans-serif, weighted sizing like Notion */
 .prose h1 {
   @apply font-sans text-2xl font-bold tracking-normal text-foreground normal-case;
 }
@@ -552,12 +552,12 @@
   @apply font-sans text-xs font-semibold tracking-normal text-muted-foreground normal-case uppercase;
 }
 
-/* Links — Epitech blue, underline on hover like Notion */
+/* Links: Epitech blue, underline on hover like Notion */
 .prose a {
   @apply font-medium text-epi-blue underline decoration-epi-blue/30 underline-offset-2 transition-colors hover:decoration-epi-blue;
 }
 
-/* Blockquotes — Notion-style left border, tight to text */
+/* Blockquotes: Notion-style left border, tight to text */
 .prose blockquote {
   @apply border-l-3 border-border py-0 pl-4;
 }
@@ -565,7 +565,7 @@
   @apply my-0;
 }
 
-/* Tables — Notion-style with full borders and column separators */
+/* Tables: Notion-style with full borders and column separators */
 .prose table {
   @apply w-full border-collapse text-sm;
 }
@@ -576,7 +576,7 @@
   @apply border border-border px-3 py-2;
 }
 
-/* Task lists — styled checkboxes, no bullet */
+/* Task lists: styled checkboxes, no bullet */
 .prose ul:has(input[type='checkbox']) {
   @apply list-none pl-0;
 }
@@ -593,12 +593,12 @@
   @apply mx-auto max-w-full;
 }
 
-/* HR — subtle Notion-style divider */
+/* HR: subtle Notion-style divider */
 .prose hr {
   @apply my-8 border-t border-border;
 }
 
-/* Code blocks — language label, softer background */
+/* Code blocks: language label, softer background */
 .prose .code-block-wrapper {
   @apply relative my-5;
 }
@@ -610,7 +610,7 @@
   background: var(--epi-grey-900);
 }
 
-/* Brand-locked highlight.js theme — Epitech palette */
+/* Brand-locked highlight.js theme: Epitech palette */
 .hljs {
   color: #e6edf3;
   background: transparent;
@@ -672,7 +672,7 @@
   font-weight: 600;
 }
 
-/* Inline code — subtle highlight */
+/* Inline code: subtle highlight */
 .prose code:not(pre code) {
   @apply rounded-sm bg-muted px-1.5 py-0.5 text-sm text-epi-tech-ink;
 }

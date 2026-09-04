@@ -1,6 +1,6 @@
 # Contributing to Jump
 
-This document formalises how features are built on Jump — from the PO's initial
+This document formalises how features are built on Jump, from the PO's initial
 need to the merged PR. Objective: enable any developer or AI agent to execute
 tasks with the exact same standard of quality.
 
@@ -66,13 +66,13 @@ Read it there before contributing.
 
 ## Feature Pipeline
 
-### Step 0 — PO Alignment
+### Step 0: PO Alignment
 
 Before writing any code or specifications, talk with the Product Owner (PO) to grasp
 the core user need and business requirements. The PO's implementation suggestions are
 inputs to challenge, not fixed specifications. Start from the user problem, not the technical solution.
 
-### Step 1 — User Stories in GitHub Issues
+### Step 1: User Stories in GitHub Issues
 
 Open the issue **before the branch**, with the *Feature* template. It carries the two headings the
 `Work item` check reads, `User Stories` and `Acceptance Criteria`, and GitHub refuses to submit
@@ -91,7 +91,7 @@ Each story must include clear acceptance criteria (`Given X, when Y, then Z`).
 The PO reviews and validates these criteria before moving forward. Acceptance criteria
 directly serve as the foundation for tests (unit, integration, E2E).
 
-### Step 2 — Functional Plan (No-Code Context)
+### Step 2: Functional Plan (No-Code Context)
 
 Before opening a branch, generate a functional plan with the AI assistant. This plan outlines:
 
@@ -110,13 +110,13 @@ traceability.
 > brainstorming phase, do not generate any code for now"* forces clean architectural reflection
 > before execution.
 
-### Step 3 — Technical Execution Plan
+### Step 3: Technical Execution Plan
 
 The detailed technical plan (DB schemas, function signatures, migrations, implementation phases)
 is generated locally under `docs/plans/` using `/plan` and referenced in the GitHub item.
 This directory is `gitignored`: plans are working documents that guide execution and live in the GitHub item.
 
-### Step 4 — Branching & Implementation
+### Step 4: Branching & Implementation
 
 Always branch off `dev` (never from `main`), and carry the issue number in the branch name:
 
@@ -138,11 +138,18 @@ The board is no longer yours to move afterwards: `board-sync.yml` sets **In Prog
 request opens and **Done** when it merges.
 
 During implementation:
-- Refactor and share existing utilities — never duplicate logic locally.
-- Keep the PO in the loop during development (screenshots, questions): an early feedback loop prevents costly rework.
+- Refactor and share existing utilities, never duplicate logic locally.
+- The PO steps in at two moments, and not between them: at scoping (steps 0 and 1),
+  and at release validation (step 6), over a window of several days on `staging`.
+  In between, autonomy is the rule, and the issue's acceptance criteria are the
+  contract validated at step 6. A mid-development review is opportunistic
+  (`livedev`, `livedev2`), never expected. This bullet used to say "keep the PO in
+  the loop during development"; that stopped being true when the PO's time on Jump
+  shrank, and a protocol describing a practice nobody follows loses its authority
+  over the parts that are still enforced.
 - If a technical decision diverges from the initial plan, update the GitHub item accordingly.
 
-### Step 5 — Technical Gate
+### Step 5: Technical Gate
 
 Before any commit or PR, run the gate:
 
@@ -166,17 +173,76 @@ remember to check the schema against a real PostgreSQL: `verify` runs the integr
 turned the Definition of Done's "verified against a real PostgreSQL database" line from a promise into
 a check.
 
-### Step 6 — Visual Review & Definition of Done
+### Step 6: Visual Review & Definition of Done
 
 The Definition of Done lives in [`pull_request_template.md`](./pull_request_template.md), as a
 checklist in the pull request body. It is deliberately not repeated here: it is ticked in the PR, so
 that is where it belongs, and one copy cannot drift from the other.
 
-Two of its lines are worth reading before you start rather than at the end, because they change how
-you build: new behaviours need automated coverage, and a schema change needs verifying against a
-real PostgreSQL database.
+Three of its lines are worth reading before you start rather than at the end, because they change how
+you build: new behaviours need automated coverage, a schema change needs verifying against a
+real PostgreSQL database, and a new behaviour needs an example in the seed generator.
 
-### Step 7 — PR, Self-Review & Merge
+#### The validation window
+
+The checklist is generated, not transcribed: `scripts/release-validation.sh`
+collects the acceptance criteria of every issue closed by a pull request merged
+into `dev` and not yet promoted, and prints them as one markdown checklist for the
+`release: vX` body. It invents nothing - the `Work item` check already refuses an
+issue whose criteria section is missing or empty, so the material is guaranteed to
+be there.
+
+Once a release is cut (the `dev` into `staging` pull request, step 7's `release: vX`), the PO validates
+it on **`staging`**, over several days, against the acceptance criteria of the issues it closes.
+
+The environment is not a matter of taste. **A multi-day validation window is a multi-day code freeze**,
+and `staging` is the only environment whose freeze is its definition: `dev` takes merges while the PO
+is looking at it, and `livedev` follows the tip of a branch. Remarks come back as commits on `dev` and
+are re-promoted; the draft release targets the `staging` branch and its tag is only created on publish,
+so a retouch costs no re-tag.
+
+Each rung answers one question, and only one:
+
+| Rung | The question it answers | Who |
+| --- | --- | --- |
+| local + CI | does it work at all | `bun run verify` |
+| `dev` | do the features coexist | automatic on merge |
+| `staging` | does it match the acceptance criteria | **the PO, several days, on generated data** |
+| `preprod` | does the migration survive real data | rehearsal, a short smoke pass |
+
+`staging` runs on the generated dataset (`frontend/scripts/seed/`), re-seeded at the freeze, and the
+generator emits a « où trouver quoi » page naming every scenario and its sign-in accounts. That page is
+what the window rests on: the frustration a generated dataset causes is almost never that the names are
+invented, it is not being able to find a case that exercises the thing under review.
+
+**Not true of the live `staging` yet, and the two halves are named.** It still carries what the
+Salesforce worker and a restored production dump put there, and the generator refuses such a database
+rather than filling it half-way, so the switchover is a `prisma migrate reset`, then a generation, then
+`frontend/scripts/bootstrap-admins.ts` for the admin accounts the reset destroys. That, and the Job that
+re-seeds at each freeze, is #294. Until it lands, read this section as the target and not as the state.
+
+**What generated data will never catch**, and what preprod is therefore still for: whatever Salesforce
+produced that is malformed, the accumulation of several years of history, and how long a migration takes
+to apply. That last one matters here because migrations run from the container's `CMD`, so the incoming
+pod applies the DDL while the outgoing one is still serving.
+
+**No Salesforce worker writes into a seeded `staging`, and that is a property of the data, not of a
+setting.** The
+worker takes its scope from Jump, and the generator writes campuses with no external name, so a seeded
+environment is outside every sync's scope (see the *Development data* section of
+[`AGENTS.md`](../AGENTS.md)). Two things follow. A multi-day window stays frozen, which is the whole
+reason it is held here rather than on `dev`. And the real personal data of minors stops arriving through
+a side door, which is the reason the generator exists at all. What that costs is the question « does the
+sync still hold against the real org », and that question belongs to `preprod` alongside the migration
+rehearsal - not to a rung the PO is reading. The parsing itself is covered continuously by an
+integration test that calls the real `syncTalents` over a crafted payload, on every pull request.
+
+Being a property of the data also means it arrives with the data. While `staging` still carries campuses
+a sync created, those campuses have an external name, so the worker resolves them and is fully in scope.
+Pointing it at production and preproduction only is #295, and it closes that window rather than waiting
+for it.
+
+### Step 7: PR, Self-Review & Merge
 
 Writing the commits and the pull request copy is the agent's job, not a tool's. What follows is the
 part that is easy to get wrong.
@@ -187,7 +253,7 @@ part that is easy to get wrong.
    **`.ship/` still holds the previous branch's files.** Rewrite every one you are about to use, or clear the directory first: `finish-work.sh` will cheerfully ship a stale body from two branches ago, and it looks plausible enough that nobody notices.
 3. **Do not hard-wrap inside those files.** One bullet is one line, however long; one paragraph is one line. GitHub and `git log` wrap for you, and manual breaks at 72 columns re-introduce the exact mangling the files exist to prevent.
 4. **Scope the body to the whole branch, not the working tree.** Survey it with `git log --oneline origin/dev..HEAD` and `git diff --name-status origin/dev...HEAD`. On a long branch, cluster the commits into themes and write from the themes. If something is still uncommitted, say so instead of quietly folding it into the summary.
-5. **Name real things.** Actual symbols, models, routes, files. "Various improvements" is not a summary. Add `## Migrations` and `## Env vars` sections when the branch carries either, so a reviewer cannot miss them.
+5. **Name real things, and omit what isn't there.** Actual symbols, models, routes, files. "Various improvements" is not a summary. Add `## Migrations` and `## Env vars` sections when the branch carries either, so a reviewer cannot miss them, and run the same rule in reverse: a Definition-of-Done item, a section, or a table row that does not apply to this change is deleted from the body, never left as an unchecked box or a `None`/`N/A` placeholder. An empty checkbox reads as forgotten work; an absent line reads as exactly what it is, not applicable.
 6. Stage explicit paths rather than `git add -A` whenever `git status` shows untracked files that are not part of the change: scratch notes, screenshots, summary dumps. Surface them so the user decides.
 7. Open the pull request with `scripts/finish-work.sh`. It pushes the branch, guarantees the `Closes #<issue_number>` line the `Work item` check requires, opens it as a **draft**, and then runs the guard so a failure surfaces now rather than in CI.
 8. Self-review: read your own diff as if it were someone else's. Then tick the Definition of Done in the body, and mark the PR ready for review.
@@ -225,7 +291,7 @@ When reviewing a PR, start by testing the **Test Plan** checkboxes in the PR des
 
 Next, evaluate the Definition of Done checklist against the diff. Key points to double-check:
 
-- **Business Alignment:** compare the diff against the issue's User Stories to verify it fulfills the exact requirement — no more, no less.
+- **Business Alignment:** compare the diff against the issue's User Stories to verify it fulfills the exact requirement, no more, no less.
 - **Database Migrations:** cleanly named, squashed into one, atomic SQL backfill included if needed.
 - **Copy & Tone:** correct *_vous_* / *_tu_* register, no dev jargon, no em-dashes.
 - **Space Integrity:** audience targets, border radii, `cursor-pointer`, component reuse.
@@ -252,6 +318,7 @@ Next, evaluate the Definition of Done checklist against the diff. Key points to 
 | `scripts/start-work.sh` | Open the issue (or reuse one), put it on the board in `In Progress`, cut `type/<issue>-slug` |
 | `scripts/finish-work.sh` | Open the draft PR against `dev` with the `Closes #<issue>` line |
 | `scripts/check-work-item.sh` | Run the `Work item` guard locally, exactly the code CI runs |
+| `scripts/release-validation.sh` | Aggregate the acceptance criteria of a release's issues into the PO's checklist |
 | `scripts/apply-repo-config.sh` | Apply the versioned repo config in `.github/settings/repo-config.json` (required checks, labels) |
 
 **Custom Repository Skills** encode Jump-specific workflows. They live in `.claude/skills/`, one

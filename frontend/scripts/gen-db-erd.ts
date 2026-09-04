@@ -25,13 +25,13 @@ import { dirname } from 'path';
 type Datamodel = Awaited<ReturnType<typeof getDMMF>>['datamodel'];
 type Model = Datamodel['models'][number];
 
-// Optional CLI args render an arbitrary schema/output — e.g. a past git
-// revision — for before/after comparisons: `bun run db:erd <schema> <out>`.
+// Optional CLI args render an arbitrary schema/output (e.g. a past git
+// revision) for before/after comparisons: `bun run db:erd <schema> <out>`.
 const SCHEMA_PATH = process.argv[2] ?? 'prisma/schema.prisma';
 const OUT_PATH = process.argv[3] ?? 'docs/database.md';
 
 // Ordered domains. Each model lands in exactly one; the order here is the order
-// of sections in the output. Keep the groupings meaningful — they are the story
+// of sections in the output. Keep the groupings meaningful: they are the story
 // the map tells. A model absent from every list falls into "Autres" (logged).
 //
 // Retired models are kept here on purpose: this tool doubles as a before/after
@@ -78,16 +78,34 @@ const DOMAINS: { title: string; models: string[] }[] = [
       'Participation',
       'StageCompliance',
       'ParticipationActivity',
-      'Closing_Record',
-      'Closing_Answer',
-      'Closing_ResetEvent',
       'EventPresence',
       'EventPresenceClosure',
+      'Diploma_Template',
+    ],
+  },
+  {
+    // Its own section rather than a corner of the events one, for the reason
+    // `AGENTS.md` gives the feature: the questionnaire is data in two layers, a
+    // global bank and a per-event composition, and that split is the whole
+    // design. Nine models tell it, two more than Feedback needs for the same
+    // shape.
+    title: 'Closings',
+    models: [
+      'Closing_Question',
+      'Closing_Option',
+      'Closing_Template',
+      'Closing_TemplateSection',
+      'Closing_TemplateQuestion',
+      'Closing_Record',
+      'Closing_Answer',
+      'Closing_AnswerOption',
+      'Closing_ResetEvent',
     ],
   },
   {
     title: 'Planning & Activités',
     models: [
+      'Planning_Slot',
       'Planning',
       'TimeSlot',
       'Activity',
@@ -156,6 +174,14 @@ const DOMAINS: { title: string; models: string[] }[] = [
   {
     title: "Contenus & Centres d'intérêt",
     models: ['CmsPage', 'CmsImage', 'Interest', 'TalentInterest'],
+  },
+  {
+    // Apart from "Configuration & Système" on purpose: these two are a
+    // behavioural log and its actor-free monthly cube, under their own PII
+    // regime (no path, no talentId, a rotating pseudonym), and filing them
+    // under configuration would read as settings.
+    title: "Analytique d'usage",
+    models: ['Usage_FeatureUse', 'Usage_FeatureMonthly'],
   },
   {
     title: 'Configuration & Système',
@@ -310,7 +336,7 @@ for (const m of models) {
 const relCount = edges.length;
 // Render only sections that actually have models in THIS schema, and count the
 // present models (not the DOMAINS catalogue). So a schema that has shed a whole
-// domain drops the section entirely instead of showing an empty one — which is
+// domain drops the section entirely instead of showing an empty one, which is
 // what makes the same tool render both a past and the current schema cleanly.
 const rendered = sections
   .map((s) => ({
@@ -325,7 +351,7 @@ const perDomain = rendered
 let out = `# Carte de la base de données
 
 > Généré automatiquement par \`bun run db:erd\` depuis \`prisma/schema.prisma\`.
-> **Ne pas éditer à la main** — toute modification est écrasée à la régénération.
+> **Ne pas éditer à la main** : toute modification est écrasée à la régénération.
 > Le diff git de ce fichier = le journal lisible des changements de schéma.
 
 ## Vue d'ensemble

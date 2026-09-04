@@ -20,7 +20,7 @@ export const activityTypeLabels: Record<
 };
 
 /**
- * Centralised color tokens per activity type — used to style activity cards,
+ * Centralised color tokens per activity type: used to style activity cards,
  * badges, and the calendar planner. Keep in sync with `activityTypes`.
  */
 export const activityTypeStyles: Record<

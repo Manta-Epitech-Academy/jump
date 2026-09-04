@@ -3,7 +3,7 @@ import type { SmsProvider } from '../types';
 /**
  * Logs the SMS but doesn't send it. The default until a real provider is
  * wired. Reports a non-retryable failure so the orchestrator / relance loop
- * marks recipients as failed with a clear reason — surfacing an unconfigured
+ * marks recipients as failed with a clear reason, surfacing an unconfigured
  * deployment instead of a false success.
  */
 export const nullSmsProvider: SmsProvider = {

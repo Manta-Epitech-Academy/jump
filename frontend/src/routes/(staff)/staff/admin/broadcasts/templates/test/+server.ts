@@ -3,13 +3,15 @@ import { json } from '@sveltejs/kit';
 import { z } from 'zod';
 import { BROADCAST_CHANNELS } from '$lib/domain/broadcasts';
 import { sendTestMessage } from '$lib/server/services/broadcast/testMessage';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // Live test-send for the template editor (/broadcasts/templates/new + [id]).
-// Sends the in-progress draft — no saved template needed — rendered with demo
+// Sends the in-progress draft (no saved template needed), rendered with demo
 // variables, exactly like /broadcasts/new's "test send" but keyed on the
 // editor content instead of a templateId. Admin-only access is enforced by
 // `applyRouteGuards` in hooks.server.ts (the `/staff/admin/*` sub-guard runs
-// for endpoints too — layout loads do NOT); the `locals.user` check below is
+// for endpoints too, layout loads do NOT); the `locals.user` check below is
 // belt-and-braces, not the primary gate.
 const testSchema = z.object({
   channel: z.enum(BROADCAST_CHANNELS),
@@ -19,6 +21,7 @@ const testSchema = z.object({
 });
 
 export const POST: RequestHandler = async ({ request, locals }) => {
+  recordUsage(USAGE_FEATURES.ADMIN_BROADCAST_TEST_SEND, { locals });
   if (!locals.user) {
     return json({ ok: false, message: 'Non autorisé.' }, { status: 401 });
   }

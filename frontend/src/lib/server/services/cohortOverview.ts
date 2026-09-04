@@ -4,7 +4,7 @@ import { prisma } from '$lib/server/db';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 
 /**
- * Origin breakdowns for a stage cohort — "where do these inscrits come from"
+ * Origin breakdowns for a stage cohort: "where do these inscrits come from"
  * (top lycées) and "what are they into" (top centres d'intérêt). Shared by the
  * event dashboard (prep/ongoing views) and the Inscrits page sidebar so the two
  * surfaces can never drift on how the cohort is ranked or summarised.
@@ -26,8 +26,8 @@ export type InterestStat = {
 
 /**
  * Tail aggregate over the rows past the cap. `count` semantics differ per
- * ranking — unique talents for lycées (one lycée each), declarations for
- * interests (a talent picking 3 tail interests adds 3) — and the rendering
+ * ranking: unique talents for lycées (one lycée each), declarations for
+ * interests (a talent picking 3 tail interests adds 3), and the rendering
  * component labels it accordingly.
  */
 export type BreakdownTail = { count: number; categories: number };
@@ -49,7 +49,7 @@ export type CohortClient = PrismaClient | ScopedPrismaClient;
 const asCohortClient = (db: CohortClient) => db as PrismaClient;
 
 /**
- * Splits a full ranking into the visible top-N plus a summarised tail. Pure —
+ * Splits a full ranking into the visible top-N plus a summarised tail. Pure:
  * callers fetch the ranking once (e.g. to feed both a filter dropdown and a
  * capped card) and slice it as needed. Tail `count` sums the per-row counts,
  * which works for both rankings (see {@link BreakdownTail}).
@@ -117,7 +117,7 @@ export async function rankLyceesByCohort(
     .filter((g): g is typeof g & { schoolId: string } => g.schoolId !== null)
     .map((g) => ({
       schoolId: g.schoolId,
-      name: nameById.get(g.schoolId) ?? '—',
+      name: nameById.get(g.schoolId) ?? '-',
       count: g._count._all,
     }));
 }
@@ -125,7 +125,7 @@ export async function rankLyceesByCohort(
 /**
  * Full interest ranking for the cohort, most-declared first. Counts are
  * declarations, not unique talents (a talent declaring N interests contributes
- * to N rows). `techOnly` restricts to `Interest.kind === 'tech'` — the signal
+ * to N rows). `techOnly` restricts to `Interest.kind === 'tech'`: the signal
  * dev staff recruit on (the non-tech "general" interests are dropped).
  */
 export async function rankInterestsByCohort(

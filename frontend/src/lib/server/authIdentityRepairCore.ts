@@ -15,7 +15,7 @@ import { Prisma } from '@prisma/client';
  * full `PrismaClient` can be passed for a read-only dry-run plan.
  *
  * The precondition re-check lives HERE, at write time, inside the caller's
- * transaction — not in the read-only classifier (`authIdentityService.ts`),
+ * transaction, not in the read-only classifier (`authIdentityService.ts`),
  * which is advisory/display only. So a concurrent sync or re-login between
  * diagnosis and apply can never make an operation act on stale state: if the
  * world moved, `plan*` throws and the transaction rolls back untouched.
@@ -98,7 +98,7 @@ async function loadDriftedTalent(
   if (!talent) throw new Error(`No talent with id ${talentId}.`);
   if (!talent.user)
     throw new Error(
-      'Talent has no linked account (userId null) — nothing to repair.',
+      'Talent has no linked account (userId null): nothing to repair.',
     );
   if (!talent.sfImport?.sfEmail) throw new Error('Talent has no SF email.');
   const targetEmail = norm(talent.sfImport.sfEmail)!;
@@ -136,26 +136,26 @@ export async function planRepointAndDrop(
   });
   if (!holder)
     throw new Error(
-      `Nobody holds ${t.targetEmail} — the sync realigns the account itself (changeUserEmail), no manual repair needed.`,
+      `Nobody holds ${t.targetEmail}: the sync realigns the account itself (changeUserEmail), no manual repair needed.`,
     );
   if (holder.staffProfile)
     throw new Error(
-      'Holder is a STAFF account (STAFF_HOLDER) — escalate, do not force.',
+      'Holder is a STAFF account (STAFF_HOLDER): escalate, do not force.',
     );
   if (holder.talent)
     throw new Error(
-      `Holder is linked to another talent (id=${holder.talent.id}) — inversion, not orphan.`,
+      `Holder is linked to another talent (id=${holder.talent.id}): inversion, not orphan.`,
     );
   if (holder.role === 'parent' || (await isParentEmail(db, t.targetEmail)))
     throw new Error(
-      'Holder is a PARENT account (PARENT_HOLDER) — escalate, do not force.',
+      'Holder is a PARENT account (PARENT_HOLDER): escalate, do not force.',
     );
 
   // Backward: dropping the stale account is only safe if no real other identity
   // owns its email. Otherwise this is an exposure → use sever/escalate.
   if (await emailBelongsToOther(db, t.staleEmail, talentId))
     throw new Error(
-      'Stale email belongs to a real other identity (EXPOSURE) — use sever, not repoint+drop.',
+      'Stale email belongs to a real other identity (EXPOSURE): use sever, not repoint+drop.',
     );
 
   return {
@@ -231,7 +231,7 @@ async function planSwap(
   });
   if (!holder || !holder.talent)
     throw new Error(
-      'Target email is not held by another talent — not an inversion.',
+      'Target email is not held by another talent: not an inversion.',
     );
   const bTalentId = holder.talent.id;
   const bTargetEmail = norm(holder.talent.sfImport?.sfEmail);
@@ -241,7 +241,7 @@ async function planSwap(
   // automatic move).
   if (bTargetEmail !== a.staleEmail)
     throw new Error(
-      'Inversion is not symmetric (DEGRADED_INVERSION) — handle manually.',
+      'Inversion is not symmetric (DEGRADED_INVERSION): handle manually.',
     );
 
   return {
@@ -264,7 +264,7 @@ export async function applySwap(
   const plan = await planSwap(db, talentId);
   // Exchange the two accounts' emails under the unique constraint via a temp
   // value. After: A's account holds A's target, B's account holds B's target,
-  // and neither Talent.userId moved — so both links are aligned at once.
+  // and neither Talent.userId moved, so both links are aligned at once.
   const tmp = `__swap_tmp_${plan.aUserId}@invalid.local`;
   await db.bauth_user.update({
     where: { id: plan.aUserId },

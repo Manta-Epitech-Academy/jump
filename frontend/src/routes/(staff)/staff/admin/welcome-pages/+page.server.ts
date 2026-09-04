@@ -3,6 +3,8 @@ import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { eventWindowEnd } from '$lib/domain/event';
 import { sanitizeWelcomeHtml } from '$lib/server/cms/sanitize';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 const SLUG = 'welcome';
 
@@ -71,11 +73,11 @@ export const load: PageServerLoad = async ({ url }) => {
           status,
           hasContent,
           updatedAt: page?.updatedAt.toISOString() ?? null,
-          updatedByName: page?.user.name ?? page?.user.email ?? null,
+          updatedByName: page?.user?.name ?? page?.user?.email ?? null,
         };
       })
       // Keep current/upcoming events plus any archived event that still has a
-      // welcome page worth reviewing — drop empty past events to cut clutter.
+      // welcome page worth reviewing, drop empty past events to cut clutter.
       .filter((r) => r.status !== 'past' || r.hasContent)
       .sort(
         (a, b) =>
@@ -123,6 +125,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
 export const actions: Actions = {
   save: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_WELCOME_PAGE_SAVE, { locals });
     const userId = locals.user!.id;
     const formData = await request.formData();
     const eventId = formData.get('eventId');

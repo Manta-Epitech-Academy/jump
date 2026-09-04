@@ -68,7 +68,7 @@ const MS_PER_DAY = 86_400_000;
  * Whole days from `now` to `date`, clamped at 0 (a date today or in the past
  * reads "0", never negative). Calendar-day-naive by design: it rounds the raw
  * span up, matching `startsInDays` and the "J-X" countdown shown across the
- * dev workspace — not a timezone-aware day-boundary count. Single producer for
+ * dev workspace, not a timezone-aware day-boundary count. Single producer for
  * the `{{jours_restants}}` relance/broadcast variable so every surface agrees.
  */
 export function daysUntil(date: Date, now: Date = new Date()): number {
@@ -286,7 +286,7 @@ export async function resolveWorkspaceEvents(
         feedbackFormId: true,
         closingTemplateId: true,
         modules: { select: { moduleKey: true } },
-        planning: { select: { _count: { select: { timeSlots: true } } } },
+        _count: { select: { planningSlots: true } },
       },
       orderBy: { date: 'desc' },
     }),
@@ -317,7 +317,7 @@ export async function resolveWorkspaceEvents(
       schoolYear: schoolYearOf(e.date, timezone),
       monthKey: toDateKey(e.date, timezone).slice(0, 7),
       modules: e.modules.map((m) => m.moduleKey).filter(isEventModuleKey),
-      hasPlanning: (e.planning?._count.timeSlots ?? 0) > 0,
+      hasPlanning: e._count.planningSlots > 0,
       hasFeedbackForm: eventResolvesLiveForm(e),
       hasClosingTemplate: e.closingTemplateId !== null,
     };

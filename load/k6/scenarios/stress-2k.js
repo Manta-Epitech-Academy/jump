@@ -4,14 +4,14 @@ import { formPost, loginAs, requireEnv } from '../lib/auth.js';
 import { data } from '../lib/manifest.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STRESS 2K — "tout le monde tape à donf, surtout en écriture"
+// STRESS 2K - "tout le monde tape à donf, surtout en écriture"
 //
 // Goal: ~2000 distinct users hammering the box as hard as it will take, to find
 // where it knees over. This is a BREAK test, not an SLA test: the thresholds are
 // abort guards, not pass criteria.
 //
 // Two independent scenarios so the metrics split per pressure source:
-//   • talent_signup_storm — up to 2000 seeded talents, each pinned to ONE VU.
+//   • talent_signup_storm: up to 2000 seeded talents, each pinned to ONE VU.
 //                       Each VU logs in once, signs the rules ONCE, then settles
 //                       into the dashboard read it lands on. signRules is the
 //                       heaviest talent write: one transaction stamps the Talent
@@ -31,7 +31,7 @@ import { data } from '../lib/manifest.js';
 //                       guard's redirect, not the write. After its sign each VU
 //                       therefore switches to the dashboard read (the multi-query
 //                       hotspot) to keep sustained pressure through the HOLD.
-//   • staff_contention — a small staff pool slamming togglePresent on a SHARED
+//   • staff_contention: a small staff pool slamming togglePresent on a SHARED
 //                       set of participation rows. Unlike signRules this write IS
 //                       repeatable (it flips isPresent each iteration), so it
 //                       genuinely sustains. Same rows on purpose: this is where
@@ -53,7 +53,7 @@ import { data } from '../lib/manifest.js';
 //     (writes return a tiny 303 anyway; the sign check reads only the Location
 //     header, which survives the discard).
 //
-// PREREQS — seed a fresh 2000-user pool + manifest, then run. Seeding RESETS the
+// PREREQS: seed a fresh 2000-user pool + manifest, then run. Seeding RESETS the
 // signature state, which is exactly why the launcher always seeds immediately
 // before a run (so every VU's one sign is a real write, not a guard bounce). The
 // launcher does all of it over the API (no DB access); easiest is just:
@@ -64,7 +64,7 @@ import { data } from '../lib/manifest.js';
 //          -e LOAD_TEST_SECRET=*** -e VUS=2000 \
 //          load/k6/scenarios/stress-2k.js
 //
-// AFTER — this pollutes the target HARD (thousands of OnboardingPdfJob rows, an
+// AFTER: this pollutes the target HARD (thousands of OnboardingPdfJob rows, an
 // onboarding XpGrant per talent, real presence flips). Clean up the throwaway
 // accounts: `./load/stress-2k.sh cleanup` (real presence flips are NOT undone).
 // NEVER run against prod.
@@ -78,7 +78,7 @@ const HOLD = __ENV.HOLD || '5m'; // soak at full load (catches pool/queue/leak i
 export const options = {
   // 2000 VUs from one machine is heavy. Tiny bodies + no body parsing keeps the
   // generator honest. If the LOAD GENERATOR saturates (CPU pinned, dropped
-  // iterations), split across machines / k6 Cloud — see the note at the bottom.
+  // iterations), split across machines / k6 Cloud: see the note at the bottom.
   discardResponseBodies: true,
   scenarios: {
     talent_signup_storm: {
@@ -131,10 +131,10 @@ export function setup() {
     );
   }
   if (pool.length < TALENT_VUS) {
-    // Not fatal — VUs just wrap and share talents (more row contention). Warn so
+    // Not fatal: VUs just wrap and share talents (more row contention). Warn so
     // it's not a silent "I thought I had 2000 distinct users".
     console.warn(
-      `⚠ only ${pool.length} seeded talents for ${TALENT_VUS} VUs — ` +
+      `⚠ only ${pool.length} seeded talents for ${TALENT_VUS} VUs, ` +
         `VUs will share talents (re-seed with COUNT=${TALENT_VUS} for 1:1).`,
     );
   }

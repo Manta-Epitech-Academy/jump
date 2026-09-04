@@ -29,6 +29,7 @@ REPO="${JUMP_REPO:-Manta-Epitech-Academy/jump}"
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=scripts/work-item-lib.sh
 . "$SCRIPT_DIR/work-item-lib.sh"
+. "$SCRIPT_DIR/work-item-sections.sh"
 
 BRANCH=""
 BASE=""
@@ -131,23 +132,11 @@ has_label() {
 # True when file $1 has a heading matching $2 followed by at least one line of
 # real content. HTML comments and GitHub's "_No response_" filler are stripped, so
 # a section that only holds the template's own placeholder reads as empty.
-has_section() {
-  local file="$1" pattern="$2" start end
-  start=$(grep -niE "^#+[[:space:]]+(${pattern})[[:space:]]*:?[[:space:]]*$" "$file" | head -1 | cut -d: -f1)
-  [ -n "$start" ] || return 1
-  end=$(awk -v s="$start" 'NR > s && /^#+[ \t]/ { print NR - 1; exit }' "$file")
-  [ -n "$end" ] || end=$(wc -l < "$file")
-  sed -n "$((start + 1)),${end}p" "$file" \
-    | grep -v '^[[:space:]]*<!--' \
-    | grep -v '^[[:space:]]*-->' \
-    | grep -viF '_No response_' \
-    | grep -q '[^[:space:]]'
-}
 
 if has_label "no-issue"; then
   echo
   echo "This pull request carries the 'no-issue' label."
-  if [ "$BODY_KNOWN" = 1 ] && has_section "$BODY_FILE" "process exception"; then
+  if [ "$BODY_KNOWN" = 1 ] && has_section "$BODY_FILE" "$WORK_ITEM_EXCEPTION_PATTERN"; then
     echo "Process exception is documented in the body. Passing."
     exit 0
   fi
@@ -187,13 +176,13 @@ gh issue view "$ISSUE" --repo "$REPO" --json body -q .body > "$ISSUE_BODY"
 
 # -------------------------------------------------- 3. the issue is structured
 
-if ! has_section "$ISSUE_BODY" "user stor(y|ies)|histoires? utilisateur"; then
+if ! has_section "$ISSUE_BODY" "$WORK_ITEM_STORIES_PATTERN"; then
   fail "Issue #$ISSUE has no non-empty 'User Stories' section."
   note "Format: As a [role], I want to [action] so that [benefit]."
   note "Or in French: En tant que [rôle], je veux [action], pour [bénéfice]."
 fi
 
-if ! has_section "$ISSUE_BODY" "acceptance criteria|crit[eè]res d'acceptation"; then
+if ! has_section "$ISSUE_BODY" "$WORK_ITEM_CRITERIA_PATTERN"; then
   fail "Issue #$ISSUE has no non-empty 'Acceptance Criteria' section."
   note "Format: Given X, when Y, then Z. These become the tests."
 fi

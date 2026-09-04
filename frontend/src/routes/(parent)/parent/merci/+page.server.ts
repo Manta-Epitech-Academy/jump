@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   // Defensive mirror of the route guard: a parent with anything still pending
   // belongs back in the flow, not on the thank-you page. Règlement first, then
-  // image rights — matching the welcome → règlement → droit-image order.
+  // image rights, matching the welcome → règlement → droit-image order.
   const unsignedRules = await prisma.talent.count({
     where: { parentEmail, parentRulesSignedAt: null },
   });
@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     select: { prenom: true, id: true, imageRightsDecision: true },
   });
 
-  // No child resolves under this address — e.g. a second legal guardian, whose
+  // No child resolves under this address, e.g. a second legal guardian, whose
   // children are tracked under the primary parent's email. There is nothing to
   // confirm, so render a neutral acknowledgement. Redirecting away here would
   // loop: the guard sends every signed-up parent straight back to /parent/merci.

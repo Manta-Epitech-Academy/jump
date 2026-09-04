@@ -96,7 +96,7 @@ export async function generateOnboardingPDF(data: {
   studentName: string;
   /**
    * For `rules`: signature blocks to render at the foot of the PDF. The shared
-   * règlement artifact carries both signatures over time — the worker calls in
+   * règlement artifact carries both signatures over time: the worker calls in
    * here every time either signer commits, passing whichever blocks are set on
    * the talent row. A block missing from this object simply doesn't render.
    */

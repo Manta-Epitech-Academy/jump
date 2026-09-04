@@ -4,7 +4,7 @@
   import type { Snippet } from 'svelte';
 
   // The talent is the star of the fiche, and what they're into is the most
-  // human part of that — so interests get a generous tech / perso split (mirrors
+  // human part of that, so interests get a generous tech / perso split (mirrors
   // the onboarding interests step) rather than one timid flat list.
   type InterestRow = {
     interest: {

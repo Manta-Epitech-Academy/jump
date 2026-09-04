@@ -7,8 +7,11 @@ import {
   closingPdfSelect,
 } from '$lib/server/services/closingPdfGenerator';
 import { resolveClosingGridById } from '$lib/server/closingTemplates';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
+  recordUsage(USAGE_FEATURES.ADMIN_CLOSING_PDF_SINGLE, { locals });
   // The /staff/admin layout guard already redirects non-admins; this is defence
   // in depth for an endpoint that streams a minor's closing data.
   if (locals.staffProfile?.staffRole !== 'admin') {

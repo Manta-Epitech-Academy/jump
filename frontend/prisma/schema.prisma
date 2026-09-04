@@ -8,12 +8,16 @@ datasource db {
 
 // ─── Enums ───
 
-// Difficulty stored as plain string: "Débutant", "Intermédiaire", "Avancé"
-// This avoids enum mapping issues between Prisma TS names and French display values.
-
-// StudentLevel stored as plain string: "Novice", "Apprentice", "Expert"
 // Niveau stored as plain string from the canonical catalogue in
 // `src/lib/domain/niveau.ts` (NIVEAUX); values match jump-sf-worker's ClassLevel.
+// A String column carries no vocabulary of its own, so this one is covered by
+// `scripts/seed/assert/stringCatalogues.ts` rather than by the enum check.
+//
+// Two more comments used to stand here, describing a Difficulty and a
+// StudentLevel column. Neither column exists any more - the XP difficulty scale
+// was retired and `Talent.level` was dropped for `computeLevel(xp)` - and the
+// comments outlived them long enough to be read as a live vocabulary and
+// planned for.
 
 enum ActivityType {
   atelier
@@ -116,6 +120,11 @@ model Audit_ImpersonationEvent {
 model bauth_account {
   id                    String    @id @default(cuid())
   userId                String
+  /// The account's stable namespace (e.g. the Microsoft tenant's OIDC issuer
+  /// URL). BetterAuth 1.7 keys an OAuth account on (issuer, accountId) rather
+  /// than (providerId, accountId), because a bare provider id is not unique
+  /// across multi-tenant issuers.
+  issuer                String
   accountId             String
   providerId            String
   accessToken           String?
@@ -129,6 +138,8 @@ model bauth_account {
   updatedAt             DateTime  @updatedAt
 
   user bauth_user @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([issuer, accountId])
 }
 
 model bauth_verification {
@@ -178,6 +189,19 @@ model StaffProfile {
   // completeness guarantee (the all-time export stays authoritative); null =
   // never exported.
   sfExportedAt             DateTime?
+  /// Last real (non-impersonated) request, stamped at most once a day in
+  /// hooks.server.ts. Exact mirror of `Talent.lastActiveAt`.
+  lastActiveAt             DateTime?
+  /// First real (non-impersonated) request, stamped once and never cleared.
+  ///
+  /// Both of these are projections, and neither is redundant with
+  /// `Usage_FeatureUse`: that table is purged at the raw retention window
+  /// (`USAGE_RAW_RETENTION_MONTHS`), so a MAX over it loses exactly the
+  /// interesting case, "this account has never been opened since the invitation
+  /// was sent", which has no row at any retention. Same reasoning as
+  /// `Talent.firstLoginAt`, which also explains why probing bauth_session is not
+  /// an option (its rows are deleted by logout, identity repair and relinks).
+  firstLoginAt             DateTime?
   createdAt                DateTime   @default(now())
   updatedAt                DateTime   @updatedAt
 
@@ -195,6 +219,7 @@ model StaffProfile {
   feedbackFormsCreated   Feedback_Form[]             @relation("Feedback_FormCreator")
   feedbackFormsUpdated   Feedback_Form[]             @relation("Feedback_FormEditor")
   eventConfigTemplates   EventConfig_Template[]      @relation("EventConfigTemplateCreator")
+  featureUses            Usage_FeatureUse[]
 
   @@index([campusId])
 }
@@ -242,7 +267,7 @@ model Talent {
   imageRightsDecidedAt        DateTime?
   // Guardian's typed legal name at the moment of the image-rights decision,
   // captured as prénom + nom to mirror the talent's own identity columns
-  // (`prenom` / `nom`) — a single free-text field invited "first name only" /
+  // (`prenom` / `nom`): a single free-text field invited "first name only" /
   // "last name only" entries that read asymmetrically on the signed PDF.
   imageRightsSignerPrenom     String?
   imageRightsSignerNom        String?
@@ -327,12 +352,17 @@ model Talent {
   externalId                  String?              @unique
   lastActiveAt                DateTime?
   // First real (non-impersonated) login, stamped once in hooks.server.ts and
-  // never cleared. A durable projection of "has this talent ever connected" —
+  // never cleared. A durable projection of "has this talent ever connected",
   // distinct from probing bauth_session, whose rows are deleted by logout,
   // identity repair and account relinks, so a real login would otherwise read
   // "Jamais" once its session row is gone. Paired with lastActiveAt (MAX
   // activity); this is the MIN.
   firstLoginAt                DateTime?
+  /// When this talent objected to usage measurement (RGPD art. 21). Set, and the
+  /// recorder writes nothing for them. Null means no objection, which is the
+  /// default: the basis is legitimate interest, not consent, so measurement runs
+  /// until it is refused. Objection is per person and permanent until cleared.
+  usageAnalyticsOptOutAt      DateTime?
   welcomeSeenAt               DateTime?
   createdAt                   DateTime             @default(now())
   updatedAt                   DateTime             @updatedAt
@@ -362,8 +392,8 @@ model Talent {
 }
 
 /// Canonical high-school directory, keyed by the national UAI (RNE) code.
-/// Rows are created lazily the first time a UAI is seen — Salesforce sync or a
-/// talent picking from the annuaire — then enriched from the official
+/// Rows are created lazily the first time a UAI is seen (Salesforce sync or a
+/// talent picking from the annuaire), then enriched from the official
 /// éducation-nationale annuaire. Only schools actually attended by a talent ever
 /// land here, never the full ~69k national dataset.
 model School {
@@ -506,7 +536,7 @@ model Onboarding_Record {
   @@unique([talentId, schoolYear])
 }
 
-/// 1:1 mirror of what Salesforce last claimed for a talent — the anti-corruption
+/// 1:1 mirror of what Salesforce last claimed for a talent: the anti-corruption
 /// boundary. Upserted by the worker sync (only when the inbound payload differs),
 /// never written by onboarding. Reconciliation compares this against the `Talent`
 /// row: a divergence on a talent-confirmed field is a conflict. School is compared
@@ -534,7 +564,7 @@ model TalentSfImport {
 }
 
 // RGPD erasure as a fact log, not an instant destructive action. A talent's
-// "delete my account" no longer wipes rows on the spot — it appends a pending
+// "delete my account" no longer wipes rows on the spot: it appends a pending
 // request here. Staff fulfil it (→ anonymisation, the real erasure mechanism)
 // or reject it; the talent can withdraw their own pending request. Each
 // transition is a status on the same row, so the request doubles as the audit
@@ -548,8 +578,8 @@ enum TalentDeletionRequestStatus {
 }
 
 /// The legal guardian's image-rights decision for their child. `null` on Talent
-/// means undecided (still to be chased); a non-null value is a settled decision
-/// — `refused` is as final as `accepted`, it just means "do not photograph".
+/// means undecided (still to be chased); a non-null value is a settled decision:
+/// `refused` is as final as `accepted`, it just means "do not photograph".
 enum ImageRightsDecision {
   accepted
   refused
@@ -564,13 +594,13 @@ enum ImageRightsDecisionSource {
   staff_correction
 }
 
-/// Append-only fact log of image-rights decisions — one row per choice or
+/// Append-only fact log of image-rights decisions: one row per choice or
 /// revision, never overwritten. The current value cached on
 /// `Talent.imageRights*` is a projection of the latest row here (same shape as
 /// the XP ledger: facts as rows, state as projection; see CLAUDE.md "Data
 /// modeling"). A guardian revoking "à tout moment" or staff correcting an
 /// offline change of mind both append a new row, so the full history of who
-/// decided what and when survives — which matters legally for a minor's consent.
+/// decided what and when survives, which matters legally for a minor's consent.
 ///
 /// `relationship` and `city` are persisted here (they previously lived only in
 /// the transient PDF job payload, so they were unqueryable after generation).
@@ -603,7 +633,7 @@ model ImageRightsDecisionRecord {
   /// Signer identity + context. Nullable only because rows backfilled from the
   /// pre-ledger projection carry just what `Talent` persisted (signer name, if
   /// any; relationship/city were never stored). Every row written going forward
-  /// fills all four — the parent and staff forms require them.
+  /// fills all four: the parent and staff forms require them.
   signerPrenom      String?
   signerNom         String?
   relationship      String?
@@ -651,9 +681,9 @@ model TalentDeletionRequest {
 
 /// One staff note about a talent. Replaces the single free-text `Talent.note`
 /// column with a 1:N feed: many notes per talent, each authored and timestamped
-/// (created + last-edited). Mutable in place — editing fixes the document, hence
+/// (created + last-edited). Mutable in place: editing fixes the document, hence
 /// `updatedAt`, NOT an append-only ledger (nothing aggregates from it, so the
-/// facts-as-rows shape — XpGrant, ImageRightsDecisionRecord — would be over-built
+/// facts-as-rows shape (XpGrant, ImageRightsDecisionRecord) would be over-built
 /// here). Any dev member can edit/delete any note (small internal team; the
 /// predecessor was a single shared note anyone could overwrite). Staff-only;
 /// NEVER loaded in a talent request. Optional `eventId` anchors the screen the
@@ -717,48 +747,52 @@ model CmsPage {
   eventId   String
   content   String   @db.Text
   updatedAt DateTime @updatedAt
-  updatedBy String
+  /// Attribution, not ownership: SetNull so deleting the author's account leaves
+  /// the page standing. It defaulted to RESTRICT, which made anyone who had ever
+  /// edited a page undeletable, reported to the admin as a bare "Erreur lors de
+  /// la suppression du membre".
+  updatedBy String?
 
-  event Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user  bauth_user @relation(fields: [updatedBy], references: [id])
+  event Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  bauth_user? @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
 
   @@unique([slug, eventId])
   @@index([eventId])
 }
 
-model Planning {
-  id        String   @id @default(cuid())
-  eventId   String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  timeSlots TimeSlot[]
-}
-
-model TimeSlot {
-  id         String   @id @default(cuid())
-  planningId String
-  startTime  DateTime
-  endTime    DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  planning Planning  @relation(fields: [planningId], references: [id], onDelete: Cascade)
-  activity Activity?
-
-  @@index([planningId])
-}
-
-model Activity {
+/// One activity in an event's programme, at the hour it runs.
+///
+/// This replaces three tables - `Planning`, `TimeSlot`, `Activity` - that
+/// modelled one thing. `Planning` held an `eventId` and two timestamps and
+/// nothing else, auto-created empty for every synced event (286 of 292 rows
+/// carried no slot at all); `Activity` held `nom` and `activityType` against a
+/// unique `timeSlotId`, so it was a column-holder with the same row count as the
+/// table it hung off and not one slot without one.
+///
+/// The cost was not storage, it was `db/scoped.ts`: campus scoping had to walk
+/// `activity -> timeSlot -> planning -> event -> campusId` at every level, which
+/// took about 288 of that file's 707 lines - 41 % of the layer that cloisters a
+/// campus's data - and half of it guarded create/update/delete paths the app
+/// does not have. One hop now, exactly like `EventPresence`.
+///
+/// `nom` and `activityType` are required. A slot with no activity rendered as
+/// nothing at all (the viewer skipped it), so it was an invisible row rather
+/// than a meaningful state, and none existed.
+///
+/// Written only by the seed scripts today; the dev planning page reads it.
+model Planning_Slot {
   id           String       @id @default(cuid())
+  eventId      String
+  startTime    DateTime
+  endTime      DateTime
   nom          String
   activityType ActivityType
-  timeSlotId   String       @unique
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  timeSlot TimeSlot @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, startTime])
 }
 
 model Event {
@@ -783,8 +817,8 @@ model Event {
   date              DateTime
   // Salesforce gives us the calendar day (`date`/`endDate`) but never a
   // start time, so the time-of-day is Jump-owned: wall-clock minutes from
-  // local midnight (0–1439), `null` until staff set it. Kept separate from
-  // `date` precisely so the SF sync — which rewrites `date` — can never
+  // local midnight (0-1439), `null` until staff set it. Kept separate from
+  // `date` precisely so the SF sync, which rewrites `date`, can never
   // clobber it. Compose with the campus timezone for a real instant.
   startMinutes      Int?
   endDate           DateTime?
@@ -822,7 +856,8 @@ model Event {
   diplomaTemplate     Diploma_Template?      @relation("EventDiplomaTemplate", fields: [diplomaTemplateId], references: [id], onDelete: Restrict)
   closingTemplate     Closing_Template?      @relation("EventClosingTemplate", fields: [closingTemplateId], references: [id], onDelete: Restrict)
   participations      Participation[]
-  planning            Planning?
+  closings            Closing_Record[]
+  planningSlots       Planning_Slot[]
   cmsPages            CmsPage[]
   broadcasts          Broadcast[]
   minigameAttempts    MinigameAttempt[]
@@ -832,6 +867,15 @@ model Event {
   talentNotes         Note_TalentNote[]
   modules             EventConfig_Module[]
 
+  /// Not a second identity - `id` alone is already unique. It exists so the rows
+  /// that denormalise `campusId` for one-hop campus scoping can reference the
+  /// PAIR, which is what makes `ON UPDATE CASCADE` carry a campus move down to
+  /// them. Salesforce does reassign a campaign: the event sync has an explicit
+  /// branch for `existing.campusId !== campus.id`, and it updated `Event` alone,
+  /// stranding `Participation.campusId` and `Closing_Record.campusId` on the old
+  /// campus - the very columns `db/scoped.ts` reads to cloister a campus's data,
+  /// so the old campus kept seeing the cohort and the new one never did.
+  @@unique([id, campusId])
   @@index([campusId])
   @@index([feedbackFormId])
   @@index([diplomaTemplateId])
@@ -986,10 +1030,13 @@ model Participation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  talent    Talent     @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  campus    Campus     @relation(fields: [campusId], references: [id])
-  closing   Closing_Record?
+  talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  /// Bound to the event by the PAIR, so Prisma's `ON UPDATE CASCADE` rewrites
+  /// `campusId` here when the event moves campus. The column stays denormalised
+  /// on purpose - it is the one-hop scoping key - and this is what stops it
+  /// drifting away from the event that owns it.
+  event  Event  @relation(fields: [eventId, campusId], references: [id, campusId], onDelete: Cascade)
+  campus Campus @relation(fields: [campusId], references: [id])
 
   @@unique([talentId, eventId])
   @@index([eventId])
@@ -1465,15 +1512,25 @@ model Closing_TemplateQuestion {
 /// A regular attending eight events a year gets eight of these, deliberately: the
 /// successive verdicts and how they moved are what the talent fiche is for.
 model Closing_Record {
-  id              String @id @default(cuid())
-  talentId        String
-  staffId         String
-  campusId        String
-  participationId String @unique
+  id         String @id @default(cuid())
+  talentId   String
+  /// The event this closing was conducted at. Keyed on `(talentId, eventId)`
+  /// rather than on a `Participation` row, and that is not a detail: the
+  /// Salesforce sync hard-deletes any participation missing from a campaign's
+  /// payload, so a cascade from it let the CRM destroy a conducted closing -
+  /// the answers, the verdict and the testimonial - leaving none of the trace
+  /// `Closing_ResetEvent` exists to guarantee. The pair IS `Participation`'s own
+  /// natural key, so "a closing is 1:1 with a participation" still holds as a
+  /// domain statement; only the storage stops being Salesforce-owned. Same
+  /// reasoning, and the same shape, as `EventPresence`, `Note_TalentNote` and
+  /// `Feedback_Submission`, which all key on the pair for this exact reason.
+  eventId    String
+  staffId    String?
+  campusId   String
   /// The grid this closing was conducted with, pinned when it starts. `Event`
   /// carries the same FK as configuration; pinning it here is what stops
   /// retargeting an event from rewriting a closing already conducted.
-  templateId      String
+  templateId String
 
   status      ClosingStatus @default(in_progress)
   /// When the closing was FINALISED, not when the row appeared: re-stamped at
@@ -1491,14 +1548,25 @@ model Closing_Record {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  talent        Talent           @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  staff         StaffProfile     @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  campus        Campus           @relation(fields: [campusId], references: [id], onDelete: Cascade)
-  participation Participation    @relation(fields: [participationId], references: [id], onDelete: Cascade)
-  template      Closing_Template @relation(fields: [templateId], references: [id], onDelete: Restrict)
-  answers       Closing_Answer[]
+  talent   Talent           @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  /// By the pair, for the same reason as `Participation.event`.
+  event    Event            @relation(fields: [eventId, campusId], references: [id, campusId], onDelete: Cascade)
+  /// SetNull, never Cascade. A closing is a record about a minor and the input
+  /// to the admin archive, the school-year review and the testimonials, so a
+  /// colleague leaving must not delete it - and it did: every one of the 83
+  /// people who had conducted one took their closings into the bin with their
+  /// account, silently. Same rule and same reason as `Note_TalentNote.author`;
+  /// the conductor simply reads as a former member afterwards.
+  staff    StaffProfile?    @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  /// Restrict, matching `Participation.campus`: a campus still holding closings
+  /// is not one to delete out from under them.
+  campus   Campus           @relation(fields: [campusId], references: [id])
+  template Closing_Template @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  answers  Closing_Answer[]
 
+  @@unique([talentId, eventId])
   @@index([talentId])
+  @@index([eventId])
   @@index([staffId])
   @@index([campusId])
   @@index([templateId])
@@ -1635,10 +1703,13 @@ model AdminFile {
   s3Key        String   @unique
   contentType  String
   size         Int
-  uploadedById String
+  /// SetNull, like its twin `CmsImage` below: this is a SHARED library, so a
+  /// departure must not take everyone's files with it - and cascading also
+  /// stranded the S3 objects, since nothing sweeps a bucket on a foreign key.
+  uploadedById String?
   createdAt    DateTime @default(now())
 
-  uploadedBy StaffProfile @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  uploadedBy StaffProfile? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([uploadedById])
 }
@@ -1649,12 +1720,12 @@ model AdminFile {
 //
 // Whether an image is still used is determined by the content itself (the
 // `/api/cms/images/<id>` URL inside some `CmsPage.content`), not by a column
-// here — so there is no event link to keep in sync. A row whose id appears in
+// here, so there is no event link to keep in sync. A row whose id appears in
 // no content is garbage: an abandoned upload, an image edited out of a message,
 // or one whose page was deleted. The GC sweep (`/api/jobs/gc-cms-images`)
 // reclaims those, freeing both the row and the S3 object. This reconciliation
 // exists because S3 and Postgres cannot commit atomically and an abandoned
-// upload fires no server event — it is the safety net, not a substitute for
+// upload fires no server event: it is the safety net, not a substitute for
 // correctness on the happy path. `uploadedById` is kept for attribution and is
 // SetNull so deleting the author never deletes the image.
 model CmsImage {
@@ -1746,7 +1817,7 @@ enum BroadcastSourceFilter {
 model MessageTemplate {
   id          String           @id @default(cuid())
   /// Stable identity for a seeded *broadcast* template (free-standing, no
-  /// EmailActionMapping). Lets `seed-catalogs` upsert these defaults
+  /// EmailActionMapping). Lets the seed catalogue upsert these defaults
   /// idempotently without colliding on the non-unique `name`. Null for admin-
   /// and demo-authored templates. Seeded *transactional* defaults need no
   /// seedKey: they are anchored by their EmailActionMapping.actionKey instead.
@@ -1755,11 +1826,12 @@ model MessageTemplate {
   channel     BroadcastChannel
   subject     String?
   body        String
-  createdById String
+  /// Attribution only, SetNull: see `CmsPage.updatedBy`.
+  createdById String?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  createdBy           bauth_user           @relation("MessageTemplateCreator", fields: [createdById], references: [id])
+  createdBy           bauth_user?          @relation("MessageTemplateCreator", fields: [createdById], references: [id], onDelete: SetNull)
   broadcasts          Broadcast[]
   emailActionMappings EmailActionMapping[]
 
@@ -1795,7 +1867,9 @@ model Broadcast {
   subjectSnapshot   String?
   bodySnapshot      String
   status            BroadcastStatus        @default(queued)
-  createdById       String
+  /// Attribution only, SetNull: see `CmsPage.updatedBy`. A send that has already
+  /// gone out is a fact, so it outlives the account that triggered it.
+  createdById       String?
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @default(now()) @updatedAt
 
@@ -1804,7 +1878,7 @@ model Broadcast {
   event           Event?               @relation(fields: [eventId], references: [id])
   sourceBroadcast Broadcast?           @relation("BroadcastRetargeting", fields: [sourceBroadcastId], references: [id])
   retargets       Broadcast[]          @relation("BroadcastRetargeting")
-  createdBy       bauth_user           @relation("BroadcastCreator", fields: [createdById], references: [id])
+  createdBy       bauth_user?          @relation("BroadcastCreator", fields: [createdById], references: [id], onDelete: SetNull)
   recipients      BroadcastRecipient[]
 
   @@index([campusId])
@@ -1849,16 +1923,11 @@ model BroadcastRecipient {
 // ─── Interests ───
 
 model Interest {
-  id                    String  @id @default(cuid())
-  nom                   String  @unique
-  emoji                 String?
-  kind                  String  @default("general") // "tech" | "general"
-  order                 Int
-  // Full event-opportunity message for the dev fiche recommendations (REC-005),
-  // shown verbatim. When set on a tech interest, a student who picked it gets
-  // this exact sentence as a recommendation; null means the interest never
-  // triggers one.
-  recommendationMessage String?
+  id    String  @id @default(cuid())
+  nom   String  @unique
+  emoji String?
+  kind  String  @default("general") // "tech" | "general"
+  order Int
 
   talentInterests TalentInterest[]
 }
@@ -1888,8 +1957,8 @@ enum MinigameAttemptStatus {
 }
 
 // Host-side curation of the game catalogue: which games (by slug) are in the
-// daily rotation and with what weight. Everything *about* a game — its display
-// name, level count, scoring mode — is owned by jump-games and read live from
+// daily rotation and with what weight. Everything *about* a game (its display
+// name, level count, scoring mode) is owned by jump-games and read live from
 // its `GET /api/games` catalogue (src/lib/server/services/minigameCatalog.ts),
 // never duplicated here. A game is in rotation iff it has a row with
 // enabled = true; no row means "not curated yet" (off).
@@ -1936,7 +2005,7 @@ model MinigameAttempt {
   finishedAt    DateTime?
   jti           String                @unique
   // XP granted for finishing this attempt (null = none, e.g. an invalid run or
-  // a pre-feature row). Source of truth for the award — set once in the
+  // a pre-feature row). Source of truth for the award: set once in the
   // callback, so a retried callback can't double-pay.
   xpAwarded     Int?
   // When the talent saw the "+XP" arrival celebration on the dashboard. Null
@@ -1945,7 +2014,7 @@ model MinigameAttempt {
   xpSeenAt      DateTime?
   // Bonus XP for placing top-N on the campus board (null = no bonus). Set once
   // in the finish callback, the same way xpAwarded is, from the attempt's rank
-  // against the board at that moment — so a retried callback can't double-pay.
+  // against the board at that moment, so a retried callback can't double-pay.
   rankXpAwarded Int?
   // One-shot float gate for the rank bonus, mirroring xpSeenAt. The play page
   // floats only the base finish reward, so the rank bonus is celebrated on the
@@ -1965,7 +2034,7 @@ model MinigameAttempt {
 
 // Append-only XP ledger. One row per granting fact, so a talent's balance is
 // always explainable ("which event gave how much"). Talent.xp is a cached
-// projection = SUM(amount), recomputed transactionally on every write — see
+// projection = SUM(amount), recomputed transactionally on every write: see
 // services/xpService.ts. Grants are upserted on (source, sourceId) and deleted
 // on reversal (unmark presence, remove participation, onboarding/dev reset), so
 // there is never a clamped Math.max() refund to drift out of sync.
@@ -2058,8 +2127,8 @@ model OtpAttempt {
 
 /// Append-only audit ledger of manual auth-identity repairs (see
 /// `authIdentityRepairCore.ts`). When an admin (or the Salesforce sync) resolves a
-/// login-identity conflict — a talent linked to the wrong `bauth_user` after a
-/// Salesforce email change/inversion — the resolution is recorded here as one
+/// login-identity conflict (a talent linked to the wrong `bauth_user` after a
+/// Salesforce email change/inversion), the resolution is recorded here as one
 /// immutable fact. This is identity surgery on minors' accounts (RGPD), so it
 /// must stay explainable and auditable after the fact: who repaired which
 /// talent, how, and which accounts were repointed / renamed / dropped. Follows
@@ -2068,14 +2137,14 @@ model OtpAttempt {
 model AuthIdentityRepair {
   id         String   @id @default(cuid())
   talentId   String
-  /// repoint_drop | rename | swap | sever — kept a `String` (the vocabulary
+  /// repoint_drop | rename | swap | sever, kept a `String` (the vocabulary
   /// lives in code as `AuthRepairKind`), so a new operation needs no migration.
   kind       String
   /// The account kept / linked after the repair (null for `sever`).
   toUserId   String?
   /// The account renamed-from or hard-dropped by the repair (null where N/A).
   fromUserId String?
-  /// Emails captured at repair time, for the trail — the rows they describe may
+  /// Emails captured at repair time, for the trail: the rows they describe may
   /// be gone by the time anyone reads this.
   fromEmail  String?
   toEmail    String?
@@ -2195,4 +2264,117 @@ model AdminApi_Call {
 
   @@index([tokenId, createdAt])
   @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Usage analytics: which features are actually used, and by whom
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Two regimes, and the asymmetry is the design: staff are identified, talents
+/// are pseudonymous. There is deliberately no `parent` value. Measuring a data
+/// subject on legitimate interest owes them an operable art. 21 objection, and
+/// there is nowhere to store or offer one for a guardian today: Jump has no
+/// Parent entity (`parentEmail` is a column on `Talent`) and `/parent/settings`
+/// holds no preferences. Inventing a parent-preferences store to measure three
+/// view keys is not worth it; the parent portal's aggregate traffic stays with
+/// Umami. Adding the value later is one migration.
+enum UsageActorKind {
+  talent
+  staff
+}
+
+/// One recorded use of one catalogued feature. Append-only fact; the aggregate
+/// is `Usage_FeatureMonthly`, recomputed by the rollup job.
+///
+/// WHAT IS ABSENT IS THE POINT, and it is structural rather than a convention:
+/// no `path`, no `url`, no `referer`, no `userAgent`, no `ip`, no `params`, no
+/// free text, and NO `talentId`. The question this table answers ("which campus
+/// uses which feature") is answerable from counts, so per-person identity for a
+/// minor is not necessary, and under art. 6(1)(f) what is not necessary has no
+/// legal basis. Before adding a column here, say which figure it makes possible
+/// that the existing ones cannot.
+///
+/// Two actor regimes, deliberately asymmetric:
+///   - staff are identified (`staffProfileId`), because they are adults, they
+///     are employees, and per-person history is what the feature was asked for.
+///     The FK cascades, so a departure takes the history with it. That is the
+///     opposite of `AdminApi_Call.actorUserId`, which carries no FK precisely so
+///     an audit row outlives the person: an audit must, a behavioural log of an
+///     ex-employee must not.
+///   - talents and parents get `actorHash` only, a monthly-rotating pseudonym
+///     (see `server/usage/actorHash.ts`). Distinct counts stay possible, a join
+///     back to the person does not, and the pseudonym decays on its own. The
+///     consequence to keep in mind when reading a figure: the talent metric is
+///     MONTHLY active, not annual.
+///
+/// Raw rows live twelve calendar months (`USAGE_RAW_RETENTION_MONTHS`,
+/// purged by `/api/jobs/usage-rollup`), which is the top of the CNIL's logging
+/// recommendation band. A year and not less because two answers the platform
+/// owes need detailed rows going back that far: a feature's year-on-year
+/// movement, and a full school year of per-member activity. Beyond it, the cube
+/// is the only store, and being actor-free is what lets it be kept without a
+/// limit. Note for the balancing: the talent half ages out of relinkability on
+/// its own, since the pseudonym rotates monthly, while the staff half stays
+/// identified for the whole year, and that is the half the DPIA has to carry.
+model Usage_FeatureUse {
+  id String @id @default(cuid())
+  /// Catalogue key from `domain/usage.ts`. A plain String, not an enum, so
+  /// adding a feature needs no migration (same call as `EventConfig_Module`).
+  feature   String
+  actorKind UsageActorKind
+
+  staffProfileId String?
+  actorHash      String?
+
+  /// The column that answers "which campus used X". Null for a `global`-scope
+  /// feature: the admin space is national, so a per-campus breakdown of it would
+  /// invite a reading the data does not support.
+  campusId String?
+  /// Set for `event`-scope features only (emargement, bilan, diplomas, badges).
+  eventId String?
+  /// True when an admin was impersonating a staff member. Aggregates filter it
+  /// out, so an admin checking a campus never inflates that campus's adoption.
+  /// Nothing at all is recorded while impersonating a talent or a parent.
+  impersonated Boolean @default(false)
+  /// Idempotency key, composed by the recorder. It MUST carry everything that
+  /// distinguishes two legitimate rows, because only `feature` and this column
+  /// are in the unique constraint: the actor (or two people collide), the event
+  /// (or one event silently loses its row), and the impersonation flag.
+  /// Null for a `each` feature, and Postgres treats NULLs as distinct.
+  dedupeKey  String?
+  occurredAt DateTime @default(now())
+
+  staffProfile StaffProfile? @relation(fields: [staffProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([feature, dedupeKey])
+  @@index([feature, occurredAt])
+  @@index([campusId, occurredAt])
+  @@index([staffProfileId, occurredAt])
+  @@index([occurredAt])
+}
+
+/// The monthly cube: uses and distinct actors per feature, per actor kind, per
+/// campus. Every month still present in the raw table is deleted and reinserted
+/// on each rollup run, the month in progress included, so no month can be purged
+/// before it was folded. Deleted and reinserted rather than upserted because
+/// `campusId` is nullable and a UNIQUE index treats NULLs as distinct, so
+/// `ON CONFLICT` would never match a global-scope row; see `usage/rollup.ts`.
+///
+/// It carries NO actor column of any kind. That is what justifies keeping it
+/// long after the raw rows are gone, and it is also the layer every year-on-year
+/// figure reads: a precomputed cube small enough that no separate analytics
+/// engine buys anything (~49k rows a year at current volume).
+model Usage_FeatureMonthly {
+  id             String         @id @default(cuid())
+  feature        String
+  actorKind      UsageActorKind
+  campusId       String?
+  /// "YYYY-MM", the calendar month of `occurredAt`.
+  month          String
+  uses           Int
+  distinctActors Int
+  computedAt     DateTime
+
+  @@unique([feature, actorKind, campusId, month])
+  @@index([month])
 }

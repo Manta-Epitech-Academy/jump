@@ -68,7 +68,7 @@
     minute: '2-digit',
   });
   function fmtDate(iso: string | null): string {
-    return iso ? dateFmt.format(new Date(iso)) : '—';
+    return iso ? dateFmt.format(new Date(iso)) : '-';
   }
 
   // Sentiment tier from the option's position in the canonical best→worst list,
@@ -256,7 +256,7 @@
       {r.recoLabel}
     </span>
   {:else}
-    <span class="text-xs text-muted-foreground">—</span>
+    <span class="text-xs text-muted-foreground">-</span>
   {/if}
 {/snippet}
 
@@ -283,10 +283,10 @@
   <Table.Cell class="w-10">{@render avatarLink(r)}</Table.Cell>
   <Table.Cell class="font-medium">
     {@const prenom = formatGivenName(r.prenom)}
-    <span class="block truncate" title={prenom}>{prenom || '—'}</span>
+    <span class="block truncate" title={prenom}>{prenom || '-'}</span>
   </Table.Cell>
   <Table.Cell class="font-bold uppercase">
-    <span class="block truncate" title={r.nom ?? ''}>{r.nom ?? '—'}</span>
+    <span class="block truncate" title={r.nom ?? ''}>{r.nom ?? '-'}</span>
   </Table.Cell>
   <Table.Cell>{@render recoBadge(r)}</Table.Cell>
   <Table.Cell>{@render statutBadge(r)}</Table.Cell>

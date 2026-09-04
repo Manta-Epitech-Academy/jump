@@ -2,7 +2,7 @@ import type { Prisma } from '@prisma/client';
 
 // Admin is campus-agnostic, so the notes oversight directory is global across
 // every campus. Filter parsing / where building / row projection live here (not
-// in the page) so the page and any future export can't drift — mirrors
+// in the page) so the page and any future export can't drift, mirrors
 // `admin/talents/query.ts`.
 
 export const PER_PAGE = 50;

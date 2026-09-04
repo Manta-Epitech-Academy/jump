@@ -7,7 +7,7 @@ import { prisma } from '$lib/server/db';
 
 /**
  * Server-side load-test plumbing. The whole point is that a load-test driver
- * (k6 on a laptop) only ever speaks HTTP to Jump with the bearer token — it
+ * (k6 on a laptop) only ever speaks HTTP to Jump with the bearer token: it
  * NEVER touches the database directly. So seeding throwaway accounts, building
  * the k6 manifest and cleaning up all run HERE, on the target environment,
  * against that environment's own DB. The `/api/test/*` endpoints are thin
@@ -71,7 +71,7 @@ export async function seedLoadTalents(
   talents: SeededTalent[];
 }> {
   const campus = await prisma.campus.findFirst({ select: { id: true } });
-  if (!campus) throw error(500, 'No campus in DB — cannot seed');
+  if (!campus) throw error(500, 'No campus in DB: cannot seed');
 
   const now = new Date();
   const schoolYear = currentSchoolYearLabel();
@@ -217,16 +217,9 @@ export async function buildLoadManifest(sample = 50) {
   ]);
 
   const recentEventIds = events.slice(0, 5).map((e) => e.id);
-  const activities = await prisma.activity.findMany({
-    where: {
-      activityType: 'orga',
-      timeSlot: { planning: { eventId: { in: recentEventIds } } },
-    },
-    select: {
-      id: true,
-      nom: true,
-      timeSlot: { select: { planning: { select: { eventId: true } } } },
-    },
+  const activities = await prisma.planning_Slot.findMany({
+    where: { activityType: 'orga', eventId: { in: recentEventIds } },
+    select: { id: true, nom: true, eventId: true },
     take: sample,
   });
 
@@ -268,7 +261,7 @@ export async function buildLoadManifest(sample = 50) {
     })),
     activities: activities.map((a) => ({
       id: a.id,
-      eventId: a.timeSlot.planning.eventId,
+      eventId: a.eventId,
       title: a.nom,
     })),
     participations: participations

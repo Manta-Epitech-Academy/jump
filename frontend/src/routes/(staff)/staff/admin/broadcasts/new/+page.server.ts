@@ -16,6 +16,8 @@ import {
 } from '$lib/server/services/broadcast/templates';
 import { isSmsEnabled } from '$lib/server/sms';
 import { SMS_BROADCAST_MAX_CHARS, estimateSmsLength } from '$lib/domain/sms';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
   const templateIdParam = url.searchParams.get('template') ?? undefined;
@@ -94,6 +96,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 export const actions: Actions = {
   testSend: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_BROADCAST_TEST_SEND, { locals });
     const formData = await request.formData();
     const form = await superValidate(formData, zod4(broadcastSchema));
     if (!form.valid) return fail(400, { form });
@@ -124,7 +127,7 @@ export const actions: Actions = {
 
     // Pick the recipient field by channel; mail falls back to the sender's
     // own address. `sendTestMessage` bypasses the dev-redirect trap, so this
-    // reaches the typed address even on dev/staging — that's the point of a
+    // reaches the typed address even on dev/staging: that's the point of a
     // test-send (the bulk `enqueue` path below stays trapped).
     const to =
       template.channel === 'sms'
@@ -157,6 +160,7 @@ export const actions: Actions = {
   },
 
   enqueue: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_BROADCAST_ENQUEUE, { locals });
     const form = await superValidate(request, zod4(broadcastSchema));
     if (!form.valid) return fail(400, { form });
     if (!locals.user) return fail(401, { form });
@@ -199,7 +203,7 @@ export const actions: Actions = {
       template.channel === 'sms' &&
       estimateSmsLength(body) > SMS_BROADCAST_MAX_CHARS
     ) {
-      setError(form, 'body', 'Message SMS trop long — raccourcissez le texte');
+      setError(form, 'body', 'Message SMS trop long : raccourcissez le texte');
     }
     if (
       (form.errors.body?.length ?? 0) > 0 ||

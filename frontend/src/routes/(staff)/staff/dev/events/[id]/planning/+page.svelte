@@ -15,7 +15,7 @@
 {#key data.event.id}
   <EventPlanningView
     event={data.event}
-    planning={data.planning}
+    slots={data.slots}
     timezone={data.timezone}
     serverNow={data.serverNow}
   />

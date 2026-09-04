@@ -235,12 +235,12 @@
             {#each publicRespondents as r (r.id)}
               <Table.Row>
                 <Table.Cell class="font-mono text-xs"
-                  >{r.email ?? '—'}</Table.Cell
+                  >{r.email ?? '-'}</Table.Cell
                 >
-                <Table.Cell>{r.firstName ?? '—'}</Table.Cell>
-                <Table.Cell>{r.lastName ?? '—'}</Table.Cell>
+                <Table.Cell>{r.firstName ?? '-'}</Table.Cell>
+                <Table.Cell>{r.lastName ?? '-'}</Table.Cell>
                 <Table.Cell class="text-muted-foreground"
-                  >{r.campusLabel ?? '—'}</Table.Cell
+                  >{r.campusLabel ?? '-'}</Table.Cell
                 >
                 <Table.Cell class="font-mono text-xs text-muted-foreground">
                   {dateFmt.format(new Date(r.submittedAt))}

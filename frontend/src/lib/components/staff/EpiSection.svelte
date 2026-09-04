@@ -2,7 +2,7 @@
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   /**
    * Accent maps to the four DS keywords. `neutral` falls back to the muted
-   * foreground — use it when the section doesn't carry a brand-vector
+   * foreground: use it when the section doesn't carry a brand-vector
    * meaning (e.g. plain data tables).
    */
   export type SectionAccent =

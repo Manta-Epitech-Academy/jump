@@ -38,7 +38,7 @@
 
   // `event` + `initialContent` are snapshotted at mount. The parent wraps this
   // component in `{#key event.id}`, so switching stages remounts it with fresh
-  // values — that's what lets the Tiptap editor (which only reads `content`
+  // values: that's what lets the Tiptap editor (which only reads `content`
   // once, on mount) reload the correct stage's text without a page refresh.
   let {
     event,
@@ -175,7 +175,7 @@
         dashboard "Actualités" feed and opens in a ResponsiveDialog
         (sm:max-w-2xl, Mail header, left-aligned prose). We reuse the same
         WelcomeMessageBody as the real card/dialog so the rendering stays
-        identical — no centering, no logo/footer chrome.
+        identical, no centering, no logo/footer chrome.
       -->
       <div class="flex justify-center bg-muted/40 p-6">
         <div

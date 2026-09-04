@@ -1,6 +1,17 @@
 import type { StaffRole } from '@prisma/client';
 import type { StaffGroup } from './permissions';
 
+/**
+ * How a staff attribution reads once the account behind it is gone.
+ *
+ * Every attribution FK on a shared record is `SetNull`, so what a colleague
+ * wrote, conducted or uploaded outlives their departure and only loses their
+ * name. One string rather than a fallback per screen, because a closing, a
+ * document and a welcome page all have to say the same thing about the same
+ * absent person.
+ */
+export const FORMER_STAFF_LABEL = 'Ancien membre';
+
 export const staffRoles = ['admin', 'superdev', 'dev'] as const;
 
 export const STAFF_ROLES: readonly {
@@ -67,7 +78,7 @@ export const STAFF_SPACES: readonly {
 /**
  * StaffProfile.staffRole is the source of truth for what a user can do inside
  * the app; bauth_user.role is BetterAuth's admin-plugin gate. They must agree
- * (`admin` ↔ `admin`, anything else ↔ `staff`) — otherwise impersonation,
+ * (`admin` ↔ `admin`, anything else ↔ `staff`); otherwise impersonation,
  * banning, etc. desync with the in-app role.
  *
  * Callers that change one MUST change the other in the same transaction. Use

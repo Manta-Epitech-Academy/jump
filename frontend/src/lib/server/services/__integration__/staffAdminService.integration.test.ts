@@ -227,4 +227,205 @@ describe('staffAdminService (integration)', () => {
       await prisma.staffProfile.findUnique({ where: { userId: doomed.id } }),
     ).toBeNull();
   });
+
+  /**
+   * What a departure must NOT take with it.
+   *
+   * `Closing_Record` and `AdminFile` cascaded from `StaffProfile`, so deleting an
+   * account destroyed every closing that person had conducted and every file
+   * they had put in the shared library. Nothing said so, and on the production
+   * snapshot all 83 people who had conducted a closing were exposed - 1694
+   * records, one click each.
+   */
+  it('leaves the closings they conducted and the files they uploaded standing', async () => {
+    const leaver = await prisma.bauth_user.create({
+      data: { email: `leaver.${stamp}@epitech.eu`, role: 'user' },
+    });
+    const profile = await prisma.staffProfile.create({
+      data: { userId: leaver.id, staffRole: 'dev', campusId },
+    });
+
+    const template = await prisma.closing_Template.create({
+      data: { key: `leaver-grid-${stamp}`, label: 'Grille test' },
+    });
+    const event = await prisma.event.create({
+      data: {
+        titre: `Leaver ${stamp}`,
+        date: new Date('2026-04-01T00:00:00.000Z'),
+        campusId,
+      },
+    });
+    const talent = await prisma.talent.create({
+      data: { nom: 'Leaver', prenom: `Test${stamp}` },
+    });
+    const closing = await prisma.closing_Record.create({
+      data: {
+        talentId: talent.id,
+        eventId: event.id,
+        campusId,
+        staffId: profile.id,
+        templateId: template.id,
+        status: 'done',
+        recommendation: 'bon_profil',
+      },
+    });
+    const file = await prisma.adminFile.create({
+      data: {
+        name: 'plaquette.pdf',
+        s3Key: `admin/leaver-${stamp}.pdf`,
+        contentType: 'application/pdf',
+        size: 1024,
+        uploadedById: profile.id,
+      },
+    });
+
+    expect((await deleteStaffUser(leaver.id)).ok).toBe(true);
+
+    const survivingClosing = await prisma.closing_Record.findUnique({
+      where: { id: closing.id },
+    });
+    expect(survivingClosing).not.toBeNull();
+    // The record stays, the attribution goes: the screens render a former
+    // member rather than losing the conversation.
+    expect(survivingClosing!.staffId).toBeNull();
+    expect(survivingClosing!.recommendation).toBe('bon_profil');
+
+    const survivingFile = await prisma.adminFile.findUnique({
+      where: { id: file.id },
+    });
+    expect(survivingFile).not.toBeNull();
+    expect(survivingFile!.uploadedById).toBeNull();
+
+    await prisma.closing_Record.delete({ where: { id: closing.id } });
+    await prisma.adminFile.delete({ where: { id: file.id } });
+    await prisma.talent.delete({ where: { id: talent.id } });
+    await prisma.event.delete({ where: { id: event.id } });
+    await prisma.closing_Template.delete({ where: { id: template.id } });
+  });
+
+  /**
+   * The other half, which failed in the opposite direction: `Broadcast`,
+   * `MessageTemplate` and `CmsPage` defaulted to RESTRICT, so a member who had
+   * ever sent a campaign simply could not be deleted, and the page said only
+   * "Erreur lors de la suppression du membre".
+   */
+  it('deletes a member who has already sent a campaign', async () => {
+    const sender = await prisma.bauth_user.create({
+      data: { email: `sender.${stamp}@epitech.eu`, role: 'user' },
+    });
+    await prisma.staffProfile.create({
+      data: { userId: sender.id, staffRole: 'dev', campusId },
+    });
+
+    const template = await prisma.messageTemplate.create({
+      data: {
+        name: `Relance ${stamp}`,
+        channel: 'mail',
+        body: 'Bonjour {prenom}',
+        createdById: sender.id,
+      },
+    });
+    const broadcast = await prisma.broadcast.create({
+      data: {
+        name: `Campagne ${stamp}`,
+        channel: 'mail',
+        templateId: template.id,
+        campusId,
+        audience: 'talent',
+        bodySnapshot: 'Bonjour {prenom}',
+        createdById: sender.id,
+      },
+    });
+
+    expect((await deleteStaffUser(sender.id)).ok).toBe(true);
+
+    // The send is a fact: it happened, so it outlives the account that
+    // triggered it, carrying no creator rather than blocking the deletion.
+    const survivingBroadcast = await prisma.broadcast.findUnique({
+      where: { id: broadcast.id },
+    });
+    expect(survivingBroadcast).not.toBeNull();
+    expect(survivingBroadcast!.createdById).toBeNull();
+
+    await prisma.broadcast.delete({ where: { id: broadcast.id } });
+    await prisma.messageTemplate.delete({ where: { id: template.id } });
+  });
+
+  /**
+   * The campus move, which stranded the columns `db/scoped.ts` cloisters on.
+   * Postgres carries it now, through the composite foreign key on
+   * `(eventId, campusId)`, so nobody has to remember to update the dependents.
+   */
+  it('carries a campus move down to the enrolments and closings of the event', async () => {
+    const event = await prisma.event.create({
+      data: {
+        titre: `Moving ${stamp}`,
+        date: new Date('2026-05-01T00:00:00.000Z'),
+        campusId,
+      },
+    });
+    const talent = await prisma.talent.create({
+      data: { nom: 'Moving', prenom: `Test${stamp}` },
+    });
+    const participation = await prisma.participation.create({
+      data: { talentId: talent.id, eventId: event.id, campusId },
+    });
+
+    await prisma.event.update({
+      where: { id: event.id },
+      data: { campusId: secondCampusId },
+    });
+
+    const moved = await prisma.participation.findUniqueOrThrow({
+      where: { id: participation.id },
+    });
+    expect(moved.campusId).toBe(secondCampusId);
+
+    await prisma.participation.delete({ where: { id: participation.id } });
+    await prisma.talent.delete({ where: { id: talent.id } });
+    await prisma.event.delete({ where: { id: event.id } });
+  });
+
+  /**
+   * The two invariants the database now holds itself, rather than trusting the
+   * one code path that writes them.
+   */
+  it('refuses a leadership token granted write access', async () => {
+    const owner = await prisma.bauth_user.create({
+      data: { email: `tokenowner.${stamp}@epitech.eu`, role: 'user' },
+    });
+    await expect(
+      prisma.adminApi_Token.create({
+        data: {
+          staffUserId: owner.id,
+          label: 'Sonde',
+          tier: 'leadership',
+          writeEnabled: true,
+          tokenHash: `hash-${stamp}`,
+        },
+      }),
+    ).rejects.toThrow();
+    await prisma.bauth_user.delete({ where: { id: owner.id } });
+  });
+
+  it('refuses a usage row whose actor does not match its kind', async () => {
+    const owner = await prisma.bauth_user.create({
+      data: { email: `usageowner.${stamp}@epitech.eu`, role: 'user' },
+    });
+    const profile = await prisma.staffProfile.create({
+      data: { userId: owner.id, staffRole: 'dev', campusId },
+    });
+    await expect(
+      prisma.usage_FeatureUse.create({
+        data: {
+          feature: 'dev_dashboard_view',
+          // A staff profile under a talent's kind would be a re-identification
+          // of a minor, which is the one thing this table exists to prevent.
+          actorKind: 'talent',
+          staffProfileId: profile.id,
+        },
+      }),
+    ).rejects.toThrow();
+    await prisma.bauth_user.delete({ where: { id: owner.id } });
+  });
 });

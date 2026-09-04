@@ -6,12 +6,12 @@ import type { XpGrantSource } from '@prisma/client';
  *
  * `XpGrant` is the source of truth: one row per granting fact, keyed unique on
  * `(source, sourceId)`. `Talent.xp` is a cached projection = SUM(amount),
- * recomputed inside the same transaction on every write — so a balance is
+ * recomputed inside the same transaction on every write, so a balance is
  * always explainable and can never drift (no more `Math.max(0, xp - n)` refund).
  *
  * Every function takes a `Prisma.TransactionClient`: callers own the
  * `prisma.$transaction(async (tx) => …)` so the grant/revoke and the projection
- * recompute commit atomically. The service is campus-agnostic — callers pass
+ * recompute commit atomically. The service is campus-agnostic: callers pass
  * `campusId` explicitly from data they already hold (and authorize the campus
  * via the scoped read in front of the transaction).
  *
@@ -56,7 +56,7 @@ async function recomputeTalentXp(
 
 /**
  * Recomputes `Talent.eventsCount` from émargement attendance. Kept as a cached
- * projection (like `xp`) rather than a ledger — it is directly derivable from the
+ * projection (like `xp`) rather than a ledger: it is directly derivable from the
  * `EventPresence` rows. An event counts as attended once the talent has at least
  * one présent/en-retard cell in it (absent/justifié don't count), so multiple
  * half-day slots of the same stage collapse to one via `distinct` on `eventId`.
@@ -80,7 +80,7 @@ export async function recomputeEventsCount(
  * Bulk variant of {@link recomputeEventsCount} for roster-scale writes (the
  * émargement "tout présent" mark): one correlated UPDATE instead of two round
  * trips per talent, so a ~200-talent créneau doesn't hold the interactive
- * transaction — and its `Talent` row locks — open across hundreds of
+ * transaction (and its `Talent` row locks) open across hundreds of
  * sequential queries. Same projection semantics as the single variant:
  * distinct events with at least one présent/en-retard cell.
  */

@@ -12,7 +12,7 @@ import { env } from '$env/dynamic/private';
  * signing never drifts.
  *
  * Token format: `<expiresAtMs>.<userId>.<sig>`. `expiresAt` is numeric, `userId`
- * is a cuid, `sig` is hex — none contains a dot, so the three segments split
+ * is a cuid, `sig` is hex, none contains a dot, so the three segments split
  * unambiguously on `.`.
  */
 function secret(): string {

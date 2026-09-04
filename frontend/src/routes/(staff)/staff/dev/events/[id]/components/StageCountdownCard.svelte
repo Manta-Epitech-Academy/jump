@@ -10,7 +10,7 @@
     status: EventLifecycleStatus;
     /** Effective opening instant (confirmed time, else the type default). */
     openDate: Date;
-    /** Stage closing instant — drives the "terminé le" line. */
+    /** Stage closing instant, drives the "terminé le" line. */
     endDate: Date;
     /** Day index / span, only meaningful while ongoing. */
     dayN: number;

@@ -9,6 +9,8 @@ import {
   closingPdfSelect,
 } from '$lib/server/services/closingPdfGenerator';
 import { resolveClosingGrids } from '$lib/server/closingTemplates';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // Closings are rendered on demand (no stored artifact to fetch, unlike the
 // onboarding export): each PDF is generated through the shared Puppeteer pool,
@@ -34,6 +36,7 @@ function parseInstant(raw: string | null): Date | undefined {
 const ymd = (d: Date): string => d.toISOString().slice(0, 10);
 
 export const GET: RequestHandler = async ({ url, locals }) => {
+  recordUsage(USAGE_FEATURES.ADMIN_CLOSING_PDFS_EXPORT, { locals });
   // The /staff/admin layout guard already redirects non-admins; this is defence
   // in depth for an endpoint that streams minors' closing data.
   const staffProfile = locals.staffProfile;

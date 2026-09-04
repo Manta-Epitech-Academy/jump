@@ -15,7 +15,7 @@
 </script>
 
 <svelte:head>
-  <title>Notes — Admin</title>
+  <title>Notes - Admin</title>
 </svelte:head>
 
 <div class="space-y-6">

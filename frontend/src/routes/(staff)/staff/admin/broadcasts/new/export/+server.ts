@@ -13,6 +13,8 @@ import {
 } from '$lib/domain/broadcasts';
 import type { BroadcastAudience, BroadcastSourceFilter } from '@prisma/client';
 import { csvResponse } from '$lib/server/csv';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 const HEADERS = [
   'Prénom',
@@ -31,6 +33,7 @@ const HEADERS = [
  * Params mirror the live preview; `filters` arrives as a JSON-encoded query arg.
  */
 export const GET: RequestHandler = async ({ url, locals }) => {
+  recordUsage(USAGE_FEATURES.ADMIN_BROADCAST_RECIPIENTS_EXPORT, { locals });
   if (!locals.staffProfile) throw error(403, 'Accès refusé.');
 
   const campusId = url.searchParams.get('campusId') ?? '';

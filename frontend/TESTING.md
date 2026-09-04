@@ -1,4 +1,4 @@
-# Politique de Tests — Epitech Intra Lycéens
+# Politique de Tests : Epitech Intra Lycéens
 
 > Stack : SvelteKit · TypeScript · Vitest · Playwright · Prisma · PostgreSQL · BetterAuth
 
@@ -6,13 +6,13 @@
 
 ## 1. Philosophie
 
-Les tests ne sont pas une contrainte — ils sont le filet de sécurité qui permet de refactorer et de livrer sereinement. Ce document définit **ce qu'on teste, comment, et comment on maintient cette qualité dans le temps**.
+Les tests ne sont pas une contrainte : ils sont le filet de sécurité qui permet de refactorer et de livrer sereinement. Ce document définit **ce qu'on teste, comment, et comment on maintient cette qualité dans le temps**.
 
 Trois principes directeurs :
 
 - **Un test = un comportement**, pas une fonction
-- **Les tests doivent être lisibles** — un test qui échoue doit expliquer ce qui s'est cassé sans avoir à lire le code
-- **Un test lent ou fragile est pire qu'un test absent** — on préfère moins de tests, fiables, que beaucoup de tests qui flappent
+- **Les tests doivent être lisibles** : un test qui échoue doit expliquer ce qui s'est cassé sans avoir à lire le code
+- **Un test lent ou fragile est pire qu'un test absent** : on préfère moins de tests, fiables, que beaucoup de tests qui flappent
 
 ---
 
@@ -33,15 +33,15 @@ sans être installé.
 
 ```
            /\
-          /E2E\          Playwright — full user journeys (10%)
+          /E2E\          Playwright: full user journeys (10%)
          /------\
-        / Integr. \      Vitest — services + DB interactions (20%)
+        / Integr. \      Vitest: services + DB interactions (20%)
        /------------\
-      /    Unit      \   Vitest — business logic, utils, schemas (70%)
+      /    Unit      \   Vitest: business logic, utils, schemas (70%)
      /________________\
 ```
 
-### 3.1 Tests Unitaires — Vitest (70%)
+### 3.1 Tests Unitaires : Vitest (70%)
 
 **Ce qu'on teste :**
 
@@ -95,7 +95,7 @@ describe('validateAge', () => {
 
 ---
 
-### 3.2 Tests d'Intégration — Vitest (20%)
+### 3.2 Tests d'Intégration : Vitest (20%)
 
 **Ce qu'on teste :**
 
@@ -169,7 +169,7 @@ describe('studentService (integration)', () => {
 
 ---
 
-### 3.3 Tests E2E — Playwright (10%)
+### 3.3 Tests E2E : Playwright (10%)
 
 **Ce qu'on teste :**
 
@@ -240,11 +240,11 @@ test.describe("un membre de l'espace dev", () => {
 
 **Les fixtures** vivent dans `tests/e2e/fixtures/` :
 
-| Fichier         | Rôle                                                                                                                                                        |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `identities.ts` | Qui la suite est (six comptes sous `@e2e.invalid`, ids littéraux) et où chaque session est stockée. Sans Prisma, parce que `playwright.config.ts` l'importe |
-| `db.ts`         | Le client Prisma des fixtures, derrière `assertTestDatabase()` — la même garde que l'intégration, pas une copie                                             |
-| `seed.ts`       | La purge et la reconstruction. Volontairement pas `prisma/seed.ts` : 3000 lignes de jeu de démo, auxquelles une spec ne doit pas être accrochée             |
+| Fichier         | Rôle                                                                                                                                                                          |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `identities.ts` | Qui la suite est (six comptes sous `@e2e.invalid`, ids littéraux) et où chaque session est stockée. Sans Prisma, parce que `playwright.config.ts` l'importe                   |
+| `db.ts`         | Le client Prisma des fixtures, derrière `assertTestDatabase()` (la même garde que l'intégration, pas une copie)                                                               |
+| `seed.ts`       | La purge et la reconstruction. Volontairement pas le générateur (`scripts/seed/`) : un jeu de données à la forme de la production, auquel une spec ne doit pas être accrochée |
 
 ---
 
@@ -291,10 +291,10 @@ nommé n'est pas mal rangé : il ne tourne pas. C'est pour ça que
 
 Les tests unitaires (`*.test.ts`) vivent **à côté du fichier qu'ils testent**, et non dans un dossier `tests/` séparé. C'est la convention recommandée par Vitest et la majorité des projets SvelteKit/Vite pour plusieurs raisons :
 
-- **Proximité = maintenabilité** — quand on modifie un fichier, le test correspondant est juste à côté. Pas besoin de naviguer dans une arborescence miroir.
-- **Imports simplifiés** — les imports relatifs sont courts (`./validation` au lieu de `../../../src/lib/utils/validation`), ce qui réduit la fragilité face aux refactors.
-- **Détection des fichiers non testés** — un fichier sans `.test.ts` à côté de lui est immédiatement visible. Dans un dossier `tests/` séparé, les oublis passent inaperçus.
-- **Convention de l'écosystème** — c'est la convention recommandée par SvelteKit qui précise : _"your unit tests will live in the `src` directory with a `.test.js` extension"_ ([Project structure - SvelteKit docs](https://svelte.dev/docs/kit/project-structure)). Pour un argumentaire détaillé des avantages (navigation, imports simplifiés, visibilité des fichiers non testés), voir [Co-locate Your Unit Tests - Yockyard](https://www.yockyard.com/post/co-locate-unit-tests/).
+- **Proximité = maintenabilité** : quand on modifie un fichier, le test correspondant est juste à côté. Pas besoin de naviguer dans une arborescence miroir.
+- **Imports simplifiés** : les imports relatifs sont courts (`./validation` au lieu de `../../../src/lib/utils/validation`), ce qui réduit la fragilité face aux refactors.
+- **Détection des fichiers non testés** : un fichier sans `.test.ts` à côté de lui est immédiatement visible. Dans un dossier `tests/` séparé, les oublis passent inaperçus.
+- **Convention de l'écosystème** : c'est la convention recommandée par SvelteKit qui précise : _"your unit tests will live in the `src` directory with a `.test.js` extension"_ ([Project structure - SvelteKit docs](https://svelte.dev/docs/kit/project-structure)). Pour un argumentaire détaillé des avantages (navigation, imports simplifiés, visibilité des fichiers non testés), voir [Co-locate Your Unit Tests - Yockyard](https://www.yockyard.com/post/co-locate-unit-tests/).
 
 > Seuls les tests E2E (Playwright) vivent dans `tests/e2e/` car ils ne sont pas liés à un fichier source spécifique mais à des parcours utilisateur complets.
 
@@ -365,20 +365,20 @@ ce qui rend les trois temps lisibles sans les annoter.
 
 ## 6. Priorités de Tests
 
-### Critique — À couvrir en premier
+### Critique : À couvrir en premier
 
 - Authentication (login, logout, expired token, unauthorized access)
 - Route guards (access without role, access with wrong role)
 - Input validation (emails, dates, required fields)
 - DB wrapper (create, read, update, delete on main entities)
 
-### Haute — À couvrir en semaine 2-3
+### Haute : À couvrir en semaine 2-3
 
 - Business services (`studentService`, `eventService`, `internshipService`)
 - Data transformations between layers
 - Error handling propagated to the UI
 
-### Normale — À couvrir progressivement
+### Normale : À couvrir progressivement
 
 - Reusable Svelte components (forms, lists)
 - Secondary utilities
@@ -397,7 +397,7 @@ bun run verify
 C'est le contrat de ce document. `verify` enchaîne exactement ce que les checks
 requis exécutent, dans le même ordre, avec les mêmes scripts : `lint:scripts`,
 `lint`, `lint:design`, `lint:tests`, `check`, `test`, `test:integration`,
-`test:schema-drift`, `test:e2e`. Un agent (ou un humain) peut donc produire du
+`test:schema-drift`, `test:seed`, `test:e2e`. Un agent (ou un humain) peut donc produire du
 code, le vérifier, corriger et revérifier avant d'ouvrir la PR, et « j'ai
 vérifié » devient une affirmation que quelqu'un d'autre peut recontrôler.
 
@@ -416,10 +416,64 @@ bun run test:db             # provisionne seulement
 # Le schéma correspond-il à sa trace de migrations ?
 bun run test:schema-drift
 
+# Le générateur de données couvre-t-il encore le schéma ?
+bun run test:seed
+
 # E2E : provisionne la base, build, lève le serveur, pilote Chromium
 bun run test:e2e
 bun run test:e2e:ui         # mode debug
 ```
+
+### Le générateur de données
+
+`bun run test:seed` sème puis vérifie, à deux volumes
+(`scripts/check-seed-profiles.sh`). Ce n'est pas une suite de tests, c'est un
+mode du générateur (`--check`), et cette distinction est délibérée : une
+vérification qu'il faut penser à lancer séparément est une vérification qui cesse
+d'être lancée.
+
+**Deux profils, et le second n'est pas une redondance.** `ci` est le petit :
+assez large pour porter chaque valeur d'énumération et chaque état atteignable,
+assez court pour passer dans `verify` sans que personne le remarque. C'est lui
+qui prouve la _couverture_. `dev` suit, parce qu'une vérification qui ne tourne
+qu'au plus petit volume est aveugle à tout défaut dont le déclencheur EST le
+volume. Ce n'est pas théorique : `stage` dérivait la date de dépôt d'un dossier
+de l'indice d'inscription, ce qui tenait à quatorze inscrits et datait 115
+dossiers après `--today` à tous les profils qu'on ouvre vraiment.
+`assert/clock.ts` l'aurait dit dès le premier passage, et n'en a jamais eu un.
+`staging` reste dehors : mêmes scénarios, même branches, 45 secondes contre
+quelques-unes.
+
+Ce qu'elle prouve, et pourquoi c'est elle qui vous préviendra en premier :
+
+- **Chaque valeur de chaque énumération du schéma a au moins une ligne.** La
+  liste des énumérations est lue de `schema.prisma` (via `getDMMF`, comme
+  `scripts/gen-db-erd.ts`), jamais écrite à la main. Donc le jour où vous ajoutez
+  une clé de module, une source de XP ou un statut de présence, cette
+  vérification réclame une ligne pour elle **dans votre PR**, sans que personne
+  ait eu à mettre une liste à jour.
+- **Les projections valent leurs faits** : `Talent.xp` égale la somme du registre
+  XP, `eventsCount` les présences distinctes, et les colonnes plates
+  d'inscription correspondent au dossier le plus récent, champ par champ.
+- **Les états sont atteignables**, vérifiés avec le domaine lui-même :
+  `getOnboardingStep` renvoie chaque étape de l'échelle, `imageRightsStance`
+  renvoie ses trois positions, `eventRunsClosings` répond vrai et faux.
+- **Aucune ligne n'est datée après l'ancre.** C'est la vérification qui garde la
+  reproductibilité honnête : Prisma remplit `@default(now())` et `@updatedAt` à
+  l'horloge murale dès qu'un appelant les omet, et une ligne créée après l'acte
+  qu'elle enregistre est une ligne que l'application n'aurait pas pu écrire.
+- **Les vocabulaires portés par une colonne `String`** (statut Salesforce,
+  niveau, clé de module, version de règlement) sont couverts dans les deux sens :
+  chaque valeur déclarée a une ligne, et aucune ligne semée ne porte une valeur
+  hors catalogue.
+
+Un échec se corrige en ajoutant un scénario dans `frontend/scripts/seed/`, pas en
+retirant la vérification.
+
+La base est distincte de celle des tests d'intégration (`TEST_DB_SUITE=seed`),
+pour la même raison que l'E2E a la sienne : plusieurs suites d'intégration lisent
+des agrégats à l'échelle de la plateforme, qu'un jeu de données complet
+fausserait sans rien dire.
 
 ### Prérequis : il n'y en a qu'un
 
@@ -537,11 +591,11 @@ merge. Pour le détail, et pour les quatre règles cosmétiques retirées quand 
 Trois jobs dans `.github/workflows/test.yml`, tous trois checks **requis** sur la
 règle `push dev` (voir `.github/settings/repo-config.json`) :
 
-| Job                          | Ce qu'il exécute                                                                           |
-| ---------------------------- | ------------------------------------------------------------------------------------------ |
-| **Lint & Type Check**        | `lint:scripts` (bit exécutable), `lint`, `lint:design`, `lint:tests`, `check`              |
-| **Unit & Integration Tests** | `test:coverage`, puis `test:integration` contre un vrai Postgres, puis `test:schema-drift` |
-| **E2E Tests**                | build + serveur + les specs Playwright, avec le rapport HTML uploadé en cas d'échec        |
+| Job                          | Ce qu'il exécute                                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Lint & Type Check**        | `lint:scripts` (bit exécutable), `lint`, `lint:design`, `lint:tests`, `check`                                |
+| **Unit & Integration Tests** | `test:coverage`, puis `test:integration` contre un vrai Postgres, puis `test:schema-drift`, puis `test:seed` |
+| **E2E Tests**                | build + serveur + les specs Playwright, avec le rapport HTML uploadé en cas d'échec                          |
 
 **Une PR ne peut pas être mergée si un de ces jobs échoue** (à une réserve près,
 documentée dans `CONTRIBUTING.md` : une exception de bypass sur la règle `push dev`
@@ -560,7 +614,7 @@ comportement par défaut).
 
 ### Si le test échoue en CI sur ta branche
 
-1. **Ne pas ignorer** — ne jamais utiliser `it.skip()` pour contourner un test cassé. Ce n'est plus seulement une règle écrite : `bun run lint:tests` la refuse, dans un check requis (§9)
+1. **Ne pas ignorer** : ne jamais utiliser `it.skip()` pour contourner un test cassé. Ce n'est plus seulement une règle écrite : `bun run lint:tests` la refuse, dans un check requis (§9)
 2. Analyser le rapport d'erreur dans la CI
 3. Identifier si c'est **le code qui est cassé** ou **le test qui est obsolète** :
    - Code cassé → corriger le code
@@ -596,5 +650,5 @@ Ensuite :
 
 ## 12. Ressources
 
-- [Vitest — Documentation officielle](https://vitest.dev)
-- [Playwright — Documentation officielle](https://playwright.dev)
+- [Vitest, Documentation officielle](https://vitest.dev)
+- [Playwright, Documentation officielle](https://playwright.dev)

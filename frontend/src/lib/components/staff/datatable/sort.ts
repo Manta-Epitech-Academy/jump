@@ -35,7 +35,7 @@ export function nextSort<K extends string>(
  * the rows with no value for the active column.
  *
  * `isMissing` sits OUTSIDE the direction flip on purpose: sorting by Lycée
- * should surface the rows that have one, never lead with a block of "—", in
+ * should surface the rows that have one, never lead with a block of "-", in
  * either direction. Two rosters stated that rule in a comment and then broke it
  * by folding the missing case into a `-dir` / `dir` return, so reversing the
  * sort floated the empty rows to the top. `compare` therefore only ever sees

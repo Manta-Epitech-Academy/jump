@@ -17,9 +17,8 @@ import type { ClosingRecommendation } from '@prisma/client';
 
 /** One event this talent attended, and what came of it. */
 export type TalentJourneyEntry = {
-  /** The participation, which is what a closing hangs off and what the conduct
-   *  route is addressed by. */
-  participationId: string;
+  /** The event, which is what a closing hangs off together with the talent, and
+   *  what the conduct route is addressed by. */
   eventId: string;
   eventName: string;
   /**
@@ -68,6 +67,10 @@ export type TalentJourneyClosing = {
 };
 
 export type TalentJourney = {
+  /** Whose journey this is. Carried once here rather than on every entry: a
+   *  journey belongs to one talent, and it is half of the key the closing
+   *  conduct route is addressed by. */
+  talentId: string;
   entries: TalentJourneyEntry[];
   /** Events attended, which is what the section's header counts. */
   eventCount: number;

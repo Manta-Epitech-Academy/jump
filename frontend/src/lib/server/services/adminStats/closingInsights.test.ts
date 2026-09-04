@@ -18,22 +18,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AdminEventVM } from '$lib/server/services/events';
 
-const participationCount = vi.fn();
 const recordFindMany = vi.fn();
 const templateFindMany = vi.fn();
 
 vi.mock('$lib/server/db', () => ({
   prisma: {
-    participation: { count: (args: unknown) => participationCount(args) },
     closing_Record: { findMany: (args: unknown) => recordFindMany(args) },
     closing_Template: { findMany: (args: unknown) => templateFindMany(args) },
   },
 }));
 
 const scopedEvents = vi.fn();
+const scopedEnrolments = vi.fn();
 vi.mock('./cohort', () => ({
   scopedEvents: (scope: unknown) => scopedEvents(scope),
-  participationWhere: () => Promise.resolve({}),
+  scopedEnrolments: (scope: unknown) => scopedEnrolments(scope),
+  enrolmentKey: (e: { talentId: string; eventId: string }) =>
+    `${e.talentId}:${e.eventId}`,
   scopeLabels: () => ({
     schoolYear: 'toutes',
     campus: 'tous',
@@ -75,13 +76,24 @@ type Closing = {
   recommendation?: string | null;
 };
 
-/** The `eventId: { in: [...] }` the concerned count carries, absent on the total. */
-function narrowedTo(where: unknown): Set<string> | null {
-  const and = ((where as { AND?: unknown[] }).AND ?? []) as {
-    eventId?: { in?: string[] };
-  }[];
-  const ids = and.find((clause) => clause.eventId?.in)?.eventId?.in;
-  return ids ? new Set(ids) : null;
+/**
+ * A talent id per enrolment, allocated per event in fixture order, so the Nth
+ * closing on an event pairs with the Nth enrolment on it.
+ *
+ * The pairing matters now: a closing keys on (talent, event) and is matched back
+ * to the cohort on that pair, so a fixture whose closings belong to nobody
+ * enrolled would count zero and the tests would read as passing while measuring
+ * nothing.
+ */
+function withTalents<T extends { eventId: string }>(
+  rows: T[],
+): (T & { talentId: string })[] {
+  const seen = new Map<string, number>();
+  return rows.map((row) => {
+    const n = seen.get(row.eventId) ?? 0;
+    seen.set(row.eventId, n + 1);
+    return { ...row, talentId: `${row.eventId}-t${n}` };
+  });
 }
 
 function seed(options: {
@@ -93,23 +105,17 @@ function seed(options: {
     events: options.events,
     availableSchoolYears: ['2025-2026'],
   });
-  // The service takes two counts off one `where`: every visible enrolment, then
-  // the ones on the events it named. Answered by filtering the same fixture, so a
+  // One fixture answers both halves of the rate: the service derives every
+  // enrolment and the ones on the events it named from these same pairs, so a
   // test cannot pass by agreeing with a denominator it did not pick.
-  participationCount.mockImplementation((args: { where: unknown }) => {
-    const ids = narrowedTo(args.where);
-    return Promise.resolve(
-      ids
-        ? options.enrolments.filter((e) => ids.has(e.eventId)).length
-        : options.enrolments.length,
-    );
-  });
+  scopedEnrolments.mockResolvedValue(withTalents(options.enrolments));
   recordFindMany.mockResolvedValue(
-    (options.closings ?? []).map((c) => ({
+    withTalents(options.closings ?? []).map((c) => ({
+      talentId: c.talentId,
+      eventId: c.eventId,
       status: c.status ?? 'done',
       recommendation: c.recommendation ?? null,
       templateId: 'clt',
-      participation: { eventId: c.eventId },
       answers: [],
     })),
   );
@@ -119,7 +125,7 @@ function seed(options: {
 }
 
 beforeEach(() => {
-  participationCount.mockReset();
+  scopedEnrolments.mockReset();
   recordFindMany.mockReset();
   templateFindMany.mockReset();
   scopedEvents.mockReset();
@@ -210,7 +216,13 @@ describe('getClosingInsights, the coverage base', () => {
         // what would report more closings than inscriptions.
         event({ id: 'retire' }),
       ],
-      enrolments: [{ eventId: 'stage' }, { eventId: 'retire' }],
+      // One enrolment per closing: a closing is conducted with somebody who is
+      // enrolled, and the rate matches the two back on that pair.
+      enrolments: [
+        { eventId: 'stage' },
+        { eventId: 'retire' },
+        { eventId: 'retire' },
+      ],
       closings: [
         { eventId: 'stage' },
         { eventId: 'retire' },
@@ -268,7 +280,9 @@ describe('getClosingInsights, the favourable verdict share', () => {
   it('shares the two most compatible verdicts against the verdicts given', async () => {
     seed({
       events: [runsClosings({ id: 'stage' })],
-      enrolments: [{ eventId: 'stage' }],
+      // One per closing: the five below were each conducted with someone
+      // enrolled, and the service matches the two back on that pair.
+      enrolments: Array.from({ length: 5 }, () => ({ eventId: 'stage' })),
       closings: [
         { eventId: 'stage', recommendation: 'tres_compatible' },
         { eventId: 'stage', recommendation: 'bon_profil' },

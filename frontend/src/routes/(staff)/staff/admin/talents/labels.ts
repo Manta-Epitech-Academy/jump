@@ -1,7 +1,7 @@
 /**
  * Client-safe labels + status types for the admin talents directory. Kept apart
  * from ./query because that module imports `$lib/server/*` (Prisma where
- * fragments) and so cannot be pulled into the browser bundle — the page badges
+ * fragments) and so cannot be pulled into the browser bundle: the page badges
  * and the export both read these labels, so they live in this leaf module with
  * no server imports. Single-sourced so the table and the XLSX export agree.
  */
@@ -11,7 +11,7 @@ export type ParentCompletionStatus = 'complete' | 'pending';
 
 /**
  * Account/onboarding status text. `active` reads "Onboardé" (the whole funnel
- * cleared), not "Actif" — the old word collided with "compte actif" (merely has
+ * cleared), not "Actif": the old word collided with "compte actif" (merely has
  * a login).
  *
  * `no_dossier` is a collégien, who has no onboarding to do. The chip says only

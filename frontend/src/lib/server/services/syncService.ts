@@ -13,6 +13,7 @@ import {
 import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
+import type { WorkerTalent } from '$lib/validation/workerSync';
 
 // Salesforce ships a binary gender ('m' | 'f'); map it onto the civilité enum
 // the rest of the app uses. SF has no equivalent for 'autre', so it stays null.
@@ -25,7 +26,7 @@ function mapGender(gender: string | null | undefined): string | null {
 // Resolve every distinct SF-claimed UAI to a canonical School id once, up front.
 // A cohort of ~200 talents shares far fewer schools, so this runs the lazy
 // create/enrich (and its annuaire lookup) a single time per school instead of
-// once per talent — and never re-hits the annuaire for a UAI twice in one sync.
+// once per talent, and never re-hits the annuaire for a UAI twice in one sync.
 async function resolveSchools(
   talents: { school?: string | null; school_uai?: string | null }[],
 ): Promise<Map<string, string | null>> {
@@ -43,8 +44,30 @@ async function resolveSchools(
   return idByUai;
 }
 
+/**
+ * The campuses the worker is asked to sync, which is to say: the ones Jump has
+ * mapped to Salesforce.
+ *
+ * The `externalName` filter is what makes a generated database inert. The scope
+ * of a sync is data in THIS database, not configuration on the worker's side, so
+ * that is where the isolation belongs: `scripts/seed/` writes no `externalName`
+ * at all, so a seeded environment answers an empty list and the worker has
+ * nothing to do. A flag on the worker would be re-enabled by whoever forgets;
+ * this cannot be, because there is no campus to resolve. Turning the sync back
+ * on for one campus is then an explicit act on /staff/admin/campuses, where the
+ * field already exists and an empty box already means null.
+ *
+ * Nothing changes in production, where every campus carries its external name.
+ *
+ * Known wart, deliberately left alone: this hands out `name` while `syncEvents`
+ * below resolves the path parameter against `externalName`, and nothing in this
+ * repository maps one to the other - they coincide by convention. The consumer
+ * lives in the worker repository, so changing the shape of this payload blind
+ * would break an integration nothing here can test.
+ */
 export async function listCampuses() {
   return prisma.campus.findMany({
+    where: { externalName: { not: null } },
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
   });
@@ -86,7 +109,6 @@ export async function syncEvents(
           date: e.date ? new Date(e.date) : new Date(),
           titre: e.title,
           campusId: campus.id,
-          planning: { create: {} },
           modules: {
             create: defaultEventModules().map((moduleKey) => ({ moduleKey })),
           },
@@ -150,23 +172,38 @@ async function logSyncError(params: {
 
 export async function syncTalents(
   eventExternalId: string,
-  talents: {
-    external_id: string;
-    first_name: string;
-    last_name: string;
-    email?: string | null;
-    phone?: string | null;
-    gender?: string | null;
-    school?: string | null;
-    school_uai?: string | null;
-    class_level?: string | null;
-    status?: string | null;
-  }[],
+  talents: WorkerTalent[],
 ) {
   const event = await prisma.event.findUnique({
     where: { externalId: eventExternalId },
   });
   if (!event) return { error: 'Event not found' as const };
+
+  // An empty payload for an event that HAS enrolments is refused, never applied.
+  // The prune at the end of this function deletes every participation the
+  // payload does not mention, so an empty one wipes a whole cohort - and the
+  // endpoint had no schema, so a truncated or failed fetch upstream arrived
+  // looking exactly like a legitimately empty campaign.
+  //
+  // Refused rather than logged-and-applied, and with no SyncError row: that
+  // table is keyed on (email, attemptedExtId) and shaped around one person's
+  // identity collision, so an event-level fact does not belong in it. The
+  // refusal reaches a human the honest way instead - the endpoint answers 400,
+  // so `recordSync` never runs and `stats_sync_health` reports this event as
+  // stale, which is exactly what happened.
+  //
+  // Emptying a campaign on purpose is therefore a deliberate act: it needs the
+  // enrolments removed in Jump, not a silent sweep nobody asked for.
+  if (talents.length === 0) {
+    const enrolled = await prisma.participation.count({
+      where: { eventId: event.id },
+    });
+    if (enrolled > 0) {
+      return {
+        error: `Refused: empty payload for "${eventExternalId}", which has ${enrolled} enrolment(s). Applying it would delete every one of them.`,
+      };
+    }
+  }
 
   let created = 0;
   let updated = 0;
@@ -199,7 +236,7 @@ export async function syncTalents(
         eventExtId: eventExternalId,
         message: `Compte de connexion non créé pour "${loginEmail}" : ${
           err instanceof Error ? err.message : 'erreur inconnue'
-        } — à arbitrer (Divergences Salesforce › Connexion) ou réessai au prochain sync.`,
+        }. À arbitrer (Divergences Salesforce › Connexion) ou réessai au prochain sync.`,
       });
     }
   };
@@ -311,7 +348,7 @@ export async function syncTalents(
           err instanceof Prisma.PrismaClientKnownRequestError &&
           err.code === 'P2002'
         ) {
-          // Only `externalId` is unique on create now (Talent.email is gone) — a
+          // Only `externalId` is unique on create now (Talent.email is gone): a
           // concurrent pass created the same SF record. Adopt the winner's row
           // and fall through: the participation upsert below must still run
           // (and the id must land in `syncedTalentIds`), or the end-of-sync
@@ -329,7 +366,7 @@ export async function syncTalents(
       }
 
       // Eager-mint the login account at import so `bauth_user.email` is the
-      // identity from day one (same shape as the CSV campaign path) — no window
+      // identity from day one (same shape as the CSV campaign path), no window
       // where a Talent exists without an account. A parent/staff-owned email
       // can't be forced into a student login (`ensureTalentUser` throws); log it
       // and move on. The talent is still imported, just accountless until an
@@ -339,7 +376,7 @@ export async function syncTalents(
       talentId = existing.id;
 
       // 1. Refresh the SF mirror to the latest claim. Skip the write when the
-      //    payload is identical to the stored mirror — on the steady state
+      //    payload is identical to the stored mirror: on the steady state
       //    (200 talents, ~0 changes / 30 min) this means near-zero writes.
       const m = existing.sfImport;
       const mirrorChanged =
@@ -470,7 +507,7 @@ export async function syncTalents(
                 existingExtId: null,
                 talentName: `${t.first_name} ${t.last_name}`,
                 eventExtId: eventExternalId,
-                message: `Divergence d'identité de connexion non auto-résoluble pour "${email}" — à arbitrer dans Divergences Salesforce › Connexion.`,
+                message: `Divergence d'identité de connexion non auto-résoluble pour "${email}", à arbitrer dans Divergences Salesforce › Connexion.`,
               });
             }
           }

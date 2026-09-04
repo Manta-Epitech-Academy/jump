@@ -16,9 +16,17 @@
   import Loader from '@lucide/svelte/icons/loader';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
+  import { Switch } from '$lib/components/ui/switch';
+  import * as Collapsible from '$lib/components/ui/collapsible';
+  import BarChart3 from '@lucide/svelte/icons/bar-chart-3';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import { track, daysBetween } from '$lib/analytics';
   import { toast } from 'svelte-sonner';
   import { formatDateFr } from '$lib/utils';
+  // The same constant the purge reads. This sentence is a retention promise
+  // made to a minor, so it must never be able to state a delay we do not keep,
+  // which is exactly what a literal here did.
+  import { USAGE_RAW_RETENTION_MONTHS } from '$lib/domain/usage';
 
   let { data }: { data: PageData } = $props();
 
@@ -29,6 +37,15 @@
   let requesting = $state(false);
   let cancelling = $state(false);
   let acknowledging = $state(false);
+
+  // Mirrors the server so the switch reads right on load, then follows the
+  // optimistic flip below. `data.usageAnalyticsOptedOut` is the truth; this is
+  // just what is on screen between the click and the response.
+  let usageOptedOut = $state(false);
+  $effect(() => {
+    usageOptedOut = data.usageAnalyticsOptedOut;
+  });
+  let usageForm: HTMLFormElement | null = $state(null);
 </script>
 
 <svelte:head>
@@ -100,6 +117,80 @@
       </div>
       <ModeToggle />
     </div>
+  </div>
+
+  <!-- Usage measurement, and the objection to it (RGPD art. 21). The switch is
+       the whole point of the card: measurement runs on legitimate interest, so
+       it is on until refused, and refusing it has to actually stop it. The
+       detail sits in a Collapsible rather than a tooltip because this is text a
+       person must be able to read and re-read before deciding. -->
+  <div class="rounded-xl border border-border bg-card p-5 shadow-raised">
+    <h2
+      class="mb-3 text-base font-bold tracking-widest text-muted-foreground uppercase"
+    >
+      Mes données
+    </h2>
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex min-w-0 items-center gap-3">
+        <div
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-epi-blue/10"
+        >
+          <BarChart3 class="h-4 w-4 text-epi-blue" />
+        </div>
+        <span class="text-sm font-bold text-foreground-secondary">
+          Compter les pages que j’utilise
+        </span>
+      </div>
+      <form
+        bind:this={usageForm}
+        method="POST"
+        action="?/setUsageAnalytics"
+        use:enhance={() =>
+          async ({ update }) => {
+            await update({ reset: false });
+          }}
+      >
+        <input
+          type="hidden"
+          name="optOut"
+          value={usageOptedOut ? 'false' : 'true'}
+        />
+        <Switch
+          checked={!usageOptedOut}
+          aria-label="Compter les pages que j’utilise"
+          onCheckedChange={(next) => {
+            usageOptedOut = !next;
+            usageForm?.requestSubmit();
+          }}
+        />
+      </form>
+    </div>
+    <Collapsible.Root class="mt-3">
+      <Collapsible.Trigger
+        class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-epi-blue transition-colors hover:bg-epi-blue/10"
+      >
+        Ce que ça enregistre
+        <ChevronDown class="h-3.5 w-3.5" />
+      </Collapsible.Trigger>
+      <Collapsible.Content
+        class="mt-2 space-y-2 text-sm leading-relaxed text-muted-foreground"
+      >
+        <p>
+          On note quelles pages de Jump sont ouvertes et quels boutons servent,
+          pour savoir ce qui est utile et retirer ce qui ne sert à personne. Ton
+          nom n’est jamais attaché à ces lignes : elles portent un code qui
+          change chaque mois et qui ne permet pas de remonter jusqu’à toi.
+        </p>
+        <p>
+          Ces lignes sont effacées au bout de {USAGE_RAW_RETENTION_MONTHS} mois. Il
+          ne reste ensuite qu’un total par mois, sans aucun code.
+        </p>
+        <p>
+          Si tu coupes ce réglage, plus rien n’est enregistré à partir de là. Ça
+          ne change rien au reste de ton compte.
+        </p>
+      </Collapsible.Content>
+    </Collapsible.Root>
   </div>
 
   <!-- Signed documents -->

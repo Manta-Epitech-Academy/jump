@@ -21,7 +21,7 @@
   });
 
   // One pair of hidden forms per row (duplicate + delete). Dropdown menu items
-  // call `requestSubmit()` on the right form — keeps the actions native to
+  // call `requestSubmit()` on the right form, keeps the actions native to
   // SvelteKit / use:enhance so we get redirect + revalidation for free.
   let duplicateForms = $state<Record<string, HTMLFormElement | undefined>>({});
   let deleteForms = $state<Record<string, HTMLFormElement | undefined>>({});
@@ -93,7 +93,7 @@
                 class="max-w-xs truncate text-muted-foreground"
                 title={t.subject ?? ''}
               >
-                {t.subject ?? '—'}
+                {t.subject ?? '-'}
               </Table.Cell>
               <Table.Cell class="text-muted-foreground">
                 {t._count.broadcasts}

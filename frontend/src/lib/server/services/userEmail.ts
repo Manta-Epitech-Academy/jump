@@ -6,7 +6,7 @@ import { isParentOrStaffEmail } from '$lib/server/auth/emailIdentity';
  * Raised when a login email can't be moved onto `newEmail`: either the address
  * belongs to a parent/staff account (never adopt it as a student login) or
  * another account already holds it (a Salesforce inversion, or an orphan the
- * student made by signing in directly). The caller decides what to do — leave
+ * student made by signing in directly). The caller decides what to do: leave
  * it for the admin auth-conflicts tool, log it, etc. `changeUserEmail` never
  * force-moves an identity.
  */

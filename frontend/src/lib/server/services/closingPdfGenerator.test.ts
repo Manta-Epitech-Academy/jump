@@ -102,7 +102,7 @@ const record = (answers: ClosingForPdf['answers']): ClosingForPdf =>
     talent: { prenom: 'lucie', nom: 'bartoletti', externalId: null },
     staff: { user: { name: 'Marie' } },
     campus: { name: 'Paris' },
-    participation: { event: { titre: 'Stage' } },
+    event: { titre: 'Stage' },
   }) as ClosingForPdf;
 
 describe('buildClosingSynthesis', () => {

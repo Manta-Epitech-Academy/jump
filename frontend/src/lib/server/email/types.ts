@@ -8,12 +8,12 @@ export interface MailAttachment {
   filename: string;
   /** Base64-encoded content. */
   content: string;
-  /** Full Content-Type header — providers forward verbatim. */
+  /** Full Content-Type header: providers forward verbatim. */
   contentType: string;
 }
 
 export interface MailMessage {
-  /** RFC 5322 address — e.g. `"Jump <noreply@jump.fr>"`. */
+  /** RFC 5322 address, e.g. `"Jump <noreply@jump.fr>"`. */
   from: string;
   to: string | string[];
   subject: string;
@@ -26,13 +26,13 @@ export type SendEmailFailure = {
   ok: false;
   /**
    * `api_error`: the provider rejected the request. Could be permanent
-   * (bad address, validation) or transient (rate limit, 5xx) — inspect
+   * (bad address, validation) or transient (rate limit, 5xx): inspect
    * `statusCode` to decide.
    * `network_error`: the SDK / fetch threw before getting a response.
    * Always transient; a retry may succeed.
    * `dev_redirect_dropped`: the env is trapped (`OUTBOUND_MODE != real`) but no
    * dev destination resolved, so the send was suppressed rather than leaked to
-   * the real recipient. Permanent — retrying won't help; configure a redirect
+   * the real recipient. Permanent: retrying won't help; configure a redirect
    * destination. The provider was never called.
    */
   reason: 'api_error' | 'network_error' | 'dev_redirect_dropped';
@@ -49,14 +49,14 @@ export type SendEmailResult = { ok: true; id: string } | SendEmailFailure;
 
 /**
  * Per-send dev-redirect destination control. Consulted ONLY when the gate
- * (`OUTBOUND_MODE != real`) traps outbound — a no-op in prod, so it can never
+ * (`OUTBOUND_MODE != real`) traps outbound: a no-op in prod, so it can never
  * misroute a real send. See `./dev-redirect.ts → resolveMailRouting`.
  *
  *   - omitted   → redirect to the env list (default; system / automatic sends)
  *   - string[]  → redirect to these addresses instead (e.g. the staff member
  *                 who triggered a bulk send, so copies land in their own inbox)
  *   - 'bypass'  → no redirect; reach the real recipient. Reserve for a single,
- *                 explicit, human-typed test-send — never a cohort send.
+ *                 explicit, human-typed test-send: never a cohort send.
  */
 export type DevRedirectControl = readonly string[] | 'bypass';
 

@@ -5,6 +5,8 @@ import { prisma } from '$lib/server/db';
 import { resetTalentToImport } from '$lib/server/services/talentAccount';
 import { changeParentEmail } from '$lib/server/services/parentAccount';
 import { parentCompleteWhere } from '$lib/server/db/dossierCompliance';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   parseTalentFilters,
   buildTalentWhere,
@@ -18,7 +20,7 @@ import {
 const PER_PAGE = 50;
 
 // Admin is campus-agnostic (no staffProfile.campusId), so the talent directory
-// here is intentionally global — unlike the campus-scoped dev students list.
+// here is intentionally global, unlike the campus-scoped dev students list.
 // The KPI tiles, however, report the *scoped* population (campus multiselect +
 // type + niveau + search) so the admin can read onboarding progress for a
 // chosen set of campuses; the breakdown filters (status, parentStatus) narrow
@@ -34,7 +36,7 @@ export const load: PageServerLoad = async ({ url }) => {
   const hasParent = { parentEmail: { not: null } } as const;
 
   // Stream the cohort: the heading paints immediately while the row page and the
-  // six scoped KPI counts (count() over the cumulative campus population — the
+  // six scoped KPI counts (count() over the cumulative campus population, the
   // page's measured ~300-400ms blocking cost) resolve behind the shell skeleton.
   // Campuses (filter multiselect) rides the same payload: its only consumer, the
   // toolbar, lives inside the streamed results region.
@@ -66,7 +68,7 @@ export const load: PageServerLoad = async ({ url }) => {
       prisma.talent.count({
         where: { AND: [scopeWhere, hasParent, parentCompleteWhere] },
       }),
-      // Talents imported without ever creating a login account — the far end of
+      // Talents imported without ever creating a login account, the far end of
       // the funnel (parents still owing = `withParent - parentsComplete`).
       prisma.talent.count({ where: { AND: [scopeWhere, { userId: null }] } }),
       prisma.campus.findMany({
@@ -107,6 +109,7 @@ export const actions: Actions = {
   // verdicts) so they're left exactly as the worker leaves a fresh import. The
   // heavy cleanup affordance for after testing the talent experience in prod.
   resetToImport: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_TALENT_RESET_TO_IMPORT, { locals });
     if (locals.staffProfile?.staffRole !== 'admin') return fail(403);
 
     const data = await request.formData();
@@ -128,6 +131,7 @@ export const actions: Actions = {
   // changeParentEmail; optionally re-sends the connection link to the new
   // address.
   updateParentEmail: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_TALENT_PARENT_EMAIL_UPDATE, { locals });
     if (locals.staffProfile?.staffRole !== 'admin') return fail(403);
 
     const data = await request.formData();

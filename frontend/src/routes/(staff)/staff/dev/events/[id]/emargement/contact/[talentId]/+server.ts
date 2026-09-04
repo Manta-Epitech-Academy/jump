@@ -9,6 +9,8 @@ import {
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { guardiansOf, type ContactPerson } from '$lib/domain/contact';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
   requireStaffGroup(locals, 'devMember');
@@ -53,6 +55,11 @@ export const GET: RequestHandler = async ({ locals, params }) => {
   // `StudentContactDetails` as the admin directory and the student dossier. It
   // used to flatten the pair into one `fullName`, which cost the given-name /
   // surname split that display treatment is built on.
+  recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_CONTACT_OPEN, {
+    locals,
+    eventId: params.id,
+  });
+
   return json({
     student: {
       civilite: t.civilite,

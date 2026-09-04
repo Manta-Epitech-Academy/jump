@@ -13,6 +13,8 @@ import { resolveEventDiplomaDesign } from '$lib/server/diplomaTemplates';
 import { getStorage, isObjectNotFound } from '$lib/server/infra/storage';
 import { prisma } from '$lib/server/db';
 import { formatDateFr } from '$lib/utils';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // Generates whichever certificate this event issues, for every talent registered
 // to it (no selection, all inscrits), one page per student. Campus-scoped via
@@ -91,6 +93,11 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     endDate: formatDateFr(eventEndOrDefault(event), timezone),
     todayDate: formatDateFr(new Date(), timezone),
     signatories,
+  });
+
+  recordUsage(USAGE_FEATURES.DEV_DIPLOMAS_RENDER, {
+    locals,
+    eventId: params.id,
   });
 
   return new Response(

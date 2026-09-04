@@ -36,7 +36,7 @@ const INSCRIT_TALENT_SELECT = {
   // Contact + parent identity. Not shown in the table, but the XLSX export
   // (export/+server.ts) emits them so the download is a usable cohort contact
   // sheet (call the student, call the parents). Cheap scalar columns, so the
-  // shared select carries them rather than the export forking its own — a second
+  // shared select carries them rather than the export forking its own, a second
   // select is exactly the drift this shared one exists to prevent.
   phone: true,
   parentPrenom: true,
@@ -74,10 +74,10 @@ export type InscritRow = {
   // Folded three-state funnel status (jamais / en cours / prêt); see
   // `inscritStatus`. Drives the badge, the statut filter and the sort.
   status: InscritStatus;
-  // Whether the talent ever genuinely logged in — gates the status above and
+  // Whether the talent ever genuinely logged in: gates the status above and
   // drives the tooltip's Connexion line.
   connected: boolean;
-  // Per-document dossier states behind the status badge — drive its tooltip
+  // Per-document dossier states behind the status badge: drive its tooltip
   // breakdown and feed the fold above.
   rulesStatus: RulesStatus;
   imageStatus: ImageRightsStatus;
@@ -117,7 +117,7 @@ export type InterestBreakdownStat = {
   count: number;
 };
 
-/** The cohort payload streamed behind the page shell's `{#await}` — everything
+/** The cohort payload streamed behind the page shell's `{#await}`: everything
  *  that needs the DB. Shared by the page load and `InscritsResults` so the
  *  streamed shape and the consuming component can never drift. */
 export type InscritsCohort = {

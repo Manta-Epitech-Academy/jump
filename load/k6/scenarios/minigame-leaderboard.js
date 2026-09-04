@@ -5,7 +5,7 @@ import { data, pick } from '../lib/manifest.js';
 
 // Minigame leaderboard fetch: talents loading the per-campus leaderboard.
 // Lighter than the home page but called by every participant after
-// playing — easy to spike around publication windows.
+// playing, easy to spike around publication windows.
 //
 //   k6 run -e BASE_URL=http://localhost:5173 -e LOAD_TEST_SECRET=*** \
 //     load/k6/scenarios/minigame-leaderboard.js

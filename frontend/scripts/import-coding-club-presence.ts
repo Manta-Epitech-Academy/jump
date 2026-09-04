@@ -5,14 +5,14 @@
  * (`jump-sf-worker/src/exportCodingClubPresence.ts`) into the émargement grid.
  * Each CSV row is one (event, talent, present?) fact; a coding club is a single
  * day with a morning and an afternoon créneau, so **each row writes TWO
- * `EventPresence` cells** — one `morning`, one `afternoon` — both carrying the
+ * `EventPresence` cells** (one `morning`, one `afternoon`), both carrying the
  * same present/absent status on the event's start day.
  *
  * This differs from the generic `import-sf-presence.ts` driver (which writes one
  * créneau per row via the per-row `applyPresence`) on two points: the coding-club
  * rule is "marked for the whole day", so we fan each row out across both slots;
  * and at this volume (thousands of rows) the per-row path's ~4 queries/cell is too
- * slow, so this runs in BULK — preload events, talents and existing presences in a
+ * slow, so this runs in BULK: preload events, talents and existing presences in a
  * handful of `findMany`s, diff in memory, then write with `createMany` + grouped
  * `updateMany`. The semantics are kept identical to `applyPresence`: ids resolve
  * through `Event.externalId` / `Talent.externalId`, presences land on the event's

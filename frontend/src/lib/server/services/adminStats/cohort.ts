@@ -15,6 +15,7 @@
  */
 
 import type { Prisma } from '@prisma/client';
+import { prisma } from '$lib/server/db';
 import { EventService, type AdminEventVM } from '$lib/server/services/events';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { onboardingEligibleWhere } from '$lib/server/db/onboardingEligibility';
@@ -84,6 +85,39 @@ export async function cohortWhere(
  * {@link cohortWhere} is built on, and what the enrolment-shaped aggregates
  * (presence, retention) count rows of directly.
  */
+/** One enrolment, reduced to the pair that identifies it. */
+export type CohortEnrolment = { talentId: string; eventId: string };
+
+/** The lookup key for a {@link CohortEnrolment}. */
+export function enrolmentKey(e: CohortEnrolment): string {
+  return `${e.talentId}:${e.eventId}`;
+}
+
+/**
+ * The enrolments a scope selects, as pairs, for the aggregates that have to
+ * narrow something OTHER than `Participation` down to them.
+ *
+ * Closings are the reason this exists. A `Closing_Record` no longer hangs off a
+ * `Participation` row - the Salesforce sync deletes those, and a cascade from
+ * one used to let the CRM destroy a conducted closing - so the visibility clause
+ * {@link participationWhere} carries can no longer be applied as a relation
+ * filter. It is applied against these pairs instead, and it must keep being
+ * applied: a talent who withdrew after their closing leaves the denominator, so
+ * leaving them in the numerator is what pushes a coverage rate past 100 %.
+ *
+ * Small by construction (one row per visible enrolment in scope, a few thousand
+ * platform-wide), and it usually REPLACES a count query rather than adding one:
+ * the callers that need the pairs also need the totals, which are `.length`.
+ */
+export async function scopedEnrolments(
+  scope: Scope,
+): Promise<CohortEnrolment[]> {
+  return prisma.participation.findMany({
+    where: await participationWhere(scope),
+    select: { talentId: true, eventId: true },
+  });
+}
+
 export async function participationWhere(
   scope: Scope,
 ): Promise<Prisma.ParticipationWhereInput> {

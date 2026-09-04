@@ -46,7 +46,7 @@ export function setup() {
 
 export default function (ctx) {
   // Spread iterations across the seeded pool. Re-signing the same talent
-  // isn't a hard error (signRules has no "already signed" guard — it just
+  // isn't a hard error (signRules has no "already signed" guard: it just
   // overwrites rulesSignedAt and enqueues another OnboardingPdfJob row),
   // but spreading keeps the workload representative of distinct users.
   const idx = (__VU - 1) * 1000 + __ITER;
@@ -54,7 +54,7 @@ export default function (ctx) {
 
   loginAs(baseUrl, secret, { email: talent.email });
 
-  // signRules action — SvelteKit form action via ?/signRules. Body is
+  // signRules action: SvelteKit form action via ?/signRules. Body is
   // x-www-form-urlencoded; rulesSchema requires `city` plus both consents
   // as `z.literal('true')` (RGPD enforcement, see validation/onboarding.ts).
   const res = formPost(
@@ -62,7 +62,7 @@ export default function (ctx) {
     '/onboarding?/signRules',
     { city: 'Paris', acceptedCharter: 'true', acceptedRules: 'true' },
     {
-      redirects: 0, // we expect a 303 to /?welcome=1 — don't follow it
+      redirects: 0, // we expect a 303 to /?welcome=1: don't follow it
       tags: { endpoint: 'sign' },
     },
   );

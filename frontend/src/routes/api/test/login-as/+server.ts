@@ -8,8 +8,8 @@ import { assertLoadTestAuth } from '$lib/server/services/loadTestService';
 /**
  * Load-test helper: mints a BetterAuth session for an arbitrary user by
  * inserting a `bauth_session` row directly and signing the session cookie
- * the same way BetterAuth (via `better-call`) does — `<token>.<base64-hmac>`
- * URL-encoded — so the existing `auth.api.getSession()` reads it back
+ * the same way BetterAuth (via `better-call`) does (`<token>.<base64-hmac>`
+ * URL-encoded), so the existing `auth.api.getSession()` reads it back
  * indistinguishably from a real login.
  *
  * Why bypass `auth.api.signInEmailOTP`: that path writes to
@@ -24,7 +24,7 @@ import { assertLoadTestAuth } from '$lib/server/services/loadTestService';
 // BetterAuth prefixes the cookie with `__Secure-` whenever it issues secure
 // cookies (https origin or production). Mirror that here, otherwise on
 // preprod (https) we'd write `better-auth.session_token` while `getSession()`
-// reads `__Secure-better-auth.session_token` — silent auth miss.
+// reads `__Secure-better-auth.session_token`: silent auth miss.
 const SESSION_COOKIE_BASENAME = 'better-auth.session_token';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 

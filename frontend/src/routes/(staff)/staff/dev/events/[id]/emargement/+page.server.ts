@@ -40,6 +40,8 @@ import {
   reopenSlotSchema,
 } from '$lib/validation/presence';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   PRESENCE_ROSTER_SELECT,
   type PresenceRow,
@@ -120,7 +122,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
         prenom: t.prenom,
         noteCount: t._count.notes,
         // The distinct créneaux this talent carries a note for, from each note's
-        // stored anchor (notes without one — fiche notes — never light a trigger).
+        // stored anchor (notes without one, fiche notes, never light a trigger).
         noteSlotKeys: [
           ...new Set(
             t.notes
@@ -246,6 +248,11 @@ export const actions: Actions = {
       await recomputeEventsCount(tx, talentId);
     });
 
+    recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_MARK, {
+      locals,
+      eventId: event.id,
+    });
+
     return message(
       form,
       status === 'pending'
@@ -279,6 +286,11 @@ export const actions: Actions = {
       );
     }
 
+    recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_MARK_ALL, {
+      locals,
+      eventId: event.id,
+    });
+
     return message(
       form,
       `${cohortNounForms(event.cohortNoun).Plural} sans présence enregistrée marqués présents.`,
@@ -301,6 +313,11 @@ export const actions: Actions = {
       locals.staffProfile.id,
     );
 
+    recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_SLOT_CLOSE, {
+      locals,
+      eventId: event.id,
+    });
+
     return message(form, 'Créneau clôturé.');
   },
 
@@ -318,6 +335,11 @@ export const actions: Actions = {
       dateKeyToDbDate(form.data.day),
       form.data.slot,
     );
+
+    recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_SLOT_REOPEN, {
+      locals,
+      eventId: event.id,
+    });
 
     return message(form, 'Créneau rouvert.');
   },
