@@ -32,6 +32,55 @@ export const BROADCAST_STATUS_LABELS: Record<BroadcastStatus, string> = {
   failed: 'Échec',
 };
 
+// Whether a status means the send is over, or that the queue worker still owes
+// it work. Written as a total map so a `BroadcastStatus` added tomorrow cannot
+// arrive unclassified, and that is the whole point: nothing anywhere said which
+// statuses are live work, so the seed generator wrote four of them and a plain
+// `bun run seed` became a send (`AGENTS.md`, « inert to every background
+// worker »).
+//
+// The worker owns WHEN it claims each of them (`queued` outright, `sending`
+// only once its heartbeat has gone stale past `SENDING_STUCK_TIMEOUT_MS`); this
+// map only says which ones it ever claims.
+const BROADCAST_STATUS_KIND = {
+  queued: 'outstanding',
+  sending: 'outstanding',
+  sent: 'terminal',
+  partial_failed: 'terminal',
+  failed: 'terminal',
+} as const satisfies Record<BroadcastStatus, 'terminal' | 'outstanding'>;
+
+/**
+ * A status a send that is over can carry: the three the orchestrator's
+ * finalizer concludes with, and the only ones a generated dataset may hold.
+ */
+export type BroadcastTerminalStatus = {
+  [K in BroadcastStatus]: (typeof BROADCAST_STATUS_KIND)[K] extends 'terminal'
+    ? K
+    : never;
+}[BroadcastStatus];
+
+/** The statuses `processNextQueuedBroadcast` claims, so a check that has to
+ *  refuse outstanding work does not re-list them by hand. */
+export const BROADCAST_OUTSTANDING_STATUSES = (
+  Object.keys(BROADCAST_STATUS_KIND) as BroadcastStatus[]
+).filter((status) => BROADCAST_STATUS_KIND[status] === 'outstanding');
+
+/**
+ * Max send attempts per recipient before the sender gives up, the initial
+ * attempt included: 3 means up to 2 retries after the first failure. Tuned
+ * conservatively so a mis-classified-permanent error does not burn the mail
+ * quota.
+ *
+ * It lives here rather than beside the sender because it is where a failed
+ * recipient's `retryCount` STOPS, and two readers outside the worker need that:
+ * a permanent rejection is never retried, so it lands `failed` on 1, while a
+ * transient one is retried to this ceiling and lands `failed` on 3. Anything in
+ * between is a row no run produces, which is exactly what the seed generator
+ * used to write.
+ */
+export const BROADCAST_MAX_RETRIES = 3;
+
 // Recipient-level status (one row of a send). Used by the detail recipient table.
 export const RECIPIENT_STATUS_LABELS: Record<BroadcastRecipientStatus, string> =
   {

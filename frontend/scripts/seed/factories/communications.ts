@@ -5,16 +5,25 @@
  * shows as `sent` hides the row a person actually has to act on, and a feedback
  * form with only matched submissions hides the public ones that match nobody.
  *
- * Nothing is ever sent. These are rows describing sends that already happened,
- * on a database no outbound path is pointed at.
+ * Nothing here is ever sent, and that is now a property of the rows rather than
+ * of the environment: every campaign is written in a TERMINAL status, so
+ * `processNextQueuedBroadcast` has nothing to claim. `assert/inertness.ts`
+ * carries the rule, and `AGENTS.md` what it cost to learn.
+ *
+ * This header used to make the same claim on the grounds that no outbound path
+ * was pointed at this database, which was untrue. Asserting it is what let four
+ * `queued` / `sending` campaigns sit here unquestioned.
  */
 
 import type {
   BroadcastAudience,
   BroadcastChannel,
-  BroadcastStatus,
   Prisma,
 } from '@prisma/client';
+import {
+  BROADCAST_MAX_RETRIES,
+  type BroadcastTerminalStatus,
+} from '../../../src/lib/domain/broadcasts';
 import type { World, TalentRef, EventRef, CampusRef, StaffRef } from '../world';
 import { id, seq } from '../ids';
 
@@ -25,7 +34,12 @@ export function addBroadcast(
     name: string;
     channel: BroadcastChannel;
     audience: BroadcastAudience;
-    status: BroadcastStatus;
+    /**
+     * Terminal only, and the type is the enforcement: a `queued` or `sending`
+     * campaign is outstanding work for the queue worker, not a fact about a
+     * send that happened. `bun run check` refuses the call site.
+     */
+    status: BroadcastTerminalStatus;
     campus: CampusRef;
     event?: EventRef;
     /** Null for a campaign whose author has since left. */
@@ -37,8 +51,22 @@ export function addBroadcast(
     filters?: Prisma.InputJsonValue;
     /** Set when this campaign is a retarget of an earlier one. */
     sourceBroadcastKey?: string;
-    /** How many of them failed. Non-zero is what `partial_failed` means. */
+    /** How many of them failed. Non-zero is what `partial_failed` means; a
+     *  `failed` campaign is every recipient failing, so it needs no count. */
     failures?: number;
+    /**
+     * How the send failed, when it did not fail one address at a time. Defaults
+     * to a bad address on the recipient's own channel, which is the common
+     * case; pass one when the campaign failed as a whole, where a per-address
+     * message would be nonsense (the seeded staff note fails on a provider
+     * outage).
+     *
+     * `kind` is not decoration, it is what decides where `retryCount` stops:
+     * the sender classifies a 429 or any 5xx as retryable and everything else
+     * as permanent (`broadcast/providers/mail.ts`), and only a permanent
+     * rejection lands `failed` on its first attempt.
+     */
+    failure?: { message: string; kind: 'permanent' | 'transient' };
     sourceFilter?: 'opened' | 'not_opened' | 'all';
   },
 ): void {
@@ -49,7 +77,37 @@ export function addBroadcast(
 
   const clock = world.ctx.clock;
   const broadcastId = id('bcs', opts.key);
-  const sent = opts.status === 'sent' || opts.status === 'partial_failed';
+  // A `failed` campaign is every recipient having failed, because that is the
+  // only way the orchestrator's finalizer concludes `failed` (`tally.sent === 0`
+  // with nothing left pending). It used to leave them `pending`, which is a
+  // state no run can produce and, worse, the exact row the worker pages.
+  const allFailed = opts.status === 'failed';
+  const failure = opts.failure ?? {
+    message:
+      opts.channel === 'sms' ? 'Numéro invalide' : 'Adresse e-mail invalide',
+    kind: 'permanent' as const,
+  };
+  // Where the sender actually leaves the counter, which is the whole reason the
+  // failure carries its kind: a permanent rejection is never retried, so the row
+  // lands `failed` on its first attempt; a transient one is retried until
+  // `BROADCAST_MAX_RETRIES` and lands on that. Anything in between is a count no
+  // path reaches: this factory wrote a flat `2` for a while, and replacing it
+  // with a flat `1` only moved the same mistake onto the 5xx outage below.
+  const failedRetryCount =
+    failure.kind === 'transient' ? BROADCAST_MAX_RETRIES : 1;
+
+  /**
+   * A recipient as the sender actually leaves it, in one of the two terminal
+   * shapes and never in between. `lastTriedAt` is always set, because the sender
+   * stamps it on every outcome.
+   */
+  const outcome = (failed: boolean) => ({
+    status: failed ? ('failed' as const) : ('sent' as const),
+    errorMessage: failed ? failure.message : null,
+    sentAt: failed ? null : clock.days(-14),
+    lastTriedAt: clock.days(-14),
+    retryCount: failed ? failedRetryCount : 0,
+  });
 
   world.buffer.broadcast.push({
     id: broadcastId,
@@ -88,10 +146,7 @@ export function addBroadcast(
       broadcastId,
       staffUserId: member.userId,
       recipientEmail: member.email,
-      status: sent ? 'sent' : 'pending',
-      sentAt: sent ? clock.days(-14) : null,
-      lastTriedAt: sent ? clock.days(-14) : null,
-      retryCount: 0,
+      ...outcome(allFailed),
     });
   }
 
@@ -108,7 +163,7 @@ export function addBroadcast(
   );
 
   for (const [index, talent] of reachable.entries()) {
-    const failed = index < failures;
+    const failed = allFailed || index < failures;
     world.buffer.broadcastRecipient.push({
       id: id('bcr', opts.key, seq(index, 4)),
       broadcastId,
@@ -121,15 +176,10 @@ export function addBroadcast(
             : talent.email
           : null,
       recipientPhone: opts.channel === 'sms' ? '+33600000000' : null,
-      status: !sent ? 'pending' : failed ? 'failed' : 'sent',
-      errorMessage: failed ? 'Numéro invalide' : null,
-      sentAt: sent && !failed ? clock.days(-14) : null,
+      ...outcome(failed),
       // Opens are what a retarget filters on, so some have to exist or
       // `sourceFilter: 'opened'` selects nobody and the feature looks broken.
-      openedAt:
-        sent && !failed && world.ctx.rng.chance(0.4) ? clock.days(-13) : null,
-      lastTriedAt: sent ? clock.days(-14) : null,
-      retryCount: failed ? 2 : 0,
+      openedAt: !failed && world.ctx.rng.chance(0.4) ? clock.days(-13) : null,
     });
   }
 }
