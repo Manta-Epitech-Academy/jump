@@ -159,8 +159,13 @@ export const operations: Scenario = {
         status: 'failed',
         // Every recipient failed at once, which is what a `failed` campaign is.
         // A per-address message would be nonsense on a roomful of @epitech.eu
-        // addresses, so this one fails the way a whole batch actually does.
-        failureMessage: 'Fournisseur indisponible (502)',
+        // addresses, so this one fails the way a whole batch actually does: a
+        // 5xx, which the sender retries, so these rows carry the exhausted
+        // attempt count rather than a first-attempt one.
+        failure: {
+          message: 'Fournisseur indisponible (502)',
+          kind: 'transient',
+        },
         campus,
         // Nobody: the member who sent it has left, and the campaign history
         // survives them rather than blocking their deletion.
@@ -268,8 +273,9 @@ export const operations: Scenario = {
         'une douzaine d’erreurs de synchronisation, dont une répétée 11 357 fois',
         'une demande de suppression RGPD dans chacun de ses quatre états',
         'une réinitialisation de closing et une réparation d’identité, avec leur trace',
-        'cinq campagnes : mail et SMS, envoyée, partiellement en échec, en file, en échec',
+        'cinq campagnes : mail et SMS, envoyée, partiellement en échec, en échec',
         'des relances ciblées sur les ouvreurs, les non-ouvreurs et toute la cohorte',
+        'aucune campagne « en file » ni « en cours », exprès : ces deux états sont du travail que le worker de campagnes réclame, donc les semer serait envoyer',
         'une correction XP manuelle, négative',
         'des chiffres d’adoption au-dessus du plancher de masquage à cinq acteurs',
         'l’adoption sur ~80 % du catalogue de fonctionnalités, le reste laissé sans usage pour que les « écarts d’adoption » aient un sens',

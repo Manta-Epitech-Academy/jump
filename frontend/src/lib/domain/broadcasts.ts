@@ -66,6 +66,21 @@ export const BROADCAST_OUTSTANDING_STATUSES = (
   Object.keys(BROADCAST_STATUS_KIND) as BroadcastStatus[]
 ).filter((status) => BROADCAST_STATUS_KIND[status] === 'outstanding');
 
+/**
+ * Max send attempts per recipient before the sender gives up, the initial
+ * attempt included: 3 means up to 2 retries after the first failure. Tuned
+ * conservatively so a mis-classified-permanent error does not burn the mail
+ * quota.
+ *
+ * It lives here rather than beside the sender because it is where a failed
+ * recipient's `retryCount` STOPS, and two readers outside the worker need that:
+ * a permanent rejection is never retried, so it lands `failed` on 1, while a
+ * transient one is retried to this ceiling and lands `failed` on 3. Anything in
+ * between is a row no run produces, which is exactly what the seed generator
+ * used to write.
+ */
+export const BROADCAST_MAX_RETRIES = 3;
+
 // Recipient-level status (one row of a send). Used by the detail recipient table.
 export const RECIPIENT_STATUS_LABELS: Record<BroadcastRecipientStatus, string> =
   {

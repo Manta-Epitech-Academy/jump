@@ -6,9 +6,10 @@ import type {
 } from '@prisma/client';
 import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
-import type {
-  BroadcastFilters,
-  BroadcastTerminalStatus,
+import {
+  BROADCAST_MAX_RETRIES,
+  type BroadcastFilters,
+  type BroadcastTerminalStatus,
 } from '$lib/domain/broadcasts';
 import { rewriteHtmlLinks, rewriteSmsLinks } from './linkRewriter';
 import {
@@ -543,7 +544,7 @@ async function persistOutcomes(
       continue;
     }
     const willRetry =
-      outcome.retryable && recipient.retryCount + 1 < MAX_RETRIES;
+      outcome.retryable && recipient.retryCount + 1 < BROADCAST_MAX_RETRIES;
     if (willRetry) {
       // Stay `pending`, bump retryCount + lastTriedAt. The page query
       // gates on `lastTriedAt < now - RETRY_COOLDOWN_MS` so this row sits
@@ -788,14 +789,6 @@ function logMintFailure(kind: string, email: string) {
 const SENDING_STUCK_TIMEOUT_MS = 10 * 60 * 1000;
 
 /**
- * Max number of send attempts per recipient before giving up. Includes the
- * initial attempt, so MAX_RETRIES=3 means up to 2 retries after the first
- * failure. Tuned conservatively to avoid burning the Resend quota on
- * persistent (mis-classified-permanent) errors.
- */
-const MAX_RETRIES = 3;
-
-/**
  * Cooldown between a failed attempt and its retry. The page query skips
  * rows whose `lastTriedAt` is more recent than `now - cooldown`. Matched
  * roughly to `SENDING_STUCK_TIMEOUT_MS` so the worker's next tick (after
@@ -809,8 +802,8 @@ const RETRY_COOLDOWN_MS = 5 * 60 * 1000;
  *   - `sending` with a stale heartbeat (`updatedAt < stuck cutoff`): the
  *     owning process is gone, resume it.
  *
- * Recipients already marked `sent` or beyond `MAX_RETRIES` are skipped by
- * the page query, so resumption is idempotent: never double-sends.
+ * Recipients already marked `sent` or beyond `BROADCAST_MAX_RETRIES` are
+ * skipped by the page query, so resumption is idempotent: never double-sends.
  *
  * Note: a `sending` broadcast with retry candidates still in cooldown but
  * a fresh heartbeat (`updatedAt` recent because the loop just exited)

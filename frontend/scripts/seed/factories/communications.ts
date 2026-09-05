@@ -20,7 +20,10 @@ import type {
   BroadcastChannel,
   Prisma,
 } from '@prisma/client';
-import type { BroadcastTerminalStatus } from '../../../src/lib/domain/broadcasts';
+import {
+  BROADCAST_MAX_RETRIES,
+  type BroadcastTerminalStatus,
+} from '../../../src/lib/domain/broadcasts';
 import type { World, TalentRef, EventRef, CampusRef, StaffRef } from '../world';
 import { id, seq } from '../ids';
 
@@ -51,11 +54,19 @@ export function addBroadcast(
     /** How many of them failed. Non-zero is what `partial_failed` means; a
      *  `failed` campaign is every recipient failing, so it needs no count. */
     failures?: number;
-    /** What the provider said on a failed row. Defaults to a bad address on the
-     *  recipient's own channel, which is the common case; pass one when the
-     *  campaign failed as a whole, where a per-address message would be
-     *  nonsense (the seeded staff note fails on a provider outage). */
-    failureMessage?: string;
+    /**
+     * How the send failed, when it did not fail one address at a time. Defaults
+     * to a bad address on the recipient's own channel, which is the common
+     * case; pass one when the campaign failed as a whole, where a per-address
+     * message would be nonsense (the seeded staff note fails on a provider
+     * outage).
+     *
+     * `kind` is not decoration, it is what decides where `retryCount` stops:
+     * the sender classifies a 429 or any 5xx as retryable and everything else
+     * as permanent (`broadcast/providers/mail.ts`), and only a permanent
+     * rejection lands `failed` on its first attempt.
+     */
+    failure?: { message: string; kind: 'permanent' | 'transient' };
     sourceFilter?: 'opened' | 'not_opened' | 'all';
   },
 ): void {
@@ -71,25 +82,31 @@ export function addBroadcast(
   // with nothing left pending). It used to leave them `pending`, which is a
   // state no run can produce and, worse, the exact row the worker pages.
   const allFailed = opts.status === 'failed';
-  const failureMessage =
-    opts.failureMessage ??
-    (opts.channel === 'sms' ? 'Numéro invalide' : 'Adresse e-mail invalide');
+  const failure = opts.failure ?? {
+    message:
+      opts.channel === 'sms' ? 'Numéro invalide' : 'Adresse e-mail invalide',
+    kind: 'permanent' as const,
+  };
+  // Where the sender actually leaves the counter, which is the whole reason the
+  // failure carries its kind: a permanent rejection is never retried, so the row
+  // lands `failed` on its first attempt; a transient one is retried until
+  // `BROADCAST_MAX_RETRIES` and lands on that. Anything in between is a count no
+  // path reaches: this factory wrote a flat `2` for a while, and replacing it
+  // with a flat `1` only moved the same mistake onto the 5xx outage below.
+  const failedRetryCount =
+    failure.kind === 'transient' ? BROADCAST_MAX_RETRIES : 1;
 
   /**
    * A recipient as the sender actually leaves it, in one of the two terminal
-   * shapes and never in between.
-   *
-   * `retryCount` is 1 on a failure, not the 2 this used to write: a hard bounce
-   * is not retryable, so it fails on its first attempt, and a retryable one only
-   * gives up at `MAX_RETRIES`. Two was a count no path reaches. `lastTriedAt` is
-   * always set, because the sender stamps it on every outcome.
+   * shapes and never in between. `lastTriedAt` is always set, because the sender
+   * stamps it on every outcome.
    */
   const outcome = (failed: boolean) => ({
     status: failed ? ('failed' as const) : ('sent' as const),
-    errorMessage: failed ? failureMessage : null,
+    errorMessage: failed ? failure.message : null,
     sentAt: failed ? null : clock.days(-14),
     lastTriedAt: clock.days(-14),
-    retryCount: failed ? 1 : 0,
+    retryCount: failed ? failedRetryCount : 0,
   });
 
   world.buffer.broadcast.push({
