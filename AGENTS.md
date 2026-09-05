@@ -656,7 +656,7 @@ validation happened, which put real minors' personal data on non-prod
 environments for days at a time and put the validation gate after the release
 freeze. Both problems are downstream of the data.
 
-Six rules, and each is enforced rather than hoped for:
+Seven rules, and each is enforced rather than hoped for:
 
 - **A pull request that adds a behaviour adds its example.** A new enum value
   fails `bun run test:seed` until some scenario produces a row, because the enum
