@@ -48,4 +48,4 @@ done
 # to have something to accept, and it dirties that database to have something to
 # refuse, so it goes after everything else.
 echo "[seed] ownership gate" >&2
-bun run scripts/check-seed-gate.ts
+bun run scripts/seed/check-gate.ts

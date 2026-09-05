@@ -10,12 +10,23 @@
  * environment worked, and only the second one failed, on a machine nobody runs
  * the suite from.
  *
- * It lives here rather than beside `guard.ts` because a `*.test.ts` under
- * `scripts/` runs nowhere: vitest collects under `src/` only, and
- * `scripts/lint-tests.ts` refuses a unit test outside it, so the file would be
- * silently dead. Hanging it off `check-seed-profiles.sh` instead puts it inside
- * the `test:seed` link that already provisions a real PostgreSQL, which this
- * needs anyway - the gate's count is raw SQL over `starts_with`.
+ * It is not a `*.test.ts`, and it is in this directory, and the two are
+ * separate decisions.
+ *
+ * Not a test file, because one under `scripts/` runs nowhere: vitest collects
+ * under `src/` only, and `lint-tests.ts` refuses a unit test outside it, so the
+ * file would be silently dead. It hangs off `check-seed-profiles.sh` instead,
+ * which puts it inside the `test:seed` link that already provisions a real
+ * PostgreSQL - which this needs anyway, since the gate's count is raw SQL over
+ * `starts_with`.
+ *
+ * In this directory, because `tsconfig.json` here includes every `.ts` file
+ * under it and `bun run check` runs it. `scripts/` itself is type-checked by
+ * nothing - the tsconfig SvelteKit generates covers `src/`, `test/` and
+ * `tests/` - and bun strips types without checking them, so a check sitting one
+ * level up would go on running, and could go on passing, after the signature it
+ * exercises had moved under it. The only coverage `guard.ts` has is not a good
+ * place to lose a type check.
  *
  * Runs LAST, after both profile generations, because it needs a generated
  * database to have something to accept.
@@ -30,20 +41,17 @@
  * guards.
  */
 
-import path from 'node:path';
-import dotenv from 'dotenv';
-
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
-
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { assertGeneratorOwnsDataset } from './seed/guard';
-import { MANIFEST_SETTING_KEY } from './seed/ids';
+import { createClient, loadEnv } from './context';
+import { assertGeneratorOwnsDataset } from './guard';
+import { MANIFEST_SETTING_KEY } from './ids';
 
 const PROBE_EMAIL = 'gate.probe@epitech.eu';
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
-const prisma = new PrismaClient({ adapter });
+// The generator's own two, rather than a second copy: `loadEnv` is where the
+// path to the repo-root `.env` lives, and `createClient` is what refuses an
+// unset `DATABASE_URL` with a sentence instead of an adapter error.
+loadEnv();
+const prisma = createClient();
 
 type Marker = { key: string; value: string; updatedAt: Date };
 
