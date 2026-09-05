@@ -226,12 +226,13 @@ same ids, only intact. Which is why the anchor is held constant for the whole wi
 passed explicitly on each run - taking it from the trigger date would shift every date in the dataset
 between two promotions of one release, and the PO would no longer be looking at the same thing.
 
-**Not true of the live `staging` yet.** It still carries what the Salesforce worker and a restored
-production dump put there, and the generator refuses a database it has never filled rather than filling
-it half-way, so the switchover is a `prisma migrate reset`, then a generation, then
-`frontend/scripts/bootstrap-admins.ts` for the admin accounts the reset destroys. That, and the Job that
-re-seeds during the window, is #294. Until it lands, read this section as the target and not as the
-state.
+**Not true of the live `staging` yet.** Nothing has ever seeded it: the container `CMD` is
+`migrate deploy` and nothing else, so it carries whatever has accumulated in it, the Salesforce sync
+included for as long as the worker was pointed there. The generator refuses a database it has never
+filled rather than filling it half-way, so the switchover is a `prisma migrate reset`, then a
+generation, then `frontend/scripts/bootstrap-admins.ts` for the admin accounts the reset destroys. That,
+and the Job that re-seeds during the window, is #294. Until it lands, read this section as the target
+and not as the state.
 
 The reset belongs to that switchover alone, and not to the re-seeds that follow it. A database this
 generator has already filled goes on accumulating rows it did not write, because the application keeps
