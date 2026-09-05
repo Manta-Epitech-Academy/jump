@@ -17,6 +17,8 @@ import {
   USAGE_FEATURE_DEFS,
   USAGE_FEATURE_KEYS,
   USAGE_RAW_RETENTION_MONTHS,
+  usageDedupeKey,
+  type UsageFeatureKey,
 } from '../../../src/lib/domain/usage';
 
 /**
@@ -340,19 +342,80 @@ export function addUsage(
     ? withGuaranteed(adoptedSample, talentCampusFeature)
     : adoptedSample;
 
-  for (const [index, feature] of adopted.entries()) {
-    const definition = USAGE_FEATURE_DEFS[feature];
-    // Spread over months, because a distinct actor is counted PER MONTH: the
-    // reported figure is the busiest month's, never a running total, and a
-    // dataset sitting inside one month cannot tell the two apart.
-    const monthsAgo = index % 5;
+  // ── Staff: the rows follow the VISITS, never the catalogue ────────────────
+  //
+  // In production `hooks.server.ts` writes the view row and the session row on
+  // the same request, from the same context, so a connection always coincides
+  // with a real navigation and every day of feature use sits inside a live
+  // session. This loop used to iterate the catalogue instead, drawing a random
+  // subset of the team per feature and dating it from the feature's position:
+  // the two session keys were two entries among 106, and their seeded dedupe
+  // key carried no time slice at all, so a member could hold at most one row
+  // per feature. Whatever the dataset said they had done, their connection
+  // count was capped at two, on days unrelated to anything else they touched.
+  const staffPool = adopted.filter(
+    (key) =>
+      USAGE_FEATURE_DEFS[key].audience === 'staff' &&
+      USAGE_FEATURE_DEFS[key].kind !== 'session',
+  );
+  // Sessions are out of the adoption draw on purpose. A session is not a
+  // feature somebody adopts: it is written for everyone who comes, so leaving
+  // it in would let the dice report « personne n'ouvre l'espace dev » about a
+  // roster that visibly does.
+  const sessionOf = {
+    dev: USAGE_FEATURES.DEV_SESSION,
+    admin: USAGE_FEATURES.ADMIN_SESSION,
+  };
 
-    if (definition.audience === 'staff') {
-      // Not every member touches every feature: an adoption figure where the
-      // whole team uses everything has no shape, and `ops_staff_activity` exists
-      // to surface the member who uses nothing.
-      const users = rng.sample(staff, rng.int(1, staff.length));
-      for (const [userIndex, member] of users.entries()) {
+  for (const [memberIndex, member] of staff.entries()) {
+    if (member.visits.length === 0) continue;
+    // Not every member touches every feature: an adoption figure where the whole
+    // team uses everything has no shape, and `ops_staff_activity` exists to
+    // surface the member who uses nothing.
+    const own = rng.sample(
+      staffPool,
+      rng.int(Math.ceil(staffPool.length / 4), staffPool.length),
+    );
+    const spaceOwn = {
+      dev: own.filter((key) => USAGE_FEATURE_DEFS[key].space === 'dev'),
+      admin: own.filter((key) => USAGE_FEATURE_DEFS[key].space === 'admin'),
+    };
+
+    for (const [visitIndex, visit] of member.visits.entries()) {
+      const at = clock.at(
+        visit.dayOffset,
+        9 + (visitIndex % 9),
+        (visitIndex * 7) % 60,
+      );
+
+      if (visit.opensSession) {
+        pushUse(world, {
+          key: ['sess', seq(memberIndex, 3), visit.sessionKey],
+          feature: sessionOf[visit.space],
+          actorKind: 'staff',
+          staffProfileId: member.id,
+          // `dev_session` is campus-scoped and `admin_session` global, which the
+          // catalogue already says: the admin space is national.
+          campusId:
+            USAGE_FEATURE_DEFS[sessionOf[visit.space]].scope === 'global'
+              ? null
+              : member.campusId,
+          eventId: null,
+          sessionId: visit.sessionKey,
+          occurredAt: at,
+        });
+      }
+
+      // What they did once inside. A handful of screens per visit, walked from
+      // their own set rather than drawn afresh, so the same member keeps using
+      // the same things - which is what makes « ce qu'il n'a jamais ouvert »
+      // mean something on their fiche.
+      const pool = spaceOwn[visit.space];
+      // Distinct features per visit: two rows of one feature in one 30-minute
+      // slice share a dedupe key, which the unique constraint refuses.
+      for (let i = 0; i < Math.min(3, pool.length); i += 1) {
+        const feature = pool[(visitIndex * 3 + i) % pool.length]!;
+        const definition = USAGE_FEATURE_DEFS[feature];
         const event =
           definition.scope === 'event'
             ? (opts.events.find(
@@ -365,23 +428,26 @@ export function addUsage(
         // support.
         const campusId = definition.scope === 'global' ? null : member.campusId;
         pushUse(world, {
-          key: ['staff', seq(index, 3), seq(userIndex, 3)],
+          key: ['staff', seq(memberIndex, 3), seq(visitIndex, 3), seq(i, 2)],
           feature,
           actorKind: 'staff',
           staffProfileId: member.id,
           campusId,
           eventId: event?.id ?? null,
-          // Null for an `each` feature: two exports a minute apart are two
-          // legitimate rows, and Postgres treats NULLs as distinct.
-          dedupeKey:
-            definition.dedupe === 'each'
-              ? null
-              : `${member.id}:${event?.id ?? campusId ?? 'global'}:${feature}`,
-          occurredAt: clock.months(-monthsAgo, -userIndex - 1),
+          occurredAt: new Date(at.getTime() + i * 11 * 60 * 1000),
         });
       }
-      continue;
     }
+  }
+
+  // ── Talents: a monthly-rotating pseudonym and nothing else ────────────────
+  for (const [index, feature] of adopted.entries()) {
+    const definition = USAGE_FEATURE_DEFS[feature];
+    if (definition.audience !== 'talent') continue;
+    // Spread over months, because a distinct actor is counted PER MONTH: the
+    // reported figure is the busiest month's, never a running total, and a
+    // dataset sitting inside one month cannot tell the two apart.
+    const monthsAgo = index % 5;
 
     // Enough distinct pseudonyms to sit above the five-actor floor, so the
     // matrix has at least one cell it does NOT have to mask. A dataset that only
@@ -403,10 +469,6 @@ export function addUsage(
         actorHash: `seedhash${seq(i, 4)}`,
         campusId: definition.scope === 'global' ? null : campus.id,
         eventId: null,
-        dedupeKey:
-          definition.dedupe === 'each'
-            ? null
-            : `seedhash${seq(i, 4)}:${feature}`,
         occurredAt: clock.months(-monthsAgo, -i - 1),
       });
     }
@@ -416,10 +478,38 @@ export function addUsage(
   // aggregates filter these out, so a dataset without one cannot tell a working
   // filter from a forgotten one - and the flag is inside `dedupeKey` precisely
   // so an impersonated use and a real one are two rows rather than one lost.
-  const [admin] = staff;
+  //
+  // An admin who actually comes, and not `staff[0]`: only an admin can
+  // impersonate, and the first member of the roster is the one the tiers make
+  // « jamais connecté », so this row was the single line of usage on an account
+  // the members page says has never been opened.
+  const admin =
+    staff.find(
+      (member) => member.role === 'admin' && member.visits.length > 0,
+    ) ?? staff.find((member) => member.visits.length > 0);
   if (admin) {
     const feature = USAGE_FEATURES.DEV_INSCRITS_VIEW;
     const event = opts.events[0];
+    // The session that carried it. An impersonated request writes both rows,
+    // exactly like any other: `hooks.server.ts` records the view and the
+    // session from one context, and `resolveActor` attributes both to the
+    // admin behind the session. Writing the view alone left a dev-space use
+    // that belonged to no session at all, which is the shape this scenario
+    // exists to make impossible.
+    pushUse(world, {
+      key: ['impersonated', 'session'],
+      feature: USAGE_FEATURES.DEV_SESSION,
+      actorKind: 'staff',
+      staffProfileId: admin.id,
+      // Null, like the recorder writes under impersonation: the campus is the
+      // explored one, not the admin's, and stamping it would credit that campus
+      // with adoption an admin produced.
+      campusId: null,
+      eventId: null,
+      sessionId: 'imp',
+      impersonated: true,
+      occurredAt: clock.at(-2, 15, 19),
+    });
     pushUse(world, {
       key: ['impersonated'],
       feature,
@@ -428,27 +518,40 @@ export function addUsage(
       campusId: opts.campuses[0]!.id,
       eventId: event?.id ?? null,
       impersonated: true,
-      dedupeKey: `${admin.id}:${event?.id ?? 'none'}:${feature}:impersonated`,
-      occurredAt: clock.days(-2),
+      occurredAt: clock.at(-2, 15, 20),
+      sessionId: null,
     });
   }
 }
 
+/**
+ * One row, with its idempotency key composed by the domain rather than here.
+ *
+ * The key used to be built at each call site, in `a:b:c` where the recorder
+ * writes `a|b|c|slice`, and with no time component: two rows of one feature by
+ * one actor were therefore impossible, which is what capped a seeded member at
+ * two connections. `usageDedupeKey` is the recorder's own function, so a seeded
+ * row is now shaped like one the application wrote.
+ */
 function pushUse(
   world: World,
   row: {
     key: string[];
-    feature: string;
+    feature: UsageFeatureKey;
     actorKind: 'staff' | 'talent';
     staffProfileId?: string;
     actorHash?: string;
     campusId: string | null;
     eventId: string | null;
-    dedupeKey: string | null;
+    /** The login, for a session feature. Exactly-once per session, as in prod. */
+    sessionId?: string | null;
     occurredAt: Date;
     impersonated?: boolean;
   },
 ): void {
+  const actorRef = row.staffProfileId ?? row.actorHash;
+  if (!actorRef)
+    throw new Error('Une ligne d’usage sans acteur ne peut pas être écrite.');
   world.buffer.usage_FeatureUse.push({
     id: id('ufu', ...row.key),
     feature: row.feature,
@@ -458,7 +561,14 @@ function pushUse(
     campusId: row.campusId,
     eventId: row.eventId,
     impersonated: row.impersonated ?? false,
-    dedupeKey: row.dedupeKey,
+    dedupeKey: usageDedupeKey({
+      feature: row.feature,
+      actorRef,
+      sessionId: row.sessionId,
+      eventId: row.eventId,
+      impersonated: row.impersonated,
+      at: row.occurredAt,
+    }),
     occurredAt: row.occurredAt,
   });
 }

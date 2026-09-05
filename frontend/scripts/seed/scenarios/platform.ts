@@ -68,9 +68,19 @@ export const platform: Scenario = {
           nom: NOMS[(staffIndex * 3) % NOMS.length]!,
           role,
           campus,
-          // Somebody who was given an account and never opened it. The members
-          // page has to say so rather than showing a blank date.
-          neverLoggedIn: staffIndex % 11 === 0,
+          // The four tiers spread over the roster by position, so the three
+          // buckets `ops_staff_activity` counts and the empty-window state the
+          // members dialog renders all have somebody in them whatever the
+          // profile's headcount. One in eleven was given an account and never
+          // opened it; one in seven has stopped coming; a third come rarely.
+          activity:
+            staffIndex % 11 === 0
+              ? 'never'
+              : staffIndex % 7 === 3
+                ? 'lapsed'
+                : staffIndex % 3 === 1
+                  ? 'occasional'
+                  : 'active',
           // Roughly a third of the team has already pulled the exports at least
           // once, so both the first-run and the incremental path are present.
           hasExported: staffIndex % 3 === 0,
