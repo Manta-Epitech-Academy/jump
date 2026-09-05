@@ -591,50 +591,133 @@ function pushUse(
  */
 export function foldUsageMonthly(world: World): void {
   const clock = world.ctx.clock;
-  type Cell = { uses: number; actors: Set<string> };
+  type Cell = {
+    feature: string;
+    actorKind: 'staff' | 'talent';
+    campusId: string | null;
+    month: string;
+    uses: number;
+    actors: Set<string>;
+  };
+  // The cell carries its own coordinates, so the map key only has to be unique
+  // and nothing ever parses it back. It used to be four values joined on a raw
+  // NUL byte and split again, which worked and made the file binary: `grep`
+  // skipped it, `git diff` refused to show it, and a reviewer could not see the
+  // separator at all.
   const cube = new Map<string, Cell>();
+  const cellFor = (
+    feature: string,
+    actorKind: 'staff' | 'talent',
+    campusId: string | null,
+    month: string,
+  ): Cell => {
+    const key = JSON.stringify([feature, actorKind, campusId, month]);
+    const existing = cube.get(key);
+    if (existing) return existing;
+    const cell: Cell = {
+      feature,
+      actorKind,
+      campusId,
+      month,
+      uses: 0,
+      actors: new Set<string>(),
+    };
+    cube.set(key, cell);
+    return cell;
+  };
 
   for (const row of world.buffer.usage_FeatureUse) {
     if (row.impersonated) continue;
-    const month = clock.monthKey(row.occurredAt as Date);
-    const campusId = (row.campusId as string | null) ?? '';
-    const key = `${row.feature as string} ${row.actorKind as string} ${campusId} ${month}`;
-    const cell = cube.get(key) ?? { uses: 0, actors: new Set<string>() };
+    const cell = cellFor(
+      row.feature as string,
+      row.actorKind as 'staff' | 'talent',
+      (row.campusId as string | null) ?? null,
+      clock.monthKey(row.occurredAt as Date),
+    );
     cell.uses += 1;
     cell.actors.add(
       (row.staffProfileId as string | null) ??
         (row.actorHash as string | null) ??
         '',
     );
-    cube.set(key, cell);
   }
 
-  // One month past the retention window, with nothing left in the raw table:
-  // the shape a rolled-up-then-purged month actually has.
-  const archivedMonth = clock.monthKey(
-    clock.months(-(USAGE_RAW_RETENTION_MONTHS + 1), 0),
+  // ── The reference half of the year-on-year comparison ─────────────────────
+  //
+  // `adminStats/featureUsage.ts` reads each complete month and its counterpart
+  // twelve months earlier, and the raw window is twelve months, so every
+  // counterpart falls outside it and can only come from the cube. The cube held
+  // exactly one archived month, on one feature, so `readComparison` answered
+  // `null` for everything on every dataset ever generated: a branch no screen
+  // could reach and no check could see.
+  //
+  // Only months the raw table cannot also cover, or the two stores would
+  // disagree about a month they both hold - which is the one thing folding
+  // rather than inventing exists to prevent.
+  const oldestRawMonth = clock.monthKey(
+    clock.months(-USAGE_RAW_RETENTION_MONTHS, 0),
   );
-  cube.set(`${USAGE_FEATURES.DEV_INSCRITS_VIEW} staff  ${archivedMonth}`, {
-    uses: 42,
-    actors: new Set(['archived-1', 'archived-2', 'archived-3']),
-  });
+  for (const cell of [...cube.values()]) {
+    const lastYear = shiftMonthKey(cell.month, -12);
+    if (lastYear >= oldestRawMonth) continue;
+    const before = cellFor(
+      cell.feature,
+      cell.actorKind,
+      cell.campusId,
+      lastYear,
+    );
+    // Fewer than this year, so the comparison reads as growth rather than as a
+    // copy: a movement of zero everywhere is indistinguishable from a figure
+    // that is not being computed.
+    before.uses = Math.max(1, Math.round(cell.uses * 0.6));
+    for (const actor of [...cell.actors].slice(
+      0,
+      Math.max(1, Math.ceil(cell.actors.size * 0.6)),
+    ))
+      before.actors.add(`${actor}-an-passe`);
+  }
 
-  for (const [key, cell] of cube) {
-    const [feature, actorKind, campusId, month] = key.split(' ') as [
-      string,
-      'staff' | 'talent',
-      string,
-      string,
-    ];
+  // One month past the retention window carrying a feature nothing else wrote,
+  // so the boundary is exercised even if the loop above ever stops producing
+  // rows: the shape a rolled-up-then-purged month actually has.
+  const archived = cellFor(
+    USAGE_FEATURES.DEV_INSCRITS_VIEW,
+    'staff',
+    null,
+    clock.monthKey(clock.months(-(USAGE_RAW_RETENTION_MONTHS + 1), 0)),
+  );
+  archived.uses = 42;
+  for (const actor of ['archived-1', 'archived-2', 'archived-3'])
+    archived.actors.add(actor);
+
+  for (const cell of cube.values()) {
     world.buffer.usage_FeatureMonthly.push({
-      id: id('ufm', feature, actorKind, campusId || 'global', month),
-      feature,
-      actorKind,
-      campusId: campusId === '' ? null : campusId,
-      month,
+      id: id(
+        'ufm',
+        cell.feature,
+        cell.actorKind,
+        cell.campusId ?? 'global',
+        cell.month,
+      ),
+      feature: cell.feature,
+      actorKind: cell.actorKind,
+      campusId: cell.campusId,
+      month: cell.month,
       uses: cell.uses,
       distinctActors: cell.actors.size,
       computedAt: clock.today,
     });
   }
+}
+
+/**
+ * `2026-03` twelve months back. Local arithmetic on a `YYYY-MM` key, because
+ * `server/usage/months.ts` holds the same shift and does not resolve outside
+ * Vite. Kept to the one case this file needs rather than reproducing that
+ * module.
+ */
+function shiftMonthKey(month: string, by: number): string {
+  const [year, index] = month.split('-').map(Number) as [number, number];
+  const total = year * 12 + (index - 1) + by;
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`;
 }
