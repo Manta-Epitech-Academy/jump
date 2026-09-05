@@ -140,7 +140,16 @@ const AGGREGATE_ROOT_TABLES = [
   'Event',
 ] as const;
 
-type RawQuery = {
+/**
+ * All this module ever asks a database for, and the reason it is a type rather
+ * than `PrismaClient`.
+ *
+ * Two queries, both raw, so a caller can stand in for one of them without
+ * touching the database. That is how `check-gate.ts` exercises the switchover
+ * branch: it hides the marker in the answer instead of deleting the row, on a
+ * database `with-test-db.sh` reuses across runs.
+ */
+export type RawQuery = {
   $queryRawUnsafe<T>(sql: string): Promise<T>;
 };
 
