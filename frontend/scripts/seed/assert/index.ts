@@ -16,6 +16,7 @@ import { projectionFailures } from './projections';
 import { reachabilityFailures } from './reachability';
 import { inertnessFailures } from './inertness';
 import { coverageFailures, KNOWN_GAP_COUNT } from './coverage';
+import { usageCoherenceFailures } from './usageCoherence';
 
 export async function runChecks(
   prisma: PrismaClient,
@@ -33,6 +34,7 @@ export async function runChecks(
       'catalogues texte',
       await stringCatalogueFailures(prisma, clock.schoolYear),
     ],
+    ['cohérence des usages', await usageCoherenceFailures(prisma)],
   ];
 
   let failed = 0;
