@@ -1496,6 +1496,50 @@ export function isUsageFeatureKey(value: string): value is UsageFeatureKey {
 }
 
 /**
+ * The idempotency key a row carries, or `null` when every occurrence counts.
+ *
+ * It has to carry everything that distinguishes two legitimate rows, because
+ * only `feature` and this value are in the unique constraint. Drop the actor and
+ * two people in the same slice collide; drop the event and one dev working two
+ * events in the same slice silently loses a row; drop the impersonation flag and
+ * an admin's own use collapses into their impersonated one.
+ * `record.test.ts` pins each of those three.
+ *
+ * Here in the domain rather than beside the recorder because it has a second
+ * caller that cannot reach `$lib/server`: the seed generator, which has to write
+ * rows the recorder would recognise. It restated the shape instead, in a
+ * different separator and with no time component at all, which capped a seeded
+ * member at one row per feature - so their connection count could never exceed
+ * the number of spaces they use, whatever the dataset said they had done.
+ */
+export function usageDedupeKey(input: {
+  feature: UsageFeatureKey;
+  /** The staff profile id, or the talent's monthly pseudonym. */
+  actorRef: string;
+  /** The `bauth_session` id. What makes a session row exactly-once per login. */
+  sessionId?: string | null;
+  eventId?: string | null;
+  impersonated?: boolean;
+  at: Date;
+}): string | null {
+  const featureDef = USAGE_FEATURE_DEFS[input.feature];
+  if (featureDef.kind === 'session') {
+    // No session id (a token-authenticated or otherwise session-less request)
+    // means there is no session to count, so it falls back to a slice rather
+    // than inventing one row per request.
+    if (input.sessionId) return `${input.actorRef}|${input.sessionId}`;
+  }
+  if (featureDef.dedupe === 'each') return null;
+  const slice = Math.floor(input.at.getTime() / USAGE_BUCKET_MS);
+  return [
+    input.actorRef,
+    featureDef.scope === 'event' ? (input.eventId ?? '') : '',
+    input.impersonated ? 'imp' : '',
+    slice,
+  ].join('|');
+}
+
+/**
  * Facts this catalogue deliberately does NOT record, and the operation that owns
  * each one. Carried in the API answer so a consumer asking "how many minigames
  * were played" is pointed at the figure that exists, instead of reading a zero

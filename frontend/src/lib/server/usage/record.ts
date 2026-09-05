@@ -1,7 +1,7 @@
 import { prisma } from '$lib/server/db';
 import {
-  USAGE_BUCKET_MS,
   USAGE_FEATURE_DEFS,
+  usageDedupeKey,
   type UsageFeatureKey,
 } from '$lib/domain/usage';
 import { actorHash } from './actorHash';
@@ -107,39 +107,6 @@ function resolveActor(
   };
 }
 
-/**
- * The idempotency key.
- *
- * It has to carry everything that distinguishes two legitimate rows, because
- * only `feature` and this value are in the unique constraint. Drop the actor and
- * two people in the same slice collide; drop the event and one dev working two
- * events in the same slice silently loses a row; drop the impersonation flag and
- * an admin's own use collapses into their impersonated one. `record.test.ts`
- * pins each of those three.
- */
-function dedupeKeyFor(
-  key: UsageFeatureKey,
-  actor: Resolved,
-  ctx: UsageContext,
-  now: Date,
-): string | null {
-  const featureDef = USAGE_FEATURE_DEFS[key];
-  if (featureDef.kind === 'session') {
-    // No session id (a token-authenticated or otherwise session-less request)
-    // means there is no session to count, so it falls back to a slice rather
-    // than inventing one row per request.
-    if (ctx.sessionId) return `${actor.actorRef}|${ctx.sessionId}`;
-  }
-  if (featureDef.dedupe === 'each') return null;
-  const slice = Math.floor(now.getTime() / USAGE_BUCKET_MS);
-  return [
-    actor.actorRef,
-    featureDef.scope === 'event' ? (ctx.eventId ?? '') : '',
-    actor.impersonated ? 'imp' : '',
-    slice,
-  ].join('|');
-}
-
 export function recordUsage(key: UsageFeatureKey, ctx: UsageContext): void {
   const now = new Date();
   const featureDef = USAGE_FEATURE_DEFS[key];
@@ -161,7 +128,16 @@ export function recordUsage(key: UsageFeatureKey, ctx: UsageContext): void {
           campusId: featureDef.scope === 'global' ? null : actor.campusId,
           eventId: featureDef.scope === 'event' ? (ctx.eventId ?? null) : null,
           impersonated: actor.impersonated,
-          dedupeKey: dedupeKeyFor(key, actor, ctx, now),
+          // Composed in the domain, so the seed generator writes the same
+          // key rather than a lookalike. See `usageDedupeKey`.
+          dedupeKey: usageDedupeKey({
+            feature: key,
+            actorRef: actor.actorRef,
+            sessionId: ctx.sessionId,
+            eventId: ctx.eventId,
+            impersonated: actor.impersonated,
+            at: now,
+          }),
           occurredAt: now,
         },
       ],
