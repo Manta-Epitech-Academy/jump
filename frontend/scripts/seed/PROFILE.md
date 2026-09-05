@@ -17,11 +17,12 @@ change rien, et ce n'est pas une raison de re-relever.
 nouvelle lecture de la base de production. Un chiffre qui manque ici se demande,
 il ne se re-relève pas.
 
-Deux exceptions, datées et signalées sur place : la couverture des closings par
+Trois exceptions, datées et signalées sur place : la couverture des closings par
 format et le taux de connexion d'une cohorte de stage ont été relevés le
-**2026-09-03** sur le même instantané restauré, parce que le générateur en
-dépendait et qu'ils manquaient. Les deux blocs disent d'où ils viennent et ce
-qui prouve qu'il s'agit bien du même jeu de données.
+**2026-09-03**, la ventilation du stage de seconde par campus le **2026-09-06**,
+sur le même instantané restauré, parce que le générateur en dépendait et qu'ils
+manquaient. Les trois blocs disent d'où ils viennent et ce qui prouve qu'il
+s'agit bien du même jeu de données.
 
 Il existe pour une raison précise : le générateur de `scripts/seed/` ne doit pas
 inventer des proportions. Chaque distribution qu'il applique vient d'une ligne de
@@ -105,6 +106,71 @@ quinze campus égaux serait aussi faux qu'un jeu mono-campus.
 **L'état majoritaire d'un événement est « synchronisé et rien d'autre »** : 235 sur
 292 n'ont aucun module configuré. Un générateur qui configure tout ce qu'il crée
 produit un monde que personne n'a jamais vu.
+
+## Le stage de seconde, par campus
+
+Relevé le **2026-09-06**, sur le même instantané restauré, parce que le
+générateur en avait besoin et que seul l'agrégat figurait ici. Deuxième
+addition postérieure au relevé du 29/08 ; `Event` totalise toujours 292 lignes,
+`Participation` 7 638 et `EventPresence` 27 167, donc les trois lectures portent
+bien sur les mêmes données.
+
+**C'est un événement national, pas un gros événement.** Les quinze campus
+portent chacun le leur, tous du **14 au 26 juin 2026**, à la journée près, tous
+activés côté dev, tous avec une grille de closing et un formulaire de bilan,
+tous avec `cohortNoun` à `stagiaire`. Aucun autre format ne se comporte comme
+ça.
+
+| Campus      | Inscrits  | Présences  | Closings  | Bilans  | Modules | Créneaux |
+| ----------- | --------- | ---------- | --------- | ------- | ------- | -------- |
+| Paris       | 247       | 0          | 229       | 0       | 2       | 0        |
+| Bordeaux    | 158       | 0          | 132       | 0       | 2       | 0        |
+| Nantes      | 145       | 2 900      | 145       | 114     | 4       | 39       |
+| Toulouse    | 140       | 2 731      | 137       | 105     | 4       | 0        |
+| Marseille   | 129       | 0          | 121       | 0       | 2       | 0        |
+| Lyon        | 127       | 2 527      | 127       | 113     | 4       | 50       |
+| Rennes      | 120       | 0          | **0**     | 0       | 2       | 0        |
+| Strasbourg  | 108       | 1 434      | 99        | 40      | 4       | 36       |
+| Nice        | 106       | 0          | 96        | 0       | 2       | 0        |
+| Montpellier | 95        | 1 308      | 95        | 74      | 4       | 40       |
+| Nancy       | 84        | 1 676      | 84        | 73      | 4       | 34       |
+| Mulhouse    | 81        | 1          | 75        | 0       | 3       | 0        |
+| La Réunion  | 43        | 830        | 42        | 33      | 4       | 0        |
+| Moulins     | 31        | 0          | 19        | 0       | 2       | 0        |
+| Lille       | **26**    | 2 364      | 11        | **82**  | 4       | 21       |
+| **Total**   | **1 640** | **15 771** | **1 412** | **634** |         | **220**  |
+
+**Deux régimes, pas une moyenne.** Huit campus ont fait tourner l'événement dans
+Jump : émargement, planning, bilan, diplôme, notes, campagnes, quatre modules.
+Les sept autres s'en sont servis pour la liste des inscrits et pour conduire
+leurs closings, deux modules, pas une ligne de présence. Et la profondeur ne
+suit pas la taille : **le plus gros stage de tous, Paris et ses 247 inscrits,
+est l'un de ceux que personne n'a émargés.**
+
+Ce que ces quinze lignes pèsent dans le reste du fichier : **58 % de
+`EventPresence`, 83 % de `Closing_Record`, 67 % de `Feedback_Submission`**, la
+totalité des six plannings, et 4 459 des 4 481 parties de minijeux. Un
+générateur qui n'en produit qu'un ne produit pas seulement un événement de
+moins.
+
+Le détail qui va avec :
+
+- `startMinutes` : 7 sur 15 (570 pour cinq campus, 540 pour deux) - ce sont les
+  7 des 7 que le fichier compte sur toute la plateforme.
+- `diplomaTemplateId` : les 8 instrumentés, et eux seuls.
+- Taux de bilan, sur les sept dont la liste n'a pas bougé : 37 à 89 %,
+  **médiane 78**.
+- **Rennes nomme une grille et n'a conduit aucun closing.** C'est le trou de
+  configuration, pas un vrai zéro : la couverture ne doit pas compter ses 120
+  inscrits au dénominateur.
+- **Lille a plus de bilans que d'inscrits** (82 contre 26) et 2 364 présences
+  pour 26 lignes d'inscription. La liste a été élaguée après coup par une
+  synchronisation : `syncTalents` supprime toute participation absente du
+  payload, et c'est exactement pour ça que le closing, la présence et le bilan
+  ne dépendent pas de `Participation`. Un taux dont le dénominateur est les
+  inscriptions peut donc légitimement dépasser 100 %.
+- Mulhouse porte 3 modules et **une** ligne de présence : quelqu'un a ouvert
+  l'écran d'émargement, coché une personne, et n'y est jamais revenu.
 
 ## Inscriptions
 
@@ -210,10 +276,10 @@ il tord et pourquoi.
 ### Couverture, par format
 
 Relevé le **2026-09-03**, sur le même instantané restauré, parce que le
-générateur en avait besoin et que le chiffre manquait ici. C'est la seule
-addition postérieure au relevé du 29/08 ; `Closing_Record` totalise toujours
-1 694 lignes sur 25 événements, donc les deux lectures portent bien sur les
-mêmes données.
+générateur en avait besoin et que le chiffre manquait ici. `Closing_Record`
+totalise toujours 1 694 lignes sur 25 événements, donc les deux lectures portent
+bien sur les mêmes données. La ventilation par campus de ces closings est dans
+« Le stage de seconde, par campus », relevée trois jours plus tard.
 
 | Format           | Inscriptions | Closings | Part      |
 | ---------------- | ------------ | -------- | --------- |
