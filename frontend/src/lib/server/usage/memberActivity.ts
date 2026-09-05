@@ -15,6 +15,17 @@
  * is the boundary. A named-member read reachable with a token would put
  * per-employee behaviour behind a credential minted for figures.
  *
+ * **A coverage, not a log.** This returned the forty most recent gestures and
+ * the twenty most recent connections, in reverse chronological order, to the
+ * second. That shape answers no decision an admin takes about a member: whether
+ * the account still serves is already on the roster row (both dates, and they
+ * reach back further than any retention), and "what does this person not know
+ * how to do" cannot be read off the forty most recent rows, where an absence
+ * means nothing. It could not serve a support diagnosis either, since a row
+ * deliberately carries no path, no parameter and no error. So the same rows are
+ * folded per feature, and the set the member has NEVER opened is returned
+ * beside them - which is the half that turns a report into a decision.
+ *
  * **Connections come from the usage rows, never from `bauth_session`.** The
  * session table is not a login history and the schema says so twice, on both
  * `StaffProfile.firstLoginAt` and `Talent.firstLoginAt`: its rows are deleted by
@@ -29,24 +40,35 @@
 
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
+import { staffSpaceForRole } from '$lib/domain/staff';
 import {
   USAGE_FEATURE_DEFS,
+  USAGE_FEATURE_KEYS,
   USAGE_RAW_RETENTION_MONTHS,
   USAGE_SPACE_LABELS,
   isUsageFeatureKey,
   usageRawCutoff,
   usageSessionFeatures,
+  type UsageSpace,
 } from '$lib/domain/usage';
 
-/**
- * Both lists are capped, because their length is decided by the data. The
- * figures below them are not: a count that stopped at the cap would read as a
- * plateau for exactly the members who use Jump most.
- */
-const RECENT_USES_LIMIT = 40;
-export const MEMBER_SESSIONS_LIMIT = 20;
-
 const SESSION_FEATURES = usageSessionFeatures('staff');
+
+/** One feature this member has used, and how much. */
+export type MemberFeatureUse = {
+  libelle: string;
+  espace: string;
+  utilisations: number;
+  dernierUsage: Date;
+  /**
+   * How many of those the member produced while impersonating somebody. The
+   * recorder attributes an impersonated row to the admin doing the
+   * impersonating, never to the person being explored, so on this member's own
+   * dialog it is their own work - but it is work done inside someone else's
+   * space, and the aggregates drop it, so the row says which part it was.
+   */
+  enExploration: number;
+};
 
 export type MemberActivity = {
   /** The window every figure below is measured over. */
@@ -60,40 +82,45 @@ export type MemberActivity = {
   activeDays: number;
   /** Real logins in the window, one per session per space. */
   loginCount: number;
-  uses: { libelle: string; at: Date; impersonated: boolean }[];
-  sessions: { espace: string; at: Date; impersonated: boolean }[];
+  /** Busiest first. Sessions are not in it: they are the two figures above. */
+  features: MemberFeatureUse[];
+  /**
+   * What this member has not opened once, over the spaces they work in. The
+   * actionable half: an absence here IS an absence, which is exactly what a
+   * capped list of recent rows could never say.
+   */
+  jamaisOuvertes: { libelle: string; espace: string }[];
 };
 
+/**
+ * `null` when no such profile exists, so the route can answer 404 rather than
+ * describing a member who is not there with a page of zeroes.
+ */
 export async function getMemberActivity(
   staffProfileId: string,
-): Promise<MemberActivity> {
+): Promise<MemberActivity | null> {
+  const profile = await prisma.staffProfile.findUnique({
+    where: { id: staffProfileId },
+    select: { staffRole: true },
+  });
+  if (!profile) return null;
+
   const since = usageRawCutoff();
   const scope = { staffProfileId, occurredAt: { gte: since } };
 
-  const [uses, sessions, [totals]] = await Promise.all([
-    // Everything except the sessions: those get their own section, and one list
-    // holding both buried the connections under the page views that outnumber
-    // them by an order of magnitude, cap included.
-    prisma.usage_FeatureUse.findMany({
-      where: { ...scope, feature: { notIn: SESSION_FEATURES } },
-      orderBy: { occurredAt: 'desc' },
-      take: RECENT_USES_LIMIT,
-      select: { feature: true, occurredAt: true, impersonated: true },
-    }),
-    prisma.usage_FeatureUse.findMany({
-      where: { ...scope, feature: { in: SESSION_FEATURES } },
-      orderBy: { occurredAt: 'desc' },
-      take: MEMBER_SESSIONS_LIMIT,
-      select: { feature: true, occurredAt: true, impersonated: true },
+  const [grouped, [totals]] = await Promise.all([
+    // One row per (feature, impersonation), folded below: the two halves of a
+    // feature's count have to be told apart on the row, and asking for them
+    // separately would be two queries answering one question.
+    prisma.usage_FeatureUse.groupBy({
+      by: ['feature', 'impersonated'],
+      where: scope,
+      _count: { _all: true },
+      _max: { occurredAt: true },
     }),
     // `occurredAt` is a `TIMESTAMP(3)` holding UTC, so the cast is the day
     // boundary the rest of this feature already counts in (`read.ts` groups
     // months off the same column the same way).
-    //
-    // Impersonated rows count here, where the aggregates drop them. That is not
-    // an inconsistency: the recorder attributes an impersonated row to the admin
-    // doing the impersonating, never to the member being explored, so on this
-    // member's own dialog it is their own work, and each row says so.
     prisma.$queryRaw<{ days: number; logins: number }[]>(Prisma.sql`
       SELECT
         COUNT(DISTINCT u."occurredAt"::date)::int AS "days",
@@ -106,28 +133,72 @@ export async function getMemberActivity(
     `),
   ]);
 
+  const byFeature = new Map<string, MemberFeatureUse>();
+  const touched = new Set<string>();
+  for (const row of grouped) {
+    touched.add(row.feature);
+    // Sessions are the two counters above, not a feature somebody chose to use.
+    if ((SESSION_FEATURES as string[]).includes(row.feature)) continue;
+    const at = row._max.occurredAt;
+    if (!at) continue;
+    // A key the catalogue no longer declares still has rows, and they are still
+    // this member's work: the raw key stands in for the label rather than the
+    // row being dropped.
+    const definition = isUsageFeatureKey(row.feature)
+      ? USAGE_FEATURE_DEFS[row.feature]
+      : null;
+    const entry = byFeature.get(row.feature) ?? {
+      // The key is resolved to its French label here rather than in the
+      // component, so the catalogue stays the only place that names a feature.
+      libelle: definition?.label ?? row.feature,
+      espace: definition ? USAGE_SPACE_LABELS[definition.space] : '',
+      utilisations: 0,
+      dernierUsage: at,
+      enExploration: 0,
+    };
+    entry.utilisations += row._count._all;
+    if (row.impersonated) entry.enExploration += row._count._all;
+    if (at > entry.dernierUsage) entry.dernierUsage = at;
+    byFeature.set(row.feature, entry);
+  }
+
+  const features = [...byFeature.values()].sort(
+    (a, b) =>
+      b.utilisations - a.utilisations ||
+      b.dernierUsage.getTime() - a.dernierUsage.getTime(),
+  );
+
+  // The spaces this member works in: the one their role gives them, plus any
+  // they have actually produced a row in. An admin exploring a campus records
+  // dev-space rows against themselves, so their own space is not the whole
+  // answer - and a `dev` has no admin space, so listing the admin catalogue as
+  // « jamais ouvert » for them would be a reproach for something they cannot
+  // reach.
+  const spaces = new Set<UsageSpace>();
+  const own = staffSpaceForRole(profile.staffRole);
+  if (own) spaces.add(own);
+  for (const feature of touched)
+    if (isUsageFeatureKey(feature))
+      spaces.add(USAGE_FEATURE_DEFS[feature].space);
+
+  const jamaisOuvertes = USAGE_FEATURE_KEYS.filter((key) => {
+    const definition = USAGE_FEATURE_DEFS[key];
+    return (
+      definition.audience === 'staff' &&
+      definition.kind !== 'session' &&
+      spaces.has(definition.space) &&
+      !touched.has(key)
+    );
+  }).map((key) => ({
+    libelle: USAGE_FEATURE_DEFS[key].label,
+    espace: USAGE_SPACE_LABELS[USAGE_FEATURE_DEFS[key].space],
+  }));
+
   return {
     windowMonths: USAGE_RAW_RETENTION_MONTHS,
     activeDays: totals?.days ?? 0,
     loginCount: totals?.logins ?? 0,
-    uses: uses.map((use) => ({
-      // The key is resolved to its French label here rather than in the
-      // component, so the catalogue stays the only place that names a feature.
-      libelle: isUsageFeatureKey(use.feature)
-        ? USAGE_FEATURE_DEFS[use.feature].label
-        : use.feature,
-      at: use.occurredAt,
-      impersonated: use.impersonated,
-    })),
-    sessions: sessions.map((session) => ({
-      // The space, not the feature label: under a heading that already says
-      // "Connexions", repeating "Connexions à l'espace dev" on every row says
-      // the same word twice and buries the one bit that differs between rows.
-      espace: isUsageFeatureKey(session.feature)
-        ? USAGE_SPACE_LABELS[USAGE_FEATURE_DEFS[session.feature].space]
-        : session.feature,
-      at: session.occurredAt,
-      impersonated: session.impersonated,
-    })),
+    features,
+    jamaisOuvertes,
   };
 }
