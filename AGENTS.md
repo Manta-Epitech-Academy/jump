@@ -707,6 +707,24 @@ Six rules, and each is enforced rather than hoped for:
   and is not re-measured. It was taken once, in aggregates, with no row ever read;
   a figure that is missing from it gets asked for rather than looked up in
   production.
+- **A reset is what a database that has never been generated needs, and nothing
+  else is.** The generator records its own runs - `MANIFEST_SETTING_KEY` in
+  `scripts/seed/ids.ts`, the key of the manifest row every full run upserts - and
+  `assertGeneratorOwnsDataset` reads that marker to tell the two situations
+  apart. Never generated and already holding rows means a sync, an import or a
+  restore filled it, so it is refused and `prisma migrate reset` is the answer,
+  because `migrate deploy` does not replay what a migration inserted. Generated
+  before means a re-seed, and the `sd_`-scoped wipe is enough.
+
+  The distinction is not a nicety, and the version of this gate that lacked it
+  refused every environment on its second run. All five aggregate roots are
+  `@default(cuid())`, so no row the running application writes can carry the seed
+  prefix, and three of them are written by ordinary use: `School` by a talent
+  picking a lycée, `Talent` by a Microsoft sign-in, `StaffProfile` by an invited
+  member's first login and by `bootstrap-admins.ts`. "Holds rows the generator did
+  not write" therefore describes every environment anybody has used, which is all
+  of them. Ask whether the generator has run here, never whether the database is
+  pristine.
 - **A seeded database is inert to every background worker, by construction.**
   The Salesforce worker is the case this was written for. It takes its scope from
   Jump - `GET /api/worker/campus` hands out `listCampuses()`, and `syncEvents`
