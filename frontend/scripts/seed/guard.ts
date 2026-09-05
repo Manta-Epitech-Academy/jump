@@ -209,8 +209,14 @@ export async function assertGeneratorOwnsDataset(
 ): Promise<void> {
   const generatedAt = await lastGenerationAnchor(prisma);
   if (generatedAt) {
+    // Names the reset it means, because the wipe runs anyway: the very next
+    // lines are `Nettoyage :` and a row count, so a bare « rien à
+    // réinitialiser » reads as though the generator had skipped it. What this
+    // branch decides is only whether `prisma migrate reset` is owed first. Not
+    // indented, unlike the lines under `Nettoyage :` and `Catalogues :`: it
+    // stands under no header.
     log(
-      `  base déjà générée (ancre précédente ${generatedAt}), rien à réinitialiser.`,
+      `base déjà générée (ancre précédente ${generatedAt}), pas de prisma migrate reset à faire.`,
     );
     return;
   }
