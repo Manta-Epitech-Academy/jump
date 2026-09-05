@@ -45,18 +45,39 @@ export function getStaffRoleLabel(role: string | null | undefined): string {
 
 export type StaffSpacePath = '/staff/admin' | '/staff/dev';
 
-export function getStaffRoleRedirectPath(
+/**
+ * Which staff space a role works in, `null` for a profile carrying no role at
+ * all (blocked, shown "contact admin").
+ *
+ * The path below is expressed FROM this rather than beside it, because the two
+ * are one fact: a second switch is a second place for `superdev` to be
+ * forgotten. It is also what the usage catalogue calls a `space`, which is what
+ * lets the members page ask what a member has never opened without inventing a
+ * second role-to-space table.
+ */
+export function staffSpaceForRole(
   staffRole: StaffRole | null | undefined,
-): StaffSpacePath | null {
+): 'dev' | 'admin' | null {
   switch (staffRole) {
     case 'admin':
-      return '/staff/admin';
+      return 'admin';
     case 'superdev':
     case 'dev':
-      return '/staff/dev';
+      return 'dev';
     default:
       return null;
   }
+}
+
+export function getStaffRoleRedirectPath(
+  staffRole: StaffRole | null | undefined,
+): StaffSpacePath | null {
+  const space = staffSpaceForRole(staffRole);
+  return space === 'admin'
+    ? '/staff/admin'
+    : space === 'dev'
+      ? '/staff/dev'
+      : null;
 }
 
 /**
