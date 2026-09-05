@@ -81,6 +81,9 @@ export const club: Scenario = {
       });
       sessionEvents.push(event);
       world.addPlanning(event, CODING_CLUB_PLANNING);
+      // Placed like the stage's: the regulars, the pruned enrolment and the
+      // future session are all this scenario's own composition.
+      world.reserveEvent(event);
 
       const attending = withGuaranteed(
         rng.sample(regulars, rng.int(Math.ceil(size / 2), size)),

@@ -148,6 +148,20 @@ export class World {
   readonly staff: StaffRef[] = [];
   readonly talents: TalentRef[] = [];
   readonly events: EventRef[] = [];
+  /**
+   * Events a scenario has placed a cohort or a state on. The event twin of
+   * `reservedCampusNames`, and it exists for the same reason: a later scenario
+   * that wants « an event on this campus » must not silently land on one whose
+   * figures are the point.
+   *
+   * It became load-bearing when the stage de seconde went national. `stage`
+   * runs second, so its event is the FIRST one on every campus, and both
+   * `edgeTalents` and `operations` were taking the first: forty talents in rare
+   * dossier states were enrolled onto a stage cohort whose size is the whole
+   * reason it exists, and the campaign broadcasts went out to it. Nothing said
+   * so - the roster was simply 59 where the scenario had built 18.
+   */
+  readonly reservedEventIds = new Set<string>();
   /** Enrolments, so a scenario can mark presence without re-deriving the roster. */
   readonly roster = new Map<string, TalentRef[]>();
 
@@ -385,6 +399,31 @@ export class World {
 
   staffFor(campusId: string): StaffRef[] {
     return this.staff.filter((member) => member.campusId === campusId);
+  }
+
+  /** Declares that this event's cohort is placed, not incidental. */
+  reserveEvent(event: EventRef): void {
+    this.reservedEventIds.add(event.id);
+  }
+
+  /**
+   * An ordinary event on this campus: one no scenario has reserved.
+   *
+   * Falls back to a reserved one, and then to any event at all, because a
+   * profile small enough to have none unreserved still has to produce a
+   * dataset. Same degradation as `pickCampus`.
+   */
+  pickOrdinaryEvent(campusId: string): EventRef {
+    const onCampus = this.events.filter((event) => event.campusId === campusId);
+    const free = onCampus.filter(
+      (event) => !this.reservedEventIds.has(event.id),
+    );
+    const picked = free[0] ?? onCampus[0] ?? this.events[0];
+    if (!picked)
+      throw new Error(
+        'Aucun événement n’a été créé avant le scénario qui en demande un.',
+      );
+    return picked;
   }
 
   // ─── Talents ──────────────────────────────────────────────────────────────

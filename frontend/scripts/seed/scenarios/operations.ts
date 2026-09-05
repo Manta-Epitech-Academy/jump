@@ -38,9 +38,7 @@ export const operations: Scenario = {
     const { profile, rng } = world.ctx;
     const campus = [...world.campuses.values()][0]!;
     const team = world.staffFor(campus.id);
-    const event =
-      world.events.find((candidate) => candidate.campusId === campus.id) ??
-      world.events[0]!;
+    const event = world.pickOrdinaryEvent(campus.id);
     const roster = world.roster.get(event.id) ?? [];
 
     // Adoption figures are seeded in every profile: they carry no failure and
