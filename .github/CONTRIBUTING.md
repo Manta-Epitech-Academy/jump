@@ -210,16 +210,35 @@ Each rung answers one question, and only one:
 | `staging` | does it match the acceptance criteria | **the PO, several days, on generated data** |
 | `preprod` | does the migration survive real data | rehearsal, a short smoke pass |
 
-`staging` runs on the generated dataset (`frontend/scripts/seed/`), re-seeded at the freeze, and the
-generator emits a « où trouver quoi » page naming every scenario and its sign-in accounts. That page is
-what the window rests on: the frustration a generated dataset causes is almost never that the names are
-invented, it is not being able to find a case that exercises the thing under review.
+`staging` runs on the generated dataset (`frontend/scripts/seed/`), and the generator emits a « où
+trouver quoi » page naming every scenario and its sign-in accounts. That page is what the window rests
+on: the frustration a generated dataset causes is almost never that the names are invented, it is not
+being able to find a case that exercises the thing under review.
 
-**Not true of the live `staging` yet, and the two halves are named.** It still carries what the
-Salesforce worker and a restored production dump put there, and the generator refuses such a database
-rather than filling it half-way, so the switchover is a `prisma migrate reset`, then a generation, then
+**It is re-seeded at every promotion of the window, not once at the freeze.** A remark comes back as a
+correction, and the correction has to be judged on the flow that produced the remark - but much of what
+the PO walks is single-use, so the second pass has nothing left to walk: a règlement signed once cannot
+be signed again, an enrolment whose closing has been conducted no longer sits before one. The generator
+stands a talent on every rung of the ladder precisely because those are the states a screen is made of,
+and a validation pass spends them. Re-seeding costs the PO no bearings, because the same `--seed` and
+the same `--today` produce byte-identical rows: the same world comes back, with the same names and the
+same ids, only intact. Which is why the anchor is held constant for the whole window rather than merely
+passed explicitly on each run - taking it from the trigger date would shift every date in the dataset
+between two promotions of one release, and the PO would no longer be looking at the same thing.
+
+**Not true of the live `staging` yet.** It still carries what the Salesforce worker and a restored
+production dump put there, and the generator refuses a database it has never filled rather than filling
+it half-way, so the switchover is a `prisma migrate reset`, then a generation, then
 `frontend/scripts/bootstrap-admins.ts` for the admin accounts the reset destroys. That, and the Job that
-re-seeds at each freeze, is #294. Until it lands, read this section as the target and not as the state.
+re-seeds during the window, is #294. Until it lands, read this section as the target and not as the
+state.
+
+The reset belongs to that switchover alone, and not to the re-seeds that follow it. A database this
+generator has already filled goes on accumulating rows it did not write, because the application keeps
+being used - a lycée resolved during an onboarding, a colleague invited, an admin account provisioned -
+and the `sd_`-scoped wipe is what a re-seed needs. What tells the two apart is whether the generator has
+ever run there, which it records itself (see the *Development data* section of
+[`AGENTS.md`](../AGENTS.md)).
 
 **What generated data will never catch**, and what preprod is therefore still for: whatever Salesforce
 produced that is malformed, the accumulation of several years of history, and how long a migration takes
@@ -237,10 +256,11 @@ sync still hold against the real org », and that question belongs to `preprod` 
 rehearsal - not to a rung the PO is reading. The parsing itself is covered continuously by an
 integration test that calls the real `syncTalents` over a crafted payload, on every pull request.
 
-Being a property of the data also means it arrives with the data. While `staging` still carries campuses
-a sync created, those campuses have an external name, so the worker resolves them and is fully in scope.
-Pointing it at production and preproduction only is #295, and it closes that window rather than waiting
-for it.
+Being a property of the data also means it arrives with the data, so the setting was closed first rather
+than waited on: since 2026-09-05 the worker targets production and preproduction only (#295). That half
+is done. The half this section still describes as a target is the data, which arrives with #294: while
+`staging` carries campuses a sync created, those campuses have an external name, so a worker pointed
+back at it would resolve them and be fully in scope.
 
 ### Step 7: PR, Self-Review & Merge
 
