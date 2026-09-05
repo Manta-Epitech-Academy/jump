@@ -28,7 +28,7 @@
 
 import { codingClubTitre } from '../catalog/events';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
-import { eventDisplayName } from '../../../src/lib/domain/event';
+import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
 import { makeCohort } from './helpers';
 import type { Scenario } from './types';
 
@@ -59,7 +59,7 @@ export const sfStatuses: Scenario = {
         suffix: 'JPO',
       }),
       publicName: `Portes ouvertes ${campus.name}`,
-      cohortNoun: 'participants',
+      cohortNoun: COHORT_NOUNS.PARTICIPANT,
       campus,
       days,
       startMinutes: 9 * 60,

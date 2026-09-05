@@ -20,7 +20,7 @@ import { BANK_KEYS, RETIRED_QUESTION } from '../catalog/closings';
 import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
 import { STAGE_PUBLIC_NAME, stageTitre } from '../catalog/events';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
-import { eventDisplayName } from '../../../src/lib/domain/event';
+import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
 import {
   WELCOME_XP_BONUS,
   onboardingEarlyBirdBonus,
@@ -110,7 +110,7 @@ export const stage: Scenario = {
       key: 'stage-2nde',
       titre: stageTitre({ campus: campus.name, date: days[0]! }),
       publicName: STAGE_PUBLIC_NAME,
-      cohortNoun: 'stagiaires',
+      cohortNoun: COHORT_NOUNS.STAGIAIRE,
       campus,
       days,
       startMinutes: 10 * 60,

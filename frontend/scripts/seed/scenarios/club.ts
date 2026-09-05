@@ -15,7 +15,7 @@ import {
   CLUB_TEMPLATE_QUESTION_KEYS,
 } from '../catalog/closings';
 import { codingClubPublicName, codingClubTitre } from '../catalog/events';
-import { eventDisplayName } from '../../../src/lib/domain/event';
+import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { conductClosing } from '../factories/closing';
 import { addDossier } from '../factories/onboarding';
@@ -67,7 +67,7 @@ export const club: Scenario = {
         key: `coding-club-${session + 1}`,
         titre: codingClubTitre({ campus: campus.name, date: day }),
         publicName: codingClubPublicName(day),
-        cohortNoun: 'participants',
+        cohortNoun: COHORT_NOUNS.PARTICIPANT,
         campus,
         days,
         startMinutes: 14 * 60,

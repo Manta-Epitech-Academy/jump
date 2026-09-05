@@ -12,6 +12,7 @@
 
 import type { MinigameScoring } from '@prisma/client';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
+import { COHORT_NOUNS } from '../../../src/lib/domain/event';
 
 export type MinigameSpec = {
   readonly game: string;
@@ -140,7 +141,7 @@ export const EVENT_TEMPLATES: readonly EventTemplateSpec[] = [
     name: 'Stage de seconde',
     description:
       'Deux semaines, émargement matin et après-midi, closings et diplôme.',
-    cohortNoun: 'stagiaires',
+    cohortNoun: COHORT_NOUNS.STAGIAIRE,
     startMinutes: 10 * 60,
     modules: [
       EVENT_MODULES.INSCRITS,
@@ -155,7 +156,7 @@ export const EVENT_TEMPLATES: readonly EventTemplateSpec[] = [
   {
     name: 'Coding Club',
     description: 'Journée unique récurrente, émargement et closing court.',
-    cohortNoun: 'participants',
+    cohortNoun: COHORT_NOUNS.PARTICIPANT,
     startMinutes: 14 * 60,
     modules: [
       EVENT_MODULES.INSCRITS,
@@ -169,7 +170,10 @@ export const EVENT_TEMPLATES: readonly EventTemplateSpec[] = [
   {
     name: 'Portes ouvertes',
     description: 'Liste des inscrits seule.',
-    cohortNoun: 'visiteurs',
+    // A literal rather than `COHORT_NOUNS`, and the difference is the point: the
+    // two above are what Jump ships as defaults, this one is a word a campus
+    // typed into a preset. Singular all the same, because the column is.
+    cohortNoun: 'visiteur',
     startMinutes: null,
     modules: [EVENT_MODULES.INSCRITS],
     withClosingGrid: false,

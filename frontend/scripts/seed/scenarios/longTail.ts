@@ -13,6 +13,7 @@
  */
 
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
+import { COHORT_NOUNS } from '../../../src/lib/domain/event';
 import { WELCOME_XP_BONUS } from '../../../src/lib/domain/xp';
 import { addDossier } from '../factories/onboarding';
 import {
@@ -152,7 +153,7 @@ export const longTail: Scenario = {
         // Only a fifth of events carry a public name; the rest show the raw
         // Salesforce title, which is what staff actually read most of the time.
         publicName: configured ? codingClubPublicName(firstDay) : null,
-        cohortNoun: configured ? 'participants' : null,
+        cohortNoun: configured ? COHORT_NOUNS.PARTICIPANT : null,
         campus,
         days,
         withEndDate: beingPrepared ? false : undefined,
@@ -276,7 +277,7 @@ export const longTail: Scenario = {
         date: zeroClosingDays[0]!,
       }),
       publicName: codingClubPublicName(zeroClosingDays[0]!),
-      cohortNoun: 'participants',
+      cohortNoun: COHORT_NOUNS.PARTICIPANT,
       campus: zeroClosingCampus,
       days: zeroClosingDays,
       devActivated: true,
