@@ -33,7 +33,8 @@ import { isProfileName, PROFILES } from './profiles';
 import { World } from './world';
 import { SCENARIOS } from './scenarios';
 import { flush, wipe } from './writer';
-import { MANIFEST_SETTING_KEY, renderManifest } from './manifest';
+import { renderManifest } from './manifest';
+import { MANIFEST_SETTING_KEY } from './ids';
 import { runChecks } from './assert';
 import {
   seedInterests,
@@ -274,7 +275,7 @@ async function main(): Promise<void> {
     // before the wipe rather than beside the other two because `--catalog-only`
     // returns above: that mode is create-only and is meant to run against a
     // populated database, which is the one case this refusal would be wrong for.
-    await assertGeneratorOwnsDataset(prisma);
+    await assertGeneratorOwnsDataset(prisma, log);
 
     log('Nettoyage :');
     const removed = await wipe(prisma, log, FEEDBACK_FORM_SLUGS);
