@@ -162,8 +162,17 @@
           {#if features.length === 0}
             <p class="text-sm text-muted-foreground">
               Aucune utilisation enregistrée sur les {windowMonths} derniers mois.
-              Les deux dates ci-dessus remontent plus loin : elles ne dépendent pas
-              de cette fenêtre.
+              <!--
+                The second sentence only when there are dates for it to explain.
+                On a member who has never opened their account the header above
+                already reads « Première connexion : jamais », and telling the
+                reader that the dates reach further back than the window names
+                two dates that do not exist.
+              -->
+              {#if firstLoginAt}
+                Les deux dates ci-dessus remontent plus loin : elles ne
+                dépendent pas de cette fenêtre.
+              {/if}
             </p>
           {:else}
             <ul
