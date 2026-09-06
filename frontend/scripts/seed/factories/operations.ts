@@ -12,6 +12,7 @@ import type { StaffRole, TalentDeletionRequestStatus } from '@prisma/client';
 import type { World, TalentRef, StaffRef, CampusRef, EventRef } from '../world';
 import { id, seq } from '../ids';
 import { withGuaranteed } from '../rng';
+import { COHORT_NOUNS } from '../../../src/lib/domain/event';
 import {
   USAGE_FEATURES,
   USAGE_FEATURE_DEFS,
@@ -252,14 +253,25 @@ export function addAdminApiTokens(world: World, staff: StaffRef): void {
   // A write, which is the only kind of call that has a before and an after. The
   // audit tier exists to answer « qu'est-ce qui a changé », and a log holding
   // reads alone answers it with three nulls on every row.
+  //
+  // The operation and the field have to belong together, because an audit row
+  // is read as the record of a call that was actually made: `cohortNoun` is a
+  // field of `write_event_config`, and `write_event_inscrits_options` - which
+  // this named - takes `showStatutColumn` and nothing else, so the row
+  // described a call the catalogue would have refused. The noun is singular for
+  // the same reason it is singular everywhere else: `cohortNounForms` builds
+  // the plural and never the reverse.
   world.buffer.adminApi_Call.push({
     id: id('apc', 'write'),
     tokenId: id('apt', 'core'),
     actorUserId: staff.userId,
-    operation: 'write_event_inscrits_options',
-    params: { eventId: 'sd_evt_exemple', cohortNoun: 'stagiaires' },
+    operation: 'write_event_config',
+    params: {
+      eventId: 'sd_evt_exemple',
+      cohortNoun: COHORT_NOUNS.STAGIAIRE,
+    },
     before: { cohortNoun: null },
-    after: { cohortNoun: 'stagiaires' },
+    after: { cohortNoun: COHORT_NOUNS.STAGIAIRE },
     status: 200,
     createdAt: clock.days(-2),
   });
@@ -501,9 +513,12 @@ export function addUsage(
       feature: USAGE_FEATURES.DEV_SESSION,
       actorKind: 'staff',
       staffProfileId: admin.id,
-      // Null, like the recorder writes under impersonation: the campus is the
-      // explored one, not the admin's, and stamping it would credit that campus
-      // with adoption an admin produced.
+      // Null, and so is the view row's below, because `resolveActor` writes
+      // `campusId: null` for EVERY staff row of an impersonated request - the
+      // campus being explored is not the admin's, and stamping it would credit
+      // that campus with adoption an admin produced. Both rows come from one
+      // request, so they cannot disagree; the view row carried the campus and
+      // was a row the application has no way to write.
       campusId: null,
       eventId: null,
       sessionId: 'imp',
@@ -515,7 +530,7 @@ export function addUsage(
       feature,
       actorKind: 'staff',
       staffProfileId: admin.id,
-      campusId: opts.campuses[0]!.id,
+      campusId: null,
       eventId: event?.id ?? null,
       impersonated: true,
       occurredAt: clock.at(-2, 15, 20),
