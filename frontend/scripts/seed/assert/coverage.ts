@@ -73,7 +73,7 @@ const NEVER_SEEDED: Readonly<Record<string, string>> = {
 
   // ── Ce qui naît d'une connexion réelle, jamais d'une écriture. ──
   bauth_session:
-    'une session naît en se connectant. Le seed n’en écrit pas, et la page membres ne les lit plus : une connexion est une ligne d’usage, jamais une ligne de session.',
+    'une session naît en se connectant. Le seed n’en écrit pas, et la page membres ne les lit plus : une connexion est une ligne `*_connection` de `Usage_FeatureUse`, une par personne, par espace et par jour, jamais une ligne `bauth_session`.',
   bauth_verification:
     'un code OTP en attente, écrit par BetterAuth au moment de l’envoi. Une valeur semée serait un code de connexion valide dans un jeu de données partagé.',
   bauth_account:

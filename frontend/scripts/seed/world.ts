@@ -64,25 +64,22 @@ export type StaffActivity = 'active' | 'occasional' | 'lapsed' | 'never';
 /**
  * One day a member opened one space.
  *
- * The fact everything else about their activity is derived from: the usage
- * rows, the session rows, and `StaffProfile.lastActiveAt`. Generated here rather
- * than in the usage factory because it describes the PERSON, and because two
- * generators writing what one person did is exactly how the dataset ended up
- * claiming a member had four months of feature use and two connections on
+ * The fact everything else about their activity is derived from: the feature
+ * rows, the connection row, and `StaffProfile.lastActiveAt`. Generated here
+ * rather than in the usage factory because it describes the PERSON, and because
+ * two generators writing what one person did is exactly how the dataset ended
+ * up claiming a member had four months of feature use and two connections on
  * unrelated days.
+ *
+ * A day and a space, and nothing else. It also carried the login it belonged to
+ * and whether it opened one, because a connection row was one per BetterAuth
+ * session; a connection is now one per space per day, so the visit IS the row
+ * and there is nothing left to group.
  */
 export type StaffVisit = {
   /** Days before the anchor, negative. */
   readonly dayOffset: number;
   readonly space: 'dev' | 'admin';
-  /**
-   * The login this visit belongs to. A BetterAuth session lives a fortnight
-   * (`auth.ts`), so several days share one, which is the whole reason a login
-   * count under-reports somebody who never signs out.
-   */
-  readonly sessionKey: string;
-  /** True on the visit that opened that session: the one that writes the row. */
-  readonly opensSession: boolean;
 };
 
 /**
@@ -102,9 +99,9 @@ export type StaffVisit = {
  *
  * `never` and `lapsed` are absent because they have no visits at all: `never`
  * was invited and did not come, and `lapsed` last came beyond the usage
- * retention, which is the state whose dialog says « aucune connexion
- * enregistrée sur les 12 derniers mois » while the two dates above it are still
- * set - precisely why those dates do not come from the usage rows.
+ * retention, which is the state whose dialog says « 0 jour d'activité sur les
+ * 12 derniers mois » while the two dates above it are still set - precisely why
+ * those dates do not come from the usage rows.
  */
 const VISIT_SPANS: Readonly<
   Record<
@@ -452,33 +449,21 @@ export class World {
     const days = [...offsets].sort((a, b) => a - b);
 
     // An admin works in the admin space and drops into the dev one now and
-    // again, which is the question `usageSessionFeature` exists to keep
+    // again, which is the question `usageConnectionFeature` exists to keep
     // answerable: « les administrateurs ouvrent-ils jamais l'espace dev ».
     const home = role === 'admin' ? 'admin' : 'dev';
     const away = role === 'admin' ? 'dev' : 'admin';
 
-    const visits: StaffVisit[] = [];
-    let sessionStart: number | null = null;
-    let session = 0;
-    for (const dayOffset of days) {
-      // A BetterAuth session lives fourteen days, so a run of visits inside one
-      // fortnight is ONE login. That is the whole reason a login count and a
-      // day count disagree, and a dataset that never produces the disagreement
-      // cannot show it.
-      if (sessionStart === null || dayOffset - sessionStart > 14) {
-        sessionStart = dayOffset;
-        session += 1;
-      }
-      visits.push({
-        dayOffset,
-        // Only an admin ever leaves their own space, and rarely: a dev has no
-        // admin space to open.
-        space: role === 'admin' && session % 4 === 0 ? away : home,
-        sessionKey: `s${seq(session, 3)}`,
-        opensSession: dayOffset === sessionStart,
-      });
-    }
-    return visits;
+    // The away space is a scattering of an admin's days, not a run of them. It
+    // used to be a run because the space was picked per fortnight-long session,
+    // a session being what a connection row counted. Nothing counts sessions
+    // now, so the day is the only unit left and the choice belongs to the day.
+    // Only an admin ever leaves their own space: a dev has no admin space to
+    // open.
+    return days.map((dayOffset, index) => ({
+      dayOffset,
+      space: role === 'admin' && index % 7 === 0 ? away : home,
+    }));
   }
 
   addStaff(opts: {

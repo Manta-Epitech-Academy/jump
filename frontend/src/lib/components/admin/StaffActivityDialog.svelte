@@ -71,7 +71,6 @@
   let status = $state<Status>('loading');
   let windowMonths = $state(0);
   let activeDays = $state(0);
-  let loginCount = $state(0);
   let features = $state<FeatureUse[]>([]);
   let jamaisOuvertes = $state<NeverOpened[]>([]);
 
@@ -98,7 +97,6 @@
         }
         windowMonths = body.windowMonths ?? 0;
         activeDays = body.activeDays ?? 0;
-        loginCount = body.loginCount ?? 0;
         features = body.features ?? [];
         jamaisOuvertes = body.jamaisOuvertes ?? [];
         status = 'ready';
@@ -144,15 +142,17 @@
       </p>
     {:else}
       <div class="space-y-5">
+        <!--
+          One figure, and no tooltip under it. There were two, a connexions
+          count beside this one, and the tooltip existed to explain why the
+          first was ten times too small. A sentence that excuses a number is
+          the tell that the number is wrong: the count now reads the days
+          somebody came, which is the question being asked.
+        -->
         <p class="text-sm text-foreground-secondary">
-          <span class="font-bold text-foreground">{loginCount}</span>
-          {countNounForm(loginCount, 'connexion')} et
           <span class="font-bold text-foreground">{activeDays}</span>
           {countNounForm(activeDays, "jour d'activité", "jours d'activité")}
           sur les {windowMonths} derniers mois.
-          <InfoTooltip
-            text="Une session reste ouverte quatorze jours : quelqu'un qui vient tous les jours sans se déconnecter compte environ deux connexions par mois. Le nombre de jours est celui à lire."
-          />
         </p>
 
         <section>
@@ -162,8 +162,17 @@
           {#if features.length === 0}
             <p class="text-sm text-muted-foreground">
               Aucune utilisation enregistrée sur les {windowMonths} derniers mois.
-              Les deux dates ci-dessus remontent plus loin : elles ne dépendent pas
-              de cette fenêtre.
+              <!--
+                The second sentence only when there are dates for it to explain.
+                On a member who has never opened their account the header above
+                already reads « Première connexion : jamais », and telling the
+                reader that the dates reach further back than the window names
+                two dates that do not exist.
+              -->
+              {#if firstLoginAt}
+                Les deux dates ci-dessus remontent plus loin : elles ne
+                dépendent pas de cette fenêtre.
+              {/if}
             </p>
           {:else}
             <ul

@@ -5,7 +5,7 @@ import { recordUsage } from '$lib/server/usage/record';
 import {
   USAGE_FEATURE_DEFS,
   USAGE_VIEW_ROUTES,
-  usageSessionFeature,
+  usageConnectionFeature,
 } from '$lib/domain/usage';
 import { applyRouteGuards } from '$lib/server/auth/guards';
 import { slideImpersonationExpiry } from '$lib/server/auth/impersonation';
@@ -95,7 +95,10 @@ function recordOpenIfTracked(event: Parameters<Handle>[0]['event']) {
 }
 
 /**
- * One visit row and one session row per request that reaches a mapped route.
+ * One connection row per request into a space, and one visit row when the
+ * route is in the map. The connection matches by prefix and the visit by exact
+ * route id, which is why the two are not one call: a day spent on a page the
+ * map does not name is still a day this person came.
  *
  * GET only: a form POST is an action, and actions record themselves on site.
  *
@@ -115,7 +118,7 @@ function recordVisit(event: Parameters<Handle>[0]['event']) {
   if (event.request.method !== 'GET') return;
   const routeId = event.route.id;
   if (!routeId) return;
-  const ctx = { locals: event.locals, sessionId: event.locals.session?.id };
+  const ctx = { locals: event.locals };
   const view = USAGE_VIEW_ROUTES[routeId];
   if (view) {
     const eventId =
@@ -124,8 +127,8 @@ function recordVisit(event: Parameters<Handle>[0]['event']) {
         : null;
     recordUsage(view, { ...ctx, eventId });
   }
-  const session = usageSessionFeature(routeId);
-  if (session) recordUsage(session, ctx);
+  const connection = usageConnectionFeature(routeId);
+  if (connection) recordUsage(connection, ctx);
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -316,10 +319,10 @@ export const handle: Handle = async ({ event, resolve }) => {
     return guardResponse;
   }
 
-  // 3.5 Record the visit and the session (fire-and-forget, see `recordUsage`).
+  // 3.5 Record the visit and the connection (fire-and-forget, see `recordUsage`).
   //
   // AFTER the guards, so a request that gets redirected is never counted as a
-  // visit to the page it never reached. Every `*_view` and `*_session` key is
+  // visit to the page it never reached. Every `*_view` and `*_connection` key is
   // recorded here and nowhere else: one rule instead of a judgement call per
   // page, and it keeps usage writes out of `load` functions, which SvelteKit
   // also runs on speculative hover-preload.

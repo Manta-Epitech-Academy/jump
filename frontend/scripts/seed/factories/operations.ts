@@ -356,27 +356,27 @@ export function addUsage(
 
   // ── Staff: the rows follow the VISITS, never the catalogue ────────────────
   //
-  // In production `hooks.server.ts` writes the view row and the session row on
-  // the same request, from the same context, so a connection always coincides
-  // with a real navigation and every day of feature use sits inside a live
-  // session. This loop used to iterate the catalogue instead, drawing a random
-  // subset of the team per feature and dating it from the feature's position:
-  // the two session keys were two entries among 106, and their seeded dedupe
-  // key carried no time slice at all, so a member could hold at most one row
-  // per feature. Whatever the dataset said they had done, their connection
-  // count was capped at two, on days unrelated to anything else they touched.
+  // In production `hooks.server.ts` writes the view row and the connection row
+  // on the same request, from the same context, so a connection day and a day
+  // of feature use are the same day by construction. This loop used to iterate
+  // the catalogue instead, drawing a random subset of the team per feature and
+  // dating it from the feature's position: the two connection keys were two
+  // entries among 106, and their seeded dedupe key carried no time slice at
+  // all, so a member could hold at most one row per feature. Whatever the
+  // dataset said they had done, their connection count was capped at two, on
+  // days unrelated to anything else they touched.
   const staffPool = adopted.filter(
     (key) =>
       USAGE_FEATURE_DEFS[key].audience === 'staff' &&
-      USAGE_FEATURE_DEFS[key].kind !== 'session',
+      USAGE_FEATURE_DEFS[key].kind !== 'connection',
   );
-  // Sessions are out of the adoption draw on purpose. A session is not a
+  // Connections are out of the adoption draw on purpose. A connection is not a
   // feature somebody adopts: it is written for everyone who comes, so leaving
   // it in would let the dice report « personne n'ouvre l'espace dev » about a
   // roster that visibly does.
-  const sessionOf = {
-    dev: USAGE_FEATURES.DEV_SESSION,
-    admin: USAGE_FEATURES.ADMIN_SESSION,
+  const connectionOf = {
+    dev: USAGE_FEATURES.DEV_CONNECTION,
+    admin: USAGE_FEATURES.ADMIN_CONNECTION,
   };
 
   for (const [memberIndex, member] of staff.entries()) {
@@ -400,23 +400,24 @@ export function addUsage(
         (visitIndex * 7) % 60,
       );
 
-      if (visit.opensSession) {
-        pushUse(world, {
-          key: ['sess', seq(memberIndex, 3), visit.sessionKey],
-          feature: sessionOf[visit.space],
-          actorKind: 'staff',
-          staffProfileId: member.id,
-          // `dev_session` is campus-scoped and `admin_session` global, which the
-          // catalogue already says: the admin space is national.
-          campusId:
-            USAGE_FEATURE_DEFS[sessionOf[visit.space]].scope === 'global'
-              ? null
-              : member.campusId,
-          eventId: null,
-          sessionId: visit.sessionKey,
-          occurredAt: at,
-        });
-      }
+      // Every visit, not one per fortnight. The row used to be written only on
+      // the visit that opened a BetterAuth session, because that is what the
+      // key deduplicated on; it is now one per space per day, so the day is the
+      // row and the id has to carry the visit rather than a login.
+      pushUse(world, {
+        key: ['conn', seq(memberIndex, 3), seq(visitIndex, 3)],
+        feature: connectionOf[visit.space],
+        actorKind: 'staff',
+        staffProfileId: member.id,
+        // `dev_connection` is campus-scoped and `admin_connection` global, which
+        // the catalogue already says: the admin space is national.
+        campusId:
+          USAGE_FEATURE_DEFS[connectionOf[visit.space]].scope === 'global'
+            ? null
+            : member.campusId,
+        eventId: null,
+        occurredAt: at,
+      });
 
       // What they did once inside. A handful of screens per visit, walked from
       // their own set rather than drawn afresh, so the same member keeps using
@@ -502,15 +503,21 @@ export function addUsage(
   if (admin) {
     const feature = USAGE_FEATURES.DEV_INSCRITS_VIEW;
     const event = opts.events[0];
-    // The session that carried it. An impersonated request writes both rows,
+    // The connection that carried it. An impersonated request writes both rows,
     // exactly like any other: `hooks.server.ts` records the view and the
-    // session from one context, and `resolveActor` attributes both to the
-    // admin behind the session. Writing the view alone left a dev-space use
-    // that belonged to no session at all, which is the shape this scenario
-    // exists to make impossible.
+    // connection from one context, and `resolveActor` attributes both to the
+    // admin behind the session. Writing the view alone left a dev-space use on
+    // a day the admin had never opened the dev space, which is the shape this
+    // scenario exists to make impossible.
+    //
+    // It does not collide with that admin's own connection of the same day, and
+    // that is not luck: `impersonated` is part of the composed dedupe key. The
+    // key it replaced was `actorRef|<session id>` and skipped the flag, escaping
+    // a collision only because BetterAuth mints a distinct session id under
+    // impersonation.
     pushUse(world, {
-      key: ['impersonated', 'session'],
-      feature: USAGE_FEATURES.DEV_SESSION,
+      key: ['impersonated', 'connection'],
+      feature: USAGE_FEATURES.DEV_CONNECTION,
       actorKind: 'staff',
       staffProfileId: admin.id,
       // Null, and so is the view row's below, because `resolveActor` writes
@@ -521,7 +528,6 @@ export function addUsage(
       // was a row the application has no way to write.
       campusId: null,
       eventId: null,
-      sessionId: 'imp',
       impersonated: true,
       occurredAt: clock.at(-2, 15, 19),
     });
@@ -534,7 +540,6 @@ export function addUsage(
       eventId: event?.id ?? null,
       impersonated: true,
       occurredAt: clock.at(-2, 15, 20),
-      sessionId: null,
     });
   }
 }
@@ -558,8 +563,6 @@ function pushUse(
     actorHash?: string;
     campusId: string | null;
     eventId: string | null;
-    /** The login, for a session feature. Exactly-once per session, as in prod. */
-    sessionId?: string | null;
     occurredAt: Date;
     impersonated?: boolean;
   },
@@ -579,7 +582,6 @@ function pushUse(
     dedupeKey: usageDedupeKey({
       feature: row.feature,
       actorRef,
-      sessionId: row.sessionId,
       eventId: row.eventId,
       impersonated: row.impersonated,
       at: row.occurredAt,

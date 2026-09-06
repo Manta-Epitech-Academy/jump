@@ -111,10 +111,10 @@ beforeAll(async () => {
   explorer = await seedStaff(2, 'admin');
   lapsed = await seedStaff(3, 'dev');
 
-  // Two calendar days, two logins, and a feature opened more often than the one
-  // beside it so the ordering has something to order.
-  await use(member, USAGE_FEATURES.DEV_SESSION, YESTERDAY, 'm-s1');
-  await use(member, USAGE_FEATURES.DEV_SESSION, TODAY, 'm-s2');
+  // Two calendar days, one connection row on each, and a feature opened more
+  // often than the one beside it so the ordering has something to order.
+  await use(member, USAGE_FEATURES.DEV_CONNECTION, YESTERDAY, 'm-s1');
+  await use(member, USAGE_FEATURES.DEV_CONNECTION, TODAY, 'm-s2');
   await use(member, USAGE_FEATURES.DEV_INSCRITS_VIEW, YESTERDAY, 'm-v1');
   await use(member, USAGE_FEATURES.DEV_INSCRITS_VIEW, TODAY, 'm-v2');
   await use(member, USAGE_FEATURES.DEV_INSCRITS_VIEW, TODAY, 'm-v3');
@@ -122,7 +122,7 @@ beforeAll(async () => {
 
   // An admin's own space, plus the dev-space rows an exploration attributes to
   // them.
-  await use(explorer, USAGE_FEATURES.ADMIN_SESSION, TODAY, 'x-s1');
+  await use(explorer, USAGE_FEATURES.ADMIN_CONNECTION, TODAY, 'x-s1');
   await use(explorer, USAGE_FEATURES.ADMIN_STAFF_ACTIVITY_OPEN, TODAY, 'x-a1');
   await use(explorer, USAGE_FEATURES.DEV_INSCRITS_VIEW, TODAY, 'x-v1', true);
   await use(explorer, USAGE_FEATURES.DEV_INSCRITS_VIEW, TODAY, 'x-v2', true);
@@ -148,7 +148,9 @@ describe('getMemberActivity', () => {
     expect(activity!.features[0].espace).toBe('Espace dev');
     expect(activity!.features[1].utilisations).toBe(1);
 
-    // The two session rows are the counters below, never a thirteenth feature.
+    // The two connection rows are the day count below, never a thirteenth
+    // feature: a connection is written for everyone who arrives, so listing it
+    // beside things people chose to open would put it first every time.
     expect(
       activity!.features.some((f) => f.libelle.startsWith('Connexions')),
     ).toBe(false);
@@ -159,7 +161,6 @@ describe('getMemberActivity', () => {
     // the number that makes a fortnightly visitor look daily.
     const activity = await getMemberActivity(member);
     expect(activity!.activeDays).toBe(2);
-    expect(activity!.loginCount).toBe(2);
   });
 
   it('keeps the impersonated rows and says how many of the count they are', async () => {
@@ -210,7 +211,6 @@ describe('getMemberActivity', () => {
 
     expect(activity).not.toBeNull();
     expect(activity!.activeDays).toBe(0);
-    expect(activity!.loginCount).toBe(0);
     expect(activity!.features).toEqual([]);
   });
 
@@ -229,7 +229,7 @@ describe('getMemberActivity', () => {
       const definition = USAGE_FEATURE_DEFS[key];
       return (
         definition.audience === 'staff' &&
-        definition.kind !== 'session' &&
+        definition.kind !== 'connection' &&
         definition.space === 'dev'
       );
     });
