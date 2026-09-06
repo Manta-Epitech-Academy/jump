@@ -12,22 +12,34 @@
  * unrelated days, and « jamais connecté » on the roster at the same time.
  *
  * In production none of that is expressible. `hooks.server.ts` writes the view
- * row and the session row on the SAME request, from the same context, after the
- * guards; a member with no session has no rows at all, and every day of feature
- * use sits inside a session that a BetterAuth cookie kept alive for at most a
- * fortnight (`auth.ts`).
+ * row and the connection row on the SAME request, from the same context, after
+ * the guards, so a day of feature use IS a connection day, to the day and not
+ * merely to the fortnight. This check used to allow a fortnight, because a
+ * connection was one row per BetterAuth session; the rule it now carries is the
+ * production invariant exactly.
  *
  * ── The direction that is NOT a rule ─────────────────────────────────────────
  *
- * « Every session day carries a view row » is false in production and must not
- * be asserted: `usageConnectionFeature` matches a whole space by prefix while
- * `USAGE_VIEW_ROUTES` names 36 routes, and four view keys are recorded at an
- * endpoint rather than at a route. Somebody opening a dev-space page that is not
- * in the map writes a session row and nothing else. Only the converse holds.
+ * « Every connection day carries a feature row » is false in production and must
+ * not be asserted: `usageConnectionFeature` matches a whole space by prefix
+ * while `USAGE_VIEW_ROUTES` names 36 routes, and four view keys are recorded at
+ * an endpoint rather than at a route. Somebody opening a dev-space page that is
+ * not in the map writes a connection row and nothing else. Only the converse
+ * holds.
+ *
+ * ── The one place the converse is loose too ──────────────────────────────────
+ *
+ * `admin_api_token_mint` and `admin_api_token_revoke` are recorded on
+ * `/(staff)/staff/api-tokens`, a staff route under neither space prefix, so in
+ * production a day holding only those two would carry no connection row. The
+ * generator writes them on an admin-space visit day like any other admin
+ * action, which is the ordinary case and what this rule reads; it is written
+ * down so that a failure naming them is understood as the generator drifting
+ * rather than as this rule being wrong.
  *
  * Narrowed to `sd_` rows, like every check here: `--check` can be pointed at a
- * database somebody has since logged into, where a real session row is a correct
- * row and not a defect to report.
+ * database somebody has since logged into, where a real connection row is a
+ * correct row and not a defect to report.
  */
 
 import type { PrismaClient } from '@prisma/client';
@@ -36,14 +48,6 @@ import {
   usageConnectionFeatures,
   type UsageFeatureKey,
 } from '../../../src/lib/domain/usage';
-
-/**
- * How long a session stays open. `auth.ts` sets `expiresIn` to fourteen days,
- * and it is restated rather than imported because `$lib/server` does not resolve
- * from a plain `bun` script - the same reason `reachability.ts` restates the
- * five-actor floor, and it says so too.
- */
-const SESSION_DAYS = 14;
 
 const CONNECTION_FEATURES = usageConnectionFeatures('staff');
 
@@ -106,49 +110,62 @@ export async function usageCoherenceFailures(
     );
   }
 
-  // 3. Every feature row sits inside a session of the same space. The session
-  //    row is written by the request that opened the space, so it comes first
-  //    and no more than a fortnight before.
+  // 3. Every feature row falls on a day this member has a connection row of the
+  //    same space, and a member holds at most one connection row per space per
+  //    day. The two halves are the two things a connection now claims, and the
+  //    second is the one nothing else could catch: the id and the dedupe key are
+  //    composed differently, so a generator writing two rows for one day would
+  //    pass the unique constraint and quietly double somebody's arrivals.
+  //
+  //    Impersonation is part of the grouping, not an exception to it. An admin
+  //    exploring a campus records the dev space against THEMSELVES with the flag
+  //    set, on a day they may well have opened the dev space for their own work:
+  //    two rows, one day, and legitimately so, which is why `impersonated` is in
+  //    the composed dedupe key. Grouping without it reports that pair as a
+  //    duplicate, and the generator does produce it on purpose.
   const rows = await prisma.usage_FeatureUse.findMany({
     where: { id: { startsWith: 'sd_' }, actorKind: 'staff' },
     select: {
       staffProfileId: true,
       feature: true,
       occurredAt: true,
+      impersonated: true,
     },
     orderBy: { occurredAt: 'asc' },
   });
 
-  // (member, space) -> the session openings, in order.
-  const openings = new Map<string, Date[]>();
+  // (member, space) -> the days a connection was recorded.
+  const connectionDays = new Map<string, Set<number>>();
+  const duplicates = new Map<string, number>();
   for (const row of rows) {
     if (!row.staffProfileId) continue;
     if (!CONNECTION_FEATURES.includes(row.feature as UsageFeatureKey)) continue;
-    const key = `${row.staffProfileId}|${spaceOf(row.feature)}`;
-    const list = openings.get(key) ?? [];
-    list.push(row.occurredAt);
-    openings.set(key, list);
+    const key = `${row.staffProfileId}|${spaceOf(row.feature)}|${row.impersonated}`;
+    const days = connectionDays.get(key) ?? new Set<number>();
+    const day = dayOf(row.occurredAt);
+    if (days.has(day)) duplicates.set(key, (duplicates.get(key) ?? 0) + 1);
+    days.add(day);
+    connectionDays.set(key, days);
+  }
+  for (const [key, count] of duplicates) {
+    const [profileId, space] = key.split('|');
+    failures.push(
+      `${profileId} : ${count} connexion(s) en trop sur l’espace ${space}, une journée en portant plus d’une`,
+    );
   }
 
   const orphans = new Map<string, number>();
   for (const row of rows) {
     if (!row.staffProfileId) continue;
     if (CONNECTION_FEATURES.includes(row.feature as UsageFeatureKey)) continue;
-    const space = spaceOf(row.feature);
-    const key = `${row.staffProfileId}|${space}`;
-    const covered = (openings.get(key) ?? []).some((opened) => {
-      // Calendar days, not elapsed hours: a session opened at 09:00 and still
-      // used at 17:00 on its fourteenth day has not outlived the cookie, and a
-      // fractional comparison would call it expired.
-      const days = (dayOf(row.occurredAt) - dayOf(opened)) / 86_400_000;
-      return days >= 0 && days <= SESSION_DAYS;
-    });
-    if (!covered) orphans.set(key, (orphans.get(key) ?? 0) + 1);
+    const key = `${row.staffProfileId}|${spaceOf(row.feature)}|${row.impersonated}`;
+    if (connectionDays.get(key)?.has(dayOf(row.occurredAt))) continue;
+    orphans.set(key, (orphans.get(key) ?? 0) + 1);
   }
   for (const [key, count] of orphans) {
     const [profileId, space] = key.split('|');
     failures.push(
-      `${profileId} : ${count} ligne(s) sur l’espace ${space} en dehors de toute session ouverte dans les ${SESSION_DAYS} jours`,
+      `${profileId} : ${count} ligne(s) sur l’espace ${space} un jour sans connexion à cet espace`,
     );
   }
 
