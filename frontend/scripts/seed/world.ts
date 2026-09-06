@@ -85,6 +85,44 @@ export type StaffVisit = {
   readonly opensSession: boolean;
 };
 
+/**
+ * How far back each tier that HAS visits reaches, and how densely.
+ *
+ * The tiers are spans, not a distribution: `active` has to reach into the last
+ * seven days and `occasional` has to stay out of the last thirty, because those
+ * are the two thresholds `ops_staff_activity` cuts on.
+ *
+ * `mostRecent` is therefore a floor on the whole history and not only on the
+ * one visit that is placed. `lastActiveAt` is the MAXIMUM of the set, so a
+ * placed anchor drawn from a narrow range and every other day drawn from
+ * [1, oldest] leaves the tier decided by the widest draw: measured on the real
+ * generator, 61% of `occasional` landed inside thirty days and 17% inside
+ * seven, which is the `active` bucket. One floor per tier is what makes the
+ * span hold by construction.
+ *
+ * `never` and `lapsed` are absent because they have no visits at all: `never`
+ * was invited and did not come, and `lapsed` last came beyond the usage
+ * retention, which is the state whose dialog says « aucune connexion
+ * enregistrée sur les 12 derniers mois » while the two dates above it are still
+ * set - precisely why those dates do not come from the usage rows.
+ */
+const VISIT_SPANS: Readonly<
+  Record<
+    Extract<StaffActivity, 'active' | 'occasional'>,
+    {
+      /** How many distinct days, inclusive. */
+      readonly count: readonly [number, number];
+      /** The freshest day, inclusive, in days before the anchor. */
+      readonly mostRecent: readonly [number, number];
+      /** The furthest back any visit of this tier goes. */
+      readonly oldest: number;
+    }
+  >
+> = {
+  active: { count: [40, 90], mostRecent: [1, 4], oldest: 330 },
+  occasional: { count: [6, 15], mostRecent: [35, 80], oldest: 300 },
+};
+
 export type StaffRef = {
   id: string;
   userId: string;
@@ -387,31 +425,30 @@ export class World {
   // ─── Staff ────────────────────────────────────────────────────────────────
 
   /**
-   * A member's visit history, and the two projections read off it.
-   *
-   * The tiers are spans, not a distribution: `active` has to reach into the last
-   * seven days and `occasional` has to stay out of the last thirty, because
-   * those are the two thresholds `ops_staff_activity` cuts on. `lapsed` lands
-   * beyond the usage retention window on purpose - it is the one member whose
-   * dialog says « aucune connexion enregistrée sur les 12 derniers mois » while
-   * the two dates above it are still set, which is precisely why those dates do
-   * not come from the usage rows.
+   * A member's visit history, and the two projections read off it. What each
+   * tier means, and why its freshest day is a floor rather than one draw, is on
+   * {@link VISIT_SPANS}.
    */
   private visitsFor(activity: StaffActivity, role: StaffRole): StaffVisit[] {
     if (activity === 'never' || activity === 'lapsed') return [];
     const rng = this.staffRng;
-    const [count, oldest] =
-      activity === 'active' ? [rng.int(40, 90), 330] : [rng.int(6, 15), 300];
+    const span = VISIT_SPANS[activity];
+    const count = rng.int(...span.count);
 
-    // The most recent visit is what `lastActiveAt` becomes, so it decides which
-    // bucket the member lands in and is placed rather than drawn.
+    // The freshest day this tier may hold, and it bounds EVERY draw rather than
+    // only the placed one. `lastActiveAt` is the most recent visit, so the
+    // bucket the member lands in is decided by the maximum of the whole set:
+    // placing the anchor at -35 and then filling from [-300, -1] left 61% of
+    // `occasional` inside thirty days and 17% inside seven, which is the
+    // `active` bucket. One floor for the tier makes the span structural instead
+    // of a property of the first draw.
+    //
     // At least yesterday, never today: `occurredAt` carries a wall-clock hour
     // and `assert/clock.ts` refuses a seeded timestamp past the anchor, which is
     // the anchor's own midnight.
-    const offsets = new Set<number>([
-      activity === 'active' ? -rng.int(1, 4) : -rng.int(35, 80),
-    ]);
-    while (offsets.size < count) offsets.add(-rng.int(1, oldest));
+    const [freshest, stalest] = span.mostRecent;
+    const offsets = new Set<number>([-rng.int(freshest, stalest)]);
+    while (offsets.size < count) offsets.add(-rng.int(freshest, span.oldest));
     const days = [...offsets].sort((a, b) => a - b);
 
     // An admin works in the admin space and drops into the dev one now and
