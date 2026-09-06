@@ -73,6 +73,11 @@ describe('the usage catalogue', () => {
       // An export or a document is the occurrence itself.
       if (kind === 'export' || kind === 'document')
         expect(dedupe, key).toBe('each');
+      // A connection answers "how often does this person come", so the day is
+      // the unit. Leaving one bucketed would count a working day as up to 48
+      // arrivals, and the mistake is invisible: `usageDedupeKey` has no branch
+      // on `kind` any more, so nothing else would refuse it.
+      if (kind === 'session') expect(dedupe, key).toBe('day');
       // The admin space is national, so a per-campus reading of it would not
       // hold; only dev and talent surfaces carry a campus.
       if (space === 'admin') expect(scope, key).toBe('global');

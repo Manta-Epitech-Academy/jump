@@ -115,7 +115,7 @@ function recordVisit(event: Parameters<Handle>[0]['event']) {
   if (event.request.method !== 'GET') return;
   const routeId = event.route.id;
   if (!routeId) return;
-  const ctx = { locals: event.locals, sessionId: event.locals.session?.id };
+  const ctx = { locals: event.locals };
   const view = USAGE_VIEW_ROUTES[routeId];
   if (view) {
     const eventId =

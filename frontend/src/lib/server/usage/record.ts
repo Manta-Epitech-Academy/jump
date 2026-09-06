@@ -41,12 +41,6 @@ export interface UsageContext {
   locals: App.Locals;
   /** Required by an `event`-scope feature; ignored by the others. */
   eventId?: string | null;
-  /**
-   * The `bauth_session` id, for a `session` feature. Passing it is what makes
-   * the row exactly-once per real login: it becomes the dedupe key, so no slice
-   * arithmetic is involved and a re-login is a new row.
-   */
-  sessionId?: string | null;
 }
 
 type Resolved = {
@@ -133,7 +127,6 @@ export function recordUsage(key: UsageFeatureKey, ctx: UsageContext): void {
           dedupeKey: usageDedupeKey({
             feature: key,
             actorRef: actor.actorRef,
-            sessionId: ctx.sessionId,
             eventId: ctx.eventId,
             impersonated: actor.impersonated,
             at: now,

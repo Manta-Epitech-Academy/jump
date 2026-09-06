@@ -169,14 +169,6 @@ describe('recordUsage', () => {
     });
     expect(createMany).not.toHaveBeenCalled();
   });
-
-  it('keys a session on the session id, not on a time slice', () => {
-    recordUsage(USAGE_FEATURES.DEV_SESSION, {
-      locals: staffLocals(),
-      sessionId: 'sess-1',
-    });
-    expect(written()?.dedupeKey).toBe('staff-1|sess-1');
-  });
 });
 
 /**
@@ -235,5 +227,63 @@ describe('the composed dedupe key', () => {
     const first = keyFor(staffLocals(), 'event-1');
     vi.setSystemTime(new Date('2026-08-15T10:31:00Z'));
     expect(keyFor(staffLocals(), 'event-1')).not.toBe(first);
+  });
+});
+
+/**
+ * A connection is the figure that answers "how much does this person come", so
+ * the day is the unit and the four cases below are what that has to mean. The
+ * key used to be `actorRef|<bauth_session id>`, which counted logins: a session
+ * lives a fortnight, so somebody working daily and never signing out produced
+ * about two rows a month.
+ */
+describe('a connection key', () => {
+  const connect = (locals: App.Locals) => {
+    createMany.mockClear();
+    recordUsage(USAGE_FEATURES.DEV_SESSION, { locals });
+    return written()?.dedupeKey;
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-15T08:00:00Z'));
+  });
+
+  it('collapses several visits on one day into one row', () => {
+    const morning = connect(staffLocals());
+    vi.setSystemTime(new Date('2026-08-15T18:45:00Z'));
+    expect(connect(staffLocals())).toBe(morning);
+  });
+
+  it('opens a new row on the next day', () => {
+    const today = connect(staffLocals());
+    vi.setSystemTime(new Date('2026-08-16T08:00:00Z'));
+    expect(connect(staffLocals())).not.toBe(today);
+  });
+
+  // The day is UTC, and this is where that becomes visible: 23:59 and 00:01 are
+  // one working evening on a campus east of Greenwich and two rows here. The
+  // alternative is worse and is argued in `usageDedupeKey`: two of the three
+  // connection keys carry no campus at all, so there is no timezone to localise
+  // against.
+  it('cuts the day at midnight UTC', () => {
+    vi.setSystemTime(new Date('2026-08-15T23:59:00Z'));
+    const before = connect(staffLocals());
+    vi.setSystemTime(new Date('2026-08-16T00:01:00Z'));
+    expect(connect(staffLocals())).not.toBe(before);
+  });
+
+  // The old branch skipped `impersonated` entirely and only escaped a collision
+  // because BetterAuth mints a distinct session id under impersonation. Nothing
+  // guaranteed that, and a day key has no such accident to rely on.
+  it('separates an admin exploring a campus from their own visit', () => {
+    const own = connect(staffLocals());
+    const impersonated = connect(
+      staffLocals({
+        session: { id: 'sess-1', impersonatedBy: 'admin-user' },
+        impersonator: { staffProfileId: 'staff-1' },
+      }),
+    );
+    expect(own).not.toBe(impersonated);
   });
 });

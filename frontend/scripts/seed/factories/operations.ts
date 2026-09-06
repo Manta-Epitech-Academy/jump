@@ -413,7 +413,6 @@ export function addUsage(
               ? null
               : member.campusId,
           eventId: null,
-          sessionId: visit.sessionKey,
           occurredAt: at,
         });
       }
@@ -521,7 +520,6 @@ export function addUsage(
       // was a row the application has no way to write.
       campusId: null,
       eventId: null,
-      sessionId: 'imp',
       impersonated: true,
       occurredAt: clock.at(-2, 15, 19),
     });
@@ -534,7 +532,6 @@ export function addUsage(
       eventId: event?.id ?? null,
       impersonated: true,
       occurredAt: clock.at(-2, 15, 20),
-      sessionId: null,
     });
   }
 }
@@ -558,8 +555,6 @@ function pushUse(
     actorHash?: string;
     campusId: string | null;
     eventId: string | null;
-    /** The login, for a session feature. Exactly-once per session, as in prod. */
-    sessionId?: string | null;
     occurredAt: Date;
     impersonated?: boolean;
   },
@@ -579,7 +574,6 @@ function pushUse(
     dedupeKey: usageDedupeKey({
       feature: row.feature,
       actorRef,
-      sessionId: row.sessionId,
       eventId: row.eventId,
       impersonated: row.impersonated,
       at: row.occurredAt,

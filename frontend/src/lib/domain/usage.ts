@@ -204,14 +204,27 @@ export type UsageScope = 'event' | 'campus' | 'global';
  *    slice and collapse into one row.
  *  - `each`: one row per occurrence, because the occurrence IS the fact. Every
  *    export, every badge sheet, every slot closure counts on its own.
+ *  - `day`: one row per actor per UTC day. The connection keys and nothing
+ *    else, because "how often does this person come" is a question about days:
+ *    the row keyed on the session id instead, and a BetterAuth session lives a
+ *    fortnight, so somebody working daily and never signing out produced about
+ *    two rows a month. It also gives those keys the only hard per-actor cap in
+ *    the catalogue, which makes a hover-preload structurally harmless rather
+ *    than harmless by slice arithmetic.
  *
- * A session is neither: it keys on the session id, so it yields exactly one row
- * per real login with no slice arithmetic.
+ * The day is UTC, for the reason `server/usage/months.ts` gives for the month:
+ * a campus-local day would file one use under two different days depending on
+ * who read it. It is also what keeps a connection row and the members dialog's
+ * `activeDays` from disagreeing, since that count casts `occurredAt::date`,
+ * which is UTC too.
  */
-export type UsageDedupe = 'bucket' | 'each';
+export type UsageDedupe = 'bucket' | 'each' | 'day';
 
 /** One 30-minute slice: the `bucket` granularity. */
 export const USAGE_BUCKET_MS = 30 * 60 * 1000;
+
+/** One UTC day: the `day` granularity. */
+export const USAGE_DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * How long a raw `Usage_FeatureUse` row lives, in calendar months.
@@ -285,18 +298,25 @@ const def = (d: UsageFeatureDef): UsageFeatureDef => d;
 const BUCKET_NOTE =
   'Compté une fois par demi-heure et par personne, donc un onglet laissé ouvert ne gonfle pas le chiffre.';
 
+/**
+ * The same, for the `day` granularity. Impersonal on purpose, exactly like
+ * `BUCKET_NOTE`, so it interpolates into a definition written for staff and
+ * into one written for a talent without changing register.
+ */
+const DAY_NOTE =
+  'Compté une fois par personne et par jour, jamais par page ni par session : revenir plusieurs fois dans la journée ne gonfle pas le chiffre.';
+
 export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   // ── Dev space (staff) ─────────────────────────────────────────────
   [USAGE_FEATURES.DEV_SESSION]: def({
     key: USAGE_FEATURES.DEV_SESSION,
     label: 'Connexions à l’espace dev',
-    definition:
-      'Ouvertures de session réelles sur l’espace dev. Une par session, jamais par page, donc le chiffre compte des venues et non des clics.',
+    definition: `Journées de connexion à l’espace dev. ${DAY_NOTE}`,
     audience: 'staff',
     space: 'dev',
     kind: 'session',
     scope: 'campus',
-    dedupe: 'bucket',
+    dedupe: 'day',
   }),
   [USAGE_FEATURES.DEV_DASHBOARD_VIEW]: def({
     key: USAGE_FEATURES.DEV_DASHBOARD_VIEW,
@@ -564,13 +584,12 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   [USAGE_FEATURES.ADMIN_SESSION]: def({
     key: USAGE_FEATURES.ADMIN_SESSION,
     label: 'Connexions à l’espace admin',
-    definition:
-      'Ouvertures de session réelles sur l’espace admin. Une par session, jamais par page.',
+    definition: `Journées de connexion à l’espace admin. ${DAY_NOTE}`,
     audience: 'staff',
     space: 'admin',
     kind: 'session',
     scope: 'global',
-    dedupe: 'bucket',
+    dedupe: 'day',
   }),
   [USAGE_FEATURES.ADMIN_DASHBOARD_VIEW]: def({
     key: USAGE_FEATURES.ADMIN_DASHBOARD_VIEW,
@@ -1287,13 +1306,12 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   [USAGE_FEATURES.TALENT_SESSION]: def({
     key: USAGE_FEATURES.TALENT_SESSION,
     label: 'Tes connexions',
-    definition:
-      'Ouvertures de session réelles sur l’espace talent. Une par session, jamais par page.',
+    definition: `Tes journées de connexion à l’espace talent. ${DAY_NOTE}`,
     audience: 'talent',
     space: 'talent',
     kind: 'session',
     scope: 'campus',
-    dedupe: 'bucket',
+    dedupe: 'day',
   }),
   [USAGE_FEATURES.TALENT_DASHBOARD_VIEW]: def({
     key: USAGE_FEATURES.TALENT_DASHBOARD_VIEW,
@@ -1511,26 +1529,26 @@ export function isUsageFeatureKey(value: string): value is UsageFeatureKey {
  * different separator and with no time component at all, which capped a seeded
  * member at one row per feature - so their connection count could never exceed
  * the number of spaces they use, whatever the dataset said they had done.
+ *
+ * **There is no branch on `kind` here, and there must not be one.** There was:
+ * a session feature keyed on the session id and returned before `dedupe` was
+ * ever read, so the value those three keys declared was dead text that would
+ * have taken effect silently on the first request arriving without a session.
+ * Granularity is what `dedupe` names, so the only thing a mode decides is how
+ * wide the slice is, and `each` is the mode that has none.
  */
 export function usageDedupeKey(input: {
   feature: UsageFeatureKey;
   /** The staff profile id, or the talent's monthly pseudonym. */
   actorRef: string;
-  /** The `bauth_session` id. What makes a session row exactly-once per login. */
-  sessionId?: string | null;
   eventId?: string | null;
   impersonated?: boolean;
   at: Date;
 }): string | null {
   const featureDef = USAGE_FEATURE_DEFS[input.feature];
-  if (featureDef.kind === 'session') {
-    // No session id (a token-authenticated or otherwise session-less request)
-    // means there is no session to count, so it falls back to a slice rather
-    // than inventing one row per request.
-    if (input.sessionId) return `${input.actorRef}|${input.sessionId}`;
-  }
   if (featureDef.dedupe === 'each') return null;
-  const slice = Math.floor(input.at.getTime() / USAGE_BUCKET_MS);
+  const width = featureDef.dedupe === 'day' ? USAGE_DAY_MS : USAGE_BUCKET_MS;
+  const slice = Math.floor(input.at.getTime() / width);
   return [
     input.actorRef,
     featureDef.scope === 'event' ? (input.eventId ?? '') : '',
