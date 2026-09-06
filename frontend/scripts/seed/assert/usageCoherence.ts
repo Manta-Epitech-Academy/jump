@@ -111,11 +111,17 @@ export async function usageCoherenceFailures(
   }
 
   // 3. Every feature row falls on a day this member has a connection row of the
-  //    same space, and a member holds at most one connection row per space per
-  //    day. The two halves are the two things a connection now claims, and the
-  //    second is the one nothing else could catch: the id and the dedupe key are
-  //    composed differently, so a generator writing two rows for one day would
-  //    pass the unique constraint and quietly double somebody's arrivals.
+  //    same space.
+  //
+  //    The other half of what a connection claims - at most one row per member,
+  //    per space, per day - is deliberately NOT checked here, because it cannot
+  //    be violated in a database this could read. `usageDedupeKey` slices a
+  //    connection on the UTC day, and a space has exactly one connection key
+  //    (`usage.test.ts` pins both), so two rows for one member, space, day and
+  //    impersonation flag carry the same `dedupeKey`; `@@unique([feature,
+  //    dedupeKey])` refuses the second at insert, naming the row, and the seed
+  //    writer passes no `skipDuplicates`. A read-back asserting it would only
+  //    ever run against a database the writer already refused to produce.
   //
   //    Impersonation is part of the grouping, not an exception to it. An admin
   //    exploring a campus records the dev space against THEMSELVES with the flag
@@ -134,24 +140,15 @@ export async function usageCoherenceFailures(
     orderBy: { occurredAt: 'asc' },
   });
 
-  // (member, space) -> the days a connection was recorded.
+  // (member, space, impersonation) -> the days a connection was recorded.
   const connectionDays = new Map<string, Set<number>>();
-  const duplicates = new Map<string, number>();
   for (const row of rows) {
     if (!row.staffProfileId) continue;
     if (!CONNECTION_FEATURES.includes(row.feature as UsageFeatureKey)) continue;
     const key = `${row.staffProfileId}|${spaceOf(row.feature)}|${row.impersonated}`;
     const days = connectionDays.get(key) ?? new Set<number>();
-    const day = dayOf(row.occurredAt);
-    if (days.has(day)) duplicates.set(key, (duplicates.get(key) ?? 0) + 1);
-    days.add(day);
+    days.add(dayOf(row.occurredAt));
     connectionDays.set(key, days);
-  }
-  for (const [key, count] of duplicates) {
-    const [profileId, space] = key.split('|');
-    failures.push(
-      `${profileId} : ${count} connexion(s) en trop sur l’espace ${space}, une journée en portant plus d’une`,
-    );
   }
 
   const orphans = new Map<string, number>();
