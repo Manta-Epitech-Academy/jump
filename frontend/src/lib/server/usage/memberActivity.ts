@@ -74,15 +74,20 @@ export type MemberActivity = {
   /** The window every figure below is measured over. */
   windowMonths: number;
   /**
-   * Distinct calendar days with at least one row, and the figure that actually
-   * answers "how much does this person come". A login count alone answers it
-   * wrongly: a BetterAuth session lives fourteen days (`auth.ts`), so somebody
-   * working daily and never signing out produces about two logins a month.
+   * Distinct calendar days with at least one row, and the ONE figure that
+   * answers "how much does this person come".
+   *
+   * There was a login count beside it and it is deliberately gone. It counted
+   * `*_session` rows, which were one per BetterAuth login, so it read about two
+   * a month for somebody working daily and never signing out, and the dialog
+   * had grown a tooltip explaining that away. A connection row is now one per
+   * space per day, which makes the two figures nearly the same number for a
+   * `dev` and a subtly different one for an admin, who can open both spaces on
+   * one day: a count of space-days under a label reading « connexions ». Two
+   * figures that disagree by a rule nobody can state is worse than one.
    */
   activeDays: number;
-  /** Real logins in the window, one per session per space. */
-  loginCount: number;
-  /** Busiest first. Sessions are not in it: they are the two figures above. */
+  /** Busiest first. Connections are not in it: they are the figure above. */
   features: MemberFeatureUse[];
   /**
    * What this member has not opened once, over the spaces they work in. The
@@ -123,13 +128,10 @@ export async function getMemberActivity(
     }),
     // `occurredAt` is a `TIMESTAMP(3)` holding UTC, so the cast is the day
     // boundary the rest of this feature already counts in (`read.ts` groups
-    // months off the same column the same way).
-    prisma.$queryRaw<{ days: number; logins: number }[]>(Prisma.sql`
-      SELECT
-        COUNT(DISTINCT u."occurredAt"::date)::int AS "days",
-        COUNT(*) FILTER (
-          WHERE u."feature" IN (${Prisma.join([...CONNECTION_FEATURES])})
-        )::int                                    AS "logins"
+    // months off the same column the same way, and `usageDedupeKey` slices a
+    // connection on it, which is what makes this count and that row agree).
+    prisma.$queryRaw<{ days: number }[]>(Prisma.sql`
+      SELECT COUNT(DISTINCT u."occurredAt"::date)::int AS "days"
       FROM "Usage_FeatureUse" u
       WHERE u."staffProfileId" = ${staffProfileId}
         AND u."occurredAt" >= ${since}
@@ -140,7 +142,7 @@ export async function getMemberActivity(
   const touched = new Set<string>();
   for (const row of grouped) {
     touched.add(row.feature);
-    // Sessions are the two counters above, not a feature somebody chose to use.
+    // A connection is the day count above, not a feature somebody chose.
     if ((CONNECTION_FEATURES as string[]).includes(row.feature)) continue;
     const at = row._max.occurredAt;
     if (!at) continue;
@@ -174,7 +176,6 @@ export async function getMemberActivity(
   return {
     windowMonths: USAGE_RAW_RETENTION_MONTHS,
     activeDays: totals?.days ?? 0,
-    loginCount: totals?.logins ?? 0,
     features,
     jamaisOuvertes: neverOpened(profile.staffRole, touched),
   };
