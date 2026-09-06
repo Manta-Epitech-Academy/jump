@@ -55,8 +55,20 @@
     lastActiveAt,
   }: Props = $props();
 
-  let loading = $state(false);
-  let failed = $state(false);
+  /**
+   * The four answers this dialog can render, as one value rather than a pair of
+   * booleans.
+   *
+   * `missing` is the reason: the route answers 404 for a profile that no longer
+   * exists, and with only `loading` and `failed` to carry it a deleted member
+   * rendered the outage sentence, telling somebody to retry a fetch that can
+   * never succeed. Two booleans also spell four states of which only three are
+   * meant to exist; a union spells the states themselves, so the next one
+   * cannot be added without a branch to render it.
+   */
+  type Status = 'loading' | 'missing' | 'failed' | 'ready';
+
+  let status = $state<Status>('loading');
   let windowMonths = $state(0);
   let activeDays = $state(0);
   let loginCount = $state(0);
@@ -68,23 +80,32 @@
   $effect(() => {
     if (!open || !profileId) return;
     const id = profileId;
-    loading = true;
-    failed = false;
+    status = 'loading';
     fetch(`/staff/admin/users/${id}/usage`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error())))
+      .then((res) => {
+        // A stale link and an outage are different answers to the admin, so
+        // they are different answers here: null is « ce membre n'existe plus »,
+        // a rejection is « la requête a échoué ».
+        if (res.status === 404) return null;
+        if (!res.ok) throw new Error(String(res.status));
+        return res.json();
+      })
       .then((body) => {
         if (profileId !== id) return; // a newer row was opened meanwhile
+        if (!body) {
+          status = 'missing';
+          return;
+        }
         windowMonths = body.windowMonths ?? 0;
         activeDays = body.activeDays ?? 0;
         loginCount = body.loginCount ?? 0;
         features = body.features ?? [];
         jamaisOuvertes = body.jamaisOuvertes ?? [];
+        status = 'ready';
       })
       .catch(() => {
-        failed = true;
-      })
-      .finally(() => {
-        loading = false;
+        if (profileId !== id) return;
+        status = 'failed';
       });
   });
 </script>
@@ -104,7 +125,7 @@
       </Dialog.Description>
     </Dialog.Header>
 
-    {#if loading}
+    {#if status === 'loading'}
       <p
         class="flex items-center gap-2 py-6 text-sm text-muted-foreground"
         aria-live="polite"
@@ -112,7 +133,12 @@
         <Loader class="h-4 w-4 animate-spin" />
         Chargement…
       </p>
-    {:else if failed}
+    {:else if status === 'missing'}
+      <p class="py-6 text-sm text-muted-foreground">
+        Ce membre n'existe plus. Rafraîchissez la page pour remettre la liste à
+        jour.
+      </p>
+    {:else if status === 'failed'}
       <p class="py-6 text-sm text-muted-foreground">
         Chargement impossible. Réessayez dans un instant.
       </p>
