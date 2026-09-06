@@ -20,10 +20,13 @@
  * explores a campus produces dev-space rows against themselves, so their own
  * space is not the whole answer.
  *
- * AN EMPTY WINDOW IS NOT AN ABSENT MEMBER. A member whose last visit predates
- * the retention window answers with zeroes and a full never-opened set, not with
- * `null`: `null` is reserved for a profile that does not exist, which is what
- * lets the route tell a stale link apart from an outage.
+ * AN EMPTY WINDOW IS NOT AN ABSENT MEMBER, AND IT IS NOT A VERDICT EITHER. A
+ * member whose last visit predates the retention window answers with zeroes,
+ * not with `null`: `null` is reserved for a profile that does not exist, which
+ * is what lets the route tell a stale link apart from an outage. And the
+ * never-opened set is EMPTY for them rather than full, because no row in the
+ * window means nothing was measured, and naming their whole catalogue would
+ * print an absence of measurement as an absence of use.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -209,7 +212,19 @@ describe('getMemberActivity', () => {
     expect(activity!.activeDays).toBe(0);
     expect(activity!.loginCount).toBe(0);
     expect(activity!.features).toEqual([]);
-    // The whole dev catalogue, since they have opened none of it.
+  });
+
+  it('names nothing when nothing was measured', async () => {
+    const activity = await getMemberActivity(lapsed);
+
+    // NOT the whole dev catalogue. This member has no row in the window, so
+    // what they have or have not opened is unmeasured, and answering it with
+    // every feature they work with reads as a verdict on somebody the data says
+    // nothing about. The member who HAS rows, above, is the one this set is
+    // for - and it is non-empty there, so this is not an assertion that the
+    // query is broken.
+    expect(activity!.jamaisOuvertes).toEqual([]);
+
     const devKeys = USAGE_FEATURE_KEYS.filter((key) => {
       const definition = USAGE_FEATURE_DEFS[key];
       return (
@@ -218,7 +233,7 @@ describe('getMemberActivity', () => {
         definition.space === 'dev'
       );
     });
-    expect(activity!.jamaisOuvertes).toHaveLength(devKeys.length);
+    expect(devKeys.length).toBeGreaterThan(0);
   });
 
   it('is null for a profile that does not exist', async () => {

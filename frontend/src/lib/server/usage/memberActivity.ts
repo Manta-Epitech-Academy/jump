@@ -38,7 +38,7 @@
  * fortnight-long session is not fourteen.
  */
 
-import { Prisma } from '@prisma/client';
+import { Prisma, type StaffRole } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { staffSpaceForRole } from '$lib/domain/staff';
 import {
@@ -88,6 +88,9 @@ export type MemberActivity = {
    * What this member has not opened once, over the spaces they work in. The
    * actionable half: an absence here IS an absence, which is exactly what a
    * capped list of recent rows could never say.
+   *
+   * Empty when the window holds no row at all, because then nothing was
+   * measured and nothing can be said. `neverOpened` carries the argument.
    */
   jamaisOuvertes: { libelle: string; espace: string }[];
 };
@@ -168,20 +171,52 @@ export async function getMemberActivity(
       b.dernierUsage.getTime() - a.dernierUsage.getTime(),
   );
 
-  // The spaces this member works in: the one their role gives them, plus any
-  // they have actually produced a row in. An admin exploring a campus records
-  // dev-space rows against themselves, so their own space is not the whole
-  // answer - and a `dev` has no admin space, so listing the admin catalogue as
-  // « jamais ouvert » for them would be a reproach for something they cannot
-  // reach.
+  return {
+    windowMonths: USAGE_RAW_RETENTION_MONTHS,
+    activeDays: totals?.days ?? 0,
+    loginCount: totals?.logins ?? 0,
+    features,
+    jamaisOuvertes: neverOpened(profile.staffRole, touched),
+  };
+}
+
+/**
+ * The catalogue this member has not opened once, over the spaces they work in.
+ *
+ * The spaces are the one their role gives them plus any they have actually
+ * produced a row in: an admin exploring a campus records dev-space rows against
+ * themselves, so their own space is not the whole answer, and a `dev` has no
+ * admin space, so naming the admin catalogue for them would be a reproach for
+ * something they cannot reach.
+ *
+ * **Nothing measured is not everything unused, and that branch is the point of
+ * this being a function.** A member whose last visit predates the retention has
+ * no row in the window, and answering that with their whole catalogue names
+ * twenty-six features for a `dev` and seventy for an admin under a heading that
+ * reads « jamais ouvertes ». It is the error `AGENTS.md` singles out on the
+ * digest's own adoption section: an absence of rows is an absence of
+ * measurement, and printing it as a list of unused features is the one that
+ * makes somebody retire something in use. « Ce compte sert-il encore » is
+ * already answered for that member, by the two dates on the roster row, which
+ * reach back further than any retention. So the answer here is nothing at all.
+ *
+ * An empty answer therefore reads « rien à signaler » in both directions - that
+ * or the member has opened everything - which is what the caller renders it as.
+ */
+function neverOpened(
+  staffRole: StaffRole | null,
+  touched: ReadonlySet<string>,
+): { libelle: string; espace: string }[] {
+  if (touched.size === 0) return [];
+
   const spaces = new Set<UsageSpace>();
-  const own = staffSpaceForRole(profile.staffRole);
+  const own = staffSpaceForRole(staffRole);
   if (own) spaces.add(own);
   for (const feature of touched)
     if (isUsageFeatureKey(feature))
       spaces.add(USAGE_FEATURE_DEFS[feature].space);
 
-  const jamaisOuvertes = USAGE_FEATURE_KEYS.filter((key) => {
+  return USAGE_FEATURE_KEYS.filter((key) => {
     const definition = USAGE_FEATURE_DEFS[key];
     return (
       definition.audience === 'staff' &&
@@ -193,12 +228,4 @@ export async function getMemberActivity(
     libelle: USAGE_FEATURE_DEFS[key].label,
     espace: USAGE_SPACE_LABELS[USAGE_FEATURE_DEFS[key].space],
   }));
-
-  return {
-    windowMonths: USAGE_RAW_RETENTION_MONTHS,
-    activeDays: totals?.days ?? 0,
-    loginCount: totals?.logins ?? 0,
-    features,
-    jamaisOuvertes,
-  };
 }
