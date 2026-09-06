@@ -57,15 +57,23 @@ soit un jeu de données joli et inutile, soit un jeu complet et irréaliste.
 | XpGrant               | 7 379  | StaffProfile              | 138    |
 | bauth_user            | 6 330  | EventConfig_Module        | 130    |
 | Talent                | 5 394  | MinigamePublication       | 72     |
-| TalentSfImport        | 5 377  | Usage_FeatureUse          | 65     |
-| Schooling_YearRecord  | 5 198  | Closing_Option            | 52     |
-| MinigameAttempt       | 4 481  | Broadcast                 | 42     |
-| TalentInterest        | 4 154  | Interest                  | 34     |
-| OnboardingPdfJob      | 2 424  | Campus                    | 15     |
-| BroadcastRecipient    | 2 306  | Closing_Question          | 12     |
-| Closing_Record        | 1 694  | Feedback_Form             | 4      |
-| Feedback_Submission   | 942    | Closing_Template          | 2      |
-| School                | 891    | Diploma_Template          | 2      |
+| TalentSfImport        | 5 377  | Closing_Option            | 52     |
+| Schooling_YearRecord  | 5 198  | Broadcast                 | 42     |
+| MinigameAttempt       | 4 481  | Interest                  | 34     |
+| TalentInterest        | 4 154  | Campus                    | 15     |
+| OnboardingPdfJob      | 2 424  | Closing_Question          | 12     |
+| BroadcastRecipient    | 2 306  | Feedback_Form             | 4      |
+| Closing_Record        | 1 694  | Closing_Template          | 2      |
+| Feedback_Submission   | 942    | Diploma_Template          | 2      |
+| School                | 891    |                           |        |
+
+`Usage_FeatureUse` n'y figure pas, et son absence est un chiffre en soi : la
+production ne porte pas cette table. Le tableau a un temps annoncé 65 lignes
+pour elle, relevées le lendemain de sa création sur le dump restauré en local,
+c'est-à-dire une journée de navigation d'un développeur. Calibrer le générateur
+là-dessus, c'eût été le calibrer sur rien. Sa volumétrie se mesurera quand la
+fonctionnalité aura tourné en production, et la règle du fichier vaut d'ici là :
+un chiffre qui manque se demande, il ne se devine pas.
 
 ## Campus
 

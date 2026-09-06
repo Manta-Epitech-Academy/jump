@@ -431,9 +431,9 @@ catalogue both read.
   Instructing a browser to post a result back is an access to the terminal under
   art. 5(3) ePD, which would drag the whole thing into art. 82 consent; a pure
   server log does not. There is no `/api/usage` endpoint and there must not be one.
-  Visits and sessions come from `USAGE_VIEW_ROUTES` in `hooks.server.ts`, after the
-  guards, which also keeps writes out of `load` functions that SvelteKit runs on
-  hover-preload.
+  Views come from `USAGE_VIEW_ROUTES` in `hooks.server.ts` and connections from
+  the space prefix beside it, both after the guards, which also keeps writes out
+  of `load` functions that SvelteKit runs on hover-preload.
 - **Where a use is recorded is a rule, not a judgement call per site.** An endpoint
   that produces an artifact records once the artifact exists, so an event issuing
   no certificate never counts a 404 as a render. Everything else records when the
@@ -486,18 +486,39 @@ catalogue both read.
   has not opened yet. The second needs no day count, which is why the guard sits
   after the whole branch rather than inside it; while it did not, a year still
   ahead answered zeros through a `source` whose « au » preceded its « du ».
-- **A connection is a `*_session` row, never a `bauth_session` row.** The session
-  table is not a login history, which the schema states twice, on both
-  `StaffProfile.firstLoginAt` and `Talent.firstLoginAt`: logout, identity repair
-  and relinks delete from it, so it under-reports whoever signs out and
-  over-reports whoever never does. It shipped once as the source of the members
-  page's connection list, where 6046 of the development database's 6049 rows were
-  expired sessions nobody had closed. The two projections answer "has this
-  account ever been opened, and when", the session keys answer "how often", and
-  neither question is ever asked of `bauth_session`. The figure that answers "how
-  much does this person come" is then the count of DISTINCT DAYS, not of logins:
-  a BetterAuth session lives a fortnight, so somebody working daily and never
-  signing out produces about two logins a month.
+- **A connection is a DAY, and a `*_connection` row is one per person, per space,
+  per UTC day.** It is written by the request itself, from `usageConnectionFeature`
+  matching the space by prefix, so it covers every page of a space and not only
+  the 36 routes `USAGE_VIEW_ROUTES` names. Two things follow that a
+  finer-grained row would not give: it is the only hard per-actor cap in the
+  catalogue, which is what makes a hover-preload structurally harmless rather
+  than harmless by slice arithmetic, and the day it is sliced on is the day
+  `memberActivity` casts `occurredAt::date` to, so a connection row and the
+  members dialog's day count cannot disagree.
+
+  Never a `bauth_session` row, and it never was: the session table is not a login
+  history, which the schema states twice, on both `StaffProfile.firstLoginAt` and
+  `Talent.firstLoginAt`, since logout, identity repair and relinks delete from
+  it, so it under-reports whoever signs out and over-reports whoever never does.
+  It shipped once as the source of the members page's connection list, where
+  6046 of the development database's 6049 rows were expired sessions nobody had
+  closed. The two projections answer "has this account ever been opened, and
+  when", the connection keys answer "how often", and neither question is ever
+  asked of `bauth_session`.
+
+  The key was a login for one release and the day replaced it, so the reasoning
+  is worth keeping. A row keyed on the session id counted logins, a BetterAuth
+  session lives a fortnight, and somebody working daily and never signing out
+  therefore produced about two rows a month: an order of magnitude out on the
+  members dialog, and blind on the per-campus adoption figure, where a campus
+  opening the dev space every day and one opening it twice a month returned the
+  same number. The dialog had grown a tooltip explaining the fortnight away,
+  which is the tell: a sentence whose job is to excuse a figure means the figure
+  is the defect. **Granularity is declared by `dedupe` and by nothing else.**
+  That branch keyed on the session id and returned before `dedupe` was read, so
+  the value those three keys declared was dead text that would have taken effect
+  silently on the first session-less request, and it skipped `impersonated` and
+  `eventId` where the general path composes them.
 
 Reads are `stats_feature_usage`, `stats_feature_adoption_gaps`,
 `stats_campus_feature_coverage` (leadership) and `ops_staff_activity` (core), over
