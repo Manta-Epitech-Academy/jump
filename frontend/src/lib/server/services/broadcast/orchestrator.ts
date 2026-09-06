@@ -6,7 +6,11 @@ import type {
 } from '@prisma/client';
 import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
-import type { BroadcastFilters } from '$lib/domain/broadcasts';
+import {
+  BROADCAST_MAX_RETRIES,
+  type BroadcastFilters,
+  type BroadcastTerminalStatus,
+} from '$lib/domain/broadcasts';
 import { rewriteHtmlLinks, rewriteSmsLinks } from './linkRewriter';
 import {
   substituteVariables,
@@ -24,7 +28,7 @@ import {
   mintParentFastloginToken,
   buildParentFastloginLink,
 } from '$lib/server/auth/fastloginToken';
-import { mintSigninOtp } from './personalization';
+import { mintSigninOtp } from '$lib/server/auth/otpSession';
 import { loadBroadcastTemplate } from './templates';
 import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
 import { staffBulkDevRedirectPhones } from '$lib/server/sms/dev-redirect';
@@ -41,7 +45,7 @@ export interface EnqueueBroadcastInput {
   createdById: string;
   /**
    * Per-send content overrides. When provided, these are snapshotted onto the
-   * Broadcast instead of the template's own subject/body — letting the composer
+   * Broadcast instead of the template's own subject/body, letting the composer
    * tweak the message for this send without mutating the reusable template.
    * `null`/omitted falls back to the template (the historical behaviour).
    */
@@ -73,7 +77,7 @@ export class EmptyBroadcastError extends Error {
  * The template body/subject are snapshotted onto the Broadcast so later
  * edits to the template don't rewrite history.
  *
- * No messages are sent here — call `processBroadcast()` after.
+ * No messages are sent here: call `processBroadcast()` after.
  *
  * The template is resolved through `loadBroadcastTemplate`, so a transactional
  * one (an OTP/relance template wired to an action) is rejected here, not just
@@ -156,10 +160,16 @@ export async function enqueueBroadcast(
  */
 export async function processBroadcast(broadcastId: string): Promise<void> {
   // Atomic claim. Only one caller can flip `queued → sending` (or take over
-  // a stuck `sending` row) for a given broadcast — the others see count=0
+  // a stuck `sending` row) for a given broadcast: the others see count=0
   // and bail. Without this, the fire-and-forget call from the create action
   // and a concurrent cron tick (or two cron ticks) would both page the same
   // `pending` recipients and double-send.
+  //
+  // Those two statuses are the outstanding half of `BROADCAST_STATUS_KIND`
+  // (`$lib/domain/broadcasts`), which is what the seed generator's inertness
+  // check reads to refuse writing a row this claim could ever match. The
+  // condition per status stays here, because only the worker knows that a
+  // `sending` row is claimable exactly once its heartbeat is stale.
   const stuckBefore = new Date(Date.now() - SENDING_STUCK_TIMEOUT_MS);
   const claim = await prisma.broadcast.updateMany({
     where: {
@@ -217,7 +227,7 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
         talent: {
           select: {
             id: true,
-            email: true,
+            user: { select: { email: true } },
             prenom: true,
             nom: true,
           },
@@ -260,7 +270,7 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
 
   // Final tally from DB so it covers rows persisted across earlier runs
   // (resumed broadcasts). If any rows are still `pending`, the broadcast
-  // has retry candidates in cooldown — leave at `sending`, the worker will
+  // has retry candidates in cooldown: leave at `sending`, the worker will
   // pick it back up after the stuck timeout (or after the cooldown elapses,
   // whichever fires first, given the heartbeat goes stale once we return).
   const counts = await prisma.broadcastRecipient.groupBy({
@@ -271,9 +281,12 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
   const tally = { pending: 0, sent: 0, failed: 0 };
   for (const c of counts) tally[c.status] = c._count._all;
 
-  if (tally.pending > 0) return; // not finalized yet — retry candidates remain
+  if (tally.pending > 0) return; // not finalized yet: retry candidates remain
 
-  const finalStatus =
+  // Typed, so the three conclusions here and the statuses the claim above
+  // matches stay two halves of one classification (`BROADCAST_STATUS_KIND`)
+  // rather than two lists that can drift.
+  const finalStatus: BroadcastTerminalStatus =
     tally.failed === 0
       ? 'sent'
       : tally.sent === 0
@@ -293,7 +306,7 @@ type RecipientWithRelations = Awaited<
         talent: {
           select: {
             id: true;
-            email: true;
+            user: { select: { email: true } };
             prenom: true;
             nom: true;
           };
@@ -326,19 +339,24 @@ type BroadcastForSend = {
   bodySnapshot: string;
   eventId: string | null;
   event: { titre: string; date: Date } | null;
+  /** Null once the creator's account has been deleted. The send itself is
+   *  unaffected: this only feeds the per-staff dev-redirect on a trapped
+   *  environment, and an absent creator yields no personal destination, which
+   *  is the same "fall back to the env list" the helpers already return for a
+   *  staff member who configured none. */
   createdBy: {
     email: string;
     staffProfile: {
       devRedirectEmails: string[];
       devRedirectPhones: string[];
     } | null;
-  };
+  } | null;
 };
 
 /**
  * Build the per-recipient mail payload: subject + body with variable
  * substitution, branded HTML render, and tracking_id link rewrite.
- * Returns null if the recipient is unsendable (no email address) — caller
+ * Returns null if the recipient is unsendable (no email address); caller
  * marks it failed without burning a slot in the upstream batch.
  */
 function buildMailMessage(
@@ -365,7 +383,7 @@ function buildMailMessage(
 
 /**
  * Mail path: render every recipient's payload, ship them in one batch API
- * call (Resend caps at 100 — matches PAGE), then persist per-recipient
+ * call (Resend caps at 100, matches PAGE), then persist per-recipient
  * status. Recipients with no email are marked failed without consuming a
  * batch slot.
  */
@@ -378,7 +396,7 @@ async function sendMailBatch(
     parentFastlogin: templateUses(broadcast, 'parent_fastlogin_link'),
     otp: templateUses(broadcast, 'otp_code'),
   };
-  // Mint per-recipient secrets concurrently — JWT signing is in-memory,
+  // Mint per-recipient secrets concurrently: JWT signing is in-memory,
   // OTP minting is one DB insert per talent. Cap concurrency to avoid
   // saturating the Prisma connection pool when needs.otp is true. Errors
   // are swallowed inside buildPersonalization so one bad mint doesn't fail
@@ -417,11 +435,11 @@ async function sendMailBatch(
         // the shared debug list; a no-op in prod. Prefer their configured
         // dev-redirect inbox, falling back to their login email. `sendSmsSerial`
         // does the same with the creator's configured phones (no login-phone
-        // fallback — staff accounts carry no login phone).
+        // fallback: staff accounts carry no login phone).
         {
           devRedirectTo: staffBulkDevRedirectEmails(
-            broadcast.createdBy.staffProfile?.devRedirectEmails,
-            broadcast.createdBy.email,
+            broadcast.createdBy?.staffProfile?.devRedirectEmails,
+            broadcast.createdBy?.email,
           ),
         },
       );
@@ -484,12 +502,12 @@ async function sendSmsSerial(
           },
           // Mirror the mail path: on a trapped env route copies to the
           // creator's configured phones (resolved from the row, since this can
-          // run in the worker). No login-phone fallback — an unconfigured
+          // run in the worker). No login-phone fallback: an unconfigured
           // creator yields `[]`, so the façade falls back to SMS_DEV_RECIPIENTS
           // or drops. A no-op in prod.
           {
             devRedirectTo: staffBulkDevRedirectPhones(
-              broadcast.createdBy.staffProfile?.devRedirectPhones,
+              broadcast.createdBy?.staffProfile?.devRedirectPhones,
             ),
           },
         );
@@ -526,7 +544,7 @@ async function persistOutcomes(
       continue;
     }
     const willRetry =
-      outcome.retryable && recipient.retryCount + 1 < MAX_RETRIES;
+      outcome.retryable && recipient.retryCount + 1 < BROADCAST_MAX_RETRIES;
     if (willRetry) {
       // Stay `pending`, bump retryCount + lastTriedAt. The page query
       // gates on `lastTriedAt < now - RETRY_COOLDOWN_MS` so this row sits
@@ -594,7 +612,7 @@ function buildContext(
   // For broadcasts with audience=parent, the parent_* variables surface
   // the parent's own identity (already in prenom/nom) and child_* the
   // talent they're tied to. For talent recipients, parent_* mirror the
-  // talent's parent info if present. login_link is null here — broadcasts
+  // talent's parent info if present. login_link is null here: broadcasts
   // use fastlogin_link instead (the JWT carries the session).
   const isParentRecipient = !!recipient.parentOf;
   return {
@@ -633,7 +651,7 @@ function buildContext(
 /**
  * Whether the template references `{{fastlogin_link}}` / `{{otp_code}}` /
  * `{{parent_fastlogin_link}}`. Used to skip the cost of minting secrets we'd
- * never inject — JWT signing is cheap, but `mintSigninOtp` writes a row to
+ * never inject: JWT signing is cheap, but `mintSigninOtp` writes a row to
  * `bauth_verification` per call which adds up at 200 recipients.
  */
 function templateUses(
@@ -698,9 +716,9 @@ const EMPTY_PERSONALIZATION: Personalization = {
  * The two link kinds are deliberately never crossed. Minting a parent link
  * for a talent recipient would drop a live parent session into the student's
  * own inbox, letting them sign in as their parent and self-sign image-rights
- * consent — so the parent link only mints when the recipient *is* the parent.
+ * consent, so the parent link only mints when the recipient *is* the parent.
  *
- * Failures are isolated so one bad mint doesn't tank a 200-recipient batch —
+ * Failures are isolated so one bad mint doesn't tank a 200-recipient batch:
  * that recipient just gets a null for the failed variable.
  */
 async function buildPersonalization(
@@ -714,7 +732,7 @@ async function buildPersonalization(
   // The email of whichever account this mail signs into. Falls back to the
   // stored recipient address (set from the same source at resolve time).
   const talentEmail = talent
-    ? (talent.email ?? recipient.recipientEmail)
+    ? (talent.user?.email ?? recipient.recipientEmail)
     : null;
   const parentEmail = parentOf
     ? (parentOf.parentEmail ?? recipient.recipientEmail)
@@ -771,14 +789,6 @@ function logMintFailure(kind: string, email: string) {
 const SENDING_STUCK_TIMEOUT_MS = 10 * 60 * 1000;
 
 /**
- * Max number of send attempts per recipient before giving up. Includes the
- * initial attempt — so MAX_RETRIES=3 means up to 2 retries after the first
- * failure. Tuned conservatively to avoid burning the Resend quota on
- * persistent (mis-classified-permanent) errors.
- */
-const MAX_RETRIES = 3;
-
-/**
  * Cooldown between a failed attempt and its retry. The page query skips
  * rows whose `lastTriedAt` is more recent than `now - cooldown`. Matched
  * roughly to `SENDING_STUCK_TIMEOUT_MS` so the worker's next tick (after
@@ -792,8 +802,8 @@ const RETRY_COOLDOWN_MS = 5 * 60 * 1000;
  *   - `sending` with a stale heartbeat (`updatedAt < stuck cutoff`): the
  *     owning process is gone, resume it.
  *
- * Recipients already marked `sent` or beyond `MAX_RETRIES` are skipped by
- * the page query, so resumption is idempotent — never double-sends.
+ * Recipients already marked `sent` or beyond `BROADCAST_MAX_RETRIES` are
+ * skipped by the page query, so resumption is idempotent: never double-sends.
  *
  * Note: a `sending` broadcast with retry candidates still in cooldown but
  * a fresh heartbeat (`updatedAt` recent because the loop just exited)

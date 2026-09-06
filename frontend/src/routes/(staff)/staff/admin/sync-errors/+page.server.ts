@@ -1,6 +1,14 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
+import {
+  resolveSyncError,
+  resolveAllSyncErrors,
+  resolveSyncErrors,
+  rebindTalentExtId,
+} from '$lib/server/services/syncErrorService';
 
 export const load: PageServerLoad = async () => {
   const [errors, unresolvedCount] = await Promise.all([
@@ -21,7 +29,6 @@ export const load: PageServerLoad = async () => {
         select: {
           externalId: true,
           titre: true,
-          eventType: true,
           campus: { select: { name: true } },
         },
       })
@@ -35,15 +42,12 @@ export const load: PageServerLoad = async () => {
   ].sort();
 
   return {
-    // An error is about one event, so its category is that event's type — see
-    // countCampusSyncErrors for why the talents involved can't supply it.
     errors: errors.map((e: (typeof errors)[number]) => {
       const event = e.eventExtId ? eventMap.get(e.eventExtId) : null;
       return {
         ...e,
         eventName: event?.titre ?? null,
         campusName: event?.campus?.name ?? null,
-        eventType: event?.eventType ?? null,
         createdAt: e.createdAt.toISOString(),
         updatedAt: e.updatedAt.toISOString(),
         lastOccurredAt: e.lastOccurredAt.toISOString(),
@@ -56,112 +60,55 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-  resolve: async ({ request }) => {
+  resolve: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SYNC_ERROR_RESOLVE, { locals });
     const formData = await request.formData();
     const id = formData.get('id') as string;
     if (!id) return fail(400);
 
-    await prisma.syncError.update({
-      where: { id },
-      data: { resolved: true, resolvedAt: new Date() },
-    });
-
+    await resolveSyncError(id);
     return { success: true };
   },
 
-  resolveAll: async () => {
-    await prisma.syncError.updateMany({
-      where: { resolved: false },
-      data: { resolved: true, resolvedAt: new Date() },
-    });
-
+  resolveAll: async ({ locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SYNC_ERROR_RESOLVE, { locals });
+    await resolveAllSyncErrors();
     return { success: true };
   },
 
-  // Resolve a specific set of rows — the page passes the currently-filtered
-  // unresolved ids, so an admin can clear "all Coding Club errors" without the
-  // DB-wide `resolveAll` (which is deliberately offered only on the unfiltered
-  // view). Scoped to `resolved: false` so a stale id can't un-resolve a row.
-  resolveSelected: async ({ request }) => {
+  resolveSelected: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SYNC_ERROR_RESOLVE, { locals });
     const formData = await request.formData();
     const ids = formData
       .getAll('ids')
       .filter((v): v is string => typeof v === 'string' && v.length > 0);
     if (ids.length === 0) return fail(400);
 
-    const { count } = await prisma.syncError.updateMany({
-      where: { id: { in: ids }, resolved: false },
-      data: { resolved: true, resolvedAt: new Date() },
-    });
-
+    const { count } = await resolveSyncErrors(ids);
     return { success: true, count };
   },
 
-  /**
-   * Rebind a talent's externalId from the dead one (`existingExtId`) to the
-   * one Salesforce is now sending (`attemptedExtId`), then mark the row
-   * resolved. Used for the "Salesforce regenerated the extId" case — the
-   * same human, new identifier, our DB needs to catch up.
-   *
-   * Safety:
-   *   - Row must carry an `existingExtId` (the lookup that surfaced the
-   *     conflict must have found the prior talent). Otherwise we have
-   *     nothing to migrate.
-   *   - If the prior talent no longer exists (someone already rebound it),
-   *     just resolve the row idempotently.
-   *   - If the target `attemptedExtId` is already taken by *another*
-   *     talent in our DB, refuse — that's a different conflict the admin
-   *     needs to inspect manually.
-   */
-  rebind: async ({ request }) => {
+  rebind: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SYNC_ERROR_REBIND, { locals });
     const formData = await request.formData();
     const id = formData.get('id');
     if (typeof id !== 'string' || !id) return fail(400);
 
-    const row = await prisma.syncError.findUnique({ where: { id } });
-    if (!row) return fail(404, { rebindError: 'Erreur introuvable.' });
-    if (!row.existingExtId) {
-      return fail(400, {
-        rebindError: 'Aucun extId existant à migrer pour cette erreur.',
-      });
+    const result = await rebindTalentExtId(id);
+    if (result.ok) return { success: true };
+
+    switch (result.reason) {
+      case 'not_found':
+        return fail(404, { rebindError: 'Erreur introuvable.' });
+      case 'no_existing_ext_id':
+        return fail(400, {
+          rebindError: 'Aucun extId existant à migrer pour cette erreur.',
+        });
+      case 'ext_id_taken':
+        return fail(409, {
+          rebindError:
+            'Le nouvel extId est déjà utilisé par un autre talent : résolution manuelle requise.',
+        });
     }
-
-    const existing = await prisma.talent.findUnique({
-      where: { externalId: row.existingExtId },
-      select: { id: true },
-    });
-    if (!existing) {
-      // Prior talent gone (manual delete or already rebound) — clean up
-      // the row instead of failing.
-      await prisma.syncError.update({
-        where: { id },
-        data: { resolved: true, resolvedAt: new Date() },
-      });
-      return { success: true };
-    }
-
-    const clash = await prisma.talent.findUnique({
-      where: { externalId: row.attemptedExtId },
-      select: { id: true },
-    });
-    if (clash && clash.id !== existing.id) {
-      return fail(409, {
-        rebindError:
-          'Le nouvel extId est déjà utilisé par un autre talent — résolution manuelle requise.',
-      });
-    }
-
-    await prisma.$transaction([
-      prisma.talent.update({
-        where: { id: existing.id },
-        data: { externalId: row.attemptedExtId },
-      }),
-      prisma.syncError.update({
-        where: { id },
-        data: { resolved: true, resolvedAt: new Date() },
-      }),
-    ]);
-
-    return { success: true };
   },
 };

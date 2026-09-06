@@ -1,5 +1,8 @@
+import { prisma } from '$lib/server/db';
 import { scopedPrisma } from '$lib/server/db/scoped';
+import { recomputeEventsCountBulk } from '$lib/server/services/xpService';
 import type { PresenceSlot } from '$lib/domain/eventPresence';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 
 // Émargement is autonomous from Participation, but the roster of who is expected
 // is still read from Participation (the Salesforce campaign-member mirror).
@@ -52,8 +55,7 @@ export async function reopenPresenceSlot(
 }
 
 export type MarkAllPresentResult =
-  | { status: 'closed' }
-  | { status: 'done'; marked: number };
+  { status: 'closed' } | { status: 'done'; marked: number };
 
 /**
  * Bulk "tout présent" for one créneau: fill every still-"en attente" cell with a
@@ -86,22 +88,48 @@ export async function markAllPresentInSlot(
   if (manualClosure) return { status: 'closed' };
 
   const roster = await db.participation.findMany({
-    where: { eventId },
+    where: { eventId, ...visibleParticipationWhere },
     select: { talentId: true },
   });
+
   const now = new Date();
-  const { count } = await db.eventPresence.createMany({
-    data: roster.map((p) => ({
-      talentId: p.talentId,
-      eventId,
-      day,
-      slot,
-      status: 'present' as const,
-      source: 'manual' as const,
-      markedById,
-      markedAt: now,
-    })),
-    skipDuplicates: true,
+  const count = await prisma.$transaction(async (tx) => {
+    // Snapshot who already carries a présent/en-retard cell for this event
+    // BEFORE inserting: bulk-marking another slot can't change whether they
+    // attended, so their `eventsCount` is untouched and we skip recomputing
+    // them. Only talents who gain their first attendance here (bounded by the
+    // roster, not the campus) need the projection refreshed. `eventId` is already
+    // campus-authorized by the caller's scoped event load.
+    const alreadyAttending = new Set(
+      (
+        await tx.eventPresence.findMany({
+          where: { eventId, status: { in: ['present', 'late'] } },
+          distinct: ['talentId'],
+          select: { talentId: true },
+        })
+      ).map((r) => r.talentId),
+    );
+
+    const { count } = await tx.eventPresence.createMany({
+      data: roster.map((p) => ({
+        talentId: p.talentId,
+        eventId,
+        day,
+        slot,
+        status: 'present' as const,
+        source: 'manual' as const,
+        markedById,
+        markedAt: now,
+      })),
+      skipDuplicates: true,
+    });
+
+    await recomputeEventsCountBulk(
+      tx,
+      roster.map((p) => p.talentId).filter((id) => !alreadyAttending.has(id)),
+    );
+
+    return count;
   });
 
   return { status: 'done', marked: count };

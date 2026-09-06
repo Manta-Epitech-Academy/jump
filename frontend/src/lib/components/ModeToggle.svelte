@@ -39,7 +39,7 @@
                     </div>
                   {/if}
                 </div>
-                <span class="sr-only">Toggle theme</span>
+                <span class="sr-only">Changer de thème</span>
               </Button>
             {/snippet}
           </DropdownMenu.Trigger>

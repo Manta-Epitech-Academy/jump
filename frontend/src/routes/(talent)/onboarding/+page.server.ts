@@ -9,91 +9,44 @@ import {
   interestsSchema,
   equipmentSchema,
   rulesSchema,
+  rulesSchemaWithoutCharter,
 } from '$lib/validation/onboarding';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
-import {
-  WELCOME_XP_BONUS,
-  onboardingEarlyBirdBonus,
-  ONBOARDING_EARLY_BIRD_LIMIT,
-} from '$lib/domain/xp';
-import { grantXp } from '$lib/server/services/xpService';
-import {
-  resolveTalentCampus,
-  countCampusEarlyBirdPosition,
-} from '$lib/server/services/talentCampus';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
+import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
 import {
   getOnboardingStep,
-  type OnboardingStep,
+  onboardingFieldsForYear,
 } from '$lib/domain/talentOnboarding';
 import {
-  enqueueOnboardingPdfJob,
-  runOnboardingPdfJob,
-} from '$lib/server/services/onboardingPdfJobService';
+  patchCurrentOnboardingRecord,
+  type OnboardingRecordPatch,
+} from '$lib/server/services/onboardingYearService';
+import { runOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobService';
+import {
+  ensureParentAccount,
+  validateTalentInterests,
+  signOnboardingRules,
+} from '$lib/server/services/onboardingService';
 import {
   captureOnboardingReturn,
   consumeOnboardingReturn,
 } from '$lib/server/auth/loginRedirect';
 import { signalArrivalCelebration } from '$lib/server/talent/arrivalCelebration';
 
-// Re-exported for the `./$types`-typed action handlers that key off the step.
-export type { OnboardingStep };
-
-type ParentContact = { email: string; prenom: string; nom: string };
-
-type EnsureParentResult = 'created' | 'refreshed' | 'refused';
-
-/**
- * Ensure parent-1's `bauth_user` exists (role `parent`, verified) and carries
- * the latest name. Awaited by the parents step: a validated address must always
- * end up with a working login, so this can't be fire-and-forget. The name upsert
- * always runs so a corrected name still propagates.
- *
- * Returns `'refused'` when the address already belongs to a NON-parent login (a
- * student's or staff member's account). One email = one `bauth_user` = one role,
- * so we can't also mint a parent login there; repurposing theirs would pollute
- * their identity, and the welcome magic link would be rejected anyway
- * (`/parent/fastlogin` filters by `role: 'parent'`). This function is the only
- * gate for that collision: the parents step runs no up-front email-availability
- * check, so `'refused'` is an ordinary, if uncommon, outcome (a family sharing
- * one inbox that already backs another student's login, or a parent who is also
- * Epitech staff), not a race.
- *
- * The caller rejects the step on `'refused'` and asks the talent for another
- * address instead of persisting and advancing. The parent portal carries the
- * règlement co-signature and the image-rights decision (an RGPD / legal step),
- * so a parent left with no account is a silently broken flow, not a cosmetic
- * gap. This replaces an earlier silent pass that only logged a warning and
- * stranded the parent until the shared address was fixed at source.
- */
-async function ensureParentAccount(
-  parent: ParentContact,
-): Promise<EnsureParentResult> {
-  const name = `${parent.prenom} ${parent.nom}`.trim();
-  const existing = await prisma.bauth_user.findUnique({
-    where: { email: parent.email },
-    select: { id: true, role: true },
-  });
-  if (existing && existing.role !== 'parent') return 'refused';
-  if (!existing) {
-    await prisma.bauth_user.create({
-      data: { email: parent.email, name, role: 'parent', emailVerified: true },
-    });
-    return 'created';
-  }
-  await prisma.bauth_user.update({
-    where: { id: existing.id },
-    data: { name },
-  });
-  return 'refreshed';
-}
-
 export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   if (!locals.talent) {
     throw error(401, 'Non autorisé');
   }
 
-  const step = getOnboardingStep(locals.talent);
+  // The ladder runs on the dossier of the year in progress, not on the flat
+  // columns: those hold the most recent dossier, which for a returning talent is
+  // last year's. A stale projection resolves to "nothing done", so they re-walk
+  // the whole wizard and re-sign the current règlement.
+  const schoolYear = currentSchoolYearLabel();
+  const dossier = onboardingFieldsForYear(locals.talent, schoolYear);
+  const step = getOnboardingStep(dossier);
 
   if (!step) {
     throw redirect(303, resolve('/'));
@@ -146,6 +99,16 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   }
 
   if (step === 'interests') {
+    // Pre-fill from the stored selection only when it belongs to THIS year's
+    // dossier. `interestsRecapSeenAt` is the signal, and it is the only field
+    // that can be: it is stamped when the step is validated and, unlike the two
+    // gates, deliberately NOT rewound by `goBack`. So it tells a mid-year back
+    // navigation (show the talent what they just picked) apart from a new school
+    // year (start from a blank slate instead of anchoring them on last year's
+    // answers, which is what the returning-talent dossier exists to avoid).
+    // `TalentInterest` carries no date of its own and stays untouched either
+    // way - validating the step replaces the whole selection.
+    const prefill = dossier.interestsRecapSeenAt != null;
     const [techInterests, generalInterests, existingTech, existingGeneral] =
       await Promise.all([
         prisma.interest.findMany({
@@ -156,14 +119,21 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
           where: { kind: 'general' },
           orderBy: { order: 'asc' },
         }),
-        prisma.talentInterest.findMany({
-          where: { talentId: locals.talent.id, interest: { kind: 'tech' } },
-          select: { interestId: true },
-        }),
-        prisma.talentInterest.findMany({
-          where: { talentId: locals.talent.id, interest: { kind: 'general' } },
-          select: { interestId: true },
-        }),
+        prefill
+          ? prisma.talentInterest.findMany({
+              where: { talentId: locals.talent.id, interest: { kind: 'tech' } },
+              select: { interestId: true },
+            })
+          : [],
+        prefill
+          ? prisma.talentInterest.findMany({
+              where: {
+                talentId: locals.talent.id,
+                interest: { kind: 'general' },
+              },
+              select: { interestId: true },
+            })
+          : [],
       ]);
 
     return {
@@ -172,7 +142,7 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
       generalInterests,
       selectedTechIds: existingTech.map((e) => e.interestId),
       selectedGeneralIds: existingGeneral.map((e) => e.interestId),
-      freeText: locals.talent.interestsFreeText ?? '',
+      freeText: prefill ? (locals.talent.interestsFreeText ?? '') : '',
       // Seeds a per-talent stable shuffle: chip order varies across the cohort
       // (anti-bias) but stays put across reloads for one student.
       shuffleSeed: locals.talent.id,
@@ -182,9 +152,35 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   if (step === 'equipment') {
     return {
       step,
-      hasLaptop: locals.talent.hasLaptop,
       setupDescription: locals.talent.setupDescription ?? '',
     };
+  }
+
+  if (step === 'rules') {
+    // Two things this act does exactly once per account, and a talent re-walking
+    // the ladder for a new year has already had both. Neither is answered from
+    // the onboarding timestamps: by the time a returning talent reaches this
+    // step they have re-opened a dossier, so every one of those columns says
+    // "not yet" again. Each fact is read where it actually lives.
+    //
+    // The charte is a data-processing consent, not a yearly contract, so it is
+    // neither re-asked nor re-dated (`signOnboardingRules` never overwrites the
+    // date it was first given).
+    const charterAccepted = locals.talent.charterAcceptedAt != null;
+    // The welcome bonus is one XP fact per talent for life (`XpGrant` is unique
+    // on `(source, sourceId)`, and onboarding keys it on the talent's own id), so
+    // the second signature grants nothing. Asking the ledger rather than
+    // inferring it keeps the button's promise tied to what will actually be
+    // written.
+    const welcomeBonusGranted =
+      (await prisma.xpGrant.findUnique({
+        where: {
+          source_sourceId: { source: 'onboarding', sourceId: locals.talent.id },
+        },
+        select: { id: true },
+      })) != null;
+
+    return { step, charterAccepted, welcomeBonusGranted };
   }
 
   return { step };
@@ -206,15 +202,23 @@ export const actions: Actions = {
       });
     }
 
-    await prisma.talent.update({
-      where: { id: locals.talent.id },
-      data: {
-        civilite: result.data.civilite,
-        nom: result.data.nom,
-        prenom: result.data.prenom,
-        phone: result.data.phone || null,
+    // Profile columns are the talent's current truth and stay flat on `Talent`;
+    // only the gate belongs to the year's dossier. Same transaction, since the
+    // dossier write also refreshes the projection those columns sit next to.
+    const talentId = locals.talent.id;
+    await prisma.$transaction(async (tx) => {
+      await tx.talent.update({
+        where: { id: talentId },
+        data: {
+          civilite: result.data.civilite,
+          nom: result.data.nom,
+          prenom: result.data.prenom,
+          phone: result.data.phone || null,
+        },
+      });
+      await patchCurrentOnboardingRecord(tx, talentId, {
         infoValidatedAt: new Date(),
-      },
+      });
     });
 
     return { success: true };
@@ -237,18 +241,37 @@ export const actions: Actions = {
 
     // A UAI resolves to a canonical School (lazy-created); without one we keep the
     // typed name in the free-text fallback. This is the talent's confirmed lycée
-    // (Jump truth) — the optimistic write that may later diverge from Salesforce.
+    // (Jump truth), the optimistic write that may later diverge from Salesforce.
     const schoolId = result.data.schoolUai
       ? await resolveSchoolByUai(result.data.schoolUai, result.data.schoolName)
       : null;
 
-    await prisma.talent.update({
-      where: { id: locals.talent.id },
-      data: {
+    const talentId = locals.talent.id;
+    // One resolution for both ledgers, so this step's schooling record and its
+    // onboarding gate can never land on different years.
+    const currentSchoolYear = currentSchoolYearLabel();
+
+    await prisma.$transaction(async (tx) => {
+      // schoolId is the cached projection of Schooling_YearRecord (schoolingService),
+      // never written to Talent directly - otherwise the current year's ledger row
+      // goes stale the moment the talent corrects their SF-claimed school.
+      await upsertSchoolingYearRecord(tx, {
+        talentId,
+        schoolYear: currentSchoolYear,
         schoolId,
-        highSchoolNameManual: schoolId ? null : result.data.schoolName,
+        source: 'onboarding',
+      });
+
+      await tx.talent.update({
+        where: { id: talentId },
+        data: {
+          highSchoolNameManual: schoolId ? null : result.data.schoolName,
+        },
+      });
+
+      await patchCurrentOnboardingRecord(tx, talentId, {
         highSchoolValidatedAt: new Date(),
-      },
+      });
     });
 
     return { success: true };
@@ -281,7 +304,7 @@ export const actions: Actions = {
     // Provision the parent-1 login first, so a validated address always has a
     // working parent account (the welcome link / co-signature flow are useless
     // without one). `refused` means the address already belongs to another
-    // (non-parent) Jump account — a student's or a staff member's: one email is
+    // (non-parent) Jump account, a student's or a staff member's: one email is
     // one account with one role, so it can never also host a parent login.
     // Reject the step before anything is persisted and tell the talent to use a
     // different address, rather than silently leave the parent unable to connect.
@@ -302,32 +325,37 @@ export const actions: Actions = {
       });
     }
 
-    await prisma.talent.update({
-      where: { id: locals.talent.id },
-      data: {
-        parentType: result.data.parentType,
-        parentCivilite: result.data.parentCivilite,
-        parentNom: result.data.parentNom,
-        parentPrenom: result.data.parentPrenom,
-        parentEmail,
-        parentPhone: result.data.parentPhone || null,
-        parent2Type: result.data.parent2Type || null,
-        parent2Civilite: result.data.parent2Civilite || null,
-        parent2Nom: result.data.parent2Nom || null,
-        parent2Prenom: result.data.parent2Prenom || null,
-        parent2Email: result.data.parent2Email
-          ? result.data.parent2Email.toLowerCase().trim()
-          : null,
-        parent2Phone: result.data.parent2Phone || null,
+    const talentId = locals.talent.id;
+    await prisma.$transaction(async (tx) => {
+      await tx.talent.update({
+        where: { id: talentId },
+        data: {
+          parentType: result.data.parentType,
+          parentCivilite: result.data.parentCivilite,
+          parentNom: result.data.parentNom,
+          parentPrenom: result.data.parentPrenom,
+          parentEmail,
+          parentPhone: result.data.parentPhone || null,
+          parent2Type: result.data.parent2Type || null,
+          parent2Civilite: result.data.parent2Civilite || null,
+          parent2Nom: result.data.parent2Nom || null,
+          parent2Prenom: result.data.parent2Prenom || null,
+          parent2Email: result.data.parent2Email
+            ? result.data.parent2Email.toLowerCase().trim()
+            : null,
+          parent2Phone: result.data.parent2Phone || null,
+        },
+      });
+      await patchCurrentOnboardingRecord(tx, talentId, {
         parentsValidatedAt: new Date(),
-      },
+      });
     });
 
     // Welcome carries the passwordless magic link into the parent space; it's
     // fire-and-forget (the only slow step) so a mail hiccup never blocks the
     // talent's onboarding. A re-submit / back-and-forth doesn't re-send: the
     // address is skipped when it was already stored on the talent before this
-    // submit. Parent 2 is persisted above as onboarding-collected data only — no
+    // submit. Parent 2 is persisted above as onboarding-collected data only: no
     // account, no email, no portal access (the whole parent flow is parent-1).
     const alreadyWelcomed =
       (locals.talent.parentEmail ?? '').toLowerCase().trim() === parentEmail;
@@ -366,54 +394,21 @@ export const actions: Actions = {
       });
     }
 
-    const [techCount, generalCount] = await Promise.all([
-      prisma.interest.count({
-        where: { id: { in: result.data.techInterestIds }, kind: 'tech' },
-      }),
-      prisma.interest.count({
-        where: { id: { in: result.data.generalInterestIds }, kind: 'general' },
-      }),
-    ]);
+    const saved = await validateTalentInterests(locals.talent.id, {
+      techInterestIds: result.data.techInterestIds,
+      generalInterestIds: result.data.generalInterestIds,
+      freeText: result.data.freeText,
+    });
 
-    if (techCount !== result.data.techInterestIds.length) {
+    if (!saved.ok) {
       return fail(400, {
         step: 'interests' as const,
-        error: "Certains domaines tech sélectionnés n'existent plus.",
+        error:
+          saved.reason === 'stale_tech'
+            ? "Certains domaines tech sélectionnés n'existent plus."
+            : "Certains centres d'intérêt sélectionnés n'existent plus.",
       });
     }
-    if (generalCount !== result.data.generalInterestIds.length) {
-      return fail(400, {
-        step: 'interests' as const,
-        error: "Certains centres d'intérêt sélectionnés n'existent plus.",
-      });
-    }
-
-    const now = new Date();
-    const allIds = [
-      ...result.data.techInterestIds,
-      ...result.data.generalInterestIds,
-    ];
-
-    await prisma.$transaction([
-      prisma.talentInterest.deleteMany({
-        where: { talentId: locals.talent.id },
-      }),
-      prisma.talentInterest.createMany({
-        data: allIds.map((interestId) => ({
-          talentId: locals.talent!.id,
-          interestId,
-        })),
-      }),
-      prisma.talent.update({
-        where: { id: locals.talent.id },
-        data: {
-          techInterestsValidatedAt: now,
-          generalInterestsValidatedAt: now,
-          interestsRecapSeenAt: now,
-          interestsFreeText: result.data.freeText || null,
-        },
-      }),
-    ]);
 
     return { success: true };
   },
@@ -432,13 +427,17 @@ export const actions: Actions = {
       });
     }
 
-    await prisma.talent.update({
-      where: { id: locals.talent.id },
-      data: {
-        hasLaptop: result.data.hasLaptop,
-        setupDescription: result.data.setupDescription || null,
+    // `setupDescription` is current truth about the student's kit (the staff
+    // fiche reads it), so it stays on `Talent`; only the gate is per-year.
+    const talentId = locals.talent.id;
+    await prisma.$transaction(async (tx) => {
+      await tx.talent.update({
+        where: { id: talentId },
+        data: { setupDescription: result.data.setupDescription || null },
+      });
+      await patchCurrentOnboardingRecord(tx, talentId, {
         equipmentValidatedAt: new Date(),
-      },
+      });
     });
 
     return { success: true };
@@ -447,10 +446,12 @@ export const actions: Actions = {
   advanceProcessing: async ({ locals }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
 
-    await prisma.talent.update({
-      where: { id: locals.talent.id },
-      data: { processingCompletedAt: new Date() },
-    });
+    const talentId = locals.talent.id;
+    await prisma.$transaction((tx) =>
+      patchCurrentOnboardingRecord(tx, talentId, {
+        processingCompletedAt: new Date(),
+      }),
+    );
 
     return { success: true };
   },
@@ -458,8 +459,10 @@ export const actions: Actions = {
   goBack: async ({ locals }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
 
-    const step = getOnboardingStep(locals.talent);
-    const clearFields: Record<string, null> = {};
+    const step = getOnboardingStep(
+      onboardingFieldsForYear(locals.talent, currentSchoolYearLabel()),
+    );
+    const clearFields: OnboardingRecordPatch = {};
 
     switch (step) {
       case 'school':
@@ -474,14 +477,17 @@ export const actions: Actions = {
       case 'equipment':
         clearFields.techInterestsValidatedAt = null;
         clearFields.generalInterestsValidatedAt = null;
-        clearFields.interestsRecapSeenAt = null;
+        // `interestsRecapSeenAt` is deliberately NOT rewound. It is not a gate,
+        // so the ladder ignores it, and keeping it is what lets the interests
+        // step tell "this talent just stepped back, show their picks" from "new
+        // school year, blank slate" - see the pre-fill in `load`.
         break;
       case 'processing':
         clearFields.equipmentValidatedAt = null;
         break;
       case 'rules':
         // `processing` is a non-navigable auto-advancing interstitial (it
-        // re-submits itself on mount), so it can't be a back target — landing on
+        // re-submits itself on mount), so it can't be a back target: landing on
         // it just replays the animation and bounces straight back to rules.
         // Rewind past it to the last real input step (equipment), clearing both
         // gates so the timestamp chain stays monotonic.
@@ -492,10 +498,10 @@ export const actions: Actions = {
         return { success: true };
     }
 
-    await prisma.talent.update({
-      where: { id: locals.talent.id },
-      data: clearFields,
-    });
+    const talentId = locals.talent.id;
+    await prisma.$transaction((tx) =>
+      patchCurrentOnboardingRecord(tx, talentId, clearFields),
+    );
 
     return { success: true };
   },
@@ -507,7 +513,13 @@ export const actions: Actions = {
 
     const formData = await request.formData();
     const raw = Object.fromEntries(formData);
-    const result = rulesSchema.safeParse(raw);
+    // A talent who already gave the charte consent is not shown the box, so the
+    // field is legitimately absent and requiring it would fail a valid form.
+    // Two schemas rather than one optional field: what is rendered is what is
+    // enforced, and the charte stays mandatory for everyone still asked.
+    const result = (
+      locals.talent.charterAcceptedAt ? rulesSchemaWithoutCharter : rulesSchema
+    ).safeParse(raw);
 
     if (!result.success) {
       return fail(400, {
@@ -516,71 +528,15 @@ export const actions: Actions = {
       });
     }
 
-    const { city } = result.data;
-    const now = new Date();
-    const talentId = locals.talent.id;
-    const studentName = `${locals.talent.prenom} ${locals.talent.nom}`;
-
-    // Set timestamps, grant XP, and enqueue the PDF job atomically — all fast
-    // DB writes, so the redirect below is instant.
-    const job = await prisma.$transaction(async (tx) => {
-      // Resolve the talent's campus (most-recent participation) and their
-      // 0-based position among completers in that campus, BEFORE stamping this
-      // talent's own rulesSignedAt below — so the count is "those who finished
-      // before me". The position query holds a per-campus advisory lock for the
-      // rest of this transaction, so concurrent completions can't tie for the
-      // same tier. A campus-less talent (no participation yet) earns no
-      // early-bird: you can't be Nth in a campus you don't have, and with no
-      // campus there's nothing to serialize on.
-      const { campusId } = await resolveTalentCampus(tx, talentId);
-      const earlyBirdBonus = campusId
-        ? onboardingEarlyBirdBonus(
-            await countCampusEarlyBirdPosition(
-              tx,
-              campusId,
-              ONBOARDING_EARLY_BIRD_LIMIT,
-            ),
-          )
-        : 0;
-
-      await tx.talent.update({
-        where: { id: talentId },
-        data: {
-          rulesSignedAt: now,
-          rulesSignedCity: city,
-          charterAcceptedAt: now,
-        },
-      });
-      await grantXp(tx, {
-        talentId,
-        source: 'onboarding',
-        sourceId: talentId,
-        amount: WELCOME_XP_BONUS,
-        campusId,
-      });
-      // Layered bonus fact for the earliest finishers in the campus — separate
-      // from the base so the arrival reward stays explainable and the tier is
-      // auditable. Idempotent on (onboarding_early_bird, talentId).
-      if (earlyBirdBonus > 0) {
-        await grantXp(tx, {
-          talentId,
-          source: 'onboarding_early_bird',
-          sourceId: talentId,
-          amount: earlyBirdBonus,
-          campusId,
-        });
-      }
-      return enqueueOnboardingPdfJob(tx, {
-        talentId,
-        documentType: 'rules',
-        payload: { studentName, city, signedAt: now.toISOString() },
-      });
+    const { jobId } = await signOnboardingRules({
+      talentId: locals.talent.id,
+      city: result.data.city,
     });
 
-    // Generate the PDF + upload to S3 in the background — NOT awaited, so the
+    // Generate the PDF + upload to S3 in the background: NOT awaited, so the
     // student reaches the dashboard immediately and the file lands a few seconds
     // later. Failures are visible and re-runnable at /staff/admin/onboarding-pdfs.
-    void runOnboardingPdfJob(job.id);
+    void runOnboardingPdfJob(jobId);
 
     // Arm the arrival celebration (fired on the next dashboard load), then resume
     // the page the talent was heading for when onboarding interrupted them (e.g.

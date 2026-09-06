@@ -3,6 +3,8 @@ import type { Prisma } from '@prisma/client';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server/db';
 import { getStorage } from '$lib/server/infra/storage';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   isOnboardingPdfJobRetryable,
   runOnboardingPdfJob,
@@ -120,10 +122,11 @@ export const load: PageServerLoad = async ({ url, depends, locals }) => {
 
 // Re-runs the background generation for a job. The runner claims any
 // not-yet-succeeded row, so this recovers both `error` jobs and ones stranded
-// in `pending`/`processing` by a crash. Fire-and-forget — the page reloads to
+// in `pending`/`processing` by a crash. Fire-and-forget: the page reloads to
 // show the job back in `processing`, then `success` on the next refresh.
 export const actions: Actions = {
-  retry: async ({ request }) => {
+  retry: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_ONBOARDING_PDF_RETRY, { locals });
     const formData = await request.formData();
     const id = formData.get('id');
     if (typeof id !== 'string' || !id) return fail(400);
@@ -140,7 +143,8 @@ export const actions: Actions = {
     return { success: true };
   },
 
-  retryAll: async () => {
+  retryAll: async ({ locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_ONBOARDING_PDF_RETRY, { locals });
     const failed = await prisma.onboardingPdfJob.findMany({
       where: { status: 'error' },
       select: { id: true },
@@ -150,7 +154,8 @@ export const actions: Actions = {
   },
 
   // Mints a short-lived signed URL for a generated PDF so the admin can open it.
-  view: async ({ request }) => {
+  view: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_ONBOARDING_PDF_OPEN, { locals });
     const formData = await request.formData();
     const id = formData.get('id');
     if (typeof id !== 'string' || !id) return fail(400);
@@ -160,6 +165,7 @@ export const actions: Actions = {
       select: {
         filePath: true,
         documentType: true,
+        schoolYear: true,
         talent: {
           select: { prenom: true, nom: true, externalId: true, id: true },
         },
@@ -171,10 +177,17 @@ export const actions: Actions = {
     try {
       // The "view" button opens the URL in a new tab, so render the PDF inline
       // rather than forcing a download. The custom filename is a nicety: if a
-      // row ever carries an unknown documentType, fall back to no override so
-      // the preview still works instead of 500-ing on the filename build.
+      // row carries an unknown documentType, fall back to no override so the
+      // preview still works instead of 500-ing on the filename build. The school
+      // year needs no such guard, since every job carries one.
+      // It is part of the name, so two jobs of the same kind on the same talent
+      // don't preview under one filename.
       const filename = isOnboardingDocumentType(job.documentType)
-        ? onboardingDownloadFilename(job.documentType, job.talent)
+        ? onboardingDownloadFilename(
+            job.documentType,
+            job.talent,
+            job.schoolYear,
+          )
         : undefined;
       const url = await getStorage().getDownloadUrl(job.filePath, {
         filename,

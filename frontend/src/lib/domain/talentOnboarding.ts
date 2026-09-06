@@ -1,18 +1,17 @@
 /**
- * Canonical platform-onboarding ladder — the single source of truth for both
+ * Canonical platform-onboarding ladder: the single source of truth for both
  * the wizard's resume logic (`(talent)/onboarding/+page.server.ts`) and the
  * staff-facing progress label (`(staff)/staff/admin/talents`).
  *
  * Each step writes its own timestamp; the wizard resumes at the first one still
  * null, so the step a talent is "on" is purely a function of which timestamps
- * are set — there is no hidden cursor state. The dashboard guard (`guards.ts`)
+ * are set: there is no hidden cursor state. The dashboard guard (`guards.ts`)
  * gates on the whole ladder being complete plus the charter being accepted.
  *
  * "Platform onboarding" (login → fill profile → sign règlement online) overlaps
- * too much with the règlement-compliance signals to be a useful *cohort* metric
- * — the guardian's `parentRulesSignedAt` (canonical online co-signature) and
- * the per-event `stageCompliance.charteSigned` (offline-fallback staff toggle)
- * already cover that artifact. The signal stays interesting on a *single*
+ * too much with the règlement-compliance signals to be a useful *cohort*
+ * metric: the guardian's `parentRulesSignedAt` (the canonical online co-signature)
+ * already covers that artifact. The signal stays interesting on a *single*
  * talent (did this person make it past the welcome email, and where would
  * impersonation drop me?), which is what this module is scoped to.
  */
@@ -26,6 +25,11 @@ export type OnboardingStep =
   | 'processing'
   | 'rules';
 
+/**
+ * The ladder, in order. Exported because the onboarding-funnel aggregate walks
+ * it rung by rung (`server/services/adminStats/onboardingFunnel.ts`): a second
+ * hardcoded list there would silently stop counting a step added here.
+ */
 export const ONBOARDING_STEP_ORDER: readonly OnboardingStep[] = [
   'identity',
   'school',
@@ -49,7 +53,7 @@ export const ONBOARDING_STEP_LABELS: Record<OnboardingStep, string> = {
 
 /**
  * The timestamps each step posts. `interests` is the one step backed by two
- * timestamps — tech and general interests are validated together — so it is
+ * timestamps (tech and general interests are validated together) so it is
  * only "done" once both are set.
  */
 export type OnboardingStepFields = {
@@ -90,7 +94,7 @@ export type TalentOnboardingFields = OnboardingStepFields & {
 
 /**
  * Whether a talent has cleared the whole funnel. "Done" means every step
- * timestamp is set *and* the charter is accepted — the charter is signed
+ * timestamp is set *and* the charter is accepted: the charter is signed
  * alongside the rules step but kept explicit to mirror `guards.ts`.
  */
 export function deriveOnboardingStatus(
@@ -99,6 +103,146 @@ export function deriveOnboardingStatus(
   return getOnboardingStep(t) === null && t.charterAcceptedAt != null
     ? 'done'
     : 'not-ready';
+}
+
+/**
+ * Every column an `Onboarding_Record` projects onto `Talent`. Declared once so
+ * the dossier and its projection cannot drift: `onboardingYearService` builds
+ * the refresh by walking this list, and a field added to the record but not to
+ * `Talent` (or the reverse) fails to type-check there rather than silently
+ * stopping being projected.
+ *
+ * The gates come first, in ladder order, then what freezes the year's règlement
+ * signatures, then the guardian's image-rights decision for that year. The last
+ * two are both acts of the legal guardian rather than rungs of the talent's
+ * ladder, and they are projected for the same reason: "does this guardian still
+ * owe something" is a question about the dossier in hand, and the projection is
+ * what makes it answerable in one column compare.
+ *
+ * See {@link ONBOARDING_DOSSIER_ONLY_FIELDS} for what a dossier carries and
+ * deliberately does not project.
+ */
+export const ONBOARDING_PROJECTED_FIELDS = [
+  'infoValidatedAt',
+  'highSchoolValidatedAt',
+  'parentsValidatedAt',
+  'techInterestsValidatedAt',
+  'generalInterestsValidatedAt',
+  'interestsRecapSeenAt',
+  'equipmentValidatedAt',
+  'processingCompletedAt',
+  'rulesSignedAt',
+  'rulesSignedCity',
+  'reglementVersion',
+  'parentRulesSignedAt',
+  'parentRulesSignerPrenom',
+  'parentRulesSignerNom',
+  'parentRulesRelationship',
+  'parentRulesSignedCity',
+  'imageRightsDecision',
+  'imageRightsDecidedAt',
+  'imageRightsSignerPrenom',
+  'imageRightsSignerNom',
+] as const;
+
+export type OnboardingProjectedField =
+  (typeof ONBOARDING_PROJECTED_FIELDS)[number];
+
+/**
+ * Columns a dossier carries that are deliberately NOT projected onto `Talent`,
+ * because no reader of the projection asks for them.
+ *
+ * Two kinds, and both would be actively wrong on the talent row:
+ *
+ *  - **The renders** (`rulesFilePath`, `imageRightsFilePath`). One artifact per
+ *    school year, so a single column per talent cannot hold them: that is
+ *    exactly the shape that let a second year's PDF overwrite a co-signed first
+ *    year. They are written by `onboardingPdfJobService` straight onto the row
+ *    the render was made from, never through the projection.
+ *  - **What only the render needs** (`reglementVersion` is projected because the
+ *    talent row is where a co-signing guardian reads it back, but the
+ *    image-rights version, relationship and place of signature are read only
+ *    when regenerating that year's document, off that year's row).
+ *
+ * Named as a set rather than spelled out as a union of string literals at the
+ * one place that needs it, so "on the dossier, not on the talent" is a concept
+ * with a name instead of a list that grows by accretion.
+ */
+export const ONBOARDING_DOSSIER_ONLY_FIELDS = [
+  'rulesFilePath',
+  'imageRightsFilePath',
+  'imageRightsVersion',
+  'imageRightsRelationship',
+  'imageRightsSignedCity',
+] as const;
+
+export type OnboardingDossierOnlyField =
+  (typeof ONBOARDING_DOSSIER_ONLY_FIELDS)[number];
+
+/**
+ * A talent's onboarding projection together with the year it describes.
+ *
+ * The flat columns are NOT "this year's onboarding" - they are the most recent
+ * dossier, whichever year that was, and `onboardingSchoolYear` says which. That
+ * distinction is the whole point of the stamp, and it splits every reader in two:
+ *
+ *   - **"Did they ever / when did they"** reads the flat columns and ignores the
+ *     stamp. The signature-date time series, the early-bird count: those mean
+ *     the last signature, and the last signature is exactly what the columns
+ *     hold. Naming a single document is NOT in this family, whatever it feels
+ *     like: regenerating a signed PDF, serving one from `/settings/documents`
+ *     and the staff archive all read the dossier row, because a talent has one
+ *     document per year they walked and the columns only describe the last.
+ *   - **"Is the dossier for year Y done"** goes through
+ *     {@link onboardingFieldsForYear} (in memory) or narrows on
+ *     `onboardingSchoolYear` (in SQL). The wizard, the guards, the staff dossier
+ *     statuses, the broadcast filters, what a guardian still owes and the cohort
+ *     aggregates all ask this one.
+ *   - **"What applies to this person right now"** reads neither. There is
+ *     exactly one such question and it is the image-rights stance: whether a
+ *     photo may be published is decided by the last decision a guardian ever
+ *     made, so it comes off the `ImageRightsDecisionRecord` ledger and is
+ *     resolved by `imageRightsStance` (`domain/imageRights.ts`). Answering it
+ *     from these columns would let a refusal lapse into "nobody asked yet" at
+ *     the cutover, silently, on printed material.
+ *
+ * Y is not always the current year: an aggregate scoped to a past school year
+ * asks about that year's dossier, which is what makes the historical funnel stop
+ * answering with today's state.
+ */
+export type DatedOnboardingFields = TalentOnboardingFields & {
+  onboardingSchoolYear: string | null;
+};
+
+/**
+ * The onboarding state that applies to `schoolYear`: the talent's own columns
+ * when the projection is that year's, every projected field nulled otherwise -
+ * which is what a year with no dossier looks like.
+ *
+ * Only keys actually present on the input are nulled. A caller that selected a
+ * narrow slice gets that slice back honestly, rather than the function inventing
+ * a `parentRulesSignedAt: null` it never asked for, which downstream would read
+ * as "not co-signed" instead of "not queried".
+ *
+ * `charterAcceptedAt` and `welcomeSeenAt` survive either way - they are
+ * once-per-account, not part of the yearly dossier - so a returning talent
+ * re-walks the ladder without re-accepting the charte or seeing the splash again.
+ *
+ * Keeping this separate from {@link getOnboardingStep} is deliberate: the ladder
+ * stays a pure function of the timestamps handed to it, which is what lets the
+ * onboarding funnel mirror it rung for rung in SQL. The year is a question about
+ * *which* timestamps to hand it, answered before the ladder runs.
+ */
+export function onboardingFieldsForYear<T extends DatedOnboardingFields>(
+  t: T,
+  schoolYear: string,
+): T {
+  if (t.onboardingSchoolYear === schoolYear) return t;
+  const cleared: Partial<Record<OnboardingProjectedField, null>> = {};
+  for (const f of ONBOARDING_PROJECTED_FIELDS) {
+    if (f in t) cleared[f] = null;
+  }
+  return { ...t, ...cleared };
 }
 
 /**
@@ -115,7 +259,7 @@ export function deriveOnboardingStatus(
  *   - `charterAcceptedAt` is separate from the steps but part of
  *     `TalentOnboardingFields` and the dashboard guard.
  */
-export const ONBOARDING_TIMESTAMP_FIELDS = [
+const ONBOARDING_TIMESTAMP_FIELDS = [
   'welcomeSeenAt',
   'infoValidatedAt',
   'highSchoolValidatedAt',
@@ -148,29 +292,40 @@ export function clearOnboardingTimestamps(): Record<
 }
 
 /**
- * The talent's own signed-document artifacts produced *during platform
- * onboarding* — the generated-PDF S3 keys plus the place-of-signature metadata
- * that attest the talent's signature, as distinct from the profile data they
- * fill in (school, parents, interests), which a returning talent legitimately
- * keeps.
+ * The non-timestamp columns platform onboarding wrote on the talent: the place
+ * of signature, the règlement version it committed to, and the school year the
+ * whole projection describes, as distinct from the profile data they fill in
+ * (school, parents, interests), which a returning talent legitimately keeps.
  *
  * Owned here for the same reason as {@link ONBOARDING_TIMESTAMP_FIELDS}: every
  * path that returns a talent to a pre-onboarding state (admin reset, RGPD
- * anonymisation) must drop these alongside the gate timestamps, so a stale PDF
- * never outlives the signature it attests. Adding a new talent-signed artifact
- * here lights up both paths at once.
+ * anonymisation) must drop these alongside the gate timestamps, so nothing
+ * outlives the signature it describes. Adding a new talent-signed artifact here
+ * lights up both paths at once.
  *
- * Scope is the *talent's* signature only. The guardian's règlement co-signature
- * (`parentRules*`) and the parent-decided image-rights artifacts sit outside the
- * talent ladder and are cleared by their own flows, never by a talent reset.
- * `rulesFilePath` is the one shared key: it carries both signature blocks, but
- * voiding the talent's signature already invalidates the current render, so it
- * is dropped here and regenerated when either signer next commits.
+ * Scope is the *talent's* signature only. The guardian's two acts, the règlement
+ * co-signature (`parentRules*`) and the image-rights decision
+ * (`imageRights*`), are projections of the dossier rather than artifacts the
+ * talent produced: the reset paths null them explicitly next to this patch, in
+ * the same statement that deletes the dossier rows they mirror.
+ *
+ * The rendered PDFs are deliberately NOT here, and they are the thing a reader
+ * expects to find: both live on the dossier (`Onboarding_Record.rulesFilePath`
+ * and `imageRightsFilePath`), because each is produced once per school year.
+ * Both reset paths delete the dossier rows outright, so a render leaves with the
+ * signature it attests instead of being nulled alongside it. What each path must
+ * still do by hand is collect those keys for deletion from the bucket, which is
+ * a side effect no `{ field: null }` patch can express.
  */
-export const TALENT_ONBOARDING_ARTIFACT_FIELDS = [
-  'charterFilePath',
-  'rulesFilePath',
+const TALENT_ONBOARDING_ARTIFACT_FIELDS = [
   'rulesSignedCity',
+  // Pins which text the voided signature committed to; it has to go with it,
+  // or the next render reads a version nobody signed.
+  'reglementVersion',
+  // Dates the projection. Left behind, it would claim the (now empty) columns
+  // are a dossier for the year in progress, and every year-narrowed reader
+  // would agree.
+  'onboardingSchoolYear',
 ] as const;
 
 export type TalentOnboardingArtifactField =
@@ -204,7 +359,7 @@ export type OnboardingProgress = {
 /**
  * Classifies a talent's onboarding into a phase + completed-step count. The
  * distinction worth surfacing is `not-started` (account exists but the first
- * step — identity — is still untouched) vs `in-progress`: since identity is
+ * step, identity, is still untouched) vs `in-progress`: since identity is
  * written atomically, a talent resuming at it has done nothing yet, so
  * labelling it "1/7" would overstate their progress.
  */

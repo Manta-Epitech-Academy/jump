@@ -8,17 +8,25 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import { can } from '$lib/domain/permissions';
-  import { defaultActiveSlotKey } from '$lib/domain/eventPresence';
-  import { eventDisplayName } from '$lib/domain/event';
+  import {
+    dayLabelFr,
+    defaultActiveSlotKey,
+    slotLabelFr,
+  } from '$lib/domain/eventPresence';
+  import { cohortNounForms, eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import type { EmargementCohort } from './components/types';
-  import QrDialog from './components/QrDialog.svelte';
+  import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import QrProjectionDialog from '$lib/components/staff/QrProjectionDialog.svelte';
   import EmargementRoster from './components/EmargementRoster.svelte';
 
   let { data }: { data: PageData } = $props();
 
   const canEdit = $derived(can('devMember', page.data.staffProfile?.staffRole));
+  // Event's Jump-owned cohort noun ("stagiaire" / "participant").
+  const noun = $derived(cohortNounForms(data.event.cohortNoun));
 
   // ── Active créneau (shell-owned) ─────────────────────────────────────────
   // Kept here, not in the roster, so it survives the roster re-streaming every
@@ -67,26 +75,11 @@
       : false,
   );
 
-  // Resolve the streamed roster into local state rather than a bare `{#await}`:
-  // the 5s poll (and every optimistic edit) replaces `data.cohort` with a fresh
-  // promise, and a template `{#await}` would flash the skeleton + remount the
-  // roster each time (wiping in-flight edits and the search box). Holding the
-  // last resolved value keeps the roster mounted; the skeleton shows only on the
-  // first load. The `=== p` guard drops a stale resolution arriving after a newer
-  // poll has already started.
-  let roster = $state<EmargementCohort | null>(null);
-  let rosterFailed = $state(false);
-  $effect(() => {
-    const p = data.cohort;
-    p.then((d) => {
-      if (data.cohort === p) {
-        roster = d;
-        rosterFailed = false;
-      }
-    }).catch(() => {
-      if (data.cohort === p) rosterFailed = true;
-    });
-  });
+  // The 5s poll and every optimistic edit replace `data.cohort` with a fresh
+  // promise, so the roster is held across them rather than re-awaited: a
+  // template `{#await}` would remount it each tick and wipe the in-flight edits
+  // along with the search box. See `createStreamedCohort`.
+  const roster = createStreamedCohort<EmargementCohort>(() => data.cohort);
 
   let qrOpen = $state(false);
   // Reported up by the roster: true while any of its edit dialogs is open. ORed
@@ -110,109 +103,104 @@
 </script>
 
 <svelte:head>
-  <title>Émargement — {eventDisplayName(data.event)}</title>
+  <title>Émargement - {eventDisplayName(data.event)}</title>
 </svelte:head>
 
 <div class="space-y-6 pb-10">
   <!-- One tooltip context for the header: the export and QR actions surface
        tooltips from here; the roster carries its own provider for per-row icons. -->
   <Tooltip.Provider delayDuration={150}>
-    <PageHeader title="Émargement">
-      <!-- Header actions act on the whole stage or the display: the full-record
-           export (read) and the QR (display). The active slot's open/close
-           control lives in the SYNTHÈSE card instead, beside the Clôturé badge it
-           toggles. Filter-scoped controls (search, statut) stay in the toolbar. -->
-      <!-- Full-record export: every talent x every créneau, NOT the on-screen
-           filter (unlike the Inscrits toolbar export). Kept here, away from the
-           toolbar, so it is never mistaken for a filtered export. -->
-      <Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props })}
-            <Button
-              {...props}
-              variant="outline"
-              size="sm"
-              href={exportHref}
-              class="rounded-sm"
-            >
-              <Download class="mr-1.5 h-4 w-4" />
-              Tout exporter (XLSX)
-            </Button>
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content>
-          Toutes les présences de l'événement (tous les créneaux)
-        </Tooltip.Content>
-      </Tooltip.Root>
-
-      {#if canEdit}
-        <!-- A closed créneau (manual close OR past the 11h/15h cutoff) makes the
-             QR inert: a scan lands the talent on the "créneau clôturé" screen and
-             records nothing. Disable rather than project a dead code; the tooltip
-             says why and, when reopenable, points at the SYNTHÈSE reopen control.
-             A span wraps the button so the tooltip still fires while it's
-             disabled (a disabled button takes no pointer events). -->
+    <PageHeader title="Émargement" subtitle={eventDisplayName(data.event)}>
+      {#snippet actions()}
+        <!-- Header actions act on the whole stage or the display: the full-record
+             export (read) and the QR (display). The active slot's open/close
+             control lives in the SYNTHÈSE card instead, beside the Clôturé badge it
+             toggles. Filter-scoped controls (search, statut) stay in the toolbar. -->
+        <!-- Full-record export: every talent x every créneau, NOT the on-screen
+             filter (unlike the Inscrits toolbar export). Kept here, away from the
+             toolbar, so it is never mistaken for a filtered export. -->
         <Tooltip.Root>
           <Tooltip.Trigger>
             {#snippet child({ props })}
-              <span {...props} class="inline-flex">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onclick={() => (qrOpen = true)}
-                  disabled={!activeSlot || isActiveClosed}
-                  class="rounded-sm"
-                >
-                  <QrCode class="mr-1.5 h-4 w-4" />
-                  Afficher le QR code
-                </Button>
-              </span>
+              <Button
+                {...props}
+                variant="outline"
+                size="sm"
+                href={exportHref}
+                class="rounded-sm"
+              >
+                <Download class="mr-1.5 h-4 w-4" />
+                Tout exporter (XLSX)
+              </Button>
             {/snippet}
           </Tooltip.Trigger>
-          <Tooltip.Content class="max-w-56">
-            {#if !isActiveClosed}
-              Projetez le QR code : les stagiaires le scannent pour pointer
-              eux-mêmes.
-            {:else if isActivePastCutoff}
-              Ce créneau est terminé : les stagiaires ne peuvent plus pointer
-              avec le QR code.
-            {:else}
-              Ce créneau est clôturé : les stagiaires ne peuvent plus pointer.
-              Rouvrez-le pour réactiver le QR code.
-            {/if}
+          <Tooltip.Content>
+            Toutes les présences de l'événement (tous les créneaux)
           </Tooltip.Content>
         </Tooltip.Root>
-      {/if}
+
+        {#if canEdit}
+          <!-- A closed créneau (manual close OR past the 11h/15h cutoff) makes the
+               QR inert: a scan lands the talent on the "créneau clôturé" screen and
+               records nothing. Disable rather than project a dead code; the tooltip
+               says why and, when reopenable, points at the SYNTHÈSE reopen control.
+               A span wraps the button so the tooltip still fires while it's
+               disabled (a disabled button takes no pointer events). -->
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <span {...props} class="inline-flex">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onclick={() => (qrOpen = true)}
+                    disabled={!activeSlot || isActiveClosed}
+                    class="rounded-sm"
+                  >
+                    <QrCode class="mr-1.5 h-4 w-4" />
+                    Afficher le QR code
+                  </Button>
+                </span>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content class="max-w-56">
+              {#if !isActiveClosed}
+                Projetez le QR code : les {noun.plural} le scannent pour pointer eux-mêmes.
+              {:else if isActivePastCutoff}
+                Ce créneau est terminé : les {noun.plural} ne peuvent plus pointer
+                avec le QR code.
+              {:else}
+                Ce créneau est clôturé : les {noun.plural} ne peuvent plus pointer.
+                Rouvrez-le pour réactiver le QR code.
+              {/if}
+            </Tooltip.Content>
+          </Tooltip.Root>
+        {/if}
+      {/snippet}
     </PageHeader>
   </Tooltip.Provider>
 
-  {#if roster}
+  {#if roster.value}
     <EmargementRoster
-      rows={roster.rows}
-      presences={roster.presences}
-      attendanceRate={roster.attendanceRate}
+      rows={roster.value.rows}
+      presences={roster.value.presences}
+      attendanceRate={roster.value.attendanceRate}
       slots={data.slots}
       {activeSlot}
       {isActiveClosed}
       {isActivePastCutoff}
       {canEdit}
       eventId={data.event.id}
+      cohortNoun={data.event.cohortNoun}
       timezone={data.timezone}
       bind:activeSlotKey
       bind:dialogOpen={rosterDialogOpen}
     />
-  {:else if rosterFailed}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-    >
-      <h3 class="text-sm font-bold tracking-widest text-foreground uppercase">
-        Chargement impossible
-      </h3>
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        La liste d'émargement n'a pas pu être chargée. Rechargez la page pour
-        réessayer.
-      </p>
-    </div>
+  {:else if roster.failed}
+    <ResultsNotice
+      title="Chargement impossible"
+      description="La liste d'émargement n'a pas pu être chargée. Rechargez la page pour réessayer."
+    />
   {:else}
     <ResultsSkeleton />
   {/if}
@@ -220,10 +208,23 @@
 
 <!-- QR dialog -->
 {#if activeSlot}
-  <QrDialog
+  <QrProjectionDialog
     bind:open={qrOpen}
-    basePath={page.url.pathname}
-    day={activeSlot.day}
-    slot={activeSlot.slot}
-  />
+    title="Émargement"
+    description={`${dayLabelFr(activeSlot.day)} · ${slotLabelFr(activeSlot.slot)}. Scanne ce QR code pour t'enregistrer.`}
+    qrSrc={`${page.url.pathname}/qr.png?day=${activeSlot.day}&slot=${activeSlot.slot}`}
+    qrAlt={`QR code d'émargement - ${slotLabelFr(activeSlot.slot)}`}
+    sizeClass="h-[68vmin] w-[68vmin]"
+  >
+    {#snippet footer()}
+      <Button
+        variant="outline"
+        href={`${page.url.pathname}/qr.pdf?day=${activeSlot.day}&slot=${activeSlot.slot}`}
+        target="_blank"
+      >
+        <Download class="mr-2 h-4 w-4" />
+        Télécharger le PDF
+      </Button>
+    {/snippet}
+  </QrProjectionDialog>
 {/if}

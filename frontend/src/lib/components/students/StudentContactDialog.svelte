@@ -2,7 +2,7 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import StudentContactDetails from './StudentContactDetails.svelte';
   import { formatPersonName } from '$lib/domain/profile';
-  import type { ContactPerson } from './contact';
+  import type { ContactPerson } from '$lib/domain/contact';
 
   let {
     open = $bindable(),

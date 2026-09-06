@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button } from '$lib/components/ui/button';
   import { cn } from '$lib/utils';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let {
     icon: Icon,
@@ -33,14 +34,14 @@
       class="absolute inset-0 animate-ping rounded-full bg-epi-blue/10"
     ></div>
     <div
-      class="relative flex h-20 w-20 items-center justify-center rounded-full bg-background shadow-sm"
+      class="relative flex h-20 w-20 items-center justify-center rounded-full bg-background shadow-raised"
     >
       <Icon class="h-10 w-10 text-muted-foreground/70" />
     </div>
   </div>
 
-  <h3 class="font-heading text-2xl tracking-wide text-foreground uppercase">
-    {title}<span class="text-epi-teal">_</span>
+  <h3 class="font-heading text-display-m text-foreground">
+    {title}<TitleCursor />
   </h3>
 
   <p class="mt-3 max-w-sm text-sm font-medium text-muted-foreground italic">
@@ -52,14 +53,14 @@
       {#if actionLink}
         <Button
           href={actionLink}
-          class="bg-epi-blue text-white shadow-lg transition-transform hover:scale-105 hover:bg-epi-blue/90"
+          class="bg-epi-blue text-white shadow-raised transition-transform hover:scale-105 hover:bg-epi-blue/90"
         >
           {actionLabel}
         </Button>
       {:else if actionCallback}
         <Button
           onclick={actionCallback}
-          class="bg-epi-blue text-white shadow-lg transition-transform hover:scale-105 hover:bg-epi-blue/90"
+          class="bg-epi-blue text-white shadow-raised transition-transform hover:scale-105 hover:bg-epi-blue/90"
         >
           {actionLabel}
         </Button>

@@ -11,6 +11,7 @@
     type SelectOption,
   } from '$lib/components/staff/SearchableSelect.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import * as Table from '$lib/components/ui/table';
   import type { PageData } from './$types';
 
@@ -156,11 +157,7 @@
     </p>
 
     {#if total === 0}
-      <div
-        class="rounded-sm border border-dashed bg-muted/10 p-16 text-center text-sm text-muted-foreground"
-      >
-        Aucune réponse pour ce filtre.
-      </div>
+      <ResultsNotice description="Aucune réponse pour ce filtre." />
     {:else}
       <div class="space-y-4">
         {#each chartQuestions as q (q.questionId)}
@@ -176,7 +173,7 @@
                   <span class="w-48 shrink-0 truncate text-sm">{opt.label}</span
                   >
                   <div class="flex-1">
-                    <div class="h-6 rounded-sm bg-slate-100 dark:bg-slate-800">
+                    <div class="h-6 rounded-sm bg-muted">
                       <div
                         class="h-full rounded-sm bg-epi-blue/80"
                         style="width: {pct}%"
@@ -238,12 +235,12 @@
             {#each publicRespondents as r (r.id)}
               <Table.Row>
                 <Table.Cell class="font-mono text-xs"
-                  >{r.email ?? '—'}</Table.Cell
+                  >{r.email ?? '-'}</Table.Cell
                 >
-                <Table.Cell>{r.firstName ?? '—'}</Table.Cell>
-                <Table.Cell>{r.lastName ?? '—'}</Table.Cell>
+                <Table.Cell>{r.firstName ?? '-'}</Table.Cell>
+                <Table.Cell>{r.lastName ?? '-'}</Table.Cell>
                 <Table.Cell class="text-muted-foreground"
-                  >{r.campusLabel ?? '—'}</Table.Cell
+                  >{r.campusLabel ?? '-'}</Table.Cell
                 >
                 <Table.Cell class="font-mono text-xs text-muted-foreground">
                   {dateFmt.format(new Date(r.submittedAt))}

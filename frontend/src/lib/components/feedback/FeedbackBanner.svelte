@@ -13,7 +13,7 @@
 
 {#if !dismissed}
   <div
-    class="flex items-center gap-3 rounded-2xl border border-epi-blue/20 bg-epi-blue/5 p-4"
+    class="flex items-center gap-3 rounded-xl border border-epi-blue/20 bg-epi-blue/5 p-4"
   >
     <img
       src={personaIconUrl ?? DEFAULT_PERSONA.iconUrl}

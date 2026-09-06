@@ -1,18 +1,9 @@
 export type QuestionType =
-  | 'single'
-  | 'multiple'
-  | 'scale'
-  | 'text'
-  | 'textarea';
+  'single' | 'multiple' | 'scale' | 'text' | 'textarea';
 export type InputKind = 'email' | 'tel' | 'name' | 'text';
 
 export type IdentityField =
-  | 'email'
-  | 'phone'
-  | 'firstName'
-  | 'lastName'
-  | 'civility'
-  | 'campus';
+  'email' | 'phone' | 'firstName' | 'lastName' | 'civility' | 'campus';
 
 /**
  * Runtime input kind derived from an identity field, so identity text questions
@@ -113,7 +104,7 @@ export function interpolate(text: string, ctx: IdentityContext): string {
  * skin-tone sequence (its parts are contiguous) is carried whole by the bind on
  * its first codepoint. Display-only: only existing spaces are tightened.
  */
-export function bindEmoji(text: string): string {
+function bindEmoji(text: string): string {
   return text.replace(/[   ]+(\p{Extended_Pictographic})/gu, ' $1');
 }
 
@@ -134,7 +125,7 @@ export function typesetChat(text: string): string {
  * Display-only: only existing spaces are tightened, never inserted, so values
  * without French spacing (an e-mail, a time like `9:30`) are left untouched.
  */
-export function applyFrenchSpacing(text: string): string {
+function applyFrenchSpacing(text: string): string {
   return text
     .replace(/[\u0020\u00A0\u202F]+([?!:;»])/g, '\u00A0$1')
     .replace(/(«)[\u0020\u00A0\u202F]+/g, '$1\u00A0');
@@ -291,7 +282,7 @@ export type Answers = Record<string, AnswerValue>;
  * submit endpoint is unauthenticated, so this caps what an anonymous respondent
  * can persist per field; the SvelteKit body limit only bounds the whole request.
  */
-export const MAX_FREE_TEXT_LENGTH = 5000;
+const MAX_FREE_TEXT_LENGTH = 5000;
 
 /**
  * Whether a value doesn't count as an answer: absent, blank (incl. a

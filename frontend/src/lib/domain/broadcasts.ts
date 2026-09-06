@@ -22,7 +22,7 @@ export const BROADCAST_CHANNEL_LABELS: Record<BroadcastChannel, string> = {
 };
 
 // Broadcast-level status (a whole send). French labels surfaced in the list,
-// detail and overview. Single source of truth — the colour mapping lives in the
+// detail and overview. Single source of truth: the colour mapping lives in the
 // `BroadcastStatusBadge` component, the label is presentation-neutral here.
 export const BROADCAST_STATUS_LABELS: Record<BroadcastStatus, string> = {
   queued: 'En file',
@@ -31,6 +31,55 @@ export const BROADCAST_STATUS_LABELS: Record<BroadcastStatus, string> = {
   partial_failed: 'Partiel',
   failed: 'Échec',
 };
+
+// Whether a status means the send is over, or that the queue worker still owes
+// it work. Written as a total map so a `BroadcastStatus` added tomorrow cannot
+// arrive unclassified, and that is the whole point: nothing anywhere said which
+// statuses are live work, so the seed generator wrote four of them and a plain
+// `bun run seed` became a send (`AGENTS.md`, « inert to every background
+// worker »).
+//
+// The worker owns WHEN it claims each of them (`queued` outright, `sending`
+// only once its heartbeat has gone stale past `SENDING_STUCK_TIMEOUT_MS`); this
+// map only says which ones it ever claims.
+const BROADCAST_STATUS_KIND = {
+  queued: 'outstanding',
+  sending: 'outstanding',
+  sent: 'terminal',
+  partial_failed: 'terminal',
+  failed: 'terminal',
+} as const satisfies Record<BroadcastStatus, 'terminal' | 'outstanding'>;
+
+/**
+ * A status a send that is over can carry: the three the orchestrator's
+ * finalizer concludes with, and the only ones a generated dataset may hold.
+ */
+export type BroadcastTerminalStatus = {
+  [K in BroadcastStatus]: (typeof BROADCAST_STATUS_KIND)[K] extends 'terminal'
+    ? K
+    : never;
+}[BroadcastStatus];
+
+/** The statuses `processNextQueuedBroadcast` claims, so a check that has to
+ *  refuse outstanding work does not re-list them by hand. */
+export const BROADCAST_OUTSTANDING_STATUSES = (
+  Object.keys(BROADCAST_STATUS_KIND) as BroadcastStatus[]
+).filter((status) => BROADCAST_STATUS_KIND[status] === 'outstanding');
+
+/**
+ * Max send attempts per recipient before the sender gives up, the initial
+ * attempt included: 3 means up to 2 retries after the first failure. Tuned
+ * conservatively so a mis-classified-permanent error does not burn the mail
+ * quota.
+ *
+ * It lives here rather than beside the sender because it is where a failed
+ * recipient's `retryCount` STOPS, and two readers outside the worker need that:
+ * a permanent rejection is never retried, so it lands `failed` on 1, while a
+ * transient one is retried to this ceiling and lands `failed` on 3. Anything in
+ * between is a row no run produces, which is exactly what the seed generator
+ * used to write.
+ */
+export const BROADCAST_MAX_RETRIES = 3;
 
 // Recipient-level status (one row of a send). Used by the detail recipient table.
 export const RECIPIENT_STATUS_LABELS: Record<BroadcastRecipientStatus, string> =
@@ -84,12 +133,11 @@ export interface ExcludedRecipient {
   reason: RecipientExclusionReason;
 }
 
+// Audiences a staff member can actually pick in the composer.
 export const BROADCAST_AUDIENCES = [
   'talent',
   'parent',
   'dev',
-  'peda',
-  'manta',
   'superdev',
 ] as const satisfies readonly BroadcastAudience[];
 
@@ -97,26 +145,22 @@ export const BROADCAST_AUDIENCE_LABELS: Record<BroadcastAudience, string> = {
   talent: 'Talents',
   parent: 'Parents',
   dev: 'Dev (recrutement)',
-  peda: 'Pédago',
-  manta: 'Mantas',
   superdev: 'Superdev',
 };
 
 /**
  * Audiences for which picking an event narrows the recipient set:
- * - `talent`/`parent` scope through `Participation` (the event's students),
- * - `manta` scopes through `EventManta` (the event's assigned mantas).
+ * `talent`/`parent` scope through `Participation` (the event's students).
  *
- * For every other audience (`dev`/`peda`/`superdev`) the event is meaningless
- * (they have no per-event assignment), so the composer hides the event picker.
+ * For every other audience (`dev`/`superdev`) the event is meaningless (they
+ * have no per-event assignment), so the composer hides the event picker.
  *
  * The event stays optional even for these audiences: an empty event means the
- * whole campus (all of its talents / all of its mantas), not "send nothing".
+ * whole campus (all of its talents), not "send nothing".
  */
 export const EVENT_SCOPED_AUDIENCES: readonly BroadcastAudience[] = [
   'talent',
   'parent',
-  'manta',
 ];
 
 export type BroadcastVariableKey =
@@ -268,10 +312,6 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
   },
 ] as const;
 
-export const BROADCAST_VARIABLE_TOKENS = BROADCAST_VARIABLES.map(
-  (v) => v.token,
-);
-
 // Canonical level catalogue lives in domain/xp.ts (derived from XP_LEVEL_TIERS),
 // re-exported here so broadcast filter consumers keep their import path.
 export { JUMP_LEVELS, type JumpLevel };
@@ -291,12 +331,12 @@ export const IMAGE_RIGHTS_FILTER_LABELS = IMAGE_RIGHTS_STATUS_LABELS;
 
 export interface BroadcastFilters {
   niveau?: Niveau[];
-  /** RGPD data-protection charter — `Talent.charterAcceptedAt`. */
+  /** RGPD data-protection charter: `Talent.charterAcceptedAt`. */
   charterSigned?: TristateFilter;
-  /** Règlement intérieur signed by the talent — `Talent.rulesSignedAt`. */
+  /** Règlement intérieur signed by the talent: `Talent.rulesSignedAt`. */
   rulesSigned?: TristateFilter;
   /** Règlement intérieur co-signed by the legal guardian (canonical minor
-   *  compliance) — `Talent.parentRulesSignedAt`. */
+   *  compliance): `Talent.parentRulesSignedAt`. */
   parentRulesSigned?: TristateFilter;
   /** Overall parent-démarches status: `pending` = either act still owed
    *  (image-rights undecided OR règlement not co-signed), `complete` = both

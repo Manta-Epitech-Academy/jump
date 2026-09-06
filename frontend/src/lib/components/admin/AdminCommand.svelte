@@ -10,15 +10,16 @@
   import type { Icon as IconType } from '@lucide/svelte';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { ADMIN_NAV } from '$lib/components/admin/adminNav';
+  import { foldForSearch } from '$lib/components/staff/datatable/search';
 
   // Admin-only command palette (Cmd/Ctrl+K), two surfaces in one list:
   //  - Navigation: jump to any admin page, filtered client-side (instant, no
   //    round-trip), so ⌘K doubles as a page menu.
   //  - People: talents + parents + staff, searched globally server-side, each
   //    jumping to the relevant admin list pre-filtered via `?q=`.
-  // Deliberately separate from the dev/pedago GlobalCommand: that one is
-  // campus-scoped, talent-only and navigates to /students/[id] cockpits — none
-  // of which fit the admin space. Reuses the same ui/command kit.
+  // Admin-specific by design: cross-campus, spanning talents + parents + staff
+  // and jumping to admin lists, not a campus-scoped, talent-only palette.
+  // Reuses the same ui/command kit.
   let { open = $bindable(false) }: { open?: boolean } = $props();
 
   type PersonResult = {
@@ -35,14 +36,6 @@
   let searching = $state(false);
   let searchTimeout: ReturnType<typeof setTimeout>;
 
-  // Lowercase + strip diacritics so "themes" matches "Thèmes", "genapdf" the
-  // "Génération…" page, etc.
-  const norm = (s: string) =>
-    s
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/\p{Diacritic}/gu, '');
-
   // Navigation is the same `ADMIN_NAV` the sidebar renders, grouped by section
   // so the short labels stay unambiguous (a section heading supplies the
   // context the palette used to bake into longer labels). Filtered client-side
@@ -50,13 +43,13 @@
   // opens as a menu. People stay server-filtered. Sidebar badge counts are
   // deliberately omitted here.
   const matchedSections = $derived.by(() => {
-    const q = norm(inputValue.trim());
+    const q = foldForSearch(inputValue.trim());
     if (!q) return ADMIN_NAV;
     return ADMIN_NAV.map((section) => ({
       title: section.title,
       items: section.items.filter(
         (p) =>
-          norm(p.label).includes(q) ||
+          foldForSearch(p.label).includes(q) ||
           (p.keywords ?? []).some((k) => k.includes(q)),
       ),
     })).filter((section) => section.items.length > 0);
@@ -84,7 +77,7 @@
     const q = encodeURIComponent(r.navQ);
     if (r.type === 'staff') {
       // The members roster sits below the invitations queue, so jump straight to
-      // it via the #members anchor — the section reads the ?q and filters to this
+      // it via the #members anchor: the section reads the ?q and filters to this
       // person, in view immediately instead of buried below the invitations.
       go(`${resolve('/staff/admin/users')}?q=${q}#members`);
     } else {

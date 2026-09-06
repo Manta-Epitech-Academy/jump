@@ -7,13 +7,19 @@ import { EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
  * public name, the Jump-owned start time, and the dev-workspace surfaces the
  * event exposes. One submit writes them all (see
  * `EventService.updateEventConfig`). `publicName` empty clears it (falls back to
- * the SF `titre`); `startTime` empty clears it to the type default; `modules`
+ * the SF `titre`); `startTime` empty clears it to none; `modules`
  * empty = the event exposes nothing. Each module is validated against the
  * catalogue and persisted as `EventConfig_Module` rows (presence = enabled).
  */
 export const adminEventSchema = z.object({
   id: z.string().min(1),
   publicName: z.string().trim().max(120).default(''),
+  // What this event's cohort is called in the dev workspace ("stagiaire",
+  // "participant", "collégien", ...). Jump-owned free text, not derived from the
+  // SF type. Blank means "not named yet": the service stores NULL and the UI falls
+  // back to the neutral default, so an unconfigured event reads "participant"
+  // without the column claiming a choice nobody made. Capped so it stays a noun.
+  cohortNoun: z.string().trim().max(40).default(''),
   startTime: z
     .string()
     .regex(HHMM_PATTERN, 'Heure invalide (HH:MM).')
@@ -21,7 +27,7 @@ export const adminEventSchema = z.object({
     .default(''),
   // End date as a campus-tz calendar day (`YYYY-MM-DD`). Salesforce only sends a
   // start `date`, never an end, so Jump owns the event's end-of-window here (like
-  // it owns the start time-of-day). Empty clears it back to the type default span.
+  // it owns the start time-of-day). Empty = no end date, and the event reads as a single-day window.
   endDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide (AAAA-MM-JJ).')
@@ -37,10 +43,18 @@ export const adminEventSchema = z.object({
   moduleSettings: z.record(z.string(), z.unknown()).default({}),
   // Explicit dev-workspace visibility gate (decoupled from modules).
   devActivated: z.boolean().default(false),
-  // Which feedback form the event's `bilan` surface uses. Empty clears the
-  // override → the event falls back to the form marked default for its type. A
+  // Which feedback form the event's `bilan` surface uses. Empty = no form, and
+  // the bilan surface stays hidden; there is no per-type fallback any more. A
   // non-empty value is a form id, checked server-side against an existing form.
   feedbackFormId: z.string().default(''),
+  // Which certificate the event issues on its Inscrits export. Empty = none, and
+  // the export disappears. A non-empty value is a `Diploma_Template` id, checked
+  // server-side against an existing row.
+  diplomaTemplateId: z.string().default(''),
+  // Which closing grid this event's 1:1s use. Empty = it holds no closings, and
+  // the surface stays hidden; there is no per-type fallback. A non-empty value is
+  // a `Closing_Template` id, checked server-side against an existing row.
+  closingTemplateId: z.string().default(''),
 });
 
 export type AdminEventForm = z.infer<typeof adminEventSchema>;
@@ -70,7 +84,7 @@ export const bulkEventActivationSchema = z.object({
 
 /**
  * "Enregistrer comme modèle" from the config wizard: snapshot the current module
- * config (presence + per-module settings + default feedback form) as a new named,
+ * config (presence + per-module settings + the feedback form and certificate) as a new named,
  * global `EventConfig_Template`. The config fields mirror the event form; the
  * snapshot is a point-in-time copy, with no live link back to the event. Module
  * settings stay loose here (authoritatively parsed per module in the service).
@@ -78,16 +92,16 @@ export const bulkEventActivationSchema = z.object({
 export const eventConfigTemplateSaveSchema = z.object({
   name: z.string().trim().min(1, 'Nom requis.').max(80),
   description: z.string().trim().max(280).default(''),
-  // The SF event type the template was saved from, captured so the wizard can
-  // suggest it for matching events (soft hint, not a binding).
-  forEventType: z.string().default(''),
   // The friendly event name the preset carries (e.g. "Coding Club"). Empty = the
   // preset prefills no name (the event keeps the SF titre). Mirrors the event
   // form's `publicName`; campuses reuse one display name across every occurrence
   // of a format, so a preset that prefills it saves retyping it each time.
   publicName: z.string().trim().max(120).default(''),
+  // Cohort noun the preset carries; copied onto the event on apply (mirrors the
+  // event form's free-text `cohortNoun`). Blank → stored NULL, like the event.
+  cohortNoun: z.string().trim().max(40).default(''),
   // Jump-owned arrival time-of-day the preset carries (mirrors the event form's
-  // `startTime`). Empty = none (the applied event falls back to the type default).
+  // `startTime`). Empty = the preset names no arrival time.
   startTime: z
     .string()
     .regex(HHMM_PATTERN, 'Heure invalide (HH:MM).')
@@ -98,4 +112,10 @@ export const eventConfigTemplateSaveSchema = z.object({
     .default([]),
   moduleSettings: z.record(z.string(), z.unknown()).default({}),
   feedbackFormId: z.string().default(''),
+  // The certificate the preset carries, copied onto the event on apply. Mirrors
+  // the event form's `diplomaTemplateId`; empty = the preset names none.
+  diplomaTemplateId: z.string().default(''),
+  // Same for the closing grid, and for the same reason: a preset that copied the
+  // modules but not the grid would apply a closings surface with nothing to ask.
+  closingTemplateId: z.string().default(''),
 });

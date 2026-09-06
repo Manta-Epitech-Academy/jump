@@ -1,47 +1,37 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import NotesResults from './components/NotesResults.svelte';
   import type { NotesCohort } from './query';
 
   let { data }: { data: PageData } = $props();
 
-  // Resolve the streamed cohort into local state with a stale-promise guard, so a
-  // filter/page navigation swaps content in place (no skeleton flash on warm
-  // loads) — same pattern as the admin talents directory.
-  let cohort = $state<NotesCohort | null>(null);
-  let cohortFailed = $state(false);
-  $effect(() => {
-    const p = data.cohort;
-    p.then((d) => {
-      if (data.cohort === p) {
-        cohort = d;
-        cohortFailed = false;
-      }
-    }).catch(() => {
-      if (data.cohort === p) cohortFailed = true;
-    });
-  });
+  // Filters and paging are server-side, so each one replaces `data.cohort`: the
+  // list is held across them rather than re-awaited. See `createStreamedCohort`.
+  const cohort = createStreamedCohort<NotesCohort>(() => data.cohort);
 </script>
 
 <svelte:head>
-  <title>Notes — Admin</title>
+  <title>Notes - Admin</title>
 </svelte:head>
 
 <div class="space-y-6">
-  <AdminPageHeader
+  <PageHeader
     title="Notes"
     accent="talents"
     subtitle="Notes du staff sur les talents, tous campus"
   />
 
-  {#if cohort}
-    <NotesResults {...cohort} filters={data.filters} />
-  {:else if cohortFailed}
-    <p class="py-16 text-center text-sm text-muted-foreground">
-      Le chargement des notes a échoué. Rechargez la page pour réessayer.
-    </p>
+  {#if cohort.value}
+    <NotesResults {...cohort.value} filters={data.filters} />
+  {:else if cohort.failed}
+    <ResultsNotice
+      title="Chargement impossible"
+      description="Les notes n'ont pas pu être chargées. Rechargez la page pour réessayer."
+    />
   {:else}
     <ResultsSkeleton rail={false} />
   {/if}

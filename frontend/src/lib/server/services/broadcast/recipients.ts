@@ -15,7 +15,7 @@ import { xpRangeForLevel } from '$lib/domain/xp';
 import {
   parentBlockedWhere,
   parentCompleteWhere,
-} from '$lib/server/db/stageCompliance';
+} from '$lib/server/db/dossierCompliance';
 
 export interface RecipientSpec {
   campusId: string;
@@ -49,8 +49,6 @@ const AUDIENCE_TO_STAFF_ROLE: Record<
   StaffRole
 > = {
   dev: 'dev',
-  peda: 'peda',
-  manta: 'manta',
   superdev: 'superdev',
 };
 
@@ -63,7 +61,7 @@ const AUDIENCE_TO_STAFF_ROLE: Record<
  * - For retargeting: starts from the source broadcast's recipients (filtered
  *   by openedAt) and re-resolves through the new audience type.
  *
- * Charter status is not enforced here — admins control it via the explicit
+ * Charter status is not enforced here: admins control it via the explicit
  * "charterSigned" filter.
  */
 export async function resolveRecipients(
@@ -91,7 +89,7 @@ async function resolveTalentBased(
       id: true,
       prenom: true,
       nom: true,
-      email: true,
+      user: { select: { email: true } },
       phone: true,
       parentEmail: true,
       parentPhone: true,
@@ -133,7 +131,7 @@ async function resolveTalentBased(
       continue;
     }
 
-    const email = isParent ? t.parentEmail : t.email;
+    const email = isParent ? t.parentEmail : (t.user?.email ?? null);
     const phone = isParent ? t.parentPhone : t.phone;
     const prenom = isParent ? (t.parentPrenom ?? '') : t.prenom;
     const nom = isParent ? (t.parentNom ?? '') : t.nom;
@@ -223,7 +221,7 @@ function talentWhere(spec: RecipientSpec): Prisma.TalentWhereInput {
   const and: Prisma.TalentWhereInput[] = [];
 
   if (f.niveau?.length) and.push({ niveau: { in: f.niveau } });
-  // Level is derived from xp (no stored column) — translate each chosen tier
+  // Level is derived from xp (no stored column): translate each chosen tier
   // into its xp range and OR them together.
   if (f.jumpLevel?.length) {
     and.push({
@@ -239,7 +237,7 @@ function talentWhere(spec: RecipientSpec): Prisma.TalentWhereInput {
   if (f.charterSigned === 'no') and.push({ charterAcceptedAt: null });
   // Règlement intérieur: the talent's own signature (`rulesSignedAt`) and the
   // legal guardian's online co-signature (`parentRulesSignedAt`, the canonical
-  // minor-compliance signal — see domain/stageCompliance `isRulesCompliant`).
+  // minor-compliance signal, see domain/dossierCompliance `isRulesCompliant`).
   if (f.rulesSigned === 'yes') and.push({ rulesSignedAt: { not: null } });
   if (f.rulesSigned === 'no') and.push({ rulesSignedAt: null });
   if (f.parentRulesSigned === 'yes')
@@ -250,8 +248,12 @@ function talentWhere(spec: RecipientSpec): Prisma.TalentWhereInput {
   // = at least one still owed, the "relance every blocked parent" target.
   if (f.parentStatus === 'pending') and.push(parentBlockedWhere);
   if (f.parentStatus === 'complete') and.push(parentCompleteWhere);
-  // Image rights: OR the selected states. `undecided` is the absence of a
-  // decision; `accepted`/`refused` match the stored enum directly.
+  // Image rights: OR the selected states, for the dossier in hand. The columns
+  // are a projection of the talent's most recent dossier, so `undecided` means
+  // "nothing decided for the year they are on", which is the relance target: a
+  // returning family whose guardian decided last year is asked again, and shows
+  // up here. It is NOT "never decided anything", and it is not what says whether
+  // a photo may be published (`imageRightsStance`).
   if (f.imageRights?.length) {
     and.push({
       OR: f.imageRights.map((status) =>
@@ -316,14 +318,8 @@ async function resolveStaffBased(
       staffRole: role,
       campusId: spec.campusId,
       ...(userIdFilter ? { userId: userIdFilter } : {}),
-      // Mantas are assigned to events (EventManta), so when an event is chosen
-      // the manta audience narrows to that event's assignees, matching how
-      // talent/parent scope through Participation. The other staff roles
-      // (dev/peda/superdev) carry no per-event assignment, so the event is
-      // simply ignored for them.
-      ...(spec.audience === 'manta' && spec.eventId
-        ? { eventMantas: { some: { eventId: spec.eventId } } }
-        : {}),
+      // Staff audiences carry no per-event assignment, so the event is ignored
+      // when resolving them.
     },
     select: {
       campus: { select: { name: true } },

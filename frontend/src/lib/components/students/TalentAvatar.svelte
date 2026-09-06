@@ -1,20 +1,18 @@
-<script lang="ts" module>
-  export function talentGradientUrl(t: {
-    id: string;
-    nom?: string | null;
-    prenom?: string | null;
-  }): string {
-    // Firstname-first monogram (Jean Dupont -> "JD"), matching how names read.
-    // Only the overlaid glyphs change: the gradient colour is seeded on `id`,
-    // so initials order never alters a talent's avatar identity.
-    const initials = `${t.prenom?.[0] ?? ''}${t.nom?.[0] ?? ''}`.toUpperCase();
-    return `https://avatar.vercel.sh/${encodeURIComponent(t.id)}.svg?text=${encodeURIComponent(initials)}`;
-  }
-</script>
-
 <script lang="ts">
   import { cn } from '$lib/utils';
+  import { talentGround } from './talentAvatar';
 
+  /**
+   * A talent's monogram, drawn locally.
+   *
+   * It used to be an `<img>` from `avatar.vercel.sh`, which meant every table
+   * row sent a talent's id and initials to a third party. Our users are minors,
+   * so that is not a trade we make for a gradient; it also cost one network
+   * request per row on pages that render two hundred of them, and it put
+   * vercel's palette next to Epitech's.
+   *
+   * The grounds and the reason there are seven of them live in `talentAvatar.ts`.
+   */
   type Size = 'sm' | 'md' | 'lg';
 
   let {
@@ -27,28 +25,38 @@
     class?: string;
   } = $props();
 
+  // Box only. The glyph is sized as a fraction of the box via a container query
+  // below, because consumers legitimately override the box for a responsive
+  // hero (`sm:h-24 md:h-28`) and a fixed font-size then leaves a 16px monogram
+  // floating in a 112px square.
   const SIZE_CLASS: Record<Size, string> = {
     sm: 'h-8 w-8',
     md: 'h-10 w-10',
     lg: 'h-16 w-16',
   };
 
-  let alt = $derived(`${talent.prenom ?? ''} ${talent.nom ?? ''}`.trim());
+  // Firstname-first monogram (Jean Dupont -> "JD"), matching how names read.
+  const initials = $derived(
+    `${talent.prenom?.[0] ?? ''}${talent.nom?.[0] ?? ''}`.toUpperCase() || '?',
+  );
+  const label = $derived(`${talent.prenom ?? ''} ${talent.nom ?? ''}`.trim());
 </script>
 
-<img
-  src={talentGradientUrl(talent)}
-  {alt}
+<span
+  role="img"
+  aria-label={label || 'Talent'}
   class={cn(
-    // The avatar is a fixed-size element and must never be squished. Tailwind
-    // preflight applies `max-width: 100%` to every img, so inside a width-starved
-    // table-auto column (e.g. a sibling column set to `w-full`) it collapses to
-    // 0. `max-w-none` drops that cap so the size class holds; `shrink-0` covers
-    // the same risk in a flex row.
-    'max-w-none shrink-0 rounded-full object-cover',
+    // A fixed-size element that must never be squished: `shrink-0` covers a
+    // flex row, and the explicit size classes hold in a width-starved
+    // `table-auto` column.
+    '@container inline-flex shrink-0 items-center justify-center rounded-full font-bold select-none',
+    talentGround(talent.id),
     SIZE_CLASS[size],
     className,
   )}
-  loading="lazy"
-  decoding="async"
-/>
+>
+  <!-- `leading-none` as well as the container size: with an inherited 1.5 line
+       height the glyph's line box is taller than its caps, so centring the box
+       leaves the letters sitting visibly high in the circle. -->
+  <span class="text-[42cqw] leading-none">{initials}</span>
+</span>

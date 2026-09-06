@@ -14,7 +14,7 @@
  *
  * Idempotent: a value already in E.164 normalizes to itself, so re-running is a
  * no-op. Values that don't parse (genuine junk) are left untouched and reported
- * rather than blanked — we never lose data we can't confidently rewrite.
+ * rather than blanked: we never lose data we can't confidently rewrite.
  *
  * Run: bun run scripts/backfill-phone-e164.ts [--dry-run]
  */
@@ -31,7 +31,7 @@ import { parsePhoneNumberFromString } from 'libphonenumber-js';
 // Inlined from `normalizePhoneToE164` in `src/lib/domain/phone.ts` so the
 // script can run inside the production image, which only ships the built app
 // (no raw `src/`, and the `$lib` alias resolves only under Vite). Keep in sync
-// by inspection — the logic is small and pure. Collapses any parseable shape to
+// by inspection: the logic is small and pure. Collapses any parseable shape to
 // canonical E.164 ("+33765719823"), parsing as international first then as a
 // French national number; returns null for genuine junk (left untouched below).
 const DEFAULT_REGION = 'FR';
@@ -77,7 +77,7 @@ function plan(raw: string | null, stat: Stat): string | null {
 
 async function main() {
   console.log(
-    `Phone E.164 backfill — ${dryRun ? 'DRY RUN (no writes)' : 'LIVE'}\n`,
+    `Phone E.164 backfill: ${dryRun ? 'DRY RUN (no writes)' : 'LIVE'}\n`,
   );
 
   const talentStats = {
@@ -136,7 +136,7 @@ async function main() {
   report('Talent.parent2Phone', talentStats.parent2Phone);
   report('TalentSfImport.phone', mirrorStat);
 
-  console.log(dryRun ? '\nDRY RUN — no rows written.' : '\nDone.');
+  console.log(dryRun ? '\nDRY RUN: no rows written.' : '\nDone.');
 }
 
 main()

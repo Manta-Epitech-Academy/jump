@@ -7,7 +7,6 @@
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Ellipsis from '@lucide/svelte/icons/ellipsis';
   import { getInitials } from '$lib/avatar';
-  import { eventTypeLabel } from '$lib/domain/event';
   import { cn } from '$lib/utils';
   import type { SerializedNote } from '$lib/domain/talentNotes';
 
@@ -77,7 +76,7 @@
        place), the actions collapse into a single "⋯" menu so they reserve one
        icon's width and never overlap the text, and the author name is the only
        part that truncates when the rail is tight. -->
-  <div class="flex items-center text-[11px] text-muted-foreground">
+  <div class="flex items-center text-xs text-muted-foreground">
     {#if note.author}
       <Avatar.Root class="mr-1.5 h-5 w-5 shrink-0">
         <Avatar.Image
@@ -85,9 +84,7 @@
           alt={note.author.name ?? 'Staff'}
           class="object-cover"
         />
-        <Avatar.Fallback
-          class="bg-epi-blue/10 text-[9px] font-bold text-epi-blue"
-        >
+        <Avatar.Fallback class="bg-epi-blue/10 text-xs font-bold text-epi-blue">
           {getInitials(note.author.name)}
         </Avatar.Fallback>
       </Avatar.Root>
@@ -104,9 +101,8 @@
         {note.author ? (note.author.name ?? 'Staff') : 'Auteur inconnu'}
       </span>
       <span class="shrink-0 whitespace-nowrap">
-        {SEP}{when(note.createdAt)}{#if note.event}{SEP}{eventTypeLabel(
-            note.event.type,
-          )}{/if}{#if note.edited}{SEP}<Tooltip.Root>
+        {SEP}{when(note.createdAt)}{#if note.event}{SEP}{note.event
+            .name}{/if}{#if note.edited}{SEP}<Tooltip.Root>
             <Tooltip.Trigger>
               {#snippet child({ props })}
                 <span
@@ -152,7 +148,7 @@
        a quiet left rule so it reads as a quote block. Neutral (not teal/blue) to
        keep the dev rail sober and avoid competing with the trigger colour. -->
   <p
-    class="mt-2 border-l-2 border-muted-foreground/25 pl-3 text-[15px] leading-relaxed break-words whitespace-pre-wrap text-foreground"
+    class="mt-2 border-l-2 border-muted-foreground/25 pl-3 text-base leading-relaxed break-words whitespace-pre-wrap text-foreground"
   >
     {note.body}
   </p>

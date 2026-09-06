@@ -6,11 +6,14 @@ import {
   requireEventModule,
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { imageRightsStatus } from '$lib/domain/imageRights';
+import { imageRightsStance, imageRightsStatus } from '$lib/domain/imageRights';
+import { latestImageRightsDecisions } from '$lib/server/services/imageRightsService';
 import { generateBadgesPDF } from '$lib/server/services/badgeGenerator';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // Generates the printable badge sheet for every talent registered to this event
-// (no selection — all inscrits). Campus-scoped via the event load. The `mode`
+// (no selection, all inscrits). Campus-scoped via the event load. The `mode`
 // query param picks the simple or foldable layout.
 export const GET: RequestHandler = async ({ params, locals, url }) => {
   requireStaffGroup(locals, 'devMember');
@@ -30,19 +33,44 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
     where: { eventId: event.id },
     select: {
       talent: {
-        select: { prenom: true, nom: true, imageRightsDecision: true },
+        select: {
+          id: true,
+          prenom: true,
+          nom: true,
+          imageRightsDecision: true,
+        },
       },
     },
     orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
   });
 
+  // The last decision each guardian ever made, whatever school year it belongs
+  // to. The projection alone answers "did they decide for the dossier in hand",
+  // which goes blank when a talent reopens one: read by itself it would drop the
+  // marker off a refused student's badge at the 31 July cutover, on the printed
+  // sheet, with nothing to notice it. What may be photographed is not a question
+  // about a school year.
+  const latestDecisions = await latestImageRightsDecisions(
+    participations.map((p) => p.talent.id),
+  );
+
   const badges = participations.map((p) => ({
     prenom: p.talent.prenom,
     nom: p.talent.nom,
-    imageRefused: imageRightsStatus(p.talent) === 'refused',
+    // Only an outright interdiction is marked. `unknown` (nobody has decided
+    // for this year, and no refusal stands) is not an authorization either, but
+    // marking it would put a marker on most of the cohort every September and
+    // the marker would stop being read. The staff screens show all three.
+    imageRefused:
+      imageRightsStance(
+        imageRightsStatus(p.talent),
+        latestDecisions.get(p.talent.id)?.decision ?? null,
+      ) === 'forbidden',
   }));
 
   const pdf = await generateBadgesPDF(badges, mode);
+
+  recordUsage(USAGE_FEATURES.DEV_BADGES_RENDER, { locals, eventId: params.id });
 
   return new Response(
     new Blob([pdf as BlobPart], { type: 'application/pdf' }),

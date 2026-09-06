@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Database from '@lucide/svelte/icons/database';
   import Pencil from '@lucide/svelte/icons/pencil';
   import FilterX from '@lucide/svelte/icons/filter-x';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
@@ -15,16 +16,16 @@
   import * as Table from '$lib/components/ui/table';
   import EventModulesCell from '$lib/components/events/EventModulesCell.svelte';
   import EventModuleIcon from '$lib/components/events/EventModuleIcon.svelte';
+  import EventStateBadge from '$lib/components/events/EventStateBadge.svelte';
   import EventConfigWizard from '$lib/components/events/EventConfigWizard.svelte';
+  import AdminSfStatusInspectorDialog from '$lib/components/events/AdminSfStatusInspectorDialog.svelte';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
     ColumnDef,
     SortDir,
   } from '$lib/components/staff/datatable/types';
-  import SegmentedFilter, {
-    type SegmentOption,
-  } from '$lib/components/staff/SegmentedFilter.svelte';
+  import { type SegmentOption } from '$lib/components/staff/SegmentedFilter.svelte';
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import SearchableSelect from '$lib/components/staff/SearchableSelect.svelte';
   import { toast } from 'svelte-sonner';
@@ -34,8 +35,6 @@
     type EventModuleKey,
   } from '$lib/domain/eventModules';
   import {
-    EVENT_CONFIG_STATE_LABELS,
-    EVENT_CONFIG_STATE_HINTS,
     isEventToPrepare,
     type EventConfigState,
   } from '$lib/domain/eventReadiness';
@@ -43,8 +42,12 @@
   import type { SubmitFunction } from '@sveltejs/kit';
   import { SvelteSet } from 'svelte/reactivity';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
-  import * as Tooltip from '$lib/components/ui/tooltip';
+  import { page } from '$app/state';
+  import { replaceState } from '$app/navigation';
+  import { untrack } from 'svelte';
   import type { AdminEventVM } from './+page.server';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import { nextSort } from '$lib/components/staff/datatable/sort';
 
   let { data } = $props();
 
@@ -54,7 +57,6 @@
   let search = $state('');
   let campusFilter = $state('all');
   let yearFilter = $state('all');
-  let typeFilter = $state('all');
   // Default to the forward-looking view: across hundreds of events the admin's
   // job is preparing what's coming, not scrolling the past graveyard.
   let statusFilter = $state<StatusFilter>('upcoming');
@@ -79,21 +81,10 @@
     return [{ value: 'all', label: 'Toutes les années' }, ...years];
   });
 
-  const typeOptions = $derived.by<SegmentOption[]>(() => {
-    const seen = new Map<string, string>();
-    for (const e of data.events) seen.set(e.eventType, e.eventTypeLabel);
-    const types = [...seen]
-      .sort((a, b) => a[1].localeCompare(b[1], 'fr'))
-      .map(([value, label]) => ({ value, label }));
-    return [{ value: 'all', label: 'Tous' }, ...types];
-  });
-  const showTypeFilter = $derived(typeOptions.length > 2);
-
   const columns: ColumnDef[] = [
     { key: 'name', label: 'Événement', sortable: true, class: 'w-full' },
     { key: 'state', label: 'État', sortable: true, class: 'w-36' },
     { key: 'campus', label: 'Campus', sortable: true, class: 'w-40' },
-    { key: 'type', label: 'Type', class: 'w-32' },
     { key: 'date', label: 'Dates', sortable: true, class: 'w-44' },
     { key: 'modules', label: 'Modules', class: 'w-60' },
     {
@@ -104,7 +95,7 @@
       defaultSortDir: 'desc',
       class: 'w-24',
     },
-    { key: 'actions', label: '', align: 'right', class: 'w-16' },
+    { key: 'actions', label: '', align: 'right', class: 'w-24' },
   ];
 
   // Sort "État" most-work-first: à configurer, then prêt à publier, then visible.
@@ -114,27 +105,10 @@
     shown: 2,
   };
 
-  // The État badge colour. Past events mute to grey: their config state is
-  // historical, not a to-do, so it shouldn't alarm in amber.
-  function stateBadgeClass(state: EventConfigState, isPast: boolean): string {
-    if (isPast) return 'border-border text-muted-foreground';
-    switch (state) {
-      case 'shown':
-        return 'border-emerald-500/40 text-emerald-600';
-      case 'ready':
-        return 'border-blue-500/40 text-blue-600';
-      case 'unconfigured':
-        return 'border-amber-500/50 text-amber-600';
-    }
-  }
-
   function toggleSort(key: string) {
-    if (sortKey === key) {
-      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortKey = key;
-      sortDir = columns.find((c) => c.key === key)?.defaultSortDir ?? 'asc';
-    }
+    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
+    sortKey = next.key;
+    sortDir = next.dir;
   }
 
   function compareEvents(
@@ -159,7 +133,7 @@
   }
 
   // Everything except the status filter: drives both the KPI tile counts (each
-  // tile shows its bucket within the current campus/year/type/search scope) and,
+  // tile shows its bucket within the current campus/year/search scope) and,
   // once status is applied, the table rows.
   const baseFiltered = $derived.by(() => {
     const q = search.trim().toLowerCase();
@@ -167,13 +141,11 @@
       if (campusFilter !== 'all' && e.campusId !== campusFilter) return false;
       if (yearFilter !== 'all' && e.schoolYearLabel !== yearFilter)
         return false;
-      if (typeFilter !== 'all' && e.eventType !== typeFilter) return false;
       if (!q) return true;
       return (
         e.displayName.toLowerCase().includes(q) ||
         e.titre.toLowerCase().includes(q) ||
-        e.campusName.toLowerCase().includes(q) ||
-        e.eventTypeLabel.toLowerCase().includes(q)
+        e.campusName.toLowerCase().includes(q)
       );
     });
   });
@@ -237,10 +209,7 @@
     all: 'au total',
   };
   const scopeFiltersApplied = $derived(
-    search.trim().length > 0 ||
-      campusFilter !== 'all' ||
-      yearFilter !== 'all' ||
-      typeFilter !== 'all',
+    search.trim().length > 0 || campusFilter !== 'all' || yearFilter !== 'all',
   );
   const anyFiltersApplied = $derived(
     scopeFiltersApplied || statusFilter !== 'upcoming',
@@ -253,7 +222,6 @@
     search = '';
     campusFilter = 'all';
     yearFilter = 'all';
-    typeFilter = 'all';
     statusFilter = 'upcoming';
   }
 
@@ -267,6 +235,30 @@
     editing = e;
     open = true;
   }
+
+  // ─── Inspector dialog ───────────────────────────────────────────────────
+  let inspectorOpen = $state(false);
+  let inspectingEventId = $state<string | null>(null);
+  let inspectingEventTitle = $state<string>('');
+
+  function openInspector(e: AdminEventVM) {
+    inspectingEventId = e.id;
+    inspectingEventTitle = e.displayName;
+    inspectorOpen = true;
+  }
+
+  // Deep-link from the admin dashboard: `?event=<id>` opens that event's config
+  // wizard straight away, then the param is stripped so a reload (or closing the
+  // dialog) doesn't reopen it. The dashboard's recent-events feed links here.
+  $effect(() => {
+    const id = page.url.searchParams.get('event');
+    if (!id) return;
+    const match = untrack(() => data.events.find((e) => e.id === id));
+    if (match) untrack(() => openEdit(match));
+    const url = new URL(page.url);
+    url.searchParams.delete('event');
+    replaceState(url, page.state);
+  });
 
   // ─── Bulk module edit (over the list selection) ──────────────────────────
   const selected = new SvelteSet<string>();
@@ -373,12 +365,10 @@
 
 <div class="space-y-6">
   <div>
-    <h1 class="font-heading text-3xl tracking-wide uppercase">
-      <span class="text-epi-pink">Événements</span>
-    </h1>
-    <p class="text-sm font-bold text-muted-foreground uppercase">
-      Configurer les modules, le nom public et les détails de chaque événement
-    </p>
+    <PageHeader
+      accent="Événements"
+      subtitle="Configurer les modules, le nom public et les détails de chaque événement"
+    />
   </div>
 
   <!-- Cockpit band: each tile is a status filter (click to scope the table),
@@ -449,14 +439,6 @@
         value={yearFilter}
         onChange={(v) => (yearFilter = v)}
       />
-      {#if showTypeFilter}
-        <SegmentedFilter
-          ariaLabel="Filtrer par type d'événement"
-          options={typeOptions}
-          value={typeFilter}
-          onChange={(v) => (typeFilter = v)}
-        />
-      {/if}
     {/snippet}
 
     {#snippet countActions()}
@@ -476,7 +458,7 @@
 
   {#if selected.size > 0}
     <div
-      class="flex flex-wrap items-center gap-3 rounded-sm border bg-card px-4 py-2 shadow-sm"
+      class="flex flex-wrap items-center gap-3 rounded-sm border bg-card px-4 py-2 shadow-raised"
     >
       <span class="text-sm font-bold">
         {selected.size} événement{selected.size > 1 ? 's' : ''} sélectionné{selected.size >
@@ -537,7 +519,7 @@
       </Button>
       {#if selectedNoModules > 0}
         <span
-          class="flex w-full items-center gap-1.5 text-[11px] font-medium text-amber-600"
+          class="flex w-full items-center gap-1.5 text-xs font-medium text-warning"
         >
           <TriangleAlert class="h-3.5 w-3.5 shrink-0" />
           {selectedNoModules} sans section ne {selectedNoModules > 1
@@ -547,31 +529,6 @@
       {/if}
     </div>
   {/if}
-
-  {#snippet statusBadge(e: AdminEventVM)}
-    {@const isPast = e.status === 'past'}
-    <Tooltip.Provider delayDuration={200}>
-      <Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props })}
-            <Badge
-              {...props}
-              variant="outline"
-              class="shrink-0 text-[10px] font-normal {stateBadgeClass(
-                e.configState,
-                isPast,
-              )}"
-            >
-              {EVENT_CONFIG_STATE_LABELS[e.configState]}
-            </Badge>
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content class="max-w-56 text-xs">
-          {EVENT_CONFIG_STATE_HINTS[e.configState]}
-        </Tooltip.Content>
-      </Tooltip.Root>
-    </Tooltip.Provider>
-  {/snippet}
 
   <SortableTable
     {columns}
@@ -594,7 +551,7 @@
           {#if !e.synced}
             <Badge
               variant="outline"
-              class="shrink-0 text-[10px] font-normal text-muted-foreground"
+              class="shrink-0 text-xs font-normal text-muted-foreground"
             >
               Manuel
             </Badge>
@@ -606,32 +563,45 @@
           </span>
         {/if}
       </Table.Cell>
-      <Table.Cell>{@render statusBadge(e)}</Table.Cell>
+      <Table.Cell>
+        <EventStateBadge state={e.configState} past={e.status === 'past'} />
+      </Table.Cell>
       <Table.Cell class="text-muted-foreground">{e.campusName}</Table.Cell>
-      <Table.Cell class="text-xs text-muted-foreground"
-        >{e.eventTypeLabel}</Table.Cell
-      >
       <Table.Cell class="text-xs text-muted-foreground">
         {e.dateLabel}{e.startTime ? ` · ${e.startTime}` : ''}
       </Table.Cell>
       <Table.Cell>
         <EventModulesCell modules={e.modules} />
       </Table.Cell>
-      <Table.Cell class="text-right tabular-nums">{e.participations}</Table.Cell
-      >
+      <Table.Cell class="text-right">{e.participations}</Table.Cell>
       <Table.Cell class="text-right">
-        <Button
-          variant="ghost"
-          size="icon"
-          class="text-muted-foreground opacity-60 transition-opacity group-hover/row:opacity-100"
-          onclick={(ev) => {
-            ev.stopPropagation();
-            openEdit(e);
-          }}
-          aria-label="Configurer {e.displayName}"
-        >
-          <Pencil class="h-4 w-4" />
-        </Button>
+        <div class="flex items-center justify-end gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            class="text-muted-foreground opacity-60 transition-opacity group-hover/row:opacity-100"
+            onclick={(ev) => {
+              ev.stopPropagation();
+              openInspector(e);
+            }}
+            title="Inspecter les statuts Salesforce de cet événement"
+            aria-label="Inspecter les statuts Salesforce de {e.displayName}"
+          >
+            <Database class="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="text-muted-foreground opacity-60 transition-opacity group-hover/row:opacity-100"
+            onclick={(ev) => {
+              ev.stopPropagation();
+              openEdit(e);
+            }}
+            aria-label="Configurer {e.displayName}"
+          >
+            <Pencil class="h-4 w-4" />
+          </Button>
+        </div>
       </Table.Cell>
     {/snippet}
 
@@ -643,33 +613,48 @@
             {#if !e.synced}
               <Badge
                 variant="outline"
-                class="shrink-0 text-[10px] font-normal text-muted-foreground"
+                class="shrink-0 text-xs font-normal text-muted-foreground"
               >
                 Manuel
               </Badge>
             {/if}
           </div>
           <p class="truncate text-xs text-muted-foreground">
-            {e.campusName} · {e.eventTypeLabel} · {e.dateLabel}
+            {e.campusName} · {e.dateLabel}
           </p>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="relative z-10 shrink-0 text-muted-foreground"
-          onclick={(ev) => {
-            ev.stopPropagation();
-            openEdit(e);
-          }}
-          aria-label="Configurer {e.displayName}"
-        >
-          <Pencil class="h-4 w-4" />
-        </Button>
+        <div class="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            class="relative z-10 shrink-0 text-muted-foreground"
+            onclick={(ev) => {
+              ev.stopPropagation();
+              openInspector(e);
+            }}
+            title="Inspecter les statuts Salesforce"
+            aria-label="Inspecter les statuts Salesforce de {e.displayName}"
+          >
+            <Database class="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="relative z-10 shrink-0 text-muted-foreground"
+            onclick={(ev) => {
+              ev.stopPropagation();
+              openEdit(e);
+            }}
+            aria-label="Configurer {e.displayName}"
+          >
+            <Pencil class="h-4 w-4" />
+          </Button>
+        </div>
       </div>
       <div class="mt-3 flex items-center gap-2">
         <EventModulesCell modules={e.modules} />
-        {@render statusBadge(e)}
-        <span class="ml-auto text-xs text-muted-foreground tabular-nums">
+        <EventStateBadge state={e.configState} past={e.status === 'past'} />
+        <span class="ml-auto text-xs text-muted-foreground">
           {e.participations} inscrits
         </span>
       </div>
@@ -701,16 +686,23 @@
     {editing}
     formData={data.form}
     feedbackForms={data.feedbackForms}
-    defaultFormByType={data.defaultFormByType}
+    certificates={data.certificates}
+    closingGrids={data.closingGrids}
     formPreviews={data.formPreviews}
     templates={data.templates}
+  />
+
+  <AdminSfStatusInspectorDialog
+    bind:open={inspectorOpen}
+    eventId={inspectingEventId}
+    eventTitle={inspectingEventTitle}
   />
 
   <Dialog.Root bind:open={bulkOpen}>
     <Dialog.Content class="flex max-h-[90dvh] flex-col gap-0 p-0 sm:max-w-lg">
       <Dialog.Header class="border-b px-4 py-4 text-start sm:px-6">
         <Dialog.Title class="flex items-center gap-2">
-          <ListChecks class="h-5 w-5 text-epi-pink" />
+          <ListChecks class="h-5 w-5 text-epi-tomorrow" />
           Modules en masse
         </Dialog.Title>
         <Dialog.Description>
@@ -769,11 +761,7 @@
           >
             Annuler
           </Button>
-          <Button
-            type="submit"
-            disabled={bulkSubmitting}
-            class="bg-epi-pink text-white"
-          >
+          <Button type="submit" disabled={bulkSubmitting}>
             {bulkSubmitting ? 'Application…' : 'Appliquer'}
           </Button>
         </Dialog.Footer>

@@ -4,9 +4,13 @@ import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import {
   IMAGE_RIGHTS_DECISIONS,
+  priorYearDecision,
   type ImageRightsDecision,
 } from '$lib/domain/imageRights';
-import { recordImageRightsDecision } from '$lib/server/services/imageRightsService';
+import {
+  LATEST_IMAGE_RIGHTS_DECISION_ORDER,
+  recordImageRightsDecision,
+} from '$lib/server/services/imageRightsService';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -14,7 +18,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   // Règlement intérieur comes first in the flow. If any child's is still
-  // unsigned, send the parent back to that step — even on a direct hit here.
+  // unsigned, send the parent back to that step, even on a direct hit here.
   const unsignedRules = await prisma.talent.count({
     where: { parentEmail: locals.user.email, parentRulesSignedAt: null },
   });
@@ -22,8 +26,11 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, resolve('/parent/reglement'));
   }
 
-  // Children whose guardian has not yet decided either way — a refusal is a
-  // settled decision and drops out here just as an authorization does.
+  // Children whose guardian has not yet decided for the dossier in hand: a
+  // refusal is a settled decision and drops out here just as an authorization
+  // does. The column is a projection of the talent's most recent dossier, so a
+  // returning family reappears here the year their child reopens one: the
+  // decision is taken once per school year.
   const undecidedChildren = await prisma.talent.findMany({
     where: {
       parentEmail: locals.user.email,
@@ -40,6 +47,19 @@ export const load: PageServerLoad = async ({ locals }) => {
       parentNom: true,
       parentType: true,
       parentCivilite: true,
+      // Which dossier this ask is about, so the reminder below can tell a
+      // previous year's answer from this year's.
+      onboardingSchoolYear: true,
+      // What this guardian last decided, for the year they decided it. Shown on
+      // the form so somebody asked a second time is not answering blind: without
+      // it a returning parent sees a question identical to last year's with no
+      // trace of the answer they gave, and a mis-click silently reverses a
+      // refusal.
+      imageRightsRecords: {
+        orderBy: LATEST_IMAGE_RIGHTS_DECISION_ORDER,
+        take: 1,
+        select: { decision: true, schoolYear: true },
+      },
     },
   });
 
@@ -48,8 +68,20 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   return {
-    parentName: locals.user.name,
-    children: undecidedChildren,
+    children: undecidedChildren.map(
+      ({ imageRightsRecords, onboardingSchoolYear, ...child }) => ({
+        ...child,
+        // Every child here is undecided for the dossier in hand, so the latest
+        // ledger row is necessarily a previous year's. Resolved through the
+        // shared rule anyway, rather than trusted: it is the same rule the child
+        // page needs, where the form is also reachable on a decision still in
+        // force.
+        previousDecision: priorYearDecision(
+          imageRightsRecords[0],
+          onboardingSchoolYear,
+        ),
+      }),
+    ),
   };
 };
 
@@ -120,7 +152,6 @@ export const actions: Actions = {
     // the `remaining` count below already excludes this child.
     await recordImageRightsDecision({
       talentId: profile.id,
-      studentName,
       decision,
       signerPrenom,
       signerNom,

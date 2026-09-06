@@ -39,7 +39,7 @@ export interface ChatMessage {
 
 // `pause` is a quiet beat (typing dots off) between messages, distinct from the
 // pre-start `idle`. The dock only offers an input on `awaiting`.
-export type ConvStatus = 'idle' | 'pause' | 'typing' | 'awaiting' | 'done';
+type ConvStatus = 'idle' | 'pause' | 'typing' | 'awaiting' | 'done';
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -88,7 +88,7 @@ function nowLabel(): string {
 }
 
 function formatAnswer(value: AnswerValue): string {
-  if (Array.isArray(value)) return value.join('  ·  ');
+  if (Array.isArray(value)) return value.join('·  ');
   return value;
 }
 

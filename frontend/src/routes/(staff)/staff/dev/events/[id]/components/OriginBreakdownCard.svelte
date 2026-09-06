@@ -21,9 +21,9 @@
   // One ranked-bar card shared by the event dashboard and the Inscrits sidebar,
   // so the two surfaces can never drift on how a cohort breakdown looks. The
   // `interaction` prop is the only behavioural fork:
-  //   • 'navigate' (dashboard) — each row is a link to the filtered Inscrits
+  //   • 'navigate' (dashboard): each row is a link to the filtered Inscrits
   //     page, so the trailing chevron reads as "go there". This is the default.
-  //   • 'filter'   (Inscrits)  — rows toggle an in-page facet. No chevron (it
+  //   • 'filter'   (Inscrits): rows toggle an in-page facet. No chevron (it
   //     would imply leaving), the active row flips to a clear (×) affordance,
   //     and a header hint spells out that clicking filters the list in place.
   // Domain specifics (icon, title, row labels, tail nouns) live in the thin
@@ -42,19 +42,19 @@
     /** Pre-summarised tail for surfaces that don't pass `tailRows`. */
     others?: { count: number; categories: number } | null;
     tailNoun: TailNoun;
-    /** Cohort size — denominator for each proportion bar. */
+    /** Cohort size: denominator for each proportion bar. */
     totalParticipations: number;
     activeId?: string;
     /**
-     * 'navigate' (dashboard) — rows link to the filtered Inscrits page, trailing
-     * chevron. 'filter' (Inscrits sidebar, when this card *is* the filter) — rows
-     * toggle an in-page facet. 'readonly' — plain non-clickable rows, for when
+     * 'navigate' (dashboard): rows link to the filtered Inscrits page, trailing
+     * chevron. 'filter' (Inscrits sidebar, when this card *is* the filter): rows
+     * toggle an in-page facet. 'readonly': plain non-clickable rows, for when
      * the facet is filtered elsewhere (e.g. a toolbar dropdown) or not at all.
      */
     interaction?: 'navigate' | 'filter' | 'readonly';
     /** Required for the clickable modes; ignored when 'readonly'. */
     hrefFor?: (id: string) => string;
-    /** Filter mode only — href that drops the active facet (active row link). */
+    /** Filter mode only: href that drops the active facet (active row link). */
     clearHref?: string;
     emptyText: string;
   };
@@ -92,7 +92,7 @@
       : null,
   );
   // If the active facet lives in the tail, keep the tail open so its row (and
-  // its clear affordance) stay on screen — collapsing would hide the filter.
+  // its clear affordance) stay on screen: collapsing would hide the filter.
   const activeInTail = $derived(
     !!activeId && (tailRows ?? []).some((r) => r.id === activeId),
   );
@@ -112,14 +112,14 @@
         class={cn(
           'truncate font-medium',
           // The link affordance (dotted underline + hover tint) only makes
-          // sense on the clickable modes — a readonly row is just a label.
+          // sense on the clickable modes: a readonly row is just a label.
           isInteractive &&
             'underline decoration-muted-foreground/40 decoration-dotted underline-offset-4 group-hover:text-epi-blue group-hover:decoration-epi-blue',
         )}>{r.label}</span
       >
     </span>
     <span
-      class="flex shrink-0 items-center gap-1 font-mono text-[10px] font-bold text-muted-foreground"
+      class="flex shrink-0 items-center gap-1 font-mono text-xs font-bold text-muted-foreground"
     >
       {r.count} · {pct}%
       {#if interaction === 'navigate'}
@@ -135,7 +135,7 @@
     class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted dark:bg-muted/30"
   >
     <div
-      class="h-full bg-epi-blue transition-[width] duration-700 ease-out"
+      class="h-full bg-epi-blue transition-[width] duration-320 ease-out"
       style="width: {pct}%"
     ></div>
   </div>
@@ -149,7 +149,7 @@
       href={isFilter && active && clearHref ? clearHref : hrefFor?.(r.id)}
       title={isFilter && active
         ? 'Retirer le filtre'
-        : `Filtrer · ${r.count} ${r.count > 1 ? 'stagiaires' : 'stagiaire'}`}
+        : `Filtrer · ${r.count} ${noun(r.count, tailNoun.item)}`}
       aria-current={active ? 'true' : undefined}
       class={cn(
         'group block rounded-sm px-3 py-2 transition-colors hover:bg-epi-blue/5',
@@ -165,12 +165,12 @@
   {/if}
 {/snippet}
 
-<Card.Root class="rounded-sm shadow-sm dark:shadow-none">
+<Card.Root class="rounded-sm shadow-raised">
   <div
     class="flex flex-row items-center gap-2 border-b bg-muted/30 px-6 pt-4 pb-3"
   >
     {@render icon()}
-    <h3 class="font-heading text-2xl tracking-wide text-foreground uppercase">
+    <h3 class="font-heading text-display-m text-foreground">
       {title}
     </h3>
   </div>
@@ -181,9 +181,7 @@
       </p>
     {:else}
       {#if isFilter}
-        <p
-          class="px-2 pt-1 pb-2 font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase"
-        >
+        <p class="px-2 pt-1 pb-2 epi-chip text-muted-foreground">
           Cliquer pour filtrer les inscrits
         </p>
       {/if}
@@ -201,7 +199,7 @@
             <button
               type="button"
               onclick={() => (expanded = false)}
-              class="flex w-full cursor-pointer items-center justify-center gap-1 rounded-sm border-t border-dashed border-border/60 px-3 py-2 font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase transition-colors hover:bg-epi-blue/5 hover:text-epi-blue"
+              class="flex w-full cursor-pointer items-center justify-center gap-1 rounded-sm border-t border-dashed border-border/60 px-3 py-2 epi-chip text-muted-foreground transition-colors hover:bg-epi-blue/5 hover:text-epi-blue"
             >
               <ChevronUp class="h-3.5 w-3.5" />
               Réduire
@@ -218,7 +216,7 @@
             >
               <span class="italic">Autres</span>
               <span
-                class="flex shrink-0 items-center gap-1 font-mono text-[10px] font-bold"
+                class="flex shrink-0 items-center gap-1 font-mono text-xs font-bold"
               >
                 {tailSummary.count}
                 {noun(tailSummary.count, tailNoun.item)} ·
@@ -238,7 +236,7 @@
           >
             <span class="italic">Autres</span>
             <span
-              class="flex shrink-0 items-center gap-1 font-mono text-[10px] font-bold"
+              class="flex shrink-0 items-center gap-1 font-mono text-xs font-bold"
             >
               {others.count}
               {noun(others.count, tailNoun.item)} ·

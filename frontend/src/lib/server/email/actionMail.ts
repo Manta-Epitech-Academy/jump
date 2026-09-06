@@ -9,7 +9,7 @@
  *
  * When no mapping exists for the action, the call is a no-op (logged as
  * a warning). Admins surface missing mappings in `/staff/admin/email-actions`.
- * Callers don't error — the user-facing flow continues as if the mail had
+ * Callers don't error: the user-facing flow continues as if the mail had
  * gone out. Trade-off agreed with product: avoid a noisy login error when
  * a deploy ships before an admin configures templates.
  */
@@ -48,7 +48,7 @@ export async function sendActionEmail(
   });
 
   if (!mapping) {
-    const message = `No template mapped for action "${actionKey}" — skipping send to ${recipient}.`;
+    const message = `No template mapped for action "${actionKey}": skipping send to ${recipient}.`;
     console.warn(`[email-action] ${message}`);
     return { ok: false, reason: 'no_template', message };
   }

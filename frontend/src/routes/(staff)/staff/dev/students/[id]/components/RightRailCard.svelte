@@ -14,11 +14,13 @@
   import {
     rulesStatus,
     RULES_STATUS_LABELS,
-  } from '$lib/domain/stageCompliance';
+  } from '$lib/domain/dossierCompliance';
   import {
     IMAGE_RIGHTS_DISPLAY_LABELS,
+    IMAGE_RIGHTS_STANCE_LABELS,
     imageRightsStatus,
     imageRightsDisplayStatus,
+    imageRightsStance,
     type ImageRightsDecision,
   } from '$lib/domain/imageRights';
   import type { Communication } from '$lib/domain/communications';
@@ -27,9 +29,10 @@
   import ImageRightsCorrectionDialog from './ImageRightsCorrectionDialog.svelte';
 
   // Decision history row as projected by the page load. Kept loose here (the
-  // dialog owns the precise type) — this card only forwards it.
+  // dialog owns the precise type), this card only forwards it.
   type ImageRightsRecordVM = {
     id: string;
+    schoolYear: string;
     decision: ImageRightsDecision;
     decidedAt: Date | string;
     signerPrenom: string | null;
@@ -53,16 +56,16 @@
   // single gated exception: the image-rights row carries a "Corriger" action so
   // staff can record a guardian's offline change of mind (the decision is a
   // legal artifact a guardian can revoke "à tout moment", and they sometimes
-  // tell us by phone). Everything else stays a display; the rest of the actions
-  // live in the recommendations list on the left.
+  // tell us by phone). Everything else stays a display.
   let {
     lastActiveAt,
     firstLoginAt,
     communications,
     rulesSignedAt,
     parentRulesSignedAt,
-    charteSigned,
     imageRightsDecision,
+    lastImageRightsDecision,
+    imageRightsSchoolYear,
     imageRightsForm,
     imageRightsRecords = [],
     studentName = '',
@@ -73,8 +76,20 @@
     communications: Communication[];
     rulesSignedAt: Date | string | null;
     parentRulesSignedAt: Date | string | null;
-    charteSigned: boolean | null | undefined;
+    /** The decision for the dossier in hand, or null when this year is open. */
     imageRightsDecision: ImageRightsDecision | null;
+    /**
+     * The last decision ever taken and the year it answered for. Required, not
+     * optional: it is what keeps a standing refusal on screen once its year has
+     * closed, and a caller that forgot to pass it would quietly downgrade an
+     * interdiction to "En attente".
+     */
+    lastImageRightsDecision: {
+      decision: ImageRightsDecision;
+      schoolYear: string;
+    } | null;
+    /** The dossier year a correction recorded from here would be filed against. */
+    imageRightsSchoolYear: string;
     imageRightsForm?: SuperValidated<Infer<ImageRightsCorrectionSchema>>;
     imageRightsRecords?: ImageRightsRecordVM[];
     studentName?: string;
@@ -106,44 +121,45 @@
   }
 
   // Show the template the message was sent from rather than its subject line.
-  // Reminders (1:1 relances) carry no template, so they read as "Relance".
   function commLabel(c: Communication): string {
-    if (c.kind === 'reminder') return 'Relance';
     return c.broadcast.templateName || c.broadcast.name || 'Communication';
   }
 
-  // Open tracking only exists for broadcast emails (reminders/SMS carry none),
-  // so the badge shows opened/not only there and stays silent otherwise.
+  // Open tracking only exists for broadcast emails (SMS carry none), so the
+  // badge shows opened/not only there and stays silent otherwise.
   function openState(c: Communication): 'opened' | 'unopened' | null {
-    if (c.kind !== 'broadcast' || c.channel !== 'mail') return null;
+    if (c.channel !== 'mail') return null;
     return c.openedAt ? 'opened' : 'unopened';
   }
 
-  // Shared three-state resolver (kept in lockstep with the cohort table); the
-  // rail layers an explanatory tooltip and tone on top of the state.
-  const rules = $derived(
-    rulesStatus(parentRulesSignedAt, charteSigned, rulesSignedAt),
-  );
+  // Shared three-state resolver, on the talent's own columns: the fiche answers
+  // "has this person ever signed, and when", not "is a given year's dossier
+  // done". The cohort table asks the second question, against the dossier of the
+  // event it is showing, so the two legitimately differ for a talent who signed
+  // last year and has not reopened a dossier. The rail layers an explanatory
+  // tooltip and tone on top of the state.
+  const rules = $derived(rulesStatus(parentRulesSignedAt, rulesSignedAt));
 
   const rulesDoc = $derived.by<DocStatus>(() => {
     const label = RULES_STATUS_LABELS[rules];
     if (rules === 'signed') {
       return {
         label,
-        colorClass: 'text-epi-teal-solid',
+        colorClass: 'text-epi-tech-ink',
         icon: Check,
-        tooltip: parentRulesSignedAt
-          ? 'Co-signé par le parent et le stagiaire'
-          : "Signature attestée manuellement par l'équipe (hors ligne).",
+        // Unconditional: `signed` is reached only through the guardian's
+        // co-signature. It used to fork on a staff attestation of an offline
+        // signature, which no code path could ever set and which is gone.
+        tooltip: 'Co-signé par le participant et son parent.',
       };
     }
     if (rules === 'awaiting_parent') {
       return {
         label,
-        colorClass: 'text-amber-600 dark:text-amber-500',
+        colorClass: 'text-warning',
         icon: Clock,
         tooltip:
-          'Le stagiaire a signé le règlement intérieur, la co-signature du parent est en cours.',
+          'Le participant a signé le règlement intérieur, la co-signature du parent est en cours.',
       };
     }
     return {
@@ -151,15 +167,15 @@
       colorClass: 'text-destructive',
       icon: Clock,
       tooltip:
-        "Le règlement intérieur n'a pas encore été signé par le stagiaire.",
+        "Le règlement intérieur n'a pas encore été signé par le participant.",
     };
   });
 
   // Made parallel to the règlement row: an undecided image splits into "awaiting
   // parent" (the student signed, so the parent flow that co-signs both is under
-  // way) vs "pending" (nothing signed yet), gated on the student's own signature,
-  // not `rules`, whose `signed` state a staff offline attestation can reach
-  // without a parent ever being invited.
+  // way) vs "pending" (nothing signed yet), gated on the student's own signature
+  // rather than on `rules`, whose `signed` state means the guardian has already
+  // co-signed and so would read an asked family as never invited.
   const imageDisplay = $derived(
     imageRightsDisplayStatus(
       imageRightsStatus({ imageRightsDecision }),
@@ -167,11 +183,39 @@
     ),
   );
 
+  // What actually applies to this student right now, which the row above cannot
+  // say once the decision is annual: a refusal given in a closed year still
+  // forbids, while its dossier row has gone back to "En attente" because the
+  // guardian is being asked again. Showing only the dossier state here is how a
+  // dev ends up photographing a student whose parent said no.
+  const stance = $derived(
+    imageRightsStance(
+      imageRightsStatus({ imageRightsDecision }),
+      lastImageRightsDecision?.decision ?? null,
+    ),
+  );
+  const standingRefusal = $derived(
+    stance === 'forbidden' && imageRightsDecision == null
+      ? (lastImageRightsDecision?.schoolYear ?? null)
+      : null,
+  );
+
   const imageDoc = $derived.by<DocStatus>(() => {
+    // A refusal from a closed year outranks the dossier state: the row is read
+    // to decide whether to take a photo, so the interdiction is what it must
+    // show, with the chase still explained in the tooltip.
+    if (standingRefusal) {
+      return {
+        label: IMAGE_RIGHTS_STANCE_LABELS.forbidden,
+        colorClass: 'text-epi-together',
+        icon: X,
+        tooltip: `Refus donné pour ${standingRefusal} et jamais revu depuis : les photos et vidéos de ce participant ne doivent pas être utilisées. La décision est redemandée au responsable légal pour l'année en cours.`,
+      };
+    }
     if (imageDisplay === 'accepted') {
       return {
         label: IMAGE_RIGHTS_DISPLAY_LABELS.accepted,
-        colorClass: 'text-epi-teal-solid',
+        colorClass: 'text-epi-tech-ink',
         icon: Check,
         tooltip:
           "Le parent autorise l'utilisation de l'image du stagiaire par Epitech.",
@@ -180,7 +224,7 @@
     if (imageDisplay === 'refused') {
       return {
         label: IMAGE_RIGHTS_DISPLAY_LABELS.refused,
-        colorClass: 'text-epi-orange',
+        colorClass: 'text-epi-together',
         icon: X,
         tooltip:
           'Les photos et les vidéos de ce stagiaire ne doivent pas être utilisées par Epitech.',
@@ -189,7 +233,7 @@
     if (imageDisplay === 'awaiting_parent') {
       return {
         label: IMAGE_RIGHTS_DISPLAY_LABELS.awaiting_parent,
-        colorClass: 'text-amber-600 dark:text-amber-500',
+        colorClass: 'text-warning',
         icon: Clock,
         tooltip:
           "En attente de la décision des parents sur le droit à l'image.",
@@ -208,11 +252,7 @@
   <div class="space-y-4">
     <!-- Connexion -->
     <section class="space-y-2">
-      <h4
-        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        Connexion à Jump
-      </h4>
+      <h4 class="epi-overline text-muted-foreground">Connexion à Jump</h4>
       <dl class="space-y-1.5 text-sm">
         <div class="flex items-baseline justify-between gap-3">
           <dt class="text-muted-foreground">Dernière connexion</dt>
@@ -233,9 +273,7 @@
 
     <!-- Communications -->
     <section class="space-y-2">
-      <h4
-        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
+      <h4 class="epi-overline text-muted-foreground">
         Dernières communications
       </h4>
       {#if communications.length === 0}
@@ -257,22 +295,20 @@
               <span class="min-w-0 flex-1 truncate">{commLabel(c)}</span>
               {#if open === 'opened'}
                 <span
-                  class="inline-flex shrink-0 items-center gap-1 font-mono text-[10px] tracking-wide text-epi-teal-solid uppercase"
+                  class="inline-flex shrink-0 items-center gap-1 epi-overline text-epi-tech-ink"
                 >
                   <MailOpen class="h-3 w-3" />
                   Ouvert
                 </span>
               {:else if open === 'unopened'}
                 <span
-                  class="inline-flex shrink-0 items-center gap-1 font-mono text-[10px] tracking-wide text-muted-foreground uppercase"
+                  class="inline-flex shrink-0 items-center gap-1 epi-overline text-muted-foreground"
                 >
                   <Mail class="h-3 w-3" />
                   Non ouvert
                 </span>
               {/if}
-              <span
-                class="shrink-0 font-mono text-[10px] text-muted-foreground"
-              >
+              <span class="shrink-0 font-mono text-xs text-muted-foreground">
                 {formatDateFr(c.sentAt, timezone)}
               </span>
             </li>
@@ -285,11 +321,7 @@
 
     <!-- Documents -->
     <section class="space-y-2">
-      <h4
-        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        Documents
-      </h4>
+      <h4 class="epi-overline text-muted-foreground">Documents</h4>
       <ul class="space-y-1.5 text-sm">
         {@render docRow('Règlement intérieur', rulesDoc)}
         {@render docRow(
@@ -313,6 +345,7 @@
     form={imageRightsForm}
     records={imageRightsRecords}
     {studentName}
+    targetSchoolYear={imageRightsSchoolYear}
   />
 {/if}
 
@@ -331,7 +364,7 @@
                 {...props}
                 type="button"
                 onclick={onTrigger}
-                class="inline-flex cursor-pointer items-center gap-1 font-mono text-[10px] font-bold tracking-widest uppercase underline decoration-dotted underline-offset-4 transition-opacity hover:opacity-80 {s.colorClass}"
+                class="inline-flex cursor-pointer items-center gap-1 epi-overline underline decoration-dotted underline-offset-4 transition-opacity hover:opacity-80 {s.colorClass}"
               >
                 <Icon class="h-3 w-3" />
                 {s.label}
@@ -339,7 +372,7 @@
             {:else}
               <span
                 {...props}
-                class="inline-flex cursor-help items-center gap-1 font-mono text-[10px] font-bold tracking-widest uppercase {s.colorClass}"
+                class="inline-flex cursor-help items-center gap-1 epi-overline {s.colorClass}"
               >
                 <Icon class="h-3 w-3" />
                 {s.label}
@@ -350,7 +383,7 @@
         <Tooltip.Content class="max-w-60">
           <p class="text-xs">{s.tooltip}</p>
           {#if onTrigger}
-            <p class="mt-1 text-[10px] text-muted-foreground">
+            <p class="mt-1 text-xs text-muted-foreground">
               Cliquez pour corriger la décision.
             </p>
           {/if}

@@ -14,6 +14,8 @@
   import LoginFooter from '$lib/components/layout/LoginFooter.svelte';
   import { resolve } from '$app/paths';
   import { track } from '$lib/analytics';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import CodeTag from '$lib/components/layout/CodeTag.svelte';
 
   let { data } = $props();
   let isLoading = $state(false);
@@ -34,11 +36,13 @@
 
 <div class="grid min-h-screen w-full lg:grid-cols-[1.05fr_1fr]">
   <LoginBrandPanel>
-    <h1 class="font-heading text-5xl leading-[0.95] xl:text-6xl">
-      We power tech<span class="text-epi-teal">_</span>
+    <h1 class="font-heading text-display-xl xl:text-display-2xl">
+      We power tech<TitleCursor />
     </h1>
     <p class="max-w-md font-mono text-sm text-white/70">
-      &lt; La plateforme de gestion des stages et coding clubs d'Epitech. /&gt;
+      <CodeTag
+        >La plateforme de gestion des stages et coding clubs d'Epitech.</CodeTag
+      >
     </p>
     <p class="font-mono text-xs tracking-widest text-white/50 uppercase">
       Stages/ Coding clubs/ Admissions/ Pédagogie/
@@ -50,14 +54,14 @@
     <div class="w-full max-w-sm space-y-8">
       <!-- Header -->
       <header class="space-y-5">
-        <!-- Compact logo — mobile only (the brand panel carries it on desktop) -->
+        <!-- Compact logo: mobile only (the brand panel carries it on desktop) -->
         <EpitechLogo class="h-7 w-auto lg:hidden" />
         <div class="space-y-2">
-          <h2 class="font-heading text-3xl tracking-wide">
-            Jump<span class="text-epi-teal">_</span>
+          <h2 class="font-heading text-display-l">
+            Jump<TitleCursor />
           </h2>
           <p class="text-sm text-muted-foreground">
-            Espace staff — connectez-vous pour accéder à votre espace.
+            Espace staff : connectez-vous pour accéder à votre espace.
           </p>
         </div>
       </header>
@@ -66,9 +70,7 @@
       {#if data.errorMessage}
         <Alert variant="destructive" class="border-destructive/50">
           <CircleAlert class="h-4 w-4" />
-          <AlertTitle class="text-[11px] font-bold tracking-widest uppercase">
-            Erreur d'accès
-          </AlertTitle>
+          <AlertTitle class="epi-overline">Erreur d'accès</AlertTitle>
           <AlertDescription class="text-xs">
             {data.errorMessage}
           </AlertDescription>
@@ -108,9 +110,7 @@
             <span class="w-full border-t border-border"></span>
           </div>
           <div class="relative flex justify-center">
-            <span
-              class="bg-background px-2 font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-            >
+            <span class="bg-background px-2 epi-overline text-muted-foreground">
               Accès sécurisé
             </span>
           </div>

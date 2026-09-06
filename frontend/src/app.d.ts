@@ -1,6 +1,5 @@
 import type { User, Session } from '$lib/server/auth';
 import type { StaffProfile, Talent, Campus, StaffRole } from '@prisma/client';
-import type { FlagKey } from '$lib/domain/featureFlags';
 import type { StaffGroup } from '$lib/domain/permissions';
 import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
 import type { PlanningPreview } from '$lib/server/talentPlanningPreview';
@@ -20,13 +19,18 @@ declare global {
       /**
        * Campus name for the current talent, derived from their most recent
        * participation (talents have no direct Campus relation). Null for staff
-       * (use `staffProfile.campus.name`) and anonymous requests. Resolved
-       * alongside the feature-flag campus scope in hooks.server.ts.
+       * (use `staffProfile.campus.name`) and anonymous requests. Resolved in
+       * hooks.server.ts.
        */
       talentCampusName: string | null;
-      viewMode: 'readonly' | 'edit';
-      featureFlags: Set<FlagKey>;
-      ticketsEnabled: boolean;
+      /**
+       * Campus id for the current talent, from the same resolve that produces
+       * `talentCampusName` (so it costs no extra query). Null for staff (use
+       * `staffProfile.campusId`) and anonymous requests. Usage recording needs
+       * the id rather than the name: the name is display, the id is what a
+       * per-campus figure groups on.
+       */
+      talentCampusId: string | null;
       /**
        * Dev-tooling override of the perceived stage phase. Only set when
        * an admin is impersonating a dev/superdev *and* on a /staff/dev
@@ -76,14 +80,6 @@ declare global {
       devRedirectPin: { until: Date; to: string[] } | null;
     }
     // interface PageData {}
-    interface PageState {
-      /**
-       * Fiche talent "Mode entretien" view toggle. Shallow-routed so flipping
-       * the switch is instant (no load rerun); mirrored to `?interview=1`,
-       * which seeds the mode again on a full reload or deep-link.
-       */
-      interviewMode?: boolean;
-    }
     // interface Platform {}
   }
 }

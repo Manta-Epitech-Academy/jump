@@ -17,7 +17,7 @@
   import type { ColumnDef, SortDir } from './types';
 
   // Purely presentational. It renders the header (with clickable sort
-  // affordances), the rows, and an empty state — but it never sorts, filters
+  // affordances), the rows, and an empty state, but it never sorts, filters
   // or fetches. The parent owns the data strategy and just hands down the
   // current `sortKey`/`sortDir` plus an `onSort` callback. That keeps the same
   // component serving the in-memory inscrits table and the server-paginated
@@ -53,13 +53,13 @@
      * When set, the whole row becomes a real link to this href via a stretched
      * anchor overlay. Prefer this over a JS click handler for navigation: a real
      * `<a>` gives cmd/middle/right-click (open in new tab), hover URL preview,
-     * native keyboard activation and correct a11y — none of which a row `onclick`
+     * native keyboard activation and correct a11y, none of which a row `onclick`
      * can replicate. Any interactive element inside a cell (or a `mobileRow`
      * card, which reuses the same overlay) must then carry `relative z-10` to
      * stay clickable above the overlay.
      */
     rowHref?: (row: T) => string;
-    /** Accessible name for the row link — the cells are not inside the anchor. */
+    /** Accessible name for the row link: the cells are not inside the anchor. */
     rowLabel?: (row: T) => string;
     /**
      * Mouse shortcut: clicking anywhere on the row (or mobile card) runs this.
@@ -76,7 +76,7 @@
     empty?: Snippet;
     headerClass?: string;
     /**
-     * Freeze the header as the page scrolls — desktop only (`lg+`). There, the
+     * Freeze the header as the page scrolls, desktop only (`lg+`). There, the
      * container drops its overflow (`lg:overflow-visible`) so the `<th>`s pin
      * to the page's scroller rather than a wrapping overflow box. Below `lg`
      * the table keeps its contained horizontal scroll (a wide table would
@@ -84,8 +84,8 @@
      */
     stickyHeader?: boolean;
     /**
-     * Table sizing algorithm. `'auto'` (default) sizes columns to their content
-     * — fine for a self-scrolling, full-width table. `'fixed'` makes the table
+     * Table sizing algorithm. `'auto'` (default) sizes columns to their content,
+     * fine for a self-scrolling, full-width table. `'fixed'` makes the table
      * fill exactly its container width and divide it among the columns by their
      * declared widths, so a greedy `w-full` column absorbs the slack and
      * truncates instead of stretching the table past its track. Reach for it
@@ -96,7 +96,7 @@
     layout?: 'auto' | 'fixed';
     /**
      * Opt-in mobile presentation. When set, below `lg` the table is hidden and each
-     * row renders as a stacked card through this snippet instead — the desktop table
+     * row renders as a stacked card through this snippet instead, the desktop table
      * is untouched at `lg+`. The roster table's fixed layout squeezes its columns
      * into nothing on a phone (a 6-column budget can't fit ~400px), so the card list
      * is the readable form there. Leaving it unset keeps the table visible at every
@@ -112,7 +112,7 @@
      * toggles membership. Off by default, so existing callers render exactly as
      * before. Typed `SvelteSet`, not bare `Set`, on purpose: the checkbox state
      * reads `selected.has(...)` and the toggles mutate `selected` in place, so the
-     * collection itself must be reactive — a plain `Set` would re-render nothing.
+     * collection itself must be reactive: a plain `Set` would re-render nothing.
      */
     selectable?: boolean;
     selected?: SvelteSet<string>;
@@ -124,8 +124,8 @@
   // Render only the layout in use, never both. The old CSS-only `hidden lg:block`
   // / `lg:hidden` toggle kept BOTH the desktop table and the mobile cards in the
   // DOM and hydrated them, doubling every row (and every avatar). Gating on a
-  // media query keeps a single tree mounted. SSR — and the first client paint,
-  // before `mounted` — renders the desktop table so it matches the server HTML
+  // media query keeps a single tree mounted. SSR (and the first client paint,
+  // before `mounted`) renders the desktop table so it matches the server HTML
   // and avoids a hydration mismatch; mobile clients swap to cards right after
   // mount. `lg` = 1024px, the same seam the old classes used. When no `mobileRow`
   // is supplied (e.g. the admin talents table) the desktop table always renders.
@@ -167,7 +167,7 @@
 </script>
 
 {#if showDesktop}
-  <div class="rounded-sm border bg-card shadow-sm">
+  <div class="rounded-sm border bg-card shadow-raised">
     <Table.Root
       class={layout === 'fixed' ? 'table-fixed' : undefined}
       containerClass={stickyHeader ? 'lg:overflow-visible' : undefined}
@@ -193,11 +193,12 @@
           {#each columns as col (col.key)}
             <Table.Head
               class={cn(
-                'text-xs font-bold uppercase',
+                // Size, weight and case come from Table.Head's overline
+                // treatment; only the pinning and alignment are this table's.
                 // Pinned header (desktop): each th carries its own opaque fill +
                 // bottom border so the frozen bar reads as one line while rows
                 // scroll under it (z above the body cells and the stretched row
-                // link). Gated to lg — on mobile the table x-scrolls in its box.
+                // link). Gated to lg: on mobile the table x-scrolls in its box.
                 stickyHeader &&
                   'lg:sticky lg:top-0 lg:z-20 lg:border-b lg:bg-muted',
                 col.align === 'right' && 'text-right',
@@ -214,7 +215,11 @@
                   type="button"
                   onclick={() => onSort?.(col.key)}
                   class={cn(
-                    'inline-flex cursor-pointer items-center gap-1 uppercase transition-colors hover:text-foreground',
+                    // `epi-overline` again rather than inherited: a <button>
+                    // does not inherit text-transform (the UA sets `none` on it
+                    // and Tailwind's preflight inherits font, not case), so
+                    // without it every sortable header lost its uppercase.
+                    'inline-flex cursor-pointer items-center gap-1 epi-overline transition-colors hover:text-foreground',
                     col.align === 'right' && 'flex-row-reverse',
                   )}
                 >
@@ -276,7 +281,7 @@
                 <!-- Stretched-link overlay: a real <a> covering the whole row,
                    inset-0 resolving against the relative <tr>. The browser wraps
                    this absolutely-positioned <td> in an anonymous table cell, so
-                   it DOES claim a column — it MUST be rendered last, otherwise
+                   it DOES claim a column, so it MUST be rendered last, otherwise
                    that phantom (zero-width) column lands at the front and shifts
                    every real cell one column right of its header. As the trailing
                    cell the phantom column sits past the last header, invisible.
@@ -285,10 +290,7 @@
                    muted sheet over the row's text on hover. Focus shows an inset
                    ring, no fill. -->
                 <td class="absolute inset-0 bg-transparent! p-0">
-                  <a
-                    href={rowHref(r)}
-                    class="block size-full rounded-sm focus-visible:ring-2 focus-visible:ring-epi-blue focus-visible:outline-none focus-visible:ring-inset"
-                  >
+                  <a href={rowHref(r)} class="block size-full rounded-sm">
                     <span class="sr-only">{rowLabel?.(r) ?? 'Ouvrir'}</span>
                   </a>
                 </td>
@@ -308,7 +310,7 @@
        parent already toggles). Cards reuse `rowHref` via the same stretched-link
        overlay as the table rows, so cmd/middle-click and keyboard nav behave alike.
        Gated by `showMobile` (a media query), so on desktop this tree is never
-       mounted — the roster renders once, not twice. -->
+       mounted, so the roster renders once, not twice. -->
   <div class="space-y-2">
     {#if mobileSort && onSort && sortableColumns.length > 0}
       <div class="flex items-center justify-end">
@@ -349,7 +351,7 @@
     {/if}
 
     {#if rows.length === 0}
-      <div class="rounded-sm border bg-card p-6 text-center shadow-sm">
+      <div class="rounded-sm border bg-card p-6 text-center shadow-raised">
         {#if empty}
           {@render empty()}
         {:else}
@@ -362,7 +364,7 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div
           class={cn(
-            'relative rounded-sm border bg-card p-3 shadow-sm',
+            'relative rounded-sm border bg-card p-3 shadow-raised',
             onRowClick && 'cursor-pointer',
           )}
           onclick={onRowClick ? () => onRowClick(r, i) : undefined}
@@ -379,10 +381,7 @@
           {/if}
           {@render mobileRow(r, i)}
           {#if rowHref}
-            <a
-              href={rowHref(r)}
-              class="absolute inset-0 rounded-sm focus-visible:ring-2 focus-visible:ring-epi-blue focus-visible:outline-none focus-visible:ring-inset"
-            >
+            <a href={rowHref(r)} class="absolute inset-0 rounded-sm">
               <span class="sr-only">{rowLabel?.(r) ?? 'Ouvrir'}</span>
             </a>
           {/if}

@@ -1,6 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   EMAIL_ACTIONS,
   EMAIL_ACTION_KEYS,
@@ -37,7 +39,8 @@ function isActionKey(s: string): s is EmailActionKey {
 }
 
 export const actions: Actions = {
-  save: async ({ request }) => {
+  save: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_EMAIL_ACTIONS_SAVE, { locals });
     const form = await request.formData();
     const actionKey = String(form.get('actionKey') ?? '');
     const templateId = String(form.get('templateId') ?? '');

@@ -12,8 +12,6 @@ export const staffDevRedirectSchema = z.object({
   devRedirectPhones: z.string().trim().default(''),
 });
 
-export type StaffDevRedirectSchema = typeof staffDevRedirectSchema;
-
 /** Split a textarea value into trimmed, non-empty entries (newline or comma). */
 export function splitDevRedirectEntries(raw: string): string[] {
   return raw

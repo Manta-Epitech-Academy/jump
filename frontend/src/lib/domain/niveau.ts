@@ -5,7 +5,6 @@
  *  - dev students list filter (`staff/dev/students`)
  *  - pedago event « inscrits » filter + badges
  *  - broadcast audience targeting (`domain/broadcasts.ts`)
- *  - certificate « school level » label (`api/certificate`)
  *  - Salesforce talent sync (`server/services/syncService.ts`)
  *
  * Values match the `ClassLevel` enum emitted by **jump-sf-worker** so the sync
@@ -35,7 +34,7 @@ export const NIVEAUX = [
 export type Niveau = (typeof NIVEAUX)[number];
 
 /** Human-facing French label for each level. */
-export const NIVEAU_LABELS: Record<Niveau, string> = {
+const NIVEAU_LABELS: Record<Niveau, string> = {
   '6eme': '6ème',
   '5eme': '5ème',
   '4eme': '4ème',
@@ -81,4 +80,36 @@ export function compareNiveaux(a: string, b: string): number {
   if (ai === -1) return 1;
   if (bi === -1) return -1;
   return ai - bi;
+}
+
+/**
+ * Collège levels: the first four rungs of the progression above.
+ *
+ * Derived by slicing `NIVEAUX` rather than re-listing the values, so a rename
+ * or an insertion in the catalogue can't leave the two lists disagreeing.
+ */
+export const COLLEGE_NIVEAUX: readonly Niveau[] = NIVEAUX.slice(0, 4);
+
+const COLLEGE_NIVEAU_SET = new Set<string>(COLLEGE_NIVEAUX);
+
+/**
+ * Whether a talent at this level goes through the onboarding wizard.
+ *
+ * Collégiens do not: the seminar settled that Jump has no reliable guardian
+ * contact for them, so they reach the app without a dossier. Everyone from
+ * seconde up does.
+ *
+ * **Unknown levels fail open** - both `null` and `'autre'` are eligible. An
+ * unset level is far more likely a lycée-age prospect whose sync has not landed
+ * than a collégien, and `'autre'` is a catch-all that already holds post-bac
+ * profiles. Refusing onboarding on a fuzzy value would silently deny a talent
+ * their dossier, and nothing would report it; the opposite error just shows
+ * them a wizard they can complete. Do not "fix" `'autre'` into the collège
+ * bucket without a case that outweighs that asymmetry.
+ */
+export function isOnboardingEligible(
+  niveau: string | null | undefined,
+): boolean {
+  if (niveau == null) return true;
+  return !COLLEGE_NIVEAU_SET.has(niveau);
 }

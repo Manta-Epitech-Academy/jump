@@ -3,7 +3,7 @@ import { check, sleep, group, fail } from 'k6';
 import { formPost, loginAs, requireEnv } from '../lib/auth.js';
 import { data, pick } from '../lib/manifest.js';
 
-// Mixed workload: closest thing to "real concurrent traffic" — talents
+// Mixed workload: closest thing to "real concurrent traffic", talents
 // browsing their dashboard / leaderboard while staff load cohort views
 // and (occasionally) flip presence. Tuned to hit ~70% reads / 30% writes.
 //
@@ -11,7 +11,7 @@ import { data, pick } from '../lib/manifest.js';
 //     load/k6/scenarios/mixed.js
 //
 // Three concurrent scenarios so each user-type has its own VU pool and
-// arrival rate — the metrics breakdown lets you see which surface is
+// arrival rate: the metrics breakdown lets you see which surface is
 // slowing under combined load.
 export const options = {
   scenarios: {

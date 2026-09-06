@@ -26,7 +26,7 @@
   const previewMailHtml = $derived(
     channel === 'mail' ? renderBroadcastMail(previewBody) : '',
   );
-  // Tokens the author typed that aren't real variables — they would render
+  // Tokens the author typed that aren't real variables: they would render
   // empty at send time, so warn rather than silently drop them.
   const unknown = $derived(
     findUnknownTokens(`${subject ?? ''}\n${body ?? ''}`),
@@ -36,7 +36,7 @@
 <div class="space-y-2">
   {#if unknown.length > 0}
     <div
-      class="flex items-start gap-2 rounded-sm border border-epi-orange/40 bg-epi-orange/10 p-2 text-xs text-epi-orange"
+      class="flex items-start gap-2 rounded-sm border border-epi-together/40 bg-epi-together/10 p-2 text-xs text-epi-together"
     >
       <TriangleAlert class="mt-0.5 h-3.5 w-3.5 shrink-0" />
       <p>
@@ -68,25 +68,25 @@
     </div>
   {:else}
     <!-- SMS handset mock -->
-    <div class="mx-auto max-w-xs rounded-2xl border bg-muted/40 p-3">
+    <div class="mx-auto max-w-xs rounded-xl border bg-muted/40 p-3">
       <div
-        class="mb-2 flex items-center justify-center gap-1.5 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+        class="mb-2 flex items-center justify-center gap-1.5 epi-overline text-muted-foreground"
       >
         <Smartphone class="h-3 w-3" /> Aperçu SMS
       </div>
       <div
-        class="rounded-2xl rounded-bl-sm bg-epi-blue px-3 py-2 text-sm whitespace-pre-wrap text-white"
+        class="rounded-xl rounded-bl-sm bg-epi-blue px-3 py-2 text-sm whitespace-pre-wrap text-white"
       >
         {previewBody}
       </div>
-      <p class="mt-1.5 text-center text-[10px] text-muted-foreground">
+      <p class="mt-1.5 text-center text-xs text-muted-foreground">
         Expéditeur : Epitech
       </p>
     </div>
   {/if}
 
-  <p class="text-[11px] text-muted-foreground">
-    Rendu avec des données fictives — chaque destinataire reçoit ses propres
+  <p class="text-xs text-muted-foreground">
+    Rendu avec des données fictives : chaque destinataire reçoit ses propres
     valeurs.
   </p>
 </div>

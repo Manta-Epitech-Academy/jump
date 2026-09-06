@@ -1,12 +1,15 @@
 <script lang="ts">
-  import Quote from '@lucide/svelte/icons/quote';
   import { formatGivenName } from '$lib/domain/profile';
+  import PullQuote from '$lib/components/staff/PullQuote.svelte';
 
   // Free-text the talent wrote about themselves during onboarding, surfaced as
-  // warm pull-quotes so they speak in their own words — the human, "shiny"
+  // warm pull-quotes so they speak in their own words: the human, "shiny"
   // counterpart to the structured interest chips. Each line is optional and the
   // block self-hides when empty; interestsFreeText leads (broader), the setup
   // description follows.
+  //
+  // The quote treatment itself lives in `PullQuote`, shared with the parcours
+  // section below, so the page has one way of showing the talent speaking.
   let {
     firstName,
     interestsFreeText = null,
@@ -19,7 +22,7 @@
 
   const name = $derived(formatGivenName(firstName));
 
-  type PullQuote = { id: string; lead: string; text: string };
+  type Quote = { id: string; lead: string; text: string };
   const quotes = $derived(
     (
       [
@@ -37,27 +40,15 @@
               text: setupDescription.trim(),
             }
           : null,
-      ] as (PullQuote | null)[]
-    ).filter((q): q is PullQuote => q !== null),
+      ] as (Quote | null)[]
+    ).filter((q): q is Quote => q !== null),
   );
 </script>
 
 {#if quotes.length > 0}
   <div class="space-y-4">
     {#each quotes as q (q.id)}
-      <figure class="space-y-1.5">
-        <figcaption
-          class="flex items-center gap-1.5 text-xs text-muted-foreground"
-        >
-          <Quote class="h-3.5 w-3.5 shrink-0 text-epi-teal-solid" />
-          {q.lead}
-        </figcaption>
-        <blockquote
-          class="border-l-2 border-epi-teal-solid/50 pl-4 text-[15px] leading-relaxed text-foreground italic"
-        >
-          «&nbsp;{q.text}&nbsp;»
-        </blockquote>
-      </figure>
+      <PullQuote text={q.text} lead={q.lead} />
     {/each}
   </div>
 {/if}

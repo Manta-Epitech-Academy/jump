@@ -1,7 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { eventDisplayName } from '$lib/domain/event';
-  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import CalendarViewer from '$lib/components/planning/CalendarViewer.svelte';
   import WeekNavigator from '$lib/components/planning/WeekNavigator.svelte';
   import WeekViewToggle from '$lib/components/planning/WeekViewToggle.svelte';
@@ -12,8 +11,9 @@
     startOfDay,
     type WeekView,
   } from '$lib/domain/calendarWeek';
-  import type { TimeSlotWithActivity } from '$lib/types';
+  import type { PlanningSlot } from '$lib/types';
   import type { PageData } from '../$types';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   // One event's read-only planning. The page remounts this via {#key event.id},
   // so every per-event piece of state below (the visible week, the open preview)
@@ -23,19 +23,16 @@
   // first, opening the next one on a blank week.
   let {
     event,
-    planning,
+    slots,
     timezone,
     serverNow,
-    hasCodingClub,
   }: {
     event: PageData['event'];
-    planning: PageData['planning'];
+    slots: PageData['slots'];
     timezone: PageData['timezone'];
     serverNow: PageData['serverNow'];
-    hasCodingClub: boolean;
   } = $props();
 
-  let slots = $derived(planning.timeSlots as TimeSlotWithActivity[]);
   let range = $derived({
     start: startOfDay(new Date(event.date)),
     end: startOfDay(new Date(event.endDate ?? event.date)),
@@ -43,21 +40,15 @@
 
   let weekStart = $state<Date>(
     untrack(() =>
-      pickInitialWeek(
-        serverNow,
-        planning.timeSlots,
-        startOfDay(new Date(event.date)),
-      ),
+      pickInitialWeek(serverNow, slots, startOfDay(new Date(event.date))),
     ),
   );
 
   // Open full-week when the event has a weekend slot, else work-week, so the
   // default never hides a slot. WeekViewToggle's stored choice overrides it.
-  let weekView = $state<WeekView>(
-    untrack(() => pickInitialWeekView(planning.timeSlots)),
-  );
+  let weekView = $state<WeekView>(untrack(() => pickInitialWeekView(slots)));
 
-  let previewSlot = $state<TimeSlotWithActivity | null>(null);
+  let previewSlot = $state<PlanningSlot | null>(null);
   let previewOpen = $state(false);
   $effect(() => {
     if (!previewOpen) previewSlot = null;
@@ -66,15 +57,10 @@
 
 <div class="flex h-[calc(100vh-4rem)] flex-col bg-background">
   <div class="shrink-0 border-b pb-4">
-    {#if hasCodingClub}
-      <PageBreadcrumb
-        items={[{ label: eventDisplayName(event) }, { label: 'Planning' }]}
-      />
-    {/if}
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-bold text-epi-blue uppercase">
-          Planning<span class="text-epi-teal">_</span>
+        <h1 class="font-heading text-display-m">
+          Planning<TitleCursor />
         </h1>
         <p
           class="text-sm font-bold tracking-wider text-muted-foreground uppercase"
@@ -87,7 +73,7 @@
               timeZone: timezone,
             },
           )}{#if event.endDate}
-            – {new Date(event.endDate).toLocaleDateString('fr-FR', {
+            - {new Date(event.endDate).toLocaleDateString('fr-FR', {
               day: 'numeric',
               month: 'short',
               timeZone: timezone,

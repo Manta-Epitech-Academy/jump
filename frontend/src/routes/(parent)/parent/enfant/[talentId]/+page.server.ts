@@ -9,9 +9,13 @@ import { getParentLastName } from '$lib/domain/parent';
 import {
   IMAGE_RIGHTS_DECISIONS,
   imageRightsStatus,
+  priorYearDecision,
   type ImageRightsDecision,
 } from '$lib/domain/imageRights';
-import { recordImageRightsDecision } from '$lib/server/services/imageRightsService';
+import {
+  LATEST_IMAGE_RIGHTS_DECISION_ORDER,
+  recordImageRightsDecision,
+} from '$lib/server/services/imageRightsService';
 
 export const load: PageServerLoad = async ({ locals, params, cookies }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -30,9 +34,20 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       parentEmail: true,
       imageRightsDecision: true,
       // Pre-fill the signer-name inputs from what the talent entered during
-      // onboarding — same rationale as `/parent/signature` and `/parent/reglement`.
+      // onboarding: same rationale as `/parent/signature` and `/parent/reglement`.
       parentPrenom: true,
       parentNom: true,
+      // Which dossier the decision on this page belongs to, so the reminder
+      // below can tell a previous year's answer from the one in force.
+      onboardingSchoolYear: true,
+      // Last decision taken and the year it answered for, shown on the form for
+      // the same reason as on `/parent/signature`: the decision is annual, so a
+      // guardian can meet this question again with an answer already on file.
+      imageRightsRecords: {
+        orderBy: LATEST_IMAGE_RIGHTS_DECISION_ORDER,
+        take: 1,
+        select: { decision: true, schoolYear: true },
+      },
     },
   });
 
@@ -62,28 +77,12 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
   const planningInclude = {
     event: {
       include: {
-        planning: {
-          include: {
-            timeSlots: {
-              include: {
-                activity: {
-                  select: {
-                    id: true,
-                    nom: true,
-                    activityType: true,
-                    difficulte: true,
-                  },
-                },
-              },
-              orderBy: { startTime: 'asc' as const },
-            },
-          },
-        },
+        planningSlots: { orderBy: { startTime: 'asc' as const } },
       },
     },
   };
 
-  // Fetch today's participation with full planning chain (timeSlots → activity)
+  // Fetch today's participation with its programme slots
   const todayParticipation = await prisma.participation.findFirst({
     where: {
       talentId,
@@ -95,7 +94,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
     orderBy: { event: { date: 'asc' } },
   });
 
-  // Fetch upcoming events with full planning chain
+  // Fetch upcoming events with their programme slots
   const upcomingParticipations = await prisma.participation.findMany({
     where: {
       talentId,
@@ -105,95 +104,66 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
     orderBy: { event: { date: 'asc' } },
   });
 
-  // Fetch past participations with activities for history
-  const participations = await prisma.participation.findMany({
-    where: { talentId, event: { date: { lt: filterDateStartDate } } },
-    include: {
-      event: { select: { id: true, titre: true, date: true } },
-      activities: {
-        include: {
-          activity: {
-            select: { id: true, nom: true, activityType: true },
-          },
-        },
-      },
-    },
-    orderBy: { event: { date: 'desc' } },
-  });
-
-  const parentName = locals.user.name ?? '';
-
   return {
-    parentName,
-    parentLastName: getParentLastName(parentName),
+    parentLastName: getParentLastName(locals.user.name),
     hasMultipleChildren: siblingCount > 1,
     todayPlanning: todayParticipation
       ? {
           eventName: todayParticipation.event.titre,
           eventDate: todayParticipation.event.date,
-          timeSlots: (todayParticipation.event.planning?.timeSlots ?? [])
-            .filter(
-              (slot) => slot.activity && slot.activity.activityType !== 'orga',
-            )
-            .map((slot) => ({
-              id: slot.id,
-              startTime: slot.startTime,
-              endTime: slot.endTime,
-              activities: [
-                {
-                  id: slot.activity!.id,
-                  name: slot.activity!.nom,
-                  type: slot.activity!.activityType,
-                  difficulty: slot.activity!.difficulte,
-                },
-              ],
-            })),
+          timeSlots: todayParticipation.event.planningSlots
+            .filter((slot) => slot.activityType !== 'orga')
+            .map(toParentSlot),
         }
       : null,
     child: {
       id: child.id,
       prenom: child.prenom,
       nom: child.nom,
+      parentPrenom: child.parentPrenom,
+      parentNom: child.parentNom,
       imageRightsStatus: imageRightsStatus(child),
+      // Only a PREVIOUS year's answer is a reminder. This page also renders the
+      // form under « Modifier ma décision », on a decision still in force for the
+      // dossier in hand: telling that guardian they "avaient" decided and that
+      // the question is re-asked every year would describe a re-ask that is not
+      // happening, while they are simply changing their mind inside one year.
+      previousDecision: priorYearDecision(
+        child.imageRightsRecords[0],
+        child.onboardingSchoolYear,
+      ),
     },
     upcomingEvents: upcomingParticipations.map((p) => ({
       id: p.event.id,
       name: p.event.titre,
       date: p.event.date,
-      timeSlots: (p.event.planning?.timeSlots ?? [])
-        .filter(
-          (slot) => slot.activity && slot.activity.activityType !== 'orga',
-        )
-        .map((slot) => ({
-          id: slot.id,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          activities: [
-            {
-              id: slot.activity!.id,
-              name: slot.activity!.nom,
-              type: slot.activity!.activityType,
-              difficulty: slot.activity!.difficulte,
-            },
-          ],
-        })),
-    })),
-    participations: participations.map((p) => ({
-      id: p.id,
-      eventName: p.event.titre,
-      eventDate: p.event.date,
-      isPresent: p.isPresent,
-      delay: p.delay ?? 0,
-      activities: p.activities
-        .filter((a) => a.activity.activityType !== 'orga')
-        .map((a) => ({
-          id: a.activity.id,
-          name: a.activity.nom,
-          type: a.activity.activityType,
-        })),
+      timeSlots: p.event.planningSlots
+        .filter((slot) => slot.activityType !== 'orga')
+        .map(toParentSlot),
     })),
   };
 };
+
+/**
+ * One programme slot in the shape the parent page renders.
+ *
+ * `activities` stays a one-element list: the component reads a list, and a slot
+ * has held exactly one activity since the schema stopped pretending otherwise.
+ */
+function toParentSlot(slot: {
+  id: string;
+  startTime: Date;
+  endTime: Date;
+  nom: string;
+  activityType: string;
+}) {
+  return {
+    id: slot.id,
+    startTime: slot.startTime,
+    endTime: slot.endTime,
+    activities: [{ id: slot.id, name: slot.nom, type: slot.activityType }],
+  };
+}
 
 function isDecision(value: unknown): value is ImageRightsDecision {
   return (IMAGE_RIGHTS_DECISIONS as readonly string[]).includes(
@@ -202,7 +172,7 @@ function isDecision(value: unknown): value is ImageRightsDecision {
 }
 
 export const actions: Actions = {
-  // Lets a guardian record — or later revise — the image-rights decision for one
+  // Lets a guardian record (or later revise) the image-rights decision for one
   // child straight from their dashboard. The legal text promises revocation "à
   // tout moment", so a settled decision must stay editable, not lock the parent
   // out. Reuses the same write path as the onboarding signature flow.
@@ -247,7 +217,6 @@ export const actions: Actions = {
 
     await recordImageRightsDecision({
       talentId: child.id,
-      studentName: `${child.prenom} ${child.nom}`,
       decision,
       signerPrenom,
       signerNom,

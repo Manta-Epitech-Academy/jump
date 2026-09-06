@@ -1,6 +1,4 @@
-import type { EventType } from './event';
 import { startOfDay } from './calendarWeek';
-import { isActivityOpenable } from './activity';
 
 /**
  * The talent dashboard "Planning à venir" widget renders exactly one of three
@@ -16,15 +14,13 @@ export type PlanningView =
   | {
       /** Talent is inside an event whose date range covers today. */
       state: 'ongoing';
-      eventType: EventType;
       titre: string;
-      /** Admin-set friendly name; talent-facing copy prefers it over the type. */
+      /** Admin-set friendly name; talent-facing copy prefers it over `titre`. */
       publicName: string | null;
     }
   | {
       /** No active event, but a future one is scheduled. */
       state: 'upcoming';
-      eventType: EventType;
       titre: string;
       publicName: string | null;
       date: Date;
@@ -43,7 +39,6 @@ export type PlanningView =
  */
 export type PlanningParticipation = {
   event: {
-    eventType: string;
     titre: string;
     publicName: string | null;
     date: Date;
@@ -63,7 +58,6 @@ export function toPlanningView(
   if (active?.event) {
     return {
       state: 'ongoing',
-      eventType: active.event.eventType as EventType,
       titre: active.event.titre,
       publicName: active.event.publicName,
     };
@@ -71,7 +65,6 @@ export function toPlanningView(
   if (upcoming?.event) {
     return {
       state: 'upcoming',
-      eventType: upcoming.event.eventType as EventType,
       titre: upcoming.event.titre,
       publicName: upcoming.event.publicName,
       date: upcoming.event.date,
@@ -85,9 +78,9 @@ export function toPlanningView(
  * The full talent calendar (route `(talent)/calendar`) is no longer scoped to a
  * single event: it lays every activity of every event the talent participates in
  * onto one continuous week-grid. As with {@link toPlanningView}, the server folds
- * the nested Participation → Event → Planning → TimeSlot → Activity rows into a
- * flat view-model so the grid component branches on plain slots with no DB-row
- * shapes leaking into it.
+ * the nested Participation → Event → Planning_Slot rows into a flat, event-tagged
+ * view-model so the grid component branches on plain slots with no DB-row shapes
+ * leaking into it.
  */
 export type CalendarParticipation = {
   event: {
@@ -95,28 +88,13 @@ export type CalendarParticipation = {
     titre: string;
     date: Date;
     endDate: Date | null;
-    planning: {
-      timeSlots: Array<{
-        id: string;
-        startTime: Date;
-        endTime: Date;
-        activity: {
-          id: string;
-          nom: string;
-          description: string | null;
-          activityType: string;
-          difficulte: string | null;
-          isDynamic: boolean;
-          // Source fields the openability rule reads. Selected server-side only
-          // and collapsed into a single `openable` boolean below, so the heavy
-          // `content`/`contentStructure` HTML never crosses the wire.
-          content: string | null;
-          link: string | null;
-          subjectVersionId: string | null;
-          contentStructure: unknown;
-        } | null;
-      }>;
-    } | null;
+    planningSlots: Array<{
+      id: string;
+      startTime: Date;
+      endTime: Date;
+      nom: string;
+      activityType: string;
+    }>;
   };
 };
 
@@ -129,16 +107,8 @@ export type CalendarSlot = {
   id: string;
   startTime: Date;
   endTime: Date;
-  activity: {
-    id: string;
-    nom: string;
-    description: string | null;
-    activityType: string;
-    difficulte: string | null;
-    isDynamic: boolean;
-    /** Whether the detail page is worth opening; see {@link isActivityOpenable}. */
-    openable: boolean;
-  } | null;
+  nom: string;
+  activityType: string;
   event: { id: string; titre: string };
 };
 
@@ -153,9 +123,9 @@ export type CalendarPlanning = {
 };
 
 /**
- * Flatten every participation's timeSlots into one event-tagged, start-sorted
- * list and compute the overall date range. The range is derived from the events'
- * own [date, endDate] spans (not the slots) so a multi-day event's activity-free
+ * Flatten every participation's slots into one event-tagged, start-sorted list
+ * and compute the overall date range. The range is derived from the events' own
+ * [date, endDate] spans (not the slots) so a multi-day event's activity-free
  * edge days still count as in-range on the grid.
  */
 export function toCalendarPlanning(
@@ -171,23 +141,13 @@ export function toCalendarPlanning(
     if (!start || eventStart < start) start = eventStart;
     if (!end || eventEnd > end) end = eventEnd;
 
-    for (const slot of event.planning?.timeSlots ?? []) {
-      const a = slot.activity;
+    for (const slot of event.planningSlots) {
       slots.push({
         id: slot.id,
         startTime: slot.startTime,
         endTime: slot.endTime,
-        activity: a
-          ? {
-              id: a.id,
-              nom: a.nom,
-              description: a.description,
-              activityType: a.activityType,
-              difficulte: a.difficulte,
-              isDynamic: a.isDynamic,
-              openable: isActivityOpenable(a),
-            }
-          : null,
+        nom: slot.nom,
+        activityType: slot.activityType,
         event: {
           id: event.id,
           titre: event.titre,

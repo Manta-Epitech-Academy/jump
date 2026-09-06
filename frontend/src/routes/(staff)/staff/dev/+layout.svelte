@@ -1,42 +1,46 @@
 <script lang="ts">
-  import BrandMark from '$lib/components/layout/BrandMark.svelte';
+  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
+  import { scrollTopOnNavigate } from '$lib/actions/scrollTopOnNavigate';
   import LogOut from '@lucide/svelte/icons/log-out';
   import Users from '@lucide/svelte/icons/users';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import Menu from '@lucide/svelte/icons/menu';
-  import Search from '@lucide/svelte/icons/search';
   import X from '@lucide/svelte/icons/x';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import MessageSquareText from '@lucide/svelte/icons/message-square-text';
-  import UserCog from '@lucide/svelte/icons/user-cog';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
-  import FileText from '@lucide/svelte/icons/file-text';
-  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
-  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import School from '@lucide/svelte/icons/school';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
-  import GlobalCommand from '$lib/components/GlobalCommand.svelte';
   import { track, secondsBetween } from '$lib/analytics';
   import { fly, fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
-  import Gated from '$lib/components/auth/Gated.svelte';
-  import { can } from '$lib/domain/permissions';
-  import type { FlagKey } from '$lib/domain/featureFlags';
-  import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
+  import { goto } from '$app/navigation';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
   import EventWorkspaceSwitcher from '$lib/components/dev/EventWorkspaceSwitcher.svelte';
+  import SchoolYearMenu from '$lib/components/dev/SchoolYearMenu.svelte';
   import {
+    landingSurface,
     reachableSurfaces,
+    surfaceFromPath,
     surfaceSegment,
     surfaceLabel,
     type EventSurfaceKey,
   } from '$lib/domain/eventModules';
+  import {
+    defaultEventOfYear,
+    eventsOfSchoolYear,
+    navigableSchoolYears,
+    type DevWorkspaceEvent,
+  } from '$lib/domain/devWorkspace';
   import { eventDisplayName } from '$lib/domain/event';
+  import { schoolYearOf } from '$lib/domain/schoolYear';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   // Icons live with the component (Svelte components can't sit in the domain
   // layer); order/label/reachability are single-sourced in `eventModules`.
@@ -45,30 +49,13 @@
     emargement: UserCheck,
     planning: CalendarDays,
     bilan: MessageSquareText,
-    entretiens: MessageSquare,
+    closings: MessageSquare,
   };
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
-  let featureFlags = $derived(
-    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
-  );
-  let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
-  let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
-  let hasSyncErrors = $derived(featureFlags.has('staff_sync_errors'));
-  let isLead = $derived(can('devLead', data.staffProfile?.staffRole));
 
-  // The cohort workspace: the events this campus configured (those with ≥1
-  // module). The "current" event is the one in the URL when it is one of them,
-  // else the resolved default. Its module set drives which surfaces the sidebar
-  // shows; switching events re-renders the nav for the picked event.
   let workspace = $derived(data.workspace);
-  // Remember the last event actually browsed. A talent fiche is campus-scoped, so
-  // its URL carries a talent id, not an event id; without this the sidebar would
-  // snap from the event you were in back to the resolved default the instant you
-  // open a profile. Resolution order: the event in the path, an explicit `?event=`
-  // (the entretiens fiche link sets it, so a reload or deep-link stays put), the
-  // last event browsed this session, then the resolved default.
   let lastEventId = $state<string | null>(null);
   $effect(() => {
     const id = page.params.id;
@@ -82,16 +69,54 @@
       workspace.events.find((e) => e.id === lastEventId) ??
       workspace.current,
   );
-  // The "Gestion" section shows when it has at least one entry: the sync-errors
-  // surface, or the lead-only "Staff du campus" (behind its flag). Event module
-  // config moved to the admin space, so there is no per-event config entry here.
-  let showManagement = $derived(hasSyncErrors || (isLead && hasCampusTeam));
-  // Student-search command palette (⌘K). Hidden for now - the feature isn't
-  // ready to ship. Flipping this back to `true` re-enables every entry point:
-  // the sidebar search button, the mobile search icon, and the GlobalCommand
-  // mount (which also owns the ⌘K global shortcut, so it goes too while hidden).
-  const STUDENT_SEARCH_ENABLED = false;
-  let commandOpen = $state(false);
+
+  // The academic year shown in the header: a context readout of the event in
+  // view, falling back to the live school year only when the campus has no
+  // events. Single-sourced through `schoolYearOf` so the label format matches
+  // the events' own `schoolYear.label`.
+  const selectedSchoolYear = $derived(
+    currentEvent?.schoolYear.label ??
+      schoolYearOf(new Date(), data.timezone).label,
+  );
+
+  /** The years you can actually go to. Empty on a campus with no event, which
+      leaves the menu as the readout `selectedSchoolYear` already falls back to. */
+  const schoolYears = $derived(navigableSchoolYears(workspace.events));
+
+  /** The active year's events: the switcher's whole list, and what decides
+      whether there is anything to switch between. */
+  const yearEvents = $derived(
+    eventsOfSchoolYear(workspace.events, selectedSchoolYear),
+  );
+
+  /** The surface in view, so a context change keeps you on it. Derived once
+      here rather than in each control, for the same reason as the year. */
+  const openSurface = $derived(surfaceFromPath(page.url.pathname));
+
+  /**
+   * Both context controls resolve to one navigation: open `e`, keeping the
+   * surface in view when the target event exposes it. `openSurface` is null off
+   * an event route (a talent fiche), which lands on the first reachable one.
+   */
+  function openEvent(e: DevWorkspaceEvent) {
+    if (e.id === currentEvent?.id) return;
+    const surface = landingSurface(e, openSurface);
+    if (!surface) return;
+    goto(resolve(`/staff/dev/events/${e.id}/${surfaceSegment(surface)}`));
+  }
+
+  /**
+   * Changing the year is a context jump: land on the event that year defaults
+   * to, the same rule a bare `/staff/dev` lands on. `navigableSchoolYears` and
+   * `defaultEventOfYear` share a reachability filter, so the null below is a
+   * type guard, not a year that quietly does nothing when picked.
+   */
+  function changeSchoolYear(year: string) {
+    if (year === selectedSchoolYear) return;
+    const target = defaultEventOfYear(workspace.events, year);
+    if (target) openEvent(target);
+  }
+
   let mobileMenuOpen = $state(false);
 
   const hour = new Date().getHours();
@@ -132,7 +157,7 @@
 
   const navLinkClass = (active: boolean) => `
     flex items-center gap-3 px-3 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer
-    ${active ? 'bg-epi-blue text-white' : 'text-sidebar-foreground-muted hover:bg-sidebar-hover hover:text-sidebar-foreground'}
+    ${active ? 'bg-epi-blue text-white' : 'text-chrome-foreground-muted hover:bg-chrome-hover hover:text-chrome-foreground'}
   `;
 
   function getInitials(user: any) {
@@ -146,56 +171,42 @@
 </script>
 
 {#snippet sidebarBrand()}
-  <BrandMark
+  <a
     href={resolve('/staff/dev')}
-    tagline="Gestion des stages et du coding club"
-    campus={data.staffProfile?.campus?.name}
-  />
-{/snippet}
-
-{#snippet sidebarSearch()}
-  {#if STUDENT_SEARCH_ENABLED}
-    <div class="px-3 pb-2">
-      <button
-        class="flex h-9 w-full items-center justify-between rounded-sm border border-sidebar-border bg-sidebar-hover px-3 text-sm text-sidebar-foreground-muted transition-colors hover:bg-white/10 hover:text-sidebar-foreground"
-        onclick={() => (commandOpen = true)}
-      >
-        <span class="flex items-center gap-2">
-          <Search class="h-4 w-4" />
-          <span class="text-xs font-medium">Rechercher un stagiaire...</span>
-        </span>
-        <kbd
-          class="pointer-events-none flex h-5 items-center gap-1 rounded border border-sidebar-border bg-white/10 px-1.5 font-mono text-[10px] font-medium select-none"
-        >
-          <span class="text-xs">⌘</span>K
-        </kbd>
-      </button>
-    </div>
-  {/if}
+    class="flex items-center gap-2.5 px-4 py-4.5 text-white transition-opacity hover:opacity-95"
+  >
+    <EpitechLogo tone="dark" class="h-7 w-auto shrink-0" />
+    <span class="font-heading text-display-s">
+      Jump<TitleCursor />
+    </span>
+  </a>
 {/snippet}
 
 {#snippet navMenu()}
   {#if currentEvent}
     {@const ev = currentEvent}
-    <!-- The event in view is the section heading (underscore motif). With more
-         than one workspace event, a small "go to" button beside it opens the
-         picker - the title stays the prominent label, the switcher is demoted. -->
-    <div class="sidebar-section-title flex items-center gap-1.5">
+    <!-- The event in view is the section heading (underscore motif). The switcher
+         sits inline to its right, demoted: the event name stays the label.
+
+         Anton, and a display size rather than the label size: this is the
+         workspace you are in, not a group label like the admin sidebar's, and it
+         has to out-rank the 14px entries under it. -->
+    <div
+      class="mt-4 mb-2 flex items-center gap-1.5 font-heading text-display-s text-chrome-foreground"
+    >
       <span class="flex min-w-0 flex-1 items-baseline">
         <span class="truncate">{eventDisplayName(ev)}</span>
-        <span class="text-epi-teal">_</span>
+        <TitleCursor />
       </span>
-      {#if workspace.events.length > 1}
-        <EventWorkspaceSwitcher events={workspace.events} currentId={ev.id} />
+      {#if yearEvents.length > 1}
+        <EventWorkspaceSwitcher
+          events={yearEvents}
+          currentId={ev.id}
+          onpick={openEvent}
+        />
       {/if}
     </div>
     <nav class="space-y-1">
-      <!-- Surfaces are per event, not campus flags, so two events on one campus
-           can expose different pages. The reachable set folds the module rows
-           with the data gates (planning needs a schedule, bilan needs a live
-           form) in one place (`reachableSurfaces`), so this nav, the event
-           switcher and the dev landing all agree on what a dev can open. Labels
-           stay event-type-agnostic, so the dev space shows coding clubs too. -->
       {#each reachableSurfaces(ev) as key (key)}
         {@const seg = surfaceSegment(key)}
         {@const Icon = SURFACE_ICONS[key]}
@@ -207,93 +218,31 @@
           <span>{surfaceLabel(key)}</span>
         </a>
       {/each}
-      {#if hasWelcomePage}
-        <a
-          href={resolve('/staff/dev/contenu/welcome')}
-          class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
-        >
-          <FileText class="h-5 w-5" />
-          <span>Page d'accueil</span>
-        </a>
-      {/if}
-    </nav>
-  {/if}
-
-  {#if showManagement}
-    <div class="sidebar-section-title">
-      Gestion<span class="text-epi-orange">_</span>
-    </div>
-    <nav class="space-y-1">
-      {#if hasCampusTeam}
-        <Gated group="devLead" mode="hide">
-          <a
-            href={resolve('/staff/dev/team')}
-            class={navLinkClass(isActive('/staff/dev/team'))}
-          >
-            <UserCog class="h-5 w-5" />
-            <span>Staff du campus</span>
-          </a>
-        </Gated>
-      {/if}
-      {#if hasSyncErrors}
-        <a
-          href={resolve('/staff/dev/sync-errors')}
-          class={navLinkClass(isActive('/staff/dev/sync-errors'))}
-        >
-          <TriangleAlert class="h-5 w-5 shrink-0" />
-          <span class="flex flex-1 items-center justify-between gap-2">
-            <span class="truncate whitespace-nowrap">Doublons Salesforce</span>
-            {#if data.syncErrorCounts.urgent > 0}
-              <span
-                class="inline-flex h-5 shrink-0 items-center justify-center gap-1 rounded-full bg-destructive px-1.5 text-[10px] font-bold whitespace-nowrap text-white"
-              >
-                <TriangleAlert class="h-3 w-3" />
-                {data.syncErrorCounts.total}
-              </span>
-            {:else if data.syncErrorCounts.total > 0}
-              <span
-                class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-white/10 px-1.5 text-[10px] font-bold whitespace-nowrap text-sidebar-foreground-muted"
-              >
-                {data.syncErrorCounts.total}
-              </span>
-            {/if}
-          </span>
-        </a>
-      {/if}
-    </nav>
-  {/if}
-
-  {#if data.ticketsEnabled}
-    <div class="sidebar-section-title">
-      Support<span class="text-epi-pink">_</span>
-    </div>
-    <nav class="space-y-1">
-      <a
-        href={resolve('/staff/dev/tickets')}
-        class={navLinkClass(isActive('/staff/dev/tickets'))}
-      >
-        <LifeBuoy class="h-5 w-5" />
-        <span class="flex flex-1 items-center justify-between">
-          <span>Tickets</span>
-          {#if data.ticketsUnread > 0}
-            <span
-              class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-epi-pink px-1.5 text-[10px] font-bold text-white"
-            >
-              {data.ticketsUnread}
-            </span>
-          {/if}
-        </span>
-      </a>
     </nav>
   {/if}
 {/snippet}
 
+{#snippet campusBadge()}
+  {#if data.staffProfile?.campus?.name}
+    <div
+      class="flex min-w-0 items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase select-none"
+    >
+      <School class="h-4 w-4 shrink-0 text-epi-blue" />
+      <span class="truncate font-bold text-epi-blue">
+        {data.staffProfile.campus.name}
+      </span>
+    </div>
+  {:else}
+    <div></div>
+  {/if}
+{/snippet}
+
 {#snippet sidebarFooter()}
-  <div class="border-t border-sidebar-border text-sidebar-foreground">
+  <div class="border-t border-chrome-border text-chrome-foreground">
     <div class="flex items-center justify-between gap-2 p-3">
       <DropdownMenu.Root>
         <DropdownMenu.Trigger
-          class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-sm p-1 transition-colors outline-none hover:bg-sidebar-hover"
+          class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-sm p-1 transition-colors hover:bg-chrome-hover"
         >
           <Avatar.Root class="h-9 w-9 shrink-0 rounded-full bg-white/10">
             <Avatar.Image
@@ -310,15 +259,15 @@
               {user?.name || user?.username}
             </span>
             <span
-              class="font-mono text-[10px] leading-tight font-bold text-sidebar-foreground-muted uppercase"
+              class="epi-overline leading-tight text-chrome-foreground-muted"
             >
-              {displayedGreeting}<span class="animate-pulse">_</span>
+              {displayedGreeting}<TitleCursor blink />
             </span>
           </div>
           <ChevronDown class="h-4 w-4 shrink-0 opacity-50" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Content align="end" side="top" class="w-48 rounded-sm">
-          <DropdownMenu.Label>Mon Profil ADM</DropdownMenu.Label>
+          <DropdownMenu.Label>Mon profil</DropdownMenu.Label>
           <DropdownMenu.Separator />
           <form
             action={resolve('/logout')}
@@ -346,57 +295,121 @@
 
 <div class="flex h-dvh w-full overflow-hidden bg-background">
   <aside
-    class="app-sidebar hidden w-68 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
+    class="app-sidebar on-dark hidden w-68 flex-col border-r border-chrome-border bg-chrome text-chrome-foreground md:flex"
   >
-    <div class="border-b border-sidebar-border">
+    <div class="border-b border-chrome-border">
       {@render sidebarBrand()}
     </div>
-    {@render sidebarSearch()}
     <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
       {@render navMenu()}
     </div>
     <ImpersonationCard />
-    {@render sidebarFooter()}
   </aside>
 
   <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+    <!-- Desktop Header -->
+    <header
+      class="hidden h-14 w-full shrink-0 items-center justify-between border-b border-border bg-card px-8 md:flex"
+    >
+      <!-- Left Context (Campus) -->
+      {@render campusBadge()}
+
+      <!-- Context Selectors -->
+      <div class="flex items-center gap-3">
+        <!-- Academic Year: the workspace's global context, changed here and
+             nowhere else. Mirrored in the mobile header below. -->
+        <SchoolYearMenu
+          years={schoolYears}
+          active={selectedSchoolYear}
+          onselect={changeSchoolYear}
+        />
+
+        <!-- User Profile Dropdown -->
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger
+            class="flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-border bg-background pr-3 pl-2 text-xs font-bold text-foreground hover:bg-muted/50"
+          >
+            <Avatar.Root class="h-6 w-6 rounded-full bg-muted">
+              <Avatar.Image
+                src={user?.image ?? undefined}
+                alt={user?.name ?? ''}
+                class="object-cover"
+              />
+              <Avatar.Fallback class="bg-transparent epi-chip">
+                {getInitials(data.user)}
+              </Avatar.Fallback>
+            </Avatar.Root>
+            <span class="max-w-[120px] truncate"
+              >{user?.name || user?.username}</span
+            >
+            <ChevronDown class="h-3.5 w-3.5 text-muted-foreground" />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content align="end" class="w-48 rounded-sm">
+            <DropdownMenu.Label>Mon profil</DropdownMenu.Label>
+            <DropdownMenu.Separator />
+            <form
+              action={resolve('/logout')}
+              method="POST"
+              onsubmit={() =>
+                track('logout', {
+                  kind: 'dev',
+                  sessionDurationSec: secondsBetween(
+                    page.data.session?.createdAt as Date | string | undefined,
+                  ),
+                })}
+            >
+              <button type="submit" class="w-full cursor-pointer">
+                <DropdownMenu.Item class="cursor-pointer text-destructive"
+                  ><LogOut class="mr-2 h-4 w-4" /> Déconnexion</DropdownMenu.Item
+                >
+              </button>
+            </form>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+
+        <ModeToggle />
+      </div>
+    </header>
+
+    <!-- Mobile Header -->
     <header
       class="z-40 flex h-14 w-full shrink-0 items-center justify-between border-b border-border bg-background px-4 md:hidden"
     >
-      <div class="flex items-center gap-2">
+      <!-- Campus on the left, school year on the right: the same two context
+           readouts as the desktop header, so both breakpoints say the same
+           thing. The brand used to sit here and no longer fits beside the year
+           control (a 360px bar cannot hold the burger, the full mark and a
+           control at once), which is no loss: the drawer this burger opens
+           renders the same mark at its top, exactly as the sidebar does on
+           desktop. The year lives in the bar rather than inside the drawer so it
+           stays readable while you work, émargement included, and so it needs no
+           second skin for the navy rail. -->
+      <div class="flex min-w-0 items-center gap-2">
         <Button
           variant="ghost"
           size="icon"
-          class="relative h-10 w-10"
+          class="relative h-10 w-10 shrink-0"
           onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
         >
           <Menu
-            class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
+            class="absolute h-6! w-6! transition-ui duration-300 {mobileMenuOpen
               ? 'scale-0 opacity-0'
               : 'scale-100 opacity-100'}"
           />
           <X
-            class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
+            class="absolute h-6! w-6! transition-ui duration-300 {mobileMenuOpen
               ? 'scale-100 rotate-0 opacity-100'
               : 'scale-0 -rotate-90 opacity-0'}"
           />
           <span class="sr-only">Toggle menu</span>
         </Button>
-        <BrandMark
-          href={resolve('/staff/dev')}
-          tone="auto"
-          orientation="inline"
-        />
+        {@render campusBadge()}
       </div>
-      {#if STUDENT_SEARCH_ENABLED}
-        <Button
-          variant="ghost"
-          size="icon"
-          onclick={() => (commandOpen = true)}
-        >
-          <Search class="h-5 w-5" />
-        </Button>
-      {/if}
+      <SchoolYearMenu
+        years={schoolYears}
+        active={selectedSchoolYear}
+        onselect={changeSchoolYear}
+      />
     </header>
 
     {#if mobileMenuOpen}
@@ -409,13 +422,12 @@
         onkeydown={(e) => e.key === 'Escape' && (mobileMenuOpen = false)}
       ></div>
       <aside
-        class="absolute inset-y-0 left-0 z-40 flex w-3/4 max-w-75 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl md:hidden"
+        class="on-dark absolute inset-y-0 left-0 z-40 flex w-3/4 max-w-75 flex-col border-r border-chrome-border bg-chrome text-chrome-foreground shadow-overlay md:hidden"
         transition:fly={{ x: -300, duration: 300 }}
       >
-        <div class="border-b border-sidebar-border">
+        <div class="border-b border-chrome-border">
           {@render sidebarBrand()}
         </div>
-        {@render sidebarSearch()}
         <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
           {@render navMenu()}
         </div>
@@ -424,16 +436,11 @@
       </aside>
     {/if}
 
-    <main class="flex-1 overflow-y-auto bg-background p-4 md:p-8">
+    <main
+      class="flex-1 overflow-y-auto bg-background p-4 md:p-8"
+      use:scrollTopOnNavigate
+    >
       {@render children()}
     </main>
   </div>
 </div>
-
-{#if STUDENT_SEARCH_ENABLED}
-  <GlobalCommand bind:open={commandOpen} basePath="/staff/dev" />
-{/if}
-
-{#if data.ticketsEnabled}
-  <TicketsLauncher basePath="/staff/dev" unreadCount={data.ticketsUnread} />
-{/if}

@@ -11,44 +11,30 @@
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import * as Table from '$lib/components/ui/table';
   import { formatDateTimeFr } from '$lib/utils';
-  import { EVENT_TYPES } from '$lib/domain/event';
   import { toast } from 'svelte-sonner';
   import { track, daysBetween } from '$lib/analytics';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
   let filterCampus = $state<string>('all');
-  let filterType = $state<string>('all');
-
-  const eventTypeLabels: Record<string, string> = {
-    [EVENT_TYPES.STAGE_SECONDE]: 'Stage de Seconde',
-    [EVENT_TYPES.CODING_CLUB]: 'Coding Club',
-  };
 
   const campusFilterOptions = $derived([
     { value: 'all', label: 'Tous les campus' },
     ...data.campusNames.map((name: string) => ({ value: name, label: name })),
   ]);
-  const typeFilterOptions = [
-    { value: 'all', label: 'Tous les types' },
-    ...Object.entries(eventTypeLabels).map(([value, label]) => ({
-      value,
-      label,
-    })),
-  ];
 
   const filteredErrors = $derived(
     data.errors.filter((e) => {
       if (filterCampus !== 'all' && e.campusName !== filterCampus) return false;
-      if (filterType !== 'all' && e.eventType !== filterType) return false;
       return true;
     }),
   );
 
   // "Tout résoudre" clears every unresolved row in the DB, not just the ones
-  // on screen — only offer it on the unfiltered view so a narrowed list can't
+  // on screen: only offer it on the unfiltered view so a narrowed list can't
   // mislead an admin into a global wipe.
-  const isFiltered = $derived(filterCampus !== 'all' || filterType !== 'all');
+  const isFiltered = $derived(filterCampus !== 'all');
   // When filtered, the active filter *is* the selection: resolve exactly the
   // unresolved rows currently on screen.
   const filteredUnresolved = $derived(
@@ -61,94 +47,79 @@
 </svelte:head>
 
 <div class="space-y-6">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Erreurs de <span class="text-epi-pink">Sync</span>
-      </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
-        Conflits détectés lors de la synchronisation Worker
-      </p>
-    </div>
+  <PageHeader
+    title="Erreurs de"
+    accent="Sync"
+    subtitle="Conflits détectés lors de la synchronisation Worker"
+  >
+    {#snippet actions()}
+      <div class="flex flex-wrap items-center gap-3">
+        <FilterSelect
+          options={campusFilterOptions}
+          value={filterCampus}
+          onChange={(v) => (filterCampus = v)}
+          ariaLabel="Filtrer par campus"
+          triggerClass="text-xs"
+        />
 
-    <div class="flex flex-wrap items-center gap-3">
-      <FilterSelect
-        options={campusFilterOptions}
-        value={filterCampus}
-        onChange={(v) => (filterCampus = v)}
-        ariaLabel="Filtrer par campus"
-        triggerClass="text-xs"
-      />
+        {#if data.unresolvedCount > 0 && !isFiltered}
+          <form
+            method="POST"
+            action="?/resolveAll"
+            use:enhance={() =>
+              async ({ result, update }) => {
+                if (result.type === 'success') {
+                  const unresolved = data.errors.filter((e) => !e.resolved);
+                  const oldestDaysOpen = unresolved
+                    .map((e) => daysBetween(e.createdAt) ?? 0)
+                    .reduce((max, d) => (d > max ? d : max), 0);
+                  track('sync_errors_resolved_all', {
+                    count: data.unresolvedCount,
+                    oldestDaysOpen,
+                  });
+                  toast.success('Toutes les erreurs ont été résolues');
+                  await update();
+                } else {
+                  toast.error('Une erreur est survenue');
+                }
+              }}
+          >
+            <Button type="submit" variant="outline" class="gap-2">
+              <CheckCheck class="h-4 w-4" />
+              Tout résoudre ({data.unresolvedCount})
+            </Button>
+          </form>
+        {/if}
 
-      <FilterSelect
-        options={typeFilterOptions}
-        value={filterType}
-        onChange={(v) => (filterType = v)}
-        ariaLabel="Filtrer par type"
-        triggerClass="text-xs"
-      />
-
-      {#if data.unresolvedCount > 0 && !isFiltered}
-        <form
-          method="POST"
-          action="?/resolveAll"
-          use:enhance={() =>
-            async ({ result, update }) => {
-              if (result.type === 'success') {
-                const unresolved = data.errors.filter((e) => !e.resolved);
-                const urgentCount = unresolved.filter(
-                  (e) => e.eventType === EVENT_TYPES.STAGE_SECONDE,
-                ).length;
-                const oldestDaysOpen = unresolved
-                  .map((e) => daysBetween(e.createdAt) ?? 0)
-                  .reduce((max, d) => (d > max ? d : max), 0);
-                track('sync_errors_resolved_all', {
-                  count: data.unresolvedCount,
-                  urgentCount,
-                  oldestDaysOpen,
-                });
-                toast.success('Toutes les erreurs ont été résolues');
-                await update();
-              } else {
-                toast.error('Une erreur est survenue');
-              }
-            }}
-        >
-          <Button type="submit" variant="outline" class="gap-2">
-            <CheckCheck class="h-4 w-4" />
-            Tout résoudre ({data.unresolvedCount})
-          </Button>
-        </form>
-      {/if}
-
-      {#if isFiltered && filteredUnresolved.length > 0}
-        <form
-          method="POST"
-          action="?/resolveSelected"
-          use:enhance={() =>
-            async ({ result, update }) => {
-              if (result.type === 'success') {
-                track('sync_errors_resolved_selected', {
-                  count: filteredUnresolved.length,
-                });
-                toast.success('Erreurs filtrées résolues');
-                await update();
-              } else {
-                toast.error('Une erreur est survenue');
-              }
-            }}
-        >
-          {#each filteredUnresolved as e (e.id)}
-            <input type="hidden" name="ids" value={e.id} />
-          {/each}
-          <Button type="submit" variant="outline" class="gap-2">
-            <Check class="h-4 w-4" />
-            Résoudre les {filteredUnresolved.length} affichés
-          </Button>
-        </form>
-      {/if}
-    </div>
-  </div>
+        {#if isFiltered && filteredUnresolved.length > 0}
+          <form
+            method="POST"
+            action="?/resolveSelected"
+            use:enhance={() =>
+              async ({ result, update }) => {
+                if (result.type === 'success') {
+                  track('sync_errors_resolved_selected', {
+                    count: filteredUnresolved.length,
+                  });
+                  toast.success('Erreurs filtrées résolues');
+                  await update();
+                } else {
+                  toast.error('Une erreur est survenue');
+                }
+              }}
+          >
+            {#each filteredUnresolved as e (e.id)}
+              <input type="hidden" name="ids" value={e.id} />
+            {/each}
+            <Button type="submit" variant="outline" class="gap-2">
+              <Check class="h-4 w-4" />
+              Résoudre les {filteredUnresolved.length} affichés
+            </Button>
+          </form>
+        {/if}
+      </div>
+    {/snippet}
+  </PageHeader>
 
   <Card.Root>
     <Card.Content class="p-0">
@@ -198,7 +169,7 @@
                     />
                   </span>
                 {:else}
-                  —
+                  -
                 {/if}
               </Table.Cell>
               <Table.Cell class="font-bold">{error.talentName}</Table.Cell>
@@ -206,11 +177,11 @@
                 {#if error.eventName}
                   <div class="font-bold">{error.eventName}</div>
                   <div class="text-xs text-muted-foreground">
-                    {error.campusName ?? '—'}
+                    {error.campusName ?? '-'}
                   </div>
                 {:else}
                   <span class="font-mono text-xs"
-                    >{error.eventExtId ?? '—'}</span
+                    >{error.eventExtId ?? '-'}</span
                   >
                 {/if}
               </Table.Cell>
@@ -227,7 +198,7 @@
                         action="?/rebind"
                         use:enhance={({ cancel }) => {
                           // Migrer extId means flipping the talent's identity
-                          // in our DB — confirm explicitly so an admin doesn't
+                          // in our DB: confirm explicitly so an admin doesn't
                           // misclick from a row that's actually a real email
                           // collision between two people.
                           const ok = confirm(
@@ -243,8 +214,6 @@
                           return async ({ result, update }) => {
                             if (result.type === 'success') {
                               track('sync_error_rebound', {
-                                isStage:
-                                  error.eventType === EVENT_TYPES.STAGE_SECONDE,
                                 occurrenceCount: error.occurrenceCount,
                                 daysOpen: daysBetween(error.createdAt),
                               });
@@ -252,8 +221,7 @@
                               await update();
                             } else if (result.type === 'failure') {
                               const data = result.data as
-                                | { rebindError?: string }
-                                | undefined;
+                                { rebindError?: string } | undefined;
                               toast.error(
                                 data?.rebindError ?? 'Migration impossible.',
                               );
@@ -282,8 +250,6 @@
                         async ({ result, update }) => {
                           if (result.type === 'success') {
                             track('sync_error_resolved', {
-                              isStage:
-                                error.eventType === EVENT_TYPES.STAGE_SECONDE,
                               occurrenceCount: error.occurrenceCount,
                               daysOpen: daysBetween(error.createdAt),
                               surface: 'admin',

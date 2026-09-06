@@ -107,7 +107,7 @@
       {#if type === 'multiple'}
         <Square class="h-4 w-4" />
       {:else if type === 'scale'}
-        <span class="text-xs font-medium tabular-nums">{index + 1}</span>
+        <span class="text-xs font-medium">{index + 1}</span>
       {:else}
         <Circle class="h-4 w-4" />
       {/if}
@@ -155,7 +155,7 @@
             aria-label={reactionTooltip}
             aria-pressed={showReaction || hasReaction}
             class="cursor-pointer rounded-sm p-1 transition hover:bg-muted {hasReaction
-              ? 'text-epi-pink'
+              ? 'text-epi-tomorrow'
               : 'text-muted-foreground/60 opacity-0 group-hover:opacity-100'}"
             onclick={() => (showReaction = !showReaction)}
           >
@@ -188,7 +188,7 @@
   </div>
 
   {#if dupWarning}
-    <p class="mt-1 pl-12 text-[11px] text-amber-600 dark:text-amber-500">
+    <p class="mt-1 pl-12 text-xs text-warning">
       Ce libellé est déjà utilisé dans cette question.
     </p>
   {/if}
@@ -200,7 +200,7 @@
     <div class="mt-1.5 flex items-start gap-2 pl-12">
       <MessageCircle
         class="mt-1.5 h-3.5 w-3.5 shrink-0 {hasReaction
-          ? 'text-epi-pink'
+          ? 'text-epi-tomorrow'
           : 'text-muted-foreground/50'}"
       />
       <input
@@ -208,7 +208,7 @@
         aria-label="Réaction de la mascotte à cette option"
         placeholder="Réaction de la mascotte (facultatif), ex. « Ahhh j'adore ! »"
         class="flex-1 cursor-text rounded-xl rounded-bl-sm border px-3 py-1.5 text-xs transition outline-none {hasReaction
-          ? 'border-epi-pink/30 bg-epi-pink/10 text-foreground focus:border-epi-pink'
+          ? 'border-epi-tomorrow/30 bg-epi-tomorrow/10 text-foreground focus:border-epi-tomorrow'
           : 'border-dashed bg-transparent text-muted-foreground italic focus:border-foreground'}"
         oninput={reactionField.oninput}
         onblur={reactionField.onblur}

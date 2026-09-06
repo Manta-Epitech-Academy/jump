@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stress 2K launcher — seeds a throwaway 2000-user pool, builds the manifest,
+# Stress 2K launcher: seeds a throwaway 2000-user pool, builds the manifest,
 # then runs the stress-2k.js write-flood against it. One command, end to end.
 #
 #   ./load/stress-2k.sh                 # full run: seed → manifest → stress
@@ -9,7 +9,7 @@
 #
 # Everything is remote. Seed, manifest and cleanup are plain curl calls to Jump's
 # API (/api/test/*, bearer LOAD_TEST_SECRET); the server does the DB work against
-# the TARGET's own database. This machine never touches a DB or kube — just the
+# the TARGET's own database. This machine never touches a DB or kube, just the
 # token + BASE_URL. The /api/test/* endpoints must be deployed on the target
 # (same as /api/test/login-as); a 404 from seed/manifest means they aren't yet.
 #
@@ -70,7 +70,7 @@ require_k6() {
   command -v k6 >/dev/null 2>&1 || { echo "✗ k6 not found in PATH" >&2; exit 1; }
 }
 
-# Thin HTTP helpers — all data ops go through the API with the bearer token.
+# Thin HTTP helpers: all data ops go through the API with the bearer token.
 api_post() { # path [json-body]
   curl -fsS -X POST "$BASE_URL$1" \
     -H 'content-type: application/json' \
@@ -93,7 +93,7 @@ guard_target() {
     echo "  if you are certain this target is a throwaway environment." >&2
     exit 1
   fi
-  echo "⚠ FORCE=1 — proceeding against non-preprod target '$BASE_URL'."
+  echo "⚠ FORCE=1: proceeding against non-preprod target '$BASE_URL'."
 }
 
 confirm_run() {

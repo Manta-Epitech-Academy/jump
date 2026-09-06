@@ -3,9 +3,17 @@ import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
-import { Prisma, type StaffRole } from '@prisma/client';
-import { staffRoles, bauthRoleForStaffRole } from '$lib/domain/staff';
 import { createAdminInvitationSchema } from '$lib/validation/staff';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
+import {
+  inviteStaff,
+  cancelInvitation,
+  cancelInvitations,
+  updateStaffCampus,
+  updateStaffRole,
+  deleteStaffUser,
+} from '$lib/server/services/staffAdminService';
 
 export const load: PageServerLoad = async ({ locals }) => {
   // Select only the columns the page renders. `include` here used to drag the
@@ -23,9 +31,17 @@ export const load: PageServerLoad = async ({ locals }) => {
         image: true,
         staffProfile: {
           select: {
+            id: true,
             staffRole: true,
             campusId: true,
             campus: { select: { name: true } },
+            // The two activity projections. They ride the existing narrow
+            // select rather than a second query, and they are not redundant
+            // with `Usage_FeatureUse`: those rows are purged at the raw
+            // retention window, so a MAX over them reports "never opened" for
+            // exactly the member worth finding, the one who stopped before it.
+            lastActiveAt: true,
+            firstLoginAt: true,
           },
         },
       },
@@ -62,6 +78,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   invite: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_USER_INVITE, { locals });
     if (!locals.user) return fail(401);
 
     const form = await superValidate(
@@ -70,118 +87,82 @@ export const actions: Actions = {
     );
     if (!form.valid) return fail(400, { form });
 
-    const email = form.data.email.toLowerCase();
+    const result = await inviteStaff({
+      email: form.data.email,
+      campusId: form.data.campusId,
+      staffRole: form.data.staffRole,
+      invitedByUserId: locals.user.id,
+    });
 
-    const [existingStaff, existingInvite] = await Promise.all([
-      prisma.staffProfile.findFirst({ where: { user: { email } } }),
-      prisma.staffInvitation.findUnique({ where: { email } }),
-    ]);
+    if (result.ok) return message(form, 'Invitation créée.');
 
-    if (existingStaff) {
-      return message(
-        form,
-        'Un compte staff existe déjà avec cet email. Modifiez son rôle depuis la liste des membres.',
-        { status: 400 },
-      );
-    }
-    if (existingInvite) {
-      return message(
-        form,
-        'Une invitation est déjà en attente pour cet email.',
-        {
-          status: 400,
-        },
-      );
-    }
-
-    try {
-      await prisma.staffInvitation.create({
-        data: {
-          email,
-          campusId: form.data.staffRole === 'admin' ? null : form.data.campusId,
-          staffRole: form.data.staffRole,
-          invitedByUserId: locals.user.id,
-        },
-      });
-      return message(form, 'Invitation créée.');
-    } catch (err) {
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2002'
-      ) {
+    switch (result.reason) {
+      case 'staff_exists':
+        return message(
+          form,
+          'Un compte staff existe déjà avec cet email. Modifiez son rôle depuis la liste des membres.',
+          { status: 400 },
+        );
+      case 'invitation_exists':
         return message(
           form,
           'Une invitation est déjà en attente pour cet email.',
           { status: 400 },
         );
-      }
-      console.error(err);
-      return message(form, "Erreur lors de la création de l'invitation.", {
-        status: 500,
-      });
+      default:
+        return message(form, "Erreur lors de la création de l'invitation.", {
+          status: 500,
+        });
     }
   },
 
-  cancelInvitation: async ({ url }) => {
+  cancelInvitation: async ({ url, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_USER_INVITE_CANCEL, { locals });
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
 
-    try {
-      await prisma.staffInvitation.delete({ where: { id } });
-      return { success: true };
-    } catch (err) {
+    const result = await cancelInvitation(id);
+    if (!result.ok) {
       return fail(500, { message: "Erreur lors de l'annulation." });
     }
+    return { success: true };
   },
 
-  // Bulk-cancel selected pending invitations — clears the stale backlog in one
-  // shot rather than one delete per row. `ids` arrives as repeated form fields.
-  cancelInvitationsBulk: async ({ request }) => {
+  // `ids` arrives as repeated form fields (the page posts the current selection).
+  cancelInvitationsBulk: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_USER_INVITE_CANCEL, { locals });
     const data = await request.formData();
     const ids = data
       .getAll('ids')
       .filter((v): v is string => typeof v === 'string' && v.length > 0);
     if (ids.length === 0) return fail(400, { message: 'Aucune invitation.' });
 
-    try {
-      const { count } = await prisma.staffInvitation.deleteMany({
-        where: { id: { in: ids } },
-      });
-      return { success: true, count };
-    } catch (err) {
+    const result = await cancelInvitations(ids);
+    if (!result.ok) {
       return fail(500, { message: "Erreur lors de l'annulation." });
     }
+    return { success: true, count: result.count };
   },
 
-  updateCampus: async ({ request }) => {
+  updateCampus: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_USER_CAMPUS_UPDATE, { locals });
     const data = await request.formData();
     const userId = data.get('userId') as string;
     const campusId = data.get('campusId') as string;
 
     if (!userId) return fail(400);
 
-    const existing = await prisma.staffProfile.findUnique({
-      where: { userId },
-      select: { staffRole: true },
-    });
-    if (existing?.staffRole === 'admin') {
-      return fail(400, { message: "Un admin n'est lié à aucun campus." });
+    const result = await updateStaffCampus(userId, campusId || null);
+    if (!result.ok) {
+      return result.reason === 'admin_has_no_campus'
+        ? fail(400, { message: "Un admin n'est lié à aucun campus." })
+        : fail(500, { message: 'Erreur lors de la mise à jour' });
     }
-
-    try {
-      await prisma.staffProfile.upsert({
-        where: { userId },
-        update: { campusId: campusId || null },
-        create: { userId, campusId: campusId || null },
-      });
-      return { success: true };
-    } catch (err) {
-      console.error(err);
-      return fail(500, { message: 'Erreur lors de la mise à jour' });
-    }
+    return { success: true };
   },
 
   updateRole: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_USER_ROLE_UPDATE, { locals });
     const data = await request.formData();
     const userId = data.get('userId') as string;
     const staffRole = data.get('staffRole') as string;
@@ -193,40 +174,17 @@ export const actions: Actions = {
       });
     }
 
-    const validRole: StaffRole | null = staffRole
-      ? staffRoles.includes(staffRole as StaffRole)
-        ? (staffRole as StaffRole)
-        : null
-      : null;
-
-    if (staffRole && !validRole) return fail(400, { message: 'Rôle invalide' });
-
-    try {
-      await prisma.$transaction([
-        prisma.staffProfile.upsert({
-          where: { userId },
-          update: {
-            staffRole: validRole,
-            ...(validRole === 'admin' ? { campusId: null } : {}),
-          },
-          create: {
-            userId,
-            staffRole: validRole,
-          },
-        }),
-        prisma.bauth_user.update({
-          where: { id: userId },
-          data: { role: bauthRoleForStaffRole(validRole) },
-        }),
-      ]);
-      return { success: true };
-    } catch (err) {
-      console.error(err);
-      return fail(500, { message: 'Erreur lors de la mise à jour du rôle' });
+    const result = await updateStaffRole(userId, staffRole);
+    if (!result.ok) {
+      return result.reason === 'invalid_role'
+        ? fail(400, { message: 'Rôle invalide' })
+        : fail(500, { message: 'Erreur lors de la mise à jour du rôle' });
     }
+    return { success: true };
   },
 
   deleteUser: async ({ url, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_USER_DELETE, { locals });
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
     if (id === locals.user?.id) {
@@ -235,11 +193,10 @@ export const actions: Actions = {
       });
     }
 
-    try {
-      await prisma.bauth_user.delete({ where: { id } });
-      return { success: true };
-    } catch (err) {
+    const result = await deleteStaffUser(id);
+    if (!result.ok) {
       return fail(500, { message: 'Erreur lors de la suppression du membre.' });
     }
+    return { success: true };
   },
 };

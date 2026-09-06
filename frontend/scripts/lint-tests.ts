@@ -1,9 +1,30 @@
 /**
- * lint-tests.ts — Vérifie que les fichiers de test respectent
- * les conventions définies dans TESTING.md.
+ * lint-tests.ts : Vérifie que les fichiers de test respectent les conventions
+ * définies dans TESTING.md.
  *
- * Usage : npx tsx scripts/lint-tests.ts
- * Exit code : 0 si tout est OK, 1 si des violations sont trouvées.
+ * Usage      : bun run lint:tests
+ * Exit code  : 0 si tout est OK, 1 si des violations sont trouvées.
+ *
+ * Ce script tourne dans le job CI `Lint & Type Check`, donc chaque règle ici
+ * bloque un merge. C'est ce qui a décidé lesquelles gardent leur place : une
+ * règle n'est là que si sa violation laisse passer quelque chose de faux.
+ *
+ * Quatre règles ont été retirées quand le script a été câblé, parce qu'elles
+ * produisaient 638 findings sur du code délibéré ou sur ses propres angles morts
+ * (détail dans scripts/LINT-TESTS.md) :
+ *
+ *   - le préfixe `it('should …')` : la codebase écrit ses tests en phrases
+ *     ('refuses a batch'), ce qui se lit mieux dans un rapport d'échec ;
+ *   - les commentaires `// Arrange / Act / Assert` : de la ponctuation, et le
+ *     délimiteur de bloc (comptage d'accolades plafonné à 50 lignes) se perd
+ *     dans un gros littéral objet ;
+ *   - « au moins un expect() par test » : même délimiteur, donc mêmes faux
+ *     positifs, sur des tests qui assertent parfaitement ;
+ *   - « afterEach() obligatoire en intégration » : les vingt suites créent leur
+ *     fixture en `beforeAll` et nettoient en `afterAll`, ce qui est correct.
+ *
+ * Le script est en regex, pas en AST : c'est assumé pour ce qui reste, dont
+ * aucune règle ne dépend de la structure du bloc de test.
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
@@ -98,7 +119,7 @@ const rules: Rule[] = [
       );
       for (const f of unitInTests) {
         fail(
-          `${rel(f)} — un fichier .test.ts ne doit pas être dans tests/ (réservé aux .spec.ts E2E)`,
+          `${rel(f)} : un fichier .test.ts ne doit pas être dans tests/ (réservé aux .spec.ts E2E)`,
         );
       }
 
@@ -111,7 +132,7 @@ const rules: Rule[] = [
       for (const f of unitInSrc) {
         if (f.includes('__integration__')) {
           fail(
-            `${rel(f)} — un fichier .test.ts (non integration) ne doit pas être dans __integration__/`,
+            `${rel(f)} : un fichier .test.ts (non integration) ne doit pas être dans __integration__/`,
           );
         }
       }
@@ -124,7 +145,7 @@ const rules: Rule[] = [
       for (const f of integrationTests) {
         if (!f.includes('__integration__/')) {
           fail(
-            `${rel(f)} — un fichier .integration.test.ts doit être dans un dossier __integration__/`,
+            `${rel(f)} : un fichier .integration.test.ts doit être dans un dossier __integration__/`,
           );
         }
       }
@@ -134,7 +155,7 @@ const rules: Rule[] = [
       for (const f of allSpecs) {
         const r = rel(f);
         if (!r.startsWith('tests/e2e/')) {
-          fail(`${r} — un fichier .spec.ts doit être dans tests/e2e/`);
+          fail(`${r} : un fichier .spec.ts doit être dans tests/e2e/`);
         }
       }
 
@@ -142,34 +163,31 @@ const rules: Rule[] = [
       const specsInSrc = findFiles(join(ROOT, 'src'), /\.spec\.ts$/);
       for (const f of specsInSrc) {
         fail(
-          `${rel(f)} — un fichier .spec.ts ne doit pas être dans src/ (utiliser .test.ts pour les unitaires)`,
+          `${rel(f)} : un fichier .spec.ts ne doit pas être dans src/ (utiliser .test.ts pour les unitaires)`,
         );
       }
     },
   },
 
   {
-    name: 'Les it()/test() commencent par "should" (unit/integration uniquement)',
+    // La règle qui porte tout le reste. Un test désactivé est un test qui passe
+    // au vert sans rien vérifier, et c'est précisément la case de la Definition
+    // of Done qui se coche sur parole. `.only` est aussi dangereux que `.skip`
+    // et se voit moins : il désactive tous les AUTRES tests du fichier.
+    // TESTING.md §11 l'interdit déjà par écrit ; ici c'est bloquant.
+    name: 'Pas de .skip() / .only() / .todo() sur un test',
     check() {
-      // La convention "should" s'applique aux tests vitest (unit + integration)
-      // Les tests E2E (Playwright) utilisent test() avec des descriptions de parcours
-      const files = findFiles(join(ROOT, 'src'), /\.test\.ts$/);
-      // Gère it() et test() + leurs variantes .only/.skip/.todo
-      // Fonctionne sur le contenu complet pour gérer les descriptions multilignes
-      const itRegex =
-        /(?:^|\s)(?:it|test)(?:\.(?:only|skip|todo))?\(\s*(['"`])(.*?)\1/gm;
+      const files = allTestFiles();
+      const disabledRegex = /(?:it|describe|test)\.(skip|only|todo)\s*\(/;
 
       for (const f of files) {
-        const content = readFileSync(f, 'utf-8');
-        let match: RegExpExecArray | null;
-        itRegex.lastIndex = 0;
-
-        while ((match = itRegex.exec(content)) !== null) {
-          const desc = match[2];
-          if (!desc.startsWith('should')) {
-            const lineNo = content.substring(0, match.index).split('\n').length;
+        const lines = readLines(f);
+        for (let i = 0; i < lines.length; i++) {
+          if (isComment(lines[i])) continue;
+          const match = disabledRegex.exec(lines[i]);
+          if (match) {
             fail(
-              `${rel(f)}:${lineNo} — it('${desc}') doit commencer par 'should'`,
+              `${rel(f)}:${i + 1} : .${match[1]}() interdit : le test ne vérifie plus rien mais la CI reste verte. Corriger le test ou le code (TESTING.md §11).`,
             );
           }
         }
@@ -178,20 +196,36 @@ const rules: Rule[] = [
   },
 
   {
-    name: 'Pas de it.skip() / describe.skip() / test.skip()',
+    // La garde qui empêche une suite d'intégration d'écrire dans la base de dev.
+    // Elle existe (`__integration__/testDatabase.ts`) et les vingt suites
+    // l'appellent déjà ; sans cette règle, la vingt-et-unième peut l'oublier et
+    // rien ne le dira avant qu'elle ait semé des lignes de test dans un vrai
+    // cohorte. Les worktrees partagent un Postgres, donc « le mauvais
+    // DATABASE_URL » est un accident réaliste, pas théorique.
+    name: "Les suites d'intégration appellent assertTestDatabase()",
     check() {
-      const files = allTestFiles();
-      const skipRegex = /(?:it|describe|test)\.skip\s*\(/;
-
-      for (const f of files) {
-        const lines = readLines(f);
-        for (let i = 0; i < lines.length; i++) {
-          if (isComment(lines[i])) continue;
-          if (skipRegex.test(lines[i])) {
-            fail(
-              `${rel(f)}:${i + 1} — skip() interdit. Ouvrir une issue 'Broken Test' à la place.`,
-            );
-          }
+      const tests = findFiles(join(ROOT, 'src'), /\.integration\.test\.ts$/);
+      // Un site d'APPEL, pas la simple présence du nom : une suite qui importe la
+      // garde et oublie de l'appeler est exactement le cas que la règle existe
+      // pour attraper, et `content.includes('assertTestDatabase')` la laissait
+      // passer. Ni la ligne d'import ni un commentaire ne matchent.
+      //
+      // Deux formes, parce que les deux tournent réellement : l'appel dans un
+      // hook (`beforeAll(async () => { assertTestDatabase(); ... })`, ce que font
+      // dix-neuf suites) et la référence passée au hook
+      // (`beforeAll(assertTestDatabase)`, ce que fait `pdfRender`). La deuxième
+      // n'a été trouvée qu'en resserrant la règle, ce qui est aussi la preuve
+      // qu'un garde non testé négativement ne garde rien.
+      const callRegex =
+        /\bassertTestDatabase\s*\(|\b(?:beforeAll|beforeEach)\s*\(\s*assertTestDatabase\s*\)/;
+      for (const f of tests) {
+        const called = readLines(f).some(
+          (l) => !isComment(l) && callRegex.test(l),
+        );
+        if (!called) {
+          fail(
+            `${rel(f)} : doit appeler assertTestDatabase() (beforeAll ou beforeEach) avant d'écrire quoi que ce soit`,
+          );
         }
       }
     },
@@ -208,11 +242,11 @@ const rules: Rule[] = [
           !content.includes("from 'vitest'") &&
           !content.includes('from "vitest"')
         ) {
-          fail(`${rel(f)} — doit importer depuis 'vitest'`);
+          fail(`${rel(f)} : doit importer depuis 'vitest'`);
         }
         if (content.includes('@playwright/test')) {
           fail(
-            `${rel(f)} — ne doit pas importer depuis '@playwright/test' (c'est un test vitest)`,
+            `${rel(f)} : ne doit pas importer depuis '@playwright/test' (c'est un test vitest)`,
           );
         }
       }
@@ -222,14 +256,14 @@ const rules: Rule[] = [
       for (const f of e2eTests) {
         const content = readFileSync(f, 'utf-8');
         if (!content.includes('@playwright/test')) {
-          fail(`${rel(f)} — doit importer depuis '@playwright/test'`);
+          fail(`${rel(f)} : doit importer depuis '@playwright/test'`);
         }
         if (
           content.includes("from 'vitest'") ||
           content.includes('from "vitest"')
         ) {
           fail(
-            `${rel(f)} — ne doit pas importer depuis 'vitest' (c'est un test E2E)`,
+            `${rel(f)} : ne doit pas importer depuis 'vitest' (c'est un test E2E)`,
           );
         }
       }
@@ -246,22 +280,7 @@ const rules: Rule[] = [
           (l) => !isComment(l) && /\bdescribe\s*\(/.test(l),
         );
         if (!hasDescribe) {
-          fail(`${rel(f)} — doit contenir au moins un describe()`);
-        }
-      }
-    },
-  },
-
-  {
-    name: "Les tests d'intégration nettoient avec afterEach()",
-    check() {
-      const tests = findFiles(join(ROOT, 'src'), /\.integration\.test\.ts$/);
-      for (const f of tests) {
-        const content = readFileSync(f, 'utf-8');
-        if (!content.includes('afterEach(')) {
-          fail(
-            `${rel(f)} — doit contenir un afterEach() pour nettoyer les données après chaque test`,
-          );
+          fail(`${rel(f)} : doit contenir au moins un describe()`);
         }
       }
     },
@@ -285,108 +304,10 @@ const rules: Rule[] = [
           for (const pattern of prodPatterns) {
             if (pattern.test(lines[i])) {
               fail(
-                `${rel(f)}:${i + 1} — URL de prod/staging détectée dans un test`,
+                `${rel(f)}:${i + 1} : URL de prod/staging détectée dans un test`,
               );
               break;
             }
-          }
-        }
-      }
-    },
-  },
-
-  {
-    name: 'Structure AAA (// Arrange, // Act, // Assert) pour les tests substantiels',
-    check() {
-      const files = allTestFiles();
-      // Gère it() et test() + variantes
-      const testStartRegex = /^\s*(?:it|test)(?:\.(?:only|todo))?\s*\(/;
-      const stmtRegex = /^\s*(?:expect\s*\(|await\s|const\s|let\s)/;
-
-      for (const f of files) {
-        const lines = readLines(f);
-        for (let i = 0; i < lines.length; i++) {
-          if (!testStartRegex.test(lines[i])) continue;
-
-          // Trouver la fin du bloc en comptant les accolades
-          let braceCount = 0;
-          let blockStarted = false;
-          const blockLines: string[] = [];
-
-          for (let j = i; j < Math.min(i + 50, lines.length); j++) {
-            blockLines.push(lines[j]);
-            for (const ch of lines[j]) {
-              if (ch === '{') {
-                braceCount++;
-                blockStarted = true;
-              }
-              if (ch === '}') braceCount--;
-            }
-            if (blockStarted && braceCount === 0) break;
-          }
-
-          const stmtCount = blockLines.filter(
-            (l) => !isComment(l) && stmtRegex.test(l),
-          ).length;
-
-          if (stmtCount >= 3) {
-            const hasArrange = blockLines.some((l) => /\/\/\s*Arrange/.test(l));
-            const hasAct = blockLines.some((l) => /\/\/\s*Act/.test(l));
-            const hasAssert = blockLines.some((l) => /\/\/\s*Assert/.test(l));
-
-            if (!hasArrange || !hasAct || !hasAssert) {
-              const missing = [
-                !hasArrange && 'Arrange',
-                !hasAct && 'Act',
-                !hasAssert && 'Assert',
-              ]
-                .filter(Boolean)
-                .join(', ');
-              fail(
-                `${rel(f)}:${i + 1} — test substantiel, commentaire(s) AAA manquant(s) : ${missing}`,
-              );
-            }
-          }
-        }
-      }
-    },
-  },
-
-  {
-    name: 'Chaque it()/test() contient au moins un expect()',
-    check() {
-      const files = allTestFiles();
-      const testStartRegex = /^\s*(?:it|test)(?:\.(?:only))?\s*\(/;
-      const skipTodoRegex = /\.(?:skip|todo)\s*\(/;
-
-      for (const f of files) {
-        const lines = readLines(f);
-        for (let i = 0; i < lines.length; i++) {
-          if (!testStartRegex.test(lines[i])) continue;
-          if (skipTodoRegex.test(lines[i])) continue;
-
-          // Trouver la fin du bloc
-          let braceCount = 0;
-          let blockStarted = false;
-          const blockLines: string[] = [];
-
-          for (let j = i; j < Math.min(i + 50, lines.length); j++) {
-            blockLines.push(lines[j]);
-            for (const ch of lines[j]) {
-              if (ch === '{') {
-                braceCount++;
-                blockStarted = true;
-              }
-              if (ch === '}') braceCount--;
-            }
-            if (blockStarted && braceCount === 0) break;
-          }
-
-          const hasExpect = blockLines.some((l) => /\bexpect\s*\(/.test(l));
-          if (!hasExpect) {
-            fail(
-              `${rel(f)}:${i + 1} — test sans expect() — un test sans assertion passe toujours au vert`,
-            );
           }
         }
       }
@@ -404,7 +325,7 @@ const rules: Rule[] = [
           if (isComment(lines[i])) continue;
           if (/\bconsole\.(log|debug|info)\s*\(/.test(lines[i])) {
             warn(
-              `${rel(f)}:${i + 1} — console.log() dans un test — probablement un oubli de debug`,
+              `${rel(f)}:${i + 1} : console.log() dans un test : probablement un oubli de debug`,
             );
           }
         }
@@ -432,7 +353,7 @@ if (errors > 0) {
   process.exit(1);
 } else if (warnings > 0) {
   console.log(
-    `\x1b[33m⚠ ${warnings} warning(s) — pas bloquant mais à corriger. Voir TESTING.md.\x1b[0m`,
+    `\x1b[33m⚠ ${warnings} warning(s) : pas bloquant mais à corriger. Voir TESTING.md.\x1b[0m`,
   );
 } else {
   console.log(

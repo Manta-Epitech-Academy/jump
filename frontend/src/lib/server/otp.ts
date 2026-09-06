@@ -3,7 +3,7 @@
  * welcome. All bodies + subjects now live in MessageTemplate rows bound
  * by action key in EmailActionMapping. Edit them at `/staff/admin/email-actions`.
  *
- * When no template is mapped, the send is silently skipped — admins see
+ * When no template is mapped, the send is silently skipped: admins see
  * the warning in `/staff/admin/email-actions`. The caller (BetterAuth's
  * sendVerificationOTP callback, the onboarding action) doesn't error.
  */

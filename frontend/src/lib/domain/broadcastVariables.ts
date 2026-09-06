@@ -25,7 +25,7 @@ export interface VariableContext {
 
 /**
  * Empty context with every variable set to its zero value. Callers can
- * spread their per-send vars on top — anything they don't set renders
+ * spread their per-send vars on top: anything they don't set renders
  * empty via `substituteVariables` instead of throwing.
  */
 export const EMPTY_VARIABLE_CONTEXT: VariableContext = {

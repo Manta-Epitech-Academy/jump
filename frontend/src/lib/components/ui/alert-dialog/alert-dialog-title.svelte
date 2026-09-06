@@ -9,9 +9,13 @@
   }: AlertDialogPrimitive.TitleProps = $props();
 </script>
 
+<!-- An AlertDialog always gates a consequential/destructive action, so its title
+     gets the Anton display treatment by default (Dialog.Title, general content,
+     stays plain). Don't re-add this class per call site: override only for a
+     genuine exception (see QrDialog for one). -->
 <AlertDialogPrimitive.Title
   bind:ref
   data-slot="alert-dialog-title"
-  class={cn('text-lg font-semibold', className)}
+  class={cn('font-heading text-display-s', className)}
   {...restProps}
 />

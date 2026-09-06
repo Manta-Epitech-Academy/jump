@@ -1,7 +1,7 @@
 /**
  * Provision the "stage de seconde" planning for one or more campuses from a
  * bare schedule: per day, a list of slots carrying only a start/end wall-clock
- * time and a title. That is all a campus hands us — no description, no body
+ * time and a title. That is all a campus hands us: no description, no body
  * content, no difficulty. The app is built to degrade cleanly to this (a
  * title-only activity shows as an info card on the talent calendar and is not
  * openable; see src/lib/domain/activity.ts), so we deliberately seed nothing
@@ -10,10 +10,8 @@
  * What it does, per campus:
  *   - finds the campus by name and its single `stage_seconde` Event,
  *   - get-or-creates the Event's Planning,
- *   - rebuilds that Planning: deletes ALL its existing TimeSlots (cascades to
- *     their Activities, and through those to any ParticipationActivity verdict;
- *     StepsProgress / PortfolioItem detach to a null activity, not deleted) and
- *     recreates them from the schedule below.
+ *   - rebuilds that Planning: deletes ALL its existing TimeSlots (each cascades
+ *     to its one Activity) and recreates them from the schedule below.
  *
  * Idempotent and authoritative: the schedule here is the planning's source of
  * truth. Every run is a full rebuild, so re-running converges and fixing a
@@ -24,11 +22,11 @@
  * slots it replaced, so a destructive re-run is never silent.
  *
  * Timezone: slot instants are built from the campus's OWN IANA timezone
- * (`Campus.timezone`), so 10:00 means 10:00 there — correct for La Réunion
+ * (`Campus.timezone`), so 10:00 means 10:00 there, correct for La Réunion
  * (UTC+4) as well as metropolitan campuses (UTC+2 in June). The wall-clock to
  * instant conversion is inlined from src/lib/domain/planningTime.ts because
  * this script must run against the production image, where `$lib` does not
- * resolve (no Vite) — same reason scripts/backfill-xp-ledger.ts inlines its
+ * resolve (no Vite), same reason scripts/backfill-xp-ledger.ts inlines its
  * domain constants. `@internationalized/date` is a plain npm dep, so importing
  * it directly is fine. Keep the conversion in sync with planningTime.ts.
  *
@@ -50,8 +48,6 @@ import { CalendarDateTime, parseDate } from '@internationalized/date';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
-
-const EVENT_TYPE = 'stage_seconde';
 
 // ─── Wall-clock → UTC instant ────────────────────────────────────────────────
 // Inlined from src/lib/domain/planningTime.ts (`fromWallClock`). Resolves a
@@ -293,7 +289,7 @@ const SCHEDULES: CampusPlanning[] = [
         date: '2026-06-19',
         slots: [
           // Remote day: this 9h45 slot is an info banner, not the campus
-          // check-in, so it must stay visible to talents — pin it to `special`
+          // check-in, so it must stay visible to talents: pin it to `special`
           // (inference would default it to `atelier`).
           {
             start: '09:45',
@@ -403,7 +399,7 @@ const SCHEDULES: CampusPlanning[] = [
       // Lucca, La Trace, Capgemini). Vendredi 26 : journée remote (le CSV ne
       // liste qu’une conférence et un atelier à distance, pas de créneau campus
       // ni de pause).
-      // J6 — Lundi 22 juin : Build with IA / Fast Design Sprint
+      // J6 - Lundi 22 juin : Build with IA / Fast Design Sprint
       {
         date: '2026-06-22',
         slots: [
@@ -417,7 +413,7 @@ const SCHEDULES: CampusPlanning[] = [
           { start: '13:30', end: '17:00', nom: 'Kick-off Hackathon' },
         ],
       },
-      // J7 — Mardi 23 juin : Product Design & Prompt Engineering
+      // J7 - Mardi 23 juin : Product Design & Prompt Engineering
       {
         date: '2026-06-23',
         slots: [
@@ -435,7 +431,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J8 — Mercredi 24 juin : Entrepreneuriat & Pitch
+      // J8 - Mercredi 24 juin : Entrepreneuriat & Pitch
       {
         date: '2026-06-24',
         slots: [
@@ -453,7 +449,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J9 — Jeudi 25 juin : IA, Soft Skills & Tech Responsable
+      // J9 - Jeudi 25 juin : IA, Soft Skills & Tech Responsable
       // Le CSV fixe « 17h : Présentation finale » ; fin estimée à 18h (durée non
       // précisée). Milestone visible → pin `special`.
       {
@@ -475,7 +471,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J10 — Vendredi 26 juin : Restitution & Clôture (remote)
+      // J10 - Vendredi 26 juin : Restitution & Clôture (remote)
       // Journée à distance : Live Twitch / contenus à distance. Pin `special`
       // pour rester visible et marquer le distanciel (comme les autres remote).
       {
@@ -502,7 +498,7 @@ const SCHEDULES: CampusPlanning[] = [
     campus: 'Montpellier',
     days: [
       // ── Semaine 1 : « Vis ma vie de… » (découverte) ──
-      // J1 — Lundi 15 juin
+      // J1 - Lundi 15 juin
       {
         date: '2026-06-15',
         slots: [
@@ -520,7 +516,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J2 — Mardi 16 juin : Vis ma vie d’Expert Cybersécurité
+      // J2 - Mardi 16 juin : Vis ma vie d’Expert Cybersécurité
       {
         date: '2026-06-16',
         slots: [
@@ -542,7 +538,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J3 — Mercredi 17 juin : Vis ma vie de Développeur
+      // J3 - Mercredi 17 juin : Vis ma vie de Développeur
       {
         date: '2026-06-17',
         slots: [
@@ -564,7 +560,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J4 — Jeudi 18 juin : Vis ma vie d’Ingénieur DevOps
+      // J4 - Jeudi 18 juin : Vis ma vie d’Ingénieur DevOps
       {
         date: '2026-06-18',
         slots: [
@@ -586,7 +582,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J5 — Vendredi 19 juin : journée remote
+      // J5 - Vendredi 19 juin : journée remote
       {
         date: '2026-06-19',
         slots: [
@@ -612,7 +608,7 @@ const SCHEDULES: CampusPlanning[] = [
         ],
       },
       // ── Semaine 2 : projet (TOOLS → PRODUCT → SUCCESS) ──
-      // J6 — Lundi 22 juin : TOOLS, Lancement
+      // J6 - Lundi 22 juin : TOOLS, Lancement
       {
         date: '2026-06-22',
         slots: [
@@ -641,7 +637,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J7 — Mardi 23 juin : PRODUCT, Design & Construction
+      // J7 - Mardi 23 juin : PRODUCT, Design & Construction
       {
         date: '2026-06-23',
         slots: [
@@ -663,7 +659,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J8 — Mercredi 24 juin : SUCCESS, Finalisation & Pitchs
+      // J8 - Mercredi 24 juin : SUCCESS, Finalisation & Pitchs
       {
         date: '2026-06-24',
         slots: [
@@ -692,7 +688,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J9 — Jeudi 25 juin : Ingénieur IA + Demo Day
+      // J9 - Jeudi 25 juin : Ingénieur IA + Demo Day
       {
         date: '2026-06-25',
         slots: [
@@ -721,7 +717,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J10 — Vendredi 26 juin : journée remote
+      // J10 - Vendredi 26 juin : journée remote
       {
         date: '2026-06-26',
         slots: [
@@ -747,7 +743,7 @@ const SCHEDULES: CampusPlanning[] = [
     // Remote “à la carte” Fridays carry only morning/afternoon ateliers.
     campus: 'Strasbourg',
     days: [
-      // J1 — Lundi 15 juin : 100% local
+      // J1 - Lundi 15 juin : 100% local
       {
         date: '2026-06-15',
         slots: [
@@ -769,7 +765,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J2 — Mardi 16 juin : Cybersécurité
+      // J2 - Mardi 16 juin : Cybersécurité
       {
         date: '2026-06-16',
         slots: [
@@ -787,7 +783,7 @@ const SCHEDULES: CampusPlanning[] = [
           { start: '13:30', end: '17:00', nom: 'Atelier : Cloud' },
         ],
       },
-      // J3 — Mercredi 17 juin : Dev & Code
+      // J3 - Mercredi 17 juin : Dev & Code
       {
         date: '2026-06-17',
         slots: [
@@ -809,7 +805,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J4 — Jeudi 18 juin : DevOps
+      // J4 - Jeudi 18 juin : DevOps
       {
         date: '2026-06-18',
         slots: [
@@ -827,7 +823,7 @@ const SCHEDULES: CampusPlanning[] = [
           { start: '13:30', end: '17:00', nom: 'Atelier : Discover Linux' },
         ],
       },
-      // J5 — Vendredi 19 juin : remote à la carte
+      // J5 - Vendredi 19 juin : remote à la carte
       {
         date: '2026-06-19',
         slots: [
@@ -843,7 +839,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J6 — Lundi 22 juin : Tools (Hackathon)
+      // J6 - Lundi 22 juin : Tools (Hackathon)
       {
         date: '2026-06-22',
         slots: [
@@ -865,7 +861,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J7 — Mardi 23 juin : Product
+      // J7 - Mardi 23 juin : Product
       {
         date: '2026-06-23',
         slots: [
@@ -887,7 +883,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J8 — Mercredi 24 juin : Success
+      // J8 - Mercredi 24 juin : Success
       {
         date: '2026-06-24',
         slots: [
@@ -909,7 +905,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J9 — Jeudi 25 juin : AI
+      // J9 - Jeudi 25 juin : AI
       {
         date: '2026-06-25',
         slots: [
@@ -931,7 +927,7 @@ const SCHEDULES: CampusPlanning[] = [
           },
         ],
       },
-      // J10 — Vendredi 26 juin : remote à la carte
+      // J10 - Vendredi 26 juin : remote à la carte
       {
         date: '2026-06-26',
         slots: [
@@ -1217,20 +1213,17 @@ async function seedCampus(plan: CampusPlanning): Promise<void> {
   });
   if (!campus) throw new Error(`Campus "${plan.campus}" not found.`);
 
+  // The stage is the campus's multi-day event (it carries an explicit endDate;
+  // single-day coding clubs don't). Earliest first.
   const event = await prisma.event.findFirst({
-    where: { campusId: campus.id, eventType: EVENT_TYPE },
+    where: { campusId: campus.id, endDate: { not: null } },
     orderBy: { date: 'asc' },
-    include: { planning: true },
   });
   if (!event) {
     throw new Error(
-      `No ${EVENT_TYPE} event for ${plan.campus}. Create the stage event first.`,
+      `No multi-day stage event for ${plan.campus}. Create the stage event (with an end date) first.`,
     );
   }
-
-  const planning =
-    event.planning ??
-    (await prisma.planning.create({ data: { eventId: event.id } }));
 
   const tz = campus.timezone;
   const slotData = plan.days.flatMap((day) =>
@@ -1243,37 +1236,28 @@ async function seedCampus(plan: CampusPlanning): Promise<void> {
         );
       }
       return {
-        planningId: planning.id,
+        eventId: event.id,
         startTime,
         endTime,
-        activity: {
-          create: {
-            nom: s.nom,
-            activityType: s.type ?? inferActivityType(s.nom),
-            isDynamic: false,
-          },
-        },
+        nom: s.nom,
+        activityType: s.type ?? inferActivityType(s.nom),
       };
     }),
   );
 
   // Count what the rebuild is about to destroy, so a re-run over an existing
   // (possibly staff-edited) planning is never silent. See the header note.
-  const replaced = await prisma.timeSlot.count({
-    where: { planningId: planning.id },
+  const replaced = await prisma.planning_Slot.count({
+    where: { eventId: event.id },
   });
 
-  // Full rebuild (cascades to activities) so the script is idempotent. Use an
-  // interactive transaction with a generous timeout: against a remote DB the
-  // per-slot round-trips blow past the default 5s interactive limit (the batch
-  // array form gives no way to raise it).
-  await prisma.$transaction(
-    async (tx) => {
-      await tx.timeSlot.deleteMany({ where: { planningId: planning.id } });
-      await Promise.all(slotData.map((data) => tx.timeSlot.create({ data })));
-    },
-    { timeout: 120_000, maxWait: 15_000 },
-  );
+  // Full rebuild so the script is idempotent. One `createMany` now that a slot
+  // is one row: the nested per-slot creates this replaces were what needed an
+  // interactive transaction with a raised timeout against a remote database.
+  await prisma.$transaction([
+    prisma.planning_Slot.deleteMany({ where: { eventId: event.id } }),
+    prisma.planning_Slot.createMany({ data: slotData }),
+  ]);
 
   console.log(
     `✓ ${plan.campus.padEnd(14)} ${slotData.length} slots across ${plan.days.length} days (tz ${tz}) → "${event.titre}"` +

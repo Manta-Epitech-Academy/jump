@@ -1,5 +1,3 @@
-export const difficultes = ['Débutant', 'Intermédiaire', 'Avancé'] as const;
-
 /**
  * One-off XP granted when a talent finishes onboarding (the arrival
  * celebration shown on the dashboard). Granted in
@@ -10,11 +8,14 @@ export const difficultes = ['Débutant', 'Intermédiaire', 'Avancé'] as const;
 export const WELCOME_XP_BONUS = 200;
 
 /**
- * XP granted for finishing the daily minigame. Flat — it rewards showing up and
+ * XP granted for finishing the daily minigame. Flat: it rewards showing up and
  * completing the challenge, not performance (placing on the board is the
- * performance reward, see `minigameRankBonus`). Kept below the top activity tier
- * (Avancé = 75) so a repeatable daily game never out-earns the most demanding
- * real activity.
+ * performance reward, see `minigameRankBonus`).
+ *
+ * The amount was chosen to sit below the old per-activity difficulty scale, which
+ * was retired with event-linked presence XP (5fb78617): there is no longer an
+ * activity grant for a daily game to out-earn. It is kept where it is because the
+ * balance against `reward` and `minigameRankBonus` still holds.
  */
 export const MINIGAME_XP_REWARD = 50;
 
@@ -52,7 +53,7 @@ export function onboardingEarlyBirdBonus(position: number): number {
  * with no roster lookup: the denominator is exactly the board the rank is
  * measured against. 0.1 is roughly the top ten at a full stage cohort.
  */
-export const MINIGAME_RANK_BONUS_FRACTION = 0.1;
+const MINIGAME_RANK_BONUS_FRACTION = 0.1;
 
 /**
  * Floor on the pool, so the three podium tiers below always pay out even on a
@@ -60,7 +61,7 @@ export const MINIGAME_RANK_BONUS_FRACTION = 0.1;
  * ~26 the fraction already rounds to this floor, so the small campus keeps its
  * top-3 podium while a 100-strong one opens up to ~10 slots.
  */
-export const MINIGAME_RANK_BONUS_MIN_LIMIT = 3;
+const MINIGAME_RANK_BONUS_MIN_LIMIT = 3;
 
 /**
  * How many top finishers earn a rank bonus, given the size of the field they
@@ -94,14 +95,8 @@ export function minigameRankBonus(rank: number, fieldSize: number): number {
   return Math.round(MINIGAME_XP_REWARD / 5);
 }
 
-export const DIFFICULTY_XP: Record<string, number> = {
-  Débutant: 20,
-  Intermédiaire: 45,
-  Avancé: 75,
-};
-
 /**
- * Talent level tiers, derived purely from XP. Single source of truth — the
+ * Talent level tiers, derived purely from XP. Single source of truth: the
  * `Talent.level` column was dropped (it was never written and always read
  * 'Novice'). `JUMP_LEVELS` (used by the broadcast audience filter) and
  * `computeLevel` both flow from here so display, filtering, and DB stay
@@ -110,7 +105,7 @@ export const DIFFICULTY_XP: Record<string, number> = {
 export const JUMP_LEVELS = ['Novice', 'Apprentice', 'Expert'] as const;
 export type JumpLevel = (typeof JUMP_LEVELS)[number];
 
-export const XP_LEVEL_TIERS: {
+const XP_LEVEL_TIERS: {
   level: JumpLevel;
   min: number;
   maxExclusive: number | null;
@@ -129,18 +124,6 @@ export function computeLevel(xp: number): JumpLevel {
   return 'Novice';
 }
 
-/** French display labels for the talent-facing UI. */
-export const LEVEL_LABELS_FR: Record<JumpLevel, string> = {
-  Novice: 'Novice',
-  Apprentice: 'Apprenti',
-  Expert: 'Expert ✦',
-};
-
-/** Convenience: the French label for a given XP total. */
-export function levelLabelFr(xp: number): string {
-  return LEVEL_LABELS_FR[computeLevel(xp)];
-}
-
 /**
  * Staff-facing one-liner explaining what XP means, shown as the hover tooltip
  * wherever the dev workspace surfaces a talent's XP (cohort table, directory,
@@ -151,7 +134,7 @@ export const XP_EXPLAINER_FR =
   "Les XP mesurent l'engagement du stagiaire sur JUMP : il en gagne en s'entraînant régulièrement (mini-jeux quotidiens), en participant aux événements et en complétant son onboarding.";
 
 /**
- * Resolves a level name back to its XP bounds — used by the broadcast filter to
+ * Resolves a level name back to its XP bounds, used by the broadcast filter to
  * translate a chosen tier into an `xp` range query now that `level` is no
  * longer a column. Falls back to the first tier for unknown names.
  */
@@ -161,40 +144,4 @@ export function xpRangeForLevel(level: string): {
 } {
   const tier = XP_LEVEL_TIERS.find((t) => t.level === level);
   return tier ?? XP_LEVEL_TIERS[0];
-}
-
-/**
- * Calculates how much XP an activity is worth based on its difficulty.
- */
-export function getActivityXpValue(difficulte: string): number {
-  return DIFFICULTY_XP[difficulte] || 20;
-}
-
-/**
- * Extracts XP-eligible activities from a participation's activity list.
- * Filters out organisational activities (roll call) and activities the student
- * was not present for (parallel tracks they didn't attend).
- */
-export function getXpEligibleActivities<
-  T extends {
-    isPresent: boolean;
-    activity: { activityType: string; difficulte: string | null };
-  },
->(participationActivities: T[]): { difficulte: string | null }[] {
-  return participationActivities
-    .filter((pa) => pa.isPresent && pa.activity.activityType !== 'orga')
-    .map((pa) => ({ difficulte: pa.activity.difficulte }));
-}
-
-/**
- * Calculates total XP for a list of activities (or any items with a `difficulte` field).
- * Returns 20 (base attendance XP) when the list is empty — this covers students
- * who are marked present but have no non-orga activities assigned.
- */
-export function getTotalXp(items: { difficulte: string | null }[]): number {
-  if (!items || items.length === 0) return 20;
-  return items.reduce(
-    (total, item) => total + getActivityXpValue(item.difficulte ?? ''),
-    0,
-  );
 }

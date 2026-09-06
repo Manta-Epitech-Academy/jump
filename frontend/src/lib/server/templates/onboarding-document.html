@@ -2,10 +2,9 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap"
-      rel="stylesheet"
-    />
+    <style>
+      <%- data.fontFaces %>
+    </style>
     <style>
       body {
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -104,7 +103,7 @@
     <% if (data.type === 'rules') { %> <% if (data.rules && data.rules.talent) {
     %>
     <div class="signature">
-      <p class="signature-label">Lu et approuvé — Signature du stagiaire</p>
+      <p class="signature-label">Lu et approuvé, signature du participant</p>
       <p class="signature-name"><%= data.studentName %></p>
       <p class="signature-meta">
         Fait à <%= data.rules.talent.city %>, le <%= data.rules.talent.date %>
@@ -113,7 +112,7 @@
     <% } %> <% if (data.rules && data.rules.parent) { %>
     <div class="signature">
       <p class="signature-label">
-        Lu et approuvé — Le représentant légal<% if
+        Lu et approuvé, le représentant légal<% if
         (data.rules.parent.relationship) { %> (<%=
         data.rules.parent.relationship %>)<% } %> de <%= data.studentName %>
       </p>

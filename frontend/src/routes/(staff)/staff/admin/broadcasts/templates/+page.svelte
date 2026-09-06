@@ -10,7 +10,7 @@
   import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
   import Copy from '@lucide/svelte/icons/copy';
   import Trash2 from '@lucide/svelte/icons/trash-2';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ChannelBadge from '$lib/components/admin/broadcasts/ChannelBadge.svelte';
 
   let { data } = $props();
@@ -21,7 +21,7 @@
   });
 
   // One pair of hidden forms per row (duplicate + delete). Dropdown menu items
-  // call `requestSubmit()` on the right form — keeps the actions native to
+  // call `requestSubmit()` on the right form, keeps the actions native to
   // SvelteKit / use:enhance so we get redirect + revalidation for free.
   let duplicateForms = $state<Record<string, HTMLFormElement | undefined>>({});
   let deleteForms = $state<Record<string, HTMLFormElement | undefined>>({});
@@ -54,7 +54,7 @@
 {/snippet}
 
 <div class="space-y-6">
-  <AdminPageHeader
+  <PageHeader
     title="Templates"
     accent="messages"
     subtitle="Modèles réutilisables (mail / SMS) pour les envois en masse et les mails transactionnels"
@@ -93,7 +93,7 @@
                 class="max-w-xs truncate text-muted-foreground"
                 title={t.subject ?? ''}
               >
-                {t.subject ?? '—'}
+                {t.subject ?? '-'}
               </Table.Cell>
               <Table.Cell class="text-muted-foreground">
                 {t._count.broadcasts}
@@ -130,8 +130,7 @@
                         await invalidateAll();
                       } else if (result.type === 'failure') {
                         const data = result.data as
-                          | { deleteError?: string }
-                          | undefined;
+                          { deleteError?: string } | undefined;
                         toast.error(
                           data?.deleteError ?? 'Suppression impossible.',
                         );

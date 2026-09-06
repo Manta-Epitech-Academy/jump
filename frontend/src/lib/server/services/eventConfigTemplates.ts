@@ -18,18 +18,22 @@ import {
  * `EventConfig_Module` (presence + `settings`), so both directions are a plain
  * row copy. See src/lib/domain/eventModules.ts.
  */
-export type EventConfigTemplateSummary = {
+type EventConfigTemplateSummary = {
   id: string;
   name: string;
   description: string | null;
-  /** Soft hint: the SF event type the wizard suggests this template for. */
-  forEventType: string | null;
   /** Friendly event name the preset prefills, or null (event keeps the SF titre). */
   publicName: string | null;
+  /** Cohort noun the preset prefills ("stagiaire", ...), or null when unnamed. */
+  cohortNoun: string | null;
   /** Arrival time-of-day the preset prefills as "HH:MM", or "" when unset. */
   startTime: string;
-  /** Optional default feedback form (weak FK), prefilled when bilan is enabled. */
+  /** Optional feedback form (weak FK), prefilled when bilan is enabled. */
   feedbackFormId: string | null;
+  /** The certificate the preset carries (weak FK), or null when it names none. */
+  diplomaTemplateId: string | null;
+  /** The closing grid it carries (weak FK), or null when it names none. */
+  closingTemplateId: string | null;
   modules: EventModuleKey[];
   /** Per-module sub-options, keyed by module key (fully defaulted). */
   moduleSettings: Record<string, unknown>;
@@ -39,10 +43,12 @@ type TemplateRow = {
   id: string;
   name: string;
   description: string | null;
-  forEventType: string | null;
   publicName: string | null;
+  cohortNoun: string | null;
   startMinutes: number | null;
   feedbackFormId: string | null;
+  diplomaTemplateId: string | null;
+  closingTemplateId: string | null;
   modules: { moduleKey: string; settings: Prisma.JsonValue }[];
 };
 
@@ -61,10 +67,12 @@ function toSummary(t: TemplateRow): EventConfigTemplateSummary {
     id: t.id,
     name: t.name,
     description: t.description,
-    forEventType: t.forEventType,
     publicName: t.publicName,
+    cohortNoun: t.cohortNoun,
     startTime: minutesToHHMM(t.startMinutes),
     feedbackFormId: t.feedbackFormId,
+    diplomaTemplateId: t.diplomaTemplateId,
+    closingTemplateId: t.closingTemplateId,
     modules: present.map((m) => m.moduleKey as EventModuleKey),
     moduleSettings,
   };
@@ -79,6 +87,30 @@ async function resolveFeedbackFormId(raw: string): Promise<string | null> {
     select: { id: true },
   });
   if (!form) throw error(400, 'Formulaire de feedback introuvable.');
+  return id;
+}
+
+/** Same for the certificate, so an applied preset can't point at a deleted one. */
+async function resolveDiplomaTemplateId(raw: string): Promise<string | null> {
+  const id = raw.trim();
+  if (!id) return null;
+  const template = await prisma.diploma_Template.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  if (!template) throw error(400, 'Certificat introuvable.');
+  return id;
+}
+
+/** Same for the closing grid, so an applied preset can't point at a deleted one. */
+async function resolveClosingTemplateId(raw: string): Promise<string | null> {
+  const id = raw.trim();
+  if (!id) return null;
+  const grid = await prisma.closing_Template.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  if (!grid) throw error(400, 'Grille de closing introuvable.');
   return id;
 }
 
@@ -113,26 +145,32 @@ export const EventConfigTemplateService = {
    * Snapshot the current wizard config as a template. UPSERT by name: a new name
    * creates one, an existing name replaces that template's config in place (its
    * id stays), so re-saving under the same name is how staff edit a template.
-   * `forEventType` is captured from the event so the template is later suggested
-   * for events of the same type.
    */
   async saveTemplate(input: {
     name: string;
     description: string;
-    forEventType: string;
     publicName: string;
+    cohortNoun: string;
     startTime: string;
     modules: string[];
     moduleSettings: Record<string, unknown>;
     feedbackFormId: string;
+    diplomaTemplateId: string;
+    closingTemplateId: string;
     actorId: string | null;
   }): Promise<{ id: string; updated: boolean }> {
     const name = input.name.trim();
     if (!name) throw error(400, 'Nom de modèle requis.');
     const feedbackFormId = await resolveFeedbackFormId(input.feedbackFormId);
-    const forEventType = input.forEventType.trim() || null;
+    const diplomaTemplateId = await resolveDiplomaTemplateId(
+      input.diplomaTemplateId,
+    );
+    const closingTemplateId = await resolveClosingTemplateId(
+      input.closingTemplateId,
+    );
     const description = input.description.trim() || null;
     const publicName = input.publicName.trim() || null;
+    const cohortNoun = input.cohortNoun.trim() || null;
     const startMinutes = hhmmToMinutes(input.startTime);
     const moduleRows = moduleCreateRows(input.modules, input.moduleSettings);
 
@@ -151,10 +189,12 @@ export const EventConfigTemplateService = {
           where: { id: existing.id },
           data: {
             description,
-            forEventType,
             publicName,
+            cohortNoun,
             startMinutes,
             feedbackFormId,
+            diplomaTemplateId,
+            closingTemplateId,
             modules: { create: moduleRows },
           },
         }),
@@ -166,10 +206,12 @@ export const EventConfigTemplateService = {
       data: {
         name,
         description,
-        forEventType,
         publicName,
+        cohortNoun,
         startMinutes,
         feedbackFormId,
+        diplomaTemplateId,
+        closingTemplateId,
         createdById: input.actorId,
         modules: { create: moduleRows },
       },

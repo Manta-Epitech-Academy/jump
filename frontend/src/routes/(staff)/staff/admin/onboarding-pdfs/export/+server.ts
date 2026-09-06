@@ -2,6 +2,8 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { Zip, ZipPassThrough } from 'fflate';
 import { getStorage, isObjectNotFound } from '$lib/server/infra/storage';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   collectFinishedOnboardingDocs,
   isExportableDocumentType,
@@ -111,6 +113,7 @@ function renderSkipManifest(skipped: SkippedDoc[], date: string): string {
 // deflate) because PDFs are already compressed; recompressing would only burn
 // CPU.
 export const GET: RequestHandler = async ({ locals, url }) => {
+  recordUsage(USAGE_FEATURES.ADMIN_ONBOARDING_PDFS_EXPORT, { locals });
   // The /staff/admin layout already redirects non-admins; this is defence in
   // depth for an endpoint that streams minors' signed documents.
   const staffProfile = locals.staffProfile;

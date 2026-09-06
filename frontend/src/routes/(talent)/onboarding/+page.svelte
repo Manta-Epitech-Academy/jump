@@ -15,6 +15,8 @@
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import { Button } from '$lib/components/ui/button';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
+  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
+  import BrandBackdrop from '$lib/components/layout/BrandBackdrop.svelte';
 
   function exitSlide(
     _node: Element,
@@ -68,22 +70,13 @@
 </script>
 
 <svelte:head>
-  <title>{pageTitle} — Bienvenue</title>
+  <title>{pageTitle} - Bienvenue</title>
 </svelte:head>
 
 <div
-  class="relative flex h-dvh w-full flex-col overflow-hidden bg-slate-100 transition-colors duration-500 dark:bg-slate-950"
+  class="relative flex h-dvh w-full flex-col overflow-hidden bg-muted transition-colors duration-320"
 >
-  <!-- Background decorations -->
-  <div
-    class="absolute -top-20 -right-20 h-100 w-100 rounded-full bg-epi-blue/15 blur-[100px] dark:bg-epi-blue/20"
-  ></div>
-  <div
-    class="absolute -bottom-20 -left-20 h-100 w-100 rounded-full bg-epi-teal/15 blur-[100px] dark:bg-epi-teal/20"
-  ></div>
-  <div
-    class="absolute inset-0 bg-[radial-gradient(var(--color-slate-300)_1px,transparent_1px)] bg-size-[32px_32px] opacity-70 dark:bg-[radial-gradient(var(--color-slate-800)_1px,transparent_1px)] dark:opacity-50"
-  ></div>
+  <BrandBackdrop />
 
   <!-- Hidden form for server-side go-back -->
   <form
@@ -97,19 +90,13 @@
   <ProgressBar {progress} />
 
   <!-- ═══ Header sticky ═══ -->
-  <header
-    class="relative z-10 shrink-0 border-b border-slate-300/50 bg-slate-100/80 backdrop-blur-md dark:border-slate-800/50 dark:bg-slate-950/80"
-  >
+  <header class="relative z-10 shrink-0 border-b border-border/50 bg-muted">
     <div
       class="mx-auto flex w-full max-w-lg items-center justify-between px-4 py-3"
     >
       <!-- Left: logo (always visible, fixed position) -->
       <a href={resolve('/')} aria-label="Accueil">
-        <img
-          src="/EPITECH-LOGO-BLEU-2025.svg"
-          alt="Epitech"
-          class="h-7 w-auto dark:brightness-0 dark:invert"
-        />
+        <EpitechLogo class="h-7 w-auto" />
       </a>
 
       <!-- Right: back button + step counter -->
@@ -118,13 +105,13 @@
           <Button
             variant="ghost"
             onclick={goBackServer}
-            class="h-auto gap-1 px-2 py-1 text-xs font-medium text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+            class="h-auto gap-1 px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground-secondary"
           >
             <ArrowLeft class="h-3.5 w-3.5" />
             Retour
           </Button>
         {/if}
-        <span class="text-xs font-semibold text-slate-400 dark:text-slate-500">
+        <span class="text-xs font-semibold text-muted-foreground">
           {displayStep}/{TOTAL_DISPLAY}
         </span>
       </div>
@@ -171,7 +158,6 @@
               />
             {:else if data.step === 'equipment'}
               <EquipmentStep
-                hasLaptop={data.hasLaptop ?? false}
                 setupDescription={data.setupDescription ?? ''}
                 error={form?.step === 'equipment' ? form?.error : undefined}
               />
@@ -179,6 +165,8 @@
               <ProcessingStep />
             {:else if data.step === 'rules'}
               <RulesStep
+                charterAccepted={data.charterAccepted ?? false}
+                welcomeBonusGranted={data.welcomeBonusGranted ?? false}
                 error={form?.step === 'rules' ? form?.error : undefined}
               />
             {/if}

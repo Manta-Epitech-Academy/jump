@@ -1,6 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { base } from '$app/paths';
   import { superForm, type SuperValidated } from 'sveltekit-superforms';
+  import Database from '@lucide/svelte/icons/database';
   import CalendarCog from '@lucide/svelte/icons/calendar-cog';
   import LayoutTemplate from '@lucide/svelte/icons/layout-template';
   import Bookmark from '@lucide/svelte/icons/bookmark';
@@ -23,6 +25,7 @@
   import * as Select from '$lib/components/ui/select';
   import InfoTooltip from '$lib/components/ui/info-tooltip/InfoTooltip.svelte';
   import EventModuleIcon from '$lib/components/events/EventModuleIcon.svelte';
+  import AdminSfStatusInspectorDialog from '$lib/components/events/AdminSfStatusInspectorDialog.svelte';
   import {
     EVENT_MODULE_DEFS,
     EVENT_MODULE_KEYS,
@@ -30,6 +33,10 @@
     type EventModuleKey,
   } from '$lib/domain/eventModules';
   import { effectiveStartMinutes, minutesToHHMM } from '$lib/domain/event';
+  import {
+    activationBlockerKeys,
+    type ActivationBlocker,
+  } from '$lib/domain/eventReadiness';
   import type { AdminEventForm } from '$lib/validation/events';
   import { enhance as kitEnhance, deserialize } from '$app/forms';
   import { toast } from 'svelte-sonner';
@@ -40,8 +47,7 @@
     id: string;
     titre: string;
     publicName: string;
-    eventType: string;
-    eventTypeLabel: string;
+    cohortNoun: string | null;
     campusName: string;
     dateLabel: string;
     startDateKey: string;
@@ -51,16 +57,21 @@
     moduleSettings: Record<string, unknown>;
     devActivated: boolean;
     feedbackFormId: string;
+    diplomaTemplateId: string;
+    closingTemplateId: string;
+    participations: number;
   };
 
   type TemplateVM = {
     id: string;
     name: string;
     description: string | null;
-    forEventType: string | null;
     publicName: string | null;
+    cohortNoun: string | null;
     startTime: string;
     feedbackFormId: string | null;
+    diplomaTemplateId: string | null;
+    closingTemplateId: string | null;
     modules: EventModuleKey[];
     moduleSettings: Record<string, unknown>;
   };
@@ -70,7 +81,8 @@
     editing,
     formData,
     feedbackForms,
-    defaultFormByType,
+    certificates,
+    closingGrids,
     formPreviews,
     templates,
   }: {
@@ -78,7 +90,9 @@
     editing: EditingEvent | null;
     formData: SuperValidated<AdminEventForm>;
     feedbackForms: { value: string; label: string }[];
-    defaultFormByType: Record<string, { id: string; title: string }>;
+    /** The certificates an event can be set to issue. `code` feeds the preview. */
+    certificates: { value: string; label: string; code: string }[];
+    closingGrids: { value: string; label: string }[];
     /** Per-form ordered question prompts, for the inline read-only preview. */
     formPreviews: Record<string, string[]>;
     templates: TemplateVM[];
@@ -111,6 +125,7 @@
   // another event (it would reappear only on a full reload).
   let workingTemplates = $state<TemplateVM[]>(untrack(() => [...templates]));
   let confirmingDeleteId = $state<string | null>(null);
+  let inspectorOpen = $state(false);
 
   // Fill all module keys with their defaults, merged over any saved/template
   // values, so a freshly-toggled module already has a typed settings object.
@@ -128,16 +143,33 @@
   }
 
   function prefill(e: EditingEvent) {
-    $form.id = e.id;
-    $form.publicName = e.publicName;
-    $form.startTime = e.startTime;
-    $form.endDate = e.endDate;
-    $form.modules = [...e.modules];
-    $form.moduleSettings = withDefaults(e.moduleSettings);
-    $form.devActivated = e.devActivated;
-    $form.feedbackFormId = e.feedbackFormId;
+    // Built as ONE exhaustive `AdminEventForm` rather than assigned field by
+    // field, so a field added to the schema is a compile error here instead of a
+    // silent omission. That omission is not hypothetical: the closing grid was
+    // missing from the list, so the dialog opened reading "Aucune grille" over an
+    // event that had one, and saving from it wiped the grid - hiding the surface
+    // in the dev space with nothing anywhere reporting a failure.
+    const next: AdminEventForm = {
+      id: e.id,
+      publicName: e.publicName,
+      // The persisted noun, or '' when the event was never named (the field then
+      // shows its placeholder). The SF type is never consulted here: a per-type
+      // default rides the config template the admin starts from (the stage
+      // template carries "stagiaire"), and an event keeps whatever staff last set.
+      cohortNoun: e.cohortNoun ?? '',
+      startTime: e.startTime,
+      endDate: e.endDate,
+      modules: [...e.modules],
+      moduleSettings: withDefaults(e.moduleSettings),
+      devActivated: e.devActivated,
+      feedbackFormId: e.feedbackFormId,
+      diplomaTemplateId: e.diplomaTemplateId,
+      closingTemplateId: e.closingTemplateId,
+    };
+    $form = next;
     selectedTemplateId = null;
     confirmingDeleteId = null;
+    dismissHighCount = false;
     // The catalogue mirrors (workingTemplates / workingForms / workingPreviews)
     // are NOT reseeded here: they are seeded once at mount and kept across opens
     // so an optimistic save/duplicate survives switching to another event.
@@ -162,32 +194,23 @@
   });
 
   // ─── Templates (step 1) ──────────────────────────────────────────────────
-  // SF only tells us the type; templates saved from an event of that type are
-  // grouped first under a heading, but the admin can pick any or none.
-  const isSuggested = (t: TemplateVM) =>
-    editing != null &&
-    t.forEventType != null &&
-    t.forEventType === editing.eventType;
+  // A flat, alphabetical catalogue: the admin picks any template or none. There
+  // is no per-kind grouping (events no longer carry a type to match against).
   const byName = (a: TemplateVM, b: TemplateVM) =>
     a.name.localeCompare(b.name, 'fr');
-  // Type match is a set, not a winner: every template saved from a same-type
-  // event carries that type. So we name the group once with a heading rather
-  // than stamping a "Suggéré" badge on each (which would dilute to noise).
-  const suggestedTemplates = $derived(
-    workingTemplates.filter(isSuggested).sort(byName),
-  );
-  const otherTemplates = $derived(
-    workingTemplates.filter((t) => !isSuggested(t)).sort(byName),
-  );
+  const sortedTemplates = $derived(workingTemplates.slice().sort(byName));
 
   function applyTemplate(t: TemplateVM) {
     $form.modules = [...t.modules];
     $form.moduleSettings = withDefaults(t.moduleSettings);
     $form.feedbackFormId = t.feedbackFormId ?? '';
+    $form.diplomaTemplateId = t.diplomaTemplateId ?? '';
+    $form.closingTemplateId = t.closingTemplateId ?? '';
     // Prefilled like the rest of the preset: a wholesale copy the admin can still
-    // edit on step 2. Empty falls back as usual (publicName → SF titre, startTime
-    // → the type default).
+    // edit on step 2. Empty falls back as usual (publicName → the SF titre,
+    // startTime → no arrival time).
     $form.publicName = t.publicName ?? '';
+    $form.cohortNoun = t.cohortNoun ?? '';
     $form.startTime = t.startTime ?? '';
     selectedTemplateId = t.id;
     step = 2;
@@ -209,8 +232,7 @@
 
   function getModuleSetting<T>(moduleKey: string, key: string, fallback: T): T {
     const cur = $form.moduleSettings[moduleKey] as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     return (cur?.[key] as T | undefined) ?? fallback;
   }
 
@@ -225,15 +247,56 @@
 
   const moduleActive = (key: EventModuleKey) => $form.modules.includes(key);
 
-  // "Visible dans l'espace dev" only takes effect with at least one module: the
-  // dev space is nothing but per-module surfaces, so making a section-less event
-  // visible shows nothing (it would never get the "Espace dev" badge nor land in
-  // the switcher). We gate the toggle on that rather than let an admin tick a
-  // promise that silently does nothing. The displayed state is the EFFECTIVE
-  // visibility (gate AND >=1 module), so toggling the last module off reads as
-  // not-visible immediately, matching what the dev space will show.
-  const canActivate = $derived($form.modules.length > 0);
+  // "Visible dans l'espace dev" only takes effect once the event is actually
+  // showable: the dev space is nothing but per-module surfaces, so a
+  // section-less event made visible shows nothing (it would never get the
+  // "Espace dev" badge nor land in the switcher), and one with no public name
+  // would sit in the switcher under its raw Salesforce title. We gate the
+  // toggle on that rather than let an admin tick a promise that silently does
+  // nothing. The displayed state is the EFFECTIVE visibility, so toggling the
+  // last module off reads as not-visible immediately, matching what the dev
+  // space will show.
+  //
+  // Read off `activationBlockerKeys` rather than re-tested here: this was a
+  // fourth hand-copy of a rule that already exists as a Prisma `where`, as a
+  // predicate and as an API refusal, and the wizard's copy is the one an admin
+  // acts on.
+  const blockers = $derived(
+    activationBlockerKeys({
+      publicName: $form.publicName.trim() || null,
+      cohortNoun: $form.cohortNoun.trim() || null,
+      endDate: $form.endDate || null,
+      modules: $form.modules,
+      devActivated: $form.devActivated,
+    }),
+  );
+  const canActivate = $derived(blockers.length === 0);
   const effectivelyVisible = $derived($form.devActivated && canActivate);
+
+  // What each blocker asks of the admin. The nouns `EVENT_MISSING_LABELS`
+  // carries read as an inventory ("il manque : nom public"), which is right
+  // where a list is reported and wrong on the one screen that can fix it. Typed
+  // on the union, so a fourth blocker fails the build here instead of quietly
+  // missing from the list.
+  const BLOCKER_ACTIONS: Record<ActivationBlocker, string> = {
+    modules: 'Activer au moins une section',
+    publicName: 'Renseigner un nom public',
+    endDate: 'Renseigner une date de fin',
+  };
+
+  // The switch shows the effective visibility, so the payload must not keep
+  // carrying a `true` the screen has stopped showing. Clearing the public name
+  // of an already-activated event disabled the toggle and drew it off while
+  // `devActivated` stayed true underneath, and the save went through: live in
+  // the dev workspace under its Salesforce title, which is exactly what the
+  // rule forbids. The server refuses that save now; this is what keeps the
+  // dialog from asking for it in the first place.
+  $effect(() => {
+    if (!canActivate && $form.devActivated) $form.devActivated = false;
+  });
+
+  // Local state for participant count warning
+  let dismissHighCount = $state(false);
 
   // ─── Feedback form picker (bilan sub-option) ─────────────────────────────
   const NO_FORM = 'default';
@@ -248,41 +311,70 @@
     untrack(() => ({ ...formPreviews })),
   );
   let duplicatingForm = $state(false);
-  const defaultForm = $derived(
-    editing ? defaultFormByType[editing.eventType] : undefined,
+  // No feedback form picked yet: the event's Feedback surface stays hidden until
+  // an admin selects one. There is no per-kind default anymore.
+  const NO_FORM_LABEL = 'Aucun formulaire';
+
+  // ─── Certificate picker (inscrits sub-option) ────────────────────────────
+  // Same shape as the feedback form above: a nullable typed choice on the event,
+  // whose picker sits under the module whose surface it feeds. Null is the whole
+  // gate - an event that names no certificate shows no export.
+  const NO_CERTIFICATE = 'none';
+  const NO_CERTIFICATE_LABEL = 'Aucun certificat';
+  const selectedCertificate = $derived(
+    certificates.find((c) => c.value === $form.diplomaTemplateId) ?? null,
   );
-  const feedbackDefaultLabel = $derived(
-    defaultForm
-      ? `Par défaut (${defaultForm.title})`
-      : 'Par défaut (aucun formulaire pour ce type)',
+  const certificateTriggerLabel = $derived(
+    $form.diplomaTemplateId
+      ? (selectedCertificate?.label ?? 'Certificat inconnu')
+      : NO_CERTIFICATE_LABEL,
   );
+
+  // The certificate is previewed for the same reason the feedback form below is:
+  // the dropdown IS the choice, and this shows what was just chosen. The src is
+  // the curated API's own operation, which serves the rendered image itself, so
+  // what staff see here and what a model is shown are the same bytes from the
+  // same call, and there is nothing to fetch by hand. An admin session
+  // authenticates against that API as a reader, so no token is involved.
+  const previewUrl = $derived(
+    selectedCertificate
+      ? `${base}/api/admin/config/diploma-template-preview?code=${encodeURIComponent(selectedCertificate.code)}`
+      : null,
+  );
+  // Which preview failed, not whether one ever did. A boolean outlives the image
+  // it describes: the dialog is mounted for the life of the page, so one timed-out
+  // render read "indisponible" for every certificate on every event until a
+  // reload. Keyed on the url, a new selection is a new question by construction.
+  let failedPreviewUrl = $state<string | null>(null);
+
+  // ─── Closing-grid picker (closings module) ───────────────────────────────
+  // Third instance of the same shape: a nullable typed choice on the event whose
+  // picker sits under the module it feeds, and whose null IS the gate. No preview
+  // beside it, unlike the certificate: a grid's acceptance test is textual, so
+  // reading it back is `config_closing_templates`' job rather than an image.
+  const NO_GRID = 'none';
+  const NO_GRID_LABEL = 'Aucune grille';
+  const closingTriggerLabel = $derived(
+    $form.closingTemplateId
+      ? (closingGrids.find((g) => g.value === $form.closingTemplateId)?.label ??
+          'Grille inconnue')
+      : NO_GRID_LABEL,
+  );
+
   const feedbackTriggerLabel = $derived(
     $form.feedbackFormId
       ? (workingForms.find((f) => f.value === $form.feedbackFormId)?.label ??
           'Formulaire inconnu')
-      : feedbackDefaultLabel,
+      : NO_FORM_LABEL,
   );
-  // The form this event resolves to right now: the override, else the type
-  // default. Drives the preview + "open in editor" deep-link; empty = nothing.
-  const effectiveFormId = $derived(
-    $form.feedbackFormId || defaultForm?.id || '',
-  );
+  // The form this event resolves to right now: its explicit feedbackFormId.
+  // Drives the preview + "open in editor" deep-link; empty = nothing.
+  const effectiveFormId = $derived($form.feedbackFormId || '');
   // Ordered question prompts of the resolved form, for the inline preview.
   const effectivePreview = $derived(workingPreviews[effectiveFormId] ?? []);
   // Cap the inline preview so a long form doesn't blow out the dialog; the rest
   // is summarized as "+ N autres questions" (no nested scroll area).
   const PREVIEW_LIMIT = 8;
-
-  // Editing the resolved form in place edits the SHARED catalogue form. The
-  // provable-shared case is the type default with no per-event override: a change
-  // there hits every event of that type. We surface that consequence so
-  // "Modifier" never silently edits the shared default - the safe per-event path
-  // is "Dupliquer et personnaliser".
-  const editingSharedDefault = $derived(
-    !$form.feedbackFormId &&
-      !!defaultForm &&
-      effectiveFormId === defaultForm.id,
-  );
 
   // "Dupliquer pour cet événement": branch the resolved form into a fresh copy.
   // Posted via fetch (not an enhanced <form>) because this lives inside the main
@@ -327,9 +419,7 @@
   }
 
   const defaultStartTime = $derived(
-    editing
-      ? minutesToHHMM(effectiveStartMinutes(editing.eventType, null))
-      : '',
+    editing ? minutesToHHMM(effectiveStartMinutes(null)) : '',
   );
 
   // ─── Save current config as a template (upsert by name) ──────────────────
@@ -345,9 +435,17 @@
       // Only carry the feedback form when bilan is actually on: a form id with no
       // bilan module resolves to nothing, so snapshotting it would store dead data.
       feedbackFormId: moduleActive('bilan') ? $form.feedbackFormId : '',
+      // Same gate, for the same reason: the export lives on the Inscrits page, so
+      // a certificate without that section would be dead data in the preset.
+      closingTemplateId: moduleActive('closings')
+        ? $form.closingTemplateId
+        : '',
+      diplomaTemplateId: moduleActive('inscrits')
+        ? $form.diplomaTemplateId
+        : '',
       publicName: $form.publicName,
+      cohortNoun: $form.cohortNoun,
       startTime: $form.startTime,
-      forEventType: editing?.eventType ?? '',
     }),
   );
 
@@ -376,12 +474,12 @@
   >
     <Dialog.Header class="border-b px-4 py-4 text-start sm:px-6">
       <Dialog.Title class="flex items-center gap-2">
-        <CalendarCog class="h-5 w-5 text-epi-pink" />
+        <CalendarCog class="h-5 w-5 text-epi-tomorrow" />
         Configurer l'événement
       </Dialog.Title>
       {#if editing}
         <Dialog.Description>
-          {editing.campusName} · {editing.eventTypeLabel} · {editing.dateLabel}
+          {editing.campusName} · {editing.dateLabel}
         </Dialog.Description>
       {/if}
       <!-- The stepper IS the navigation: clicking a step moves there, so step 2
@@ -389,14 +487,14 @@
            config is filled, to re-pick a template. -->
       <nav
         aria-label="Étapes de configuration"
-        class="mt-2 flex items-center gap-2 text-[11px] font-bold tracking-wide uppercase"
+        class="mt-2 flex items-center gap-2 epi-overline"
       >
         <button
           type="button"
           onclick={() => (step = 1)}
           aria-current={step === 1 ? 'step' : undefined}
           class="transition-colors {step === 1
-            ? 'cursor-default text-epi-pink'
+            ? 'cursor-default text-epi-tomorrow'
             : 'cursor-pointer text-muted-foreground hover:text-foreground'}"
         >
           1 · Initialisation
@@ -407,7 +505,7 @@
           onclick={() => (step = 2)}
           aria-current={step === 2 ? 'step' : undefined}
           class="transition-colors {step === 2
-            ? 'cursor-default text-epi-pink'
+            ? 'cursor-default text-epi-tomorrow'
             : 'cursor-pointer text-muted-foreground hover:text-foreground'}"
         >
           2 · Configuration
@@ -416,7 +514,7 @@
       {#if step === 2 && selectedTemplateId}
         {@const t = workingTemplates.find((x) => x.id === selectedTemplateId)}
         {#if t}
-          <p class="mt-1.5 text-[11px] text-muted-foreground">
+          <p class="mt-1.5 text-xs text-muted-foreground">
             Prérempli depuis <strong class="font-semibold text-foreground"
               >{t.name}</strong
             >
@@ -438,7 +536,7 @@
             <button
               type="button"
               onclick={() => applyTemplate(t)}
-              class="flex flex-1 cursor-pointer items-start gap-3 rounded-l-sm p-3 text-start transition-colors hover:bg-epi-pink/5"
+              class="flex flex-1 cursor-pointer items-start gap-3 rounded-l-sm p-3 text-start transition-colors hover:bg-epi-tomorrow/5"
             >
               <span
                 class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-sm border bg-muted/40 text-muted-foreground"
@@ -466,9 +564,7 @@
             </button>
             <div class="flex shrink-0 items-center gap-1 pr-2">
               {#if confirmingDeleteId === t.id}
-                <span class="text-[10px] text-muted-foreground"
-                  >Supprimer ?</span
-                >
+                <span class="text-xs text-muted-foreground">Supprimer ?</span>
                 <form
                   method="POST"
                   action="?/deleteTemplate"
@@ -537,35 +633,10 @@
             Enregistrer comme modèle » pour le réutiliser plus tard.
           </div>
         {:else}
-          <div class="space-y-4">
-            {#if suggestedTemplates.length > 0}
-              <div class="space-y-2">
-                {#if otherTemplates.length > 0}
-                  <p
-                    class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
-                  >
-                    Suggérés pour ce type d'événement
-                  </p>
-                {/if}
-                {#each suggestedTemplates as t (t.id)}
-                  {@render templateCard(t)}
-                {/each}
-              </div>
-            {/if}
-            {#if otherTemplates.length > 0}
-              <div class="space-y-2">
-                {#if suggestedTemplates.length > 0}
-                  <p
-                    class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
-                  >
-                    Autres modèles
-                  </p>
-                {/if}
-                {#each otherTemplates as t (t.id)}
-                  {@render templateCard(t)}
-                {/each}
-              </div>
-            {/if}
+          <div class="space-y-2">
+            {#each sortedTemplates as t (t.id)}
+              {@render templateCard(t)}
+            {/each}
           </div>
         {/if}
       </div>
@@ -577,7 +648,6 @@
           type="button"
           onclick={skipTemplate}
           variant={workingTemplates.length === 0 ? 'default' : 'outline'}
-          class={workingTemplates.length === 0 ? 'bg-epi-pink text-white' : ''}
         >
           Configurer sans modèle
         </Button>
@@ -591,6 +661,31 @@
         class="flex min-h-0 flex-1 flex-col"
       >
         <div class="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:px-6">
+          {#if editing && editing.participations > 100 && !dismissHighCount}
+            <div
+              class="flex items-start gap-3 rounded-sm border border-warning/40 bg-warning/5 p-3 text-warning"
+            >
+              <TriangleAlert class="mt-0.5 size-4 shrink-0" />
+              <div class="flex-1 space-y-1">
+                <p class="text-xs font-medium">
+                  Nombre de participants inhabituellement élevé ({editing.participations}).
+                </p>
+                <p class="text-xs text-warning/80">
+                  Vérifiez que la campagne Salesforce est bien celle de
+                  l'événement.
+                </p>
+              </div>
+              <button
+                type="button"
+                class="shrink-0 text-warning hover:text-warning"
+                onclick={() => (dismissHighCount = true)}
+                aria-label="Ignorer l'avertissement"
+              >
+                <X class="size-4" />
+              </button>
+            </div>
+          {/if}
+
           <div class="space-y-4">
             <div class="space-y-2">
               <Label for="publicName" class="flex items-center gap-1.5">
@@ -610,6 +705,25 @@
                 >{/if}
             </div>
 
+            <div class="space-y-2">
+              <Label for="cohortNoun" class="flex items-center gap-1.5">
+                Comment nommer les inscrits ?
+                <InfoTooltip
+                  text="Le mot employé partout dans l'espace dev pour désigner un inscrit, au singulier (liste, émargement, closings, feedback). Indépendant du type Salesforce : à vous de le choisir, même si le type a été mal renseigné."
+                />
+              </Label>
+              <Input
+                id="cohortNoun"
+                bind:value={$form.cohortNoun}
+                placeholder="participant, stagiaire, collégien…"
+                maxlength={40}
+                autocomplete="off"
+              />
+              {#if $errors.cohortNoun}<span class="text-xs text-destructive"
+                  >{$errors.cohortNoun}</span
+                >{/if}
+            </div>
+
             <div class="grid gap-4 sm:grid-cols-2">
               <div class="space-y-2">
                 <div class="flex h-6 items-center gap-2">
@@ -622,7 +736,7 @@
                   {#if !$form.startTime}
                     <Badge
                       variant="outline"
-                      class="border-amber-500/50 text-[10px] leading-none font-normal text-amber-600"
+                      class="border-warning/50 text-xs leading-none font-normal text-warning"
                     >
                       À confirmer
                     </Badge>
@@ -705,7 +819,7 @@
                         >
                           Colonne « statut » du dossier
                           <InfoTooltip
-                            text="Affiche la colonne de suivi du dossier (connexion, règlement, droit à l'image) sur la page Inscrits. Désactivez-la pour les campus qui n'onboardent pas (la page reste utile pour les entretiens et le feedback)."
+                            text="Affiche la colonne de suivi du dossier (connexion, règlement, droit à l'image) sur la page Inscrits. Désactivez-la pour les campus qui n'onboardent pas (la page reste utile pour les closings et le feedback)."
                           />
                         </span>
                         <Switch
@@ -723,33 +837,97 @@
                             )}
                         />
                       </label>
-                      <label
-                        for="inscrits-diplomes"
-                        class="flex cursor-pointer items-center justify-between gap-3 select-none"
-                      >
+                      <div class="space-y-2">
                         <span
                           class="flex items-center gap-1.5 text-xs font-medium"
                         >
-                          Génération des diplômes
+                          Certificat délivré
                           <InfoTooltip
-                            text="Affiche le bouton « Générer diplômes » (le certificat de stage) sur la page Inscrits. Désactivez-le pour un événement qui ne délivre pas de certificat de stage, comme un coding club."
+                            text="Le document généré depuis la page Inscrits, une page par inscrit. « Aucun certificat » masque le bouton pour un événement qui ne délivre rien."
                           />
                         </span>
-                        <Switch
-                          id="inscrits-diplomes"
-                          checked={getModuleSetting(
-                            'inscrits',
-                            'diplomas',
-                            false,
-                          )}
-                          onCheckedChange={(v) =>
-                            setModuleSetting(
-                              'inscrits',
-                              'diplomas',
-                              v === true,
-                            )}
+                        <Select.Root
+                          type="single"
+                          value={$form.diplomaTemplateId || NO_CERTIFICATE}
+                          onValueChange={(v) =>
+                            ($form.diplomaTemplateId =
+                              v === NO_CERTIFICATE ? '' : v)}
+                        >
+                          <Select.Trigger class="w-full">
+                            {certificateTriggerLabel}
+                          </Select.Trigger>
+                          <Select.Content>
+                            <Select.Item value={NO_CERTIFICATE}>
+                              {NO_CERTIFICATE_LABEL}
+                            </Select.Item>
+                            {#each certificates as opt (opt.value)}
+                              <Select.Item value={opt.value}>
+                                {opt.label}
+                              </Select.Item>
+                            {/each}
+                          </Select.Content>
+                        </Select.Root>
+                        {#if previewUrl}
+                          <div class="rounded-sm border bg-background/60">
+                            <div class="border-b px-3 py-1.5">
+                              <span class="epi-overline text-muted-foreground">
+                                À quoi ressemble le document
+                              </span>
+                            </div>
+                            <div class="space-y-1.5 px-3 py-2">
+                              {#if failedPreviewUrl === previewUrl}
+                                <p class="text-xs text-muted-foreground">
+                                  Aperçu indisponible pour le moment.
+                                </p>
+                              {:else}
+                                <img
+                                  src={previewUrl}
+                                  alt="Aperçu du certificat {certificateTriggerLabel}"
+                                  class="w-full rounded-sm border"
+                                  onerror={() =>
+                                    (failedPreviewUrl = previewUrl)}
+                                />
+                                <p class="text-xs text-muted-foreground">
+                                  Nom, dates et signataire sont des exemples.
+                                </p>
+                              {/if}
+                            </div>
+                          </div>
+                        {/if}
+                      </div>
+                    </div>
+                  {/if}
+
+                  {#if checked && key === 'closings'}
+                    <div class="space-y-2 border-t bg-muted/20 px-3 py-3 pl-14">
+                      <span
+                        class="flex items-center gap-1.5 text-xs font-medium"
+                      >
+                        Grille de closing
+                        <InfoTooltip
+                          text="Les questions posées lors du closing de cet événement. Sans grille, la page Closings n'apparaît pas dans l'espace dev. Les grilles s'écrivent via l'API, pas ici."
                         />
-                      </label>
+                      </span>
+                      <Select.Root
+                        type="single"
+                        value={$form.closingTemplateId || NO_GRID}
+                        onValueChange={(v) =>
+                          ($form.closingTemplateId = v === NO_GRID ? '' : v)}
+                      >
+                        <Select.Trigger class="w-full">
+                          {closingTriggerLabel}
+                        </Select.Trigger>
+                        <Select.Content>
+                          <Select.Item value={NO_GRID}>
+                            {NO_GRID_LABEL}
+                          </Select.Item>
+                          {#each closingGrids as opt (opt.value)}
+                            <Select.Item value={opt.value}>
+                              {opt.label}
+                            </Select.Item>
+                          {/each}
+                        </Select.Content>
+                      </Select.Root>
                     </div>
                   {/if}
 
@@ -760,7 +938,7 @@
                       >
                         Formulaire de feedback
                         <InfoTooltip
-                          text="Le formulaire que les jeunes remplissent pour cet événement. « Par défaut » utilise le formulaire associé au type d'événement."
+                          text="Le formulaire que les jeunes remplissent pour cet événement. Sans formulaire, la page Feedback n'apparaît pas dans l'espace dev."
                         />
                       </span>
                       <Select.Root
@@ -774,7 +952,7 @@
                         </Select.Trigger>
                         <Select.Content>
                           <Select.Item value={NO_FORM}>
-                            {feedbackDefaultLabel}
+                            {NO_FORM_LABEL}
                           </Select.Item>
                           {#each workingForms as opt (opt.value)}
                             <Select.Item value={opt.value}>
@@ -790,25 +968,21 @@
                       {#if effectiveFormId}
                         <div class="rounded-sm border bg-background/60">
                           <div class="border-b px-3 py-1.5">
-                            <span
-                              class="text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
-                            >
+                            <span class="epi-overline text-muted-foreground">
                               Ce que les jeunes rempliront
                             </span>
                           </div>
                           <div class="px-3 py-2">
                             {#if effectivePreview.length === 0}
-                              <p class="text-[11px] text-muted-foreground">
+                              <p class="text-xs text-muted-foreground">
                                 Ce formulaire n'a pas encore de questions.
                               </p>
                             {:else}
                               <ol class="space-y-1">
                                 {#each effectivePreview.slice(0, PREVIEW_LIMIT) as prompt, i (i)}
-                                  <li
-                                    class="flex gap-2 text-[11px] leading-snug"
-                                  >
+                                  <li class="flex gap-2 text-xs leading-snug">
                                     <span
-                                      class="shrink-0 text-muted-foreground/50 tabular-nums"
+                                      class="shrink-0 text-muted-foreground/50"
                                     >
                                       {i + 1}.
                                     </span>
@@ -819,7 +993,7 @@
                               </ol>
                               {#if effectivePreview.length > PREVIEW_LIMIT}
                                 <p
-                                  class="mt-1.5 pl-5 text-[11px] text-muted-foreground/70"
+                                  class="mt-1.5 pl-5 text-xs text-muted-foreground/70"
                                 >
                                   + {effectivePreview.length - PREVIEW_LIMIT} autre{effectivePreview.length -
                                     PREVIEW_LIMIT >
@@ -837,7 +1011,7 @@
                         </div>
 
                         <div class="space-y-1.5">
-                          <p class="text-[11px] text-muted-foreground">
+                          <p class="text-xs text-muted-foreground">
                             Ce formulaire vous convient ? Sinon, adaptez-le :
                           </p>
                           <div class="flex flex-wrap items-center gap-2">
@@ -875,26 +1049,15 @@
                               Créer un nouveau formulaire
                             </Button>
                           </div>
-                          {#if editingSharedDefault}
-                            <p
-                              class="flex items-start gap-1.5 text-[11px] text-amber-600"
-                            >
-                              <TriangleAlert class="mt-px size-3 shrink-0" />
-                              « Modifier » change le formulaire par défaut de ce type,
-                              pour tous ses événements. Dupliquez-le pour n'adapter
-                              que celui-ci.
-                            </p>
-                          {:else}
-                            <p class="text-[11px] text-muted-foreground/70">
-                              « Modifier » agit sur le formulaire partagé ; «
-                              Dupliquer » en crée une copie propre à cet
-                              événement.
-                            </p>
-                          {/if}
+                          <p class="text-xs text-muted-foreground/70">
+                            « Modifier » agit sur le formulaire partagé ; «
+                            Dupliquer » en crée une copie propre à cet
+                            événement.
+                          </p>
                         </div>
                       {:else}
                         <p
-                          class="flex items-start gap-1.5 text-[11px] leading-snug text-amber-600"
+                          class="flex items-start gap-1.5 text-xs leading-snug text-warning"
                         >
                           <TriangleAlert class="mt-px size-3 shrink-0" />
                           Aucun formulaire publié n'est associé : tant qu'il n'y en
@@ -927,10 +1090,10 @@
               class="flex items-start gap-3 rounded-sm border p-3 transition-colors select-none {canActivate
                 ? 'cursor-pointer'
                 : 'cursor-not-allowed'} {effectivelyVisible
-                ? 'border-epi-pink/40 bg-epi-pink/5'
+                ? 'border-epi-tomorrow/40 bg-epi-tomorrow/5'
                 : canActivate
                   ? 'hover:bg-muted/40'
-                  : 'border-amber-500/40 bg-amber-500/5'}"
+                  : 'border-warning/40 bg-warning/5'}"
             >
               <div class="flex-1 space-y-1">
                 <span class="flex items-center gap-1.5 text-sm font-bold">
@@ -940,18 +1103,24 @@
                   />
                 </span>
                 {#if canActivate}
-                  <span class="text-[11px] text-muted-foreground">
+                  <span class="text-xs text-muted-foreground">
                     {$form.modules.length} section{$form.modules.length > 1
                       ? 's'
                       : ''} active{$form.modules.length > 1 ? 's' : ''} pour cet événement.
                   </span>
                 {:else}
                   <span
-                    class="flex items-center gap-1.5 text-[11px] font-medium text-amber-600"
+                    class="flex flex-col items-start gap-1 text-xs font-medium text-warning"
                   >
-                    <TriangleAlert class="size-3.5 shrink-0" />
-                    Activez au moins une section ci-dessus pour rendre l'événement
-                    visible.
+                    <span class="flex items-center gap-1.5">
+                      <TriangleAlert class="size-3.5 shrink-0" />
+                      Pour rendre l'événement visible, il faut :
+                    </span>
+                    <ul class="list-disc pl-5">
+                      {#each blockers as blocker (blocker)}
+                        <li>{BLOCKER_ACTIONS[blocker]}</li>
+                      {/each}
+                    </ul>
                   </span>
                 {/if}
               </div>
@@ -969,16 +1138,29 @@
         <Dialog.Footer
           class="flex-col gap-2 border-t px-4 py-4 sm:flex-row sm:items-center sm:px-6"
         >
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            class="sm:mr-auto"
-            onclick={openSaveTemplate}
-          >
-            <Bookmark class="mr-1.5 h-4 w-4" />
-            Enregistrer comme modèle…
-          </Button>
+          <div class="flex flex-wrap items-center gap-2 sm:mr-auto">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onclick={openSaveTemplate}
+            >
+              <Bookmark class="mr-1.5 h-4 w-4" />
+              Enregistrer comme modèle…
+            </Button>
+            {#if editing}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onclick={() => (inspectorOpen = true)}
+                title="Inspecter tous les membres Salesforce et leurs statuts"
+              >
+                <Database class="mr-1.5 h-4 w-4 text-epi-blue" />
+                Membres Salesforce…
+              </Button>
+            {/if}
+          </div>
           <Button
             type="button"
             variant="outline"
@@ -986,11 +1168,7 @@
           >
             Annuler
           </Button>
-          <Button
-            type="submit"
-            disabled={$delayed}
-            class="bg-epi-pink text-white"
-          >
+          <Button type="submit" disabled={$delayed}>
             {$delayed ? 'Sauvegarde…' : 'Enregistrer'}
           </Button>
         </Dialog.Footer>
@@ -998,6 +1176,14 @@
     {/if}
   </Dialog.Content>
 </Dialog.Root>
+
+{#if editing}
+  <AdminSfStatusInspectorDialog
+    bind:open={inspectorOpen}
+    eventId={editing.id}
+    eventTitle={editing.publicName || editing.titre}
+  />
+{/if}
 
 <!-- Save-as-template sub-dialog (separate so its form isn't nested in the config
      form). Snapshots the current modules + sub-options + default feedback form;
@@ -1007,7 +1193,7 @@
   <Dialog.Content class="sm:max-w-md">
     <Dialog.Header>
       <Dialog.Title class="flex items-center gap-2">
-        <Bookmark class="h-5 w-5 text-epi-pink" />
+        <Bookmark class="h-5 w-5 text-epi-tomorrow" />
         Enregistrer comme modèle
       </Dialog.Title>
       <Dialog.Description>
@@ -1029,13 +1215,19 @@
               id,
               name: templateName.trim(),
               description: templateDescription.trim() || null,
-              forEventType: editing?.eventType ?? null,
               publicName: $form.publicName.trim() || null,
+              cohortNoun: $form.cohortNoun.trim() || null,
               startTime: $form.startTime,
               // Mirror the snapshot's bilan gate, so the optimistic row matches
               // what the server actually stored.
               feedbackFormId: moduleActive('bilan')
                 ? $form.feedbackFormId || null
+                : null,
+              closingTemplateId: moduleActive('closings')
+                ? $form.closingTemplateId
+                : '',
+              diplomaTemplateId: moduleActive('inscrits')
+                ? $form.diplomaTemplateId || null
                 : null,
               modules: [...$form.modules] as EventModuleKey[],
               moduleSettings: { ...$form.moduleSettings },
@@ -1075,7 +1267,7 @@
           required
         />
         {#if overwritesExisting}
-          <p class="text-[11px] text-amber-600">
+          <p class="text-xs text-warning">
             Un modèle porte déjà ce nom : il sera mis à jour.
           </p>
         {/if}
@@ -1091,8 +1283,8 @@
           placeholder="Optionnel"
         />
       </div>
-      <div class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <Check class="h-3.5 w-3.5 text-epi-teal-solid" />
+      <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Check class="h-3.5 w-3.5 text-epi-tech-ink" />
         {$form.modules.length} module{$form.modules.length > 1 ? 's' : ''} dans ce
         modèle
       </div>
@@ -1104,11 +1296,7 @@
         >
           Annuler
         </Button>
-        <Button
-          type="submit"
-          disabled={savingTemplate}
-          class="bg-epi-pink text-white"
-        >
+        <Button type="submit" disabled={savingTemplate}>
           {savingTemplate ? 'Enregistrement…' : 'Enregistrer le modèle'}
         </Button>
       </Dialog.Footer>

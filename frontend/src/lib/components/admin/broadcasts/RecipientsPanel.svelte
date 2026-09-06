@@ -66,13 +66,11 @@
 
 <div class="rounded-sm border bg-card p-4">
   <div class="mb-2 flex items-center justify-between">
-    <h3
-      class="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-    >
+    <h3 class="flex items-center gap-1.5 epi-overline text-muted-foreground">
       <Users class="h-3.5 w-3.5" /> Destinataires
     </h3>
     {#if loading}
-      <span class="text-[10px] text-muted-foreground">…</span>
+      <span class="text-xs text-muted-foreground">…</span>
     {/if}
   </div>
 
@@ -86,14 +84,12 @@
   {:else}
     <div class="flex items-end justify-between gap-2">
       <div>
-        <p
-          class="font-heading text-4xl leading-none tracking-wide text-epi-blue"
-        >
+        <p class="font-heading text-display-xl text-epi-blue">
           {total}
         </p>
         <p class="mt-1 text-xs text-muted-foreground">
           recevront ce message{#if excluded.length > 0}
-            · <span class="text-epi-orange"
+            · <span class="text-epi-together"
               >{excluded.length} exclu{excluded.length > 1 ? 's' : ''}</span
             >{/if}
         </p>
@@ -138,12 +134,12 @@
                     {r.prenom}
                     {r.nom}
                   </p>
-                  <p class="truncate text-[11px] text-muted-foreground">
-                    {r.email ?? formatPhoneForDisplay(r.phone) ?? '—'}
+                  <p class="truncate text-xs text-muted-foreground">
+                    {r.email ?? formatPhoneForDisplay(r.phone) ?? '-'}
                   </p>
                 </div>
                 <span
-                  class="shrink-0 rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-muted-foreground uppercase"
+                  class="shrink-0 rounded-sm bg-muted px-1.5 py-0.5 epi-chip text-muted-foreground"
                 >
                   {RECIPIENT_ROLE_LABELS[r.role]}
                 </span>
@@ -151,7 +147,7 @@
             {/each}
           </ul>
           {#if hiddenIncluded > 0}
-            <p class="px-3 py-2 text-center text-[11px] text-muted-foreground">
+            <p class="px-3 py-2 text-center text-xs text-muted-foreground">
               + {hiddenIncluded} autre{hiddenIncluded > 1 ? 's' : ''} masqué{hiddenIncluded >
               1
                 ? 's'
@@ -173,10 +169,10 @@
       <Collapsible.Root
         open={showExcluded}
         onOpenChange={(o) => (showExcluded = o)}
-        class="mt-2 rounded-sm border border-epi-orange/30"
+        class="mt-2 rounded-sm border border-epi-together/30"
       >
         <Collapsible.Trigger
-          class="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-xs font-medium text-epi-orange hover:bg-epi-orange/5"
+          class="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-xs font-medium text-epi-together hover:bg-epi-together/5"
         >
           <span
             >{excluded.length} exclu{excluded.length > 1 ? 's' : ''} (non contactable{excluded.length >
@@ -204,7 +200,7 @@
           </ul>
           {#if hiddenExcluded > 0}
             <p
-              class="border-t px-3 py-2 text-center text-[11px] text-muted-foreground"
+              class="border-t px-3 py-2 text-center text-xs text-muted-foreground"
             >
               + {hiddenExcluded} autre{hiddenExcluded > 1 ? 's' : ''}. Voir le
               CSV pour la liste complète.
@@ -214,7 +210,7 @@
       </Collapsible.Root>
     {/if}
 
-    <p class="mt-2 text-[11px] text-muted-foreground">
+    <p class="mt-2 text-xs text-muted-foreground">
       Le CSV contient la liste complète et exacte de ce qui partira.
     </p>
   {/if}

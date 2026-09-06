@@ -26,7 +26,7 @@ export type FormAudience = 'public' | 'authenticated';
  * the source moved from JSON to the database.
  */
 
-export const FORM_GRAPH_INCLUDE = {
+const FORM_GRAPH_INCLUDE = {
   sections: { orderBy: { position: 'asc' } },
   questions: {
     orderBy: { position: 'asc' },
@@ -64,23 +64,18 @@ export function getFormGraphById(
 /** Minimal event shape the form resolver reads. */
 export type EventFormRef = {
   feedbackFormId: string | null;
-  eventType: string;
 };
 
 /**
- * The `findUnique` selector for the form an event uses: its explicit per-event
- * override (`feedbackFormId`) if set, else the form marked default for its type.
- * Both columns are unique, so either branch is a valid `WhereUniqueInput`. An
- * override that points nowhere can't happen (the FK is SetNull), so a null
- * override deterministically means "use the type default". Single-sourced here
- * so the graph and nudge resolvers below can't drift on which form they pick.
+ * The `findUnique` selector for the form an event uses: its explicit
+ * `feedbackFormId`, or `null` when the event names no form. Returning null lets
+ * the resolvers below short-circuit to "no form" without a query. Single-sourced
+ * here so the graph and nudge resolvers can't drift on which form they pick.
  */
 function eventFormWhere(
   event: EventFormRef,
-): Prisma.Feedback_FormWhereUniqueInput {
-  return event.feedbackFormId
-    ? { id: event.feedbackFormId }
-    : { defaultForEventType: event.eventType };
+): Prisma.Feedback_FormWhereUniqueInput | null {
+  return event.feedbackFormId ? { id: event.feedbackFormId } : null;
 }
 
 /**
@@ -88,11 +83,13 @@ function eventFormWhere(
  * to no form. Callers that only need scalar metadata should prefer a narrower
  * resolver (e.g. {@link resolveEventNudgeForm}) rather than load the graph.
  */
-export function resolveEventForm(
+function resolveEventForm(
   event: EventFormRef,
 ): Promise<FeedbackFormGraph | null> {
+  const where = eventFormWhere(event);
+  if (!where) return Promise.resolve(null);
   return prisma.feedback_Form.findUnique({
-    where: eventFormWhere(event),
+    where,
     include: FORM_GRAPH_INCLUDE,
   });
 }
@@ -131,7 +128,7 @@ export type EventNudgeForm = Prisma.Feedback_FormGetPayload<{
 
 /**
  * The dashboard-nudge form an event's talent still gets reminded about. Resolved
- * like {@link resolveEventForm} (override else type default) but selecting only
+ * like {@link resolveEventForm} (the event's `feedbackFormId`) but selecting only
  * the banner's scalar fields, not the full question graph the talent home never
  * reads. Returns null unless the form is a *live nudge*: published,
  * talent-answerable, and with the dashboard nudge on, so the banner can never
@@ -140,8 +137,10 @@ export type EventNudgeForm = Prisma.Feedback_FormGetPayload<{
 export async function resolveEventNudgeForm(
   event: EventFormRef,
 ): Promise<EventNudgeForm | null> {
+  const where = eventFormWhere(event);
+  if (!where) return null;
   const form = await prisma.feedback_Form.findUnique({
-    where: eventFormWhere(event),
+    where,
     select: NUDGE_FORM_SELECT,
   });
   return form &&

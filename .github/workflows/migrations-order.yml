@@ -1,10 +1,13 @@
 name: Migrations Order
 
+# No `paths:` filter, on purpose. This is a required check, and a required check
+# that does not report on every pull request leaves the merge waiting forever for
+# a status that will never arrive. The job below already exits early and green
+# when the diff carries no migration.
+
 on:
   pull_request:
     branches: [dev, staging]
-    paths:
-      - 'frontend/prisma/migrations/**'
 
 jobs:
   check-order:
@@ -29,7 +32,7 @@ jobs:
             | tail -1 || true)
 
           if [ -z "$latest_on_base" ]; then
-            echo "No existing migrations on origin/$BASE_REF — nothing to compare."
+            echo "No existing migrations on origin/$BASE_REF, nothing to compare."
             exit 0
           fi
           echo "Latest migration on origin/$BASE_REF: $latest_on_base"

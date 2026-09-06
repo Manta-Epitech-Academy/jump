@@ -11,6 +11,7 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
@@ -52,17 +53,16 @@
 </script>
 
 <svelte:head>
-  <title>Centres d'intérêt — Admin</title>
+  <title>Centres d'intérêt - Admin</title>
 </svelte:head>
 
 <div class="space-y-8">
   <div>
-    <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Centres d'<span class="text-epi-pink">intérêt</span>
-    </h1>
-    <p class="text-sm font-bold text-muted-foreground uppercase">
-      Intérêts proposés aux talents pendant l'onboarding.
-    </p>
+    <PageHeader
+      title="Centres d'"
+      accent="intérêt"
+      subtitle="Intérêts proposés aux talents pendant l'onboarding"
+    />
   </div>
 
   <!-- Tech interests -->
@@ -104,12 +104,13 @@
         >
           {#if interest.emoji}<span>{interest.emoji}</span>{/if}
           <span>{interest.nom}</span>
-          <span class="ml-1 text-[10px] text-muted-foreground">
+          <span class="ml-1 text-xs text-muted-foreground">
             ({interest._count.talentInterests})
           </span>
           <button
             type="button"
-            class="ml-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+            aria-label="Supprimer {interest.nom}"
+            class="ml-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
             onclick={(e: MouseEvent) => {
               e.stopPropagation();
               deleteId = interest.id;
@@ -130,7 +131,7 @@
   <div class="rounded-lg border bg-card">
     <div class="flex items-center justify-between border-b px-4 py-3">
       <div class="flex items-center gap-2">
-        <Sparkles class="h-4 w-4 text-epi-teal" />
+        <Sparkles class="h-4 w-4 text-epi-tech" />
         <h2 class="text-sm font-bold tracking-wide uppercase">
           Centres d'intérêt généraux
           <span class="ml-1 text-xs font-normal text-muted-foreground">
@@ -165,12 +166,13 @@
         >
           {#if interest.emoji}<span>{interest.emoji}</span>{/if}
           <span>{interest.nom}</span>
-          <span class="ml-1 text-[10px] text-muted-foreground">
+          <span class="ml-1 text-xs text-muted-foreground">
             ({interest._count.talentInterests})
           </span>
           <button
             type="button"
-            class="ml-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+            aria-label="Supprimer {interest.nom}"
+            class="ml-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
             onclick={(e: MouseEvent) => {
               e.stopPropagation();
               deleteId = interest.id;

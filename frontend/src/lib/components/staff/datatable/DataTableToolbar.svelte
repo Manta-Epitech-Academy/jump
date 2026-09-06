@@ -2,6 +2,7 @@
   import type { Snippet } from 'svelte';
   import Search from '@lucide/svelte/icons/search';
   import { Input } from '$lib/components/ui/input';
+  import { countFilterSuffix, countNounForm } from './countLabel';
 
   // Search box + filtered-count line + a slot for page-specific filter controls.
   // Debouncing is the caller's concern: the inscrits table filters in memory on
@@ -16,6 +17,7 @@
     countNoun = 'résultat',
     countNounPlural,
     countSuffix,
+    filtersApplied,
     filters,
     actions,
     countActions,
@@ -38,8 +40,22 @@
     count: number;
     countNoun?: string;
     countNounPlural?: string;
-    /** Trailing text after the noun, e.g. "correspondent aux filtres". */
+    /**
+     * Custom trailing text, for a page whose count line says something the
+     * standard sentence cannot: `/staff/admin/events` names the lifecycle window
+     * it is counting ("à venir"). Wins over `filtersApplied` when both are set.
+     */
     countSuffix?: string;
+    /**
+     * Whether any filter is currently narrowing the list. Set it and the toolbar
+     * composes its own trailing sentence, agreeing in number: "12 talents
+     * correspondent aux filtres", "1 talent correspond aux filtres", "124 talents
+     * au total". Seven pages used to derive that themselves, which is how one of
+     * them ended up pluralising a single result and another never said "au
+     * total". Leave it unset for a list with nothing to filter: the count then
+     * stands alone, as it did before.
+     */
+    filtersApplied?: boolean;
     /** Page-specific filter controls (segmented filters, selects…). */
     filters?: Snippet;
     /** Optional right-aligned actions on the filter row (e.g. export button). */
@@ -48,7 +64,11 @@
     countActions?: Snippet;
   } = $props();
 
-  const plural = $derived(countNounPlural ?? `${countNoun}s`);
+  const nounForm = $derived(countNounForm(count, countNoun, countNounPlural));
+  // `countSuffix` first (a page that knows better than the standard sentence).
+  const suffix = $derived(
+    countSuffix ?? countFilterSuffix(count, filtersApplied),
+  );
 </script>
 
 <div class="space-y-3">
@@ -84,7 +104,7 @@
   <div class="flex flex-wrap items-center gap-3">
     <p class="text-xs text-muted-foreground">
       <span class="font-bold text-foreground">{count}</span>
-      {count > 1 ? plural : countNoun}{#if countSuffix}&nbsp;{countSuffix}{/if}
+      {nounForm}{#if suffix}&nbsp;{suffix}{/if}
     </p>
     {#if countActions}
       {@render countActions()}

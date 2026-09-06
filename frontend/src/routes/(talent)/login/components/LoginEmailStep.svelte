@@ -27,7 +27,7 @@
   {#if errorMessage}
     <Alert
       variant="destructive"
-      class="mb-6 rounded-xl border-red-100 bg-red-50 text-red-800 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300"
+      class="mb-6 rounded-xl border-destructive/30 bg-destructive/10 text-destructive"
     >
       <CircleAlert class="h-4 w-4" />
       <AlertDescription class="text-xs font-medium">
@@ -39,7 +39,7 @@
   {#if $emailMessage && $emailMessage.type === 'error'}
     <Alert
       variant="destructive"
-      class="mb-6 rounded-xl border-red-100 bg-red-50 text-red-800 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300"
+      class="mb-6 rounded-xl border-destructive/30 bg-destructive/10 text-destructive"
     >
       <CircleAlert class="h-4 w-4" />
       <AlertDescription class="text-xs font-medium"
@@ -52,7 +52,7 @@
     <div class="space-y-2">
       <Label
         for="email"
-        class="pl-1 text-xs font-black text-slate-500 uppercase"
+        class="pl-1 text-xs font-bold text-muted-foreground uppercase"
         >Votre adresse email</Label
       >
       <Input
@@ -61,9 +61,10 @@
         type="email"
         placeholder="prenom.nom@email.com"
         bind:value={$emailForm.email}
-        class="h-12 rounded-xl border-slate-200 bg-slate-50/50 px-4 text-base focus-visible:ring-epi-blue dark:border-slate-800 dark:bg-slate-950/50"
+        class="h-12 rounded-xl border-border bg-background/50 px-4 text-base"
       />
-      {#if $emailErrors.email}<span class="pl-1 text-xs font-bold text-red-500"
+      {#if $emailErrors.email}<span
+          class="pl-1 text-xs font-bold text-destructive"
           >{$emailErrors.email}</span
         >{/if}
     </div>
@@ -71,7 +72,7 @@
     <Button
       type="submit"
       disabled={$emailDelayed}
-      class="h-12 w-full rounded-xl bg-epi-blue text-base font-bold text-white shadow-md transition-all hover:bg-epi-blue/90 active:scale-[0.98]"
+      class="h-12 w-full rounded-xl bg-epi-blue text-base font-bold text-white shadow-raised transition-ui hover:bg-epi-blue/90 active:scale-[0.98]"
     >
       {#if $emailDelayed}
         <Sparkles class="mr-2 h-4 w-4 animate-spin" /> Vérification...

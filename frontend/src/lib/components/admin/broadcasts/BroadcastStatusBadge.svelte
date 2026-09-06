@@ -6,8 +6,8 @@
   const TONE: Record<BroadcastStatus, string> = {
     queued: 'bg-muted text-muted-foreground',
     sending: 'bg-epi-blue/10 text-epi-blue',
-    sent: 'bg-epi-teal-solid/10 text-epi-teal-solid',
-    partial_failed: 'bg-epi-orange/10 text-epi-orange',
+    sent: 'bg-epi-tech-ink/10 text-epi-tech-ink',
+    partial_failed: 'bg-epi-together/10 text-epi-together',
     failed: 'bg-destructive/10 text-destructive',
   };
 </script>

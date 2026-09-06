@@ -1,14 +1,8 @@
-<script lang="ts" module>
-  export type PageHeroVariant = 'blue' | 'teal' | 'amber';
-</script>
-
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { cn } from '$lib/utils';
 
   type Props = {
-    /** Background flavour. Blue is the workspace default. */
-    variant?: PageHeroVariant;
     /** Vertical padding density. Compact for sub-pages, comfortable for top-level dashboards. */
     density?: 'compact' | 'comfortable';
     /** Extra classes appended to the outer wrapper. */
@@ -17,19 +11,10 @@
   };
 
   let {
-    variant = 'blue',
     density = 'comfortable',
     class: extraClass,
     children,
   }: Props = $props();
-
-  const variantClass = $derived(
-    variant === 'teal'
-      ? 'bg-epi-teal-solid'
-      : variant === 'amber'
-        ? 'bg-epi-orange'
-        : 'bg-epi-blue',
-  );
 
   const paddingClass = $derived(
     density === 'compact' ? 'px-6 py-6' : 'px-8 py-10',
@@ -38,20 +23,20 @@
 
 <div
   class={cn(
-    'relative overflow-hidden rounded-sm text-white shadow-md dark:shadow-none',
-    variantClass,
+    // Full-bleed brand blue: the charte's hero surface. There is no
+    // variant, and a neon or orange fill here would be a page-sized accent.
+    'on-dark relative overflow-hidden rounded-sm bg-epi-blue text-white',
     paddingClass,
     extraClass,
   )}
 >
   <!-- Blueprint grid texture (charte signature) -->
   <div
-    class="pointer-events-none absolute inset-0"
-    style="background-image: linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px); background-size: 40px 40px;"
+    class="pointer-events-none absolute inset-0 blueprint-grid-inverse"
     aria-hidden="true"
   ></div>
 
-  <!-- Pixel overlays — 50%-opacity squares, charte signature texture -->
+  <!-- Pixel overlays (50%-opacity squares, charte signature texture) -->
   <div
     class="pointer-events-none absolute top-4 right-4 hidden md:block"
     aria-hidden="true"

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { FORMER_STAFF_LABEL } from '$lib/domain/staff';
   import Upload from '@lucide/svelte/icons/upload';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Download from '@lucide/svelte/icons/download';
@@ -19,6 +20,8 @@
   import EmptyState from '$lib/components/EmptyState.svelte';
   import type { ColumnDef } from '$lib/components/staff/datatable/types';
   import { track, errReason, bucketBytes, daysBetween } from '$lib/analytics';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import { nextSort } from '$lib/components/staff/datatable/sort';
 
   let { data } = $props();
 
@@ -72,8 +75,11 @@
   let sortKey = $state<string | null>('createdAt');
   let sortDir = $state<'asc' | 'desc'>('desc');
 
+  // One label for the column and for the sort, so a file whose uploader has
+  // left the school reads the same in both places instead of sorting under an
+  // empty string.
   const uploaderLabel = (f: FileRow) =>
-    f.uploadedBy.user.name || f.uploadedBy.user.email || '';
+    f.uploadedBy?.user.name || f.uploadedBy?.user.email || FORMER_STAFF_LABEL;
 
   const filtered = $derived(
     data.files.filter((f) =>
@@ -103,11 +109,9 @@
   }
 
   function toggleSort(key: string) {
-    if (sortKey === key) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    else {
-      sortKey = key;
-      sortDir = 'asc';
-    }
+    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
+    sortKey = next.key;
+    sortDir = next.dir;
   }
 
   const columns: ColumnDef[] = [
@@ -125,12 +129,11 @@
 
 <div class="space-y-6">
   <div>
-    <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Fichiers <span class="text-epi-pink">Partagés</span>
-    </h1>
-    <p class="text-sm font-bold text-muted-foreground uppercase">
-      Espace de partage entre administrateurs
-    </p>
+    <PageHeader
+      title="Fichiers"
+      accent="Partagés"
+      subtitle="Espace de partage entre administrateurs"
+    />
   </div>
 
   <DataTableToolbar
@@ -139,6 +142,7 @@
     searchPlaceholder="Rechercher un fichier…"
     count={sorted.length}
     countNoun="fichier"
+    filtersApplied={searchQuery.trim().length > 0}
   >
     {#snippet actions()}
       <form
@@ -186,7 +190,6 @@
           type="button"
           size="sm"
           disabled={uploading}
-          class="bg-epi-pink text-white hover:bg-epi-pink/90"
           onclick={() => fileInput?.click()}
         >
           <Upload class="mr-2 h-4 w-4" />
@@ -216,7 +219,7 @@
         {formatSize(file.size)}
       </Table.Cell>
       <Table.Cell class="text-muted-foreground">
-        {file.uploadedBy.user.name || file.uploadedBy.user.email}
+        {uploaderLabel(file)}
       </Table.Cell>
       <Table.Cell class="text-xs text-muted-foreground">
         {formatDate(file.createdAt)}
@@ -251,7 +254,13 @@
                     };
                   }}
                 >
-                  <Button {...props} type="submit" variant="ghost" size="icon">
+                  <Button
+                    {...props}
+                    type="submit"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Télécharger le fichier"
+                  >
                     <Download class="h-4 w-4" />
                   </Button>
                 </form>

@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Refuse to push a branch whose name carries no issue number.
+#
+# Shape only, and no network call: a push has to stay instant and work offline.
+# Whether the issue actually exists, is structured, and predates the branch is the
+# `Work item` check's job in CI, and `bash scripts/check-work-item.sh` runs that
+# same code locally when you want it.
+#
+# git feeds us one line per ref being pushed:
+#   <local ref> <local sha> <remote ref> <remote sha>
+#
+# Escape hatch: `git push --no-verify`. That is git's own mechanism, so there is
+# nothing extra to learn here and nothing extra to maintain.
+set -eu
+
+ROOT=$(git rev-parse --show-toplevel)
+LIB="$ROOT/scripts/work-item-lib.sh"
+[ -f "$LIB" ] || exit 0   # older checkout without the convention: stay out of the way
+# shellcheck source=scripts/work-item-lib.sh
+. "$LIB"
+
+status=0
+
+while read -r local_ref local_sha _remote_ref _remote_sha; do
+  # A deletion sends an all-zero local sha. Nothing to name, nothing to check.
+  case "$local_sha" in
+    *[!0]*) ;;
+    *) continue ;;
+  esac
+
+  case "$local_ref" in
+    refs/heads/*) branch=${local_ref#refs/heads/} ;;
+    *) continue ;;   # tags and anything else are not work items
+  esac
+
+  work_item_is_protected "$branch" && continue
+  work_item_branch_ok "$branch" && continue
+
+  cat >&2 <<MSG
+
+Refusing to push '$branch': the branch name carries no issue number.
+
+  Expected   type/<issue>-slug, for example feat/248-dossier-annuel
+  Types      $(work_item_types_human)
+
+The issue comes first, and its number is what the whole pipeline is checked
+against (see .github/CONTRIBUTING.md, "The Protocol").
+
+  Start clean         scripts/start-work.sh --issue <n> --type feat --slug short-name
+  Already committed   git branch -m ${branch%%/*}/<issue>-slug
+  Genuinely no issue  git push --no-verify, then label the pull request 'no-issue'
+                      and say why under '## Process exception'
+
+MSG
+  status=1
+done
+
+exit "$status"

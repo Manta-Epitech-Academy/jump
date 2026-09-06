@@ -1,6 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { prisma } from '$lib/server/db';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   requireAdmin,
   duplicateQuestion,
@@ -10,6 +12,7 @@ import {
 // question in the same shape the editor `load` projects, so the client can
 // splice it into its local state without a full refetch.
 export const POST: RequestHandler = async ({ params, locals }) => {
+  recordUsage(USAGE_FEATURES.ADMIN_FEEDBACK_FORM_WRITE, { locals });
   requireAdmin(locals);
   const { id } = await duplicateQuestion(params.id, params.questionId);
 

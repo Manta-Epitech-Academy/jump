@@ -42,7 +42,7 @@
         class:border-error={!is404}
       >
         {#if is404}
-          <SearchX color="var(--epi-orange)" size={48} />
+          <SearchX color="var(--epi-together)" size={48} />
         {:else}
           <ServerCrash color="var(--error-color)" size={48} />
         {/if}
@@ -109,8 +109,10 @@
 </div>
 
 <style>
-  /* Import Fonts Directly */
-  @import url('https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans:wght@400;500;700&display=swap');
+  /* Anton and IBM Plex Sans are already self-hosted app-wide (`+layout.svelte`
+     imports them from @fontsource), so this screen needs no font import of its
+     own. It used to @import them from Google, which was both redundant and the
+     last remote font fetch left in the app. */
 
   /* Map the screen's local palette onto the app's theme tokens so it resolves
      correctly and follows light/dark, instead of the never-defined custom
@@ -187,7 +189,7 @@
   }
 
   .glow-404 {
-    background-color: var(--epi-orange);
+    background-color: var(--epi-together);
   }
   .glow-error {
     background-color: var(--error-color);
@@ -214,7 +216,7 @@
   }
 
   .border-404 {
-    border-color: var(--epi-orange);
+    border-color: var(--epi-together);
   }
   .border-error {
     border-color: var(--error-color);
@@ -234,10 +236,10 @@
     color: var(--epi-blue);
   }
   .text-orange {
-    color: var(--epi-orange);
+    color: var(--epi-together);
   }
   .text-teal {
-    color: var(--epi-teal);
+    color: var(--epi-tech);
   }
   .text-error {
     color: var(--error-color);

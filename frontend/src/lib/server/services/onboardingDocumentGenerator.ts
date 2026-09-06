@@ -1,11 +1,11 @@
 import ejs from 'ejs';
 import { renderMarkdown } from '$lib/markdown';
-import { withBrowser } from '../infra/browserPool';
+import { renderPdf } from '../infra/documentRenderer';
+import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import onboardingTemplate from '../templates/onboarding-document.html?raw';
-import reglementMd from '$lib/content/reglement-interieur.md?raw';
-import droitImageMd from '$lib/content/droit-image.md?raw';
-import droitImageRefusalMd from '$lib/content/droit-image-refusal.md?raw';
+import { reglementTextFor } from '$lib/content/reglement';
+import { droitImageDocumentFor } from '$lib/content/droit-image';
 import {
   ONBOARDING_DOCUMENTS,
   type OnboardingDocumentType,
@@ -30,31 +30,54 @@ function formatFr(d: Date): string {
   });
 }
 
-function buildImageRightsHtml(
-  decision: ImageRightsDecision,
-  signerName: string,
-  relationship: string,
-  studentName: string,
-  city: string,
-  formattedDate: string,
-): string {
-  const template = decision === 'refused' ? droitImageRefusalMd : droitImageMd;
+/**
+ * The droit-à-l'image document, filled in: the version's markdown with every
+ * placeholder substituted. Pure, exported and separated from the render so the
+ * substitution rules are testable without a browser, which is what they need to
+ * be: they are business rules about a signed document, not formatting.
+ *
+ * Every field a pre-ledger decision may be missing has a neutral fallback,
+ * because the worker now renders from the dossier and an admin retry reaches
+ * those rows. Of the 831 decisions in production at the time of writing, 114
+ * carry no signer name and 813 carry no relationship or place of signature: they
+ * predate the pipeline that captures them. Without the fallbacks those documents
+ * render "Mme/Mr ****" and "Fait à , le …".
+ */
+export function fillImageRightsDocument(fields: {
+  version: string | null | undefined;
+  decision: ImageRightsDecision;
+  signerName: string;
+  relationship: string;
+  studentName: string;
+  city: string;
+  schoolYear: string;
+  formattedDate: string;
+}): string {
+  // Pinned to the wording this decision committed to, not to the current text:
+  // the document is re-rendered on every change of mind and every staff
+  // correction, so reading the live text here would rewrite a decision already
+  // taken. A null version predates the column and resolves to the legacy text.
+  const template = droitImageDocumentFor(fields.version, fields.decision);
+  const namedSigner = fields.signerName.trim() || 'Responsable légal';
+  const relationship = fields.relationship.trim() || 'représentant légal';
   // Drop the place when it's unknown rather than rendering "Fait à , le …".
-  // City was never persisted before the decision ledger, so a regeneration of a
-  // pre-ledger document legitimately has no town to show.
-  const trimmedCity = city.trim();
-  const signatureLine = trimmedCity
-    ? `Fait à ${trimmedCity}, le ${formattedDate}`
-    : `Fait le ${formattedDate}`;
-  const filled = template
-    .replace('{{signerName}}', `**${signerName}**`)
-    .replace('{{relationship}}', `**${relationship}**`)
-    .replace('{{studentName}}', `**${studentName}**`)
-    .replace('{{signatureLine}}', signatureLine);
-  return renderMarkdown(filled);
+  const city = fields.city.trim();
+  const signatureLine = city
+    ? `Fait à ${city}, le ${fields.formattedDate}`
+    : `Fait le ${fields.formattedDate}`;
+  return (
+    template
+      .replace('{{signerName}}', `**${namedSigner}**`)
+      .replace('{{relationship}}', `**${relationship}**`)
+      .replace('{{studentName}}', `**${fields.studentName}**`)
+      // Only the versions written after the decision became annual name the year
+      // they cover; on an older one this replaces nothing, which is correct.
+      .replace('{{schoolYear}}', `**${fields.schoolYear}**`)
+      .replace('{{signatureLine}}', signatureLine)
+  );
 }
 
-/** Stagiaire's signature input for the shared règlement PDF. */
+/** Talent's signature input for the shared règlement PDF. */
 export type RulesTalentSignature = {
   city: string;
   signedAt: Date;
@@ -73,7 +96,7 @@ export async function generateOnboardingPDF(data: {
   studentName: string;
   /**
    * For `rules`: signature blocks to render at the foot of the PDF. The shared
-   * règlement artifact carries both signatures over time — the worker calls in
+   * règlement artifact carries both signatures over time: the worker calls in
    * here every time either signer commits, passing whichever blocks are set on
    * the talent row. A block missing from this object simply doesn't render.
    */
@@ -81,8 +104,29 @@ export async function generateOnboardingPDF(data: {
     talent?: RulesTalentSignature;
     parent?: RulesParentSignature;
   };
+  /**
+   * `rules` only: which version of the règlement the signature committed to,
+   * read off `Talent.reglementVersion`. The body is pinned to it rather than to
+   * the current wording, so a co-signature years later re-renders the text that
+   * was actually signed. Null resolves to the pre-versioning text.
+   */
+  reglementVersion?: string | null;
+  /**
+   * `image-rights` only: which version of the droit à l'image the decision
+   * committed to, read off the dossier. Same contract as `reglementVersion`, and
+   * needed for the same reason: this document is re-rendered from DB state, so
+   * without it a regeneration would put today's wording under a decision taken
+   * on another. Null resolves to the pre-versioning text.
+   */
+  droitImageVersion?: string | null;
   /** Required for `image-rights`: selects the authorization vs refusal wording. */
   decision?: ImageRightsDecision;
+  /**
+   * `image-rights` only: the school year the decision covers. Named in the
+   * document itself since the decision became annual, so a guardian reading a
+   * signed copy can tell which year they authorized.
+   */
+  schoolYear?: string;
   /** Image-rights only: guardian's name, relationship, city, and signature time. */
   signerName?: string;
   relationship?: string;
@@ -96,15 +140,19 @@ export async function generateOnboardingPDF(data: {
 
   let documentContent = '';
   if (data.type === 'rules') {
-    documentContent = renderMarkdown(reglementMd);
+    documentContent = renderMarkdown(reglementTextFor(data.reglementVersion));
   } else if (data.type === 'image-rights') {
-    documentContent = buildImageRightsHtml(
-      decision,
-      data.signerName ?? '',
-      data.relationship ?? 'représentant légal',
-      data.studentName,
-      data.city ?? '',
-      formatFr(data.signedAt ?? new Date()),
+    documentContent = renderMarkdown(
+      fillImageRightsDocument({
+        version: data.droitImageVersion,
+        decision,
+        signerName: data.signerName ?? '',
+        relationship: data.relationship ?? '',
+        studentName: data.studentName,
+        city: data.city ?? '',
+        schoolYear: data.schoolYear ?? '',
+        formattedDate: formatFr(data.signedAt ?? new Date()),
+      }),
     );
   }
 
@@ -137,6 +185,9 @@ export async function generateOnboardingPDF(data: {
     onboardingTemplate,
     {
       data: {
+        // Only the handwritten signature needs a webfont here; the body is set
+        // in a system sans on purpose.
+        fontFaces: fontFaceCss('dancingScript'),
         type: data.type,
         title,
         documentContent,
@@ -152,21 +203,12 @@ export async function generateOnboardingPDF(data: {
     { async: true },
   );
 
-  return withBrowser(async (browser) => {
-    const page = await browser.newPage();
-    try {
-      await page.setContent(htmlContent, { waitUntil: 'load' });
-      await page.evaluateHandle('document.fonts.ready');
-
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' },
-      });
-
-      return new Uint8Array(pdfBuffer) as Uint8Array<ArrayBuffer>;
-    } finally {
-      await page.close();
-    }
+  return renderPdf({
+    html: htmlContent,
+    page: { format: 'A4' },
+    // This is the one document that wants Puppeteer's margin box rather than its
+    // own @page rule: it is flowing prose, not a fixed-size canvas.
+    margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' },
+    preferCssPageSize: false,
   });
 }

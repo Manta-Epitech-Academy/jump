@@ -7,10 +7,9 @@
   import Send from '@lucide/svelte/icons/send';
   import Eye from '@lucide/svelte/icons/eye';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-  import History from '@lucide/svelte/icons/history';
   import CircleCheckBig from '@lucide/svelte/icons/circle-check-big';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import BroadcastStatusBadge from '$lib/components/admin/broadcasts/BroadcastStatusBadge.svelte';
@@ -24,7 +23,7 @@
   });
 
   function pct(v: number | null): string {
-    return v == null ? '—' : `${Math.round(v)} %`;
+    return v == null ? '-' : `${Math.round(v)} %`;
   }
 
   const th = 'text-xs uppercase';
@@ -55,18 +54,8 @@
   </Button>
 {/snippet}
 
-{#snippet relanceMeta()}
-  <Button
-    variant="ghost"
-    size="sm"
-    href={resolve('/staff/admin/communication/relances')}
-  >
-    Voir tout <ArrowRight class="ml-1 h-3.5 w-3.5" />
-  </Button>
-{/snippet}
-
 <div class="space-y-6">
-  <AdminPageHeader
+  <PageHeader
     title="Communication"
     accent="globale"
     subtitle="Tous les envois sortants, en un coup d'œil"
@@ -98,14 +87,6 @@
       icon={TriangleAlert}
       tone="orange"
     />
-    <KpiTile
-      label="Relances"
-      value={data.relances.total}
-      sub="30 derniers jours"
-      icon={History}
-      tone="pink"
-      href={resolve('/staff/admin/communication/relances')}
-    />
   </div>
 
   <!-- Transactional health -->
@@ -117,9 +98,9 @@
   >
     {#if data.transactional.healthy}
       <div
-        class="mb-4 flex items-start gap-3 rounded-sm border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-900 dark:text-emerald-200"
+        class="mb-4 flex items-start gap-3 rounded-sm border border-success/40 bg-success/10 p-3 text-sm text-success"
       >
-        <CircleCheckBig class="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+        <CircleCheckBig class="mt-0.5 h-5 w-5 shrink-0 text-success" />
         <p>Toutes les actions sont reliées à un template.</p>
       </div>
     {:else}
@@ -132,7 +113,7 @@
           <strong>{data.transactional.missingCount}</strong> action{data
             .transactional.missingCount > 1
             ? 's'
-            : ''} sans template — ces emails ne partent pas (login OTP inclus).
+            : ''} sans template : ces emails ne partent pas (login OTP inclus).
         </p>
       </div>
     {/if}
@@ -145,7 +126,7 @@
             <span
               class="flex shrink-0 items-center gap-1.5 text-muted-foreground"
             >
-              <CircleCheckBig class="h-3.5 w-3.5 text-epi-teal-solid" />
+              <CircleCheckBig class="h-3.5 w-3.5 text-epi-tech-ink" />
               <span class="max-w-48 truncate text-xs">{a.templateName}</span>
             </span>
           {:else}
@@ -209,60 +190,5 @@
         </Table.Root>
       </div>
     {/if}
-  </EpiSection>
-
-  <!-- Relances (read-only mirror) -->
-  <EpiSection
-    overline="Onboarding"
-    title="Relances"
-    accent="tomorrow"
-    meta={relanceMeta}
-  >
-    <p class="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
-      <History class="h-3.5 w-3.5" />
-      Composées depuis l'espace Dev ; vue consolidée en lecture seule.
-    </p>
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      <div class="rounded-sm border bg-muted/30 p-3">
-        <p
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Total (30j)
-        </p>
-        <p class="text-2xl font-black">{data.relances.total}</p>
-      </div>
-      <div class="rounded-sm border bg-muted/30 p-3">
-        <p
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Email / SMS
-        </p>
-        <p class="text-2xl font-black">
-          {data.relances.byChannel.email}<span class="text-muted-foreground"
-            >/{data.relances.byChannel.sms}</span
-          >
-        </p>
-      </div>
-      <div class="rounded-sm border bg-muted/30 p-3">
-        <p
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Étudiant / Parent
-        </p>
-        <p class="text-2xl font-black">
-          {data.relances.byType.student}<span class="text-muted-foreground"
-            >/{data.relances.byType.parent}</span
-          >
-        </p>
-      </div>
-      <div class="rounded-sm border bg-muted/30 p-3">
-        <p
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Talents touchés
-        </p>
-        <p class="text-2xl font-black">{data.relances.uniqueTalents}</p>
-      </div>
-    </div>
   </EpiSection>
 </div>

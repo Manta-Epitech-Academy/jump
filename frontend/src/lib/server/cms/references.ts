@@ -17,7 +17,7 @@ import { getStorage } from '$lib/server/infra/storage';
 const IMAGE_URL_RE = /\/api\/cms\/images\/([a-z0-9]+)/gi;
 
 /** Ids of every CMS image the given HTML embeds (deduplicated). */
-export function extractCmsImageIds(html: string): string[] {
+function extractCmsImageIds(html: string): string[] {
   const ids = new Set<string>();
   for (const match of html.matchAll(IMAGE_URL_RE)) ids.add(match[1]);
   return [...ids];

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { STAFF_GROUPS } from '$lib/domain/permissions';
+import { INVITABLE_STAFF_ROLES } from '$lib/domain/permissions';
 
 const epitechEmail = z
   .email('Adresse email invalide')
@@ -7,13 +7,7 @@ const epitechEmail = z
     message: 'Doit être une adresse @epitech.eu',
   });
 
-const invitableRoles = STAFF_GROUPS.campusManageable;
-
-export const createInvitationSchema = z.object({
-  email: epitechEmail,
-  campusId: z.string().min(1, 'Campus requis'),
-  staffRole: z.enum(invitableRoles).default('superdev'),
-});
+const invitableRoles = INVITABLE_STAFF_ROLES;
 
 export const createAdminInvitationSchema = z
   .object({
@@ -25,21 +19,3 @@ export const createAdminInvitationSchema = z
     message: 'Campus requis',
     path: ['campusId'],
   });
-
-export type CreateInvitationInput = z.infer<typeof createInvitationSchema>;
-
-export const createSuperDevInvitationSchema = z.object({
-  email: epitechEmail,
-  staffRole: z.enum(invitableRoles).default('manta'),
-});
-
-export type CreateSuperDevInvitationInput = z.infer<
-  typeof createSuperDevInvitationSchema
->;
-
-export const updateMemberRoleSchema = z.object({
-  userId: z.string().min(1),
-  staffRole: z.enum(invitableRoles),
-});
-
-export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;

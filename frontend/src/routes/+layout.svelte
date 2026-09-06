@@ -1,7 +1,7 @@
 <script lang="ts">
   import '@fontsource/anton';
   import '@fontsource-variable/ibm-plex-sans';
-  // Space Mono — `font-mono` accents (overlines, dates, code blocks). Per
+  // Space Mono: `font-mono` accents (overlines, dates, code blocks). Per
   // the charte, mono is the third brand family alongside Anton + IBM Plex
   // Sans, used to keep the "typed terminal" voice on tech surfaces.
   import '@fontsource/space-mono/400.css';
@@ -53,12 +53,12 @@
 
   // Functional distinct_id is the StaffProfile.id / Talent.id (cuid, stable
   // across sessions, decoupled from auth provider). Properties shape per
-  // product spec: account_type, role (staff role only — null for talents),
+  // product spec: account_type, role (staff role only, null for talents),
   // campus name, email.
   //
   // Impersonation: when an admin uses login-as, BetterAuth swaps the active
   // session to the target user. Without special handling, every analytics
-  // event during the impersonation would be attributed to the target — admin
+  // event during the impersonation would be attributed to the target: admin
   // debug clicks polluting the user's funnels and replays. Instead, we
   // identify as the real admin and tag the target via `impersonating_target_id`
   // so admin-driven sessions stay filterable from genuine user behavior.
@@ -101,7 +101,7 @@
           account_type: 'talent',
           role: null,
           campus: page.data.talentCampusName ?? null,
-          // RGPD: talents can be minors — never ship their email to Umami.
+          // RGPD: talents can be minors, never ship their email to Umami.
           email: null,
         },
       };
@@ -121,7 +121,10 @@
   <link rel="icon" href={dev ? faviconDev : faviconProd} />
 </svelte:head>
 
-<ModeWatcher />
+<!-- The FOUC-prevention script it would inject here carries no nonce and
+     `kit.csp` blocks it; `src/app.html` emits a nonce-carrying copy instead
+     (see `THEME_INIT` in hooks.server.ts, issue #277). -->
+<ModeWatcher disableHeadScriptInjection />
 <Umami />
 <ImpersonationAutoExit />
 

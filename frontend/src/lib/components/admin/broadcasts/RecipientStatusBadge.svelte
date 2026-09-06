@@ -3,7 +3,7 @@
 
   const TONE: Record<BroadcastRecipientStatus, string> = {
     pending: 'bg-muted text-muted-foreground',
-    sent: 'bg-epi-teal-solid/10 text-epi-teal-solid',
+    sent: 'bg-epi-tech-ink/10 text-epi-tech-ink',
     failed: 'bg-destructive/10 text-destructive',
   };
 </script>

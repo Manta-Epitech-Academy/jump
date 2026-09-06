@@ -7,8 +7,7 @@
   let { text, forId, info }: { text: string; forId?: string; info?: string } =
     $props();
 
-  const cls =
-    'font-mono text-[10px] font-medium tracking-[0.14em] text-muted-foreground uppercase';
+  const cls = 'epi-overline text-muted-foreground';
 </script>
 
 <div class="flex items-center gap-1.5">

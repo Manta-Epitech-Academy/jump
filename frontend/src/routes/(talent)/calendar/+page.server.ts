@@ -22,35 +22,16 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
           titre: true,
           date: true,
           endDate: true,
-          planning: {
+          planningSlots: {
+            where: { activityType: { not: 'orga' } },
             select: {
-              timeSlots: {
-                where: { activity: { activityType: { not: 'orga' } } },
-                select: {
-                  id: true,
-                  startTime: true,
-                  endTime: true,
-                  activity: {
-                    select: {
-                      id: true,
-                      nom: true,
-                      description: true,
-                      activityType: true,
-                      difficulte: true,
-                      isDynamic: true,
-                      // Read by the openability rule; collapsed into a single
-                      // `openable` flag in toCalendarPlanning so the body HTML
-                      // never reaches the client.
-                      content: true,
-                      link: true,
-                      subjectVersionId: true,
-                      contentStructure: true,
-                    },
-                  },
-                },
-                orderBy: { startTime: 'asc' },
-              },
+              id: true,
+              startTime: true,
+              endTime: true,
+              nom: true,
+              activityType: true,
             },
+            orderBy: { startTime: 'asc' },
           },
         },
       },

@@ -2,16 +2,19 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
+import { prisma } from '$lib/server/db';
 import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
+import { recomputeEventsCount } from '$lib/server/services/xpService';
 import {
   loadEventOr404,
   requireEventModule,
 } from '$lib/server/services/stageContext';
 import { requireStaffGroup } from '$lib/server/auth/guards';
+import { cohortNounForms } from '$lib/domain/event';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import {
   presenceSlots,
@@ -36,6 +39,9 @@ import {
   closeSlotSchema,
   reopenSlotSchema,
 } from '$lib/validation/presence';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   PRESENCE_ROSTER_SELECT,
   type PresenceRow,
@@ -84,7 +90,13 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   const cohort: Promise<EmargementCohort> = (async () => {
     const [participations, presenceRows] = await Promise.all([
       db.participation.findMany({
-        where: { eventId: event.id },
+        // Only visible SF statuses (READY, MEET) plus legacy null rows: the
+        // émargement roster mirrors the inscrits filter - CONNECTED/DESISTED
+        // members never appear. For a past event, a READY member with no
+        // EventPresence row reads as absent in every closed slot
+        // (effectiveStatus projects pending → absent): "said they would come,
+        // did not."
+        where: { eventId: event.id, ...visibleParticipationWhere },
         select: PRESENCE_ROSTER_SELECT,
         orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
       }),
@@ -102,35 +114,15 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 
     const rows: PresenceRow[] = participations.map((p) => {
       const t = p.talent;
-      // Both guardians in priority order; drop any with no contact info at all so
-      // the dialog never shows an empty "Responsable légal".
-      const guardians = [
-        {
-          civilite: t.parentCivilite,
-          name: [t.parentPrenom, t.parentNom].filter(Boolean).join(' ') || null,
-          email: t.parentEmail,
-          phone: t.parentPhone,
-        },
-        {
-          civilite: t.parent2Civilite,
-          name:
-            [t.parent2Prenom, t.parent2Nom].filter(Boolean).join(' ') || null,
-          email: t.parent2Email,
-          phone: t.parent2Phone,
-        },
-      ].filter((g) => g.name || g.phone || g.email);
 
       return {
         talentId: p.talentId,
+        sfMemberStatus: p.sfMemberStatus,
         nom: t.nom,
         prenom: t.prenom,
-        civilite: t.civilite,
-        // Prefer the login email (authoritative) over the imported SF address.
-        email: t.user?.email ?? t.email,
-        phone: t.phone,
         noteCount: t._count.notes,
         // The distinct créneaux this talent carries a note for, from each note's
-        // stored anchor (notes without one — fiche notes — never light a trigger).
+        // stored anchor (notes without one, fiche notes, never light a trigger).
         noteSlotKeys: [
           ...new Set(
             t.notes
@@ -140,7 +132,6 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
               ),
           ),
         ],
-        guardians,
       };
     });
 
@@ -154,9 +145,11 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 
     // Stage attendance rate over the whole grid: project every unmarked cell in a
     // CLOSED créneau to absent (open créneaux stay pending and are ignored).
+    // For single-slot events with no manual Jump mark, SF MEET status falls back to present.
     const storedStatus = new Map(
       presences.map((p) => [`${p.talentId}|${p.day}|${p.slot}`, p.status]),
     );
+    const isSingleDayEvent = slots.length <= 2;
     const effective: CellStatus[] = [];
     for (const s of slots) {
       const closed = closedSet.has(s.key);
@@ -165,6 +158,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
           effectiveStatus(
             storedStatus.get(`${r.talentId}|${s.day}|${s.slot}`) ?? 'pending',
             closed,
+            { sfMemberStatus: r.sfMemberStatus, isSingleDayEvent },
           ),
         );
       }
@@ -175,7 +169,12 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   })();
 
   return {
-    event: { id: event.id, titre: event.titre, publicName: event.publicName },
+    event: {
+      id: event.id,
+      titre: event.titre,
+      publicName: event.publicName,
+      cohortNoun: event.cohortNoun,
+    },
     timezone,
     slots,
     todayKey: toDateKey(now, timezone),
@@ -209,36 +208,57 @@ export const actions: Actions = {
     const campusId = getCampusId(locals);
     const event = await loadEventOr404(params.id, campusId);
     requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+    // Campus authorization for the write lands here: `loadEventOr404` scoped the
+    // event and `assertEnrolled` the talent's participation, so the raw-client
+    // write below is safe (same shape as xpService's ledger callers).
     await assertEnrolled(campusId, event.id, form.data.talentId);
-    const db = scopedPrisma(campusId);
 
     const day = dateKeyToDbDate(form.data.day);
     const { talentId, slot, status } = form.data;
 
-    if (status === 'pending') {
-      // Reset the cell back to "en attente": drop the row entirely.
-      await db.eventPresence.deleteMany({
-        where: { talentId, eventId: event.id, day, slot },
-      });
-      return message(form, 'Présence réinitialisée.');
-    }
-
-    const common = {
-      status,
-      source: 'manual' as const,
-      markedById: locals.staffProfile.id,
-      markedAt: new Date(),
-    };
-
-    await db.eventPresence.upsert({
-      where: {
-        talentId_eventId_day_slot: { talentId, eventId: event.id, day, slot },
-      },
-      create: { talentId, eventId: event.id, day, slot, ...common },
-      update: common,
+    // The presence write and the `eventsCount` projection commit together: a
+    // mark/unmark can change whether this event counts as attended, so refresh
+    // the cached count in the same transaction.
+    await prisma.$transaction(async (tx) => {
+      if (status === 'pending') {
+        // Reset the cell back to "en attente": drop the row entirely.
+        await tx.eventPresence.deleteMany({
+          where: { talentId, eventId: event.id, day, slot },
+        });
+      } else {
+        const common = {
+          status,
+          source: 'manual' as const,
+          markedById: locals.staffProfile.id,
+          markedAt: new Date(),
+        };
+        await tx.eventPresence.upsert({
+          where: {
+            talentId_eventId_day_slot: {
+              talentId,
+              eventId: event.id,
+              day,
+              slot,
+            },
+          },
+          create: { talentId, eventId: event.id, day, slot, ...common },
+          update: common,
+        });
+      }
+      await recomputeEventsCount(tx, talentId);
     });
 
-    return message(form, 'Présence enregistrée.');
+    recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_MARK, {
+      locals,
+      eventId: event.id,
+    });
+
+    return message(
+      form,
+      status === 'pending'
+        ? 'Présence réinitialisée.'
+        : 'Présence enregistrée.',
+    );
   },
 
   markAllPresent: async ({ request, locals, params }) => {
@@ -266,9 +286,14 @@ export const actions: Actions = {
       );
     }
 
+    recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_MARK_ALL, {
+      locals,
+      eventId: event.id,
+    });
+
     return message(
       form,
-      'Stagiaires sans présence enregistrée marqués présents.',
+      `${cohortNounForms(event.cohortNoun).Plural} sans présence enregistrée marqués présents.`,
     );
   },
 
@@ -288,6 +313,11 @@ export const actions: Actions = {
       locals.staffProfile.id,
     );
 
+    recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_SLOT_CLOSE, {
+      locals,
+      eventId: event.id,
+    });
+
     return message(form, 'Créneau clôturé.');
   },
 
@@ -305,6 +335,11 @@ export const actions: Actions = {
       dateKeyToDbDate(form.data.day),
       form.data.slot,
     );
+
+    recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_SLOT_REOPEN, {
+      locals,
+      eventId: event.id,
+    });
 
     return message(form, 'Créneau rouvert.');
   },

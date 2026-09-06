@@ -2,20 +2,29 @@
   import Camera from '@lucide/svelte/icons/camera';
   import CheckCircle from '@lucide/svelte/icons/check-circle';
   import { renderMarkdown } from '$lib/markdown';
-  import droitImageBodyMd from '$lib/content/droit-image-body.md?raw';
-  import droitImageRefusalBodyMd from '$lib/content/droit-image-refusal-body.md?raw';
+  import {
+    CURRENT_DROIT_IMAGE_VERSION,
+    droitImageClausesFor,
+  } from '$lib/content/droit-image';
   import { fly } from 'svelte/transition';
   import ParentFlowShell from '$lib/components/parent/ParentFlowShell.svelte';
   import ChildSignForm from './ChildSignForm.svelte';
 
-  const droitImageBody = renderMarkdown(droitImageBodyMd);
-  const droitImageRefusalBody = renderMarkdown(droitImageRefusalBodyMd);
+  // The clauses of the document about to be signed, taken FROM that document
+  // rather than hand-copied beside it. A decision taken now commits to the
+  // current version, so that is the wording shown.
+  const droitImageBody = renderMarkdown(
+    droitImageClausesFor(CURRENT_DROIT_IMAGE_VERSION, 'accepted'),
+  );
+  const droitImageRefusalBody = renderMarkdown(
+    droitImageClausesFor(CURRENT_DROIT_IMAGE_VERSION, 'refused'),
+  );
 
   let { data, form } = $props();
 </script>
 
 <svelte:head>
-  <title>Droit à l'image — Espace Parent</title>
+  <title>Droit à l'image - Espace Parent</title>
 </svelte:head>
 
 <ParentFlowShell>
@@ -25,13 +34,11 @@
       <!-- Header -->
       <div class="mb-6 text-center">
         <div
-          class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
+          class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-epi-blue text-white shadow-raised"
         >
           <Camera class="h-7 w-7" />
         </div>
-        <h1
-          class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
-        >
+        <h1 class="font-heading text-display-m text-epi-blue">
           Droit à l'image
         </h1>
       </div>
@@ -40,12 +47,10 @@
       {#if form?.success}
         <div
           in:fly={{ y: -10, duration: 300 }}
-          class="mb-4 flex items-center gap-3 rounded-xl border border-green-200/60 bg-green-50/80 px-4 py-3 dark:border-green-800/50 dark:bg-green-900/30"
+          class="mb-4 flex items-center gap-3 rounded-xl border border-success/40 bg-success/10 px-4 py-3"
         >
-          <CheckCircle
-            class="h-5 w-5 shrink-0 text-green-600 dark:text-green-400"
-          />
-          <p class="text-sm text-green-700 dark:text-green-300">
+          <CheckCircle class="h-5 w-5 shrink-0 text-success" />
+          <p class="text-sm text-success">
             {#if form.decision === 'refused'}
               Le refus pour <strong>{form.success}</strong> a bien été enregistré.
             {:else}
@@ -59,7 +64,7 @@
       <!-- Global error -->
       {#if form?.error && !form?.talentId}
         <p
-          class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
+          class="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-center text-sm text-destructive"
         >
           {form.error}
         </p>

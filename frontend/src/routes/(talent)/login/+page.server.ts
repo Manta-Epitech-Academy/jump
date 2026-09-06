@@ -8,6 +8,7 @@ import { auth } from '$lib/server/auth';
 import { forwardAuthCookies } from '$lib/server/auth/cookies';
 import { checkRateLimit, recordAttempt } from '$lib/server/auth/rateLimiter';
 import { prisma } from '$lib/server/db';
+import { resolveOtpIdentity } from '$lib/server/auth/otpAudience';
 import { ensureTalentUser } from '$lib/server/services/talentAccount';
 import {
   captureRedirectCookie,
@@ -75,24 +76,42 @@ export const actions: Actions = {
     }
 
     try {
-      // Check if this email belongs to a talent or a parent
-      const talent = await prisma.talent.findUnique({
-        where: { email: normalizedEmail },
-        select: { id: true },
-      });
+      // Route by the login identity (bauth_user): the single source of truth.
+      // Every talent has an account from import (eager mint); a talent whose
+      // mint hit a conflict has no account and correctly can't sign in until an
+      // admin resolves it. `resolveOtpIdentity` is the same function
+      // `emailOtpAudienceGate` refuses on, so this page and the BetterAuth
+      // routes underneath it cannot disagree about who may use this door - the
+      // gap between the two is what left staff accounts reachable by OTP.
+      const identity = await resolveOtpIdentity(normalizedEmail);
 
-      let userKind: 'talent' | 'parent' = 'talent';
+      if (!identity) {
+        return message(
+          emailForm,
+          {
+            type: 'error',
+            text: 'Aucun compte trouvé avec cette adresse email.',
+          },
+          { status: 404 },
+        );
+      }
 
-      if (talent) {
-        await ensureTalentUser(talent.id);
-      } else {
-        const parentUser = await prisma.bauth_user.findUnique({
-          where: { email: normalizedEmail },
+      const userKind = identity.audience;
+
+      if (identity.audience === 'talent') {
+        const userId = await ensureTalentUser(identity.talentId);
+        // ensureTalentUser may have just realigned the login email to SF's
+        // current claim, meaning the address the student typed is one SF has
+        // disowned. BetterAuth's OTP send silently succeeds for an email that
+        // matches no account (anti-enumeration + disableSignUp), so without
+        // this re-check the student would see "Code envoyé" and never receive
+        // a code. Answer what the next sync pass would have made true anyway:
+        // no account under that address.
+        const account = await prisma.bauth_user.findUnique({
+          where: { id: userId },
+          select: { email: true },
         });
-
-        if (parentUser?.role === 'parent') {
-          userKind = 'parent';
-        } else {
+        if (account && account.email.toLowerCase().trim() !== normalizedEmail) {
           return message(
             emailForm,
             {

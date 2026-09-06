@@ -25,6 +25,7 @@
     type SelectOption,
   } from '$lib/components/staff/SearchableSelect.svelte';
   import { cn } from '$lib/utils';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -34,17 +35,15 @@
   > = {
     easy: {
       label: 'Facile',
-      class:
-        'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+      class: 'bg-success/10 text-success',
     },
     medium: {
       label: 'Moyen',
-      class:
-        'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+      class: 'bg-warning/10 text-warning',
     },
     hard: {
       label: 'Difficile',
-      class: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
+      class: 'bg-destructive/10 text-destructive',
     },
   };
 
@@ -132,48 +131,44 @@
   );
 
   function formatChrono(ms: number | null): string {
-    return ms === null ? '—' : `${(ms / 1000).toFixed(1)}s`;
+    return ms === null ? '-' : `${(ms / 1000).toFixed(1)}s`;
   }
   function formatScore(s: number | null): string {
-    return s === null ? '—' : Math.round(s).toString();
+    return s === null ? '-' : Math.round(s).toString();
   }
 </script>
 
 <svelte:head>
-  <title>Mini-jeux — Admin</title>
+  <title>Mini-jeux : Admin</title>
 </svelte:head>
 
 <div class="space-y-8">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Mini-<span class="text-epi-pink">jeux</span>
-      </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
-        Rotation et publications du jeu du jour
-      </p>
-    </div>
-    {#if data.active}
-      <div class="rounded-sm border bg-card px-4 py-2 text-right">
-        <div
-          class="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
-        >
-          Publication active
+  <PageHeader
+    title="Mini-"
+    accent="jeux"
+    subtitle="Rotation et publications du jeu du jour"
+  >
+    {#snippet actions()}
+      {#if data.active}
+        <div class="rounded-sm border bg-card px-4 py-2 text-right">
+          <div class="epi-overline font-bold text-muted-foreground">
+            Publication active
+          </div>
+          <div class="text-sm font-bold">
+            {data.active.gameName} · niveau {data.active.level}
+          </div>
         </div>
-        <div class="text-sm font-bold">
-          {data.active.gameName} · niveau {data.active.level}
-        </div>
-      </div>
-    {:else}
-      <Badge variant="outline">Aucune publication active</Badge>
-    {/if}
-  </div>
+      {:else}
+        <Badge variant="outline">Aucune publication active</Badge>
+      {/if}
+    {/snippet}
+  </PageHeader>
 
   {#if !data.catalogAvailable}
     <div
-      class="flex items-start gap-3 rounded-sm border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/40"
+      class="flex items-start gap-3 rounded-sm border border-warning/30 bg-warning/10 p-4 text-sm"
     >
-      <TriangleAlert class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+      <TriangleAlert class="mt-0.5 h-5 w-5 shrink-0 text-warning" />
       <div>
         <p class="font-bold">Catalogue des jeux indisponible</p>
         <p class="text-muted-foreground">
@@ -202,7 +197,7 @@
           <div
             class={cn(
               'flex flex-col gap-3 rounded-sm border bg-card p-4 transition-colors',
-              g.enabled ? 'border-epi-pink/40' : 'opacity-80',
+              g.enabled ? 'border-epi-tomorrow/40' : 'opacity-80',
             )}
           >
             <div class="flex items-start justify-between gap-2">
@@ -211,13 +206,13 @@
                 <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
                   <span
                     class={cn(
-                      'rounded-full px-2 py-0.5 text-[10px] font-black uppercase',
+                      'rounded-full px-2 py-0.5 epi-chip font-bold',
                       DIFFICULTY[g.difficulty].class,
                     )}
                   >
                     {DIFFICULTY[g.difficulty].label}
                   </span>
-                  <Badge variant="outline" class="gap-1 text-[10px]">
+                  <Badge variant="outline" class="gap-1 text-xs">
                     {#if g.scoringType === 'score'}
                       <Trophy class="h-3 w-3" /> Score
                     {:else}
@@ -261,15 +256,13 @@
     {/if}
 
     {#if data.orphans.length > 0}
-      <div
-        class="rounded-sm border border-amber-300 bg-amber-50/60 p-4 dark:border-amber-900 dark:bg-amber-950/30"
-      >
+      <div class="rounded-sm border border-warning/30 bg-warning/10 p-4">
         <p class="mb-2 flex items-center gap-2 text-sm font-bold">
-          <TriangleAlert class="h-4 w-4 text-amber-600" /> Jeux absents du catalogue
+          <TriangleAlert class="h-4 w-4 text-warning" /> Jeux absents du catalogue
         </p>
         <p class="mb-3 text-xs text-muted-foreground">
           Ces réglages pointent vers des jeux qui ne sont plus exposés par
-          <code>jump-games</code>. Ils ne peuvent plus tourner — tu peux les
+          <code>jump-games</code>. Ils ne peuvent plus tourner, tu peux les
           retirer.
         </p>
         <div class="space-y-2">
@@ -292,6 +285,7 @@
                   variant="ghost"
                   size="icon"
                   class="text-destructive"
+                  aria-label="Retirer ce jeu de la rotation"
                 >
                   <Trash2 class="h-4 w-4" />
                 </Button>
@@ -352,16 +346,12 @@
             </Button>
           </div>
           {#if forceGame}
-            <p class="text-[11px] text-muted-foreground">
-              1–{forceGame.levelCount}
+            <p class="text-xs text-muted-foreground">
+              1-{forceGame.levelCount}
             </p>
           {/if}
         </div>
-        <Button
-          type="submit"
-          disabled={$forceDelayed || !forceGame}
-          class="bg-epi-pink text-white"
-        >
+        <Button type="submit" disabled={$forceDelayed || !forceGame}>
           {$forceDelayed ? '...' : 'Publier'}
         </Button>
       </div>
@@ -411,16 +401,12 @@
             bind:value={testLevel}
           />
           {#if testMeta}
-            <p class="text-[11px] text-muted-foreground">
-              1–{testMeta.levelCount}
+            <p class="text-xs text-muted-foreground">
+              1-{testMeta.levelCount}
             </p>
           {/if}
         </div>
-        <Button
-          href={testHref || undefined}
-          disabled={!testHref}
-          class="bg-epi-pink text-white"
-        >
+        <Button href={testHref || undefined} disabled={!testHref}>
           Tester
         </Button>
       </div>
@@ -430,7 +416,7 @@
   <!-- ── Historique ── -->
   <section class="space-y-3">
     <h2 class="text-lg font-bold uppercase">Historique des publications</h2>
-    <div class="rounded-sm border bg-card shadow-sm">
+    <div class="rounded-sm border bg-card shadow-raised">
       <Table.Root>
         <Table.Header>
           <Table.Row>
@@ -458,13 +444,11 @@
                   <Badge variant="secondary">Cron</Badge>
                 {/if}
               </Table.Cell>
-              <Table.Cell class="text-right tabular-nums"
-                >{p.attemptsCount}</Table.Cell
-              >
-              <Table.Cell class="text-right tabular-nums">
-                {p.scoringType === 'score' ? formatScore(p.avgScore) : '—'}
+              <Table.Cell class="text-right">{p.attemptsCount}</Table.Cell>
+              <Table.Cell class="text-right">
+                {p.scoringType === 'score' ? formatScore(p.avgScore) : '-'}
               </Table.Cell>
-              <Table.Cell class="text-right tabular-nums"
+              <Table.Cell class="text-right"
                 >{formatChrono(p.avgChrono)}</Table.Cell
               >
             </Table.Row>
@@ -529,11 +513,7 @@
         </div>
 
         <Dialog.Footer>
-          <Button
-            type="submit"
-            disabled={$configDelayed}
-            class="bg-epi-pink text-white"
-          >
+          <Button type="submit" disabled={$configDelayed}>
             {$configDelayed ? 'Sauvegarde...' : 'Enregistrer'}
           </Button>
         </Dialog.Footer>

@@ -7,6 +7,7 @@
   import Code from '@lucide/svelte/icons/code';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import ContinueButton from './ContinueButton.svelte';
+  import { fieldInput } from './fieldSkin';
 
   const TECH_MAX = 2;
   const GENERAL_MAX = 3;
@@ -69,7 +70,7 @@
 
   // Toggle a chip, capping the selection at its max. At the limit, unselected
   // chips are disabled (see markup) rather than silently evicting an earlier
-  // pick — the limit stays visible and the user explicitly deselects to swap.
+  // pick: the limit stays visible and the user explicitly deselects to swap.
   function toggleTech(id: string) {
     const next = new Set(techSelected);
     if (next.has(id)) next.delete(id);
@@ -87,20 +88,18 @@
 
 <div class="mb-6 text-center">
   <div
-    class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
+    class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-epi-blue text-white shadow-raised"
   >
     <Sparkles class="h-7 w-7" />
   </div>
-  <h1
-    class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
-  >
+  <h1 class="font-heading text-display-m text-epi-blue">
     Tes centres d'intérêt
   </h1>
 </div>
 
 {#if error}
   <p
-    class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
+    class="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-center text-sm text-destructive"
   >
     {error}
   </p>
@@ -122,13 +121,13 @@
   <!-- Côté tech -->
   <div>
     <h2
-      class="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
+      class="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-foreground-secondary uppercase"
     >
       <Code class="h-4 w-4" /> Côté tech
       <span
         class="text-xs font-normal normal-case {techFull
           ? 'text-epi-blue'
-          : 'text-slate-400'}">{techSelected.size}/{TECH_MAX}</span
+          : 'text-muted-foreground'}">{techSelected.size}/{TECH_MAX}</span
       >
     </h2>
     <div class="flex flex-wrap gap-2">
@@ -139,10 +138,10 @@
           in:fly={{ y: 15, duration: 300, delay: index * 50 }}
           onclick={() => toggleTech(interest.id)}
           disabled={!isSelected && techFull}
-          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
+          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-ui hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
             {isSelected
-            ? 'border-epi-blue bg-epi-blue/10 text-epi-blue shadow-sm dark:bg-epi-blue/20'
-            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700'}"
+            ? 'border-epi-blue bg-epi-blue/10 text-epi-blue shadow-raised dark:bg-epi-blue/20'
+            : 'border-border bg-card text-foreground-secondary hover:border-border hover:bg-background'}"
         >
           {#if interest.emoji}<span>{interest.emoji}</span>{/if}
           <span>{interest.nom}</span>
@@ -154,13 +153,13 @@
   <!-- Côté perso -->
   <div>
     <h2
-      class="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
+      class="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-foreground-secondary uppercase"
     >
       <Sparkles class="h-4 w-4" /> Côté perso
       <span
         class="text-xs font-normal normal-case {generalFull
-          ? 'text-purple-500'
-          : 'text-slate-400'}">{generalSelected.size}/{GENERAL_MAX}</span
+          ? 'text-epi-tomorrow-ink'
+          : 'text-muted-foreground'}">{generalSelected.size}/{GENERAL_MAX}</span
       >
     </h2>
     <div class="flex flex-wrap gap-2">
@@ -171,10 +170,10 @@
           in:fly={{ y: 15, duration: 300, delay: index * 50 }}
           onclick={() => toggleGeneral(interest.id)}
           disabled={!isSelected && generalFull}
-          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
+          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-ui hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
             {isSelected
-            ? 'border-purple-500 bg-purple-500/10 text-purple-600 shadow-sm dark:bg-purple-500/20 dark:text-purple-400'
-            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700'}"
+            ? 'border-epi-tomorrow-ink bg-epi-tomorrow-ink/10 text-epi-tomorrow-ink shadow-raised'
+            : 'border-border bg-card text-foreground-secondary hover:border-border hover:bg-background'}"
         >
           {#if interest.emoji}<span>{interest.emoji}</span>{/if}
           <span>{interest.nom}</span>
@@ -185,11 +184,11 @@
 
   <!-- Champ libre -->
   <div
-    class="rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    class="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
   >
     <Label
       for="freeText"
-      class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+      class="mb-1 block text-xs font-medium text-muted-foreground"
     >
       Et sinon, qu'est-ce qui te fait vibrer en ce moment ?
     </Label>
@@ -200,7 +199,7 @@
       maxlength={500}
       value={freeText}
       placeholder="Une série, un sport, un projet, n'importe quoi…"
-      class="resize-none rounded-lg border-slate-300 bg-white/80 text-slate-900 placeholder:text-slate-400 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+      class="resize-none {fieldInput}"
     />
   </div>
 

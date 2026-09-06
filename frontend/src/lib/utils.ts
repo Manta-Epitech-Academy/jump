@@ -1,11 +1,43 @@
 import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { extendTailwindMerge } from 'tailwind-merge';
 import {
   getLocalTimeZone,
   now,
   type CalendarDateTime,
 } from '@internationalized/date';
-import type { ParticipationWithActivityThemes } from '$lib/types';
+
+/**
+ * tailwind-merge resolves conflicts from a built-in list of class groups, so it
+ * only knows the font sizes Tailwind ships. Our display scale and the overline
+ * are custom `--text-*` theme keys (see `routes/layout.css`), which it reads as
+ * unknown `text-*` classes and therefore treats as conflicting with a text
+ * COLOUR: `cn('font-heading text-display-2xl', 'text-muted-foreground')` dropped
+ * the size and the figure rendered at the inherited 16px. Teaching it the group
+ * is the fix, and it has to happen here because every component merges through
+ * `cn`.
+ *
+ * Adding a `--text-*` key to the theme means adding it here too. `utils.test.ts`
+ * fails if the two drift.
+ */
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      'font-size': [
+        {
+          text: [
+            'display-s',
+            'display-m',
+            'display-l',
+            'display-xl',
+            'display-2xl',
+            'display-3xl',
+            'overline',
+          ],
+        },
+      ],
+    },
+  },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -43,7 +75,7 @@ export function formatDateFr(
  * Formats a Date or ISO string to a French datetime string (DD/MM/YYYY HH:mm)
  */
 export function formatDateTimeFr(date: Date | string | undefined): string {
-  if (!date) return '—';
+  if (!date) return '-';
   const jsDate = typeof date === 'string' ? new Date(date) : date;
   return jsDate.toLocaleDateString('fr-FR', {
     day: '2-digit',
@@ -52,74 +84,6 @@ export function formatDateTimeFr(date: Date | string | undefined): string {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-const THEME_TIERS = [
-  { min: 4, label: 'Expert' },
-  { min: 2, label: 'Confirmé' },
-  { min: 0, label: 'Initié' },
-] as const;
-
-/** The count at which the progress bar reaches 100% — derived from the highest tier threshold. */
-export const THEME_TIER_CEILING = THEME_TIERS[0].min;
-
-export function themeTierLabel(count: number): string {
-  return (THEME_TIERS.find((t) => count >= t.min) ?? THEME_TIERS.at(-1)!).label;
-}
-
-export type ActivityMission = {
-  activity: {
-    id: string;
-    nom: string;
-    isDynamic: boolean;
-    activityType: string;
-  };
-  eventDate: string;
-  eventTitle: string;
-};
-
-export function flattenActivityMissions(
-  participations: ParticipationWithActivityThemes[],
-): ActivityMission[] {
-  const missions: ActivityMission[] = [];
-  for (const p of participations) {
-    for (const pa of p.activities) {
-      if (pa.activity.activityType === 'orga') continue;
-      missions.push({
-        activity: pa.activity,
-        eventDate: String(p.event?.date || ''),
-        eventTitle: p.event?.titre || 'Atelier',
-      });
-    }
-  }
-  return missions;
-}
-
-/**
- * Tallies up theme occurrences from activity-based participations and returns the top N.
- */
-export function tallyTopThemesFromActivities(
-  participations: ParticipationWithActivityThemes[],
-  limit: number,
-): { name: string; count: number; label: string }[] {
-  const tally: Record<string, number> = {};
-  for (const p of participations) {
-    for (const pa of p.activities) {
-      if (pa.activity.activityType === 'orga') continue;
-      const themes = pa.activity.activityThemes?.map((at) => at.theme) ?? [];
-      if (themes.length === 0) {
-        tally['Général'] = (tally['Général'] || 0) + 1;
-      } else {
-        for (const t of themes) {
-          tally[t.nom] = (tally[t.nom] || 0) + 1;
-        }
-      }
-    }
-  }
-  return Object.entries(tally)
-    .map(([name, count]) => ({ name, count, label: themeTierLabel(count) }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, limit);
 }
 
 export function getStartOfDay(timezone: string): string {
@@ -131,10 +95,6 @@ export function getStartOfDay(timezone: string): string {
     millisecond: 0,
   });
   return startOfDay.toDate().toISOString().replace('T', ' ');
-}
-
-export function generatePin(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

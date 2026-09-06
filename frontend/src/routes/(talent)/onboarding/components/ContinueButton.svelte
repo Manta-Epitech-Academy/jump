@@ -26,7 +26,7 @@
   type="submit"
   disabled={disabled || submitting}
   class={cn(
-    'h-auto w-full gap-2 rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110 disabled:opacity-50',
+    'h-auto w-full gap-2 rounded-xl bg-epi-tech px-6 py-3 text-black shadow-raised transition-ui duration-200 hover:bg-epi-tech hover:brightness-110 disabled:opacity-50',
     className,
   )}
 >

@@ -1,25 +1,26 @@
 <script lang="ts" module>
   /**
    * The minimum a slot must carry to be laid on the grid. Both the talent
-   * calendar's `CalendarSlot` and the dev space's `TimeSlotWithActivity` are
-   * structural supersets of this, so each space feeds its own rows unchanged and
-   * gets them back, fully typed, from `onSlotClick`.
+   * calendar's `CalendarSlot` and the dev space's `PlanningSlot` are structural
+   * supersets of this, so each space feeds its own rows unchanged and gets them
+   * back, fully typed, from `onSlotClick`.
+   *
+   * The activity is flat and required. It used to be a nullable nested object,
+   * because the schema kept it in a table of its own that a slot only optionally
+   * had - and a slot without one was skipped here, so it rendered as nothing at
+   * all. An invisible row is not a state worth carrying through three layers.
    */
   export type ViewerSlot = {
     id: string;
     startTime: Date | string;
     endTime: Date | string;
-    activity: {
-      nom: string;
-      activityType: string;
-      isDynamic: boolean;
-    } | null;
+    nom: string;
+    activityType: string;
   };
 </script>
 
 <script lang="ts" generics="S extends ViewerSlot">
   import { onMount, untrack } from 'svelte';
-  import Zap from '@lucide/svelte/icons/zap';
   import { cn } from '$lib/utils';
   import { activityTypeStyles } from '$lib/validation/templates';
   import {
@@ -179,7 +180,7 @@
   });
 
   // Hour range: tight to the week's slots, with a small pad. Falls back to
-  // 8–20 when the week has no slots.
+  // 8-20 when the week has no slots.
   let hourRange = $derived.by(() => {
     const visible = [...slotsByDay.values()].flat();
     if (visible.length === 0) return { start: 8, end: 20 };
@@ -234,7 +235,7 @@
 <div class={cn('flex h-full w-full flex-col', className)}>
   <!-- Day header row -->
   <div
-    class="grid shrink-0 border-b border-slate-200 dark:border-slate-800"
+    class="grid shrink-0 border-b border-border"
     style="grid-template-columns: 3rem repeat({dayCount}, minmax(0, 1fr));"
   >
     <div></div>
@@ -245,8 +246,8 @@
       >
         <span
           class={cn(
-            'text-[10px] font-bold tracking-wider uppercase',
-            isToday ? 'text-epi-blue' : 'text-slate-400',
+            'epi-overline',
+            isToday ? 'text-epi-blue' : 'text-muted-foreground',
           )}
         >
           {WEEK_DAYS[i]}
@@ -256,7 +257,7 @@
             'text-sm font-semibold',
             isToday
               ? 'flex h-6 w-6 items-center justify-center rounded-full bg-epi-blue text-white'
-              : 'text-slate-700 dark:text-slate-300',
+              : 'text-foreground-secondary',
           )}
         >
           {d.getDate()}
@@ -275,7 +276,7 @@
       <div class="relative">
         {#each hours as h, i (h)}
           <div
-            class="absolute right-1 -translate-y-1/2 text-[10px] font-medium text-slate-400 tabular-nums"
+            class="absolute right-1 -translate-y-1/2 text-xs font-medium text-muted-foreground"
             style="top: {i * 60 * PIXELS_PER_MINUTE}px;"
             class:opacity-0={i === 0}
           >
@@ -287,12 +288,12 @@
       <!-- Day columns -->
       {#each weekDays as _, i (i)}
         {@const daySlots = slotsByDay.get(i) ?? []}
-        <div class="relative border-l border-slate-100 dark:border-slate-800">
+        <div class="relative border-l border-border">
           <!-- Hour grid lines -->
           {#each hours as _, idx (idx)}
             {#if idx > 0}
               <div
-                class="absolute inset-x-0 border-t border-slate-100 dark:border-slate-800"
+                class="absolute inset-x-0 border-t border-border"
                 style="top: {idx * 60 * PIXELS_PER_MINUTE}px;"
               ></div>
             {/if}
@@ -300,54 +301,48 @@
 
           <!-- Activity blocks -->
           {#each daySlots as slot (slot.id)}
-            {#if slot.activity}
-              {@const activity = slot.activity}
-              {@const styles =
-                activityTypeStyles[
-                  activity.activityType as keyof typeof activityTypeStyles
-                ]}
-              {@const top = pixelsFromTime(slot.startTime)}
-              {@const height = Math.max(
-                20 * PIXELS_PER_MINUTE,
-                pixelsFromTime(slot.endTime) - top,
+            {@const styles =
+              activityTypeStyles[
+                slot.activityType as keyof typeof activityTypeStyles
+              ]}
+            {@const top = pixelsFromTime(slot.startTime)}
+            {@const height = Math.max(
+              20 * PIXELS_PER_MINUTE,
+              pixelsFromTime(slot.endTime) - top,
+            )}
+            {@const hasStarted =
+              new Date(slot.startTime).getTime() <= nowTime.getTime()}
+            {@const widthPct = (98 * slot.colSpan) / slot.numCols}
+            {@const leftPct = (slot.colIndex * 98) / slot.numCols + 1}
+            <button
+              type="button"
+              class={cn(
+                'absolute flex cursor-pointer flex-col gap-0.5 overflow-hidden rounded-md border-l-4 px-1.5 py-1 text-left transition-ui hover:z-10 hover:shadow-raised',
+                styles?.bg,
+                styles?.border,
+                'border-y border-r border-y-border border-r-border',
+                dimUnstarted && !hasStarted && 'opacity-60 hover:opacity-100',
               )}
-              {@const hasStarted =
-                new Date(slot.startTime).getTime() <= nowTime.getTime()}
-              {@const widthPct = (98 * slot.colSpan) / slot.numCols}
-              {@const leftPct = (slot.colIndex * 98) / slot.numCols + 1}
-              <button
-                type="button"
+              style="top: {top}px; height: {height}px; left: {leftPct}%; width: calc({widthPct}% - 2px);"
+              aria-label={slot.nom}
+              onclick={() => onSlotClick(slot, hasStarted)}
+            >
+              <span
                 class={cn(
-                  'absolute flex cursor-pointer flex-col gap-0.5 overflow-hidden rounded-md border-l-4 px-1.5 py-1 text-left transition-all hover:z-10 hover:shadow-md',
-                  styles?.bg,
-                  styles?.border,
-                  'border-y border-r border-y-border border-r-border',
-                  dimUnstarted && !hasStarted && 'opacity-60 hover:opacity-100',
+                  'text-xs leading-tight font-bold break-words',
+                  styles?.text,
                 )}
-                style="top: {top}px; height: {height}px; left: {leftPct}%; width: calc({widthPct}% - 2px);"
-                aria-label={activity.nom}
-                onclick={() => onSlotClick(slot, hasStarted)}
               >
-                <span
-                  class={cn(
-                    'text-[10px] leading-tight font-bold break-words',
-                    styles?.text,
-                  )}
-                >
-                  {activity.nom}
+                {slot.nom}
+              </span>
+              <div
+                class="flex items-center gap-1 text-xs font-medium text-muted-foreground"
+              >
+                <span>
+                  {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
                 </span>
-                <div
-                  class="flex items-center gap-1 text-[9px] font-medium text-muted-foreground"
-                >
-                  {#if activity.isDynamic}
-                    <Zap class="h-2.5 w-2.5 text-epi-orange" />
-                  {/if}
-                  <span>
-                    {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
-                  </span>
-                </div>
-              </button>
-            {/if}
+              </div>
+            </button>
           {/each}
 
           <!-- Now line (today only) -->

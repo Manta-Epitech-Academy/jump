@@ -115,23 +115,6 @@ export async function getSignedDownloadUrl(
   );
 }
 
-export async function getSignedUploadUrl(
-  bucket: string,
-  key: string,
-  contentType: string,
-  expiresIn: number = SIGNED_URL_EXPIRES_IN,
-): Promise<string> {
-  return getSignedUrl(
-    s3Public(),
-    new PutObjectCommand({
-      Bucket: bucket,
-      Key: key,
-      ContentType: contentType,
-    }),
-    { expiresIn },
-  );
-}
-
 export async function deleteFile(bucket: string, key: string): Promise<void> {
   await s3().send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }

@@ -8,7 +8,7 @@
 </script>
 
 <svelte:head>
-  <title>Bienvenue — Espace Parent</title>
+  <title>Bienvenue - Espace Parent</title>
 </svelte:head>
 
 <ParentFlowShell>
@@ -17,23 +17,19 @@
   >
     <div class="w-full max-w-lg text-center">
       <div
-        class="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
+        class="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-epi-blue text-white shadow-raised"
       >
         <Heart class="h-7 w-7" />
       </div>
 
       <div
-        class="rounded-2xl border border-slate-200/60 bg-white/80 px-6 py-8 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+        class="rounded-xl border border-border/60 bg-card px-6 py-8 shadow-raised"
       >
-        <h1
-          class="mb-4 font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
-        >
+        <h1 class="mb-4 font-heading text-display-m text-epi-blue">
           Bonjour, et bienvenue.
         </h1>
 
-        <p
-          class="mb-6 text-sm leading-relaxed text-slate-600 dark:text-slate-300"
-        >
+        <p class="mb-6 text-sm leading-relaxed text-foreground-secondary">
           {data.childPrenom} s'apprête à vivre quelques jours immersifs chez
           <strong
             >Epitech pour lui permettre de découvrir la tech et trouver son
@@ -42,16 +38,14 @@
           équipes ont hâte de l'accueillir.
         </p>
 
-        <p
-          class="mb-8 text-sm leading-relaxed text-slate-600 dark:text-slate-300"
-        >
+        <p class="mb-8 text-sm leading-relaxed text-foreground-secondary">
           Avant cela, deux étapes côté famille : la signature du règlement
           intérieur, puis votre réponse au droit à l'image.
         </p>
 
         <Button
           href={resolve('/parent/reglement')}
-          class="h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
+          class="h-auto w-full rounded-xl bg-epi-tech px-6 py-3 text-black shadow-raised transition-ui duration-200 hover:bg-epi-tech hover:brightness-110"
         >
           Continuer
         </Button>

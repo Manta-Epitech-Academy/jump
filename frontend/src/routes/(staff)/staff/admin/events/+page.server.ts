@@ -5,6 +5,10 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { EventService } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
+import { listDiplomaTemplates } from '$lib/server/diplomaTemplates';
+import { listClosingTemplates } from '$lib/server/closingTemplates';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   requireAdmin,
   duplicateForm,
@@ -16,210 +20,48 @@ import {
   bulkEventActivationSchema,
   eventConfigTemplateSaveSchema,
 } from '$lib/validation/events';
-import { eventTypeLabel, minutesToHHMM } from '$lib/domain/event';
-import {
-  isEventModuleKey,
-  parseModuleSettings,
-  type EventModuleKey,
-} from '$lib/domain/eventModules';
-import {
-  getLifecycleBounds,
-  type LifecycleBounds,
-  type EventLifecycleStatus,
-} from '$lib/domain/eventLifecycle';
-import { resolveEventStatus } from '$lib/server/services/stageContext';
-import {
-  eventConfigState,
-  type EventConfigState,
-} from '$lib/domain/eventReadiness';
-import { schoolYearOf } from '$lib/domain/schoolYear';
-import { toDateKey } from '$lib/domain/planningTime';
-
-export type AdminEventVM = {
-  id: string;
-  titre: string;
-  publicName: string;
-  /** What the dev space / talents see today: publicName or the SF titre. */
-  displayName: string;
-  eventType: string;
-  eventTypeLabel: string;
-  campusId: string;
-  campusName: string;
-  /** "12 fév. 2026 → 26 fév. 2026" (campus tz), endDate omitted when absent. */
-  dateLabel: string;
-  /** Epoch ms of the start date, for client-side sorting on the Dates column. */
-  dateTs: number;
-  /** Start day `YYYY-MM-DD` (campus tz): the end-date input's `min`. */
-  startDateKey: string;
-  schoolYearLabel: string;
-  schoolYearStart: number;
-  /** "HH:MM" Jump-owned start, or "" when unset (shows the type default). */
-  startTime: string;
-  /** Lifecycle bucket in the event's own campus tz: à venir / en cours / passé. */
-  status: EventLifecycleStatus;
-  /** Linked to a Salesforce campaign (`externalId`); false = admin-created. */
-  synced: boolean;
-  /**
-   * Raw activation gate (`devActivatedAt`): the admin has claimed the event for
-   * the dev cohort. This alone does NOT make it visible - that also needs >=1
-   * module, at which point `configState` becomes `shown`. Drives the wizard's
-   * visibility toggle (the page reads the state through `configState`).
-   */
-  devActivated: boolean;
-  /**
-   * The event's configuration state (à configurer / prêt à publier / visible),
-   * a pure projection of (modules, activation). Single source for the admin
-   * "État" badge and the "À préparer" cue + filter. `shown` mirrors
-   * `resolveWorkspaceEvents`' membership rule, so the admin and the dev space
-   * agree on what "in the dev space" means.
-   */
-  configState: EventConfigState;
-  /** End day `YYYY-MM-DD` (campus tz) for the form, or "" when unset. */
-  endDate: string;
-  modules: EventModuleKey[];
-  /** Per-module sub-options keyed by module key (only enabled modules carry one). */
-  moduleSettings: Record<string, unknown>;
-  /** Per-event feedback form override (id), or "" = use the type default. */
-  feedbackFormId: string;
-  participations: number;
-};
-
-function dateRangeLabel(
-  date: Date,
-  endDate: Date | null,
-  timezone: string,
-): string {
-  const fmt = new Intl.DateTimeFormat('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: timezone,
-  });
-  const start = fmt.format(date);
-  if (!endDate) return start;
-  const end = fmt.format(endDate);
-  return start === end ? start : `${start} → ${end}`;
-}
+// The admin event view model is shared with the dashboard, so it lives on the
+// service. Re-exported here so the cockpit page keeps importing it from its own
+// route module.
+export type { AdminEventVM } from '$lib/server/services/events';
 
 export const load: PageServerLoad = async () => {
-  // Admins are cross-campus, so this reads the raw (unscoped) client: every
-  // campus's events land here. The dev workspace, by contrast, only ever sees
-  // its own campus via scopedPrisma.
-  const rows = await prisma.event.findMany({
-    orderBy: { date: 'desc' },
-    select: {
-      id: true,
-      titre: true,
-      publicName: true,
-      date: true,
-      endDate: true,
-      startMinutes: true,
-      eventType: true,
-      externalId: true,
-      devActivatedAt: true,
-      feedbackFormId: true,
-      campusId: true,
-      campus: { select: { name: true, timezone: true } },
-      modules: { select: { moduleKey: true, settings: true } },
-      _count: { select: { participations: true } },
-    },
-  });
-
-  // Lifecycle bounds are timezone-dependent and the list is cross-campus, so
-  // memoize one bounds object per distinct campus tz instead of recomputing it
-  // for every row.
-  const boundsByTz = new Map<string, LifecycleBounds>();
-  const boundsFor = (tz: string): LifecycleBounds => {
-    let b = boundsByTz.get(tz);
-    if (!b) {
-      b = getLifecycleBounds(tz);
-      boundsByTz.set(tz, b);
-    }
-    return b;
-  };
-
-  const events: AdminEventVM[] = rows.map((e) => {
-    const tz = e.campus.timezone;
-    const sy = schoolYearOf(e.date, tz);
-    const startDateKey = toDateKey(e.date, tz);
-    // Same stage-default-window rule as the dev workspace (see
-    // `resolveEventStatus`): a running SF-synced stage carries no endDate and
-    // must not read `past`, so the cockpit and the dev space agree.
-    const status = resolveEventStatus(e, boundsFor(tz));
-    const present = e.modules.filter((m) => isEventModuleKey(m.moduleKey));
-    const modules = present.map((m) => m.moduleKey as EventModuleKey);
-    const moduleSettings: Record<string, unknown> = {};
-    for (const m of present) {
-      const key = m.moduleKey as EventModuleKey;
-      moduleSettings[key] = parseModuleSettings(key, m.settings);
-    }
-    return {
-      id: e.id,
-      titre: e.titre,
-      publicName: e.publicName ?? '',
-      displayName: e.publicName?.trim() || e.titre,
-      eventType: e.eventType,
-      eventTypeLabel: eventTypeLabel(e.eventType),
-      campusId: e.campusId,
-      campusName: e.campus.name,
-      dateLabel: dateRangeLabel(e.date, e.endDate, tz),
-      dateTs: e.date.getTime(),
-      startDateKey,
-      schoolYearLabel: sy.label,
-      schoolYearStart: sy.startYear,
-      startTime: minutesToHHMM(e.startMinutes),
-      status,
-      synced: e.externalId != null,
-      devActivated: e.devActivatedAt != null,
-      configState: eventConfigState({
-        devActivated: e.devActivatedAt != null,
-        moduleCount: modules.length,
-      }),
-      endDate: e.endDate ? toDateKey(e.endDate, tz) : '',
-      modules,
-      moduleSettings,
-      feedbackFormId: e.feedbackFormId ?? '',
-      participations: e._count.participations,
-    };
-  });
+  const events = await EventService.listAdminEvents();
 
   // The feedback-form picker in the edit dialog: the published, talent-answerable
-  // forms an event can be bound to, plus the title of the form that resolves by
-  // default per event type (shown as the "Par défaut (…)" sentinel). One query
-  // each, cross-event (the dialog reuses them for whichever row is opened).
-  const [publishedForms, typeDefaults, templates] = await Promise.all([
-    prisma.feedback_Form.findMany({
-      // Any published, talent-answerable form is pickable for an event (forms are
-      // not owned by events - an event-specific one is just a normally-named form).
-      where: { status: 'published', allowsAuthenticatedAccess: true },
-      select: { id: true, title: true },
-      orderBy: { title: 'asc' },
-    }),
-    prisma.feedback_Form.findMany({
-      // Only a LIVE default (published + talent-answerable) counts: it must match
-      // what the dev bilan surface actually resolves (`resolvePublishedEventForm`),
-      // so the wizard's "Par défaut (…)" label and its no-form warning don't claim
-      // a default that a draft form would never deliver.
-      where: {
-        defaultForEventType: { not: null },
-        status: 'published',
-        allowsAuthenticatedAccess: true,
-      },
-      select: { id: true, defaultForEventType: true, title: true },
-    }),
-    EventConfigTemplateService.list(),
-  ]);
+  // forms an event can be bound to. One query, cross-event (the dialog reuses them
+  // for whichever row is opened).
+  const [publishedForms, templates, diplomaTemplates, closingTemplates] =
+    await Promise.all([
+      prisma.feedback_Form.findMany({
+        // Any published, talent-answerable form is pickable for an event (forms are
+        // not owned by events - an event-specific one is just a normally-named form).
+        where: { status: 'published', allowsAuthenticatedAccess: true },
+        select: { id: true, title: true },
+        orderBy: { title: 'asc' },
+      }),
+      EventConfigTemplateService.list(),
+      // The certificate picker in the same dialog. A small catalogue, so it is
+      // fetched whole rather than per row.
+      listDiplomaTemplates(),
+      // And the closing-grid picker beside it, for the same reason.
+      listClosingTemplates(),
+    ]);
   const feedbackForms = publishedForms.map((f) => ({
     value: f.id,
     label: f.title,
   }));
-  // The form an event type resolves to when it sets no override: its id (to deep-
-  // link the editor) + title (for the "Par défaut (…)" picker label).
-  const defaultFormByType: Record<string, { id: string; title: string }> = {};
-  for (const f of typeDefaults) {
-    if (f.defaultForEventType)
-      defaultFormByType[f.defaultForEventType] = { id: f.id, title: f.title };
-  }
+  // `code` travels too: it is what the preview operation takes, since a code is
+  // the stable key the write operations quote.
+  const certificates = diplomaTemplates.map((t) => ({
+    value: t.id,
+    label: t.label,
+    code: t.code,
+  }));
+  const closingGrids = closingTemplates.map((t) => ({
+    value: t.id,
+    label: t.label,
+  }));
 
   // A compact, read-only preview of each pickable form (ordered question
   // prompts) so the wizard shows "what's in this form" inline before it's
@@ -227,12 +69,7 @@ export const load: PageServerLoad = async () => {
   // small curated catalogue, so previewing them all up front is cheap and saves
   // a per-select round-trip. Identity questions (email/name capture) are
   // omitted: the preview is about the form's actual content.
-  const previewIds = [
-    ...new Set([
-      ...publishedForms.map((f) => f.id),
-      ...typeDefaults.map((f) => f.id),
-    ]),
-  ];
+  const previewIds = [...new Set(publishedForms.map((f) => f.id))];
   const previewQuestions = await prisma.feedback_Question.findMany({
     where: { formId: { in: previewIds }, identityField: null },
     select: { formId: true, prompt: true },
@@ -249,26 +86,41 @@ export const load: PageServerLoad = async () => {
     events,
     form,
     feedbackForms,
-    defaultFormByType,
+    certificates,
+    closingGrids,
     templates,
     formPreviews,
   };
 };
 
 export const actions: Actions = {
-  update: async ({ request }) => {
+  update: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_EVENT_CONFIG_SAVE, { locals });
     const form = await superValidate(request, zod4(adminEventSchema));
     if (!form.valid) return fail(400, { form });
+
+    if (form.data.devActivated) {
+      if (!form.data.publicName.trim() || !form.data.endDate) {
+        return message(
+          form,
+          "L'activation nécessite un nom public et une date de fin.",
+          { status: 400 },
+        );
+      }
+    }
 
     try {
       await EventService.updateEventConfig(form.data.id, {
         publicName: form.data.publicName,
+        cohortNoun: form.data.cohortNoun,
         startTime: form.data.startTime,
         endDate: form.data.endDate,
         modules: form.data.modules,
         moduleSettings: form.data.moduleSettings,
         devActivated: form.data.devActivated,
         feedbackFormId: form.data.feedbackFormId,
+        diplomaTemplateId: form.data.diplomaTemplateId,
+        closingTemplateId: form.data.closingTemplateId,
       });
       return message(form, 'Événement mis à jour.');
     } catch (err) {
@@ -280,7 +132,8 @@ export const actions: Actions = {
   // Bulk module edit over the list selection. Posted from a plain enhanced form
   // (not superform), so the payload is hand-parsed and validated here. `ids`
   // arrives comma-joined, `modules` as repeated fields.
-  bulkModules: async ({ request }) => {
+  bulkModules: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_EVENT_BULK_MODULES, { locals });
     const fd = await request.formData();
     const parsed = bulkEventModulesSchema.safeParse({
       ids: String(fd.get('ids') ?? '')
@@ -304,7 +157,8 @@ export const actions: Actions = {
 
   // Bulk show/hide in the dev workspace over the selection. Same plain-form
   // parsing as bulkModules; `activate` arrives as "true"/"false".
-  bulkActivation: async ({ request }) => {
+  bulkActivation: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_EVENT_BULK_ACTIVATION, { locals });
     const fd = await request.formData();
     const parsed = bulkEventActivationSchema.safeParse({
       ids: String(fd.get('ids') ?? '')
@@ -334,6 +188,7 @@ export const actions: Actions = {
   // description + a JSON `config` blob (modules + per-module settings + default
   // feedback form), since the config is nested.
   saveAsTemplate: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_EVENT_TEMPLATE_SAVE, { locals });
     const fd = await request.formData();
     let config: unknown;
     try {
@@ -374,7 +229,8 @@ export const actions: Actions = {
 
   // Delete a config template from the wizard's step 1. The list is managed
   // optimistically client-side, so this just removes the row server-side.
-  deleteTemplate: async ({ request }) => {
+  deleteTemplate: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_EVENT_TEMPLATE_DELETE, { locals });
     const fd = await request.formData();
     const id = String(fd.get('id') ?? '').trim();
     if (!id) return fail(400, { templateError: 'Modèle manquant.' });
@@ -395,6 +251,7 @@ export const actions: Actions = {
   // copy becomes selectable like any other form; the admin renames/edits it in
   // the builder.
   duplicateFeedbackForm: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_FEEDBACK_FORM_WRITE, { locals });
     const { staffId } = requireAdmin(locals);
     const fd = await request.formData();
     const sourceId = String(fd.get('sourceId') ?? '').trim();

@@ -13,6 +13,18 @@ export interface OptionStat {
   label: string;
   kind: string;
   count: number;
+  /**
+   * Authored position within the question, 0-based. Carried because it is the
+   * question's own order and the rows below are sorted by popularity, which
+   * destroys it: for a `scale`, authored order IS best-to-worst, so a reader
+   * given only the counts cannot tell which answer was the good one.
+   *
+   * The index in the loaded (position-ordered) array rather than the
+   * `Feedback_QuestionOption.position` column, so it is dense. The column can
+   * carry gaps - a create appends at the current count, and a delete leaves a
+   * hole - and anything reading position as a place on a scale needs 0..n-1.
+   */
+  position: number;
 }
 
 export interface QuestionStat {
@@ -178,11 +190,12 @@ export async function computeFormStats(
       // dominant answer. Stable sort: ties keep the form's canonical option order.
       // The CSV export reads the graph directly, so its columns stay canonical.
       options: q.options
-        .map((o) => ({
+        .map((o, position) => ({
           optionId: o.id,
           label: o.label,
           kind: o.kind,
           count: countByOption.get(o.id) ?? 0,
+          position,
         }))
         .sort((a, b) => b.count - a.count),
       freeTexts: freeByQuestion.get(q.id) ?? [],
@@ -326,23 +339,4 @@ export async function getEventResponseBreakdown(
   eventBuckets.sort((a, b) => b.dateTs - a.dateTs);
 
   return { events: eventBuckets, publicCount, total };
-}
-
-/** Talent ids that submitted the form for a given event (dev roster join). */
-export async function getRespondedTalentIds(
-  formId: string,
-  eventId: string,
-): Promise<Set<string>> {
-  const rows = await prisma.feedback_Submission.findMany({
-    where: {
-      formId,
-      eventId,
-      source: 'authenticated',
-      talentId: { not: null },
-    },
-    select: { talentId: true },
-  });
-  return new Set(
-    rows.map((r) => r.talentId).filter((id): id is string => !!id),
-  );
 }

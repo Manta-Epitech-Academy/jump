@@ -1,5 +1,6 @@
 import type { Actions, PageServerLoad } from './$types';
-import { error, fail, redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
+import { requireAdminSession } from '$lib/server/auth/guards';
 import { superValidate, message, setError } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
@@ -20,12 +21,12 @@ export const load: PageServerLoad = async () => {
 
 export const actions: Actions = {
   default: async ({ request, locals }) => {
-    const staff = locals.staffProfile;
-    if (!staff) throw redirect(303, '/staff/login');
+    if (!locals.staffProfile) throw redirect(303, '/staff/login');
     // Dev-redirect lists are an admin-only control; non-admins have no way to
     // reach this dialog, but guard the action too so the route can't be posted
     // to directly.
-    if (staff.staffRole !== 'admin') throw error(403, 'Action réservée.');
+    requireAdminSession(locals);
+    const staff = locals.staffProfile;
 
     const form = await superValidate(request, zod4(staffDevRedirectSchema));
     if (!form.valid) return fail(400, { form });

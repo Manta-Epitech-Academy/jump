@@ -8,40 +8,33 @@ import type {
   AccountNature,
 } from '$lib/domain/authIdentity';
 
-// Re-exported so existing server callers can keep importing these from the
-// service; the canonical definitions live in the shared domain module.
-export type {
-  AuthConflict,
-  AuthConflictVerdict,
-  AuthAccountSummary,
-  ExposureKind,
-} from '$lib/domain/authIdentity';
-
 /**
  * Auth-identity conflicts: the login-layer sibling of `reconciliationService`.
  *
  * `reconciliationService` diffs the *data* layer (`Talent` vs the
  * `TalentSfImport` mirror). This service diffs the *identity* layer: the
- * `bauth_user` a talent is linked to (`Talent.userId`) versus the email that
- * talent should log in with (`Talent.email`).
+ * `bauth_user` a talent is linked to (`Talent.userId`) versus the email SF says
+ * that talent should log in with (`TalentSfImport.sfEmail`).
  *
  * The single invariant that makes login work:
  *
  *   the `bauth_user` pointed to by `Talent.userId` must carry the same email as
- *   `Talent.email` (normalized).
+ *   `TalentSfImport.sfEmail` (normalized).
  *
- * Why: a student types `Talent.email`, BetterAuth opens a session on whatever
- * `bauth_user` holds that email, and the talent dashboard only renders if THAT
- * `bauth_user` is the one the Talent points to (`hooks.server.ts` loads
+ * Why: a student types their login email, BetterAuth opens a session on
+ * whatever `bauth_user` holds that email, and the talent dashboard only renders
+ * if THAT `bauth_user` is the one the Talent points to (`hooks.server.ts` loads
  * `locals.talent` from `bauth_user.talent`, i.e. by the *session* account, not
- * by email). When the two emails diverge the student logs in "into the void".
+ * by email). When the linked account's email has drifted from SF's claim, the
+ * address the student knows is either dead or someone else's session.
  *
- * How divergence happens: Salesforce changes a talent's email; the sync updates
- * `Talent.email` but its paired `bauth_user.email` update collides (P2002) with
- * an account that already holds the new email (one the student created by
- * logging in with it directly via OTP). `ensureTalentUser` then early-returns
- * forever on the now-stale link and never reconciles. An email *inversion* on
- * the Salesforce side (two records swapped) is the recurring root cause.
+ * How divergence happens: Salesforce changes a talent's email; the sync drives
+ * the linked `bauth_user.email` toward it (`changeUserEmail`), but the rename
+ * collides (P2002) with an account that already holds the new address (one the
+ * student created by logging in with it directly via OTP, before eager mint
+ * closed that hole). The link then stays on the stale account until an admin
+ * repoints it. An email *inversion* on the Salesforce side (two records
+ * swapped) is the recurring root cause.
  *
  * This module only CLASSIFIES (read-only). It mirrors the convention from
  * `reconciliationService`: conflicts are computed on demand, never stored. The
@@ -53,9 +46,6 @@ const norm = (email: string | null | undefined): string | null =>
   email?.toLowerCase().trim() || null;
 
 // Verdict semantics (types live in `$lib/domain/authIdentity`):
-//  - SIMPLE_DRIFT        nobody holds `Talent.email`. The linked account can be
-//                        renamed to it (rename). The root-cause fix to
-//                        `ensureTalentUser` targets this class at next login.
 //  - ORPHAN_HOLDER       held by an account with no talent/staff/parent link.
 //                        Repoint the Talent onto it (the live sessions are
 //                        there) and drop the stale account (repoint+drop).
@@ -74,7 +64,14 @@ const ACCOUNT_SELECT = {
   name: true,
   createdAt: true,
   staffProfile: { select: { id: true } },
-  talent: { select: { id: true, prenom: true, nom: true, email: true } },
+  talent: {
+    select: {
+      id: true,
+      prenom: true,
+      nom: true,
+      sfImport: { select: { sfEmail: true } },
+    },
+  },
   _count: { select: { sessions: true } },
 } satisfies Prisma.bauth_userSelect;
 
@@ -107,15 +104,16 @@ export async function countAuthIdentityConflicts(): Promise<number> {
     SELECT count(*)::int AS count
     FROM "Talent" t
     JOIN "bauth_user" u ON u.id = t."userId"
-    WHERE t.email IS NOT NULL
-      AND lower(btrim(t.email)) <> lower(btrim(u.email))
+    JOIN "TalentSfImport" sf ON sf."talentId" = t."id"
+    WHERE sf."sfEmail" IS NOT NULL
+      AND lower(btrim(sf."sfEmail")) <> lower(btrim(u.email))
   `;
   return rows[0]?.count ?? 0;
 }
 
 /**
  * Full classification of every talent whose linked account email has drifted
- * from `Talent.email`. Read-only. Bounded work: the drift set is small (a
+ * from `TalentSfImport.sfEmail`. Read-only. Bounded work: the drift set is small (a
  * handful), and the supporting indexes are loaded once in memory rather than
  * per-row.
  */
@@ -125,20 +123,23 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
   //    (a DB-side case-insensitive compare can't be expressed across the
   //    relation as cleanly, and the set is tiny).
   const candidates = await prisma.talent.findMany({
-    where: { userId: { not: null }, email: { not: null } },
+    where: { userId: { not: null }, sfImport: { sfEmail: { not: null } } },
     select: {
       id: true,
       externalId: true,
       prenom: true,
       nom: true,
-      email: true,
+      sfImport: { select: { sfEmail: true } },
       user: { select: ACCOUNT_SELECT },
     },
     orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
   });
 
   const drifted = candidates.filter(
-    (t) => t.user && norm(t.email) && norm(t.email) !== norm(t.user.email),
+    (t) =>
+      t.user &&
+      norm(t.sfImport?.sfEmail) &&
+      norm(t.sfImport?.sfEmail) !== norm(t.user.email),
   );
   if (drifted.length === 0) return [];
 
@@ -148,7 +149,7 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
   //    sign-in / link path, so an `in` over normalized values matches them.
   const lookupEmails = new Set<string>();
   for (const t of drifted) {
-    const target = norm(t.email);
+    const target = norm(t.sfImport?.sfEmail);
     const stale = norm(t.user!.email);
     if (target) lookupEmails.add(target);
     if (stale) lookupEmails.add(stale);
@@ -168,7 +169,7 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
       id: true,
       prenom: true,
       nom: true,
-      email: true,
+      sfImport: { select: { sfEmail: true } },
       parentEmail: true,
       parent2Email: true,
     },
@@ -178,7 +179,7 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
   const parentEmailToTalent = new Map<string, Person>();
   for (const t of allTalents) {
     const person: Person = { id: t.id, prenom: t.prenom, nom: t.nom };
-    const e = norm(t.email);
+    const e = norm(t.sfImport?.sfEmail);
     if (e && !talentByEmail.has(e)) talentByEmail.set(e, person);
     for (const pe of [norm(t.parentEmail), norm(t.parent2Email)])
       if (pe && !parentEmailToTalent.has(pe))
@@ -247,7 +248,7 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
   const out: AuthConflict[] = [];
   for (const t of drifted) {
     const linkedRow = t.user!;
-    const targetEmail = norm(t.email)!;
+    const targetEmail = norm(t.sfImport?.sfEmail)!;
     const staleEmail = norm(linkedRow.email)!;
     const holderRow = accountByEmail.get(targetEmail) ?? null;
 
@@ -255,9 +256,10 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
     let verdict: AuthConflictVerdict;
     let partnerTalentId: string | null = null;
 
-    if (!holderRow) {
-      verdict = 'SIMPLE_DRIFT';
-    } else if (holderRow.staffProfile !== null) {
+    // No account holds the target email → the sync realigns the linked account
+    // itself (changeUserEmail), so this is never a standing conflict. Skip it.
+    if (!holderRow) continue;
+    if (holderRow.staffProfile !== null) {
       verdict = 'STAFF_HOLDER';
     } else if (
       holderRow.role === 'parent' ||
@@ -268,7 +270,7 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
       // Held by another Talent B. Symmetric inversion ⇔ B's own email is the
       // stale email this talent is squatting (they are each other's), i.e. a
       // clean two-sided swap. Otherwise it is degraded and needs manual care.
-      const symmetric = norm(holderRow.talent.email) === staleEmail;
+      const symmetric = norm(holderRow.talent.sfImport?.sfEmail) === staleEmail;
       verdict = symmetric ? 'SYMMETRIC_INVERSION' : 'DEGRADED_INVERSION';
       partnerTalentId = holderRow.talent.id;
     } else {
@@ -312,7 +314,6 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
     PARENT_HOLDER: 2,
     SYMMETRIC_INVERSION: 3,
     ORPHAN_HOLDER: 4,
-    SIMPLE_DRIFT: 5,
   };
   out.sort(
     (a, b) =>

@@ -22,7 +22,7 @@ export interface BilanRow {
   recoLabel: string | null;
 }
 
-export interface BilanCohort {
+interface BilanCohort {
   rows: BilanRow[];
   respondedCount: number;
   total: number;
@@ -135,7 +135,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const feedbackUrl = `${env.ORIGIN ?? ''}${base}${feedbackFormPath(event.id, form.slug)}`;
 
   return {
-    event: { id: event.id, titre: event.titre, publicName: event.publicName },
+    event: {
+      id: event.id,
+      titre: event.titre,
+      publicName: event.publicName,
+      cohortNoun: event.cohortNoun,
+    },
     form: { title: form.title, url: feedbackUrl },
     cohort,
   };

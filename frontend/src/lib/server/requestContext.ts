@@ -7,21 +7,21 @@ import { AsyncLocalStorage } from 'node:async_hooks';
  *
  * It carries the identity of the human driving the request, so the dev-redirect
  * trap (`$lib/server/{email,sms}/dev-redirect.ts`) can route a trapped copy to
- * whoever *caused* a send instead of the shared `*_DEV_RECIPIENTS` list — on a
+ * whoever *caused* a send instead of the shared `*_DEV_RECIPIENTS` list: on a
  * shared dev/staging env each tester then only receives their own traffic.
  * Sends with no request actor (cron, worker, logged-out OTP) find no store and
  * fall back to the env list.
  *
  * `AsyncLocalStorage` propagates across the `await`/promise chain created
  * inside `run()`, so even a fire-and-forget send started during a request
- * (e.g. the onboarding parent-welcome mail) inherits the actor — the snapshot
+ * (e.g. the onboarding parent-welcome mail) inherits the actor: the snapshot
  * is captured when the async work is scheduled, not when it resolves.
  */
 export interface RequestContext {
   /**
    * Email of the human driving this request, or null if none. This is the
    * impersonator when staff impersonate someone (the real admin behind the
-   * session), otherwise the logged-in user — see the capture in
+   * session), otherwise the logged-in user: see the capture in
    * `hooks.server.ts`. Used as the dev-redirect fallback when the actor has no
    * personal `devRedirectEmails` configured.
    */

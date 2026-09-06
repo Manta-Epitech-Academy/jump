@@ -64,7 +64,7 @@
 
   /**
    * Insert raw text at the cursor. Exposed as a component method (`bind:this`)
-   * for callers that offer template-variable buttons — e.g. the admin
+   * for callers that offer template-variable buttons, e.g. the admin
    * welcome-page editor inserting `{{PRENOM}}` (see `domain/welcomeMessage.ts`).
    */
   export function insertText(text: string) {
@@ -93,6 +93,8 @@
       content,
       editorProps: {
         attributes: {
+          // design-lint-ignore: in a rich-text surface the caret is the focus
+          // indicator; an outline around a 300px editor while typing is worse.
           class:
             'prose prose-slate dark:prose-invert max-w-none min-h-[300px] focus:outline-none p-4',
         },

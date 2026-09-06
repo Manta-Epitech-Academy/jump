@@ -12,6 +12,11 @@
   import { enhance } from '$app/forms';
   import { goto, invalidate } from '$app/navigation';
   import { page } from '$app/state';
+  import {
+    resetListParams,
+    setListParams,
+  } from '$lib/components/staff/datatable/urlList';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
@@ -22,6 +27,9 @@
   import { cn, formatDateTimeFr } from '$lib/utils';
   import { toast } from 'svelte-sonner';
   import ExportMenu from './components/ExportMenu.svelte';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import CodeTag from '$lib/components/layout/CodeTag.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
@@ -70,7 +78,7 @@
       data.filters.q !== '',
   );
 
-  // Status tiles double as the primary filter — the summary you read and the
+  // Status tiles double as the primary filter: the summary you read and the
   // control you click are the same object. Same KpiTile as the dev event
   // onboarding cockpit, so the chrome reads consistently across staff.
   const cards = [
@@ -98,7 +106,7 @@
     {
       key: 'error',
       label: 'Erreurs',
-      caption: 'Échecs — relançables',
+      caption: 'Échecs, relançables',
       tone: 'orange',
       Icon: TriangleAlert,
     },
@@ -111,29 +119,11 @@
     return data.countByStatus.error;
   }
 
-  function navigateWithParams(params: Record<string, string>) {
-    const url = new URL(page.url);
-    for (const [key, value] of Object.entries(params)) {
-      if (value) url.searchParams.set(key, value);
-      else url.searchParams.delete(key);
-    }
-    goto(url.toString(), { keepFocus: true, noScroll: true });
-  }
-
-  let searchQuery = $state(page.url.searchParams.get('q') ?? '');
-  let searchTimeout: ReturnType<typeof setTimeout>;
-  function handleSearchInput(e: Event) {
-    searchQuery = (e.target as HTMLInputElement).value;
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(
-      () => navigateWithParams({ q: searchQuery.trim() }),
-      300,
-    );
-  }
+  const search = createUrlSearch();
 
   function clearFilters() {
-    searchQuery = '';
-    goto(page.url.pathname, { keepFocus: true, noScroll: true });
+    search.clear();
+    resetListParams();
   }
 
   // Live feed: jobs move pending → processing → success within seconds, so poll
@@ -179,65 +169,62 @@
       {relativeTime(iso)}
     </span>
   {:else}
-    <span class="font-mono text-xs text-muted-foreground">—</span>
+    <span class="font-mono text-xs text-muted-foreground">-</span>
   {/if}
 {/snippet}
 
 <div class="space-y-6">
-  <div class="flex flex-wrap items-start justify-between gap-3">
-    <div>
-      <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Génération PDF Onboarding<span class="text-epi-pink">_</span>
-      </h1>
-      <p class="mt-1 font-mono text-xs tracking-wide text-muted-foreground">
-        &lt;Générés en arrière-plan dès la signature/&gt;
-      </p>
-    </div>
-
-    <div class="flex items-center gap-3">
-      {#if inFlight > 0}
-        <span
-          class="flex items-center gap-1.5 font-mono text-[0.7rem] tracking-widest text-epi-blue uppercase"
-        >
-          <span class="relative flex h-2 w-2">
-            <span
-              class="absolute inline-flex h-full w-full animate-ping rounded-full bg-epi-blue opacity-75"
-            ></span>
-            <span class="relative inline-flex h-2 w-2 rounded-full bg-epi-blue"
-            ></span>
+  <PageHeader
+    title="Génération PDF Onboarding"
+    accroche="Générés en arrière-plan dès la signature"
+  >
+    {#snippet actions()}
+      <div class="flex items-center gap-3">
+        {#if inFlight > 0}
+          <span
+            class="flex items-center gap-1.5 font-mono text-[0.7rem] tracking-widest text-epi-blue uppercase"
+          >
+            <span class="relative flex h-2 w-2">
+              <span
+                class="absolute inline-flex h-full w-full animate-ping rounded-full bg-epi-blue opacity-75"
+              ></span>
+              <span
+                class="relative inline-flex h-2 w-2 rounded-full bg-epi-blue"
+              ></span>
+            </span>
+            En direct
           </span>
-          En direct
-        </span>
-      {/if}
+        {/if}
 
-      {#if data.errorCount > 0}
-        <form
-          method="POST"
-          action="?/retryAll"
-          use:enhance={() =>
-            async ({ result, update }) => {
-              if (result.type === 'success') {
-                toast.success(
-                  `${data.errorCount} génération${data.errorCount > 1 ? 's' : ''} relancée${data.errorCount > 1 ? 's' : ''}`,
-                );
-                await update();
-              } else {
-                toast.error('Une erreur est survenue');
-              }
-            }}
-        >
-          <Button type="submit" variant="outline" class="gap-2">
-            <RotateCcw class="h-4 w-4" />
-            Tout relancer ({data.errorCount})
-          </Button>
-        </form>
-      {/if}
+        {#if data.errorCount > 0}
+          <form
+            method="POST"
+            action="?/retryAll"
+            use:enhance={() =>
+              async ({ result, update }) => {
+                if (result.type === 'success') {
+                  toast.success(
+                    `${data.errorCount} génération${data.errorCount > 1 ? 's' : ''} relancée${data.errorCount > 1 ? 's' : ''}`,
+                  );
+                  await update();
+                } else {
+                  toast.error('Une erreur est survenue');
+                }
+              }}
+          >
+            <Button type="submit" variant="outline" class="gap-2">
+              <RotateCcw class="h-4 w-4" />
+              Tout relancer ({data.errorCount})
+            </Button>
+          </form>
+        {/if}
 
-      {#if data.countByStatus.success > 0}
-        <ExportMenu lastExportAt={data.lastExportAt} />
-      {/if}
-    </div>
-  </div>
+        {#if data.countByStatus.success > 0}
+          <ExportMenu lastExportAt={data.lastExportAt} />
+        {/if}
+      </div>
+    {/snippet}
+  </PageHeader>
 
   <!-- Status tiles = filter toggles -->
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -248,7 +235,7 @@
         sub={card.caption}
         icon={card.Icon}
         tone={card.tone}
-        onclick={() => navigateWithParams({ status: card.key })}
+        onclick={() => setListParams({ status: card.key })}
         pressed={data.filters.status === card.key}
       />
     {/each}
@@ -273,8 +260,9 @@
             <Input
               type="search"
               placeholder="Rechercher un talent…"
-              value={searchQuery}
-              oninput={handleSearchInput}
+              value={search.value}
+              oninput={(e) =>
+                (search.value = (e.currentTarget as HTMLInputElement).value)}
               class="h-9 w-56 rounded-sm pl-8"
             />
           </div>
@@ -282,7 +270,7 @@
           <FilterSelect
             options={documentTypeFilterOptions}
             value={data.filters.type}
-            onChange={(v) => navigateWithParams({ type: v })}
+            onChange={(v) => setListParams({ type: v })}
             ariaLabel="Filtrer par document"
             triggerClass="text-xs"
           />
@@ -329,7 +317,7 @@
                 </Badge>
               </Table.Cell>
               <Table.Cell class="font-medium">
-                {job.talent?.name ?? '—'}
+                {job.talent?.name ?? '-'}
               </Table.Cell>
               <Table.Cell>
                 {documentTypeLabels[job.documentType] ?? job.documentType}
@@ -371,7 +359,7 @@
                     </Button>
                   </form>
                 {:else}
-                  <span class="text-xs text-muted-foreground">—</span>
+                  <span class="text-xs text-muted-foreground">-</span>
                 {/if}
               </Table.Cell>
               <Table.Cell class="text-right">
@@ -408,7 +396,7 @@
               <Table.Cell colspan={7} class="py-12 text-center">
                 {#if hasFilters}
                   <p class="font-mono text-xs text-muted-foreground">
-                    &lt;Aucune tâche pour ce filtre/&gt;
+                    <CodeTag>Aucune tâche pour ce filtre</CodeTag>
                   </p>
                   <Button
                     variant="link"
@@ -420,7 +408,7 @@
                   </Button>
                 {:else}
                   <p class="font-mono text-xs text-muted-foreground">
-                    &lt;Aucune tâche enregistrée/&gt;
+                    <CodeTag>Aucune tâche enregistrée</CodeTag>
                   </p>
                 {/if}
               </Table.Cell>

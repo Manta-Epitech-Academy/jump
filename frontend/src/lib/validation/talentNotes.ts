@@ -40,6 +40,3 @@ export const noteUpdateSchema = z.object({
   body: noteBody,
   baseUpdatedAt: z.string().min(1),
 });
-
-export type NoteCreateInput = z.infer<typeof noteCreateSchema>;
-export type NoteUpdateInput = z.infer<typeof noteUpdateSchema>;

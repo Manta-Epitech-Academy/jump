@@ -4,12 +4,6 @@
   import { eventDisplayName } from '$lib/domain/event';
 
   let { data }: { data: PageData } = $props();
-
-  // Stage-only release has shallow page depth, so the breadcrumb is noise; it
-  // only earns its place once coding_club deepens the workspace.
-  let hasCodingClub = $derived(
-    (data.featureFlags ?? []).includes('coding_club'),
-  );
 </script>
 
 <svelte:head>
@@ -21,9 +15,8 @@
 {#key data.event.id}
   <EventPlanningView
     event={data.event}
-    planning={data.planning}
+    slots={data.slots}
     timezone={data.timezone}
     serverNow={data.serverNow}
-    {hasCodingClub}
   />
 {/key}

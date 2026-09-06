@@ -1,6 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   fulfillTalentDeletion,
   isDeletionRequestOverdue,
@@ -11,7 +13,7 @@ const talentSelect = {
   id: true,
   nom: true,
   prenom: true,
-  email: true,
+  user: { select: { email: true } },
   xp: true,
   eventsCount: true,
   // Effective campus = most-recent participation's campus, matching the
@@ -51,10 +53,10 @@ export const load: PageServerLoad = async () => {
     talent: {
       id: r.talent.id,
       // Keep nom/prenom split so the client renders them through the shared
-      // <TalentName> (NOM uppercased + Prénom) — same format as /admin/talents.
+      // <TalentName> (NOM uppercased + Prénom), same format as /admin/talents.
       nom: r.talent.nom,
       prenom: r.talent.prenom,
-      email: r.talent.email,
+      email: r.talent.user?.email ?? null,
       xp: r.talent.xp,
       eventsCount: r.talent.eventsCount,
       campus: r.talent.participations[0]?.campus?.name ?? null,
@@ -73,6 +75,7 @@ export const actions: Actions = {
   // Fulfil = erase. Belt-and-braces admin assert on top of the /staff/admin/*
   // route guard, since this destroys a talent's PII.
   fulfill: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_ACCOUNT_DELETION_FULFIL, { locals });
     if (locals.staffProfile?.staffRole !== 'admin' || !locals.user) {
       return fail(403);
     }
@@ -94,6 +97,7 @@ export const actions: Actions = {
   },
 
   reject: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_ACCOUNT_DELETION_REJECT, { locals });
     if (locals.staffProfile?.staffRole !== 'admin' || !locals.user) {
       return fail(403);
     }

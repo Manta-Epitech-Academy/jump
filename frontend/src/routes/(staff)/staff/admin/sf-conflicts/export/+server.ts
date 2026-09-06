@@ -7,10 +7,12 @@ import {
 } from '$lib/server/services/reconciliationService';
 import { FIELD_LABELS } from '$lib/domain/reconciliation';
 import { csvResponse } from '$lib/server/csv';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 // One row per (talent, field): the actionable unit for whoever pushes the data
 // back into Salesforce. `type` separates a real divergence (SF disagrees) from
-// data SF simply doesn't hold — differing fields, the parent contacts Salesforce
+// data SF simply doesn't hold: differing fields, the parent contacts Salesforce
 // has no column for, and the talent's centres d'intérêt.
 //
 // The `uai_*` columns carry the lycée's UAI alongside its name: a school's name
@@ -22,7 +24,7 @@ import { csvResponse } from '$lib/server/csv';
 // period presets / custom range / "depuis le dernier export"): `from`/`to` are
 // full ISO instants, and a talent is kept when the most recent of their
 // confirmation timestamps falls inside the window. Scoping the artifact, not the
-// page — the page still lists every conflict. The unscoped "Tout" export stays
+// page: the page still lists every conflict. The unscoped "Tout" export stays
 // authoritative and is the only one that advances the admin's high-water mark.
 function parseInstant(raw: string | null): Date | undefined {
   if (!raw) return undefined;
@@ -46,6 +48,7 @@ function fileDateSuffix(
 }
 
 export const GET: RequestHandler = async ({ locals, url }) => {
+  recordUsage(USAGE_FEATURES.ADMIN_SF_CONFLICTS_EXPORT, { locals });
   // The /staff/admin layout already redirects non-admins; this is defence in
   // depth for an endpoint that streams minors' personal data.
   const staffProfile = locals.staffProfile;

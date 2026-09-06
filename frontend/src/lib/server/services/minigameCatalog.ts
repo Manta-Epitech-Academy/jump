@@ -4,7 +4,7 @@ import type { MinigameScoring } from '@prisma/client';
 /**
  * The minigame catalogue is owned by the external jump-games service and read
  * live from its public `GET /api/games` endpoint. jump never hand-maintains a
- * game's slug, level count, display name or scoring mode — those are facts of
+ * game's slug, level count, display name or scoring mode: those are facts of
  * jump-games. The host only curates rotation (see `MinigameConfig`).
  *
  * The fetch is cached in-memory with a short TTL; on a transient failure we
@@ -12,7 +12,7 @@ import type { MinigameScoring } from '@prisma/client';
  * empty the admin panel or stall the cron.
  */
 export interface CatalogGame {
-  /** Slug — the key shared across the JWT, callback and `MinigameConfig`. */
+  /** Slug: the key shared across the JWT, callback and `MinigameConfig`. */
   name: string;
   displayName: string;
   description: string;
@@ -40,7 +40,7 @@ function gamesUrl(): string | null {
 
 /**
  * Resolve the catalogue. Returns `[]` when JUMP_GAMES_URL is unset or the
- * service is unreachable and nothing was ever cached — callers must treat an
+ * service is unreachable and nothing was ever cached: callers must treat an
  * empty catalogue as "no games available", never as an error.
  */
 export async function getGameCatalog(

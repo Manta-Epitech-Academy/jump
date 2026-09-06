@@ -1,9 +1,13 @@
 <script lang="ts">
   import { Input } from '$lib/components/ui/input';
   import Search from '@lucide/svelte/icons/search';
+  import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import SfConflictsResults from './components/SfConflictsResults.svelte';
   import type { SfConflictsData } from './components/types';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
@@ -11,25 +15,11 @@
   // tab's list by name or email. Passed down to the results once they resolve.
   let query = $state('');
 
-  // Resolve the streamed scans into local state rather than a bare `{#await}`: the
-  // adopt/repair actions re-run the load (which re-runs the heavy scans), and a
-  // template `{#await}` would flash the skeleton + remount the tables on every
-  // resolution. Holding the last result keeps the tables (and the expanded rows)
-  // in place; the skeleton shows only on the first load. The `=== p` guard drops
-  // a stale resolution arriving after a newer rescan has started.
-  let resolved = $state<SfConflictsData | null>(null);
-  let failed = $state(false);
-  $effect(() => {
-    const p = data.deferred;
-    p.then((d) => {
-      if (data.deferred === p) {
-        resolved = d;
-        failed = false;
-      }
-    }).catch(() => {
-      if (data.deferred === p) failed = true;
-    });
-  });
+  // The adopt/repair actions re-run the load, and with it the heavy scans, so
+  // each one hands `data.deferred` a fresh promise: the tables (and their
+  // expanded rows) are held across them rather than re-awaited. See
+  // `createStreamedCohort`.
+  const scans = createStreamedCohort<SfConflictsData>(() => data.deferred);
 </script>
 
 <svelte:head>
@@ -38,9 +28,7 @@
 
 <div class="space-y-6">
   <div class="space-y-1">
-    <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Divergences Salesforce<span class="text-epi-teal">_</span>
-    </h1>
+    <PageHeader title="Divergences" accent="Salesforce" />
     <p class="max-w-3xl text-sm text-muted-foreground">
       Deux familles de divergence : les <strong>données</strong> (Salesforce ⇆
       profil confirmé) et l'<strong>identité de connexion</strong> (le compte d'un
@@ -59,26 +47,19 @@
     />
   </div>
 
-  {#if resolved}
+  {#if scans.value}
     <SfConflictsResults
-      diffs={resolved.diffs}
-      enrichment={resolved.enrichment}
-      authConflicts={resolved.authConflicts}
+      diffs={scans.value.diffs}
+      enrichment={scans.value.enrichment}
+      authConflicts={scans.value.authConflicts}
       lastExportAt={data.lastExportAt}
       {query}
     />
-  {:else if failed}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-    >
-      <h3 class="text-sm font-bold tracking-widest text-foreground uppercase">
-        Chargement impossible
-      </h3>
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        Les divergences n'ont pas pu être chargées. Rechargez la page pour
-        réessayer.
-      </p>
-    </div>
+  {:else if scans.failed}
+    <ResultsNotice
+      title="Chargement impossible"
+      description="Les divergences n'ont pas pu être chargées. Rechargez la page pour réessayer."
+    />
   {:else}
     <ResultsSkeleton rows={6} rail={false} />
   {/if}

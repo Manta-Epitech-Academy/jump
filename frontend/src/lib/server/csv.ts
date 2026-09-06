@@ -18,7 +18,7 @@
  * opens the export. We prefix such cells with a single quote, the documented
  * mitigation (OWASP), which forces the app to render the literal text.
  */
-export function csvCell(value: string | null | undefined): string {
+function csvCell(value: string | null | undefined): string {
   const raw = value ?? '';
   const guarded = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
   return `"${guarded.replace(/"/g, '""')}"`;

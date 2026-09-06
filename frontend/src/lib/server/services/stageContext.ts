@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { ScopedPrismaClient } from '$lib/server/db/scoped';
-import { EVENT_TYPES } from '$lib/domain/event';
+import { eventWindowEnd } from '$lib/domain/event';
 import {
   type EventModuleKey,
   type EventModuleSettings,
@@ -9,176 +9,70 @@ import {
 } from '$lib/domain/eventModules';
 import {
   type EventLifecycleStatus,
-  type LifecycleBounds,
   getEventStatus,
   getLifecycleBounds,
 } from '$lib/domain/eventLifecycle';
+import { defaultEvent } from '$lib/domain/devWorkspace';
 import { schoolYearOf, type SchoolYear } from '$lib/domain/schoolYear';
 import { toDateKey } from '$lib/domain/planningTime';
 import { prisma } from '$lib/server/db';
+import type { Prisma } from '@prisma/client';
 
-export const STAGE_DEFAULT_DURATION_DAYS = 14;
-export const STAGE_UPCOMING_WINDOW_DAYS = 60;
+/**
+ * An event is "visible dans l'espace dev" iff an admin activated it
+ * (`devActivatedAt`) and it carries at least one module. Single source for the
+ * dev workspace event list and for any surface that must mirror that
+ * visibility: the talent's own attended-events history, and every link INTO the
+ * workspace (see `isDevVisibleEvent` below).
+ *
+ * It is deliberately NOT what decides which rows a history LISTS. The talent
+ * portal's list can afford the filter because it is built off `EventPresence`,
+ * which only exists where the dev space ran the émargement, so nothing is lost;
+ * the staff fiche's "Son parcours" is built off `Participation`, which is the
+ * whole Salesforce history, and filtering it would answer "what does the dev
+ * workspace expose" on a page whose question is "what has this person done with
+ * us". So a row stays and its link is withheld.
+ *
+ * Not the same rule as `activatableEventWhere` in `services/events`: this one is
+ * what IS visible, that one is what MAY be made visible (a stricter set, which
+ * also needs a public name and an end date).
+ */
+export const devVisibleEventWhere = {
+  devActivatedAt: { not: null },
+  modules: { some: {} },
+} satisfies Prisma.EventWhereInput;
+
+/**
+ * The same rule as `devVisibleEventWhere`, for a row already loaded rather than
+ * for a query. Kept beside it so the two halves cannot drift: a surface that
+ * links INTO the workspace has to apply the membership test the workspace
+ * itself applies, and it has the event in hand rather than a `where` to extend.
+ *
+ * Withholding a link is not cosmetic here. The dev layout resolves the event in
+ * view out of `resolveWorkspaceEvents` and falls back to the workspace default
+ * when the URL names an event that is not a member, so a link to a
+ * non-activated event opens its page under ANOTHER event's sidebar and
+ * switcher: a cohort read under the wrong heading, which is worse than the 404
+ * `loadEventOr404` does not throw (it gates on campus, never on activation).
+ */
+export function isDevVisibleEvent(event: {
+  devActivatedAt: Date | null;
+  modules: unknown[];
+}): boolean {
+  return event.devActivatedAt !== null && event.modules.length > 0;
+}
 
 const MS_PER_DAY = 86_400_000;
-
-/**
- * Stages are surfaced when ongoing or upcoming; `past` only appears when a
- * dev-tooling phase override is applied (see `devPhaseOverride.ts`). Sharing
- * `EventLifecycleStatus` keeps the override and the per-event status on the
- * same vocabulary.
- */
-export type StageStatus = EventLifecycleStatus;
-
-export type StageContext = {
-  id: string;
-  titre: string;
-  /**
-   * Phase the UI should display. Equals `realStatus` unless a dev phase
-   * override is in effect, in which case it reflects the override.
-   */
-  status: StageStatus;
-  /**
-   * Underlying phase derived purely from event dates, ignoring any override.
-   * Surfaced separately so the override toggle can mark which option is the
-   * "real" one without losing the effective `status` semantics.
-   */
-  realStatus: StageStatus;
-  startDate: Date;
-  endDate: Date;
-  startsInDays: number;
-};
-
-export type ResolveStageContextOptions = {
-  now?: Date;
-  /**
-   * Forces the returned `status` (the candidate stage is still selected from
-   * real data — only the perceived phase changes). Used by the dev override.
-   */
-  phaseOverride?: EventLifecycleStatus | null;
-};
-
-/**
- * Resolves the stage the workspace should surface: an ongoing stage takes
- * precedence; otherwise the next stage starting within STAGE_UPCOMING_WINDOW_DAYS.
- *
- * Candidates include any stage that either (a) has an explicit endDate still
- * in the future — ongoing regardless of start — or (b) has no endDate but
- * started within the default duration window, or (c) starts within the
- * lookahead window.
- */
-export async function resolveStageContext(
-  db: ScopedPrismaClient,
-  options: ResolveStageContextOptions = {},
-): Promise<StageContext | null> {
-  const now = options.now ?? new Date();
-  const override = options.phaseOverride ?? null;
-  const implicitLookback = addDays(now, -STAGE_DEFAULT_DURATION_DAYS);
-  const lookahead = addDays(now, STAGE_UPCOMING_WINDOW_DAYS);
-
-  const candidates = await db.event.findMany({
-    where: {
-      eventType: EVENT_TYPES.STAGE_SECONDE,
-      date: { lte: lookahead },
-      OR: [
-        { endDate: { gte: now } },
-        { endDate: null, date: { gte: implicitLookback } },
-      ],
-    },
-    select: { id: true, titre: true, date: true, endDate: true },
-    orderBy: { date: 'asc' },
-  });
-
-  let nextUpcoming: (typeof candidates)[number] | null = null;
-
-  for (const event of candidates) {
-    const endDate =
-      event.endDate ?? addDays(event.date, STAGE_DEFAULT_DURATION_DAYS);
-    const hasStarted = event.date.getTime() <= now.getTime();
-    const hasEnded = endDate.getTime() < now.getTime();
-
-    if (hasStarted && !hasEnded) {
-      return {
-        id: event.id,
-        titre: event.titre,
-        status: override ?? 'ongoing',
-        realStatus: 'ongoing',
-        startDate: event.date,
-        endDate,
-        startsInDays: 0,
-      };
-    }
-
-    if (!hasStarted && !nextUpcoming) {
-      nextUpcoming = event;
-    }
-  }
-
-  if (!nextUpcoming) return null;
-
-  const endDate =
-    nextUpcoming.endDate ??
-    addDays(nextUpcoming.date, STAGE_DEFAULT_DURATION_DAYS);
-
-  return {
-    id: nextUpcoming.id,
-    titre: nextUpcoming.titre,
-    status: override ?? 'upcoming',
-    realStatus: 'upcoming',
-    startDate: nextUpcoming.date,
-    endDate,
-    startsInDays: daysUntil(nextUpcoming.date, now),
-  };
-}
 
 /**
  * Whole days from `now` to `date`, clamped at 0 (a date today or in the past
  * reads "0", never negative). Calendar-day-naive by design: it rounds the raw
  * span up, matching `startsInDays` and the "J-X" countdown shown across the
- * dev workspace — not a timezone-aware day-boundary count. Single producer for
+ * dev workspace, not a timezone-aware day-boundary count. Single producer for
  * the `{{jours_restants}}` relance/broadcast variable so every surface agrees.
  */
 export function daysUntil(date: Date, now: Date = new Date()): number {
   return Math.max(0, Math.ceil((date.getTime() - now.getTime()) / MS_PER_DAY));
-}
-
-/**
- * Days until the talent's soonest stage de seconde that hasn't ended yet, or
- * null when they have none. Drives `{{jours_restants}}` on the student fiche,
- * where (unlike the event onboarding page) the relevant stage isn't pinned by
- * the URL. Shared by the page load (preview) and the send action so both show
- * the same number. Candidate filter mirrors `resolveStageContext`: multi-day
- * stages still running, plus single-day ones within their default duration.
- */
-export async function daysUntilTalentStage(
-  db: ScopedPrismaClient,
-  talentId: string,
-  now: Date = new Date(),
-): Promise<number | null> {
-  const next = await db.participation.findFirst({
-    where: {
-      talentId,
-      event: {
-        eventType: EVENT_TYPES.STAGE_SECONDE,
-        OR: [
-          { endDate: { gte: now } },
-          {
-            endDate: null,
-            date: { gte: addDays(now, -STAGE_DEFAULT_DURATION_DAYS) },
-          },
-        ],
-      },
-    },
-    orderBy: { event: { date: 'asc' } },
-    select: { event: { select: { date: true } } },
-  });
-  return next ? daysUntil(next.event.date, now) : null;
-}
-
-function addDays(d: Date, days: number): Date {
-  const out = new Date(d);
-  out.setDate(out.getDate() + days);
-  return out;
 }
 
 export type EventRecord = {
@@ -189,11 +83,25 @@ export type EventRecord = {
   date: Date;
   startMinutes: number | null;
   endDate: Date | null;
-  eventType: string;
+  /** Jump-owned cohort noun ("stagiaire", ...), or null when unnamed (the UI
+   * falls back to the neutral default). See `cohortNounForms`. */
+  cohortNoun: string | null;
   campusId: string;
   externalId: string | null;
-  /** Per-event feedback form override; null = use the type default. */
+  /** Per-event feedback form; null = no feedback form on this event. */
   feedbackFormId: string | null;
+  /**
+   * Which certificate this event issues, from the `Diploma_Template` catalogue.
+   * Null = it issues none, which is what hides the Inscrits export. Resolve it
+   * through `server/diplomaTemplates.ts` rather than querying it here.
+   */
+  diplomaTemplateId: string | null;
+  /**
+   * Which closing grid this event's 1:1s use, from the `Closing_Template`
+   * catalogue. Null = it holds no closings, which is what hides the surface.
+   * Resolve it through `server/closingTemplates.ts` rather than querying here.
+   */
+  closingTemplateId: string | null;
   /** The dev-workspace surfaces this event exposes (presence = enabled). */
   modules: Set<EventModuleKey>;
   /**
@@ -229,10 +137,12 @@ export async function loadEventOr404(
       date: true,
       startMinutes: true,
       endDate: true,
-      eventType: true,
+      cohortNoun: true,
       campusId: true,
       externalId: true,
       feedbackFormId: true,
+      diplomaTemplateId: true,
+      closingTemplateId: true,
       modules: { select: { moduleKey: true, settings: true } },
     },
   });
@@ -250,22 +160,10 @@ export async function loadEventOr404(
   };
 }
 
-export async function loadStageOr404(
-  eventId: string,
-  campusId: string,
-  notFoundMessage = 'Cette page est réservée aux stages de seconde.',
-): Promise<EventRecord> {
-  const event = await loadEventOr404(eventId, campusId);
-  if (event.eventType !== EVENT_TYPES.STAGE_SECONDE) {
-    throw error(404, notFoundMessage);
-  }
-  return event;
-}
-
 /**
- * Gate a dev-workspace surface on a per-event module (the per-event analog of
- * `requireFlag`). Throws 404 when the event does not expose the module, so a
- * direct URL to a surface the event has turned off behaves like a missing page.
+ * Gate a dev-workspace surface on a per-event module: throws 404 when the event
+ * does not expose the module, so a direct URL to a surface the event has turned
+ * off behaves like a missing page.
  */
 export function requireEventModule(
   event: { modules: Set<EventModuleKey> },
@@ -277,43 +175,22 @@ export function requireEventModule(
 }
 
 /**
- * Effective end of an event. An explicit `endDate` always wins. Otherwise only a
- * stage de seconde falls back to the default-duration window: a SF-synced stage
- * carries no endDate (only an applied planning template sets one) yet runs ~2
- * weeks. Every other type with no endDate is a single-day event - its start is
- * returned - so a one-afternoon coding club isn't treated as a two-week run.
+ * Effective end of an event for DISPLAY: its explicit `endDate`, else the start
+ * `date` (single-day). A multi-day event carries an explicit `endDate` (config
+ * wizard or planning template); nothing is synthesised from a type. Thin
+ * server-side alias of the domain `eventWindowEnd`, kept for the object-shaped
+ * call sites here.
+ *
+ * NOT for lifecycle status: collapsing a null `endDate` to `date` makes a
+ * single-day event read `past` the instant its start passes. Feed the raw
+ * (nullable) `endDate` straight to `getEventStatus` instead, which treats a null
+ * `endDate` as a whole-day window.
  */
 export function eventEndOrDefault(event: {
   date: Date;
   endDate: Date | null;
-  eventType: string;
 }): Date {
-  if (event.endDate) return event.endDate;
-  if (event.eventType === EVENT_TYPES.STAGE_SECONDE) {
-    return addDays(event.date, STAGE_DEFAULT_DURATION_DAYS);
-  }
-  return event.date;
-}
-
-/**
- * Lifecycle status of an event, accounting for the stage default-duration
- * window. A stage de seconde synced from Salesforce carries no `endDate` yet
- * runs ~2 weeks, so feeding the raw row to `getEventStatus` would read `past`
- * the day after it starts; only a stage gets the synthesized window. Every other
- * type keeps its real (possibly null) `endDate` and uses the standard
- * single-day rule (a one-afternoon coding club is not "ongoing" for two weeks).
- * Single-sourced so the dev workspace and the admin events cockpit can't disagree
- * on whether a running stage is `ongoing`.
- */
-export function resolveEventStatus(
-  event: { date: Date; endDate: Date | null; eventType: string },
-  bounds: LifecycleBounds,
-): EventLifecycleStatus {
-  const endDate =
-    event.eventType === EVENT_TYPES.STAGE_SECONDE
-      ? eventEndOrDefault(event)
-      : event.endDate;
-  return getEventStatus({ date: event.date, endDate }, bounds);
+  return eventWindowEnd(event.date, event.endDate);
 }
 
 export type WorkspaceEventEntry = {
@@ -325,8 +202,8 @@ export type WorkspaceEventEntry = {
   externalId: string | null;
   date: Date;
   /**
-   * Effective end: explicit endDate, else the stage default-duration window, else
-   * (any other type) the start date (single-day). See `eventEndOrDefault`.
+   * Effective end: explicit endDate, else the start date (single-day). See
+   * `eventEndOrDefault`.
    */
   endDate: Date;
   status: EventLifecycleStatus;
@@ -347,19 +224,27 @@ export type WorkspaceEventEntry = {
    */
   hasPlanning: boolean;
   /**
-   * Whether the event resolves to a LIVE feedback form (its override, else the
-   * type default; published + talent-answerable). The Feedback (bilan) surface is
-   * gated on this on top of the module, mirroring `hasPlanning`: enabling bilan
-   * without a resolvable form would otherwise drop a dev on an empty page, so the
-   * nav entry only shows when there is real feedback to look at.
+   * Whether the event resolves to a LIVE feedback form (its `feedbackFormId`,
+   * published + talent-answerable). The Feedback (bilan) surface is gated on this
+   * on top of the module, mirroring `hasPlanning`: enabling bilan without a
+   * resolvable form would otherwise drop a dev on an empty page, so the nav entry
+   * only shows when there is real feedback to look at.
    */
   hasFeedbackForm: boolean;
+  /**
+   * Whether the event names a closing grid (`closingTemplateId`). The Closings
+   * surface is gated on this on top of its module, exactly as bilan is gated on
+   * its form: a grid-less closings module has no questions to ask, so the nav
+   * entry would lead to a 404. Cheaper than the bilan's gate, which also has to
+   * check the form is published - a grid is reachable as soon as it is named.
+   */
+  hasClosingTemplate: boolean;
 };
 
 export type WorkspaceEvents = {
   /** All workspace events for the campus, most recent first. */
   events: WorkspaceEventEntry[];
-  /** The event the workspace defaults to: ongoing > soonest upcoming > most recent past. */
+  /** The event the workspace defaults to. Rule and rationale: `defaultEvent`. */
   current: WorkspaceEventEntry | null;
 };
 
@@ -371,7 +256,7 @@ export type WorkspaceEvents = {
  *  - at least one enabled module: the dev space is nothing but per-module
  *    surfaces, so an event exposing zero of them has nowhere to land. Including
  *    it would seat it in the switcher and let it become `current`, then drop on
- *    the empty state (`firstReachableSurface` -> null). Excluding it keeps the
+ *    the empty state (`landingSurface` -> null). Excluding it keeps the
  *    landing's happy path: a `current` with a reachable surface lands on it.
  *    (A member whose only surfaces are gated off by data, e.g. bilan without a
  *    form, still resolves to null and shows the empty state rather than a 404.)
@@ -390,7 +275,7 @@ export async function resolveWorkspaceEvents(
   // is a form. Forms are global (not campus-scoped), so they come off `prisma`.
   const [rows, liveForms] = await Promise.all([
     db.event.findMany({
-      where: { devActivatedAt: { not: null }, modules: { some: {} } },
+      where: devVisibleEventWhere,
       select: {
         id: true,
         titre: true,
@@ -398,35 +283,24 @@ export async function resolveWorkspaceEvents(
         externalId: true,
         date: true,
         endDate: true,
-        eventType: true,
         feedbackFormId: true,
+        closingTemplateId: true,
         modules: { select: { moduleKey: true } },
-        planning: { select: { _count: { select: { timeSlots: true } } } },
+        _count: { select: { planningSlots: true } },
       },
       orderBy: { date: 'desc' },
     }),
     prisma.feedback_Form.findMany({
       where: { status: 'published', allowsAuthenticatedAccess: true },
-      select: { id: true, defaultForEventType: true },
+      select: { id: true },
     }),
   ]);
   const liveFormIds = new Set(liveForms.map((f) => f.id));
-  const liveDefaultTypes = new Set(
-    liveForms
-      .map((f) => f.defaultForEventType)
-      .filter((t): t is string => t != null),
-  );
-  // Mirrors `eventFormWhere`/`resolveEventForm`: an explicit override is used
-  // alone (never falling back to the type default), else the type default. So a
-  // dangling override (form unpublished after it was picked) reads as "no form",
-  // exactly as the page would resolve it.
-  const eventResolvesLiveForm = (e: {
-    feedbackFormId: string | null;
-    eventType: string;
-  }) =>
-    e.feedbackFormId
-      ? liveFormIds.has(e.feedbackFormId)
-      : liveDefaultTypes.has(e.eventType);
+  // Mirrors `eventFormWhere`/`resolveEventForm`: the event resolves a form iff its
+  // `feedbackFormId` points at a live one. A dangling reference (form unpublished
+  // after it was picked) reads as "no form", exactly as the page would resolve it.
+  const eventResolvesLiveForm = (e: { feedbackFormId: string | null }) =>
+    e.feedbackFormId ? liveFormIds.has(e.feedbackFormId) : false;
   const bounds = getLifecycleBounds(timezone);
   const events: WorkspaceEventEntry[] = rows.map((e) => {
     return {
@@ -435,30 +309,19 @@ export async function resolveWorkspaceEvents(
       publicName: e.publicName,
       externalId: e.externalId,
       date: e.date,
-      // Effective end for display: the stage default-duration window, else the
-      // real (possibly null) endDate. `resolveEventStatus` applies the same rule
-      // for the lifecycle bucket, so the two never disagree.
+      // Effective end for display: explicit endDate, else the single-day start.
       endDate: eventEndOrDefault(e),
-      status: resolveEventStatus(e, bounds),
+      // Lifecycle bucket from the raw (nullable) endDate: a single-day event is
+      // "ongoing" for its whole day, a multi-day one until its endDate.
+      status: getEventStatus(e, bounds),
       schoolYear: schoolYearOf(e.date, timezone),
       monthKey: toDateKey(e.date, timezone).slice(0, 7),
       modules: e.modules.map((m) => m.moduleKey).filter(isEventModuleKey),
-      hasPlanning: (e.planning?._count.timeSlots ?? 0) > 0,
+      hasPlanning: e._count.planningSlots > 0,
       hasFeedbackForm: eventResolvesLiveForm(e),
+      hasClosingTemplate: e.closingTemplateId !== null,
     };
   });
 
-  const byDateAsc = (a: WorkspaceEventEntry, b: WorkspaceEventEntry) =>
-    a.date.getTime() - b.date.getTime();
-  const ongoing = events
-    .filter((e) => e.status === 'ongoing')
-    .sort(byDateAsc)[0];
-  const upcoming = events
-    .filter((e) => e.status === 'upcoming')
-    .sort(byDateAsc)[0];
-  // `events` is date-desc, so the first past entry is the most recent one.
-  const past = events.find((e) => e.status === 'past');
-  const current = ongoing ?? upcoming ?? past ?? null;
-
-  return { events, current };
+  return { events, current: defaultEvent(events) };
 }

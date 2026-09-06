@@ -60,7 +60,7 @@
   // ("06 12 34 56 78"), formatted live as they type so the field always
   // matches the placeholder and the value we store. The grouping is purely
   // visual: only the hidden input below carries the canonical E.164 string to
-  // the server. The leading "+" of a typed international prefix is honored —
+  // the server. The leading "+" of a typed international prefix is honored:
   // the moment a known dial code is recognized it hops into the country
   // selector and the field keeps only the national part.
 
@@ -391,11 +391,7 @@
         {required}
         aria-invalid={error || undefined}
         aria-describedby={ariaDescribedBy}
-        class={cn(
-          'w-full pr-9 tabular-nums',
-          className,
-          error && 'border-destructive focus-visible:border-destructive',
-        )}
+        class={cn('w-full pr-9', className, error && 'border-destructive')}
       />
       {#if isValid}
         <CircleCheck

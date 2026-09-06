@@ -8,10 +8,22 @@ bun.lockb
 # Miscellaneous
 /static/
 
-# SvelteKit auto-generated
-.svelte-kit/
-.svelte-kit-check/
+# SvelteKit auto-generated (one dir per command, see vitest.config.ts)
+.svelte-kit*/
 build/
+coverage/
+
+# Playwright auto-generated, all three written by `bun run test:e2e`. Without
+# them `verify` is not idempotent: it runs `lint` first and `test:e2e` last, so
+# the FIRST run in a worktree passes and every later one fails on the report and
+# the session files the previous run just wrote. CI never sees it, because lint
+# and E2E are different jobs on different runners.
+test-results/
+playwright-report/
+tests/e2e/.auth/
 
 # Paraglide auto-generated
 src/lib/paraglide/
+
+# Auto-generated DB map (produced by `bun run db:erd`)
+docs/database.md

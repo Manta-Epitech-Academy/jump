@@ -6,7 +6,7 @@
   import TalentName from '$lib/components/students/TalentName.svelte';
   import { civiliteCourtesyTitle } from '$lib/domain/profile';
   import { formatPhoneForDisplay } from '$lib/domain/phone';
-  import type { ContactPerson } from './contact';
+  import type { ContactPerson } from '$lib/domain/contact';
 
   let {
     student,
@@ -55,7 +55,7 @@
       class="group flex flex-1 items-center gap-2 text-sm transition-colors hover:text-epi-blue"
     >
       <Phone class="h-4 w-4 shrink-0 text-muted-foreground" />
-      <span class="tabular-nums">{display}</span>
+      <span>{display}</span>
     </a>
     <CopyButton value={display} label={copyLabel} />
   </div>
@@ -63,11 +63,7 @@
 
 {#snippet eleve()}
   <div class="space-y-2">
-    <h4
-      class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-    >
-      Élève
-    </h4>
+    <h4 class="epi-overline text-muted-foreground">Élève</h4>
     {@render identityLine(student)}
     {#if student.email}
       {@render emailRow(student.email, "Copier l'email")}
@@ -94,9 +90,7 @@
       ? 'sm:border-l sm:border-border sm:pl-6'
       : 'border-t pt-4'}"
   >
-    <h4
-      class="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-    >
+    <h4 class="flex items-center gap-1.5 epi-overline text-muted-foreground">
       <Users class="h-3 w-3" />
       {guardians.length > 1 ? 'Responsables légaux' : 'Responsable légal'}
     </h4>

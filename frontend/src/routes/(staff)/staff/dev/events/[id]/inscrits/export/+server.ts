@@ -1,5 +1,9 @@
 import type { RequestHandler } from './$types';
-import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import {
+  getCampusId,
+  getCampusTimezone,
+  scopedPrisma,
+} from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { niveauLabel } from '$lib/domain/niveau';
@@ -8,14 +12,18 @@ import {
   inscritStatus,
   INSCRIT_STATUS_LABELS,
   RULES_STATUS_LABELS,
-} from '$lib/domain/stageCompliance';
+} from '$lib/domain/dossierCompliance';
 import {
   imageRightsStatus,
   imageRightsDisplayStatus,
   IMAGE_RIGHTS_DISPLAY_LABELS,
 } from '$lib/domain/imageRights';
 import { buildXlsx } from '$lib/server/xlsx';
-import { INSCRIT_PARTICIPATION_SELECT } from '../components/types';
+import { INSCRIT_EXPORT_PARTICIPATION_SELECT } from '../components/types';
+import { loadEventDossierSignatures, NO_DOSSIER_SIGNATURES } from '../dossiers';
+import { schoolYearOf } from '$lib/domain/schoolYear';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 /**
  * Filtered-cohort XLSX export. The inscrits page filters/sorts ~200 rows client
@@ -23,7 +31,7 @@ import { INSCRIT_PARTICIPATION_SELECT } from '../components/types';
  * the server re-queries them campus + event scoped and recomputes the dossier
  * verdicts from the DB (never trusting the client), then streams the workbook.
  *
- * The sheet is richer than the on-screen table on purpose — a download is where
+ * The sheet is richer than the on-screen table on purpose: a download is where
  * the dev actually works the cohort: it adds student + parent phone/email and
  * splits the folded "Statut" into its two gates (règlement, droit à l'image) so
  * the file doubles as a contact list and a "who owes what" triage sheet.
@@ -41,12 +49,22 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     ? body.talentIds.filter((x): x is string => typeof x === 'string')
     : [];
 
-  const participations = talentIds.length
-    ? await db.participation.findMany({
-        where: { eventId: event.id, talentId: { in: talentIds } },
-        select: INSCRIT_PARTICIPATION_SELECT,
-      })
-    : [];
+  // Same dossier the on-screen column reads: the event's own school year, never
+  // the talent's most recent one.
+  const eventSchoolYear = schoolYearOf(
+    event.date,
+    getCampusTimezone(locals),
+  ).label;
+
+  const [participations, dossiers] = await Promise.all([
+    talentIds.length
+      ? db.participation.findMany({
+          where: { eventId: event.id, talentId: { in: talentIds } },
+          select: INSCRIT_EXPORT_PARTICIPATION_SELECT,
+        })
+      : [],
+    loadEventDossierSignatures(db, event.id, eventSchoolYear),
+  ]);
 
   // Preserve the client's filtered + sorted order.
   const byTalent = new Map(participations.map((p) => [p.talentId, p]));
@@ -59,14 +77,15 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     // Recompute the verdict server-side (never trust the client): the folded
     // "Statut" mirrors the table badge, and connection + each gate get their own
     // column so the sheet can be triaged on what a student actually owes.
+    const dossier = dossiers.get(p.talentId) ?? NO_DOSSIER_SIGNATURES;
     const rules = rulesStatus(
-      t.parentRulesSignedAt,
-      p.stageCompliance?.charteSigned,
-      t.rulesSignedAt,
+      dossier.parentRulesSignedAt,
+      dossier.rulesSignedAt,
     );
-    const image = imageRightsStatus(t);
+    // Off the event's own dossier, like the règlement above it.
+    const image = imageRightsStatus(dossier);
     const connected = t.firstLoginAt != null;
-    const status = inscritStatus(connected, rules, image);
+    const status = inscritStatus(t.niveau, connected, rules, image);
     const parentName = [t.parentPrenom, t.parentNom].filter(Boolean).join(' ');
     return [
       t.prenom,
@@ -77,9 +96,9 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
       connected ? 'Oui' : 'Non',
       RULES_STATUS_LABELS[rules],
       IMAGE_RIGHTS_DISPLAY_LABELS[
-        imageRightsDisplayStatus(image, t.rulesSignedAt != null)
+        imageRightsDisplayStatus(image, dossier.rulesSignedAt != null)
       ],
-      t.email ?? '',
+      t.user?.email ?? '',
       t.phone ?? '',
       parentName,
       t.parentEmail ?? '',
@@ -119,6 +138,11 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
   // `buildXlsx` returns an exactly-sized Uint8Array, so its backing buffer is
   // the whole payload. Hand the ArrayBuffer to Response (BodyInit) directly.
+  recordUsage(USAGE_FEATURES.DEV_INSCRITS_EXPORT, {
+    locals,
+    eventId: params.id,
+  });
+
   return new Response(xlsx.buffer as ArrayBuffer, {
     headers: {
       'Content-Type':

@@ -24,8 +24,6 @@ export const IMAGE_INPUT_TYPES = [
   'image/webp',
 ] as const;
 
-export type ImageInputType = (typeof IMAGE_INPUT_TYPES)[number];
-
 /**
  * Reject an absurdly large canvas before decoding. We downscale to `maxEdge`
  * regardless, so anything past a handful of megapixels is wasted decode work;

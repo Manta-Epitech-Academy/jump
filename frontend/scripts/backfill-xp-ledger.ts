@@ -3,18 +3,20 @@
  * each talent's cached `xp` and `eventsCount` from the reconstructed facts.
  *
  * Run AFTER the `xp_ledger` migration (which creates the empty table and drops
- * `Talent.level`) and BEFORE reopening traffic — the app now derives `Talent.xp`
+ * `Talent.level`) and BEFORE reopening traffic: the app now derives `Talent.xp`
  * from the ledger, so a write before this backfill would recompute from an empty
  * ledger and zero a talent. See the plan's deploy section.
  *
- * Reconstructed sources (mirrors services/xpService.ts grant keys):
- *   - onboarding        → talents with charterAcceptedAt set        (WELCOME_XP_BONUS)
- *   - minigame          → every MinigameAttempt with xpAwarded set   (its xpAwarded)
- *   - activity_presence → every present Participation                (getTotalXp(...))
+ * Reconstructed grant sources (mirrors services/xpService.ts grant keys):
+ *   - onboarding → talents with charterAcceptedAt set       (WELCOME_XP_BONUS)
+ *   - minigame   → every MinigameAttempt with xpAwarded set  (its xpAwarded)
+ *
+ * `eventsCount` is recomputed from émargement (EventPresence présent/en-retard,
+ * distinct per event), mirroring recomputeEventsCount in services/xpService.ts.
  *
  * Idempotent: all grants upsert on (source, sourceId), so re-running converges.
- * Drift between the old stored `xp` and the rebuilt SUM is expected and reported
- * — past `Math.max(0, …)` refund clamps inflated balances (positive delta) and
+ * Drift between the old stored `xp` and the rebuilt SUM is expected and reported:
+ * past `Math.max(0, …)` refund clamps inflated balances (positive delta) and
  * stacked onboarding re-runs collapse to a single +200 (negative delta).
  *
  * Run: bun run scripts/backfill-xp-ledger.ts [--dry-run]
@@ -31,44 +33,11 @@ import { PrismaPg } from '@prisma/adapter-pg';
 // Inlined from `src/lib/domain/xp.ts` so the script can run inside the
 // production image, which only ships the built app (no raw `src/`, and the
 // `$lib` alias resolves only under Vite). Keep in sync by inspection with the
-// upstream definitions — the values and rules below are deploy-critical (a
-// drift here silently rebuilds wrong balances).
+// upstream definition: the value below is deploy-critical (a drift here
+// silently rebuilds wrong balances).
 
 // One-off XP granted when a talent finishes onboarding.
 const WELCOME_XP_BONUS = 200;
-
-const DIFFICULTY_XP: Record<string, number> = {
-  Débutant: 20,
-  Intermédiaire: 45,
-  Avancé: 75,
-};
-
-function getActivityXpValue(difficulte: string): number {
-  return DIFFICULTY_XP[difficulte] || 20;
-}
-
-// Keeps only activities the student was present for and that aren't orga
-// (roll call), reduced to the `difficulte` field `getTotalXp` reads.
-function getXpEligibleActivities<
-  T extends {
-    isPresent: boolean;
-    activity: { activityType: string; difficulte: string | null };
-  },
->(participationActivities: T[]): { difficulte: string | null }[] {
-  return participationActivities
-    .filter((pa) => pa.isPresent && pa.activity.activityType !== 'orga')
-    .map((pa) => ({ difficulte: pa.activity.difficulte }));
-}
-
-// Total XP for a participation's eligible activities. An empty list (present
-// but no non-orga activity) still earns the 20 base attendance XP.
-function getTotalXp(items: { difficulte: string | null }[]): number {
-  if (!items || items.length === 0) return 20;
-  return items.reduce(
-    (total, item) => total + getActivityXpValue(item.difficulte ?? ''),
-    0,
-  );
-}
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -77,7 +46,7 @@ const dryRun = process.argv.includes('--dry-run');
 
 type PlannedGrant = {
   talentId: string;
-  source: 'onboarding' | 'minigame' | 'activity_presence';
+  source: 'onboarding' | 'minigame';
   sourceId: string;
   amount: number;
   campusId: string | null;
@@ -85,7 +54,7 @@ type PlannedGrant = {
 
 async function main() {
   console.log(
-    `XP ledger backfill — ${dryRun ? 'DRY RUN (no writes)' : 'LIVE'}\n`,
+    `XP ledger backfill: ${dryRun ? 'DRY RUN (no writes)' : 'LIVE'}\n`,
   );
 
   const talents = await prisma.talent.findMany({
@@ -94,22 +63,18 @@ async function main() {
       xp: true,
       charterAcceptedAt: true,
       participations: {
-        select: {
-          id: true,
-          isPresent: true,
-          campusId: true,
-          activities: {
-            select: {
-              isPresent: true,
-              activity: { select: { activityType: true, difficulte: true } },
-            },
-          },
-        },
+        select: { campusId: true },
         orderBy: { event: { date: 'desc' } },
       },
       minigameAttempts: {
         where: { xpAwarded: { not: null } },
         select: { id: true, xpAwarded: true, campusId: true },
+      },
+      // Attendance lives in émargement, not on Participation. eventsCount =
+      // distinct events with a présent/en-retard cell (deduped in JS below).
+      eventPresences: {
+        where: { status: { in: ['present', 'late'] } },
+        select: { eventId: true },
       },
     },
   });
@@ -122,7 +87,7 @@ async function main() {
   for (const t of talents) {
     const grants: PlannedGrant[] = [];
 
-    // onboarding — campus = most-recent participation (already date-desc), else null
+    // onboarding: campus = most-recent participation (already date-desc), else null
     if (t.charterAcceptedAt) {
       grants.push({
         talentId: t.id,
@@ -133,7 +98,7 @@ async function main() {
       });
     }
 
-    // minigame — one grant per awarded attempt
+    // minigame: one grant per awarded attempt
     for (const a of t.minigameAttempts) {
       grants.push({
         talentId: t.id,
@@ -144,19 +109,8 @@ async function main() {
       });
     }
 
-    // activity_presence — one grant per present participation
-    let eventsCount = 0;
-    for (const p of t.participations) {
-      if (!p.isPresent) continue;
-      eventsCount += 1;
-      grants.push({
-        talentId: t.id,
-        source: 'activity_presence',
-        sourceId: p.id,
-        amount: getTotalXp(getXpEligibleActivities(p.activities)),
-        campusId: p.campusId,
-      });
-    }
+    // eventsCount: distinct events attended (présent/en-retard), from émargement
+    const eventsCount = new Set(t.eventPresences.map((p) => p.eventId)).size;
 
     const xp = grants.reduce((sum, g) => sum + g.amount, 0);
     target.set(t.id, { xp, eventsCount });
@@ -177,7 +131,7 @@ async function main() {
   );
 
   if (dryRun) {
-    console.log('\nDRY RUN — no rows written.');
+    console.log('\nDRY RUN: no rows written.');
     return;
   }
 

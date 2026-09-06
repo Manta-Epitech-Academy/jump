@@ -7,6 +7,10 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
+  import {
+    pageCount,
+    paginate,
+  } from '$lib/components/staff/datatable/paginate';
   import SalesforceIconLink from '$lib/components/salesforce/SalesforceIconLink.svelte';
   import CloudDownload from '@lucide/svelte/icons/cloud-download';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
@@ -30,6 +34,7 @@
   } from '$lib/domain/authIdentity';
   import type { SfConflictsData } from './types';
   import SfExportMenu from './SfExportMenu.svelte';
+  import CodeTag from '$lib/components/layout/CodeTag.svelte';
 
   // The streamed reconciliation payload plus the shell's search box value. This
   // component owns every data-dependent projection, both tabs and the two repair
@@ -46,7 +51,7 @@
     $props();
 
   function displayValue(field: DiffField, value: string | null): string {
-    if (!value) return '—';
+    if (!value) return '-';
     if (field === 'civilite') return civiliteLabel(value);
     return value;
   }
@@ -59,7 +64,7 @@
     `${prenom} ${nom} ${email ?? ''}`.toLowerCase().includes(needle);
 
   // ════════════════════════════════════════════════════════════════════════
-  //  DATA tab — Talent ⇆ TalentSfImport field diffs (unchanged behaviour)
+  //  DATA tab: Talent ⇆ TalentSfImport field diffs (unchanged behaviour)
   // ════════════════════════════════════════════════════════════════════════
   type ConflictRow = {
     talentId: string;
@@ -188,7 +193,7 @@
   }
 
   // ════════════════════════════════════════════════════════════════════════
-  //  AUTH tab — Talent ⇆ bauth_user identity drift, with per-verdict repairs
+  //  AUTH tab: Talent ⇆ bauth_user identity drift, with per-verdict repairs
   // ════════════════════════════════════════════════════════════════════════
   const visibleAuth = $derived(
     authConflicts.filter((c) => matches(c.prenom, c.nom, c.targetEmail)),
@@ -200,7 +205,7 @@
 
   // Client-side pagination. The streamed payload is whole-cohort, so all three
   // lists (conflicts to arbitrate, fields to push, identity conflicts) could each
-  // run to hundreds of rows × multiple fields — rendering them all at once made
+  // run to hundreds of rows × multiple fields, rendering them all at once made
   // this the longest page in the admin space. The data is already in memory, so
   // page it here; the CSV export stays exhaustive regardless of the page shown.
   const PER_PAGE = 25;
@@ -217,24 +222,19 @@
   });
 
   const conflictsTotalPages = $derived(
-    Math.ceil(visibleConflicts.length / PER_PAGE),
+    pageCount(visibleConflicts.length, PER_PAGE),
   );
   const pagedConflicts = $derived(
-    visibleConflicts.slice(
-      (conflictsPage - 1) * PER_PAGE,
-      conflictsPage * PER_PAGE,
-    ),
+    paginate(visibleConflicts, conflictsPage, PER_PAGE),
   );
   const pushTotalPages = $derived(
-    Math.ceil(visiblePushGroups.length / PER_PAGE),
+    pageCount(visiblePushGroups.length, PER_PAGE),
   );
   const pagedPushGroups = $derived(
-    visiblePushGroups.slice((pushPage - 1) * PER_PAGE, pushPage * PER_PAGE),
+    paginate(visiblePushGroups, pushPage, PER_PAGE),
   );
-  const authTotalPages = $derived(Math.ceil(visibleAuth.length / PER_PAGE));
-  const pagedAuth = $derived(
-    visibleAuth.slice((authPage - 1) * PER_PAGE, authPage * PER_PAGE),
-  );
+  const authTotalPages = $derived(pageCount(visibleAuth.length, PER_PAGE));
+  const pagedAuth = $derived(paginate(visibleAuth, authPage, PER_PAGE));
 
   // Detail rows are revealed on demand (chevron) so the table stays light; the
   // data is already in `authConflicts`, no extra request.
@@ -253,12 +253,13 @@
     }).format(new Date(d));
 
   function verdictBadgeClass(c: AuthConflict): string {
-    if (c.exposureRisk) return 'border-red-500/50 bg-red-500/10 text-red-600';
+    if (c.exposureRisk)
+      return 'border-destructive/50 bg-destructive/10 text-destructive';
     switch (c.verdict) {
       case 'DEGRADED_INVERSION':
       case 'PARENT_HOLDER':
       case 'STAFF_HOLDER':
-        return 'border-epi-orange/40 text-epi-orange';
+        return 'border-epi-together/40 text-epi-together';
       case 'SYMMETRIC_INVERSION':
         return 'border-epi-blue/40 text-epi-blue';
       default:
@@ -288,8 +289,6 @@
     switch (t.action) {
       case 'repointDrop':
         return `Basculer ${who} sur le compte « ${c.holder?.email} » (où sont ses ${c.holder?.sessions ?? 0} sessions actives) puis supprimer l'ancien compte « ${c.linked.email} ». Les sessions vivantes sont conservées.`;
-      case 'rename':
-        return `Renommer le compte de connexion de ${who} : « ${c.linked.email} » → « ${c.targetEmail} ».`;
       case 'swap':
         return `Échanger les emails des deux comptes (inversion symétrique) : ${who} et le talent lié récupèrent chacun le bon email de connexion.`;
       case 'sever':
@@ -312,13 +311,13 @@
     </div>
     {#if acc}
       <div class="font-mono text-xs break-all">{acc.email}</div>
-      <div>{acc.name ?? '—'} · rôle « {acc.role} »</div>
+      <div>{acc.name ?? '-'} · rôle « {acc.role} »</div>
       <div class="text-muted-foreground">
         créé le {fmtDate(acc.createdAt)} · {acc.sessions} session(s) active(s)
       </div>
       <div>Nature : <span class="font-medium">{natureText}</span></div>
       {#if exposureNote}
-        <div class="font-medium text-red-600">{exposureNote}</div>
+        <div class="font-medium text-destructive">{exposureNote}</div>
       {/if}
     {:else}
       <div class="text-muted-foreground italic">
@@ -340,7 +339,7 @@
       Connexion / identité
       {#if authExposureCount > 0}
         <span
-          class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white"
+          class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-bold text-status-foreground"
           title="{authExposureCount} risque(s) d'exposition entre comptes"
         >
           {authCount}
@@ -366,13 +365,13 @@
     {#if !hasData}
       <Card.Root>
         <Card.Content class="py-16 text-center">
-          <CheckCheck class="mx-auto mb-3 h-8 w-8 text-epi-teal-solid" />
+          <CheckCheck class="mx-auto mb-3 h-8 w-8 text-epi-tech-ink" />
           <p class="text-sm font-medium">Aucune divergence de données.</p>
         </Card.Content>
       </Card.Root>
     {:else}
       <section class="space-y-3">
-        <h2 class="font-heading text-lg tracking-wide uppercase">
+        <h2 class="font-heading text-display-s">
           Conflits à arbitrer
           <span class="ml-1 font-mono text-sm text-muted-foreground">
             {conflictCount}
@@ -408,7 +407,7 @@
                         <div
                           class="flex items-center gap-1 font-mono text-xs text-muted-foreground"
                         >
-                          {c.email ?? '—'}
+                          {c.email ?? '-'}
                           <SalesforceIconLink
                             externalId={c.externalId}
                             kind="lead"
@@ -472,14 +471,14 @@
       {#if pushFieldCount > 0}
         <section class="space-y-3">
           <div>
-            <h2 class="font-heading text-lg tracking-wide uppercase">
+            <h2 class="font-heading text-display-s">
               À transmettre vers Salesforce
               <span class="ml-1 font-mono text-sm text-muted-foreground">
                 {pushFieldCount}
               </span>
             </h2>
             <p class="font-mono text-xs tracking-wide text-muted-foreground">
-              &lt; poussé via l'export CSV — aucune action ici /&gt;
+              <CodeTag>poussé via l'export CSV, aucune action ici</CodeTag>
             </p>
           </div>
 
@@ -492,7 +491,7 @@
                     <span
                       class="flex items-center gap-1 font-mono text-xs text-muted-foreground"
                     >
-                      {g.email ?? '—'}
+                      {g.email ?? '-'}
                       <SalesforceIconLink
                         externalId={g.externalId}
                         kind="lead"
@@ -509,7 +508,7 @@
                           {item.label}
                           {#if item.origin === 'parent'}
                             <span
-                              class="rounded-full bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground"
+                              class="rounded-full bg-muted px-1.5 py-px text-xs font-medium text-muted-foreground"
                               title="Salesforce n'a pas de champ pour cette donnée"
                             >
                               hors SF
@@ -553,14 +552,14 @@
       Le compte de connexion d'un talent ne porte plus l'email avec lequel il se
       connecte (changement / inversion Salesforce). Chaque ligne propose la
       <strong>seule résolution sûre pour son verdict</strong>. Une ligne en
-      <span class="font-medium text-red-600">rouge</span> est un risque d'exposition
+      <span class="font-medium text-destructive">rouge</span> est un risque d'exposition
       entre comptes (RGPD) : à traiter en priorité.
     </p>
 
     {#if authCount === 0}
       <Card.Root>
         <Card.Content class="py-16 text-center">
-          <CheckCheck class="mx-auto mb-3 h-8 w-8 text-epi-teal-solid" />
+          <CheckCheck class="mx-auto mb-3 h-8 w-8 text-epi-tech-ink" />
           <p class="text-sm font-medium">Aucun conflit d'identité.</p>
           <p class="text-sm text-muted-foreground">
             Chaque talent lié porte bien son email de connexion.
@@ -583,7 +582,7 @@
             <Table.Body>
               {#each pagedAuth as c (c.talentId)}
                 {@const primary = actionForVerdict(c.verdict)}
-                <Table.Row class={c.exposureRisk ? 'bg-red-500/5' : ''}>
+                <Table.Row class={c.exposureRisk ? 'bg-destructive/5' : ''}>
                   <Table.Cell>
                     <div class="flex items-start gap-2">
                       <button
@@ -622,7 +621,7 @@
                       {VERDICT_LABELS[c.verdict]}
                     </Badge>
                     {#if c.exposureRisk}
-                      <div class="mt-1 text-[11px] text-red-600">
+                      <div class="mt-1 text-xs text-destructive">
                         email obsolète = {c.exposureKind === 'parent'
                           ? 'un parent'
                           : c.exposureKind === 'staff'
@@ -667,7 +666,7 @@
                         <Button
                           variant="ghost"
                           size="sm"
-                          class="gap-1.5 text-red-600 hover:text-red-700"
+                          class="gap-1.5 text-destructive hover:text-destructive"
                           onclick={() => askAuth(c, 'sever')}
                         >
                           <Link2Off class="h-3.5 w-3.5" />
@@ -726,9 +725,7 @@
 <AlertDialog.Root bind:open={adoptOpen}>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title class="font-heading text-xl tracking-tight uppercase">
-        Adopter la valeur Salesforce
-      </AlertDialog.Title>
+      <AlertDialog.Title>Adopter la valeur Salesforce</AlertDialog.Title>
       <AlertDialog.Description>
         La valeur
         <strong>{adoptTarget ? FIELD_LABELS[adoptTarget.field] : ''}</strong>
@@ -786,7 +783,7 @@
 <AlertDialog.Root bind:open={authOpen}>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title class="font-heading text-xl tracking-tight uppercase">
+      <AlertDialog.Title>
         {authTarget ? ACTION_LABELS[authTarget.action] : ''}
       </AlertDialog.Title>
       <AlertDialog.Description>

@@ -4,7 +4,7 @@
   import { Button } from '$lib/components/ui/button';
 
   // Shared prev / "x / y" / next control for paginated staff lists. The parent
-  // owns where the page number actually lives (a URL param, a $state, …) — this
+  // owns where the page number actually lives (a URL param, a $state, …): this
   // just renders the chrome and reports the target page through `onPageChange`.
   // Renders nothing for a single page, so callers drop it in unconditionally.
   let {

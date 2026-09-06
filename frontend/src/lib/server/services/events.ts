@@ -1,36 +1,257 @@
 import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { hhmmToMinutes } from '$lib/domain/event';
+import { hhmmToMinutes, minutesToHHMM } from '$lib/domain/event';
 import {
+  eventRunsClosings,
   isEventModuleKey,
   parseModuleSettings,
   type EventModuleKey,
 } from '$lib/domain/eventModules';
-import { fromWallClock } from '$lib/domain/planningTime';
+import { fromWallClock, toDateKey } from '$lib/domain/planningTime';
+import {
+  getEventStatus,
+  getLifecycleBounds,
+  type LifecycleBounds,
+  type EventLifecycleStatus,
+} from '$lib/domain/eventLifecycle';
+import {
+  activationRefusal,
+  eventConfigState,
+  type EventConfigState,
+} from '$lib/domain/eventReadiness';
+import { schoolYearOf } from '$lib/domain/schoolYear';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 
 /**
- * Diffs an event's `EventConfig_Module` rows against the desired set inside an
- * open transaction: deletes removed modules, then reconciles the rest.
+ * The per-event view model the admin surfaces consume: the events cockpit
+ * (`/staff/admin/events`) and the admin dashboard's "recently created" feed.
+ * Both read the same shape so their badges, statuses and readiness can't drift
+ * apart - the cockpit is the authoritative renderer, the dashboard a 5-row
+ * preview of it. Built by `EventService.listAdminEvents`.
+ */
+export type AdminEventVM = {
+  id: string;
+  titre: string;
+  publicName: string;
+  /** What the dev space / talents see today: publicName or the SF titre. */
+  displayName: string;
+  /** Jump-owned cohort noun ("stagiaire", ...), or null when unnamed; set in the wizard. */
+  cohortNoun: string | null;
+  campusId: string;
+  campusName: string;
+  /** "12 fév. 2026 → 26 fév. 2026" (campus tz), endDate omitted when absent. */
+  dateLabel: string;
+  /** Epoch ms of the start date, for client-side sorting on the Dates column. */
+  dateTs: number;
+  /** Epoch ms of row creation, for the dashboard's "recently created" order. */
+  createdTs: number;
+  /** Start day `YYYY-MM-DD` (campus tz): the end-date input's `min`. */
+  startDateKey: string;
+  schoolYearLabel: string;
+  schoolYearStart: number;
+  /** "HH:MM" Jump-owned start, or "" when unset (shows the type default). */
+  startTime: string;
+  /** Lifecycle bucket in the event's own campus tz: à venir / en cours / passé. */
+  status: EventLifecycleStatus;
+  /** Linked to a Salesforce campaign (`externalId`); false = admin-created. */
+  synced: boolean;
+  /**
+   * Raw activation gate (`devActivatedAt`): the admin has claimed the event for
+   * the dev cohort. This alone does NOT make it visible - that also needs >=1
+   * module, at which point `configState` becomes `shown`. Drives the wizard's
+   * visibility toggle (the page reads the state through `configState`).
+   */
+  devActivated: boolean;
+  /**
+   * The event's configuration state (à configurer / prêt à publier / visible),
+   * a pure projection of (modules, activation). Single source for the admin
+   * "État" badge and the "À préparer" cue + filter. `shown` mirrors
+   * `resolveWorkspaceEvents`' membership rule, so the admin and the dev space
+   * agree on what "in the dev space" means.
+   */
+  configState: EventConfigState;
+  /** End day `YYYY-MM-DD` (campus tz) for the form, or "" when unset. */
+  endDate: string;
+  modules: EventModuleKey[];
+  /** Per-module sub-options keyed by module key (only enabled modules carry one). */
+  moduleSettings: Record<string, unknown>;
+  /** Per-event feedback form (id), or "" = no feedback form on this event. */
+  feedbackFormId: string;
+  /** The certificate the event issues (id), or "" = it issues none. */
+  diplomaTemplateId: string;
+  /** The closing grid the event's 1:1s use (id), or "" = it holds none. */
+  closingTemplateId: string;
+  participations: number;
+};
+
+/**
+ * {@link eventRunsClosings} read off this view model.
  *
- * `settings` carries the per-module sub-options, validated per module before any
- * write. `overwriteSettings` splits the two callers:
- *  - the single-event wizard save is the authoritative sub-option editor, so it
- *    UPSERTS every desired module with its validated settings (update preserves
- *    `createdAt`);
- *  - the bulk module edit only sets presence, so it ADDS missing modules with
- *    default settings and leaves existing rows' settings untouched - a bulk apply
- *    must never reset a campus's per-event sub-options.
+ * Here rather than at each aggregate because this file is where `""` starts
+ * meaning "none": the VM flattens three nullable FKs to the empty string for the
+ * forms that consume it (`closingTemplateId: e.closingTemplateId ?? ''` below),
+ * so this is the only place that can be trusted to know `!== ''` and not
+ * `!== null` is the test. Written twice at the call sites, the second spelling
+ * was one keystroke from `!= null`, which is TRUE for every event and would have
+ * put every module-on, grid-less event back into the coverage denominator - the
+ * same figure, wrong the same way, with the domain rule still dutifully called.
+ */
+export function adminEventRunsClosings(
+  event: Pick<AdminEventVM, 'modules' | 'closingTemplateId'>,
+): boolean {
+  return eventRunsClosings({
+    modules: event.modules,
+    hasClosingTemplate: event.closingTemplateId !== '',
+  });
+}
+
+/**
+ * The rows `bulkSetActivation` is allowed to activate: the SQL twin of
+ * `activationBlockers` in `domain/eventReadiness`.
  *
- * Both paths stay idempotent under concurrent saves: the bulk add uses
- * `skipDuplicates`, and the wizard upsert is naturally race-safe on the PK (two
- * admins saving the same event no longer hit a P2002 that rolls back the save).
+ * Two spellings of one rule is the shape this replaces - the same three
+ * conditions sat here as a `where`, in `adminApi/writes/bulk.ts` as a hand-copied
+ * predicate, and in a refusal sentence that listed all three with "or" because it
+ * could not tell which one applied. A `where` cannot call a predicate, so the
+ * honest arrangement is one rule with two spellings that name each other, and a
+ * unit test asserting they read the same fields.
+ *
+ * Stricter than `devVisibleEventWhere` in `services/stageContext`, which is what
+ * is visible rather than what may be made visible.
+ */
+export const activatableEventWhere = {
+  modules: { some: {} },
+  endDate: { not: null },
+  NOT: [{ publicName: null }, { publicName: '' }],
+} satisfies Prisma.EventWhereInput;
+
+// Cross-campus: admins see every campus. The dev workspace, by contrast, only
+// ever reads its own campus via scopedPrisma.
+const ADMIN_EVENT_SELECT = {
+  id: true,
+  titre: true,
+  publicName: true,
+  cohortNoun: true,
+  date: true,
+  endDate: true,
+  startMinutes: true,
+  externalId: true,
+  devActivatedAt: true,
+  feedbackFormId: true,
+  diplomaTemplateId: true,
+  closingTemplateId: true,
+  campusId: true,
+  createdAt: true,
+  campus: { select: { name: true, timezone: true } },
+  modules: { select: { moduleKey: true, settings: true } },
+  _count: {
+    select: {
+      participations: { where: visibleParticipationWhere },
+    },
+  },
+} satisfies Prisma.EventSelect;
+
+type AdminEventRow = Prisma.EventGetPayload<{
+  select: typeof ADMIN_EVENT_SELECT;
+}>;
+
+function dateRangeLabel(
+  date: Date,
+  endDate: Date | null,
+  timezone: string,
+): string {
+  const fmt = new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: timezone,
+  });
+  const start = fmt.format(date);
+  if (!endDate) return start;
+  const end = fmt.format(endDate);
+  return start === end ? start : `${start} → ${end}`;
+}
+
+function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
+  // Lifecycle bounds are timezone-dependent and the list is cross-campus, so
+  // memoize one bounds object per distinct campus tz instead of recomputing it
+  // for every row.
+  const boundsByTz = new Map<string, LifecycleBounds>();
+  const boundsFor = (tz: string): LifecycleBounds => {
+    let b = boundsByTz.get(tz);
+    if (!b) {
+      b = getLifecycleBounds(tz);
+      boundsByTz.set(tz, b);
+    }
+    return b;
+  };
+
+  return rows.map((e) => {
+    const tz = e.campus.timezone;
+    const sy = schoolYearOf(e.date, tz);
+    const startDateKey = toDateKey(e.date, tz);
+    // Same window rule as the dev workspace (both call `getEventStatus`): the
+    // raw endDate (null = single-day, a whole-day window) decides the bucket, so
+    // the cockpit and the dev space agree.
+    const status = getEventStatus(e, boundsFor(tz));
+    const present = e.modules.filter((m) => isEventModuleKey(m.moduleKey));
+    const modules = present.map((m) => m.moduleKey as EventModuleKey);
+    const moduleSettings: Record<string, unknown> = {};
+    for (const m of present) {
+      const key = m.moduleKey as EventModuleKey;
+      moduleSettings[key] = parseModuleSettings(key, m.settings);
+    }
+    return {
+      id: e.id,
+      titre: e.titre,
+      publicName: e.publicName ?? '',
+      displayName: e.publicName?.trim() || e.titre,
+      cohortNoun: e.cohortNoun,
+      campusId: e.campusId,
+      campusName: e.campus.name,
+      dateLabel: dateRangeLabel(e.date, e.endDate, tz),
+      dateTs: e.date.getTime(),
+      createdTs: e.createdAt.getTime(),
+      startDateKey,
+      schoolYearLabel: sy.label,
+      schoolYearStart: sy.startYear,
+      startTime: minutesToHHMM(e.startMinutes),
+      status,
+      synced: e.externalId != null,
+      devActivated: e.devActivatedAt != null,
+      configState: eventConfigState({
+        devActivated: e.devActivatedAt != null,
+        moduleCount: modules.length,
+      }),
+      endDate: e.endDate ? toDateKey(e.endDate, tz) : '',
+      modules,
+      moduleSettings,
+      feedbackFormId: e.feedbackFormId ?? '',
+      diplomaTemplateId: e.diplomaTemplateId ?? '',
+      closingTemplateId: e.closingTemplateId ?? '',
+      participations: e._count.participations,
+    };
+  });
+}
+
+/**
+ * Reconciles ONE event's `EventConfig_Module` rows to the desired set inside an
+ * open transaction: deletes the modules dropped from the set, then UPSERTs each
+ * desired module with its validated per-module sub-options (update preserves
+ * `createdAt`). The single-event wizard save is the authoritative sub-option
+ * editor, so it always (re)writes settings. The bulk list edit is a different
+ * shape - presence only, across many events - and takes the set-based path in
+ * `bulkSetModules` instead of looping this.
+ *
+ * Race-safe on the PK: the upsert means two admins saving the same event no
+ * longer hit a P2002 that rolls the save back.
  */
 async function applyModuleDiff(
   tx: Prisma.TransactionClient,
   eventId: string,
   moduleKeys: string[],
-  opts: { settings?: Record<string, unknown>; overwriteSettings: boolean },
+  settings: Record<string, unknown>,
 ) {
   const desired = [
     ...new Set(moduleKeys.filter(isEventModuleKey)),
@@ -39,85 +260,68 @@ async function applyModuleDiff(
     where: { eventId },
     select: { moduleKey: true },
   });
-  const currentKeys = new Set(current.map((m) => m.moduleKey));
-
-  const toRemove = [...currentKeys].filter(
-    (k) => !desired.includes(k as EventModuleKey),
-  );
+  const toRemove = current
+    .map((m) => m.moduleKey)
+    .filter((k) => !desired.includes(k as EventModuleKey));
   if (toRemove.length > 0) {
     await tx.eventConfig_Module.deleteMany({
       where: { eventId, moduleKey: { in: toRemove } },
     });
   }
 
-  const settingsFor = (key: EventModuleKey): Prisma.InputJsonValue =>
-    parseModuleSettings(key, opts.settings?.[key]) as Prisma.InputJsonValue;
-
-  if (opts.overwriteSettings) {
-    for (const moduleKey of desired) {
-      const settings = settingsFor(moduleKey);
-      await tx.eventConfig_Module.upsert({
-        where: { eventId_moduleKey: { eventId, moduleKey } },
-        create: { eventId, moduleKey, settings },
-        update: { settings },
-      });
-    }
-  } else {
-    const toAdd = desired.filter((k) => !currentKeys.has(k));
-    if (toAdd.length > 0) {
-      await tx.eventConfig_Module.createMany({
-        data: toAdd.map((moduleKey) => ({
-          eventId,
-          moduleKey,
-          settings: settingsFor(moduleKey),
-        })),
-        skipDuplicates: true,
-      });
-    }
-  }
-}
-
-async function validateMantaIds(campusId: string, mantaIds: string[]) {
-  if (mantaIds.length === 0) return;
-  const uniqueIds = [...new Set(mantaIds)];
-  const validCount = await prisma.staffProfile.count({
-    where: {
-      id: { in: uniqueIds },
-      campusId,
-      staffRole: { in: ['manta', 'peda'] },
-    },
-  });
-  if (validCount !== uniqueIds.length) {
-    throw error(
-      400,
-      'Rôle ou campus invalide : tous les mantas doivent appartenir à ce campus et avoir le rôle manta ou peda.',
-    );
+  for (const moduleKey of desired) {
+    const value = parseModuleSettings(
+      moduleKey,
+      settings[moduleKey],
+    ) as Prisma.InputJsonValue;
+    await tx.eventConfig_Module.upsert({
+      where: { eventId_moduleKey: { eventId, moduleKey } },
+      create: { eventId, moduleKey, settings: value },
+      update: { settings: value },
+    });
   }
 }
 
 export const EventService = {
+  /**
+   * Every event as an `AdminEventVM`, newest start date first, cross-campus.
+   * Powers the events cockpit (full list) and the admin dashboard (which slices
+   * the most recently created off this same list and counts the "à préparer"
+   * bucket), so both read one source of truth for status + readiness.
+   */
+  async listAdminEvents(): Promise<AdminEventVM[]> {
+    const rows = await prisma.event.findMany({
+      orderBy: { date: 'desc' },
+      select: ADMIN_EVENT_SELECT,
+    });
+    return buildAdminEventVMs(rows);
+  },
+
   /**
    * Admin event configuration: the friendly `publicName`, the Jump-owned start
    * time-of-day and end date, and the dev-workspace surfaces the event exposes,
    * all in one transaction. Admin-only (the
    * `/staff/admin/events` page is admin-gated and admins are cross-campus, so
    * there is no campus check here; the event id is the authority). The start
-   * `date`, `titre` and `eventType` stay Salesforce-owned. `endDate` is NOT
-   * sent by Salesforce, so Jump owns it here (like the start time): a
-   * `YYYY-MM-DD` campus-tz day, stored at end-of-day so the last day still
-   * reads as "ongoing"; empty clears it back to the type default span. Note an
-   * applied planning template also rewrites `endDate` (its last day wins).
+   * `date` and `titre` stay Salesforce-owned. `endDate` is NOT sent by
+   * Salesforce, so Jump owns it here (like the start time): a `YYYY-MM-DD`
+   * campus-tz day, stored at end-of-day so the last day still reads as
+   * "ongoing"; empty clears it back to a single-day event. Note an applied
+   * planning template also rewrites `endDate` (its last day wins).
    */
   async updateEventConfig(
     eventId: string,
     data: {
       publicName: string;
+      cohortNoun: string;
       startTime: string;
       endDate: string;
       modules: string[];
       moduleSettings: Record<string, unknown>;
       devActivated: boolean;
       feedbackFormId: string;
+      diplomaTemplateId: string;
+      closingTemplateId: string;
     },
   ) {
     // Surfaces a clean 404 (rather than a transaction-level throw) if the event
@@ -131,6 +335,26 @@ export const EventService = {
         campus: { select: { timezone: true } },
       },
     });
+    // The third spelling of the activation rule, and the one that was missing.
+    // `bulkSetActivation` refuses through `activatableEventWhere` and
+    // `write_event_activation` refuses through `activationBlockers`, but this
+    // path writes `publicName` and `devActivatedAt` in the same call and checked
+    // neither against the other: clearing the public name of an activated event
+    // left it live in the dev workspace under its raw Salesforce title, which is
+    // the one state the rule exists to prevent. It reaches here from both
+    // consumers - the config dialog, and `write_event_config`, whose patch
+    // semantics carry the stored activation forward into a call that only meant
+    // to edit a name.
+    const refusal = data.devActivated
+      ? activationRefusal({
+          publicName: data.publicName.trim() || null,
+          cohortNoun: data.cohortNoun.trim() || null,
+          endDate: data.endDate || null,
+          modules: data.modules,
+          devActivated: data.devActivated,
+        })
+      : null;
+    if (refusal) throw error(400, refusal);
     // 23:59 campus-local on the chosen day: `getEventStatus` only flips the
     // event to "past" once that whole day has elapsed, and `toDateKey` still
     // resolves it to that day for the émargement créneaux.
@@ -142,10 +366,10 @@ export const EventService = {
     const devActivatedAt = data.devActivated
       ? (event.devActivatedAt ?? new Date())
       : null;
-    // The feedback form the event's bilan surface uses. Empty clears the
-    // override (fall back to the form marked default for the type); a non-empty
-    // id is validated to point at a real form (publication is enforced later, at
-    // resolve time). Checked outside the transaction so a bad id 400s cleanly.
+    // The feedback form the event's bilan surface uses. Empty = no form, and the
+    // surface stays hidden; a non-empty id is validated to point at a real form
+    // (publication is enforced later, at resolve time). Checked outside the
+    // transaction so a bad id 400s cleanly.
     const feedbackFormId = data.feedbackFormId.trim() || null;
     if (feedbackFormId) {
       const form = await prisma.feedback_Form.findUnique({
@@ -154,41 +378,96 @@ export const EventService = {
       });
       if (!form) throw error(400, 'Formulaire de feedback introuvable.');
     }
+    // Which certificate the event issues. Empty = none, and the Inscrits export
+    // disappears. Same shape as the form above, and checked here rather than in
+    // the transaction for the same reason.
+    const diplomaTemplateId = data.diplomaTemplateId.trim() || null;
+    if (diplomaTemplateId) {
+      const template = await prisma.diploma_Template.findUnique({
+        where: { id: diplomaTemplateId },
+        select: { id: true },
+      });
+      if (!template) throw error(400, 'Certificat introuvable.');
+    }
+    // Which closing grid the event's 1:1s use. Empty = it holds none and the
+    // surface stays hidden, exactly as a null feedback form hides the bilan.
+    const closingTemplateId = data.closingTemplateId.trim() || null;
+    if (closingTemplateId) {
+      const grid = await prisma.closing_Template.findUnique({
+        where: { id: closingTemplateId },
+        select: { id: true },
+      });
+      if (!grid) throw error(400, 'Grille de closing introuvable.');
+    }
 
     await prisma.$transaction(async (tx) => {
-      await applyModuleDiff(tx, eventId, data.modules, {
-        settings: data.moduleSettings,
-        overwriteSettings: true,
-      });
+      await applyModuleDiff(tx, eventId, data.modules, data.moduleSettings);
       await tx.event.update({
         where: { id: eventId },
         data: {
           publicName: data.publicName.trim() || null,
+          // Blank → NULL ("not named yet"); the UI falls back to the neutral
+          // default, so the column never asserts an unmade choice.
+          cohortNoun: data.cohortNoun.trim() || null,
           startMinutes: hhmmToMinutes(data.startTime),
           endDate,
           devActivatedAt,
           feedbackFormId,
+          diplomaTemplateId,
+          closingTemplateId,
         },
       });
     });
   },
 
   /**
-   * Applies one exact module set to many events at once (admin list bulk edit).
-   * Overwrite semantics, same per-event diff as a single save, all in one
-   * transaction so a partial failure rolls the whole batch back. Admin-only and
-   * cross-campus like `updateEventConfig`, so no campus check: the ids are the
-   * authority. Only the module rows change; every other event field is left
-   * untouched.
+   * Makes many events expose exactly the given module set at once (admin list
+   * bulk edit). Set-based, NOT a per-event diff: two statements regardless of the
+   * selection size - one `deleteMany` to drop every module outside the target
+   * set across all selected events, one `createMany` (skipDuplicates) to add the
+   * target modules to those that lack them. A per-event read-modify-write loop
+   * here meant ~2 round-trips per event inside one interactive transaction (268
+   * events ≈ 536 serial queries, leaning on the bumped 15s tx timeout); the set
+   * form is O(1) in queries.
+   *
+   * `skipDuplicates` is what preserves per-event sub-options: an event that
+   * already has a target module keeps its row (and its `settings`) untouched, so
+   * a bulk apply never resets a campus's tuned settings - only presence changes.
+   * Wrapped in a transaction so a failed insert rolls the deletes back. Admin-
+   * only and cross-campus like `updateEventConfig`: the ids are the authority.
    */
   async bulkSetModules(eventIds: string[], modules: string[]) {
     if (eventIds.length === 0) return;
+    const desired = [
+      ...new Set(modules.filter(isEventModuleKey)),
+    ] as EventModuleKey[];
+    // Default sub-options per target module: the same value the per-event add
+    // path used, computed once instead of per (event × module) pair.
+    const defaults = new Map<EventModuleKey, Prisma.InputJsonValue>(
+      desired.map((key) => [
+        key,
+        parseModuleSettings(key, undefined) as Prisma.InputJsonValue,
+      ]),
+    );
     await prisma.$transaction(async (tx) => {
-      for (const eventId of eventIds) {
-        await applyModuleDiff(tx, eventId, modules, {
-          overwriteSettings: false,
-        });
-      }
+      await tx.eventConfig_Module.deleteMany({
+        where: {
+          eventId: { in: eventIds },
+          // Empty target set = expose nothing: drop every module (no key filter).
+          ...(desired.length ? { moduleKey: { notIn: desired } } : {}),
+        },
+      });
+      if (desired.length === 0) return;
+      await tx.eventConfig_Module.createMany({
+        data: eventIds.flatMap((eventId) =>
+          desired.map((moduleKey) => ({
+            eventId,
+            moduleKey,
+            settings: defaults.get(moduleKey),
+          })),
+        ),
+        skipDuplicates: true,
+      });
     });
   },
 
@@ -218,7 +497,7 @@ export const EventService = {
       return { activated: eventIds.length, skipped: 0 };
     }
     const eligible = await prisma.event.findMany({
-      where: { id: { in: eventIds }, modules: { some: {} } },
+      where: { id: { in: eventIds }, ...activatableEventWhere },
       select: { id: true },
     });
     const eligibleIds = eligible.map((e) => e.id);
@@ -232,78 +511,5 @@ export const EventService = {
       activated: eligibleIds.length,
       skipped: eventIds.length - eligibleIds.length,
     };
-  },
-
-  /**
-   * Replaces an event's assigned mantas.
-   */
-  async assignMantas(eventId: string, campusId: string, mantaIds: string[]) {
-    const currentEvent = await prisma.event.findUniqueOrThrow({
-      where: { id: eventId },
-      select: { campusId: true },
-    });
-    if (currentEvent.campusId !== campusId) {
-      throw error(
-        403,
-        'Accès refusé : cet événement appartient à un autre campus.',
-      );
-    }
-
-    await validateMantaIds(campusId, mantaIds);
-
-    await prisma.$transaction(async (tx) => {
-      await tx.eventManta.deleteMany({ where: { eventId } });
-      if (mantaIds.length > 0) {
-        await tx.eventManta.createMany({
-          data: mantaIds.map((staffProfileId) => ({
-            eventId,
-            staffProfileId,
-          })),
-        });
-      }
-    });
-  },
-
-  async addEventStaff(
-    eventId: string,
-    campusId: string,
-    staffProfileId: string,
-  ) {
-    const event = await prisma.event.findUniqueOrThrow({
-      where: { id: eventId },
-      select: { campusId: true },
-    });
-    if (event.campusId !== campusId) {
-      throw error(
-        403,
-        'Accès refusé : cet événement appartient à un autre campus.',
-      );
-    }
-    await validateMantaIds(campusId, [staffProfileId]);
-    await prisma.eventManta.upsert({
-      where: { eventId_staffProfileId: { eventId, staffProfileId } },
-      create: { eventId, staffProfileId },
-      update: {},
-    });
-  },
-
-  async removeEventStaff(
-    eventId: string,
-    campusId: string,
-    staffProfileId: string,
-  ) {
-    const event = await prisma.event.findUniqueOrThrow({
-      where: { id: eventId },
-      select: { campusId: true },
-    });
-    if (event.campusId !== campusId) {
-      throw error(
-        403,
-        'Accès refusé : cet événement appartient à un autre campus.',
-      );
-    }
-    await prisma.eventManta.deleteMany({
-      where: { eventId, staffProfileId },
-    });
   },
 };

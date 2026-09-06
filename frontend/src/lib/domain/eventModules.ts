@@ -3,16 +3,13 @@ import { z } from 'zod';
 /**
  * Per-event "modules" = the dev-workspace surfaces a single event exposes.
  *
- * This is a DIFFERENT layer from feature flags (`featureFlags.ts`). A feature
- * flag answers "is this capability available to this campus/person at all"
- * (campus-scoped, request-resolved, governance/rollout). A module answers
- * "what does THIS event expose" (per-event, resolved at route level, part of
- * the event's identity). Two events on the same campus can expose different
- * modules, which is exactly why this can't live in the campus flag set.
+ * A module answers "what does THIS event expose" (per-event, resolved at route
+ * level, part of the event's identity). Two events on the same campus can expose
+ * different modules, which is why this is per-event and not a campus-wide toggle.
  *
  * Membership: a module is enabled for an event iff an `EventConfig_Module` row
  * exists (presence = enabled). Keys stay plain strings (validated here, not a
- * DB enum) so adding a module needs no migration, mirroring `flagKey`.
+ * DB enum) so adding a module needs no migration.
  */
 // NOTE: planning is deliberately NOT a module. It is a read-only window onto
 // pedago/admin-owned schedule data, so a dev toggle would be hollow (the dev
@@ -23,7 +20,7 @@ export const EVENT_MODULES = {
   INSCRITS: 'inscrits',
   EMARGEMENT: 'emargement',
   BILAN: 'bilan',
-  ENTRETIENS: 'entretiens',
+  CLOSINGS: 'closings',
 } as const;
 
 export type EventModuleKey = (typeof EVENT_MODULES)[keyof typeof EVENT_MODULES];
@@ -39,8 +36,8 @@ export interface EventModuleDef {
   label: string;
   /** Help text shown in the event-config dialog. */
   description: string;
-  /** URL sub-path under `/staff/dev/events/[id]/`. */
-  segment: string;
+  /** URL sub-path under `/staff/dev/events/[id]/` (a module's route folder name). */
+  segment: EventModuleKey;
 }
 
 const def = (d: EventModuleDef): EventModuleDef => d;
@@ -67,25 +64,24 @@ export const EVENT_MODULE_DEFS: Record<EventModuleKey, EventModuleDef> = {
       'Les réponses des jeunes au questionnaire de fin, leurs statistiques, et un QR code à partager pour le remplir.',
     segment: 'bilan',
   }),
-  [EVENT_MODULES.ENTRETIENS]: def({
-    key: EVENT_MODULES.ENTRETIENS,
-    label: 'Entretiens',
+  [EVENT_MODULES.CLOSINGS]: def({
+    key: EVENT_MODULES.CLOSINGS,
+    label: 'Closings',
     description:
-      "Les entretiens d'orientation, un par jeune : noter le ressenti, le projet et la suite du parcours.",
-    segment: 'entretiens',
+      'Le closing de fin, un par jeune : noter le ressenti, le projet et la suite du parcours. Les questions posées dépendent de la grille choisie pour cet événement.',
+    segment: 'closings',
   }),
 };
 
 /**
  * Modules seeded onto a new event at creation. The event type is only a starting
  * point: after creation the per-event module rows are the truth and are edited
- * independently (changing the type never rebinds an existing event). Every type
- * (stage, coding club, anything the worker imports) starts with all four surfaces
- * on; admins trim per event from the admin event-config page. There is no
- * per-type table because no type's default actually differs today - branch on
- * `eventType` here the day one does.
+ * independently. Every event (stage, coding club, anything the worker imports)
+ * starts with all four surfaces on; admins trim per event from the admin
+ * event-config page. There is no per-kind table because no default actually
+ * differs today - take a parameter and branch here the day one does.
  */
-export function presetModulesForType(_eventType: string): EventModuleKey[] {
+export function defaultEventModules(): EventModuleKey[] {
   return [...EVENT_MODULE_KEYS];
 }
 
@@ -102,28 +98,22 @@ export function isEventModuleKey(value: string): value is EventModuleKey {
  * with no sub-options uses the empty schema. FKs (the bilan feedback form) stay
  * typed columns on `Event`, never in here.
  */
-export const inscritsModuleSettingsSchema = z.object({
+const inscritsModuleSettingsSchema = z.object({
   // Show the dossier/statut funnel column (connexion, règlement, droit à l'image)
   // on the Inscrits table for this event. Opt-in: defaults off, an admin turns it
   // on per event from the config wizard (onboarding campuses want it; others, e.g.
-  // Paris with interviews + public bilan only, leave it off). Gates ONLY that
+  // Paris with closings + public bilan only, leave it off). Gates ONLY that
   // column, never the talent fiche.
   showStatutColumn: z.boolean().default(false),
-  // Show the "Générer diplômes" export (the internship Certificat de stage) on the
-  // Inscrits header. Opt-in: defaults off, so nothing stage-specific surfaces until
-  // an admin enables it (a coding club issues no certificate; even a stage turns it
-  // on explicitly). Gating goes through this sub-option, never an eventType check
-  // at the call site.
-  diplomas: z.boolean().default(false),
 });
 
 const emptyModuleSettingsSchema = z.object({});
 
-export const EVENT_MODULE_SETTINGS_SCHEMAS = {
+const EVENT_MODULE_SETTINGS_SCHEMAS = {
   [EVENT_MODULES.INSCRITS]: inscritsModuleSettingsSchema,
   [EVENT_MODULES.EMARGEMENT]: emptyModuleSettingsSchema,
   [EVENT_MODULES.BILAN]: emptyModuleSettingsSchema,
-  [EVENT_MODULES.ENTRETIENS]: emptyModuleSettingsSchema,
+  [EVENT_MODULES.CLOSINGS]: emptyModuleSettingsSchema,
 } as const;
 
 export type EventModuleSettings = {
@@ -151,19 +141,6 @@ export function defaultModuleSettings<K extends EventModuleKey>(
   key: K,
 ): EventModuleSettings[K] {
   return parseModuleSettings(key, {});
-}
-
-/** Whether a module exposes any sub-options (drives the advanced section in the wizard). */
-export function moduleHasSettings(key: EventModuleKey): boolean {
-  return (
-    Object.keys(
-      (EVENT_MODULE_SETTINGS_SCHEMAS[key] as z.ZodObject<z.ZodRawShape>).shape,
-    ).length > 0
-  );
-}
-
-export function eventModuleLabel(key: string): string {
-  return EVENT_MODULE_DEFS[key as EventModuleKey]?.label ?? key;
 }
 
 /** Whether a module is enabled, given a resolved set/list of an event's modules. */
@@ -199,12 +176,12 @@ export type EventSurfaceKey = EventModuleKey | 'planning';
  * `planning` pseudo-surface is interleaved where the nav shows it (between
  * émargement and bilan).
  */
-export const EVENT_SURFACE_ORDER: EventSurfaceKey[] = [
+const EVENT_SURFACE_ORDER: EventSurfaceKey[] = [
   EVENT_MODULES.INSCRITS,
   EVENT_MODULES.EMARGEMENT,
   'planning',
   EVENT_MODULES.BILAN,
-  EVENT_MODULES.ENTRETIENS,
+  EVENT_MODULES.CLOSINGS,
 ];
 
 /** The per-event signals a surface's reachability folds in. */
@@ -214,14 +191,46 @@ export interface EventSurfaceGates {
   hasPlanning: boolean;
   /** Event resolves a live feedback form: gates `bilan` on top of its module. */
   hasFeedbackForm: boolean;
+  /** Event names a closing grid: gates `closings` on top of its module. Same
+   *  shape as `hasFeedbackForm`, and for the same reason - a surface whose
+   *  content is a per-event FK is unreachable while that FK is null, so the nav
+   *  must not offer a page that would 404. Cheaper than the bilan's, which has to
+   *  check the form is published too: a grid is reachable as soon as it is
+   *  named. */
+  hasClosingTemplate: boolean;
+}
+
+/**
+ * Whether an event actually conducts closings: its section is on AND it names a
+ * grid.
+ *
+ * Named because the pair is read twice and means the same thing both times. The
+ * sidebar asks it to decide whether to offer a page that would otherwise 404;
+ * the admin aggregates ask it to decide whose enrolments belong in the coverage
+ * denominator, through `adminEventRunsClosings` in `services/events`, which is
+ * where the admin view model's `""`-means-none is understood. That second reading
+ * is why this is a function and not an inline `&&`: the denominator counted every
+ * enrolment in scope, including the ones on events that run no closing at all, so
+ * a national coverage of 78 % was reported as 18 % and read as an execution
+ * problem rather than a configuration one. A rule spelled out at each site is a
+ * rule that only some sites apply.
+ */
+export function eventRunsClosings(
+  gates: Pick<EventSurfaceGates, 'modules' | 'hasClosingTemplate'>,
+): boolean {
+  return (
+    eventHasModule(gates.modules, EVENT_MODULES.CLOSINGS) &&
+    gates.hasClosingTemplate
+  );
 }
 
 /** Whether a dev can actually reach a surface, module presence + data gates. */
-export function isSurfaceReachable(
+function isSurfaceReachable(
   key: EventSurfaceKey,
   gates: EventSurfaceGates,
 ): boolean {
   if (key === 'planning') return gates.hasPlanning;
+  if (key === EVENT_MODULES.CLOSINGS) return eventRunsClosings(gates);
   if (!eventHasModule(gates.modules, key)) return false;
   if (key === EVENT_MODULES.BILAN) return gates.hasFeedbackForm;
   return true;
@@ -233,18 +242,58 @@ export function reachableSurfaces(gates: EventSurfaceGates): EventSurfaceKey[] {
 }
 
 /**
- * The surface the dev workspace lands on for an event (first reachable in
- * display order), or null when the event exposes nothing reachable.
+ * The surface to open for an event: `preferred` when the event actually reaches
+ * it, else its first reachable one in display order, else null (the event
+ * exposes nothing).
+ *
+ * One function rather than two, because every caller asks the same question with
+ * a different amount of context. The dev landing has no surface open and passes
+ * nothing; the event switcher and the header's year menu pass the surface in
+ * view, so changing context keeps you on the page you were reading. Splitting
+ * the two is how the year menu ended up dropping devs on `inscrits` while the
+ * switcher, one click away, preserved their surface.
  */
-export function firstReachableSurface(
+export function landingSurface(
   gates: EventSurfaceGates,
+  preferred?: EventSurfaceKey | null,
 ): EventSurfaceKey | null {
-  return reachableSurfaces(gates)[0] ?? null;
+  const reachable = reachableSurfaces(gates);
+  if (preferred && reachable.includes(preferred)) return preferred;
+  return reachable[0] ?? null;
 }
 
-/** URL sub-path under `/staff/dev/events/[id]/` for a surface. */
-export function surfaceSegment(key: EventSurfaceKey): string {
+/**
+ * URL sub-path under `/staff/dev/events/[id]/` for a surface. Returns the literal
+ * segment union (not a bare `string`) so `resolve()` at the call sites can verify
+ * the built `/staff/dev/events/[id]/<segment>` path against the real route tree.
+ */
+export function surfaceSegment(key: EventSurfaceKey): EventSurfaceKey {
   return key === 'planning' ? 'planning' : EVENT_MODULE_DEFS[key].segment;
+}
+
+/**
+ * Reverse of `surfaceSegment`, keyed off the same source so the two cannot drift.
+ */
+const SURFACE_BY_SEGMENT: ReadonlyMap<string, EventSurfaceKey> = new Map(
+  EVENT_SURFACE_ORDER.map((key) => [surfaceSegment(key) as string, key]),
+);
+
+/**
+ * The surface a dev-workspace pathname is on, or null when it is not an event
+ * surface (the dev landing, a talent fiche, a PDF endpoint).
+ *
+ * Validated against the surface union rather than handed back raw, so a caller
+ * gets a key it can pass straight to `landingSurface` instead of a string it has
+ * to match against a segment list itself.
+ *
+ * Deliberately unanchored, for two reasons that both matter: the app can be
+ * served under a base path, and a page nested under a surface must report the
+ * surface carrying it rather than null, or switching event from there would
+ * silently drop you back onto the first one.
+ */
+export function surfaceFromPath(pathname: string): EventSurfaceKey | null {
+  const segment = pathname.match(/\/staff\/dev\/events\/[^/]+\/([^/?]+)/)?.[1];
+  return (segment && SURFACE_BY_SEGMENT.get(segment)) || null;
 }
 
 /** Sidebar label for a surface (FR, staff-facing → vous). */

@@ -1,9 +1,10 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { recomputeEventsCount } from '$lib/server/services/xpService';
 import { verifyCheckinToken } from '$lib/server/presence/checkinToken';
 import { isSlotPastCutoff } from '$lib/server/presence/slotClosure';
-import { eventPublicName } from '$lib/domain/event';
+import { eventDisplayName } from '$lib/domain/event';
 import {
   dateKeyToDbDate,
   dayLabelFr,
@@ -13,11 +14,7 @@ import {
 } from '$lib/domain/eventPresence';
 
 type CheckinState =
-  | 'present'
-  | 'already'
-  | 'closed'
-  | 'not_registered'
-  | 'invalid';
+  'present' | 'already' | 'closed' | 'not_registered' | 'invalid';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const talent = locals.talent;
@@ -51,7 +48,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     prisma.event.findUnique({
       where: { id: eventId },
       select: {
-        eventType: true,
+        titre: true,
         publicName: true,
         campus: { select: { timezone: true } },
       },
@@ -67,10 +64,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   ]);
 
   if (!event) return { state: 'invalid' as CheckinState, ...empty };
-  // Short, friendly label: the event's public name when set, else the type
-  // label ("Stage de Seconde") - never the cohort `titre`.
+  // Short, friendly label: the event's public name when set, else the SF
+  // `titre` as a fallback.
   const withLabel = {
-    eventLabel: eventPublicName(event),
+    eventLabel: eventDisplayName(event),
     prenom: talent.prenom,
     ...labels,
   };
@@ -107,18 +104,24 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     };
   }
 
-  await prisma.eventPresence.upsert({
-    where: key,
-    create: {
-      talentId: talent.id,
-      eventId,
-      day: dayDate,
-      slot,
-      status: 'present',
-      source: 'qr',
-      markedAt: new Date(),
-    },
-    update: { status: 'present', source: 'qr', markedAt: new Date() },
+  // The self-check-in and the `eventsCount` projection commit together: a first
+  // scan can make this event count as attended, so refresh the cached count in
+  // the same transaction as the write.
+  await prisma.$transaction(async (tx) => {
+    await tx.eventPresence.upsert({
+      where: key,
+      create: {
+        talentId: talent.id,
+        eventId,
+        day: dayDate,
+        slot,
+        status: 'present',
+        source: 'qr',
+        markedAt: new Date(),
+      },
+      update: { status: 'present', source: 'qr', markedAt: new Date() },
+    });
+    await recomputeEventsCount(tx, talent.id);
   });
 
   return { state: 'present' as CheckinState, ...withLabel };

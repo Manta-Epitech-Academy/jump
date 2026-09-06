@@ -1,4 +1,4 @@
-# Politique de Tests — Epitech Intra Lycéens
+# Politique de Tests : Epitech Intra Lycéens
 
 > Stack : SvelteKit · TypeScript · Vitest · Playwright · Prisma · PostgreSQL · BetterAuth
 
@@ -6,23 +6,26 @@
 
 ## 1. Philosophie
 
-Les tests ne sont pas une contrainte — ils sont le filet de sécurité qui permet de refactorer et de livrer sereinement. Ce document définit **ce qu'on teste, comment, et comment on maintient cette qualité dans le temps**.
+Les tests ne sont pas une contrainte : ils sont le filet de sécurité qui permet de refactorer et de livrer sereinement. Ce document définit **ce qu'on teste, comment, et comment on maintient cette qualité dans le temps**.
 
 Trois principes directeurs :
 
 - **Un test = un comportement**, pas une fonction
-- **Les tests doivent être lisibles** — un test qui échoue doit expliquer ce qui s'est cassé sans avoir à lire le code
-- **Un test lent ou fragile est pire qu'un test absent** — on préfère moins de tests, fiables, que beaucoup de tests qui flappent
+- **Les tests doivent être lisibles** : un test qui échoue doit expliquer ce qui s'est cassé sans avoir à lire le code
+- **Un test lent ou fragile est pire qu'un test absent** : on préfère moins de tests, fiables, que beaucoup de tests qui flappent
 
 ---
 
 ## 2. Stack de Tests
 
-| Outil                       | Usage                            |
-| --------------------------- | -------------------------------- |
-| **Vitest**                  | Tests unitaires et d'intégration |
-| **Playwright**              | Tests E2E                        |
-| **@testing-library/svelte** | Rendu de composants Svelte       |
+| Outil          | Usage                            |
+| -------------- | -------------------------------- |
+| **Vitest**     | Tests unitaires et d'intégration |
+| **Playwright** | Tests E2E                        |
+
+Il n'y a pas de bibliothèque de rendu de composants, et c'est cohérent : §3.1 dit
+de ne pas tester les composants Svelte. `@testing-library/svelte` figurait ici
+sans être installé.
 
 ---
 
@@ -30,15 +33,15 @@ Trois principes directeurs :
 
 ```
            /\
-          /E2E\          Playwright — full user journeys (10%)
+          /E2E\          Playwright: full user journeys (10%)
          /------\
-        / Integr. \      Vitest — services + DB interactions (20%)
+        / Integr. \      Vitest: services + DB interactions (20%)
        /------------\
-      /    Unit      \   Vitest — business logic, utils, schemas (70%)
+      /    Unit      \   Vitest: business logic, utils, schemas (70%)
      /________________\
 ```
 
-### 3.1 Tests Unitaires — Vitest (70%)
+### 3.1 Tests Unitaires : Vitest (70%)
 
 **Ce qu'on teste :**
 
@@ -92,7 +95,7 @@ describe('validateAge', () => {
 
 ---
 
-### 3.2 Tests d'Intégration — Vitest (20%)
+### 3.2 Tests d'Intégration : Vitest (20%)
 
 **Ce qu'on teste :**
 
@@ -107,100 +110,141 @@ describe('validateAge', () => {
 
 **Règles :**
 
-- Utiliser une instance PostgreSQL de test dédiée (via `docker-compose.test.yml`) — jamais la production, jamais le staging
-- Nettoyer les données après chaque test (`afterEach`)
-- Les tests d'intégration sont suffixés `.integration.test.ts` et placés dans un dossier `__integration__`
+- Suffixés `.integration.test.ts`, dans un dossier `__integration__`. Le nom et
+  l'emplacement décident du projet vitest qui les ramasse, donc un fichier mal
+  placé part dans le projet `unit`, qui n'a pas de base de données.
+- **Appeler `assertTestDatabase()` avant d'écrire quoi que ce soit.** C'est la
+  garde qui refuse un `DATABASE_URL` qui ne désigne pas une base de test, et elle
+  est vérifiée par `bun run lint:tests`. Les worktrees de la machine partagent un
+  Postgres, donc « le mauvais `DATABASE_URL` » est un accident réaliste.
+- **Nettoyer ce qu'on a créé, en scopant par id.** `afterAll` avec des ids
+  capturés en `beforeAll` est la forme normale ici (fixture partagée par les tests
+  du fichier) ; `afterEach` convient quand chaque test crée les siennes. Ce qui
+  n'est pas négociable, c'est le scope : un `deleteMany` par préfixe de nom
+  supprimerait les fixtures d'un autre fichier.
+- **Ne pas compter sur l'isolation entre fichiers pour l'ordre.** Le projet
+  `integration` tourne un fichier à la fois (`fileParallelism: false` dans
+  `vitest.config.ts`), parce que plusieurs suites lisent un agrégat plus large que
+  leur propre fixture.
 
-**Exemple :**
+**Exemple** (la forme réelle des suites de ce repo) :
 
 ```typescript
-// src/lib/services/__integration__/student.service.integration.test.ts
-import { describe, it, expect, afterEach } from 'vitest';
-import { studentService } from '../student.service';
-import { testDb } from '../../db/test-adapter';
+// src/lib/server/services/__integration__/student.integration.test.ts
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { prisma } from '$lib/server/db';
+import { assertTestDatabase } from './testDatabase';
+import { studentService } from '../studentService';
 
-afterEach(async () => {
-  await testDb.cleanup('students');
-});
+describe('studentService (integration)', () => {
+  // Un discriminant par run : les fixtures d'un fichier ne doivent jamais
+  // pouvoir collisionner avec celles d'un autre.
+  const stamp = Date.now();
+  let campusId = '';
 
-describe('studentService.create', () => {
-  it('should create a student and retrieve them by id', async () => {
-    const created = await studentService.create({
-      firstName: 'Alice',
-      lastName: 'Martin',
-      email: 'alice@test.fr',
+  beforeAll(async () => {
+    assertTestDatabase();
+    const campus = await prisma.campus.create({
+      data: { name: `Test Campus ${stamp}` },
     });
-
-    const found = await studentService.getById(created.id);
-    expect(found?.email).toBe('alice@test.fr');
+    campusId = campus.id;
   });
 
-  it('should throw if the email is already taken', async () => {
-    await studentService.create({ email: 'duplicate@test.fr' });
+  afterAll(async () => {
+    try {
+      await prisma.campus.deleteMany({ where: { id: campusId } });
+    } catch {
+      // ignore - la base de test est jetable
+    }
+  });
 
-    await expect(
-      studentService.create({ email: 'duplicate@test.fr' }),
-    ).rejects.toThrow('EMAIL_ALREADY_EXISTS');
+  it('crée un talent rattaché au campus', async () => {
+    const created = await studentService.create({ campusId, nom: 'Martin' });
+
+    const found = await prisma.talent.findUnique({ where: { id: created.id } });
+    expect(found?.nom).toBe('Martin');
   });
 });
 ```
 
 ---
 
-### 3.3 Tests E2E — Playwright (10%)
+### 3.3 Tests E2E : Playwright (10%)
 
 **Ce qu'on teste :**
 
 - Les parcours utilisateur critiques de bout en bout
 - Uniquement les flux qui valent le coût d'un test E2E
 
-**Parcours prioritaires (dans cet ordre) :**
+**Ce que couvre la suite, et pourquoi ces parcours-là :**
 
-| Priorité | Parcours                              | Statut  |
-| -------- | ------------------------------------- | ------- |
-| Critique | Login and logout                      | À faire |
-| Critique | Student registration for an event     | À faire |
-| Critique | Internship creation by a staff member | À faire |
-| Haute    | View registered participants list     | À faire |
-| Haute    | Automatic logout on expired token     | À faire |
+| Spec                        | Ce qu'elle prouve                                                                                                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `staff-guards.spec.ts`      | La matrice inter-espaces : dev refoulé de l'admin, admin renvoyé de l'espace dev, talent renvoyé sur son dashboard, anonyme envoyé au bon login avec `?redirect=` intact |
+| `talent-onboarding.spec.ts` | La porte d'onboarding tient dans les deux sens : dossier vierge poussé dans le tunnel, dossier complet non renvoyé en arrière                                            |
+| `parent-flow.spec.ts`       | Le prédicat « ce responsable doit-il encore quelque chose » (`parentBlockedWhere`) décide de la destination                                                              |
+| `emargement.spec.ts`        | Le seul parcours **mutant** : un membre dev marque une présence et l'état revient de la base après rechargement                                                          |
+
+Le critère de sélection est le même partout : ce qui n'est vérifiable qu'au
+travers du serveur réel. Les gardes vivent dans `hooks.server.ts` et pas dans une
+page, donc aucun test unitaire ne les voit ; l'écriture d'émargement traverse
+garde, scoping campus, module, superforms, transaction et projection, et seul un
+navigateur touche la couture entre les six.
 
 **Ce qu'on ne teste PAS en E2E :**
 
 - Les cas d'erreur (couverts par les unitaires, moins coûteux)
 - Les détails d'affichage (CSS, couleurs)
 - Les fonctionnalités secondaires
+- Les règles métier vérifiables contre la base : elles sont en intégration, où
+  elles coûtent 100 fois moins cher (§3.2)
+
+**Authentification : `/api/test/login-as`, pas l'UI de login.**
+
+Le staff se connecte par OAuth Microsoft et les talents par OTP email, et une
+suite headless ne peut walker ni l'un ni l'autre. Plutôt qu'un second backdoor,
+la suite réutilise `/api/test/login-as`, qui existe déjà pour le driver de charge :
+il insère une ligne `bauth_session` et signe le cookie comme `better-call`, donc
+`auth.api.getSession()` le relit exactement comme un vrai login. L'endpoint
+répond 404 tant que `LOAD_TEST_SECRET` n'est pas posé côté serveur, et seul
+l'environnement E2E le pose pour son serveur jetable.
+
+`tests/e2e/auth.setup.ts` est un **setup project** Playwright (pas un
+`globalSetup` : seul le premier est garanti de tourner avec le `webServer` déjà
+levé, et minter une session est un appel HTTP à ce serveur). Il sème la base puis
+écrit un `storageState` par rôle dans `tests/e2e/.auth/`. Chaque spec déclare son
+identité avec `test.use({ storageState: storageStatePath(...) })`, ce qui met le
+rôle dans le titre du `describe` plutôt que dans une config à part.
+
+**Pas de `data-testid`.** Il n'y en a aucun dans la codebase et il n'y en aura pas
+pour les tests : les composants exposent déjà des rôles et des libellés français
+visibles, qui sont ce qu'un humain voit. Un sélecteur accessible teste donc l'UI
+telle qu'elle est utilisée, et ne se périme pas quand le balisage bouge.
 
 **Exemple :**
 
-> ⚠️ Le projet n'utilise plus de mots de passe : staff via Microsoft OAuth,
-> étudiants/parents via OTP par email. Les tests E2E doivent donc soit
-> mocker l'OAuth (staff), soit lire l'OTP depuis la table `bauth_verification`
-> en base de test (étudiants/parents).
-
 ```typescript
-// tests/e2e/auth.spec.ts
+// tests/e2e/staff-guards.spec.ts
 import { test, expect } from '@playwright/test';
-import { prismaTest } from './fixtures/db';
+import { E2E, storageStatePath } from './fixtures/identities';
 
-test('a student can request an OTP and access the dashboard', async ({
-  page,
-}) => {
-  await page.goto('/login');
-  await page.fill('[data-testid="email"]', 'student@test.fr');
-  await page.click('[data-testid="request-otp"]');
+test.describe("un membre de l'espace dev", () => {
+  test.use({ storageState: storageStatePath(E2E.dev.email) });
 
-  // Read the OTP from the test DB rather than the email inbox
-  const otp = await prismaTest.bauth_verification.findFirstOrThrow({
-    where: { identifier: 'student@test.fr' },
-    orderBy: { createdAt: 'desc' },
+  test("est refoulé de l'espace admin", async ({ page }) => {
+    await page.goto('/staff/admin');
+    await expect(page).toHaveURL((url) => url.pathname === '/staff/login');
   });
-
-  await page.fill('[data-testid="otp"]', otp.value);
-  await page.click('[data-testid="submit"]');
-
-  await expect(page).toHaveURL('/');
 });
 ```
+
+**Les fixtures** vivent dans `tests/e2e/fixtures/` :
+
+| Fichier         | Rôle                                                                                                                                                                          |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `identities.ts` | Qui la suite est (six comptes sous `@e2e.invalid`, ids littéraux) et où chaque session est stockée. Sans Prisma, parce que `playwright.config.ts` l'importe                   |
+| `db.ts`         | Le client Prisma des fixtures, derrière `assertTestDatabase()` (la même garde que l'intégration, pas une copie)                                                               |
+| `seed.ts`       | La purge et la reconstruction. Volontairement pas le générateur (`scripts/seed/`) : un jeu de données à la forme de la production, auquel une spec ne doit pas être accrochée |
 
 ---
 
@@ -209,82 +253,104 @@ test('a student can request an OTP and access the dashboard', async ({
 ```
 src/
 └── lib/
-    ├── services/
-    │   ├── student.service.ts
-    │   ├── student.service.test.ts             ← unit tests, next to the source file
-    │   └── __integration__/
-    │       └── student.service.integration.test.ts
-    ├── utils/
-    │   ├── validation.ts
-    │   └── validation.test.ts
-    └── db/
-        ├── prisma.client.ts
-        └── prisma.client.test.ts
+    ├── domain/
+    │   ├── xp.ts
+    │   └── xp.test.ts                          ← unitaire, à côté du fichier testé
+    └── server/
+        └── services/
+            ├── onboardingService.ts
+            └── __integration__/                ← vraie base de données
+                ├── testDatabase.ts             ← assertTestDatabase(), la garde
+                └── onboardingService.integration.test.ts
 
 tests/
-└── e2e/                                        ← all Playwright tests
-    ├── auth.spec.ts
-    ├── registration.spec.ts
-    └── fixtures/                               ← shared test data and helpers
-        └── users.ts
+└── e2e/                                        ← Playwright
+    ├── auth.setup.ts                           ← sème + minte un storageState par rôle
+    ├── staff-guards.spec.ts
+    ├── talent-onboarding.spec.ts
+    ├── parent-flow.spec.ts
+    ├── emargement.spec.ts
+    ├── .auth/                                  ← généré, gitignored
+    └── fixtures/
+        ├── identities.ts                       ← les six comptes, sans Prisma
+        ├── db.ts                               ← client Prisma derrière la garde
+        └── seed.ts                             ← purge + reconstruction
 ```
+
+**Règles de nommage :**
+
+- Tests unitaires : `*.test.ts` à côté du fichier testé
+- Tests d'intégration : `*.integration.test.ts` dans un dossier `__integration__`
+- Tests E2E : `*.spec.ts` dans `tests/e2e/`
+
+Ces trois règles décident quel runner ramasse quel fichier, donc un fichier mal
+nommé n'est pas mal rangé : il ne tourne pas. C'est pour ça que
+`bun run lint:tests` les vérifie et bloque.
 
 ### Pourquoi les tests unitaires sont co-localisés avec le code source ?
 
 Les tests unitaires (`*.test.ts`) vivent **à côté du fichier qu'ils testent**, et non dans un dossier `tests/` séparé. C'est la convention recommandée par Vitest et la majorité des projets SvelteKit/Vite pour plusieurs raisons :
 
-- **Proximité = maintenabilité** — quand on modifie un fichier, le test correspondant est juste à côté. Pas besoin de naviguer dans une arborescence miroir.
-- **Imports simplifiés** — les imports relatifs sont courts (`./validation` au lieu de `../../../src/lib/utils/validation`), ce qui réduit la fragilité face aux refactors.
-- **Détection des fichiers non testés** — un fichier sans `.test.ts` à côté de lui est immédiatement visible. Dans un dossier `tests/` séparé, les oublis passent inaperçus.
-- **Convention de l'écosystème** — c'est la convention recommandée par SvelteKit qui précise : _"your unit tests will live in the `src` directory with a `.test.js` extension"_ ([Project structure - SvelteKit docs](https://svelte.dev/docs/kit/project-structure)). Pour un argumentaire détaillé des avantages (navigation, imports simplifiés, visibilité des fichiers non testés), voir [Co-locate Your Unit Tests - Yockyard](https://www.yockyard.com/post/co-locate-unit-tests/).
+- **Proximité = maintenabilité** : quand on modifie un fichier, le test correspondant est juste à côté. Pas besoin de naviguer dans une arborescence miroir.
+- **Imports simplifiés** : les imports relatifs sont courts (`./validation` au lieu de `../../../src/lib/utils/validation`), ce qui réduit la fragilité face aux refactors.
+- **Détection des fichiers non testés** : un fichier sans `.test.ts` à côté de lui est immédiatement visible. Dans un dossier `tests/` séparé, les oublis passent inaperçus.
+- **Convention de l'écosystème** : c'est la convention recommandée par SvelteKit qui précise : _"your unit tests will live in the `src` directory with a `.test.js` extension"_ ([Project structure - SvelteKit docs](https://svelte.dev/docs/kit/project-structure)). Pour un argumentaire détaillé des avantages (navigation, imports simplifiés, visibilité des fichiers non testés), voir [Co-locate Your Unit Tests - Yockyard](https://www.yockyard.com/post/co-locate-unit-tests/).
 
 > Seuls les tests E2E (Playwright) vivent dans `tests/e2e/` car ils ne sont pas liés à un fichier source spécifique mais à des parcours utilisateur complets.
-
-**Règles de nommage :**
-
-- Tests unitaires : `*.test.ts` au côté du fichier testé
-- Tests d'intégration : `*.integration.test.ts` dans un dossier `__integration__`
-- Tests E2E : `*.spec.ts` dans `tests/e2e/`
 
 ---
 
 ## 5. Conventions d'Écriture
 
-### Structure AAA — Arrange / Act / Assert
-
-Tout test suit cette structure, sans exception :
-
-```typescript
-it('should reject registration when the event is full', async () => {
-  // Arrange
-  const event = await createTestEvent({ maxParticipants: 1 });
-  await registrationService.register(event.id, 'student-1');
-
-  // Act
-  const result = registrationService.register(event.id, 'student-2');
-
-  // Assert
-  await expect(result).rejects.toThrow('EVENT_FULL');
-});
-```
+Rien dans cette section n'est vérifié par un script, et c'est délibéré : ce sont
+des conventions de lecture, pas des invariants. Ce qui bloque un merge est en
+§9, et la liste y est courte exprès.
 
 ### Nommage des tests
 
-- `describe` : nom du module ou de la classe testée
-- `describe` imbriqué : nom de la méthode ou fonctionnalité
-- `it` : phrase commençant par **"should"**, décrivant le comportement attendu
+- `describe` : nom du module ou de la fonction testée
+- `describe` imbriqué : le cas ou la facette
+- `it` : une phrase qui décrit le COMPORTEMENT, à l'indicatif, sans préfixe
 
 ```typescript
-// ✅ Good
-it('should return null if the student does not exist');
-it('should throw if the email is already in use');
-it('should require parental consent for students under 15');
+// ✅ Ce que la codebase écrit
+it('refuses a batch of MCP calls');
+it('counts only the talents Jump shows');
+it('withholds the relative gap on a rate');
 
-// ❌ Avoid
+// ❌ À éviter
 it('test getById');
 it('error case');
 it('works correctly');
 ```
+
+Pas de préfixe `should`. Ce document l'a exigé longtemps, et `lint-tests.ts` l'a
+vérifié : 396 findings, c'est-à-dire la suite entière. La convention avait perdu
+contre la pratique, et la pratique avait raison, parce que c'est la phrase brute
+qui se lit dans un rapport d'échec (`✗ refuses a batch of MCP calls`). La règle a
+été retirée du script en même temps que cette exigence d'ici ; voir
+[scripts/LINT-TESTS.md](scripts/LINT-TESTS.md), « Règles retirées ».
+
+### Arrange, Act, Assert
+
+La forme est utile et la plupart des tests la suivent naturellement :
+
+```typescript
+it('refuses a second registration when the event is full', async () => {
+  const event = await createTestEvent({ maxParticipants: 1 });
+  await registrationService.register(event.id, 'student-1');
+
+  const result = registrationService.register(event.id, 'student-2');
+
+  await expect(result).rejects.toThrow('EVENT_FULL');
+});
+```
+
+Une ligne vide entre les trois temps suffit. Les commentaires `// Arrange`,
+`// Act`, `// Assert` ne sont ni exigés ni souhaités : sur un test de trois
+lignes ils sont de la ponctuation, et les exiger produisait 242 findings sur du
+code parfaitement clair. Ce qui compte est qu'un test couvre **un** comportement,
+ce qui rend les trois temps lisibles sans les annoter.
 
 ### Ce qu'on mock et ce qu'on ne mock pas
 
@@ -299,20 +365,20 @@ it('works correctly');
 
 ## 6. Priorités de Tests
 
-### Critique — À couvrir en premier
+### Critique : À couvrir en premier
 
 - Authentication (login, logout, expired token, unauthorized access)
 - Route guards (access without role, access with wrong role)
 - Input validation (emails, dates, required fields)
 - DB wrapper (create, read, update, delete on main entities)
 
-### Haute — À couvrir en semaine 2-3
+### Haute : À couvrir en semaine 2-3
 
 - Business services (`studentService`, `eventService`, `internshipService`)
 - Data transformations between layers
 - Error handling propagated to the UI
 
-### Normale — À couvrir progressivement
+### Normale : À couvrir progressivement
 
 - Reusable Svelte components (forms, lists)
 - Secondary utilities
@@ -322,81 +388,225 @@ it('works correctly');
 
 ## 7. Lancer les Tests
 
+**Une seule commande reproduit le gate de la CI :**
+
 ```bash
-# All unit tests
-bun run test
-
-# Unit tests in watch mode (development)
-bun run test:watch
-
-# Tests with coverage report
-bun run test:coverage
-
-# Integration tests only
-bun run test:integration
-
-# E2E tests (requires app + test Postgres instance to be running)
-bun run test:e2e
-
-# E2E tests in UI mode (debug)
-bun run test:e2e:ui
+bun run verify
 ```
+
+C'est le contrat de ce document. `verify` enchaîne exactement ce que les checks
+requis exécutent, dans le même ordre, avec les mêmes scripts : `lint:scripts`,
+`lint`, `lint:design`, `lint:tests`, `check`, `test`, `test:integration`,
+`test:schema-drift`, `test:seed`, `test:e2e`. Un agent (ou un humain) peut donc produire du
+code, le vérifier, corriger et revérifier avant d'ouvrir la PR, et « j'ai
+vérifié » devient une affirmation que quelqu'un d'autre peut recontrôler.
+
+Les maillons, quand on veut n'en jouer qu'un :
+
+```bash
+# Unitaires (dont le contrat de tokens DESIGN.md). Pas de base de données.
+bun run test
+bun run test:watch          # mode watch
+bun run test:coverage       # + rapport de couverture
+
+# Intégration : provisionne la base de test, applique les migrations, puis lance
+bun run test:integration
+bun run test:db             # provisionne seulement
+
+# Le schéma correspond-il à sa trace de migrations ?
+bun run test:schema-drift
+
+# Le générateur de données couvre-t-il encore le schéma ?
+bun run test:seed
+
+# E2E : provisionne la base, build, lève le serveur, pilote Chromium
+bun run test:e2e
+bun run test:e2e:ui         # mode debug
+```
+
+### Le générateur de données
+
+`bun run test:seed` sème puis vérifie, à deux volumes
+(`scripts/check-seed-profiles.sh`). Ce n'est pas une suite de tests, c'est un
+mode du générateur (`--check`), et cette distinction est délibérée : une
+vérification qu'il faut penser à lancer séparément est une vérification qui cesse
+d'être lancée.
+
+**Deux profils, et le second n'est pas une redondance.** `ci` est le petit :
+assez large pour porter chaque valeur d'énumération et chaque état atteignable,
+assez court pour passer dans `verify` sans que personne le remarque. C'est lui
+qui prouve la _couverture_. `dev` suit, parce qu'une vérification qui ne tourne
+qu'au plus petit volume est aveugle à tout défaut dont le déclencheur EST le
+volume. Ce n'est pas théorique : `stage` dérivait la date de dépôt d'un dossier
+de l'indice d'inscription, ce qui tenait à quatorze inscrits et datait 115
+dossiers après `--today` à tous les profils qu'on ouvre vraiment.
+`assert/clock.ts` l'aurait dit dès le premier passage, et n'en a jamais eu un.
+`staging` reste dehors : mêmes scénarios, même branches, 45 secondes contre
+quelques-unes.
+
+Ce qu'elle prouve, et pourquoi c'est elle qui vous préviendra en premier :
+
+- **Chaque valeur de chaque énumération du schéma a au moins une ligne.** La
+  liste des énumérations est lue de `schema.prisma` (via `getDMMF`, comme
+  `scripts/gen-db-erd.ts`), jamais écrite à la main. Donc le jour où vous ajoutez
+  une clé de module, une source de XP ou un statut de présence, cette
+  vérification réclame une ligne pour elle **dans votre PR**, sans que personne
+  ait eu à mettre une liste à jour.
+- **Les projections valent leurs faits** : `Talent.xp` égale la somme du registre
+  XP, `eventsCount` les présences distinctes, et les colonnes plates
+  d'inscription correspondent au dossier le plus récent, champ par champ.
+- **Les états sont atteignables**, vérifiés avec le domaine lui-même :
+  `getOnboardingStep` renvoie chaque étape de l'échelle, `imageRightsStance`
+  renvoie ses trois positions, `eventRunsClosings` répond vrai et faux.
+- **Aucune ligne n'est datée après l'ancre.** C'est la vérification qui garde la
+  reproductibilité honnête : Prisma remplit `@default(now())` et `@updatedAt` à
+  l'horloge murale dès qu'un appelant les omet, et une ligne créée après l'acte
+  qu'elle enregistre est une ligne que l'application n'aurait pas pu écrire.
+- **Les vocabulaires portés par une colonne `String`** (statut Salesforce,
+  niveau, clé de module, version de règlement) sont couverts dans les deux sens :
+  chaque valeur déclarée a une ligne, et aucune ligne semée ne porte une valeur
+  hors catalogue.
+
+Un échec se corrige en ajoutant un scénario dans `frontend/scripts/seed/`, pas en
+retirant la vérification.
+
+La base est distincte de celle des tests d'intégration (`TEST_DB_SUITE=seed`),
+pour la même raison que l'E2E a la sienne : plusieurs suites d'intégration lisent
+des agrégats à l'échelle de la plateforme, qu'un jeu de données complet
+fausserait sans rien dire.
+
+### Prérequis : il n'y en a qu'un
+
+```bash
+cp .env.test.example .env.test    # une fois par worktree
+```
+
+Le reste est automatique. `scripts/with-test-db.sh` est le point d'entrée de tout
+ce qui a besoin d'une vraie base : il démarre le conteneur, crée la base, applique
+les migrations, puis lance la commande. Il n'y a plus de `docker compose up` ni de
+`prisma migrate deploy` à faire à la main.
+
+### Une base par worktree, et une par suite
+
+Le script dérive le nom de la base : `jump_test` dans le checkout principal,
+`jump_test_<nom-du-worktree>` ailleurs, plus un suffixe `_e2e` pour la suite
+Playwright. Un seul conteneur, plusieurs bases.
+
+Il dérive **aussi le port** du serveur E2E, du même discriminant, et exporte le
+`ORIGIN` qui va avec (BetterAuth le lit comme base URL). C'est la même isolation
+un cran plus haut, et il manquait : le port était écrit en dur dans
+`.env.test.example`, donc chaque worktree copiait le même `4173`, et
+`reuseExistingServer` rendait la collision silencieuse. Le deuxième worktree
+trouvait 4173 qui répondait, sautait son build, et faisait tourner ses specs
+contre le build et la base du premier. Comme tous les ids de fixture sont des
+littéraux, les deux graines se ressemblent et le run passe au vert contre du code
+qui n'a jamais été compilé. Le port est maintenant par worktree, et
+`reuseExistingServer` est à `false` : le cas résiduel (deux worktrees dont les
+noms tombent sur le même offset) échoue à l'ouverture du socket, ce qui se lit en
+une ligne.
+
+**Par worktree**, parce que c'était un vrai problème et pas une précaution : les
+worktrees partageaient l'unique base `jump_test`, donc un `migrate deploy` lancé
+depuis une branche laissait la suite de toutes les autres rouge contre un schéma
+pour lequel elle n'avait jamais été écrite, sans que rien ne le dise.
+
+**Par suite**, parce que les cycles de vie des données sont incompatibles. La
+fixture E2E est semée une fois et doit survivre à tout le run Playwright ; une
+suite d'intégration nettoie par fichier. Et plusieurs assertions d'intégration
+lisent volontairement un agrégat **à l'échelle de la plateforme** (les
+interdictions de droit à l'image en vigueur sont précisément le chiffre qu'aucun
+filtre ne restreint), donc un talent laissé par la fixture E2E élargit
+silencieusement leur dénominateur. Ce n'est pas un défaut de scoping de
+l'agrégat : ce sont deux cycles de vie dans une même base, la même erreur que les
+worktrees, un cran plus bas. Le garde a trouvé celle-là tout seul, au premier
+`bun run verify` complet.
+
+Deux détails qui trompent, et que le script gère à votre place :
+
+- **`prisma.config.ts` charge `../.env`**, celui du dépôt, qui pointe sur la base
+  de dev. Un `DATABASE_URL` déjà posé dans l'environnement gagne (dotenv n'écrase
+  pas), mais seulement s'il est posé APRÈS. C'est pour ça que le script exporte le
+  sien en dernier, et pour ça que `.env.test` ne contient pas de `DATABASE_URL` :
+  il serait silencieusement ignoré.
+- **Le conteneur n'est pas jetable à chaque lancement.** L'image postgres déclare
+  son propre volume, donc un conteneur arrêté puis relancé revient avec ses
+  bases. Seul `docker compose -f docker-compose.test.yml down -v` remet à zéro.
 
 ### Fichiers de configuration
 
-| Fichier                   | Rôle                                                                                                                                                                                                                                                                                            |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vitest.config.ts`        | Configure Vitest avec deux projets : **unit** (tous les `*.test.ts` dans `src/`) et **integration** (les `*.integration.test.ts` dans les dossiers `__integration__/`). Exclut les tests E2E qui sont gérés par Playwright.                                                                     |
-| `playwright.config.ts`    | Configure Playwright pour les tests E2E. Pointe sur `tests/e2e/`, lance automatiquement le serveur de dev si besoin, et utilise Chromium par défaut.                                                                                                                                            |
-| `docker-compose.test.yml` | Lance une **base de données PostgreSQL isolée** sur le port `5434`, dédiée aux tests d'intégration. Elle permet de taper sur une vraie DB sans jamais toucher à celle de dev ou de prod. Chaque lancement donne une instance propre qu'on peut remplir, vider et détruire sans risque.          |
-| `.env.test.example`       | Modèle à copier en `.env.test` (qui est gitignored). Documente toutes les variables d'environnement nécessaires pour lancer les tests d'intégration et E2E (URL de la base de test, credentials des users de test). Aucun secret dedans — les vrais mots de passe sont à renseigner localement. |
-
-### Prérequis pour les tests d'intégration et E2E
-
-```bash
-# Start the test Postgres instance (separate port from dev/production)
-docker-compose -f docker-compose.test.yml up -d
-
-# Make sure test environment variables are configured
-cp .env.test.example .env.test
-```
+| Fichier                         | Rôle                                                                                                                                                                                                                                         |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vitest.config.ts`              | Deux projets : **unit** (les `*.test.ts` de `src/`, sans base) et **integration** (les `__integration__/*.integration.test.ts`, un fichier à la fois). Fixe aussi `KIT_OUTDIR` pour ne pas écrire dans le `.svelte-kit/` d'un serveur vivant |
+| `playwright.config.ts`          | Le projet `setup` (graine + sessions) et le projet `chromium` qui en dépend. Le `webServer` **build et lève le serveur de prod**, avec la même commande en local et en CI, et ne réutilise jamais un serveur qu'il n'a pas démarré           |
+| `scripts/with-test-db.sh`       | Le provisionnement, et tout ce qui doit différer d'un worktree à l'autre : conteneur, base, port + `ORIGIN`, migrations. Trois consommateurs (`test:integration`, `test:e2e`, la CI)                                                         |
+| `scripts/check-schema-drift.sh` | Compare `schema.prisma` à la base que `migrate deploy` vient de construire                                                                                                                                                                   |
+| `docker-compose.test.yml`       | Le Postgres jetable du port `5434`. Ne rien y créer à la main : le script s'en charge                                                                                                                                                        |
+| `.env.test.example`             | À copier en `.env.test` (gitignored) : l'environnement du serveur de test (ORIGIN, PORT, secrets jetables). Pas de `DATABASE_URL`, voir plus haut                                                                                            |
 
 ---
 
-## 8. Objectifs de Couverture
+## 8. Couverture
 
-| Scope               | Objectif | Priorité |
-| ------------------- | -------- | -------- |
-| `src/lib/services/` | ≥ 80%    | Critique |
-| `src/lib/utils/`    | ≥ 90%    | Haute    |
-| `src/lib/db/`       | ≥ 70%    | Critique |
-| Global              | ≥ 60%    | Normale  |
+`bun run test:coverage` produit un rapport. **Ce n'est pas un gate, et ce n'est
+pas près de le devenir.**
 
-> La couverture est un indicateur, pas un objectif en soi. Un test inutile qui gonfle la couverture est contre-productif. Mieux vaut 60% de vrais tests que 90% de tests qui vérifient que `1 + 1 === 2`.
+Un seuil global récompense mécaniquement le volume, ce que la philosophie de ce
+repo interdit explicitement (§1, et `AGENTS.md` : « jamais du volume »). La façon
+la moins chère de faire monter un pourcentage est d'écrire les tests qui n'attrapent
+rien, et un chiffre qui bloque un merge finit toujours par être atteint de la façon
+la moins chère.
+
+Ce document a longtemps affiché un tableau d'objectifs (80 % / 90 % / 70 % / 60 %)
+que rien n'appliquait. Le tableau est parti : une cible que personne ne mesure et
+que personne n'atteint ne dit rien sur le code, elle apprend seulement à ne pas
+lire ce fichier.
+
+Ce qui remplace le chiffre, c'est §6 : la liste de ce qui doit être couvert, par
+ordre de criticité. « Est-ce que les gardes d'accès ont un test ? » est une
+question à laquelle on peut répondre ; « est-ce qu'on est à 60 % ? » ne dit pas
+lesquels.
 
 ---
 
 ## 9. Vérification des conventions
 
-Un script vérifie automatiquement que les fichiers de test respectent les règles de ce document (nommage, emplacement, imports, structure AAA, etc.) :
+`bun run lint:tests` vérifie que les fichiers de test respectent les règles de ce
+document : nommage et emplacement (ce qui décide du runner qui les ramasse),
+imports, présence d'un `describe`, absence d'URL de prod, et surtout les deux
+règles qui portent tout le reste :
 
-```bash
-npx tsx scripts/lint-tests.ts
-```
+- **aucun test désactivé** (`.skip`, `.only`, `.todo`), parce qu'un test
+  désactivé laisse la CI verte en ne vérifiant rien (voir §11) ;
+- **toute suite d'intégration appelle `assertTestDatabase()`**, parce que les
+  worktrees partagent un Postgres.
 
-Pour le détail des règles vérifiées et les limites du script, voir [scripts/LINT-TESTS.md](scripts/LINT-TESTS.md).
+Le script tourne dans le job CI `Lint & Type Check`, donc chaque règle bloque un
+merge. Pour le détail, et pour les quatre règles cosmétiques retirées quand il a
+été câblé, voir [scripts/LINT-TESTS.md](scripts/LINT-TESTS.md).
 
 ---
 
 ## 10. Tests en CI
 
-Chaque Pull Request déclenche automatiquement dans l'ordre :
+Trois jobs dans `.github/workflows/test.yml`, tous trois checks **requis** sur la
+règle `push dev` (voir `.github/settings/repo-config.json`) :
 
-```
-lint → svelte-check → test → test:coverage → build → test:e2e
-```
+| Job                          | Ce qu'il exécute                                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Lint & Type Check**        | `lint:scripts` (bit exécutable), `lint`, `lint:design`, `lint:tests`, `check`                                |
+| **Unit & Integration Tests** | `test:coverage`, puis `test:integration` contre un vrai Postgres, puis `test:schema-drift`, puis `test:seed` |
+| **E2E Tests**                | build + serveur + les specs Playwright, avec le rapport HTML uploadé en cas d'échec                          |
 
-**Une PR ne peut pas être mergée si un de ces steps échoue.**
+**Une PR ne peut pas être mergée si un de ces jobs échoue** (à une réserve près,
+documentée dans `CONTRIBUTING.md` : une exception de bypass sur la règle `push dev`
+la contourne, ce qui fait du merge en rouge un acte explicite plutôt que le
+comportement par défaut).
+
+> **Ne renommez pas un job.** Les noms ci-dessus sont les contextes requis. Un job
+> renommé sort de la liste et cesse silencieusement de bloquer. C'est exactement
+> la panne que cette CI a connue : `Unit & Integration Tests` portait ce nom en
+> n'exécutant que le projet `unit`, faute de Postgres, et les ~190 tests
+> d'intégration ne tournaient nulle part.
 
 ---
 
@@ -404,7 +614,7 @@ lint → svelte-check → test → test:coverage → build → test:e2e
 
 ### Si le test échoue en CI sur ta branche
 
-1. **Ne pas ignorer** — ne jamais utiliser `it.skip()` pour contourner un test cassé
+1. **Ne pas ignorer** : ne jamais utiliser `it.skip()` pour contourner un test cassé. Ce n'est plus seulement une règle écrite : `bun run lint:tests` la refuse, dans un check requis (§9)
 2. Analyser le rapport d'erreur dans la CI
 3. Identifier si c'est **le code qui est cassé** ou **le test qui est obsolète** :
    - Code cassé → corriger le code
@@ -420,40 +630,25 @@ Causes fréquentes :
 
 ### Si un test échoue sur `main` (urgence)
 
-1. Créer immédiatement un ticket avec les labels `test-broken` + `priority:high`
-2. Utiliser le template suivant :
+Un test rouge sur `main` est un correctif comme un autre, et il passe par le
+protocole de [`CONTRIBUTING.md`](../.github/CONTRIBUTING.md) : ouvrir l'issue avec
+le gabarit _Feature_, puis `scripts/start-work.sh --issue <n> --type fix --slug
+short-name`. Le critère d'acceptation s'écrit tout seul : le test passe pour la
+bonne raison, et la régression reste couverte.
 
-```markdown
-## Broken test report
+Si c'est assez urgent pour ne pas s'arrêter à l'issue, l'échappatoire est nommée
+et non silencieuse : `git push --no-verify`, label `no-issue` sur la PR, et une
+section `## Process exception` qui dit pourquoi. C'est exactement le cas pour
+lequel elle existe.
 
-**File:** src/lib/services/student.service.test.ts
-**Test:** "should return null if the student does not exist"
+Ensuite :
 
-## Observed behavior
-
-<!-- Paste the CI error message here -->
-
-## Expected behavior
-
-The test should pass.
-
-## Context
-
-- Since which commit does the test fail?
-- Which recent PR might have caused this?
-
-## Impact
-
-Does this broken test block merges on main? Yes / No
-```
-
-3. Si le test cassé bloque les merges sur `main`, le hotfix est priorisé sur toutes les autres tâches
-4. Ne jamais merger du code qui casse un test existant sans validation du Lead Qualité
+1. Si le test cassé bloque les merges sur `main`, le hotfix est priorisé sur toutes les autres tâches
+2. Ne jamais merger du code qui casse un test existant sans validation du Lead Qualité
 
 ---
 
 ## 12. Ressources
 
-- [Vitest — Documentation officielle](https://vitest.dev)
-- [Playwright — Documentation officielle](https://playwright.dev)
-- [@testing-library/svelte](https://testing-library.com/docs/svelte-testing-library/intro)
+- [Vitest, Documentation officielle](https://vitest.dev)
+- [Playwright, Documentation officielle](https://playwright.dev)

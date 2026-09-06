@@ -9,9 +9,9 @@
 
   // Shared signature shell for the parent flow's two co-signed acts: the
   // règlement intérieur (single accept) and the droit-à-l'image decision
-  // (accept *or* refuse). Both surface the same legal frame — "Je soussigné(e),
+  // (accept *or* refuse). Both surface the same legal frame: "Je soussigné(e),
   // … agissant en qualité de …, Fait à …, le …" plus a per-child signer
-  // identity — and differ only in how the declaration sentence ends and which
+  // identity, and differ only in how the declaration sentence ends and which
   // decision artifact the parent ticks. Callers inject those two pieces as
   // snippets along with the form action, submit visuals, and analytics hook,
   // so each act keeps its own colour-coded button without the shell knowing
@@ -23,7 +23,7 @@
       prenom: string;
       nom: string;
       /**
-       * Talent-entered guardian identity from onboarding — used to pre-fill the
+       * Talent-entered guardian identity from onboarding, used to pre-fill the
        * signer fields below. The guardian can still override (e.g. their legal
        * name differs from what the talent typed in casually).
        */
@@ -49,19 +49,19 @@
     /**
      * Inline tail of the "Je soussigné(e)…" sentence, rendered immediately
      * after the relationship select. Each act terminates the sentence
-     * differently — image: "concernant l'utilisation…" / rules: "reconnais
-     * avoir pris connaissance…".
+     * differently (image: "concernant l'utilisation…" / rules: "reconnais
+     * avoir pris connaissance…").
      */
     declarationTail: Snippet;
     /**
      * Decision artifact rendered between the declaration and the place+date
-     * row — the rules accept checkbox, or the image accept/refuse buttons +
+     * row: the rules accept checkbox, or the image accept/refuse buttons +
      * legal body. Caller also owns any extra hidden inputs (e.g. `decision`):
      * a `<input type="hidden">` rendered inside this snippet lands inside the
      * <form> and is submitted with the rest.
      */
     artifact?: Snippet;
-    /** Tailwind classes for the submit button — caller controls colour. */
+    /** Tailwind classes for the submit button: caller controls colour. */
     submitClass: string;
     /** Idle label of the submit button. A spinner replaces it while submitting. */
     submitLabel: Snippet;
@@ -84,7 +84,7 @@
   // Pre-fill from the talent-entered guardian identity; the parent can edit if
   // their legal name differs. Structured as prénom + nom so the signed PDF
   // reads symmetrically with the talent's own signature. `untrack` makes the
-  // initial-value capture explicit — once the form mounts, the parent's edits
+  // initial-value capture explicit: once the form mounts, the parent's edits
   // own the state, not later changes to the `child` prop.
   let signerPrenom = $state(untrack(() => child.parentPrenom ?? ''));
   let signerNom = $state(untrack(() => child.parentNom ?? ''));
@@ -130,7 +130,7 @@
 
     {#if error}
       <p
-        class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
+        class="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
       >
         {error}
       </p>
@@ -147,7 +147,7 @@
           placeholder="Prénom"
           required
           autocomplete="given-name"
-          class="inline-block w-32 rounded-xl border border-slate-300 bg-white px-2 py-1 text-center text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
+          class="inline-block w-32 rounded-xl border border-border bg-card px-2 py-1 text-center text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:border-epi-blue/40 focus:ring-0"
         />
         <input
           name="signerNom"
@@ -156,18 +156,18 @@
           placeholder="Nom"
           required
           autocomplete="family-name"
-          class="inline-block w-32 rounded-xl border border-slate-300 bg-white px-2 py-1 text-center text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
+          class="inline-block w-32 rounded-xl border border-border bg-card px-2 py-1 text-center text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:border-epi-blue/40 focus:ring-0"
         />
         agissant en qualité de
         <input type="hidden" name="relationship" value={relationship} />
         <Select.Root type="single" bind:value={relationship}>
           <Select.Trigger
-            class="inline-flex h-auto w-auto gap-1 rounded-xl border-slate-300 bg-white px-2 py-1 align-middle text-sm font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            class="inline-flex h-auto w-auto gap-1 rounded-xl border-border bg-card px-2 py-1 align-middle text-sm font-semibold text-foreground"
           >
             {#if relationship}
               {relationship}
             {:else}
-              <span class="text-slate-400">(choisir)</span>
+              <span class="text-muted-foreground">(choisir)</span>
             {/if}
           </Select.Trigger>
           <Select.Content>
@@ -184,10 +184,10 @@
 
     <!-- Place + date -->
     <div
-      class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
     >
       <span
-        class="text-sm font-medium whitespace-nowrap text-slate-700 dark:text-slate-300"
+        class="text-sm font-medium whitespace-nowrap text-foreground-secondary"
         >Fait à</span
       >
       <input
@@ -196,10 +196,10 @@
         bind:value={city}
         placeholder="Ville"
         required
-        class="w-40 min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
+        class="w-40 min-w-0 rounded-xl border border-border bg-card px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-epi-blue/40 focus:ring-0"
       />
       <span
-        class="text-sm font-medium whitespace-nowrap text-slate-700 dark:text-slate-300"
+        class="text-sm font-medium whitespace-nowrap text-foreground-secondary"
         >, le {today}</span
       >
     </div>

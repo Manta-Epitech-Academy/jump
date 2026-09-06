@@ -4,165 +4,269 @@
 
 @custom-variant dark (&:is(.dark *));
 
-:root {
-  --font-sans: 'IBM Plex Sans Variable', sans-serif;
-  --font-heading: 'Anton', sans-serif;
-  /* Mono = Space Mono (charte). Falls back to IBM Plex Mono / OS mono so
-     dev surfaces still render if the webfont fails to load. */
-  --font-mono:
-    'Space Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo,
-    Consolas, monospace;
+/* ============================================================================
+   Design tokens.
 
-  /* --- Epitech Brand Colors --- */
+   `DESIGN.md` at the repo root is the contract; this file is its single
+   implementation, and `src/lib/design/contract.test.ts` fails the build if the
+   two disagree. Do not restate a value from here in a component, and do not
+   add a value here that DESIGN.md does not describe.
+   ============================================================================ */
+
+:root {
+  /* --- Brand palette (charte graphique) -----------------------------------
+     Fills and display text only. Measured on white: blue 7.00:1, tech
+     1.33:1, together 3.02:1, tomorrow 3.10:1, lavender 1.79:1. Anything
+     under 24px uses the matching *-ink value below instead. */
   --epi-blue: #013afb;
-  --epi-teal: #00ff97;
-  --epi-teal-solid: #14b8a6;
-  --epi-orange: #ff5f3a;
-  --epi-pink: #ff1ef7;
-  /* Charte: "Text on light; never pure black." Use #181818 wherever
-     near-black is needed (inverse cards, badges, dark tiles). */
+  --epi-tech: #00ff97;
+  --epi-together: #ff5f3a;
+  --epi-tomorrow: #ff1ef7;
+  --epi-lavender: #b8c0e8;
+  /* Charte: "text on light, never pure black". */
   --epi-dark: #181818;
 
-  /* --- Gray Scale (Light Mode Defaults) --- */
-  --color-gray-0: #f8f9fa;
-  --color-gray-1: #f1f3f5;
-  --color-gray-2: #e9ecef;
-  --color-gray-3: #dee2e6;
-  --color-gray-4: #ced4da;
-  --color-gray-5: #adb5bd;
-  --color-gray-6: #868e96;
-  --color-gray-7: #495057;
-  --color-gray-8: #343a40;
-  --color-gray-9: #212529;
+  /* --- Ink variants -------------------------------------------------------
+     Same hue, darkened until small text clears AA on white. Not invented:
+     these are the values the Epitech design system's own light-mode block
+     already worked out. */
+  --epi-tech-ink: #007a46; /* 5.42:1 */
+  --epi-together-ink: #b5361a; /* 5.99:1 */
+  --epi-tomorrow-ink: #9b0b93; /* 7.34:1 */
+  --epi-warning-ink: #8a5a00; /* 5.93:1, the one with no brand ancestor */
 
-  /* Functional Variables (Light) */
-  --radius: 0.125rem; /* 2px */
+  /* --- Neutral ramp (charte) ----------------------------------------------
+     Blue-tinted, and one ramp for all four spaces: a warm or pure grey reads
+     as a different product next to the brand blue. */
+  --epi-grey-50: #f6f7fb;
+  --epi-grey-100: #eceef5;
+  --epi-grey-200: #d9dce8;
+  --epi-grey-900: #0b0e1a;
 
-  --background: var(--color-gray-0);
-  --foreground: #1a1b1e;
+  /* --- Semantic roles, light ---------------------------------------------- */
+  --background: var(--epi-grey-50);
+  --foreground: var(--epi-dark); /* 17.76:1 */
+  --foreground-secondary: #3a3f55; /* 10.39:1 */
+  /* The most load-bearing value in this file: it carries every label, every
+     table caption, every count under a figure. It has to clear 4.5:1 against
+     both --background and --card, which is why it is not a mid grey. */
+  --muted-foreground: #555b71; /* 6.73:1 on white, 6.28:1 on the page */
 
   --card: #ffffff;
-  --card-foreground: #1a1b1e;
+  --card-foreground: var(--foreground);
 
   --popover: #ffffff;
-  --popover-foreground: #1a1b1e;
+  --popover-foreground: var(--foreground);
 
   --primary: var(--epi-blue);
   --primary-foreground: #ffffff;
 
-  --secondary: var(--color-gray-1);
-  --secondary-foreground: #1a1b1e;
+  --secondary: var(--epi-grey-100);
+  --secondary-foreground: var(--foreground);
 
-  --muted: var(--color-gray-1);
-  --muted-foreground: var(--color-gray-6);
+  --muted: var(--epi-grey-100);
 
-  --accent: rgba(1, 58, 251, 0.1);
-  --accent-foreground: var(--epi-blue);
+  /* Derived from --primary so the hover tint follows the theme with one
+     definition instead of a hand-written rgba() per mode. */
+  --accent: color-mix(in oklab, var(--primary) 10%, transparent);
+  --accent-foreground: var(--primary);
 
-  --destructive: #fa5252;
-  --destructive-foreground: #ffffff;
+  /* --- Status ------------------------------------------------------------
+     The charte has no success or warning state (its form preview uses blue
+     for success and orange for error), so these are Jump's, each traced back
+     to a brand hue. There is no fifth status colour.
 
-  --border: var(--color-gray-3);
-  --input: var(--color-gray-3);
+     These three name an ink variant, so they are TEXT and BORDER roles and
+     they invert with it (see the ink-inversion block below).
+     `--status-foreground` is the other half of the pair: the text painted ON a
+     status fill. It inverts the opposite way, because the fill it sits on is
+     what just went light. That is what makes `bg-destructive
+     text-status-foreground` correct in both themes and on an always-dark
+     surface without a single `dark:` variant at the call site, and it is why
+     `text-white` on a status fill is a bug: white does not invert, so it
+     followed the fill up to 1.3:1 the moment the theme flipped. */
+  --destructive: var(--epi-together-ink);
+  --success: var(--epi-tech-ink);
+  --warning: var(--epi-warning-ink);
+  --status-foreground: #ffffff;
+
+  /* The space's identity colour, so a page title, an active nav item and a
+     tile accent never restate it. Vivid for display text (24px and up) and
+     fills; the -ink counterpart for anything smaller, and it inherits the
+     dark / on-dark inversion from the token it points at. */
+  --accent-space: var(--epi-blue);
+  --accent-space-ink: var(--epi-blue);
+
+  /* The blueprint grid's line colour: --epi-blue at 6%.
+     Spelled out rather than composed with `color-mix()`, because Lightning CSS
+     emits a legacy fallback for a mix whose `var()` it cannot resolve, and that
+     fallback drops the percentage: the grid came out as solid brand-blue lines.
+     `contract.test.ts` asserts these channels still match --epi-blue. */
+  --blueprint-line: rgb(1 58 251 / 0.06);
+
+  --border: var(--epi-grey-200);
+  --input: var(--epi-grey-200);
   --ring: var(--epi-blue);
 
-  --header-bg: var(--epi-blue);
-  --header-foreground: #ffffff;
-  /* Sidebar: dark navy — Epitech DS --epi-grey-900. Keeps the chrome
-     identity-rich without burning brand-blue on a 250px column we stare
-     at all day. Same token in both themes; the rail is intentional. */
-  --sidebar-bg: #0b0e1a;
-  --sidebar-foreground: #ffffff;
-  --sidebar-foreground-muted: rgba(255, 255, 255, 0.6);
-  --sidebar-border: rgba(255, 255, 255, 0.1);
-  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  /* --- Chrome ------------------------------------------------------------
+     One near-black for always-dark furniture (sidebar, staff top bar), in
+     both themes: the rail is intentional. Keeps the chrome identity-rich
+     without burning full brand blue on a column we stare at all day.
+     --epi-dark is a different job (inverse content surfaces). */
+  --chrome: var(--epi-grey-900);
+  --chrome-foreground: #ffffff;
+  --chrome-foreground-muted: rgba(255, 255, 255, 0.6); /* 7.25:1 on --chrome */
+  --chrome-border: rgba(255, 255, 255, 0.1);
+  --chrome-hover: rgba(255, 255, 255, 0.06);
+
+  /* --- Shape -------------------------------------------------------------
+     Two values, not one: a control and the surface it sits on round
+     differently in the soft spaces and identically in the staff spaces.
+     Staff is the charte default: square, pixel-rigid. */
+  --radius: 0.125rem; /* 2px: buttons, inputs, badges */
+  --radius-surface: 0.125rem; /* 2px: cards, dialogs, panels */
+
+  /* --- Elevation ---------------------------------------------------------
+     Flat-first: depth comes from a 1px border and a surface change. Three
+     levels is the whole scale, and --elevation-card is the space's pick of
+     them, which is what lets `Card` carry no per-space branching.
+
+     These are plain custom properties rather than @theme keys because
+     Tailwind prunes a theme variable no utility references yet, and a space
+     override pointing at a pruned variable resolves to nothing. The
+     `shadow-raised` / `shadow-overlay` / `shadow-card` utilities are wired to
+     them from `@theme inline` further down. */
+  --elevation-raised: 0 1px 2px rgb(0 0 0 / 0.08);
+  --elevation-overlay: 0 4px 16px rgb(0 0 0 / 0.1);
+  /* "Flat" is a transparent shadow, not `none`: Tailwind composes shadow, ring
+     and inset-ring into one comma-separated `box-shadow`, and a `none` in that
+     list makes the whole declaration invalid, which would silently drop a
+     `ring-*` on the same element. */
+  --elevation-card: 0 0 rgb(0 0 0 / 0);
+
+  /* --- Motion ------------------------------------------------------------
+     320ms is the ceiling for a state transition. --motion-ease-emphatic
+     overshoots and is for brand reveals only (XP float, diploma ceremony,
+     first-login welcome). */
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-emphatic: cubic-bezier(0.2, 0, 0.2, 1.2);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
 }
 
 .dark {
-  /* --- Dark Scale --- */
-  --color-dark-0: #c9c9c9;
-  --color-dark-1: #b8b8b8;
-  --color-dark-2: #828282;
-  --color-dark-3: #696969;
-  --color-dark-4: #424242;
-  --color-dark-5: #3b3b3b;
-  --color-dark-6: #2e2e2e;
-  --color-dark-7: #242424;
-  --color-dark-8: #1f1f1f;
-  --color-dark-9: #141414;
+  --epi-grey-50: #0c0e13;
+  --epi-grey-100: #1b1f29;
+  --epi-grey-200: #262b38;
 
-  --epi-blue: #809dfd;
-  --epi-teal-solid: #2dd4bf;
+  --background: var(--epi-grey-50);
+  --card: #12151d;
+  --popover: var(--card);
+  --muted: var(--epi-grey-100);
+  --secondary: var(--epi-grey-100);
 
-  --background: var(--color-dark-7);
-  --foreground: var(--color-dark-0);
+  --foreground: #f1f2f6; /* 16.31:1 on --card */
+  --foreground-secondary: #a1a6b7; /* 7.52:1 */
+  --muted-foreground: #8b90a3; /* 5.75:1 */
+  --card-foreground: var(--foreground);
+  --popover-foreground: var(--foreground);
+  --secondary-foreground: var(--foreground);
 
-  --card: var(--color-dark-6);
-  --card-foreground: var(--color-dark-0);
+  /* --epi-blue is the logo and never changes value. Dark surfaces lift the
+     UI blue instead, so the wordmark cannot drift with the theme. */
+  --primary: #809dfd; /* 7.09:1 on --card */
+  --primary-foreground: #0c0e13;
+  --ring: var(--primary);
 
-  --popover: var(--color-dark-6);
-  --popover-foreground: var(--color-dark-0);
+  --blueprint-line: rgb(255 255 255 / 0.045);
 
-  --primary: var(--epi-blue);
-  --primary-foreground: #141517;
-
-  --secondary: var(--color-dark-6);
-  --secondary-foreground: var(--color-dark-0);
-
-  --muted: var(--color-dark-6);
-  --muted-foreground: var(--color-dark-2);
-
-  --accent: rgba(128, 157, 253, 0.15);
-  --accent-foreground: #809dfd;
-
-  --destructive: #ff6b6b;
-  --destructive-foreground: #ffffff;
-
-  --border: var(--color-dark-4);
-  --input: var(--color-dark-4);
-  --ring: #809dfd;
-
-  --header-bg: var(--color-dark-7);
-  --header-foreground: var(--foreground);
-  --sidebar-bg: #0b0e1a;
-  --sidebar-foreground: #ffffff;
-  --sidebar-foreground-muted: rgba(255, 255, 255, 0.6);
-  --sidebar-border: rgba(255, 255, 255, 0.1);
-  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  /* A drop shadow is invisible on a dark surface; the border does the work. */
+  --elevation-raised: 0 0 rgb(0 0 0 / 0);
+  --elevation-overlay: 0 4px 16px rgb(0 0 0 / 0.5);
 }
 
-/* Talent ("camper") surface skin.
-   Dialogs and drawers portal to <body>, escaping `.camper-layout`, so they
-   never inherit the talent slate palette — they fall back to the staff tokens
-   (2px corners, gray-0 panel, blue focus ring) and read as off-theme against
-   the soft, white-card talent UI. This class re-skins the semantic tokens on
-   the surface element itself (CSS vars cascade to the element regardless of
-   portal location) so the base Dialog/Drawer match talent cards: soft corners,
-   white card surface, teal focus ring. Opt in via `class` on any portaled
-   talent surface. */
+/* ----------------------------------------------------------------------------
+   Ink inversion.
+
+   The ink variants exist only to survive a light background. On a dark one the
+   raw brand hues are the legible ones (tech 13.69:1 on --card, together
+   8.70:1), so the two sets swap.
+
+   `.dark` is the theme. `.on-dark` is a surface that is dark whatever the theme
+   is: the sidebar, the staff top bar, a brand-blue hero, a pressed tile. Put it
+   on such a surface and every descendant that names an ink token is correct
+   without a prop, which is the whole point: at #007a46 on #0b0e1a the ink green
+   is 1.9:1, so a component that had to remember a `tone` prop would be silently
+   invisible on the one surface nobody tests.
+   ---------------------------------------------------------------------------- */
+.dark,
+.on-dark {
+  --epi-tech-ink: var(--epi-tech);
+  --epi-together-ink: #ff9878; /* 8.70:1 */
+  --epi-tomorrow-ink: #ff7ef6; /* 8.31:1 */
+  --epi-warning-ink: #ffd15c; /* 12.62:1 */
+
+  /* Every role derived from an ink is re-declared here, and has to be.
+     A custom property that names another is substituted on the element that
+     DECLARES it, not on the element that reads it: `--destructive:
+     var(--epi-together-ink)` on `:root` freezes to the light ink there, and a
+     descendant re-pointing `--epi-together-ink` never reaches it. `.dark` gets
+     away with it because it lands on `:root` itself; `.on-dark` is a descendant
+     and does not. Without these four lines the sidebar keeps the light ink at
+     2.3:1 while its neighbours invert around it. The same rule is why the
+     space skins repeat themselves further down. */
+  --destructive: var(--epi-together-ink);
+  --success: var(--epi-tech-ink);
+  --warning: var(--epi-warning-ink);
+  --status-foreground: var(--epi-dark);
+}
+
+/* ----------------------------------------------------------------------------
+   Space skins.
+
+   A space differs by radius, elevation, accent and density. It never differs
+   by palette family, font or spacing scale, so a skin is an override of the
+   tokens above on the space's root element and nothing more.
+
+   `.talent-surface` is the same skin for a portaled surface: dialogs and
+   drawers portal to <body>, escaping the layout root, so they re-declare the
+   skin on themselves (CSS vars cascade from wherever the element lands). It
+   also re-points --background, because a Dialog paints `bg-background` and a
+   portaled panel needs the card surface, not the page one.
+   ---------------------------------------------------------------------------- */
+/* The admin space is one click from the dev space and easy to confuse with it,
+   so it carries the charte's TOMORROW magenta as its identity.
+
+   Repeated on the always-dark surfaces inside the space for the substitution
+   reason given in the ink block: `--accent-space-ink` names an ink, so it has
+   to be declared wherever that ink is re-pointed. Declared only on
+   `.admin-space` it froze to the light magenta, and the admin sidebar's active
+   entry rendered #9b0b93 on #0b0e1a - 2.4:1 - while the title cursor two nodes
+   away inverted correctly, because that one names the ink directly. */
+.admin-space,
+.admin-space .on-dark {
+  --accent-space: var(--epi-tomorrow);
+  --accent-space-ink: var(--epi-tomorrow-ink);
+}
+
+.camper-layout,
+.parent-layout,
 .talent-surface {
-  --radius: 0.75rem;
-  --background: var(--card);
-  --border: var(--color-gray-2);
-  --ring: var(--epi-teal-solid);
-}
-.dark .talent-surface {
-  --border: var(--color-dark-5);
+  --radius: 0.75rem; /* 12px: controls */
+  --radius-surface: 1rem; /* 16px: surfaces. The ceiling. */
+  --elevation-card: var(--elevation-raised);
+  --ring: var(--epi-tech-ink);
 }
 
-/* The talent surface uses soft, rounded corners throughout (rounded-xl cards,
-   pill chips). The shared shadcn primitives default to the staff 2px --radius,
-   which leaves bare inputs/textareas reading square against that round skin.
-   Re-skin --radius on the talent root so the radius scale (rounded-sm/md/lg,
-   all aliased to --radius) matches — staff keep their dense 2px corners since
-   this is scoped to .camper-layout. Same mechanism as .talent-surface above. */
-.camper-layout {
-  --radius: 0.75rem;
+.talent-surface {
+  --background: var(--card);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -176,33 +280,178 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-status-foreground: var(--status-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-accent-space: var(--accent-space);
+  --color-accent-space-ink: var(--accent-space-ink);
 
   --color-epi-blue: var(--epi-blue);
-  --color-epi-teal: var(--epi-teal);
-  --color-epi-teal-solid: var(--epi-teal-solid);
-  --color-epi-orange: var(--epi-orange);
-  --color-epi-pink: var(--epi-pink);
+  --color-epi-tech: var(--epi-tech);
+  --color-epi-together: var(--epi-together);
+  --color-epi-tomorrow: var(--epi-tomorrow);
+  --color-epi-lavender: var(--epi-lavender);
   --color-epi-dark: var(--epi-dark);
+  --color-epi-tech-ink: var(--epi-tech-ink);
+  --color-epi-together-ink: var(--epi-together-ink);
+  --color-epi-tomorrow-ink: var(--epi-tomorrow-ink);
+  --color-epi-warning-ink: var(--epi-warning-ink);
 
-  --color-header: var(--header-bg);
-  --color-header-foreground: var(--header-foreground);
-  --color-sidebar: var(--sidebar-bg);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-foreground-muted: var(--sidebar-foreground-muted);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-hover: var(--sidebar-hover);
+  --color-chrome: var(--chrome);
+  --color-chrome-foreground: var(--chrome-foreground);
+  --color-chrome-foreground-muted: var(--chrome-foreground-muted);
+  --color-chrome-border: var(--chrome-border);
+  --color-chrome-hover: var(--chrome-hover);
 
-  --font-sans: var(--font-sans);
-  --font-heading: var(--font-heading);
-  --font-mono: var(--font-mono);
-
+  /* Controls take --radius, surfaces take --radius-surface. The shadcn names
+     are kept so a component pulled from shadcn-svelte lands on our scale
+     instead of Tailwind's defaults. rounded-2xl / rounded-3xl / bare rounded
+     escape the system and are refused by `bun run lint:design`. */
   --radius-sm: var(--radius);
   --radius-md: var(--radius);
-  --radius-lg: var(--radius);
+  --radius-lg: var(--radius-surface);
+  --radius-xl: var(--radius-surface);
+
+  --shadow-raised: var(--elevation-raised);
+  --shadow-overlay: var(--elevation-overlay);
+  --shadow-card: var(--elevation-card);
+
+  --ease-standard: var(--motion-ease-standard);
+  --ease-emphatic: var(--motion-ease-emphatic);
+
+  /* Every bare `transition-*` in the product picks these up, so the charte's
+     timing is the default rather than something each call site restates.
+     Tailwind ships 150ms and its own curve. */
+  --default-transition-duration: var(--dur-base);
+  --default-transition-timing-function: var(--motion-ease-standard);
+}
+
+@theme {
+  --font-sans: 'IBM Plex Sans Variable', sans-serif;
+  --font-heading: 'Anton', sans-serif;
+  /* Mono = Space Mono (charte). Falls back to IBM Plex Mono / OS mono so dev
+     surfaces still render if the webfont fails to load. */
+  --font-mono:
+    'Space Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo,
+    Consolas, monospace;
+
+  /* Display sizes carry their own tracking, so the two can never disagree. The
+     charte's -0.01em is for poster titles; a condensed face needs the opposite
+     at label sizes, and 0 in between. Same mechanism Tailwind uses for its own
+     scale.
+
+     Six steps, and every one of them has real call sites: the scale was cut to
+     match what the product actually sets, not the other way round. Anton is
+     never smaller than display-s: below ~18px a condensed face stops being
+     readable before it stops being brand. */
+  --text-display-s: 1.25rem;
+  --text-display-s--line-height: 1.15;
+  --text-display-s--letter-spacing: 0.02em;
+  --text-display-m: 1.5rem;
+  --text-display-m--line-height: 1.1;
+  --text-display-m--letter-spacing: 0em;
+  --text-display-l: 1.875rem;
+  --text-display-l--line-height: 1.1;
+  --text-display-l--letter-spacing: 0em;
+  --text-display-xl: 2.5rem;
+  --text-display-xl--line-height: 1;
+  --text-display-xl--letter-spacing: -0.01em;
+  --text-display-2xl: 3.5rem;
+  --text-display-2xl--line-height: 0.95;
+  --text-display-2xl--letter-spacing: -0.01em;
+  --text-display-3xl: 6rem;
+  --text-display-3xl--line-height: 0.92;
+  --text-display-3xl--letter-spacing: -0.015em;
+
+  /* 11px is the floor. Nothing in the product is 8, 9 or 10px: a 9px label in
+     --muted-foreground is decoration pretending to be information. */
+  --text-overline: 0.6875rem;
+  --text-overline--line-height: 1.2;
+  --text-overline--letter-spacing: 0.14em;
+}
+
+/* ----------------------------------------------------------------------------
+   Brand primitives.
+
+   The charte's punctuation is non-negotiable, which is why it lives here once
+   instead of being retyped at every call site.
+   ---------------------------------------------------------------------------- */
+
+/* Small uppercase mono label: the charte's overline. The cheapest brand signal
+   in the system, and what makes a dense screen read as Epitech rather than as
+   admin software.
+
+   Named `epi-overline` rather than `overline` because Tailwind already ships an
+   `overline` utility for `text-decoration-line: overline`. Declaring ours under
+   that name does not replace it: both rules are emitted, so every label in the
+   product got a hairline drawn above it. */
+@utility epi-overline {
+  @apply font-mono text-overline font-bold uppercase;
+}
+
+/* A status chip, a badge, a tier: a small uppercase value that repeats once per
+   row. It is NOT an overline, and that distinction is the whole point.
+
+   An overline names a region and appears once; a chip carries data and appears
+   two hundred times in a cohort table. Mono at 0.14em is right for the first and
+   turns the second into a wall: the page stops reading as "labels in the brand
+   face" and starts reading as "everything is mono". So a chip keeps the body
+   face, and gets its emphasis from weight and case instead of from a second
+   family. */
+@utility epi-chip {
+  @apply text-[0.6875rem] leading-[1.2] font-bold tracking-[0.04em] uppercase;
+}
+
+/* Terminal cursor ending a title: TITRE_ . Decorative, so it is generated
+   rather than a DOM node, and assistive tech does not read it. The neon green
+   is 1.33:1 on white, so on a light surface the signature would simply be
+   invisible: --epi-tech-ink keeps it legible, and the dark themes and the
+   always-dark chrome opt back into the neon. */
+@utility title-cursor {
+  &::after {
+    content: '_';
+    color: var(--epi-tech-ink);
+    margin-left: 0.04em;
+  }
+}
+@utility title-cursor-neon {
+  &::after {
+    content: '_';
+    color: var(--epi-tech);
+    margin-left: 0.04em;
+  }
+}
+
+/* The interactive-state transition. Names the properties it animates, unlike
+   `transition-all`, which also animates layout ones: a width or a top that
+   animates is a jank source and never what the author meant. */
+@utility transition-ui {
+  transition-property:
+    color, background-color, border-color, outline-color, text-decoration-color,
+    box-shadow, transform, opacity, filter;
+  transition-timing-function: var(--motion-ease-standard);
+  transition-duration: var(--dur-base);
+}
+
+/* Engineering-grid texture. 48px cells per the charte, brand blue on light and
+   white on dark, both low enough to stay a texture rather than a pattern. */
+@utility blueprint-grid {
+  background-image:
+    linear-gradient(var(--blueprint-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--blueprint-line) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Same texture on a surface that is dark in both themes, where the theme class
+   never reaches. */
+@utility blueprint-grid-inverse {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.045) 1px, transparent 1px);
+  background-size: 48px 48px;
 }
 
 @layer base {
@@ -212,14 +461,27 @@
   body {
     @apply bg-background font-sans text-foreground antialiased selection:bg-epi-blue selection:text-white;
   }
-  /* Typography rules applied here: Tight leading for large headers */
-  h1:not(.prose *),
+
+  /* Anton, uppercase only, single weight. Tracking is NOT set here: it travels
+     with the display size token, so a title cannot pick a size and a tracking
+     that disagree. Never `font-bold` on this: Anton has one weight, so a
+     browser fakes it by smearing the glyphs, which is what an `h1` in the dev
+     space did on every page until a heading had to say `font-heading` out loud.
+
+     There is deliberately no bare `h1` selector here. One used to Anton-ise any
+     heading silently, which is exactly how that faux weight went unnoticed. A
+     display face is a choice a heading states. */
   .font-heading {
-    @apply font-heading leading-[1.1] font-normal tracking-wide uppercase;
+    @apply font-heading leading-[1.1] font-normal uppercase;
   }
 
-  .sidebar-section-title {
-    @apply mt-4 mb-2 font-heading text-sm tracking-wider text-sidebar-foreground-muted uppercase;
+  /* One focus treatment, everywhere. A solid outline rather than the charte's
+     32%-alpha halo: at that opacity the ring is ~1.9:1 against white and fails
+     WCAG 2.2 SC 1.4.11, and an `outline` also survives an overflow-hidden
+     ancestor, which a box-shadow ring does not. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 
   .app-header {
@@ -231,7 +493,7 @@
   }
 }
 
-/* --- Login step transitions — shared by the talent + parent OTP flows --- */
+/* --- Login step transitions: shared by the talent + parent OTP flows --- */
 @keyframes slide-in-right {
   from {
     opacity: 0;
@@ -264,57 +526,57 @@
 
 /* --- Markdown Prose Overrides (Notion-like with Epitech branding) --- */
 
-/* Base text — crisp rendering for body text */
+/* Base text: crisp rendering for body text */
 .prose {
   -webkit-font-smoothing: auto;
   -moz-osx-font-smoothing: auto;
 }
 
-/* Headings — clean, no uppercase, sans-serif, weighted sizing like Notion */
+/* Headings: clean, no uppercase, sans-serif, weighted sizing like Notion */
 .prose h1 {
-  @apply font-sans text-2xl font-bold tracking-normal text-slate-900 normal-case dark:text-white;
+  @apply font-sans text-2xl font-bold tracking-normal text-foreground normal-case;
 }
 .prose h2 {
-  @apply font-sans text-xl font-semibold tracking-normal text-slate-900 normal-case dark:text-white;
+  @apply font-sans text-xl font-semibold tracking-normal text-foreground normal-case;
 }
 .prose h3 {
-  @apply font-sans text-lg font-semibold tracking-normal text-slate-800 normal-case dark:text-slate-100;
+  @apply font-sans text-lg font-semibold tracking-normal text-foreground normal-case;
 }
 .prose h4 {
-  @apply font-sans text-base font-semibold tracking-normal text-slate-700 normal-case dark:text-slate-200;
+  @apply font-sans text-base font-semibold tracking-normal text-foreground-secondary normal-case;
 }
 .prose h5 {
-  @apply font-sans text-sm font-semibold tracking-normal text-slate-700 normal-case dark:text-slate-300;
+  @apply font-sans text-sm font-semibold tracking-normal text-foreground-secondary normal-case;
 }
 .prose h6 {
-  @apply font-sans text-xs font-semibold tracking-normal text-slate-500 normal-case uppercase dark:text-slate-400;
+  @apply font-sans text-xs font-semibold tracking-normal text-muted-foreground normal-case uppercase;
 }
 
-/* Links — Epitech blue, underline on hover like Notion */
+/* Links: Epitech blue, underline on hover like Notion */
 .prose a {
   @apply font-medium text-epi-blue underline decoration-epi-blue/30 underline-offset-2 transition-colors hover:decoration-epi-blue;
 }
 
-/* Blockquotes — Notion-style left border, tight to text */
+/* Blockquotes: Notion-style left border, tight to text */
 .prose blockquote {
-  @apply border-l-3 border-slate-300 py-0 pl-4 dark:border-slate-600;
+  @apply border-l-3 border-border py-0 pl-4;
 }
 .prose blockquote p {
   @apply my-0;
 }
 
-/* Tables — Notion-style with full borders and column separators */
+/* Tables: Notion-style with full borders and column separators */
 .prose table {
   @apply w-full border-collapse text-sm;
 }
 .prose thead th {
-  @apply border border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300;
+  @apply border border-border bg-muted px-3 py-2 text-left text-sm font-semibold text-foreground-secondary;
 }
 .prose tbody td {
-  @apply border border-slate-200 px-3 py-2 dark:border-slate-700;
+  @apply border border-border px-3 py-2;
 }
 
-/* Task lists — styled checkboxes, no bullet */
+/* Task lists: styled checkboxes, no bullet */
 .prose ul:has(input[type='checkbox']) {
   @apply list-none pl-0;
 }
@@ -322,32 +584,33 @@
   @apply flex items-start gap-2 pl-0;
 }
 .prose input[type='checkbox'] {
-  @apply mt-1 h-4 w-4 rounded border-slate-300 accent-epi-blue;
+  @apply mt-1 h-4 w-4 rounded-sm border-border accent-epi-blue;
 }
 
-/* Images — rounded, constrained, centered */
+/* Images: constrained and centred, and square. The charte treats
+   photography as rectangles: no rounded corners, no drop shadow. */
 .prose img {
-  @apply mx-auto max-w-full rounded-lg;
+  @apply mx-auto max-w-full;
 }
 
-/* HR — subtle Notion-style divider */
+/* HR: subtle Notion-style divider */
 .prose hr {
-  @apply my-8 border-t border-slate-200 dark:border-slate-700;
+  @apply my-8 border-t border-border;
 }
 
-/* Code blocks — language label, softer background */
+/* Code blocks: language label, softer background */
 .prose .code-block-wrapper {
   @apply relative my-5;
 }
 .prose .code-block-lang {
-  @apply absolute top-2 right-3 z-10 font-mono text-xs tracking-wide text-epi-teal/80 uppercase;
+  @apply absolute top-2 right-3 z-10 font-mono text-xs tracking-wide text-epi-tech/80 uppercase;
 }
 .prose pre {
   @apply !mt-0 rounded-lg pt-9;
-  background: #0b1020;
+  background: var(--epi-grey-900);
 }
 
-/* Brand-locked highlight.js theme — Epitech palette */
+/* Brand-locked highlight.js theme: Epitech palette */
 .hljs {
   color: #e6edf3;
   background: transparent;
@@ -409,9 +672,9 @@
   font-weight: 600;
 }
 
-/* Inline code — subtle highlight */
+/* Inline code: subtle highlight */
 .prose code:not(pre code) {
-  @apply rounded-md bg-slate-100 px-1.5 py-0.5 text-sm text-rose-500 dark:bg-slate-800 dark:text-rose-400;
+  @apply rounded-sm bg-muted px-1.5 py-0.5 text-sm text-epi-tech-ink;
 }
 .prose code::before,
 .prose code::after {

@@ -1,23 +1,23 @@
-import type { Prisma, XpGrantSource } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { XpGrantSource } from '@prisma/client';
 
 /**
  * XP ledger service.
  *
  * `XpGrant` is the source of truth: one row per granting fact, keyed unique on
  * `(source, sourceId)`. `Talent.xp` is a cached projection = SUM(amount),
- * recomputed inside the same transaction on every write — so a balance is
+ * recomputed inside the same transaction on every write, so a balance is
  * always explainable and can never drift (no more `Math.max(0, xp - n)` refund).
  *
  * Every function takes a `Prisma.TransactionClient`: callers own the
  * `prisma.$transaction(async (tx) => …)` so the grant/revoke and the projection
- * recompute commit atomically. The service is campus-agnostic — callers pass
+ * recompute commit atomically. The service is campus-agnostic: callers pass
  * `campusId` explicitly from data they already hold (and authorize the campus
  * via the scoped read in front of the transaction).
  *
  * `sourceId` is the per-source dedupe key:
  *   - onboarding        → talentId
  *   - minigame          → minigameAttemptId
- *   - activity_presence → participationId
  *   - reward            → `${rewardId}_${talentId}` (see scripts/grant-reward-from-csv.ts)
  *   - admin_adjustment  → null (never deduped; each adjustment is its own row)
  */
@@ -29,7 +29,6 @@ export interface GrantXpInput {
   sourceId: string | null;
   amount: number;
   campusId?: string | null;
-  note?: string | null;
 }
 
 export interface RevokeXpInput {
@@ -42,7 +41,7 @@ export interface RevokeXpInput {
  * Recomputes `Talent.xp` from the ledger. Call after any grant/revoke; runs
  * inside the caller's transaction.
  */
-export async function recomputeTalentXp(
+async function recomputeTalentXp(
   tx: Prisma.TransactionClient,
   talentId: string,
 ): Promise<number> {
@@ -56,19 +55,50 @@ export async function recomputeTalentXp(
 }
 
 /**
- * Recomputes `Talent.eventsCount` from present participations. Kept as a cached
- * projection (like `xp`) rather than a ledger — it is directly derivable as the
- * count of the talent's present participations. Call from presence-driven sites.
+ * Recomputes `Talent.eventsCount` from émargement attendance. Kept as a cached
+ * projection (like `xp`) rather than a ledger: it is directly derivable from the
+ * `EventPresence` rows. An event counts as attended once the talent has at least
+ * one présent/en-retard cell in it (absent/justifié don't count), so multiple
+ * half-day slots of the same stage collapse to one via `distinct` on `eventId`.
+ * Call from every site that writes an `EventPresence` row, in the same tx.
  */
 export async function recomputeEventsCount(
   tx: Prisma.TransactionClient,
   talentId: string,
 ): Promise<number> {
-  const eventsCount = await tx.participation.count({
-    where: { talentId, isPresent: true },
+  const attended = await tx.eventPresence.findMany({
+    where: { talentId, status: { in: ['present', 'late'] } },
+    distinct: ['eventId'],
+    select: { eventId: true },
   });
+  const eventsCount = attended.length;
   await tx.talent.update({ where: { id: talentId }, data: { eventsCount } });
   return eventsCount;
+}
+
+/**
+ * Bulk variant of {@link recomputeEventsCount} for roster-scale writes (the
+ * émargement "tout présent" mark): one correlated UPDATE instead of two round
+ * trips per talent, so a ~200-talent créneau doesn't hold the interactive
+ * transaction (and its `Talent` row locks) open across hundreds of
+ * sequential queries. Same projection semantics as the single variant:
+ * distinct events with at least one présent/en-retard cell.
+ */
+export async function recomputeEventsCountBulk(
+  tx: Prisma.TransactionClient,
+  talentIds: string[],
+): Promise<void> {
+  if (talentIds.length === 0) return;
+  await tx.$executeRaw`
+    UPDATE "Talent" t
+    SET "eventsCount" = (
+      SELECT COUNT(DISTINCT ep."eventId")::int
+      FROM "EventPresence" ep
+      WHERE ep."talentId" = t."id"
+        AND ep."status" IN ('present', 'late')
+    )
+    WHERE t."id" IN (${Prisma.join(talentIds)})
+  `;
 }
 
 /**
@@ -94,7 +124,6 @@ export async function grantXp(
         sourceId: null,
         amount: input.amount,
         campusId: input.campusId ?? null,
-        note: input.note ?? null,
       },
     });
   } else {
@@ -105,7 +134,6 @@ export async function grantXp(
       update: {
         amount: input.amount,
         campusId: input.campusId ?? null,
-        note: input.note ?? null,
       },
       create: {
         talentId: input.talentId,
@@ -113,7 +141,6 @@ export async function grantXp(
         sourceId: input.sourceId,
         amount: input.amount,
         campusId: input.campusId ?? null,
-        note: input.note ?? null,
       },
     });
   }

@@ -13,6 +13,7 @@
   import Phone from '@lucide/svelte/icons/phone';
   import Pencil from '@lucide/svelte/icons/pencil';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
+  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import SegmentedFilter, {
     type SegmentOption,
   } from '$lib/components/staff/SegmentedFilter.svelte';
@@ -34,22 +35,33 @@
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import StudentContactDialog from '$lib/components/students/StudentContactDialog.svelte';
   import EditParentEmailDialog from '../EditParentEmailDialog.svelte';
-  import type { ContactPerson } from '$lib/components/students/contact';
+  import type { ContactPerson } from '$lib/domain/contact';
   import { enhance } from '$app/forms';
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
   import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
-  import { EVENT_TYPES, EVENT_TYPE_LABELS } from '$lib/domain/event';
   import { formatPersonName, civiliteCourtesyTitle } from '$lib/domain/profile';
-  import { TALENT_STATUS_LABELS, PARENT_STATUS_LABELS } from '../labels';
+  import {
+    TALENT_STATUS_LABELS,
+    PARENT_STATUS_LABELS,
+    NO_DOSSIER_HINT,
+    type TalentAccountStatus,
+  } from '../labels';
   import { track } from '$lib/analytics';
   import type { TalentsCohort, TalentFilters } from '../query';
+  import { nextSort } from '$lib/components/staff/datatable/sort';
+  import {
+    goToListPage,
+    resetListParams,
+    setListParams,
+  } from '$lib/components/staff/datatable/urlList';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  import { lastActiveLabel } from '$lib/components/staff/lastActive';
 
   // The streamed cohort payload plus the parsed filters (the cheap shell value
-  // the toolbar needs). This component owns every data-dependent surface — KPI
-  // tiles, toolbar, table, pagination and the row dialogs — so it mounts only
+  // the toolbar needs). This component owns every data-dependent surface (KPI
+  // tiles, toolbar, table, pagination and the row dialogs), so it mounts only
   // once the cohort resolves behind the page shell.
   let {
     talents,
@@ -58,25 +70,15 @@
     totalPages,
     stats,
     // Bound as `filterState` because the toolbar's `{#snippet filters()}` already
-    // owns the name `filters` in this scope — the prop and the snippet would
+    // owns the name `filters` in this scope: the prop and the snippet would
     // otherwise shadow each other.
     filters: filterState,
   }: TalentsCohort & { filters: TalentFilters } = $props();
 
-  let searchQuery = $state(page.url.searchParams.get('q') || '');
-  let searchTimeout: ReturnType<typeof setTimeout>;
-  // The page now keeps this component mounted across navigations (it resolves the
-  // streamed cohort into state rather than re-awaiting it), so the initialiser
-  // above only reads `?q` once. Re-sync on navigation so a command-palette
-  // deep-link (`talents?q=…`) fills the search box even when we're already here.
-  // Typing drives the URL, not the reverse, so this only fires on real navigations.
-  $effect(() => {
-    const q = page.url.searchParams.get('q');
-    if (q !== null) searchQuery = q;
-  });
+  const search = createUrlSearch();
   let impersonating = $state<string | null>(null);
 
-  // Log in as a talent through the shared admin endpoint — the same one the
+  // Log in as a talent through the shared admin endpoint: the same one the
   // users page drives for staff, so both paths bootstrap the account + forward
   // the session cookie identically.
   async function impersonate(talentId: string) {
@@ -86,7 +88,11 @@
       const res = await fetch(resolve('/staff/admin/impersonate'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ kind: 'talent', id: talentId }),
+        body: JSON.stringify({
+          kind: 'talent',
+          id: talentId,
+          reason: 'person',
+        }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as {
@@ -187,42 +193,23 @@
 
   // Status chip tints (labels are single-sourced in ./labels so the table and
   // the XLSX export read the same words). `active` = onboarding complete.
-  const STATUS_CLASS = {
-    active: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
-    pending: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
+  // `no_dossier` is deliberately the quietest of the four: it is not a state
+  // anyone chases, unlike "Jamais connecté", and tinting it would put visual
+  // urgency on a row that needs none.
+  const STATUS_CLASS: Record<TalentAccountStatus, string> = {
+    active: 'border-epi-tech/30 bg-epi-tech/10 text-epi-tech-ink',
+    pending: 'border-epi-together/30 bg-epi-together/10 text-epi-together',
     never: 'border-border bg-muted text-muted-foreground',
-  } as const;
+    no_dossier: 'border-dashed border-border text-muted-foreground',
+  };
 
   // Parent completion chip (règlement co-signature + droit à l'image), tinted
   // like the account-status chip: complete reads calm (teal), en attente flags
   // a parent still to chase (orange).
   const PARENT_STATUS_CLASS = {
-    complete: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
-    pending: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
+    complete: 'border-epi-tech/30 bg-epi-tech/10 text-epi-tech-ink',
+    pending: 'border-epi-together/30 bg-epi-together/10 text-epi-together',
   } as const;
-
-  function lastActiveLabel(date: Date | string | null): string {
-    if (!date) return 'Jamais';
-    const diff = Date.now() - new Date(date).getTime();
-    const day = 86_400_000;
-    if (diff < day) return "Aujourd'hui";
-    if (diff < 2 * day) return 'Hier';
-    if (diff < 7 * day) return `Il y a ${Math.floor(diff / day)} j`;
-    if (diff < 30 * day) return `Il y a ${Math.floor(diff / (7 * day))} sem`;
-    if (diff < 365 * day) return `Il y a ${Math.floor(diff / (30 * day))} mois`;
-    const years = Math.floor(diff / (365 * day));
-    return `Il y a ${years} an${years > 1 ? 's' : ''}`;
-  }
-
-  function navigateWithParams(params: Record<string, string>) {
-    const url = new URL(page.url);
-    url.searchParams.delete('page');
-    for (const [key, value] of Object.entries(params)) {
-      if (value) url.searchParams.set(key, value);
-      else url.searchParams.delete(key);
-    }
-    goto(url.toString(), { keepFocus: true });
-  }
 
   // KPI tiles report the *scoped* population (campus multiselect + type + niveau
   // + search), so the admin can read onboarding progress for a chosen set of
@@ -244,27 +231,17 @@
     `${page.url.pathname}/export?${page.url.searchParams.toString()}`,
   );
 
-  // Two independent filter dimensions, each a one-click segmented radio. They
-  // compose freely (e.g. "stagiaires" + "jamais connectés") because they write
-  // separate URL params — the whole point of splitting them off the tiles.
-  const typeOptions: SegmentOption[] = [
-    { value: 'all', label: 'Tous' },
-    {
-      value: EVENT_TYPES.STAGE_SECONDE,
-      label: EVENT_TYPE_LABELS[EVENT_TYPES.STAGE_SECONDE],
-    },
-    {
-      value: EVENT_TYPES.CODING_CLUB,
-      label: EVENT_TYPE_LABELS[EVENT_TYPES.CODING_CLUB],
-    },
-  ];
-  // Mirrors the three states of the table's Statut column, so filtering and the
-  // badge speak the same language: complete onboarding, mid-onboarding, no account.
+  // Mirrors the four states of the table's Statut column, so filtering and the
+  // badge speak the same language: complete onboarding, mid-onboarding, no
+  // account, no dossier at all. Hand-written rather than derived from
+  // TALENT_STATUS_LABELS because the filter wording is plural and the chip
+  // wording is singular; keep them in step by hand when a state is added.
   const statutOptions: SegmentOption[] = [
     { value: 'all', label: 'Tous' },
     { value: 'active', label: 'Onboardés' },
     { value: 'onboarding', label: 'Onboarding' },
     { value: 'never', label: 'Jamais connectés' },
+    { value: 'no_dossier', label: 'Sans dossier' },
   ];
   // Parent completion status: "En attente" = règlement not co-signed or
   // image-rights not decided (the blocked parents the SMS relance targets);
@@ -281,24 +258,15 @@
   // when inactive (campus is a multi-select id list).
   const hasActiveFilters = $derived(
     Boolean(
-      filterState.q ||
-      filterState.type ||
-      filterState.niveau ||
-      filterState.campusIds.length,
+      filterState.q || filterState.niveau || filterState.campusIds.length,
     ) ||
       filterState.status !== 'all' ||
       filterState.parentStatus !== 'all',
   );
 
   function resetFilters() {
-    searchQuery = '';
-    goto(page.url.pathname, { keepFocus: true });
-  }
-
-  function onSearchInput(value: string) {
-    searchQuery = value;
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => navigateWithParams({ q: value }), 300);
+    search.clear();
+    resetListParams();
   }
 
   const columns: ColumnDef[] = [
@@ -315,34 +283,22 @@
   // Server-side sort: clicking a header swaps `?sort=&dir=` and reloads. The
   // baseline (no `sort` param) keeps the most-recently-active-first ordering.
   function toggleSort(key: string) {
-    const nextDir =
-      filterState.sort === key && filterState.dir === 'asc' ? 'desc' : 'asc';
-    navigateWithParams({ sort: key, dir: nextDir });
+    const next = nextSort(
+      columns,
+      { key: filterState.sort, dir: filterState.dir },
+      key,
+    );
+    setListParams({ sort: next.key, dir: next.dir });
   }
-
-  const countSuffix = $derived(
-    hasActiveFilters
-      ? totalItems > 1
-        ? 'correspondent aux filtres'
-        : 'correspond aux filtres'
-      : 'au total',
-  );
 
   // Campus list can be long, so it gets a searchable select.
   const campusOptions = $derived<SelectOption[]>(
     campuses.map((c) => ({ value: c.id, label: c.name })),
   );
-
-  function goToPage(p: number) {
-    const url = new URL(page.url);
-    if (p > 1) url.searchParams.set('page', String(p));
-    else url.searchParams.delete('page');
-    goto(url.toString());
-  }
 </script>
 
 <div class="space-y-6">
-  <!-- Onboarding KPIs — scoped to the active campus/type/niveau/search filters
+  <!-- Onboarding KPIs, scoped to the active campus/type/niveau/search filters
        so the admin reads progress for the chosen cohort. -->
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
     <KpiTile
@@ -379,64 +335,48 @@
       helpText="Talent importé sans compte de connexion : jamais venu sur la plateforme. Cliquez pour filtrer."
       tone="orange"
       icon={UserX}
-      onclick={() => navigateWithParams({ status: 'never', parentStatus: '' })}
+      onclick={() => setListParams({ status: 'never', parentStatus: '' })}
       pressed={neverConnectedActive}
     />
   </div>
 
-  <!-- Filter toolbar — search + filtered count on the shared DataTableToolbar,
-       with the admin-specific composing filters dropped into its snippet. Type
-       and Statut are independent segmented radios; niveau/campus stay dropdowns
-       (too many options for a segmented control). -->
+  <!-- Filter toolbar: search + filtered count on the shared DataTableToolbar,
+       with the admin-specific composing filters dropped into its snippet. Parent
+       stays a segmented radio at three options; Statut, Niveau and Campus are
+       dropdowns, the first for crossing the four-option ceiling and the other two
+       for having far more than that. -->
   <DataTableToolbar
-    searchValue={searchQuery}
-    {onSearchInput}
+    searchValue={search.value}
+    onSearchInput={(v) => (search.value = v)}
     searchPlaceholder="Rechercher par nom ou email…"
     count={totalItems}
     countNoun="talent"
-    {countSuffix}
+    filtersApplied={hasActiveFilters}
   >
     {#snippet filters()}
+      <!-- Statut is the one filter here past the four-option ceiling (see
+           `SegmentedFilter`): five uppercase labels came to 51 characters, twice
+           the widest segmented group in the app, on a row that also carries the
+           search box, Parent, Niveau and Campus. Parent stays segmented at three:
+           the rule is the ceiling, not the neighbourhood. -->
       <div class="flex items-center gap-2">
-        <span
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Type
-        </span>
-        <SegmentedFilter
-          ariaLabel="Filtrer par type d'événement"
-          options={typeOptions}
-          value={filterState.type || 'all'}
-          onChange={(v) => navigateWithParams({ type: v === 'all' ? '' : v })}
-        />
-      </div>
-
-      <div class="flex items-center gap-2">
-        <span
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Statut
-        </span>
-        <SegmentedFilter
+        <span class="epi-overline text-muted-foreground"> Statut </span>
+        <FilterSelect
           ariaLabel="Filtrer par statut de compte"
           options={statutOptions}
           value={filterState.status}
-          onChange={(v) => navigateWithParams({ status: v === 'all' ? '' : v })}
+          onChange={(v) => setListParams({ status: v === 'all' ? '' : v })}
         />
       </div>
 
       <div class="flex items-center gap-2">
-        <span
-          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Parent
-        </span>
+        <span class="epi-overline text-muted-foreground"> Parent </span>
         <SegmentedFilter
           ariaLabel="Filtrer par statut du parent"
           options={parentStatusOptions}
           value={filterState.parentStatus || 'all'}
           onChange={(v) =>
-            navigateWithParams({ parentStatus: v === 'all' ? '' : v })}
+            setListParams({ parentStatus: v === 'all' ? '' : v })}
         />
       </div>
 
@@ -444,8 +384,7 @@
         <Select.Root
           type="single"
           value={filterState.niveau || 'all'}
-          onValueChange={(v) =>
-            navigateWithParams({ niveau: v === 'all' ? '' : v })}
+          onValueChange={(v) => setListParams({ niveau: v === 'all' ? '' : v })}
         >
           <Select.Trigger class="w-full rounded-sm">
             <Funnel class="mr-2 h-4 w-4 text-muted-foreground" />
@@ -467,8 +406,7 @@
           multiple
           options={campusOptions}
           values={filterState.campusIds}
-          onChangeMultiple={(ids) =>
-            navigateWithParams({ campus: ids.join(',') })}
+          onChangeMultiple={(ids) => setListParams({ campus: ids.join(',') })}
           allLabel="Tous les campus"
           placeholder="Tous les campus"
           searchPlaceholder="Rechercher un campus…"
@@ -553,33 +491,33 @@
         {#if talent.niveau}
           <Badge
             variant="secondary"
-            class="rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
+            class="rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
           >
             {niveauLabel(talent.niveau)}
           </Badge>
         {:else}
-          <span class="text-sm text-muted-foreground">—</span>
+          <span class="text-sm text-muted-foreground">-</span>
         {/if}
       </Table.Cell>
       <Table.Cell>
         {#if talent.campus}
           <span class="text-sm">{talent.campus}</span>
         {:else}
-          <span class="text-sm text-muted-foreground">—</span>
+          <span class="text-sm text-muted-foreground">-</span>
         {/if}
       </Table.Cell>
       <Table.Cell>
         <div class="flex items-center gap-1.5">
           {#if talent.parentStatus}
             <span
-              class="inline-flex w-fit rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {PARENT_STATUS_CLASS[
+              class="inline-flex w-fit rounded-sm border px-2 py-0.5 epi-chip {PARENT_STATUS_CLASS[
                 talent.parentStatus
               ]}"
             >
               {PARENT_STATUS_LABELS[talent.parentStatus]}
             </span>
           {:else if talent.guardians.length > 0}
-            <span class="text-sm text-muted-foreground">—</span>
+            <span class="text-sm text-muted-foreground">-</span>
           {:else}
             <span class="text-sm text-muted-foreground">Aucun parent</span>
           {/if}
@@ -608,31 +546,49 @@
       </Table.Cell>
       <Table.Cell>
         <div class="flex items-center gap-2">
-          <Zap class="h-3.5 w-3.5 text-epi-pink" />
-          <span class="font-mono text-sm font-bold">{talent.xp}</span>
+          <Zap class="h-3.5 w-3.5 text-epi-tomorrow" />
+          <span class="text-sm font-bold">{talent.xp}</span>
           <span class="text-xs text-muted-foreground">
             · {talent.eventsCount} évé{talent.eventsCount > 1
               ? 'nements'
               : 'nement'}
           </span>
         </div>
-        <span
-          class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
-        >
+        <span class="epi-chip text-muted-foreground">
           {talent.level}
         </span>
       </Table.Cell>
       <Table.Cell>
         <div class="flex flex-col items-start gap-0.5">
-          <span
-            class="inline-flex rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {STATUS_CLASS[
-              talent.status
-            ]}"
-          >
-            {TALENT_STATUS_LABELS[talent.status]}
-          </span>
+          {#if talent.status === 'no_dossier'}
+            <Tooltip.Provider delayDuration={300}>
+              <Tooltip.Root>
+                <Tooltip.Trigger>
+                  {#snippet child({ props })}
+                    <span
+                      {...props}
+                      class="inline-flex rounded-sm border px-2 py-0.5 epi-chip {STATUS_CLASS[
+                        talent.status
+                      ]}"
+                    >
+                      {TALENT_STATUS_LABELS[talent.status]}
+                    </span>
+                  {/snippet}
+                </Tooltip.Trigger>
+                <Tooltip.Content>{NO_DOSSIER_HINT}</Tooltip.Content>
+              </Tooltip.Root>
+            </Tooltip.Provider>
+          {:else}
+            <span
+              class="inline-flex rounded-sm border px-2 py-0.5 epi-chip {STATUS_CLASS[
+                talent.status
+              ]}"
+            >
+              {TALENT_STATUS_LABELS[talent.status]}
+            </span>
+          {/if}
           {#if talent.onboardingStep}
-            <span class="text-[10px] text-muted-foreground">
+            <span class="text-xs text-muted-foreground">
               {talent.onboardingStep}
             </span>
           {/if}
@@ -653,6 +609,7 @@
                     size="icon"
                     class="text-muted-foreground hover:text-destructive"
                     onclick={() => askWipe(talent)}
+                    aria-label="Réinitialiser {talent.prenom} {talent.nom} à l'état import"
                   >
                     <Bomb class="h-4 w-4" />
                   </Button>
@@ -672,7 +629,7 @@
                     {...props}
                     variant="ghost"
                     size="sm"
-                    class="gap-1.5 text-muted-foreground hover:text-epi-pink"
+                    class="gap-1.5 text-muted-foreground hover:text-epi-tomorrow"
                     disabled={impersonating === talent.id ||
                       (!talent.email && !talent.userId)}
                     onclick={() => impersonate(talent.id)}
@@ -690,7 +647,7 @@
                     ? talent.status === 'never'
                       ? 'Crée un compte puis ouvre sa session'
                       : 'Ouvre la session de ce talent'
-                    : 'Aucun email — impossible de se connecter'}
+                    : 'Aucun email : impossible de se connecter'}
                 </p>
               </Tooltip.Content>
             </Tooltip.Root>
@@ -708,7 +665,11 @@
     {/snippet}
   </SortableTable>
 
-  <Pagination page={filterState.page} {totalPages} onPageChange={goToPage} />
+  <Pagination
+    page={filterState.page}
+    {totalPages}
+    onPageChange={goToListPage}
+  />
 </div>
 
 <StudentContactDialog
@@ -722,9 +683,7 @@
 <AlertDialog.Root bind:open={wipeOpen}>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title class="font-heading text-xl tracking-tight uppercase">
-        Réinitialiser complètement
-      </AlertDialog.Title>
+      <AlertDialog.Title>Réinitialiser complètement</AlertDialog.Title>
       <AlertDialog.Description>
         <strong>{wipeTarget?.name}</strong> revient à l'état exact d'un import
         Salesforce. Tout ce qui a été accumulé après l'import est

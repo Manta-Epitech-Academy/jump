@@ -1,11 +1,9 @@
 import { prisma } from '$lib/server/db';
 import {
   applyRepointAndDrop,
-  applyRename,
   applySwap,
   applySever,
   planRepointAndDrop,
-  planRename,
 } from '$lib/server/authIdentityRepairCore';
 import type { AuthRepairAction } from '$lib/domain/authIdentity';
 
@@ -17,7 +15,7 @@ export type { AuthRepairAction } from '$lib/domain/authIdentity';
  * the acting admin's id as `resolvedBy` (recorded in the `AuthIdentityRepair`
  * ledger). The core re-verifies the precondition inside the transaction, so an
  * action that no longer applies (state moved since the page loaded) throws and
- * rolls back — the caller surfaces it as a failed action.
+ * rolls back: the caller surfaces it as a failed action.
  *
  * This module is the `$lib`-bound entry point for the page actions; the
  * Salesforce sync drives the same core through `autoResolveAuthIdentity` below.
@@ -34,9 +32,6 @@ export async function runAuthRepair(
         applyRepointAndDrop(tx, talentId, resolvedBy),
       );
       return;
-    case 'rename':
-      await prisma.$transaction((tx) => applyRename(tx, talentId, resolvedBy));
-      return;
     case 'swap':
       await prisma.$transaction((tx) => applySwap(tx, talentId, resolvedBy));
       return;
@@ -46,52 +41,37 @@ export async function runAuthRepair(
   }
 }
 
-export type AutoResolveOutcome = 'repoint_drop' | 'rename' | 'skipped';
+export type AutoResolveOutcome = 'repoint_drop' | 'skipped';
 
 /**
- * Apply, on its own, ONLY the provably-safe resolutions for a talent's auth
- * divergence. Used by the Salesforce sync to self-heal divergences each pass:
+ * Apply, on its own, the ONE provably-safe resolution for a talent's auth
+ * divergence: ORPHAN_HOLDER → repoint the talent onto the orphan account + drop
+ * the stale one. Used by the Salesforce sync (on a `changeUserEmail` collision)
+ * to self-heal that case each pass.
  *
- *   - ORPHAN_HOLDER → repoint the talent onto the orphan + drop the stale acct;
- *   - SIMPLE_DRIFT  → rename the linked account to the new email.
+ * The simple no-collision case ("nobody holds the SF email") needs no repair:
+ * `changeUserEmail` renames the account directly, so it never reaches here.
+ * Everything else (swap/inversion, parent/staff holders, exposures) returns
+ * `'skipped'` and stays a conflict for an admin: an inversion originates from
+ * Salesforce being wrong, so auto-swapping login identities on its say-so risks
+ * thrashing and cross-account exposure between minors.
  *
- * Everything else returns `'skipped'` and is left untouched as a conflict for an
- * admin to arbitrate. In particular it DELIBERATELY never auto-applies a swap:
- * an inversion originates from Salesforce being wrong, so auto-swapping login
- * identities on its say-so risks thrashing and cross-account exposure between
- * minors. Parent/staff holders and exposures are likewise never forced.
- *
- * The verdict is probed read-only first (the `plan*` calls throw when their
- * precondition fails), then the chosen op is applied in its own transaction,
- * which re-verifies inside — so a race between probe and apply can't act on
- * stale state (it rolls back and the next sync retries).
+ * The verdict is probed read-only first (`planRepointAndDrop` throws when its
+ * precondition fails), then applied in its own transaction, which re-verifies
+ * inside, so a race between probe and apply can't act on stale state (it rolls
+ * back and the next sync retries).
  */
 export async function autoResolveAuthIdentity(
   talentId: string,
   resolvedBy: string,
 ): Promise<AutoResolveOutcome> {
-  let op: 'repoint' | 'rename' | null = null;
   try {
     await planRepointAndDrop(prisma, talentId);
-    op = 'repoint';
   } catch {
-    try {
-      await planRename(prisma, talentId);
-      op = 'rename';
-    } catch {
-      op = null;
-    }
+    return 'skipped';
   }
-
-  if (op === 'repoint') {
-    await prisma.$transaction((tx) =>
-      applyRepointAndDrop(tx, talentId, resolvedBy),
-    );
-    return 'repoint_drop';
-  }
-  if (op === 'rename') {
-    await prisma.$transaction((tx) => applyRename(tx, talentId, resolvedBy));
-    return 'rename';
-  }
-  return 'skipped';
+  await prisma.$transaction((tx) =>
+    applyRepointAndDrop(tx, talentId, resolvedBy),
+  );
+  return 'repoint_drop';
 }

@@ -1,5 +1,4 @@
 import type { Prisma, OnboardingPdfJob } from '@prisma/client';
-import { z } from 'zod';
 import { prisma } from '$lib/server/db';
 import { generateOnboardingPDF } from './onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
@@ -10,25 +9,10 @@ import {
 
 export type OnboardingPdfDocumentType = OnboardingDocumentType;
 
-// Snapshot of the generator inputs, frozen at signature time. Parsed (not
-// cast) on read so a malformed payload surfaces as a clean job error instead
-// of throwing midway through Puppeteer.
-const payloadSchema = z.object({
-  studentName: z.string(),
-  city: z.string().optional(),
-  signerName: z.string().optional(),
-  relationship: z.string().optional(),
-  // image-rights only: which way the guardian decided. Optional for back-compat
-  // with rows enqueued before refusal existed (the generator defaults to accept).
-  decision: z.enum(['accepted', 'refused']).optional(),
-  signedAt: z.string(),
-});
-export type OnboardingPdfJobPayload = z.infer<typeof payloadSchema>;
-
 /**
  * Records a PDF-generation job in the SAME transaction as the signature it
  * documents, so the queue entry can never diverge from the signed fact.
- * Does not run it — call {@link runOnboardingPdfJob} once the transaction has
+ * Does not run it: call {@link runOnboardingPdfJob} once the transaction has
  * committed (the row must be visible before the background worker reads it).
  */
 export function enqueueOnboardingPdfJob(
@@ -36,14 +20,29 @@ export function enqueueOnboardingPdfJob(
   args: {
     talentId: string;
     documentType: OnboardingPdfDocumentType;
-    payload: OnboardingPdfJobPayload;
+    /**
+     * Which dossier this job renders. Mandatory, because every generated
+     * document is per-year and the enqueuing act is the only thing that knows
+     * which year it settled: resolving it when the job RUNS would read whatever
+     * dossier is current by then, which for a job queued behind the browser pool
+     * or retried from /staff/admin/onboarding-pdfs days later is not necessarily
+     * the one that was signed.
+     *
+     * It used to be optional, with the worker falling back to the talent's most
+     * recent dossier. That fallback was only ever correct for the rows that
+     * predated the column, and it stopped being correct for those the moment
+     * their talent reopened a dossier: the retry then rendered, or refused to
+     * render, a year nobody had asked for. The migration backfilled them all and
+     * the column is NOT NULL, so there is no fallback left to get wrong.
+     */
+    schoolYear: string;
   },
 ): Promise<OnboardingPdfJob> {
   return tx.onboardingPdfJob.create({
     data: {
       talentId: args.talentId,
       documentType: args.documentType,
-      payload: args.payload,
+      schoolYear: args.schoolYear,
     },
   });
 }
@@ -54,12 +53,12 @@ export function enqueueOnboardingPdfJob(
  *
  * Fire-and-forget: callers do `void runOnboardingPdfJob(id)` right after the
  * enqueueing transaction commits, so the HTTP response (the redirect to the
- * dashboard) is never blocked by Puppeteer/S3 latency — the file lands a few
+ * dashboard) is never blocked by Puppeteer/S3 latency: the file lands a few
  * seconds later. The browser pool (max 5 concurrent) is the natural backpressure
  * when a whole cohort signs at once.
  *
  * Idempotent and safe to re-invoke from the admin dashboard to recover a failed
- * — or crash-stranded — job: it claims any not-yet-succeeded row, regenerates,
+ * (or crash-stranded) job: it claims any not-yet-succeeded row, regenerates,
  * and overwrites the same signature-timestamp-keyed S3 object.
  */
 export async function runOnboardingPdfJob(jobId: string): Promise<void> {
@@ -72,11 +71,18 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
   // in place for a later manual retry.
   let job: OnboardingPdfJob | null = null;
   try {
-    // Claim: flip a not-yet-succeeded row to `processing`. A zero count means the
-    // job already succeeded (or was deleted) — nothing left to do. `updatedAt` is
-    // bumped here, which is what marks "processing since" for stranded detection.
+    // Claim: flip a claimable row to `processing`, per {@link claimableJobWhere},
+    // which owns that rule. A zero count means somebody else owns the job - it
+    // already succeeded, it is being rendered right now, or it is gone - and
+    // there is nothing left to do. `updatedAt` is bumped here, which is what
+    // marks "processing since" for stranded detection.
+    //
+    // Postgres re-checks the predicate against the updated row under the row
+    // lock, so of two concurrent claimers exactly one sees count 1. That is what
+    // makes the guard below reachable at all: it used to be paired with a
+    // predicate that matched an already-`processing` row, so both callers got 1.
     const claimed = await prisma.onboardingPdfJob.updateMany({
-      where: { id: jobId, status: { not: 'success' } },
+      where: { id: jobId, ...claimableJobWhere() },
       data: { status: 'processing', errorMessage: null, processedAt: null },
     });
     if (claimed.count === 0) return;
@@ -84,82 +90,149 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
     job = await prisma.onboardingPdfJob.findUnique({ where: { id: jobId } });
     if (!job) return;
 
-    const payload = payloadSchema.parse(job.payload);
     const documentType = job.documentType as OnboardingPdfDocumentType;
 
-    // `rules` is a shared multi-signer artifact (student + guardian co-sign the
-    // same règlement). The worker reads the talent's current signature columns
-    // and renders whichever blocks exist, so re-enqueueing on either signature
-    // produces a PDF that reflects the latest state of both. Image-rights stays
-    // payload-driven (single signer, snapshot at signature time).
+    const descriptor = ONBOARDING_DOCUMENTS[documentType];
+    const filePathField = descriptor.dossierFilePathField;
+    if (!filePathField) {
+      // Only the charte, which has no PDF and is never enqueued. Refusing loudly
+      // beats rendering an empty document onto a key nothing will ever read.
+      throw new Error(
+        `Le type de document "${documentType}" ne produit pas de PDF.`,
+      );
+    }
+
+    const talent = await prisma.talent.findUniqueOrThrow({
+      where: { id: job.talentId },
+      select: { prenom: true, nom: true },
+    });
+    // The dossier this render belongs to, off the job and nowhere else.
+    const dossierSchoolYear = job.schoolYear;
+
+    // BOTH documents are read off THAT dossier, never off the flat projection on
+    // `Talent`. The projection holds the most recent dossier, so a job for an
+    // earlier year - queued behind the browser pool, or retried from the admin
+    // page days later - would otherwise render this year's state under that
+    // year's document. `rules` has always worked this way; `image-rights` used
+    // to render from a snapshot on the job instead, which was the same defect one
+    // layer along: it froze the decision at enqueue time, so a retry after a
+    // change of mind re-published a superseded choice. That snapshot column is
+    // gone rather than merely unread, so there is nothing left to render from but
+    // the dossier.
+    const dossier = await prisma.onboarding_Record.findUnique({
+      where: {
+        talentId_schoolYear: {
+          talentId: job.talentId,
+          schoolYear: dossierSchoolYear,
+        },
+      },
+      select: {
+        rulesSignedAt: true,
+        rulesSignedCity: true,
+        reglementVersion: true,
+        parentRulesSignedAt: true,
+        parentRulesSignerPrenom: true,
+        parentRulesSignerNom: true,
+        parentRulesRelationship: true,
+        parentRulesSignedCity: true,
+        imageRightsDecision: true,
+        imageRightsDecidedAt: true,
+        imageRightsSignerPrenom: true,
+        imageRightsSignerNom: true,
+        imageRightsRelationship: true,
+        imageRightsSignedCity: true,
+        imageRightsVersion: true,
+      },
+    });
+    if (!dossier) {
+      throw new Error(
+        `Dossier d'inscription introuvable pour l'année ${dossierSchoolYear}.`,
+      );
+    }
+
+    const studentName = `${talent.prenom} ${talent.nom}`;
     let pdf: Uint8Array<ArrayBuffer>;
     if (documentType === 'rules') {
-      const talent = await prisma.talent.findUniqueOrThrow({
-        where: { id: job.talentId },
-        select: {
-          prenom: true,
-          nom: true,
-          rulesSignedAt: true,
-          rulesSignedCity: true,
-          parentRulesSignedAt: true,
-          parentRulesSignerPrenom: true,
-          parentRulesSignerNom: true,
-          parentRulesRelationship: true,
-          parentRulesSignedCity: true,
-        },
-      });
+      // A shared multi-signer artifact (student + guardian co-sign the same
+      // règlement). Whichever blocks exist are rendered, so re-enqueueing on
+      // either signature produces a PDF reflecting the latest state of both.
       const parentSignerFull =
-        talent.parentRulesSignerPrenom && talent.parentRulesSignerNom
-          ? `${talent.parentRulesSignerPrenom} ${talent.parentRulesSignerNom}`
+        dossier.parentRulesSignerPrenom && dossier.parentRulesSignerNom
+          ? `${dossier.parentRulesSignerPrenom} ${dossier.parentRulesSignerNom}`
           : null;
       pdf = await generateOnboardingPDF({
         type: documentType,
-        studentName: `${talent.prenom} ${talent.nom}`,
+        studentName,
+        // Pinned to what was signed, not to the current wording: this artifact
+        // is re-rendered on every co-signature, so reading the live text here
+        // would rewrite an already-signed document.
+        reglementVersion: dossier.reglementVersion,
         rules: {
           talent:
-            talent.rulesSignedAt && talent.rulesSignedCity
+            dossier.rulesSignedAt && dossier.rulesSignedCity
               ? {
-                  city: talent.rulesSignedCity,
-                  signedAt: talent.rulesSignedAt,
+                  city: dossier.rulesSignedCity,
+                  signedAt: dossier.rulesSignedAt,
                 }
               : undefined,
           parent:
-            talent.parentRulesSignedAt &&
+            dossier.parentRulesSignedAt &&
             parentSignerFull &&
-            talent.parentRulesRelationship &&
-            talent.parentRulesSignedCity
+            dossier.parentRulesRelationship &&
+            dossier.parentRulesSignedCity
               ? {
                   signerName: parentSignerFull,
-                  relationship: talent.parentRulesRelationship,
-                  city: talent.parentRulesSignedCity,
-                  signedAt: talent.parentRulesSignedAt,
+                  relationship: dossier.parentRulesRelationship,
+                  city: dossier.parentRulesSignedCity,
+                  signedAt: dossier.parentRulesSignedAt,
                 }
               : undefined,
         },
       });
     } else {
+      if (!dossier.imageRightsDecision || !dossier.imageRightsDecidedAt) {
+        throw new Error(
+          `Aucune décision de droit à l'image sur le dossier ${dossierSchoolYear}.`,
+        );
+      }
+      const signerName =
+        [dossier.imageRightsSignerPrenom, dossier.imageRightsSignerNom]
+          .filter(Boolean)
+          .join(' ') || undefined;
       pdf = await generateOnboardingPDF({
         type: documentType,
-        decision: payload.decision,
-        studentName: payload.studentName,
-        signerName: payload.signerName,
-        relationship: payload.relationship,
-        city: payload.city,
-        signedAt: new Date(payload.signedAt),
+        studentName,
+        schoolYear: dossierSchoolYear,
+        decision: dossier.imageRightsDecision,
+        signerName,
+        relationship: dossier.imageRightsRelationship ?? undefined,
+        city: dossier.imageRightsSignedCity ?? undefined,
+        signedAt: dossier.imageRightsDecidedAt,
+        // Same reason as `reglementVersion` above, and it is what makes a
+        // superseded decision reproducible from its own ledger row.
+        droitImageVersion: dossier.imageRightsVersion,
       });
     }
 
     const storage = getStorage();
-    // Stable, unsalted key: regenerations overwrite the same object instead of
-    // accumulating timestamp-keyed orphans in S3. The signature timestamps live
-    // on the talent row — the bucket is just the current rendered artifact.
-    const key = `documents/${job.talentId}/${documentType}.pdf`;
+    // Stable per artifact, so a regeneration overwrites its own object instead
+    // of accumulating timestamp-keyed orphans. Every generated document is a
+    // per-year artifact belonging to a dossier, hence the year in the key: with
+    // one key per talent, a new year's document overwrote the signed one of the
+    // previous year, and nothing could rebuild it.
+    const key = `documents/${job.talentId}/${documentType}-${dossierSchoolYear}.pdf`;
     await storage.save(key, pdf, 'application/pdf');
 
-    const filePathField = ONBOARDING_DOCUMENTS[documentType].filePathField;
     await prisma.$transaction([
-      prisma.talent.update({
-        where: { id: job.talentId },
+      // The key lands on the dossier this render was made from, in the column
+      // the document kind declares.
+      prisma.onboarding_Record.update({
+        where: {
+          talentId_schoolYear: {
+            talentId: job.talentId,
+            schoolYear: dossierSchoolYear,
+          },
+        },
         data: { [filePathField]: key },
       }),
       prisma.onboardingPdfJob.update({
@@ -176,7 +249,7 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
     const message = err instanceof Error ? err.message : String(err);
     // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
     console.error(`[onboarding-pdf-job] ${jobId} failed:`, err);
-    // Record the failure only if the claim succeeded — otherwise we have no row we
+    // Record the failure only if the claim succeeded: otherwise we have no row we
     // own. Guard the write itself so a secondary DB failure can't re-leak.
     if (job) {
       await prisma.onboardingPdfJob
@@ -201,13 +274,39 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
  * crash-stranded rather than legitimately in-flight, and re-exposed for retry.
  *
  * Generation itself is seconds, but a whole cohort signing at once queues jobs
- * behind the browser pool (cap 5) — a job can sit in `processing` for a few
+ * behind the browser pool (cap 5): a job can sit in `processing` for a few
  * minutes simply waiting for a slot. The window is deliberately generous so a
  * queued job is never mistaken for a dead one; on the off chance a still-queued
  * job is retried anyway, {@link runOnboardingPdfJob} is idempotent (same
  * signature-keyed S3 object), so the worst case is one wasted generation.
  */
-export const STRANDED_AFTER_MS = 5 * 60_000;
+const STRANDED_AFTER_MS = 5 * 60_000;
+
+/**
+ * The same rule as {@link isOnboardingPdfJobRetryable}, as a Prisma predicate:
+ * which rows {@link runOnboardingPdfJob} is allowed to claim.
+ *
+ * Two dialects of one rule, deliberately adjacent so they cannot drift, and they
+ * have to agree in both directions. Accepting MORE than the affordance offers
+ * re-renders a job that is legitimately in flight, and a second caller is
+ * ordinary rather than hypothetical: every caller fires
+ * `void runOnboardingPdfJob(id)` (the parent co-signature, the onboarding route,
+ * and the admin page's "Relancer" and "Relancer tout"), so an admin relaunching
+ * during a cohort signing burst used to double browser-pool work at the moment
+ * the pool is the bottleneck. Accepting LESS would give that page a button that
+ * silently does nothing, which is worse than no button.
+ */
+function claimableJobWhere() {
+  return {
+    OR: [
+      { status: { in: ['pending', 'error'] } },
+      {
+        status: 'processing',
+        updatedAt: { lt: new Date(Date.now() - STRANDED_AFTER_MS) },
+      },
+    ],
+  };
+}
 
 /**
  * Whether the admin page should offer a manual "Relancer" for a job. `error` and
@@ -233,9 +332,9 @@ export function isOnboardingPdfJobRetryable(job: {
  * The lifecycle of a signed document's PDF as the owning talent should see it,
  * folding the cached `Talent.*FilePath` projection together with the document's
  * latest generation job:
- *   ready       the file exists — offer to view it.
+ *   ready       the file exists: offer to view it.
  *   generating  signed, no file yet, but the job is still pending or actively
- *               processing within the stranded window — a spinner is honest.
+ *               processing within the stranded window: a spinner is honest.
  *   failed      signed, no file, and the job errored or has sat in `processing`
  *               past {@link STRANDED_AFTER_MS}: nothing is happening until an
  *               admin retries, so a spinner would lie forever; surface an

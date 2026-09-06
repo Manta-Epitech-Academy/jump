@@ -4,11 +4,8 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
 import { prisma } from '$lib/server/db';
-import {
-  FEATURE_FLAGS,
-  FLAG_KEYS,
-  type FlagKey,
-} from '$lib/domain/featureFlags';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 const campusSchema = z.object({
   name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').trim(),
@@ -21,85 +18,29 @@ const campusSchema = z.object({
     .or(z.literal(''))
     .nullable()
     .default(null),
-  flags: z.array(z.enum(FLAG_KEYS as [FlagKey, ...FlagKey[]])).default([]),
 });
-
-type CampusFormData = z.infer<typeof campusSchema>;
-
-function computeEffectiveFlags(
-  overrides: ReadonlyArray<{ flagKey: string; enabled: boolean }>,
-): FlagKey[] {
-  const overrideMap = new Map(overrides.map((o) => [o.flagKey, o.enabled]));
-  return FLAG_KEYS.filter((key) => {
-    const def = FEATURE_FLAGS[key];
-    return overrideMap.has(key) ? overrideMap.get(key)! : def.defaultEnabled;
-  });
-}
-
-async function syncCampusFlags(campusId: string, submitted: FlagKey[]) {
-  const submittedSet = new Set(submitted);
-  const existing = await prisma.campusFeatureFlag.findMany({
-    where: { campusId },
-    select: { flagKey: true, enabled: true },
-  });
-  const existingMap = new Map(existing.map((e) => [e.flagKey, e.enabled]));
-
-  const upserts: { flagKey: string; enabled: boolean }[] = [];
-  const deletes: string[] = [];
-
-  for (const key of FLAG_KEYS) {
-    const def = FEATURE_FLAGS[key];
-    const desired = submittedSet.has(key);
-    const differsFromDefault = desired !== def.defaultEnabled;
-
-    if (differsFromDefault) {
-      const current = existingMap.get(key);
-      if (current !== desired) upserts.push({ flagKey: key, enabled: desired });
-    } else if (existingMap.has(key)) {
-      deletes.push(key);
-    }
-  }
-
-  await prisma.$transaction([
-    ...upserts.map((u) =>
-      prisma.campusFeatureFlag.upsert({
-        where: { campusId_flagKey: { campusId, flagKey: u.flagKey } },
-        update: { enabled: u.enabled },
-        create: { campusId, flagKey: u.flagKey, enabled: u.enabled },
-      }),
-    ),
-    ...deletes.map((key) =>
-      prisma.campusFeatureFlag.delete({
-        where: { campusId_flagKey: { campusId, flagKey: key } },
-      }),
-    ),
-  ]);
-}
 
 export const load: PageServerLoad = async () => {
   const campuses = await prisma.campus.findMany({
     orderBy: { name: 'asc' },
-    include: {
-      featureFlags: { select: { flagKey: true, enabled: true } },
-    },
   });
 
-  const campusesWithFlags = campuses.map((c) => ({
+  const campusList = campuses.map((c) => ({
     id: c.id,
     name: c.name,
     externalName: c.externalName,
     timezone: c.timezone,
     contactEmail: c.contactEmail,
-    flags: computeEffectiveFlags(c.featureFlags),
   }));
 
   const form = await superValidate(zod4(campusSchema));
 
-  return { campuses: campusesWithFlags, form, flagDefs: FEATURE_FLAGS };
+  return { campuses: campusList, form };
 };
 
 export const actions: Actions = {
-  create: async ({ request }) => {
+  create: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_CAMPUS_WRITE, { locals });
     const form = await superValidate(request, zod4(campusSchema));
     if (!form.valid) return fail(400, { form });
 
@@ -112,7 +53,6 @@ export const actions: Actions = {
           contactEmail: form.data.contactEmail || null,
         },
       });
-      await syncCampusFlags(created.id, form.data.flags as FlagKey[]);
       return message(form, 'Campus créé avec succès.');
     } catch (err) {
       console.error(err);
@@ -122,7 +62,8 @@ export const actions: Actions = {
     }
   },
 
-  update: async ({ request }) => {
+  update: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_CAMPUS_WRITE, { locals });
     const formData = await request.formData();
     const form = await superValidate(formData, zod4(campusSchema));
     const id = formData.get('id') as string;
@@ -139,14 +80,14 @@ export const actions: Actions = {
           contactEmail: form.data.contactEmail || null,
         },
       });
-      await syncCampusFlags(id, form.data.flags as FlagKey[]);
       return message(form, 'Campus mis à jour.');
     } catch (err) {
       return message(form, 'Erreur lors de la mise à jour.', { status: 500 });
     }
   },
 
-  delete: async ({ url }) => {
+  delete: async ({ url, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_CAMPUS_WRITE, { locals });
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
 

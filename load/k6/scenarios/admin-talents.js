@@ -3,7 +3,7 @@ import { check, fail } from 'k6';
 import { loginAs, requireEnv } from '../lib/auth.js';
 import { data, pick } from '../lib/manifest.js';
 
-// Admin talents list — paginated 50/page across the global talent base
+// Admin talents list: paginated 50/page across the global talent base
 // with computed onboarding status per row. Heavy because campus-agnostic.
 //
 //   k6 run -e BASE_URL=http://localhost:5173 -e LOAD_TEST_SECRET=*** \

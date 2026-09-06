@@ -3,7 +3,7 @@
  *
  * Templates store **markdown** in `MessageTemplate.body`. At send time (and
  * for live preview), we render that markdown into the Epitech-branded email
- * shell — same teal top bar + centered white card as relance mails — with
+ * shell (same teal top bar + centered white card as relance mails) with
  * inline styles so it survives email clients that strip <style> tags.
  *
  * Custom shortcode for buttons: `:button[Label](https://example.com)` on
@@ -15,6 +15,16 @@
 
 import { Marked, type Tokens } from 'marked';
 import DOMPurify from 'isomorphic-dompurify';
+import {
+  EPI_BLUE,
+  EPI_TECH,
+  BORDER,
+  MUTED,
+  shellOpen,
+  shellClose,
+  wrapEmailDocument,
+} from './emailBrandShell';
+import { escapeHtml } from './htmlEscape';
 
 interface BroadcastButtonToken extends Tokens.Generic {
   type: 'broadcastButton';
@@ -23,18 +33,9 @@ interface BroadcastButtonToken extends Tokens.Generic {
   label: string;
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 /**
  * URLs allowed in `<a href>` after markdown rendering. `javascript:`,
- * `data:`, `vbscript:` are blocked — even though most email clients strip
+ * `data:`, `vbscript:` are blocked: even though most email clients strip
  * scripts, the same rendered HTML powers in-app previews (compose dialog,
  * dev broadcast detail) where a script execution context exists.
  *
@@ -58,7 +59,7 @@ function sanitizeHref(raw: string): string {
 }
 
 // `[^)\n]*` (not `+`) so the tokenizer still claims `:button[…]()` when the
-// URL variable hasn't been substituted yet — otherwise marked falls back to
+// URL variable hasn't been substituted yet: otherwise marked falls back to
 // inline link parsing and the `:button` prefix leaks into the rendered HTML
 // as literal text (`:buttonLabel` artefact). The renderer below handles the
 // empty-href case explicitly.
@@ -91,7 +92,7 @@ const broadcastButton = {
       return `<div style="text-align: center; margin: 28px 0 30px;"><span style="display: inline-block; background-color: #cbd5e1; color: #ffffff; font-size: 16px; font-weight: 600; padding: 14px 32px; border-radius: 12px;">${label}</span></div>\n`;
     }
     const href = escapeHtml(sanitizeHref(t.href));
-    return `<div style="text-align: center; margin: 28px 0 30px;"><a href="${href}" style="display: inline-block; background-color: #013afb; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 12px;">${label}</a></div>\n`;
+    return `<div style="text-align: center; margin: 28px 0 30px;"><a href="${href}" style="display: inline-block; background-color: ${EPI_BLUE}; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 12px;">${label}</a></div>\n`;
   },
 };
 
@@ -124,7 +125,7 @@ marked.use({
     link(this: any, token: Tokens.Link) {
       const inner = this.parser.parseInline(token.tokens);
       const href = escapeHtml(sanitizeHref(token.href));
-      return `<a href="${href}" style="color: #013afb; text-decoration: underline;">${inner}</a>`;
+      return `<a href="${href}" style="color: ${EPI_BLUE}; text-decoration: underline;">${inner}</a>`;
     },
     strong(this: any, token: Tokens.Strong) {
       const inner = this.parser.parseInline(token.tokens);
@@ -149,11 +150,11 @@ marked.use({
       return `<${tag} style="font-size: 16px; margin: 0 0 18px; padding-left: 24px; list-style-type: ${listStyle}; list-style-position: outside;">${body}</${tag}>\n`;
     },
     hr() {
-      return '<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 28px 0;" />\n';
+      return `<hr style="border: none; border-top: 1px solid ${BORDER}; margin: 28px 0;" />\n`;
     },
     blockquote(this: any, token: Tokens.Blockquote) {
       const inner = this.parser.parse(token.tokens);
-      return `<blockquote style="border-left: 4px solid #00ff97; margin: 0 0 18px; padding: 4px 0 4px 16px; color: #475569; font-style: italic;">${inner}</blockquote>\n`;
+      return `<blockquote style="border-left: 4px solid ${EPI_TECH}; margin: 0 0 18px; padding: 4px 0 4px 16px; color: ${MUTED}; font-style: italic;">${inner}</blockquote>\n`;
     },
   },
 });
@@ -190,47 +191,12 @@ const SANITIZE_CONFIG = {
   ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|tel:|about:blank$)/i,
 };
 
-export function renderBroadcastBodyHtml(markdown: string): string {
+function renderBroadcastBodyHtml(markdown: string): string {
   const raw = marked.parse(markdown) as string;
   return DOMPurify.sanitize(raw, SANITIZE_CONFIG);
 }
 
-/**
- * Where to fetch the Epitech logo from inside the rendered email. Defaults
- * to a relative path so in-app previews (compose dialog, broadcast detail)
- * resolve against the current origin; server callers pass `env.ORIGIN` so
- * recipients' mail clients hit an absolute URL.
- */
-const DEFAULT_LOGO_PATH = '/email/epitech-logo.png';
-
-function shellOpen(baseUrl: string): string {
-  const logoSrc = `${baseUrl}${DEFAULT_LOGO_PATH}`;
-  return [
-    `<div style="background-color: #f1f5f9; padding: 40px 20px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; text-align: center;">`,
-    `<div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-top: 6px solid #013afb; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: left;">`,
-    `<div style="padding: 32px 32px 0;">`,
-    `<img src="${logoSrc}" alt="Epitech" width="140" style="display: block; height: auto; max-width: 140px; border: 0;" />`,
-    `</div>`,
-    `<div style="padding: 24px 32px 32px;">`,
-  ].join('');
-}
-
-function shellClose(): string {
-  const year = new Date().getFullYear();
-  return [
-    `</div>`,
-    `<div style="border-top: 1px solid #e2e8f0; padding: 20px 32px; background-color: #f8fafc;">`,
-    `<p style="margin: 0; font-size: 11px; line-height: 1.6; color: #64748b; text-align: center;">`,
-    `Epitech &middot; L'&eacute;cole de l'innovation et de l'expertise informatique.<br />`,
-    `&copy; ${year} Epitech &mdash; Groupe IONIS. Tous droits r&eacute;serv&eacute;s.`,
-    `</p>`,
-    `</div>`,
-    `</div>`,
-    `</div>`,
-  ].join('');
-}
-
-export function wrapBroadcastHtml(innerHtml: string, baseUrl = ''): string {
+function wrapBroadcastHtml(innerHtml: string, baseUrl = ''): string {
   return `${shellOpen(baseUrl)}${innerHtml}${shellClose()}`;
 }
 
@@ -242,34 +208,6 @@ export function wrapBroadcastHtml(innerHtml: string, baseUrl = ''): string {
  */
 export function renderBroadcastMail(markdown: string, baseUrl = ''): string {
   return wrapBroadcastHtml(renderBroadcastBodyHtml(markdown), baseUrl);
-}
-
-/**
- * Wrap the branded inner shell in a complete HTML document.
- *
- * The shell from {@link wrapBroadcastHtml} is a bare `<div>` fragment. Shipped
- * as the HTML part of an email it carries no `<html>`/`<body>`, which
- * SpamAssassin scores as HTML_MIME_NO_HTML_TAG and Gmail/Outlook read as a tell
- * of auto-generated spam. Only the server send paths use this; in-app previews
- * keep the fragment ({@link renderBroadcastMail}) because a full document
- * injected via `{@html}` would nest `<html>`/`<body>` inside the live DOM.
- */
-export function wrapEmailDocument(shellHtml: string, subject = ''): string {
-  const title = subject ? `<title>${escapeHtml(subject)}</title>` : '';
-  return [
-    '<!DOCTYPE html>',
-    '<html lang="fr">',
-    '<head>',
-    '<meta charset="utf-8" />',
-    '<meta name="viewport" content="width=device-width, initial-scale=1.0" />',
-    '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />',
-    title,
-    '</head>',
-    '<body style="margin: 0; padding: 0; background-color: #f1f5f9;">',
-    shellHtml,
-    '</body>',
-    '</html>',
-  ].join('');
 }
 
 // Walking marked's token tree (rather than regex-scrubbing rendered output)
@@ -385,7 +323,7 @@ function blockTokensToText(tokens: Tokens.Generic[] | undefined): string {
  * per-recipient tracking rewrite (`rewriteSmsLinks`, which scans for bare
  * URLs) still reaches them.
  */
-export function renderBroadcastText(markdown: string): string {
+function renderBroadcastText(markdown: string): string {
   return blockTokensToText(marked.lexer(markdown))
     .replace(/\n{3,}/g, '\n\n')
     .trim();

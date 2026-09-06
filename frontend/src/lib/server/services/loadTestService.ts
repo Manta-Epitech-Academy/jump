@@ -1,11 +1,13 @@
 import { error } from '@sveltejs/kit';
+import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import { timingSafeEqual } from 'node:crypto';
 import { env } from '$env/dynamic/private';
+import { can } from '$lib/domain/permissions';
 import { prisma } from '$lib/server/db';
 
 /**
  * Server-side load-test plumbing. The whole point is that a load-test driver
- * (k6 on a laptop) only ever speaks HTTP to Jump with the bearer token — it
+ * (k6 on a laptop) only ever speaks HTTP to Jump with the bearer token: it
  * NEVER touches the database directly. So seeding throwaway accounts, building
  * the k6 manifest and cleaning up all run HERE, on the target environment,
  * against that environment's own DB. The `/api/test/*` endpoints are thin
@@ -69,9 +71,10 @@ export async function seedLoadTalents(
   talents: SeededTalent[];
 }> {
   const campus = await prisma.campus.findFirst({ select: { id: true } });
-  if (!campus) throw error(500, 'No campus in DB — cannot seed');
+  if (!campus) throw error(500, 'No campus in DB: cannot seed');
 
   const now = new Date();
+  const schoolYear = currentSchoolYearLabel();
   let created = 0;
   let reset = 0;
   const talents: SeededTalent[] = [];
@@ -96,9 +99,35 @@ export async function seedLoadTalents(
       select: { id: true, rulesSignedAt: true },
     });
 
+    // The dossier of the year in progress, spread into the talent as its cached
+    // projection and written as the backing row below. Seeding the flat columns
+    // alone would be a state the runtime can't reach: the signRules call this
+    // pool exists to exercise upserts the dossier, and with no row to patch it
+    // would create one holding that single field, wiping every gate off the
+    // projection mid-burst.
+    const dossier = {
+      infoValidatedAt: now,
+      highSchoolValidatedAt: now,
+      parentsValidatedAt: now,
+      techInterestsValidatedAt: now,
+      generalInterestsValidatedAt: now,
+      interestsRecapSeenAt: now,
+      equipmentValidatedAt: now,
+      processingCompletedAt: now,
+      rulesSignedAt: null,
+      rulesSignedCity: null,
+      reglementVersion: null,
+      parentRulesSignedAt: null,
+      parentRulesSignerPrenom: null,
+      parentRulesSignerNom: null,
+      parentRulesRelationship: null,
+      parentRulesSignedCity: null,
+    };
+
     const fields = {
+      ...dossier,
+      onboardingSchoolYear: schoolYear,
       userId: user.id,
-      email,
       nom: `LoadTest${i}`,
       prenom: 'Test',
       civilite: 'Mr' as const,
@@ -110,16 +139,6 @@ export async function seedLoadTalents(
       parentEmail: `load-test-parent-${i}@loadtest.invalid`,
       parentPhone: '0600000001',
       highSchoolNameManual: 'Lycée Load Test',
-      infoValidatedAt: now,
-      highSchoolValidatedAt: now,
-      parentsValidatedAt: now,
-      techInterestsValidatedAt: now,
-      generalInterestsValidatedAt: now,
-      interestsRecapSeenAt: now,
-      equipmentValidatedAt: now,
-      processingCompletedAt: now,
-      hasLaptop: true,
-      rulesSignedAt: null,
       charterAcceptedAt: null,
       welcomeSeenAt: null,
     };
@@ -145,6 +164,14 @@ export async function seedLoadTalents(
       created++;
     }
 
+    // Rewritten on every pass, like `fields`: a prior burst's signature must not
+    // survive into the next one.
+    await prisma.onboarding_Record.upsert({
+      where: { talentId_schoolYear: { talentId, schoolYear } },
+      create: { talentId, schoolYear, ...dossier },
+      update: dossier,
+    });
+
     talents.push({ id: talentId, email });
   }
 
@@ -160,7 +187,7 @@ export async function seedLoadTalents(
 export async function buildLoadManifest(sample = 50) {
   const [talents, staff, events, publications] = await Promise.all([
     prisma.talent.findMany({
-      select: { id: true, email: true, userId: true },
+      select: { id: true, user: { select: { email: true } } },
       take: sample * 4,
       orderBy: { lastActiveAt: 'desc' },
     }),
@@ -176,7 +203,6 @@ export async function buildLoadManifest(sample = 50) {
       select: {
         id: true,
         titre: true,
-        eventType: true,
         date: true,
         campus: { select: { id: true, name: true } },
       },
@@ -191,16 +217,9 @@ export async function buildLoadManifest(sample = 50) {
   ]);
 
   const recentEventIds = events.slice(0, 5).map((e) => e.id);
-  const activities = await prisma.activity.findMany({
-    where: {
-      activityType: 'orga',
-      timeSlot: { planning: { eventId: { in: recentEventIds } } },
-    },
-    select: {
-      id: true,
-      nom: true,
-      timeSlot: { select: { planning: { select: { eventId: true } } } },
-    },
+  const activities = await prisma.planning_Slot.findMany({
+    where: { activityType: 'orga', eventId: { in: recentEventIds } },
+    select: { id: true, nom: true, eventId: true },
     take: sample,
   });
 
@@ -215,38 +234,34 @@ export async function buildLoadManifest(sample = 50) {
   });
 
   const loadTestRows = await prisma.talent.findMany({
-    where: { email: { endsWith: DOMAIN } },
-    select: { id: true, email: true },
-    orderBy: { email: 'asc' },
+    where: { user: { email: { endsWith: DOMAIN } } },
+    select: { id: true, user: { select: { email: true } } },
+    orderBy: { user: { email: 'asc' } },
   });
 
   const usableTalents = talents
-    .filter((t) => t.email && t.userId && !t.email.endsWith(DOMAIN))
+    .filter((t) => t.user?.email && !t.user.email.endsWith(DOMAIN))
     .slice(0, sample);
   const usableStaff = staff.filter((s) => s.staffRole && s.user?.email);
 
   return {
     generatedAt: new Date().toISOString(),
-    talents: usableTalents.map((t) => ({ id: t.id, email: t.email! })),
+    talents: usableTalents.map((t) => ({ id: t.id, email: t.user!.email })),
     staffAdmin: usableStaff
       .filter((s) => s.staffRole === 'admin')
       .map((s) => ({ email: s.user!.email!, campusId: s.campusId })),
     staffDev: usableStaff
-      .filter((s) => s.staffRole === 'dev' || s.staffRole === 'superdev')
-      .map((s) => ({ email: s.user!.email!, campusId: s.campusId })),
-    staffPeda: usableStaff
-      .filter((s) => s.staffRole === 'peda' || s.staffRole === 'manta')
+      .filter((s) => can('devMember', s.staffRole))
       .map((s) => ({ email: s.user!.email!, campusId: s.campusId })),
     events: events.map((e) => ({
       id: e.id,
       title: e.titre,
-      type: e.eventType,
       date: e.date.toISOString(),
       campusName: e.campus?.name ?? null,
     })),
     activities: activities.map((a) => ({
       id: a.id,
-      eventId: a.timeSlot.planning.eventId,
+      eventId: a.eventId,
       title: a.nom,
     })),
     participations: participations
@@ -261,7 +276,10 @@ export async function buildLoadManifest(sample = 50) {
       game: p.game,
       publishedAt: p.publishedAt.toISOString(),
     })),
-    loadTestTalents: loadTestRows.map((r) => ({ id: r.id, email: r.email! })),
+    loadTestTalents: loadTestRows.map((r) => ({
+      id: r.id,
+      email: r.user!.email,
+    })),
   };
 }
 
@@ -270,7 +288,7 @@ export async function buildLoadManifest(sample = 50) {
  *
  * Order matters: Talent -> bauth_user is `onDelete: SetNull` (NOT Cascade), so
  * deleting the user only nulls Talent.userId and leaves an orphan Talent row.
- * Delete Talents by their own (unique) email FIRST -- that cascades to their
+ * Delete Talents by their linked account's email FIRST -- that cascades to their
  * children (XpGrant, OnboardingPdfJob, participations, etc., all `onDelete:
  * Cascade`) -- then delete the users.
  */
@@ -279,7 +297,7 @@ export async function cleanupLoadTest(): Promise<{
   deletedUsers: number;
 }> {
   const talents = await prisma.talent.deleteMany({
-    where: { email: { endsWith: DOMAIN } },
+    where: { user: { email: { endsWith: DOMAIN } } },
   });
   const users = await prisma.bauth_user.deleteMany({
     where: { email: { endsWith: DOMAIN } },

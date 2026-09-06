@@ -21,6 +21,7 @@
   // History row as projected by the page load (staff name flattened).
   type RecordVM = {
     id: string;
+    schoolYear: string;
     decision: 'accepted' | 'refused';
     decidedAt: Date | string;
     signerPrenom: string | null;
@@ -35,11 +36,19 @@
     form: formData,
     records,
     studentName,
+    targetSchoolYear,
   }: {
     open?: boolean;
     form: SuperValidated<Infer<ImageRightsCorrectionSchema>>;
     records: RecordVM[];
     studentName: string;
+    /**
+     * The school year this correction will be filed against: the dossier the
+     * talent currently has. Shown because the decision is annual, so "corriger"
+     * means correcting one year's decision, and a history of several years is
+     * otherwise indistinguishable from a string of changes of mind.
+     */
+    targetSchoolYear: string;
   } = $props();
 
   const { form, errors, enhance, delayed } = superForm(
@@ -69,7 +78,9 @@
 </script>
 
 <Dialog.Root bind:open>
-  <Dialog.Content class="max-w-md gap-0 rounded-sm p-0">
+  <Dialog.Content
+    class="max-h-[90svh] max-w-md gap-0 overflow-y-auto rounded-sm p-0"
+  >
     <Dialog.Header class="border-b px-5 py-4">
       <Dialog.Title
         class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
@@ -78,8 +89,9 @@
       </Dialog.Title>
       <Dialog.Description class="text-xs text-muted-foreground">
         Enregistrez la décision du responsable légal de {studentName} transmise hors
-        ligne. La décision reste la sienne : vous la consignez pour lui, et la correction
-        est tracée à votre nom.
+        ligne, pour l'année <strong>{targetSchoolYear}</strong>. La décision
+        reste la sienne : vous la consignez pour lui, et la correction est
+        tracée à votre nom.
       </Dialog.Description>
     </Dialog.Header>
 
@@ -91,9 +103,7 @@
     >
       <!-- Decision: the one thing being changed -->
       <div class="space-y-1.5">
-        <Label class="text-[11px] font-bold tracking-widest uppercase">
-          Décision
-        </Label>
+        <Label class="epi-overline">Décision</Label>
         <div class="grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -101,7 +111,7 @@
             class={cn(
               'flex cursor-pointer items-center justify-center gap-1.5 rounded-sm border px-3 py-2 text-sm font-bold transition-colors',
               $form.decision === 'accepted'
-                ? 'border-epi-teal/50 bg-epi-teal/10 text-epi-teal-solid'
+                ? 'border-epi-tech/50 bg-epi-tech/10 text-epi-tech-ink'
                 : 'border-border bg-card text-muted-foreground hover:bg-muted/50',
             )}
           >
@@ -114,7 +124,7 @@
             class={cn(
               'flex cursor-pointer items-center justify-center gap-1.5 rounded-sm border px-3 py-2 text-sm font-bold transition-colors',
               $form.decision === 'refused'
-                ? 'border-epi-orange/50 bg-epi-orange/10 text-epi-orange'
+                ? 'border-epi-together/50 bg-epi-together/10 text-epi-together'
                 : 'border-border bg-card text-muted-foreground hover:bg-muted/50',
             )}
           >
@@ -131,12 +141,9 @@
       <!-- Guardian on file: pre-filled, edited only if the name is wrong -->
       <div class="grid grid-cols-2 gap-2">
         <div class="space-y-1.5">
-          <Label
-            for="ir-prenom"
-            class="text-[11px] font-bold tracking-widest uppercase"
+          <Label for="ir-prenom" class="epi-overline"
+            >Prénom du responsable</Label
           >
-            Prénom du responsable
-          </Label>
           <Input
             id="ir-prenom"
             name="signerPrenom"
@@ -148,12 +155,7 @@
           {/if}
         </div>
         <div class="space-y-1.5">
-          <Label
-            for="ir-nom"
-            class="text-[11px] font-bold tracking-widest uppercase"
-          >
-            Nom du responsable
-          </Label>
+          <Label for="ir-nom" class="epi-overline">Nom du responsable</Label>
           <Input
             id="ir-nom"
             name="signerNom"
@@ -168,12 +170,7 @@
 
       <!-- Mandatory reason: staff stands in for the guardian, must say why -->
       <div class="space-y-1.5">
-        <Label
-          for="ir-note"
-          class="text-[11px] font-bold tracking-widest uppercase"
-        >
-          Motif de la correction
-        </Label>
+        <Label for="ir-note" class="epi-overline">Motif de la correction</Label>
         <Textarea
           id="ir-note"
           name="note"
@@ -211,26 +208,25 @@
     {#if records.length > 0}
       <Separator />
       <div class="px-5 py-4">
-        <h4
-          class="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
+        <h4 class="mb-2 epi-overline text-muted-foreground">
           Historique des décisions
         </h4>
-        <ul class="space-y-2.5">
+        <!-- `ImageRightsDecisionRecord` is append-only and every staff
+             correction adds one, so this log only ever grows: it scrolls in its
+             own box rather than pushing the form off the dialog. -->
+        <ul class="max-h-[40svh] space-y-2.5 overflow-y-auto pr-1">
           {#each records as r (r.id)}
             <li class="flex gap-2 text-xs">
               {#if r.decision === 'accepted'}
-                <Check
-                  class="mt-0.5 h-3.5 w-3.5 shrink-0 text-epi-teal-solid"
-                />
+                <Check class="mt-0.5 h-3.5 w-3.5 shrink-0 text-epi-tech-ink" />
               {:else}
-                <X class="mt-0.5 h-3.5 w-3.5 shrink-0 text-epi-orange" />
+                <X class="mt-0.5 h-3.5 w-3.5 shrink-0 text-epi-together" />
               {/if}
               <div class="min-w-0">
                 <p class="font-bold">
                   {IMAGE_RIGHTS_STATUS_LABELS[r.decision]}
                   <span class="font-normal text-muted-foreground">
-                    · {formatDateFr(r.decidedAt)}
+                    · {r.schoolYear} · {formatDateFr(r.decidedAt)}
                   </span>
                 </p>
                 <p class="text-muted-foreground">

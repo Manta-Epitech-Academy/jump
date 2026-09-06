@@ -38,7 +38,7 @@
 
   // `event` + `initialContent` are snapshotted at mount. The parent wraps this
   // component in `{#key event.id}`, so switching stages remounts it with fresh
-  // values — that's what lets the Tiptap editor (which only reads `content`
+  // values: that's what lets the Tiptap editor (which only reads `content`
   // once, on mount) reload the correct stage's text without a page refresh.
   let {
     event,
@@ -79,7 +79,7 @@
         <h2 class="truncate text-base font-bold">{event.titre}</h2>
         <Badge
           variant="outline"
-          class={cn('text-[10px]', STAGE_STATUS_META[event.status].class)}
+          class={cn('text-xs', STAGE_STATUS_META[event.status].class)}
         >
           {STAGE_STATUS_META[event.status].label}
         </Badge>
@@ -157,9 +157,7 @@
         />
         <div class="mt-4 flex items-center justify-end gap-3">
           {#if dirty}
-            <span
-              class="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-500"
-            >
+            <span class="flex items-center gap-1 text-xs text-warning">
               <TriangleAlert class="h-3.5 w-3.5" /> Modifications non enregistrées
             </span>
           {/if}
@@ -177,11 +175,11 @@
         dashboard "Actualités" feed and opens in a ResponsiveDialog
         (sm:max-w-2xl, Mail header, left-aligned prose). We reuse the same
         WelcomeMessageBody as the real card/dialog so the rendering stays
-        identical — no centering, no logo/footer chrome.
+        identical, no centering, no logo/footer chrome.
       -->
       <div class="flex justify-center bg-muted/40 p-6">
         <div
-          class="w-full max-w-2xl overflow-hidden rounded-lg border border-border bg-background shadow-lg"
+          class="w-full max-w-2xl overflow-hidden rounded-lg border border-border bg-background shadow-raised"
         >
           <div class="flex items-center gap-2 border-b border-border px-6 py-4">
             <Mail class="h-5 w-5 text-epi-blue" />

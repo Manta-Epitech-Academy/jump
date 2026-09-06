@@ -1,0 +1,64 @@
+name: Board sync
+
+# Moves the issue's Status column on the Jump Roadmap & Releases board, so nobody
+# has to remember to. This used to be a manual step in CONTRIBUTING.md, and being
+# manual is why 10 of the last 17 issues never made it onto the board at all.
+#
+# This is an automation, not a guard: it is deliberately not a required check.
+# It does fail loudly when it cannot do its job, because a silent no-op is the
+# exact failure being repaired here.
+
+on:
+  pull_request:
+    branches: [dev]
+    types: [opened, reopened, ready_for_review, closed]
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Board sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set the issue's Status column
+        env:
+          # GITHUB_TOKEN cannot read or write an organisation project, so this
+          # needs a PAT with the `project` scope.
+          GH_TOKEN: ${{ secrets.PROJECT_BOARD_TOKEN }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          MERGED: ${{ github.event.pull_request.merged }}
+          ACTION: ${{ github.event.action }}
+        run: |
+          set -euo pipefail
+          . scripts/work-item-lib.sh
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::PROJECT_BOARD_TOKEN is not set on this repository. The board cannot be updated, and nothing else will do it. Mint a token with the 'project' scope and add it as an Actions secret."
+            exit 1
+          fi
+
+          if work_item_is_protected "$HEAD_REF"; then
+            echo "$HEAD_REF is a promotion source, no work item to move."
+            exit 0
+          fi
+
+          if ! work_item_branch_ok "$HEAD_REF"; then
+            echo "Branch '$HEAD_REF' carries no issue number, so there is nothing to move. The Work item check is what complains about that."
+            exit 0
+          fi
+
+          issue=$(work_item_issue "$HEAD_REF")
+
+          if [ "$ACTION" = "closed" ]; then
+            if [ "$MERGED" != "true" ]; then
+              echo "Pull request closed without merging; leaving the board alone since the work may continue."
+              exit 0
+            fi
+            # The board's own workflow closes the issue once it lands in Done.
+            bash scripts/project-status.sh "$issue" "Done"
+          else
+            bash scripts/project-status.sh "$issue" "In Progress"
+          fi

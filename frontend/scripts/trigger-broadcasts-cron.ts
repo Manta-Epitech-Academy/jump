@@ -12,8 +12,8 @@
  *     bun run scripts/trigger-broadcasts-cron.ts --url=http://staging.example.com
  *
  *   Env (read from .env, can be overridden via shell):
- *     CRON_SECRET   — required
- *     ORIGIN        — base URL; falls back to http://localhost:3030
+ *     CRON_SECRET   : required
+ *     ORIGIN        : base URL; falls back to http://localhost:3030
  *
  * Exit codes:
  *   0   queue drained (or single tick succeeded)
@@ -82,7 +82,7 @@ async function tick(
   if (!response.ok) {
     const body = await response.text().catch(() => '');
     throw new Error(
-      `HTTP ${response.status} ${response.statusText}${body ? ` — ${body.slice(0, 200)}` : ''}`,
+      `HTTP ${response.status} ${response.statusText}${body ? `: ${body.slice(0, 200)}` : ''}`,
     );
   }
 
@@ -98,7 +98,7 @@ async function main(): Promise<void> {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     console.error(
-      'CRON_SECRET is not set in .env — add one and restart the dev server.',
+      'CRON_SECRET is not set in .env: add one and restart the dev server.',
     );
     process.exit(1);
   }
@@ -119,15 +119,15 @@ async function main(): Promise<void> {
     }
     console.log(
       processedCount === 0
-        ? '  · queue empty — nothing to process.'
-        : `  · queue drained — ${processedCount} broadcast(s) processed.`,
+        ? '  · queue empty: nothing to process.'
+        : `  · queue drained: ${processedCount} broadcast(s) processed.`,
     );
     break;
   }
 
   if (iterations >= MAX_ITERATIONS) {
     console.error(
-      `Stopped after ${MAX_ITERATIONS} iterations as a safety net — check the queue manually.`,
+      `Stopped after ${MAX_ITERATIONS} iterations as a safety net: check the queue manually.`,
     );
     process.exit(1);
   }

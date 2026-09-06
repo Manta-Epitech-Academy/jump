@@ -1,7 +1,7 @@
 /**
  * Add an admin to the database from an email.
  *
- * Auth happens via Microsoft OAuth — no password is stored.
+ * Auth happens via Microsoft OAuth: no password is stored.
  * The user logs in with Microsoft; BetterAuth links the account by email,
  * and the staff oauth callback finds the pre-provisioned StaffProfile.
  *

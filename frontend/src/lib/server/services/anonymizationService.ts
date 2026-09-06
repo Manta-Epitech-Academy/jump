@@ -13,13 +13,13 @@ import {
  * deleting rows: name/contact fields are nulled or replaced with placeholders,
  * the linked auth identity is scrubbed and its sessions/accounts dropped, and
  * every talent-scoped satellite that embeds a name, a contact detail, or free
- * text (interviews, portfolio, comm + send history, the PDF-job payload) is
- * deleted outright. The generated onboarding PDFs (charte / règlement student /
- * règlement parent / droit à l'image — each embeds the student's and guardian's
+ * text (closings, comm + send history) is deleted outright, along with the
+ * PDF-job queue trace. The generated onboarding PDFs (charte / règlement student /
+ * règlement parent / droit à l'image, each embeds the student's and guardian's
  * names and a signature) are deleted from object storage, not merely
  * dereferenced. We deliberately keep the de-identified behavioural telemetry
- * (participation, progress, minigame / quiz attempts, the xp ledger) so `xp`,
- * `eventsCount` and aggregate stats survive the erasure.
+ * (participation, EventPresence, minigame attempts, the xp ledger) so `xp`, `eventsCount` and
+ * aggregate stats survive the erasure.
  *
  * Parents are data subjects too: their identity lives both as columns on the
  * Talent (both guardian slots, plus the guardian's typed signer name on the
@@ -28,7 +28,7 @@ import {
  * rights and co-sign the règlement. Both are erased here. The parent account
  * is shared across siblings (it is keyed by email and reused), so its
  * `bauth_user` is only scrubbed once no *other* talent still references that
- * email — otherwise a sibling's parent would lose their login.
+ * email, otherwise a sibling's parent would lose their login.
  *
  * This is the *real* deletion mechanism behind both entry points:
  *   - the daily inactivity sweep (`anonymizeInactiveStudents`), and
@@ -41,8 +41,8 @@ import {
  * (e.g. flipping a deletion request to `fulfilled`) atomically.
  *
  * Returns the S3 keys of the onboarding PDFs it dereferenced. The objects must
- * be deleted from storage to complete the erasure, but that's an external call
- * — it cannot run inside the transaction (it would risk the interactive-tx
+ * be deleted from storage to complete the erasure, but that's an external call:
+ * it cannot run inside the transaction (it would risk the interactive-tx
  * timeout rolling back the legally-required scrub). Callers hand the keys to
  * {@link deleteAnonymizedDocuments} *after* the transaction commits.
  */
@@ -54,12 +54,26 @@ export async function anonymizeTalent(
     where: { id: talentId },
     select: {
       userId: true,
-      email: true,
+      user: { select: { email: true } },
       parentEmail: true,
       parent2Email: true,
-      charterFilePath: true,
-      rulesFilePath: true,
+      // RETIRED, both of them, read here for one release only and dropped from
+      // this select with the columns themselves. They still hold the pre-annual
+      // `rules.pdf` / `image-rights.pdf` keys, and a talent whose document was
+      // regenerated after the migration has a dossier pointing at the new
+      // year-keyed object instead, leaving that old one referenced by nothing
+      // but this column. Collecting both sides is what keeps the transition from
+      // leaving a named minor's PDF in the bucket.
       imageRightsFilePath: true,
+      rulesFilePath: true,
+      // Every year's renders, both kinds, not just the latest: the dossier rows
+      // are deleted below, so a key not collected here is an orphaned PDF of a
+      // named minor left in the bucket with nothing pointing at it. That is the
+      // whole erasure failing quietly, so it is read from the rows rather than
+      // from the projection.
+      onboardingRecords: {
+        select: { rulesFilePath: true, imageRightsFilePath: true },
+      },
     },
   });
   if (!talent) return [];
@@ -70,17 +84,27 @@ export async function anonymizeTalent(
     (e): e is string => !!e,
   );
 
-  // S3 keys of the generated onboarding PDFs, captured before the update nulls
-  // the columns. Returned to the caller, which deletes the objects post-commit.
+  // S3 keys of the generated onboarding PDFs, captured before the update and the
+  // dossier deletion drop the references. Returned to the caller, which deletes
+  // the objects post-commit.
+  // Deduplicated: the retired column and a dossier row normally hold the same
+  // key, and deleting twice would log a spurious failure on the second attempt.
   const documentKeys = [
-    talent.charterFilePath,
-    talent.rulesFilePath,
-    talent.imageRightsFilePath,
-  ].filter((k): k is string => !!k);
+    ...new Set(
+      [
+        talent.imageRightsFilePath,
+        talent.rulesFilePath,
+        ...talent.onboardingRecords.flatMap((d) => [
+          d.rulesFilePath,
+          d.imageRightsFilePath,
+        ]),
+      ].filter((k): k is string => !!k),
+    ),
+  ];
 
   // 1. Clear all PII fields on the Talent (keep xp / eventsCount), including
   //    both parent/guardian slots and every onboarding-state timestamp (those
-  //    are behavioural metadata about a real person's progression — the
+  //    are behavioural metadata about a real person's progression: the
   //    anonymised row must not carry a timeline).
   await tx.talent.update({
     where: { id: talentId },
@@ -88,7 +112,6 @@ export async function anonymizeTalent(
       ...clearOnboardingTimestamps(),
       nom: 'Anonymisé',
       prenom: 'Anonymisé',
-      email: null,
       externalId: null,
       phone: null,
       civilite: null,
@@ -96,16 +119,15 @@ export async function anonymizeTalent(
       schoolId: null,
       interestsFreeText: null,
       setupDescription: null,
-      discordId: null,
       // Image-rights decision: the guardian's typed signer name is their PII,
-      // and decision/decidedAt move with it (the trio is one signed fact — see
+      // and decision/decidedAt move with it (the trio is one signed fact, see
       // domain/imageRights). Sever the PDF references too; the objects are
       // deleted post-commit by the caller (keys returned below).
       imageRightsDecision: null,
       imageRightsDecidedAt: null,
       imageRightsSignerPrenom: null,
       imageRightsSignerNom: null,
-      // Règlement guardian co-signature: same shape as image-rights — the
+      // Règlement guardian co-signature: same shape as image-rights, the
       // guardian's typed name + relationship + city are PII, the timestamp moves
       // with them, and the shared règlement PDF (deleted post-commit via the
       // keys returned below) embeds both names + signatures. See
@@ -120,7 +142,7 @@ export async function anonymizeTalent(
       // the canonical list so a new artifact scrubs on both paths; the PDF keys
       // were captured above for post-commit S3 deletion.
       ...clearTalentOnboardingArtifacts(),
-      // Image-rights PDF key — parent-decided, so not part of the talent ladder;
+      // Image-rights PDF key, parent-decided, so not part of the talent ladder;
       // captured above for deletion alongside the others.
       imageRightsFilePath: null,
       // Guardian 1
@@ -138,38 +160,48 @@ export async function anonymizeTalent(
       parent2Email: null,
       parent2Phone: null,
       niveau: null,
-      badges: Prisma.DbNull,
-      lastSyncedAt: null,
     },
   });
 
   // 2. Delete every talent-scoped satellite row that carries identifying
   //    content. Counterpart to the in-place scrub above: where a record embeds
   //    a name, a contact detail, or free text, the whole row is removed rather
-  //    than nulled field-by-field (drift-proof as columns are added, and the
-  //    same set resetTalentToImport wipes). The anonymous behavioural telemetry
-  //    is deliberately KEPT (participation, stepsProgress, minigameAttempt,
-  //    talentQuizAttempt, xpGrant, observable / competence state): once the name
-  //    is gone those are de-identified activity backing xp / eventsCount and
+  //    than nulled field-by-field (drift-proof as columns are added, and very
+  //    nearly the same set resetTalentToImport wipes: schooling_YearRecord is
+  //    the one row erased here but kept there, see below). The anonymous
+  //    behavioural telemetry
+  //    is deliberately KEPT (participation, minigameAttempt, xpGrant): once the
+  //    name is gone those are de-identified activity backing xp / eventsCount and
   //    aggregate stats.
   //      - talentSfImport / talentInterest / imageRightsDecisionRecord: the SF
   //        mirror, interest selections, and the image-rights ledger (the ledger
   //        embeds the guardian's typed signer name).
+  //      - schooling_YearRecord: which lycée a named minor attended, year by
+  //        year. Erasure is total here (all years), unlike resetTalentToImport,
+  //        which keeps the history (a re-onboard is not an erasure).
+  //      - onboarding_Record: the per-year sign-up dossier. It embeds the
+  //        guardian's typed signer name and both signatories' place of
+  //        signature. Total here too; resetTalentToImport drops it as well, for
+  //        a different reason (the dossier is the sign-up a reset voids).
   //      - note_TalentNote: staff notes about the minor (pedago + administratif
   //        free text). The whole feed is removed on erasure.
-  //      - interview / interviewReset: the synthesis row holds free-text staff
-  //        observations about the minor; both existing wipe paths already
-  //        hard-delete it. InterviewReset is a reset's audit trace + reason.
-  //      - portfolioItem: student-authored content with potential PII.
-  //      - onboardingPdfJob: payload snapshots the student + guardian name and
-  //        city. The generated S3 PDFs are deleted post-commit; this is the DB
-  //        copy of the same names.
-  //      - onboardingReminder: captured subject / body of relance mail + SMS.
+  //      - closing_Record / closing_ResetEvent: the record and its answers hold
+  //        free-text staff observations about the minor (the verdict note and a
+  //        note per question); both existing wipe paths hard-delete it, and the
+  //        answers cascade with the record. Closing_ResetEvent is a reset's audit
+  //        trace + reason.
+  //      - onboardingPdfJob: the queue trace of every document ever rendered
+  //        for this minor. It stopped snapshotting their name when the payload
+  //        column was retired, so what is erased here is the trace itself: which
+  //        documents were produced, for which years, and when. The generated S3
+  //        PDFs are deleted post-commit.
   //      - broadcastRecipient: the talent's and the parent's email / phone per
   //        send, matched on both slots (SetNull relations, so deleted here, not
   //        left orphaned). The parent is a data subject too.
   await tx.talentSfImport.deleteMany({ where: { talentId } });
   await tx.talentInterest.deleteMany({ where: { talentId } });
+  await tx.schooling_YearRecord.deleteMany({ where: { talentId } });
+  await tx.onboarding_Record.deleteMany({ where: { talentId } });
   await tx.imageRightsDecisionRecord.deleteMany({ where: { talentId } });
   await tx.note_TalentNote.deleteMany({ where: { talentId } });
   // feedback_Submission: the talent's bilan answers embed free-text opinions
@@ -182,12 +214,12 @@ export async function anonymizeTalent(
     where: {
       OR: [
         { talentId },
-        ...(talent.email
+        ...(talent.user?.email
           ? [
               {
                 talentId: null,
                 respondentEmail: {
-                  equals: talent.email,
+                  equals: talent.user.email,
                   mode: 'insensitive' as const,
                 },
               },
@@ -196,16 +228,34 @@ export async function anonymizeTalent(
       ],
     },
   });
-  await tx.interview.deleteMany({ where: { talentId } });
-  await tx.interviewReset.deleteMany({ where: { talentId } });
-  await tx.portfolioItem.deleteMany({ where: { talentId } });
+  // Answers and their option rows cascade from the record, so this one delete
+  // takes the whole closing with it.
+  await tx.closing_Record.deleteMany({ where: { talentId } });
+  await tx.closing_ResetEvent.deleteMany({ where: { talentId } });
   await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
-  await tx.onboardingReminder.deleteMany({ where: { talentId } });
   await tx.broadcastRecipient.deleteMany({
     where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
   });
 
-  // 3. Scrub the linked BetterAuth user and revoke its access — only if linked.
+  // Scrub residual PII fields in operational audit logs for this talent:
+  //   - AuthIdentityRepair: retains fromEmail/toEmail; replace with anonymized placeholders.
+  //   - TalentDeletionRequest: retains reason and resolutionNote; set both to null.
+  await tx.authIdentityRepair.updateMany({
+    where: { talentId },
+    data: {
+      fromEmail: 'anonyme@anonyme.invalid',
+      toEmail: 'anonyme@anonyme.invalid',
+    },
+  });
+  await tx.talentDeletionRequest.updateMany({
+    where: { talentId },
+    data: {
+      reason: null,
+      resolutionNote: null,
+    },
+  });
+
+  // 3. Scrub the linked BetterAuth user and revoke its access, only if linked.
   if (talent.userId) {
     await tx.bauth_user.update({
       where: { id: talent.userId },
@@ -220,7 +270,7 @@ export async function anonymizeTalent(
     await tx.bauth_account.deleteMany({ where: { userId: talent.userId } });
   }
 
-  // 4. Scrub the parent `bauth_user`(s) — but only those no other talent still
+  // 4. Scrub the parent `bauth_user`(s), but only those no other talent still
   //    references, so a shared parent (siblings) keeps their account. Already-
   //    anonymised siblings have null parent emails, so they never count here.
   //    The sibling + role guard is shared with resetTalentToImport; here we
@@ -244,7 +294,7 @@ export async function anonymizeTalent(
   // The column scrub above only removes the app's *path* to the generated PDFs;
   // the objects still embed the student's and guardian's names + signature.
   // Return their keys so the caller can delete them once this transaction has
-  // committed (see the function doc — external calls can't live inside the tx).
+  // committed (see the function doc: external calls can't live inside the tx).
   return documentKeys;
 }
 
@@ -254,7 +304,7 @@ export async function anonymizeTalent(
  *
  * Best-effort by design: the DB scrub is the legally-required step and has
  * already committed, so a storage hiccup must not surface as a failure that
- * looks like the erasure didn't happen — each delete is logged on failure for
+ * looks like the erasure didn't happen: each delete is logged on failure for
  * manual cleanup rather than thrown. A leaked object is unreferenced (its
  * Talent columns are null) and keyed by a cuid + epoch-ms timestamp, so it
  * isn't reachable through the app; this just removes the residual file.

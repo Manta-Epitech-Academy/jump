@@ -10,6 +10,7 @@
   import Settings from '@lucide/svelte/icons/settings';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let { data } = $props();
 </script>
@@ -23,21 +24,19 @@
     <div class="flex items-center gap-4">
       <div class="flex-1">
         <h1
-          class="font-heading text-3xl tracking-tight text-slate-900 uppercase sm:text-4xl dark:text-white"
+          class="font-heading text-display-l text-foreground sm:text-display-xl"
         >
           Bonjour, <span class="text-epi-blue"
             >M./Mme {data.parentLastName}</span
-          ><span class="text-epi-teal">_</span>
+          ><TitleCursor />
         </h1>
-        <p
-          class="mt-1 text-base font-semibold text-slate-600 dark:text-slate-300"
-        >
+        <p class="mt-1 text-base font-semibold text-foreground-secondary">
           Espace de suivi parental
         </p>
       </div>
       <a
         href={resolve('/parent/settings')}
-        class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+        class="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground-secondary"
       >
         <Settings class="h-4 w-4" />
         <span class="sr-only">Paramètres</span>
@@ -47,18 +46,16 @@
 
   {#if data.children.length === 0}
     <div
-      class="flex min-h-62.5 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-6 text-center dark:border-slate-800 dark:bg-slate-900/50"
+      class="flex min-h-62.5 flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-background/50 p-6 text-center"
       in:fly={{ y: 20, duration: 400, delay: 200 }}
     >
-      <div class="mb-4 rounded-full bg-slate-200/50 p-4 dark:bg-slate-800">
-        <Users class="h-8 w-8 text-slate-400" />
+      <div class="mb-4 rounded-full bg-muted/50 p-4">
+        <Users class="h-8 w-8 text-muted-foreground" />
       </div>
-      <h3
-        class="text-lg font-bold text-slate-700 uppercase dark:text-slate-300"
-      >
+      <h3 class="text-lg font-bold text-foreground-secondary uppercase">
         Aucun enfant inscrit
       </h3>
-      <p class="mt-2 max-w-sm text-sm text-slate-500">
+      <p class="mt-2 max-w-sm text-sm text-muted-foreground">
         Aucun enfant n'est rattaché à votre compte pour le moment.
       </p>
     </div>
@@ -71,7 +68,7 @@
           in:fly={{ y: 20, duration: 400, delay: 200 + i * 100 }}
         >
           <div
-            class="relative h-full overflow-hidden rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/50 transition-all hover:shadow-2xl hover:shadow-epi-blue/10 dark:bg-slate-900 dark:shadow-none dark:hover:shadow-none"
+            class="dark:hover:shadow-noneark:hover:shadow-none relative h-full overflow-hidden rounded-xl border border-border bg-card p-6 shadow-raised transition-ui hover:shadow-raised"
           >
             <div
               class="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-epi-blue/5 blur-2xl"
@@ -80,15 +77,13 @@
             <div class="relative z-10">
               <div class="flex items-start justify-between">
                 <div class="space-y-3">
-                  <h2
-                    class="font-heading text-2xl tracking-tight text-slate-900 uppercase dark:text-white"
-                  >
+                  <h2 class="font-heading text-display-m text-foreground">
                     {child.prenom}
                     <span class="text-epi-blue">{child.nom}</span>
                   </h2>
 
                   <div
-                    class="flex items-center gap-2 text-sm font-bold text-slate-500"
+                    class="flex items-center gap-2 text-sm font-bold text-muted-foreground"
                   >
                     <CalendarDays class="h-4 w-4 text-epi-blue" />
                     <span
@@ -100,17 +95,15 @@
 
                   {#if child.upcomingEvent}
                     <div
-                      class="rounded-xl border border-blue-100 bg-blue-50/50 px-4 py-3 dark:border-blue-900/20 dark:bg-blue-950/20"
+                      class="rounded-xl border border-primary/30 bg-primary/10 px-4 py-3"
                     >
-                      <p class="text-[10px] font-bold text-epi-blue uppercase">
+                      <p class="epi-overline text-epi-blue">
                         Prochain rendez-vous
                       </p>
-                      <p
-                        class="mt-0.5 text-sm font-bold text-slate-900 dark:text-white"
-                      >
+                      <p class="mt-0.5 text-sm font-bold text-foreground">
                         {child.upcomingEvent.titre}
                       </p>
-                      <p class="text-xs text-slate-500">
+                      <p class="text-xs text-muted-foreground">
                         Le {new Date(
                           child.upcomingEvent.date,
                         ).toLocaleDateString('fr-FR', {
@@ -121,24 +114,22 @@
                       </p>
                     </div>
                   {:else}
-                    <p class="text-xs font-bold text-slate-400">
+                    <p class="text-xs font-bold text-muted-foreground">
                       Pas d'événement prévu pour le moment
                     </p>
                   {/if}
                 </div>
 
                 <ChevronRight
-                  class="h-5 w-5 text-slate-300 transition-transform group-hover:translate-x-1 group-hover:text-epi-blue"
+                  class="h-5 w-5 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-epi-blue"
                 />
               </div>
 
-              <div
-                class="mt-4 border-t border-slate-100 pt-3 dark:border-slate-800"
-              >
+              <div class="mt-4 border-t border-border pt-3">
                 {#if child.imageRightsStatus === 'accepted'}
                   <Badge
                     variant="secondary"
-                    class="gap-1.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+                    class="gap-1.5 bg-success/10 text-success"
                   >
                     <FileCheck class="h-3 w-3" />
                     Droit à l'image autorisé
@@ -146,7 +137,7 @@
                 {:else if child.imageRightsStatus === 'refused'}
                   <Badge
                     variant="secondary"
-                    class="gap-1.5 bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+                    class="gap-1.5 bg-destructive/10 text-destructive"
                   >
                     <X class="h-3 w-3" />
                     Droit à l'image refusé
@@ -154,7 +145,7 @@
                 {:else}
                   <Badge
                     variant="secondary"
-                    class="gap-1.5 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                    class="gap-1.5 bg-warning/10 text-warning"
                   >
                     <FilePen class="h-3 w-3" />
                     Droit à l'image à renseigner

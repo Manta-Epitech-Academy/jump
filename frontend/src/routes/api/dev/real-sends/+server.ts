@@ -11,7 +11,7 @@ import {
 
 /**
  * Arm / disarm "real sends" on a trapped (dev/staging) env. Lives under `/api`
- * so it's reachable from anywhere — including the global banner on a page the
+ * so it's reachable from anywhere, including the global banner on a page the
  * armer reached while impersonating a talent (the `/staff/*` guards would
  * bounce that session). Authorization is enforced here, not by a route guard.
  *
@@ -28,7 +28,7 @@ export const POST: RequestHandler = async ({
   if (!canArmRealSends(locals)) throw error(403, 'Action réservée.');
 
   // Bind the arm to the human driving the request (impersonator wins), so it
-  // survives an admin starting impersonation after arming — `locals.user` then
+  // survives an admin starting impersonation after arming: `locals.user` then
   // becomes the talent, but the arm stays the admin's. See `effectiveUserId`.
   const humanId = effectiveUserId(locals);
   if (!humanId) throw error(401, 'Non autorisé.');

@@ -4,6 +4,8 @@ import { prisma } from '$lib/server/db';
 import { csvResponse } from '$lib/server/csv';
 import { requireAdmin } from '$lib/server/feedbackFormsAdmin';
 import { getFormGraphById } from '$lib/server/feedbackForms';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   answerCells,
   buildSubmissionWhere,
@@ -11,6 +13,7 @@ import {
 } from '$lib/server/feedbackStats';
 
 export const GET: RequestHandler = async ({ params, url, locals }) => {
+  recordUsage(USAGE_FEATURES.ADMIN_FEEDBACK_RESPONSES_EXPORT, { locals });
   requireAdmin(locals);
 
   const graph = await getFormGraphById(params.id);
@@ -27,7 +30,9 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     where: buildSubmissionWhere(graph.id, scope),
     orderBy: { submittedAt: 'asc' },
     include: {
-      talent: { select: { prenom: true, nom: true, email: true } },
+      talent: {
+        select: { prenom: true, nom: true, user: { select: { email: true } } },
+      },
       event: {
         select: {
           titre: true,
@@ -69,7 +74,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
       isPublic ? 'Public' : 'Authentifié',
       eventName,
       sub.event?.campus.name ?? sub.respondentCampusLabel ?? '',
-      sub.talent?.email ?? sub.respondentEmail ?? '',
+      sub.talent?.user?.email ?? sub.respondentEmail ?? '',
       sub.talent?.prenom ?? sub.respondentFirstName ?? '',
       sub.talent?.nom ?? sub.respondentLastName ?? '',
       ...answerCells(sub.answers, columns),

@@ -97,7 +97,7 @@
       <Label for="name">Nom interne</Label>
       <Input id="name" name="name" bind:value={$form.name} required />
       <p class="text-xs text-muted-foreground">
-        Repère ce modèle dans la liste — non visible par le destinataire.
+        Repère ce modèle dans la liste : non visible par le destinataire.
       </p>
       {#if $errors.name}
         <p class="text-xs text-destructive">{$errors.name}</p>
@@ -144,11 +144,7 @@
 
   <aside class="space-y-4 lg:sticky lg:top-4 lg:self-start">
     <div class="rounded-sm border bg-card p-4">
-      <h3
-        class="mb-3 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        Aperçu
-      </h3>
+      <h3 class="mb-3 epi-overline text-muted-foreground">Aperçu</h3>
       <MessagePreview
         channel={$form.channel}
         subject={$form.subject}
@@ -196,7 +192,7 @@
       </div>
       {#if smsBlocked}
         <p class="text-xs text-destructive">
-          SMS non configuré (<code>SMS_PROVIDER</code>) — test indisponible.
+          SMS non configuré (<code>SMS_PROVIDER</code>) : test indisponible.
         </p>
       {/if}
     </div>

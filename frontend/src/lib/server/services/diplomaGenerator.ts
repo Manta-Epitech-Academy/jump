@@ -1,121 +1,233 @@
 import ejs from 'ejs';
-import { withBrowser } from '../infra/browserPool';
+import { renderPdf, renderPng } from '../infra/documentRenderer';
+import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
-import diplomaTemplate from '../templates/diploma.html?raw';
 import certificateTemplate from '../templates/certificate.html?raw';
-import stageDiplomaTemplate from '../templates/stage-diploma.html?raw';
+import { escapeHtml } from '$lib/domain/htmlEscape';
+import { interpolateCertificate } from '$lib/domain/diplomas';
 
-export async function generateDiplomaPDF(data: {
-  studentName: string;
-  activityName: string;
-  eventTitle: string;
-  eventDate: string;
-  todayDate: string;
-}): Promise<Uint8Array<ArrayBuffer>> {
-  return await generatePDF(
-    diplomaTemplate,
-    { ...data, logoSvg: epitechLogoSvg },
-    { width: '1123px', height: '794px' },
-  );
+/**
+ * The certificate design, as stored on a `Diploma_Template` row. Taken as a
+ * parameter rather than imported: which certificate an event issues is a per-event
+ * choice (`Event.diplomaTemplateId`), and the design itself is authored at runtime.
+ */
+export type CertificateDesign = {
+  styleCss: string;
+  bodyHtml: string;
+  pageWidthPx: number;
+  pageHeightPx: number;
+};
+
+/** A signatory block, its image already inlined by the caller. */
+export type CertificateSignatory = {
+  name: string;
+  role: string;
+  /**
+   * Null when the image is absent (e.g. a database restored without its S3
+   * objects); the block then renders the name and role over a blank line.
+   */
+  imageDataUri: string | null;
+};
+
+/**
+ * The signature blocks, as the markup `{signatures}` is replaced with.
+ *
+ * Built here rather than left to the design: the count varies with the campus,
+ * and the images are hoisted into one `<style>` in the shell, so an author has
+ * nothing to bind them to. The `.sig-*` classes are theirs to style.
+ */
+function signaturesHtml(signatories: readonly CertificateSignatory[]): string {
+  return signatories
+    .map(
+      (s, i) => `<div class="sig-block">
+  <div class="sig-img sig-img-${i}"></div>
+  <div class="sig-line">
+    <p class="sig-name">${escapeHtml(s.name)}</p>
+    <p class="sig-role">${escapeHtml(s.role)}</p>
+  </div>
+</div>`,
+    )
+    .join('\n');
 }
 
-export async function generateCertificatePDF(data: {
-  studentName: string;
-  campus: string;
-  schoolLevel: string;
-  xp: number;
-  hours: number;
-  eventsAttended: number;
-  activitiesCompleted: number;
-  level: string;
-  topThemes: { name: string; count: number; label: string }[];
-  activities: { name: string; eventDate: string; difficulty: string }[];
-  todayDate: string;
-  images: string[];
-}): Promise<Uint8Array<ArrayBuffer>> {
-  return await generatePDF(
-    certificateTemplate,
-    { ...data, logoSvg: epitechLogoSvg },
-    { width: '794px', height: '1123px' },
-  );
+/**
+ * The cohort a certificate is shown with when there is no real one.
+ *
+ * Placeholder names on purpose, and that is what makes both the validation
+ * render and the preview safe to expose: neither can ever carry a student's
+ * identity, which matters because the preview travels into an LLM's context.
+ * "Nguyễn Wróblewski" is deliberate too, it exercises the font subsets a real
+ * name needs.
+ */
+const SAMPLE_DATA = {
+  students: [
+    { prenom: 'Camille', nom: 'Martin' },
+    { prenom: 'Nguyễn', nom: 'Wróblewski' },
+  ],
+  city: 'Lille',
+  startDate: '1 juillet 2026',
+  endDate: '12 juillet 2026',
+  todayDate: '24 août 2026',
+  signatories: [
+    { name: 'Prénom Nom', role: 'Directeur du campus', imageDataUri: null },
+  ],
+} as const;
+
+/**
+ * Render two sample pages, to prove a design produces a document at all.
+ *
+ * Run before a design is stored. What it catches is a design that makes the
+ * renderer fail or run away - a crash, or a page that never settles inside the
+ * budget - which is worth catching because the alternative is finding out in
+ * front of a cohort's worth of certificates. What it does NOT catch is a design
+ * that renders badly: browsers are forgiving, and ugly is not an exception. Two
+ * pages rather than one, because page breaks are what one page would not
+ * exercise, and a short budget because a runaway design must not hold an API
+ * call open for two minutes.
+ */
+export async function renderCertificateSample(
+  design: CertificateDesign,
+): Promise<{ bytes: number }> {
+  const pdf = await renderPdf({
+    html: await buildCertificateHtml(design, SAMPLE_DATA),
+    page: {
+      width: `${design.pageWidthPx}px`,
+      height: `${design.pageHeightPx}px`,
+    },
+    timeoutMs: 20_000,
+  });
+  return { bytes: pdf.byteLength };
 }
 
-// Internship certificate ("Certificat de stage"): one A4 landscape page per
-// student, all sharing the same signatory blocks (one global Director General
-// plus the campus's local managers). The signature images are passed as
-// pre-built base64 data URIs so the template needs no network access.
-export async function generateStageDiplomasPDF(data: {
-  students: { prenom: string; nom: string }[];
-  city: string;
-  startDate: string;
-  endDate: string;
-  todayDate: string;
-  // `imageDataUri` is null when the signatory's image is absent (e.g. a DB
-  // restored without its S3 objects); the block then renders the name and role
-  // over a blank signature line.
-  signatories: { name: string; role: string; imageDataUri: string | null }[];
-}): Promise<Uint8Array<ArrayBuffer>> {
-  // The logo and the signature images are referenced as CSS background images
-  // declared once in the template (see stage-diploma.html), not inlined per
-  // page, so a 200-student sheet stays small. Encode the SVG logo as a data URI
-  // here so the template needs nothing but the string.
+/**
+ * The first page of a design, as a PNG, for a human or a model to look at.
+ *
+ * This is the answer to "what does this certificate look like". Without it, that
+ * question can only be answered from `styleCss` and `bodyHtml`, which do not
+ * contain the shell: the fonts, the page geometry, the signature blocks. A model
+ * asked it anyway renders its own approximation and presents it as the document,
+ * which is the same failure as re-deriving a figure instead of quoting it.
+ *
+ * Rendered through the very same path as the export, so it cannot drift from what
+ * actually prints. Downscaled because it has to travel in a chat message.
+ */
+export async function renderCertificatePreviewPng(
+  design: CertificateDesign,
+): Promise<{
+  png: Uint8Array<ArrayBuffer>;
+  widthPx: number;
+  heightPx: number;
+}> {
+  // One recipient: a preview shows the page, not the pagination.
+  const html = await buildCertificateHtml(design, {
+    ...SAMPLE_DATA,
+    students: [SAMPLE_DATA.students[1]],
+  });
+  const png = await renderPng({
+    html,
+    widthPx: design.pageWidthPx,
+    heightPx: design.pageHeightPx,
+    scale: PREVIEW_SCALE,
+  });
+  return {
+    png,
+    widthPx: Math.round(design.pageWidthPx * PREVIEW_SCALE),
+    heightPx: Math.round(design.pageHeightPx * PREVIEW_SCALE),
+  };
+}
+
+/** Enough to read the layout and the wording, small enough to send. */
+const PREVIEW_SCALE = 0.75;
+
+/**
+ * One page per recipient, of whatever certificate the event issues.
+ *
+ * Token values are HTML-escaped before substitution, because they land in markup
+ * the shell injects unescaped: a name is data, and `{signatures}` is the one
+ * value that is markup by design.
+ */
+export async function generateDiplomasPDF(
+  design: CertificateDesign,
+  data: {
+    students: { prenom: string; nom: string }[];
+    city: string;
+    startDate: string;
+    endDate: string;
+    todayDate: string;
+    signatories: CertificateSignatory[];
+  },
+  options?: {
+    /** Print budget. Defaults to the cohort-sized one; a sample render lowers it. */
+    timeoutMs?: number;
+  },
+): Promise<Uint8Array<ArrayBuffer>> {
+  return renderPdf({
+    html: await buildCertificateHtml(design, data),
+    page: {
+      width: `${design.pageWidthPx}px`,
+      height: `${design.pageHeightPx}px`,
+    },
+    // A cohort sheet can run to ~200 pages; on a constrained pod CPU the print
+    // pass needs more headroom than Puppeteer's 30s default.
+    timeoutMs: options?.timeoutMs ?? 120_000,
+  });
+}
+
+/**
+ * The whole document as HTML: the design's pages, its CSS, and the shell around
+ * them. Shared by the export, the validation render and the preview, so all three
+ * are looking at the same thing by construction.
+ */
+async function buildCertificateHtml(
+  design: CertificateDesign,
+  data: {
+    students: readonly { prenom: string; nom: string }[];
+    city: string;
+    startDate: string;
+    endDate: string;
+    todayDate: string;
+    signatories: readonly CertificateSignatory[];
+  },
+): Promise<string> {
+  // Every token in one pass per recipient, rather than an event-level pass
+  // followed by a per-student one: two passes only work if each leaves the
+  // other's tokens alone, and that is a subtlety worth not depending on.
+  const perEvent = {
+    ville: escapeHtml(data.city),
+    dateDebut: escapeHtml(data.startDate),
+    dateFin: escapeHtml(data.endDate),
+    dateDuJour: escapeHtml(data.todayDate),
+    signatures: signaturesHtml(data.signatories),
+  };
+
+  const pages = data.students.map((student) =>
+    interpolateCertificate(design.bodyHtml, {
+      ...perEvent,
+      prenom: escapeHtml(student.prenom),
+      nom: escapeHtml(student.nom),
+    }),
+  );
+
+  // The logo and the signature images are declared once as CSS background
+  // images in the shell, never inlined per page: duplicating tens of kilobytes
+  // across 200 pages is the slow path that once timed out.
   const logoDataUri = `data:image/svg+xml;base64,${Buffer.from(
     epitechLogoSvg,
   ).toString('base64')}`;
 
-  return await generatePDF(
-    stageDiplomaTemplate,
-    { ...data, logoDataUri },
-    { width: '1123px', height: '794px' },
-  );
-}
-
-async function generatePDF(
-  templateString: string,
-  data: any,
-  format: { width: string; height: string },
-): Promise<Uint8Array<ArrayBuffer>> {
-  const htmlContent = await ejs.render(
-    templateString,
-    { data },
+  return ejs.render(
+    certificateTemplate,
+    {
+      data: {
+        pages,
+        styleCss: design.styleCss,
+        pageWidthPx: design.pageWidthPx,
+        pageHeightPx: design.pageHeightPx,
+        signatories: data.signatories,
+        logoDataUri,
+        fontFaces: fontFaceCss('anton', 'plexSans', 'plexSansItalic'),
+      },
+    },
     { async: true },
   );
-
-  return withBrowser(async (browser) => {
-    const page = await browser.newPage();
-    try {
-      // Parse the DOM but do NOT wait on the network `load` event. The Google
-      // Fonts stylesheet is the only remote resource, and blocking setContent on
-      // `load` blocks the whole render on that one request, which can hang it for
-      // a long time when Google Fonts is slow or unreachable (a `load`-wait once
-      // stalled the 200-page stage diploma into Puppeteer's 30s timeout). All
-      // images/logo are inline data URIs, so the DOM is structurally complete at
-      // `domcontentloaded`; the fonts get a bounded grace period in the race below.
-      await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
-
-      // Give web fonts a brief chance to load when the network IS reachable,
-      // but never block the render on a hung font request.
-      await page.evaluate(() =>
-        Promise.race([
-          document.fonts.ready,
-          new Promise((resolve) => setTimeout(resolve, 2000)),
-        ]),
-      );
-
-      const pdfBuffer = await page.pdf({
-        width: format.width,
-        height: format.height,
-        printBackground: true,
-        preferCSSPageSize: true,
-        margin: { top: 0, right: 0, bottom: 0, left: 0 },
-        // A cohort sheet can run to ~200 pages; on a constrained pod CPU the
-        // print pass needs more headroom than Puppeteer's 30s default.
-        timeout: 120_000,
-      });
-
-      return new Uint8Array(pdfBuffer) as Uint8Array<ArrayBuffer>;
-    } finally {
-      await page.close();
-    }
-  });
 }

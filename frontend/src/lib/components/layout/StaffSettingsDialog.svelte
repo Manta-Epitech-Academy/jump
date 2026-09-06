@@ -41,15 +41,14 @@
   // dedicated /staff/settings action route (this dialog has no page of its own).
   // svelte-ignore state_referenced_locally
   const { form, errors, enhance, submitting } = superForm(formData, {
-    // Keep the typed values in the fields after a save — the default
+    // Keep the typed values in the fields after a save, the default
     // `resetForm: true` clears them, which reads as "my input vanished".
     resetForm: false,
     // Refresh the layout load so `staffProfile`-derived data reflects the save.
     invalidateAll: true,
     onUpdated({ form }) {
       const msg = form.message as
-        | { type: 'success' | 'error'; text: string }
-        | undefined;
+        { type: 'success' | 'error'; text: string } | undefined;
       if (!msg) return;
       if (msg.type === 'success') {
         toast.success(msg.text);
@@ -94,17 +93,17 @@
       <Dialog.Title>Mes paramètres</Dialog.Title>
       <Dialog.Description>
         Sur un environnement de test, les emails et SMS qui vous sont attribués
-        — vos envois, ou ceux d'un talent que vous incarnez — sont redirigés
-        vers vos adresses plutôt que vers la liste partagée. Ainsi chacun ne
-        reçoit que son propre trafic de test. En production, ces réglages sont
-        sans effet : les messages partent aux vrais destinataires.
+        (vos envois, ou ceux d'un talent que vous incarnez) sont redirigés vers
+        vos adresses plutôt que vers la liste partagée. Ainsi chacun ne reçoit
+        que son propre trafic de test. En production, ces réglages sont sans
+        effet : les messages partent aux vrais destinataires.
       </Dialog.Description>
     </Dialog.Header>
 
     <div class="space-y-6">
       {#if !outboundTrapped}
         <div
-          class="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200"
+          class="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-warning"
         >
           <Info class="mt-0.5 h-4 w-4 shrink-0" />
           <div class="space-y-1">
@@ -174,12 +173,10 @@
       </form>
 
       {#if canArmRealSends}
-        <div
-          class="space-y-3 rounded-md border border-red-300 p-4 dark:border-red-900/60"
-        >
+        <div class="space-y-3 rounded-md border border-destructive/30 p-4">
           <div>
             <h3
-              class="flex items-center gap-2 text-sm font-semibold text-red-700 dark:text-red-400"
+              class="flex items-center gap-2 text-sm font-semibold text-destructive"
             >
               <ShieldAlert class="h-4 w-4" /> Envois réels (dev)
             </h3>
@@ -187,18 +184,18 @@
               Lève temporairement la redirection : vos envois (et ceux d'un
               talent que vous incarnez) partiront aux <strong
                 >vrais destinataires</strong
-              >. Se désactive automatiquement, et n'affecte que votre session —
+              >. Se désactive automatiquement, et n'affecte que votre session :
               jamais les tâches de fond (relances, cron).
             </p>
           </div>
 
           {#if armedRealSends}
             <div
-              class="flex flex-wrap items-center gap-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm dark:border-red-900/60 dark:bg-red-950/40"
+              class="flex flex-wrap items-center gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm"
             >
-              <span class="font-semibold text-red-700 dark:text-red-300">
+              <span class="font-semibold text-destructive">
                 Armé{armedUntilLabel
-                  ? ` — se désactive à ${armedUntilLabel}`
+                  ? ` (se désactive à ${armedUntilLabel})`
                   : ''}.
               </span>
               <form method="POST" action="/api/dev/real-sends">
@@ -218,12 +215,10 @@
           {/if}
         </div>
 
-        <div
-          class="space-y-3 rounded-md border border-amber-300 p-4 dark:border-amber-900/60"
-        >
+        <div class="space-y-3 rounded-md border border-warning/30 p-4">
           <div>
             <h3
-              class="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-400"
+              class="flex items-center gap-2 text-sm font-semibold text-warning"
             >
               <MailCheck class="h-4 w-4" /> Tester la connexion (OTP)
             </h3>
@@ -238,9 +233,9 @@
 
           {#if devRedirectPin}
             <div
-              class="flex flex-wrap items-center gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-900/60 dark:bg-amber-950/40"
+              class="flex flex-wrap items-center gap-3 rounded-md border border-warning/30 bg-warning/10 p-3 text-sm"
             >
-              <span class="font-semibold text-amber-700 dark:text-amber-300">
+              <span class="font-semibold text-warning">
                 Active{pinUntilLabel
                   ? ` (se désactive à ${pinUntilLabel})`
                   : ''}.

@@ -14,7 +14,7 @@
   import Plus from '@lucide/svelte/icons/plus';
   import Send from '@lucide/svelte/icons/send';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
   import SearchableSelect, {
     type SelectOption,
@@ -108,7 +108,7 @@
 
   // ── Seed editable content from the picked template ──────────────────────
   // Choosing a template fills the (editable) subject/body once. Editing them
-  // afterwards never touches the template — the send snapshots this content.
+  // afterwards never touches the template: the send snapshots this content.
   let seededFor = $state('');
   $effect(() => {
     const tid = $form.templateId;
@@ -162,8 +162,8 @@
       $form.sourceFilter = 'all';
     }
   });
-  // Only talent/parent/manta are narrowed by an event; for the other staff
-  // audiences the event does nothing, so we hide the picker entirely.
+  // Only talent/parent are narrowed by an event; for the staff audiences the
+  // event does nothing, so we hide the picker entirely.
   const eventScoped = $derived(
     $form.audience ? EVENT_SCOPED_AUDIENCES.includes($form.audience) : false,
   );
@@ -372,21 +372,19 @@
 {#snippet sectionLabel(n: number, title: string)}
   <div class="flex items-center gap-2">
     <span
-      class="flex h-5 w-5 items-center justify-center rounded-sm bg-epi-pink/10 font-mono text-[11px] font-bold text-epi-pink"
+      class="flex h-5 w-5 items-center justify-center rounded-sm bg-epi-tomorrow/10 font-mono text-xs font-bold text-epi-tomorrow"
       >{n}</span
     >
-    <h2
-      class="font-mono text-[11px] font-bold tracking-widest text-muted-foreground uppercase"
-    >
+    <h2 class="epi-overline text-muted-foreground">
       {title}
     </h2>
   </div>
 {/snippet}
 
-<AdminPageHeader
+<PageHeader
   title="Nouvel"
   accent="envoi"
-  subtitle="Choisis le canal, rédige le message, cible l'audience — l'aperçu est à droite"
+  subtitle="Choisis le canal, rédige le message, cible l'audience : l'aperçu est à droite"
 />
 
 <form
@@ -413,7 +411,7 @@
             options={templateOptions}
             value={$form.templateId}
             onChange={(v) => ($form.templateId = v ?? '')}
-            placeholder="— Sélectionner un modèle —"
+            placeholder="- Sélectionner un modèle -"
             searchPlaceholder="Rechercher un modèle…"
             emptyLabel={`Aucun modèle ${BROADCAST_CHANNEL_LABELS[channelChoice]}.`}
             triggerClass="flex-1"
@@ -441,7 +439,7 @@
       {@render sectionLabel(2, 'Message')}
       {#if !$form.templateId}
         <p class="text-sm text-muted-foreground">
-          Choisis un modèle ci-dessus pour pré-remplir le message — tu pourras
+          Choisis un modèle ci-dessus pour pré-remplir le message : tu pourras
           l'ajuster ici pour cet envoi sans modifier le modèle.
         </p>
       {:else}
@@ -480,7 +478,7 @@
           options={campusOptions}
           value={$form.campusId}
           onChange={(v) => onCampusChange(v ?? '')}
-          placeholder="— Sélectionner —"
+          placeholder="- Sélectionner -"
           searchPlaceholder="Rechercher un campus…"
           emptyLabel="Aucun campus."
           triggerClass="w-full"
@@ -513,7 +511,7 @@
 
       {#if eventScoped}
         <div class="grid gap-2">
-          <Label>Event (optionnel — vide = tous)</Label>
+          <Label>Event (optionnel, vide = tous)</Label>
           <SearchableSelect
             options={eventOptions}
             value={$form.eventId || 'all'}
@@ -541,7 +539,7 @@
             Filtres avancés
             {#if activeFilterCount > 0}
               <span
-                class="rounded-sm bg-epi-blue/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-epi-blue"
+                class="rounded-sm bg-epi-blue/10 px-1.5 py-0.5 font-mono text-xs font-bold text-epi-blue"
                 >{activeFilterCount}</span
               >
             {/if}
@@ -661,11 +659,7 @@
 
     <!-- Message preview -->
     <div class="rounded-sm border bg-card p-4">
-      <h3
-        class="mb-3 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        Aperçu du message
-      </h3>
+      <h3 class="mb-3 epi-overline text-muted-foreground">Aperçu du message</h3>
       {#if $form.templateId}
         <MessagePreview
           {channel}
@@ -724,7 +718,7 @@
       </div>
       {#if channel === 'sms' && !data.smsEnabled}
         <p class="text-xs text-destructive">
-          SMS non configuré (<code>SMS_PROVIDER</code>) — test indisponible.
+          SMS non configuré (<code>SMS_PROVIDER</code>) : test indisponible.
         </p>
       {/if}
     </div>
@@ -745,7 +739,7 @@
           'rounded-sm border px-2 py-1 text-xs',
           $formMessage.type === 'error'
             ? 'border-destructive/30 bg-destructive/10 text-destructive'
-            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700',
+            : 'border-success/30 bg-success/10 text-success',
         )}
       >
         {$formMessage.text}
@@ -757,9 +751,7 @@
 <AlertDialog.Root bind:open={confirmEnqueueOpen}>
   <AlertDialog.Content class="rounded-sm">
     <AlertDialog.Header>
-      <AlertDialog.Title
-        class="font-heading text-lg tracking-tight text-destructive uppercase"
-      >
+      <AlertDialog.Title class="text-destructive">
         Démarrer les envois ?
       </AlertDialog.Title>
       <AlertDialog.Description class="text-sm font-medium">

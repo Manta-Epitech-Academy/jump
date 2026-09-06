@@ -11,7 +11,7 @@ import { MAX_BUCKET_WINDOW_MS } from '$lib/server/auth/rateLimiter';
  * so anything older is dead weight; sweeping keeps the hot index small.
  *
  * Intended to run hourly via the external cron service (same pattern as the
- * other `/api/jobs/...` endpoints). The sweep is idempotent — running it more
+ * other `/api/jobs/...` endpoints). The sweep is idempotent: running it more
  * often is harmless, running it less often just lets the table grow until the
  * next pass.
  */

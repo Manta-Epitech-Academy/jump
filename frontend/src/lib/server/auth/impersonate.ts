@@ -6,15 +6,14 @@ import { ensureTalentUser } from '$lib/server/services/talentAccount';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 
 export type ImpersonationTarget =
-  // `id` is a Talent id — a seeded talent may have no login account yet, so it is
+  // `id` is a Talent id: a seeded talent may have no login account yet, so it is
   // bootstrapped on the fly via ensureTalentUser.
   | { kind: 'talent'; id: string }
   // `id` is a bauth_user id (a staff member always already has one).
   | { kind: 'staff'; id: string };
 
 export type ImpersonationResult =
-  | { ok: true; redirect: string }
-  | { ok: false; reason: 'no_email' | 'failed' };
+  { ok: true; redirect: string } | { ok: false; reason: 'no_email' | 'failed' };
 
 /**
  * The single entry point for admin impersonation, shared by the talents
@@ -29,6 +28,7 @@ export async function startImpersonation(
   target: ImpersonationTarget,
   request: Request,
   cookies: Cookies,
+  adminUserId: string,
 ): Promise<ImpersonationResult> {
   let userId: string;
   let redirect: string;
@@ -59,6 +59,24 @@ export async function startImpersonation(
     asResponse: true,
   });
   if (!res.ok) return { ok: false, reason: 'failed' };
+
+  // BetterAuth has no explicit "impersonation ended" server callback we can
+  // trust from all exit paths. Keep a single open window per admin as a
+  // best-effort trail: close any previous open rows before opening this one.
+  const now = new Date();
+  await prisma.$transaction([
+    prisma.audit_ImpersonationEvent.updateMany({
+      where: { adminUserId, endedAt: null },
+      data: { endedAt: now },
+    }),
+    prisma.audit_ImpersonationEvent.create({
+      data: {
+        adminUserId,
+        targetUserId: userId,
+        targetKind: target.kind,
+      },
+    }),
+  ]);
 
   forwardAuthCookies(res, cookies);
   return { ok: true, redirect };

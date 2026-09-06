@@ -1,16 +1,22 @@
 <script lang="ts">
   import { RECO_QUESTION_KEY, RECO_VERDICT_LABEL } from '$lib/domain/feedback';
+  import { cohortNounForms } from '$lib/domain/event';
   import type { FormStats } from '$lib/server/feedbackStats';
 
   let {
     respondedCount,
     total,
     stats,
+    cohortNoun,
   }: {
     respondedCount: number;
     total: number;
     stats: FormStats | null;
+    cohortNoun: string | null;
   } = $props();
+
+  // Event's Jump-owned cohort noun ("stagiaire" / "participant").
+  const noun = $derived(cohortNounForms(cohortNoun));
 
   const pct = $derived(
     total > 0 ? Math.round((respondedCount / total) * 100) : 0,
@@ -36,7 +42,8 @@
       <p class="text-sm text-muted-foreground">
         <span class="font-mono font-bold text-foreground">{respondedCount}</span
         >
-        / {total} stagiaires
+        / {total}
+        {noun.plural}
       </p>
     </div>
     <p class="mt-2 text-3xl font-bold text-epi-blue">
@@ -44,9 +51,7 @@
     </p>
     <!-- Progress bar so the hero stat fills the (now wider) card instead of a lone
          number leaving the strip looking empty. -->
-    <div
-      class="mt-2 h-2 overflow-hidden rounded-sm bg-slate-100 dark:bg-slate-800"
-    >
+    <div class="mt-2 h-2 overflow-hidden rounded-sm bg-muted">
       <div class="h-full rounded-sm bg-epi-blue/80" style="width: {pct}%"></div>
     </div>
   </section>
@@ -71,9 +76,7 @@
               <span class="min-w-0 truncate text-xs" title={opt.label}>
                 {opt.label}
               </span>
-              <span
-                class="shrink-0 font-mono text-[11px] text-muted-foreground"
-              >
+              <span class="shrink-0 font-mono text-xs text-muted-foreground">
                 {opt.count}{#if answered > 0}<span
                     class="text-muted-foreground/60"
                   >
@@ -81,9 +84,7 @@
                   >{/if}
               </span>
             </div>
-            <div
-              class="h-2 overflow-hidden rounded-sm bg-slate-100 dark:bg-slate-800"
-            >
+            <div class="h-2 overflow-hidden rounded-sm bg-muted">
               <div
                 class="h-full rounded-sm bg-epi-blue/80"
                 style="width: {optPct}%"

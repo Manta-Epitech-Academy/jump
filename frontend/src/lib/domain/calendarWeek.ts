@@ -13,7 +13,7 @@ export function startOfDay(d: Date): Date {
 }
 
 /** The Monday (00:00) of the week containing `d`. */
-export function startOfWeek(d: Date): Date {
+function startOfWeek(d: Date): Date {
   const x = startOfDay(d);
   // Monday = 1 ... Sunday = 0; shift so Monday is the first day.
   const dow = (x.getDay() + 6) % 7;
@@ -94,7 +94,7 @@ export function pickInitialWeekView(
   return 'work';
 }
 
-/** A compact "1 – 7 déc 2026" style label for the visible week. */
+/** A compact "1 - 7 déc 2026" style label for the visible week. */
 export function weekLabel(weekDays: Date[]): string {
   const a = weekDays[0];
   const b = weekDays[weekDays.length - 1];
@@ -110,5 +110,5 @@ export function weekLabel(weekDays: Date[]): string {
     month: 'short',
     year: 'numeric',
   });
-  return `${left} – ${right}`;
+  return `${left} - ${right}`;
 }

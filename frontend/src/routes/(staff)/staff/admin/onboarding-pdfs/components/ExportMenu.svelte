@@ -1,13 +1,10 @@
 <script lang="ts" module>
   type DocType = 'image-rights' | 'rules';
-  export type ExportTimelineEntry = { type: DocType; finishedAt: string };
 </script>
 
 <script lang="ts">
   import Archive from '@lucide/svelte/icons/archive';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
-  import Download from '@lucide/svelte/icons/download';
-  import History from '@lucide/svelte/icons/history';
   import ImageIcon from '@lucide/svelte/icons/image';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import ScrollText from '@lucide/svelte/icons/scroll-text';
@@ -15,8 +12,13 @@
   import { resolve } from '$app/paths';
   import { buttonVariants } from '$lib/components/ui/button';
   import * as Popover from '$lib/components/ui/popover';
-  import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
-  import { cn, formatDateTimeFr } from '$lib/utils';
+  import ExportSinceCard from '$lib/components/staff/export/ExportSinceCard.svelte';
+  import ExportWindowPicker from '$lib/components/staff/export/ExportWindowPicker.svelte';
+  import {
+    createExportWindow,
+    exportHref,
+  } from '$lib/components/staff/export/exportWindow.svelte';
+  import { cn } from '$lib/utils';
   import { toast } from 'svelte-sonner';
 
   let { lastExportAt }: { lastExportAt: string | null } = $props();
@@ -26,21 +28,24 @@
   // re-runs every 5s (live job feed), so keeping it off the load avoids the scan
   // on every tick. Refetched on each open so the per-period counts and the
   // "depuis le dernier export" delta stay fresh without a standing query.
-  let timeline = $state<ExportTimelineEntry[]>([]);
+  let timeline = $state<{ at: number; type: DocType }[]>([]);
   // First successful fetch flips this; the popover body shows a spinner until
   // then, then keeps the last data on subsequent re-opens while it refetches.
   let loaded = $state(false);
 
   const exportBase = resolve('/staff/admin/onboarding-pdfs/export');
   const timelineHref = resolve('/staff/admin/onboarding-pdfs/export-timeline');
-  const DAY = 86_400_000;
 
   async function loadTimeline() {
     try {
       const res = await fetch(timelineHref);
       if (!res.ok) throw new Error(`timeline ${res.status}`);
-      const data: { timeline: ExportTimelineEntry[] } = await res.json();
-      timeline = data.timeline;
+      const data: { timeline: { at: string; type: DocType }[] } =
+        await res.json();
+      timeline = data.timeline.map((d) => ({
+        at: new Date(d.at).getTime(),
+        type: d.type,
+      }));
       loaded = true;
     } catch (err) {
       console.error('[onboarding-pdfs] timeline fetch failed', err);
@@ -48,103 +53,11 @@
     }
   }
 
-  // Parse the ISO timeline once into sortable instants. Recomputed when the
-  // poll re-ships `timeline`, which is also when "now"-relative buckets refresh.
-  const items = $derived(
-    timeline.map((d) => ({
-      type: d.type,
-      ms: new Date(d.finishedAt).getTime(),
-    })),
+  const exportWindow = createExportWindow(() => timeline);
+  const sinceRange = $derived(exportWindow.sinceRange(lastExportAt));
+  const sinceCount = $derived(
+    sinceRange ? exportWindow.countIn(sinceRange) : 0,
   );
-
-  // One clock shared by every rolling-window bucket, re-read each time the poll
-  // reloads `timeline` so the 7j/30j boundaries (and the links built from them)
-  // stay consistent with one another rather than each sampling its own `now`.
-  const now = $derived.by(() => {
-    void items;
-    return Date.now();
-  });
-
-  // Completion window for download links + counts. `null` bound = open-ended.
-  type Range = { from: number | null; to: number | null };
-
-  type Period = '7d' | '30d' | 'all' | 'custom';
-  let period = $state<Period>('all');
-  let customFrom = $state('');
-  let customTo = $state('');
-
-  const startOfDay = (ymd: string) => new Date(`${ymd}T00:00:00`).getTime();
-  const endOfDay = (ymd: string) => new Date(`${ymd}T23:59:59.999`).getTime();
-
-  function periodRange(p: Exclude<Period, 'custom'>): Range {
-    if (p === '7d') return { from: now - 7 * DAY, to: null };
-    if (p === '30d') return { from: now - 30 * DAY, to: null };
-    return { from: null, to: null };
-  }
-
-  const customRange = $derived<Range>({
-    from: customFrom ? startOfDay(customFrom) : null,
-    to: customTo ? endOfDay(customTo) : null,
-  });
-  // A custom window is unusable until both ends are set and ordered.
-  const customInvalid = $derived(
-    period === 'custom' &&
-      (!customFrom ||
-        !customTo ||
-        (customRange.from !== null &&
-          customRange.to !== null &&
-          customRange.from > customRange.to)),
-  );
-
-  const selectedRange = $derived<Range>(
-    period === 'custom' ? customRange : periodRange(period),
-  );
-
-  function countIn(range: Range, type?: DocType): number {
-    return items.filter(
-      (it) =>
-        (!type || it.type === type) &&
-        (range.from === null || it.ms >= range.from) &&
-        (range.to === null || it.ms <= range.to),
-    ).length;
-  }
-
-  // Plain window labels. The selected window's per-type counts live in the
-  // download rows below, so the segments stay uncluttered.
-  const periodOptions = [
-    { value: '7d', label: '7 j' },
-    { value: '30d', label: '30 j' },
-    { value: 'all', label: 'Tout' },
-    { value: 'custom', label: 'Perso' },
-  ];
-
-  // "Depuis le dernier export": docs finished at/after this admin's high-water
-  // mark. Hidden until they have exported once.
-  const sinceMark = $derived(
-    lastExportAt ? new Date(lastExportAt).getTime() : null,
-  );
-  const sinceRange = $derived<Range>({ from: sinceMark, to: null });
-  const sinceCount = $derived(sinceMark === null ? 0 : countIn(sinceRange));
-
-  // `advance` marks a download that covers everything up to now (the all-time
-  // export or the "since" delta). The export endpoint reads it to advance this
-  // admin's archival high-water mark once it has built the archive; scoped or
-  // historical windows omit it. So the intent rides the same request as the
-  // download, with no second round-trip.
-  function exportHref(
-    type: DocType | null,
-    range: Range,
-    advance = false,
-  ): string {
-    const params = new URLSearchParams();
-    if (type) params.set('type', type);
-    if (range.from !== null)
-      params.set('from', new Date(range.from).toISOString());
-    if (range.to !== null) params.set('to', new Date(range.to).toISOString());
-    if (advance) params.set('advance', '1');
-    const qs = params.toString();
-    return qs ? `${exportBase}?${qs}` : exportBase;
-  }
 
   const rows: { type: DocType | null; label: string; Icon: typeof IconType }[] =
     [
@@ -153,24 +66,17 @@
       { type: 'rules', label: 'Règlements co-signés', Icon: ScrollText },
     ];
 
-  // Native `download` anchors keep the streamed response (browser shows its own
-  // progress). The toast acknowledges the click, since the server spends a beat
-  // fetching the PDFs from storage before bytes flow. Mark advancement is the
-  // server's job (driven by `advance` in the href), applied once the archive is
-  // assembled, not once the browser has the bytes: a streamed download can't be
-  // delivery-confirmed. Cancelling before assembly won't advance the mark, but
-  // cancelling after may; that's fine because it's a convenience filter, with the
-  // all-time export as the authoritative fallback. The page's poll then refreshes
-  // the "depuis le dernier export" delta.
+  // Native `download` anchors keep the streamed response (the browser shows its
+  // own progress). The toast acknowledges the click, since the server spends a
+  // beat fetching the PDFs from storage before bytes flow. Advancing the mark is
+  // the server's job (driven by `advance` in the href), applied once the archive
+  // is assembled, not once the browser has the bytes: a streamed download can't
+  // be delivery-confirmed. Cancelling before assembly won't advance the mark,
+  // cancelling after may; that's fine because it's a convenience filter, with
+  // the all-time export as the authoritative fallback. The page's poll then
+  // refreshes the "depuis le dernier export" delta.
   function onDownload() {
     toast.info("Préparation de l'archive, le téléchargement va démarrer…");
-  }
-
-  function sinceLabel(iso: string): string {
-    const h = Math.floor((Date.now() - new Date(iso).getTime()) / 3_600_000);
-    if (h < 1) return "il y a moins d'une heure";
-    if (h < 24) return `il y a ${h} h`;
-    return `il y a ${Math.floor(h / 24)} j`;
   }
 </script>
 
@@ -192,7 +98,7 @@
         <Icon class="h-4 w-4 text-epi-blue" />
         {label}
       </span>
-      <span class="font-mono text-xs text-muted-foreground tabular-nums">
+      <span class="font-mono text-xs text-muted-foreground">
         {count}
       </span>
     </a>
@@ -204,7 +110,7 @@
         <Icon class="h-4 w-4" />
         {label}
       </span>
-      <span class="font-mono text-xs tabular-nums">{disabled ? '—' : 0}</span>
+      <span class="font-mono text-xs">{disabled ? '-' : 0}</span>
     </div>
   {/if}
 {/snippet}
@@ -230,102 +136,29 @@
         Chargement de l'historique…
       </div>
     {:else}
-      {#if sinceMark !== null}
-        <div
-          class="space-y-2.5 rounded-md border border-epi-blue/30 bg-epi-blue/5 p-3"
-        >
-          <div>
-            <div class="flex items-center gap-2 text-sm font-medium">
-              <History class="h-4 w-4 text-epi-blue" />
-              Depuis le dernier export
-            </div>
-            <p
-              class="mt-1 text-xs text-muted-foreground"
-              title={formatDateTimeFr(lastExportAt!)}
-            >
-              Dernier export {sinceLabel(lastExportAt!)}
-            </p>
-          </div>
-          {#if sinceCount > 0}
-            <a
-              href={exportHref(null, sinceRange, true)}
-              download
-              onclick={() => onDownload()}
-              class={cn(
-                buttonVariants({ variant: 'default', size: 'sm' }),
-                'w-full gap-2',
-              )}
-            >
-              <Download class="h-4 w-4" />
-              Télécharger les nouveaux ({sinceCount})
-            </a>
-          {:else}
-            <p class="text-xs text-muted-foreground">
-              Aucun nouveau document depuis.
-            </p>
-          {/if}
-        </div>
-      {/if}
+      <ExportSinceCard
+        {lastExportAt}
+        count={sinceCount}
+        href={sinceRange
+          ? exportHref(exportBase, sinceRange, { advance: true })
+          : exportBase}
+        nothingNewLabel="Aucun nouveau document depuis."
+        {onDownload}
+      />
 
-      <div class="space-y-2">
-        <span
-          class="font-mono text-[0.7rem] tracking-wider text-muted-foreground uppercase"
-        >
-          Période
-        </span>
-        <SegmentedFilter
-          options={periodOptions}
-          value={period}
-          onChange={(v) => (period = v as Period)}
-          ariaLabel="Période d'export"
-          fullWidth
-        />
-
-        {#if period === 'custom'}
-          <div class="flex items-end gap-2 pt-1">
-            <label
-              class="flex flex-1 flex-col gap-1 text-[0.7rem] tracking-wide text-muted-foreground uppercase"
-            >
-              Du
-              <input
-                type="date"
-                bind:value={customFrom}
-                max={customTo || undefined}
-                class="h-9 w-full rounded-sm border bg-transparent px-2 text-sm normal-case"
-              />
-            </label>
-            <label
-              class="flex flex-1 flex-col gap-1 text-[0.7rem] tracking-wide text-muted-foreground uppercase"
-            >
-              Au
-              <input
-                type="date"
-                bind:value={customTo}
-                min={customFrom || undefined}
-                class="h-9 w-full rounded-sm border bg-transparent px-2 text-sm normal-case"
-              />
-            </label>
-          </div>
-          {#if customInvalid}
-            <p class="text-xs text-muted-foreground">
-              Choisissez une date de début et de fin valides.
-            </p>
-          {/if}
-        {/if}
-      </div>
+      <ExportWindowPicker {exportWindow} />
 
       <div class="space-y-0.5">
         {#each rows as row (row.type)}
           {@render downloadRow(
             row.label,
-            countIn(selectedRange, row.type ?? undefined),
-            exportHref(
-              row.type,
-              selectedRange,
-              row.type === null && period === 'all',
-            ),
+            exportWindow.countIn(exportWindow.selectedRange, row.type),
+            exportHref(exportBase, exportWindow.selectedRange, {
+              type: row.type,
+              advance: row.type === null && exportWindow.period === 'all',
+            }),
             row.Icon,
-            customInvalid,
+            exportWindow.customInvalid,
           )}
         {/each}
       </div>

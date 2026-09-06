@@ -45,13 +45,11 @@
 </script>
 
 <!-- Full-width section banner that owns the question block beneath it. -->
-<div class="overflow-hidden rounded-sm border bg-card shadow-sm">
-  <div class="h-1.5 bg-epi-teal/70"></div>
+<div class="overflow-hidden rounded-sm border bg-card shadow-raised">
+  <div class="h-1.5 bg-epi-tech/70"></div>
   <div class="flex items-start gap-3 p-4">
     <div class="min-w-0 flex-1 space-y-1.5">
-      <div
-        class="flex items-center gap-2 font-mono text-[10px] font-medium tracking-[0.14em] text-muted-foreground uppercase"
-      >
+      <div class="flex items-center gap-2 epi-overline text-muted-foreground">
         Section {index} sur {total}
         <RowSaveDot state={editor.status_.get(section.id)} />
       </div>
@@ -68,7 +66,7 @@
         rows={1}
         aria-label="Description de la section"
         placeholder="Description (optionnelle)"
-        class="cursor-text resize-none border-0 border-b border-border px-0 text-sm text-muted-foreground shadow-none transition-colors hover:border-muted-foreground focus-visible:border-foreground focus-visible:ring-0"
+        class="cursor-text resize-none border-0 border-b border-border px-0 text-sm text-muted-foreground shadow-none transition-colors hover:border-muted-foreground focus-visible:border-foreground focus-visible:outline-none"
         oninput={introField.oninput}
         onblur={introField.onblur}
       />

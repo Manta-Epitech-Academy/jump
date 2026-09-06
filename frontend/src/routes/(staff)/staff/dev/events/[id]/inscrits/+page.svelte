@@ -10,40 +10,34 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import type { PageData } from './$types';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import InscritsResults from './components/InscritsResults.svelte';
   import LoadingCeremony from '$lib/components/LoadingCeremony.svelte';
-  import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { data }: { data: PageData } = $props();
-
-  // Navigation is flat in stage-only mode (we land here, click into a profile),
-  // so the breadcrumb is pure noise. It only earns its keep once coding_club
-  // adds depth to the workspace.
-  const hasCodingClub = $derived(
-    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]).has('coding_club'),
-  );
 
   let generatingBadges = $state(false);
   let badgeModeOpen = $state(false);
   let generatingDiplomas = $state(false);
   // Headcount for the ceremony copy, filled from the streamed cohort when the
-  // diploma generation starts; 0 until then (the title degrades gracefully).
+  // generation starts; 0 until then (the title degrades gracefully).
   let diplomaCount = $state(0);
 
+  // "Certificat", not "diplôme": that is what the document says on its face, and
+  // it stays true whichever one the event issues.
   const diplomaCeremonyTitle = $derived(
     diplomaCount > 0
-      ? `Génération de ${diplomaCount} diplôme${diplomaCount > 1 ? 's' : ''}`
-      : 'Génération des diplômes',
+      ? `Génération de ${diplomaCount} certificat${diplomaCount > 1 ? 's' : ''}`
+      : 'Génération des certificats',
   );
 
-  // Rotating step lines for the ceremony overline - kept true to what the PDF
+  // Rotating step lines for the ceremony epi-overline - kept true to what the PDF
   // render actually does (one page per inscrit, with the campus signatures).
   const DIPLOMA_CEREMONY_MESSAGES = [
-    'Préparation des diplômes…',
-    'Mise en page de chaque diplôme…',
+    'Préparation des certificats…',
+    'Mise en page de chaque certificat…',
     'Application des signatures…',
     'Presque prêt…',
   ];
@@ -129,19 +123,20 @@
       const res = await fetch(`${endpoint}?t=${Date.now()}`, {
         cache: 'no-store',
       });
-      if (!res.ok) throw new Error(`Diplomas failed: ${res.status}`);
+      if (!res.ok) throw new Error(`Certificates failed: ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Diplômes - ${eventDisplayName(data.event)}.pdf`;
+      // Named for the document actually issued, e.g. "Certificat de stage - …".
+      a.download = `${data.diploma?.label ?? 'Certificats'} - ${eventDisplayName(data.event)}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
     } catch (e) {
-      console.error('generate diplomas', e);
-      toast.error('Échec de la génération des diplômes.');
+      console.error('generate certificates', e);
+      toast.error('Échec de la génération des certificats.');
     } finally {
       generatingDiplomas = false;
     }
@@ -153,43 +148,40 @@
 </svelte:head>
 
 <div class="space-y-6 pb-10">
-  {#if hasCodingClub}
-    <PageBreadcrumb
-      items={[{ label: eventDisplayName(data.event) }, { label: 'Inscrits' }]}
-    />
-  {/if}
-  <PageHeader title="Inscrits">
-    <Button
-      variant="outline"
-      size="sm"
-      onclick={() => (badgeModeOpen = true)}
-      disabled={generatingBadges}
-    >
-      {#if generatingBadges}
-        <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
-        Génération…
-      {:else}
-        <IdCard class="mr-1.5 h-4 w-4" />
-        Générer badges
-      {/if}
-    </Button>
-    {#if data.allowDiplomas}
+  <PageHeader title="Inscrits" subtitle={eventDisplayName(data.event)}>
+    {#snippet actions()}
       <Button
         variant="outline"
         size="sm"
-        onclick={generateDiplomas}
-        disabled={generatingDiplomas}
+        onclick={() => (badgeModeOpen = true)}
+        disabled={generatingBadges}
       >
-        {#if generatingDiplomas}
+        {#if generatingBadges}
           <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
           Génération…
         {:else}
-          <Award class="mr-1.5 h-4 w-4" />
-          Générer diplômes
+          <IdCard class="mr-1.5 h-4 w-4" />
+          Générer badges
         {/if}
       </Button>
-    {/if}
-    <EventSalesforceButton externalId={data.event.externalId} />
+      {#if data.diploma}
+        <Button
+          variant="outline"
+          size="sm"
+          onclick={generateDiplomas}
+          disabled={generatingDiplomas}
+        >
+          {#if generatingDiplomas}
+            <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+            Génération…
+          {:else}
+            <Award class="mr-1.5 h-4 w-4" />
+            Générer certificats
+          {/if}
+        </Button>
+      {/if}
+      <EventSalesforceButton externalId={data.event.externalId} />
+    {/snippet}
   </PageHeader>
 
   {#await data.cohort}
@@ -204,17 +196,10 @@
       showStatutColumn={data.showStatutColumn}
     />
   {:catch}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-    >
-      <h3 class="text-sm font-bold tracking-widest text-foreground uppercase">
-        Chargement impossible
-      </h3>
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        La liste des inscrits n'a pas pu être chargée. Rechargez la page pour
-        réessayer.
-      </p>
-    </div>
+    <ResultsNotice
+      title="Chargement impossible"
+      description="La liste des inscrits n'a pas pu être chargée. Rechargez la page pour réessayer."
+    />
   {/await}
 </div>
 
@@ -231,12 +216,12 @@
       <button
         type="button"
         onclick={() => generateBadges('simple')}
-        class="flex cursor-pointer flex-col items-center gap-3 rounded-sm border p-4 text-center transition hover:border-epi-teal-solid hover:bg-epi-teal-solid/5"
+        class="flex cursor-pointer flex-col items-center gap-3 rounded-sm border p-4 text-center transition hover:border-epi-tech-ink hover:bg-epi-tech-ink/5"
       >
         <div class="grid grid-cols-2 gap-1 rounded-sm bg-muted/50 p-2">
           {#each BADGE_MODE_COLORS as c}
             <div
-              class="flex items-center justify-center rounded bg-white py-1.5"
+              class="flex items-center justify-center rounded bg-card py-1.5"
             >
               <Smile class="h-5 w-5" style="color: {c}" />
             </div>
@@ -253,11 +238,11 @@
       <button
         type="button"
         onclick={() => generateBadges('foldable')}
-        class="flex cursor-pointer flex-col items-center gap-3 rounded-sm border p-4 text-center transition hover:border-epi-teal-solid hover:bg-epi-teal-solid/5"
+        class="flex cursor-pointer flex-col items-center gap-3 rounded-sm border p-4 text-center transition hover:border-epi-tech-ink hover:bg-epi-tech-ink/5"
       >
         <div class="grid grid-cols-2 gap-1 rounded-sm bg-muted/50 p-2">
           {#each BADGE_MODE_COLORS as c}
-            <div class="flex flex-col overflow-hidden rounded bg-white">
+            <div class="flex flex-col overflow-hidden rounded bg-card">
               <div class="flex items-center justify-center py-1">
                 <Smile class="h-4 w-4" style="color: {c}" />
               </div>

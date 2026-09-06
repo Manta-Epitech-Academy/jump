@@ -2,28 +2,25 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { civiliteLabel, parentTypeLabel } from '$lib/domain/profile';
 import { normalizePhoneToE164 } from '$lib/domain/phone';
+import { schoolYearOf } from '$lib/domain/schoolYear';
+import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
 import type { DiffField } from '$lib/domain/reconciliation';
 
-// The field catalogue (DIFF_FIELDS, DiffField, isDiffField, FIELD_LABELS) is
-// pure domain data and lives in `$lib/domain/reconciliation` so the client page
-// can import it too. Re-exported here for the server-side callers that reach
-// for it alongside the reconciliation queries below.
-export {
-  DIFF_FIELDS,
-  isDiffField,
-  FIELD_LABELS,
-  type DiffField,
-} from '$lib/domain/reconciliation';
+// The field catalogue lives in `$lib/domain/reconciliation` (pure domain data,
+// so the client page can import it too). `isDiffField` is re-exported here for
+// the server-side callers that reach for it alongside the reconciliation
+// queries below; everything else they import from the domain module directly.
+export { isDiffField } from '$lib/domain/reconciliation';
 
 /**
  * Diff between the talent's confirmed profile (Jump truth, on `Talent`) and what
  * Salesforce last claimed (the `TalentSfImport` mirror).
  *
  * This is a *diff*, not an accusation: a field surfaces in two flavours.
- *  - `conflict` — both sides assert a value and they disagree. The one manual
+ *  - `conflict`: both sides assert a value and they disagree. The one manual
  *    action is adopting Salesforce (overwrite the talent); keeping Jump is the
  *    default and needs no click (see the `adoptSalesforceField` block below).
- *  - `missing`  — Jump has a confirmed value Salesforce lacks. There is nothing
+ *  - `missing`: Jump has a confirmed value Salesforce lacks. There is nothing
  *    to adopt (SF is empty); the value reaches SF only via the CSV export, and
  *    the row clears once the next sync sees SF carry it.
  *
@@ -32,8 +29,8 @@ export {
  * is nothing to reconcile. `niveau` is SF-owned (onboarding never sets it) and
  * never appears here.
  *
- * Fields Salesforce has no column for at all — parent contacts above all (the
- * worker payload carries none of them) — are not reconcilable and never appear
+ * Fields Salesforce has no column for at all (parent contacts above all, the
+ * worker payload carries none of them) are not reconcilable and never appear
  * in this list. They live in the CSV export as enrichment to backfill into SF;
  * see `listSalesforceEnrichment`.
  */
@@ -51,7 +48,7 @@ export interface FieldDiff {
    * Stable match key behind the display value, when the field references an
    * entity rather than a scalar. Today only `school`: `jump`/`sf` carry the
    * lycée *name* (what a human reads), `jumpKey`/`sfKey` carry its **UAI** (what
-   * Salesforce matches on — names are fuzzy and non-unique, the UAI is exact).
+   * Salesforce matches on (names are fuzzy and non-unique, the UAI is exact).
    * `undefined` for scalar fields, whose value is already its own key.
    */
   jumpKey?: string | null;
@@ -113,7 +110,7 @@ export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
       externalId: true,
       nom: true,
       prenom: true,
-      email: true,
+      user: { select: { email: true } },
       phone: true,
       civilite: true,
       schoolId: true,
@@ -143,7 +140,7 @@ export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
     const diffs: FieldDiff[] = [];
 
     if (t.infoValidatedAt) {
-      // Names: SF keys its records on them, so it always carries both — only a
+      // Names: SF keys its records on them, so it always carries both; only a
       // genuine disagreement is worth surfacing, never a "missing".
       if (!sameText(t.nom, m.nom))
         diffs.push({ field: 'nom', kind: 'conflict', jump: t.nom, sf: m.nom });
@@ -174,7 +171,7 @@ export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
 
       // Civilité maps to Salesforce's binary gender (homme/femme); SF has no
       // representation for `autre`. A jump-side `autre` can never be reconciled
-      // (the next sync re-nulls the mirror), so it would resurface forever —
+      // (the next sync re-nulls the mirror), so it would resurface forever:
       // don't surface it. A binary civilité diffs as a conflict (SF disagrees)
       // or as missing (SF carries no gender yet, value can be pushed).
       if (t.civilite && t.civilite !== 'autre') {
@@ -197,7 +194,7 @@ export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
 
     // School is compared by canonical id; names are shown to the human reviewer.
     // Jump confirmed a school SF disagrees with (conflict) or SF never had
-    // (missing). The reverse — SF has one Jump confirmed away — isn't a value to
+    // (missing). The reverse (SF has one Jump confirmed away) isn't a value to
     // push back, so it's left out.
     if (t.highSchoolValidatedAt && t.schoolId && t.schoolId !== m.sfSchoolId) {
       diffs.push({
@@ -216,7 +213,7 @@ export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
         externalId: t.externalId,
         nom: t.nom,
         prenom: t.prenom,
-        email: t.email,
+        email: t.user?.email ?? null,
         diffs,
         confirmedAt: latestConfirmedAt(
           t.infoValidatedAt,
@@ -234,16 +231,16 @@ export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
  * There is deliberately no "keep Jump" / accept action. Jump is already
  * authoritative (optimistic model): the talent's value shows everywhere that
  * matters, so siding with Jump is the default, not a click. A diff is a *to-do
- * to fix Salesforce*, not a decision pending in Jump — it stays listed (and in
+ * to fix Salesforce*, not a decision pending in Jump: it stays listed (and in
  * the CSV) until Salesforce actually carries the value, at which point the next
  * sync re-aligns the mirror and the row clears on its own. Realigning the mirror
  * by hand here would only drop the row from the export *before* the value
- * reached Salesforce — i.e. lose exactly the data the export exists to push.
+ * reached Salesforce, i.e. lose exactly the data the export exists to push.
  *
  * The one manual action is the reverse: deciding Salesforce is right after all.
  * Resolution is per field, never per talent (the diff list and the CSV are both
  * field-grained), so it touches exactly the one column the reviewer acted on and
- * never the others — including ones that never surfaced (e.g. a `civilite='autre'`
+ * never the others, including ones that never surfaced (e.g. a `civilite='autre'`
  * the diff deliberately hides).
  */
 
@@ -251,7 +248,7 @@ export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
  * Side with Salesforce for one field: overwrite the talent's confirmed value with
  * the SF claim. Only ever offered for a `conflict` (SF has a value); a `missing`
  * field has nothing to adopt. `nom`/`prenom` are left untouched when SF has no
- * value, so we never blank a required name (defensive — in practice SF always
+ * value, so we never blank a required name (defensive: in practice SF always
  * carries both).
  */
 export async function adoptSalesforceField(
@@ -269,6 +266,22 @@ export async function adoptSalesforceField(
     },
   });
 
+  // schoolId is the cached projection of Schooling_YearRecord (schoolingService),
+  // never written to Talent directly - otherwise the current year's ledger row
+  // goes stale the moment staff adopt Salesforce's claimed school over Jump's.
+  if (field === 'school') {
+    const currentSchoolYear = schoolYearOf(new Date(), 'Europe/Paris').label;
+    await prisma.$transaction((tx) =>
+      upsertSchoolingYearRecord(tx, {
+        talentId,
+        schoolYear: currentSchoolYear,
+        schoolId: m.sfSchoolId,
+        source: 'staff',
+      }),
+    );
+    return;
+  }
+
   const data: Prisma.TalentUncheckedUpdateInput = {};
   switch (field) {
     case 'nom':
@@ -283,9 +296,6 @@ export async function adoptSalesforceField(
     case 'civilite':
       data.civilite = m.civilite;
       break;
-    case 'school':
-      data.schoolId = m.sfSchoolId;
-      break;
   }
 
   if (Object.keys(data).length === 0) return;
@@ -294,12 +304,12 @@ export async function adoptSalesforceField(
 
 /**
  * Enrichment Salesforce can't hold. The worker payload carries no parent
- * contacts, so they are never a diff to reconcile — but they are exactly the data
+ * contacts, so they are never a diff to reconcile, but they are exactly the data
  * Jump collects at onboarding that the SF team would want backfilled. Scope is
  * the parent *contact record* (lien, civilité, name, email, phone for each
  * parent) plus the talent's *centres d'intérêt*: contact- and profile-shaped data
  * with an SF home. Interests used to be left out (SF had no field for them); SF
- * now imports them, so they ride the same "à transmettre" rows — see the interest
+ * now imports them, so they ride the same "à transmettre" rows, see the interest
  * block in `listSalesforceEnrichment`. Equipment and image-rights stay out: still
  * purely operational, no SF column. Surfaced in the on-screen list and the CSV
  * export alike, one labelled row per non-empty field, gated on a confirmed
@@ -325,27 +335,27 @@ type EnrichmentFieldDef = {
   format?: (value: string) => string;
 };
 
-export const ENRICHMENT_FIELDS: readonly EnrichmentFieldDef[] = [
-  { key: 'parentType', label: 'Parent 1 — Lien', format: parentTypeLabel },
+const ENRICHMENT_FIELDS: readonly EnrichmentFieldDef[] = [
+  { key: 'parentType', label: 'Parent 1 - Lien', format: parentTypeLabel },
   {
     key: 'parentCivilite',
-    label: 'Parent 1 — Civilité',
+    label: 'Parent 1 - Civilité',
     format: civiliteLabel,
   },
-  { key: 'parentNom', label: 'Parent 1 — Nom' },
-  { key: 'parentPrenom', label: 'Parent 1 — Prénom' },
-  { key: 'parentEmail', label: 'Parent 1 — Email' },
-  { key: 'parentPhone', label: 'Parent 1 — Téléphone' },
-  { key: 'parent2Type', label: 'Parent 2 — Lien', format: parentTypeLabel },
+  { key: 'parentNom', label: 'Parent 1 - Nom' },
+  { key: 'parentPrenom', label: 'Parent 1 - Prénom' },
+  { key: 'parentEmail', label: 'Parent 1 - Email' },
+  { key: 'parentPhone', label: 'Parent 1 - Téléphone' },
+  { key: 'parent2Type', label: 'Parent 2 - Lien', format: parentTypeLabel },
   {
     key: 'parent2Civilite',
-    label: 'Parent 2 — Civilité',
+    label: 'Parent 2 - Civilité',
     format: civiliteLabel,
   },
-  { key: 'parent2Nom', label: 'Parent 2 — Nom' },
-  { key: 'parent2Prenom', label: 'Parent 2 — Prénom' },
-  { key: 'parent2Email', label: 'Parent 2 — Email' },
-  { key: 'parent2Phone', label: 'Parent 2 — Téléphone' },
+  { key: 'parent2Nom', label: 'Parent 2 - Nom' },
+  { key: 'parent2Prenom', label: 'Parent 2 - Prénom' },
+  { key: 'parent2Email', label: 'Parent 2 - Email' },
+  { key: 'parent2Phone', label: 'Parent 2 - Téléphone' },
 ] as const;
 
 export interface TalentEnrichment {
@@ -367,7 +377,7 @@ export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
       externalId: true,
       nom: true,
       prenom: true,
-      email: true,
+      user: { select: { email: true } },
       parentType: true,
       parentCivilite: true,
       parentNom: true,
@@ -418,12 +428,12 @@ export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
           .join(';');
       const tech = joinKind(true);
       const perso = joinKind(false);
-      if (tech) fields.push({ label: "Centres d'intérêt — Tech", value: tech });
+      if (tech) fields.push({ label: "Centres d'intérêt - Tech", value: tech });
       if (perso)
-        fields.push({ label: "Centres d'intérêt — Perso", value: perso });
+        fields.push({ label: "Centres d'intérêt - Perso", value: perso });
       const freeText = (t.interestsFreeText ?? '').trim();
       if (freeText)
-        fields.push({ label: "Centres d'intérêt — Autres", value: freeText });
+        fields.push({ label: "Centres d'intérêt - Autres", value: freeText });
     }
 
     if (fields.length > 0) {
@@ -432,7 +442,7 @@ export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
         externalId: t.externalId,
         nom: t.nom,
         prenom: t.prenom,
-        email: t.email,
+        email: t.user?.email ?? null,
         fields,
         confirmedAt: latestConfirmedAt(
           t.infoValidatedAt,
@@ -446,7 +456,7 @@ export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
 }
 
 /**
- * Advance an admin's Salesforce-export high-water mark to `at` — the mirror of
+ * Advance an admin's Salesforce-export high-water mark to `at`: the mirror of
  * `recordOnboardingDocsExport`. Called once the windowed CSV has been assembled
  * so the menu's "depuis le dernier export" delta moves forward on the next load.
  * Fire-and-forget at the call site: a failed write simply re-offers the same

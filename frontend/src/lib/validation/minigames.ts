@@ -13,7 +13,7 @@ export const gameConfigSchema = z.object({
   weight: z.coerce.number().int().min(1, 'Doit être ≥ 1'),
   // No `.default(true)`: with dataType 'form', an unchecked Switch omits its
   // checkbox from the payload, and a default would backfill the missing key as
-  // `true` — making "off" impossible to save. Absent → false is what we want.
+  // `true`, making "off" impossible to save. Absent → false is what we want.
   enabled: z.boolean(),
 });
 
@@ -21,6 +21,3 @@ export const forcePublicationSchema = z.object({
   game: z.string().min(1, 'Jeu requis'),
   level: z.coerce.number().int().min(1, 'Niveau ≥ 1'),
 });
-
-export type GameConfigForm = z.infer<typeof gameConfigSchema>;
-export type ForcePublicationForm = z.infer<typeof forcePublicationSchema>;

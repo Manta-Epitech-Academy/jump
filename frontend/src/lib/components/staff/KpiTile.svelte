@@ -66,11 +66,11 @@
 
   const toneAccent = $derived(
     tone === 'teal'
-      ? 'border-l-epi-teal-solid'
+      ? 'border-l-epi-tech-ink'
       : tone === 'orange'
-        ? 'border-l-epi-orange'
+        ? 'border-l-epi-together'
         : tone === 'pink'
-          ? 'border-l-epi-pink'
+          ? 'border-l-epi-tomorrow'
           : tone === 'neutral'
             ? 'border-l-muted-foreground/40'
             : 'border-l-epi-blue',
@@ -78,11 +78,11 @@
 
   const toneText = $derived(
     tone === 'teal'
-      ? 'text-epi-teal-solid'
+      ? 'text-epi-tech-ink'
       : tone === 'orange'
-        ? 'text-epi-orange'
+        ? 'text-epi-together'
         : tone === 'pink'
-          ? 'text-epi-pink'
+          ? 'text-epi-tomorrow'
           : tone === 'neutral'
             ? 'text-muted-foreground'
             : 'text-epi-blue',
@@ -90,23 +90,23 @@
 
   const toneBg = $derived(
     tone === 'teal'
-      ? 'bg-epi-teal-solid/10'
+      ? 'bg-epi-tech-ink/10'
       : tone === 'orange'
-        ? 'bg-orange-50 dark:bg-orange-900/20'
+        ? 'bg-epi-together-ink/10'
         : tone === 'pink'
-          ? 'bg-epi-pink/10'
+          ? 'bg-epi-tomorrow/10'
           : tone === 'neutral'
             ? 'bg-muted/40'
-            : 'bg-blue-50 dark:bg-blue-900/20',
+            : 'bg-primary/10',
   );
 
   const toneFill = $derived(
     tone === 'teal'
-      ? 'bg-epi-teal-solid'
+      ? 'bg-epi-tech-ink'
       : tone === 'orange'
-        ? 'bg-epi-orange'
+        ? 'bg-epi-together'
         : tone === 'pink'
-          ? 'bg-epi-pink'
+          ? 'bg-epi-tomorrow'
           : tone === 'neutral'
             ? 'bg-muted-foreground'
             : 'bg-epi-blue',
@@ -152,11 +152,11 @@
         {:else}
           <p
             class={cn(
-              'font-heading text-8xl tracking-wide',
+              'font-heading text-display-3xl',
               pressed ? 'text-white' : toneText,
             )}
           >
-            {value ?? '—'}{#if total != null}<span
+            {value ?? '-'}{#if total != null}<span
                 class={cn(
                   'ml-1 font-mono text-base font-bold',
                   pressed ? 'text-white/70' : 'text-muted-foreground',
@@ -184,7 +184,7 @@
         >
           <div
             class={cn(
-              'h-full transition-[width] duration-700 ease-out',
+              'h-full transition-[width] duration-320 ease-out',
               pressed ? 'bg-white' : toneFill,
             )}
             style="width: {Math.max(0, Math.min(100, progress))}%"
@@ -199,7 +199,7 @@
           <div class="mb-1 flex items-center gap-1.5">
             <p
               class={cn(
-                'text-[10px] font-bold tracking-widest uppercase',
+                'epi-overline',
                 pressed ? 'text-white/70' : 'text-muted-foreground',
               )}
             >
@@ -218,11 +218,11 @@
             {:else}
               <p
                 class={cn(
-                  'font-heading text-5xl tracking-wide',
+                  'font-heading text-display-2xl',
                   pressed ? 'text-white' : toneText,
                 )}
               >
-                {value ?? '—'}{#if total != null}<span
+                {value ?? '-'}{#if total != null}<span
                     class={cn(
                       'ml-1 font-mono text-base font-bold',
                       pressed ? 'text-white/70' : 'text-muted-foreground',
@@ -263,7 +263,7 @@
         >
           <div
             class={cn(
-              'h-full transition-[width] duration-700 ease-out',
+              'h-full transition-[width] duration-320 ease-out',
               pressed ? 'bg-white' : toneFill,
             )}
             style="width: {Math.max(0, Math.min(100, progress))}%"
@@ -277,12 +277,12 @@
 {#snippet shell(extraClass: string)}
   <Card.Root
     class={cn(
-      'flex h-full flex-col rounded-sm border-l-4 shadow-sm dark:shadow-none',
-      pressed ? 'border-l-white/40 bg-epi-blue text-white' : toneAccent,
+      'flex h-full flex-col border-l-4',
+      pressed ? 'on-dark border-l-white/40 bg-epi-blue text-white' : toneAccent,
       isInteractive && !pressed
         ? 'transition-colors hover:border-epi-blue/60 hover:bg-muted/30'
         : '',
-      pressed ? 'transition-colors hover:bg-[#0026b8]' : '',
+      pressed ? 'transition-colors hover:bg-primary/90' : '',
       extraClass,
     )}
   >
@@ -300,7 +300,7 @@
     {@render shell('')}
   </button>
 {:else if href}
-  <a {href} class="flex h-full transition-shadow hover:shadow-md">
+  <a {href} class="flex h-full transition-shadow hover:shadow-raised">
     {@render shell('w-full')}
   </a>
 {:else}

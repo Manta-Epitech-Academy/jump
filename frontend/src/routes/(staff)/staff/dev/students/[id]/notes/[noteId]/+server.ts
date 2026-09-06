@@ -7,9 +7,11 @@ import {
   serializeNote,
 } from '$lib/server/talentNotes';
 import type { RequestHandler } from './$types';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 /** Asserts the note exists and belongs to this talent (404 otherwise). Any dev
- *  member may manage it — there is no per-note ownership gate. */
+ *  member may manage it: there is no per-note ownership gate. */
 async function assertNoteOfTalent(noteId: string, talentId: string) {
   const note = await prisma.note_TalentNote.findUnique({
     where: { id: noteId },
@@ -23,7 +25,7 @@ async function assertNoteOfTalent(noteId: string, talentId: string) {
 /**
  * Edits a note. Per-note optimistic concurrency: the caller posts the
  * `updatedAt` it loaded; we compare-and-set on it so a concurrent edit can't be
- * silently clobbered — a zero-row result returns 409 with the current note.
+ * silently clobbered: a zero-row result returns 409 with the current note.
  */
 export const PATCH: RequestHandler = async ({ request, params, locals }) => {
   const { staffId } = await requireTalentNoteAccess(locals, params.id);
@@ -56,6 +58,8 @@ export const PATCH: RequestHandler = async ({ request, params, locals }) => {
     where: { id: params.noteId },
     include: NOTE_INCLUDE,
   });
+  recordUsage(USAGE_FEATURES.DEV_TALENT_NOTE_EDIT, { locals });
+
   return json({ note: serializeNote(note) });
 };
 
@@ -69,5 +73,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
   // `delete` would throw P2025 (→ 500) for the loser even though the note is gone;
   // `deleteMany` no-ops to count 0, so a concurrent delete still reports success.
   await prisma.note_TalentNote.deleteMany({ where: { id: params.noteId } });
+  recordUsage(USAGE_FEATURES.DEV_TALENT_NOTE_DELETE, { locals });
+
   return json({ ok: true });
 };

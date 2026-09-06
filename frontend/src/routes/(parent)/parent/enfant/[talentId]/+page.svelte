@@ -3,7 +3,6 @@
   import * as Collapsible from '$lib/components/ui/collapsible';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
-  import Check from '@lucide/svelte/icons/check';
   import X from '@lucide/svelte/icons/x';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import FileCheck from '@lucide/svelte/icons/file-check';
@@ -12,35 +11,35 @@
   import LogOut from '@lucide/svelte/icons/log-out';
   import Clock from '@lucide/svelte/icons/clock';
   import MapPin from '@lucide/svelte/icons/map-pin';
-  import History from '@lucide/svelte/icons/history';
   import Settings from '@lucide/svelte/icons/settings';
   import { Button } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
   import { renderMarkdown } from '$lib/markdown';
-  import droitImageBodyMd from '$lib/content/droit-image-body.md?raw';
-  import droitImageRefusalBodyMd from '$lib/content/droit-image-refusal-body.md?raw';
+  import {
+    CURRENT_DROIT_IMAGE_VERSION,
+    droitImageClausesFor,
+  } from '$lib/content/droit-image';
   import ChildSignForm from '../../signature/ChildSignForm.svelte';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let { data, form } = $props();
 
-  const droitImageBody = renderMarkdown(droitImageBodyMd);
-  const droitImageRefusalBody = renderMarkdown(droitImageRefusalBodyMd);
+  // The clauses of the document about to be signed, taken FROM that document
+  // rather than hand-copied beside it. A decision taken now commits to the
+  // current version, so that is the wording shown.
+  const droitImageBody = renderMarkdown(
+    droitImageClausesFor(CURRENT_DROIT_IMAGE_VERSION, 'accepted'),
+  );
+  const droitImageRefusalBody = renderMarkdown(
+    droitImageClausesFor(CURRENT_DROIT_IMAGE_VERSION, 'refused'),
+  );
 
   const activityTypeLabels: Record<string, string> = {
     atelier: 'Atelier',
     conference: 'Conférence',
     quiz: 'Quiz',
     special: 'Spécial',
-  };
-
-  const difficultyColors: Record<string, string> = {
-    Débutant:
-      'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    Intermédiaire:
-      'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    Avancé:
-      'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
   };
 
   function formatTime(dateString: string | Date | undefined) {
@@ -50,37 +49,10 @@
       minute: '2-digit',
     });
   }
-
-  function statusLabel(
-    isPresent: boolean,
-    delay: number,
-  ): { icon: typeof Check; color: string; text: string } {
-    if (!isPresent) {
-      return {
-        icon: X,
-        color: 'text-red-600 bg-red-50 dark:bg-red-950/30 dark:text-red-400',
-        text: 'Absent(e)',
-      };
-    }
-    if (delay > 0) {
-      return {
-        icon: Clock,
-        color:
-          'text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400',
-        text: `En retard — ${delay} min`,
-      };
-    }
-    return {
-      icon: Check,
-      color:
-        'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-400',
-      text: 'Présent(e)',
-    };
-  }
 </script>
 
 <svelte:head>
-  <title>{data.child.prenom} — Espace Parent</title>
+  <title>{data.child.prenom} - Espace Parent</title>
 </svelte:head>
 
 <div class="mx-auto max-w-5xl px-4 py-8 sm:py-12">
@@ -90,29 +62,28 @@
       {#if data.hasMultipleChildren}
         <a
           href={resolve('/parent')}
-          class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-lg shadow-slate-200/50 transition-colors hover:bg-slate-50 dark:bg-slate-900 dark:shadow-none dark:hover:bg-slate-800"
+          aria-label="Revenir à la liste de vos enfants"
+          class="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-card shadow-raised transition-colors hover:bg-background"
         >
           <ArrowLeft class="h-5 w-5 text-epi-blue" />
         </a>
       {/if}
       <div class="flex-1">
         <h1
-          class="font-heading text-3xl tracking-tight text-slate-900 uppercase sm:text-4xl dark:text-white"
+          class="font-heading text-display-l text-foreground sm:text-display-xl"
         >
           Bonjour, <span class="text-epi-blue"
             >M./Mme {data.parentLastName}</span
-          ><span class="text-epi-teal">_</span>
+          ><TitleCursor />
         </h1>
-        <p
-          class="mt-1 text-base font-semibold text-slate-600 dark:text-slate-300"
-        >
+        <p class="mt-1 text-base font-semibold text-foreground-secondary">
           Suivi de votre enfant {data.child.prenom}
           {data.child.nom}
         </p>
       </div>
       <a
         href={resolve('/parent/settings')}
-        class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+        class="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground-secondary"
       >
         <Settings class="h-4 w-4" />
         <span class="sr-only">Paramètres</span>
@@ -125,27 +96,27 @@
     <div in:fly={{ y: 20, duration: 400, delay: 200 }}>
       {#if data.child.imageRightsStatus === 'undecided'}
         <div
-          class="overflow-hidden rounded-3xl border border-amber-200 bg-amber-50 shadow-lg shadow-amber-100/50 dark:border-amber-900/30 dark:bg-amber-950/20 dark:shadow-none"
+          class="overflow-hidden rounded-xl border border-warning/30 bg-warning/10 shadow-raised"
         >
           <div class="flex flex-wrap items-center justify-between gap-3 p-6">
             <div class="flex items-center gap-4">
               <div
-                class="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-900/30"
+                class="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10"
               >
-                <FilePen class="h-6 w-6 text-amber-600" />
+                <FilePen class="h-6 w-6 text-warning" />
               </div>
               <div>
-                <p class="font-bold text-amber-800 dark:text-amber-300">
+                <p class="font-bold text-warning">
                   Droit à l'image à renseigner
                 </p>
-                <p class="text-sm text-amber-600 dark:text-amber-400">
+                <p class="text-sm text-warning">
                   Indiquez si vous autorisez ou refusez l'utilisation de l'image
                   de votre enfant.
                 </p>
               </div>
             </div>
           </div>
-          <div class="border-t border-amber-200 p-6 dark:border-amber-900/30">
+          <div class="border-t border-warning/30 p-6">
             <ChildSignForm
               child={data.child}
               {droitImageBody}
@@ -160,7 +131,7 @@
             {#if data.child.imageRightsStatus === 'accepted'}
               <Badge
                 variant="secondary"
-                class="gap-1.5 bg-emerald-50 px-3 py-1.5 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+                class="gap-1.5 bg-success/10 px-3 py-1.5 text-success"
               >
                 <FileCheck class="h-3.5 w-3.5" />
                 Droit à l'image autorisé
@@ -168,7 +139,7 @@
             {:else}
               <Badge
                 variant="secondary"
-                class="gap-1.5 bg-red-50 px-3 py-1.5 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+                class="gap-1.5 bg-destructive/10 px-3 py-1.5 text-destructive"
               >
                 <X class="h-3.5 w-3.5" />
                 Droit à l'image refusé
@@ -184,9 +155,7 @@
             </Collapsible.Trigger>
           </div>
           <Collapsible.Content>
-            <div
-              class="mt-4 rounded-3xl border border-slate-200/60 bg-white/60 p-6 dark:border-slate-800 dark:bg-slate-900/60"
-            >
+            <div class="mt-4 rounded-xl border border-border/60 bg-card p-6">
               <ChildSignForm
                 child={data.child}
                 {droitImageBody}
@@ -202,33 +171,27 @@
     <!-- Today's planning -->
     {#if data.todayPlanning}
       <div
-        class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+        class="overflow-hidden rounded-xl border border-border bg-card shadow-raised"
         in:fly={{ y: 20, duration: 400, delay: 250 }}
       >
-        <div
-          class="border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
-        >
-          <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+        <div class="border-b border-border bg-background/50 px-6 py-4">
+          <p class="text-sm font-semibold text-foreground-secondary">
             Votre enfant participe aujourd'hui à
           </p>
           <div
-            class="mt-1 flex items-center gap-2 text-xs font-bold text-slate-500 uppercase"
+            class="mt-1 flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase"
           >
             <MapPin class="h-4 w-4 text-epi-blue" />
             <span>{data.todayPlanning.eventName}</span>
-            <span class="text-slate-300 dark:text-slate-700">•</span>
+            <span class="text-muted-foreground">•</span>
             <Clock class="h-4 w-4" />
             <span>{formatTime(data.todayPlanning.eventDate)}</span>
           </div>
         </div>
 
         <div class="p-6">
-          <h2
-            class="mb-4 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
-          >
-            Programme du jour pour {data.child.prenom}<span
-              class="text-epi-teal">_</span
-            >
+          <h2 class="mb-4 font-heading text-display-s text-foreground">
+            Programme du jour pour {data.child.prenom}<TitleCursor />
           </h2>
 
           {#if data.todayPlanning.timeSlots.length > 0}
@@ -237,40 +200,24 @@
                 <div>
                   <div class="mb-2 flex items-center gap-2">
                     <Clock class="h-3.5 w-3.5 shrink-0 text-epi-blue" />
-                    <span
-                      class="text-[11px] font-bold text-slate-400 uppercase"
-                    >
-                      {formatTime(slot.startTime)} — {formatTime(slot.endTime)}
+                    <span class="epi-overline text-muted-foreground">
+                      {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
                     </span>
                   </div>
 
-                  <div
-                    class="ml-5 space-y-1.5 border-l-2 border-slate-100 pl-3 dark:border-slate-800"
-                  >
+                  <div class="ml-5 space-y-1.5 border-l-2 border-border pl-3">
                     {#each slot.activities as activity (activity.id)}
                       <div
                         class="flex items-center gap-3 rounded-xl px-3 py-2.5"
                       >
-                        <Badge
-                          variant="outline"
-                          class="shrink-0 text-[9px] font-bold uppercase"
-                        >
+                        <Badge variant="outline" class="shrink-0 epi-overline">
                           {activityTypeLabels[activity.type] ?? activity.type}
                         </Badge>
                         <span
-                          class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
+                          class="min-w-0 flex-1 truncate text-sm font-semibold text-foreground"
                         >
                           {activity.name}
                         </span>
-                        {#if activity.difficulty}
-                          <span
-                            class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
-                              activity.difficulty
-                            ] ?? ''}"
-                          >
-                            {activity.difficulty}
-                          </span>
-                        {/if}
                       </div>
                     {/each}
                   </div>
@@ -281,7 +228,7 @@
             <div
               class="flex flex-col items-center justify-center py-8 text-center"
             >
-              <p class="text-sm text-slate-400">
+              <p class="text-sm text-muted-foreground">
                 Le planning de la journée n'est pas encore disponible.
               </p>
             </div>
@@ -295,14 +242,12 @@
       <div in:fly={{ y: 20, duration: 400, delay: 300 }}>
         <div class="mb-4 flex items-center gap-3">
           <h2
-            class="flex items-center gap-2 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
+            class="flex items-center gap-2 font-heading text-display-s text-foreground"
           >
             <Rocket class="h-5 w-5 text-epi-blue" />
-            Prochains événements d'{data.child.prenom}<span
-              class="text-epi-teal">_</span
-            >
+            Prochains événements d'{data.child.prenom}<TitleCursor />
           </h2>
-          <Badge variant="outline" class="text-[10px] font-bold">
+          <Badge variant="outline" class="text-xs font-bold">
             {data.upcomingEvents.length} à venir
           </Badge>
         </div>
@@ -311,21 +256,21 @@
           {#each data.upcomingEvents as event (event.id)}
             <Collapsible.Root>
               <div
-                class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-md shadow-blue-900/5 dark:border-blue-900/30 dark:bg-slate-900 dark:shadow-none"
+                class="overflow-hidden rounded-xl border border-primary/30 bg-card shadow-raised"
               >
                 <Collapsible.Trigger class="w-full">
                   <div class="flex items-center justify-between p-4">
                     <div class="flex items-center gap-3 text-left">
                       <div
-                        class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30"
+                        class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10"
                       >
                         <CalendarDays class="h-5 w-5 text-epi-blue" />
                       </div>
                       <div>
-                        <p class="font-bold text-slate-900 dark:text-white">
+                        <p class="font-bold text-foreground">
                           {event.name}
                         </p>
-                        <p class="text-xs font-bold text-slate-400">
+                        <p class="text-xs font-bold text-muted-foreground">
                           Le {new Date(event.date).toLocaleDateString('fr-FR', {
                             weekday: 'long',
                             day: 'numeric',
@@ -337,7 +282,7 @@
 
                     <div class="flex items-center gap-2">
                       {#if event.timeSlots.length > 0}
-                        <Badge variant="outline" class="text-[10px] font-bold">
+                        <Badge variant="outline" class="text-xs font-bold">
                           {event.timeSlots.reduce(
                             (sum, s) => sum + s.activities.length,
                             0,
@@ -350,7 +295,7 @@
                         </Badge>
                       {/if}
                       <ChevronDown
-                        class="h-4 w-4 text-slate-400 transition-transform [[data-state=open]_&]:rotate-180"
+                        class="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180"
                       />
                     </div>
                   </div>
@@ -358,11 +303,9 @@
 
                 <Collapsible.Content>
                   {#if event.timeSlots.length > 0}
-                    <div
-                      class="border-t border-slate-100 px-4 py-4 dark:border-slate-800"
-                    >
+                    <div class="border-t border-border px-4 py-4">
                       <p
-                        class="mb-3 text-sm font-semibold text-slate-600 dark:text-slate-300"
+                        class="mb-3 text-sm font-semibold text-foreground-secondary"
                       >
                         Votre enfant participera aux activités suivantes :
                       </p>
@@ -373,17 +316,15 @@
                               <Clock
                                 class="h-3.5 w-3.5 shrink-0 text-epi-blue"
                               />
-                              <span
-                                class="text-[11px] font-bold text-slate-400 uppercase"
-                              >
-                                {formatTime(slot.startTime)} — {formatTime(
+                              <span class="epi-overline text-muted-foreground">
+                                {formatTime(slot.startTime)} - {formatTime(
                                   slot.endTime,
                                 )}
                               </span>
                             </div>
 
                             <div
-                              class="ml-5 space-y-1.5 border-l-2 border-slate-100 pl-3 dark:border-slate-800"
+                              class="ml-5 space-y-1.5 border-l-2 border-border pl-3"
                             >
                               {#each slot.activities as activity (activity.id)}
                                 <div
@@ -391,25 +332,16 @@
                                 >
                                   <Badge
                                     variant="outline"
-                                    class="shrink-0 text-[9px] font-bold uppercase"
+                                    class="shrink-0 epi-overline"
                                   >
                                     {activityTypeLabels[activity.type] ??
                                       activity.type}
                                   </Badge>
                                   <span
-                                    class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
+                                    class="min-w-0 flex-1 truncate text-sm font-semibold text-foreground"
                                   >
                                     {activity.name}
                                   </span>
-                                  {#if activity.difficulty}
-                                    <span
-                                      class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
-                                        activity.difficulty
-                                      ] ?? ''}"
-                                    >
-                                      {activity.difficulty}
-                                    </span>
-                                  {/if}
                                 </div>
                               {/each}
                             </div>
@@ -418,10 +350,8 @@
                       </div>
                     </div>
                   {:else}
-                    <div
-                      class="border-t border-slate-100 px-4 py-3 dark:border-slate-800"
-                    >
-                      <p class="text-xs text-slate-400">
+                    <div class="border-t border-border px-4 py-3">
+                      <p class="text-xs text-muted-foreground">
                         Le planning n'est pas encore disponible.
                       </p>
                     </div>
@@ -433,117 +363,5 @@
         </div>
       </div>
     {/if}
-
-    <!-- Event history -->
-    <div in:fly={{ y: 20, duration: 400, delay: 400 }}>
-      <h2
-        class="mb-4 flex items-center gap-2 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
-      >
-        <History class="h-5 w-5 text-epi-blue" />
-        Événements passés<span class="text-epi-teal">_</span>
-      </h2>
-
-      {#if data.participations.length === 0}
-        <div
-          class="flex min-h-40 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-6 text-center dark:border-slate-800 dark:bg-slate-900/50"
-        >
-          <p class="text-sm font-bold text-slate-400 uppercase">
-            Aucun événement passé pour le moment
-          </p>
-        </div>
-      {:else}
-        <div class="space-y-3">
-          {#each data.participations as participation}
-            {@const status = statusLabel(
-              participation.isPresent,
-              participation.delay,
-            )}
-            <Collapsible.Root>
-              <div
-                class="overflow-hidden rounded-2xl bg-white shadow-md shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-              >
-                <Collapsible.Trigger class="w-full">
-                  <div class="flex items-center justify-between p-4">
-                    <div class="flex items-center gap-3 text-left">
-                      <div
-                        class="flex h-10 min-w-20 items-center justify-center rounded-xl px-3 {status.color}"
-                      >
-                        <span class="text-xs font-bold">{status.text}</span>
-                      </div>
-                      <div>
-                        <p class="font-bold text-slate-900 dark:text-white">
-                          {participation.eventName}
-                        </p>
-                        <p class="text-xs font-bold text-slate-400">
-                          {new Date(participation.eventDate).toLocaleDateString(
-                            'fr-FR',
-                            {
-                              day: 'numeric',
-                              month: 'long',
-                              year: 'numeric',
-                            },
-                          )}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                      {#if participation.activities.length > 0}
-                        <Badge variant="outline" class="text-[10px] font-bold">
-                          {participation.activities.length} activité{participation
-                            .activities.length !== 1
-                            ? 's'
-                            : ''}
-                        </Badge>
-                      {/if}
-                      <ChevronDown
-                        class="h-4 w-4 text-slate-400 transition-transform [[data-state=open]_&]:rotate-180"
-                      />
-                    </div>
-                  </div>
-                </Collapsible.Trigger>
-
-                <Collapsible.Content>
-                  {#if participation.activities.length > 0}
-                    <div
-                      class="border-t border-slate-100 px-4 py-3 dark:border-slate-800"
-                    >
-                      <div class="space-y-2">
-                        {#each participation.activities as activity}
-                          <div
-                            class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2.5 dark:bg-slate-800/50"
-                          >
-                            <span
-                              class="text-sm font-semibold text-slate-700 dark:text-slate-300"
-                            >
-                              {activity.name}
-                            </span>
-                            <Badge
-                              variant="outline"
-                              class="text-[10px] font-bold"
-                            >
-                              {activityTypeLabels[activity.type] ??
-                                activity.type}
-                            </Badge>
-                          </div>
-                        {/each}
-                      </div>
-                    </div>
-                  {:else}
-                    <div
-                      class="border-t border-slate-100 px-4 py-3 dark:border-slate-800"
-                    >
-                      <p class="text-xs text-slate-400">
-                        Aucune activité enregistrée
-                      </p>
-                    </div>
-                  {/if}
-                </Collapsible.Content>
-              </div>
-            </Collapsible.Root>
-          {/each}
-        </div>
-      {/if}
-    </div>
   </div>
 </div>

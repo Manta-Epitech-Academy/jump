@@ -35,7 +35,7 @@
     talentId: string;
     notes: SerializedNote[];
     // Campus IANA timezone, forwarded to each card so note timestamps read in the
-    // campus wall clock (see TalentNoteCard — the fiche feed is SSR'd under UTC).
+    // campus wall clock (see TalentNoteCard: the fiche feed is SSR'd under UTC).
     timezone: string;
     eventId?: string | null;
     // The active émargement créneau (the dialog passes the slot on screen). Two
@@ -203,7 +203,7 @@
           >
             {#if highlightLabel}
               <h3
-                class="flex items-center gap-1.5 px-1 text-[11px] font-medium text-epi-blue"
+                class="flex items-center gap-1.5 px-1 text-xs font-medium text-epi-blue"
               >
                 <span class="h-1.5 w-1.5 rounded-full bg-epi-blue"></span>
                 {highlightLabel}
@@ -215,7 +215,7 @@
           </section>
           {#if otherNotes.length > 0}
             <div class="space-y-2">
-              <h3 class="px-1 text-[11px] font-medium text-muted-foreground">
+              <h3 class="px-1 text-xs font-medium text-muted-foreground">
                 Autres
               </h3>
               {#each otherNotes as note (note.id)}
@@ -246,9 +246,7 @@
 <AlertDialog.Root bind:open={deleteOpen}>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title class="font-heading text-xl tracking-tight uppercase">
-        Supprimer la note ?
-      </AlertDialog.Title>
+      <AlertDialog.Title>Supprimer la note ?</AlertDialog.Title>
       <AlertDialog.Description>
         Cette note sera définitivement supprimée. Cette action est irréversible.
       </AlertDialog.Description>

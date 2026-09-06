@@ -5,13 +5,11 @@ import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 import GitCompareArrows from '@lucide/svelte/icons/git-compare-arrows';
 import FileCog from '@lucide/svelte/icons/file-cog';
 import ClipboardList from '@lucide/svelte/icons/clipboard-list';
-import LifeBuoy from '@lucide/svelte/icons/life-buoy';
 import FolderOpen from '@lucide/svelte/icons/folder-open';
 import Megaphone from '@lucide/svelte/icons/megaphone';
 import Send from '@lucide/svelte/icons/send';
 import Mails from '@lucide/svelte/icons/mails';
 import MailCog from '@lucide/svelte/icons/mail-warning';
-import History from '@lucide/svelte/icons/history';
 import DoorOpen from '@lucide/svelte/icons/door-open';
 import Map from '@lucide/svelte/icons/map';
 import CalendarCog from '@lucide/svelte/icons/calendar-cog';
@@ -20,10 +18,7 @@ import Users from '@lucide/svelte/icons/users';
 import GraduationCap from '@lucide/svelte/icons/graduation-cap';
 import NotebookPen from '@lucide/svelte/icons/notebook-pen';
 import UserX from '@lucide/svelte/icons/user-x';
-import FileText from '@lucide/svelte/icons/file-text';
-import Tags from '@lucide/svelte/icons/tags';
 import Heart from '@lucide/svelte/icons/heart';
-import CalendarDays from '@lucide/svelte/icons/calendar-days';
 import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
 import ListChecks from '@lucide/svelte/icons/list-checks';
 
@@ -38,7 +33,7 @@ import ListChecks from '@lucide/svelte/icons/list-checks';
 
 // A sidebar entry can carry a live count. The key names the slot; the layout
 // owns where the number comes from and how it's styled (it has the load data).
-export type AdminBadgeKey = 'authConflicts' | 'tickets' | 'deletions';
+export type AdminBadgeKey = 'authConflicts' | 'deletions';
 
 export type AdminNavItem = {
   /** Label shown in the sidebar and, under its section heading, in the palette. */
@@ -93,17 +88,12 @@ export const ADMIN_NAV: AdminNavSection[] = [
         keywords: ['pdf', 'documents', 'signes', 'export'],
       },
       {
-        label: 'PDF Entretiens',
-        href: resolve('/staff/admin/interview-pdfs'),
+        label: 'PDF Closings',
+        href: resolve('/staff/admin/closing-pdfs'),
         icon: ClipboardList,
-        keywords: ['pdf', 'entretien', 'synthese', 'motivation', 'export'],
-      },
-      {
-        label: 'Tickets',
-        href: resolve('/staff/admin/tickets'),
-        icon: LifeBuoy,
-        keywords: ['support', 'bug', 'suggestion'],
-        badge: 'tickets',
+        // 'entretien' stays a search keyword: the business renamed the act, and
+        // staff who learnt the old word still type it into the palette.
+        keywords: ['pdf', 'closing', 'entretien', 'synthese', 'export'],
       },
       {
         label: '[DEV] S3 Test',
@@ -121,7 +111,6 @@ export const ADMIN_NAV: AdminNavSection[] = [
         href: resolve('/staff/admin/communication'),
         icon: Megaphone,
         keywords: ['comm', 'communication'],
-        activeExclude: resolve('/staff/admin/communication/relances'),
       },
       {
         label: 'Envoi en masse',
@@ -141,12 +130,6 @@ export const ADMIN_NAV: AdminNavSection[] = [
         href: resolve('/staff/admin/email-actions'),
         icon: MailCog,
         keywords: ['email', 'action', 'mapping'],
-      },
-      {
-        label: 'Relances (lecture seule)',
-        href: resolve('/staff/admin/communication/relances'),
-        icon: History,
-        keywords: ['relance', 'rappel'],
       },
       {
         label: "Pages d'accueil",
@@ -208,28 +191,10 @@ export const ADMIN_NAV: AdminNavSection[] = [
     title: 'Pédagogie',
     items: [
       {
-        label: 'Templates Officiels',
-        href: resolve('/staff/admin/templates'),
-        icon: FileText,
-        keywords: ['activite', 'officiel'],
-      },
-      {
-        label: 'Thèmes Officiels',
-        href: resolve('/staff/admin/themes'),
-        icon: Tags,
-        keywords: ['theme', 'tag'],
-      },
-      {
         label: "Centres d'intérêt",
         href: resolve('/staff/admin/interests'),
         icon: Heart,
         keywords: ['interet', 'centre'],
-      },
-      {
-        label: 'Modèles de Planning',
-        href: resolve('/staff/admin/planning-templates'),
-        icon: CalendarDays,
-        keywords: ['planning', 'modele'],
       },
       {
         label: 'Mini-jeux',

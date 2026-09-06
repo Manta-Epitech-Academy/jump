@@ -9,6 +9,7 @@
   import { CIVILITE_OPTIONS } from '$lib/domain/profile';
   import { cn } from '$lib/utils';
   import ContinueButton from './ContinueButton.svelte';
+  import { fieldInput, fieldPopover } from './fieldSkin';
 
   let {
     profile,
@@ -29,27 +30,16 @@
   // recreates this component per step, so the prop never changes while mounted.
   let localCivilite = $state(untrack(() => profile.civilite));
 
-  const fieldInput =
-    'rounded-lg border-slate-300 bg-white/80 text-slate-900 placeholder:text-slate-400 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600';
-  // Glass skin for the PhoneInput chrome so the country selector and its
-  // dropdown match the talent fields; the component itself ships theme-neutral.
-  const fieldPopover =
-    'rounded-xl border border-slate-200 bg-white/80 shadow-lg backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/80';
-  const fieldLabel =
-    'mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400';
+  const fieldLabel = 'mb-1 block text-xs font-medium text-muted-foreground';
 </script>
 
 <div class="mb-6 text-center">
   <div
-    class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
+    class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-epi-blue text-white shadow-raised"
   >
     <UserCheck class="h-7 w-7" />
   </div>
-  <h1
-    class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
-  >
-    Qui es-tu ?
-  </h1>
+  <h1 class="font-heading text-display-m text-epi-blue">Qui es-tu ?</h1>
 </div>
 
 <form
@@ -61,20 +51,20 @@
   <input type="hidden" name="civilite" value={localCivilite} />
 
   <div
-    class="rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    class="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
   >
-    <p class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
-      Civilité <span class="text-red-500">*</span>
+    <p class="mb-2 text-xs font-medium text-muted-foreground">
+      Civilité <span class="text-destructive">*</span>
     </p>
     <div class="flex gap-2">
       {#each CIVILITE_OPTIONS as opt}
         <button
           type="button"
           onclick={() => (localCivilite = opt.value)}
-          class="inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-sm font-medium transition-all {localCivilite ===
+          class="inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-sm font-medium transition-ui {localCivilite ===
           opt.value
             ? 'border-epi-blue bg-epi-blue/10 text-epi-blue'
-            : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300'}"
+            : 'border-border text-foreground-secondary hover:border-border'}"
         >
           {opt.label}
         </button>
@@ -86,11 +76,11 @@
   </div>
 
   <div
-    class="grid grid-cols-2 gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    class="grid grid-cols-2 gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
   >
     <div>
       <Label for="prenom" class={fieldLabel}
-        >Prénom <span class="text-red-500">*</span></Label
+        >Prénom <span class="text-destructive">*</span></Label
       >
       <Input
         id="prenom"
@@ -107,7 +97,7 @@
     </div>
     <div>
       <Label for="nom" class={fieldLabel}
-        >Nom <span class="text-red-500">*</span></Label
+        >Nom <span class="text-destructive">*</span></Label
       >
       <Input
         id="nom"
@@ -128,11 +118,11 @@
        ("06 12 34 56 78") need the card's full width, and a half-width grid cell
        clipped the value and forced horizontal scrolling. -->
   <div
-    class="space-y-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    class="space-y-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
   >
     <div>
       <Label for="email" class={fieldLabel}>Email</Label>
-      <!-- Account/login identity (OTP) — fixed here. Read-only and unnamed, so
+      <!-- Account/login identity (OTP): fixed here. Read-only and unnamed, so
            it's never submitted; editing it would be a no-op (see identitySchema). -->
       <Input
         id="email"
@@ -141,18 +131,15 @@
         readonly
         tabindex={-1}
         aria-describedby="email-hint"
-        class={cn(
-          fieldInput,
-          'cursor-not-allowed text-slate-400 dark:text-slate-500',
-        )}
+        class={cn(fieldInput, 'cursor-not-allowed text-muted-foreground')}
       />
-      <span id="email-hint" class="text-xs text-slate-400 dark:text-slate-500"
+      <span id="email-hint" class="text-xs text-muted-foreground"
         >Lié à ton compte</span
       >
     </div>
     <div>
       <Label for="phone" class={fieldLabel}
-        >Téléphone <span class="text-red-500">*</span></Label
+        >Téléphone <span class="text-destructive">*</span></Label
       >
       <PhoneInput
         id="phone"

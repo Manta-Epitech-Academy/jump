@@ -1,6 +1,5 @@
 <script lang="ts">
   import { SvelteMap } from 'svelte/reactivity';
-  import { resolve } from '$app/paths';
   import { invalidate } from '$app/navigation';
   import { enhance as formEnhance, deserialize } from '$app/forms';
   import { toast } from 'svelte-sonner';
@@ -16,6 +15,8 @@
   import { Button } from '$lib/components/ui/button';
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
     ColumnDef,
@@ -24,6 +25,7 @@
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
+  import { talentFicheHref } from '$lib/components/dev/talentFiche';
   import {
     slotLabelFr,
     statusLabelFr,
@@ -35,6 +37,7 @@
     type PresenceCell as PresenceCellData,
     type EventSlot,
   } from '$lib/domain/eventPresence';
+  import { cohortNounForms } from '$lib/domain/event';
   import type { PresenceRow, PresenceSortKey, EmargementCohort } from './types';
   import PresenceSwitch from './PresenceSwitch.svelte';
   import ContactDialog from './ContactDialog.svelte';
@@ -42,6 +45,12 @@
   import SlotStatsCard from './SlotStatsCard.svelte';
   import PresenceHelpCard from './PresenceHelpCard.svelte';
   import SlotNavigator from './SlotNavigator.svelte';
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
+  import { nextSort } from '$lib/components/staff/datatable/sort';
 
   // The streamed roster plus the slot context the shell owns. `activeSlotKey` is
   // bound back to the shell so its header QR button stays in sync with the slot
@@ -59,6 +68,7 @@
     isActivePastCutoff,
     canEdit,
     eventId,
+    cohortNoun,
     timezone,
     activeSlotKey = $bindable(),
     dialogOpen = $bindable(false),
@@ -70,13 +80,20 @@
     canEdit: boolean;
     /** Anchors notes created from this screen to the event (see NotesDialog). */
     eventId: string;
+    /** Event's Jump-owned cohort noun ("stagiaire", ...), or null when unnamed. */
+    cohortNoun: string | null;
     /** Campus IANA timezone, forwarded to the notes dialog for byline times. */
     timezone: string;
     activeSlotKey: string;
     dialogOpen?: boolean;
   } = $props();
 
+  // Single source for the cohort-member label across the roster + its dialogs.
+  const noun = $derived(cohortNounForms(cohortNoun));
+
   const presenceIndex = $derived(indexPresences(presences));
+
+  const isSingleDayEvent = $derived(slots.length <= 2);
 
   function cell(row: PresenceRow): PresenceCellData {
     if (!activeSlot) return cellOf(presenceIndex, row.talentId, '', 'morning');
@@ -87,7 +104,11 @@
       activeSlot.slot,
     );
     // Unmarked talent in a closed créneau reads as absent (projection, not a row).
-    const status = effectiveStatus(c.status, isActiveClosed);
+    // For single-day events with no manual Jump mark, SF MEET status falls back to present.
+    const status = effectiveStatus(c.status, isActiveClosed, {
+      sfMemberStatus: row.sfMemberStatus,
+      isSingleDayEvent,
+    });
     return status === c.status ? c : { status, source: c.source };
   }
 
@@ -121,21 +142,8 @@
     { value: 'absent', label: statusLabelFr('absent') },
     { value: 'excused', label: statusLabelFr('excused') },
   ];
-  const norm = (s: string) =>
-    s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
   function haystack(r: PresenceRow): string {
-    return norm(
-      [
-        r.nom,
-        r.prenom,
-        r.phone,
-        r.email,
-        ...r.guardians.flatMap((g) => [g.name, g.phone, g.email]),
-      ]
-        .filter(Boolean)
-        .join(' '),
-    );
+    return buildHaystack([r.nom, r.prenom]);
   }
 
   function compareRows(a: PresenceRow, b: PresenceRow): number {
@@ -145,12 +153,10 @@
   }
 
   const filtered = $derived.by(() => {
-    const tokens = norm(searchQuery).split(/\s+/).filter(Boolean);
+    const tokens = searchTokens(searchQuery);
     const out = rows.filter((r) => {
       if (statusFilter !== 'all' && rowStatus(r) !== statusFilter) return false;
-      if (tokens.length === 0) return true;
-      const h = haystack(r);
-      return tokens.every((t) => h.includes(t));
+      return matchesAllTokens(haystack(r), tokens);
     });
     out.sort((a, b) => {
       const c = compareRows(a, b);
@@ -162,16 +168,11 @@
   const anyFilter = $derived(
     searchQuery.trim().length > 0 || statusFilter !== 'all',
   );
-  const countSuffix = $derived(
-    anyFilter ? 'correspondent aux filtres' : 'au total',
-  );
 
   function toggleSort(key: string) {
-    if (sortKey === key) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    else {
-      sortKey = key as PresenceSortKey;
-      sortDir = 'asc';
-    }
+    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
+    sortKey = next.key;
+    sortDir = next.dir;
   }
   function resetFilters() {
     searchQuery = '';
@@ -264,14 +265,6 @@
     );
   }
 
-  // The talent fiche opens in a new tab on purpose: staff stay anchored in the
-  // émargement flow (presence toggles, filters, scroll position) instead of
-  // navigating away mid-attendance, while still reaching the full dossier when a
-  // case needs it. Backs the row name/avatar links below.
-  function ficheHref(talentId: string): string {
-    return resolve(`/staff/dev/students/${talentId}`);
-  }
-
   // Mark one cell straight from the inline switch. Optimistic: paint the choice
   // at once, POST it to the `setPresence` action, then reload to reconcile.
   // `pending` clears the cell (the action deletes the row).
@@ -305,38 +298,31 @@
      slot-lifecycle controls all surface tooltips from here. -->
 <Tooltip.Provider delayDuration={150}>
   {#if rows.length === 0}
-    <div
-      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
-    >
-      <Users class="h-10 w-10 text-muted-foreground opacity-30" />
-      <h3
-        class="mt-4 text-sm font-bold tracking-widest text-foreground uppercase"
-      >
-        Aucun stagiaire inscrit
-      </h3>
-      <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
-        Les stagiaires apparaîtront ici une fois la synchronisation effectuée.
-      </p>
-    </div>
+    <ResultsNotice
+      icon={Users}
+      title={`Aucun ${noun.singular} inscrit`}
+      description={`Les ${noun.plural} apparaîtront ici une fois la synchronisation effectuée.`}
+    />
   {:else}
-    <div class="grid gap-6 xl:grid-cols-10">
-      <div class="min-w-0 space-y-4 xl:col-span-7">
+    <ResultsLayout
+      railClass="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-1"
+    >
+      {#snippet main()}
         <DataTableToolbar
           searchValue={searchQuery}
           onSearchInput={(v) => (searchQuery = v)}
-          searchPlaceholder="Rechercher un stagiaire…"
+          searchPlaceholder={`Rechercher un ${noun.singular}…`}
           searchWidthClass="flex-1 min-w-0 max-w-[230px]"
           filtersAlign="end"
           count={filtered.length}
-          countNoun="stagiaire"
-          {countSuffix}
+          countNoun={noun.singular}
+          countNounPlural={noun.plural}
+          filtersApplied={anyFilter}
         >
           {#snippet filters()}
             <SlotNavigator {slots} bind:value={activeSlotKey} />
             <div class="flex items-center gap-2">
-              <span
-                class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
-              >
+              <span class="hidden epi-overline text-muted-foreground sm:inline">
                 Statut
               </span>
               <FilterSelect
@@ -378,13 +364,15 @@
             <!-- The avatar is the only fiche link: a small, conventional
                  target that reuses an element already in the row, so it adds
                  no surface to mis-tap while marking presence. New tab keeps
-                 staff anchored in the émargement flow. -->
+                 staff anchored in the émargement flow (presence toggles,
+                 filters, scroll position) instead of navigating away
+                 mid-attendance. -->
             <Table.Cell>
               <a
-                href={ficheHref(r.talentId)}
+                href={talentFicheHref(r.talentId, eventId)}
                 target="_blank"
                 rel="noopener"
-                class="inline-flex"
+                class="inline-flex align-middle"
                 title="Voir la fiche"
                 aria-label={`Ouvrir la fiche de ${r.prenom} ${r.nom} (nouvel onglet)`}
               >
@@ -446,27 +434,23 @@
                (not display:none) so it stays tappable on a touch device where
                there is no hover, which is how émargement is run on the floor. -->
             <Table.Cell class="text-right">
-              {#if r.phone || r.email || r.guardians.length}
-                <Tooltip.Root>
-                  <Tooltip.Trigger>
-                    {#snippet child({ props })}
-                      <Button
-                        {...props}
-                        variant="ghost"
-                        size="icon"
-                        class="h-8 w-8 rounded-sm text-muted-foreground/40 transition-colors group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
-                        onclick={() => openContact(r)}
-                        aria-label={`Coordonnées de ${r.prenom} ${r.nom}`}
-                      >
-                        <Phone class="h-4 w-4" />
-                      </Button>
-                    {/snippet}
-                  </Tooltip.Trigger>
-                  <Tooltip.Content>Coordonnées</Tooltip.Content>
-                </Tooltip.Root>
-              {:else}
-                <span class="text-sm text-muted-foreground/40">—</span>
-              {/if}
+              <Tooltip.Root>
+                <Tooltip.Trigger>
+                  {#snippet child({ props })}
+                    <Button
+                      {...props}
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8 rounded-sm text-muted-foreground/40 transition-colors group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
+                      onclick={() => openContact(r)}
+                      aria-label={`Coordonnées de ${r.prenom} ${r.nom}`}
+                    >
+                      <Phone class="h-4 w-4" />
+                    </Button>
+                  {/snippet}
+                </Tooltip.Trigger>
+                <Tooltip.Content>Coordonnées</Tooltip.Content>
+              </Tooltip.Root>
             </Table.Cell>
           {/snippet}
 
@@ -482,7 +466,7 @@
                      action buttons stay non-navigating so they're safe to tap
                      on the floor. -->
                 <a
-                  href={ficheHref(r.talentId)}
+                  href={talentFicheHref(r.talentId, eventId)}
                   target="_blank"
                   rel="noopener"
                   class="inline-flex shrink-0"
@@ -507,17 +491,15 @@
                 >
                   <NotebookPen class="h-4 w-4" />
                 </Button>
-                {#if r.phone || r.email || r.guardians.length}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-8 w-8 shrink-0 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
-                    onclick={() => openContact(r)}
-                    aria-label={`Coordonnées de ${r.prenom} ${r.nom}`}
-                  >
-                    <Phone class="h-4 w-4" />
-                  </Button>
-                {/if}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8 shrink-0 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
+                  onclick={() => openContact(r)}
+                  aria-label={`Coordonnées de ${r.prenom} ${r.nom}`}
+                >
+                  <Phone class="h-4 w-4" />
+                </Button>
               </div>
               <PresenceSwitch
                 block
@@ -548,9 +530,9 @@
             </div>
           {/snippet}
         </SortableTable>
-      </div>
+      {/snippet}
 
-      <aside class="min-w-0 xl:col-span-3">
+      {#snippet rail()}
         {#if activeSlot}
           <!-- The active slot's open/close control, rendered into the SYNTHÈSE
                card footer so it sits with the Clôturé badge it toggles. Edit-only
@@ -585,7 +567,7 @@
                       Clôturé
                     </Button>
                   </div>
-                  <p class="text-[11px] leading-snug text-muted-foreground">
+                  <p class="text-xs leading-snug text-muted-foreground">
                     Clôturé automatiquement passé {slotLabelFr(
                       activeSlot.slot,
                     ) === 'Matin'
@@ -619,7 +601,7 @@
               {:else}
                 <!-- The two end-of-créneau bulk actions, paired so they read as
                      a choice: mark everyone present, or clôturer (which marks the
-                     still-en-attente stagiaires absent and cuts the QR). The
+                     still-en-attente members absent and cuts the QR). The
                      caption spells out the clôture effect, the part staff missed. -->
                 <div class="@container space-y-2">
                   <!-- Side by side when the card is wide enough, stacked when
@@ -647,7 +629,7 @@
                       Clôturer
                     </Button>
                   </div>
-                  <p class="text-[11px] leading-snug text-muted-foreground">
+                  <p class="text-xs leading-snug text-muted-foreground">
                     En fin de créneau : marquez tout le monde présent, ou
                     clôturez pour noter absents ceux qui restent « en attente ».
                   </p>
@@ -658,26 +640,27 @@
 
           <!-- Same rail pattern as Inscrits: side by side below xl (the aside is
              full width there), folding to a sticky single column at xl. -->
-          <div
-            class="grid items-start gap-4 sm:grid-cols-2 xl:sticky xl:top-6 xl:max-h-[calc(100dvh-6rem)] xl:grid-cols-1 xl:overflow-y-auto xl:pr-1"
-          >
-            <SlotStatsCard
-              slotLabel={slotLabelFr(activeSlot.slot)}
-              stats={activeStats}
-              closed={isActiveClosed}
-              stageRate={attendanceRate}
-              footer={canEdit ? slotLifecycle : undefined}
-            />
-            <PresenceHelpCard />
-          </div>
+          <SlotStatsCard
+            slotLabel={slotLabelFr(activeSlot.slot)}
+            stats={activeStats}
+            closed={isActiveClosed}
+            stageRate={attendanceRate}
+            footer={canEdit ? slotLifecycle : undefined}
+          />
+          <PresenceHelpCard {cohortNoun} />
         {/if}
-      </aside>
-    </div>
+      {/snippet}
+    </ResultsLayout>
   {/if}
 </Tooltip.Provider>
 
-<!-- Contact card: phones to reach the stagiaire, then the family if no answer -->
-<ContactDialog bind:open={contactOpen} row={contactTarget} />
+<!-- Contact card: phones to reach the member, then the family if no answer -->
+<ContactDialog
+  bind:open={contactOpen}
+  row={contactTarget}
+  {cohortNoun}
+  {eventId}
+/>
 
 <NotesDialog
   bind:open={notesOpen}
@@ -694,9 +677,9 @@
     <Dialog.Header>
       <Dialog.Title>Marquer tout le monde présent ?</Dialog.Title>
       <Dialog.Description>
-        Tous les stagiaires sans présence enregistrée sur ce créneau passeront
-        présents. Les présences déjà saisies (présent, absent, justifié, en
-        retard) ne sont pas modifiées.
+        Tous les {noun.plural} sans présence enregistrée sur ce créneau passeront
+        présents. Les présences déjà saisies (présent, absent, justifié, en retard)
+        ne sont pas modifiées.
       </Dialog.Description>
     </Dialog.Header>
     {#if activeSlot}
@@ -708,7 +691,7 @@
             await update();
             if (result.type === 'success')
               toast.success(
-                'Stagiaires sans présence enregistrée marqués présents.',
+                `${noun.Plural} sans présence enregistrée marqués présents.`,
               );
             // The bulk mark only fails now if a staff member manually closed the
             // créneau between render and submit; the 11h/15h cutoff no longer
@@ -744,9 +727,9 @@
     <Dialog.Header>
       <Dialog.Title>Clôturer et noter les absents ?</Dialog.Title>
       <Dialog.Description>
-        Tous les stagiaires encore « En attente » seront marqués absents et le
-        QR code de ce créneau cessera de fonctionner. Vous pourrez rouvrir le
-        créneau si besoin.
+        Tous les {noun.plural} encore « En attente » seront marqués absents et le
+        QR code de ce créneau cessera de fonctionner. Vous pourrez rouvrir le créneau
+        si besoin.
       </Dialog.Description>
     </Dialog.Header>
     {#if activeSlot}

@@ -30,9 +30,10 @@ export async function resolveTalentCampus(
 }
 
 /**
- * The talent's 0-based early-bird position within `campusId`: how many talents
- * have ALREADY completed onboarding there, capped at `limit`. Positions at or
- * beyond the limit earn no bonus, so the exact count past it is never needed —
+ * The talent's 0-based early-bird position within `campusId` for `schoolYear`:
+ * how many talents have ALREADY completed onboarding there that year, capped at
+ * `limit`. Positions at or
+ * beyond the limit earn no bonus, so the exact count past it is never needed:
  * the cap lets the scan stop early and returns `min(completers, limit)`.
  *
  * MUST be called inside the transaction that stamps this talent's own
@@ -43,11 +44,16 @@ export async function resolveTalentCampus(
  * commits, so concurrent completions in the same campus serialize. Without it
  * two students finishing in the same instant each read a snapshot taken before
  * the other committed (READ COMMITTED), both see the same count, and tie for the
- * same decaying tier — diluting the "first finisher" reward the tiers exist to
+ * same decaying tier, diluting the "first finisher" reward the tiers exist to
  * grant. A timestamp comparison would not fix this: the cutoff is each
  * transaction's own captured `now`, whose order can disagree with commit order.
  * The lock makes positions exact and gap-free, and is per-campus so unrelated
  * campuses never contend.
+ *
+ * Scoped to one school year through `Talent.onboardingSchoolYear`, the stamp on
+ * the onboarding projection. Counting all-time completers instead would exhaust
+ * a campus's early-bird tiers after its first cohort and silently retire the
+ * reward, since the dossier is walked again every year.
  *
  * "Their campus" matches {@link resolveTalentCampus} exactly: the campus of each
  * completer's most-recent participation, NOT merely any participation here. A
@@ -59,6 +65,7 @@ export async function resolveTalentCampus(
 export async function countCampusEarlyBirdPosition(
   tx: Prisma.TransactionClient,
   campusId: string,
+  schoolYear: string,
   limit: number,
 ): Promise<number> {
   // Serialize same-campus completions; released when the caller's tx commits.
@@ -71,6 +78,7 @@ export async function countCampusEarlyBirdPosition(
       SELECT 1
       FROM "Talent" t
       WHERE t."rulesSignedAt" IS NOT NULL
+        AND t."onboardingSchoolYear" = ${schoolYear}
         AND t.id IN (
           SELECT p."talentId"
           FROM "Participation" p

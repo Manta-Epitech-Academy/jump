@@ -39,9 +39,7 @@
 <Dialog.Root bind:open>
   <Dialog.Content class="rounded-sm sm:max-w-md">
     <Dialog.Header>
-      <Dialog.Title class="font-heading text-xl tracking-tight uppercase">
-        Email du parent
-      </Dialog.Title>
+      <Dialog.Title>Email du parent</Dialog.Title>
       <Dialog.Description>
         Adresse avec laquelle {talent?.parentName || 'le parent'} se connecte à l'espace
         parent. La corriger met aussi à jour son compte de connexion : il pourra se

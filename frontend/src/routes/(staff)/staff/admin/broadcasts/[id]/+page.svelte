@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
+  import { goToListPage } from '$lib/components/staff/datatable/urlList';
   import { toast } from 'svelte-sonner';
   import { Button } from '$lib/components/ui/button';
   import * as Table from '$lib/components/ui/table';
@@ -13,7 +14,7 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import Eye from '@lucide/svelte/icons/eye';
   import Activity from '@lucide/svelte/icons/activity';
-  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import BroadcastStatusBadge from '$lib/components/admin/broadcasts/BroadcastStatusBadge.svelte';
   import ChannelBadge from '$lib/components/admin/broadcasts/ChannelBadge.svelte';
@@ -26,13 +27,6 @@
   const totalPages = $derived(
     Math.max(1, Math.ceil(data.recipientsTotal / data.recipientsPageSize)),
   );
-
-  function goToPage(p: number) {
-    const url = new URL(page.url);
-    if (p <= 1) url.searchParams.delete('page');
-    else url.searchParams.set('page', String(p));
-    goto(url.toString(), { keepFocus: true, noScroll: false });
-  }
 
   const formatter = new Intl.DateTimeFormat('fr-FR', {
     dateStyle: 'short',
@@ -54,7 +48,7 @@
         `parent de ${r.parentOf.prenom} ${r.parentOf.nom}`
       );
     if (r.staffUser?.name) return r.staffUser.name;
-    return '—';
+    return '-';
   }
 
   function recipientRole(r: (typeof data.recipients)[number]): string {
@@ -75,7 +69,7 @@
     <ArrowLeft class="mr-1 h-4 w-4" /> Retour aux envois
   </Button>
 
-  <AdminPageHeader title={data.broadcast.name} />
+  <PageHeader title={data.broadcast.name} />
   <div
     class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground"
   >
@@ -145,7 +139,7 @@
         </div>
       {:else}
         <pre
-          class="rounded-sm border bg-white p-3 text-xs whitespace-pre-wrap text-slate-800 dark:bg-slate-900 dark:text-slate-200">{data
+          class="rounded-sm border bg-card p-3 text-xs whitespace-pre-wrap text-foreground">{data
             .broadcast.bodySnapshot}</pre>
       {/if}
     </div>
@@ -178,7 +172,7 @@
   <div class="flex items-center justify-between text-xs text-muted-foreground">
     <span>
       Destinataires {(data.recipientsPage - 1) * data.recipientsPageSize +
-        1}–{Math.min(
+        1}-{Math.min(
         data.recipientsPage * data.recipientsPageSize,
         data.recipientsTotal,
       )}
@@ -192,7 +186,7 @@
           size="sm"
           class="rounded-sm"
           disabled={data.recipientsPage <= 1}
-          onclick={() => goToPage(data.recipientsPage - 1)}
+          onclick={() => goToListPage(data.recipientsPage - 1)}
         >
           ← Précédent
         </Button>
@@ -205,7 +199,7 @@
           size="sm"
           class="rounded-sm"
           disabled={data.recipientsPage >= totalPages}
-          onclick={() => goToPage(data.recipientsPage + 1)}
+          onclick={() => goToListPage(data.recipientsPage + 1)}
         >
           Suivant →
         </Button>
@@ -235,17 +229,17 @@
             >
             <Table.Cell class="text-xs text-muted-foreground">
               {#if data.broadcast.channel === 'sms'}
-                {r.recipientPhone ?? r.recipientEmail ?? '—'}
+                {r.recipientPhone ?? r.recipientEmail ?? '-'}
               {:else}
-                {r.recipientEmail ?? r.recipientPhone ?? '—'}
+                {r.recipientEmail ?? r.recipientPhone ?? '-'}
               {/if}
             </Table.Cell>
             <Table.Cell><RecipientStatusBadge status={r.status} /></Table.Cell>
             <Table.Cell class="text-xs text-muted-foreground">
-              {r.sentAt ? formatter.format(r.sentAt) : '—'}
+              {r.sentAt ? formatter.format(r.sentAt) : '-'}
             </Table.Cell>
             <Table.Cell class="text-xs text-muted-foreground">
-              {r.openedAt ? formatter.format(r.openedAt) : '—'}
+              {r.openedAt ? formatter.format(r.openedAt) : '-'}
             </Table.Cell>
             <Table.Cell class="text-xs text-destructive">
               {#if data.broadcast.channel === 'sms' && r.status === 'failed'}

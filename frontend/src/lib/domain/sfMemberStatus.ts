@@ -1,0 +1,116 @@
+/**
+ * Salesforce CampaignMember status mapping.
+ *
+ * Statuses are Salesforce vocabulary, stored normalized (trimmed + uppercased)
+ * in `Participation.sfMemberStatus`. Never expose raw words to users; French
+ * labels only.
+ *
+ * Business rules (July 2026 seminar, firm):
+ *   - The worker syncs ALL campaign members regardless of status.
+ *   - Visible statuses in the dev space: READY and MEET only.
+ *   - CONNECTED and DESISTED are never shown anywhere in dev.
+ *   - For a PAST event: MEET = present, READY = absent.
+ */
+
+import type { Prisma } from '@prisma/client';
+
+/** Statuses shown in the dev workspace. Null (legacy) is also visible. */
+export const SF_VISIBLE_STATUSES = ['READY', 'MEET'] as const;
+
+/** Statuses the dev workspace never shows. Retained in the DB for diagnosis. */
+export const SF_HIDDEN_STATUSES = ['CONNECTED', 'DESISTED'] as const;
+
+/**
+ * Every status we know Salesforce sends, visible and hidden together.
+ *
+ * A CATALOGUE OF KNOWN VALUES, NOT A CLOSED SET. The worker syncs every campaign
+ * member whatever its status, and `normalizeSfStatus` only trims and uppercases:
+ * a fifth word invented in Salesforce tomorrow is stored as it arrives. That is
+ * the whole reason `Participation.sfMemberStatus` is a `String` and not a Prisma
+ * enum - turning it into one would make an unknown status a write failure in the
+ * middle of a sync, which is the opposite of what an anti-corruption boundary is
+ * for.
+ *
+ * It exists because the two hidden words used to live in a comment here, in a
+ * table in JARGON.md, and in the keys of a component-local record - so anything
+ * needing the full list (the seed generator, its coverage check) had no choice
+ * but to restate them a fourth time.
+ */
+export const SF_MEMBER_STATUSES = [
+  ...SF_VISIBLE_STATUSES,
+  ...SF_HIDDEN_STATUSES,
+] as const;
+
+/** One of the statuses we know about. Raw input is still a plain `string`. */
+export type SfMemberStatus = (typeof SF_MEMBER_STATUSES)[number];
+
+/**
+ * Prisma where-fragment for the participations visible in the dev workspace:
+ * the visible SF statuses plus legacy rows synced before the column existed
+ * (`null`). Spread into any `Participation` where / relation filter so every dev
+ * count, list and breakdown stays on one cohort definition and can't drift.
+ */
+export const visibleParticipationWhere = {
+  OR: [
+    { sfMemberStatus: { in: [...SF_VISIBLE_STATUSES] } },
+    { sfMemberStatus: null },
+  ],
+} satisfies Prisma.ParticipationWhereInput;
+
+/**
+ * The same cohort rule in French, for the figures that travel with their own
+ * definition (`adminApi/metrics.ts`, the weekly digest).
+ *
+ * It lives here, next to the `where` it describes, because it was written out by
+ * hand in two aggregates at once: two copies of one rule, and both said "READY ou
+ * MEET" while the filter also keeps legacy rows synced before the status column
+ * existed. A definition that undersells what it counts is worse than no
+ * definition, since it gets quoted verbatim to an admin.
+ *
+ * Reads as a clause, so a definition can compose it: "Participations aux
+ * événements du périmètre, ${VISIBLE_PARTICIPATION_DEFINITION}."
+ */
+export const VISIBLE_PARTICIPATION_DEFINITION =
+  'en ne comptant que les inscriptions visibles dans Jump (statut Salesforce ' +
+  "READY ou MEET, plus les inscriptions importées avant l'ajout du statut)";
+
+/**
+ * Whether a participation should appear in the dev workspace.
+ * Null = legacy row synced before the status column existed: keep visible.
+ */
+export function isVisibleInDevSpace(status: string | null): boolean {
+  if (status === null) return true;
+  const upper = status.trim().toUpperCase();
+  return (SF_VISIBLE_STATUSES as readonly string[]).includes(upper);
+}
+
+/**
+ * For past events only: derive a presence outcome from the SF member status.
+ *   - MEET -> 'present' (they attended)
+ *   - READY -> 'absent' (said they would come, did not)
+ *   - anything else -> null (no meaningful presence signal)
+ */
+export function pastEventPresence(
+  status: string | null,
+): 'present' | 'absent' | null {
+  if (status === null) return null;
+  const upper = status.trim().toUpperCase();
+  if (upper === 'MEET') return 'present';
+  if (upper === 'READY') return 'absent';
+  return null;
+}
+
+/** Normalize a raw SF status for DB storage: trim + uppercase. */
+export function normalizeSfStatus(
+  raw: string | null | undefined,
+): string | null {
+  if (raw == null) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  return trimmed.toUpperCase();
+}
+
+/** French label for a presence outcome (past events). */
+export function presenceLabel(presence: 'present' | 'absent'): string {
+  return presence === 'present' ? 'Présent' : 'Absent';
+}

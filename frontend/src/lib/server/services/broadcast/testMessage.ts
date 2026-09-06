@@ -16,7 +16,7 @@ export type TestMessageInput = {
   channel: 'mail' | 'sms';
   subject: string | null;
   body: string;
-  /** Raw recipient — an email address (mail) or phone number (sms). */
+  /** Raw recipient: an email address (mail) or phone number (sms). */
   to: string;
   /** Optional event title, for the {{event_name}} demo variable. */
   eventName?: string | null;
@@ -28,14 +28,14 @@ export type TestMessageResult = { ok: true } | { ok: false; message: string };
  * Render a template's content with demo variables and send it to a single
  * test recipient. Shared by the broadcast composer (test a saved template by
  * id) and the template editor (test the in-progress draft), so both surfaces
- * render and track links identically to a real send — the only differences
+ * render and track links identically to a real send, the only differences
  * from production are the demo variable values and the fixed tracking id.
  *
  * A test-send addresses one recipient the staff member just typed (or their
  * own address), so it `devRedirect: 'bypass'`-es the env trap: on dev/staging
  * the preview reaches the address you entered instead of being rerouted to the
  * shared `*_DEV_RECIPIENTS` list. That's what makes "send me a real test" work
- * without a redeploy. The trap still governs every bulk and automatic send —
+ * without a redeploy. The trap still governs every bulk and automatic send:
  * only this single, explicit, human-typed path opts out.
  */
 export async function sendTestMessage(

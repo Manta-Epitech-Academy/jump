@@ -20,7 +20,7 @@ const BARREL_IMPORT =
 function kebab(pascal: string): string {
   // Lucide exposes an `Icon`-suffixed alias for icons whose bare name would
   // collide with HTML/JS globals (File, Image, Link, Map, ...). The on-disk
-  // file is the bare kebab name — strip the suffix before kebab-casing.
+  // file is the bare kebab name: strip the suffix before kebab-casing.
   // No real Lucide icon path ends in `-icon`, so this is safe.
   const name =
     pascal.endsWith('Icon') && pascal !== 'Icon' ? pascal.slice(0, -4) : pascal;

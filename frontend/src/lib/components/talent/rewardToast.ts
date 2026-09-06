@@ -17,7 +17,7 @@ const REWARD_TOAST_DURATION_MS = 6000;
 // reported the 6s default vanished before they finished reading it.
 const WELCOME_TOAST_DURATION_MS = 7000;
 
-export function rewardToast(
+function rewardToast(
   title: string,
   description: string,
   durationMs: number = REWARD_TOAST_DURATION_MS,
@@ -48,7 +48,7 @@ export function welcomeRewardToast(totalXp: number, earlyBirdBonus: number) {
   rewardToast('Bienvenue sur Jump ! 🎉', body, WELCOME_TOAST_DURATION_MS);
 }
 
-// The daily-minigame win toast fires from two places — right after the win on
+// The daily-minigame win toast fires from two places: right after the win on
 // the training page, and as the dashboard fallback when the browser only learns
 // of the win on the next visit. Keep the copy here so the two can't drift.
 export function minigameRewardToast(xp: number) {

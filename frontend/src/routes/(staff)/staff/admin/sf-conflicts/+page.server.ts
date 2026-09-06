@@ -12,12 +12,14 @@ import {
   type AuthRepairAction,
 } from '$lib/server/services/authIdentityRepairService';
 import type { SfConflictsData } from './components/types';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 export const load: PageServerLoad = async ({ locals }) => {
   // Two families of conflict surfaced as two tabs on this page:
   //  - DATA  : Talent ⇆ TalentSfImport field diffs + enrichment to push (CSV).
   //  - AUTH  : Talent ⇆ bauth_user identity drift (login-layer), with per-verdict
-  //            repairs. Calculated, never stored — same convention as the diffs.
+  //            repairs. Calculated, never stored: same convention as the diffs.
   // All three are full-cohort scans (no cheap shell data to await), so stream them
   // behind an un-awaited promise: the page shell (title + search) paints at once
   // and the conflict tables fill in, instead of the navigation blocking on the
@@ -53,7 +55,6 @@ function readDiffTarget(data: FormData) {
 
 const AUTH_ACTIONS: readonly AuthRepairAction[] = [
   'repointDrop',
-  'rename',
   'swap',
   'sever',
 ];
@@ -66,6 +67,7 @@ function isAuthAction(v: unknown): v is AuthRepairAction {
 export const actions: Actions = {
   // ── DATA tab: adopt Salesforce for one field (overwrite the talent value). ──
   adoptSf: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SF_CONFLICT_ADOPT, { locals });
     if (locals.staffProfile?.staffRole !== 'admin') return fail(403);
     const target = readDiffTarget(await request.formData());
     if (!target) return fail(400);
@@ -78,6 +80,7 @@ export const actions: Actions = {
   // core re-verifies the precondition inside its transaction and throws if the
   // state no longer matches, which we surface as a failed action.
   repairAuth: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SF_AUTH_REPAIR, { locals });
     if (locals.staffProfile?.staffRole !== 'admin' || !locals.user)
       return fail(403);
     const data = await request.formData();

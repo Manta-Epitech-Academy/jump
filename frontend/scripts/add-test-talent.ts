@@ -1,11 +1,11 @@
 /**
- * Add a test talent with incomplete onboarding for testing reminders.
+ * Add a test talent with incomplete onboarding.
  *
  * Creates a talent with:
  * - infoValidatedAt set (student info done)
  * - rulesSignedAt NULL (règlement not signed)
  * - imageRightsDecision NULL (droit à l'image undecided)
- * - parentEmail set to the provided email so both reminder types can be tested
+ * - parentEmail set to the provided email (exercises the parent flow)
  * - Linked to Paris campus via a Participation on the first available event
  *
  * Run: bun run scripts/add-test-talent.ts
@@ -52,35 +52,30 @@ async function main() {
     process.exit(1);
   }
 
-  // Find the active stage_seconde event on Paris campus
+  // Find an ongoing multi-day (stage-like) event on Paris campus: one whose
+  // window is still open.
   const now = new Date();
   const lookaheadDays = 60;
   const lookahead = new Date(now);
   lookahead.setDate(lookahead.getDate() + lookaheadDays);
   const defaultDuration = 14;
-  const implicitLookback = new Date(now);
-  implicitLookback.setDate(implicitLookback.getDate() - defaultDuration);
 
   let event = await prisma.event.findFirst({
     where: {
       campusId: paris.id,
-      eventType: 'stage_seconde',
       date: { lte: lookahead },
-      OR: [
-        { endDate: { gte: now } },
-        { endDate: null, date: { gte: implicitLookback } },
-      ],
+      endDate: { gte: now },
     },
     select: { id: true, titre: true },
     orderBy: { date: 'asc' },
   });
 
   if (!event) {
-    // Fallback: create a stage_seconde event starting today
+    // Fallback: create a stage-like event running from today for two weeks.
     event = await prisma.event.create({
       data: {
-        titre: 'Stage de Seconde – Test',
-        eventType: 'stage_seconde',
+        titre: 'Stage de Seconde - Test',
+        cohortNoun: 'stagiaire',
         date: now,
         endDate: new Date(now.getTime() + defaultDuration * 86_400_000),
         campusId: paris.id,
@@ -92,35 +87,57 @@ async function main() {
     console.log(`  Using existing stage event: ${event.titre}`);
   }
 
-  // Create or update the test talent
-  const talent = await prisma.talent.upsert({
-    where: { email },
-    update: {
-      infoValidatedAt: new Date(),
-      rulesSignedAt: null,
-      charterAcceptedAt: null,
-      imageRightsDecision: null,
-      imageRightsDecidedAt: null,
-      parentEmail: email,
-      parentNom: 'Test',
-      parentPrenom: 'Parent',
-    },
-    create: {
-      email,
-      nom: 'Test',
-      prenom: 'Talent',
-      niveau: '3eme',
-      infoValidatedAt: new Date(),
-      rulesSignedAt: null,
-      charterAcceptedAt: null,
-      imageRightsDecision: null,
-      imageRightsDecidedAt: null,
-      parentEmail: email,
-      parentNom: 'Test',
-      parentPrenom: 'Parent',
-      parentPhone: '0600000000',
-    },
+  // Create or update the test talent, keyed by its linked login account. The
+  // student's login email now lives only on the linked bauth_user, so a fresh
+  // talent must mint that account first, then reference it (mirrors
+  // ensureTalentUser). Re-runs find the existing talent via its account.
+  const existing = await prisma.talent.findFirst({
+    where: { user: { email } },
+    select: { id: true },
   });
+
+  let talent: { id: string };
+  if (existing) {
+    talent = await prisma.talent.update({
+      where: { id: existing.id },
+      data: {
+        infoValidatedAt: new Date(),
+        rulesSignedAt: null,
+        charterAcceptedAt: null,
+        imageRightsDecision: null,
+        imageRightsDecidedAt: null,
+        parentEmail: email,
+        parentNom: 'Test',
+        parentPrenom: 'Parent',
+      },
+      select: { id: true },
+    });
+  } else {
+    const user = await prisma.bauth_user.upsert({
+      where: { email },
+      update: {},
+      create: { email, role: 'student', name: 'Talent Test' },
+      select: { id: true },
+    });
+    talent = await prisma.talent.create({
+      data: {
+        userId: user.id,
+        nom: 'Test',
+        prenom: 'Talent',
+        niveau: '3eme',
+        infoValidatedAt: new Date(),
+        rulesSignedAt: null,
+        charterAcceptedAt: null,
+        imageRightsDecision: null,
+        imageRightsDecidedAt: null,
+        parentEmail: email,
+        parentNom: 'Test',
+        parentPrenom: 'Parent',
+        parentPhone: '0600000000',
+      },
+      select: { id: true },
+    });
+  }
 
   // Ensure participation exists on this specific stage event
   const existingParticipation = await prisma.participation.findFirst({

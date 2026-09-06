@@ -2,6 +2,8 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { uploadFile, deleteFile } from '$lib/server/infra/storage';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 const BUCKET = 'jump-files';
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 Mo
@@ -49,6 +51,7 @@ export const load: PageServerLoad = async () => {
 
 export const actions: Actions = {
   create: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SIGNATORY_WRITE, { locals });
     if (locals.staffProfile?.staffRole !== 'admin') {
       return fail(403, { message: 'Accès refusé.' });
     }
@@ -92,6 +95,7 @@ export const actions: Actions = {
   },
 
   update: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SIGNATORY_WRITE, { locals });
     if (locals.staffProfile?.staffRole !== 'admin') {
       return fail(403, { message: 'Accès refusé.' });
     }
@@ -146,6 +150,7 @@ export const actions: Actions = {
   },
 
   delete: async ({ url, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SIGNATORY_WRITE, { locals });
     if (locals.staffProfile?.staffRole !== 'admin') {
       return fail(403, { message: 'Accès refusé.' });
     }

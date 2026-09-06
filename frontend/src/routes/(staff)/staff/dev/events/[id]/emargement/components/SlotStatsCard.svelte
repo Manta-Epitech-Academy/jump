@@ -31,25 +31,25 @@
       key: 'present',
       label: 'Présents',
       value: stats.present,
-      fill: 'bg-emerald-500',
+      fill: 'bg-success',
     },
     {
       key: 'late',
       label: 'En retard',
       value: stats.late,
-      fill: 'bg-amber-500',
+      fill: 'bg-warning',
     },
     {
       key: 'absent',
       label: 'Absents',
       value: stats.absent,
-      fill: 'bg-red-500',
+      fill: 'bg-destructive',
     },
     {
       key: 'excused',
       label: 'Justifiés',
       value: stats.excused,
-      fill: 'bg-sky-500',
+      fill: 'bg-primary',
     },
     {
       key: 'pending',
@@ -64,17 +64,15 @@
   const handled = $derived(stats.total - stats.pending);
 </script>
 
-<Card.Root class="rounded-sm shadow-sm dark:shadow-none">
+<Card.Root class="rounded-sm shadow-raised">
   <div
     class="flex flex-row items-center gap-2 border-b bg-muted/30 px-6 pt-4 pb-3"
   >
     <ClipboardCheck class="h-5 w-5 text-epi-blue" />
-    <h3 class="font-heading text-2xl tracking-wide text-foreground uppercase">
-      Synthèse
-    </h3>
+    <h3 class="font-heading text-display-m text-foreground">Synthèse</h3>
     {#if closed}
       <span
-        class="ml-auto inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 uppercase dark:border-amber-500/25 dark:bg-amber-500/15 dark:text-amber-300"
+        class="ml-auto inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 epi-chip text-warning"
       >
         <Lock class="h-3 w-3" /> Clôturé
       </span>
@@ -83,13 +81,11 @@
 
   <Card.Content class="space-y-3 p-4">
     <div>
-      <p
-        class="font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
+      <p class="epi-overline text-muted-foreground">
         {slotLabel}
       </p>
       <div class="mt-1 flex items-baseline gap-2">
-        <span class="text-3xl leading-none font-extrabold text-foreground">
+        <span class="text-3xl leading-none font-bold text-foreground">
           {stats.presentPct}%
         </span>
         <span class="text-xs text-muted-foreground">présents</span>
@@ -123,9 +119,8 @@
             {s.label}
           </dt>
           <dd class="flex items-baseline gap-2">
-            <span class="font-bold text-foreground tabular-nums">{s.value}</span
-            >
-            <span class="w-9 text-right text-muted-foreground/70 tabular-nums">
+            <span class="font-bold text-foreground">{s.value}</span>
+            <span class="w-9 text-right text-muted-foreground/70">
               {pct(s.value)}%
             </span>
           </dd>
@@ -133,17 +128,15 @@
       {/each}
     </dl>
 
-    <div class="space-y-1 border-t pt-2 text-[11px] text-muted-foreground">
+    <div class="space-y-1 border-t pt-2 text-xs text-muted-foreground">
       <p>
-        <span class="font-bold text-foreground tabular-nums">{handled}</span
-        >/{stats.total} émargés sur ce créneau
+        <span class="font-bold text-foreground">{handled}</span>/{stats.total} émargés
+        sur ce créneau
       </p>
       {#if stageRate !== null}
         <p>
           Présence globale :
-          <span class="font-bold text-foreground tabular-nums"
-            >{stageRate}%</span
-          >
+          <span class="font-bold text-foreground">{stageRate}%</span>
           <span class="text-muted-foreground/70">sur les créneaux émargés</span>
         </p>
       {/if}

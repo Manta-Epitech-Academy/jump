@@ -1,5 +1,6 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
+import { can } from '$lib/domain/permissions';
 
 /**
  * Dev-tooling: lets an admin impersonating a dev/superdev preview phase-specific
@@ -24,7 +25,7 @@ export const DEV_PHASE_OVERRIDE_COOKIE = 'dev_phase_override';
  * (`./staff/dev`) under SvelteKit's default `paths.relative = true`, which
  * fails to match `event.url.pathname` (always absolute).
  */
-export const DEV_WORKSPACE_PATH = '/staff/dev';
+const DEV_WORKSPACE_PATH = '/staff/dev';
 
 const VALID_OVERRIDES = ['upcoming', 'ongoing', 'past'] as const;
 
@@ -37,11 +38,10 @@ export function isDevPhaseOverride(
 export function isDevImpersonation(locals: App.Locals): boolean {
   const session = locals.session as { impersonatedBy?: string | null } | null;
   if (!session?.impersonatedBy) return false;
-  const role = locals.staffProfile?.staffRole;
-  return role === 'superdev' || role === 'dev';
+  return can('devMember', locals.staffProfile?.staffRole);
 }
 
-export function isDevWorkspacePath(pathname: string): boolean {
+function isDevWorkspacePath(pathname: string): boolean {
   return (
     pathname === DEV_WORKSPACE_PATH ||
     pathname.startsWith(`${DEV_WORKSPACE_PATH}/`)

@@ -11,8 +11,9 @@ import {
   eventModuleSettings,
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { resolveEventDiplomaIdentity } from '$lib/server/diplomaTemplates';
 import { compareNiveaux } from '$lib/domain/niveau';
-import { rulesStatus, inscritStatus } from '$lib/domain/stageCompliance';
+import { rulesStatus, inscritStatus } from '$lib/domain/dossierCompliance';
 import { imageRightsStatus } from '$lib/domain/imageRights';
 import {
   getLifecycleBounds,
@@ -24,11 +25,15 @@ import { composeEventStartInstant } from '$lib/server/eventTime';
 import {
   rankLyceesByCohort,
   rankInterestsByCohort,
+  eventCohortWhere,
   toBreakdown,
 } from '$lib/server/services/cohortOverview';
 import { INSCRIT_PARTICIPATION_SELECT } from './components/types';
+import { loadEventDossierSignatures, NO_DOSSIER_SIGNATURES } from './dossiers';
+import { schoolYearOf } from '$lib/domain/schoolYear';
 import type { InscritRow, InscritsCohort } from './components/types';
 import { stageCountdown } from '$lib/domain/eventPresence';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 
 // The sidebar cards are narrower than the dashboard's side-by-side breakdowns,
 // so they show a shorter head with the tail folded into "Autres".
@@ -63,7 +68,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     status,
     openDate: composeEventStartInstant(
       event.date,
-      effectiveStartMinutes(event.eventType, event.startMinutes),
+      effectiveStartMinutes(event.startMinutes),
       timezone,
     ),
     startMinutes: event.startMinutes,
@@ -100,39 +105,59 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     activeInterest?.id ?? null,
   );
 
-  const scopedAnd = [{ eventId: event.id }, ...originAnd];
+  const scopedAnd = [
+    { eventId: event.id },
+    visibleParticipationWhere,
+    ...originAnd,
+  ];
   const where = scopedAnd.length === 1 ? scopedAnd[0] : { AND: scopedAnd };
 
   // Stream the cohort: the page shell (header + countdown + rail skeleton) paints
   // immediately while this resolves, instead of the client navigation blocking on
   // it. One phase-agnostic query: every inscrit, sorted by nom for a stable order
   // (the client applies the user-chosen sort on top). The cohort overview
-  // (counter + origin breakdowns + lycée picker) is whole-event on purpose —
+  // (counter + origin breakdowns + lycée picker) is whole-event on purpose:
   // it ignores the `?lycee`/`?interest` origin filter so it stays a stable map
   // the user drills into, never collapsing to the row currently filtered.
+  // The règlement applying to this event is the one of the event's own school
+  // year, so that is the dossier the statut column reads (see `./dossiers`).
+  const eventSchoolYear = schoolYearOf(event.date, timezone).label;
+
   const cohort: Promise<InscritsCohort> = (async () => {
-    const [participations, lyceeRanking, interestRanking, cohortTotal] =
-      await Promise.all([
-        db.participation.findMany({
-          where,
-          select: INSCRIT_PARTICIPATION_SELECT,
-          orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
-        }),
-        rankLyceesByCohort(db, event.id),
-        // The interests sidebar shows only tech interests (the recruitment
-        // signal); the lycée breakdown stays the full origin picture.
-        rankInterestsByCohort(db, event.id, { techOnly: true }),
-        db.participation.count({ where: { eventId: event.id } }),
-      ]);
+    const [
+      participations,
+      lyceeRanking,
+      interestRanking,
+      cohortTotal,
+      dossiers,
+    ] = await Promise.all([
+      db.participation.findMany({
+        where,
+        select: INSCRIT_PARTICIPATION_SELECT,
+        orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
+      }),
+      rankLyceesByCohort(db, eventCohortWhere(event.id)),
+      // The interests sidebar shows only tech interests (the recruitment
+      // signal); the lycée breakdown stays the full origin picture.
+      rankInterestsByCohort(db, eventCohortWhere(event.id), {
+        techOnly: true,
+      }),
+      db.participation.count({
+        where: { eventId: event.id, ...visibleParticipationWhere },
+      }),
+      loadEventDossierSignatures(db, event.id, eventSchoolYear),
+    ]);
 
     const rows: InscritRow[] = participations.map((p) => {
       const t = p.talent;
+      const dossier = dossiers.get(p.talentId) ?? NO_DOSSIER_SIGNATURES;
       const rules = rulesStatus(
-        t.parentRulesSignedAt,
-        p.stageCompliance?.charteSigned,
-        t.rulesSignedAt,
+        dossier.parentRulesSignedAt,
+        dossier.rulesSignedAt,
       );
-      const image = imageRightsStatus(t);
+      // Off the event's own dossier, like the règlement beside it: the flat
+      // column would answer for whichever year this talent last opened.
+      const image = imageRightsStatus(dossier);
       const connected = t.firstLoginAt != null;
       return {
         id: p.id,
@@ -142,13 +167,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         niveau: t.niveau,
         schoolName: t.school?.name ?? null,
         xp: t.xp,
-        status: inscritStatus(connected, rules, image),
+        status: inscritStatus(t.niveau, connected, rules, image),
         connected,
         rulesStatus: rules,
         imageStatus: image,
-        studentSigned: t.rulesSignedAt != null,
-        email: t.email,
-        parentEmail: t.parentEmail,
+        studentSigned: dossier.rulesSignedAt != null,
+        email: t.user?.email ?? null,
+        sfMemberStatus: p.sfMemberStatus,
       };
     });
 
@@ -178,9 +203,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     // campus doesn't onboard. Cheap shell value, so it rides the first paint.
     showStatutColumn: eventModuleSettings(event, EVENT_MODULES.INSCRITS)
       .showStatutColumn,
-    // Inscrits sub-option: the internship-diploma export (Certificat de stage).
-    // Off for events that don't issue one (e.g. coding clubs). Cheap shell value.
-    allowDiplomas: eventModuleSettings(event, EVENT_MODULES.INSCRITS).diplomas,
+    // Which certificate this event issues, or null when it issues none, which is
+    // what hides the export. Only the identity: the page needs the label to name
+    // the download, never the design's kilobytes of CSS.
+    diploma: await resolveEventDiplomaIdentity(event),
     // Un-awaited on purpose: SvelteKit streams it so the shell paints first.
     cohort,
   };

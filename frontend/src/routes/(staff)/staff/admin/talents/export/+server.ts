@@ -16,11 +16,13 @@ import {
   projectTalentRow,
 } from '../query';
 import { TALENT_STATUS_LABELS, PARENT_STATUS_LABELS } from '../labels';
+import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '$lib/domain/usage';
 
 /**
  * Filtered-directory XLSX export. Unlike the dev inscrits export (which posts
  * the ~200 ids it holds client-side), the admin talents list is server
- * paginated — only the current page of 50 is ever in the browser — so this
+ * paginated (only the current page of 50 is ever in the browser), so this
  * endpoint re-derives the filter `where` from the URL params via the shared
  * builder and exports EVERY matching row, in the table's sort order. The shared
  * `projectTalentRow` is what guarantees the "Statut" / "Parent" columns read the
@@ -31,6 +33,7 @@ import { TALENT_STATUS_LABELS, PARENT_STATUS_LABELS } from '../labels';
  * the download doubles as a contact list and a "who owes what" triage sheet.
  */
 export const GET: RequestHandler = async ({ url, locals }) => {
+  recordUsage(USAGE_FEATURES.ADMIN_TALENTS_EXPORT, { locals });
   // Belt-and-braces: /staff/admin/* is already gated in hooks, but assert here
   // too since an endpoint isn't covered by the +layout.server guard (mirrors
   // the impersonate action).
@@ -57,7 +60,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     return [
       row.nom,
       row.prenom,
-      row.email ?? '',
+      row.user?.email ?? '',
       row.phone ?? '',
       civiliteLabel(row.civilite),
       row.niveau ? niveauLabel(row.niveau) : '',
@@ -68,6 +71,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       row.parentEmail ?? '',
       row.parentPhone ?? '',
       t.parentStatus ? PARENT_STATUS_LABELS[t.parentStatus] : '',
+      // The decision for the dossier in hand, which since the decision became
+      // annual is this talent's CURRENT year and not their whole history. That is
+      // the right reading for a triage sheet, and the wrong one for "may we
+      // publish a photo": a refusal from a closed year reads « En attente » here,
+      // because the guardian is being asked again. The header says so, and
+      // `stats_compliance_status` returns the standing interdictions as a figure.
       IMAGE_RIGHTS_STATUS_LABELS[imageRightsStatus(row)],
       t.xp,
       t.eventsCount,
@@ -91,7 +100,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       'Email parent',
       'Téléphone parent',
       'Statut parent',
-      "Droit à l'image",
+      "Droit à l'image (année en cours)",
       'XP',
       'Événements',
       'Dernière activité',

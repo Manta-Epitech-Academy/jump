@@ -19,7 +19,7 @@
 
   // The game's own consigne screen is the single pre-game gate, so this page no
   // longer shows a redundant "ready?" CTA: it mints the attempt on mount (a real
-  // visit, never a hover-preload — `load` stays read-only) and embeds the iframe
+  // visit, never a hover-preload, `load` stays read-only) and embeds the iframe
   // straight away. The theme is captured once via `untrack` so toggling the mode
   // never rewrites the src and reloads the game mid-play; live changes go over
   // postMessage instead.
@@ -29,7 +29,7 @@
     const base = data.jumpGamesUrl.replace(/\/$/, '');
     const theme = untrack(() => mode.current ?? 'light');
     // Pass the XP at stake so the game can show the reward up front (consigne)
-    // and during play — Jump owns the amount, the game just displays it. This is
+    // and during play: Jump owns the amount, the game just displays it. This is
     // the anticipation/incentive layer; the actual grant still happens
     // server-to-server on finish, never from this number.
     return `${base}/?token=${encodeURIComponent(form.token)}&theme=${theme}&reward=${MINIGAME_XP_REWARD}`;
@@ -51,8 +51,8 @@
 
   // Grow toward the content height, but cap at the space actually visible below
   // the page chrome (which includes the impersonation banner when present). A
-  // tall game then scrolls *inside* the iframe — so its own sticky header (the
-  // chrono) stays put — instead of growing the frame past the viewport and
+  // tall game then scrolls *inside* the iframe, so its own sticky header (the
+  // chrono) stays put, instead of growing the frame past the viewport and
   // scrolling the whole Talent page out from under it.
   function sizeFrame() {
     const desired = Math.max(MIN_FRAME_HEIGHT, contentHeight);
@@ -74,7 +74,7 @@
   let failed = $state(false);
 
   // Mirror Jump's live theme into the running game without reloading it. Wait
-  // for the frame to finish loading the games origin — posting earlier targets a
+  // for the frame to finish loading the games origin: posting earlier targets a
   // still-blank, same-origin document and throws a targetOrigin mismatch (the
   // initial theme rides in the iframe src anyway).
   $effect(() => {
@@ -92,8 +92,8 @@
   // form stamps xpSeenAt so the dashboard won't replay the float.
   //
   // The beats are layered across both frames (game juice): the in-game result
-  // card assembles + counts up first (inside the iframe), THEN — after a short
-  // lead-in — Jump's reward layers on top: XP float pops with a confetti burst,
+  // card assembles + counts up first (inside the iframe), THEN, after a short
+  // lead-in, Jump's reward layers on top: XP float pops with a confetti burst,
   // side-cannon streams follow, and the recap toast slides in last so it reads
   // as a reward, not a notification.
   const celebrationTimers: ReturnType<typeof setTimeout>[] = [];
@@ -121,7 +121,7 @@
   }
 
   onMount(() => {
-    // Trust messages only from our own game iframe — comparing `event.source`
+    // Trust messages only from our own game iframe: comparing `event.source`
     // is robust where an origin string isn't (localhost vs 127.0.0.1, a proxied
     // JUMP_GAMES_URL) and ignores unrelated posts (e.g. Vite HMR).
     function onMessage(e: MessageEvent) {
@@ -190,9 +190,7 @@
       <!-- No card chrome here: the game paints its own Talent-style page (slate
            background + white/slate-900 cards) inside the frame, so wrapping it
            in another card would double up. -->
-      <div
-        class="overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800"
-      >
+      <div class="overflow-hidden rounded-xl border border-border">
         <iframe
           bind:this={iframeEl}
           onload={() => {
@@ -214,10 +212,10 @@
            inside the frame, so there's no chrome to add out here. -->
     {:else}
       <div
-        class="flex flex-col items-center gap-4 rounded-3xl bg-white p-10 text-center shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+        class="flex flex-col items-center gap-4 rounded-xl border border-border bg-card p-10 text-center shadow-raised"
       >
         {#if failed}
-          <p class="text-sm text-slate-500 dark:text-slate-400">
+          <p class="text-sm text-muted-foreground">
             Impossible de lancer l'entraînement pour le moment.
           </p>
           <Button href={resolve('/')} variant="outline">
@@ -225,7 +223,7 @@
           </Button>
         {:else}
           <Loader2 class="h-8 w-8 animate-spin text-epi-blue" />
-          <p class="text-sm text-slate-500 dark:text-slate-400">
+          <p class="text-sm text-muted-foreground">
             Préparation de ton entraînement…
           </p>
         {/if}

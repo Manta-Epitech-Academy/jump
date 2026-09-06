@@ -12,44 +12,12 @@
   import SearchableSelect from '$lib/components/staff/SearchableSelect.svelte';
   import * as Table from '$lib/components/ui/table';
   import * as Tooltip from '$lib/components/ui/tooltip';
-  import { Checkbox } from '$lib/components/ui/checkbox';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
-  import { Badge } from '$lib/components/ui/badge';
-  import { FEATURE_FLAGS, type FlagKey } from '$lib/domain/featureFlags';
   import { track, errReason } from '$lib/analytics';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
-  const flagDefs = Object.values(FEATURE_FLAGS);
-  const defaultEnabledFlags = flagDefs
-    .filter((f) => f.defaultEnabled)
-    .map((f) => f.key as FlagKey);
-
-  // The flag list grows over time, so the dialog filters by label / description
-  // / key and splits the two kinds into their own groups. The search only
-  // toggles row VISIBILITY, it never unmounts a row: this form posts via
-  // FormData (superforms default dataType), so the submitted `flags` array is
-  // built from the rendered `name="flags"` checkboxes. Unmounting a checked but
-  // non-matching flag would drop it from the payload and silently disable it on
-  // save. Keep every flag in the DOM and hide non-matches with [hidden].
-  const capabilityFlags = flagDefs.filter((f) => f.kind === 'capability');
-  const rolloutFlags = flagDefs.filter((f) => f.kind === 'rollout');
-  let flagSearch = $state('');
-  const matchedKeys = $derived.by(() => {
-    const q = flagSearch.trim().toLowerCase();
-    const matched = new Set<string>();
-    for (const f of flagDefs) {
-      if (
-        !q ||
-        f.label.toLowerCase().includes(q) ||
-        f.description.toLowerCase().includes(q) ||
-        f.key.toLowerCase().includes(q)
-      ) {
-        matched.add(f.key);
-      }
-    }
-    return matched;
-  });
 
   // Form handling logic
   const { form, errors, enhance, delayed, reset } = superForm(
@@ -80,8 +48,6 @@
 
   function openCreate() {
     reset();
-    flagSearch = '';
-    $form.flags = [...defaultEnabledFlags];
     isEditing = false;
     editId = '';
     open = true;
@@ -155,12 +121,10 @@
 
   function openEdit(campus: any) {
     reset();
-    flagSearch = '';
     $form.name = campus.name;
     $form.externalName = campus.externalName ?? '';
     $form.timezone = campus.timezone ?? 'Europe/Paris';
     $form.contactEmail = campus.contactEmail ?? '';
-    $form.flags = (campus.flags ?? []) as FlagKey[];
     isEditing = true;
     editId = campus.id;
     open = true;
@@ -172,75 +136,29 @@
   }
 </script>
 
-{#snippet flagRow(flag: (typeof flagDefs)[number], hidden: boolean)}
-  <label
-    {hidden}
-    class="flex cursor-pointer items-start gap-3 rounded-sm border bg-card p-3 hover:border-epi-pink/40"
-  >
-    <Checkbox
-      name="flags"
-      value={flag.key}
-      checked={$form.flags.includes(flag.key as FlagKey)}
-      onCheckedChange={(v) => {
-        const key = flag.key as FlagKey;
-        if (v === true) {
-          if (!$form.flags.includes(key)) $form.flags = [...$form.flags, key];
-        } else {
-          $form.flags = $form.flags.filter((k) => k !== key);
-        }
-      }}
-      class="mt-1"
-    />
-    <div class="flex-1 space-y-1">
-      <div class="flex items-center gap-2">
-        <span class="text-sm font-bold">{flag.label}</span>
-        <Badge
-          variant={flag.kind === 'rollout' ? 'outline' : 'secondary'}
-          class="text-[10px] uppercase"
-        >
-          {flag.kind}
-        </Badge>
-      </div>
-      <p class="text-xs text-muted-foreground">
-        {flag.description}
-      </p>
-      {#if flag.removeBy && flag.removeBy < new Date()}
-        <p class="text-xs text-destructive">
-          Flag à supprimer du code (expiré le {flag.removeBy.toLocaleDateString()}).
-        </p>
-      {/if}
-    </div>
-  </label>
-{/snippet}
-
 <svelte:head>
   <title>Campus</title>
 </svelte:head>
 
 <div class="space-y-6">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Réseau <span class="text-epi-pink">Campus</span>
-      </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
-        Gérer les villes d'implantation
-      </p>
-    </div>
-    <Button
-      onclick={openCreate}
-      class="bg-epi-pink text-white hover:bg-epi-pink/90"
-    >
-      <Plus class="mr-2 h-4 w-4" /> Ajouter
-    </Button>
-  </div>
+  <PageHeader
+    title="Réseau"
+    accent="Campus"
+    subtitle="Gérer les villes d&#x27;implantation"
+  >
+    {#snippet actions()}
+      <Button onclick={openCreate}>
+        <Plus class="mr-2 h-4 w-4" /> Ajouter
+      </Button>
+    {/snippet}
+  </PageHeader>
 
   <!-- Mobile: stacked cards. The desktop table x-scrolls on narrow screens,
        which buries the nom externe / fuseau / actions columns off-frame, so
        below md each campus renders as a self-contained card instead. -->
   <div class="space-y-3 md:hidden">
     {#each data.campuses as campus}
-      <div class="rounded-sm border bg-card p-4 shadow-sm">
+      <div class="rounded-sm border bg-card p-4 shadow-raised">
         <div class="flex items-start justify-between gap-2">
           <div class="flex min-w-0 items-center gap-2">
             <Map class="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -269,7 +187,7 @@
         <dl class="mt-3 space-y-1.5 text-sm">
           <div class="flex items-baseline justify-between gap-3">
             <dt class="shrink-0 text-muted-foreground">Nom externe</dt>
-            <dd class="text-right">{campus.externalName ?? '—'}</dd>
+            <dd class="text-right">{campus.externalName ?? '-'}</dd>
           </div>
           <div class="flex items-baseline justify-between gap-3">
             <dt class="shrink-0 text-muted-foreground">Fuseau horaire</dt>
@@ -278,22 +196,11 @@
             </dd>
           </div>
         </dl>
-        <div class="mt-3 flex flex-wrap gap-1">
-          {#each campus.flags as key}
-            <Badge variant="secondary" class="text-[10px]"
-              >{FEATURE_FLAGS[key as FlagKey]?.label ?? key}</Badge
-            >
-          {:else}
-            <span class="text-xs text-muted-foreground"
-              >Aucune fonctionnalité</span
-            >
-          {/each}
-        </div>
       </div>
     {/each}
   </div>
 
-  <div class="hidden rounded-sm border bg-card shadow-sm md:block">
+  <div class="hidden rounded-sm border bg-card shadow-raised md:block">
     <Table.Root>
       <Table.Header>
         <Table.Row>
@@ -301,7 +208,6 @@
           <Table.Head>Nom du Campus</Table.Head>
           <Table.Head>Nom externe</Table.Head>
           <Table.Head>Fuseau horaire</Table.Head>
-          <Table.Head>Fonctionnalités</Table.Head>
           <Table.Head class="text-right">Actions</Table.Head>
         </Table.Row>
       </Table.Header>
@@ -313,22 +219,11 @@
             >
             <Table.Cell class="font-bold">{campus.name}</Table.Cell>
             <Table.Cell class="text-muted-foreground"
-              >{campus.externalName ?? '—'}</Table.Cell
+              >{campus.externalName ?? '-'}</Table.Cell
             >
             <Table.Cell class="text-xs text-muted-foreground"
               >{getTimezoneLabel(campus.timezone ?? 'Europe/Paris')}</Table.Cell
             >
-            <Table.Cell>
-              <div class="flex flex-wrap gap-1">
-                {#each campus.flags as key}
-                  <Badge variant="secondary" class="text-[10px]"
-                    >{FEATURE_FLAGS[key as FlagKey]?.label ?? key}</Badge
-                  >
-                {:else}
-                  <span class="text-xs text-muted-foreground">—</span>
-                {/each}
-              </div>
-            </Table.Cell>
             <Table.Cell class="text-right">
               <Tooltip.Provider delayDuration={300}>
                 <Tooltip.Root>
@@ -339,6 +234,7 @@
                         variant="ghost"
                         size="icon"
                         onclick={() => openEdit(campus)}
+                        aria-label="Modifier {campus.name}"
                       >
                         <Pencil class="h-4 w-4" />
                       </Button>
@@ -355,6 +251,7 @@
                         size="icon"
                         class="text-destructive hover:text-destructive"
                         onclick={() => confirmDelete(campus.id)}
+                        aria-label="Supprimer {campus.name}"
                       >
                         <Trash2 class="h-4 w-4" />
                       </Button>
@@ -383,116 +280,68 @@
       >
         {#if isEditing}<input type="hidden" name="id" value={editId} />{/if}
         <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-          <div class="grid gap-6 md:grid-cols-2">
-            <div class="space-y-4">
-              <div class="space-y-2">
-                <Label>Nom de la ville / campus</Label>
-                <Input
-                  name="name"
-                  bind:value={$form.name}
-                  placeholder="Ex: Paris"
-                />
-                {#if $errors.name}<span class="text-xs text-destructive"
-                    >{$errors.name}</span
-                  >{/if}
-              </div>
-              <div class="space-y-2">
-                <Label>Nom externe (synchronisation)</Label>
-                <Input
-                  name="externalName"
-                  bind:value={$form.externalName}
-                  placeholder="Ex: paris"
-                />
-                {#if $errors.externalName}<span class="text-xs text-destructive"
-                    >{$errors.externalName}</span
-                  >{/if}
-              </div>
-              <div class="space-y-2">
-                <Label>Email de contact</Label>
-                <Input
-                  type="email"
-                  name="contactEmail"
-                  bind:value={$form.contactEmail}
-                  placeholder="Ex: contact.paris@epitech.eu"
-                />
-                <p class="text-xs text-muted-foreground">
-                  Disponible dans les templates via <code
-                    class="rounded bg-muted px-1 py-0.5 text-[10px]"
-                    >{`{{EMAIL_CONTACT_CAMPUS}}`}</code
-                  >.
-                </p>
-                {#if $errors.contactEmail}<span class="text-xs text-destructive"
-                    >{$errors.contactEmail}</span
-                  >{/if}
-              </div>
-              <div class="space-y-2">
-                <Label>Fuseau horaire</Label>
-                <input type="hidden" name="timezone" value={$form.timezone} />
-                <SearchableSelect
-                  clearable={false}
-                  options={allTimezones}
-                  value={$form.timezone}
-                  onChange={(v) => ($form.timezone = v)}
-                  placeholder="Choisir un fuseau horaire"
-                  searchPlaceholder="Rechercher une ville ou un fuseau…"
-                  emptyLabel="Aucun fuseau."
-                  triggerClass="w-full"
-                />
-                {#if $errors.timezone}<span class="text-xs text-destructive"
-                    >{$errors.timezone}</span
-                  >{/if}
-              </div>
-            </div>
-            <fieldset class="space-y-3">
-              <legend class="text-sm font-bold uppercase">
-                Fonctionnalités activées
-              </legend>
+          <div class="space-y-4">
+            <div class="space-y-2">
+              <Label>Nom de la ville / campus</Label>
               <Input
-                type="search"
-                bind:value={flagSearch}
-                placeholder="Rechercher une fonctionnalité..."
-                class="h-9"
+                name="name"
+                bind:value={$form.name}
+                placeholder="Ex: Paris"
               />
-              <div class="space-y-4 md:max-h-[55vh] md:overflow-y-auto md:pr-1">
-                {#if capabilityFlags.some((f) => matchedKeys.has(f.key))}
-                  <div class="space-y-2">
-                    <p
-                      class="text-xs font-bold text-muted-foreground uppercase"
-                    >
-                      Capacités
-                    </p>
-                    {#each capabilityFlags as flag (flag.key)}
-                      {@render flagRow(flag, !matchedKeys.has(flag.key))}
-                    {/each}
-                  </div>
-                {/if}
-                {#if rolloutFlags.some((f) => matchedKeys.has(f.key))}
-                  <div class="space-y-2">
-                    <p
-                      class="text-xs font-bold text-muted-foreground uppercase"
-                    >
-                      Déploiements
-                    </p>
-                    {#each rolloutFlags as flag (flag.key)}
-                      {@render flagRow(flag, !matchedKeys.has(flag.key))}
-                    {/each}
-                  </div>
-                {/if}
-                {#if matchedKeys.size === 0}
-                  <p class="py-4 text-center text-xs text-muted-foreground">
-                    Aucune fonctionnalité ne correspond.
-                  </p>
-                {/if}
-              </div>
-            </fieldset>
+              {#if $errors.name}<span class="text-xs text-destructive"
+                  >{$errors.name}</span
+                >{/if}
+            </div>
+            <div class="space-y-2">
+              <Label>Nom externe (synchronisation)</Label>
+              <Input
+                name="externalName"
+                bind:value={$form.externalName}
+                placeholder="Ex: paris"
+              />
+              {#if $errors.externalName}<span class="text-xs text-destructive"
+                  >{$errors.externalName}</span
+                >{/if}
+            </div>
+            <div class="space-y-2">
+              <Label>Email de contact</Label>
+              <Input
+                type="email"
+                name="contactEmail"
+                bind:value={$form.contactEmail}
+                placeholder="Ex: contact.paris@epitech.eu"
+              />
+              <p class="text-xs text-muted-foreground">
+                Disponible dans les templates via <code
+                  class="rounded bg-muted px-1 py-0.5 text-xs"
+                  >{`{{EMAIL_CONTACT_CAMPUS}}`}</code
+                >.
+              </p>
+              {#if $errors.contactEmail}<span class="text-xs text-destructive"
+                  >{$errors.contactEmail}</span
+                >{/if}
+            </div>
+            <div class="space-y-2">
+              <Label>Fuseau horaire</Label>
+              <input type="hidden" name="timezone" value={$form.timezone} />
+              <SearchableSelect
+                clearable={false}
+                options={allTimezones}
+                value={$form.timezone}
+                onChange={(v) => ($form.timezone = v)}
+                placeholder="Choisir un fuseau horaire"
+                searchPlaceholder="Rechercher une ville ou un fuseau…"
+                emptyLabel="Aucun fuseau."
+                triggerClass="w-full"
+              />
+              {#if $errors.timezone}<span class="text-xs text-destructive"
+                  >{$errors.timezone}</span
+                >{/if}
+            </div>
           </div>
         </div>
         <Dialog.Footer class="border-t px-4 py-4 sm:px-6">
-          <Button
-            type="submit"
-            disabled={$delayed}
-            class="bg-epi-pink text-white"
-          >
+          <Button type="submit" disabled={$delayed}>
             {$delayed ? 'Sauvegarde...' : 'Enregistrer'}
           </Button>
         </Dialog.Footer>

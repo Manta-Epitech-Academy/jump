@@ -15,12 +15,7 @@
     FORM_STATUS_OPTIONS,
   } from '$lib/domain/feedbackForms/status';
   import { publicFormPath } from '$lib/domain/feedback';
-  import { EVENT_TYPE_VALUES, eventTypeLabel } from '$lib/domain/event';
   import FieldLabel from './FieldLabel.svelte';
-
-  // Sentinel for "not a default" in the select (bits-ui Select wants a non-empty
-  // value); mapped back to null on the way to the patch.
-  const NO_DEFAULT = 'none';
   import type { FormEditor, FormMeta, FormStatus } from '../editor.svelte';
 
   let { editor }: { editor: FormEditor } = $props();
@@ -74,7 +69,7 @@
     {#snippet child({ props })}
       <Button {...props} variant="outline" size="sm" class="rounded-sm">
         {#if hasAlert}
-          <TriangleAlert class="mr-1.5 h-4 w-4 text-amber-600" />
+          <TriangleAlert class="mr-1.5 h-4 w-4 text-warning" />
         {:else}
           <Send class="mr-1.5 h-4 w-4" />
         {/if}
@@ -101,7 +96,7 @@
   >
     <div class="space-y-0.5">
       <p class="text-sm font-semibold">Diffusion</p>
-      <p class="text-[11px] leading-snug text-muted-foreground">{summary}</p>
+      <p class="text-xs leading-snug text-muted-foreground">{summary}</p>
     </div>
 
     <div class="space-y-1.5">
@@ -127,7 +122,7 @@
 
     {#if editor.publishedButUnreachable}
       <div
-        class="flex items-start gap-2 rounded-sm border border-amber-300 bg-amber-50 p-2.5 text-[11px] leading-snug text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+        class="flex items-start gap-2 rounded-sm border border-warning/30 bg-warning/10 p-2.5 text-xs leading-snug text-warning"
       >
         <TriangleAlert class="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <p class="min-w-0 flex-1">
@@ -143,7 +138,7 @@
       >
         <span class="flex flex-col gap-0.5">
           <span class="text-sm font-medium">{t.label}</span>
-          <span class="text-[11px] leading-snug text-muted-foreground"
+          <span class="text-xs leading-snug text-muted-foreground"
             >{t.help}</span
           >
         </span>
@@ -165,7 +160,7 @@
         <span class="flex flex-col gap-0.5">
           <span class="text-sm font-medium">Relance sur le tableau de bord</span
           >
-          <span class="text-[11px] leading-snug text-muted-foreground">
+          <span class="text-xs leading-snug text-muted-foreground">
             Affiche une carte de rappel aux talents connectés tant qu’ils n’ont
             pas répondu.
           </span>
@@ -179,42 +174,10 @@
       </label>
     {/if}
 
-    <!-- Default form for an event type: events of that type auto-use this form
-         (their Bilan tab, QR and export resolve to it) unless a specific form is
-         chosen for the event. At most one form per type, so picking it here
-         releases whatever form held it before. -->
-    <div class="space-y-1.5">
-      <FieldLabel
-        text="Formulaire par défaut pour"
-        info="Les événements de ce type utilisent ce formulaire par défaut (sauf si un autre formulaire est choisi pour l'événement). Un seul formulaire par défaut par type : le choisir ici le retire du formulaire qui l'avait."
-      />
-      <Select.Root
-        type="single"
-        value={editor.defaultForEventType ?? NO_DEFAULT}
-        onValueChange={(v) => {
-          const next = v === NO_DEFAULT ? null : v;
-          if (next !== editor.defaultForEventType)
-            editor.patchForm({ defaultForEventType: next });
-        }}
-      >
-        <Select.Trigger class="h-9 w-full rounded-sm">
-          {editor.defaultForEventType
-            ? eventTypeLabel(editor.defaultForEventType)
-            : 'Aucun'}
-        </Select.Trigger>
-        <Select.Content>
-          <Select.Item value={NO_DEFAULT}>Aucun</Select.Item>
-          {#each EVENT_TYPE_VALUES as t (t)}
-            <Select.Item value={t}>{eventTypeLabel(t)}</Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
-    </div>
-
     {#if editor.allowsPublicAccess}
       {#if editor.publicMissingEmail}
         <div
-          class="flex items-start gap-2 rounded-sm border border-amber-300 bg-amber-50 p-2.5 text-[11px] leading-snug text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+          class="flex items-start gap-2 rounded-sm border border-warning/30 bg-warning/10 p-2.5 text-xs leading-snug text-warning"
         >
           <TriangleAlert class="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <p class="min-w-0 flex-1">
@@ -253,7 +216,7 @@
             >
           </div>
           {#if !editor.isPublished}
-            <p class="text-[11px] leading-snug text-muted-foreground">
+            <p class="text-xs leading-snug text-muted-foreground">
               {editor.status === 'archived'
                 ? 'Formulaire archivé : ce lien renvoie une erreur.'
                 : 'Le lien sera actif une fois le formulaire publié.'}

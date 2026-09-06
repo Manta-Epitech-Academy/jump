@@ -48,7 +48,7 @@
 
   <div class="mx-auto min-h-0 w-full max-w-4xl flex-1 sm:px-4 sm:py-6">
     <div
-      class="flex h-full flex-col overflow-hidden sm:rounded-2xl sm:shadow-xl sm:shadow-slate-200/50 dark:sm:shadow-none"
+      class="flex h-full flex-col overflow-hidden sm:rounded-xl sm:shadow-raised dark:sm:shadow-none"
     >
       <ChatScreen
         form={data.formSchema}

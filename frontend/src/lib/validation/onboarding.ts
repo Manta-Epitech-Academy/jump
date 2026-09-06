@@ -18,7 +18,7 @@ const phoneSchema = z
 
 // A Bits UI `<Checkbox name=… value="true" />` follows native checkbox submit
 // semantics: it sends `"true"` when checked and omits the field entirely when
-// unchecked. Parse that explicitly — never `z.coerce.boolean()`, which maps any
+// unchecked. Parse that explicitly: never `z.coerce.boolean()`, which maps any
 // non-empty string (including the literal `"false"`) to `true`.
 // A consent box that must be ticked: the field is absent until checked, so a
 // plain required literal rejects an unchecked box with the given message.
@@ -67,7 +67,7 @@ export const schoolSchema = z.object({
 // --- Étape 3 : Référents ---
 
 // Emails are stored lowercased/trimmed, so uniqueness has to compare on the
-// same normalized form — otherwise a case-only difference passes the check here
+// same normalized form: otherwise a case-only difference passes the check here
 // and then collides on save.
 const normEmail = (v: string | null | undefined): string =>
   (v ?? '').trim().toLowerCase();
@@ -95,7 +95,7 @@ const parent2Engaged = (d: Parent2Fields): boolean =>
 export const parentsSchema = z
   .object({
     // studentEmail / studentPhone are injected server-side from the talent's
-    // already-confirmed identity — they only feed the parent-vs-student checks.
+    // already-confirmed identity: they only feed the parent-vs-student checks.
     studentEmail: z.email(),
     studentPhone: optionalPhoneSchema,
     parentType: parentTypeEnum,
@@ -127,7 +127,7 @@ export const parentsSchema = z
       path: ['parentPhone'],
     },
   )
-  // Parent 2 mandatory set, once engaged — one refine per field so each error
+  // Parent 2 mandatory set, once engaged: one refine per field so each error
   // lands on its own path and renders next to its input. The old single refine
   // pinned every case to `parent2Nom`, so a missing type/civilité/prénom/email
   // wrote to a path with no message and read as a silent "nothing happened".
@@ -189,23 +189,34 @@ export const parentsSchema = z
     },
   );
 
-export type IdentityForm = z.infer<typeof identitySchema>;
-export type SchoolForm = z.infer<typeof schoolSchema>;
-export type ParentsForm = z.infer<typeof parentsSchema>;
-
 // --- Étape 4 & 5 : Intérêts et Matériel ---
+
+/**
+ * How many interests of each kind the wizard accepts.
+ *
+ * Named rather than inlined into the schema because a second writer needs the
+ * same bound: the development seed attaches interests to every dossier that
+ * passed the step, and a talent carrying three tech interests is a row the
+ * wizard could not have produced. Restating the numbers there would let the two
+ * drift the first time the step is retuned.
+ */
+export const INTEREST_COUNTS = {
+  tech: { min: 1, max: 2 },
+  general: { min: 1, max: 3 },
+} as const;
+
 export const interestsSchema = z.object({
   // IDs are internal cuid v1 keys, but the action count-checks each against the
   // DB (interest.count must equal the submitted length), so a plain string is
-  // enough — no point in Zod's now-deprecated cuid v1 format check.
+  // enough: no point in Zod's now-deprecated cuid v1 format check.
   techInterestIds: z
     .array(z.string())
-    .min(1, 'Choisis au moins 1 domaine tech')
-    .max(2, '2 domaines tech maximum'),
+    .min(INTEREST_COUNTS.tech.min, 'Choisis au moins 1 domaine tech')
+    .max(INTEREST_COUNTS.tech.max, '2 domaines tech maximum'),
   generalInterestIds: z
     .array(z.string())
-    .min(1, "Choisis au moins 1 centre d'intérêt")
-    .max(3, "3 centres d'intérêt maximum"),
+    .min(INTEREST_COUNTS.general.min, "Choisis au moins 1 centre d'intérêt")
+    .max(INTEREST_COUNTS.general.max, "3 centres d'intérêt maximum"),
   freeText: z
     .string()
     .max(500, 'Maximum 500 caractères')
@@ -214,14 +225,12 @@ export const interestsSchema = z.object({
 });
 
 export const equipmentSchema = z.object({
-  // A working laptop is a hard prerequisite for the stage, so the box must be
-  // ticked to advance — enforced here, not only by the disabled CTA. Kept as a
-  // boolean column, hence the literal + transform rather than `requiredConsent`.
-  hasLaptop: z
-    .literal('true', {
-      message: 'Tu dois posséder un laptop fonctionnel pour continuer.',
-    })
-    .transform(() => true),
+  // Informational only, and deliberately not a gate. The laptop requirement is
+  // now certified where it is actually written down, as a consent box on the
+  // règlement (`rulesSchema.acceptedEquipment`); asking for it twice would let
+  // the two answers disagree. What stays here is the free-text description,
+  // which staff read on the fiche talent as a recruiting signal, so an empty
+  // answer must not block the wizard.
   setupDescription: z
     .string()
     .max(1000, 'Maximum 1000 caractères')
@@ -229,15 +238,41 @@ export const equipmentSchema = z.object({
     .or(z.literal('')),
 });
 
-// --- Étape 7 : Règlement intérieur & confidentialité ---
-// Both consents are legally load-bearing (RGPD, minors), so they are enforced
-// server-side here, not merely by the disabled submit button on the client.
-export const rulesSchema = z.object({
-  city: z.string().trim().min(1, 'Veuillez indiquer la ville.'),
+// --- Charte seule (/charte) ---
+// The standalone surface for talents who never enter the wizard. Same consent,
+// same wording as the wizard's box, so the two can't ask for different things.
+export const charteSchema = z.object({
   acceptedCharter: requiredConsent(
-    'Vous devez accepter la politique de confidentialité pour continuer.',
+    'Tu dois accepter la Charte Informatique et Éthique pour continuer.',
+  ),
+});
+
+// --- Étape 7 : Règlement intérieur & charte ---
+// All three consents are legally load-bearing (RGPD, minors), so they are
+// enforced server-side here, not merely by the disabled submit button on the
+// client. Messages tutoient: this is talent-facing copy.
+export const rulesSchema = z.object({
+  city: z.string().trim().min(1, 'Indique la ville où tu signes.'),
+  acceptedCharter: requiredConsent(
+    'Tu dois accepter la Charte Informatique et Éthique pour continuer.',
   ),
   acceptedRules: requiredConsent(
-    'Vous devez accepter le règlement intérieur pour continuer.',
+    'Tu dois accepter le règlement intérieur pour continuer.',
   ),
+  // The laptop clause lives in the règlement's "Matériel et responsabilité"
+  // section; this box is the affirmative certification of it. It replaced the
+  // blocking checkbox on the equipment step.
+  acceptedEquipment: requiredConsent(
+    "Tu dois certifier posséder un ordinateur portable, ou prévenir l'équipe de ton campus.",
+  ),
+});
+
+/**
+ * The same act for a talent who already gave the charte consent, on a previous
+ * year's dossier. The charte is a once-per-account consent, so the box is not
+ * rendered for them and the field is legitimately absent; the règlement and the
+ * laptop clause stay mandatory, because those are what a yearly dossier signs.
+ */
+export const rulesSchemaWithoutCharter = rulesSchema.omit({
+  acceptedCharter: true,
 });

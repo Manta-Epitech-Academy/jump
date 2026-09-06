@@ -8,7 +8,7 @@
   import type { PresenceSlot } from '@prisma/client';
   import type { SerializedNote } from '$lib/domain/talentNotes';
 
-  // Composer for a single staff note — create (note=null) or edit an existing
+  // Composer for a single staff note: create (note=null) or edit an existing
   // one. Shared by the fiche feed and the émargement dialog. Editing uses
   // per-note optimistic concurrency: it posts the `updatedAt` it loaded and, on a
   // 409, surfaces the concurrent version instead of clobbering it.
@@ -110,9 +110,9 @@
 
   {#if conflict}
     <div
-      class="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm"
+      class="space-y-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm"
     >
-      <p class="flex items-center gap-1.5 font-medium text-amber-700">
+      <p class="flex items-center gap-1.5 font-medium text-warning">
         <TriangleAlert class="h-4 w-4" />
         Note modifiée par un autre membre du staff depuis l'ouverture.
       </p>

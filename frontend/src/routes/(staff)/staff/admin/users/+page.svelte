@@ -28,6 +28,10 @@
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
+  import {
+    pageCount,
+    paginate,
+  } from '$lib/components/staff/datatable/paginate';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import SearchableSelect, {
     type SelectOption,
@@ -43,6 +47,13 @@
   import { can } from '$lib/domain/permissions';
   import type { StaffRole } from '@prisma/client';
   import { track, errReason } from '$lib/analytics';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import StaffActivityDialog from '$lib/components/admin/StaffActivityDialog.svelte';
+  import {
+    compareLastActive,
+    lastActiveLabel,
+  } from '$lib/components/staff/lastActive';
+  import { rowComparator } from '$lib/components/staff/datatable/sort';
   let { data } = $props();
 
   type MemberRow = (typeof data)['members'][number];
@@ -134,6 +145,7 @@
   let memberSortDir = $state<'asc' | 'desc'>('asc');
 
   const memberName = (u: MemberRow) => u.name || '';
+
   const filteredMembers = $derived(
     data.members.filter((u) => {
       const q = memberSearch.trim().toLowerCase();
@@ -146,6 +158,36 @@
     }),
   );
   const sortedMembers = $derived.by(() => {
+    // Activité is deliberately NOT an `isMissing` column, and it is the only
+    // place on the staff tables where that is true. Everywhere else an absent
+    // value means the column cannot describe the row, so `rowComparator` sinks
+    // it in both directions and sorting by Lycée never leads with a block of
+    // "-". Here the absence IS the value: `lastActive.ts` says so in as many
+    // words, "Jamais" is a real answer and an account nobody has ever opened is
+    // the single most actionable row on the page. So it takes its natural place
+    // at the far end of the axis, which puts every never-connected member at the
+    // top on the first click and at the bottom on the second. That is what
+    // replaced a "Jamais connectés" tile whose whole job was this one filter.
+    //
+    // The two projections are stamped together on the first real request
+    // (`hooks.server.ts`), so ordering on `lastActiveAt` groups exactly the
+    // members `firstLoginAt` calls never connected: no profile in the database
+    // has one without the other.
+    if (memberSortKey === 'activite') {
+      return [...filteredMembers].sort(
+        rowComparator({
+          dir: memberSortDir,
+          // Oldest activity first on the first click: "who has been away
+          // longest" is the question this column exists to answer, and never
+          // opened is the longest of all.
+          compare: (a: MemberRow, b: MemberRow) =>
+            compareLastActive(
+              a.staffProfile?.lastActiveAt,
+              b.staffProfile?.lastActiveAt,
+            ),
+        }),
+      );
+    }
     const dir = memberSortDir === 'asc' ? 1 : -1;
     return [...filteredMembers].sort(
       (a, b) => dir * compareMember(a, b, memberSortKey),
@@ -179,24 +221,33 @@
     { key: 'email', label: 'Email', sortable: true },
     { key: 'campus', label: 'Campus' },
     { key: 'role', label: 'Rôle' },
+    { key: 'activite', label: 'Activité', sortable: true },
     { key: 'actions', label: 'Actions', align: 'right' },
   ];
 
+  // ----- Activity detail ----------------------------------------------------
+  let activityOpen = $state(false);
+  let activityMember = $state<MemberRow | null>(null);
+  function openActivity(user: MemberRow) {
+    activityMember = user;
+    activityOpen = true;
+  }
+
   // ----- Pagination ---------------------------------------------------------
-  // Both lists grow (invitations especially — stale ones pile up), and they
+  // Both lists grow (invitations especially, stale ones pile up), and they
   // stack, so an unpaginated invitations table buries the members roster below
   // it. Page each so neither runs long; searching resets to page 1.
   const PER_PAGE = 10;
   let invitePage = $state(1);
   let memberPage = $state(1);
-  const inviteTotalPages = $derived(Math.ceil(sortedInvites.length / PER_PAGE));
-  const pagedInvites = $derived(
-    sortedInvites.slice((invitePage - 1) * PER_PAGE, invitePage * PER_PAGE),
-  );
-  const memberTotalPages = $derived(Math.ceil(sortedMembers.length / PER_PAGE));
-  const pagedMembers = $derived(
-    sortedMembers.slice((memberPage - 1) * PER_PAGE, memberPage * PER_PAGE),
-  );
+  // Through `paginate` rather than a hand-rolled slice: revoking the only row on
+  // the last page shrinks the list under the page you are on, and a bare slice
+  // then renders an empty table while `Pagination` hides itself (one page left),
+  // leaving no control to get back. `paginate` clamps onto the last page instead.
+  const inviteTotalPages = $derived(pageCount(sortedInvites.length, PER_PAGE));
+  const pagedInvites = $derived(paginate(sortedInvites, invitePage, PER_PAGE));
+  const memberTotalPages = $derived(pageCount(sortedMembers.length, PER_PAGE));
+  const pagedMembers = $derived(paginate(sortedMembers, memberPage, PER_PAGE));
 
   // ----- Explorer un campus : campus-first impersonation --------------------
   // Most admin visits here are to drop into a campus's space ("what does a
@@ -216,13 +267,13 @@
   );
 
   const roleRank = (role: StaffRole | null | undefined) => {
-    const i = staffRoles.indexOf(role as StaffRole);
+    const i = (staffRoles as readonly string[]).indexOf(role ?? '');
     return i === -1 ? staffRoles.length : i;
   };
 
-  // campusId -> representative member per space. Lead-first (superdev/peda
-  // outrank dev/manta via staffRoles order), ties broken by name so the pick is
-  // stable across reloads.
+  // campusId -> representative member per space. Lead-first (superdev outranks
+  // dev via staffRoles order), ties broken by name so the pick is stable across
+  // reloads.
   const campusReps = $derived.by(() => {
     const map = new Map<string, Partial<Record<StaffSpaceId, MemberRow>>>();
     for (const campus of data.campuses) {
@@ -268,6 +319,7 @@
       exploreTarget.id,
       exploreTarget.staffProfile?.staffRole ?? null,
       exploreCampusName || null,
+      'campus_exploration',
     );
   }
 
@@ -329,6 +381,7 @@
     userId: string,
     staffRole: StaffRole | null,
     targetCampus: string | null,
+    reason: 'person' | 'campus_exploration' = 'person',
   ) {
     if (impersonating) return;
     impersonating = userId;
@@ -336,7 +389,7 @@
       const res = await fetch(resolve('/staff/admin/impersonate'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ kind: 'staff', id: userId }),
+        body: JSON.stringify({ kind: 'staff', id: userId, reason }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as {
@@ -376,27 +429,23 @@
 </svelte:head>
 
 <div class="space-y-6">
-  <div class="flex items-end justify-between gap-4">
-    <div>
-      <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Membres & <span class="text-epi-pink">invitations</span>
-      </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
-        Pré-approuver un accès ou modifier un membre existant
-      </p>
-    </div>
-    <Button onclick={openInvite} class="gap-2">
-      <Plus class="h-4 w-4" />
-      Inviter
-    </Button>
-  </div>
+  <PageHeader
+    title="Membres &amp;"
+    accent="invitations"
+    subtitle="Pré-approuver un accès ou modifier un membre existant"
+  >
+    {#snippet actions()}
+      <Button onclick={openInvite} class="gap-2">
+        <Plus class="h-4 w-4" />
+        Inviter
+      </Button>
+    {/snippet}
+  </PageHeader>
 
   <!-- Explorer un campus -->
   <section class="space-y-3">
     <div class="space-y-1">
-      <h2 class="font-heading text-lg tracking-wide uppercase">
-        Explorer un campus
-      </h2>
+      <h2 class="font-heading text-display-s">Explorer un campus</h2>
       <p class="text-sm text-muted-foreground">
         Entrez dans l'espace d'un campus tel que son équipe le voit, sans
         choisir qui : on se connecte en tant qu'un membre représentatif (le
@@ -469,12 +518,7 @@
 
   <!-- Members -->
   <section id="members" class="scroll-mt-20 space-y-3">
-    <h2 class="font-heading text-lg tracking-wide uppercase">
-      Membres actifs
-      <span class="ml-2 text-sm text-muted-foreground"
-        >({data.members.length})</span
-      >
-    </h2>
+    <h2 class="font-heading text-display-s">Membres actifs</h2>
 
     <DataTableToolbar
       searchValue={memberSearch}
@@ -485,6 +529,7 @@
       searchPlaceholder="Rechercher un membre ou un campus…"
       count={sortedMembers.length}
       countNoun="membre"
+      filtersApplied={memberSearch.trim().length > 0}
     />
 
     <SortableTable
@@ -513,7 +558,7 @@
             <Mail class="h-3 w-3" />
             <a
               href="mailto:{user.email}"
-              class="transition-colors hover:text-epi-pink hover:underline"
+              class="transition-colors hover:text-epi-tomorrow hover:underline"
             >
               {user.email}
             </a>
@@ -521,7 +566,7 @@
         </Table.Cell>
         <Table.Cell>
           {#if user.staffProfile?.staffRole === 'admin'}
-            <span class="text-sm text-muted-foreground">—</span>
+            <span class="text-sm text-muted-foreground">-</span>
           {:else}
             {@const fromCampus = user.staffProfile?.campus?.name ?? null}
             <form
@@ -629,8 +674,7 @@
                   <Select.Item value={role.value} class="py-2">
                     <div class="flex flex-col gap-0.5">
                       <span class="text-xs font-semibold">{role.label}</span>
-                      <span
-                        class="text-[11px] leading-snug text-muted-foreground"
+                      <span class="text-xs leading-snug text-muted-foreground"
                         >{role.description}</span
                       >
                     </div>
@@ -639,6 +683,21 @@
               </Select.Content>
             </Select.Root>
           </form>
+        </Table.Cell>
+        <Table.Cell>
+          <!-- A button and not text: the label answers "still around?", the
+               detail answers "doing what?", and the second is a click away
+               rather than a column nobody can read. -->
+          <button
+            type="button"
+            onclick={() => openActivity(user)}
+            class="cursor-pointer rounded-lg px-2 py-1 text-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring {user
+              .staffProfile?.firstLoginAt
+              ? 'text-foreground-secondary'
+              : 'font-bold text-warning'}"
+          >
+            {lastActiveLabel(user.staffProfile?.lastActiveAt ?? null)}
+          </button>
         </Table.Cell>
         <Table.Cell class="text-right">
           <div class="flex items-center justify-end gap-1">
@@ -651,7 +710,9 @@
                         {...props}
                         variant="ghost"
                         size="icon"
-                        class="text-muted-foreground hover:text-epi-pink"
+                        class="text-muted-foreground hover:text-epi-tomorrow"
+                        aria-label="Se connecter en tant que {user.name ||
+                          user.email}"
                         disabled={impersonating === user.id}
                         onclick={() =>
                           loginAs(
@@ -680,6 +741,7 @@
                       size="icon"
                       class="text-destructive hover:bg-destructive/10"
                       onclick={() => confirmDelete(user.id)}
+                      aria-label="Révoquer l'accès de {user.name || user.email}"
                     >
                       <Trash2 class="h-4 w-4" />
                     </Button>
@@ -717,22 +779,18 @@
       onOpenChange={(o) => (invitesOpen = o)}
     >
       <Collapsible.Trigger
-        class="flex w-full items-center gap-2 border-t pt-4 text-left transition-colors hover:text-epi-pink"
+        class="flex w-full items-center gap-2 border-t pt-4 text-left transition-colors hover:text-epi-tomorrow"
       >
         <ChevronRight
           class="h-4 w-4 shrink-0 text-muted-foreground transition-transform {invitesOpen
             ? 'rotate-90'
             : ''}"
         />
-        <h2 class="font-heading text-lg tracking-wide uppercase">
-          Invitations en attente
-        </h2>
+        <h2 class="font-heading text-display-s">Invitations en attente</h2>
         <span class="text-sm text-muted-foreground"
           >({data.invitations.length})</span
         >
-        <span
-          class="ml-auto text-[10px] font-black tracking-widest text-muted-foreground uppercase"
-        >
+        <span class="ml-auto epi-overline text-muted-foreground">
           {invitesOpen ? 'Masquer' : 'Afficher'}
         </span>
       </Collapsible.Trigger>
@@ -747,6 +805,7 @@
           searchPlaceholder="Rechercher un email…"
           count={sortedInvites.length}
           countNoun="invitation"
+          filtersApplied={inviteSearch.trim().length > 0}
         >
           {#snippet countActions()}
             {#if selectedInvites.size > 0}
@@ -784,9 +843,9 @@
             </Table.Cell>
             <Table.Cell>
               {#if inv.staffRole === 'admin'}
-                <span class="text-muted-foreground">—</span>
+                <span class="text-muted-foreground">-</span>
               {:else}
-                {inv.campus?.name ?? '—'}
+                {inv.campus?.name ?? '-'}
               {/if}
             </Table.Cell>
             <Table.Cell>
@@ -795,7 +854,7 @@
               >
             </Table.Cell>
             <Table.Cell class="text-sm text-muted-foreground">
-              {inv.invitedBy?.name ?? inv.invitedBy?.email ?? '—'}
+              {inv.invitedBy?.name ?? inv.invitedBy?.email ?? '-'}
             </Table.Cell>
             <Table.Cell class="text-sm text-muted-foreground">
               {relativeAge(inv.createdAt)}
@@ -825,6 +884,7 @@
                           variant="ghost"
                           size="icon"
                           class="text-destructive hover:bg-destructive/10"
+                          aria-label="Annuler l'invitation"
                         >
                           <X class="h-4 w-4" />
                         </Button>
@@ -951,7 +1011,7 @@
                 <Select.Item value={role.value} class="py-2">
                   <div class="flex flex-col gap-0.5">
                     <span class="text-xs font-semibold">{role.label}</span>
-                    <span class="text-[11px] leading-snug text-muted-foreground"
+                    <span class="text-xs leading-snug text-muted-foreground"
                       >{role.description}</span
                     >
                   </div>
@@ -995,4 +1055,18 @@
       </form>
     </Dialog.Content>
   </Dialog.Root>
+
+  <!-- Keyed on the member so the dialog refetches when a different row is
+       opened, rather than showing the previous member's rows for an instant. -->
+  {#if activityMember}
+    {#key activityMember.id}
+      <StaffActivityDialog
+        bind:open={activityOpen}
+        profileId={activityMember.staffProfile?.id ?? null}
+        name={activityMember.name || activityMember.email || 'ce membre'}
+        firstLoginAt={activityMember.staffProfile?.firstLoginAt ?? null}
+        lastActiveAt={activityMember.staffProfile?.lastActiveAt ?? null}
+      />
+    {/key}
+  {/if}
 </div>

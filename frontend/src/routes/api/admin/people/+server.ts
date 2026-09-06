@@ -1,12 +1,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { prisma } from '$lib/server/db';
+import { requireAdminSession } from '$lib/server/auth/guards';
 import { getStaffRoleLabel } from '$lib/domain/staff';
 import { niveauLabel } from '$lib/domain/niveau';
 
 // Global "find a person" typeahead for the admin command palette. Admin is
 // campus-agnostic, so this is intentionally un-scoped (unlike /api/students,
-// which scopes to the dev/pedago caller's campus). Three kinds in one call:
+// which scopes to the dev caller's campus). Three kinds in one call:
 // talents, their parent-1 contacts, and staff members. Each result carries the
 // `navQ` to drop into the destination list's `?q=` so the palette stays dumb.
 const LIMIT = 6;
@@ -15,9 +16,7 @@ const fullName = (prenom: string | null, nom: string | null) =>
   `${prenom ?? ''} ${nom ?? ''}`.trim();
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-  if (locals.staffProfile?.staffRole !== 'admin') {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  requireAdminSession(locals);
 
   // Same sanitization as the talents directory search (keeps `@` and `.` so an
   // email query survives).
@@ -31,13 +30,23 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   const [talents, parents, staff] = await Promise.all([
     prisma.talent.findMany({
       where: {
-        OR: [{ nom: contains }, { prenom: contains }, { email: contains }],
+        OR: [
+          { nom: contains },
+          { prenom: contains },
+          { user: { email: contains } },
+        ],
       },
       orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
       take: LIMIT,
-      select: { id: true, nom: true, prenom: true, email: true, niveau: true },
+      select: {
+        id: true,
+        nom: true,
+        prenom: true,
+        user: { select: { email: true } },
+        niveau: true,
+      },
     }),
-    // Parent-1 only — the active guardian flow (parent-2 accounts are action-less).
+    // Parent-1 only: the active guardian flow (parent-2 accounts are action-less).
     prisma.talent.findMany({
       where: {
         OR: [
@@ -52,7 +61,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         id: true,
         nom: true,
         prenom: true,
-        email: true,
+        user: { select: { email: true } },
         parentEmail: true,
         parentNom: true,
         parentPrenom: true,
@@ -81,9 +90,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       type: 'talent' as const,
       id: t.id,
       name: fullName(t.prenom, t.nom),
-      email: t.email,
+      email: t.user?.email ?? null,
       sub: t.niveau ? niveauLabel(t.niveau) : null,
-      navQ: t.email || fullName(t.prenom, t.nom),
+      navQ: t.user?.email || fullName(t.prenom, t.nom),
     })),
     ...parents.map((t) => ({
       type: 'parent' as const,
@@ -91,8 +100,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       name: fullName(t.parentPrenom, t.parentNom) || t.parentEmail || 'Parent',
       email: t.parentEmail,
       sub: `Parent de ${fullName(t.prenom, t.nom)}`,
-      // A parent isn't a row of its own — jump to the child in the directory.
-      navQ: t.email || fullName(t.prenom, t.nom),
+      // A parent isn't a row of its own: jump to the child in the directory.
+      navQ: t.user?.email || fullName(t.prenom, t.nom),
     })),
     ...staff.map((s) => ({
       type: 'staff' as const,

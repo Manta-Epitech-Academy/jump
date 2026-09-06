@@ -1,82 +1,84 @@
-import type { Component } from 'svelte';
-import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
-import Mail from '@lucide/svelte/icons/mail';
-import UserCheck from '@lucide/svelte/icons/user-check';
-import FileText from '@lucide/svelte/icons/file-text';
-import Camera from '@lucide/svelte/icons/camera';
-import PartyPopper from '@lucide/svelte/icons/party-popper';
+import type { ClosingRecommendation } from '@prisma/client';
 
-export type TalentJourneyActor = 'staff' | 'talent' | 'parent' | 'auto';
+/**
+ * A talent's path with us, for the dev fiche: every past event, in order, with
+ * what happened at it.
+ *
+ * Same shape as the XP "story" beside it - a pure domain type plus a server
+ * builder (`services/talentJourneyService.ts`) - and for the same reason. The
+ * fiche is read to learn who somebody is, not to audit rows, so the assembling
+ * happens once on the server and the component paints what it is given.
+ *
+ * It replaces a bare event log. A regular attends eight to ten events a year and
+ * gets a closing at each, so the list already existed; what it lacked was what
+ * the person said and how the team read them, which is the part that answers
+ * "who am I about to sit down with".
+ */
 
-export type TalentJourneyStep = {
-  key: string;
-  title: string;
-  description: string;
-  actor: TalentJourneyActor;
-  actorLabel?: string;
-  icon: Component;
+/** One event this talent attended, and what came of it. */
+export type TalentJourneyEntry = {
+  /** The event, which is what a closing hangs off together with the talent, and
+   *  what the conduct route is addressed by. */
+  eventId: string;
+  eventName: string;
+  /**
+   * Where the event's name leads, or null when it leads nowhere the reader may
+   * go: the event belongs to another campus, or does not expose the Inscrits
+   * list. Those are exactly the two conditions `loadEventOr404` and
+   * `requireEventModule` enforce on the destination, so a link offered here
+   * cannot 404 - the rule the dev sidebar already follows in not offering a page
+   * that would.
+   *
+   * A journey is not campus-scoped (a talent who came to a stage in one campus
+   * and a Coding Club in another has both), so this is not hypothetical, and it
+   * is the link that is withheld rather than the row: the event still happened.
+   */
+  eventHref: string | null;
+  /** Pre-formatted French date in the campus timezone, e.g. "16 juin 2026". */
+  dateLabel: string;
+  /** Salesforce's read on whether they turned up. Null when it says nothing. */
+  presence: 'present' | 'absent' | null;
+  /** The closing conducted at that event, if the event holds closings at all. */
+  closing: TalentJourneyClosing | null;
 };
 
-export const TALENT_JOURNEY_STEPS: TalentJourneyStep[] = [
-  {
-    key: 'salesforce-convention',
-    title: 'Salesforce — convention validée',
-    description:
-      'La convention de stage est finalisée. Le statut du prospect dans la campagne Salesforce des stages de seconde passe à 3 — Convention validée.',
-    actor: 'staff',
-    actorLabel: 'Équipe Dev & Adm Epitech',
-    icon: ClipboardCheck,
-  },
-  {
-    key: 'mail-stagiaire',
-    title: 'Mail envoyé au stagiaire',
-    description:
-      "Un mail de finalisation d'inscription est envoyé au stagiaire, avec une deadline au 1er juin et un lien permettant de se connecter automatiquement à Jump, la plateforme Epitech des stages de seconde.",
-    actor: 'staff',
-    actorLabel: 'Équipe Dev Natio',
-    icon: Mail,
-  },
-  {
-    key: 'onboarding-profil',
-    title: 'Onboarding et complétion du profil',
-    description:
-      "Le stagiaire clique sur le lien du mail, se connecte à la plateforme Jump et réalise son onboarding. Il complète son profil en vérifiant ses coordonnées personnelles, celles de ses parents et ajoute ses centres d'intérêt, son matériel informatique et son lycée.",
-    actor: 'talent',
-    actorLabel: 'Le stagiaire',
-    icon: UserCheck,
-  },
-  {
-    key: 'reglement-interieur',
-    title: 'Signature du règlement intérieur',
-    description:
-      "Le stagiaire lit et signe électroniquement le règlement intérieur d'Epitech via la plateforme Jump, et s'engage formellement à le respecter pendant toute la durée de son stage.",
-    actor: 'talent',
-    actorLabel: 'Le stagiaire',
-    icon: FileText,
-  },
-  {
-    key: 'droit-image',
-    title: "Droit à l'image",
-    description:
-      "Les référents légaux du stagiaire reçoivent un mail avec un lien de connexion automatique vers la plateforme. Ils se connectent et renseignent en ligne leur décision sur le droit à l'image — autoriser ou refuser l'utilisation par Epitech des photos et vidéos prises pendant le stage.",
-    actor: 'parent',
-    actorLabel: 'Les référents légaux (parents)',
-    icon: Camera,
-  },
-  {
-    key: 'bienvenue-plateforme',
-    title: 'Bienvenue sur la plateforme',
-    description:
-      'Le stagiaire se connecte à la home page Jump et accède à travers un message de bienvenue avec toutes les informations sur le stage. Il relève ses premiers défis à travers les mini-jeux de logique proposés sur la plateforme et obtient ses premiers points de gamification (XP).',
-    actor: 'auto',
-    actorLabel: 'Le stagiaire',
-    icon: PartyPopper,
-  },
-];
-
-export const TALENT_JOURNEY_ACTOR_LABEL: Record<TalentJourneyActor, string> = {
-  staff: 'côté staff',
-  talent: 'le stagiaire',
-  parent: 'le parent',
-  auto: 'automatique',
+export type TalentJourneyClosing = {
+  status: 'in_progress' | 'done';
+  /** The team's verdict, once given. */
+  recommendation: ClosingRecommendation | null;
+  /** The team's own words about the talent. Rendered plainly, never as a
+   *  quotation: the quote treatment on this page belongs to the talent's voice. */
+  verdictNote: string | null;
+  /** The talent's own sentence about the event, where the grid asked for one. */
+  quote: string | null;
+  /**
+   * Who conducted it, name and avatar. Carried so the two kinds of writing in a
+   * closing can be ATTRIBUTED rather than only styled: the reader was left to
+   * infer from a rule colour that one sentence was the student's and the next
+   * one the team's, and that inference is exactly what nobody made.
+   *
+   * The avatar is not decoration: staff prose about a talent is signed with a
+   * face everywhere else on this page (`TalentNoteCard`) and on the closing's own
+   * page, so signing it with a glyph here made the same person read as two
+   * different kinds of thing on one screen.
+   */
+  staffName: string | null;
+  staffImage: string | null;
 };
+
+export type TalentJourney = {
+  /** Whose journey this is. Carried once here rather than on every entry: a
+   *  journey belongs to one talent, and it is half of the key the closing
+   *  conduct route is addressed by. */
+  talentId: string;
+  entries: TalentJourneyEntry[];
+  /** Events attended, which is what the section's header counts. */
+  eventCount: number;
+  /** Closings finalised, the other half of that count. */
+  closingCount: number;
+};
+
+/** Whether anything on the journey is worth rendering. */
+export function hasJourney(journey: TalentJourney): boolean {
+  return journey.entries.length > 0;
+}

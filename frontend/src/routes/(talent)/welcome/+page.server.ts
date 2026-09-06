@@ -2,58 +2,27 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
-import { stageWindowEnd, STAGE_DEFAULT_DURATION_DAYS } from '$lib/domain/event';
+import {
+  getOnboardingStep,
+  onboardingFieldsForYear,
+} from '$lib/domain/talentOnboarding';
+import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import { captureOnboardingReturn } from '$lib/server/auth/loginRedirect';
 
 export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
 
-  // /welcome is a one-shot gate before onboarding, not a destination. Once
-  // seen, the route guard stops redirecting here, so the only way back is a
-  // bookmark/refresh/back-button — send those home rather than re-showing the
-  // splash. Cheaper than the stage query below, so check it first.
-  if (locals.talent.welcomeSeenAt) {
-    throw redirect(303, resolve('/'));
-  }
-
-  // Prefer the ongoing stage among several: filter to still-open windows, then
-  // take the earliest-starting (mirrors the dashboard welcome card).
-  const now = new Date();
-  const windowLookback = new Date(
-    now.getTime() - STAGE_DEFAULT_DURATION_DAYS * 86_400_000,
-  );
-  const stageParticipation = await prisma.participation.findFirst({
-    where: {
-      talentId: locals.talent.id,
-      event: {
-        eventType: 'stage_seconde',
-        OR: [
-          { endDate: { gte: now } },
-          { endDate: null, date: { gte: windowLookback } },
-        ],
-      },
-    },
-    orderBy: { event: { date: 'asc' } },
-    select: {
-      event: {
-        select: {
-          id: true,
-          titre: true,
-          endDate: true,
-          date: true,
-          campus: { select: { name: true, contactEmail: true } },
-        },
-      },
-    },
-  });
-
-  if (!stageParticipation) {
-    throw redirect(303, resolve('/'));
-  }
-
-  const { event } = stageParticipation;
-  const stageEnd = stageWindowEnd(event.date, event.endDate);
-  if (stageEnd < new Date()) {
+  // /welcome is a one-shot gate before onboarding, not a destination. It shows
+  // to a fresh talent who hasn't seen it AND still has onboarding to do (the
+  // same talent-state gate the route guard applies). Anyone else (already
+  // welcomed, or already fully onboarded) is sent home. Not event-gated: the
+  // splash copy is generic (no per-event content).
+  if (
+    locals.talent.welcomeSeenAt ||
+    getOnboardingStep(
+      onboardingFieldsForYear(locals.talent, currentSchoolYearLabel()),
+    ) === null
+  ) {
     throw redirect(303, resolve('/'));
   }
 
@@ -64,7 +33,6 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
 
   return {
     prenom: locals.talent.prenom,
-    eventId: event.id,
     talentCreatedAt: locals.talent.createdAt.toISOString(),
   };
 };
@@ -78,9 +46,12 @@ export const actions: Actions = {
       data: { welcomeSeenAt: new Date() },
     });
 
-    // The message has been read here; welcome runs before onboarding, so hand
-    // off to the onboarding flow. The dashboard celebration fires later, once
-    // onboarding completes and arms the one-shot arrival-celebration cookie.
-    throw redirect(303, resolve('/onboarding'));
+    // The message has been read; hand back to the root and let the route
+    // guards pick the next gate. They already own that decision - the wizard
+    // for a talent who walks the ladder, `/charte` for a collégien who does not
+    // - and naming a destination here would be a second copy of it, free to
+    // drift. The dashboard celebration fires later, once onboarding completes
+    // and arms the one-shot arrival-celebration cookie.
+    throw redirect(303, resolve('/'));
   },
 };
