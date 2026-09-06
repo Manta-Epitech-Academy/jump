@@ -240,7 +240,7 @@ describe('the composed dedupe key', () => {
 describe('a connection key', () => {
   const connect = (locals: App.Locals) => {
     createMany.mockClear();
-    recordUsage(USAGE_FEATURES.DEV_SESSION, { locals });
+    recordUsage(USAGE_FEATURES.DEV_CONNECTION, { locals });
     return written()?.dedupeKey;
   };
 

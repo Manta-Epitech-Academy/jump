@@ -452,7 +452,7 @@ export class World {
     const days = [...offsets].sort((a, b) => a - b);
 
     // An admin works in the admin space and drops into the dev one now and
-    // again, which is the question `usageSessionFeature` exists to keep
+    // again, which is the question `usageConnectionFeature` exists to keep
     // answerable: « les administrateurs ouvrent-ils jamais l'espace dev ».
     const home = role === 'admin' ? 'admin' : 'dev';
     const away = role === 'admin' ? 'dev' : 'admin';

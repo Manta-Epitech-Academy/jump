@@ -368,15 +368,15 @@ export function addUsage(
   const staffPool = adopted.filter(
     (key) =>
       USAGE_FEATURE_DEFS[key].audience === 'staff' &&
-      USAGE_FEATURE_DEFS[key].kind !== 'session',
+      USAGE_FEATURE_DEFS[key].kind !== 'connection',
   );
   // Sessions are out of the adoption draw on purpose. A session is not a
   // feature somebody adopts: it is written for everyone who comes, so leaving
   // it in would let the dice report « personne n'ouvre l'espace dev » about a
   // roster that visibly does.
   const sessionOf = {
-    dev: USAGE_FEATURES.DEV_SESSION,
-    admin: USAGE_FEATURES.ADMIN_SESSION,
+    dev: USAGE_FEATURES.DEV_CONNECTION,
+    admin: USAGE_FEATURES.ADMIN_CONNECTION,
   };
 
   for (const [memberIndex, member] of staff.entries()) {
@@ -406,7 +406,7 @@ export function addUsage(
           feature: sessionOf[visit.space],
           actorKind: 'staff',
           staffProfileId: member.id,
-          // `dev_session` is campus-scoped and `admin_session` global, which the
+          // `dev_connection` is campus-scoped and `admin_connection` global, which the
           // catalogue already says: the admin space is national.
           campusId:
             USAGE_FEATURE_DEFS[sessionOf[visit.space]].scope === 'global'
@@ -508,8 +508,8 @@ export function addUsage(
     // that belonged to no session at all, which is the shape this scenario
     // exists to make impossible.
     pushUse(world, {
-      key: ['impersonated', 'session'],
-      feature: USAGE_FEATURES.DEV_SESSION,
+      key: ['impersonated', 'connection'],
+      feature: USAGE_FEATURES.DEV_CONNECTION,
       actorKind: 'staff',
       staffProfileId: admin.id,
       // Null, and so is the view row's below, because `resolveActor` writes

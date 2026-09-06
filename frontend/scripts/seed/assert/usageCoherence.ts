@@ -5,7 +5,7 @@
  * values appear, whether a projection agrees with its ledger, whether every
  * rung of the ladder is standing. None of them can see a member whose feature
  * rows and whose connection rows contradict each other, and that is what the
- * dataset held: `dev_session` and `admin_session` were two keys among 106,
+ * dataset held: `dev_connection` and `admin_connection` were two keys among 106,
  * drawn like the rest and dated from the feature's position in the draw, while
  * `StaffProfile.lastActiveAt` was written in the first scenario as a constant.
  * A member could therefore show four months of feature use, two connections on
@@ -20,7 +20,7 @@
  * ── The direction that is NOT a rule ─────────────────────────────────────────
  *
  * « Every session day carries a view row » is false in production and must not
- * be asserted: `usageSessionFeature` matches a whole space by prefix while
+ * be asserted: `usageConnectionFeature` matches a whole space by prefix while
  * `USAGE_VIEW_ROUTES` names 36 routes, and four view keys are recorded at an
  * endpoint rather than at a route. Somebody opening a dev-space page that is not
  * in the map writes a session row and nothing else. Only the converse holds.
@@ -33,7 +33,7 @@
 import type { PrismaClient } from '@prisma/client';
 import {
   USAGE_FEATURE_DEFS,
-  usageSessionFeatures,
+  usageConnectionFeatures,
   type UsageFeatureKey,
 } from '../../../src/lib/domain/usage';
 
@@ -45,7 +45,7 @@ import {
  */
 const SESSION_DAYS = 14;
 
-const SESSION_FEATURES = usageSessionFeatures('staff');
+const CONNECTION_FEATURES = usageConnectionFeatures('staff');
 
 /** UTC midnight of a timestamp, so two rows are compared by their day. */
 function dayOf(date: Date): number {
@@ -123,7 +123,7 @@ export async function usageCoherenceFailures(
   const openings = new Map<string, Date[]>();
   for (const row of rows) {
     if (!row.staffProfileId) continue;
-    if (!SESSION_FEATURES.includes(row.feature as UsageFeatureKey)) continue;
+    if (!CONNECTION_FEATURES.includes(row.feature as UsageFeatureKey)) continue;
     const key = `${row.staffProfileId}|${spaceOf(row.feature)}`;
     const list = openings.get(key) ?? [];
     list.push(row.occurredAt);
@@ -133,7 +133,7 @@ export async function usageCoherenceFailures(
   const orphans = new Map<string, number>();
   for (const row of rows) {
     if (!row.staffProfileId) continue;
-    if (SESSION_FEATURES.includes(row.feature as UsageFeatureKey)) continue;
+    if (CONNECTION_FEATURES.includes(row.feature as UsageFeatureKey)) continue;
     const space = spaceOf(row.feature);
     const key = `${row.staffProfileId}|${space}`;
     const covered = (openings.get(key) ?? []).some((opened) => {

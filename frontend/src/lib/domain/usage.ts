@@ -40,7 +40,7 @@
 
 export const USAGE_FEATURES = {
   // ── Dev space (staff) ─────────────────────────────────────────────
-  DEV_SESSION: 'dev_session',
+  DEV_CONNECTION: 'dev_connection',
   DEV_DASHBOARD_VIEW: 'dev_dashboard_view',
   DEV_INSCRITS_VIEW: 'dev_inscrits_view',
   DEV_INSCRITS_EXPORT: 'dev_inscrits_export',
@@ -68,7 +68,7 @@ export const USAGE_FEATURES = {
   DEV_IMAGE_RIGHTS_CORRECT: 'dev_image_rights_correct',
 
   // ── Admin space, views ────────────────────────────────────────────
-  ADMIN_SESSION: 'admin_session',
+  ADMIN_CONNECTION: 'admin_connection',
   ADMIN_DASHBOARD_VIEW: 'admin_dashboard_view',
   ADMIN_EVENTS_VIEW: 'admin_events_view',
   ADMIN_TALENTS_VIEW: 'admin_talents_view',
@@ -142,7 +142,7 @@ export const USAGE_FEATURES = {
   ADMIN_STAFF_ACTIVITY_OPEN: 'admin_staff_activity_open',
 
   // ── Talent space (pseudonymous) ───────────────────────────────────
-  TALENT_SESSION: 'talent_session',
+  TALENT_CONNECTION: 'talent_connection',
   TALENT_DASHBOARD_VIEW: 'talent_dashboard_view',
   TALENT_XP_HISTORY_VIEW: 'talent_xp_history_view',
   TALENT_EVENTS_VIEW: 'talent_events_view',
@@ -164,18 +164,19 @@ export const USAGE_FEATURE_KEYS = Object.values(
 
 export type UsageAudience = 'talent' | 'staff';
 export type UsageSpace = 'talent' | 'dev' | 'admin';
-export type UsageKind = 'session' | 'view' | 'action' | 'export' | 'document';
+export type UsageKind =
+  'connection' | 'view' | 'action' | 'export' | 'document';
 
 /**
  * What a space is called in French, for a surface that shows WHERE a use
  * happened rather than which feature it was.
  *
  * Here rather than at the call site because a space's name is catalogue
- * vocabulary, exactly like a feature's label: the members-page dialog lists a
- * member's connections and has to say whether each one opened the dev space or
- * the admin one, which is a real question (`usageSessionFeature` records the two
- * separately for that reason). A second spelling elsewhere would be a second
- * name for one thing.
+ * vocabulary, exactly like a feature's label: the members-page dialog lists
+ * what a member has used and has to say whether each one sits in the dev space
+ * or the admin one, which is a real question (`usageConnectionFeature` keys the
+ * two separately for that reason). A second spelling elsewhere would be a
+ * second name for one thing.
  */
 export const USAGE_SPACE_LABELS: Readonly<Record<UsageSpace, string>> = {
   talent: 'Espace talent',
@@ -308,13 +309,13 @@ const DAY_NOTE =
 
 export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   // ── Dev space (staff) ─────────────────────────────────────────────
-  [USAGE_FEATURES.DEV_SESSION]: def({
-    key: USAGE_FEATURES.DEV_SESSION,
+  [USAGE_FEATURES.DEV_CONNECTION]: def({
+    key: USAGE_FEATURES.DEV_CONNECTION,
     label: 'Connexions à l’espace dev',
     definition: `Journées de connexion à l’espace dev. ${DAY_NOTE}`,
     audience: 'staff',
     space: 'dev',
-    kind: 'session',
+    kind: 'connection',
     scope: 'campus',
     dedupe: 'day',
   }),
@@ -581,13 +582,13 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   }),
 
   // ── Admin space, views ────────────────────────────────────────────
-  [USAGE_FEATURES.ADMIN_SESSION]: def({
-    key: USAGE_FEATURES.ADMIN_SESSION,
+  [USAGE_FEATURES.ADMIN_CONNECTION]: def({
+    key: USAGE_FEATURES.ADMIN_CONNECTION,
     label: 'Connexions à l’espace admin',
     definition: `Journées de connexion à l’espace admin. ${DAY_NOTE}`,
     audience: 'staff',
     space: 'admin',
-    kind: 'session',
+    kind: 'connection',
     scope: 'global',
     dedupe: 'day',
   }),
@@ -1303,13 +1304,13 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   }),
 
   // ── Talent space (pseudonymous) ───────────────────────────────────
-  [USAGE_FEATURES.TALENT_SESSION]: def({
-    key: USAGE_FEATURES.TALENT_SESSION,
+  [USAGE_FEATURES.TALENT_CONNECTION]: def({
+    key: USAGE_FEATURES.TALENT_CONNECTION,
     label: 'Tes connexions',
     definition: `Tes journées de connexion à l’espace talent. ${DAY_NOTE}`,
     audience: 'talent',
     space: 'talent',
-    kind: 'session',
+    kind: 'connection',
     scope: 'campus',
     dedupe: 'day',
   }),
@@ -1409,7 +1410,7 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
 };
 
 /**
- * Route id to feature key, for the views and sessions counted in
+ * Route id to feature key, for the views and connections counted in
  * `hooks.server.ts`.
  *
  * EVERY `*_view` key comes from this map and from nowhere else. No view is
@@ -1475,36 +1476,45 @@ export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
 };
 
 /**
- * The session key for a space, from the route being visited. One row per real
- * session per space: a member who works in both spaces on one login is counted
- * in each, because "do the admins ever open the dev space" is a real question.
+ * The connection key for a space, from the route being visited. It matches by
+ * PREFIX, so every request into a space carries one, not only the 36 routes
+ * `USAGE_VIEW_ROUTES` names: a day spent on an uncatalogued page is still a day
+ * this person came.
+ *
+ * One key per space, and a member who works in both spaces on one day is
+ * counted in each, because "do the admins ever open the dev space" is a real
+ * question. The two rows live under different `feature` values, which the
+ * unique constraint already separates, so the space is not in the dedupe key.
  */
-export function usageSessionFeature(routeId: string): UsageFeatureKey | null {
+export function usageConnectionFeature(
+  routeId: string,
+): UsageFeatureKey | null {
   if (routeId.startsWith('/(staff)/staff/admin')) {
-    return USAGE_FEATURES.ADMIN_SESSION;
+    return USAGE_FEATURES.ADMIN_CONNECTION;
   }
   if (routeId.startsWith('/(staff)/staff/dev'))
-    return USAGE_FEATURES.DEV_SESSION;
-  if (routeId.startsWith('/(talent)')) return USAGE_FEATURES.TALENT_SESSION;
+    return USAGE_FEATURES.DEV_CONNECTION;
+  if (routeId.startsWith('/(talent)')) return USAGE_FEATURES.TALENT_CONNECTION;
   return null;
 }
 
 /**
- * Every session key of one audience, derived from the catalogue rather than
- * listed by hand, so a space added to `usageSessionFeature` above is covered
+ * Every connection key of one audience, derived from the catalogue rather than
+ * listed by hand, so a space added to `usageConnectionFeature` above is covered
  * here without a second edit that nothing would fail to remind you of.
  *
- * Read by the members-page dialog, which shows a member's connections apart from
- * everything else they did: a session and a feature use answer different
- * questions ("do they come" against "what do they do"), and rendering them in
- * one list made the first unreadable inside the second.
+ * Read by the members-page dialog, which leaves connections OUT of the list of
+ * features somebody has used: the two answer different questions ("do they
+ * come" against "what do they do"), and a connection is written for everyone
+ * who arrives rather than being a feature anybody chose. The seed generator
+ * excludes them from its adoption draw for the same reason.
  */
-export function usageSessionFeatures(
+export function usageConnectionFeatures(
   audience: UsageAudience,
 ): UsageFeatureKey[] {
   return USAGE_FEATURE_KEYS.filter(
     (key) =>
-      USAGE_FEATURE_DEFS[key].kind === 'session' &&
+      USAGE_FEATURE_DEFS[key].kind === 'connection' &&
       USAGE_FEATURE_DEFS[key].audience === audience,
   );
 }

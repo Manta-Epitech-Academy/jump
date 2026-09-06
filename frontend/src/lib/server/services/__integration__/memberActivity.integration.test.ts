@@ -113,8 +113,8 @@ beforeAll(async () => {
 
   // Two calendar days, two logins, and a feature opened more often than the one
   // beside it so the ordering has something to order.
-  await use(member, USAGE_FEATURES.DEV_SESSION, YESTERDAY, 'm-s1');
-  await use(member, USAGE_FEATURES.DEV_SESSION, TODAY, 'm-s2');
+  await use(member, USAGE_FEATURES.DEV_CONNECTION, YESTERDAY, 'm-s1');
+  await use(member, USAGE_FEATURES.DEV_CONNECTION, TODAY, 'm-s2');
   await use(member, USAGE_FEATURES.DEV_INSCRITS_VIEW, YESTERDAY, 'm-v1');
   await use(member, USAGE_FEATURES.DEV_INSCRITS_VIEW, TODAY, 'm-v2');
   await use(member, USAGE_FEATURES.DEV_INSCRITS_VIEW, TODAY, 'm-v3');
@@ -122,7 +122,7 @@ beforeAll(async () => {
 
   // An admin's own space, plus the dev-space rows an exploration attributes to
   // them.
-  await use(explorer, USAGE_FEATURES.ADMIN_SESSION, TODAY, 'x-s1');
+  await use(explorer, USAGE_FEATURES.ADMIN_CONNECTION, TODAY, 'x-s1');
   await use(explorer, USAGE_FEATURES.ADMIN_STAFF_ACTIVITY_OPEN, TODAY, 'x-a1');
   await use(explorer, USAGE_FEATURES.DEV_INSCRITS_VIEW, TODAY, 'x-v1', true);
   await use(explorer, USAGE_FEATURES.DEV_INSCRITS_VIEW, TODAY, 'x-v2', true);
@@ -229,7 +229,7 @@ describe('getMemberActivity', () => {
       const definition = USAGE_FEATURE_DEFS[key];
       return (
         definition.audience === 'staff' &&
-        definition.kind !== 'session' &&
+        definition.kind !== 'connection' &&
         definition.space === 'dev'
       );
     });

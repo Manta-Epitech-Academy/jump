@@ -9,7 +9,8 @@ import {
   USAGE_MEASURED_ELSEWHERE,
   USAGE_RAW_RETENTION_MONTHS,
   usageRawCutoff,
-  usageSessionFeature,
+  usageConnectionFeature,
+  usageConnectionFeatures,
   isUsageFeatureKey,
   type UsageFeatureKey,
 } from './usage';
@@ -77,7 +78,7 @@ describe('the usage catalogue', () => {
       // the unit. Leaving one bucketed would count a working day as up to 48
       // arrivals, and the mistake is invisible: `usageDedupeKey` has no branch
       // on `kind` any more, so nothing else would refuse it.
-      if (kind === 'session') expect(dedupe, key).toBe('day');
+      if (kind === 'connection') expect(dedupe, key).toBe('day');
       // The admin space is national, so a per-campus reading of it would not
       // hold; only dev and talent surfaces carry a campus.
       if (space === 'admin') expect(scope, key).toBe('global');
@@ -142,22 +143,32 @@ describe('the view-route map', () => {
     expect(new Set(mapped).size).toBe(mapped.length);
   });
 
-  it('resolves a session key per space, and none outside them', () => {
-    expect(usageSessionFeature('/(staff)/staff/admin/users')).toBe(
-      USAGE_FEATURES.ADMIN_SESSION,
+  it('resolves a connection key per space, and none outside them', () => {
+    expect(usageConnectionFeature('/(staff)/staff/admin/users')).toBe(
+      USAGE_FEATURES.ADMIN_CONNECTION,
     );
-    expect(usageSessionFeature('/(staff)/staff/dev/events/[id]/inscrits')).toBe(
-      USAGE_FEATURES.DEV_SESSION,
-    );
-    expect(usageSessionFeature('/(talent)/xp')).toBe(
-      USAGE_FEATURES.TALENT_SESSION,
+    expect(
+      usageConnectionFeature('/(staff)/staff/dev/events/[id]/inscrits'),
+    ).toBe(USAGE_FEATURES.DEV_CONNECTION);
+    expect(usageConnectionFeature('/(talent)/xp')).toBe(
+      USAGE_FEATURES.TALENT_CONNECTION,
     );
     // Admin is tested before dev, or every admin route would read as a dev one.
-    expect(usageSessionFeature('/(staff)/staff/admin')).toBe(
-      USAGE_FEATURES.ADMIN_SESSION,
+    expect(usageConnectionFeature('/(staff)/staff/admin')).toBe(
+      USAGE_FEATURES.ADMIN_CONNECTION,
     );
-    expect(usageSessionFeature('/(parent)/parent')).toBeNull();
-    expect(usageSessionFeature('/f/[slug]')).toBeNull();
+    expect(usageConnectionFeature('/(parent)/parent')).toBeNull();
+    expect(usageConnectionFeature('/f/[slug]')).toBeNull();
+  });
+
+  it('gives each space exactly one connection key', () => {
+    const spaces = USAGE_FEATURE_KEYS.filter(
+      (key) => USAGE_FEATURE_DEFS[key].kind === 'connection',
+    ).map((key) => USAGE_FEATURE_DEFS[key].space);
+    // Both directions matter. A second key for one space could never be
+    // written, since `usageConnectionFeature` returns one per prefix; a space
+    // with none would stop counting the days anybody came there at all.
+    expect([...spaces].sort()).toEqual(['admin', 'dev', 'talent']);
   });
 });
 
@@ -173,14 +184,22 @@ describe('the catalogue and the code cannot drift', () => {
       .filter((f) => f !== CATALOGUE)
       .map((f) => readFileSync(f, 'utf-8'))
       .join('\n');
-    const mappedAsView = new Set<string>(Object.values(USAGE_VIEW_ROUTES));
+    // A connection key is reached through `usageConnectionFeature` and a view
+    // key through `USAGE_VIEW_ROUTES`. Both maps live in the catalogue itself,
+    // which this scan excludes, so both are counted as recording sites here:
+    // what makes them recorded is the map, not a call naming the constant.
+    const mappedInHooks = new Set<string>([
+      ...Object.values(USAGE_VIEW_ROUTES),
+      ...usageConnectionFeatures('staff'),
+      ...usageConnectionFeatures('talent'),
+    ]);
     const constByKey = new Map<UsageFeatureKey, string>(
       Object.entries(USAGE_FEATURES).map(([c, k]) => [k, c]),
     );
 
     const orphans = USAGE_FEATURE_KEYS.filter(
       (key) =>
-        !mappedAsView.has(key) &&
+        !mappedInHooks.has(key) &&
         !callSites.includes(`USAGE_FEATURES.${constByKey.get(key)}`),
     );
     expect(orphans).toEqual([]);
@@ -195,8 +214,8 @@ describe('the catalogue and the code cannot drift', () => {
    */
   it('never reaches the recorder from client code', () => {
     // `src/hooks.server.ts` is server code by SvelteKit's own convention even
-    // though it sits outside `$lib/server`, and it is where visits and sessions
-    // are counted. Everything else outside `$lib/server` and `src/routes` ships
+    // though it sits outside `$lib/server`, and it is where visits and
+    // connections are counted. Everything else outside `$lib/server` and `src/routes` ships
     // to a browser.
     const serverOnly = new Set(['src/hooks.server.ts']);
     const offenders = sourceFiles
