@@ -191,30 +191,43 @@ export function addBroadcast(
  * identifies the respondent by the fields the form itself asked for. A third of
  * production's submissions are public and none of them are matched to a talent,
  * which is the case every "who answered" screen has to render.
+ *
+ * The two halves are a union rather than four optional fields, because they are
+ * keyed differently and that is not a detail. An authenticated submission is
+ * keyed on `(event, talent)`, which is its natural key and what the database's
+ * own `@@unique([formId, eventId, talentId])` says it is; a public one has
+ * neither, so it keeps a caller-chosen index. Keying BOTH on the index made the
+ * number a global namespace across scenarios - `operations.ts` already had to
+ * step around it by starting at 2000 - and the first caller to run the same
+ * block on a second event would have collided on the primary key, silently,
+ * since `createMany` here has no `skipDuplicates`.
  */
 export function addFeedbackSubmission(
   world: World,
-  opts: {
-    formSlug: string;
-    index: number;
-    talent?: TalentRef;
-    event?: EventRef;
-  },
+  opts:
+    | { formSlug: string; talent: TalentRef; event: EventRef }
+    | { formSlug: string; index: number },
 ): void {
   const form = world.feedbackForms.get(opts.formSlug);
   if (!form) return;
 
   const rng = world.ctx.rng;
   const clock = world.ctx.clock;
-  const authenticated = Boolean(opts.talent && opts.event);
-  const submissionId = id('fbs', opts.formSlug, seq(opts.index, 4));
+  const authenticated = 'talent' in opts;
+  const submissionId = authenticated
+    ? id(
+        'fbs',
+        opts.event.id.replace(/^sd_/, ''),
+        opts.talent.id.replace(/^sd_/, ''),
+      )
+    : id('fbs', opts.formSlug, seq(opts.index, 4));
 
   world.buffer.feedback_Submission.push({
     id: submissionId,
     formId: form.id,
     source: authenticated ? 'authenticated' : 'public',
-    talentId: authenticated ? opts.talent!.id : null,
-    eventId: authenticated ? opts.event!.id : null,
+    talentId: authenticated ? opts.talent.id : null,
+    eventId: authenticated ? opts.event.id : null,
     respondentEmail: authenticated
       ? null
       : `public.${seq(opts.index, 4)}@seed.invalid`,

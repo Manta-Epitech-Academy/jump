@@ -1,34 +1,42 @@
 <!--
-  One member's recent activity, from the members directory.
+  One member's coverage of the platform, from the members directory.
 
-  Square dialog per the dev-space language, and the two lists are bounded and
+  Square dialog per the dev-space language, and both lists are bounded and
   scrollable rather than left to grow: the row count is decided by the data, not
   by the code, so the box is already wrong the day it ships if it is not capped.
   Viewport-relative so it grows with the screen instead of leaving a letterbox on
   a laptop. Precedent: `TalentXpDetailDialog`.
 
-  Connections lead, because "does this person come at all" is the question the
-  members directory is being read for; what they did once inside answers a
-  narrower one. Both lists carry a time, not just a day: two logins on one
-  morning rendered as two identical lines, which reads as a display bug rather
-  than as data.
+  This used to be two reverse-chronological logs, the forty most recent gestures
+  and the twenty most recent connections, to the second. It answered no decision:
+  whether the account still serves is the two dates in the header, and "what does
+  this person not know how to do" cannot be read off the forty most recent rows,
+  where an absence means nothing. So the rows are folded per feature, and what
+  the member has never opened is listed beside them, which is the half that turns
+  a report into a training decision.
 
-  The window is stated once, on the connections figures, and the two dates above
-  are stated as durable on purpose. They come from the projections on
-  `StaffProfile` and reach back further than any retention, which is what makes
-  "invité, jamais ouvert" answerable at all; the lists cannot, and saying so is
-  what stops an empty list from reading as an absent member.
+  The two dates in the header come from the projections on `StaffProfile` and
+  reach back further than any retention, which is what makes "invité, jamais
+  ouvert" answerable at all. The window below them cannot, and saying so is what
+  stops an empty coverage from reading as an absent member.
 -->
 <script lang="ts">
   import * as Dialog from '$lib/components/ui/dialog';
+  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
   import { lastActiveLabel } from '$lib/components/staff/lastActive';
   import { countNounForm } from '$lib/components/staff/datatable/countLabel';
   import { formatDateFr, formatDateTimeFr } from '$lib/utils';
   import Loader from '@lucide/svelte/icons/loader';
   import Eye from '@lucide/svelte/icons/eye';
 
-  type Use = { libelle: string; at: string; impersonated: boolean };
-  type Session = { espace: string; at: string; impersonated: boolean };
+  type FeatureUse = {
+    libelle: string;
+    espace: string;
+    utilisations: number;
+    dernierUsage: string;
+    enExploration: number;
+  };
+  type NeverOpened = { libelle: string; espace: string };
 
   type Props = {
     open: boolean;
@@ -47,36 +55,57 @@
     lastActiveAt,
   }: Props = $props();
 
-  let loading = $state(false);
-  let failed = $state(false);
+  /**
+   * The four answers this dialog can render, as one value rather than a pair of
+   * booleans.
+   *
+   * `missing` is the reason: the route answers 404 for a profile that no longer
+   * exists, and with only `loading` and `failed` to carry it a deleted member
+   * rendered the outage sentence, telling somebody to retry a fetch that can
+   * never succeed. Two booleans also spell four states of which only three are
+   * meant to exist; a union spells the states themselves, so the next one
+   * cannot be added without a branch to render it.
+   */
+  type Status = 'loading' | 'missing' | 'failed' | 'ready';
+
+  let status = $state<Status>('loading');
   let windowMonths = $state(0);
   let activeDays = $state(0);
   let loginCount = $state(0);
-  let uses = $state<Use[]>([]);
-  let sessions = $state<Session[]>([]);
+  let features = $state<FeatureUse[]>([]);
+  let jamaisOuvertes = $state<NeverOpened[]>([]);
 
   // Fetched when the dialog opens rather than with the roster: 138 members each
   // holding hundreds of rows inside the window would be a payload nobody reads.
   $effect(() => {
     if (!open || !profileId) return;
     const id = profileId;
-    loading = true;
-    failed = false;
+    status = 'loading';
     fetch(`/staff/admin/users/${id}/usage`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error())))
+      .then((res) => {
+        // A stale link and an outage are different answers to the admin, so
+        // they are different answers here: null is « ce membre n'existe plus »,
+        // a rejection is « la requête a échoué ».
+        if (res.status === 404) return null;
+        if (!res.ok) throw new Error(String(res.status));
+        return res.json();
+      })
       .then((body) => {
         if (profileId !== id) return; // a newer row was opened meanwhile
+        if (!body) {
+          status = 'missing';
+          return;
+        }
         windowMonths = body.windowMonths ?? 0;
         activeDays = body.activeDays ?? 0;
         loginCount = body.loginCount ?? 0;
-        uses = body.uses ?? [];
-        sessions = body.sessions ?? [];
+        features = body.features ?? [];
+        jamaisOuvertes = body.jamaisOuvertes ?? [];
+        status = 'ready';
       })
       .catch(() => {
-        failed = true;
-      })
-      .finally(() => {
-        loading = false;
+        if (profileId !== id) return;
+        status = 'failed';
       });
   });
 </script>
@@ -96,7 +125,7 @@
       </Dialog.Description>
     </Dialog.Header>
 
-    {#if loading}
+    {#if status === 'loading'}
       <p
         class="flex items-center gap-2 py-6 text-sm text-muted-foreground"
         aria-live="polite"
@@ -104,48 +133,67 @@
         <Loader class="h-4 w-4 animate-spin" />
         Chargement…
       </p>
-    {:else if failed}
+    {:else if status === 'missing'}
+      <p class="py-6 text-sm text-muted-foreground">
+        Ce membre n'existe plus. Rafraîchissez la page pour remettre la liste à
+        jour.
+      </p>
+    {:else if status === 'failed'}
       <p class="py-6 text-sm text-muted-foreground">
         Chargement impossible. Réessayez dans un instant.
       </p>
     {:else}
       <div class="space-y-5">
+        <p class="text-sm text-foreground-secondary">
+          <span class="font-bold text-foreground">{loginCount}</span>
+          {countNounForm(loginCount, 'connexion')} et
+          <span class="font-bold text-foreground">{activeDays}</span>
+          {countNounForm(activeDays, "jour d'activité", "jours d'activité")}
+          sur les {windowMonths} derniers mois.
+          <InfoTooltip
+            text="Une session reste ouverte quatorze jours : quelqu'un qui vient tous les jours sans se déconnecter compte environ deux connexions par mois. Le nombre de jours est celui à lire."
+          />
+        </p>
+
         <section>
-          <h3 class="mb-2 epi-overline text-muted-foreground">Connexions</h3>
-          {#if sessions.length === 0}
+          <h3 class="mb-2 epi-overline text-muted-foreground">
+            Fonctionnalités utilisées
+          </h3>
+          {#if features.length === 0}
             <p class="text-sm text-muted-foreground">
-              Aucune connexion enregistrée sur les {windowMonths} derniers mois. Les
-              deux dates ci-dessus remontent plus loin : elles ne dépendent pas de
-              cette fenêtre.
+              Aucune utilisation enregistrée sur les {windowMonths} derniers mois.
+              Les deux dates ci-dessus remontent plus loin : elles ne dépendent pas
+              de cette fenêtre.
             </p>
           {:else}
-            <p class="mb-2 text-sm text-foreground-secondary">
-              <span class="font-bold text-foreground">{loginCount}</span>
-              {countNounForm(loginCount, 'connexion')} et
-              <span class="font-bold text-foreground">{activeDays}</span>
-              {countNounForm(activeDays, "jour d'activité", "jours d'activité")}
-              sur les {windowMonths} derniers mois.
-            </p>
             <ul
-              class="max-h-[25svh] space-y-1.5 overflow-y-auto rounded-lg border border-border p-3"
+              class="max-h-[35svh] space-y-2 overflow-y-auto rounded-lg border border-border p-3"
             >
-              {#each sessions as session, i (`${session.at}-${i}`)}
+              {#each features as feature (feature.libelle)}
                 <li
                   class="flex items-baseline justify-between gap-3 text-sm text-foreground-secondary"
                 >
                   <span class="min-w-0 flex-1">
-                    {session.espace}
-                    {#if session.impersonated}
+                    {feature.libelle}
+                    <span class="text-xs text-muted-foreground"
+                      >· {feature.espace}</span
+                    >
+                    {#if feature.enExploration > 0}
                       <span
                         class="ml-1 inline-flex items-center gap-1 text-xs text-muted-foreground"
                       >
                         <Eye class="h-3 w-3" />
-                        en exploration
+                        dont {feature.enExploration} en exploration
                       </span>
                     {/if}
                   </span>
-                  <span class="shrink-0 text-xs text-muted-foreground">
-                    {formatDateTimeFr(session.at)}
+                  <span class="shrink-0 text-right">
+                    <span class="font-bold text-foreground"
+                      >{feature.utilisations}</span
+                    >
+                    <span class="ml-2 text-xs text-muted-foreground">
+                      {formatDateTimeFr(feature.dernierUsage)}
+                    </span>
                   </span>
                 </li>
               {/each}
@@ -153,41 +201,30 @@
           {/if}
         </section>
 
-        <section>
-          <h3 class="mb-2 epi-overline text-muted-foreground">
-            Fonctionnalités utilisées
-          </h3>
-          {#if uses.length === 0}
-            <p class="text-sm text-muted-foreground">
-              Aucune utilisation enregistrée sur les {windowMonths} derniers mois.
-            </p>
-          {:else}
+        {#if jamaisOuvertes.length > 0}
+          <section>
+            <h3 class="mb-2 epi-overline text-muted-foreground">
+              Jamais ouvertes
+              <InfoTooltip
+                text="Les fonctionnalités des espaces où ce membre travaille et qu'il n'a pas ouvertes une seule fois sur la fenêtre."
+              />
+            </h3>
             <ul
-              class="max-h-[40svh] space-y-1.5 overflow-y-auto rounded-lg border border-border p-3"
+              class="max-h-[25svh] space-y-1.5 overflow-y-auto rounded-lg border border-border p-3"
             >
-              {#each uses as use, i (`${use.at}-${i}`)}
+              {#each jamaisOuvertes as feature (feature.libelle)}
                 <li
                   class="flex items-baseline justify-between gap-3 text-sm text-foreground-secondary"
                 >
-                  <span class="min-w-0 flex-1">
-                    {use.libelle}
-                    {#if use.impersonated}
-                      <span
-                        class="ml-1 inline-flex items-center gap-1 text-xs text-muted-foreground"
-                      >
-                        <Eye class="h-3 w-3" />
-                        en exploration
-                      </span>
-                    {/if}
-                  </span>
+                  <span class="min-w-0 flex-1">{feature.libelle}</span>
                   <span class="shrink-0 text-xs text-muted-foreground">
-                    {formatDateTimeFr(use.at)}
+                    {feature.espace}
                   </span>
                 </li>
               {/each}
             </ul>
-          {/if}
-        </section>
+          </section>
+        {/if}
       </div>
     {/if}
   </Dialog.Content>

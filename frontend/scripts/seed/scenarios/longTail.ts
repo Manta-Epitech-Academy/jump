@@ -13,6 +13,7 @@
  */
 
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
+import { COHORT_NOUNS } from '../../../src/lib/domain/event';
 import { WELCOME_XP_BONUS } from '../../../src/lib/domain/xp';
 import { addDossier } from '../factories/onboarding';
 import {
@@ -152,7 +153,7 @@ export const longTail: Scenario = {
         // Only a fifth of events carry a public name; the rest show the raw
         // Salesforce title, which is what staff actually read most of the time.
         publicName: configured ? codingClubPublicName(firstDay) : null,
-        cohortNoun: configured ? 'participants' : null,
+        cohortNoun: configured ? COHORT_NOUNS.PARTICIPANT : null,
         campus,
         days,
         withEndDate: beingPrepared ? false : undefined,
@@ -190,12 +191,17 @@ export const longTail: Scenario = {
       });
       for (const talent of cohort) world.enrol(event, talent);
 
-      // 16% of the platform has walked the onboarding dossier, and that is a
-      // property of the talent rather than of the event: applying it only to
-      // the stage cohort would leave the compliance and funnel aggregates
-      // reading against a couple of hundred rows instead of a thousand.
+      // Almost nobody, and the figure that says 16% is not this one.
+      //
+      // 16% is the share of TALENTS platform-wide who have walked the dossier,
+      // and it is carried by the stage de seconde: 765 of its 1 640 enrolments
+      // logged in, against 104 of the roughly 6 000 enrolments on everything
+      // else. That is 2% here. This line read 0.16 back when the generator
+      // produced ONE stage and the platform-wide figure had nowhere else to
+      // live; with the campaign on every campus it counts the same dossiers a
+      // second time, and the dossier tables came out at twice production's.
       for (const talent of cohort) {
-        if (!rng.chance(0.16)) continue;
+        if (!rng.chance(0.02)) continue;
         addDossier(world, {
           talent,
           schoolYear,
@@ -276,7 +282,7 @@ export const longTail: Scenario = {
         date: zeroClosingDays[0]!,
       }),
       publicName: codingClubPublicName(zeroClosingDays[0]!),
-      cohortNoun: 'participants',
+      cohortNoun: COHORT_NOUNS.PARTICIPANT,
       campus: zeroClosingCampus,
       days: zeroClosingDays,
       devActivated: true,

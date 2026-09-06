@@ -52,6 +52,77 @@ export type CampusRef = {
   /** Relative share of the platform's enrolments, from PROFILE.md. */
   weight: number;
 };
+/**
+ * How much a staff member comes, as the four states the platform actually
+ * counts: `ops_staff_activity` buckets a roster into active in the last seven
+ * days, inactive for thirty, and never opened, and the members page adds « rien
+ * sur la fenêtre » for somebody whose last visit predates the usage retention.
+ * A roster where everybody is equally active leaves three of the four empty.
+ */
+export type StaffActivity = 'active' | 'occasional' | 'lapsed' | 'never';
+
+/**
+ * One day a member opened one space.
+ *
+ * The fact everything else about their activity is derived from: the usage
+ * rows, the session rows, and `StaffProfile.lastActiveAt`. Generated here rather
+ * than in the usage factory because it describes the PERSON, and because two
+ * generators writing what one person did is exactly how the dataset ended up
+ * claiming a member had four months of feature use and two connections on
+ * unrelated days.
+ */
+export type StaffVisit = {
+  /** Days before the anchor, negative. */
+  readonly dayOffset: number;
+  readonly space: 'dev' | 'admin';
+  /**
+   * The login this visit belongs to. A BetterAuth session lives a fortnight
+   * (`auth.ts`), so several days share one, which is the whole reason a login
+   * count under-reports somebody who never signs out.
+   */
+  readonly sessionKey: string;
+  /** True on the visit that opened that session: the one that writes the row. */
+  readonly opensSession: boolean;
+};
+
+/**
+ * How far back each tier that HAS visits reaches, and how densely.
+ *
+ * The tiers are spans, not a distribution: `active` has to reach into the last
+ * seven days and `occasional` has to stay out of the last thirty, because those
+ * are the two thresholds `ops_staff_activity` cuts on.
+ *
+ * `mostRecent` is therefore a floor on the whole history and not only on the
+ * one visit that is placed. `lastActiveAt` is the MAXIMUM of the set, so a
+ * placed anchor drawn from a narrow range and every other day drawn from
+ * [1, oldest] leaves the tier decided by the widest draw: measured on the real
+ * generator, 61% of `occasional` landed inside thirty days and 17% inside
+ * seven, which is the `active` bucket. One floor per tier is what makes the
+ * span hold by construction.
+ *
+ * `never` and `lapsed` are absent because they have no visits at all: `never`
+ * was invited and did not come, and `lapsed` last came beyond the usage
+ * retention, which is the state whose dialog says « aucune connexion
+ * enregistrée sur les 12 derniers mois » while the two dates above it are still
+ * set - precisely why those dates do not come from the usage rows.
+ */
+const VISIT_SPANS: Readonly<
+  Record<
+    Extract<StaffActivity, 'active' | 'occasional'>,
+    {
+      /** How many distinct days, inclusive. */
+      readonly count: readonly [number, number];
+      /** The freshest day, inclusive, in days before the anchor. */
+      readonly mostRecent: readonly [number, number];
+      /** The furthest back any visit of this tier goes. */
+      readonly oldest: number;
+    }
+  >
+> = {
+  active: { count: [40, 90], mostRecent: [1, 4], oldest: 330 },
+  occasional: { count: [6, 15], mostRecent: [35, 80], oldest: 300 },
+};
+
 export type StaffRef = {
   id: string;
   userId: string;
@@ -59,6 +130,8 @@ export type StaffRef = {
   name: string;
   role: StaffRole;
   campusId: string | null;
+  /** Empty for a member who has never opened their account, or no longer does. */
+  readonly visits: readonly StaffVisit[];
 };
 export type TalentRef = {
   id: string;
@@ -148,6 +221,20 @@ export class World {
   readonly staff: StaffRef[] = [];
   readonly talents: TalentRef[] = [];
   readonly events: EventRef[] = [];
+  /**
+   * Events a scenario has placed a cohort or a state on. The event twin of
+   * `reservedCampusNames`, and it exists for the same reason: a later scenario
+   * that wants « an event on this campus » must not silently land on one whose
+   * figures are the point.
+   *
+   * It became load-bearing when the stage de seconde went national. `stage`
+   * runs second, so its event is the FIRST one on every campus, and both
+   * `edgeTalents` and `operations` were taking the first: forty talents in rare
+   * dossier states were enrolled onto a stage cohort whose size is the whole
+   * reason it exists, and the campaign broadcasts went out to it. Nothing said
+   * so - the roster was simply 59 where the scenario had built 18.
+   */
+  readonly reservedEventIds = new Set<string>();
   /** Enrolments, so a scenario can mark presence without re-deriving the roster. */
   readonly roster = new Map<string, TalentRef[]>();
 
@@ -210,9 +297,17 @@ export class World {
    */
   readonly wizardRng: Rng;
 
+  /**
+   * The stream a member's visit history is drawn from. Forked for the same
+   * reason as the two above: `addStaff` runs in the first scenario, so drawing
+   * from the shared stream here would renumber the entire dataset.
+   */
+  private readonly staffRng: Rng;
+
   constructor(readonly ctx: SeedContext) {
     this.sfRng = ctx.rng.fork('sfMemberStatus');
     this.wizardRng = ctx.rng.fork('wizard');
+    this.staffRng = ctx.rng.fork('staffActivity');
   }
 
   /** Monotonic, so ids stay unique however scenarios are ordered. */
@@ -329,13 +424,73 @@ export class World {
 
   // ─── Staff ────────────────────────────────────────────────────────────────
 
+  /**
+   * A member's visit history, and the two projections read off it. What each
+   * tier means, and why its freshest day is a floor rather than one draw, is on
+   * {@link VISIT_SPANS}.
+   */
+  private visitsFor(activity: StaffActivity, role: StaffRole): StaffVisit[] {
+    if (activity === 'never' || activity === 'lapsed') return [];
+    const rng = this.staffRng;
+    const span = VISIT_SPANS[activity];
+    const count = rng.int(...span.count);
+
+    // The freshest day this tier may hold, and it bounds EVERY draw rather than
+    // only the placed one. `lastActiveAt` is the most recent visit, so the
+    // bucket the member lands in is decided by the maximum of the whole set:
+    // placing the anchor at -35 and then filling from [-300, -1] left 61% of
+    // `occasional` inside thirty days and 17% inside seven, which is the
+    // `active` bucket. One floor for the tier makes the span structural instead
+    // of a property of the first draw.
+    //
+    // At least yesterday, never today: `occurredAt` carries a wall-clock hour
+    // and `assert/clock.ts` refuses a seeded timestamp past the anchor, which is
+    // the anchor's own midnight.
+    const [freshest, stalest] = span.mostRecent;
+    const offsets = new Set<number>([-rng.int(freshest, stalest)]);
+    while (offsets.size < count) offsets.add(-rng.int(freshest, span.oldest));
+    const days = [...offsets].sort((a, b) => a - b);
+
+    // An admin works in the admin space and drops into the dev one now and
+    // again, which is the question `usageSessionFeature` exists to keep
+    // answerable: « les administrateurs ouvrent-ils jamais l'espace dev ».
+    const home = role === 'admin' ? 'admin' : 'dev';
+    const away = role === 'admin' ? 'dev' : 'admin';
+
+    const visits: StaffVisit[] = [];
+    let sessionStart: number | null = null;
+    let session = 0;
+    for (const dayOffset of days) {
+      // A BetterAuth session lives fourteen days, so a run of visits inside one
+      // fortnight is ONE login. That is the whole reason a login count and a
+      // day count disagree, and a dataset that never produces the disagreement
+      // cannot show it.
+      if (sessionStart === null || dayOffset - sessionStart > 14) {
+        sessionStart = dayOffset;
+        session += 1;
+      }
+      visits.push({
+        dayOffset,
+        // Only an admin ever leaves their own space, and rarely: a dev has no
+        // admin space to open.
+        space: role === 'admin' && session % 4 === 0 ? away : home,
+        sessionKey: `s${seq(session, 3)}`,
+        opensSession: dayOffset === sessionStart,
+      });
+    }
+    return visits;
+  }
+
   addStaff(opts: {
     prenom: string;
     nom: string;
     role: StaffRole;
     campus: CampusRef | null;
-    /** A member who has an account but has never opened it. */
-    neverLoggedIn?: boolean;
+    /**
+     * How much this member comes. Defaults to `active`; the roster in
+     * `platform.ts` spreads the four tiers across the team.
+     */
+    activity?: StaffActivity;
     /**
      * Whether this member has already run the three incremental exports. Each
      * one stores its own high-water mark, and every export is a full one until
@@ -348,6 +503,8 @@ export class World {
     const userId = id('usr', 'staff', opts.prenom, opts.nom);
     const profileId = id('stf', opts.prenom, opts.nom);
     const name = `${opts.prenom} ${opts.nom}`;
+    const activity = opts.activity ?? 'active';
+    const visits = this.visitsFor(activity, opts.role);
 
     this.buffer.bauth_user.push({
       id: userId,
@@ -362,8 +519,20 @@ export class World {
       userId,
       campusId: opts.role === 'admin' ? null : (opts.campus?.id ?? null),
       staffRole: opts.role,
-      firstLoginAt: opts.neverLoggedIn ? null : this.ctx.clock.days(-480),
-      lastActiveAt: opts.neverLoggedIn ? null : this.ctx.clock.days(-2),
+      // `firstLoginAt` is deliberately NOT derived from the visits: it reaches
+      // back further than the usage retention, which is what makes « invité,
+      // jamais ouvert » answerable at all and what the members dialog says in
+      // as many words. `lastActiveAt` IS derived, because it is the same fact
+      // as the last visit and two independent writes of one fact is the defect
+      // this whole change removes: the roster used to read « actif il y a 2
+      // jours » for every member, including the ones with no usage row at all.
+      firstLoginAt: activity === 'never' ? null : this.ctx.clock.days(-480),
+      lastActiveAt:
+        activity === 'never'
+          ? null
+          : activity === 'lapsed'
+            ? this.ctx.clock.days(-430)
+            : this.ctx.clock.days(visits[visits.length - 1]?.dayOffset ?? -430),
       sfExportedAt: opts.hasExported ? this.ctx.clock.days(-7) : null,
       onboardingDocsExportedAt: opts.hasExported
         ? this.ctx.clock.days(-21)
@@ -378,6 +547,7 @@ export class World {
       name,
       role: opts.role,
       campusId: opts.campus?.id ?? null,
+      visits,
     };
     this.staff.push(ref);
     return ref;
@@ -385,6 +555,31 @@ export class World {
 
   staffFor(campusId: string): StaffRef[] {
     return this.staff.filter((member) => member.campusId === campusId);
+  }
+
+  /** Declares that this event's cohort is placed, not incidental. */
+  reserveEvent(event: EventRef): void {
+    this.reservedEventIds.add(event.id);
+  }
+
+  /**
+   * An ordinary event on this campus: one no scenario has reserved.
+   *
+   * Falls back to a reserved one, and then to any event at all, because a
+   * profile small enough to have none unreserved still has to produce a
+   * dataset. Same degradation as `pickCampus`.
+   */
+  pickOrdinaryEvent(campusId: string): EventRef {
+    const onCampus = this.events.filter((event) => event.campusId === campusId);
+    const free = onCampus.filter(
+      (event) => !this.reservedEventIds.has(event.id),
+    );
+    const picked = free[0] ?? onCampus[0] ?? this.events[0];
+    if (!picked)
+      throw new Error(
+        'Aucun événement n’a été créé avant le scénario qui en demande un.',
+      );
+    return picked;
   }
 
   // ─── Talents ──────────────────────────────────────────────────────────────

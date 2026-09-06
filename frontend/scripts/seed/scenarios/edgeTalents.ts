@@ -34,9 +34,7 @@ export const edgeTalents: Scenario = {
     const campus = [...world.campuses.values()][0]!;
     const schoolYear = clock.schoolYear;
     const lastYear = clock.schoolYearBefore(1);
-    const event =
-      world.events.find((candidate) => candidate.campusId === campus.id) ??
-      world.events[0]!;
+    const event = world.pickOrdinaryEvent(campus.id);
 
     const spawn = (
       nom: string,

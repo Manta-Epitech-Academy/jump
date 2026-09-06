@@ -7,7 +7,14 @@
 // the staff start from (the stage template carries "stagiaire"), so nothing has
 // to infer the word from what kind of event it is.
 
-const COHORT_NOUNS = {
+/**
+ * The two nouns Jump ships as config-template defaults, in the SINGULAR the
+ * column stores. Exported so nothing has to retype them: `cohortNounForms`
+ * below builds the plural and never the reverse, so a value saved in the plural
+ * renders identically in both forms ("Rechercher un stagiaires..."), and a
+ * literal typed at a call site is exactly how that happens.
+ */
+export const COHORT_NOUNS = {
   STAGIAIRE: 'stagiaire',
   PARTICIPANT: 'participant',
 } as const;
