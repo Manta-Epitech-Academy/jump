@@ -277,7 +277,11 @@ part that is easy to get wrong.
 5. **Name real things, and omit what isn't there.** Actual symbols, models, routes, files. "Various improvements" is not a summary. Add `## Migrations` and `## Env vars` sections when the branch carries either, so a reviewer cannot miss them, and run the same rule in reverse: a Definition-of-Done item, a section, or a table row that does not apply to this change is deleted from the body, never left as an unchecked box or a `None`/`N/A` placeholder. An empty checkbox reads as forgotten work; an absent line reads as exactly what it is, not applicable.
 6. Stage explicit paths rather than `git add -A` whenever `git status` shows untracked files that are not part of the change: scratch notes, screenshots, summary dumps. Surface them so the user decides.
 7. Open the pull request with `scripts/finish-work.sh`. It pushes the branch, guarantees the `Closes #<issue_number>` line the `Work item` check requires, opens it as a **draft**, and then runs the guard so a failure surfaces now rather than in CI.
-8. Self-review: read your own diff as if it were someone else's. Then tick the Definition of Done in the body, and mark the PR ready for review.
+8. **Self-review, in a session that did not write the diff.** "Read your own diff as if it were someone else's" is the one thing the author cannot actually do, and this step used to ask for exactly that. A session that wrote the branch carries the assumptions that produced it, so it re-reads its own reasoning and finds it sound; that is a confirmation bias, not a lack of care, and no amount of attention removes it. Review the diff from a fresh session instead, over `git diff origin/dev...HEAD` (`/review` does this in a new session). Then tick the Definition of Done in the body, and mark the PR ready for review.
+
+   **For AI agents, Step 7 is the hard stop.** Once `scripts/finish-work.sh` completes, the authoring agent's task on the branch is done: stop and return the PR URL. Never attempt to perform self-review in the same session, and never spawn nested review subprocesses (`claude -p` or subshells). The review must take place in an isolated, fresh session (via `/review`) or by a human.
+
+   This one stays prose, and it is worth saying why rather than leaving it looking like an oversight. By rule 1 above a step with no artifact gets forgotten, so the honest thing would be a check. But the only mechanism that could enforce it is a second review pass gating the ready-for-review transition, and on a repository with one developer that costs more than the bias it removes. The session boundary and handoff are what protects the review.
 9. Merge into `dev` once approved (or auto-merge if working solo).
 10. **Nothing to do about the board.** `board-sync.yml` sets the issue to `Done` on merge, and the board's own workflow closes it from there. This used to be a manual step, and being manual is why it was skipped on 10 of the last 17 issues. `Closes #N` still earns its place as the link a reviewer follows, but it closes nothing by itself: GitHub only applies closing keywords when a PR merges into the **default branch**, and every feature PR targets `dev`. The later `dev` to `main` promotion carries no keyword either.
 
@@ -330,6 +334,8 @@ Next, evaluate the Definition of Done checklist against the diff. Key points to 
 
 > 💡 At the start of a scoping session with `/plan`, specifying *"We are in a
 > brainstorming phase, do not generate any code for now"* encourages deeper architectural analysis.
+
+**Two hooks may talk back to your agent**, and it is worth knowing why before you fight one. `.claude/settings.json` wires the prose lint onto every file an agent writes, and refuses an end of turn while the tree carries a tracked change that a database-free linter rejects. So an agent will sometimes answer that it cannot conclude yet, and the linter's output is the reason. Neither hook can be satisfied by asserting the work is done, which is the entire point: see the *Commands* section of [`AGENTS.md`](../AGENTS.md) for what each one runs and what it deliberately does not.
 
 **Repository scripts** are the vendor-neutral half of the toolchain. They are plain shell in
 `scripts/`, so any agent can run them, not only the ones that understand Claude skills:
