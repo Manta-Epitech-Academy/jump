@@ -226,8 +226,15 @@ function ruleNoDashes() {
       if (!DASHES.test(maskCodeSpans(lines[i]))) continue;
       // Une dérogation argumentée, sur place. Elle doit porter une raison :
       // un marqueur nu ne compte pas, comme dans lint-design.ts.
-      const preceding = lines.slice(Math.max(0, i - 3), i + 1).join(' ');
-      if (/prose-lint-ignore:\s*\S/.test(preceding)) continue;
+      //
+      // Testée ligne par ligne, jamais sur la fenêtre recollée. Un `join(' ')`
+      // met le texte de la ligne suivante juste après les deux points, donc un
+      // marqueur nu y trouvait toujours un caractère non blanc : il désarmait
+      // la règle pour trois lignes, ce que ce commentaire interdit.
+      const waived = lines
+        .slice(Math.max(0, i - 3), i + 1)
+        .some((l) => /prose-lint-ignore:\s*\S/.test(l));
+      if (waived) continue;
       fail(
         `${f}:${i + 1} - tiret cadratin ou demi-cadratin : utiliser un trait d'union, une virgule, deux points, des parenthèses ou deux phrases (AGENTS.md § Coding Conventions)`,
       );

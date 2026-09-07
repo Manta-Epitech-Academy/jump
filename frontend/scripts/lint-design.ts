@@ -276,8 +276,15 @@ for (const rule of rules) {
       // reader can judge it; a bare marker does not count. The lookback covers
       // an element's attribute list, since a comment cannot sit inside one and
       // has to go above the opening tag.
-      const preceding = lines.slice(Math.max(0, i - 12), i + 1).join(' ');
-      if (/design-lint-ignore:\s*\S/.test(preceding)) continue;
+      //
+      // Tested line by line, never on the joined window. `join(' ')` puts the
+      // next line's text right after the colon, so a bare marker always found a
+      // non-space character there and disarmed EVERY rule for twelve lines,
+      // which is the opposite of what the paragraph above says it does.
+      const waived = lines
+        .slice(Math.max(0, i - 12), i + 1)
+        .some((l) => /design-lint-ignore:\s*\S/.test(l));
+      if (waived) continue;
       fail(`${rel(f)}:${i + 1} - ${rule.message}`);
     }
   }
