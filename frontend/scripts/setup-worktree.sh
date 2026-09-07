@@ -31,7 +31,23 @@ if [ "$repo_root" != "$main_root" ]; then
     "$main_root"/*)
       worktrees_dir="$(dirname "$main_root")/$(basename "$main_root")-worktrees"
       branch_slug="$(git branch --show-current | tr '/' '-')"
-      cat >&2 <<MSG
+      # Two halves, and only one survives being gitignored. The search noise does
+      # not: ripgrep, git and this repo's own linters all read .gitignore, and
+      # `/.claude/worktrees/` is in it because Claude Code places its worktrees
+      # there and we do not get to choose the path. Telling somebody "nothing
+      # ignores it" about a directory the repository deliberately ignores is a
+      # false sentence, and a warning caught being wrong once is a warning nobody
+      # reads again. The basename half holds either way, so it is what is left.
+      if git -C "$main_root" check-ignore -q "$repo_root" 2>/dev/null; then
+        cat >&2 <<MSG
+[setup-worktree] NOTE: this worktree sits inside the main checkout, at a
+  gitignored path, so searches and git status are spared.
+  $repo_root
+  What still applies: with-test-db.sh names the test database and derives the
+  E2E port from this directory, so both read $(basename "$repo_root").
+MSG
+      else
+        cat >&2 <<MSG
 [setup-worktree] WARNING: this worktree sits inside the main checkout.
   $repo_root
   Nothing ignores it, so every search from the repo root matches each tracked
@@ -43,6 +59,7 @@ if [ "$repo_root" != "$main_root" ]; then
   Note that the move changes the basename, so the test database and its port
   are recomputed and the old database is left behind in the container.
 MSG
+      fi
       ;;
   esac
 fi
