@@ -10,6 +10,12 @@
  * interdites dans les composants), le test est numérique (les valeurs des
  * tokens et leurs contrastes). Le calcul de contraste n'existe qu'à un seul
  * endroit, et ce n'est pas ici.
+ *
+ * Le gros du contrat vient de DESIGN.md, mais pas la totalité : ce fichier est
+ * le seul linter lexical qui parcourt les composants, donc une règle
+ * d'écriture de composant que `AGENTS.md` énonce lexicalement atterrit ici
+ * plutôt que dans un troisième linter créé pour un seul motif. C'est le cas de
+ * la règle sur les icônes ci-dessous.
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
@@ -74,6 +80,30 @@ type Rule = {
 };
 
 const rules: Rule[] = [
+  {
+    name: 'Aucun import barrel de lucide',
+    /**
+     * Trois choses que ce motif doit distinguer, et la deuxième est celle qui a
+     * failli faire passer six faux positifs.
+     *
+     * Un sous-chemin (`@lucide/svelte/icons/trash-2`) est la forme correcte :
+     * le motif exige le guillemet juste après `svelte`, donc il ne matche pas.
+     *
+     * `import type { Icon } from '@lucide/svelte'` est légitime et il y en a six
+     * dans `src/`. Un import de type est effacé à la compilation, donc il ne
+     * traîne aucune icône dans le résolveur : la raison d'être de la règle ne le
+     * concerne pas, et `codemod-lucide-imports.ts` a raison de ne pas y toucher.
+     * D'où le lookahead négatif.
+     *
+     * Limite assumée : un barrel écrit sur plusieurs lignes n'a pas `import` sur
+     * la ligne du spécificateur, donc il échappe à un linter qui travaille ligne
+     * par ligne. Les 985 imports d'icônes du dépôt sont sur une ligne, prettier
+     * les y garde, et le codemod sait déjà réécrire la forme multiligne.
+     */
+    pattern: /\bimport\s+(?!type\b)[^;]*?from\s+['"]@lucide\/svelte['"]/,
+    message:
+      'import barrel de lucide : importer icône par icône (@lucide/svelte/icons/nom-kebab). Le barrel traîne toutes les icônes dans le résolveur de Vite et fait passer le démarrage à froid de 3s à 9s. `bun scripts/codemod-lucide-imports.ts` réécrit le fichier.',
+  },
   {
     name: 'Aucune famille de couleur hors palette',
     pattern:
