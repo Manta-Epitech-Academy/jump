@@ -437,3 +437,10 @@ Conventional Commits (`type(scope): subject`), the format the existing history u
 The reason this is a written rule and not a matter of taste: **a branch's own history is the only style guide the next agent gets**, so one French subject makes every later commit on that branch French by imitation, and "matching the existing history" is enough of an instruction to keep it going. Eleven accumulated that way before anyone read them side by side.
 
 What stays French is what a French-speaking non-developer reads: the UI strings covered above, and the content of an issue, which the PO reads (see [`CONTRIBUTING.md`](.github/CONTRIBUTING.md), step 1). A pull request body follows its audience the same way. Its title does not, because of `CHANGELOG.md`.
+
+## Pull Requests and Self-Review Boundary
+
+**Opening a PR ends the authoring turn.** When implementation, tests, and the `verify` gate are complete, open the draft pull request with `scripts/finish-work.sh`. Once the PR URL is printed, the authoring agent's task is done: stop and return the PR URL.
+
+**Never review your own diff in the same session.** A session that wrote the branch carries the assumptions that produced it and re-reads its own reasoning as sound. Review belongs in an independent, fresh session (or to the human), typically via `/review <pr_number>`. An agent must never spawn subshells or headless review commands (`claude -p`, diff analyzers) inside the authoring session: having the writer supervise and approve its own work destroys the isolation that removes confirmation bias.
+
