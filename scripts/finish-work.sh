@@ -121,3 +121,17 @@ pr_number=$(printf '%s' "$url" | grep -oE '[0-9]+$')
 echo
 echo "Verifying the same way CI will:"
 bash "$SCRIPT_DIR/check-work-item.sh" --base "$BASE" --pr "$pr_number"
+
+# Step 8 of .github/CONTRIBUTING.md. Printed rather than run: the point is that
+# the review happens somewhere this session is not, so a subprocess started from
+# here would defeat it. The session that wrote the branch carries the assumptions
+# that produced it and re-reads its own reasoning as sound.
+cat <<MSG
+
+Self-review belongs in a session that did not write this diff:
+
+  git diff $BASE...HEAD | claude -p 'Review this diff. Report defects only.'
+
+or open a fresh session and run /review. Then tick the Definition of Done in
+the body and mark the pull request ready for review.
+MSG
