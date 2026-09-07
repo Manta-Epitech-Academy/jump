@@ -89,7 +89,7 @@ Seven rules, and each is enforced rather than hoped for:
   external name already means null.
 
   **The broadcast queue is the second worker, and it was not inert.**
-  `operations.ts` seeded four campaigns in a non-terminal status
+  `scenarios/operations.ts` seeded four campaigns in a non-terminal status
   (`queued`/`sending`) with their recipients `pending` and a `createdAt` fourteen
   days back, which put them at the head of `processNextQueuedBroadcast`'s queue.
   So a `migrate` plus a `bun run seed` on the dev database was also a send: six
