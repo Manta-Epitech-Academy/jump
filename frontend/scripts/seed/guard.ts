@@ -60,7 +60,7 @@ function matchesTarget(target: SeedTarget, url: string): boolean {
       return (
         url.includes('staging') ||
         url.includes('jump-stg') ||
-        url.includes('postgres-staging')
+        url.includes('postgres-stg')
       );
     case 'demo':
       return url.includes('demo');
