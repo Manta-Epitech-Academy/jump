@@ -20,7 +20,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
-import { join, dirname, normalize, relative } from 'node:path';
+import { join, dirname, normalize, relative, resolve } from 'node:path';
 
 const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], {
   encoding: 'utf8',
@@ -140,10 +140,40 @@ const onlyFile = (() => {
   if (i === -1) return null;
   const raw = process.argv[i + 1];
   if (!raw) return null;
-  return relative(ROOT, join(process.cwd(), raw)).split('\\').join('/');
+  // `resolve` and not `join`: the hook that calls this passes an absolute path,
+  // and `join(cwd, '/abs/path')` concatenates instead of replacing. The first
+  // version did exactly that, turned `/home/.../.env.example` into
+  // `frontend/home/.../.env.example`, matched nothing, and reported green.
+  return relative(ROOT, resolve(process.cwd(), raw)).split('\\').join('/');
 })();
 
-const files = trackedFiles().filter((f) => (onlyFile ? f === onlyFile : true));
+/**
+ * Sans `--file`, l'index git est la liste : ce qui n'est pas suivi n'est pas la
+ * prose du dépôt.
+ *
+ * Avec `--file`, l'appelant a nommé le fichier, donc on le lit même s'il n'est
+ * pas encore suivi : c'est le cas du hook `PostToolUse`, qui passe un fichier
+ * que l'agent vient de créer. Le filtrer sur l'index rendait le hook muet sur
+ * exactement les fichiers neufs, en répondant vert. Seul `git check-ignore`
+ * garde son mot à dire, pour qu'un script personnel gitignoré reste hors sujet.
+ */
+function isIgnored(f: string): boolean {
+  try {
+    execFileSync('git', ['check-ignore', '-q', '--', f], {
+      cwd: ROOT,
+      stdio: 'ignore',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const files = onlyFile
+  ? existsSync(join(ROOT, onlyFile)) && !isIgnored(onlyFile)
+    ? [onlyFile]
+    : []
+  : trackedFiles();
 
 /* -------------------------------------------------------------------------- */
 /* Règle A : pas de tiret cadratin ni demi-cadratin dans la prose             */
@@ -320,6 +350,10 @@ if (errors > 0) {
     `\x1b[31m✗ ${errors} violation(s). Voir AGENTS.md § Coding Conventions.\x1b[0m`,
   );
   process.exit(1);
+} else if (onlyFile && files.length === 0) {
+  // Ne jamais annoncer conforme un fichier qu'on n'a pas lu : gitignoré ou
+  // absent, il est hors périmètre, et c'est une réponse différente.
+  console.log(`\x1b[32m✓ ${onlyFile} : hors périmètre du lint de prose\x1b[0m`);
 } else {
   console.log(
     `\x1b[32m✓ ${onlyFile ? onlyFile : `${files.length} fichiers suivis`} respecte(nt) les règles de prose\x1b[0m`,
