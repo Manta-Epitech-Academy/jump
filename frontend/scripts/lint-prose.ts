@@ -169,11 +169,36 @@ function isIgnored(f: string): boolean {
   }
 }
 
+/**
+ * L'index git, énuméré une fois et seulement si une règle le demande : le mode
+ * `--file`, qui est le chemin du hook `PostToolUse`, n'a pas à payer un
+ * `git ls-files` pour lire un fichier qu'on lui a nommé.
+ */
+let trackedCache: Set<string> | null = null;
+const tracked = () => (trackedCache ??= new Set(trackedFiles()));
+
+/**
+ * Le périmètre de la règle A, décidé UNE fois pour les deux modes.
+ *
+ * Il l'était en deux endroits : ici pour `--file`, et dans la boucle de la règle
+ * A pour les exclusions et le test de prose. Un fichier exclu (une migration, un
+ * skill vendorisé) traversait donc le premier et sortait du second, et le
+ * message final annonçait « respecte les règles de prose » un fichier
+ * qu'aucune règle n'avait ouvert, ce que le commentaire du bas de ce fichier
+ * interdit explicitement.
+ */
+function inProseScope(f: string): boolean {
+  if (PROSE_EXCLUDED.some((re) => re.test(f))) return false;
+  const full = join(ROOT, f);
+  if (!existsSync(full)) return false;
+  return isProse(f, full);
+}
+
 const files = onlyFile
-  ? existsSync(join(ROOT, onlyFile)) && !isIgnored(onlyFile)
+  ? !isIgnored(onlyFile) && inProseScope(onlyFile)
     ? [onlyFile]
     : []
-  : trackedFiles();
+  : [...tracked()].filter(inProseScope);
 
 /* -------------------------------------------------------------------------- */
 /* Règle A : pas de tiret cadratin ni demi-cadratin dans la prose             */
@@ -196,11 +221,7 @@ function ruleNoDashes() {
   info('Aucun tiret cadratin ni demi-cadratin dans la prose');
   const before = errors;
   for (const f of files) {
-    if (PROSE_EXCLUDED.some((re) => re.test(f))) continue;
-    const full = join(ROOT, f);
-    if (!existsSync(full)) continue;
-    if (!isProse(f, full)) continue;
-    const lines = readFileSync(full, 'utf8').split('\n');
+    const lines = readFileSync(join(ROOT, f), 'utf8').split('\n');
     for (let i = 0; i < lines.length; i++) {
       if (!DASHES.test(maskCodeSpans(lines[i]))) continue;
       // Une dérogation argumentée, sur place. Elle doit porter une raison :
@@ -232,7 +253,7 @@ function ruleNoDashes() {
 function ruleLinksResolve() {
   info('Les liens markdown de la doctrine pointent vers un fichier suivi');
   const before = errors;
-  const tracked = new Set(trackedFiles());
+  const trackedSet = tracked();
   const link = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
   for (const f of DOCTRINE) {
     const full = join(ROOT, f);
@@ -245,7 +266,7 @@ function ruleLinksResolve() {
         const resolved = normalize(join(dirname(f), target))
           .split('\\')
           .join('/');
-        if (tracked.has(resolved)) continue;
+        if (trackedSet.has(resolved)) continue;
         // Un lien vers un répertoire est légitime : rien ne le suit en propre.
         if (existsSync(join(ROOT, resolved))) continue;
         fail(`${f}:${i + 1} - lien vers un fichier non suivi : ${target}`);
@@ -477,11 +498,12 @@ if (errors > 0) {
   );
   process.exit(1);
 } else if (onlyFile && files.length === 0) {
-  // Ne jamais annoncer conforme un fichier qu'on n'a pas lu : gitignoré ou
-  // absent, il est hors périmètre, et c'est une réponse différente.
+  // Ne jamais annoncer conforme un fichier qu'on n'a pas lu : gitignoré, exclu,
+  // absent, ou simplement pas de la prose, il est hors périmètre, et c'est une
+  // réponse différente.
   console.log(`\x1b[32m✓ ${onlyFile} : hors périmètre du lint de prose\x1b[0m`);
 } else {
   console.log(
-    `\x1b[32m✓ ${onlyFile ? onlyFile : `${files.length} fichiers suivis`} respecte(nt) les règles de prose\x1b[0m`,
+    `\x1b[32m✓ ${onlyFile ? onlyFile : `${files.length} fichiers de prose suivis`} respecte(nt) les règles de prose\x1b[0m`,
   );
 }

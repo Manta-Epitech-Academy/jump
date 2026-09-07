@@ -27,6 +27,12 @@ Code de sortie `0` si tout est OK, `1` si des violations sont trouvées. La form
 `--file` est ce que le hook `PostToolUse` appelle après chaque écriture : elle ne
 lance que les règles qui concernent le fichier visé.
 
+Le périmètre est décidé au même endroit dans les deux modes, donc `--file` sur un
+chemin gitignoré, exclu, absent ou qui ne porte pas de prose répond « hors
+périmètre » et jamais « conforme ». Annoncer conforme un fichier qu'aucune règle
+n'a ouvert est la réponse la plus coûteuse que ce script puisse donner : elle est
+lue comme une vérification.
+
 ## Ce qu'il énumère
 
 `git ls-files`, à la racine du dépôt, et pas un parcours du système de fichiers
