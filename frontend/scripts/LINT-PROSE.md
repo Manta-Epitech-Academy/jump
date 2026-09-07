@@ -13,6 +13,9 @@ pendant que `AGENTS.md` affirmait qu'un passage dédié avait nettoyé la prose 
 dépôt, et l'énumération de la chaîne `verify` comptait un lien de moins que la
 chaîne elle-même.
 
+Le linter lui-même en a fourni la troisième preuve : il est entré dans la chaîne
+`verify` sans étape dans le job requis qui l'aurait fait bloquer. D'où la règle D.
+
 ## Usage
 
 ```bash
@@ -89,8 +92,44 @@ C'est la dérive que ce dépôt a réellement produite, et aucune règle sur les
 chemins ne l'attrape : il manquait un nom de script, pas un fichier. La phrase
 promet la chaîne « in that order », donc l'ordre est comparé aussi.
 
+Les noms lus sont ceux de la clause « It chains ... in that order », pas ceux de
+la ligne. La première version lisait la ligne entière : la phrase suivante du
+même paragraphe, qui rappelait `lint:prose`, le comptait comme un lien de plus.
+Les deux bornes sont les mots de la phrase elle-même, et la seconde est déjà ce
+sur quoi repose la comparaison d'ordre.
+
 La règle s'est vérifiée elle-même en arrivant : ajouter `lint:prose` à la chaîne
 l'a immédiatement rendue rouge sur `AGENTS.md`, qui ne le nommait pas encore.
+
+### D. Chaque lien de la chaîne `verify` est exécuté par la CI
+
+La chaîne existe en trois exemplaires : `frontend/package.json` l'exécute,
+`AGENTS.md` l'énonce, `.github/workflows/test.yml` la rejoue étape par étape. La
+règle C tient les deux premiers ensemble. Sans celle-ci le troisième dérive
+seul, et du mauvais côté : un lien ajouté à `verify` et oublié dans le workflow
+ne bloque aucune fusion, donc la règle qu'il porte se remet à pourrir derrière un
+check requis vert.
+
+Ce n'est pas une hypothèse. `lint:prose` est arrivé dans la chaîne sans étape
+dans `Lint & Type Check`, qui énumère ses étapes à la main : le linter écrit pour
+empêcher la prose de pourrir ne gardait rien, et la phrase d'`AGENTS.md` qui
+promet « the same gate CI runs » était fausse le jour de son écriture.
+
+Deux choix qui font la règle :
+
+- **Un seul workflow est lu.** Les trois jobs de `test.yml` SONT les trois checks
+  requis de la ruleset `push dev`, ce que dit déjà l'en-tête de ce fichier. Un
+  lien lancé par un workflow qui ne bloque rien ne prouverait rien.
+- **Les scalaires `run:`, et rien d'autre.** Un scan lexical compterait les
+  mentions de `bun run ...` qui vivent dans les commentaires du workflow, et
+  répondrait vert sur un lien qu'aucun job ne lance : c'est la seule direction
+  d'erreur qu'une règle comme celle-ci n'a pas le droit d'avoir.
+
+Un lien est couvert par un nom identique, ou par un script CI dont la commande
+commence par la sienne : `test:coverage` est `test` plus `--coverage`, donc le
+lancer lance le lien. Cette équivalence est **déduite** de `package.json` et
+jamais déclarée dans le linter, sinon la chaîne aurait une quatrième copie à
+tenir à jour.
 
 ## Quand le lancer ?
 
@@ -106,5 +145,10 @@ sur chaque fichier écrit.
 - La règle B ne voit que les liens markdown. Un chemin cité en prose, ou dans un
   commentaire de code, n'est pas vérifié, et c'est un choix argumenté ci-dessus
   et non un oubli.
-- La règle C ne lit qu'une phrase, repérée par « It chains ». Si cette phrase
-  disparaît d'`AGENTS.md`, la règle le dit plutôt que de passer en silence.
+- La règle C ne lit que la clause comprise entre « It chains » et « in that
+  order », et pas la ligne : un paragraphe markdown est une ligne unique, et la
+  phrase continue après l'énumération. Si l'une des deux bornes disparaît
+  d'`AGENTS.md`, la règle le dit plutôt que de passer en silence.
+- La règle D prouve qu'un lien est lancé par un job requis, jamais qu'il est
+  lancé au bon endroit : déplacer une étape d'un job à l'autre la laisse verte.
+  C'est l'ordre des jobs, pas la couverture, et `needs:` le tient déjà.

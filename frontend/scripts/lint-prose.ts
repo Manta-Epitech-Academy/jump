@@ -257,6 +257,25 @@ function ruleLinksResolve() {
   }
 }
 
+const PKG = 'frontend/package.json';
+
+/** Les deux bornes de l'énumération dans `AGENTS.md`, mots de la phrase même. */
+const CHAIN_OPENS = 'It chains `';
+const CHAIN_CLOSES = 'in that order';
+
+/** Les liens de la chaîne, dans l'ordre où `verify` les exécute. */
+function verifyChain(scripts: Record<string, string>): string[] {
+  return (scripts.verify ?? '')
+    .split('&&')
+    .map((s) =>
+      s
+        .trim()
+        .replace(/^bun run /, '')
+        .trim(),
+    )
+    .filter(Boolean);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Règle C : l'énumération de la chaîne verify correspond à package.json       */
 /* -------------------------------------------------------------------------- */
@@ -271,7 +290,7 @@ function ruleLinksResolve() {
 function ruleVerifyChain() {
   info('L\u2019énumération de la chaîne verify correspond à package.json');
   const before = errors;
-  const pkgPath = join(ROOT, 'frontend/package.json');
+  const pkgPath = join(ROOT, PKG);
   const agentsPath = join(ROOT, 'AGENTS.md');
   if (!existsSync(pkgPath) || !existsSync(agentsPath)) {
     fail('règle C : package.json ou AGENTS.md est introuvable');
@@ -280,27 +299,37 @@ function ruleVerifyChain() {
   const scripts: Record<string, string> = JSON.parse(
     readFileSync(pkgPath, 'utf8'),
   ).scripts;
-  const real = (scripts.verify ?? '')
-    .split('&&')
-    .map((s) =>
-      s
-        .trim()
-        .replace(/^bun run /, '')
-        .trim(),
-    )
-    .filter(Boolean);
+  const real = verifyChain(scripts);
 
   const lines = readFileSync(agentsPath, 'utf8').split('\n');
-  const idx = lines.findIndex((l) => l.includes('It chains `'));
+  const idx = lines.findIndex((l) => l.includes(CHAIN_OPENS));
   if (idx === -1) {
     fail(
-      'AGENTS.md n\u2019énumère plus la chaîne verify (phrase « It chains » absente) : la règle C ne peut plus la vérifier',
+      `AGENTS.md n\u2019énumère plus la chaîne verify (phrase « ${CHAIN_OPENS.trim()} » absente) : la règle C ne peut plus la vérifier`,
     );
     return;
   }
-  // Seuls les noms qui sont réellement des scripts comptent : la phrase parle
+  /*
+   * Seule la CLAUSE est lue, pas la ligne. Un paragraphe markdown est une ligne
+   * unique ici, et il continue après l'énumération : la première version lisait
+   * la ligne entière, donc la phrase suivante qui rappelait `lint:prose` le
+   * comptait comme un douzième lien, deux fois. Les deux bornes sont les mots
+   * de la phrase elle-même, et « in that order » est déjà ce sur quoi repose la
+   * comparaison d'ordre plus bas.
+   */
+  const from = lines[idx].indexOf(CHAIN_OPENS);
+  const to = lines[idx].indexOf(CHAIN_CLOSES, from);
+  if (to === -1) {
+    fail(
+      `AGENTS.md:${idx + 1} - la phrase ne promet plus « ${CHAIN_CLOSES} » : la règle C ne sait plus où l\u2019énumération s\u2019arrête`,
+    );
+    return;
+  }
+  // Seuls les noms qui sont réellement des scripts comptent : la clause parle
   // aussi de `verify` lui-même et de fichiers, entre les mêmes accents graves.
-  const claimed = [...lines[idx].matchAll(/`([a-z][a-z0-9:-]*)`/g)]
+  const claimed = [
+    ...lines[idx].slice(from, to).matchAll(/`([a-z][a-z0-9:-]*)`/g),
+  ]
     .map((m) => m[1])
     .filter((n) => n !== 'verify' && n in scripts);
 
@@ -331,17 +360,114 @@ function ruleVerifyChain() {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Règle D : chaque lien de la chaîne verify est exécuté par la CI             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Les trois checks requis de la ruleset `push dev` sont les trois jobs de ce
+ * fichier, ce que son propre en-tête dit déjà. Un lien exécuté par un workflow
+ * qui ne bloque rien ne prouverait rien, donc un seul fichier est lu.
+ */
+const CI_WORKFLOW = '.github/workflows/test.yml';
+
+/**
+ * Les noms de script que le workflow lance réellement, lus dans les scalaires
+ * `run:` et nulle part ailleurs.
+ *
+ * Un scan lexical du fichier entier compterait les mentions de `bun run ...`
+ * qui vivent dans ses commentaires, et répondrait vert sur un lien qu'aucun job
+ * ne lance : c'est la seule direction d'erreur qu'une règle comme celle-ci n'a
+ * pas le droit d'avoir. Les blocs `run: |` sont suivis à l'indentation, pour
+ * qu'une étape multiligne compte comme les autres.
+ */
+function scriptsRunByCi(yaml: string): Set<string> {
+  const out = new Set<string>();
+  const collect = (s: string) => {
+    for (const m of s.matchAll(/\bbun\s+run\s+([a-z][a-z0-9:-]*)/g)) {
+      out.add(m[1]);
+    }
+  };
+  let blockIndent = -1;
+  for (const line of yaml.split('\n')) {
+    const indent = line.length - line.trimStart().length;
+    if (blockIndent > -1) {
+      if (line.trim() === '' || indent > blockIndent) {
+        collect(line);
+        continue;
+      }
+      blockIndent = -1;
+    }
+    const m = /^\s*(?:-\s+)?run:\s*(.*)$/.exec(line);
+    if (!m) continue;
+    if (/^[|>]/.test(m[1])) blockIndent = indent;
+    else collect(m[1]);
+  }
+  return out;
+}
+
+/**
+ * La chaîne existe en trois exemplaires : `package.json` l'exécute, `AGENTS.md`
+ * l'énonce, et le workflow la rejoue étape par étape. La règle C tient les deux
+ * premiers ensemble ; sans celle-ci le troisième dérive seul, et il dérive du
+ * mauvais côté. Un lien ajouté à `verify` et oublié dans le workflow ne bloque
+ * aucune fusion, donc la règle qu'il porte se remet à pourrir derrière un check
+ * requis vert, ce qui est exactement l'état auquel ce linter existe pour mettre
+ * fin. C'est ce qui est arrivé à `lint:prose` le jour de son arrivée.
+ */
+function ruleVerifyRunsInCi() {
+  info('Chaque lien de la chaîne verify est exécuté par la CI');
+  const before = errors;
+  const pkgPath = join(ROOT, PKG);
+  const wfPath = join(ROOT, CI_WORKFLOW);
+  if (!existsSync(pkgPath) || !existsSync(wfPath)) {
+    fail(`règle D : ${PKG} ou ${CI_WORKFLOW} est introuvable`);
+    return;
+  }
+  const scripts: Record<string, string> = JSON.parse(
+    readFileSync(pkgPath, 'utf8'),
+  ).scripts;
+  const inCi = scriptsRunByCi(readFileSync(wfPath, 'utf8'));
+
+  /**
+   * Un lien est couvert par un nom identique, ou par un script CI dont la
+   * commande commence par la sienne : `test:coverage` est `test` plus
+   * `--coverage`, donc le lancer lance le lien. L'équivalence est DÉDUITE de
+   * `package.json`, jamais déclarée ici : une table d'alias écrite à la main
+   * serait une quatrième copie de la chaîne, et le prochain endroit où elle
+   * dérive.
+   */
+  const covers = (link: string) => {
+    if (inCi.has(link)) return true;
+    const cmd = (scripts[link] ?? '').trim();
+    if (!cmd) return false;
+    return [...inCi].some((name) => {
+      const other = (scripts[name] ?? '').trim();
+      return other === cmd || other.startsWith(`${cmd} `);
+    });
+  };
+
+  for (const link of verifyChain(scripts)) {
+    if (covers(link)) continue;
+    fail(
+      `${CI_WORKFLOW} - la chaîne verify exécute \`${link}\` et aucun job requis ne le lance : un lien qui ne bloque pas une fusion laisse sa règle pourrir derrière un check vert`,
+    );
+  }
+  if (errors === before) {
+    green('Chaque lien de la chaîne verify est exécuté par la CI');
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 
 ruleNoDashes();
-// Les règles B et C portent sur des fichiers précis, donc un appel ciblé sur un
-// seul fichier (le hook PostToolUse) ne les lance que s'il le concerne.
+// Les règles B, C et D portent sur des fichiers précis, donc un appel ciblé sur
+// un seul fichier (le hook PostToolUse) ne les lance que s'il les concerne.
 if (!onlyFile || DOCTRINE.includes(onlyFile)) ruleLinksResolve();
-if (
-  !onlyFile ||
-  onlyFile === 'AGENTS.md' ||
-  onlyFile === 'frontend/package.json'
-) {
+if (!onlyFile || onlyFile === 'AGENTS.md' || onlyFile === PKG) {
   ruleVerifyChain();
+}
+if (!onlyFile || onlyFile === CI_WORKFLOW || onlyFile === PKG) {
+  ruleVerifyRunsInCi();
 }
 
 console.log();
