@@ -11,6 +11,15 @@
 # bug gets disarmed within the week, and a disarmed gate guards nothing. So
 # there is no `set -e` here: every step is allowed to fail into "say nothing".
 #
+# That rule is what the exit-code discipline below is for. ONLY exit 1 means "the
+# linter ran and found something": every linter in this chain exits 1 on a
+# violation. 127 is a missing binary, which is what a worktree whose `bun
+# install` never finished looks like, and 2 is prettier erroring. Blocking on
+# those hands the model a violation that does not exist and tells it to go fix
+# it, which costs a turn every turn and is exactly how this hook would get
+# switched off. `bun run` also exits 1 for a name that is no longer a script, so
+# that case is settled against package.json rather than read out of the code.
+#
 # What it does NOT run, and why that is the whole design: not `check`, not
 # `test`, not `test:integration`, not `test:seed`, not `test:e2e`. svelte-check
 # and the database suites are tens of seconds to minutes; on every end of turn
@@ -22,6 +31,8 @@ repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 [ -n "$repo_root" ] || exit 0
 
 command -v jq >/dev/null 2>&1 || exit 0
+# Guarded like jq: a hook that cannot run its linters has nothing to say.
+command -v bun >/dev/null 2>&1 || exit 0
 
 payload=$(cat 2>/dev/null)
 
@@ -56,11 +67,22 @@ cd "$repo_root/frontend" 2>/dev/null || exit 0
 
 failures=""
 for script in lint:scripts lint lint:design lint:tests lint:prose; do
-  if ! out=$(bun run "$script" 2>&1); then
-    failures="${failures}
+  if ! jq -e --arg s "$script" '.scripts[$s]' package.json >/dev/null 2>&1; then
+    printf '[agent-stop-gate] no `%s` script in package.json; not gating on it.\n' "$script" >&2
+    continue
+  fi
+
+  out=$(bun run "$script" 2>&1)
+  status=$?
+  [ "$status" -eq 0 ] && continue
+  if [ "$status" -ne 1 ]; then
+    printf '[agent-stop-gate] `bun run %s` could not run (exit %s); not gating on it.\n' "$script" "$status" >&2
+    continue
+  fi
+
+  failures="${failures}
 === bun run ${script} ===
 ${out}"
-  fi
 done
 
 [ -n "$failures" ] || exit 0
