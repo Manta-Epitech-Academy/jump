@@ -74,7 +74,7 @@ while IFS=$'\t' read -r pr_number merge_oid pr_title; do
     | grep -oE '[0-9]+' | sort -u || true)
 
   if [ -z "$issues" ]; then
-    printf '### #%s — %s\n\n' "$pr_number" "$pr_title"
+    printf '### #%s - %s\n\n' "$pr_number" "$pr_title"
     printf '_Aucune issue liée : rien à valider automatiquement, à vérifier à la main._\n\n'
     found=1
     continue
@@ -85,7 +85,7 @@ while IFS=$'\t' read -r pr_number merge_oid pr_title; do
     [ -n "$title" ] || continue
     gh issue view "$issue" --repo "$REPO" --json body --jq '.body // ""' > "$WORK/issue.md"
 
-    printf '### #%s — %s\n\n' "$issue" "$title"
+    printf '### #%s - %s\n\n' "$issue" "$title"
     if criteria=$(section_body "$WORK/issue.md" "$WORK_ITEM_CRITERIA_PATTERN"); then
       # Two shapes occur in this repository's issues: a bulleted list, and one
       # criterion per bare line. A list becomes checkboxes marker by marker; a

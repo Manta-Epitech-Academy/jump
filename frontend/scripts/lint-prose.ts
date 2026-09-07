@@ -1,0 +1,327 @@
+/**
+ * lint-prose.ts : Vérifie les règles que la doctrine n'énonçait que par écrit.
+ *
+ * Usage : bun run scripts/lint-prose.ts [--file <chemin>]
+ * Exit code : 0 si tout est OK, 1 si des violations sont trouvées.
+ *
+ * Pourquoi ce fichier existe. Les règles de `AGENTS.md` qui tiennent tiennent
+ * parce qu'un composant ou un codemod les tient : `cursor-pointer` parce que le
+ * primitif `Button` le porte, le barrel lucide parce qu'un codemod le réécrit.
+ * Les deux seules règles qu'aucun mécanisme ne portait ont dérivé, et personne
+ * ne pouvait le voir : le bannissement du tiret cadratin était violé par 15
+ * fichiers suivis alors que `AGENTS.md` affirmait qu'un passage dédié avait
+ * nettoyé la prose du dépôt, et l'énumération de la chaîne `verify` comptait un
+ * lien de moins que la chaîne.
+ *
+ * Frère de `lint-design.ts` et `lint-tests.ts`, et volontairement dans le même
+ * moule : même walker, même format `chemin:ligne - message`, même sortie 1. La
+ * différence est l'énumération, et c'est la seule chose qui compte ici.
+ */
+
+import { execFileSync } from 'node:child_process';
+import { readFileSync, existsSync } from 'node:fs';
+import { join, dirname, normalize, relative } from 'node:path';
+
+const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+  encoding: 'utf8',
+}).trim();
+
+let errors = 0;
+
+const red = (msg: string) => console.log(`\x1b[31m  ✗ ${msg}\x1b[0m`);
+const green = (msg: string) => console.log(`\x1b[32m  ✓ ${msg}\x1b[0m`);
+const info = (msg: string) => console.log(`\x1b[33m► ${msg}\x1b[0m`);
+
+function fail(msg: string) {
+  red(msg);
+  errors++;
+}
+
+/**
+ * L'énumération part de `git ls-files`, à la racine du dépôt, et pas d'un
+ * parcours du système de fichiers comme ses deux frères. Trois raisons, et
+ * `scripts/check-exec-bits.sh` est le précédent exact.
+ *
+ * La prose de ce dépôt ne vit pas que sous `frontend/` : les deux violations
+ * qui ont motivé ce script sont dans `.env.example` et `scripts/`, hors de
+ * portée d'un walker enraciné sur le paquet. Un index git ne voit que ce qui
+ * est suivi, donc un worktree créé dans le checkout principal est
+ * structurellement hors de portée au lieu de tripler chaque résultat. Et il ne
+ * voit pas non plus les fichiers ignorés, ce qui est le bon comportement : un
+ * script personnel gitignoré n'est pas de la prose du dépôt.
+ */
+function trackedFiles(): string[] {
+  return execFileSync('git', ['ls-files', '-z'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    maxBuffer: 32 * 1024 * 1024,
+  })
+    .split('\0')
+    .filter(Boolean);
+}
+
+/** Les extensions qui portent de la prose. Le reste est binaire ou généré. */
+const TEXT =
+  /\.(ts|tsx|svelte|mjs|js|md|sh|json|ya?ml|toml|html|css|txt|tsv|prisma|sql|example)$/;
+/** Les fichiers de configuration sans extension qu'on veut quand même lire. */
+const TEXT_BASENAMES = new Set([
+  '.gitignore',
+  '.dockerignore',
+  '.prettierignore',
+  '.prettierrc',
+  '.npmrc',
+]);
+
+/**
+ * Un fichier sans extension du tout est lu s'il porte un shebang. C'est ce qui
+ * rattrape `.githooks/post-checkout` et ses deux voisins, qui sont des scripts
+ * shell nommés d'après l'évènement git et pas d'après leur langage. Une
+ * première version listait des noms à la main et les trois hooks passaient à
+ * travers, alors que l'un d'eux portait le caractère. `check-exec-bits.sh`
+ * identifie déjà un script exactement comme ça.
+ */
+function hasShebang(full: string): boolean {
+  try {
+    return readFileSync(full, 'utf8').startsWith('#!');
+  } catch {
+    return false;
+  }
+}
+
+function isProse(f: string, full: string): boolean {
+  const base = f.split('/').pop() ?? f;
+  if (TEXT.test(f) || TEXT_BASENAMES.has(base)) return true;
+  // Pas d'extension : ni un point après le premier caractère.
+  if (!base.slice(1).includes('.')) return hasShebang(full);
+  return false;
+}
+
+/**
+ * Chaque exclusion coûte une place où une violation peut se cacher, donc
+ * chacune porte sa raison.
+ *
+ * `.claude/skills/` est vendorisé : `skills-lock.json` épingle deux de ces
+ * skills sur une source GitHub avec un hash de contenu, leur prose n'est pas la
+ * nôtre, et la corriger casserait le hash.
+ *
+ * `prisma/migrations/` est un historique immuable : une migration appliquée ne
+ * se réécrit pas, et neuf d'entre elles portent le caractère.
+ *
+ * `CHANGELOG.md` est généré depuis les titres de pull request par
+ * `scripts/generate-changelog.sh`, donc la règle appartient au titre, pas au
+ * fichier.
+ *
+ * Ce script s'exclut lui-même pour la raison qui saute aux yeux : il doit
+ * contenir les caractères qu'il cherche.
+ */
+const PROSE_EXCLUDED = [
+  /^\.claude\/skills\//,
+  /^frontend\/prisma\/migrations\//,
+  /^CHANGELOG\.md$/,
+  /^frontend\/scripts\/lint-prose\.ts$/,
+];
+
+/** Les fichiers dont les chemins et les liens sont des affirmations. */
+const DOCTRINE = [
+  'AGENTS.md',
+  'CLAUDE.md',
+  'GEMINI.md',
+  'DESIGN.md',
+  'README.md',
+  '.github/CONTRIBUTING.md',
+  '.github/JARGON.md',
+  '.github/copilot-instructions.md',
+  '.github/pull_request_template.md',
+  'frontend/TESTING.md',
+];
+
+const onlyFile = (() => {
+  const i = process.argv.indexOf('--file');
+  if (i === -1) return null;
+  const raw = process.argv[i + 1];
+  if (!raw) return null;
+  return relative(ROOT, join(process.cwd(), raw)).split('\\').join('/');
+})();
+
+const files = trackedFiles().filter((f) => (onlyFile ? f === onlyFile : true));
+
+/* -------------------------------------------------------------------------- */
+/* Règle A : pas de tiret cadratin ni demi-cadratin dans la prose             */
+/* -------------------------------------------------------------------------- */
+
+const DASHES = /[\u2014\u2013]/;
+
+/**
+ * Un caractère entre accents graves est *nommé*, pas employé comme
+ * ponctuation. C'est ce qui permet à `AGENTS.md` d'énoncer la règle en citant
+ * les deux caractères sans annotation, et à un extrait de code de montrer une
+ * sortie qui en contient un. Masquer les spans plutôt que d'exiger une
+ * dérogation garde la règle lisible là où elle est écrite.
+ */
+function maskCodeSpans(line: string): string {
+  return line.replace(/`[^`]*`/g, (m) => ' '.repeat(m.length));
+}
+
+function ruleNoDashes() {
+  info('Aucun tiret cadratin ni demi-cadratin dans la prose');
+  const before = errors;
+  for (const f of files) {
+    if (PROSE_EXCLUDED.some((re) => re.test(f))) continue;
+    const full = join(ROOT, f);
+    if (!existsSync(full)) continue;
+    if (!isProse(f, full)) continue;
+    const lines = readFileSync(full, 'utf8').split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (!DASHES.test(maskCodeSpans(lines[i]))) continue;
+      // Une dérogation argumentée, sur place. Elle doit porter une raison :
+      // un marqueur nu ne compte pas, comme dans lint-design.ts.
+      const preceding = lines.slice(Math.max(0, i - 3), i + 1).join(' ');
+      if (/prose-lint-ignore:\s*\S/.test(preceding)) continue;
+      fail(
+        `${f}:${i + 1} - tiret cadratin ou demi-cadratin : utiliser un trait d'union, une virgule, deux points, des parenthèses ou deux phrases (AGENTS.md § Coding Conventions)`,
+      );
+    }
+  }
+  if (errors === before)
+    green('Aucun tiret cadratin ni demi-cadratin dans la prose');
+}
+
+/* -------------------------------------------------------------------------- */
+/* Règle B : les liens markdown de la doctrine pointent vers un fichier suivi  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Une cible de lien est une affirmation : elle n'est jamais une illustration et
+ * elle n'apparaît pas dans un bloc de code. C'est pour ça que cette règle ne
+ * scanne pas toute la prose à la recherche de chemins. Une version large a été
+ * écrite puis refusée : `frontend/TESTING.md` héberge trois chemins purement
+ * illustratifs dans des blocs de code, `AGENTS.md` nomme un fichier
+ * explicitement supprimé et un chemin généré donc gitignoré, et il aurait fallu
+ * six listes d'exclusion pour ne rien attraper. Ici il n'y en a aucune.
+ */
+function ruleLinksResolve() {
+  info('Les liens markdown de la doctrine pointent vers un fichier suivi');
+  const before = errors;
+  const tracked = new Set(trackedFiles());
+  const link = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+  for (const f of DOCTRINE) {
+    const full = join(ROOT, f);
+    if (!existsSync(full)) continue;
+    const lines = readFileSync(full, 'utf8').split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      for (const m of lines[i].matchAll(link)) {
+        const target = m[1].split('#')[0].trim();
+        if (!target || /^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
+        const resolved = normalize(join(dirname(f), target))
+          .split('\\')
+          .join('/');
+        if (tracked.has(resolved)) continue;
+        // Un lien vers un répertoire est légitime : rien ne le suit en propre.
+        if (existsSync(join(ROOT, resolved))) continue;
+        fail(`${f}:${i + 1} - lien vers un fichier non suivi : ${target}`);
+      }
+    }
+  }
+  if (errors === before) {
+    green('Les liens markdown de la doctrine pointent vers un fichier suivi');
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Règle C : l'énumération de la chaîne verify correspond à package.json       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * La dérive que ce dépôt a réellement produite, et qu'aucune règle sur les
+ * chemins n'attrape : c'est un nom de script qui manquait, pas un fichier.
+ * `AGENTS.md` promet la chaîne « in that order », donc l'ordre est comparé
+ * aussi. Une phrase dont le travail est de décrire le gate cesse d'être de la
+ * prose le jour où elle est vérifiée.
+ */
+function ruleVerifyChain() {
+  info('L\u2019énumération de la chaîne verify correspond à package.json');
+  const before = errors;
+  const pkgPath = join(ROOT, 'frontend/package.json');
+  const agentsPath = join(ROOT, 'AGENTS.md');
+  if (!existsSync(pkgPath) || !existsSync(agentsPath)) {
+    fail('règle C : package.json ou AGENTS.md est introuvable');
+    return;
+  }
+  const scripts: Record<string, string> = JSON.parse(
+    readFileSync(pkgPath, 'utf8'),
+  ).scripts;
+  const real = (scripts.verify ?? '')
+    .split('&&')
+    .map((s) =>
+      s
+        .trim()
+        .replace(/^bun run /, '')
+        .trim(),
+    )
+    .filter(Boolean);
+
+  const lines = readFileSync(agentsPath, 'utf8').split('\n');
+  const idx = lines.findIndex((l) => l.includes('It chains `'));
+  if (idx === -1) {
+    fail(
+      'AGENTS.md n\u2019énumère plus la chaîne verify (phrase « It chains » absente) : la règle C ne peut plus la vérifier',
+    );
+    return;
+  }
+  // Seuls les noms qui sont réellement des scripts comptent : la phrase parle
+  // aussi de `verify` lui-même et de fichiers, entre les mêmes accents graves.
+  const claimed = [...lines[idx].matchAll(/`([a-z][a-z0-9:-]*)`/g)]
+    .map((m) => m[1])
+    .filter((n) => n !== 'verify' && n in scripts);
+
+  const missing = real.filter((s) => !claimed.includes(s));
+  const extra = claimed.filter((s) => !real.includes(s));
+  for (const s of missing) {
+    fail(
+      `AGENTS.md:${idx + 1} - la chaîne verify exécute \`${s}\` et la phrase ne le nomme pas`,
+    );
+  }
+  for (const s of extra) {
+    fail(
+      `AGENTS.md:${idx + 1} - la phrase nomme \`${s}\` et la chaîne verify ne l\u2019exécute pas`,
+    );
+  }
+  if (
+    !missing.length &&
+    !extra.length &&
+    claimed.join('>') !== real.join('>')
+  ) {
+    fail(
+      `AGENTS.md:${idx + 1} - la phrase promet la chaîne « in that order » et l\u2019ordre diffère : ${claimed.join(', ')}`,
+    );
+  }
+  if (errors === before) {
+    green('L\u2019énumération de la chaîne verify correspond à package.json');
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+
+ruleNoDashes();
+// Les règles B et C portent sur des fichiers précis, donc un appel ciblé sur un
+// seul fichier (le hook PostToolUse) ne les lance que s'il le concerne.
+if (!onlyFile || DOCTRINE.includes(onlyFile)) ruleLinksResolve();
+if (
+  !onlyFile ||
+  onlyFile === 'AGENTS.md' ||
+  onlyFile === 'frontend/package.json'
+) {
+  ruleVerifyChain();
+}
+
+console.log();
+if (errors > 0) {
+  console.log(
+    `\x1b[31m✗ ${errors} violation(s). Voir AGENTS.md § Coding Conventions.\x1b[0m`,
+  );
+  process.exit(1);
+} else {
+  console.log(
+    `\x1b[32m✓ ${onlyFile ? onlyFile : `${files.length} fichiers suivis`} respecte(nt) les règles de prose\x1b[0m`,
+  );
+}
