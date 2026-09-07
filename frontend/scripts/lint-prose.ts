@@ -19,7 +19,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join, dirname, normalize, relative, resolve } from 'node:path';
 
 const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], {
@@ -274,8 +274,18 @@ function ruleLinksResolve() {
           .split('\\')
           .join('/');
         if (trackedSet.has(resolved)) continue;
-        // Un lien vers un répertoire est légitime : rien ne le suit en propre.
-        if (existsSync(join(ROOT, resolved))) continue;
+        // Un lien vers un RÉPERTOIRE est légitime : rien ne le suit en propre.
+        // Un fichier non suivi ne l'est pas, même s'il existe ici : il
+        // n'existe que sur cette machine, donc un `existsSync` nu rendait la
+        // règle verte en local et rouge pour tout le monde d'autre. C'est la
+        // pire forme de vert, et le nom de la règle dit « suivi ».
+        if (
+          statSync(join(ROOT, resolved), {
+            throwIfNoEntry: false,
+          })?.isDirectory()
+        ) {
+          continue;
+        }
         fail(`${f}:${i + 1} - lien vers un fichier non suivi : ${target}`);
       }
     }
