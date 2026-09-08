@@ -308,7 +308,7 @@ export const longTail: Scenario = {
       summary: longTail.summary,
       covers: [
         `${created} événements ordinaires répartis sur tous les campus`,
-        `${empty} sans aucun inscrit, ${unconfigured} sans aucun module configuré`,
+        `${empty} sans aucun inscrit, ${unconfigured} sans aucun module configuré, donc sans entrée « Exports » dans la barre latérale et en 404 sur son URL directe`,
         'un événement à venir, un en cours, un terminé hier',
         'un événement « prêt à publier » que l’activation refuse : il lui manque la date de fin',
         `${zeroClosingCampus.name} : closings configurés, inscrits réels, aucun closing conduit`,

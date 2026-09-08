@@ -271,6 +271,7 @@ export const stage: Scenario = {
         'planning complet sur deux campus, six types de créneaux',
         'bilan avec des réponses publiques non appariées',
         'diplôme configuré, classement de fin de stage, minijeux dans les trois états',
+        `${flagshipCampus.name} : un événement qui expose toutes ses productions, donc la page Exports vue complète`,
         ...(profile.includeMessyStates
           ? [
               'un stage qui nomme une grille sans avoir conduit un seul closing',

@@ -220,6 +220,7 @@ export const club: Scenario = {
         'des questions de banque partagées avec le stage, donc comparables entre formats',
         'un talent avec plusieurs closings, ce que « Son parcours » affiche',
         'un closing qui survit à la suppression de sa participation par le worker Salesforce',
+        `la première séance rebasculée sur la grille Coding Club après ${RETARGETED_CLOSINGS} closings conduits sur celle du stage : son export xlsx porte les questions des deux grilles en colonnes, celles de l’ancienne signalées comme telles, et laisse vide la case d’une question qui n’a pas été posée`,
       ],
       accounts: [
         {
