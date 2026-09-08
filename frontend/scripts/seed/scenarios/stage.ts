@@ -35,7 +35,10 @@
 
 import type { ClosingRecommendation } from '@prisma/client';
 import { STAGE_PLANNING } from '../catalog/planning';
-import { BANK_KEYS, RETIRED_QUESTION } from '../catalog/closings';
+import {
+  RETIRED_QUESTION,
+  STAGE_TEMPLATE_QUESTION_KEYS,
+} from '../catalog/closings';
 import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
 import { STAGE_PUBLIC_NAME, stageTitre } from '../catalog/events';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
@@ -87,21 +90,6 @@ const VERDICT_COVER: readonly ClosingRecommendation[] = [
  */
 const FILING_WINDOW_START = -70;
 const FILING_WINDOW_END = -(DOSSIER_SPAN_DAYS + 1);
-
-const STAGE_QUESTIONS = [
-  BANK_KEYS.discoveryChannel,
-  BANK_KEYS.motivation,
-  BANK_KEYS.specialties,
-  BANK_KEYS.orientationTalk,
-  BANK_KEYS.passionateTeacher,
-  BANK_KEYS.techProjection,
-  BANK_KEYS.otherJobs,
-  BANK_KEYS.infoSources,
-  BANK_KEYS.wantsMore,
-  BANK_KEYS.satisfaction,
-  BANK_KEYS.oneSentence,
-  BANK_KEYS.nextYearEvents,
-];
 
 type StageDepth = 'flagship' | 'instrumented' | 'roster';
 
@@ -497,7 +485,7 @@ function addStageAt(
             ? null
             : rng.pick(team),
         templateId: stageTemplateId,
-        questionKeys: STAGE_QUESTIONS,
+        questionKeys: STAGE_TEMPLATE_QUESTION_KEYS,
         // One answered question that the grid no longer composes, so the
         // « Questions retirées » heading has something under it.
         retiredKeys: flagship && index === 0 ? [RETIRED_QUESTION.key] : [],

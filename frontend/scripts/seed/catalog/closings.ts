@@ -125,6 +125,41 @@ export const CLUB_TEMPLATE_QUESTION_KEYS: readonly string[] =
   );
 
 /**
+ * The bank keys the stage grid composes, in the order it asks them.
+ *
+ * The rule above applies unchanged, and for the same reason: a record answering
+ * a question its own grid does not compose is the « Questions retirées » state,
+ * placed DELIBERATELY on one record, so a second one arriving by accident would
+ * be indistinguishable from the intended case.
+ *
+ * What does NOT carry over is where the list comes from, and assuming it does is
+ * the mistake to avoid. Its neighbour is DERIVED from `CLUB_TEMPLATE`, a spec
+ * this file owns. The stage grid is composed by a migration
+ * (`20260826120000_add_closing_model`), so there is no spec here to read it off:
+ * this list is hand-kept against that SQL, and it is checked by the closings the
+ * stage conducts rather than by a type.
+ *
+ * It sits in the catalogue rather than in `scenarios/stage.ts`, where it began,
+ * because a second scenario needs it: the Coding Club carries the one session
+ * that was retargeted away from this grid, and a scenario must not import from
+ * another scenario to get at it.
+ */
+export const STAGE_TEMPLATE_QUESTION_KEYS: readonly string[] = [
+  BANK_KEYS.discoveryChannel,
+  BANK_KEYS.motivation,
+  BANK_KEYS.specialties,
+  BANK_KEYS.orientationTalk,
+  BANK_KEYS.passionateTeacher,
+  BANK_KEYS.techProjection,
+  BANK_KEYS.otherJobs,
+  BANK_KEYS.infoSources,
+  BANK_KEYS.wantsMore,
+  BANK_KEYS.satisfaction,
+  BANK_KEYS.oneSentence,
+  BANK_KEYS.nextYearEvents,
+];
+
+/**
  * A question that was asked, was answered, and has since been retired. It is
  * composed into no grid: its answers are only reachable through the records that
  * already carry them, which is exactly the state the « Questions retirées »
