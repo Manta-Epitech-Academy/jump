@@ -159,13 +159,15 @@
 <div class="space-y-6 pb-10">
   <PageHeader title="Exports" subtitle={eventName} />
 
-  <!-- What is NOT here, said once. Three controls stay on their own page because
-       they read what is on screen, and a reader who does not find them here has
-       to be told where they went rather than left to hunt. -->
+  <!-- What is NOT here, said once. A reader who does not find one of the three
+       here has to be told WHERE it is, so the tooltip names the pages and says
+       nothing about why the split exists: that argument is for whoever changes
+       this code, and it lives in `AGENTS.md` under Event modules. -->
   <p class="flex items-center gap-1.5 text-sm text-muted-foreground">
-    L'export filtré des inscrits et les QR codes restent sur leurs pages.
+    L'export des inscrits, les QR codes et la synthèse d'un closing restent sur
+    leurs pages.
     <InfoTooltip
-      text="L'export des inscrits suit les filtres et le tri que vous avez à l'écran, un QR code est celui du créneau affiché, et la synthèse PDF d'un closing s'ouvre depuis ce closing. Les déplacer ici leur ferait perdre ce à quoi ils se rapportent."
+      text="L'export des inscrits est sur la page Inscrits : il reprend les filtres et le tri que vous y avez choisis. Les QR codes sont sur les pages Émargement et Feedback. La synthèse PDF d'un closing s'ouvre depuis ce closing, une fois qu'il est finalisé."
     />
   </p>
 

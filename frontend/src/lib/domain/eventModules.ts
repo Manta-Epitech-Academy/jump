@@ -349,8 +349,15 @@ export interface EventProducerDef {
   description: string;
   /**
    * Everything else the reader may want and must not be made to read: what the
-   * file contains, how long it takes, what it does NOT follow. Rendered behind
-   * an `InfoTooltip`, per the copy-density rule.
+   * file contains, who is in it, how long it takes. Rendered behind an
+   * `InfoTooltip`, per the copy-density rule.
+   *
+   * Facts about the artifact only. Not why the app is arranged this way, and
+   * not a comparison with a control on another screen: a reader on this page
+   * cannot see that screen, so "ne suit pas le créneau affiché" names nothing
+   * they can look at. That argument belongs to whoever changes this code, which
+   * means a comment or `AGENTS.md`, never a tooltip. Nor a restatement of
+   * `description`, which the copy-density rule says to delete rather than hide.
    */
   help: string;
   format: 'pdf' | 'xlsx' | 'zip';
@@ -390,7 +397,7 @@ export const EVENT_PRODUCER_DEFS: Record<EventProducerKey, EventProducerDef> = {
     label: 'Émargement',
     description: 'La feuille de présence complète, tous les créneaux.',
     format: 'xlsx',
-    help: 'Une ligne par inscrit et une colonne par créneau, sur toute la durée de l’événement. Ce fichier ne suit pas le créneau affiché à l’écran.',
+    help: 'Une ligne par inscrit et une colonne par créneau, sur toute la durée de l’événement.',
     segment: 'emargement/export',
     base: 'roster',
     available: (gates) =>
@@ -401,7 +408,7 @@ export const EVENT_PRODUCER_DEFS: Record<EventProducerKey, EventProducerDef> = {
     label: 'Questionnaire de fin',
     description: 'Les réponses au questionnaire, une ligne par jeune.',
     format: 'xlsx',
-    help: 'Une colonne par question du questionnaire attaché à cet événement, avec les réponses telles qu’elles ont été saisies.',
+    help: 'Une colonne par question du questionnaire de cet événement, avec les réponses telles qu’elles ont été saisies.',
     segment: 'bilan/export',
     base: 'submissions',
     available: (gates) =>
@@ -413,7 +420,7 @@ export const EVENT_PRODUCER_DEFS: Record<EventProducerKey, EventProducerDef> = {
     label: 'Closings',
     description: 'Verdicts, réponses et notes, une ligne par jeune.',
     format: 'xlsx',
-    help: 'Une ligne par inscrit : son statut, son verdict, ses réponses et les notes de l’équipe, chacune dans sa colonne. Un closing conduit dont l’inscription a été retirée depuis garde sa ligne, signalée comme telle. Ce fichier ne suit aucun filtre.',
+    help: 'Une ligne par inscrit : son statut, son verdict, ses réponses et les notes de l’équipe, chacune dans sa colonne. Un closing conduit dont l’inscription a été retirée depuis garde sa ligne, signalée comme telle.',
     segment: 'closings/export',
     base: 'closingRows',
     available: eventRunsClosings,
@@ -423,7 +430,7 @@ export const EVENT_PRODUCER_DEFS: Record<EventProducerKey, EventProducerDef> = {
     label: 'Synthèses de closing',
     description: 'Une synthèse PDF par closing finalisé, dans une archive.',
     format: 'zip',
-    help: 'Une synthèse PDF par closing finalisé. Les documents sont produits à la demande, donc le téléchargement peut prendre quelques instants.',
+    help: 'Chaque synthèse reprend les réponses du jeune, le verdict et les notes de l’équipe. Le téléchargement peut prendre quelques instants.',
     segment: 'closings/archive',
     base: 'closingsDone',
     available: eventRunsClosings,
@@ -433,7 +440,7 @@ export const EVENT_PRODUCER_DEFS: Record<EventProducerKey, EventProducerDef> = {
     label: 'Certificats',
     description: 'Le certificat de cet événement, un par inscrit.',
     format: 'pdf',
-    help: 'Une page par inscrit, avec les signataires du campus. Le document est reconstruit à chaque fois, donc il reflète toujours les signatures en vigueur.',
+    help: 'Une page par inscrit, avec les signataires en vigueur pour votre campus.',
     segment: 'diplomes.pdf',
     base: 'roster',
     // Two gates, the pair the endpoint applies: the module guards the cohort it
