@@ -22,8 +22,9 @@
  *
  * « Every connection day carries a feature row » is false in production and must
  * not be asserted: `usageConnectionFeature` matches a whole space by prefix
- * while `USAGE_VIEW_ROUTES` names 36 routes, and four view keys are recorded at
- * an endpoint rather than at a route. Somebody opening a dev-space page that is
+ * while `USAGE_VIEW_ROUTES` names a subset of the routes, and four view keys are
+ * recorded at an endpoint rather than at a route. Somebody opening a dev-space
+ * page that is
  * not in the map writes a connection row and nothing else. Only the converse
  * holds.
  *

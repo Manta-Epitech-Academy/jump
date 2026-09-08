@@ -1529,7 +1529,7 @@ export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
 
 /**
  * The connection key for a space, from the route being visited. It matches by
- * PREFIX, so every request into a space carries one, not only the 36 routes
+ * PREFIX, so every request into a space carries one, not only the routes
  * `USAGE_VIEW_ROUTES` names: a day spent on an uncatalogued page is still a day
  * this person came.
  *

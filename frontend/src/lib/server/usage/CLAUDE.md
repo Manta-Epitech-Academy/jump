@@ -106,7 +106,7 @@ catalogue both read.
 - **A connection is a DAY, and a `*_connection` row is one per person, per space,
   per UTC day.** It is written by the request itself, from `usageConnectionFeature`
   matching the space by prefix, so it covers every page of a space and not only
-  the 36 routes `USAGE_VIEW_ROUTES` names. Two things follow that a
+  the routes `USAGE_VIEW_ROUTES` names. Two things follow that a
   finer-grained row would not give: it is the only hard per-actor cap in the
   catalogue, which is what makes a hover-preload structurally harmless rather
   than harmless by slice arithmetic, and the day it is sliced on is the day

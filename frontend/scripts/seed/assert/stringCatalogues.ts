@@ -15,7 +15,7 @@
  *      is allowed to send.
  *   2. EVERY VALUE PRESENT. Only where the vocabulary is small and each value
  *      makes the code branch. Without that rule `Usage_FeatureUse.feature` and
- *      its 106 keys would demand a row each, which says nothing.
+ *      its hundred-odd keys would demand a row each, which says nothing.
  *
  * What this cannot do, stated rather than hidden: the column-to-catalogue link
  * is declared by hand below. The alternatives are worse. Guessing from the
