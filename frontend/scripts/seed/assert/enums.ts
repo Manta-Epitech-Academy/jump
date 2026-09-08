@@ -15,10 +15,41 @@
  * Nullable enum columns are counted as covered by their values only. A `null` is
  * not an enum value, and demanding one would force a nonsense row for every
  * optional column in the schema.
+ *
+ * One value in the schema can also be a value this generator must NOT write, and
+ * that is `NEVER_SEEDED_VALUES` below. Same idea as `NEVER_SEEDED` in
+ * `coverage.ts`, whose header carries why an exemption list is split by intent:
+ * this one is the structural half only, one line per value with the reason it
+ * cannot exist here. There is no debt half, because a missing enum value is a
+ * scenario away and belongs in the branch that noticed it.
  */
 
 import type { PrismaClient } from '@prisma/client';
+import { BROADCAST_OUTSTANDING_STATUSES } from '../../../src/lib/domain/broadcasts';
 import { loadDatamodel } from '../schema';
+
+/**
+ * Enum values a generated database must not carry, keyed `Enum.value`.
+ *
+ * One-directional, exactly like `coverage.ts`'s: `--check` can be pointed at a
+ * database somebody has since used, and a campaign genuinely queued from the
+ * composer there is a correct row. What is refused is the GENERATOR writing one,
+ * and that is `assert/inertness.ts`, narrowed to `sd_` ids.
+ */
+const NEVER_SEEDED_VALUES: Readonly<Record<string, string>> = {
+  // ── L'isolation du worker de campagnes. À ne jamais lever. ──
+  // Dérivé de la classification du domaine, donc un statut non terminal ajouté
+  // demain arrive exempté ici, et refusé par `assert/inertness.ts`, sans que
+  // personne ait à se souvenir de cette liste.
+  ...Object.fromEntries(
+    BROADCAST_OUTSTANDING_STATUSES.map((status) => [
+      `BroadcastStatus.${status}`,
+      'une campagne dans ce statut n’est pas un fait, c’est du travail que /api/jobs/broadcasts/process réclame et envoie : la semer, c’est envoyer. Son absence EST l’isolation du worker de campagnes, au même titre qu’un `Campus.externalName` vide l’est pour le worker Salesforce. Ce qu’on perd est réel et assumé : les filtres « En file » et « En cours » de /staff/admin/broadcasts n’ont pas d’exemple semé. L’état reste à un clic, en rejouant un destinataire en échec depuis la fiche d’une campagne, et le jeu de données en porte.',
+    ]),
+  ),
+  'BroadcastRecipientStatus.pending':
+    'la ligne que la boucle d’envoi pagine. Voir `BroadcastStatus.queued` : un destinataire en attente sous une campagne terminale est le même envoi une couche plus bas, atteignable par la reprise d’une campagne bloquée comme par une remise en file manuelle.',
+};
 
 export type EnumTarget = {
   enumName: string;
@@ -95,7 +126,11 @@ export async function missingEnumValues(
   const missing: string[] = [];
   for (const [enumName, values] of known) {
     const found = seen.get(enumName) ?? new Set<string>();
-    const absent = values.filter((value) => !found.has(value));
+    const absent = values.filter(
+      (value) =>
+        !found.has(value) &&
+        !Object.hasOwn(NEVER_SEEDED_VALUES, `${enumName}.${value}`),
+    );
     if (absent.length > 0) {
       missing.push(`${enumName}: aucune ligne pour ${absent.join(', ')}`);
     }

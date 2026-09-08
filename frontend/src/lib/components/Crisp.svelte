@@ -6,7 +6,8 @@
   // Live-chat widget. The website ID comes from the runtime container env
   // (per-environment k8s deployment), like Umami. Empty/unset -> never loads, so
   // Crisp is fully hidden. The crisp.chat hosts are whitelisted in the CSP
-  // (hooks.server.ts).
+  // (svelte.config.js, `kit.csp.directives`: `script-src`, `style-src`,
+  // `font-src` and `connect-src`, the last one for the `wss://` relay).
   //
   // Scoped to the login + onboarding surfaces only (see supportSurfaces): we help
   // talents and parents get INTO the app, then step out of the way, so the

@@ -109,6 +109,22 @@ export const CLUB_TEMPLATE: {
 };
 
 /**
+ * The bank keys the club grid composes, in order, read off the grid rather than
+ * listed a second time.
+ *
+ * Both scenarios that conduct a club closing need this list, and it was written
+ * out by hand in one of them. A hand-copied list is not a shortcut here: a
+ * record answering a question its own grid does not compose is precisely the
+ * « Questions retirées » state, which the dataset places DELIBERATELY on one
+ * record - so a second one arriving by accident would be indistinguishable from
+ * the intended case.
+ */
+export const CLUB_TEMPLATE_QUESTION_KEYS: readonly string[] =
+  CLUB_TEMPLATE.sections.flatMap((section) =>
+    section.questions.map((question) => question.questionKey),
+  );
+
+/**
  * A question that was asked, was answered, and has since been retired. It is
  * composed into no grid: its answers are only reachable through the records that
  * already carry them, which is exactly the state the « Questions retirées »

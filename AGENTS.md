@@ -42,11 +42,15 @@ All commands run from `frontend/` using **Bun**. The shell's cwd often already I
 
 Task-to-script mapping lives in `frontend/package.json`.
 
-**`bun run verify` is the gate, and it is the same gate CI runs.** It chains `lint:scripts`, `lint`, `lint:design`, `lint:tests`, `check`, `test`, `test:integration`, `test:schema-drift` and `test:e2e`, in that order, through the same scripts the required checks call. Run it before you say you verified something: the point is that the claim is recontrollable by somebody else, and a green `verify` is the artifact that makes it so. Anything needing a real database provisions itself (`scripts/with-test-db.sh`), so there is no `docker compose up` and no `migrate deploy` to remember. Nothing in the chain is CI-only: a required check with no local equivalent is the hole this command exists to close, which is why the executable-bit guard moved out of the workflow YAML and into `scripts/check-exec-bits.sh`. See `frontend/TESTING.md` for the individual links in the chain and for what each CI job actually executes.
+**`bun run verify` is the gate, and it is the same gate CI runs.** It chains `lint:scripts`, `lint`, `lint:design`, `lint:tests`, `lint:prose`, `check`, `test`, `test:integration`, `test:schema-drift`, `test:seed` and `test:e2e`, in that order, through the same scripts the required checks call. Run it before you say you verified something: the point is that the claim is recontrollable by somebody else, and a green `verify` is the artifact that makes it so. Anything needing a real database provisions itself (`scripts/with-test-db.sh`), so there is no `docker compose up` and no `migrate deploy` to remember. Nothing in the chain is CI-only: a required check with no local equivalent is the hole this command exists to close, which is why the executable-bit guard moved out of the workflow YAML and into `scripts/check-exec-bits.sh`. Nothing in it is local-only either, and that half is checked rather than promised: `lint:prose` fails when a link of the chain is run by no required job. It is the same sentence read in the other direction, and it is the one that had just gone false, because `lint:prose` itself shipped into the chain with no step in `Lint & Type Check` and therefore blocked nothing. See `frontend/TESTING.md` for the individual links in the chain and for what each CI job actually executes.
+
+**Two agent hooks live in `.claude/settings.json`, and they are the deterministic half of the rules this file states.** A rule written here is probabilistic: an agent can report that the checks ran when they did not, and the three hooks in `.githooks/` cannot catch that, because they fire at commit and at push, which is after the claim. `frontend/scripts/agent-edit-check.sh` runs the prose lint on every file written and hands the violation straight back. It warns, it does not veto: `PostToolUse` fires after the tool has run, so the write has already landed, and the value is the distance between hearing about it now and hearing about it at `verify` time, which in practice is after a commit. `frontend/scripts/agent-stop-gate.sh` refuses an end of turn when the tree carries a tracked change and one of the database-free links is red. It deliberately runs no more than those five: `svelte-check` and the database suites on every end of turn would get the hook switched off inside a week, and a disarmed gate guards nothing. Both fail open on everything except a linter that ran and reported a violation, since a hook that blocks on its own bug teaches you to ignore it: only an exit 1 gates, so a missing binary (a worktree whose `bun install` never finished) and a script name that no longer exists let the turn end instead of handing the model a violation that is not there. `bun run verify` stays the gate for the pull request. Permissions stay in `settings.local.json`, which is gitignored because they carry absolute paths; only the hooks are shared.
 
 **Docker** (from repo root): `docker-compose up` starts PostgreSQL + SvelteKit.
 
-**Git worktrees:** a freshly-added worktree has no `.env` (untracked) and no `node_modules`. The `.githooks/post-checkout` hook auto-provisions it on creation: links `.env` from the main checkout and runs `bun install`. If your editor adds worktrees without firing git hooks, run `bun run setup:worktree` once to do the same. It also has no `.env.test`: copy it from `.env.test.example` once, and note that it deliberately carries no `DATABASE_URL`.
+**Git worktrees:** a freshly-added worktree has no `.env`, no `.env.test` (both untracked) and no `node_modules`. The `.githooks/post-checkout` hook auto-provisions it on creation: links `.env` from the main checkout, seeds `.env.test` from `frontend/.env.test.example`, and runs `bun install`. If your editor adds worktrees without firing git hooks, run `bun run setup:worktree` once to do the same. Neither file is written when it already exists, so both the hook and the manual command are safe to re-run.
+
+**A worktree belongs outside the main checkout, and its directory name is load-bearing.** Nothing gitignores a worktree created inside the checkout, so every search run from the repo root returns each tracked file two or three times: that is how an audit of this repo came to report one test file under fifteen paths, and to read the noise as a finding about this file. And the directory's basename is what the paragraph below turns into a database name and a port offset, so a placeholder name becomes a placeholder database. `frontend/scripts/setup-worktree.sh` says both out loud on provisioning, with the `git worktree move` to run. It warns rather than refuses: a misplaced worktree may already hold work, and the move recomputes the test database, so choosing when to pay that is the author's call.
 
 **A worktree gets its own test database, and that is not a nicety.** `scripts/with-test-db.sh` derives the name from the worktree (`jump_test` in the main checkout, `jump_test_<worktree>` elsewhere) on the one container from `docker-compose.test.yml`, and derives the E2E server's port and `ORIGIN` from that same discriminant: a value that is per-worktree in one layer and shared in the other is not isolated, and the port being the shared half let one worktree's gate run green against another's build. They used to share the single `jump_test`, so a `migrate deploy` run from one branch left every other worktree's integration suite red against a schema it was never written for, with nothing to say so. Two traps the script exists to absorb: `prisma.config.ts` loads the repo-root `.env`, which points at the shared DEV database, and an already-set `DATABASE_URL` only wins because the script exports its own last; and the test container is not clean per launch (the postgres image declares its own volume, so a restart keeps its data - only `docker compose -f docker-compose.test.yml down -v` resets it).
 
@@ -57,6 +61,31 @@ Task-to-script mapping lives in `frontend/package.json`.
 **When a `package.json` script exists for the task, use `bun run <script>` rather than invoking the tool directly.** The scripts often set env vars (`KIT_OUTDIR=.svelte-kit-check`) or flags (`--tsconfig ./tsconfig.check.json`) that a bare `bun svelte-check` or `bunx svelte-check` will silently skip, leading to types being written to the default `.svelte-kit/` dir or the wrong strictness. For one-shots without a matching script, `bun <tool>` is fine; reach for `bunx` only when the tool isn't installed locally.
 
 ## Architecture
+
+**The doctrine of a surface lives with the surface.** Seven files below this one carry it, and each
+section that moved leaves a pointer here saying what it was. Claude Code loads a directory's
+`CLAUDE.md` when it reads a file in that directory, so touching a surface brings its rules and the
+incidents behind them; **every other agent has to open them itself**, which is why they are named
+here by path rather than merely existing. A nested `AGENTS.md` would never be loaded automatically,
+so the filename is not a detail.
+
+| File | The question it answers |
+| --- | --- |
+| [`frontend/src/lib/server/auth/CLAUDE.md`](./frontend/src/lib/server/auth/CLAUDE.md) | Who may sign in through which door, and what gates a role inside a workspace |
+| [`frontend/prisma/CLAUDE.md`](./frontend/prisma/CLAUDE.md) | How a fact, a relationship and a migration are shaped, and how little to couple |
+| [`frontend/src/lib/server/CLAUDE.md`](./frontend/src/lib/server/CLAUDE.md) | Which service owns what, file by file |
+| [`frontend/src/lib/server/usage/CLAUDE.md`](./frontend/src/lib/server/usage/CLAUDE.md) | Which of its own screens anybody opened, and why the answer holds no PII |
+| [`frontend/src/lib/server/adminApi/CLAUDE.md`](./frontend/src/lib/server/adminApi/CLAUDE.md) | What a named operation may do, and what a token may reach |
+| [`frontend/src/lib/components/staff/CLAUDE.md`](./frontend/src/lib/components/staff/CLAUDE.md) | How a staff list page survives cohort volume |
+| [`frontend/scripts/seed/CLAUDE.md`](./frontend/scripts/seed/CLAUDE.md) | What a generated database must contain, and what it must never do |
+
+`bun run lint:prose` checks that every link in this table resolves, so a renamed file cannot leave a
+pointer here quietly wrong.
+
+**What deliberately did NOT move**, because its code crosses several surfaces and a directory file
+would load on only part of the subject: closings, event modules, onboarding, the Salesforce
+reconciliation, and the UI-versus-API test. Putting those in the right place would mean moving code,
+which is a different change.
 
 ### Workspaces
 
@@ -73,44 +102,11 @@ The app splits into four workspaces, each serving a distinct audience and busine
 
 ### Auth System
 
-Uses **BetterAuth** (`src/lib/server/auth.ts`) with two methods:
-
-- **Microsoft OAuth** for staff and admins (must be `@epitech.eu`)
-- **Email OTP** (6-digit, sent via Resend) for students and parents
-
-Route guards in `src/lib/server/auth/guards.ts` enforce role-based access. Session data is loaded in `hooks.server.ts` into `event.locals` (user, session, staffProfile, talent).
-
-Staff are routed by `StaffProfile.staffRole` (Prisma `StaffRole` enum: `admin`, `superdev`, `dev`). After login, staff redirect to their role-specific space. Guards block cross-space access and redirect to correct space. Role-to-path mapping lives in `src/lib/domain/staff.ts` (`getStaffRoleRedirectPath`).
-
-| StaffRole         | Space                                |
-| ----------------- | ------------------------------------ |
-| `admin`           | `/staff/admin/`                      |
-| `superdev`, `dev` | `/staff/dev/`                        |
-| `null`            | blocked, shown "contact admin" error |
-
-Client-side auth at `src/lib/auth-client.ts` (browser-side BetterAuth).
+BetterAuth with two disjoint doors, and how the staff door was closed to the OTP path after a code sign-in on a staff address minted a full staff session. Read [`frontend/src/lib/server/auth/CLAUDE.md`](./frontend/src/lib/server/auth/CLAUDE.md).
 
 ### Role gating
 
-Inside a workspace, role-based gating goes through **one table** of named role groups in `src/lib/domain/permissions.ts`:
-
-| Group            | Roles             | Use for                                                  |
-| ---------------- | ----------------- | -------------------------------------------------------- |
-| `devMember`      | `superdev`, `dev` | Dev workspace daily ops (participants, closings, update) |
-| `realSendArmers` | `admin`           | Arming real outbound sends / login-redirect pin          |
-
-- **Client:** `const canEdit = $derived(can('devMember', page.data.staffProfile?.staffRole))`, then apply one of the UI patterns below. Import: `$lib/domain/permissions`.
-- **Server:** `requireStaffGroup(locals, 'devMember')`. Import: `$lib/server/auth/guards`. Call it in every mutating action, or at the top of a `load` to gate a whole route.
-
-**There is no superdev-only group today.** `superdev` and `dev` are permission-identical; the only thing the enum still separates is which roles a superdev may invite (`INVITABLE_STAFF_ROLES`, a catalogue, not a gate). Add a group back to `STAFF_GROUPS` the day a lead-only action exists. Never inline a `['superdev']` array at a call site.
-
-**UI pattern rule: pick one per site, do not mix:**
-
-| Pattern           | When                                                     |
-| ----------------- | -------------------------------------------------------- |
-| Hide              | Nav entries to restricted destinations (sidebar, menus)  |
-| Disable + tooltip | Mutating controls visible on shared screens              |
-| Redirect / 403    | Direct URL access, via `requireStaffGroup` in the `load` |
+One table of named role groups, the client and server call shapes, and the UI pattern to pick per site. Read [`frontend/src/lib/server/auth/CLAUDE.md`](./frontend/src/lib/server/auth/CLAUDE.md).
 
 ### Event modules
 
@@ -257,39 +253,15 @@ Prisma schema at `frontend/prisma/schema.prisma`. Data is campus-scoped.
 
 ### Data modeling: facts as rows, state as projection
 
-Several domain tables are append-only fact/log records: `MinigameAttempt`, `BroadcastRecipient`, `XpGrant`, `ImageRightsDecisionRecord`. Current values that derive from them are **cached projections** recomputed transactionally on each write, not independently mutated (e.g. `Talent.xp` = `SUM(XpGrant.amount)`).
-
-When persisting a new domain fact, follow this shape rather than a mutable counter or a `Json` blob: the fact gets a row, and any aggregate is a projection refreshed in the same transaction. A bare counter is lossy: you can't explain, audit, or timestamp the value, and ad-hoc `Math.max(0, x - n)` adjustments drift. The XP ledger is the reference implementation (see below).
-
-**Not for polled external state.** The ledger shape fits discrete domain facts that happen once. Do _not_ append a row per poll of a mutable external system: the Salesforce sync runs every ~30 min, so an append-only log would bloat with no payoff. Mirror the external system's current state in a 1:1 typed row, upserted only when the inbound payload differs (see `TalentSfImport` under Salesforce reconciliation).
+Append-only fact rows with cached projections recomputed in the same transaction, and the case this shape does NOT fit. Read [`frontend/prisma/CLAUDE.md`](./frontend/prisma/CLAUDE.md).
 
 ### Relational modeling
 
-Model relationships and entities by their real shape. These are deliberate calls, not defaults to reach for: each is anchored to a model in this schema:
-
-- **Many-to-many → join table.** A pure junction with a composite PK, e.g. `TalentInterest` (`@@id([talentId, interestId])`). Use one only when **both** sides are genuinely many.
-- **One-to-many → foreign key on the "many" side, not a join table.** A talent has one current school → `Talent.schoolId`, never a `TalentSchool` link table. The tell that you've mismodeled a 1:N as M:N: you find yourself adding a `@@unique` on the FK column to stop duplicates.
-- **A link table _with attributes_ is an associative entity: a separate decision.** A bare junction glues two keys; the moment the relationship itself carries data (a `source`, a `confirmedAt`, a quantity), that's a deliberate entity. Don't reach for it speculatively, and don't refuse it when the data genuinely belongs on the relationship.
-- **A domain entity gets its own table + FK, not loose strings/JSON.** A thing referenced repeatedly (a high school) gets a typed, deduplicated row (`School`), not `name`/`city`/`uai` columns copied onto every referrer. "Normalize later" tends to never happen.
-- **External-system data → anti-corruption mirror, kept apart from your truth.** Don't fold a third party's claims into your aggregate root. Keep what _you_ believe (`Talent`) separate from what an external system _claims_ (`TalentSfImport`), and reconcile explicitly (see Salesforce reconciliation).
-- **A relationship already carried by a foreign key needs no second marker.** If A already points at B via an FK, don't add an `ownerB`/`belongsToB` column that re-encodes the same link: it duplicates a tie you can already query, and it drifts. Before adding a column to bind two rows, check whether an existing FK (or a count over it) already answers the question. When the tie is incidental, don't model it at all: prefer computing the answer to storing a flag.
-- **A denormalised key is bound to its source by a composite foreign key, not by discipline.** Some columns are copied on purpose - `Participation.campusId` and `Closing_Record.campusId` exist so campus scoping is one hop instead of a walk through `Event` - and a copy that nothing binds drifts the first time the source moves. Salesforce does reassign a campaign, the event sync has an explicit branch for it, and it updated `Event` alone: the enrolments stayed on the old campus, which is the column `db/scoped.ts` reads to cloister a campus's data, so the old campus kept seeing the cohort and the new one never did. Both tables now reference the pair `(Event.id, Event.campusId)` against a `@@unique([id, campusId])` on `Event`, and Prisma's default `ON UPDATE CASCADE` carries the move down. A snapshot is the opposite case and stays unbound on purpose (`MinigameAttempt.campusId`, `XpGrant.campusId`, both documented as such): the test is whether the column is meant to track the source or to record what was true once.
-- **Attribution outlives the person; ownership does not.** A staff foreign key on a record other people read is `SetNull` on a nullable column, and `$lib/domain/staff.ts` holds the one label (`FORMER_STAFF_LABEL`) every screen renders in their place. Both other options had shipped and both were wrong: `Closing_Record.staffId` and `AdminFile.uploadedById` cascaded, so deleting one account destroyed every closing that person had conducted and the files they had put in a shared library, while `Broadcast.createdById`, `MessageTemplate.createdById` and `CmsPage.updatedBy` defaulted to `RESTRICT`, which made anyone who had ever sent a campaign undeletable behind a bare "Erreur lors de la suppression du membre". Cascade is for what belongs to the person alone (`Usage_FeatureUse.staffProfileId`, a behavioural log that must not outlive them); a plain unconstrained `String` is for an audit row that must survive even the FK (`AdminApi_Call.actorUserId`, `AuthIdentityRepair.resolvedBy`).
-- **An invariant a comment asserts is a `CHECK` when the database can hold it.** There were none at all, and two earned their place: `AdminApi_Token` said a leadership token is read-only "by construction" when the construction was an `if`, and `Usage_FeatureUse` rests on staff being identified while talents are pseudonymous, where one wrong write is a minor's re-identification. Most invariants do NOT qualify, and the reasons are worth knowing before reaching for one. A rule spanning two statements of a transaction cannot be expressed, because Postgres `CHECK`s are not deferrable: `Talent.schoolId` XOR `highSchoolNameManual` is written by two services in one transaction and is legitimately both-set in between. A rule a referential action breaks cannot either: `BroadcastRecipient`'s exactly-one actor becomes none-set the moment a talent is erased through `SET NULL`. And a rule one writer already refuses with a better message is not worth a second, worse one - `closingAnswersIssues` says « Réponse inconnue pour … » where a constraint would say nothing. Prisma cannot express a `CHECK`, so it is hand-written into the migration; `migrate diff` does not read them, which is why `test:schema-drift` stays green.
-- **Every new model is prefixed by its context: `Context_ModelName`.** This used to read "a model belonging to a feature area", and those three words made the prefix conditional; the condition is what left 32 of the 65 models bare. There is no exemption to find. The prefix lives in the **Prisma model name** (`Note_TalentNote`, `EventConfig_Module`, `Feedback_Form`), never faked with a `@@map`, so the schema sorts and reads by context instead of by whatever the model happened to be called.
-
-  **The prefix names the bounded context that owns the write path, and that is the only axis.** Mixing axes is what makes a prefix scheme collapse, so `Sf_` is one context among the others, the anti-corruption mirror, and not an ownership tag bolted onto a second axis. **There is no `Jump_`, and there must not be.** A prefix earns its place by separating, not by labelling: if almost everything belongs to Jump, `Jump_` costs sixty names and carries no information. `Sf_` earns its place for exactly the inverse reason.
-
-  **The bare models are a backlog, not a category, and they are never the precedent.** Half the schema predates this rule and a sweep issue tracks them, so the closest example you find by grepping is as likely to be the retard as the reference. Reaching for `School` or `TalentInterest` to justify a bare name is the specific mistake this paragraph exists to stop, and it has already been made once. The aggregate roots that every context reads and none owns (`Talent`, `Event`, `Campus`, `School`, `StaffProfile`) are the one genuinely open question and belong to that sweep: leave them as they are until it decides.
+Model relationships by their real shape: join table only when both sides are many, an anti-corruption mirror for an external system, a composite foreign key binding a denormalised column to its source, and the `Context_ModelName` prefix. Read [`frontend/prisma/CLAUDE.md`](./frontend/prisma/CLAUDE.md).
 
 ### Default to less: coupling and surface
 
-The safe default here is the smallest thing that meets the need. Four rules, learned the hard way:
-
-- **Prefer the least coupling that works.** Reference by id over embedding or ownership. A control governs only its own surface: a per-event sub-option hides its own column, it does not reach into an unrelated screen like the talent fiche. A preset or template is a point-in-time copy applied once, not a live link. An external attribute (the Salesforce event type) is a hint, never a binding. Features that merely relate should reference each other, not interlock.
-- **When a concept is questioned as redundant or "too clever", delete the mechanism, don't refine it.** Refining coupling that should not exist only yields subtler coupling. If you cannot say what a column, flag, or abstraction buys beyond what is already expressible, remove it instead of making it cleaner.
-- **A table that holds no data of its own is not a table.** Two shapes give it away, and the planning tree had both: a wrapper carrying nothing but a foreign key and timestamps (`Planning` was one row per event, 286 of 292 of them empty), and a 1:1 satellite whose row count matches its parent exactly (`Activity` held `nom` and `activityType` against a unique `timeSlotId`, and not one slot lacked one). Neither is free, and the bill does not arrive where the tables are: `db/scoped.ts` had to walk `activity -> timeSlot -> planning -> event -> campusId` at every level, which cost about 288 of its 707 lines - 41 % of the layer that cloisters a campus's data, and half of it guarding writes the application does not perform. Collapsing the three into `Planning_Slot` left one hop, the same as `EventPresence`. The test before adding a level: name a column it will hold that the level below could not. And when a nullable relation exists only because the schema made it optional - a slot with no activity rendered as nothing at all - make it required and delete the branch rather than carrying the `| null` through the query, the domain type and the component.
-- **Build the minimal surface first.** Don't add a management page, a seed script, or a built-in-vs-custom distinction speculatively. Manage a thing inline (in the dialog or list that already exists) until volume genuinely justifies a dedicated surface; a catalogue is told apart by names before it needs a type filter.
+Prefer the least coupling that works, delete a questioned mechanism instead of refining it, and why a table holding no data of its own is not a table. Read [`frontend/prisma/CLAUDE.md`](./frontend/prisma/CLAUDE.md).
 
 ### XP System
 
@@ -334,135 +306,7 @@ Talent profile fields have two sources: the worker sync (Salesforce) and onboard
 
 ### Usage analytics: a catalogue of features, recorded server-side
 
-Jump could say who was enrolled, who had signed and who was present, and nothing
-about which of its own screens anybody opened. `Usage_FeatureUse` is that fact,
-`Usage_FeatureMonthly` its actor-free monthly cube, and `domain/usage.ts` the
-catalogue both read.
-
-- **A key enters the catalogue only if a product decision depends on it.**
-  Micro-interactions (a theme toggle, confetti seen, a collapsible opened) stay
-  with Umami in aggregate. The boundary decides where a new measurement belongs:
-  Umami answers "how much traffic", this catalogue answers "which campus adopted
-  which feature", and only the second can be joined to `Participation`, `Campus`
-  and `Event`, which is the whole reason it lives in our own database. A key is
-  never added for a fact the database already records; `USAGE_MEASURED_ELSEWHERE`
-  names those and the API carries the list, so a consumer is told where to look
-  rather than reading a zero.
-
-  The Umami half of that line is narrower than "traffic", and stating it loosely
-  invites a cleanup that would lose something. **Umami keeps what the server
-  cannot see**: a failure that never reaches an action, a duration
-  (`secondsToSign`, `sessionDurationSec`), the OTP funnel before a session
-  exists, and the low-cardinality dimensions this catalogue refuses on purpose
-  (`sizeBucket`, `daysOpen`, `fromRole`/`toRole`). Several of its events name the
-  same act as a catalogue key, and that is not duplication to remove: they are
-  measured at different moments (a `track()` in `use:enhance` usually fires on
-  success, `recordUsage` fires when the control is invoked), each success event
-  is the denominator of a `_failed` twin, and Jump has no Sentry, so those twins
-  are the only client error signal there is. Neither system is the other's check;
-  quote one or the other, never both at once.
-
-- **What is absent from the fact table is the PII boundary, and it is structural.**
-  No `path`, no `url`, no `referer`, no `userAgent`, no `ip`, no `params`, no free
-  text, and no `talentId`. The question is answerable from counts, so per-person
-  identity for a minor is not necessary, and under art. 6(1)(f) what is not
-  necessary has no basis. Before adding a column, say which figure it makes
-  possible that the existing ones cannot.
-- **Two actor regimes, deliberately asymmetric.** Staff are identified
-  (`staffProfileId`), because they are adults, employees, and per-person history is
-  what was asked for; the FK cascades, so a departure takes the history with it.
-  That is the opposite of `AdminApi_Call.actorUserId`, which carries no FK
-  precisely so an audit row outlives the person: an audit must, a behavioural log
-  of an ex-employee must not. Talents get `actorHash` only, a monthly-rotating
-  pseudonym, so the talent metric is **monthly active, never annual**. There is no
-  `parent` value, because measuring a data subject on legitimate interest owes them
-  an operable art. 21 objection and there is nowhere to store one for a guardian
-  today (no Parent entity, `/parent/settings` holds no preferences).
-- **Nothing is recorded by client code, and no view is recorded from a `load`.**
-  Instructing a browser to post a result back is an access to the terminal under
-  art. 5(3) ePD, which would drag the whole thing into art. 82 consent; a pure
-  server log does not. There is no `/api/usage` endpoint and there must not be one.
-  Visits and sessions come from `USAGE_VIEW_ROUTES` in `hooks.server.ts`, after the
-  guards, which also keeps writes out of `load` functions that SvelteKit runs on
-  hover-preload.
-- **Where a use is recorded is a rule, not a judgement call per site.** An endpoint
-  that produces an artifact records once the artifact exists, so an event issuing
-  no certificate never counts a 404 as a render. Everything else records when the
-  control is invoked.
-- **`dedupeKey` must stay composed.** Only `feature` and `dedupeKey` are in the
-  unique constraint, so the actor, the event and the impersonation flag all live
-  inside the key. Drop any one of them and `skipDuplicates` silently discards a
-  legitimate row; `record.test.ts` pins all three.
-- **Fold before you purge.** `/api/jobs/usage-rollup` is one job for that reason:
-  it folds every month present in the raw table, then purges past
-  `USAGE_RAW_RETENTION_MONTHS`. Two jobs would make the ordering a scheduling
-  assumption, and the purge would win a race nobody would notice until a month was
-  missing from every year-on-year figure.
-- **`USAGE_SALT` fails closed.** Unset means no talent recording at all, rather
-  than hashing against an empty salt and producing a stable identifier for a
-  minor. Same doctrine as `OUTBOUND_MODE`.
-- **`db/scoped.ts` deliberately carries no delegate for these tables.** They are
-  written by the recorder and read only through the admin API, which resolves its
-  own scope; they are never reached through `scopedPrisma`. Same treatment, and the
-  same kind of comment, as `Closing_Answer`.
-- **A NARROWED talent cell is masked below five distinct actors**
-  (`USAGE_SMALL_CELL_FLOOR`), because a cell of one or two in a small campus is
-  nearly a statement about named children. A zero is never masked: it discloses
-  nobody and it is the most actionable answer the matrix produces. The floor
-  belongs to the READ, not to one operation, and not to one filter: it shipped
-  applied inside the coverage matrix while `stats_feature_usage` took the same
-  `campus` filter, was reachable with a leadership token, and answered unmasked;
-  it then keyed on the campus filter alone while that operation also takes
-  `eventId`, which names one campus, one date and a roster a dev can read by
-  name, so it discloses more than the cell already withheld. The rule is the
-  narrowing and not the word campus: any filter that can bring a talent count
-  below the whole platform goes through `maskCell`, and the share is masked with
-  the count or it hands the count straight back.
-- **Two stores, one figure, and a distinct actor is counted per month.** Inside
-  the retention window the answer comes from `Usage_FeatureUse`, beyond it from
-  the actor-free cube, and both go through `server/usage/read.ts` so the store
-  boundary cannot change what a number means. The month is not a formatting
-  detail: the talent pseudonym rotates monthly, so distinct actors are additive
-  across campuses and actor kinds INSIDE a month and across nothing else. The
-  reported figure is therefore the busiest month's count, never a running total,
-  which is also why it can never exceed a month's population. Both halves shipped
-  broken and neither was visible to a test that asserted only the announced
-  source or that compared the stores inside a single month.
-- **A named school year IS the window.** Asking about 2025-2026 asks about
-  2025-2026, so a `days` count narrows the year only when it was actually passed.
-  Defaulting it and intersecting made every question about a past year an empty
-  range, answered as zeros with the filters echoed back to confirm them. A
-  period covering no time at all is a refusal, exactly as an unknown campus is,
-  and it collapses two ways: the day count and the year do not meet, or the year
-  has not opened yet. The second needs no day count, which is why the guard sits
-  after the whole branch rather than inside it; while it did not, a year still
-  ahead answered zeros through a `source` whose « au » preceded its « du ».
-- **A connection is a `*_session` row, never a `bauth_session` row.** The session
-  table is not a login history, which the schema states twice, on both
-  `StaffProfile.firstLoginAt` and `Talent.firstLoginAt`: logout, identity repair
-  and relinks delete from it, so it under-reports whoever signs out and
-  over-reports whoever never does. It shipped once as the source of the members
-  page's connection list, where 6046 of the development database's 6049 rows were
-  expired sessions nobody had closed. The two projections answer "has this
-  account ever been opened, and when", the session keys answer "how often", and
-  neither question is ever asked of `bauth_session`. The figure that answers "how
-  much does this person come" is then the count of DISTINCT DAYS, not of logins:
-  a BetterAuth session lives a fortnight, so somebody working daily and never
-  signing out produces about two logins a month.
-
-Reads are `stats_feature_usage`, `stats_feature_adoption_gaps`,
-`stats_campus_feature_coverage` (leadership) and `ops_staff_activity` (core), over
-`services/adminStats/{featureUsage,staffActivity}.ts`, all reading through
-`server/usage/read.ts`. The weekly digest's Adoption section reads the same
-service, so an inbox figure and an asked figure cannot disagree, and it says
-"adoption non mesurable" rather than naming every feature when nothing was
-measured over the window: an absence of rows is an absence of measurement, and
-printing it as a list of unused features is the one error that makes somebody
-delete something in use. **Whichever store answers**, which is the half that was
-missing: the detailed path asserted it had measured, and the digest asks for
-ninety days, which always sits inside the retention window, so its own guard was
-unreachable and the first mails after a deploy would have named the whole
-catalogue.
+Which of its own screens anybody opened, and the reasons the answer is shaped the way it is: what is absent from the fact table IS the PII boundary, two deliberately asymmetric actor regimes, nothing recorded by client code, and a small-cell floor on any narrowed talent count. Read [`frontend/src/lib/server/usage/CLAUDE.md`](./frontend/src/lib/server/usage/CLAUDE.md).
 
 ### UI, API, or both
 
@@ -489,25 +333,7 @@ refusal, handles) and the file-by-file map of the tier.
 
 ### Key Server Services (`src/lib/server/`)
 
-- **`auth.ts`**: BetterAuth config (Prisma adapter, Microsoft OAuth, email OTP, admin plugin with impersonation)
-- **`adminApi/`**: curated admin API: token auth (tier + write capability), quotas, audit log with before/after, operation catalogue, write implementations, two-step plan digest, MCP server (see above)
-- **`services/adminStats/`**: the curated aggregates (cohort profile, school reach and lycée churn, attendance, the cross-campus comparison, closing insights and testimonials, feedback results, engagement, onboarding funnel and velocity, compliance, the operational queues, configuration state, the school-year review), each figure carrying its definition
-- **`services/adminDigest.ts`**: weekly French digest to every admin-role login, built on `adminStats/`
-- **`services/staffAdminService.ts`**: staff roster writes for `/staff/admin/users` (the role change moves `StaffProfile.staffRole` + `bauth_user.role` in one transaction)
-- **`services/syncErrorService.ts`**: admin remediation of sync errors, including the extId rebind and its refusal branches
-- **`services/onboardingService.ts`**: the onboarding transactions: parent-1 account provisioning, interest swap, rules signature (timestamps + XP facts + PDF job)
-- **`infra/documentRenderer.ts`** - the one browser-render path: PDFs for what gets printed, PNGs for what gets looked at, both over the same page setup so a preview cannot disagree with the document it previews. Owns the page lifecycle and turns off **both script execution and the network**, so no caller can render a stored design with either switched off by forgetting to switch it on; no template wants page JS anyway (a QR code arrives as a data URI its caller built). Fonts therefore carry their own bytes (`templates/fonts.ts`, `@font-face` built from the `@fontsource` packages with `?inline`)
-- **`services/diplomaGenerator.ts`** - certificates: takes the design off a `Diploma_Template` row, substitutes the `{placeholders}`, and renders one page per recipient
-- **`services/syncService.ts`**: Salesforce worker sync → seeds `Talent` + upserts the `TalentSfImport` mirror (no-clobber; see Salesforce reconciliation)
-- **`services/reconciliationService.ts`**: computes `Talent` ↔ `TalentSfImport` conflicts; accept/reject + CSV for `/staff/admin/sf-conflicts`
-- **`services/schoolService.ts`** / **`annuaire.ts`**: lazy `School` resolution from UAI via the éducation-nationale annuaire
-- **`services/anonymizationService.ts`**: RGPD anonymization job
-- **`infra/browserPool.ts`**: pooled Puppeteer instances (max 5 concurrent, 60s idle timeout)
-- **`usage/record.ts`**: the one usage recorder: fire-and-forget, server-only, composes the dedupe key, honours a talent's objection, and refuses rather than guesses when the salt is unset
-- **`usage/rollup.ts`**: folds the monthly cube then purges the raw window, in that order
-- **`services/adminStats/featureUsage.ts`** / **`staffActivity.ts`**: feature adoption per campus, and whether the team logs in at all
-- **`usage/memberActivity.ts`**: the one named-member read, for the dialog on `/staff/admin/users`. Deliberately not an operation: `ops_staff_activity` answers the same question in counts with no names, and a named-member read reachable with a token would put per-employee behaviour behind a credential minted for figures
-- **`db/scoped.ts`**: campus-scoped DB query helpers
+The file-by-file map of the server tier: auth, the admin API, the aggregates, the digest, the renderers, the Salesforce sync, the usage recorder, the scoped DB helpers. Read [`frontend/src/lib/server/CLAUDE.md`](./frontend/src/lib/server/CLAUDE.md).
 
 ### Client Libraries (`src/lib/`)
 
@@ -520,8 +346,9 @@ refusal, handles) and the file-by-file map of the tier.
 
 Two performance contracts govern staff list pages over cohort volume (~200 rows): the streaming
 `load` shape, and `SortableTable` rendering one layout rather than a CSS-toggled dual render. Both
-are regressions that shipped once. Read `frontend/src/lib/components/staff/CLAUDE.md` before adding
-or reworking a staff list page.
+are regressions that shipped once. Read
+[`frontend/src/lib/components/staff/CLAUDE.md`](./frontend/src/lib/components/staff/CLAUDE.md)
+before adding or reworking a staff list page.
 
 ## Coding Conventions
 
@@ -529,7 +356,7 @@ or reworking a staff list page.
 
   For a string no human reads _directly_, the test is **relay, not audience**: does it reach a French-speaking human, even through a machine? A cron job's `'Unauthorized: Invalid or missing token'` dies in a pod log, so it stays English, and so does anything a model reads as _instruction_ rather than content (MCP tool descriptions, Zod `.describe()`, validation messages, the server-level MCP instructions). But an API error an MCP client paraphrases to an admin is French, and a `metric()` definition is French without exception: it is quoted verbatim into a chat answer and into the weekly digest, and English there would make the model translate before quoting, which is a re-derived definition, the one thing that tier exists to prevent.
 
-  Being machine-facing is also not a licence to use our own vocabulary. "Operation" is what `operations.ts` calls a catalogue entry; an admin reading a dialog thinks "les chiffres et l'état de configuration". And the reverse trap is real: **`token` stays `token`** on an ops surface. The no-jargon rule says name what the person experiences, and what they experience is a credential they paste after `Authorization: Bearer`; "jeton" makes them translate back to the word they actually type. Talent-facing copy is where jargon gets replaced, not the admin token dialog.
+  Being machine-facing is also not a licence to use our own vocabulary. "Operation" is what `frontend/src/lib/server/adminApi/operations.ts` calls a catalogue entry; an admin reading a dialog thinks "les chiffres et l'état de configuration". And the reverse trap is real: **`token` stays `token`** on an ops surface. The no-jargon rule says name what the person experiences, and what they experience is a credential they paste after `Authorization: Bearer`; "jeton" makes them translate back to the word they actually type. Talent-facing copy is where jargon gets replaced, not the admin token dialog.
 
 - **Register (vous / tu):** Pick by who reads the string. **Staff-facing copy uses _vous_** (dev and admin spaces: buttons, tooltips, help cards, confirms). **Talent-facing copy uses _tu_** (the student portal and anything a talent reads, e.g. the QR check-in page). A single feature often spans both: the émargement staff page vouvoie the staff, while its talent check-in page tutoie the student. Match the surrounding screen's register, don't mix within one audience.
 - **Forms:** Use sveltekit-superforms with Zod validation. Never use raw `<form>` handling.
@@ -590,7 +417,7 @@ or reworking a staff list page.
 
 ## Environment Variables
 
-See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OAuth credentials (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`), and mail provider keys per `MAIL_PROVIDER` (`RESEND_API_KEY` for `resend`, or `MAILJET_API_KEY` + `MAILJET_API_SECRET` for `mailjet`). Optional: `CRON_SECRET`, `WORKER_API_TOKEN`, `USAGE_SALT` (the usage-analytics pseudonym salt - unset means no talent usage is recorded at all, which is the intended failure mode), `MAIL_PROVIDER`, `MAIL_FROM`, `SMS_PROVIDER` (+ `BREVO_API_KEY`, `SMS_SENDER`, `SMS_DEV_RECIPIENTS`), `OUTBOUND_MODE` (the outbound gate: set `=real` in prod only; fail-safe to `redirect` otherwise), `EMAIL_DEV_RECIPIENTS`.
+See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OAuth credentials (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`), and mail provider keys per `MAIL_PROVIDER` (`RESEND_API_KEY` for `resend`, or `MAILJET_API_KEY` + `MAILJET_API_SECRET` for `mailjet`). Optional: `CRON_SECRET`, `WORKER_API_TOKEN`, `JUMP_ADMIN_TOKEN` + `JUMP_ORIGIN` (agent-side only, expanded by the MCP client from the repo's `.mcp.json`, never read by the server), `USAGE_SALT` (the usage-analytics pseudonym salt - unset means no talent usage is recorded at all, which is the intended failure mode), `MAIL_PROVIDER`, `MAIL_FROM`, `SMS_PROVIDER` (+ `BREVO_API_KEY`, `SMS_SENDER`, `SMS_DEV_RECIPIENTS`), `OUTBOUND_MODE` (the outbound gate: set `=real` in prod only; fail-safe to `redirect` otherwise), `EMAIL_DEV_RECIPIENTS`.
 
 ### Outbound: `MAIL_PROVIDER` / `SMS_PROVIDER`
 
@@ -602,105 +429,11 @@ that sends.
 
 ## Development data
 
-`bun run seed` fills a database from named scenarios (`frontend/scripts/seed/`).
-It replaced a 3326-line demo seed, and the reason it exists is not tidiness: the
-only credible dataset used to be a clone of production, so that is where feature
-validation happened, which put real minors' personal data on non-prod
-environments for days at a time and put the validation gate after the release
-freeze. Both problems are downstream of the data.
-
-Six rules, and each is enforced rather than hoped for:
-
-- **A pull request that adds a behaviour adds its example.** A new enum value
-  fails `bun run test:seed` until some scenario produces a row, because the enum
-  list is read out of `schema.prisma` (via `getDMMF`) rather than maintained by
-  hand. That check is in the `verify` chain, so it fails on the branch that
-  caused it. A vocabulary carried by a `String` column instead of an enum is
-  covered too (`assert/stringCatalogues.ts`), and there the check runs both ways:
-  every declared value needs a row, and no seeded row may carry a value the
-  catalogue does not declare. That second direction is not pedantry - it caught
-  four invented `Usage_FeatureUse.feature` keys the generator was writing, which
-  no screen would ever have shown as wrong. That half is a hand-kept table,
-  because a `String` column cannot announce its own vocabulary.
-- **And a state the schema can express needs a row, not only an enum value.**
-  Every check above validates the CONTENT of rows that exist, so none of them can
-  see a table with nothing in it or a nullable column that is null on every row -
-  which was the shape of 104 gaps, `TalentInterest` (declared in the buffer,
-  ordered in the flush, never pushed) and `Usage_FeatureMonthly` (the store that
-  answers beyond the retention window, never written) among them. `assert/coverage.ts`
-  asks `getDMMF` what is expressible and the database whether it is present: every
-  model has a row, every nullable column has both a null and a non-null one, every
-  boolean has both values.
-
-  It carries two exemption lists and the split is the load-bearing part, because a
-  check whose exemption list is comfortable to append to dies of a thousand
-  additions. `NEVER_SEEDED` is structural, one-directional, one reason per line -
-  **`Campus.externalName` heads it, since that column being empty IS the worker
-  isolation**. `NOT_YET_SEEDED` is debt and **two-directional**: an entry whose gap
-  has been closed fails until its line is deleted, so the list is an exact
-  description of what is missing rather than a place to hide things, and its length
-  is printed on every run as a number that only goes down. Moving a line between
-  the two is possible and meant to be; doing it by accident is not.
-
-  A rare state is **placed, never drawn.** A few per cent of the `ci` profile's
-  couple of dozen dossiers rounds to none, so a failure rate makes coverage depend
-  on the profile rather than on the generator. The PDF renders that fail and the
-  closing verdicts are both placed for this reason.
-- **Nothing reads the wall clock and nothing draws from `Math.random()`.** Every
-  date derives from `--today` and every choice from `--seed`, both printed in the
-  manifest the run emits. A scenario written as "an event that has not happened
-  yet" must still mean that in six months.
-- **The domain is imported, never restated.** `src/lib/domain` is alias-free, so
-  a plain `bun` script reaches it by relative path. The services are not: they
-  reach `$lib/server/db` and do not resolve outside Vite, so the generator writes
-  rows and `--check` runs the domain's own functions over the result. The
-  generator constructs, the domain verifies.
-- **The measured shape of production lives in `frontend/scripts/seed/PROFILE.md`**
-  and is not re-measured. It was taken once, in aggregates, with no row ever read;
-  a figure that is missing from it gets asked for rather than looked up in
-  production.
-- **A seeded database is inert to the Salesforce worker, by construction.** The
-  worker takes its scope from Jump - `GET /api/worker/campus` hands out
-  `listCampuses()`, and `syncEvents` resolves what comes back against
-  `Campus.externalName` - so the generator writes no external name at all and
-  `listCampuses` only returns campuses that have one. A generated environment
-  therefore answers an empty list, on any machine, and no real minor's data can
-  land in it. This is not a flag somebody re-enables by forgetting: there is no
-  campus to resolve. Turning the sync on for one campus is an explicit act on
-  `/staff/admin/campuses`, where a blank external name already means null.
-
-The seed deliberately over-represents what production barely contains. There are
-three part-way dossiers in production out of 887; the generator stands one on
-every rung of the ladder, because those are the states the wizard is made of and
-no amount of realistic volume produces them.
-
-Two things it does not touch. The E2E fixtures
-(`frontend/tests/e2e/fixtures/seed.ts`) keep their own six accounts: a spec
-anchored to a large dataset breaks the first time somebody adjusts it. And the
-integration suites keep building their own fixtures per file, several of them
-reading platform-wide aggregates a full dataset would silently widen.
+`bun run seed` fills a database from named scenarios, and the seven rules it enforces rather than hopes for, including why a seeded row must be a fact and never an instruction a scheduler can find. Read [`frontend/scripts/seed/CLAUDE.md`](./frontend/scripts/seed/CLAUDE.md).
 
 ## Prisma Migrations
 
-Always include `--name` when creating migrations:
-
-```
-bunx prisma migrate dev --name descriptive_name
-```
-
-**Name a migration for the change, not the moment:** `--name add_event_config_template`, never a pasted sentence, a chat message, or a bare `update`.
-
-**Put one-shot backfills in the migration SQL, not a script.** When a schema change needs existing rows updated (a new non-null column, a split, a projection recompute), write the `UPDATE`/`INSERT` directly in the generated migration so the data change ships atomically with the schema and every environment applies it exactly once. Fall back to a standalone script only when the backfill is large or batched (needs chunking to avoid a long lock) or needs application logic raw SQL can't express.
-
-**A destructive drop ships with the change that retires it, in the same PR.** Holding it back for a follow-up migration reads like the careful move and buys nothing here, so don't spend a PR on it. Two reasons, both structural. Migrations run from the container `CMD` (`frontend/Dockerfile`), so on a rolling update the _incoming_ pod applies the DDL and the outgoing pod is drained only afterwards: the window where old code meets the new schema exists whichever PR the migration rode in on. And a branch is not a release, because `dev` promotes to staging, preprod and prod in batches, so a follow-up merged before the next promotion crosses every environment boundary in the same deploy as the change it was meant to trail.
-
-Know what that window actually costs, because it is wider than the feature being retired: Prisma Client selects a model's scalar fields **by name**, never `SELECT *`, so a dropped column fails _every_ query on that table, including each `include` of it from elsewhere, until the last old pod is gone.
-
-And know the mitigation that looks like it works and doesn't: leaving the column in `schema.prisma` marked retired for one release. That release's client still lists the column by name, so it would break on the drop exactly like its predecessor. The only build safe to drop a column under is one whose `schema.prisma` has already lost the field, which means shipping deliberate drift and breaking `migrate dev` for everyone until the follow-up lands. Not worth it for a dead column.
-
-So: declare the data loss in the migration's `Warnings` block, say in a comment why no backfill is owed (**check the data against a real snapshot, don't assume**), and ship it. Eliminating the window is a deployment property, not a migration one - old pods must not outlive the schema they were built against - and it belongs to the rollout strategy in the `jump-k3s` repo.
-
-**Squash a branch's dev migrations before merge.** Iterating a schema with `migrate dev` leaves a trail where a later migration drops what an earlier one added. Ship **one** clean migration per branch, never an add-then-drop trail: collapse them (rewrite the first migration's SQL to the net result, delete the rest, and reconcile the `_prisma_migrations` table so the DB still matches) before opening the PR. Never let a migration create something the same PR removes.
+Naming, the one-shot backfill that ships inside the migration, why a destructive drop travels with the change that retires it, and why a branch squashes its trail into one. Read [`frontend/prisma/CLAUDE.md`](./frontend/prisma/CLAUDE.md).
 
 ## Commits
 
@@ -711,3 +444,10 @@ Conventional Commits (`type(scope): subject`), the format the existing history u
 The reason this is a written rule and not a matter of taste: **a branch's own history is the only style guide the next agent gets**, so one French subject makes every later commit on that branch French by imitation, and "matching the existing history" is enough of an instruction to keep it going. Eleven accumulated that way before anyone read them side by side.
 
 What stays French is what a French-speaking non-developer reads: the UI strings covered above, and the content of an issue, which the PO reads (see [`CONTRIBUTING.md`](.github/CONTRIBUTING.md), step 1). A pull request body follows its audience the same way. Its title does not, because of `CHANGELOG.md`.
+
+## Pull Requests and Self-Review Boundary
+
+**Opening a PR ends the authoring turn.** When implementation, tests, and the `verify` gate are complete, open the draft pull request with `scripts/finish-work.sh`. Once the PR URL is printed, the authoring agent's task is done: stop and return the PR URL.
+
+**Never review your own diff in the same session.** A session that wrote the branch carries the assumptions that produced it and re-reads its own reasoning as sound. Review belongs in an independent, fresh session (or to the human), typically via `/review <pr_number>`. An agent must never spawn subshells or headless review commands (`claude -p`, diff analyzers) inside the authoring session: having the writer supervise and approve its own work destroys the isolation that removes confirmation bias.
+

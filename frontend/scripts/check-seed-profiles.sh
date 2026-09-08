@@ -41,3 +41,11 @@ for profile in ci dev; do
   bun run scripts/seed/index.ts \
     --env test --profile "$profile" --today "$ANCHOR" --check
 done
+
+# Last, and on the database the loop leaves behind: the gate that decides whether
+# the generator may run at all is the one thing `--check` cannot speak about,
+# since a refusal means there is nothing to check. It needs a generated database
+# to have something to accept, and it dirties that database to have something to
+# refuse, so it goes after everything else.
+echo "[seed] ownership gate" >&2
+bun run scripts/seed/check-gate.ts

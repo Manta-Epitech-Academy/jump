@@ -78,9 +78,6 @@ export function renderManifest(
   return lines.join('\n');
 }
 
-/** The key the manifest is stored under, so the app can serve it. */
-export const MANIFEST_SETTING_KEY = 'seed.manifest';
-
 export function manifestEntries(ctx: SeedContext): readonly ManifestEntry[] {
   return ctx.manifest;
 }

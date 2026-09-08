@@ -68,9 +68,19 @@ export const platform: Scenario = {
           nom: NOMS[(staffIndex * 3) % NOMS.length]!,
           role,
           campus,
-          // Somebody who was given an account and never opened it. The members
-          // page has to say so rather than showing a blank date.
-          neverLoggedIn: staffIndex % 11 === 0,
+          // The four tiers spread over the roster by position, so the three
+          // buckets `ops_staff_activity` counts and the empty-window state the
+          // members dialog renders all have somebody in them whatever the
+          // profile's headcount. One in eleven was given an account and never
+          // opened it; one in seven has stopped coming; a third come rarely.
+          activity:
+            staffIndex % 11 === 0
+              ? 'never'
+              : staffIndex % 7 === 3
+                ? 'lapsed'
+                : staffIndex % 3 === 1
+                  ? 'occasional'
+                  : 'active',
           // Roughly a third of the team has already pulled the exports at least
           // once, so both the first-run and the incremental path are present.
           hasExported: staffIndex % 3 === 0,
@@ -230,9 +240,17 @@ export const platform: Scenario = {
           // when it is applied. It was null on every row, so the per-module Zod
           // schema that validates it had nothing to validate anywhere in the
           // dataset, on either side of the copy.
+          //
+          // On the stage preset only, and with the key the schema actually
+          // declares. It was `showParentContact`, which Zod strips, so the copy
+          // path was being exercised with a bag that arrived empty on the other
+          // side - the one outcome that proves nothing. And the option is not
+          // format-neutral: chasing dossiers is what a stage does, which is why
+          // production carries it on stages and on nothing else.
           settings:
-            moduleKey === EVENT_MODULES.INSCRITS
-              ? { showParentContact: true }
+            moduleKey === EVENT_MODULES.INSCRITS &&
+            preset.name === 'Stage de seconde'
+              ? { showStatutColumn: true }
               : undefined,
         });
       }

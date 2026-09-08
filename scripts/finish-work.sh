@@ -121,3 +121,15 @@ pr_number=$(printf '%s' "$url" | grep -oE '[0-9]+$')
 echo
 echo "Verifying the same way CI will:"
 bash "$SCRIPT_DIR/check-work-item.sh" --base "$BASE" --pr "$pr_number"
+
+# Step 8 of .github/CONTRIBUTING.md. Printed rather than run: the review belongs
+# in an independent session that did not write the diff.
+cat <<MSG
+
+Pull request: $url
+
+Self-review belongs in a FRESH session (never in this authoring session):
+  /review $pr_number
+
+Agents: your task on this branch is complete. Stop here and return the PR URL.
+MSG

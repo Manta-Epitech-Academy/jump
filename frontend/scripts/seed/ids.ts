@@ -18,6 +18,24 @@
 
 export const SEED_ID_PREFIX = 'sd_';
 
+/**
+ * How a DATABASE says it was generated, as opposed to how a ROW does.
+ *
+ * The two markers are a pair, which is why they live together. The prefix above
+ * answers "did this generator write this row", and `wipe()` reads it to know
+ * what to remove. This key answers "has this generator ever run here", and
+ * `assertGeneratorOwnsDataset` reads it to tell a switchover from a re-seed.
+ *
+ * It is the key of the manifest row `index.ts` upserts at the end of every full
+ * run, so the marker is a by-product of an artifact that already had to exist
+ * rather than a flag added for the gate. Three properties make it usable as
+ * one, and all three are accidents of the manifest's own design rather than
+ * promises somebody has to keep: `wipe()` never removes it (`AppSetting` is
+ * keyed on `key`, not on a prefixable `id`), `--catalog-only` never writes it,
+ * and `prisma migrate reset` destroys it along with everything else.
+ */
+export const MANIFEST_SETTING_KEY = 'seed.manifest';
+
 const SLUG_UNSAFE = /[^a-z0-9]+/g;
 
 export function slug(value: string): string {

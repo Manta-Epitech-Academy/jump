@@ -65,13 +65,15 @@ import { loadDatamodel } from '../schema';
  * `NOT_YET_SEEDED` and lands here stops being work anybody will do.
  */
 const NEVER_SEEDED: Readonly<Record<string, string>> = {
-  // ── L'isolation du worker. À ne jamais lever. ──
+  // ── L'isolation des workers. À ne jamais lever. ──
+  'BroadcastRecipient.lastTriedAt':
+    'null veut dire « jamais tentée », ce qui n’existe que sur un destinataire en attente. Le générateur n’en écrit aucun, et cette absence est l’isolation du worker de campagnes : voir `BroadcastStatus.queued` dans `assert/enums.ts` et `assert/inertness.ts`. Toute ligne semée a été tentée, donc porte une date.',
   'Campus.externalName':
     'DÉLIBÉRÉMENT vide, et c’est l’isolation du worker Salesforce elle-même. `listCampuses` ne rend au worker que les campus porteurs d’un nom externe, donc une base semée répond une liste vide et le worker n’a rien à résoudre, sur n’importe quelle machine. Écrire une valeur ici remet les données réelles de mineurs sur un environnement de validation : c’est la divulgation que toute cette branche existe pour supprimer.',
 
   // ── Ce qui naît d'une connexion réelle, jamais d'une écriture. ──
   bauth_session:
-    'une session naît en se connectant. Le seed n’en écrit pas, et la page membres ne les lit plus : une connexion est une ligne d’usage, jamais une ligne de session.',
+    'une session naît en se connectant. Le seed n’en écrit pas, et la page membres ne les lit plus : une connexion est une ligne `*_connection` de `Usage_FeatureUse`, une par personne, par espace et par jour, jamais une ligne `bauth_session`.',
   bauth_verification:
     'un code OTP en attente, écrit par BetterAuth au moment de l’envoi. Une valeur semée serait un code de connexion valide dans un jeu de données partagé.',
   bauth_account:
@@ -133,14 +135,6 @@ const NOT_YET_SEEDED: Readonly<Record<string, string>> = {
   'TalentSfImport.sfEmail': 'voir `TalentSfImport.nom`.',
   'TalentSfImport.civilite':
     'la civilité n’est jamais réclamée au CRM, donc la colonne est nulle partout et le côté « ce que Salesforce prétend » de cette ligne ne s’affiche jamais.',
-
-  // ── L'annuaire des lycées. ──
-  'School.city':
-    'l’annuaire de l’éducation nationale renvoie une fiche complète pour chaque UAI semé. Une fiche trouée existe en vrai et le rendu d’un lycée sans ville n’a pas d’exemple.',
-  'School.postalCode': 'voir `School.city`.',
-  'School.inseeCode': 'voir `School.city`.',
-  'School.resolvedAt':
-    'toute école semée est écrite comme déjà résolue. Une école connue par une référence du CRM mais pas encore résolue contre l’annuaire est un état atteignable qui n’est pas produit ici.',
 
   // ── Divers, un par lot. ──
   'Closing_TemplateSection.synthesisPosition':

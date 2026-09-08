@@ -1,11 +1,11 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 import { getMemberActivity } from '$lib/server/usage/memberActivity';
 import { recordUsage } from '$lib/server/usage/record';
 
 /**
- * One member's recent activity, for the dialog on `/staff/admin/users`.
+ * One member's activity, for the dialog on `/staff/admin/users`.
  *
  * Fetched on demand rather than shipped with the list: the roster is 138 rows
  * and each member can hold hundreds of usage rows inside the retention window,
@@ -21,13 +21,16 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   recordUsage(USAGE_FEATURES.ADMIN_STAFF_ACTIVITY_OPEN, { locals });
 
   const activity = await getMemberActivity(params.profileId);
+  // An unknown profile is a 404 and not a 500. It used to be the latter, which
+  // the dialog renders as « Chargement impossible » - the same thing it shows
+  // for a database that is down, so a stale link and an outage looked alike.
+  if (!activity) error(404, 'Membre introuvable');
 
   return json({
     ...activity,
-    uses: activity.uses.map((use) => ({ ...use, at: use.at.toISOString() })),
-    sessions: activity.sessions.map((session) => ({
-      ...session,
-      at: session.at.toISOString(),
+    features: activity.features.map((feature) => ({
+      ...feature,
+      dernierUsage: feature.dernierUsage.toISOString(),
     })),
   });
 };

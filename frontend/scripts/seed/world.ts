@@ -28,6 +28,8 @@ import type { SchoolSpec } from './catalog/schools';
 import type { SlotBlueprint } from './catalog/planning';
 import type { Rng } from './rng';
 import type { SfMemberStatus } from '../../src/lib/domain/sfMemberStatus';
+import { activationBlockers } from '../../src/lib/domain/eventReadiness';
+import { fromWallClock } from '../../src/lib/domain/planningTime';
 import {
   CIVILITE_OPTIONS,
   PARENT_TYPE_OPTIONS,
@@ -50,6 +52,74 @@ export type CampusRef = {
   /** Relative share of the platform's enrolments, from PROFILE.md. */
   weight: number;
 };
+/**
+ * How much a staff member comes, as the four states the platform actually
+ * counts: `ops_staff_activity` buckets a roster into active in the last seven
+ * days, inactive for thirty, and never opened, and the members page adds « rien
+ * sur la fenêtre » for somebody whose last visit predates the usage retention.
+ * A roster where everybody is equally active leaves three of the four empty.
+ */
+export type StaffActivity = 'active' | 'occasional' | 'lapsed' | 'never';
+
+/**
+ * One day a member opened one space.
+ *
+ * The fact everything else about their activity is derived from: the feature
+ * rows, the connection row, and `StaffProfile.lastActiveAt`. Generated here
+ * rather than in the usage factory because it describes the PERSON, and because
+ * two generators writing what one person did is exactly how the dataset ended
+ * up claiming a member had four months of feature use and two connections on
+ * unrelated days.
+ *
+ * A day and a space, and nothing else. It also carried the login it belonged to
+ * and whether it opened one, because a connection row was one per BetterAuth
+ * session; a connection is now one per space per day, so the visit IS the row
+ * and there is nothing left to group.
+ */
+export type StaffVisit = {
+  /** Days before the anchor, negative. */
+  readonly dayOffset: number;
+  readonly space: 'dev' | 'admin';
+};
+
+/**
+ * How far back each tier that HAS visits reaches, and how densely.
+ *
+ * The tiers are spans, not a distribution: `active` has to reach into the last
+ * seven days and `occasional` has to stay out of the last thirty, because those
+ * are the two thresholds `ops_staff_activity` cuts on.
+ *
+ * `mostRecent` is therefore a floor on the whole history and not only on the
+ * one visit that is placed. `lastActiveAt` is the MAXIMUM of the set, so a
+ * placed anchor drawn from a narrow range and every other day drawn from
+ * [1, oldest] leaves the tier decided by the widest draw: measured on the real
+ * generator, 61% of `occasional` landed inside thirty days and 17% inside
+ * seven, which is the `active` bucket. One floor per tier is what makes the
+ * span hold by construction.
+ *
+ * `never` and `lapsed` are absent because they have no visits at all: `never`
+ * was invited and did not come, and `lapsed` last came beyond the usage
+ * retention, which is the state whose dialog says « 0 jour d'activité sur les
+ * 12 derniers mois » while the two dates above it are still set - precisely why
+ * those dates do not come from the usage rows.
+ */
+const VISIT_SPANS: Readonly<
+  Record<
+    Extract<StaffActivity, 'active' | 'occasional'>,
+    {
+      /** How many distinct days, inclusive. */
+      readonly count: readonly [number, number];
+      /** The freshest day, inclusive, in days before the anchor. */
+      readonly mostRecent: readonly [number, number];
+      /** The furthest back any visit of this tier goes. */
+      readonly oldest: number;
+    }
+  >
+> = {
+  active: { count: [40, 90], mostRecent: [1, 4], oldest: 330 },
+  occasional: { count: [6, 15], mostRecent: [35, 80], oldest: 300 },
+};
+
 export type StaffRef = {
   id: string;
   userId: string;
@@ -57,6 +127,8 @@ export type StaffRef = {
   name: string;
   role: StaffRole;
   campusId: string | null;
+  /** Empty for a member who has never opened their account, or no longer does. */
+  readonly visits: readonly StaffVisit[];
 };
 export type TalentRef = {
   id: string;
@@ -146,6 +218,20 @@ export class World {
   readonly staff: StaffRef[] = [];
   readonly talents: TalentRef[] = [];
   readonly events: EventRef[] = [];
+  /**
+   * Events a scenario has placed a cohort or a state on. The event twin of
+   * `reservedCampusNames`, and it exists for the same reason: a later scenario
+   * that wants « an event on this campus » must not silently land on one whose
+   * figures are the point.
+   *
+   * It became load-bearing when the stage de seconde went national. `stage`
+   * runs second, so its event is the FIRST one on every campus, and both
+   * `edgeTalents` and `operations` were taking the first: forty talents in rare
+   * dossier states were enrolled onto a stage cohort whose size is the whole
+   * reason it exists, and the campaign broadcasts went out to it. Nothing said
+   * so - the roster was simply 59 where the scenario had built 18.
+   */
+  readonly reservedEventIds = new Set<string>();
   /** Enrolments, so a scenario can mark presence without re-deriving the roster. */
   readonly roster = new Map<string, TalentRef[]>();
 
@@ -208,9 +294,17 @@ export class World {
    */
   readonly wizardRng: Rng;
 
+  /**
+   * The stream a member's visit history is drawn from. Forked for the same
+   * reason as the two above: `addStaff` runs in the first scenario, so drawing
+   * from the shared stream here would renumber the entire dataset.
+   */
+  private readonly staffRng: Rng;
+
   constructor(readonly ctx: SeedContext) {
     this.sfRng = ctx.rng.fork('sfMemberStatus');
     this.wizardRng = ctx.rng.fork('wizard');
+    this.staffRng = ctx.rng.fork('staffActivity');
   }
 
   /** Monotonic, so ids stay unique however scenarios are ordered. */
@@ -297,14 +391,29 @@ export class World {
 
   addSchool(spec: SchoolSpec): string {
     const schoolId = id('sch', spec.uai);
+    // The commune and `resolvedAt` travel together, because `enrichSchool`
+    // writes them in one update: a row holding one and not the other is a state
+    // the application has no path to. Written as one branch rather than four
+    // fields so the pair cannot come apart here either.
+    //
+    // And `inseeCode` is not `postalCode`. The two are different numbers, and
+    // copying one into the other wrote a value no annuaire ever returns (Nancy
+    // is postal 54000, INSEE 54395), so anything joining on the commune read a
+    // code that does not exist.
+    const annuaire =
+      spec.resolved === false
+        ? { city: null, postalCode: null, inseeCode: null, resolvedAt: null }
+        : {
+            city: spec.city,
+            postalCode: spec.postalCode,
+            inseeCode: spec.inseeCode,
+            resolvedAt: this.ctx.clock.days(-400),
+          };
     this.buffer.school.push({
       id: schoolId,
       uai: spec.uai,
       name: spec.name,
-      city: spec.city,
-      postalCode: spec.postalCode,
-      inseeCode: spec.postalCode,
-      resolvedAt: this.ctx.clock.days(-400),
+      ...annuaire,
     });
     this.schools.set(spec.uai, schoolId);
     return schoolId;
@@ -312,13 +421,61 @@ export class World {
 
   // ─── Staff ────────────────────────────────────────────────────────────────
 
+  /**
+   * A member's visit history, and the two projections read off it. What each
+   * tier means, and why its freshest day is a floor rather than one draw, is on
+   * {@link VISIT_SPANS}.
+   */
+  private visitsFor(activity: StaffActivity, role: StaffRole): StaffVisit[] {
+    if (activity === 'never' || activity === 'lapsed') return [];
+    const rng = this.staffRng;
+    const span = VISIT_SPANS[activity];
+    const count = rng.int(...span.count);
+
+    // The freshest day this tier may hold, and it bounds EVERY draw rather than
+    // only the placed one. `lastActiveAt` is the most recent visit, so the
+    // bucket the member lands in is decided by the maximum of the whole set:
+    // placing the anchor at -35 and then filling from [-300, -1] left 61% of
+    // `occasional` inside thirty days and 17% inside seven, which is the
+    // `active` bucket. One floor for the tier makes the span structural instead
+    // of a property of the first draw.
+    //
+    // At least yesterday, never today: `occurredAt` carries a wall-clock hour
+    // and `assert/clock.ts` refuses a seeded timestamp past the anchor, which is
+    // the anchor's own midnight.
+    const [freshest, stalest] = span.mostRecent;
+    const offsets = new Set<number>([-rng.int(freshest, stalest)]);
+    while (offsets.size < count) offsets.add(-rng.int(freshest, span.oldest));
+    const days = [...offsets].sort((a, b) => a - b);
+
+    // An admin works in the admin space and drops into the dev one now and
+    // again, which is the question `usageConnectionFeature` exists to keep
+    // answerable: « les administrateurs ouvrent-ils jamais l'espace dev ».
+    const home = role === 'admin' ? 'admin' : 'dev';
+    const away = role === 'admin' ? 'dev' : 'admin';
+
+    // The away space is a scattering of an admin's days, not a run of them. It
+    // used to be a run because the space was picked per fortnight-long session,
+    // a session being what a connection row counted. Nothing counts sessions
+    // now, so the day is the only unit left and the choice belongs to the day.
+    // Only an admin ever leaves their own space: a dev has no admin space to
+    // open.
+    return days.map((dayOffset, index) => ({
+      dayOffset,
+      space: role === 'admin' && index % 7 === 0 ? away : home,
+    }));
+  }
+
   addStaff(opts: {
     prenom: string;
     nom: string;
     role: StaffRole;
     campus: CampusRef | null;
-    /** A member who has an account but has never opened it. */
-    neverLoggedIn?: boolean;
+    /**
+     * How much this member comes. Defaults to `active`; the roster in
+     * `platform.ts` spreads the four tiers across the team.
+     */
+    activity?: StaffActivity;
     /**
      * Whether this member has already run the three incremental exports. Each
      * one stores its own high-water mark, and every export is a full one until
@@ -331,6 +488,8 @@ export class World {
     const userId = id('usr', 'staff', opts.prenom, opts.nom);
     const profileId = id('stf', opts.prenom, opts.nom);
     const name = `${opts.prenom} ${opts.nom}`;
+    const activity = opts.activity ?? 'active';
+    const visits = this.visitsFor(activity, opts.role);
 
     this.buffer.bauth_user.push({
       id: userId,
@@ -345,8 +504,20 @@ export class World {
       userId,
       campusId: opts.role === 'admin' ? null : (opts.campus?.id ?? null),
       staffRole: opts.role,
-      firstLoginAt: opts.neverLoggedIn ? null : this.ctx.clock.days(-480),
-      lastActiveAt: opts.neverLoggedIn ? null : this.ctx.clock.days(-2),
+      // `firstLoginAt` is deliberately NOT derived from the visits: it reaches
+      // back further than the usage retention, which is what makes « invité,
+      // jamais ouvert » answerable at all and what the members dialog says in
+      // as many words. `lastActiveAt` IS derived, because it is the same fact
+      // as the last visit and two independent writes of one fact is the defect
+      // this whole change removes: the roster used to read « actif il y a 2
+      // jours » for every member, including the ones with no usage row at all.
+      firstLoginAt: activity === 'never' ? null : this.ctx.clock.days(-480),
+      lastActiveAt:
+        activity === 'never'
+          ? null
+          : activity === 'lapsed'
+            ? this.ctx.clock.days(-430)
+            : this.ctx.clock.days(visits[visits.length - 1]?.dayOffset ?? -430),
       sfExportedAt: opts.hasExported ? this.ctx.clock.days(-7) : null,
       onboardingDocsExportedAt: opts.hasExported
         ? this.ctx.clock.days(-21)
@@ -361,6 +532,7 @@ export class World {
       name,
       role: opts.role,
       campusId: opts.campus?.id ?? null,
+      visits,
     };
     this.staff.push(ref);
     return ref;
@@ -368,6 +540,31 @@ export class World {
 
   staffFor(campusId: string): StaffRef[] {
     return this.staff.filter((member) => member.campusId === campusId);
+  }
+
+  /** Declares that this event's cohort is placed, not incidental. */
+  reserveEvent(event: EventRef): void {
+    this.reservedEventIds.add(event.id);
+  }
+
+  /**
+   * An ordinary event on this campus: one no scenario has reserved.
+   *
+   * Falls back to a reserved one, and then to any event at all, because a
+   * profile small enough to have none unreserved still has to produce a
+   * dataset. Same degradation as `pickCampus`.
+   */
+  pickOrdinaryEvent(campusId: string): EventRef {
+    const onCampus = this.events.filter((event) => event.campusId === campusId);
+    const free = onCampus.filter(
+      (event) => !this.reservedEventIds.has(event.id),
+    );
+    const picked = free[0] ?? onCampus[0] ?? this.events[0];
+    if (!picked)
+      throw new Error(
+        'Aucun événement n’a été créé avant le scénario qui en demande un.',
+      );
+    return picked;
   }
 
   // ─── Talents ──────────────────────────────────────────────────────────────
@@ -626,17 +823,44 @@ export class World {
 
   // ─── Events ───────────────────────────────────────────────────────────────
 
+  /**
+   * The weekdays an event starting `startOffset` days from the anchor runs on,
+   * skipping the weekends it would otherwise straddle.
+   *
+   * Public, and computed by the caller rather than by `addEvent`, because the
+   * CRM builds an event's `titre` out of its first day: a scenario cannot name
+   * the event it is about to create without knowing the window. The walk itself
+   * belongs here - repeated per scenario it would be four chances to disagree
+   * about which day an event starts on.
+   */
+  eventWindow(startOffset: number, weekdays: number): Date[] {
+    const days: Date[] = [];
+    let cursor = startOffset;
+    while (days.length < weekdays) {
+      const day = this.ctx.clock.days(cursor);
+      const weekday = day.getUTCDay();
+      if (weekday !== 0 && weekday !== 6) days.push(day);
+      cursor += 1;
+    }
+    return days;
+  }
+
   addEvent(opts: {
     key: string;
     titre: string;
     publicName?: string | null;
     cohortNoun?: string | null;
     campus: CampusRef;
-    /** Day offset from the anchor. Negative is in the past. */
-    startOffset: number;
-    /** How many weekdays the event runs. 1 for a single-day format. */
-    weekdays: number;
+    /** The weekdays it runs, from {@link eventWindow}. */
+    days: readonly Date[];
     startMinutes?: number | null;
+    /**
+     * Whether the event carries a « date de fin ». Defaults to the two states
+     * the application itself produces - see the comment beside `withEndDate`
+     * below - so a caller only passes this to place the one in between: an
+     * event configured but not activatable because the date is still missing.
+     */
+    withEndDate?: boolean;
     devActivated?: boolean;
     modules?: readonly string[];
     /** Per-module options, keyed by module. Only some modules take any. */
@@ -649,16 +873,64 @@ export class World {
   }): EventRef {
     const eventId = id('evt', opts.campus.name, opts.key);
     const clock = this.ctx.clock;
-    const days: Date[] = [];
-    let cursor = opts.startOffset;
-    while (days.length < opts.weekdays) {
-      const day = clock.days(cursor);
-      const weekday = day.getUTCDay();
-      if (weekday !== 0 && weekday !== 6) days.push(day);
-      cursor += 1;
-    }
+    const days = [...opts.days];
     const date = days[0]!;
-    const endDate = opts.weekdays > 1 ? days[days.length - 1]! : null;
+
+    // « Date de fin ». The Salesforce sync never sends one - it is typed on the
+    // configuration screen - which is why `activationBlockerKeys` refuses to
+    // make an event visible without it. So the default IS that rule: an
+    // activated event has one, an untouched Salesforce row has none, and 36 of
+    // production's 277 events carry one for exactly that reason.
+    const withEndDate =
+      opts.withEndDate ?? (days.length > 1 || opts.devActivated === true);
+    // `endDate` is the ONLY column that says an event runs more than one day:
+    // every reader derives its days from `date`..`endDate` (`presenceDays`,
+    // `stageCountdown`, `talentPlanning`, `dateRangeLabel`), so a caller asking
+    // for a window of several days and no end date is asking for a row that
+    // cannot carry the second one. The days would be silently dropped, and the
+    // caller would keep a `days` array nothing it writes agrees with. Refused
+    // here for the same reason the activation gate below is: the generator's
+    // own claims about an event have to hold in the row it writes.
+    if (!withEndDate && days.length > 1) {
+      throw new Error(
+        `addEvent(${opts.key}) demande ${days.length} jours sans date de fin, or c’est la date de fin qui porte la durée : les jours suivants ne seraient lus par personne.`,
+      );
+    }
+    // 23:59 in the CAMPUS's timezone, the way production stores it, not midnight
+    // UTC - and both readers depend on the difference. `presenceDays` keys the
+    // day off the campus clock, so a Réunion event ending at 23:59 UTC would
+    // grow a second émargement day; `getEventStatus` compares the instant, so an
+    // event ending at midnight reads « passé » from its own first minute.
+    const endDate = withEndDate
+      ? fromWallClock(
+          clock.dateKey(days[days.length - 1]!),
+          '23:59',
+          opts.campus.timezone,
+        )
+      : null;
+
+    // The activation gate, enforced where the row is written instead of checked
+    // afterwards. `activationBlockerKeys` is what both the configuration dialog
+    // and the admin API refuse an activation on, so an activated event missing
+    // any of the three is a state no human could have reached - and a dev space
+    // showing an event its own configuration screen calls impossible is the one
+    // thing a seeded environment must not do. It was reachable: every
+    // single-day event had a null `endDate`, and `longTail` activated a fifth of
+    // them.
+    if (opts.devActivated) {
+      const blockers = activationBlockers({
+        publicName: opts.publicName ?? null,
+        cohortNoun: opts.cohortNoun ?? null,
+        endDate: endDate === null ? null : endDate.toISOString(),
+        modules: opts.modules ?? [],
+        devActivated: true,
+      });
+      if (blockers.length > 0) {
+        throw new Error(
+          `addEvent(${opts.key}) active un événement que l’application refuserait d’activer, il lui manque : ${blockers.join(', ')}.`,
+        );
+      }
+    }
 
     this.buffer.event.push({
       id: eventId,

@@ -14,7 +14,9 @@ import { missingEnumValues } from './enums';
 import { stringCatalogueFailures } from './stringCatalogues';
 import { projectionFailures } from './projections';
 import { reachabilityFailures } from './reachability';
+import { inertnessFailures } from './inertness';
 import { coverageFailures, KNOWN_GAP_COUNT } from './coverage';
+import { usageCoherenceFailures } from './usageCoherence';
 
 export async function runChecks(
   prisma: PrismaClient,
@@ -26,11 +28,13 @@ export async function runChecks(
     ['couverture du schéma', await coverageFailures(prisma)],
     ['projections', await projectionFailures(prisma)],
     ['états atteignables', await reachabilityFailures(prisma, clock.today)],
+    ['inertie aux workers', await inertnessFailures(prisma)],
     ['horodatages ancrés', await clockFailures(prisma, clock.today)],
     [
       'catalogues texte',
       await stringCatalogueFailures(prisma, clock.schoolYear),
     ],
+    ['cohérence des usages', await usageCoherenceFailures(prisma)],
   ];
 
   let failed = 0;

@@ -5,6 +5,8 @@ import { emailOTP } from 'better-auth/plugins/email-otp';
 import { prisma } from '$lib/server/db';
 import { env } from '$env/dynamic/private';
 import { sendOtpEmail, sendParentOtpEmail } from '$lib/server/otp';
+import { resolveOtpIdentity } from '$lib/server/auth/otpAudience';
+import { emailOtpAudienceGate } from '$lib/server/auth/emailOtpAudienceGate';
 import { IMPERSONATION_IDLE_WINDOW_SEC } from '$lib/domain/impersonation';
 import { resolve } from '$app/paths';
 import { dev } from '$app/environment';
@@ -50,15 +52,24 @@ export function createAuthOptions(
       }),
       emailOTP({
         async sendVerificationOTP({ email, otp }) {
-          const user = await prisma.bauth_user.findUnique({
-            where: { email },
-            select: { role: true, name: true },
-          });
-          if (user?.role === 'parent') {
-            await sendParentOtpEmail(email, otp, user.name ?? undefined);
+          // Same resolver the gate below refuses on, so the template a
+          // recipient gets and the door they are allowed through are one
+          // decision. The `null` branch is exhaustiveness rather than a second
+          // gate: the gate makes this callback unreachable for an address it
+          // refused, and a silent fall-through to the talent template is
+          // exactly how a staff address used to receive the
+          // « futur·e codeur·se » mail.
+          const identity = await resolveOtpIdentity(email);
+          if (!identity) {
+            throw new Error(
+              'sendVerificationOTP called for an address that is neither a talent nor a legal guardian',
+            );
+          }
+          if (identity.audience === 'parent') {
+            await sendParentOtpEmail(email, otp, identity.name ?? undefined);
             return;
           }
-          await sendOtpEmail(email, otp, user?.name ?? undefined);
+          await sendOtpEmail(email, otp, identity.name ?? undefined);
         },
         // Never auto-create an account for an unknown email. Talent and parent
         // accounts are provisioned upstream (SF sync / CSV import / onboarding);
@@ -83,6 +94,12 @@ export function createAuthOptions(
         // per-IP backstop only.
         rateLimit: { window: 60, max: 100 },
       }),
+      // Closes the plugin above to staff accounts, on its HTTP routes as well
+      // as on `auth.api.*`. Registered here rather than as a top-level
+      // `hooks.before` so the guard travels with the door it guards; the
+      // reasoning, and why it cannot live in `sendVerificationOTP`, is in the
+      // module.
+      emailOtpAudienceGate(),
     ],
 
     account: {
