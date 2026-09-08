@@ -451,13 +451,16 @@ export const EVENT_PRODUCER_DEFS: Record<EventProducerKey, EventProducerDef> = {
   }),
 };
 
-const EVENT_PRODUCER_ORDER = Object.values(EVENT_PRODUCERS);
+/** Exports-page display order, and the whole catalogue to iterate over. */
+export const EVENT_PRODUCER_KEYS = Object.values(
+  EVENT_PRODUCERS,
+) as EventProducerKey[];
 
 /** What this event can produce, in display order. */
 export function availableProducers(
   gates: EventSurfaceGates,
 ): EventProducerKey[] {
-  return EVENT_PRODUCER_ORDER.filter((key) =>
+  return EVENT_PRODUCER_KEYS.filter((key) =>
     EVENT_PRODUCER_DEFS[key].available(gates),
   );
 }
