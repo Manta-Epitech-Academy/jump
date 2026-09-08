@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { downloadArtifact } from '$lib/components/staff/export/downloadArtifact';
   import { toast } from 'svelte-sonner';
   import Users from '@lucide/svelte/icons/users';
   import X from '@lucide/svelte/icons/x';
@@ -345,21 +346,15 @@
     if (exporting || filtered.length === 0) return;
     exporting = true;
     try {
-      const res = await fetch(`${page.url.pathname}/export`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ talentIds: filtered.map((r) => r.talentId) }),
-      });
-      if (!res.ok) throw new Error(`Export failed: ${res.status}`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Inscrits - ${event.titre}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      await downloadArtifact(
+        `${page.url.pathname}/export`,
+        `Inscrits - ${event.titre}.xlsx`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ talentIds: filtered.map((r) => r.talentId) }),
+        },
+      );
     } catch (e) {
       console.error('export xlsx', e);
       toast.error("Échec de l'export.");

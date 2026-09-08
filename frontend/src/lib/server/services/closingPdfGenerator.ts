@@ -66,6 +66,11 @@ export type ClosingForPdf = Prisma.Closing_RecordGetPayload<{
 type ClosingAnswerRow = ClosingForPdf['answers'][number];
 
 export type SynthesisQuestion = {
+  /** The BANK question's id, so a consumer can address the entry rather than
+   *  match on its wording. The PDF template ignores it; the xlsx export keys its
+   *  columns on it, because a grid reads a question aloud in its own words while
+   *  the identity stays the bank's. */
+  id: string;
   kind: string;
   label: string;
   /** The structured answer: a label for single, the list of selected labels for
@@ -86,6 +91,7 @@ function pickedLabels(answer: ClosingAnswerRow): string[] {
 }
 
 function renderAnswer(
+  id: string,
   label: string,
   kind: string,
   answer: ClosingAnswerRow | undefined,
@@ -94,6 +100,7 @@ function renderAnswer(
   const note = answer?.note?.trim() || null;
   if (kind === 'rating') {
     return {
+      id,
       kind: 'rating',
       label,
       value: answer?.ratingValue ?? null,
@@ -102,10 +109,11 @@ function renderAnswer(
     };
   }
   if (kind === 'text') {
-    return { kind: 'text', label, value: answer?.freeText ?? null, note };
+    return { id, kind: 'text', label, value: answer?.freeText ?? null, note };
   }
   if (kind === 'multi') {
     return {
+      id,
       kind: 'multi',
       label,
       value: answer ? pickedLabels(answer) : [],
@@ -113,6 +121,7 @@ function renderAnswer(
     };
   }
   return {
+    id,
     kind: 'single',
     label,
     value: answer ? (pickedLabels(answer)[0] ?? null) : null,
@@ -143,7 +152,7 @@ export function buildClosingSynthesis(
     questions: section.questions.map((q) => {
       asked.add(q.id);
       // The grid's own wording, which is what was read aloud to the student.
-      return renderAnswer(q.label, q.kind, byQuestion.get(q.id), q.max);
+      return renderAnswer(q.id, q.label, q.kind, byQuestion.get(q.id), q.max);
     }),
   }));
 
@@ -155,7 +164,13 @@ export function buildClosingSynthesis(
     sections.push({
       title: RETIRED_SECTION_TITLE,
       questions: retired.map((a) =>
-        renderAnswer(a.question.label, a.question.kind, a, a.question.max),
+        renderAnswer(
+          a.question.id,
+          a.question.label,
+          a.question.kind,
+          a,
+          a.question.max,
+        ),
       ),
     });
   }

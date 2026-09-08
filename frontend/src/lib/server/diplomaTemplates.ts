@@ -11,7 +11,7 @@ import { UnknownScopeError } from '$lib/server/adminApi/scope';
  * about which document an event delivers.
  *
  * There is no fallback. An event with no `diplomaTemplateId` issues nothing, and
- * that is the gate the Inscrits export reads.
+ * that is the gate the event's Exports page reads.
  */
 
 /** Minimal event shape the resolvers read. */
@@ -50,19 +50,14 @@ export type DiplomaTemplateDesign = Prisma.Diploma_TemplateGetPayload<{
 }>;
 
 /**
- * Just enough to name the document, for a page that only decides whether to
- * offer the export and what to call the file. Deliberately does not load the
- * design: that is kilobytes of CSS a list page has no use for.
+ * The full design, for the render itself.
+ *
+ * The narrow twin that resolved only the label is gone with the certificate
+ * button's move to the Exports page: nothing asks the database whether an event
+ * issues a document any more, because `Event.diplomaTemplateId` being null IS
+ * that answer, and the file is named after the producer rather than after the
+ * template.
  */
-export function resolveEventDiplomaIdentity(
-  event: EventDiplomaRef,
-): Promise<DiplomaTemplateIdentity | null> {
-  const where = eventTemplateWhere(event);
-  if (!where) return Promise.resolve(null);
-  return prisma.diploma_Template.findUnique({ where, select: IDENTITY_SELECT });
-}
-
-/** The full design, for the render itself. */
 export function resolveEventDiplomaDesign(
   event: EventDiplomaRef,
 ): Promise<DiplomaTemplateDesign | null> {

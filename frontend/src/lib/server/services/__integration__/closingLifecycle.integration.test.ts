@@ -4,6 +4,7 @@ import { scopedPrisma } from '$lib/server/db/scoped';
 import { assertTestDatabase } from './testDatabase';
 import {
   CLOSING_QUESTION_KEYS,
+  CLOSING_RECOMMENDATIONS,
   gridQuestions,
   recordSynthesisSections,
   RETIRED_SECTION_TITLE,
@@ -18,6 +19,7 @@ import {
 } from '$lib/server/adminApi/writes/closings';
 import { OperationRefusedError } from '$lib/server/adminApi/errors';
 import { getTalentJourney } from '$lib/server/services/talentJourneyService';
+import { loadClosingsSheet } from '$lib/server/services/closingsSheet';
 
 /**
  * The closing invariants that only a real database can prove.
@@ -1232,6 +1234,89 @@ describe('a closing outliving its enrolment', () => {
 
     await prisma.closing_Record.deleteMany({ where: { talentId: talent.id } });
     await prisma.talent.delete({ where: { id: talent.id } });
+    await prisma.event.delete({ where: { id: event.id } });
+    await prisma.campus.delete({ where: { id: campus.id } });
+  });
+});
+
+describe('the closings export', () => {
+  /**
+   * The wiring between the export's two queries, which no unit test can see.
+   *
+   * `buildClosingsSheet` is tested against fixtures for what it does with a
+   * roster and a set of records; what only a real database can show is that the
+   * two disagree in the one way that matters. The roster comes from
+   * `Participation`, which the Salesforce sync prunes, while the records key on
+   * `(talentId, eventId)` and survive it - so an export built off the roster
+   * alone would silently drop a closing that was actually conducted, and nothing
+   * on screen would say so.
+   */
+  it('should keep a closing whose participation the sync deleted', async () => {
+    const campus = await campusWith('SheetOutlive');
+    const event = await prisma.event.create({
+      data: {
+        titre: `Sheet ${stamp}`,
+        date: new Date('2026-03-02T00:00:00.000Z'),
+        campusId: campus.id,
+        closingTemplateId: ids.template,
+      },
+    });
+    // Two enrolments: one keeps its participation, one loses it after being
+    // closed, exactly as a campaign tidied up after the event would.
+    const [stays, pruned] = await Promise.all([
+      prisma.talent.create({ data: { nom: 'Stays', prenom: `S${stamp}` } }),
+      prisma.talent.create({ data: { nom: 'Pruned', prenom: `P${stamp}` } }),
+    ]);
+    for (const talent of [stays, pruned]) {
+      await prisma.participation.create({
+        data: { talentId: talent.id, eventId: event.id, campusId: campus.id },
+      });
+    }
+
+    const grid = await resolveClosingGridById(ids.template);
+    await persistClosing({
+      talentId: pruned.id,
+      eventId: event.id,
+      campusId: campus.id,
+      staffId: ids.staff,
+      templateId: ids.template,
+      grid: grid!,
+      form: {
+        talentId: pruned.id,
+        answers: { [ids.choice]: answer({ selectedIds: [ids.dev] }) },
+        recommendation: 'tres_compatible',
+        verdictNote: 'À suivre.',
+      },
+      mode: 'close',
+    });
+    await prisma.participation.deleteMany({
+      where: { talentId: pruned.id, eventId: event.id },
+    });
+
+    // Act
+    const sheet = await loadClosingsSheet(
+      scopedPrisma(campus.id),
+      event,
+      'Europe/Paris',
+    );
+
+    // Assert
+    const nomAt = sheet.headers.indexOf('Nom');
+    const statutAt = sheet.headers.indexOf('Statut');
+    const verdictAt = sheet.headers.indexOf('Verdict');
+    expect(sheet.rows.map((r) => r[nomAt])).toEqual(['Stays', 'Pruned']);
+    expect(sheet.rows[0][statutAt]).toBe('À faire');
+    expect(sheet.rows[1][statutAt]).toBe('Finalisé (inscription retirée)');
+    // The verdict travelled with it, so the row is the record and not a stub.
+    expect(sheet.rows[1][verdictAt]).toBe(
+      CLOSING_RECOMMENDATIONS.tres_compatible.label,
+    );
+
+    await prisma.closing_Record.deleteMany({ where: { eventId: event.id } });
+    await prisma.participation.deleteMany({ where: { eventId: event.id } });
+    await prisma.talent.deleteMany({
+      where: { id: { in: [stays.id, pruned.id] } },
+    });
     await prisma.event.delete({ where: { id: event.id } });
     await prisma.campus.delete({ where: { id: campus.id } });
   });

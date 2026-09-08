@@ -435,7 +435,7 @@
       // Only carry the feedback form when bilan is actually on: a form id with no
       // bilan module resolves to nothing, so snapshotting it would store dead data.
       feedbackFormId: moduleActive('bilan') ? $form.feedbackFormId : '',
-      // Same gate, for the same reason: the export lives on the Inscrits page, so
+      // Same gate, for the same reason: the export lives on the Exports page, so
       // a certificate without that section would be dead data in the preset.
       closingTemplateId: moduleActive('closings')
         ? $form.closingTemplateId
@@ -843,7 +843,7 @@
                         >
                           Certificat délivré
                           <InfoTooltip
-                            text="Le document généré depuis la page Inscrits, une page par inscrit. « Aucun certificat » masque le bouton pour un événement qui ne délivre rien."
+                            text="Le document généré depuis la page Exports de l'événement, une page par inscrit. « Aucun certificat » retire la carte pour un événement qui ne délivre rien."
                           />
                         </span>
                         <Select.Root

@@ -13,6 +13,7 @@ import { CODING_CLUB_PLANNING } from '../catalog/planning';
 import {
   CLUB_TEMPLATE,
   CLUB_TEMPLATE_QUESTION_KEYS,
+  STAGE_TEMPLATE_QUESTION_KEYS,
 } from '../catalog/closings';
 import { codingClubPublicName, codingClubTitre } from '../catalog/events';
 import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
@@ -24,6 +25,14 @@ import { withGuaranteed } from '../rng';
 import { makeCohort, PRESENCE_MIX, PRESENCE_SOURCE_MIX } from './helpers';
 import type { Scenario } from './types';
 import type { EventRef } from '../world';
+
+/**
+ * How many of the first session's closings were conducted before somebody
+ * noticed the grid was wrong. Two rather than one: a single record would leave
+ * every « hors grille actuelle » column of the export with one filled cell, and
+ * a column that is one row wide is hard to tell from a stray value.
+ */
+const RETARGETED_CLOSINGS = 2;
 
 export const club: Scenario = {
   // Not `coding-club-nice`: `pickCampus` falls back when the preferred campus
@@ -39,6 +48,15 @@ export const club: Scenario = {
     const campus = world.pickCampus('Nice');
     const team = world.staffFor(campus.id);
     const clubTemplateId = id('clt', CLUB_TEMPLATE.key);
+    // The grid the first session was retargeted away from, below. Resolved once
+    // here rather than read at the call site, so the scenario refuses outright
+    // instead of quietly conducting every closing on the club grid and leaving
+    // the two-grid state out of the dataset without saying so.
+    const stageTemplateId = world.stageTemplateId;
+    if (!stageTemplateId)
+      throw new Error(
+        'La grille de stage n’a pas été résolue : la séance rebasculée n’a pas d’ancienne grille à porter.',
+      );
     const size = profile.name === 'ci' ? 8 : 24;
 
     // The same students across three sessions. A regular attends eight to ten a
@@ -115,15 +133,50 @@ export const club: Scenario = {
         attending,
         Math.max(2, Math.round(attending.length * 0.7)),
       );
-      for (const talent of session === 0
-        ? withGuaranteed(closed, anchorRegular)
-        : closed) {
+      const conducted =
+        session === 0 ? withGuaranteed(closed, anchorRegular) : closed;
+
+      // The first session was configured from the stage preset by mistake, and
+      // the mistake was noticed after a couple of closings had been conducted:
+      // the event now names the club grid, and those two records still carry the
+      // stage one. `write_event_closing_template` retargets an event with no
+      // regard for the closings already under it, deliberately - the grid is a
+      // fact pinned on the record, the event's is configuration - so this is the
+      // ordinary consequence of the correction, not a corrupted row.
+      //
+      // Nothing else in the dataset produces it, and it is the state the closings
+      // xlsx is built around: a question the current grid does not ask becomes a
+      // « hors grille actuelle » column, and a record that was never asked it
+      // leaves the cell empty rather than reading as a zero.
+      //
+      // Placed rather than drawn, at a fixed count, so it does not depend on the
+      // profile or on how the dice fell. And never on `anchorRegular`, whose
+      // session-0 closing is already the one the participation prune below is
+      // aimed at: two placed states on one record make a later failure ambiguous
+      // about which of them broke.
+      const onFormerGrid = new Set(
+        session === 0
+          ? conducted
+              .filter((talent) => talent.id !== anchorRegular.id)
+              .slice(0, RETARGETED_CLOSINGS)
+              .map((talent) => talent.id)
+          : [],
+      );
+
+      for (const talent of conducted) {
+        const formerGrid = onFormerGrid.has(talent.id);
         conductClosing(world, {
           talent,
           event,
           staff: team.length > 0 ? rng.pick(team) : null,
-          templateId: clubTemplateId,
-          questionKeys: CLUB_TEMPLATE_QUESTION_KEYS,
+          templateId: formerGrid ? stageTemplateId : clubTemplateId,
+          // The grid and the answers under it move together, so a record always
+          // answers its own composition. Pairing the stage grid with the club's
+          // keys would manufacture a second « Questions retirées » case, which
+          // the dataset places on exactly one record on purpose.
+          questionKeys: formerGrid
+            ? STAGE_TEMPLATE_QUESTION_KEYS
+            : CLUB_TEMPLATE_QUESTION_KEYS,
           conductedOffset: offset + 1,
         });
       }
@@ -167,6 +220,7 @@ export const club: Scenario = {
         'des questions de banque partagées avec le stage, donc comparables entre formats',
         'un talent avec plusieurs closings, ce que « Son parcours » affiche',
         'un closing qui survit à la suppression de sa participation par le worker Salesforce',
+        `la première séance rebasculée sur la grille Coding Club après ${RETARGETED_CLOSINGS} closings conduits sur celle du stage : son export xlsx porte les questions des deux grilles en colonnes, celles de l’ancienne signalées comme telles, et laisse vide la case d’une question qui n’a pas été posée`,
       ],
       accounts: [
         {

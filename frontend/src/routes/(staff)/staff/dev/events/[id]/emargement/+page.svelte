@@ -87,8 +87,6 @@
   let rosterDialogOpen = $state(false);
   const anyDialogOpen = $derived(qrOpen || rosterDialogOpen);
 
-  const exportHref = $derived(`${page.url.pathname}/export`);
-
   // Poll so QR self-check-ins surface within seconds (the active créneau is
   // refined to the real wall-clock hour by the anchoring effect above). Polling
   // pauses while a dialog is open so a mid-edit form isn't resynced.
@@ -112,33 +110,13 @@
   <Tooltip.Provider delayDuration={150}>
     <PageHeader title="Émargement" subtitle={eventDisplayName(data.event)}>
       {#snippet actions()}
-        <!-- Header actions act on the whole stage or the display: the full-record
-             export (read) and the QR (display). The active slot's open/close
-             control lives in the SYNTHÈSE card instead, beside the Clôturé badge it
-             toggles. Filter-scoped controls (search, statut) stay in the toolbar. -->
-        <!-- Full-record export: every talent x every créneau, NOT the on-screen
-             filter (unlike the Inscrits toolbar export). Kept here, away from the
-             toolbar, so it is never mistaken for a filtered export. -->
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <Button
-                {...props}
-                variant="outline"
-                size="sm"
-                href={exportHref}
-                class="rounded-sm"
-              >
-                <Download class="mr-1.5 h-4 w-4" />
-                Tout exporter (XLSX)
-              </Button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            Toutes les présences de l'événement (tous les créneaux)
-          </Tooltip.Content>
-        </Tooltip.Root>
-
+        <!-- The QR is the only header action left: it acts on the DISPLAY, and
+             on the active créneau, so it belongs to the screen you are standing
+             in front of. The full-record export moved to the event's Exports
+             page, where every whole-event file lives. The active slot's
+             open/close control lives in the SYNTHÈSE card instead, beside the
+             Clôturé badge it toggles, and filter-scoped controls (search,
+             statut) stay in the toolbar. -->
         {#if canEdit}
           <!-- A closed créneau (manual close OR past the 11h/15h cutoff) makes the
                QR inert: a scan lands the talent on the "créneau clôturé" screen and

@@ -318,7 +318,7 @@ Next, evaluate the Definition of Done checklist against the diff. Key points to 
 
 - **Business Alignment:** compare the diff against the issue's User Stories to verify it fulfills the exact requirement, no more, no less.
 - **Database Migrations:** cleanly named, squashed into one, atomic SQL backfill included if needed.
-- **Copy & Tone:** correct *_vous_* / *_tu_* register, no dev jargon, no em-dashes.
+- **Copy & Tone:** correct *_vous_* / *_tu_* register, no dev jargon, no em-dashes, and no design rationale in a string the user reads. The tell for that last one: it names a control the reader cannot see from the page they are on, or it answers a question only a developer asked.
 - **Space Integrity:** audience targets, border radii, `cursor-pointer`, component reuse.
 
 ---

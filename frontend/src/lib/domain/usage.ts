@@ -58,8 +58,12 @@ export const USAGE_FEATURES = {
   DEV_BILAN_VIEW: 'dev_bilan_view',
   DEV_BILAN_EXPORT: 'dev_bilan_export',
   DEV_BILAN_QR_DISPLAY: 'dev_bilan_qr_display',
+  DEV_EXPORTS_VIEW: 'dev_exports_view',
   DEV_CLOSINGS_ROSTER_VIEW: 'dev_closings_roster_view',
   DEV_CLOSING_CONDUCT_VIEW: 'dev_closing_conduct_view',
+  DEV_CLOSING_PDF_SINGLE: 'dev_closing_pdf_single',
+  DEV_CLOSINGS_EXPORT: 'dev_closings_export',
+  DEV_CLOSINGS_PDFS_EXPORT: 'dev_closings_pdfs_export',
   DEV_PLANNING_VIEW: 'dev_planning_view',
   DEV_TALENT_FICHE_VIEW: 'dev_talent_fiche_view',
   DEV_TALENT_NOTE_CREATE: 'dev_talent_note_create',
@@ -498,6 +502,16 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     scope: 'event',
     dedupe: 'bucket',
   }),
+  [USAGE_FEATURES.DEV_EXPORTS_VIEW]: def({
+    key: USAGE_FEATURES.DEV_EXPORTS_VIEW,
+    label: 'Exports de l’événement',
+    definition: `Consultations de la page listant ce qu’un événement permet de produire. La page n’existe que pour un événement qui produit quelque chose, donc un événement sans configuration n’y compte jamais. ${BUCKET_NOTE}`,
+    audience: 'staff',
+    space: 'dev',
+    kind: 'view',
+    scope: 'event',
+    dedupe: 'bucket',
+  }),
   [USAGE_FEATURES.DEV_CLOSINGS_ROSTER_VIEW]: def({
     key: USAGE_FEATURES.DEV_CLOSINGS_ROSTER_VIEW,
     label: 'Liste des closings',
@@ -517,6 +531,43 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     kind: 'view',
     scope: 'event',
     dedupe: 'bucket',
+  }),
+  // Counted apart from the admin archive's own single-PDF figure rather than
+  // folded into it: the same document produced by the person who conducted the
+  // closing and by an admin reading the archive months later are two different
+  // uses, and telling them apart is the whole question this key answers.
+  [USAGE_FEATURES.DEV_CLOSING_PDF_SINGLE]: def({
+    key: USAGE_FEATURES.DEV_CLOSING_PDF_SINGLE,
+    label: 'Synthèse de closing en PDF',
+    definition:
+      'Générations de la synthèse PDF d’un closing depuis l’espace dev. Une par document produit ; un closing non finalisé n’en a pas, donc il ne compte pas.',
+    audience: 'staff',
+    space: 'dev',
+    kind: 'document',
+    scope: 'event',
+    dedupe: 'each',
+  }),
+  [USAGE_FEATURES.DEV_CLOSINGS_EXPORT]: def({
+    key: USAGE_FEATURES.DEV_CLOSINGS_EXPORT,
+    label: 'Export xlsx des closings',
+    definition:
+      'Exports xlsx des closings d’un événement. Un par téléchargement demandé ; le fichier couvre tout l’événement, il ne suit aucun filtre.',
+    audience: 'staff',
+    space: 'dev',
+    kind: 'export',
+    scope: 'event',
+    dedupe: 'each',
+  }),
+  [USAGE_FEATURES.DEV_CLOSINGS_PDFS_EXPORT]: def({
+    key: USAGE_FEATURES.DEV_CLOSINGS_PDFS_EXPORT,
+    label: 'Archive des synthèses de closing',
+    definition:
+      'Téléchargements de l’archive des synthèses de closing d’un événement. Un par archive assemblée ; les synthèses sont rendues à la demande, donc un événement sans closing finalisé n’en produit aucune.',
+    audience: 'staff',
+    space: 'dev',
+    kind: 'export',
+    scope: 'event',
+    dedupe: 'each',
   }),
   [USAGE_FEATURES.DEV_PLANNING_VIEW]: def({
     key: USAGE_FEATURES.DEV_PLANNING_VIEW,
@@ -1435,6 +1486,7 @@ export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
   '/(staff)/staff/dev/events/[id]/closings/[talentId]':
     USAGE_FEATURES.DEV_CLOSING_CONDUCT_VIEW,
   '/(staff)/staff/dev/events/[id]/planning': USAGE_FEATURES.DEV_PLANNING_VIEW,
+  '/(staff)/staff/dev/events/[id]/exports': USAGE_FEATURES.DEV_EXPORTS_VIEW,
   '/(staff)/staff/dev/students/[id]': USAGE_FEATURES.DEV_TALENT_FICHE_VIEW,
 
   // Admin space
@@ -1477,7 +1529,7 @@ export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
 
 /**
  * The connection key for a space, from the route being visited. It matches by
- * PREFIX, so every request into a space carries one, not only the 36 routes
+ * PREFIX, so every request into a space carries one, not only the routes
  * `USAGE_VIEW_ROUTES` names: a day spent on an uncatalogued page is still a day
  * this person came.
  *

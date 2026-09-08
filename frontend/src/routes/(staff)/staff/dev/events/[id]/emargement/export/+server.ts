@@ -5,9 +5,14 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
+import {
+  loadEventOr404,
+  requireEventModule,
+} from '$lib/server/services/stageContext';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { niveauLabel } from '$lib/domain/niveau';
-import { buildXlsx } from '$lib/server/xlsx';
+import { asciiFilename, xlsxAttachment } from '$lib/server/attachments';
+import type { XlsxSheet } from '$lib/server/xlsx';
 import {
   presenceSlots,
   slotKey,
@@ -34,6 +39,13 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
   const timezone = getCampusTimezone(locals);
   const event = await loadEventOr404(params.id, campusId);
+  // The one export in the set that was not gated on its own section, while its
+  // page and its four actions all are. The file is the whole attendance record,
+  // so a direct GET must not hand it over for an event whose Émargement is off -
+  // the reason `badges.pdf` and `diplomes.pdf` spell out for the cohort they
+  // print. The Exports page hides the card on this same condition, and hiding a
+  // control was never the gate.
+  requireEventModule(event, EVENT_MODULES.EMARGEMENT);
   const db = scopedPrisma(campusId);
 
   const slots = presenceSlots(event, timezone);
@@ -104,7 +116,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     return [...base, ...slotCells];
   });
 
-  const xlsx = buildXlsx({
+  const sheet: XlsxSheet = {
     name: 'Émargement',
     headers: [
       'Prénom',
@@ -116,25 +128,15 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     ],
     rows,
     colWidths: [16, 16, 10, 16, 16, ...slots.map(() => 18)],
-  });
-
-  const safeTitle =
-    event.titre
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^A-Za-z0-9 _-]/g, '')
-      .trim() || 'emargement';
+  };
 
   recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_EXPORT, {
     locals,
     eventId: params.id,
   });
 
-  return new Response(xlsx.buffer as ArrayBuffer, {
-    headers: {
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="Emargement - ${safeTitle}.xlsx"`,
-    },
-  });
+  return xlsxAttachment(
+    sheet,
+    `Emargement - ${asciiFilename(event.titre, 'emargement')}.xlsx`,
+  );
 };

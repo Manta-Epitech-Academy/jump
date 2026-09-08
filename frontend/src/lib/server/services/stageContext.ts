@@ -4,6 +4,7 @@ import { eventWindowEnd } from '$lib/domain/event';
 import {
   type EventModuleKey,
   type EventModuleSettings,
+  type EventSurfaceGates,
   isEventModuleKey,
   parseModuleSettings,
 } from '$lib/domain/eventModules';
@@ -92,7 +93,8 @@ export type EventRecord = {
   feedbackFormId: string | null;
   /**
    * Which certificate this event issues, from the `Diploma_Template` catalogue.
-   * Null = it issues none, which is what hides the Inscrits export. Resolve it
+   * Null = it issues none, which is what hides the certificate producer on the
+   * event's Exports page. Resolve it
    * through `server/diplomaTemplates.ts` rather than querying it here.
    */
   diplomaTemplateId: string | null;
@@ -193,7 +195,7 @@ export function eventEndOrDefault(event: {
   return eventWindowEnd(event.date, event.endDate);
 }
 
-export type WorkspaceEventEntry = {
+export interface WorkspaceEventEntry extends EventSurfaceGates {
   id: string;
   titre: string;
   /** Admin-set friendly name; falls back to `titre` for display. */
@@ -215,31 +217,14 @@ export type WorkspaceEventEntry = {
    * distinct, and a plain string sort is already chronological within the year.
    */
   monthKey: string;
-  /** Surfaces this event exposes: drive the sidebar nav for the current event. */
+  /**
+   * Narrowed from `EventSurfaceGates`, which accepts any string set because the
+   * domain's membership test does: here the rows are read out of
+   * `EventConfig_Module` and filtered through `isEventModuleKey`, so the caller
+   * gets keys rather than strings.
+   */
   modules: EventModuleKey[];
-  /**
-   * Whether the event has a schedule (≥1 time slot). Planning is not a module:
-   * it's read-only data owned by pedago/admin, so its dev nav entry shows
-   * data-driven - only when there is actually a schedule to look at.
-   */
-  hasPlanning: boolean;
-  /**
-   * Whether the event resolves to a LIVE feedback form (its `feedbackFormId`,
-   * published + talent-answerable). The Feedback (bilan) surface is gated on this
-   * on top of the module, mirroring `hasPlanning`: enabling bilan without a
-   * resolvable form would otherwise drop a dev on an empty page, so the nav entry
-   * only shows when there is real feedback to look at.
-   */
-  hasFeedbackForm: boolean;
-  /**
-   * Whether the event names a closing grid (`closingTemplateId`). The Closings
-   * surface is gated on this on top of its module, exactly as bilan is gated on
-   * its form: a grid-less closings module has no questions to ask, so the nav
-   * entry would lead to a 404. Cheaper than the bilan's gate, which also has to
-   * check the form is published - a grid is reachable as soon as it is named.
-   */
-  hasClosingTemplate: boolean;
-};
+}
 
 export type WorkspaceEvents = {
   /** All workspace events for the campus, most recent first. */
@@ -285,6 +270,7 @@ export async function resolveWorkspaceEvents(
         endDate: true,
         feedbackFormId: true,
         closingTemplateId: true,
+        diplomaTemplateId: true,
         modules: { select: { moduleKey: true } },
         _count: { select: { planningSlots: true } },
       },
@@ -320,6 +306,7 @@ export async function resolveWorkspaceEvents(
       hasPlanning: e._count.planningSlots > 0,
       hasFeedbackForm: eventResolvesLiveForm(e),
       hasClosingTemplate: e.closingTemplateId !== null,
+      hasDiplomaTemplate: e.diplomaTemplateId !== null,
     };
   });
 

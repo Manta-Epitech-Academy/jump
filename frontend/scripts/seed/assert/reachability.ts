@@ -23,8 +23,10 @@ import {
   imageRightsStatus,
 } from '../../../src/lib/domain/imageRights';
 import {
+  availableProducers,
   eventRunsClosings,
   reachableSurfaces,
+  EVENT_PRODUCER_KEYS,
 } from '../../../src/lib/domain/eventModules';
 import { schoolYearOf } from '../../../src/lib/domain/schoolYear';
 import {
@@ -157,6 +159,7 @@ export async function reachabilityFailures(
       devActivatedAt: true,
       closingTemplateId: true,
       feedbackFormId: true,
+      diplomaTemplateId: true,
       modules: { select: { moduleKey: true } },
       campus: { select: { timezone: true } },
     },
@@ -166,6 +169,7 @@ export async function reachabilityFailures(
     hasPlanning: false,
     hasFeedbackForm: event.feedbackFormId !== null,
     hasClosingTemplate: event.closingTemplateId !== null,
+    hasDiplomaTemplate: event.diplomaTemplateId !== null,
   }));
   if (!gates.some((gate) => eventRunsClosings(gate)))
     failures.push('Aucun événement ne conduit de closings');
@@ -207,6 +211,40 @@ export async function reachabilityFailures(
       );
     }
   }
+
+  // The Exports surface is derived from what an event can produce, so both
+  // sides of that gate need an example: an event with something to produce, and
+  // one with nothing (a bare event, of which production has plenty).
+  //
+  // The first half is read per producer rather than as « at least one event
+  // exposes something », which was true of a dataset where five of the six cards
+  // never appeared. Iterating the catalogue also makes it self-maintaining: a
+  // seventh producer will need its own example here, exactly as a new enum value
+  // does, and dropping `diplomaTemplateId` off the one event that carries it
+  // stops being a silent change.
+  const producersSeen = new Set(gates.flatMap(availableProducers));
+  for (const producer of EVENT_PRODUCER_KEYS) {
+    if (!producersSeen.has(producer)) {
+      failures.push(
+        `Aucun événement n'expose le producteur « ${producer} », donc sa carte de la page Exports n'a pas d'exemple`,
+      );
+    }
+  }
+  if (!gates.some((gate) => availableProducers(gate).length === 0))
+    failures.push('Tous les événements exposent une production');
+  // And one event that exposes the whole catalogue, which is the only way the
+  // page is ever seen full. Compared against `EVENT_PRODUCER_KEYS` rather than
+  // against a count written here, so adding a producer moves this requirement
+  // with it. It is also what lets the manifest send a reader to that event
+  // without naming a card the dataset might not carry.
+  if (
+    !gates.some(
+      (gate) => availableProducers(gate).length === EVENT_PRODUCER_KEYS.length,
+    )
+  )
+    failures.push(
+      'Aucun événement n’expose toutes ses productions, donc la page Exports ne se voit jamais complète',
+    );
 
   // The school-year switcher's own list: at least two years' worth of
   // navigable events, or `SchoolYearMenu` has nothing to switch between.
@@ -277,6 +315,31 @@ export async function reachabilityFailures(
   if ((orphanedClosings[0]?.count ?? 0) === 0) {
     failures.push(
       'Aucun closing ne survit à une participation supprimée derrière lui',
+    );
+  }
+
+  // An event retargeted onto another grid after some of its closings were
+  // conducted. `Closing_Record.templateId` is a fact and `Event.closingTemplateId`
+  // is configuration, so the two legitimately disagree, and the closings export
+  // is built around that disagreement: a question the current grid no longer
+  // asks becomes a « hors grille actuelle » column, and a record that was never
+  // asked it leaves the cell empty rather than reading as a zero.
+  //
+  // Nothing else in the dataset produces it, and no unit test can stand in for
+  // it here: the code is pinned by `closingsSheet.test.ts`, this is about there
+  // being an event somebody can open on `staging` to judge the file.
+  const retargetedEvents = await prisma.$queryRaw<{ count: number }[]>`
+    SELECT COUNT(*)::int AS count FROM (
+      SELECT cr."eventId"
+      FROM "Closing_Record" cr
+      WHERE cr."id" LIKE 'sd_%'
+      GROUP BY cr."eventId"
+      HAVING COUNT(DISTINCT cr."templateId") > 1
+    ) AS multi
+  `;
+  if ((retargetedEvents[0]?.count ?? 0) === 0) {
+    failures.push(
+      'Aucun événement ne porte de closings conduits sur deux grilles, donc l’export xlsx ne montre jamais de colonne « hors grille actuelle »',
     );
   }
 

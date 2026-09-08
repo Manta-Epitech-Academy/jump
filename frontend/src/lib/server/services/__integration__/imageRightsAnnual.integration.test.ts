@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { prisma } from '$lib/server/db';
+import { drainPdfJobs } from './drainPdfJobs';
 import { assertTestDatabase } from './testDatabase';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import { parentBlockedWhere } from '$lib/server/db/dossierCompliance';
@@ -61,14 +62,7 @@ describe("droit à l'image, décision annuelle (integration)", () => {
   let campusId = '';
   let talentId = '';
 
-  async function drainJobs(): Promise<void> {
-    const jobs = await prisma.onboardingPdfJob.findMany({
-      where: { talentId, status: { not: 'success' } },
-      orderBy: { createdAt: 'asc' },
-      select: { id: true },
-    });
-    for (const job of jobs) await runOnboardingPdfJob(job.id);
-  }
+  const drainJobs = () => drainPdfJobs(talentId, runOnboardingPdfJob);
 
   /** The talent row as every "what is owed" reader sees it. */
   async function projection() {
