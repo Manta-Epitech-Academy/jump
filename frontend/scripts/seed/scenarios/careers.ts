@@ -41,6 +41,7 @@ import { WELCOME_XP_BONUS } from '../../../src/lib/domain/xp';
 import {
   CLUB_TEMPLATE,
   CLUB_TEMPLATE_QUESTION_KEYS,
+  STAGE_TEMPLATE_QUESTION_KEYS,
 } from '../catalog/closings';
 import { PRENOMS } from '../catalog/people';
 import { conductClosing } from '../factories/closing';
@@ -171,12 +172,23 @@ export const careers: Scenario = {
       // fixture.
       const closed = rng.sample(attended, Math.round(attended.length * share));
       for (const event of closed) {
+        // A record answers the grid it pins, not whichever list this file
+        // imported. The season is every past event on the campus that conducts
+        // closings, so the campus's own stage de seconde is in it, and that one
+        // pins the migration's grid: twelve questions where the club's composes
+        // seven. Handing it the club's seven writes a « done » closing with
+        // five of its grid's questions unanswered - a row no application flow
+        // produces, and one that reads as a gap in every per-question figure
+        // the stage grid feeds.
+        const stageGrid = event.closingTemplateId === world.stageTemplateId;
         conductClosing(world, {
           talent,
           event,
           staff: team.length > 0 ? rng.pick(team) : null,
           templateId: event.closingTemplateId ?? clubTemplateId,
-          questionKeys: CLUB_TEMPLATE_QUESTION_KEYS,
+          questionKeys: stageGrid
+            ? STAGE_TEMPLATE_QUESTION_KEYS
+            : CLUB_TEMPLATE_QUESTION_KEYS,
           conductedOffset:
             Math.round(
               (event.days[0]!.getTime() - clock.today.getTime()) / 86400000,
