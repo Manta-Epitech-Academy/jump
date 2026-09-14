@@ -9,7 +9,9 @@
 - **`services/onboardingService.ts`**: the onboarding transactions: parent-1 account provisioning, interest swap, rules signature (timestamps + XP facts + PDF job)
 - **`infra/documentRenderer.ts`** - the one browser-render path: PDFs for what gets printed, PNGs for what gets looked at, both over the same page setup so a preview cannot disagree with the document it previews. Owns the page lifecycle and turns off **both script execution and the network**, so no caller can render a stored design with either switched off by forgetting to switch it on; no template wants page JS anyway (a QR code arrives as a data URI its caller built). Fonts therefore carry their own bytes (`templates/fonts.ts`, `@font-face` built from the `@fontsource` packages with `?inline`)
 - **`services/diplomaGenerator.ts`** - certificates: takes the design off a `Diploma_Template` row, substitutes the `{placeholders}`, and renders one page per recipient
-- **`services/syncService.ts`**: Salesforce worker sync → seeds `Talent` + upserts the `TalentSfImport` mirror (no-clobber; see Salesforce reconciliation)
+- **`services/syncService.ts`**: what the Salesforce worker pushes → events (campus per row, never deleted), talent identities (seeds `Talent`, upserts the `TalentSfImport` mirror, no-clobber; see Salesforce reconciliation), and enrolments, whose prune runs on a `full` pass only
+- **`services/syncConfigService.ts`**: what the worker is told on every tick, and the campus join that keeps a generated database out of every sync's scope
+- **`services/syncRunService.ts`**: the run ledger, the watermarks projected off it (`MAX(finishedAt)` over successful runs, so a failure replays its window), and its own retention
 - **`services/reconciliationService.ts`**: computes `Talent` ↔ `TalentSfImport` conflicts; accept/reject + CSV for `/staff/admin/sf-conflicts`
 - **`services/schoolService.ts`** / **`annuaire.ts`**: lazy `School` resolution from UAI via the éducation-nationale annuaire
 - **`services/anonymizationService.ts`**: RGPD anonymization job

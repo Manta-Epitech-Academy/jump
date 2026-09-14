@@ -298,9 +298,12 @@ export async function syncTalents(talents: WorkerTalent[]) {
       // its SF mirror in one shot. Before any onboarding confirmation, SF is the
       // only source, so seed and mirror are identical.
       try {
-        console.log(
-          `Creating new talent: Name: ${t.first_name} ${t.last_name}, Email: ${email}, Phone: ${phone} ExId: ${t.external_id}`,
-        );
+        // The Salesforce id only. This used to print the name, the email and
+        // the phone of every talent created, which put a minor's personal data
+        // in a pod log that outlives the request and that nothing anonymises.
+        // The id is what somebody debugging actually follows, into Salesforce
+        // and into `Talent.externalId` alike.
+        console.log(`Creating new talent from Salesforce: ${t.external_id}`);
         const talent = await prisma.talent.create({
           data: {
             externalId: t.external_id,
