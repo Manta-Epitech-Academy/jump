@@ -42,11 +42,12 @@
   use:enhance={onboardingSubmit((v) => (submitting = v))}
   class="space-y-6"
 >
-  <!-- Ton setup: informational, never a gate. The commitment to bring a laptop
-       is taken once, on the règlement step, next to the text that states it;
-       asking it twice would let the two answers disagree. What is left here is
-       the free-text description, which staff read on the fiche talent, so an
-       empty answer has to let the talent through. -->
+  <!-- Ton setup: informational, never a gate. There is no laptop question in
+       the wizard any more, here or on the règlement step: the requirement is
+       the stage de seconde's and neither step knows which event the talent is
+       enrolled in (see `rulesSchema`). What is left here is the free-text
+       description, which staff read on the fiche talent, so an empty answer has
+       to let the talent through. -->
   <div>
     <h2
       class="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-foreground-secondary uppercase"

@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { rulesSchema, rulesSchemaWithoutCharter } from './onboarding';
 
 /**
- * The last step of the wizard collects three consents, and only two of them
- * belong to the yearly dossier: the règlement intérieur and the school-wide
- * undertaking to come with one's own laptop. The charte informatique is a
- * once-per-account consent whose date is never restamped, which is what the
- * second schema below exists for. The disabled submit button is a convenience;
- * the schema is the enforcement, and a POST can skip the button entirely.
+ * The last step of the wizard collects two consents, and only one of them
+ * belongs to the yearly dossier: the règlement intérieur. The charte
+ * informatique is a once-per-account consent whose date is never restamped,
+ * which is what the second schema below exists for. The disabled submit button
+ * is a convenience; the schema is the enforcement, and a POST can skip the
+ * button entirely.
  *
  * So what is under test is narrow: every consent is refused when it is absent
  * and when it is explicitly false, because a checkbox that is left alone submits
@@ -18,15 +18,10 @@ const complete = {
   city: 'Paris',
   acceptedCharter: 'true',
   acceptedRules: 'true',
-  acceptedEquipment: 'true',
 };
 
 describe('rulesSchema', () => {
-  const consents = [
-    'acceptedCharter',
-    'acceptedRules',
-    'acceptedEquipment',
-  ] as const;
+  const consents = ['acceptedCharter', 'acceptedRules'] as const;
 
   it('accepts a complete signature', () => {
     expect(rulesSchema.safeParse(complete).success).toBe(true);
@@ -49,6 +44,20 @@ describe('rulesSchema', () => {
       false,
     );
   });
+
+  it('singles out no clause of the document it signs', () => {
+    // A laptop box lived here for a release, required of every signer. The
+    // validated 2026-2027 règlement files that clause under "Dispositions
+    // propres au stage de seconde", a scope this step cannot know: it is walked
+    // once per school year and holds no enrolment to branch on. Adding any
+    // per-clause consent back turns this red, which is the point of asserting
+    // the whole shape rather than the absence of one field.
+    expect(Object.keys(rulesSchema.shape)).toEqual([
+      'city',
+      'acceptedCharter',
+      'acceptedRules',
+    ]);
+  });
 });
 
 describe('rulesSchemaWithoutCharter', () => {
@@ -63,12 +72,9 @@ describe('rulesSchemaWithoutCharter', () => {
     );
   });
 
-  it.each(['acceptedRules', 'acceptedEquipment'] as const)(
-    'stays bound by %s',
-    (field) => {
-      // Dropping the charte must not relax what a yearly dossier signs.
-      const { [field]: _omitted, ...partial } = withoutCharter;
-      expect(rulesSchemaWithoutCharter.safeParse(partial).success).toBe(false);
-    },
-  );
+  it('stays bound by the règlement', () => {
+    // Dropping the charte must not relax what a yearly dossier signs.
+    const { acceptedRules: _omitted, ...partial } = withoutCharter;
+    expect(rulesSchemaWithoutCharter.safeParse(partial).success).toBe(false);
+  });
 });
