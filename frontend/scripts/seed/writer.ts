@@ -81,6 +81,7 @@ export type Buffered = {
   broadcast: Prisma.BroadcastCreateManyInput[];
   broadcastRecipient: Prisma.BroadcastRecipientCreateManyInput[];
   syncError: Prisma.SyncErrorCreateManyInput[];
+  sync_Run: Prisma.Sync_RunCreateManyInput[];
   adminFile: Prisma.AdminFileCreateManyInput[];
   cmsImage: Prisma.CmsImageCreateManyInput[];
   cmsPage: Prisma.CmsPageCreateManyInput[];
@@ -137,6 +138,7 @@ const MODEL_ORDER = [
   'broadcast',
   'broadcastRecipient',
   'syncError',
+  'sync_Run',
   'adminFile',
   'cmsImage',
   'cmsPage',
@@ -333,6 +335,9 @@ export async function wipe(
   );
   await drop('adminFile', () =>
     prisma.adminFile.deleteMany({ where: { id: seeded } }),
+  );
+  await drop('sync_Run', () =>
+    prisma.sync_Run.deleteMany({ where: { id: seeded } }),
   );
   await drop('syncError', () =>
     prisma.syncError.deleteMany({ where: { id: seeded } }),

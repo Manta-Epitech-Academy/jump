@@ -62,6 +62,68 @@ export function addSyncErrors(
   }
 }
 
+/**
+ * The worker's run reports, in each state a run can be in.
+ *
+ * A fact, not an instruction: nothing sweeps this table, and the worker opens
+ * its own rows. Its whitelist is the instruction, and the generator writes none
+ * of that - see `Sync_Source` in `assert/coverage.ts` and the entry in
+ * `assert/inertness.ts` that refuses one.
+ *
+ * Three states because the admin read has three branches and only one of them
+ * is reassuring: a successful pass with its counters, one that failed and whose
+ * window will simply be replayed, and one still open, which on a real
+ * environment means a worker interrupted mid-pass.
+ *
+ * Also the shape the watermark is computed from. The successful incremental
+ * here is recent, so a generated environment answers « rien à faire » rather
+ * than asking for a pass it has no campaign to perform.
+ */
+export function addSyncRuns(world: World): void {
+  const clock = world.ctx.clock;
+
+  world.buffer.sync_Run.push(
+    {
+      id: id('syr', 'full-ok'),
+      mode: 'full',
+      status: 'ok',
+      startedAt: clock.at(-2, 3),
+      finishedAt: clock.at(-2, 3, 4),
+      eventsCount: 253,
+      talentsCount: 7100,
+      participationsCount: 7465,
+    },
+    {
+      id: id('syr', 'delta-ok'),
+      mode: 'incremental',
+      status: 'ok',
+      startedAt: clock.at(-1, 6),
+      finishedAt: clock.at(-1, 6, 1),
+      eventsCount: 3,
+      talentsCount: 41,
+      participationsCount: 44,
+    },
+    {
+      // No counters: it failed before it could count anything, which is what a
+      // failed run looks like and why those columns are nullable.
+      id: id('syr', 'delta-error'),
+      mode: 'incremental',
+      status: 'error',
+      startedAt: clock.at(-1, 3),
+      finishedAt: clock.at(-1, 3, 1),
+      error:
+        'Jump post /api/worker/talents failed: 500 {"message":"Internal Error"}',
+    },
+    {
+      // Still open, so `finishedAt` and every counter are null.
+      id: id('syr', 'running'),
+      mode: 'incremental',
+      status: 'running',
+      startedAt: clock.at(-1, 9),
+    },
+  );
+}
+
 /** An RGPD erasure request in each state the workflow can be in. */
 export function addDeletionRequests(
   world: World,

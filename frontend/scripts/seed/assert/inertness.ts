@@ -85,5 +85,21 @@ export async function inertnessFailures(
     );
   }
 
+  // The Salesforce worker's perimeter. A source is not a queue row, it is the
+  // INSTRUCTION that makes the worker pull at all, so the test at the top of
+  // this file applies to it exactly: a scheduler finds it by itself, and what
+  // it does next is fetch real minors' data into whatever database asked.
+  //
+  // Two things stop that today and this holds the second one. `Campus.externalName`
+  // is never written, so `/api/worker/config` has no campus to name; and the
+  // generator writes no source at all, which is what this refuses to let change
+  // quietly. `assert/coverage.ts` carries the same reason under `Sync_Source`.
+  const sources = await prisma.sync_Source.count({ where: { id: seeded } });
+  if (sources > 0) {
+    failures.push(
+      `${sources} source(s) de synchronisation Salesforce semée(s) : c’est le périmètre que le worker va chercher, donc une instruction et non un fait. Le générateur n’en écrit aucune.`,
+    );
+  }
+
   return failures;
 }
