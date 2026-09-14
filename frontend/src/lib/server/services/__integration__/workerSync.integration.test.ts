@@ -14,7 +14,9 @@
  *    in Salesforce moves no modstamp and so is invisible to any delta;
  *  - a roster Jump cannot resolve is refused rather than applied as an empty one;
  *  - a source on a campus with no external name is never served, which is the
- *    isolation a generated environment rests on.
+ *    isolation a generated environment rests on;
+ *  - a contact Salesforce sent with no name costs its own row and nothing else,
+ *    because refusing the batch over it stalls every campaign for good.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -45,6 +47,10 @@ describe('the worker sync loop (integration)', () => {
       email: `bao.${stamp}@example.test`,
     },
   ];
+
+  // A contact Salesforce accepts and Jump cannot name. `Contact.FirstName` is
+  // optional there, so this is ordinary data rather than a malformed payload.
+  const namelessExternalId = `test_ws_noname_${stamp}`;
 
   let armedCampusId = '';
   let darkCampusId = '';
@@ -90,6 +96,9 @@ describe('the worker sync loop (integration)', () => {
               .filter((id): id is string => id !== null),
           },
         },
+      });
+      await prisma.syncError.deleteMany({
+        where: { attemptedExtId: namelessExternalId },
       });
       await prisma.event.deleteMany({
         where: { externalId: { in: [eventExternalId, otherEventExternalId] } },
@@ -248,6 +257,44 @@ describe('the worker sync loop (integration)', () => {
     expect(
       await prisma.participation.count({ where: { eventId: event!.id } }),
     ).toBe(2);
+  });
+
+  it('skips a nameless contact and still reconciles the rest of the batch', async () => {
+    // This used to `return` mid-loop, so the route answered 400, the run closed
+    // in error and the watermark stayed put - which made the next tick replay
+    // the identical page onto the identical row. One contact with no first name
+    // stopped every campaign from syncing, permanently.
+    const result = await syncTalents([
+      { external_id: namelessExternalId, first_name: '', last_name: 'Sansnom' },
+      ...talents,
+    ]);
+
+    expect(result).toMatchObject({ invalid: 1 });
+    expect(result).not.toHaveProperty('error');
+
+    // The rows after it in the batch were still reconciled, which is the whole
+    // point: the abort abandoned them.
+    expect(
+      await prisma.talent.count({
+        where: { externalId: { in: talents.map((t) => t.external_id) } },
+      }),
+    ).toBe(talents.length);
+    expect(
+      await prisma.talent.findUnique({
+        where: { externalId: namelessExternalId },
+      }),
+    ).toBeNull();
+
+    // Skipped, not silent: a talent who never appears in Jump with nothing
+    // saying why is the failure mode this surface is written against.
+    const logged = await prisma.syncError.findFirst({
+      where: { attemptedExtId: namelessExternalId },
+      select: { errorType: true, resolved: true },
+    });
+    expect(logged).toMatchObject({
+      errorType: 'MISSING_NAME',
+      resolved: false,
+    });
   });
 
   it('leaves the watermark alone when a run fails, so its window is replayed', async () => {

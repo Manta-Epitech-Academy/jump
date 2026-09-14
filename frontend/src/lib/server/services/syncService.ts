@@ -96,7 +96,11 @@ export async function syncEvents(events: WorkerEvent[]) {
     const campusId = campusIdByExternalName.get(e.campus_ext_name);
     if (!campusId) {
       skipped++;
-      unresolvedCampuses.add(e.campus_ext_name);
+      // `campus_ext_name` is legitimately `""` when the campaign names no
+      // campus, which is an ABSENT name rather than an unresolved one. Listing
+      // it would put a blank entry in the report that reads as a lost value.
+      if (e.campus_ext_name.length > 0)
+        unresolvedCampuses.add(e.campus_ext_name);
       continue;
     }
 
@@ -147,7 +151,18 @@ export async function syncEvents(events: WorkerEvent[]) {
   };
 }
 
+/**
+ * Record one talent the sync could not reconcile, for an admin to arbitrate on
+ * `/staff/admin/sync-errors`.
+ *
+ * `errorType` is a parameter rather than a constant: the table groups on it
+ * (`stats_sync_health.errorsByType`, and `ops_resolve_sync_errors` filters on
+ * it), so a second kind of failure logged under the first one is a queue nobody
+ * can triage. It is keyed on `(email, attemptedExtId)`, and the Salesforce id is
+ * the half that is always there, so a row with no email still gets its own line.
+ */
 async function logSyncError(params: {
+  errorType: string;
   email: string;
   attemptedExtId: string;
   existingExtId: string | null;
@@ -171,7 +186,7 @@ async function logSyncError(params: {
       resolvedAt: null,
     },
     create: {
-      errorType: 'DUPLICATE_EMAIL',
+      errorType: params.errorType,
       email: params.email,
       attemptedExtId: params.attemptedExtId,
       existingExtId: params.existingExtId,
@@ -196,11 +211,16 @@ async function logSyncError(params: {
  * Nothing is lost by dropping the event: `Talent` carries no campus column at
  * all, a talent reaches a campus through its participations, so identity never
  * needed the context the enrolment gave it.
+ *
+ * Never refuses the batch. A row it cannot use comes back in `invalid` with a
+ * `SyncError` naming it; see the comment at the top of the loop for what
+ * returning instead used to cost.
  */
 export async function syncTalents(talents: WorkerTalent[]) {
   let created = 0;
   let updated = 0;
   let skipped = 0;
+  let invalid = 0;
   const currentSchoolYear = schoolYearOf(new Date(), 'Europe/Paris').label;
 
   // Canonical School per distinct UAI, resolved once for the whole batch.
@@ -221,6 +241,7 @@ export async function syncTalents(talents: WorkerTalent[]) {
       await ensureTalentUser(talentId);
     } catch (err) {
       await logSyncError({
+        errorType: 'DUPLICATE_EMAIL',
         email: loginEmail,
         attemptedExtId: sf.external_id,
         existingExtId: null,
@@ -234,11 +255,41 @@ export async function syncTalents(talents: WorkerTalent[]) {
   };
 
   for (const t of talents) {
-    if (!t.external_id || !t.first_name || !t.last_name)
-      return {
-        error:
-          'Each talent must have external_id, first_name and last_name' as const,
-      };
+    // A contact with no name is SKIPPED and logged, never a refusal for the
+    // batch, which is the rule `syncEvents` above states about an unresolved
+    // campus. It matters more here, and this used to return.
+    //
+    // `Contact.FirstName` is optional in Salesforce, so this is ordinary data
+    // and not a malformed payload. Returning abandoned the rest of the batch
+    // mid-loop with everything before it already committed, answered 400, and
+    // therefore closed the run in `error` - which leaves the watermark where it
+    // was, by design. The next tick then replayed the identical window onto the
+    // identical row. One nameless contact stopped every campaign from syncing,
+    // permanently, and the refonte made that worse rather than better: the
+    // worker now dedupes identities across the whole whitelist into one push,
+    // so the blast radius is the entire perimeter instead of one campaign.
+    //
+    // Tightening `workerTalentSchema` to `.min(1)` instead would refuse the
+    // whole page of 50 at the envelope, which is the same stall wearing a
+    // louder error. The name is what the envelope deliberately leaves loose.
+    if (!t.first_name || !t.last_name) {
+      invalid++;
+      // The talent simply never appears in Jump otherwise, and a silent
+      // absence is the failure mode this whole surface is written against.
+      // `SyncError` is where a person the sync could not reconcile goes, and
+      // the fix is upstream: somebody completes the contact in Salesforce.
+      await logSyncError({
+        errorType: 'MISSING_NAME',
+        email: t.email?.toLowerCase().trim() || '',
+        attemptedExtId: t.external_id,
+        existingExtId: null,
+        talentName: `${t.first_name} ${t.last_name}`.trim(),
+        eventExtId: null,
+        message:
+          'Contact Salesforce sans prénom ou sans nom : la fiche talent ne peut pas être créée. Complétez le contact dans Salesforce, il sera repris à la prochaine synchronisation.',
+      });
+      continue;
+    }
 
     const email = t.email?.toLowerCase().trim() || null;
     // Store SF's phone in canonical E.164 so a bare "765719823" and a full
@@ -486,6 +537,7 @@ export async function syncTalents(talents: WorkerTalent[]) {
         } catch (err) {
           if (!(err instanceof EmailChangeConflict)) {
             await logSyncError({
+              errorType: 'DUPLICATE_EMAIL',
               email,
               attemptedExtId: t.external_id,
               existingExtId: null,
@@ -497,6 +549,7 @@ export async function syncTalents(talents: WorkerTalent[]) {
             const outcome = await autoResolveAuthIdentity(existing.id, 'sync');
             if (outcome === 'skipped') {
               await logSyncError({
+                errorType: 'DUPLICATE_EMAIL',
                 email,
                 attemptedExtId: t.external_id,
                 existingExtId: null,
@@ -512,7 +565,7 @@ export async function syncTalents(talents: WorkerTalent[]) {
     }
   }
 
-  return { created, updated, skipped };
+  return { created, updated, skipped, invalid };
 }
 
 /**

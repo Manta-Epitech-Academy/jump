@@ -41,6 +41,16 @@ export const workerEventsPayloadSchema = z.object({
 
 export const workerTalentSchema = z.object({
   external_id: z.string().min(1),
+  /**
+   * Deliberately not `.min(1)`, unlike `external_id` beside it, and the
+   * asymmetry is the point. `Contact.FirstName` is optional in Salesforce, so an
+   * empty one is ordinary data; refusing it here would refuse the whole page of
+   * 50 that carried it, the run would close in error, the watermark would not
+   * move and the next tick would replay the identical page. `syncTalents` skips
+   * the row and logs a `SyncError` instead. `external_id` is different: with no
+   * id there is nothing to key the row on and nothing to tell an admin to go
+   * look at, so the envelope is the right place to refuse it.
+   */
   first_name: z.string(),
   last_name: z.string(),
   email: z.string().nullish(),
