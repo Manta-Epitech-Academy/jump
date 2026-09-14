@@ -1488,8 +1488,8 @@ export class World {
   }
 
   /**
-   * Awards the ranking bonus on every finished attempt, from the field it
-   * actually finished in.
+   * Awards the ranking bonus on every finished attempt, the way the application
+   * awards it.
    *
    * **A rank is a property of the field, not of an attempt.** It used to be
    * passed in per attempt - `rank: index + 1`, `fieldSize` a guess at the cohort
@@ -1497,15 +1497,29 @@ export class World {
    * from the same rows were two unrelated numbers that happened to sit in the
    * same table. Twenty attempts made that invisible. It stops being invisible
    * the moment a talent is meant to have won ten times, because « won » is then
-   * a claim the leaderboard can contradict.
+   * a claim the leaderboard can contradict. So a scenario places a RESULT and
+   * never a rank: you come first by being fast, which is also how it works for
+   * the talent.
    *
-   * So a scenario places a RESULT, never a rank: you come first by being fast,
-   * which is also how it works for the talent. This pass runs once, after every
-   * scenario has buffered its attempts, and is the only writer of
-   * `rankXpAwarded` and of the `minigame_rank` grants.
+   * Two properties of the real thing decide the shape, and both are read off
+   * `minigameService.finishAttempt` rather than guessed:
    *
-   * The bonus itself comes from the domain (`minigameRankBonus`), so the
-   * generator cannot drift from the rule the finish callback applies.
+   * **The board is per CAMPUS**, not per publication - `rankOnCampusBoard`, and
+   * the `[campusId, publicationId]` index that exists for it. Ranking one field
+   * per publication produced 329 bonuses where production has 1 472, because
+   * production's 64 publications are really about 900 boards.
+   *
+   * **And there is no clawback**: the bonus is the rank you held THE MOMENT you
+   * finished, never revised when somebody beats it later. So the runs are
+   * walked in the order they finished and each is ranked against the board AS
+   * IT STOOD, itself included - which is why the first finisher of every board
+   * carries a first place, and why a board can hold several of them. That is
+   * not a rounding artefact of the real system, it is its stated semantics
+   * ("an early leader keeps it even once overtaken"), and it is most of the
+   * difference between 1 472 bonuses and a tidy podium per board.
+   *
+   * The amounts come from the domain (`minigameRankBonus`), so the generator
+   * cannot drift from the rule the finish callback applies.
    */
   private rankMinigameFields(): void {
     const scoringByPublication = new Map<string, string>();
@@ -1516,33 +1530,55 @@ export class World {
       );
     }
 
-    const fields = new Map<string, typeof this.buffer.minigameAttempt>();
+    // One board per (publication, campus). A run with no campus at all - the
+    // talent placed by `talents-limites` who belongs to none - ranks on the
+    // global board, which is the fallback `minigameService` uses for exactly
+    // that row.
+    const boards = new Map<string, typeof this.buffer.minigameAttempt>();
     for (const attempt of this.buffer.minigameAttempt) {
       if (attempt.status !== 'done') continue;
-      const publicationId = attempt.publicationId as string;
-      const field = fields.get(publicationId);
-      if (field) field.push(attempt);
-      else fields.set(publicationId, [attempt]);
+      const key = `${attempt.publicationId as string}|${
+        (attempt.campusId as string | null) ?? 'global'
+      }`;
+      const board = boards.get(key);
+      if (board) board.push(attempt);
+      else boards.set(key, [attempt]);
     }
 
-    for (const [publicationId, field] of fields) {
-      const scored = scoringByPublication.get(publicationId) === 'score';
-      // Total and deterministic: the id breaks a tie, so two players with the
-      // same time are ordered the same way on every run rather than by
-      // whichever `sort` happened to visit first.
-      const ordered = [...field].sort((a, b) => {
-        const left = (scored ? a.score : a.chrono) ?? 0;
-        const right = (scored ? b.score : b.chrono) ?? 0;
-        // A score game ranks high-to-low, a chrono game low-to-high.
-        if (left !== right) return scored ? right - left : left - right;
+    for (const [key, board] of boards) {
+      const scored =
+        scoringByPublication.get(key.slice(0, key.lastIndexOf('|'))) ===
+        'score';
+      // Finish order. The id breaks a tie so two runs stamped at the same
+      // minute are ordered the same way on every run of the generator, rather
+      // than by whichever `sort` happened to visit first.
+      const byFinish = [...board].sort((a, b) => {
+        const left = (a.finishedAt as Date).getTime();
+        const right = (b.finishedAt as Date).getTime();
+        if (left !== right) return left - right;
         return (a.id as string).localeCompare(b.id as string);
       });
 
-      const limit = minigameRankBonusLimit(ordered.length);
-      for (const [index, attempt] of ordered.entries()) {
-        const rank = index + 1;
-        if (rank > limit) break;
-        const bonus = minigameRankBonus(rank, ordered.length);
+      const better = (
+        candidate: (typeof board)[number],
+        against: (typeof board)[number],
+      ): boolean => {
+        const left = (scored ? candidate.score : candidate.chrono) ?? 0;
+        const right = (scored ? against.score : against.chrono) ?? 0;
+        // A score game ranks high-to-low, a chrono game low-to-high.
+        return scored ? left > right : left < right;
+      };
+
+      for (const [index, attempt] of byFinish.entries()) {
+        // The board as it stood: everybody who had already finished, plus this
+        // run. Rank is one more than however many of them were better.
+        const fieldSize = index + 1;
+        const ahead = byFinish
+          .slice(0, index)
+          .filter((earlier) => better(earlier, attempt)).length;
+        const rank = ahead + 1;
+        if (rank > minigameRankBonusLimit(fieldSize)) continue;
+        const bonus = minigameRankBonus(rank, fieldSize);
         if (bonus <= 0) continue;
         attempt.rankXpAwarded = bonus;
         // The rank float is gated on its own column, so it follows whether the

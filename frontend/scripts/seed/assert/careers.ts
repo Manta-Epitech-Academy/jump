@@ -95,54 +95,51 @@ export async function careerFailures(prisma: PrismaClient): Promise<string[]> {
     );
   }
 
-  // The ranking, read back off the field rather than trusted. `rankXpAwarded`
-  // is written by `World.rankMinigameFields` from the results, so a publication
-  // with a real field must carry a first, a second and a third - and the row
-  // holding the first place must be the best result on it.
-  const [board] = await prisma.$queryRaw<{ n: number }[]>`
-    SELECT COUNT(*)::int AS n
-    FROM (
-      SELECT "publicationId"
-      FROM "MinigameAttempt"
-      WHERE "status" = 'done' AND "id" LIKE 'sd_%'
-      GROUP BY "publicationId"
-      HAVING COUNT(*) >= 3
-         AND COUNT(*) FILTER (WHERE "rankXpAwarded" = 100) = 1
-         AND COUNT(*) FILTER (WHERE "rankXpAwarded" = 50) = 1
-         AND COUNT(*) FILTER (WHERE "rankXpAwarded" = 25) = 1
-    ) fields
+  // Every tier of the bonus, and nothing outside them. `minigameRankBonus` pays
+  // 100, 50, 25 and a flat 10 for the honourable-mention tail, and that tail
+  // only exists on a board big enough for the top decile to reach past the
+  // podium - so a dataset missing it is one whose boards are all tiny.
+  const tiers = await prisma.$queryRaw<{ bonus: number; n: bigint }[]>`
+    SELECT "rankXpAwarded" AS bonus, COUNT(*) AS n
+    FROM "MinigameAttempt"
+    WHERE "rankXpAwarded" IS NOT NULL AND "id" LIKE 'sd_%'
+    GROUP BY 1
   `;
-  if ((board?.n ?? 0) === 0) {
-    failures.push(
-      'Aucune publication ne porte un podium complet (1re, 2e, 3e place) : les bonus de rang ne sont donc vérifiés nulle part',
-    );
+  const paid = new Set(tiers.map((row) => row.bonus));
+  for (const tier of [100, 50, 25, 10]) {
+    if (!paid.has(tier)) {
+      failures.push(
+        `Aucun bonus de rang à ${tier} XP : les quatre paliers de minigameRankBonus ne sont pas tous atteints, donc le classement n'est vérifié que partiellement`,
+      );
+    }
+  }
+  for (const row of tiers) {
+    if (![100, 50, 25, 10].includes(row.bonus)) {
+      failures.push(
+        `Bonus de rang de ${row.bonus} XP, que minigameRankBonus ne produit pas : le générateur a écrit un montant au lieu de le demander au domaine`,
+      );
+    }
   }
 
-  // And the winner is the best result, which is the whole claim of computing a
-  // rank from the field instead of passing one in. Chrono games rank low-to-high
-  // and score games high-to-low, so both directions are checked.
-  const misranked = await prisma.$queryRaw<
-    { publicationId: string; scoring: string }[]
+  // The no-clawback rule, which is the one property of the real ranking a tidy
+  // final podium would NOT reproduce. `minigameService` pays the rank you held
+  // the moment you finished and never revises it, so the FIRST run to finish on
+  // a board was rank 1 of a field of 1 and must carry a first place - whatever
+  // anybody managed afterwards. Getting this wrong is invisible in a count and
+  // is worth about a thousand grants at production volume.
+  const lateLeaders = await prisma.$queryRaw<
+    { publicationId: string; campusId: string | null; bonus: number | null }[]
   >`
-    SELECT a."publicationId", p."scoringType"::text AS scoring
+    SELECT DISTINCT ON (a."publicationId", a."campusId")
+           a."publicationId", a."campusId", a."rankXpAwarded" AS bonus
     FROM "MinigameAttempt" a
-    JOIN "MinigamePublication" p ON p."id" = a."publicationId"
-    WHERE a."rankXpAwarded" = 100
-      AND a."id" LIKE 'sd_%'
-      AND EXISTS (
-        SELECT 1 FROM "MinigameAttempt" b
-        WHERE b."publicationId" = a."publicationId"
-          AND b."status" = 'done'
-          AND CASE
-                WHEN p."scoringType" = 'score' THEN b."score" > a."score"
-                ELSE b."chrono" < a."chrono"
-              END
-      )
-    LIMIT 5
+    WHERE a."status" = 'done' AND a."id" LIKE 'sd_%'
+    ORDER BY a."publicationId", a."campusId", a."finishedAt" ASC, a."id" ASC
   `;
-  for (const row of misranked) {
+  const unpaid = lateLeaders.filter((row) => row.bonus !== 100);
+  for (const row of unpaid.slice(0, 5)) {
     failures.push(
-      `La 1re place de ${row.publicationId} (${row.scoring}) n'est pas le meilleur résultat du champ : un rang est une propriété du champ, pas une valeur qu'on écrit`,
+      `Le premier à finir sur le board (${row.publicationId}, campus ${row.campusId ?? 'global'}) ne porte pas de première place mais ${row.bonus ?? 'aucun bonus'} : sans clawback, il était premier d'un champ de un`,
     );
   }
 

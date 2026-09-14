@@ -144,6 +144,14 @@ export function addMinigameAttempt(
      * A placed profile passes 1 for the runs it is meant to win.
      */
     standing?: number;
+    /**
+     * Minute of the publication day this run finished on, when the ORDER of
+     * finishes is the point rather than a draw. The rank bonus is the rank held
+     * at the moment of finishing and is never revised, so on a board whose
+     * shape is placed - a crowded one, say - who finished when is a fact the
+     * scenario has to own. Left out means a drawn hour, like everybody else.
+     */
+    minuteOfDay?: number;
   },
 ): void {
   const rng = world.ctx.rng;
@@ -159,8 +167,19 @@ export function addMinigameAttempt(
   const finished = opts.status === 'done';
   const scored = opts.publication.scoringType === 'score';
 
-  // Played the day it was published, which is what a « jeu du jour » is.
-  const playedAt = opts.publication.publishedAt;
+  // Played the day it was published, which is what a « jeu du jour » is, at an
+  // hour of that day rather than at its midnight.
+  //
+  // The time of day is not decoration: the rank bonus the application pays is
+  // the rank you held THE MOMENT you finished, never revised afterwards (see
+  // `rankMinigameFields`, and `minigameService`'s own comment on no clawback).
+  // So who finished before whom is what decides who got paid, and a board whose
+  // every run is stamped at midnight has no such order - the generator would be
+  // inventing one, and a different one on every read.
+  const playedAt = new Date(
+    opts.publication.publishedAt.getTime() +
+      (opts.minuteOfDay ?? rng.int(8 * 60, 22 * 60)) * 60_000,
+  );
   // A chrono game reports seconds and lower is better, a score game reports
   // points and higher is better, so `standing` is mapped through each one's own
   // direction rather than written as a raw number the caller has to reason

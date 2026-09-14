@@ -25,14 +25,16 @@
  *     day for the daily game, not from attendance, which is why the leaderboard
  *     is not a ranking of assiduity.
  *
+ * It also places the one board the ordinary rotation cannot produce: a crowded
+ * one, where the bonus pool opens past the podium.
+ *
  * It runs last of the composing scenarios, after `minijeux`, and that order is a
  * dependency rather than a preference. A rank is computed from the field
  * (`World.rankMinigameFields`), so the only way to place a WIN is to place a
  * better result than everybody else's - which means the rest of the field has to
- * exist first, and the publications these two profiles win on have to be kept
- * away from each other. `ordinary runs draw a standing below 0.9`, so a placed
- * 1.0 wins; two placed 1.0 on one publication would just fight, hence the
- * disjoint slices below.
+ * exist first. An ordinary run draws a standing under 0.9, so a placed 1.0 beats
+ * every one of them; two placed 1.0 on one publication would only contest each
+ * other, hence the disjoint slices below.
  */
 
 import { WELCOME_XP_BONUS } from '../../../src/lib/domain/xp';
@@ -60,6 +62,15 @@ const TRYHARDER_GAMES = 18;
 /** The joueur's, which is production's own maximum. */
 const JOUEUR_GAMES = 44;
 const JOUEUR_WINS = 34;
+/**
+ * How many finishers the crowded board carries.
+ *
+ * Past thirty, `minigameRankBonusLimit` opens a fourth paying place - a tenth
+ * of the field, floored at the podium - so this is what makes the flat
+ * honourable-mention tier reachable at all. Forty-four also happens to be
+ * production's heaviest single player, which is a coincidence and not a reason.
+ */
+const CROWDED_FIELD = 44;
 
 /**
  * The past events of one campus that conduct closings, most recent first.
@@ -85,6 +96,31 @@ function closingSeason(world: World): EventRef[] {
     if (season.length > best.length) best = season;
   }
   return [...best].sort((a, b) => b.date.getTime() - a.date.getTime());
+}
+
+/**
+ * The campus holding the most talents, avoiding `exclude`.
+ *
+ * The crowded board needs forty-four people from ONE campus, since a board is
+ * per campus; and it must not be the campus this scenario's three profiles sit
+ * on, or their own placed wins would be contested by a field built to be
+ * uniform.
+ */
+function mostPopulousCampus(world: World, exclude: string): string | null {
+  const counts = new Map<string, number>();
+  for (const talent of world.talents) {
+    if (!talent.campusId || talent.campusId === exclude) continue;
+    counts.set(talent.campusId, (counts.get(talent.campusId) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let most = 0;
+  for (const [campusId, count] of counts) {
+    if (count > most) {
+      most = count;
+      best = campusId;
+    }
+  }
+  return best;
 }
 
 export const careers: Scenario = {
@@ -234,7 +270,10 @@ export const careers: Scenario = {
     // whoever lost would end up with a rank nobody placed and a win the manifest
     // claims they have.
     const tryharderSlice = rotation.slice(0, TRYHARDER_WINS);
-    const joueurPool = rotation.slice(TRYHARDER_WINS);
+    // One publication reserved for the crowded board below, kept out of both
+    // profiles' pools so its shape is entirely placed.
+    const crowded = rotation[TRYHARDER_WINS];
+    const joueurPool = rotation.slice(TRYHARDER_WINS + 1);
 
     for (const [index, publication] of tryharderSlice.entries()) {
       addMinigameAttempt(world, {
@@ -279,6 +318,58 @@ export const careers: Scenario = {
       });
     }
 
+    // ─── A crowded board ─────────────────────────────────────────────────────
+    // `minigameRankBonus` pays a flat 10 outside the podium, out to a tenth of
+    // the field (`MINIGAME_RANK_BONUS_FRACTION`), and that tail only exists on a
+    // board of more than thirty finishers: below it the limit floors at the
+    // three podium slots. The ordinary rotation produces boards of three or
+    // four, so the whole honourable-mention tier had no row - and the tier is
+    // the reason the bonus pool is cohort-relative at all.
+    //
+    // Placed rather than drawn, in every detail, because a drawn board reaches
+    // rank four only by luck: three excellent runs finish first, then a long
+    // queue of steadily weaker ones, so every later finisher has exactly those
+    // three ahead of it. It ranks fourth, and once the field passes thirty the
+    // fourth place starts paying. One board therefore covers the full podium
+    // AND its tail, at every profile.
+    const crowdedCampus = mostPopulousCampus(world, campus.id);
+    const crowdedField = world.talents
+      .filter(
+        (talent) =>
+          talent.campusId === crowdedCampus &&
+          !world.playedBy(talent.id).has(crowded?.id ?? ''),
+      )
+      .slice(0, CROWDED_FIELD);
+    if (crowded && crowdedField.length >= 4) {
+      for (const [index, talent] of crowdedField.entries()) {
+        addMinigameAttempt(world, {
+          talent,
+          publication: crowded,
+          status: 'done',
+          // Three excellent runs first, in decreasing order, which takes the
+          // podium: first of a field of one, second of two, third of three.
+          //
+          // Then a queue that IMPROVES, every entry better than the one before
+          // and all of them below the podium. That is what pins each of them at
+          // exactly rank four: the only runs ahead are those three, because
+          // nobody who finished earlier in the queue was better. Decreasing
+          // here instead - the obvious way round - puts everybody behind
+          // everybody, so ranks run 4, 5, 6 … and the fourth place is held once,
+          // on a field of four, where the limit still floors at three and pays
+          // nothing.
+          standing:
+            index < 3
+              ? 0.99 - index * 0.02
+              : Math.min(0.9, 0.1 + index * 0.015),
+          // Finish order, one minute apart, and the whole reason
+          // `minuteOfDay` exists. Without it the order is a draw and the fourth
+          // place lands wherever the dice put it.
+          minuteOfDay: 8 * 60 + index,
+          xpSeen: index !== 0,
+        });
+      }
+    }
+
     world.ctx.manifest.push({
       scenario: careers.name,
       summary: careers.summary,
@@ -287,6 +378,7 @@ export const careers: Scenario = {
         `un assidu à ${assiduWalk.attended.length} événements et ${assiduWalk.closed.length} closings, 0 XP, jamais connecté`,
         `un tryharder à ${tryharderWalk.attended.length} événements, ${tryharderWalk.closed.length} closings, ${TRYHARDER_GAMES} parties et ${TRYHARDER_WINS} premières places`,
         `un joueur à 2 événements et ${joueurRuns.length} parties, premier ${JOUEUR_WINS} fois : le sommet du classement XP`,
+        `un board bondé de ${crowdedField.length} finisseurs, seul endroit où le palier hors podium (10 XP) se paie`,
         'des closings sur sept séances sur dix, avec les trous entre elles',
         'trois récompenses de tableau sur un seul talent',
       ],
