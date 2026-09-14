@@ -27,7 +27,7 @@ import type { SyncRunMark } from '$lib/domain/syncSchedule';
  * `gc-api-audit` job for the opposite reason: it grows on every call, not on
  * every run.
  */
-const RETENTION_DAYS = 180;
+export const SYNC_RUN_RETENTION_DAYS = 180;
 
 export type RunCounters = {
   events: number;
@@ -92,7 +92,7 @@ export async function closeRun(
 }
 
 async function trimOldRuns(): Promise<void> {
-  const cutoff = new Date(Date.now() - RETENTION_DAYS * 86_400_000);
+  const cutoff = new Date(Date.now() - SYNC_RUN_RETENTION_DAYS * 86_400_000);
   await prisma.sync_Run.deleteMany({ where: { startedAt: { lt: cutoff } } });
 }
 

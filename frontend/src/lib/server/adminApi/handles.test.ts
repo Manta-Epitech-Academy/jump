@@ -78,6 +78,8 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'options',
   'sections',
   // Flags, windows and sizes.
+  'intervalMinutes',
+  'enabled',
   'visible',
   'showStatutColumn',
   'pageWidthPx',
@@ -88,6 +90,9 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'status',
   'state',
   'groupBy',
+  // How to expand a synchronised campaign, and which synchronisation pass to
+  // set: closed enums spelled out in their own schema, like 'audience' above.
+  'mode',
   // Echoed back from the operation own dry run.
   'planDigest',
 ]);
