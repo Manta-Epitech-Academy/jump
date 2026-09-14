@@ -13,7 +13,11 @@ import {
 import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
-import type { WorkerTalent } from '$lib/validation/workerSync';
+import type {
+  WorkerEvent,
+  WorkerSyncMode,
+  WorkerTalent,
+} from '$lib/validation/workerSync';
 
 // Salesforce ships a binary gender ('m' | 'f'); map it onto the civilité enum
 // the rest of the app uses. SF has no equivalent for 'autre', so it stays null.
@@ -45,53 +49,56 @@ async function resolveSchools(
 }
 
 /**
- * The campuses the worker is asked to sync, which is to say: the ones Jump has
- * mapped to Salesforce.
+ * Upsert the events of a whole run, campus by campus.
  *
- * The `externalName` filter is what makes a generated database inert. The scope
- * of a sync is data in THIS database, not configuration on the worker's side, so
- * that is where the isolation belongs: `scripts/seed/` writes no `externalName`
- * at all, so a seeded environment answers an empty list and the worker has
- * nothing to do. A flag on the worker would be re-enabled by whoever forgets;
- * this cannot be, because there is no campus to resolve. Turning the sync back
- * on for one campus is then an explicit act on /staff/admin/campuses, where the
- * field already exists and an empty box already means null.
+ * One call for the entire whitelist, with the campus travelling per event
+ * rather than in the path: the worker resolves a parent campaign into children
+ * that may sit on different campuses, so a per-campus route made it group a
+ * list it had no reason to group.
  *
- * Nothing changes in production, where every campus carries its external name.
+ * An event whose campus does not resolve is SKIPPED and counted, never a
+ * refusal for the batch. This used to return on the first bad row, which left
+ * every event before it applied and every event after it not, with one error
+ * string to explain the state. A campus nobody has armed in Jump is an ordinary
+ * configuration gap and must not cost the other 250 events their sync, so the
+ * names that did not resolve come back instead, for the run report to carry.
  *
- * Known wart, deliberately left alone: this hands out `name` while `syncEvents`
- * below resolves the path parameter against `externalName`, and nothing in this
- * repository maps one to the other - they coincide by convention. The consumer
- * lives in the worker repository, so changing the shape of this payload blind
- * would break an integration nothing here can test.
+ * That same resolution is the worker isolation: a campus with no
+ * `externalName` matches nothing here, and `syncConfigService` never hands out
+ * a source pointing at one in the first place.
+ *
+ * Never deletes. An event that vanishes from Salesforce keeps its Jump-side
+ * configuration, its enrolments and its history. `Event.devActivatedAt` is not
+ * touched either, so an event discovered under a whitelisted parent campaign
+ * lands hidden until an admin activates it: automatic discovery is not
+ * automatic publication.
  */
-export async function listCampuses() {
-  return prisma.campus.findMany({
-    where: { externalName: { not: null } },
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' },
+export async function syncEvents(events: WorkerEvent[]) {
+  const wanted = [
+    ...new Set(
+      events.map((e) => e.campus_ext_name).filter((n) => n.length > 0),
+    ),
+  ];
+  const campuses = await prisma.campus.findMany({
+    where: { externalName: { in: wanted } },
+    select: { id: true, externalName: true },
   });
-}
-
-export async function syncEvents(
-  campusExternalName: string,
-  events: {
-    external_id: string;
-    title: string;
-    date?: string;
-  }[],
-) {
-  const campus = await prisma.campus.findUnique({
-    where: { externalName: campusExternalName },
-  });
-  if (!campus) return { error: 'Campus not found' as const };
+  const campusIdByExternalName = new Map(
+    campuses.map((c) => [c.externalName as string, c.id]),
+  );
 
   let created = 0;
   let updated = 0;
+  let skipped = 0;
+  const unresolvedCampuses = new Set<string>();
 
   for (const e of events) {
-    if (!e.external_id || !e.title)
-      return { error: 'Each event must have external_id and title' as const };
+    const campusId = campusIdByExternalName.get(e.campus_ext_name);
+    if (!campusId) {
+      skipped++;
+      unresolvedCampuses.add(e.campus_ext_name);
+      continue;
+    }
 
     const existing = await prisma.event.findUnique({
       where: { externalId: e.external_id },
@@ -108,7 +115,7 @@ export async function syncEvents(
           externalId: e.external_id,
           date: e.date ? new Date(e.date) : new Date(),
           titre: e.title,
-          campusId: campus.id,
+          campusId,
           modules: {
             create: defaultEventModules().map((moduleKey) => ({ moduleKey })),
           },
@@ -117,14 +124,14 @@ export async function syncEvents(
       created++;
     } else if (
       existing.titre !== e.title ||
-      existing.campusId !== campus.id ||
+      existing.campusId !== campusId ||
       (e.date && existing.date.getTime() !== new Date(e.date).getTime())
     ) {
       await prisma.event.update({
         where: { externalId: e.external_id },
         data: {
           titre: e.title,
-          campusId: campus.id,
+          campusId,
           date: e.date ? new Date(e.date) : existing.date,
         },
       });
@@ -132,7 +139,12 @@ export async function syncEvents(
     }
   }
 
-  return { created, updated };
+  return {
+    created,
+    updated,
+    skipped,
+    unresolvedCampuses: [...unresolvedCampuses],
+  };
 }
 
 async function logSyncError(params: {
@@ -170,45 +182,25 @@ async function logSyncError(params: {
   });
 }
 
-export async function syncTalents(
-  eventExternalId: string,
-  talents: WorkerTalent[],
-) {
-  const event = await prisma.event.findUnique({
-    where: { externalId: eventExternalId },
-  });
-  if (!event) return { error: 'Event not found' as const };
-
-  // An empty payload for an event that HAS enrolments is refused, never applied.
-  // The prune at the end of this function deletes every participation the
-  // payload does not mention, so an empty one wipes a whole cohort - and the
-  // endpoint had no schema, so a truncated or failed fetch upstream arrived
-  // looking exactly like a legitimately empty campaign.
-  //
-  // Refused rather than logged-and-applied, and with no SyncError row: that
-  // table is keyed on (email, attemptedExtId) and shaped around one person's
-  // identity collision, so an event-level fact does not belong in it. The
-  // refusal reaches a human the honest way instead - the endpoint answers 400,
-  // so `recordSync` never runs and `stats_sync_health` reports this event as
-  // stale, which is exactly what happened.
-  //
-  // Emptying a campaign on purpose is therefore a deliberate act: it needs the
-  // enrolments removed in Jump, not a silent sweep nobody asked for.
-  if (talents.length === 0) {
-    const enrolled = await prisma.participation.count({
-      where: { eventId: event.id },
-    });
-    if (enrolled > 0) {
-      return {
-        error: `Refused: empty payload for "${eventExternalId}", which has ${enrolled} enrolment(s). Applying it would delete every one of them.`,
-      };
-    }
-  }
-
+/**
+ * Upsert talent identities and everything reconciled about them, for the whole
+ * run at once.
+ *
+ * Deliberately knows nothing about events. It used to take one, because the
+ * worker pushed a campaign's members and its enrolments in a single call, so
+ * this function seeded talents AND wrote participations AND pruned. The worker
+ * now dedupes talents across the whole whitelist and pushes them once, so a
+ * talent attending two events is reconciled once instead of twice; enrolments
+ * are `syncParticipations` below.
+ *
+ * Nothing is lost by dropping the event: `Talent` carries no campus column at
+ * all, a talent reaches a campus through its participations, so identity never
+ * needed the context the enrolment gave it.
+ */
+export async function syncTalents(talents: WorkerTalent[]) {
   let created = 0;
   let updated = 0;
   let skipped = 0;
-  const syncedTalentIds: string[] = [];
   const currentSchoolYear = schoolYearOf(new Date(), 'Europe/Paris').label;
 
   // Canonical School per distinct UAI, resolved once for the whole batch.
@@ -233,7 +225,7 @@ export async function syncTalents(
         attemptedExtId: sf.external_id,
         existingExtId: null,
         talentName: `${sf.first_name} ${sf.last_name}`,
-        eventExtId: eventExternalId,
+        eventExtId: null,
         message: `Compte de connexion non créé pour "${loginEmail}" : ${
           err instanceof Error ? err.message : 'erreur inconnue'
         }. À arbitrer (Divergences Salesforce › Connexion) ou réessai au prochain sync.`,
@@ -349,10 +341,10 @@ export async function syncTalents(
           err.code === 'P2002'
         ) {
           // Only `externalId` is unique on create now (Talent.email is gone): a
-          // concurrent pass created the same SF record. Adopt the winner's row
-          // and fall through: the participation upsert below must still run
-          // (and the id must land in `syncedTalentIds`), or the end-of-sync
-          // prune would sweep the participation the other pass just created.
+          // concurrent pass created the same SF record. Adopt the winner's
+          // row and fall through rather than aborting: the rest of the batch
+          // still has to be reconciled, and the enrolment is written by
+          // `syncParticipations` against this same external id either way.
           const winner = await prisma.talent.findUnique({
             where: { externalId: t.external_id },
             select: { id: true },
@@ -495,7 +487,7 @@ export async function syncTalents(
               attemptedExtId: t.external_id,
               existingExtId: null,
               talentName: `${t.first_name} ${t.last_name}`,
-              eventExtId: eventExternalId,
+              eventExtId: null,
               message: `Réconciliation de l'identité de connexion échouée pour "${email}" : ${err instanceof Error ? err.message : 'erreur inconnue'} (réessai au prochain sync).`,
             });
           } else {
@@ -506,7 +498,7 @@ export async function syncTalents(
                 attemptedExtId: t.external_id,
                 existingExtId: null,
                 talentName: `${t.first_name} ${t.last_name}`,
-                eventExtId: eventExternalId,
+                eventExtId: null,
                 message: `Divergence d'identité de connexion non auto-résoluble pour "${email}", à arbitrer dans Divergences Salesforce › Connexion.`,
               });
             }
@@ -515,27 +507,122 @@ export async function syncTalents(
       }
       if (mirrorChanged || hasPatch || schoolingChanged) updated++;
     }
+  }
 
-    const normalizedStatus = normalizeSfStatus(t.status);
+  return { created, updated, skipped };
+}
+
+/**
+ * Write one event's enrolments, and prune the ones that are gone.
+ *
+ * Split out of `syncTalents` because the worker split the two pushes: identities
+ * are deduplicated across the whole run, enrolments are per event. The split is
+ * also the honest shape, since `Participation` is what ties a talent to a
+ * campus and `Talent` never did.
+ *
+ * **The prune runs in `full` only, and the mode is stated, never inferred.**
+ * A full pass carries every member of the campaign, so an enrolment missing
+ * from it is one that no longer exists. An incremental pass carries only the
+ * campaigns Salesforce reports as touched, and removing a member from a
+ * campaign moves no modstamp anywhere, so absence there means nothing at all.
+ * The roster alone cannot tell the two apart, and reading the mode off whatever
+ * run happens to be open would be shared mutable state on horizontally-scaled
+ * pods. So it travels in the payload. That is also why deletions are caught by
+ * the spaced full reconcile and by nothing else.
+ *
+ * An `external_id` Jump does not know is counted and skipped: the worker pushes
+ * talents before enrolments, so an unknown one means that talent failed to
+ * reconcile, which is already its own SyncError.
+ */
+export async function syncParticipations(
+  eventExternalId: string,
+  statusByExternalId: Record<string, string>,
+  mode: WorkerSyncMode,
+) {
+  const event = await prisma.event.findUnique({
+    where: { externalId: eventExternalId },
+    select: { id: true, campusId: true },
+  });
+  if (!event) return { error: 'Event not found' as const };
+
+  const externalIds = Object.keys(statusByExternalId);
+  const prunes = mode === 'full';
+
+  // An empty full payload for an event that HAS enrolments is refused, never
+  // applied. The prune below deletes every enrolment the payload does not
+  // mention, so an empty one wipes a whole cohort, and a truncated or failed
+  // fetch upstream arrives looking exactly like a legitimately empty campaign.
+  //
+  // Refused rather than logged-and-applied, and with no SyncError row: that
+  // table is keyed on (email, attemptedExtId) and shaped around one person's
+  // identity collision, so an event-level fact does not belong in it. The
+  // refusal reaches a human the honest way instead, by failing the call, which
+  // closes the run in error and leaves the watermark where it was.
+  //
+  // Emptying a campaign on purpose is therefore a deliberate act: it needs the
+  // enrolments removed in Jump, not a silent sweep nobody asked for.
+  if (prunes && externalIds.length === 0) {
+    const enrolled = await prisma.participation.count({
+      where: { eventId: event.id },
+    });
+    if (enrolled > 0) {
+      return {
+        error: `Refused: empty payload for "${eventExternalId}", which has ${enrolled} enrolment(s). Applying it would delete every one of them.`,
+      };
+    }
+  }
+
+  const known = await prisma.talent.findMany({
+    where: { externalId: { in: externalIds } },
+    select: { id: true, externalId: true },
+  });
+  const talentIdByExternalId = new Map(
+    known.map((t) => [t.externalId as string, t.id]),
+  );
+
+  // The same refusal one step further in, and it is not the same case as an
+  // empty payload: a roster full of ids Jump has never heard of means the
+  // talents push failed or never happened, not that the campaign emptied. With
+  // nothing resolved, `notIn: []` matches every row and the prune would take
+  // the cohort.
+  if (prunes && externalIds.length > 0 && talentIdByExternalId.size === 0) {
+    return {
+      error: `Refused: none of the ${externalIds.length} member(s) sent for "${eventExternalId}" exist in Jump, so the talents push did not land.`,
+    };
+  }
+
+  let upserted = 0;
+  let skipped = 0;
+  const presentTalentIds: string[] = [];
+
+  for (const [externalId, rawStatus] of Object.entries(statusByExternalId)) {
+    const talentId = talentIdByExternalId.get(externalId);
+    if (!talentId) {
+      skipped++;
+      continue;
+    }
+
+    const sfMemberStatus = normalizeSfStatus(rawStatus);
     await prisma.participation.upsert({
       where: { talentId_eventId: { talentId, eventId: event.id } },
       create: {
         talentId,
         eventId: event.id,
-        campusId: event.campusId!,
-        sfMemberStatus: normalizedStatus,
+        campusId: event.campusId,
+        sfMemberStatus,
       },
-      update: { sfMemberStatus: normalizedStatus },
+      update: { sfMemberStatus },
     });
-    syncedTalentIds.push(talentId);
+    presentTalentIds.push(talentId);
+    upserted++;
   }
 
-  const { count: removed } = await prisma.participation.deleteMany({
-    where: {
-      eventId: event.id,
-      talentId: { notIn: syncedTalentIds },
-    },
-  });
+  let removed = 0;
+  if (prunes) {
+    ({ count: removed } = await prisma.participation.deleteMany({
+      where: { eventId: event.id, talentId: { notIn: presentTalentIds } },
+    }));
+  }
 
-  return { created, updated, removed, skipped };
+  return { upserted, skipped, removed };
 }

@@ -1,12 +1,12 @@
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server/db';
-import { getLastSync } from '$lib/server/infra/syncStatus';
+import { recentRuns } from '$lib/server/services/syncRunService';
 import { EventService } from '$lib/server/services/events';
 import { isEventToPrepare } from '$lib/domain/eventReadiness';
 
 export const load: PageServerLoad = async () => {
   // Retrieve global statistics
-  const [campusCount, userCount, studentCount, events, lastSync] =
+  const [campusCount, userCount, studentCount, events, lastRuns] =
     await Promise.all([
       prisma.campus.count(),
       // "Membres de l'équipe" = staff only. bauth_user also holds students and
@@ -18,7 +18,10 @@ export const load: PageServerLoad = async () => {
       // total, the "recently created" feed (sliced below) and the "à préparer"
       // count, so the dashboard can't disagree with /staff/admin/events.
       EventService.listAdminEvents(),
-      getLastSync(),
+      // One row, newest first: the card answers "what did the worker last do",
+      // and a run that is still open or that failed is exactly what somebody
+      // opening this page needs to see.
+      recentRuns(1),
     ]);
 
   // Newest first by creation, not by event date - the section answers "what did
@@ -43,6 +46,6 @@ export const load: PageServerLoad = async () => {
       toPrepare: toPrepareCount,
     },
     recentEvents,
-    lastSync,
+    lastRun: lastRuns[0] ?? null,
   };
 };
