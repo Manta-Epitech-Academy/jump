@@ -26,6 +26,11 @@
     await authClient.signIn.social({
       provider: 'microsoft',
       callbackURL: resolve('/staff/oauth/callback'),
+      // Without this, a refusal raised inside BetterAuth's own callback lands on
+      // `/api/auth/error`, which is BetterAuth's page, in English, and says
+      // `account_not_linked` verbatim. The code travels in the signed state and
+      // comes back as `?error=`, which `+page.server.ts` turns into French.
+      errorCallbackURL: resolve('/staff/login'),
     });
   }
 </script>
