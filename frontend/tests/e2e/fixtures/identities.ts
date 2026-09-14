@@ -44,6 +44,18 @@ export const E2E = {
     nom: 'FRESHTEST',
     prenom: 'Camille',
   },
+  /**
+   * Every rung walked except the last: lands straight on the signature step.
+   * `talentFresh` cannot stand in, because reaching that step from nothing means
+   * walking six forms, and what the spec asserts is what the step ASKS.
+   */
+  talentRules: {
+    userId: 'e2e-user-talent-rules',
+    talentId: 'e2e-talent-rules',
+    email: `talent-rules${E2E_DOMAIN}`,
+    nom: 'RULESTEST',
+    prenom: 'Sasha',
+  },
 
   /** Guardian who still owes an act on their child: held inside the flow. */
   parentPending: {
@@ -63,6 +75,7 @@ export const E2E_ACCOUNTS = [
   E2E.admin,
   E2E.talentReady,
   E2E.talentFresh,
+  E2E.talentRules,
   E2E.parentPending,
   E2E.parentSettled,
 ] as const;

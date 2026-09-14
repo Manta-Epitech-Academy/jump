@@ -14,7 +14,15 @@
  * `Record` per document:
  *
  *  1. **A version key names the school year the text took effect**, reusing the
- *     canonical label format of `domain/schoolYear.ts`.
+ *     canonical label format of `domain/schoolYear.ts`. One school year holds
+ *     exactly one wording, and that is a constraint rather than a habit:
+ *     `scripts/seed/catalog/documentVersions.ts` derives the catalogue from the
+ *     FILENAMES with `^(\d{4}-\d{4})`, so a second wording filed as
+ *     `2026-2027-b.md` captures the same key and collides with the first in
+ *     silence. A revision asked for mid-year, once a signature already points at
+ *     the year, is therefore a decision about how keys are shaped and not a
+ *     suffix somebody can add. Before any signature exists the file is simply
+ *     rewritten, which is what rule 2 below means by "published".
  *  2. **A published version file never changes and is never deleted.** A new
  *     wording is a new key, because an old key must keep resolving for as long
  *     as one signature points at it.

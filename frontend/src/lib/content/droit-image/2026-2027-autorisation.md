@@ -1,5 +1,6 @@
 <!--
-  Version en vigueur. Deux règles avant d'éditer, dans cet ordre :
+  Version en vigueur, texte validé. Deux règles avant d'éditer, dans cet
+  ordre :
 
   1. Tant que cette version n'a été signée par personne, elle se réécrit
      librement. Dès qu'une signature l'a épinglée
