@@ -37,7 +37,10 @@
  * other, hence the disjoint slices below.
  */
 
-import { WELCOME_XP_BONUS } from '../../../src/lib/domain/xp';
+import {
+  WELCOME_XP_BONUS,
+  minigameRankBonusLimit,
+} from '../../../src/lib/domain/xp';
 import {
   CLUB_TEMPLATE,
   CLUB_TEMPLATE_QUESTION_KEYS,
@@ -100,17 +103,21 @@ function closingSeason(world: World): EventRef[] {
 }
 
 /**
- * The campus holding the most talents, avoiding `exclude`.
+ * The campus holding the most talents.
  *
- * The crowded board needs forty-four people from ONE campus, since a board is
- * per campus; and it must not be the campus this scenario's three profiles sit
- * on, or their own placed wins would be contested by a field built to be
- * uniform.
+ * The crowded board needs enough people from ONE campus to pay past the podium,
+ * since a board is per campus, so it goes where there are the most of them and
+ * nowhere else. It used to skip the campus this scenario's own profiles sit on,
+ * for fear of contesting their placed wins - which cannot happen: the crowded
+ * publication is held out of both their slices below, so nobody on it is
+ * competing for anything either of them won. Skipping that campus only ever
+ * removed the busiest one from consideration, and the busiest is the one whose
+ * field is big enough.
  */
-function mostPopulousCampus(world: World, exclude: string): string | null {
+function mostPopulousCampus(world: World): string | null {
   const counts = new Map<string, number>();
   for (const talent of world.talents) {
-    if (!talent.campusId || talent.campusId === exclude) continue;
+    if (!talent.campusId) continue;
     counts.set(talent.campusId, (counts.get(talent.campusId) ?? 0) + 1);
   }
   let best: string | null = null;
@@ -344,7 +351,7 @@ export const careers: Scenario = {
     // three ahead of it. It ranks fourth, and once the field passes thirty the
     // fourth place starts paying. One board therefore covers the full podium
     // AND its tail, at every profile.
-    const crowdedCampus = mostPopulousCampus(world, campus.id);
+    const crowdedCampus = mostPopulousCampus(world);
     const crowdedField = world.talents
       .filter(
         (talent) =>
@@ -352,7 +359,14 @@ export const careers: Scenario = {
           !world.playedBy(talent.id).has(crowded?.id ?? ''),
       )
       .slice(0, CROWDED_FIELD);
-    if (crowded && crowdedField.length >= 4) {
+    // Asked of the domain rather than written as a number: the tail only pays
+    // from the field size where `minigameRankBonusLimit` opens a fourth place,
+    // which is 31 today and moves with `MINIGAME_RANK_BONUS_FRACTION`. The
+    // guard used to read `>= 4`, which is the rank being aimed at and not the
+    // field that pays it - so a campus of a dozen built a board that paid
+    // nothing past the podium and `assert/careers.ts` blamed the dataset for a
+    // tier the scenario had quietly declined to produce.
+    if (crowded && minigameRankBonusLimit(crowdedField.length) >= 4) {
       for (const [index, talent] of crowdedField.entries()) {
         addMinigameAttempt(world, {
           talent,
