@@ -47,6 +47,18 @@ Eight rules, and each is enforced rather than hoped for:
   profiles at the top of the platform (`scenarios/careers.ts`) and the crowded
   minigame board that is the only place the honourable-mention rank bonus pays.
 
+  **And a state is placed on a WHOLE cohort, never on half of it.** The Coding
+  Club places a career of ten sessions on the regulars it mints, because being a
+  regular is what that format is; it used to recruit a third of them from the
+  stage and leave those to the draw, asking the returning pool for ten events of
+  headroom instead. `CAREER_MIX` stops at eleven, so that asked for a career of
+  exactly eleven, which it draws for 0.04% of talents: the pool came back empty
+  on all but a few per cent of runs, the third was silently always zero, and the
+  stage-to-club parcours the scenario says it builds existed in no generated
+  dataset. Half a cohort placed and half drawn is not a compromise between the
+  two, it is the drawn half deciding, and it fails at whichever end the draw is
+  thinnest.
+
   **Placing a state sometimes means placing its CAUSE rather than the state.**
   A rank bonus is computed from the field a run finished in, so « this talent
   won ten times » cannot be placed as a number: what gets placed is ten results

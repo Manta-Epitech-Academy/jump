@@ -121,17 +121,19 @@ export function makeCohort(
      * anyway, and « imported from the CRM, never opened » is its dominant
      * state.
      */
-    returning?: {
-      share: number;
-      /** Enrolments the caller needs room for, when it is more than one. */
-      minHeadroom?: number;
-    };
+    returning?: { share: number };
     /**
-     * The career to place on the talents this call MINTS, instead of drawing
-     * one. For a format that is itself the tail of the career distribution: a
-     * club regular attends its three sessions by definition, so drawing a
-     * career of one for them and then enrolling them three times would make the
-     * cap a decoration.
+     * The career to place on this cohort, instead of drawing one. For a format
+     * that is itself the tail of the career distribution: a club regular
+     * attends its season by definition, so drawing a career of one for them and
+     * then enrolling them ten times would make the cap a decoration.
+     *
+     * It reads « this many events FROM HERE ON » and applies to the whole
+     * cohort, minted and recruited alike. A talent this call mints has attended
+     * nothing, so the two spellings agree on them; a talent it recruits keeps
+     * what they already did and gains a season on top. Placing it on only half
+     * the cohort is what made the returning share unreachable: the recruits
+     * were then expected to satisfy a histogram the season cannot fit inside.
      */
     career?: number;
   },
@@ -141,16 +143,18 @@ export function makeCohort(
   const cohort: TalentRef[] = [];
 
   if (opts.returning) {
-    const pool = world.returningPool({
-      campusId: opts.campus.id,
-      minHeadroom: opts.returning.minHeadroom,
-    });
+    const pool = world.returningPool({ campusId: opts.campus.id });
     const wanted = Math.min(
       Math.round(opts.size * opts.returning.share),
       pool.length,
       opts.size,
     );
-    cohort.push(...rng.sample(pool, wanted));
+    for (const talent of rng.sample(pool, wanted)) {
+      // Declared a regular before the caller enrols them, not after: the pool
+      // only ever promises room for one more event, and a season is ten.
+      if (opts.career !== undefined) world.placeCareer(talent, opts.career);
+      cohort.push(talent);
+    }
   }
 
   for (let i = cohort.length; i < opts.size; i += 1) {

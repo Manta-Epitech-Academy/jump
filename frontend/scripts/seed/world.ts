@@ -229,6 +229,9 @@ const UPCOMING_EVENT_SF_MIX = [
   ['READY', 100],
 ] as const satisfies readonly (readonly [SfMemberStatus, number])[];
 
+/** Shared empty set, so `playedBy` allocates nothing on the common answer. */
+const EMPTY_SET: ReadonlySet<string> = new Set<string>();
+
 /**
  * How many events a talent attends over their whole time on the platform.
  *
@@ -252,10 +255,13 @@ const UPCOMING_EVENT_SF_MIX = [
  * It is a CAP on what the returning pool will offer (see `returningPool`), not
  * a quota the generator has to spend. A talent whose career is never drawn on
  * simply came once, which is what two thirds of them do.
+ *
+ * **The tail of it is placed, not drawn**, and `placeCareer` is how. Ten and
+ * eleven are 0.06% of this histogram, which is two or three talents at staging
+ * and none at all at `ci`, so a recurring format asking the draw for regulars
+ * asks for somebody the draw almost never produces - see `placeCareer` for what
+ * a scenario does instead.
  */
-/** Shared empty set, so `playedBy` allocates nothing on the common answer. */
-const EMPTY_SET: ReadonlySet<string> = new Set<string>();
-
 const CAREER_MIX = [
   [1, 69.0],
   [2, 23.4],
@@ -1161,17 +1167,16 @@ export class World {
    * campuses stays the `roamer` placed in `edgeTalents`, whose whole job is to
    * prove that derivation rather than let it be assumed.
    *
-   * `minHeadroom` is what a caller about to enrol somebody on several events
-   * passes: the club puts its regulars on three sessions, so offering it a
-   * talent with one place left would push them past their own career. Asking
-   * for the room up front is how the cap stays a cap instead of drifting.
+   * Room for ONE more, and never for a caller's whole season. The pool used to
+   * take a `minHeadroom`, which the club passed its ten sessions: since
+   * `CAREER_MIX` stops at eleven and every candidate has already been
+   * somewhere, that asked for a career of eleven exactly - 0.04% of the draw,
+   * so the pool came back empty on essentially every run and the club's third
+   * of returning regulars was silently always zero. A caller that means to
+   * enrol somebody on a whole season is not asking the histogram for room, it
+   * is declaring them a regular, which is `placeCareer`.
    */
-  returningPool(opts: {
-    campusId: string;
-    /** How many further enrolments the caller needs room for. Defaults to one. */
-    minHeadroom?: number;
-  }): TalentRef[] {
-    const needed = opts.minHeadroom ?? 1;
+  returningPool(opts: { campusId: string }): TalentRef[] {
     return this.talents.filter((talent) => {
       if (talent.campusId !== opts.campusId) return false;
       const attended = this.enrolledEventsByTalent.get(talent.id);
@@ -1179,8 +1184,36 @@ export class World {
       // the cohort somebody is about to mint.
       if (!attended || attended.size === 0) return false;
       const career = this.careerByTalent.get(talent.id) ?? 1;
-      return career - attended.size >= needed;
+      return career - attended.size >= 1;
     });
+  }
+
+  /**
+   * Declares a talent a regular: `events` more than they have already attended,
+   * whatever `CAREER_MIX` drew for them.
+   *
+   * The twin of `addTalent`'s own `career`, for a talent who already exists.
+   * Both place rather than draw, and the split is the moment, not the rule: at
+   * birth the career is placed instead of drawn and consumes no draw, which is
+   * what lets a placed talent leave every other talent's career untouched;
+   * here the draw has already happened and is overridden.
+   *
+   * Placing is what the histogram's own tail asks for rather than a departure
+   * from it. Production's talents at nine, ten and eleven events got there
+   * through a recurring format, which is the Coding Club and nothing else in
+   * this dataset - so the scenario that runs the season is precisely the one
+   * entitled to say who its regulars are, exactly as it already does for the
+   * talents it mints. Asking the draw for them instead is asking for 0.06% of
+   * the population to land on one campus, which is none at every profile but
+   * `staging` and barely any there.
+   *
+   * Counted from what they have ALREADY attended, so « a season on top of a
+   * stage » is eleven and not ten, and the pool stops offering them at the
+   * right point instead of one event early.
+   */
+  placeCareer(talent: TalentRef, events: number): void {
+    const attended = this.enrolledEventsByTalent.get(talent.id)?.size ?? 0;
+    this.careerByTalent.set(talent.id, attended + events);
   }
 
   /** Whether this talent is already on this event, so nobody enrols them twice. */

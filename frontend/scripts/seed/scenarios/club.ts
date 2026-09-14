@@ -82,12 +82,19 @@ export const club: Scenario = {
     // decoration. A third are recruited from whoever the stage already brought
     // in on this campus, which is what makes a club closing sit in the same
     // parcours as a stage closing instead of beside it.
+    //
+    // The placement covers the recruits too, and has to. It used to cover only
+    // the talents this call minted, and the recruits were asked for ten events
+    // of headroom instead - a career of eleven, which `CAREER_MIX` draws for
+    // 0.04% of talents, so the pool was empty on all but a few per cent of runs
+    // and the third was always zero. The stage/club parcours this scenario
+    // claims to build did not exist in any generated dataset.
     const regulars = makeCohort(world, {
       size,
       campus,
       schoolYear: clock.schoolYear,
       career: SESSION_OFFSETS.length,
-      returning: { share: 1 / 3, minHeadroom: SESSION_OFFSETS.length },
+      returning: { share: 1 / 3 },
     });
 
     // The first regular is guaranteed onto every session below, and onto the
