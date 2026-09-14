@@ -83,7 +83,12 @@ import {
   EVENTS_LIST_LIMIT,
   EVENTS_LIST_STATES,
 } from '$lib/server/services/adminStats/eventsList';
-import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
+import {
+  getSyncHealth,
+  getSyncRuns,
+  getSyncSources,
+  SYNC_RUNS_LIMIT,
+} from '$lib/server/services/adminStats/syncHealth';
 import { getDataFreshness } from '$lib/server/services/adminStats/dataFreshness';
 import { getScopeVocabulary } from '$lib/server/services/adminStats/scopeVocabulary';
 import { getCampusComparison } from '$lib/server/services/adminStats/campusComparison';
@@ -164,6 +169,7 @@ import {
   resetClosingById,
   SCHOOL_RESOLVE_LIMIT,
 } from './writes/ops';
+import { writeSyncCadence, writeSyncSource } from './writes/sync';
 import {
   writeClosingQuestion,
   writeClosingTemplate,
@@ -486,9 +492,32 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_sync_health: defineOperation({
     description:
-      'Whether Salesforce is still feeding Jump: when the last sync landed and how old it is, how many sync errors are waiting, their breakdown by kind, and the age of the oldest. Takes no parameter.',
+      'Whether Salesforce is still feeding Jump: when each pass last succeeded and how old that is, the configured cadences, what the worker will do next, whether one is running, how many sync errors are waiting, their breakdown by kind, and the age of the oldest. The two passes are reported apart because only the full one detects a deletion in Salesforce. Takes no parameter.',
     shape: {},
     run: () => getSyncHealth(),
+  }),
+
+  config_sync_sources: defineOperation({
+    description:
+      'Which Salesforce campaigns Jump synchronises, on which campus, and whether each is actually served to the worker. A "parent" source expands to every child campaign on each run, so new events under it are discovered without editing anything. This is where a Salesforce campaign id comes from for write_sync_source. Takes no parameter.',
+    shape: {},
+    run: () => getSyncSources(),
+  }),
+
+  stats_sync_runs: defineOperation({
+    description: `What the synchronisation worker actually did, run by run, newest first: which pass, whether it succeeded, how long it took, what it pushed, and the error if it failed. This is the only trace of a run that exists, the worker being ephemeral. A tick with nothing due writes no row. Capped at ${SYNC_RUNS_LIMIT} runs.`,
+    shape: {
+      limit: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(SYNC_RUNS_LIMIT)
+        .optional()
+        .describe(
+          `How many runs to return, newest first. Defaults to 20, capped at ${SYNC_RUNS_LIMIT}.`,
+        ),
+    },
+    run: (params) => getSyncRuns(params),
   }),
 
   config_event_detail: defineOperation({
@@ -982,6 +1011,66 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => resolveSyncErrorRows(params),
+  }),
+
+  write_sync_source: defineWrite({
+    description:
+      'Add a Salesforce campaign to the synchronised perimeter, move it to another campus, rename it, or switch it off. Switching off sets a flag, it deletes nothing, so it can be switched back on. Safe to repeat: this is an upsert on the campaign id, so the same call twice leaves the same row. Adding one requires both campus and kind; changing an existing one only sends what changes. Takes effect at the worker next wake-up, within fifteen minutes.',
+    shape: {
+      salesforceCampaignId: z
+        .string()
+        .min(1)
+        .describe(
+          `Salesforce campaign id, 15 or 18 alphanumeric characters, copied from the campaign URL in Salesforce. ${handleDescribe('salesforceCampaignId')}`,
+        ),
+      kind: z
+        .enum(['parent', 'orphan'])
+        .optional()
+        .describe(
+          'How to expand this campaign. "parent" syncs every child campaign under it, re-resolved on every run, so a new event created under it in Salesforce appears on its own; "orphan" syncs this campaign alone. Required when adding a campaign, optional when changing one.',
+        ),
+      campus: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          'Campus name as it appears in the answers, e.g. "Lille". Required when adding a campaign, optional when changing one.',
+        ),
+      enabled: z
+        .boolean()
+        .optional()
+        .describe(
+          'Whether the worker is served this campaign. Set false to stop syncing it without losing the configuration.',
+        ),
+      label: z
+        .string()
+        .optional()
+        .describe(
+          'What a human calls this campaign, so the list reads as something other than a column of Salesforce ids. Never sent to the worker.',
+        ),
+    },
+    run: (params) => writeSyncSource(params),
+  }),
+
+  write_sync_cadence: defineWrite({
+    description:
+      'Set how often one synchronisation pass runs, in minutes. The incremental pass keeps data fresh; the full pass is the only one that detects a member removed in Salesforce, so spacing it out means deletions arrive later. Safe to repeat: writing the same value twice leaves the same row. Takes effect at the worker next wake-up, within fifteen minutes, with nothing to redeploy.',
+    shape: {
+      mode: z
+        .enum(['full', 'incremental'])
+        .describe(
+          'Which pass to set. "incremental" pulls only the campaigns Salesforce reports as changed; "full" pulls the whole perimeter and is what notices a deletion.',
+        ),
+      intervalMinutes: z.coerce
+        .number()
+        .int()
+        .min(15)
+        .max(20160)
+        .describe(
+          'Minutes between two passes of this kind. The floor is 15 because the worker is only woken every 15 minutes, so asking for less changes nothing.',
+        ),
+    },
+    run: (params) => writeSyncCadence(params),
   }),
 
   ops_resolve_all_sync_errors: defineWrite({

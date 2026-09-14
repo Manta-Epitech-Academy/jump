@@ -130,14 +130,23 @@ Eight rules, and each is enforced rather than hoped for:
 
 - **A seeded database is inert to every background worker, by construction.**
   The Salesforce worker is the case this was written for. It takes its scope from
-  Jump - `GET /api/worker/campus` hands out `listCampuses()`, and `syncEvents`
-  resolves what comes back against `Campus.externalName` - so the generator
-  writes no external name at all and `listCampuses` only returns campuses that
-  have one. A generated environment therefore answers an empty list, on any
-  machine, and no real minor's data can land in it. This is not a flag somebody
-  re-enables by forgetting: there is no campus to resolve. Turning the sync on
-  for one campus is an explicit act on `/staff/admin/campuses`, where a blank
-  external name already means null.
+  Jump: `GET /api/worker/config` is the only thing that tells it what to pull, and
+  it serves a `Sync_Source` only when that source is enabled AND its campus carries
+  a non-null `Campus.externalName`. A generated environment therefore answers an
+  empty list, on any machine, and no real minor's data can land in it.
+
+  **Two layers hold that, and the generator writes neither.** No campus gets an
+  external name, so there is nothing for the worker to resolve a campus by; and no
+  `Sync_Source` row is written at all, because a source is not a fact, it is the
+  INSTRUCTION that makes a worker go and fetch. `assert/inertness.ts` refuses a
+  seeded row outright and `assert/coverage.ts` carries the reason under both
+  `Sync_Source` and `Campus.externalName`. This is not a flag somebody re-enables
+  by forgetting: there is nothing to re-enable. Turning the sync on for one campus
+  is an explicit act on `/staff/admin/campuses`, where a blank external name
+  already means null, plus a `write_sync_source` naming the campaign.
+
+  The contract itself lives with the surface, in
+  [`src/routes/api/worker/CLAUDE.md`](../../src/routes/api/worker/CLAUDE.md).
 
   **The broadcast queue is the second worker, and it was not inert.**
   `scenarios/operations.ts` seeded four campaigns in a non-terminal status

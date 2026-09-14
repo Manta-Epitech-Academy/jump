@@ -38,6 +38,7 @@ export type HandleKind =
   | 'diplomaTemplateId'
   | 'pdfJobId'
   | 'syncErrorType'
+  | 'salesforceCampaignId'
   | 'moduleKey'
   | 'closingTemplateId'
   | 'closingTemplateKey'
@@ -186,6 +187,18 @@ export const HANDLES: Record<HandleKind, Handle> = {
     frGender: 'm',
     producedBy: [{ operation: 'stats_sync_health' }],
   },
+  salesforceCampaignId: {
+    what: 'Salesforce campaign id in the synchronised perimeter.',
+    frNoun: 'identifiants de campagne Salesforce',
+    frGender: 'm',
+    producedBy: [
+      {
+        operation: 'config_sync_sources',
+        covers:
+          'only the campaigns already in the perimeter; a new one is copied from its URL in Salesforce',
+      },
+    ],
+  },
   moduleKey: {
     what: 'Dev-workspace section key.',
     frNoun: 'clés de section',
@@ -268,6 +281,7 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   templateId: 'diplomaTemplateId',
   jobId: 'pdfJobId',
   errorType: 'syncErrorType',
+  salesforceCampaignId: 'salesforceCampaignId',
   modules: 'moduleKey',
   // The event binding takes an id, like the certificate one beside it; authoring
   // takes a key, like `write_diploma_template`'s `code`. Both are produced by the

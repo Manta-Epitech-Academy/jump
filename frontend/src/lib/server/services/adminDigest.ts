@@ -31,6 +31,7 @@ import { prisma } from '$lib/server/db';
 import { sendEmail, MAIL_FROM } from '$lib/server/email';
 import { getUnconfiguredEvents } from '$lib/server/services/adminStats/unconfiguredEvents';
 import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
+import { getDataFreshness } from '$lib/server/services/adminStats/dataFreshness';
 import {
   getPdfJobsHealth,
   getAccountDeletionQueue,
@@ -93,15 +94,17 @@ const link = (href: string, label: string) =>
  * the default empty string is only for tests, which assert on the relative path.
  */
 export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
-  const [events, sync, pdfJobs, deletions, adoption] = await Promise.all([
-    getUnconfiguredEvents(),
-    getSyncHealth(),
-    getPdfJobsHealth(),
-    getAccountDeletionQueue(),
-    // Read through the same service the API answers from, so a figure in an
-    // inbox and the same figure asked over MCP cannot disagree.
-    getFeatureAdoptionGaps({}, { days: ADOPTION_WINDOW_DAYS }),
-  ]);
+  const [events, sync, freshness, pdfJobs, deletions, adoption] =
+    await Promise.all([
+      getUnconfiguredEvents(),
+      getSyncHealth(),
+      getDataFreshness(),
+      getPdfJobsHealth(),
+      getAccountDeletionQueue(),
+      // Read through the same service the API answers from, so a figure in an
+      // inbox and the same figure asked over MCP cannot disagree.
+      getFeatureAdoptionGaps({}, { days: ADOPTION_WINDOW_DAYS }),
+    ]);
 
   const eventsUrl = `${baseUrl}/staff/admin/events`;
   const dashboardUrl = `${baseUrl}/staff/admin`;
@@ -116,7 +119,12 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
   // contradict its own lead ("200 événements demandent une action" above a table
   // of 15 plus "et 85 autres") as soon as the cap was reached.
   const remaining = toPrepare - listed.length;
-  const last = sync.lastSync.value;
+  // Freshness is "when did data last land", whichever pass brought it, and
+  // `dataFreshness` owns that judgement for the whole codebase. `sync` splits
+  // the two passes because an operator needs them apart; this mail does not,
+  // and reading one of them here would call a platform stale on the strength of
+  // a pass that is simply not due yet.
+  const last = freshness.value;
   const unresolvedErrors = sync.unresolvedErrors.value;
 
   const eventRows = listed

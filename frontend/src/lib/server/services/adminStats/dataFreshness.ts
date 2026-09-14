@@ -7,30 +7,58 @@
  * exist rather than reporting zero; this is the same posture applied to time, and
  * the missing half of it. A stale figure has to say so.
  *
- * Owns the staleness threshold and the cadence sentence for the whole codebase.
+ * Owns the staleness judgement and the cadence sentence for the whole codebase.
  * `syncHealth.ts` used to hold both and is now a consumer: it still answers the
- * richer operational question (what the last run created, updated and skipped,
- * plus the error backlog), but "when did data last land, and is that too long ago"
- * is decided here, once, so an ops answer and a leadership answer cannot disagree
- * on what counts as old.
+ * richer operational question (what the last run did, plus the error backlog),
+ * but "when did data last land, and is that too long ago" is decided here, once,
+ * so an ops answer and a leadership answer cannot disagree on what counts as old.
+ *
+ * Both used to be constants, and both were wrong the moment the cadence became
+ * something the team edits. A fixed "environ toutes les 30 minutes" is quoted
+ * verbatim into the weekly digest and into MCP answers, so it would keep being
+ * said long after somebody tightened the incremental to 15 minutes for a stage;
+ * and a fixed three-hour threshold called a healthy platform stale on a slow
+ * cadence while staying silent through six missed passes on a tight one. Both
+ * are now derived from `Sync_Cadence`, in `domain/syncSchedule.ts`.
  */
 
-import { getLastSync } from '$lib/server/infra/syncStatus';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
-
-/** Beyond this, the last sync is old enough to be worth mentioning. */
-export const SYNC_STALE_AFTER_HOURS = 3;
-
-/**
- * The one sentence that says how often data is supposed to land, reused by every
- * definition built on it so the cadence is stated identically everywhere.
- */
-export const SYNC_CADENCE_NOTE =
-  'le worker de synchronisation tourne environ toutes les 30 minutes';
+import { lastSuccessfulLanding } from '$lib/server/services/syncRunService';
+import { listCadences } from '$lib/server/services/syncConfigService';
+import {
+  staleAfterHours,
+  syncCadenceNote,
+  type SyncMode,
+} from '$lib/domain/syncSchedule';
 
 /** Age in hours, one decimal. Shared so two answers cannot round differently. */
 export const hoursSince = (date: Date) =>
   Math.round(((Date.now() - date.getTime()) / 3_600_000) * 10) / 10;
+
+/**
+ * The staleness judgement and the cadence sentence, read together because they
+ * come from the same two rows and every caller needs both.
+ *
+ * The judgement is one number PER MODE, never one number, because the two passes
+ * run at cadences an order of magnitude apart: a threshold read off the
+ * incremental calls a full reconcile stale for most of the interval it is
+ * legitimately waiting out. Returned as a record rather than computed by each
+ * caller so this file keeps owning the judgement, and keyed on the mode so a
+ * caller cannot reach for the wrong one without naming it.
+ */
+export async function syncFreshnessTerms(): Promise<{
+  staleAfterHours: Record<SyncMode, number>;
+  cadenceNote: string;
+}> {
+  const cadences = await listCadences();
+  return {
+    staleAfterHours: {
+      incremental: staleAfterHours(cadences, 'incremental'),
+      full: staleAfterHours(cadences, 'full'),
+    },
+    cadenceNote: syncCadenceNote(cadences),
+  };
+}
 
 export type DataFreshness = {
   /** ISO timestamp of the last sync Jump recorded. */
@@ -46,16 +74,25 @@ export type DataFreshness = {
  * the person who would act on them.
  */
 export async function getDataFreshness(): Promise<Metric<DataFreshness>> {
-  const last = await getLastSync();
+  const [last, terms] = await Promise.all([
+    lastSuccessfulLanding(),
+    syncFreshnessTerms(),
+  ]);
+
+  // Judged on the incremental's threshold: this figure is "did data land
+  // recently", and the incremental is the pass whose job that is. The full
+  // reconcile answers a different question (has a deletion been noticed), and
+  // `stats_sync_health` is where it is asked, against its own cadence.
+  const staleAfter = terms.staleAfterHours.incremental;
 
   return metric(
     last
       ? {
-          at: last.at.toISOString(),
-          ageHours: hoursSince(last.at),
-          stale: hoursSince(last.at) > SYNC_STALE_AFTER_HOURS,
+          at: last.toISOString(),
+          ageHours: hoursSince(last),
+          stale: hoursSince(last) > staleAfter,
         }
       : null,
-    `Ancienneté des données sur lesquelles cette réponse est calculée : « at » est la dernière synchronisation Salesforce reçue par Jump, « ageHours » son ancienneté en heures, et « stale » vaut vrai au-delà de ${SYNC_STALE_AFTER_HOURS} h (${SYNC_CADENCE_NOTE}). Quand « stale » vaut vrai, les chiffres ci-dessus décrivent la situation telle qu'elle était à cette date, et il faut le dire en les citant. Vaut null si aucune synchronisation n'a jamais été enregistrée, auquel cas rien ne garantit la fraîcheur des chiffres.`,
+    `Ancienneté des données sur lesquelles cette réponse est calculée : « at » est la dernière synchronisation Salesforce reçue par Jump, « ageHours » son ancienneté en heures, et « stale » vaut vrai au-delà de ${staleAfter} h (${terms.cadenceNote}). Quand « stale » vaut vrai, les chiffres ci-dessus décrivent la situation telle qu'elle était à cette date, et il faut le dire en les citant. Vaut null si aucune synchronisation n'a jamais réussi, auquel cas rien ne garantit la fraîcheur des chiffres.`,
   );
 }

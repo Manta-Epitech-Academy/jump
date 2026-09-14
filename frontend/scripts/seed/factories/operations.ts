@@ -62,6 +62,80 @@ export function addSyncErrors(
   }
 }
 
+/**
+ * The worker's run reports, in each state a run can be in.
+ *
+ * A fact, not an instruction: nothing sweeps this table, and the worker opens
+ * its own rows. Its whitelist is the instruction, and the generator writes none
+ * of that - see `Sync_Source` in `assert/coverage.ts` and the entry in
+ * `assert/inertness.ts` that refuses one.
+ *
+ * Four rows for the three branches the admin read has, and only one of them is
+ * reassuring: a successful pass with its counters (twice, one per mode, since
+ * the two are reported apart), one that failed and whose window will simply be
+ * replayed, and one still open, which on a real environment means a worker
+ * interrupted mid-pass. Their ORDER is load-bearing, see the open one below.
+ *
+ * Also the shape the watermark is computed from, and it is deliberately NOT
+ * arranged to read « rien à faire »: these runs are a day or two old against a
+ * three-hour cadence, so a generated environment answers that a pass is due. It
+ * costs nothing, because what it would sync is an empty list of sources, and
+ * pinning them recent enough to look idle would date the newest report to the
+ * seed anchor and leave the card showing a run nobody can explain.
+ */
+export function addSyncRuns(world: World): void {
+  const clock = world.ctx.clock;
+
+  world.buffer.sync_Run.push(
+    {
+      id: id('syr', 'full-ok'),
+      mode: 'full',
+      status: 'ok',
+      startedAt: clock.at(-2, 3),
+      finishedAt: clock.at(-2, 3, 4),
+      eventsCount: 253,
+      talentsCount: 7100,
+      participationsCount: 7465,
+    },
+    {
+      id: id('syr', 'delta-ok'),
+      mode: 'incremental',
+      status: 'ok',
+      startedAt: clock.at(-1, 6),
+      finishedAt: clock.at(-1, 6, 1),
+      eventsCount: 3,
+      talentsCount: 41,
+      participationsCount: 44,
+    },
+    {
+      // No counters: it failed before it could count anything, which is what a
+      // failed run looks like and why those columns are nullable.
+      id: id('syr', 'delta-error'),
+      mode: 'incremental',
+      status: 'error',
+      startedAt: clock.at(-1, 3),
+      finishedAt: clock.at(-1, 3, 1),
+      error:
+        'Jump post /api/worker/talents failed: 500 {"message":"Internal Error"}',
+    },
+    {
+      // Still open, so `finishedAt` and every counter are null.
+      //
+      // Deliberately NOT the most recent row. The dashboard card reads
+      // `recentRuns(1)`, so an open run dated latest is the only branch of that
+      // card anybody ever sees on a generated base, and it is the alarming one:
+      // a validation environment that permanently reads « en cours » teaches the
+      // reader to ignore the card. Dated before the successful incremental, it
+      // is the worker interrupted mid-pass that `runningSince` exists to
+      // surface, and the card shows the ordinary state.
+      id: id('syr', 'running'),
+      mode: 'incremental',
+      status: 'running',
+      startedAt: clock.at(-2, 9),
+    },
+  );
+}
+
 /** An RGPD erasure request in each state the workflow can be in. */
 export function addDeletionRequests(
   world: World,

@@ -3,6 +3,7 @@ import { metric } from '$lib/server/adminApi/metrics';
 
 const getUnconfiguredEvents = vi.fn();
 const getSyncHealth = vi.fn();
+const getDataFreshness = vi.fn();
 const getPdfJobsHealth = vi.fn();
 const getAccountDeletionQueue = vi.fn();
 const getFeatureAdoptionGaps = vi.fn();
@@ -13,6 +14,9 @@ vi.mock('$lib/server/services/adminStats/unconfiguredEvents', () => ({
 }));
 vi.mock('$lib/server/services/adminStats/syncHealth', () => ({
   getSyncHealth: () => getSyncHealth(),
+}));
+vi.mock('$lib/server/services/adminStats/dataFreshness', () => ({
+  getDataFreshness: () => getDataFreshness(),
 }));
 vi.mock('$lib/server/services/adminStats/opsQueues', () => ({
   getPdfJobsHealth: () => getPdfJobsHealth(),
@@ -60,30 +64,33 @@ function eventStub(i: number): EventStub {
   };
 }
 
-function syncPayload(over: { unresolved?: number; ageHours?: number } = {}) {
+function syncPayload(over: { unresolved?: number } = {}) {
   return {
-    lastSync: metric(
-      {
-        type: 'talents',
-        at: '2026-07-26T06:00:00.000Z',
-        ageHours: over.ageHours ?? 0.5,
-        stale: (over.ageHours ?? 0.5) > 3,
-        created: 1,
-        updated: 2,
-        skipped: 0,
-      },
-      'def',
-    ),
     unresolvedErrors: metric(over.unresolved ?? 0, 'def'),
     errorsByType: metric([], 'def'),
     oldestUnresolvedAgeDays: metric(null, 'def'),
   };
 }
 
+/**
+ * When data last landed, whichever pass brought it. The mail reads this rather
+ * than either pass of `stats_sync_health`: one of the two is routinely not due,
+ * and calling the platform stale on that basis would be wrong every night.
+ */
+function freshnessPayload(ageHours = 0.5) {
+  return metric(
+    {
+      at: '2026-07-26T06:00:00.000Z',
+      ageHours,
+      stale: ageHours > 3,
+    },
+    'def',
+  );
+}
+
 /** The sync has never run once: worse than stale, and distinct from it below. */
 function neverSyncedPayload(unresolved = 0) {
   return {
-    lastSync: metric(null, 'def'),
     unresolvedErrors: metric(unresolved, 'def'),
     errorsByType: metric([], 'def'),
     oldestUnresolvedAgeDays: metric(null, 'def'),
@@ -172,6 +179,9 @@ function unmeasurableAdoptionPayload() {
 beforeEach(() => {
   getUnconfiguredEvents.mockReset();
   getSyncHealth.mockReset();
+  // A healthy, recent landing by default, so a test that cares about freshness
+  // says so.
+  getDataFreshness.mockReset().mockResolvedValue(freshnessPayload());
   // Quiet queues by default, so a test that cares about them says so.
   getPdfJobsHealth.mockReset().mockResolvedValue(pdfJobsPayload());
   getAccountDeletionQueue.mockReset().mockResolvedValue(deletionsPayload());
@@ -291,7 +301,8 @@ describe('buildAdminDigest', () => {
     getUnconfiguredEvents.mockResolvedValue(
       eventsPayload([{ ...eventStub(1), titre: 'Lille <script>' }]),
     );
-    getSyncHealth.mockResolvedValue(syncPayload({ ageHours: 9 }));
+    getSyncHealth.mockResolvedValue(syncPayload());
+    getDataFreshness.mockResolvedValue(freshnessPayload(9));
 
     const digest = await buildAdminDigest();
 
@@ -307,7 +318,8 @@ describe('buildAdminDigest', () => {
 
   it('leaves a healthy sync without an alarm or a link', async () => {
     getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
-    getSyncHealth.mockResolvedValue(syncPayload({ ageHours: 0.5 }));
+    getSyncHealth.mockResolvedValue(syncPayload());
+    getDataFreshness.mockResolvedValue(freshnessPayload(0.5));
 
     const digest = await buildAdminDigest();
 
@@ -319,6 +331,7 @@ describe('buildAdminDigest', () => {
   it('flags a never-synced Salesforce feed as its own severity, not as "no errors"', async () => {
     getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
     getSyncHealth.mockResolvedValue(neverSyncedPayload());
+    getDataFreshness.mockResolvedValue(metric(null, 'def'));
 
     const digest = await buildAdminDigest();
 
@@ -335,6 +348,7 @@ describe('buildAdminDigest', () => {
   it('still surfaces sync errors reported despite no run ever being recorded', async () => {
     getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
     getSyncHealth.mockResolvedValue(neverSyncedPayload(4));
+    getDataFreshness.mockResolvedValue(metric(null, 'def'));
 
     const digest = await buildAdminDigest();
 
