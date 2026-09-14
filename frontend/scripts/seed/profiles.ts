@@ -17,7 +17,14 @@
  * somebody comes back, how many carry a dossier, how many have any XP at all.
  * The stage campaign is sized by `CAMPAIGN_SIZE` in `scenarios/stage.ts` and
  * the long tail by `events`, so the two have to move together - `events * 0.7`
- * of them, at PROFILE.md's median cohort of 23, against that campaign.
+ * of them, at `cohortSize`'s MEAN of about 31.5, against that campaign.
+ *
+ * The mean and not PROFILE.md's median of 23, which is the tempting number to
+ * reach for and undershoots by a third: the cohort draw has a long right tail
+ * (a tenth of it lands between 67 and 140), so what a hundred events add up to
+ * is their mean, and a median is what a single one looks like. Sizing a profile
+ * off 23 asks for half again as many events as it needs and puts the stage back
+ * under its real share, which is the exact error this header exists about.
  *
  * Getting that wrong is not a volume error, it is a shape error, and it does
  * not look like one: `dev` used to carry 40 events whose cohorts were then
@@ -49,8 +56,8 @@ export const PROFILES: Record<SeedProfileName, SeedProfile> = {
   // aggregate behave like the real thing.
   //
   // 67 events, so `longue-traine` builds 47 of them against a 400-strong stage
-  // campaign: 47 median cohorts is roughly 3.66 times 400, which is the ratio
-  // this file's header is about.
+  // campaign: 47 mean cohorts is 1 480, and 3.66 times 400 is 1 464, which is
+  // the ratio this file's header is about.
   dev: {
     name: 'dev',
     campuses: 6,
