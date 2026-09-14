@@ -93,6 +93,9 @@ export function addDossier(
   },
 ): void {
   const clock = world.ctx.clock;
+  // Throws on a second dossier for the same year, which the primary key forbids
+  // and which a caller drawing from the returning pool can otherwise walk into.
+  world.noteDossier(opts.talent.id, opts.schoolYear);
   const filedOffset = opts.filedOffset ?? -60;
   if (filedOffset + DOSSIER_SPAN_DAYS > 0) {
     throw new Error(

@@ -218,7 +218,7 @@
         colorClass: 'text-epi-tech-ink',
         icon: Check,
         tooltip:
-          "Le parent autorise l'utilisation de l'image du stagiaire par Epitech.",
+          "Le parent autorise l'utilisation de l'image du participant par Epitech.",
       };
     }
     if (imageDisplay === 'refused') {
@@ -227,7 +227,7 @@
         colorClass: 'text-epi-together',
         icon: X,
         tooltip:
-          'Les photos et les vidéos de ce stagiaire ne doivent pas être utilisées par Epitech.',
+          'Les photos et les vidéos de ce participant ne doivent pas être utilisées par Epitech.',
       };
     }
     if (imageDisplay === 'awaiting_parent') {
