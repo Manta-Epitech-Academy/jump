@@ -225,12 +225,12 @@ export const interestsSchema = z.object({
 });
 
 export const equipmentSchema = z.object({
-  // Informational only, and deliberately not a gate. The laptop requirement is
-  // now certified where it is actually written down, as a consent box on the
-  // règlement (`rulesSchema.acceptedEquipment`); asking for it twice would let
-  // the two answers disagree. What stays here is the free-text description,
-  // which staff read on the fiche talent as a recruiting signal, so an empty
-  // answer must not block the wizard.
+  // Informational only, and deliberately not a gate. The laptop commitment is
+  // taken once, on the règlement step (`rulesSchema.acceptedEquipment`), next
+  // to the text that states it; asking for it twice would let the two answers
+  // disagree. What stays here is the free-text description, which staff read on
+  // the fiche talent as a recruiting signal, so an empty answer must not block
+  // the wizard.
   setupDescription: z
     .string()
     .max(1000, 'Maximum 1000 caractères')
@@ -259,9 +259,26 @@ export const rulesSchema = z.object({
   acceptedRules: requiredConsent(
     'Tu dois accepter le règlement intérieur pour continuer.',
   ),
-  // The laptop clause lives in the règlement's "Matériel et responsabilité"
-  // section; this box is the affirmative certification of it. It replaced the
-  // blocking checkbox on the equipment step.
+  // Required of every signer, on purpose, and the reason is a business rule
+  // rather than a property of any one event: a lycéen brings their own machine
+  // to whatever Epitech activity they attend. Every one of them has at least
+  // the laptop their lycée issues, and Epitech can no longer absorb the loans
+  // it used to. So this box is not "do you own one", it is the school-wide
+  // commitment, taken once a year, and it replaced the blocking checkbox on the
+  // equipment step.
+  //
+  // Do not narrow it to the talents enrolled in a stage. Two independent
+  // reasons: the rule itself is not stage-scoped, and Jump could not express
+  // that scope anyway. `Event.eventType` was retired deliberately (an event is
+  // what its modules and its dates say it is), and the wizard is walked once
+  // per school year rather than once per event, so it holds no event to branch
+  // on.
+  //
+  // One mismatch to know about rather than to silently correct: the règlement
+  // in force files the laptop clause under "Dispositions propres au stage de
+  // seconde", so the document is narrower than the rule this box enforces.
+  // The text is the PO's, validated; widening it is their call, not this
+  // file's.
   acceptedEquipment: requiredConsent(
     "Tu dois certifier posséder un ordinateur portable, ou prévenir l'équipe de ton campus.",
   ),

@@ -132,10 +132,13 @@
   </div>
 
   <!-- ═══ Checkboxes ═══ -->
-  <!-- Order mirrors the document order above (règlement intérieur, whose
-       "Matériel et responsabilité" section carries the laptop clause, then
+  <!-- Order mirrors the document order above (règlement intérieur, then
        sécurité des données) so each checkbox sits right after the text it
-       confirms. -->
+       confirms. The laptop box is the exception and sits second by intent: the
+       commitment is school-wide (every lycéen brings their own machine), while
+       the règlement in force files the clause under its stage-de-seconde
+       section, so it follows the document rather than pointing at one part of
+       it. -->
   <div class="mt-6 space-y-3">
     <label
       class="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
