@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
+import { drainOnboardingPdfJobs } from './onboardingPdfJobs';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 
 /**
@@ -56,15 +57,9 @@ describe('règlement artifact per dossier (integration)', () => {
   let eventId = '';
   let talentId = '';
 
-  /** Runs every job the pipeline queued, oldest first, then clears the queue. */
-  async function drainJobs(): Promise<void> {
-    const jobs = await prisma.onboardingPdfJob.findMany({
-      where: { talentId, status: { not: 'success' } },
-      orderBy: { createdAt: 'asc' },
-      select: { id: true },
-    });
-    for (const job of jobs) await runOnboardingPdfJob(job.id);
-  }
+  /** Empties the queue the pipeline filled, and waits for it. */
+  const drainJobs = () =>
+    drainOnboardingPdfJobs({ talentId, run: runOnboardingPdfJob });
 
   beforeAll(async () => {
     assertTestDatabase();

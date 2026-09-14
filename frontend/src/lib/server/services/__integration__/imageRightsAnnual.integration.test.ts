@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
+import { drainOnboardingPdfJobs } from './onboardingPdfJobs';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import { parentBlockedWhere } from '$lib/server/db/dossierCompliance';
 import { isParentDossierComplete } from '$lib/domain/dossierCompliance';
@@ -61,14 +62,8 @@ describe("droit à l'image, décision annuelle (integration)", () => {
   let campusId = '';
   let talentId = '';
 
-  async function drainJobs(): Promise<void> {
-    const jobs = await prisma.onboardingPdfJob.findMany({
-      where: { talentId, status: { not: 'success' } },
-      orderBy: { createdAt: 'asc' },
-      select: { id: true },
-    });
-    for (const job of jobs) await runOnboardingPdfJob(job.id);
-  }
+  const drainJobs = () =>
+    drainOnboardingPdfJobs({ talentId, run: runOnboardingPdfJob });
 
   /** The talent row as every "what is owed" reader sees it. */
   async function projection() {
@@ -226,10 +221,13 @@ describe("droit à l'image, décision annuelle (integration)", () => {
     await drainJobs();
 
     const currentKey = `documents/${talentId}/image-rights-${currentYear}.pdf`;
-    // At least once: generation is fire-and-forget, so the service's own
-    // `void runOnboardingPdfJob` and the drain above can both claim the job and
-    // render it twice. That is harmless by design (same key, same bytes) and an
-    // exact count here would only be flaky.
+    // At least once rather than exactly once: the claim makes a double render
+    // impossible in the time this test takes, but a job left `processing` past
+    // `STRANDED_AFTER_MS` is reclaimable by design, and pinning the count would
+    // turn that recovery path into a failure. The drain is what guarantees the
+    // floor of one - it waits for the queue to empty rather than for its own
+    // call to return, which is the whole reason this assertion used to be
+    // intermittently `undefined`.
     expect(saved.get(currentKey)).toBeGreaterThanOrEqual(1);
     // What is exact, and what the whole change is about: last year's object was
     // never written to. Before the artifact moved onto the dossier, both of
