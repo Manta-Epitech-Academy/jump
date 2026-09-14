@@ -25,7 +25,11 @@
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
 import { lastSuccessfulLanding } from '$lib/server/services/syncRunService';
 import { listCadences } from '$lib/server/services/syncConfigService';
-import { staleAfterHours, syncCadenceNote } from '$lib/domain/syncSchedule';
+import {
+  staleAfterHours,
+  syncCadenceNote,
+  type SyncMode,
+} from '$lib/domain/syncSchedule';
 
 /** Age in hours, one decimal. Shared so two answers cannot round differently. */
 export const hoursSince = (date: Date) =>
@@ -34,14 +38,24 @@ export const hoursSince = (date: Date) =>
 /**
  * The staleness judgement and the cadence sentence, read together because they
  * come from the same two rows and every caller needs both.
+ *
+ * The judgement is one number PER MODE, never one number, because the two passes
+ * run at cadences an order of magnitude apart: a threshold read off the
+ * incremental calls a full reconcile stale for most of the interval it is
+ * legitimately waiting out. Returned as a record rather than computed by each
+ * caller so this file keeps owning the judgement, and keyed on the mode so a
+ * caller cannot reach for the wrong one without naming it.
  */
 export async function syncFreshnessTerms(): Promise<{
-  staleAfterHours: number;
+  staleAfterHours: Record<SyncMode, number>;
   cadenceNote: string;
 }> {
   const cadences = await listCadences();
   return {
-    staleAfterHours: staleAfterHours(cadences),
+    staleAfterHours: {
+      incremental: staleAfterHours(cadences, 'incremental'),
+      full: staleAfterHours(cadences, 'full'),
+    },
     cadenceNote: syncCadenceNote(cadences),
   };
 }
@@ -65,14 +79,20 @@ export async function getDataFreshness(): Promise<Metric<DataFreshness>> {
     syncFreshnessTerms(),
   ]);
 
+  // Judged on the incremental's threshold: this figure is "did data land
+  // recently", and the incremental is the pass whose job that is. The full
+  // reconcile answers a different question (has a deletion been noticed), and
+  // `stats_sync_health` is where it is asked, against its own cadence.
+  const staleAfter = terms.staleAfterHours.incremental;
+
   return metric(
     last
       ? {
           at: last.toISOString(),
           ageHours: hoursSince(last),
-          stale: hoursSince(last) > terms.staleAfterHours,
+          stale: hoursSince(last) > staleAfter,
         }
       : null,
-    `Ancienneté des données sur lesquelles cette réponse est calculée : « at » est la dernière synchronisation Salesforce reçue par Jump, « ageHours » son ancienneté en heures, et « stale » vaut vrai au-delà de ${terms.staleAfterHours} h (${terms.cadenceNote}). Quand « stale » vaut vrai, les chiffres ci-dessus décrivent la situation telle qu'elle était à cette date, et il faut le dire en les citant. Vaut null si aucune synchronisation n'a jamais réussi, auquel cas rien ne garantit la fraîcheur des chiffres.`,
+    `Ancienneté des données sur lesquelles cette réponse est calculée : « at » est la dernière synchronisation Salesforce reçue par Jump, « ageHours » son ancienneté en heures, et « stale » vaut vrai au-delà de ${staleAfter} h (${terms.cadenceNote}). Quand « stale » vaut vrai, les chiffres ci-dessus décrivent la situation telle qu'elle était à cette date, et il faut le dire en les citant. Vaut null si aucune synchronisation n'a jamais réussi, auquel cas rien ne garantit la fraîcheur des chiffres.`,
   );
 }

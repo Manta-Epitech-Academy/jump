@@ -190,18 +190,43 @@ describe('decideSync', () => {
 
 describe('staleAfterHours', () => {
   it('flags a stale feed after three missed incremental passes', () => {
-    expect(staleAfterHours(CADENCES)).toBe(9);
+    expect(staleAfterHours(CADENCES, 'incremental')).toBe(9);
+  });
+
+  // The regression: one threshold read off the incremental was applied to both
+  // passes, so on the shipped cadences a full reconcile was called stale nine
+  // hours after succeeding and stayed so for the fifteen hours until the next
+  // one was even due. A pass is judged on its own cadence.
+  it('judges the full reconcile on its own cadence, not the incremental one', () => {
+    expect(staleAfterHours(CADENCES, 'full')).toBe(72);
+    expect(staleAfterHours(CADENCES, 'full')).toBeGreaterThan(
+      cadenceHours('full'),
+    );
   });
 
   it('holds a floor so a tight cadence does not alarm on one slow run', () => {
     expect(
-      staleAfterHours([
-        { mode: 'incremental', intervalMinutes: 15 },
-        { mode: 'full', intervalMinutes: 1440 },
-      ]),
+      staleAfterHours(
+        [
+          { mode: 'incremental', intervalMinutes: 15 },
+          { mode: 'full', intervalMinutes: 1440 },
+        ],
+        'incremental',
+      ),
     ).toBe(1);
   });
+
+  it('refuses to guess when the mode has no cadence row', () => {
+    expect(() =>
+      staleAfterHours([{ mode: 'incremental', intervalMinutes: 180 }], 'full'),
+    ).toThrow(/full/);
+  });
 });
+
+/** The interval of one mode, in hours, straight off the fixture. */
+function cadenceHours(mode: 'full' | 'incremental'): number {
+  return CADENCES.find((c) => c.mode === mode)!.intervalMinutes / 60;
+}
 
 describe('syncCadenceNote', () => {
   // This sentence is interpolated into `metric()` definitions, which are quoted

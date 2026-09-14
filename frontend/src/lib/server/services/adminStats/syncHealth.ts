@@ -23,11 +23,11 @@
 import { prisma } from '$lib/server/db';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
 import {
-  lastOkRun,
   openRunSnapshot,
   recentRuns,
   SYNC_RUN_RETENTION_DAYS,
 } from '$lib/server/services/syncRunService';
+import type { SyncMode } from '$lib/domain/syncSchedule';
 import {
   currentSyncDecision,
   listCadences,
@@ -55,31 +55,38 @@ export type SyncHealth = {
   unresolvedSchools: Metric;
 };
 
+/**
+ * The last successful pass of one mode, and what it pushed.
+ *
+ * `staleAfter` is the threshold for THIS mode, never a shared one: the two
+ * cadences are an order of magnitude apart, so judging the full reconcile on the
+ * incremental's threshold reports a healthy platform as stale for most of every
+ * day. `dataFreshness.syncFreshnessTerms` computes one per mode.
+ */
 async function passHealth(
-  mode: 'full' | 'incremental',
+  mode: SyncMode,
   staleAfter: number,
 ): Promise<PassHealth> {
-  const [mark, counters] = await Promise.all([
-    lastOkRun(mode),
-    prisma.sync_Run.findFirst({
-      where: { mode, status: 'ok' },
-      orderBy: { finishedAt: 'desc' },
-      select: {
-        eventsCount: true,
-        talentsCount: true,
-        participationsCount: true,
-      },
-    }),
-  ]);
-  if (!mark) return null;
+  const run = await prisma.sync_Run.findFirst({
+    where: { mode, status: 'ok', finishedAt: { not: null } },
+    orderBy: { finishedAt: 'desc' },
+    select: {
+      finishedAt: true,
+      eventsCount: true,
+      talentsCount: true,
+      participationsCount: true,
+    },
+  });
+  if (!run?.finishedAt) return null;
 
+  const ageHours = hoursSince(run.finishedAt);
   return {
-    at: mark.finishedAt.toISOString(),
-    ageHours: hoursSince(mark.finishedAt),
-    stale: hoursSince(mark.finishedAt) > staleAfter,
-    events: counters?.eventsCount ?? null,
-    talents: counters?.talentsCount ?? null,
-    participations: counters?.participationsCount ?? null,
+    at: run.finishedAt.toISOString(),
+    ageHours,
+    stale: ageHours > staleAfter,
+    events: run.eventsCount,
+    talents: run.talentsCount,
+    participations: run.participationsCount,
   };
 }
 
@@ -97,8 +104,8 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     oldest,
     unresolvedSchools,
   ] = await Promise.all([
-    passHealth('incremental', terms.staleAfterHours),
-    passHealth('full', terms.staleAfterHours),
+    passHealth('incremental', terms.staleAfterHours.incremental),
+    passHealth('full', terms.staleAfterHours.full),
     listCadences(),
     currentSyncDecision(),
     openRunSnapshot(),
@@ -125,11 +132,11 @@ export async function getSyncHealth(): Promise<SyncHealth> {
   return {
     lastIncremental: metric(
       incremental,
-      `Dernière passe incrémentale réussie : elle ne rapatrie que les campagnes modifiées depuis la précédente, et c'est elle qui tient la fraîcheur des données (${terms.cadenceNote}). « ageHours » est son ancienneté en heures ; « stale » vaut vrai au-delà de ${terms.staleAfterHours} h, ce qui mérite une vérification. « events », « talents » et « participations » sont ce que cette passe a poussé. Vaut null si aucune passe incrémentale n'a jamais réussi.`,
+      `Dernière passe incrémentale réussie : elle ne rapatrie que les campagnes modifiées depuis la précédente, et c'est elle qui tient la fraîcheur des données (${terms.cadenceNote}). « ageHours » est son ancienneté en heures ; « stale » vaut vrai au-delà de ${terms.staleAfterHours.incremental} h, ce qui mérite une vérification. « events », « talents » et « participations » sont ce que cette passe a poussé. Vaut null si aucune passe incrémentale n'a jamais réussi.`,
     ),
     lastFull: metric(
       full,
-      `Dernière reprise complète réussie : elle rapatrie tout le périmètre et c'est la seule qui détecte une SUPPRESSION côté Salesforce, une inscription retirée d'une campagne ne modifiant aucune date là-bas. Une plateforme dont l'incrémentale va bien mais dont la reprise complète date d'une semaine garde donc des inscrits qui n'existent plus. Vaut null si aucune reprise complète n'a jamais réussi.`,
+      `Dernière reprise complète réussie : elle rapatrie tout le périmètre et c'est la seule qui détecte une SUPPRESSION côté Salesforce, une inscription retirée d'une campagne ne modifiant aucune date là-bas. Une plateforme dont l'incrémentale va bien mais dont la reprise complète date d'une semaine garde donc des inscrits qui n'existent plus. « ageHours » est son ancienneté en heures ; « stale » vaut vrai au-delà de ${terms.staleAfterHours.full} h, seuil calculé sur SA propre fréquence et non sur celle de l'incrémentale, bien plus serrée : entre deux reprises complètes, une ancienneté de plusieurs heures est le fonctionnement normal et non un retard. « events », « talents » et « participations » sont ce que cette passe a poussé. Vaut null si aucune reprise complète n'a jamais réussi.`,
     ),
     cadence: metric(
       { incrementalMinutes, fullMinutes },

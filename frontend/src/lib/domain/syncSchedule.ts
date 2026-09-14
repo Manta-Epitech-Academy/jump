@@ -140,21 +140,32 @@ function incrementalSince(last: SyncRunMark | null): string | null {
 }
 
 /**
- * How old the last landing may get before it is worth mentioning, derived from
- * the cadence actually configured rather than fixed.
+ * How old a mode's last landing may get before it is worth mentioning, derived
+ * from the cadence actually configured rather than fixed.
  *
  * A constant lied in both directions: at a 3 h incremental it flagged a healthy
  * platform, and at the 15 min one the team switches to during a stage it would
  * have stayed quiet through six missed passes. Three missed passes is the
  * signal, with a floor so a very tight cadence does not turn one slow run into
  * an alarm.
+ *
+ * **The mode is a parameter, and that is the half the first version got wrong.**
+ * One threshold read off the incremental was applied to both passes, so on the
+ * shipped cadences (180 min and 1440) a full reconcile was called stale nine
+ * hours after succeeding and stayed so for the fifteen hours until the next one
+ * was even due. A figure that reads "vérifier" for most of every ordinary day is
+ * a figure nobody reads at all, which is the same way the constant it replaced
+ * failed. Each pass is judged against its own cadence or none of them is.
  */
 export const SYNC_STALE_AFTER_MISSED_PASSES = 3;
 export const SYNC_STALE_FLOOR_HOURS = 1;
 
-export function staleAfterHours(cadences: readonly SyncCadence[]): number {
+export function staleAfterHours(
+  cadences: readonly SyncCadence[],
+  mode: SyncMode,
+): number {
   const hours =
-    (intervalOf(cadences, 'incremental') * SYNC_STALE_AFTER_MISSED_PASSES) / 60;
+    (intervalOf(cadences, mode) * SYNC_STALE_AFTER_MISSED_PASSES) / 60;
   return Math.max(SYNC_STALE_FLOOR_HOURS, Math.round(hours * 10) / 10);
 }
 
