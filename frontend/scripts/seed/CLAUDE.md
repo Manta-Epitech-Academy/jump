@@ -7,7 +7,7 @@ validation happened, which put real minors' personal data on non-prod
 environments for days at a time and put the validation gate after the release
 freeze. Both problems are downstream of the data.
 
-Seven rules, and each is enforced rather than hoped for:
+Eight rules, and each is enforced rather than hoped for:
 
 - **A pull request that adds a behaviour adds its example.** A new enum value
   fails `bun run test:seed` until some scenario produces a row, because the enum
@@ -43,12 +43,51 @@ Seven rules, and each is enforced rather than hoped for:
   A rare state is **placed, never drawn.** A few per cent of the `ci` profile's
   couple of dozen dossiers rounds to none, so a failure rate makes coverage depend
   on the profile rather than on the generator. The PDF renders that fail and the
-  closing verdicts are both placed for this reason.
+  closing verdicts are both placed for this reason, and so are the three
+  profiles at the top of the platform (`scenarios/careers.ts`) and the crowded
+  minigame board that is the only place the honourable-mention rank bonus pays.
+
+  **Placing a state sometimes means placing its CAUSE rather than the state.**
+  A rank bonus is computed from the field a run finished in, so « this talent
+  won ten times » cannot be placed as a number: what gets placed is ten results
+  nobody beat. The version that wrote the rank directly left the stored bonus
+  and the leaderboard the application computes from the same rows as two
+  unrelated numbers in one table, and twenty attempts made that invisible.
+
+- **A profile scales volume, and a ratio is not a volume.** Production carries
+  3.66 non-stage enrolments for every stage one, and nearly every per-talent
+  figure is that ratio: how often somebody comes back, how many carry a dossier,
+  how many have any XP. `dev` used to set 40 events AND scale their cohorts to a
+  quarter, so the same quantity was scaled twice while the stage campaign was
+  scaled once: the stage came out at 41% of all enrolments against production's
+  21%, which put 87% of talents on exactly one event where production has 69%,
+  and 40% with no XP where production has 72%.
+
+  Nothing looked wrong. Every count was plausible, every distribution in
+  `PROFILE.md` was being applied faithfully, and the dataset was still the wrong
+  SHAPE - which is worse than being small, because a shape is what people read
+  conclusions off. The number of events is the dial; how many people come to one
+  is a measurement (`cohortSize` takes no scale), and `profiles.ts` says the two
+  are not independent.
 
 - **Nothing reads the wall clock and nothing draws from `Math.random()`.** Every
   date derives from `--today` and every choice from `--seed`, both printed in the
   manifest the run emits. A scenario written as "an event that has not happened
   yet" must still mean that in six months.
+
+  **And a row carries the date of the fact it records, not a date of its own.**
+  Every `XpGrant` was stamped `days(-20)` - derived from the anchor, so the rule
+  above was satisfied, and wrong anyway: the talent's `/xp` page orders by
+  `createdAt` and `xpStoryService` prints a date per grant, so the whole history
+  rendered as one undated block in arbitrary order. Seventeen minigame grants
+  made it look fine. `grantXp` takes an `at` now and each caller passes its own
+  fact's date, `grantReward` reading the reward's `awardedOn` rather than a
+  second copy of the same offset - which is how it caught a grant against a
+  reward whose `awardedOn` was still null, that is, one the board shows as « pas
+  encore attribué ». The same reasoning put a time of DAY on a minigame run:
+  the rank bonus is the rank held the moment you finished, so who finished
+  before whom has to exist in the data rather than be invented at read time.
+
 - **The domain is imported, never restated.** `src/lib/domain` is alias-free, so
   a plain `bun` script reaches it by relative path. The services are not: they
   reach `$lib/server/db` and do not resolve outside Vite, so the generator writes

@@ -17,12 +17,15 @@ change rien, et ce n'est pas une raison de re-relever.
 nouvelle lecture de la base de production. Un chiffre qui manque ici se demande,
 il ne se re-relève pas.
 
-Trois exceptions, datées et signalées sur place : la couverture des closings par
-format et le taux de connexion d'une cohorte de stage ont été relevés le
+Quatre exceptions, datées et signalées sur place : la couverture des closings
+par format et le taux de connexion d'une cohorte de stage ont été relevés le
 **2026-09-03**, la ventilation du stage de seconde par campus le **2026-09-06**,
-sur le même instantané restauré, parce que le générateur en dépendait et qu'ils
-manquaient. Les trois blocs disent d'où ils viennent et ce qui prouve qu'il
-s'agit bien du même jeu de données.
+sur le même instantané restauré, et le détail des minijeux et des sommets d'XP
+le **2026-09-14**, sur le dump du 10/07 resté en local. Chaque fois parce que le
+générateur en dépendait et que le chiffre manquait. Les quatre blocs disent d'où
+ils viennent et ce qui prouve qu'il s'agit bien du même jeu de données - le
+quatrième en particulier, qui est le seul à ne pas venir de l'instantané du
+29/08.
 
 Il existe pour une raison précise : le générateur de `scripts/seed/` ne doit pas
 inventer des proportions. Chaque distribution qu'il applique vient d'une ligne de
@@ -191,7 +194,19 @@ Le détail qui va avec :
   délibérément pas ce chiffre - voir `World.enrol` et le scénario
   `statuts-salesforce`.
 - Par talent : 0 pour 81, 1 pour 3 665, 2 pour 1 243, 3 pour 276, 4 et plus pour
-  129 (jusqu'à 11).
+  129 (jusqu'à 11). Soit **1,437 inscription par talent inscrit** (7 638 sur
+  5 313), et **2 325 inscriptions qui sont un retour** et non une première fois.
+  C'est de cette ligne que `CAREER_MIX` (`world.ts`) et `RETURNING_SHARE`
+  (`scenarios/helpers.ts`) sont dérivés, la seconde étant la première rapportée
+  aux 5 998 inscriptions hors stage : un stage, c'est une quinzaine que personne
+  ne fait deux fois, donc tous les retours se passent ailleurs.
+- **Le rapport entre le stage et le reste est une propriété du jeu de données, pas
+  un réglage de volume** : 5 998 inscriptions hors stage pour 1 640 au stage,
+  soit 3,66 fois. Presque toutes les proportions par talent en découlent, parce
+  que le stage ne se refait pas et qu'il ouvre un dossier à la moitié de sa
+  liste. Un profil qui le sur-pondère a deux fois trop de dossiers et deux fois
+  trop peu de revenants, sans qu'aucun compte ait l'air faux - voir l'en-tête de
+  `profiles.ts`.
 - Au moins un talent est inscrit sur deux campus.
 
 **La cohorte à 200 est la queue de distribution, pas la norme.** Elle existe, elle
@@ -301,6 +316,24 @@ et 79 %. Et les 267 restants n'en ont aucun. **Sur un événement qui conduit de
 closings, l'absence de closing est l'exception** - c'est l'inverse de ce qu'un
 taux global laisse croire.
 
+### Le multi-closing, écart de couverture assumé
+
+Ce que ce fichier ne peut pas dire : **combien de talents portent plusieurs
+closings.** `Closing_Record` par événement est arrivé avec la v3, et le modèle
+qu'il remplace était 1:1 avec le talent, donc la question n'a pas de réponse
+mesurée. Ce qui est mesuré, c'est que 25 événements sur 292 en conduisent : un
+talent tiré uniformément n'en rencontrerait presque jamais deux, et « Son
+parcours » n'aurait rien à montrer.
+
+Le générateur sur-représente donc délibérément le cas, et par le levier qui ne
+dégrade aucun chiffre de ce fichier : **un événement qui conduit des closings
+recrute une part plus large de sa cohorte parmi les revenants**
+(`RETURNING_SHARE_WITH_CLOSINGS`). Le nombre d'événements qui portent le module,
+le taux de closing par événement et la taille des cohortes restent ceux mesurés
+ici ; seul change **qui** remplit la liste, ce que ce fichier ne mesure pas.
+Mettre le module sur davantage d'événements aurait été l'autre levier, et il
+aurait faussé la couverture closings par campus que `campusComparison.ts` lit.
+
 ## Présence (27 167)
 
 - Statut : présent 22 036 (81 %), absent 4 458 (16 %), excusé 577 (2 %),
@@ -322,6 +355,65 @@ présence doit être jugé à cette échelle.
 | minigame_rank         | 1 472  | 105 415   | 10  | 100   |
 | onboarding            | 866    | 173 200   | 200 | 200   |
 | onboarding_early_bird | 79     | 5 800     | 50  | 200   |
+
+### L'XP ne vient pas de l'assiduité
+
+Relevé le **2026-09-14**, et la seule addition qui ne porte pas sur
+l'instantané restauré du 29/08 : elle vient du **dump du 2026-07-10**, celui
+qui traîne encore en local. Ce qui prouve qu'il s'agit du même jeu de données :
+`Talent` 5 394, `Participation` 7 638 et `Event` 292 y sont identiques (la
+synchronisation est arrêtée depuis le 9 juillet, donc rien n'a bougé), et seules
+les tables que l'application écrit elle-même sont plus légères
+(`EventPresence` 27 059 contre 27 167, `MinigameAttempt` 4 480 contre 4 481).
+Le générateur en avait besoin et le chiffre manquait ici.
+
+**Les deux sommets de la plateforme sont deux personnes différentes**, et c'est
+le fait le moins intuitif de ce fichier.
+
+- **En haut de l'assiduité** : les talents à 10 et 11 inscriptions sont **tous à
+  0 XP et ne se sont jamais connectés**. Ils sont venus, l'équipe les a closés,
+  ils n'ont jamais ouvert l'application. Un closing est un fait côté équipe,
+  l'XP un fait côté talent, et rien ne relie les deux.
+- **En haut de l'XP** : le maximum de la plateforme, 9 190, est un talent à
+  **deux** inscriptions, 44 parties de minijeu et 34 premières places. Le
+  classement n'est pas un classement d'assiduité.
+- **L'intersection existe et vaut une ligne sur 5 394** : 9 inscriptions,
+  4 953 XP, 18 parties, 11 bonus de rang dont 6 premières places, connecté.
+
+Un générateur qui distribue l'XP à proportion de la présence produit un
+classement dont personne ici ne reconnaîtrait l'ordre. Les trois formes sont
+donc **posées** par le scénario `parcours`, pas tirées.
+
+### Minijeux, en détail
+
+Même relevé, même provenance.
+
+- **Calendrier** : 72 publications sur **39 jours** (1er juin au 9 juillet), 13
+  jours à une seule, 23 à deux, puis un jour à trois, un à quatre, un à six.
+  C'est un jeu du jour, pas une échelle de niveaux : `MinigameAttempt` étant
+  unique sur `(talentId, publicationId)`, le nombre de publications est le
+  plafond du nombre de parties d'un joueur.
+- **Parties par talent** : 157 talents à 1, 125 à 2, 53 à 3, 43 à 4, 28 à 5,
+  puis une traîne qui s'amincit jusqu'à **2 talents à 44**.
+- **Premières places par talent** : 72 talents à 1, 29 à 2, puis une traîne
+  jusqu'à un talent à **34**. **27 talents en ont 8 ou plus.**
+- **Bonus de rang** : 774 premières places (100 XP), 425 deuxièmes (50), 269
+  troisièmes (25), et **4 seulement** sur le palier plat hors podium (10).
+
+Ce dernier chiffre est le seul que le générateur reproduit mal **exprès**, et
+il faut savoir pourquoi avant de le lire comme un écart. 1 472 bonus pour
+2 954 parties terminées, c'est moins que ce que la règle actuelle produirait :
+`rankXpAwarded` est nullable parce qu'une partie antérieure à la fonctionnalité
+n'en porte pas, et une part de l'historique de production est dans ce cas. Le
+générateur applique la règle d'aujourd'hui à toutes ses lignes, donc il en
+paie davantage (2 527 à l'échelle `staging`). C'est la bonne direction : un jeu
+de données décrit ce que l'application écrirait maintenant.
+
+**Un chiffre manque encore ici, et il se demande** : la taille du catalogue
+`XpReward` en production. `reward` est la première source d'XP (1,19M sur
+1,62M) avec 2 008 attributions, le générateur en distribue cinq entrées et
+tombe à 1 180. Combler l'écart en inventant des récompenses serait exactement
+ce que ce fichier existe pour empêcher.
 
 ## Modules d'événement
 
