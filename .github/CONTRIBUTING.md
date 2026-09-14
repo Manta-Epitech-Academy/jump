@@ -344,6 +344,7 @@ Next, evaluate the Definition of Done checklist against the diff. Key points to 
 | ------ | ----- |
 | `scripts/start-work.sh` | Open the issue (or reuse one), put it on the board in `In Progress`, cut `type/<issue>-slug` |
 | `scripts/finish-work.sh` | Open the draft PR against `dev` with the `Closes #<issue>` line |
+| `scripts/new-worktree.sh` | Add a worktree outside the checkout, on the branch its name implies, provisioned by `post-checkout` |
 | `scripts/check-work-item.sh` | Run the `Work item` guard locally, exactly the code CI runs |
 | `scripts/release-validation.sh` | Aggregate the acceptance criteria of a release's issues into the PO's checklist |
 | `scripts/apply-repo-config.sh` | Apply the versioned repo config in `.github/settings/repo-config.json` (required checks, labels) |
