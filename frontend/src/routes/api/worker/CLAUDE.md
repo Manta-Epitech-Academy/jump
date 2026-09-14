@@ -75,6 +75,11 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   nothing.
 - A participation value can be `""`: the worker maps a null `CampaignMember.Status`
   to the empty string rather than dropping the member.
+- `first_name` can be `""`, because `Contact.FirstName` is optional in Salesforce.
+  The row is skipped, counted in `invalid` and logged as a `SyncError` of kind
+  `MISSING_NAME`; the page of 50 that carried it is still reconciled. Refusing it
+  at the envelope closes the run in error, and since the watermark only moves on
+  success, the next tick replays the identical page onto the identical row.
 - `date` is **absent**, never `null`, when the campaign name carries none, and it
   is written `YYYY/MM/DD`.
 - `campus_ext_name` can be `""`, which resolves to no campus and is skipped.

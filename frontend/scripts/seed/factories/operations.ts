@@ -75,9 +75,12 @@ export function addSyncErrors(
  * window will simply be replayed, and one still open, which on a real
  * environment means a worker interrupted mid-pass.
  *
- * Also the shape the watermark is computed from. The successful incremental
- * here is recent, so a generated environment answers « rien à faire » rather
- * than asking for a pass it has no campaign to perform.
+ * Also the shape the watermark is computed from, and it is deliberately NOT
+ * arranged to read « rien à faire »: these runs are a day or two old against a
+ * three-hour cadence, so a generated environment answers that a pass is due. It
+ * costs nothing, because what it would sync is an empty list of sources, and
+ * pinning them recent enough to look idle would date the newest report to the
+ * seed anchor and leave the card showing a run nobody can explain.
  */
 export function addSyncRuns(world: World): void {
   const clock = world.ctx.clock;
