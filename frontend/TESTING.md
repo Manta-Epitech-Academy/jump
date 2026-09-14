@@ -395,11 +395,15 @@ bun run verify
 ```
 
 C'est le contrat de ce document. `verify` enchaîne exactement ce que les checks
-requis exécutent, dans le même ordre, avec les mêmes scripts : `lint:scripts`,
-`lint`, `lint:design`, `lint:tests`, `check`, `test`, `test:integration`,
-`test:schema-drift`, `test:seed`, `test:e2e`. Un agent (ou un humain) peut donc produire du
-code, le vérifier, corriger et revérifier avant d'ouvrir la PR, et « j'ai
-vérifié » devient une affirmation que quelqu'un d'autre peut recontrôler.
+requis exécutent, dans le même ordre, avec les mêmes scripts. La liste des
+maillons n'est pas recopiée ici : elle vit dans le script `verify` de
+`package.json`, `bun run lint:prose` vérifie que `AGENTS.md` l'énonce dans le bon
+ordre et qu'aucun maillon n'est absent des jobs requis, et le §10 dit quel job
+exécute quoi. Une quatrième copie serait la prochaine à dérober un maillon en
+silence, ce qui est précisément arrivé à celle-ci. Un agent (ou un humain) peut
+donc produire du code, le vérifier, corriger et revérifier avant d'ouvrir la PR,
+et « j'ai vérifié » devient une affirmation que quelqu'un d'autre peut
+recontrôler.
 
 Les maillons, quand on veut n'en jouer qu'un :
 
@@ -593,7 +597,7 @@ règle `push dev` (voir `.github/settings/repo-config.json`) :
 
 | Job                          | Ce qu'il exécute                                                                                             |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| **Lint & Type Check**        | `lint:scripts` (bit exécutable), `lint`, `lint:design`, `lint:tests`, `check`                                |
+| **Lint & Type Check**        | `lint:scripts` (bit exécutable), `lint`, `lint:design`, `lint:tests`, `lint:prose`, `check`                  |
 | **Unit & Integration Tests** | `test:coverage`, puis `test:integration` contre un vrai Postgres, puis `test:schema-drift`, puis `test:seed` |
 | **E2E Tests**                | build + serveur + les specs Playwright, avec le rapport HTML uploadé en cas d'échec                          |
 

@@ -42,7 +42,6 @@
   let submitting = $state(false);
   let city = $state('');
   let acceptedRules = $state(false);
-  let acceptedEquipment = $state(false);
   let acceptedCharter = $state(false);
 </script>
 
@@ -132,10 +131,12 @@
   </div>
 
   <!-- ═══ Checkboxes ═══ -->
-  <!-- Order mirrors the document order above (règlement intérieur, whose
-       "Matériel et responsabilité" section carries the laptop clause, then
-       sécurité des données) so each checkbox sits right after the text it
-       confirms. -->
+  <!-- One box per document, in the order the documents are read above
+       (règlement intérieur, then sécurité des données), so each sits right
+       after the text it confirms. No box singles out a clause: a laptop one did
+       until the validated 2026-2027 wording put that clause under
+       "Dispositions propres au stage de seconde", which this step has no way of
+       knowing applies (see `rulesSchema`). -->
   <div class="mt-6 space-y-3">
     <label
       class="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
@@ -148,21 +149,6 @@
       />
       <span class="text-sm font-medium text-foreground-secondary">
         Je m'engage à respecter le règlement intérieur d'Epitech.
-      </span>
-    </label>
-
-    <label
-      class="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-raised"
-    >
-      <Checkbox
-        bind:checked={acceptedEquipment}
-        name="acceptedEquipment"
-        value="true"
-        class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-tech data-[state=checked]:bg-epi-tech data-[state=checked]:text-black"
-      />
-      <span class="text-sm font-medium text-foreground-secondary">
-        Je certifie posséder un ordinateur portable en état de marche. Si ce
-        n'est pas le cas, je préviens l'équipe de mon campus.
       </span>
     </label>
 
@@ -186,7 +172,6 @@
     <ContinueButton
       {submitting}
       disabled={!acceptedRules ||
-        !acceptedEquipment ||
         (!charterAccepted && !acceptedCharter) ||
         !city.trim()}
     >

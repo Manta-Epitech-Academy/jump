@@ -253,16 +253,16 @@ export const edgeTalents: Scenario = {
       sourceId: unplaced.id,
       amount: 20,
     });
-    const anyPublication = world.buffer.minigamePublication[0]?.id as
-      string | undefined;
+    // A run by a talent with no campus at all, so `MinigameAttempt.campusId`
+    // has a null row: the column snapshots where the run happened, and nowhere
+    // is somewhere it can have happened.
+    const anyPublication = world.minigamePublications[0];
     if (anyPublication) {
       addMinigameAttempt(world, {
         talent: unplaced,
-        publicationId: anyPublication,
+        publication: anyPublication,
         status: 'done',
-        scored: true,
         xpSeen: true,
-        index: 500,
       });
     }
 

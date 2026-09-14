@@ -165,6 +165,37 @@ export async function seedE2eData(): Promise<void> {
     },
   });
 
+  // Every rung but the signature, and no charte: the step then renders both of
+  // the boxes it can render, which is what makes "exactly two" an assertion
+  // rather than a coincidence. The year stamp and the dossier row matter for the
+  // same reason they do above: without them the guard reads "nothing done" and
+  // sends this talent back to step one instead of to the signature.
+  const { rulesSignedAt: _signed, ...dossierBeforeRules } = dossierComplete;
+  await prisma.bauth_user.create({
+    data: {
+      id: E2E.talentRules.userId,
+      email: E2E.talentRules.email,
+      emailVerified: true,
+      role: 'student',
+      name: `${E2E.talentRules.prenom} ${E2E.talentRules.nom}`,
+      talent: {
+        create: {
+          id: E2E.talentRules.talentId,
+          nom: E2E.talentRules.nom,
+          prenom: E2E.talentRules.prenom,
+          niveau: 'Seconde',
+          ...dossierBeforeRules,
+          welcomeSeenAt: now,
+          onboardingSchoolYear: schoolYear,
+          parentEmail: E2E.parentPending.email,
+          onboardingRecords: {
+            create: { schoolYear, ...dossierBeforeRules },
+          },
+        },
+      },
+    },
+  });
+
   await prisma.bauth_user.create({
     data: {
       id: E2E.talentFresh.userId,

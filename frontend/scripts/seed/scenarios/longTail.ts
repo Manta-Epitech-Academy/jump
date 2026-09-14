@@ -33,6 +33,8 @@ import {
   cohortSize,
   PRESENCE_MIX,
   PRESENCE_SOURCE_MIX,
+  RETURNING_SHARE,
+  RETURNING_SHARE_WITH_CLOSINGS,
 } from './helpers';
 import type { Scenario } from './types';
 
@@ -44,8 +46,24 @@ export const longTail: Scenario = {
     const { profile, rng, clock } = world.ctx;
     const campuses = [...world.campuses.values()];
     const schoolYear = clock.schoolYear;
-    const scale =
-      profile.name === 'staging' ? 1 : profile.name === 'ci' ? 0.08 : 0.25;
+    // Cohorts at the size PROFILE.md measures, at every profile.
+    //
+    // They used to be scaled a second time - 0.08 at `ci`, 0.25 at `dev` -
+    // on top of the profile already carrying fewer events, and scaling the same
+    // volume twice is what made the smaller profiles the wrong SHAPE rather
+    // than a smaller version of the right one. The stage campaign is scaled
+    // once (`CAMPAIGN_SIZE`), so at `dev` it came out at 41% of all enrolments
+    // against production's 21%, and the long tail at 3% of staging's against
+    // the campaign's 24%.
+    //
+    // Which mattered far beyond this scenario, because almost every per-talent
+    // figure is a ratio between the two. The stage is a fortnight nobody
+    // attends twice and it hands a dossier to half its roster, so a dataset
+    // where it is twice its real share has twice the dossiers and half the
+    // returning talents it should - 87% of talents at exactly one event where
+    // production has 69%, and 40% with no XP where production has 72%. The
+    // number of EVENTS is the volume dial (`profile.events`); how many people
+    // come to one is a measurement.
     const target = Math.max(6, Math.round(profile.events * 0.7));
     const clubTemplateId = id('clt', CLUB_TEMPLATE.key);
 
@@ -185,9 +203,21 @@ export const longTail: Scenario = {
       }
 
       const cohort = makeCohort(world, {
-        size: cohortSize(world, scale),
+        size: cohortSize(world),
         campus,
         schoolYear,
+        // Where the platform's returning talents actually come from. The stage
+        // and the club are one campaign and one campus each; this loop is every
+        // other event on every campus, so it is the only place a career drawn
+        // at birth has enough events to be spent on.
+        //
+        // Higher on an event that conducts closings, which is the deliberate
+        // coverage departure - see `RETURNING_SHARE_WITH_CLOSINGS`. It is what
+        // turns a multi-event talent into a multi-CLOSING one, and a parcours
+        // with holes in it rather than a clean four-for-four.
+        returning: {
+          share: runsClosings ? RETURNING_SHARE_WITH_CLOSINGS : RETURNING_SHARE,
+        },
       });
       for (const talent of cohort) world.enrol(event, talent);
 
@@ -202,19 +232,27 @@ export const longTail: Scenario = {
       // second time, and the dossier tables came out at twice production's.
       for (const talent of cohort) {
         if (!rng.chance(0.02)) continue;
+        // A returning talent may have filed one at the stage already. The
+        // dossier is annual, so theirs is done - the draw is consumed either
+        // way, so who gets one does not depend on who came back.
+        if (world.hasDossier(talent.id, schoolYear)) continue;
+        // Hoisted, because the grant below is dated from it: the welcome bonus
+        // arrives when the dossier is filed, not on some fixed day of its own.
+        const filedOffset = -rng.int(30, 250);
         addDossier(world, {
           talent,
           schoolYear,
           stopAt: null,
           parentCoSigned: rng.chance(0.93),
           imageRights: rng.chance(0.13) ? 'refused' : 'accepted',
-          filedOffset: -rng.int(30, 250),
+          filedOffset,
         });
         world.grantXp({
           talent,
           source: 'onboarding',
           sourceId: talent.id,
           amount: WELCOME_XP_BONUS,
+          at: clock.days(filedOffset),
         });
       }
 
@@ -293,8 +331,11 @@ export const longTail: Scenario = {
       ],
       closingTemplateId: clubTemplateId,
     });
+    // Newcomers, deliberately: this event conducts no closing, so recruiting
+    // returning talents onto it would spend career headroom the parcours needs
+    // and hand back nothing. The zero is the point, not the roster.
     const zeroClosingCohort = makeCohort(world, {
-      size: cohortSize(world, scale),
+      size: cohortSize(world),
       campus: zeroClosingCampus,
       schoolYear,
     });

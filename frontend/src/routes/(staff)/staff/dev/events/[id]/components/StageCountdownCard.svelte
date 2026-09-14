@@ -2,15 +2,24 @@
   import { onMount } from 'svelte';
   import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
   import CodeTag from '$lib/components/layout/CodeTag.svelte';
+  import { countNounForm } from '$lib/components/staff/datatable/countLabel';
 
   // Sidebar-sized echo of the preparation hero countdown. Same data, compact
-  // chrome: a dark blueprint card that ticks to the stage opening, then folds
-  // into a "Jour N" / "Terminé" status once the stage is live or over.
+  // chrome: a dark blueprint card that ticks to the event opening, then folds
+  // into a "Jour N" / "Terminé" status once the event is live or over.
+  //
+  // It says « événement » and not « stage », because the dev space stopped being
+  // the stage's: a Coding Club, a camp and a stage all land on this page, and
+  // the format is `Event.publicName` right above this card rather than something
+  // a status chip should be asserting. The day span is agreed for the same
+  // reason - `stageCountdown` floors `totalDays` at 1, so a single-afternoon
+  // club read « J1 / 1 jours » until the formats other than the stage arrived
+  // to make it visible.
   type Props = {
     status: EventLifecycleStatus;
     /** Effective opening instant (confirmed time, else the type default). */
     openDate: Date;
-    /** Stage closing instant, drives the "terminé le" line. */
+    /** Event closing instant, drives the "terminé le" line. */
     endDate: Date;
     /** Day index / span, only meaningful while ongoing. */
     dayN: number;
@@ -84,17 +93,17 @@
       </div>
     {:else if status === 'ongoing'}
       <p class="epi-overline text-epi-tech">
-        <CodeTag>Stage en cours</CodeTag>
+        <CodeTag>Événement en cours</CodeTag>
       </p>
       <div class="mt-3 flex items-baseline gap-2 font-heading">
         <span class="text-display-xl">J{dayN}</span>
         <span class="font-mono text-sm font-bold text-white/70"
-          >/ {totalDays} jours</span
+          >/ {totalDays} {countNounForm(totalDays, 'jour')}</span
         >
       </div>
     {:else}
       <p class="epi-overline text-white/60">
-        <CodeTag>Stage terminé</CodeTag>
+        <CodeTag>Événement terminé</CodeTag>
       </p>
       <p class="mt-3 text-sm font-medium text-white/70">
         Clôturé le <span class="font-bold text-white">{endLabel}</span>

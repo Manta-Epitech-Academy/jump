@@ -66,6 +66,15 @@ jobs:
       - name: Test Lint
         run: bun run lint:tests
 
+      # The prose rules the doctrine used to only assert: no em-dash or en-dash
+      # in tracked prose, doctrine links that resolve, and the `verify` chain
+      # enumerated in AGENTS.md matching package.json. It runs here and not only
+      # in `bun run verify` because a chain link with no CI job is the mirror of
+      # the gap the note above describes: the linter would have swept the repo
+      # once and then let it rot again behind a green required check.
+      - name: Prose Lint
+        run: bun run lint:prose
+
       - name: Svelte Check
         run: bun run check
 
