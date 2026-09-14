@@ -29,6 +29,10 @@ import type { SlotBlueprint } from './catalog/planning';
 import type { Rng } from './rng';
 import type { SfMemberStatus } from '../../src/lib/domain/sfMemberStatus';
 import { activationBlockers } from '../../src/lib/domain/eventReadiness';
+import {
+  minigameRankBonus,
+  minigameRankBonusLimit,
+} from '../../src/lib/domain/xp';
 import { fromWallClock } from '../../src/lib/domain/planningTime';
 import {
   CIVILITE_OPTIONS,
@@ -154,6 +158,21 @@ export type FeedbackFormRef = {
   questions: { id: string; type: string; optionIds: string[] }[];
 };
 
+/**
+ * One day's published game.
+ *
+ * `scoringType` and `publishedAt` travel with the id because both are needed to
+ * play it and neither can be re-derived: the scoring decides which direction a
+ * result ranks in, and the publication date IS the day the run happened, a
+ * « jeu du jour » being played on its own day.
+ */
+export type MinigamePublicationRef = {
+  id: string;
+  game: string;
+  scoringType: 'chrono' | 'score';
+  publishedAt: Date;
+};
+
 export type EventRef = {
   id: string;
   titre: string;
@@ -168,6 +187,14 @@ export type EventRef = {
   endDate: Date | null;
   /** Weekdays the event actually runs, for émargement and planning. */
   days: Date[];
+  /**
+   * The closing grid this event conducts against, or null when it conducts
+   * none. Carried so a scenario can ask « does this event run closings »
+   * without re-deriving it from the module list: a returning talent is worth
+   * more on an event that does, because a multi-closing parcours is the whole
+   * reason the returning pool exists.
+   */
+  closingTemplateId: string | null;
 };
 
 /**
@@ -201,6 +228,47 @@ const STARTED_EVENT_SF_MIX = [
 const UPCOMING_EVENT_SF_MIX = [
   ['READY', 100],
 ] as const satisfies readonly (readonly [SfMemberStatus, number])[];
+
+/**
+ * How many events a talent attends over their whole time on the platform.
+ *
+ * PROFILE.md's own histogram, as percentages of the 5 313 talents who carry at
+ * least one enrolment: 3 665 came once, 1 243 twice, 276 three times, and a
+ * queue out to eleven. Its mean is 1.438, which is production's own ratio of
+ * 7 638 enrolments to 5 313 enrolled talents - so a generator that honours this
+ * draw lands on both figures at once instead of matching one and missing the
+ * other.
+ *
+ * It lives here, beside the Salesforce mix and not in `scenarios/helpers.ts`
+ * with the rest of the distributions, for the reason that file's own header
+ * gives: a distribution lives beside the code that draws it, and this one is
+ * drawn by `addTalent`. `world.ts` imports nothing from `scenarios/`.
+ *
+ * Drawn ONCE, at the talent's creation, rather than applied as a per-cohort
+ * reuse rate. A reuse rate produces a geometric tail, and the measured shape is
+ * not geometric: it is fatter at two and thinner from three on. Drawing the
+ * whole career from the histogram reproduces the histogram.
+ *
+ * It is a CAP on what the returning pool will offer (see `returningPool`), not
+ * a quota the generator has to spend. A talent whose career is never drawn on
+ * simply came once, which is what two thirds of them do.
+ */
+/** Shared empty set, so `playedBy` allocates nothing on the common answer. */
+const EMPTY_SET: ReadonlySet<string> = new Set<string>();
+
+const CAREER_MIX = [
+  [1, 69.0],
+  [2, 23.4],
+  [3, 5.19],
+  [4, 1.32],
+  [5, 0.53],
+  [6, 0.13],
+  [7, 0.15],
+  [8, 0.15],
+  [9, 0.09],
+  [10, 0.02],
+  [11, 0.04],
+] as const satisfies readonly (readonly [number, number])[];
 
 export class World {
   readonly buffer: Buffered = createBuffer();
@@ -263,6 +331,14 @@ export class World {
   /** Broadcast templates, written by the catalogue and read back by the runner. */
   readonly broadcastTemplates: { id: string; channel: 'mail' | 'sms' }[] = [];
 
+  /**
+   * The minigame rotation, written by `platform` and played by `minijeux`.
+   * Held here rather than passed between the two for the same reason the
+   * broadcast templates are: the scenario list is a run order, not a call
+   * graph, and a scenario reads what an earlier one left behind.
+   */
+  readonly minigamePublications: MinigamePublicationRef[] = [];
+
   /** The stage grid the migration carries, resolved by the runner. */
   stageTemplateId: string | null = null;
   /** The certificate the migration carries, resolved by the runner. */
@@ -270,6 +346,28 @@ export class World {
 
   private talentCounter = 0;
   private readonly talentsWithInterests = new Set<string>();
+  /**
+   * How many events each talent will attend in all, drawn from `CAREER_MIX`
+   * when they are created. Generator bookkeeping and not a column, so it stays
+   * off `TalentRef`: nothing the writer flushes reads it.
+   */
+  private readonly careerByTalent = new Map<string, number>();
+  /**
+   * Talents by id. `talents` is the ordered list scenarios sample from; this is
+   * the lookup the minigame ranking pass needs, which visits every finished
+   * attempt and has to reach its player to grant the bonus.
+   */
+  private readonly talentById = new Map<string, TalentRef>();
+  /**
+   * Which events each talent is enrolled on. The inverse of `roster`, kept
+   * because `returningPool` asks the question from the talent's side and
+   * scanning every roster to answer it is quadratic on a staging cohort.
+   */
+  private readonly enrolledEventsByTalent = new Map<string, Set<string>>();
+  /** Which publications each talent has played. See `notePlayed`. */
+  private readonly playedByTalent = new Map<string, Set<string>>();
+  /** Which school years each talent has filed a dossier for. See `noteDossier`. */
+  private readonly dossierYears = new Map<string, Set<string>>();
   /** Guardian addresses already minted a `bauth_user`, so a returning dossier
    * and the second-guardian scenario calling `setGuardian` on the same talent
    * never push a second row and collide on `bauth_user.email`'s unique index. */
@@ -301,10 +399,19 @@ export class World {
    */
   private readonly staffRng: Rng;
 
+  /**
+   * The stream a talent's career length is drawn from, and the one place the
+   * fork matters most: `addTalent` runs for every talent in the dataset, so
+   * drawing a career from the shared stream would shift every subsequent draw
+   * and move every deliberately placed state in the world.
+   */
+  private readonly careerRng: Rng;
+
   constructor(readonly ctx: SeedContext) {
     this.sfRng = ctx.rng.fork('sfMemberStatus');
     this.wizardRng = ctx.rng.fork('wizard');
     this.staffRng = ctx.rng.fork('staffActivity');
+    this.careerRng = ctx.rng.fork('career');
   }
 
   /** Monotonic, so ids stay unique however scenarios are ordered. */
@@ -590,6 +697,13 @@ export class World {
     phone?: string | null;
     schoolId?: string | null;
     highSchoolNameManual?: string | null;
+    /**
+     * How many events this talent will attend in all, when it is placed rather
+     * than drawn from `CAREER_MIX`. An explicit career consumes no draw, so
+     * placing one has no effect on any other talent in the dataset - the same
+     * property `enrol`'s explicit status has, and for the same reason.
+     */
+    career?: number;
     /** What Salesforce claims, when it differs from what the talent confirmed. */
     sfClaims?: {
       nom?: string;
@@ -655,6 +769,11 @@ export class World {
       parentEmail: null,
     };
     this.talents.push(ref);
+    this.talentById.set(talentId, ref);
+    this.careerByTalent.set(
+      talentId,
+      opts.career ?? this.careerRng.weighted(CAREER_MIX),
+    );
     return ref;
   }
 
@@ -972,6 +1091,7 @@ export class World {
       date,
       endDate,
       days,
+      closingTemplateId: opts.closingTemplateId ?? null,
     };
     this.events.push(ref);
     this.roster.set(eventId, []);
@@ -1016,6 +1136,120 @@ export class World {
       sfMemberStatus,
     });
     this.roster.get(event.id)!.push(talent);
+    let attended = this.enrolledEventsByTalent.get(talent.id);
+    if (!attended) {
+      attended = new Set<string>();
+      this.enrolledEventsByTalent.set(talent.id, attended);
+    }
+    attended.add(event.id);
+  }
+
+  /**
+   * Talents who have already been to something on this campus and whose career
+   * has room for more.
+   *
+   * This is what stops the dataset being 97% one-timers. Every cohort used to
+   * be minted from scratch (`makeCohort`), so nobody ever came twice except the
+   * two dozen club regulars on a single campus - which left « Son parcours »,
+   * the verdict-to-verdict comparison and every multi-closing screen with no
+   * example to render, on a platform where production has 31% of its talents
+   * coming back at least once.
+   *
+   * Scoped to ONE campus, deliberately. A talent's campus is derived from their
+   * most recent enrolment, and PROFILE.md records that no enrolment in
+   * production is misaligned with its event's campus. The one talent on two
+   * campuses stays the `roamer` placed in `edgeTalents`, whose whole job is to
+   * prove that derivation rather than let it be assumed.
+   *
+   * `minHeadroom` is what a caller about to enrol somebody on several events
+   * passes: the club puts its regulars on three sessions, so offering it a
+   * talent with one place left would push them past their own career. Asking
+   * for the room up front is how the cap stays a cap instead of drifting.
+   */
+  returningPool(opts: {
+    campusId: string;
+    /** How many further enrolments the caller needs room for. Defaults to one. */
+    minHeadroom?: number;
+  }): TalentRef[] {
+    const needed = opts.minHeadroom ?? 1;
+    return this.talents.filter((talent) => {
+      if (talent.campusId !== opts.campusId) return false;
+      const attended = this.enrolledEventsByTalent.get(talent.id);
+      // Never been to anything: they are not a returning talent yet, they are
+      // the cohort somebody is about to mint.
+      if (!attended || attended.size === 0) return false;
+      const career = this.careerByTalent.get(talent.id) ?? 1;
+      return career - attended.size >= needed;
+    });
+  }
+
+  /** Whether this talent is already on this event, so nobody enrols them twice. */
+  isEnrolled(talentId: string, eventId: string): boolean {
+    return this.enrolledEventsByTalent.get(talentId)?.has(eventId) ?? false;
+  }
+
+  /**
+   * Publications this talent has already played.
+   *
+   * `MinigameAttempt` is unique on `(talentId, publicationId)`, and three
+   * places now write attempts: the flagship stage, the daily rotation, and the
+   * placed profiles that carry the top of the board. A caller that DRAWS its
+   * publications asks this first and excludes what comes back.
+   */
+  playedBy(talentId: string): ReadonlySet<string> {
+    return this.playedByTalent.get(talentId) ?? EMPTY_SET;
+  }
+
+  /**
+   * Whether this talent already filed a dossier for this school year.
+   *
+   * A dossier is per talent and per YEAR, not per event, and the returning pool
+   * is what made the difference matter: a talent recruited onto their third
+   * event by `longue-traine` may well have filed one at the stage already, and
+   * the 2% draw there would hand them a second for the same year. The first
+   * version of the pool did exactly that and `Onboarding_Record`'s primary key
+   * caught it - which is the good outcome, but a caller that DRAWS should not
+   * be relying on a constraint to tell it who has already been through the
+   * wizard.
+   */
+  hasDossier(talentId: string, schoolYear: string): boolean {
+    return this.dossierYears.get(talentId)?.has(schoolYear) ?? false;
+  }
+
+  /** Claims the `(talent, year)` dossier, and refuses a second claim. */
+  noteDossier(talentId: string, schoolYear: string): void {
+    let years = this.dossierYears.get(talentId);
+    if (!years) {
+      years = new Set<string>();
+      this.dossierYears.set(talentId, years);
+    }
+    if (years.has(schoolYear)) {
+      throw new Error(
+        `${talentId} a déjà un dossier ${schoolYear} : un dossier est annuel, pas par événement. Testez world.hasDossier() avant de tirer.`,
+      );
+    }
+    years.add(schoolYear);
+  }
+
+  /**
+   * Claims the `(talent, publication)` pair, and refuses a second claim.
+   *
+   * Loud rather than forgiving, deliberately. A silent skip here would turn
+   * « this talent won ten times » into nine wins and a shrug, which is exactly
+   * the class of quiet arithmetic the ranking rewrite exists to remove.
+   */
+  notePlayed(talentId: string, publicationId: string): void {
+    let played = this.playedByTalent.get(talentId);
+    if (!played) {
+      played = new Set<string>();
+      this.playedByTalent.set(talentId, played);
+    }
+    if (played.has(publicationId)) {
+      throw new Error(
+        `${talentId} a déjà une partie sur ${publicationId} : MinigameAttempt est unique sur le couple. Excluez world.playedBy() avant de tirer.`,
+      );
+    }
+    played.add(publicationId);
   }
 
   /**
@@ -1049,6 +1283,10 @@ export class World {
       const rosterIndex = roster.findIndex((talent) => talent.id === talentId);
       if (rosterIndex !== -1) roster.splice(rosterIndex, 1);
     }
+    // And the talent's own side of it, or their career reads as spent on an
+    // enrolment that no longer exists and `returningPool` keeps refusing them
+    // an event they are no longer on.
+    this.enrolledEventsByTalent.get(talentId)?.delete(eventId);
   }
 
   addPlanning(event: EventRef, blueprint: readonly SlotBlueprint[]): void {
@@ -1154,6 +1392,16 @@ export class World {
     sourceId: string | null;
     amount: number;
     campusId?: string | null;
+    /**
+     * When the granting fact happened. A ledger row whose date is not its
+     * fact's date is a row the application could not have written: the talent's
+     * own `/xp` page orders by `createdAt` and `xpStoryService` prints a date
+     * label per grant, so a dataset stamping every row on one day renders the
+     * whole history as an undated block in arbitrary order. It survived as long
+     * as it did because there were seventeen minigame grants to look at; the
+     * daily rotation puts that in the thousands.
+     */
+    at?: Date;
   }): void {
     this.buffer.xpGrant.push({
       id: id(
@@ -1166,7 +1414,7 @@ export class World {
       source: opts.source,
       sourceId: opts.sourceId,
       amount: opts.amount,
-      createdAt: this.ctx.clock.days(-20),
+      createdAt: opts.at ?? this.ctx.clock.days(-20),
     });
     this.xpByTalent.set(
       opts.talent.id,
@@ -1230,10 +1478,87 @@ export class World {
    * disagreement.
    */
   finalize(): void {
+    // Before the XP projection, because it grants XP.
+    this.rankMinigameFields();
     for (const row of this.buffer.talent) {
       const talentId = row.id as string;
       row.xp = this.xpByTalent.get(talentId) ?? 0;
       row.eventsCount = this.presentEventsByTalent.get(talentId)?.size ?? 0;
+    }
+  }
+
+  /**
+   * Awards the ranking bonus on every finished attempt, from the field it
+   * actually finished in.
+   *
+   * **A rank is a property of the field, not of an attempt.** It used to be
+   * passed in per attempt - `rank: index + 1`, `fieldSize` a guess at the cohort
+   * size - which meant the stored bonus and the board the application computes
+   * from the same rows were two unrelated numbers that happened to sit in the
+   * same table. Twenty attempts made that invisible. It stops being invisible
+   * the moment a talent is meant to have won ten times, because « won » is then
+   * a claim the leaderboard can contradict.
+   *
+   * So a scenario places a RESULT, never a rank: you come first by being fast,
+   * which is also how it works for the talent. This pass runs once, after every
+   * scenario has buffered its attempts, and is the only writer of
+   * `rankXpAwarded` and of the `minigame_rank` grants.
+   *
+   * The bonus itself comes from the domain (`minigameRankBonus`), so the
+   * generator cannot drift from the rule the finish callback applies.
+   */
+  private rankMinigameFields(): void {
+    const scoringByPublication = new Map<string, string>();
+    for (const publication of this.buffer.minigamePublication) {
+      scoringByPublication.set(
+        publication.id as string,
+        publication.scoringType as string,
+      );
+    }
+
+    const fields = new Map<string, typeof this.buffer.minigameAttempt>();
+    for (const attempt of this.buffer.minigameAttempt) {
+      if (attempt.status !== 'done') continue;
+      const publicationId = attempt.publicationId as string;
+      const field = fields.get(publicationId);
+      if (field) field.push(attempt);
+      else fields.set(publicationId, [attempt]);
+    }
+
+    for (const [publicationId, field] of fields) {
+      const scored = scoringByPublication.get(publicationId) === 'score';
+      // Total and deterministic: the id breaks a tie, so two players with the
+      // same time are ordered the same way on every run rather than by
+      // whichever `sort` happened to visit first.
+      const ordered = [...field].sort((a, b) => {
+        const left = (scored ? a.score : a.chrono) ?? 0;
+        const right = (scored ? b.score : b.chrono) ?? 0;
+        // A score game ranks high-to-low, a chrono game low-to-high.
+        if (left !== right) return scored ? right - left : left - right;
+        return (a.id as string).localeCompare(b.id as string);
+      });
+
+      const limit = minigameRankBonusLimit(ordered.length);
+      for (const [index, attempt] of ordered.entries()) {
+        const rank = index + 1;
+        if (rank > limit) break;
+        const bonus = minigameRankBonus(rank, ordered.length);
+        if (bonus <= 0) continue;
+        attempt.rankXpAwarded = bonus;
+        // The rank float is gated on its own column, so it follows whether the
+        // finish itself was celebrated: an attempt whose `+50` is still unseen
+        // has not shown its bonus either.
+        attempt.rankXpSeenAt = attempt.xpSeenAt ?? null;
+        const talent = this.talentById.get(attempt.talentId as string);
+        if (!talent) continue;
+        this.grantXp({
+          talent,
+          source: 'minigame_rank',
+          sourceId: attempt.id as string,
+          amount: bonus,
+          at: (attempt.finishedAt as Date | null) ?? undefined,
+        });
+      }
     }
   }
 }

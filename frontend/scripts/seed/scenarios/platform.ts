@@ -298,7 +298,7 @@ export const platform: Scenario = {
       });
     }
 
-    addMinigamePublications(world, admin);
+    world.minigamePublications.push(...addMinigamePublications(world, admin));
     addXpRewards(world, campuses[0]?.id ?? null);
     addAdminApiTokens(world, admin);
     if (campuses[0]) addInvitations(world, campuses[0], admin);

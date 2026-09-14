@@ -400,21 +400,26 @@ function addStageAt(
       continue;
     }
     withDossier.push(talent);
+    // Hoisted, because both grants below are dated from it: the welcome bonus
+    // and the early-bird bonus both arrive when the dossier is filed, and a
+    // ledger row that predates its own fact is a row nothing could have written.
+    const filedOffset =
+      FILING_WINDOW_START +
+      Math.floor((index / size) * (FILING_WINDOW_END - FILING_WINDOW_START));
     addDossier(world, {
       talent,
       schoolYear,
       stopAt: null,
       parentCoSigned: rng.chance(0.93),
       imageRights: rng.chance(0.13) ? 'refused' : 'accepted',
-      filedOffset:
-        FILING_WINDOW_START +
-        Math.floor((index / size) * (FILING_WINDOW_END - FILING_WINDOW_START)),
+      filedOffset,
     });
     world.grantXp({
       talent,
       source: 'onboarding',
       sourceId: talent.id,
       amount: WELCOME_XP_BONUS,
+      at: world.ctx.clock.days(filedOffset),
     });
     const earlyBird = onboardingEarlyBirdBonus(index);
     if (earlyBird > 0) {
@@ -423,6 +428,7 @@ function addStageAt(
         source: 'onboarding_early_bird',
         sourceId: talent.id,
         amount: earlyBird,
+        at: world.ctx.clock.days(filedOffset),
       });
     }
   }
@@ -549,6 +555,18 @@ function addStageAt(
     }
   }
 
+  // The end-of-stage scoreboards, on every campus that ran the event inside
+  // Jump rather than only on the flagship.
+  //
+  // `reward` is production's LARGEST XP source by a wide margin - 1.19M of the
+  // 1.62M granted, over 2 008 grants, individual amounts up to 1 800 - and it
+  // is what carries the top of the XP distribution: the 95th percentile sits at
+  // 1 767, which no amount of the flat 50 a minigame pays could reach. Granting
+  // it on one campus to twelve people left 15 grants in the whole dataset
+  // against production's 2 008, and that single fact is most of why the
+  // generated leaderboard was flat.
+  if (instrumented) awardScoreboards(world, { cohort, size });
+
   if (flagship) addFlagshipExtras(world, { event, cohort, staff: team, size });
 
   // The roster a later sync pruned. Done last, so everything above was written
@@ -562,6 +580,76 @@ function addStageAt(
   }
 
   return { event, cohort, withDossier, withoutDossier, closings };
+}
+
+/**
+ * The scoreboards a stage hands out, and the XP they grant.
+ *
+ * Three boards rather than one, because production's `reward` grants are broad
+ * and not a podium: 2 008 of them, amounts from 0 to 1 800, and the source
+ * carries 1.19M of the platform's 1.62M XP. One board handed to twelve people
+ * is a podium, and a podium produces a leaderboard where everybody below the
+ * top twelve is separated only by how many daily games they played.
+ *
+ * The three are the ones the catalogue declares as scoreboards, and they are
+ * handed out to different-sized slices for a reason each: the end-of-stage
+ * project ranks a shortlist and pays the most, the tech quiz is open to anybody
+ * who took it, and the attendance reward is a flat amount for a flat condition.
+ * A reward whose `xpAmount` is null is one whose amount varies per talent,
+ * which is what a ranking is.
+ */
+function awardScoreboards(
+  world: World,
+  opts: { cohort: readonly TalentRef[]; size: number },
+): void {
+  const { rng } = world.ctx;
+  const { cohort, size } = opts;
+
+  // The ranked board: a shortlist, paid by position, up to production's own
+  // maximum grant of 1 800.
+  for (const [rank, talent] of rng
+    .sample(cohort, Math.min(12, size))
+    .entries()) {
+    grantReward(
+      world,
+      talent,
+      'projet_stage_2nde',
+      Math.max(200, 1800 - rank * 130),
+    );
+  }
+
+  // The CTF board, also ranked. It is one of the catalogue's two entries whose
+  // `xpAmount` is null precisely because a ranking's amount varies per talent,
+  // and nothing granted it before: an `XpReward` row no grant pointed at, and
+  // the ranked amounts missing from the XP distribution that production's 95th
+  // percentile is made of. Its sibling `ctf_osint_2026` stays ungranted on
+  // purpose - `addXpRewards` leaves that one with no `awardedOn`, which is the
+  // « pas encore attribué » state, and `grantReward` refuses it.
+  //
+  // The last position is worth ZERO, which is production's own minimum reward
+  // grant. A board place that pays nothing is a real row and the one a « +0 XP »
+  // rendering is read off; a floor of 200 made it unreachable.
+  const ctfBoard = rng.sample(cohort, Math.min(10, size));
+  for (const [rank, talent] of ctfBoard.entries()) {
+    const last = rank === ctfBoard.length - 1;
+    grantReward(
+      world,
+      talent,
+      'ctf_shell_2026',
+      last ? 0 : Math.max(150, 1400 - rank * 140),
+    );
+  }
+
+  // The quiz, open to whoever sat it: a flat amount, half the roster.
+  for (const talent of rng.sample(cohort, Math.round(size * 0.5))) {
+    grantReward(world, talent, 'quiz_culture_tech', 150);
+  }
+
+  // Attendance over the whole fortnight: a flat amount for a flat condition,
+  // and the one reward most of a cohort actually earns.
+  for (const talent of rng.sample(cohort, Math.round(size * 0.65))) {
+    grantReward(world, talent, 'presence_assidue', 300);
+  }
 }
 
 /**
@@ -607,48 +695,32 @@ function addFlagshipExtras(
     addTalentNote(world, { talent: cohort[2], author: null, index: 92 });
   }
 
-  // The end-of-stage scoreboard: the largest XP amounts in the dataset, which
-  // is what makes a leaderboard look like production's rather than flat.
-  for (const [rank, talent] of rng
-    .sample(cohort, Math.min(12, size))
-    .entries()) {
-    grantReward(
-      world,
-      talent,
-      'projet_stage_2nde',
-      Math.max(200, 1800 - rank * 130),
-    );
-  }
-
-  // Minigames, in all three attempt states.
-  const publications = world.buffer.minigamePublication.map(
-    (row) => row.id as string,
-  );
+  // Runs played DURING the event, which is the one thing the ordinary
+  // population (`scenarios/minigames.ts`) does not produce: it plays the daily
+  // rotation from home, so `MinigameAttempt.eventId` would be null on every
+  // row and « joué pendant le stage » would attribute nothing.
+  //
+  // No rank is passed. A rank belongs to the field a run finished in, so
+  // `World.finalize` computes every one of them once the whole dataset has been
+  // buffered - see `rankMinigameFields`. These runs are ordinary ones, drawn
+  // like everybody else's, and they place nothing at the top of the board.
   for (const [index, talent] of rng
     .sample(cohort, Math.min(20, size))
     .entries()) {
-    const publicationId = publications[index % publications.length];
-    if (!publicationId) break;
+    const publication =
+      world.minigamePublications[
+        index % Math.max(1, world.minigamePublications.length)
+      ];
+    if (!publication) break;
     addMinigameAttempt(world, {
       talent,
-      publicationId,
+      publication,
       status:
         index % 7 === 0 ? 'pending' : index % 11 === 0 ? 'invalid' : 'done',
-      rank: index + 1,
-      fieldSize: Math.min(20, size),
-      // Half the runs happened during the stage, half from home, and both
-      // states carry meaning: `eventId` is what attributes a run to an event.
-      event: index % 2 === 0 ? event : undefined,
+      event,
       // The freshest win has not been celebrated yet and the rest have, which
-      // is the state the one-shot float on the dashboard is gated on. It has to
-      // straddle the ranking bonus too: the rank float is gated on its own
-      // column, so a dataset where every ranked win is unseen leaves
-      // `rankXpSeenAt` null everywhere and replays that celebration forever.
+      // is the state the one-shot float on the dashboard is gated on.
       xpSeen: index !== 0,
-      // Both scoring families, so a leaderboard is never sorted on a column
-      // that is null for everybody.
-      scored: index % 3 === 0,
-      index,
     });
   }
 }

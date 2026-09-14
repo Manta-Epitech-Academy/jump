@@ -17,6 +17,7 @@ import { reachabilityFailures } from './reachability';
 import { inertnessFailures } from './inertness';
 import { coverageFailures, KNOWN_GAP_COUNT } from './coverage';
 import { usageCoherenceFailures } from './usageCoherence';
+import { careerFailures } from './careers';
 
 export async function runChecks(
   prisma: PrismaClient,
@@ -35,6 +36,7 @@ export async function runChecks(
       await stringCatalogueFailures(prisma, clock.schoolYear),
     ],
     ['cohérence des usages', await usageCoherenceFailures(prisma)],
+    ['parcours et classement', await careerFailures(prisma)],
   ];
 
   let failed = 0;
