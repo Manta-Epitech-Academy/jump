@@ -48,6 +48,12 @@ export async function purgeE2eData(): Promise<void> {
   await prisma.bauth_user.deleteMany({
     where: { email: { endsWith: E2E_DOMAIN } },
   });
+  // The instance last: the link and the participation both Restrict onto it, so
+  // it cannot go before the event (which cascades the link) and the talents
+  // (which cascade the participation).
+  await prisma.workshop_Instance.deleteMany({
+    where: { id: E2E.workshopInstanceId },
+  });
   await prisma.campus.deleteMany({ where: { id: E2E.campusId } });
 }
 
@@ -86,6 +92,19 @@ export async function seedE2eData(): Promise<void> {
     });
   }
 
+  // ── The curated activity the event offers ────────────────────────────────
+  // A non-routable host, exactly as the generator seeds one: this fixture never
+  // hands anybody over, it only needs the row the mission line and the callback
+  // are built from.
+  await prisma.workshop_Instance.create({
+    data: {
+      id: E2E.workshopInstanceId,
+      slug: E2E.workshopSlug,
+      label: E2E.workshopLabel,
+      baseUrl: 'https://e2e.ctfd.invalid',
+    },
+  });
+
   // ── Event, with the one module the mutating spec needs ───────────────────
   // `devActivatedAt` is the visibility gate and the module row is what
   // `requireEventModule` checks; either missing is a 404, not an empty screen.
@@ -100,6 +119,13 @@ export async function seedE2eData(): Promise<void> {
       campusId: E2E.campusId,
       devActivatedAt: now,
       modules: { create: { moduleKey: EVENT_MODULES.EMARGEMENT } },
+      workshops: {
+        create: {
+          instanceId: E2E.workshopInstanceId,
+          position: 0,
+          durationMinutes: E2E.workshopDurationMinutes,
+        },
+      },
     },
   });
 

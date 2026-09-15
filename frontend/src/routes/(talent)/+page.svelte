@@ -137,16 +137,17 @@
   // way: the words « CTFd » and « flag » never appear on this surface.
   const ACTIVITY_LABEL = 'Passe à la pratique';
   let workshopMissions = $derived(data.workshopMissions);
-  let hasOpenActivity = $derived(
-    workshopMissions.some((mission) => mission.startedAt !== null),
-  );
 
   // An activity is walked in a SECOND TAB, so coming back here reloads nothing on
   // its own and the XP earned meanwhile would only appear on the next navigation.
-  // Armed only once the talent has actually entered an activity, so a dashboard
-  // with nothing open carries no listener at all.
+  //
+  // Armed as soon as an activity is OFFERED, not once one has been entered, and
+  // the difference is the whole first visit: the row is what sends the talent to
+  // the other tab, so on the return that matters most nothing had been entered
+  // when this page was rendered. Waiting for `startedAt` armed the listener only
+  // from the second visit onwards, which is the one nobody demonstrates.
   $effect(() => {
-    if (!hasOpenActivity) return;
+    if (workshopMissions.length === 0) return;
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') void invalidateAll();
     };

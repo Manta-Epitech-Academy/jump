@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { triggerConfetti } from '$lib/actions/confetti';
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
   import { workshopRewardToast } from '$lib/components/talent/rewardToast';
@@ -15,11 +14,18 @@
   // mid-animation cannot replay it on the next visit.
   let { reward = null }: { reward?: { xp: number } | null } = $props();
 
-  let showXpFloat = $state(false);
+  let shownXp = $state<number | null>(null);
 
-  onMount(() => {
-    if (!reward) return;
-    const { xp } = reward;
+  // AN EFFECT AND NOT `onMount`, and that is the whole difference with the
+  // minigame sibling. A player comes back to the minigame reward by NAVIGATING,
+  // so the page mounts with it already in `data`. An activity's XP arrive on a
+  // page that is already mounted: the talent switches back to this tab, the
+  // dashboard revalidates, and the reward appears in `data` afterwards. Mount has
+  // long since run by then, so celebrating from it would silently do nothing,
+  // which is exactly what it did.
+  $effect(() => {
+    const xp = reward?.xp ?? null;
+    if (xp === null) return;
 
     void fetch('/api/workshops/rewards-seen', { method: 'POST' });
 
@@ -27,15 +33,15 @@
     timers.push(
       setTimeout(() => {
         triggerConfetti();
-        showXpFloat = true;
+        shownXp = xp;
       }, 300),
     );
     timers.push(setTimeout(() => workshopRewardToast(xp), 1000));
-    timers.push(setTimeout(() => (showXpFloat = false), 2500));
+    timers.push(setTimeout(() => (shownXp = null), 2500));
     return () => timers.forEach(clearTimeout);
   });
 </script>
 
-{#if showXpFloat && reward}
-  <XpFloat amount={reward.xp} label="Activité en cours" />
+{#if shownXp !== null}
+  <XpFloat amount={shownXp} label="Activité en cours" />
 {/if}
