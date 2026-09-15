@@ -96,7 +96,7 @@ describe('the workshop progress callback (integration)', () => {
     assertTestDatabase();
     expect(
       secret,
-      'WORKSHOP_TICKET_SECRET must be set; copy frontend/.env.test.example',
+      'WORKSHOP_TICKET_SECRET must be set: it is declared in frontend/.env.test.defaults, which `bun run test:integration` sources',
     ).not.toBe('');
 
     const campus = await prisma.campus.create({

@@ -40,7 +40,7 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
   }) => {
     expect(
       SECRET,
-      'WORKSHOP_TICKET_SECRET must be set; copy frontend/.env.test.example',
+      'WORKSHOP_TICKET_SECRET must be set: it is declared in frontend/.env.test.defaults, which `bun run test:e2e` sources',
     ).not.toBe('');
 
     await page.goto('/');
