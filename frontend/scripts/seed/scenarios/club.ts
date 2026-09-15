@@ -64,20 +64,30 @@ const [PACMAN, LINUX] = WORKSHOPS;
  * sample: most events offer none at all, so the empty case is what a dashboard
  * and an export mostly render. The two that do offer one carry the SAME subject
  * at DIFFERENT durations, which is the whole reason `durationMinutes` sits on the
- * link and not on the catalogue, and the retired instance is attached beside it
- * with a wording of its own, so an event reading a question aloud in its own
- * words exists next to one that does not.
+ * link and not on the catalogue, and the retired instance is attached beside it,
+ * so an event still pointing at something nobody may enter exists in the data.
+ *
+ * THE `labelOverride` GOES ON THE OFFERED INSTANCE, NOT THE RETIRED ONE, and
+ * that is the whole of why it is here. `listWorkshopMissions` only ever reads a
+ * link whose instance is `enabled`, so an override on the retired row is a column
+ * no screen can reach: the branch it exists to exercise
+ * (`o.labelOverride ?? o.instance.label`) would render nowhere in any generated
+ * dataset. It sits on the PAST session rather than the upcoming one because the
+ * first enrolment that offers an activity is the one that wins, and the anchor
+ * regular is guaranteed onto every session: the override is therefore what their
+ * dashboard reads, deterministically, run after run. The upcoming session offers
+ * the same subject under its catalogue label, which is the other branch.
  */
 function activitiesFor(session: number, upcoming: boolean) {
   if (upcoming) return [{ slug: PACMAN!.slug, durationMinutes: 150 }];
   if (session !== SESSION_OFFSETS.length - 2) return [];
   return [
-    { slug: PACMAN!.slug, durationMinutes: PACMAN!.durationMinutes },
     {
-      slug: LINUX!.slug,
-      durationMinutes: LINUX!.durationMinutes,
-      labelOverride: 'Découverte de la ligne de commande',
+      slug: PACMAN!.slug,
+      durationMinutes: PACMAN!.durationMinutes,
+      labelOverride: 'Pacman : apprends à coder une IA',
     },
+    { slug: LINUX!.slug, durationMinutes: LINUX!.durationMinutes },
   ];
 }
 
