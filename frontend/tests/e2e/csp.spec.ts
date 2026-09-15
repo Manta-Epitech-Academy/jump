@@ -56,6 +56,14 @@ async function expectHardenedPage(
     'https://*.epiboost.eu',
   );
 
+  // Same append, and it carries the curated activity origins on top of `'self'`.
+  // Asserted here rather than only in the unit test because `kit.csp` declaring
+  // one too would silently win: a repeated directive keeps the first occurrence.
+  expect(
+    csp.get('form-action'),
+    `${where}: form-action not appended`,
+  ).toContain("'self'");
+
   expect(csp.get('object-src'), where).toBe("'none'");
   expect(csp.get('frame-ancestors'), where).toBe("'none'");
 }
