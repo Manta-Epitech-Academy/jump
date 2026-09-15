@@ -1,5 +1,6 @@
 import { prisma } from '$lib/server/db';
 import { xpHistoryLabel, type XpStory } from '$lib/domain/xpStory';
+import { workshopSlugFromSourceId } from '$lib/domain/workshops';
 
 /** Short French "16 juin" label in the campus timezone, for the history feed. */
 function dateLabel(date: Date, timeZone: string): string {
@@ -11,17 +12,16 @@ function dateLabel(date: Date, timeZone: string): string {
 }
 
 /**
- * Resolves the `XpReward.name` behind a talent's `reward` grants, returning a
- * `sourceId -> name` map (reward grants only; everything else is absent).
+ * Resolves the name of the thing each grant names, as a `sourceId -> label` map.
+ * Grants whose source names nothing are simply absent.
  *
- * A reward grant's identity (the activity name, e.g. "OSINT CTFD Stage Seconde")
- * lives on its `XpReward`, not on the grant. The grant's `sourceId` is
- * `${rewardId}_${talentId}` (written by `grant-reward-from-csv`), so strip the
- * known talentId suffix to recover each rewardId and resolve every name in one
- * query. Shared by both readers (the dev fiche XP story and the talent `/xp`
- * timeline) so the sourceId contract stays parsed in exactly one place.
+ * Two sources carry an identity that does not live on the grant, and both encode
+ * it in the `sourceId`, so both are parsed HERE and nowhere else: a `reward` is
+ * `${rewardId}_${talentId}` (written by `grant-reward-from-csv`), a `workshop` is
+ * `${instanceSlug}:${talentId}`. Shared by both readers, the dev fiche XP story
+ * and the talent `/xp` timeline, so the contract stays parsed in one place.
  */
-export async function resolveRewardNames(
+export async function resolveGrantLabels(
   talentId: string,
   grants: { source: string; sourceId: string | null }[],
 ): Promise<Map<string, string>> {
@@ -32,25 +32,48 @@ export async function resolveRewardNames(
 
   // sourceId -> rewardId, for the reward grants we actually have.
   const rewardIdBySourceId = new Map<string, string>();
+  // sourceId -> instance slug, for the workshop grants.
+  const slugBySourceId = new Map<string, string>();
   for (const g of grants) {
-    if (g.source === 'reward' && g.sourceId) {
+    if (!g.sourceId) continue;
+    if (g.source === 'reward') {
       rewardIdBySourceId.set(g.sourceId, rewardIdOf(g.sourceId));
+    } else if (g.source === 'workshop') {
+      const slug = workshopSlugFromSourceId(g.sourceId);
+      if (slug) slugBySourceId.set(g.sourceId, slug);
     }
   }
-  if (rewardIdBySourceId.size === 0) return new Map();
+  if (rewardIdBySourceId.size === 0 && slugBySourceId.size === 0) {
+    return new Map();
+  }
 
-  const rewards = await prisma.xpReward.findMany({
-    where: { id: { in: [...new Set(rewardIdBySourceId.values())] } },
-    select: { id: true, name: true },
-  });
+  const [rewards, instances] = await Promise.all([
+    rewardIdBySourceId.size > 0
+      ? prisma.xpReward.findMany({
+          where: { id: { in: [...new Set(rewardIdBySourceId.values())] } },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve([]),
+    slugBySourceId.size > 0
+      ? prisma.workshop_Instance.findMany({
+          where: { slug: { in: [...new Set(slugBySourceId.values())] } },
+          select: { slug: true, label: true },
+        })
+      : Promise.resolve([]),
+  ]);
   const nameByRewardId = new Map(rewards.map((r) => [r.id, r.name]));
+  const labelBySlug = new Map(instances.map((i) => [i.slug, i.label]));
 
-  const nameBySourceId = new Map<string, string>();
+  const labelBySourceId = new Map<string, string>();
   for (const [sourceId, rewardId] of rewardIdBySourceId) {
     const name = nameByRewardId.get(rewardId);
-    if (name) nameBySourceId.set(sourceId, name);
+    if (name) labelBySourceId.set(sourceId, name);
   }
-  return nameBySourceId;
+  for (const [sourceId, slug] of slugBySourceId) {
+    const label = labelBySlug.get(slug);
+    if (label) labelBySourceId.set(sourceId, label);
+  }
+  return labelBySourceId;
 }
 
 /**
@@ -77,9 +100,9 @@ export async function getTalentXpStory(
     },
   });
 
-  const rewardNames = await resolveRewardNames(talentId, grants);
-  const rewardNameFor = (sourceId: string | null): string | undefined =>
-    sourceId ? rewardNames.get(sourceId) : undefined;
+  const grantLabels = await resolveGrantLabels(talentId, grants);
+  const labelFor = (sourceId: string | null): string | undefined =>
+    sourceId ? grantLabels.get(sourceId) : undefined;
 
   return {
     total: grants.reduce((sum, g) => sum + g.amount, 0),
@@ -91,7 +114,7 @@ export async function getTalentXpStory(
         label: xpHistoryLabel(
           g.source,
           g.amount,
-          rewardNameFor(g.sourceId),
+          labelFor(g.sourceId),
           'staff',
         ),
         amount: g.amount,

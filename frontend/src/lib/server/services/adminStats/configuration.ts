@@ -32,6 +32,7 @@ import { getStaffRoleLabel } from '$lib/domain/staff';
 import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
 import { CERTIFICATE_TOKENS } from '$lib/domain/diplomas';
+import { WORKSHOP_XP_PER_MINUTE } from '$lib/domain/xp';
 import { UnknownScopeError, type Scope } from '$lib/server/adminApi/scope';
 import { handleProvenanceFr } from '$lib/server/adminApi/handles';
 import { scopedEvents, scopeLabels } from './cohort';
@@ -417,6 +418,64 @@ export async function getEventTemplates(): Promise<EventTemplates> {
         feedbackFormId: template.feedbackFormId,
       })),
       "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie.",
+    ),
+  };
+}
+
+// ── The activity catalogue ───────────────────────────────────────────────────
+
+export type WorkshopInstanceRow = {
+  slug: string;
+  label: string;
+  baseUrl: string;
+  enabled: boolean;
+  attachedEvents: number;
+  talentsEntered: number;
+};
+
+export type WorkshopInstances = {
+  instances: Metric<WorkshopInstanceRow[]>;
+  scale: Metric<string>;
+};
+
+/**
+ * The CTFd instances Jump can send a talent to, and how much each is used.
+ *
+ * Carries no subject content, because Jump holds none: the title, the steps and
+ * the description live in CTFd. What it does carry is the slug, which is what
+ * both writes take, and the two counts that say whether an instance is still
+ * worth keeping in the catalogue.
+ *
+ * `talentsEntered` is a count and never a list: this tier returns no talent
+ * identity, at any level.
+ */
+export async function getWorkshopInstances(): Promise<WorkshopInstances> {
+  const rows = await prisma.workshop_Instance.findMany({
+    orderBy: { label: 'asc' },
+    select: {
+      slug: true,
+      label: true,
+      baseUrl: true,
+      enabled: true,
+      _count: { select: { events: true, participations: true } },
+    },
+  });
+
+  return {
+    instances: metric(
+      rows.map((instance) => ({
+        slug: instance.slug,
+        label: instance.label,
+        baseUrl: instance.baseUrl,
+        enabled: instance.enabled,
+        attachedEvents: instance._count.events,
+        talentsEntered: instance._count.participations,
+      })),
+      "Les activités en ligne que Jump sait proposer. « slug » est la clé stable à passer aux deux opérations d'écriture, « label » le nom que lit un talent, « baseUrl » l'adresse de l'instance vers laquelle il est envoyé, « enabled » si elle est proposée aujourd'hui, « attachedEvents » le nombre d'événements qui la proposent et « talentsEntered » le nombre de talents qui y sont entrés au moins une fois. Le contenu du sujet (titre, nombre d'étapes, énoncé) n'est pas ici : il vit dans l'instance elle-même.",
+    ),
+    scale: metric(
+      `Une activité déclarée à N minutes sur un événement vaut N x ${WORKSHOP_XP_PER_MINUTE} XP une fois entièrement terminée, au prorata des étapes validées. Le barème d'un talent est figé à sa première entrée : changer la durée ne reprend d'XP à personne et n'en ajoute pas rétroactivement.`,
+      "Comment une activité se transforme en XP, et ce qu'un changement de durée fait aux talents déjà entrés.",
     ),
   };
 }

@@ -159,7 +159,7 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
  * its cached projections (`xp`/`eventsCount` → 0), the émargement marks
  * (`EventPresence`, the source `eventsCount` projects from, so the zeroed
  * count stays consistent and a later presence write can't resurrect it),
- * minigame attempts, closings
+ * minigame attempts, the CTFd activity mirrors, closings
  * (and the audit trail of any admin reset), interests, reminders, PDF jobs,
  * broadcast-recipient rows, deletion requests, every
  * onboarding/parent/image-rights/règlement column, and the generated onboarding
@@ -264,6 +264,18 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     await tx.onboarding_Record.deleteMany({ where: { talentId } });
     await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
     await tx.minigameAttempt.deleteMany({ where: { talentId } });
+    // The CTFd activities, beside the minigame attempts and for the same reason:
+    // both mirror what the talent did on another platform, and both carry the
+    // arrears of a float that has not fired yet. Leaving this one behind is not
+    // a stale row, it is a celebration the reset itself creates: `xpPending`
+    // survives the `xpGrant` delete below, so the next dashboard load floats XP
+    // the ledger no longer holds, over a profile card reading 0. The progress
+    // and the `budgetMinutes` snapshot outlive the reset too, so the mission
+    // line still reads "6 / 15 étapes validées" for a talent returned to import.
+    // What is NOT reset is CTFd's own account: a later solve reports progress
+    // again, re-opens a participation through the entry action and re-grants,
+    // which is the mirror behaving as one.
+    await tx.workshop_Participation.deleteMany({ where: { talentId } });
     await tx.xpGrant.deleteMany({ where: { talentId } });
     await tx.eventPresence.deleteMany({ where: { talentId } });
     await tx.imageRightsDecisionRecord.deleteMany({ where: { talentId } });

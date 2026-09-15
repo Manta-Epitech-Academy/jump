@@ -22,6 +22,7 @@ import {
   CLUB_TEMPLATE_QUESTION_KEYS,
 } from '../catalog/closings';
 import { codingClubPublicName, codingClubTitre } from '../catalog/events';
+import { WORKSHOPS } from '../catalog/workshops';
 import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { conductClosing } from '../factories/closing';
@@ -53,6 +54,42 @@ import type { EventRef } from '../world';
 const SESSION_OFFSETS = [
   -189, -168, -147, -126, -105, -84, -63, -42, -21, 6,
 ] as const;
+
+const [PACMAN, LINUX] = WORKSHOPS;
+
+/**
+ * Which online activities a session offers.
+ *
+ * Two sessions of the ten, and that is the real distribution rather than a
+ * sample: most events offer none at all, so the empty case is what a dashboard
+ * and an export mostly render. The two that do offer one carry the SAME subject
+ * at DIFFERENT durations, which is the whole reason `durationMinutes` sits on the
+ * link and not on the catalogue, and the retired instance is attached beside it,
+ * so an event still pointing at something nobody may enter exists in the data.
+ *
+ * THE `labelOverride` GOES ON THE OFFERED INSTANCE, NOT THE RETIRED ONE, and
+ * that is the whole of why it is here. `listWorkshopMissions` only ever reads a
+ * link whose instance is `enabled`, so an override on the retired row is a column
+ * no screen can reach: the branch it exists to exercise
+ * (`o.labelOverride ?? o.instance.label`) would render nowhere in any generated
+ * dataset. It sits on the PAST session rather than the upcoming one because the
+ * first enrolment that offers an activity is the one that wins, and the anchor
+ * regular is guaranteed onto every session: the override is therefore what their
+ * dashboard reads, deterministically, run after run. The upcoming session offers
+ * the same subject under its catalogue label, which is the other branch.
+ */
+function activitiesFor(session: number, upcoming: boolean) {
+  if (upcoming) return [{ slug: PACMAN!.slug, durationMinutes: 150 }];
+  if (session !== SESSION_OFFSETS.length - 2) return [];
+  return [
+    {
+      slug: PACMAN!.slug,
+      durationMinutes: PACMAN!.durationMinutes,
+      labelOverride: 'Pacman : apprends à coder une IA',
+    },
+    { slug: LINUX!.slug, durationMinutes: LINUX!.durationMinutes },
+  ];
+}
 
 export const club: Scenario = {
   // Not `coding-club-nice`: `pickCampus` falls back when the preferred campus
@@ -125,6 +162,7 @@ export const club: Scenario = {
           EVENT_MODULES.CLOSINGS,
         ],
         closingTemplateId: clubTemplateId,
+        workshops: activitiesFor(session, upcoming),
       });
       sessionEvents.push(event);
       // Two sessions of the season carry a planning, not all ten. Production
@@ -149,6 +187,37 @@ export const club: Scenario = {
         anchorRegular,
       );
       for (const talent of attending) world.enrol(event, talent);
+
+      // Three states of an activity, placed rather than drawn, because each one
+      // renders a different thing and a draw either produces them or does not:
+      // nobody has entered the retired one, one regular is owed a celebration
+      // (the XP arrived while the Jump tab was in the background, which is the
+      // demo), and another has already seen theirs.
+      if (!upcoming && activitiesFor(session, upcoming).length > 0) {
+        const other = attending.find((t) => t.id !== anchorRegular.id);
+        world.enterWorkshop({
+          talent: anchorRegular,
+          event,
+          slug: PACMAN!.slug,
+          budgetMinutes: PACMAN!.durationMinutes,
+          solvedSteps: 6,
+          totalSteps: PACMAN!.totalSteps,
+          at: clock.days(-2),
+          celebrated: false,
+        });
+        if (other) {
+          world.enterWorkshop({
+            talent: other,
+            event,
+            slug: PACMAN!.slug,
+            budgetMinutes: PACMAN!.durationMinutes,
+            solvedSteps: PACMAN!.totalSteps,
+            totalSteps: PACMAN!.totalSteps,
+            at: day,
+            celebrated: true,
+          });
+        }
+      }
 
       if (upcoming) continue;
 

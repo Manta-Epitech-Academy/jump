@@ -20,6 +20,54 @@ export const WELCOME_XP_BONUS = 200;
 export const MINIGAME_XP_REWARD = 50;
 
 /**
+ * XP one minute of a CTFd activity is worth (Edouard, 15/09). An activity
+ * declared at N minutes is worth exactly `N * WORKSHOP_XP_PER_MINUTE` once it is
+ * finished, and the same scale is what `scripts/grant-reward-from-csv.ts` already
+ * applied by hand after the last stage.
+ */
+export const WORKSHOP_XP_PER_MINUTE = 10;
+
+/**
+ * What a talent has earned on one activity so far.
+ *
+ * Steps, not CTFd points, and the argument is not technical: the student reads
+ * "8 / 15 étapes" on the CTFd page, so any other denominator would make Jump
+ * state a second truth that contradicts the screen. It is also the only
+ * denominator that means anything in this content, since every intro, outro and
+ * grading step is authored `value: 0`.
+ *
+ * One rounded term over the whole activity rather than one per validated step:
+ * thirty independently rounded terms do not add up to `budgetMinutes * 10`, and
+ * a step removed from the subject lowers the denominator, which frozen per-step
+ * amounts would overshoot from the other end.
+ *
+ * `budgetMinutes` is the value snapshotted on the participation at first entry,
+ * never re-read from the event configuration, which is what lets the duration be
+ * replayed without taking XP back off anybody who has already started.
+ *
+ * BOTH COUNTS ARE CTFd'S CLAIM, so the ceiling is enforced here rather than
+ * trusted. `totalSteps <= 0` is one claim to survive; `solvedSteps > totalSteps`
+ * is the other, and it is the one that costs money: a subject that drops a step
+ * somebody had already validated reports more solved than exist, and the term
+ * then pays ABOVE the declared minutes. "An activity is worth exactly what it was
+ * declared to be worth" is the one number the PO stated and the one this tier
+ * publishes to admins, so it holds whatever arrives on the wire.
+ */
+export function workshopXp(
+  solvedSteps: number,
+  totalSteps: number,
+  budgetMinutes: number,
+): number {
+  // CTFd claims the totals, so a subject with no counted step is a claim to
+  // survive rather than an impossible state: no denominator, no XP.
+  if (totalSteps <= 0) return 0;
+  const solved = Math.min(Math.max(solvedSteps, 0), totalSteps);
+  return Math.round(
+    (solved * budgetMinutes * WORKSHOP_XP_PER_MINUTE) / totalSteps,
+  );
+}
+
+/**
  * How many earliest onboarding completers, PER CAMPUS, earn an early-bird bonus.
  * Per-campus (not a global N) so a small campus (~26 students, La Reunion) isn't
  * shut out by a large one (200+) whose students simply finish first in absolute

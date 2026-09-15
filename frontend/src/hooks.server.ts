@@ -18,7 +18,12 @@ import { readArmedState, effectiveUserId } from '$lib/server/armRealSends';
 import { readDevRedirectPin } from '$lib/server/devRedirectPin';
 import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
 import { env } from '$env/dynamic/private';
-import { frameSrcDirective, LOCKED_DOWN_CSP } from '$lib/security/csp';
+import {
+  formActionDirective,
+  frameSrcDirective,
+  LOCKED_DOWN_CSP,
+} from '$lib/security/csp';
+import { workshopBaseUrls } from '$lib/server/workshops/origins';
 import { createInitialModeExpression } from 'mode-watcher';
 
 // Every CSP directive that is a fixed constant (or gone with the recorder, issue
@@ -49,13 +54,20 @@ const FRAME_SRC_DIRECTIVE = frameSrcDirective(env.JUMP_GAMES_URL);
 const THEME_INIT_TOKEN = '/* jump:theme-init */';
 const THEME_INIT = createInitialModeExpression({});
 
-function setSecurityHeaders(response: Response) {
+async function setSecurityHeaders(response: Response) {
   // A header already set is kit's, so append to it. Nothing here rebuilds a
   // policy, and `security/csp.test.ts` fails if that changes.
   const renderedCsp = response.headers.get('Content-Security-Policy');
+  // Only for a rendered page: a guard redirect or a JSON result takes the
+  // locked-down policy, which needs no origins and so costs no read.
+  const formAction = renderedCsp
+    ? formActionDirective(await workshopBaseUrls())
+    : '';
   response.headers.set(
     'Content-Security-Policy',
-    renderedCsp ? `${renderedCsp}; ${FRAME_SRC_DIRECTIVE}` : LOCKED_DOWN_CSP,
+    renderedCsp
+      ? `${renderedCsp}; ${FRAME_SRC_DIRECTIVE}; ${formAction}`
+      : LOCKED_DOWN_CSP,
   );
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
@@ -315,7 +327,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   // 3. Route guards
   const guardResponse = await applyRouteGuards(event);
   if (guardResponse) {
-    setSecurityHeaders(guardResponse);
+    await setSecurityHeaders(guardResponse);
     return guardResponse;
   }
 
@@ -425,7 +437,7 @@ export const handle: Handle = async ({ event, resolve }) => {
           html.replace(THEME_INIT_TOKEN, () => THEME_INIT),
       }),
   );
-  setSecurityHeaders(response);
+  await setSecurityHeaders(response);
 
   return response;
 };

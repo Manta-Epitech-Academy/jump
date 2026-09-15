@@ -62,6 +62,7 @@ export type Buffered = {
   eventConfig_TemplateModule: Prisma.EventConfig_TemplateModuleCreateManyInput[];
   event: Prisma.EventCreateManyInput[];
   eventConfig_Module: Prisma.EventConfig_ModuleCreateManyInput[];
+  eventConfig_Workshop: Prisma.EventConfig_WorkshopCreateManyInput[];
   participation: Prisma.ParticipationCreateManyInput[];
   planning_Slot: Prisma.Planning_SlotCreateManyInput[];
   eventPresence: Prisma.EventPresenceCreateManyInput[];
@@ -74,6 +75,7 @@ export type Buffered = {
   xpGrant: Prisma.XpGrantCreateManyInput[];
   minigamePublication: Prisma.MinigamePublicationCreateManyInput[];
   minigameAttempt: Prisma.MinigameAttemptCreateManyInput[];
+  workshop_Participation: Prisma.Workshop_ParticipationCreateManyInput[];
   note_TalentNote: Prisma.Note_TalentNoteCreateManyInput[];
   feedback_Submission: Prisma.Feedback_SubmissionCreateManyInput[];
   feedback_Answer: Prisma.Feedback_AnswerCreateManyInput[];
@@ -119,6 +121,7 @@ const MODEL_ORDER = [
   'eventConfig_TemplateModule',
   'event',
   'eventConfig_Module',
+  'eventConfig_Workshop',
   'participation',
   'planning_Slot',
   'eventPresence',
@@ -131,6 +134,7 @@ const MODEL_ORDER = [
   'xpGrant',
   'minigamePublication',
   'minigameAttempt',
+  'workshop_Participation',
   'note_TalentNote',
   'feedback_Submission',
   'feedback_Answer',
@@ -362,6 +366,11 @@ export async function wipe(
   await drop('note_TalentNote', () =>
     prisma.note_TalentNote.deleteMany({ where: { id: seeded } }),
   );
+  await drop('workshop_Participation', () =>
+    // Composite primary key, so no `id` to match on: the talent column carries
+    // the prefix, exactly as `eventConfig_Module` is removed by its event.
+    prisma.workshop_Participation.deleteMany({ where: { talentId: seeded } }),
+  );
   await drop('minigameAttempt', () =>
     prisma.minigameAttempt.deleteMany({ where: { id: seeded } }),
   );
@@ -400,6 +409,9 @@ export async function wipe(
   await drop('participation', () =>
     prisma.participation.deleteMany({ where: { id: seeded } }),
   );
+  await drop('eventConfig_Workshop', () =>
+    prisma.eventConfig_Workshop.deleteMany({ where: { eventId: seeded } }),
+  );
   await drop('eventConfig_Module', () =>
     prisma.eventConfig_Module.deleteMany({ where: { eventId: seeded } }),
   );
@@ -411,6 +423,9 @@ export async function wipe(
   );
   await drop('eventConfig_Template', () =>
     prisma.eventConfig_Template.deleteMany({ where: { id: seeded } }),
+  );
+  await drop('workshop_Instance', () =>
+    prisma.workshop_Instance.deleteMany({ where: { id: seeded } }),
   );
   await drop('closing_TemplateQuestion', () =>
     prisma.closing_TemplateQuestion.deleteMany({ where: { id: seeded } }),

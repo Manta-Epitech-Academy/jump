@@ -26,13 +26,16 @@ import { SEED_MAIL_DOMAIN, STAFF_MAIL_DOMAIN } from './catalog/people';
 import type { CampusSpec } from './catalog/campuses';
 import type { SchoolSpec } from './catalog/schools';
 import type { SlotBlueprint } from './catalog/planning';
+import { workshopInstanceId } from './catalog/workshops';
 import type { Rng } from './rng';
 import type { SfMemberStatus } from '../../src/lib/domain/sfMemberStatus';
 import { activationBlockers } from '../../src/lib/domain/eventReadiness';
 import {
   minigameRankBonus,
   minigameRankBonusLimit,
+  workshopXp,
 } from '../../src/lib/domain/xp';
+import { workshopGrantSourceId } from '../../src/lib/domain/workshops';
 import { fromWallClock } from '../../src/lib/domain/planningTime';
 import {
   CIVILITE_OPTIONS,
@@ -993,6 +996,16 @@ export class World {
     closingTemplateId?: string | null;
     feedbackFormId?: string | null;
     diplomaTemplateId?: string | null;
+    /**
+     * The online activities this event offers, in the order a talent sees them.
+     * Most events offer none, which is both the real distribution and the
+     * coverage of the empty case.
+     */
+    workshops?: readonly {
+      slug: string;
+      durationMinutes: number;
+      labelOverride?: string;
+    }[];
     /** Events with no Salesforce origin do not exist in production. */
     externalId?: string | null;
   }): EventRef {
@@ -1085,6 +1098,17 @@ export class World {
         // schema nor the readers that branch on a setting had anything to run
         // against; the module that actually carries options gets one.
         settings: opts.moduleSettings?.[moduleKey],
+      });
+    }
+
+    for (const [index, workshop] of (opts.workshops ?? []).entries()) {
+      this.buffer.eventConfig_Workshop.push({
+        eventId,
+        instanceId: workshopInstanceId(workshop.slug),
+        position: index,
+        durationMinutes: workshop.durationMinutes,
+        labelOverride: workshop.labelOverride ?? null,
+        createdAt: clock.days(-30),
       });
     }
 
@@ -1453,6 +1477,62 @@ export class World {
       opts.talent.id,
       (this.xpByTalent.get(opts.talent.id) ?? 0) + opts.amount,
     );
+  }
+
+  // ─── Activités en ligne ───────────────────────────────────────────────────
+
+  /**
+   * A talent's state on one online activity, and the XP grant that state implies.
+   *
+   * The grant is written HERE rather than left to the caller because the two have
+   * to agree: the application recomputes one grant per (talent, instance) from
+   * exactly these numbers on every callback, so a seeded pair that disagrees is a
+   * pair no callback could have produced.
+   *
+   * `celebrated` is the one-shot float's state, and both halves are worth
+   * placing: `false` leaves the XP owed a celebration, which is what a talent
+   * coming back to the Jump tab sees, and `true` is the state every talent is in
+   * afterwards.
+   */
+  enterWorkshop(opts: {
+    talent: TalentRef;
+    event: EventRef;
+    slug: string;
+    budgetMinutes: number;
+    solvedSteps: number;
+    totalSteps: number;
+    /** When the talent first entered; the grant is dated from it too. */
+    at: Date;
+    celebrated: boolean;
+  }): void {
+    const amount = workshopXp(
+      opts.solvedSteps,
+      opts.totalSteps,
+      opts.budgetMinutes,
+    );
+    this.buffer.workshop_Participation.push({
+      talentId: opts.talent.id,
+      instanceId: workshopInstanceId(opts.slug),
+      eventId: opts.event.id,
+      campusId: opts.event.campusId,
+      budgetMinutes: opts.budgetMinutes,
+      solvedSteps: opts.solvedSteps,
+      totalSteps: opts.totalSteps,
+      xpPending: opts.celebrated ? 0 : amount,
+      firstEnteredAt: opts.at,
+      xpSeenAt: opts.celebrated ? opts.at : null,
+      updatedAt: opts.at,
+    });
+    if (amount > 0) {
+      this.grantXp({
+        talent: opts.talent,
+        source: 'workshop',
+        sourceId: workshopGrantSourceId(opts.slug, opts.talent.id),
+        amount,
+        campusId: opts.event.campusId,
+        at: opts.at,
+      });
+    }
   }
 
   /**
