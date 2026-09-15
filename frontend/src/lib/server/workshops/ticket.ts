@@ -51,14 +51,23 @@ export type WorkshopTicketClaims = {
 /**
  * Two keys from one secret, so compromising one direction is not a forging
  * capability in the other: a leaked callback key cannot mint an entry ticket.
+ *
+ * Each is the LOWERCASE HEX DIGEST AS AN ASCII STRING, not the raw bytes, and
+ * that is part of the frozen contract rather than an implementation detail: the
+ * plugin's `derived_key` returns `hexdigest().encode()` and uses it as the key of
+ * the next HMAC. Raw bytes and their hex spelling are different keys and produce
+ * different signatures, so getting this wrong refuses every ticket and every
+ * callback with nothing to say why.
  */
 export function workshopKeys(secret: string): {
-  ticketKey: Buffer;
-  callbackKey: Buffer;
+  ticketKey: string;
+  callbackKey: string;
 } {
   return {
-    ticketKey: createHmac('sha256', secret).update('jump/ticket').digest(),
-    callbackKey: createHmac('sha256', secret).update('jump/callback').digest(),
+    ticketKey: createHmac('sha256', secret).update('jump/ticket').digest('hex'),
+    callbackKey: createHmac('sha256', secret)
+      .update('jump/callback')
+      .digest('hex'),
   };
 }
 
@@ -88,7 +97,7 @@ function b64url(input: Buffer): string {
   return input.toString('base64url');
 }
 
-function sign(payload: string, ticketKey: Buffer): string {
+function sign(payload: string, ticketKey: string): string {
   return b64url(createHmac('sha256', ticketKey).update(payload).digest());
 }
 

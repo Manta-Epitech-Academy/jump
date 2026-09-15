@@ -138,14 +138,28 @@ describe('the derived keys', () => {
   it('are different from each other and from the secret', () => {
     // A leak in one direction must not be a forging capability in the other.
     const { ticketKey, callbackKey } = workshopKeys(SECRET);
-    expect(ticketKey.equals(callbackKey)).toBe(false);
-    expect(ticketKey.toString('hex')).not.toBe(SECRET);
+    expect(ticketKey).not.toBe(callbackKey);
+    expect(ticketKey).not.toBe(SECRET);
   });
 
-  it('derive the same bytes from the same secret, run after run', () => {
-    expect(workshopKeys(SECRET).ticketKey.toString('hex')).toBe(
-      workshopKeys(SECRET).ticketKey.toString('hex'),
+  it('are the lowercase hex digest, which is the frozen contract', () => {
+    // The plugin's `derived_key` returns `hexdigest().encode()` and uses that
+    // ASCII string as the key of the next HMAC. Raw bytes and their hex spelling
+    // are different keys: this assertion is what stops the two halves drifting
+    // into refusing every ticket with nothing to say why.
+    const { ticketKey, callbackKey } = workshopKeys(SECRET);
+    expect(ticketKey).toMatch(/^[0-9a-f]{64}$/);
+    expect(callbackKey).toMatch(/^[0-9a-f]{64}$/);
+    expect(ticketKey).toBe(
+      createHmac('sha256', SECRET).update('jump/ticket').digest('hex'),
     );
+    expect(callbackKey).toBe(
+      createHmac('sha256', SECRET).update('jump/callback').digest('hex'),
+    );
+  });
+
+  it('derive the same key from the same secret, run after run', () => {
+    expect(workshopKeys(SECRET).ticketKey).toBe(workshopKeys(SECRET).ticketKey);
   });
 });
 
