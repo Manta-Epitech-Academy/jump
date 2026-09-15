@@ -46,6 +46,7 @@ import {
   seedFeedbackForms,
 } from './catalog/feedbackForms';
 import { MINIGAMES } from './catalog/platform';
+import { seedWorkshopInstances } from './catalog/workshops';
 import { STAGE_TEMPLATE_KEY } from './catalog/closings';
 
 const DEFAULT_SEED = 20260830;
@@ -242,6 +243,9 @@ async function main(): Promise<void> {
         `  formulaires de bilan   ${await seedFeedbackForms(prisma, clock.today)}`,
       );
       await seedMinigameRotation(prisma, clock.today);
+      log(
+        `  activités en ligne     ${await seedWorkshopInstances(prisma, clock.today)}`,
+      );
       const author = await prisma.staffProfile.findFirst({
         select: { userId: true },
       });
@@ -287,6 +291,9 @@ async function main(): Promise<void> {
       `  formulaires de bilan   ${await seedFeedbackForms(prisma, clock.today)}`,
     );
     await seedMinigameRotation(prisma, clock.today);
+    log(
+      `  activités en ligne     ${await seedWorkshopInstances(prisma, clock.today)}`,
+    );
 
     const world = new World(ctx);
     await loadPreexistingRows(prisma, world);
