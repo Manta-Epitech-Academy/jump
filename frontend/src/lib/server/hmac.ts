@@ -6,7 +6,13 @@ export function verifyCallbackSignature(
   rawBody: string,
   timestamp: string,
   signature: string,
-  secret: string,
+  /**
+   * Accepts raw bytes as well as a string: the workshop callback signs with a
+   * key DERIVED from its shared secret (`workshops/ticket.ts`), so that a leak in
+   * one direction is not a forging capability in the other, and a derived key is
+   * bytes rather than text.
+   */
+  secret: string | Uint8Array,
 ): boolean {
   const ts = Number(timestamp);
   if (!Number.isFinite(ts)) return false;
