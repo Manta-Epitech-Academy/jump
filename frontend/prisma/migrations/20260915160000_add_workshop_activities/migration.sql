@@ -27,9 +27,11 @@
 -- to. `eventId` and `campusId` are snapshots with `ON DELETE SET NULL` and no
 -- composite key back to `Event(id, campusId)`: the Salesforce sync hard-deletes
 -- the enrolments a payload omits, so a talent can lose the enrolment mid-activity
--- and these columns are what survives it. `budgetMinutes` snapshots the link row
--- at first entry, which is what lets a duration be replayed later without taking
--- XP back off anybody who has already started.
+-- and these columns are what survives it. They stay NOT NULL because it is the
+-- enrolment that disappears and never the event, which no sync deletes.
+-- `budgetMinutes` snapshots the link row at first entry, which is what lets a
+-- duration be replayed later without taking XP back off anybody who has already
+-- started.
 --
 -- No backfill is owed: every table is new, and `XpGrantSource.workshop` cannot
 -- describe a row that predates it.
@@ -66,8 +68,8 @@ CREATE TABLE "EventConfig_Workshop" (
 CREATE TABLE "Workshop_Participation" (
     "talentId" TEXT NOT NULL,
     "instanceId" TEXT NOT NULL,
-    "eventId" TEXT,
-    "campusId" TEXT,
+    "eventId" TEXT NOT NULL,
+    "campusId" TEXT NOT NULL,
     "budgetMinutes" INTEGER NOT NULL,
     "solvedSteps" INTEGER NOT NULL DEFAULT 0,
     "totalSteps" INTEGER NOT NULL DEFAULT 0,
@@ -107,8 +109,8 @@ ALTER TABLE "Workshop_Participation" ADD CONSTRAINT "Workshop_Participation_tale
 ALTER TABLE "Workshop_Participation" ADD CONSTRAINT "Workshop_Participation_instanceId_fkey" FOREIGN KEY ("instanceId") REFERENCES "Workshop_Instance"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Workshop_Participation" ADD CONSTRAINT "Workshop_Participation_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Workshop_Participation" ADD CONSTRAINT "Workshop_Participation_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Workshop_Participation" ADD CONSTRAINT "Workshop_Participation_campusId_fkey" FOREIGN KEY ("campusId") REFERENCES "Campus"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Workshop_Participation" ADD CONSTRAINT "Workshop_Participation_campusId_fkey" FOREIGN KEY ("campusId") REFERENCES "Campus"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 

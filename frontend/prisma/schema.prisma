@@ -2290,12 +2290,17 @@ model EventConfig_Workshop {
 /// people who have already started.
 ///
 /// `eventId` and `campusId` record what was true once instead of tracking a
-/// source, which is the test `prisma/CLAUDE.md` states: nullable FKs with
-/// `SetNull` and no composite key back to `Event(id, campusId)`, the shape
-/// `MinigameAttempt` already uses. They have to record, because `syncTalents`
-/// hard-deletes every enrolment a Salesforce payload omits (the incident that
-/// took `Closing_Record` off `Participation`), so a talent can lose the enrolment
-/// mid-activity and the snapshot is what survives it.
+/// source, which is the test `prisma/CLAUDE.md` states, so they are NOT bound to
+/// `Event(id, campusId)` by a composite key: an event reassigned to another
+/// campus in Salesforce does not rewrite the campus an activity was walked under,
+/// the same call `XpGrant.campusId` and `MinigameAttempt.campusId` make.
+///
+/// They record because `syncTalents` hard-deletes every enrolment a Salesforce
+/// payload omits, the incident that took `Closing_Record` off `Participation`: a
+/// talent can lose the enrolment mid-activity, and these columns plus
+/// `budgetMinutes` are what survives it. It is the ENROLMENT that disappears, not
+/// the event, which no sync ever deletes, so both stay required rather than
+/// nullable: a null here would be a state nothing can produce.
 ///
 /// The key `(talent, instance)` encodes a product rule: an activity is worth its
 /// XP once per talent, for life. CTFd holds one account per talent per instance
@@ -2306,8 +2311,8 @@ model EventConfig_Workshop {
 model Workshop_Participation {
   talentId       String
   instanceId     String
-  eventId        String?
-  campusId       String?
+  eventId        String
+  campusId       String
   /// Snapshot of `EventConfig_Workshop.durationMinutes`, taken at first entry.
   budgetMinutes  Int
   solvedSteps    Int       @default(0)
@@ -2323,8 +2328,10 @@ model Workshop_Participation {
 
   talent   Talent            @relation(fields: [talentId], references: [id], onDelete: Cascade)
   instance Workshop_Instance @relation(fields: [instanceId], references: [id], onDelete: Restrict)
-  event    Event?            @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  campus   Campus?           @relation(fields: [campusId], references: [id], onDelete: SetNull)
+  event    Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  /// Restrict, matching `Participation.campus`: a campus still holding walked
+  /// activities is not one to delete out from under them.
+  campus   Campus            @relation(fields: [campusId], references: [id])
 
   @@id([talentId, instanceId])
   @@index([instanceId])
