@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import { resolveRewardNames } from '$lib/server/services/xpStoryService';
+import { resolveGrantLabels } from '$lib/server/services/xpStoryService';
 import { getBrowserTimezone } from '$lib/server/db/scoped';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
@@ -20,7 +20,8 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
   // the ledger rows for the timeline. Selecting just the display fields keeps
   // the staff-facing `XpGrant.note` off the wire (it is unowned, talent-facing
   // copy has not been decided, and no source writes it yet). `sourceId` is read
-  // only to resolve reward names below and is dropped before it leaves the load.
+  // only to resolve the grant labels below and is dropped before it leaves the
+  // load.
   const grants = await prisma.xpGrant.findMany({
     where: { talentId: locals.talent.id },
     orderBy: { createdAt: 'desc' },
@@ -33,15 +34,16 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     },
   });
 
-  // A `reward` grant carries its activity name on the XpReward, not the grant;
-  // without this it falls to the generic fallback label on the timeline.
-  const rewardNames = await resolveRewardNames(locals.talent.id, grants);
+  // A `reward` grant carries its activity name on the XpReward and a `workshop`
+  // grant its instance label on `Workshop_Instance`, never on the grant itself;
+  // without this both fall to the generic fallback label on the timeline.
+  const grantLabels = await resolveGrantLabels(locals.talent.id, grants);
 
   return {
     timeZone,
     grants: grants.map(({ sourceId, ...g }) => ({
       ...g,
-      rewardName: sourceId ? (rewardNames.get(sourceId) ?? null) : null,
+      sourceLabel: sourceId ? (grantLabels.get(sourceId) ?? null) : null,
     })),
   };
 };

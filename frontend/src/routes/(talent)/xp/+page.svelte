@@ -13,6 +13,7 @@
   import Wrench from '@lucide/svelte/icons/wrench';
   import PartyPopper from '@lucide/svelte/icons/party-popper';
   import Zap from '@lucide/svelte/icons/zap';
+  import Terminal from '@lucide/svelte/icons/terminal';
   import type { Component } from 'svelte';
 
   let { data }: { data: PageData } = $props();
@@ -58,6 +59,13 @@
       bgClass: 'bg-epi-tomorrow-ink/10',
       textClass: 'text-epi-tomorrow-ink',
       borderClass: 'border-epi-tomorrow-ink/20',
+    },
+    workshop: {
+      icon: Terminal,
+      color: 'epi-together',
+      bgClass: 'bg-epi-together-ink/10',
+      textClass: 'text-epi-together-ink',
+      borderClass: 'border-epi-together-ink/20',
     },
     reward: {
       icon: Award,
@@ -230,7 +238,7 @@
                 {@const label = xpHistoryLabel(
                   grant.source,
                   grant.amount,
-                  grant.rewardName,
+                  grant.sourceLabel,
                   'talent',
                 )}
                 <div

@@ -151,6 +151,7 @@ export const USAGE_FEATURES = {
   TALENT_SETTINGS_VIEW: 'talent_settings_view',
   TALENT_DOCUMENT_VIEW: 'talent_document_view',
   TALENT_MINIGAME_OPEN: 'talent_minigame_open',
+  TALENT_WORKSHOP_OPEN: 'talent_workshop_open',
   TALENT_FEEDBACK_OPEN: 'talent_feedback_open',
 } as const;
 
@@ -1394,6 +1395,17 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     space: 'talent',
     kind: 'action',
     scope: 'campus',
+    dedupe: 'each',
+  }),
+  [USAGE_FEATURES.TALENT_WORKSHOP_OPEN]: def({
+    key: USAGE_FEATURES.TALENT_WORKSHOP_OPEN,
+    label: 'L’ouverture d’une activité',
+    definition:
+      'Ouvertures d’une activité depuis l’accueil, comptées au départ vers l’activité et non aux étapes validées. Une par ouverture : c’est le seul chiffre qui distingue une activité ouverte une fois et abandonnée d’une activité reprise cinq soirs de suite. Les étapes et les XP sont des faits déjà enregistrés ailleurs.',
+    audience: 'talent',
+    space: 'talent',
+    kind: 'action',
+    scope: 'event',
     dedupe: 'each',
   }),
   [USAGE_FEATURES.TALENT_FEEDBACK_OPEN]: def({

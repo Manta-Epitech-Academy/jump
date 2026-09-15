@@ -23,6 +23,10 @@ import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
 import { toPlanningView } from '$lib/domain/talentPlanning';
 import { buildPreviewPlanningView } from '$lib/server/talentPlanningPreview';
 import { listAttendedEvents } from '$lib/server/talent/attendedEvents';
+import {
+  getUnseenWorkshopReward,
+  listWorkshopMissions,
+} from '$lib/server/services/workshopService';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -127,6 +131,18 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     // first page the player lands on afterwards (dashboard or leaderboard). Shared
     // helper so both pages surface it identically.
     const minigameRankReward = await getUnseenMinigameRankReward(studentId);
+
+    // The CTFd activities the talent's own events offer, with whatever CTFd last
+    // reported about each. Not narrowed by date: a Coding Club is designed never
+    // to finish and the students carry on at home, so an activity outlives the
+    // afternoon it was handed out on.
+    const workshopMissions = await listWorkshopMissions(studentId);
+
+    // Everything earned on an activity and not yet celebrated. The talent walks
+    // the activity in another tab, so nothing here witnesses the moment: the float
+    // fires when they come back, which is what the dashboard's visibility listener
+    // is for.
+    const workshopReward = await getUnseenWorkshopReward(studentId);
 
     // Arrival celebration total. Only resolved on the first dashboard load after
     // onboarding completion (the arrival-celebration cookie, consumed here), so
@@ -273,6 +289,8 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       minigame,
       minigameReward,
       minigameRankReward,
+      workshopMissions,
+      workshopReward,
       onboardingArrival,
       welcome,
       pastEvents,

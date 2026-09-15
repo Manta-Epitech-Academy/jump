@@ -3,6 +3,7 @@
   import { dev } from '$app/environment';
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
+  import { invalidateAll } from '$app/navigation';
   import { fly } from 'svelte/transition';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
@@ -13,6 +14,7 @@
   import History from '@lucide/svelte/icons/history';
   import Coffee from '@lucide/svelte/icons/coffee';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
+  import Terminal from '@lucide/svelte/icons/terminal';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import CalendarCheck from '@lucide/svelte/icons/calendar-check';
   import FeedbackBanner from '$lib/components/feedback/FeedbackBanner.svelte';
@@ -21,6 +23,7 @@
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
   import MinigameRewardCelebration from '$lib/components/talent/MinigameRewardCelebration.svelte';
+  import WorkshopRewardCelebration from '$lib/components/talent/WorkshopRewardCelebration.svelte';
   import { onMount } from 'svelte';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
@@ -130,6 +133,28 @@
   // can't drift.
   const DAILY_TRAINING_LABEL = 'Entraîne ton cerveau';
 
+  // The CTFd activities the talent's events offer. Student-facing wording all the
+  // way: the words « CTFd » and « flag » never appear on this surface.
+  const ACTIVITY_LABEL = 'Passe à la pratique';
+  let workshopMissions = $derived(data.workshopMissions);
+  let hasOpenActivity = $derived(
+    workshopMissions.some((mission) => mission.startedAt !== null),
+  );
+
+  // An activity is walked in a SECOND TAB, so coming back here reloads nothing on
+  // its own and the XP earned meanwhile would only appear on the next navigation.
+  // Armed only once the talent has actually entered an activity, so a dashboard
+  // with nothing open carries no listener at all.
+  $effect(() => {
+    if (!hasOpenActivity) return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void invalidateAll();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () =>
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+  });
+
   function formatChrono(ms: number | null): string {
     return ms === null ? '-' : `${(ms / 1000).toFixed(1)}s`;
   }
@@ -159,6 +184,11 @@
   baseReward={data.minigameReward}
   rankReward={data.minigameRankReward}
 />
+
+<!-- Activity XP, celebrated when the talent comes back to this tab. One float for
+     everything that arrived since the last acknowledgement, which may well be an
+     evening's worth of steps. -->
+<WorkshopRewardCelebration reward={data.workshopReward} />
 
 <div class="flex min-h-screen flex-col">
   <!-- Same app bar as every talent page; the greeting is the only thing the
@@ -326,6 +356,72 @@
               </button>
             </form>
           {/if}
+        </div>
+      {/if}
+    {/snippet}
+
+    <!-- The event's activities, same row language as the training above: the
+         whole row is the control, the icon and the text rejoin the CTA on
+         desktop, and the CTA reads « Commencer » or « Reprendre ». Each row is a
+         FORM and not a link, because entering mints a ticket and opens a
+         participation, and `load` runs on speculative hover-preload.
+         `target="_blank"` is load-bearing rather than a preference: it is what
+         leaves this tab alive for the talent to come back to, which is where the
+         XP are celebrated. The list scrolls in its own box from day one: how many
+         rows it holds is decided by the event configuration, not by this code. -->
+    {#snippet activityMissions()}
+      {#if workshopMissions.length > 0}
+        <div class="max-h-[40svh] space-y-4 overflow-y-auto">
+          {#each workshopMissions as mission (mission.slug)}
+            {@const started = mission.startedAt !== null}
+            <form
+              method="POST"
+              action={`/activites/${mission.slug}`}
+              target="_blank"
+            >
+              <button
+                type="submit"
+                class="flex w-full cursor-pointer flex-col gap-3 rounded-xl border border-epi-together-ink/20 bg-epi-together-ink/5 p-4 text-left transition-ui hover:bg-epi-together-ink/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
+              >
+                <div class="flex items-center gap-4 sm:contents">
+                  <div
+                    class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-together-ink/10"
+                  >
+                    <Terminal class="h-5 w-5 text-epi-together-ink" />
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div
+                      class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
+                    >
+                      <span class="text-epi-together-ink">{ACTIVITY_LABEL}</span
+                      >
+                      <span class="text-muted-foreground">•</span>
+                      <span class="truncate text-muted-foreground"
+                        >{mission.label}</span
+                      >
+                    </div>
+                    <p class="mt-0.5 text-sm font-semibold text-foreground">
+                      {#if mission.totalSteps > 0}
+                        {mission.solvedSteps} / {mission.totalSteps} étapes validées
+                      {:else if started}
+                        Tu as commencé, reprends là où tu t’es arrêté !
+                      {:else}
+                        Avance à ton rythme, chaque étape te rapporte des XP.
+                      {/if}
+                    </p>
+                  </div>
+                </div>
+                <span
+                  class="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-xl px-3 py-1.5 text-sm font-bold sm:w-auto {started
+                    ? 'bg-epi-together-ink/15 text-epi-together-ink'
+                    : 'bg-epi-blue text-white'}"
+                >
+                  {started ? 'Reprendre' : 'Commencer'}
+                  <ArrowRight class="h-4 w-4" />
+                </span>
+              </button>
+            </form>
+          {/each}
         </div>
       {/if}
     {/snippet}
@@ -554,10 +650,11 @@
 
           <div class="space-y-4 p-6">
             {@render minigameMission()}
+            {@render activityMissions()}
 
-            {#if !hasMinigame}
-              <!-- No minigame available today: the daily training is the only
-                   mission this card carries, so there's nothing to do. -->
+            {#if !hasMinigame && workshopMissions.length === 0}
+              <!-- Nothing of any kind today: no daily training, and no event of
+                   this talent's offers an activity. -->
               <div
                 class="flex flex-col items-center justify-center py-8 text-center"
               >
@@ -570,8 +667,8 @@
                   Repos aujourd'hui
                 </h3>
                 <p class="mt-2 max-w-sm text-sm text-muted-foreground">
-                  Aucune mission pour aujourd'hui. Profites-en pour souffler ou
-                  tenter un mini-jeu !
+                  Aucune mission pour aujourd'hui. Profites-en pour souffler, on
+                  remet ça bientôt !
                 </p>
               </div>
             {/if}
