@@ -36,6 +36,14 @@ describe('the activity XP scale', () => {
     expect(workshopXp(0, 15, 120)).toBe(0);
   });
 
+  it('never pays above the declared minutes, whatever CTFd reports', () => {
+    // A subject that drops a step somebody had already validated reports more
+    // solved than exist. Unclamped, that term pays 1286 XP on an activity
+    // declared at two hours, which is above the ceiling this scale IS.
+    expect(workshopXp(15, 14, 120)).toBe(120 * WORKSHOP_XP_PER_MINUTE);
+    expect(workshopXp(99, 15, 120)).toBe(120 * WORKSHOP_XP_PER_MINUTE);
+  });
+
   it('rounds once over the activity, so the steps always sum to the budget', () => {
     // Seven steps of a two-hour activity: 1200 / 7 does not divide, so a grant
     // per step would round seven times and miss the budget. Walked whole, this

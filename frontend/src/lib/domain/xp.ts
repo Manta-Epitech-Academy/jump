@@ -44,6 +44,14 @@ export const WORKSHOP_XP_PER_MINUTE = 10;
  * `budgetMinutes` is the value snapshotted on the participation at first entry,
  * never re-read from the event configuration, which is what lets the duration be
  * replayed without taking XP back off anybody who has already started.
+ *
+ * BOTH COUNTS ARE CTFd'S CLAIM, so the ceiling is enforced here rather than
+ * trusted. `totalSteps <= 0` is one claim to survive; `solvedSteps > totalSteps`
+ * is the other, and it is the one that costs money: a subject that drops a step
+ * somebody had already validated reports more solved than exist, and the term
+ * then pays ABOVE the declared minutes. "An activity is worth exactly what it was
+ * declared to be worth" is the one number the PO stated and the one this tier
+ * publishes to admins, so it holds whatever arrives on the wire.
  */
 export function workshopXp(
   solvedSteps: number,
@@ -53,8 +61,9 @@ export function workshopXp(
   // CTFd claims the totals, so a subject with no counted step is a claim to
   // survive rather than an impossible state: no denominator, no XP.
   if (totalSteps <= 0) return 0;
+  const solved = Math.min(Math.max(solvedSteps, 0), totalSteps);
   return Math.round(
-    (solvedSteps * budgetMinutes * WORKSHOP_XP_PER_MINUTE) / totalSteps,
+    (solved * budgetMinutes * WORKSHOP_XP_PER_MINUTE) / totalSteps,
   );
 }
 
