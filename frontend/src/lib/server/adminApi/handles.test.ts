@@ -59,6 +59,8 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'description',
   'reason',
   'label',
+  // The address of a CTFd instance, typed once when it is deployed.
+  'baseUrl',
   // A certificate design. Authored rather than picked from anywhere, which is the
   // whole point of the table it is stored in.
   'styleCss',

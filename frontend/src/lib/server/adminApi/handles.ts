@@ -44,6 +44,7 @@ export type HandleKind =
   | 'closingTemplateKey'
   | 'closingQuestionKey'
   | 'closingId'
+  | 'workshopSlug'
   | 'usageFeatureKey';
 
 /**
@@ -98,6 +99,13 @@ export const HANDLES: Record<HandleKind, Handle> = {
     // so it hands out no key a caller did not already hold: listing it here
     // would have sent a model looking for the catalogue where it is not.
     producedBy: [{ operation: 'stats_feature_usage' }],
+  },
+
+  workshopSlug: {
+    what: 'Activity slug, the stable key of one deployed CTFd instance.',
+    frNoun: "clés d'activité",
+    frGender: 'f',
+    producedBy: [{ operation: 'config_workshop_instances' }],
   },
 
   eventId: {
@@ -292,6 +300,14 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   // writes alike, precisely because `question` is taken. See the note above.
   questionKey: 'closingQuestionKey',
   closingId: 'closingId',
+  // The activity catalogue's own key, on the write that authors one. Nothing else
+  // in the catalogue takes a bare `slug`, and this map is keyed by parameter name
+  // across the whole catalogue: a second, unrelated `slug` would need one of the
+  // two renamed rather than a second entry here.
+  slug: 'workshopSlug',
+  // The ordered list an event offers, whose entries are addressed by the same
+  // slug, exactly as `modules` is a list addressed by module key.
+  workshops: 'workshopSlug',
 };
 
 const list = (parts: string[]) =>

@@ -147,13 +147,16 @@ import {
   getCampusOverview,
   getFeedbackForms,
   getEventTemplates,
+  getWorkshopInstances,
 } from '$lib/server/services/adminStats/configuration';
 import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
+import { WORKSHOP_XP_PER_MINUTE } from '$lib/domain/xp';
 import { getSchoolYearReview } from '$lib/server/services/adminStats/schoolYearReview';
 import {
   writeDiplomaTemplate,
   writeEventDiplomaTemplate,
 } from './writes/diplomas';
+import { writeWorkshopInstance, writeEventWorkshops } from './writes/workshops';
 import {
   writeEventInscritsOptions,
   writeEventConfig,
@@ -590,6 +593,13 @@ export const ADMIN_API_OPERATIONS = {
     run: () => getFeedbackForms(),
   }),
 
+  config_workshop_instances: defineOperation({
+    description:
+      'The online activities Jump can send a talent to: their slug, the French name a talent reads, the CTFd address behind each, whether it is offered today, how many events offer it and how many talents have entered it. No subject content, because Jump holds none: the title, the step count and the wording live in the instance itself. Also returns how an activity turns into XP. Returns the slugs the two activity write operations take.',
+    shape: {},
+    run: () => getWorkshopInstances(),
+  }),
+
   config_event_templates: defineOperation({
     description:
       'Saved event-configuration presets and exactly what each one applies: sections, sub-options, public name, cohort noun, arrival time and default feedback form. Returns the names the bulk apply operation takes.',
@@ -787,6 +797,73 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => writeEventDiplomaTemplate(params),
+  }),
+
+  write_workshop_instance: defineWrite({
+    description:
+      'Declare or update one online activity, identified by its slug: a slug that does not exist yet creates one, an existing slug updates it. Only curates where Jump sends a talent; it authors no subject content, which lives in the CTFd instance. Set enabled to false to stop offering it everywhere at once without unpicking any event. Safe to repeat: the same slug and the same values leave one activity. Answers with the activity before and after.',
+    shape: {
+      slug: z
+        .string()
+        .min(1)
+        .regex(
+          /^[a-z0-9-]+$/,
+          'Lowercase letters, digits and hyphens only, e.g. "pacman-ia".',
+        )
+        .describe(
+          `${handleDescribe('workshopSlug')} Creates or updates by it, so a slug that does not exist yet is a new activity. Never rename one: it is what every past XP grant is filed under.`,
+        ),
+      label: z
+        .string()
+        .min(1)
+        .describe(
+          'French name a talent reads on their dashboard, e.g. "Pacman IA". An event may read it differently without changing it, see write_event_workshops.',
+        ),
+      baseUrl: z
+        .string()
+        .min(1)
+        .describe(
+          'Address of the CTFd instance, origin only with no path, e.g. "https://pacman.epiboost.fr". Jump appends the entry path itself.',
+        ),
+      enabled: z
+        .boolean()
+        .optional()
+        .describe(
+          'Whether it is offered today. Omit to leave it as it stands, which is what keeps a label fix from putting a retired activity back in front of a cohort.',
+        ),
+    },
+    run: (params) => writeWorkshopInstance(params),
+  }),
+
+  write_event_workshops: defineWrite({
+    description:
+      "Set which online activities one event offers, and in what order. The list is the complete set: activities left out are no longer offered by this event. durationMinutes is what the activity is worth there, so the same subject can be worth more at a camp than at a Coding Club. Changing it retroactively changes NOBODY: a talent's scale is pinned the first time they enter, so nothing is ever taken back and nothing is added after the fact. Pass an empty list so the event offers none. Safe to repeat: the same list leaves the same rows. Answers with the state before and after.",
+    shape: {
+      eventId: z.string().min(1).describe(handleDescribe('eventId')),
+      workshops: z
+        .array(
+          z.strictObject({
+            slug: z.string().min(1).describe(handleDescribe('workshopSlug')),
+            durationMinutes: z
+              .number()
+              .int()
+              .positive()
+              .describe(
+                `How long the activity runs at this event, in minutes. It is the scale: finishing it whole is worth durationMinutes x ${WORKSHOP_XP_PER_MINUTE} XP.`,
+              ),
+            labelOverride: z
+              .string()
+              .optional()
+              .describe(
+                'The words this event reads the activity aloud with, when the catalogue name does not fit the format. Wording only: every figure keeps the catalogue label.',
+              ),
+          }),
+        )
+        .describe(
+          'The complete ordered list of activities this event offers; anything left out is no longer offered. The order is the order a talent sees on their dashboard.',
+        ),
+    },
+    run: (params) => writeEventWorkshops(params),
   }),
 
   write_closing_question: defineWrite({
