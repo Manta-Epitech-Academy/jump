@@ -7,10 +7,10 @@ import { captureRedirectCookie } from '$lib/server/auth/loginRedirect';
 // A failed sign-in lands back here carrying an `error` code, and the codes come
 // from two vocabularies. Jump's own are set by `staff/oauth/callback` and by
 // `guards.ts`. BetterAuth's are snake_case and reach this page at all because
-// `+page.svelte` names it as `errorCallbackURL` on `signIn.social`: without
-// that, a refusal inside BetterAuth's own callback (`account_not_linked`,
-// `state_not_found`, `invalid_code`) redirects to `/api/auth/error`, an English
-// page nobody here wrote.
+// `server/auth.ts` names it as `onAPIError.errorURL`: without that, a refusal
+// inside BetterAuth's own callback (`account_not_linked`, `state_not_found`,
+// `invalid_code`) redirects to `/api/auth/error`, an English page nobody here
+// wrote.
 //
 // Only a code that changes what the person does next earns a line of its own;
 // the rest share the fallback. The fallback is the load-bearing half: an

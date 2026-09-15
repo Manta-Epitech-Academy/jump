@@ -11,8 +11,8 @@
  * - `createAuthOptions` (from `$lib/server/auth`) with the Microsoft provider
  *   pointed at a local fake HTTP server instead of login.microsoftonline.com,
  *   reusing every other real config value (Prisma adapter, `account.modelName`,
- *   `accountLinking`, `mapProfileToUser`) so this can't drift from what
- *   production actually wires.
+ *   `accountLinking`, `mapProfileToUser`, `onAPIError`) so this can't drift from
+ *   what production actually wires.
  * - `auth.api.signInSocial` to mint a genuine, signed `state` and its cookie,
  *   the same call `impersonate.ts` uses for `impersonateUser`.
  * - `auth.handler` to run the real `/api/auth/callback/microsoft` route.
@@ -34,9 +34,15 @@
  * #348 added the second and third cases, and they cover the half #296's own
  * migration broke: the REGISTER path was the only one under test, so nothing
  * noticed that deleting every `bauth_account` row left the LINK path refusing
- * every staff member with `account_not_linked`. The two now sit side by side on
- * purpose, because they are one decision read in both directions: a staff row
- * links, a row that is not staff does not.
+ * every staff member with `account_not_linked`. The two sit side by side on
+ * purpose, because they are one decision read in both directions: a row that has
+ * proven its address links, a row that has never authenticated does not.
+ *
+ * What that decision is NOT is a guard over who reaches the staff space, and
+ * reading it as one is the mistake this file used to encourage. Every guardian
+ * and every talent who has ever signed in has proven their address, so they link
+ * too; what happens to them next belongs to `staff/oauth/callback` and is
+ * covered in `staffDoor.integration.test.ts`.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
@@ -209,26 +215,35 @@ describe('Microsoft OAuth callback (integration)', () => {
     expect(account?.issuer).toBe(ISSUER);
   });
 
-  it('refuses to link an @epitech.eu address that belongs to a talent', async () => {
-    // The shape a Salesforce contact carrying a staff address produces, and the
-    // reason `accountLinking.requireLocalEmailVerified` is left at its default
-    // rather than switched off: were this row to link, `staff/oauth/callback`
-    // would find neither a `StaffProfile` nor a `StaffInvitation` and delete the
-    // `bauth_user`, and `Talent.userId` being `onDelete: SetNull` the talent
-    // would silently lose their account. A blocked login is the better failure,
-    // so the refusal is asserted rather than merely tolerated.
-    const oid = `microsoft-talent-${stamp}`;
-    const email = `microsoft-talent-${stamp}@e2e.invalid`;
+  it('refuses a row that has never authenticated, and says so on our own page', async () => {
+    // What `accountLinking.requireLocalEmailVerified` actually refuses, which is
+    // narrower than the option's name suggests: a `bauth_user` still carrying
+    // the `false` it was created with. A guardian's row never carries it
+    // (`ensureParentAccount` writes `true`) and a talent's stops carrying it the
+    // first time they use the OTP door, so this is NOT what keeps either of them
+    // out of the staff space. That is `auth/staffDoor.ts`, asserted next door in
+    // `staffDoor.integration.test.ts`. Keep the option at its default anyway:
+    // switching it off would admit every pre-existing row, which is a wider door
+    // for no gain now that the relink works.
+    const oid = `microsoft-stranger-${stamp}`;
+    const email = `microsoft-stranger-${stamp}@e2e.invalid`;
 
     const existing = await prisma.bauth_user.create({
-      data: { email, name: 'Talent Lookalike', role: 'student' },
+      data: { email, name: 'Never Signed In', role: 'student' },
       select: { id: true, emailVerified: true },
     });
     userIds.push(existing.id);
     expect(existing.emailVerified).toBe(false);
 
     const { location } = await signInWithMicrosoft({ oid, email });
-    expect(location).toContain('error=account_not_linked');
+    // The half a member of staff actually sees, and the reason it is asserted
+    // here rather than trusted: BetterAuth's code has to arrive on OUR page as
+    // `?error=`, because that is the key `/staff/login`'s load answers in
+    // French. Left to the default it lands on `/api/auth/error`, BetterAuth's
+    // page, reading `account_not_linked` in English. `onAPIError.errorURL` in
+    // `server/auth.ts` is what redirects it, and it is inside the config this
+    // file drives whole, so removing it fails right here.
+    expect(location).toBe('/staff/login?error=account_not_linked');
 
     const account = await prisma.bauth_account.findFirst({
       where: { accountId: oid, providerId: 'microsoft' },

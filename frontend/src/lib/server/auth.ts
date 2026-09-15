@@ -58,8 +58,16 @@ export function createAuthOptions(
         // `@epitech.eu` on top. Within that pair the address IS verified, and
         // saying so at creation is what keeps the migration's invariant true for
         // every account created from here on, instead of leaving it to the next
-        // repair. It widens nothing for anybody else: talents and parents are
-        // never created through this path and keep their `false`.
+        // repair.
+        //
+        // What it does NOT do is decide who may come through this door, and the
+        // tempting reading is the opposite one, so it is worth stating. A
+        // guardian's row is written `emailVerified: true` by
+        // `ensureParentAccount` and `changeParentEmail`, and a talent's is
+        // promoted to `true` by BetterAuth the first time they use the OTP door,
+        // so the account-link test admits both long before this line existed.
+        // What keeps their account out of the staff space, and intact, is
+        // `auth/staffDoor.ts`.
         mapProfileToUser: () => ({ emailVerified: true }),
         ...microsoftOverrides,
       },
@@ -157,6 +165,24 @@ export function createAuthOptions(
     // - Student: /oauth/callback → sets role to 'student', creates Talent
     // - OTP:     /login           → sets role to 'student', creates Talent
     // This avoids the databaseHook guessing the flow based on email domain.
+
+    // Where a refusal raised INSIDE BetterAuth lands. Without it the default is
+    // `/api/auth/error`, BetterAuth's own page, in English, printing its code
+    // (`account_not_linked`) verbatim at a member of staff. The code travels as
+    // `?error=`, which `/staff/login`'s load turns into French.
+    //
+    // Set here rather than as `errorCallbackURL` on the `signIn.social` call,
+    // and the difference is what is covered rather than what is typed: this is
+    // part of `createAuthOptions`, which the integration suite drives whole, so
+    // dropping it fails a test instead of quietly restoring the English page. It
+    // also catches the paths that never see a per-flow value, `/api/auth/error`
+    // itself included.
+    //
+    // `/staff/login` is the right destination for every one of them only because
+    // the staff door is the only OAuth door anybody can reach: `(talent)/oauth/`
+    // exists but nothing targets it. Reviving that one means giving this a
+    // second answer.
+    onAPIError: { errorURL: resolve('/staff/login') },
 
     trustedOrigins: dev
       ? [env.ORIGIN!, 'http://localhost:5173', 'http://localhost:3030']
