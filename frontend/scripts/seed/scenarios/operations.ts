@@ -25,6 +25,7 @@ import {
   addDeletionRequests,
   addIdentityRepair,
   addSyncErrors,
+  addSyncRuns,
   addUsage,
   foldUsageMonthly,
 } from '../factories/operations';
@@ -252,6 +253,7 @@ export const operations: Scenario = {
       world,
       rng.sample(world.talents, Math.min(12, world.talents.length)),
     );
+    addSyncRuns(world);
     if (team[0]) {
       const deletionTalents = rng.sample(world.talents, 4);
       addDeletionRequests(world, deletionTalents, team[0].userId);
@@ -269,6 +271,7 @@ export const operations: Scenario = {
       campus: campus.name,
       covers: [
         'une douzaine d’erreurs de synchronisation, dont une répétée 11 357 fois',
+        'quatre comptes rendus de synchronisation : une reprise complète réussie, une passe incrémentale réussie, une en échec et une encore ouverte',
         'une demande de suppression RGPD dans chacun de ses quatre états',
         'une réinitialisation de closing et une réparation d’identité, avec leur trace',
         'cinq campagnes : mail et SMS, envoyée, partiellement en échec, en échec',

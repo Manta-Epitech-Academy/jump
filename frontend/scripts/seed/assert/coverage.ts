@@ -68,8 +68,10 @@ const NEVER_SEEDED: Readonly<Record<string, string>> = {
   // ── L'isolation des workers. À ne jamais lever. ──
   'BroadcastRecipient.lastTriedAt':
     'null veut dire « jamais tentée », ce qui n’existe que sur un destinataire en attente. Le générateur n’en écrit aucun, et cette absence est l’isolation du worker de campagnes : voir `BroadcastStatus.queued` dans `assert/enums.ts` et `assert/inertness.ts`. Toute ligne semée a été tentée, donc porte une date.',
+  Sync_Source:
+    'la whitelist du worker Salesforce, et une ligne semée serait une INSTRUCTION qu’un worker trouve tout seul, pas un fait. C’est la même protection que `Campus.externalName` juste dessous, prise une couche plus haut : `/api/worker/config` ne sert que des sources actives dont le campus porte un nom externe, donc une base générée n’en annonce aucune, deux fois plutôt qu’une. `assert/inertness.ts` refuse une ligne semée ici.',
   'Campus.externalName':
-    'DÉLIBÉRÉMENT vide, et c’est l’isolation du worker Salesforce elle-même. `listCampuses` ne rend au worker que les campus porteurs d’un nom externe, donc une base semée répond une liste vide et le worker n’a rien à résoudre, sur n’importe quelle machine. Écrire une valeur ici remet les données réelles de mineurs sur un environnement de validation : c’est la divulgation que toute cette branche existe pour supprimer.',
+    'DÉLIBÉRÉMENT vide, et c’est l’isolation du worker Salesforce elle-même. `/api/worker/config` ne sert au worker qu’une source dont le campus porte un nom externe, donc une base semée répond une liste vide et le worker n’a rien à résoudre, sur n’importe quelle machine. Écrire une valeur ici remet les données réelles de mineurs sur un environnement de validation : c’est la divulgation que toute cette branche existe pour supprimer.',
 
   // ── Ce qui naît d'une connexion réelle, jamais d'une écriture. ──
   bauth_session:

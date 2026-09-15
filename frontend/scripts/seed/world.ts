@@ -438,8 +438,8 @@ export class World {
     this.buffer.campus.push({
       id: ref.id,
       name: spec.name,
-      // No external name, and that IS the worker isolation: `listCampuses` only
-      // hands the worker campuses Jump has mapped to Salesforce, so a seeded
+      // No external name, and that IS the worker isolation: `/api/worker/config`
+      // serves a `Sync_Source` only when its campus carries one, so a seeded
       // database is outside every sync's scope by construction. Give one of
       // these a real external name and real minors' data starts landing on it.
       externalName: null,

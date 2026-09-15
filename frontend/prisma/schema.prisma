@@ -739,6 +739,7 @@ model Campus {
   xpGrants         XpGrant[]
   xpRewards        XpReward[]
   signatories      Signatory[]
+  syncSources      Sync_Source[]
 }
 
 model CmsPage {
@@ -1673,6 +1674,102 @@ model AppSetting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// ── Salesforce worker sync: what to pull, how often, and what each run did ──
+
+enum SyncMode {
+  full
+  incremental
+}
+
+enum SyncSourceKind {
+  parent
+  orphan
+}
+
+enum SyncRunStatus {
+  running
+  ok
+  error
+}
+
+/// One Salesforce campaign the worker is told to pull, and how to expand it.
+///
+/// `parent` means the campaign is a container: the worker syncs every campaign
+/// whose `ParentId` is this one, re-resolved on every run, so an event created
+/// under it in Salesforce is discovered without anybody editing this table.
+/// `orphan` names one campaign directly.
+///
+/// The campus is a foreign key, never the `externalName` string the worker
+/// receives. `/api/worker/config` joins it and only emits a source whose campus
+/// carries a non-null `Campus.externalName`, and that join IS the worker
+/// isolation a generated dataset rests on: the generator writes no external name
+/// at all, so a seeded environment answers an empty list on any machine (see
+/// `scripts/seed/CLAUDE.md`). A row here is an instruction a worker finds by
+/// itself, which is why the generator writes none either.
+model Sync_Source {
+  id                   String         @id @default(cuid())
+  salesforceCampaignId String         @unique
+  kind                 SyncSourceKind
+  campusId             String
+  enabled              Boolean        @default(true)
+  /// What a human calls this campaign, so the list reads as something other than
+  /// a column of Salesforce ids. Jump-owned free text, never sent to the worker.
+  label                String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  campus Campus @relation(fields: [campusId], references: [id])
+
+  @@index([campusId])
+}
+
+/// One report per REAL synchronisation run: opened by the worker before it pulls
+/// anything, closed when it is done or has failed.
+///
+/// This is a fact of Jump's own (we ran a sync), not a poll of Salesforce's
+/// state, which is the thing `prisma/CLAUDE.md` forbids appending a row for. The
+/// mirror of what Salesforce claims stays `TalentSfImport`, upserted only when
+/// the inbound payload differs. And a tick with nothing due never reaches this
+/// table: the worker exits on `GET /api/worker/config` without opening a run, so
+/// the row count follows syncs performed, not times the CronJob fired.
+///
+/// It exists because the worker is ephemeral and its pod logs go with it, while
+/// nobody on the team has kubectl. `lastDeltaAt` / `lastFullAt` are no column
+/// anywhere: they are `MAX(finishedAt) WHERE mode = ? AND status = 'ok'` over
+/// these rows, which is what makes a failed run replay its window rather than
+/// skip it.
+model Sync_Run {
+  id                  String        @id @default(cuid())
+  mode                SyncMode
+  status              SyncRunStatus @default(running)
+  startedAt           DateTime      @default(now())
+  finishedAt          DateTime?
+  /// What the run pushed. Null while it is still running, and on a run that
+  /// failed before it could count anything.
+  eventsCount         Int?
+  talentsCount        Int?
+  participationsCount Int?
+  /// The worker's own message. It truncates the body it quotes to 300 characters
+  /// before sending, so this is short by construction.
+  error               String?
+
+  @@index([mode, status, finishedAt])
+  @@index([startedAt])
+}
+
+/// How often each mode is due, in minutes. Staff-editable through
+/// `write_sync_cadence`, read by `/api/worker/config` on every tick, so tightening
+/// the incremental during a stage is a write and not a cluster change.
+///
+/// Keyed on the mode rather than held as two columns of one settings row: there
+/// are exactly as many rows as there are modes, so there is no singleton to
+/// conjure and keep unique. Both rows ship with the migration that adds the table.
+model Sync_Cadence {
+  mode            SyncMode @id
+  intervalMinutes Int
+  updatedAt       DateTime @updatedAt
 }
 
 // A signatory whose handwritten signature is printed on the internship

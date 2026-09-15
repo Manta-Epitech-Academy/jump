@@ -698,16 +698,41 @@ describe('the figures the two stores must agree on', () => {
   });
 
   it('tells never-measured apart from measured-at-zero', async () => {
+    const before = await getFeatureUsage(
+      { schoolYear: SCHOOL_YEAR },
+      {},
+      LATER,
+    );
+    expect(before.evolution.value).not.toBeNull();
+    const reference = before.evolution.value!.periodeReference;
+
+    // Put the measurement INSIDE the reference period rather than inherit one.
+    // This case used to lean on the 45-day-old raw row the peak-month test
+    // creates, which folded into a month that sat inside this window only for as
+    // long as the window had not slid past it: on 2026-09-15 that row aged into
+    // the school year under test, the reference period went unmeasured, and the
+    // case went red overnight with nothing in the module changed. The row is for
+    // ANOTHER feature on purpose, and `hasAnyRow` is deliberately not filtered by
+    // feature, so the period reads as measured while `DEV_INSCRITS_EXPORT` still
+    // has nothing over it. That pair is the whole subject here.
+    await prisma.usage_FeatureMonthly.create({
+      data: {
+        feature: USAGE_FEATURES.TALENT_EVENTS_VIEW,
+        actorKind: 'talent',
+        campusId: campusA,
+        month: reference[0],
+        uses: 4,
+        distinctActors: 2,
+        computedAt: new Date(),
+      },
+    });
+
     const answer = await getFeatureUsage(
       { schoolYear: SCHOOL_YEAR },
       {},
       LATER,
     );
-    expect(answer.evolution.value).not.toBeNull();
-    const reference = answer.evolution.value!.periodeReference;
-
-    // The reference period overlaps months that were folded, so it WAS measured,
-    // and a feature nobody used over it is a genuine zero.
+    // A feature nobody used over a period that WAS measured is a genuine zero.
     const measured = answer.fonctionnalites.value.find(
       (r) => r.feature === USAGE_FEATURES.DEV_INSCRITS_EXPORT,
     );

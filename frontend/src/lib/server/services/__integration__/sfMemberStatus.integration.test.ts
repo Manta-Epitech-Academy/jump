@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
-import { syncTalents } from '../syncService';
+import { syncParticipations, syncTalents } from '../syncService';
 import { isVisibleInDevSpace } from '$lib/domain/sfMemberStatus';
 import { assertTestDatabase } from './testDatabase';
 
@@ -10,36 +10,40 @@ describe('Salesforce member status sync (integration)', () => {
   // data.
   const stamp = Date.now();
   const eventExternalId = `test_sf_event_${stamp}`;
+  // Identity and enrolment are two pushes now, as the worker sends them: the
+  // talent payload carries no status at all, the roster does.
   const talents = [
     {
       external_id: `test_ready_${stamp}`,
       first_name: 'Jean',
       last_name: 'Ready',
       email: `jean.ready.${stamp}@example.test`,
-      status: 'READY',
     },
     {
       external_id: `test_meet_${stamp}`,
       first_name: 'Claire',
       last_name: 'Meet',
       email: `claire.meet.${stamp}@example.test`,
-      status: 'MEET',
     },
     {
       external_id: `test_connected_${stamp}`,
       first_name: 'Lucas',
       last_name: 'Connected',
       email: `lucas.connected.${stamp}@example.test`,
-      status: 'CONNECTED',
     },
     {
       external_id: `test_desisted_${stamp}`,
       first_name: 'Emma',
       last_name: 'Desisted',
       email: `emma.desisted.${stamp}@example.test`,
-      status: 'DESISTED',
     },
   ];
+  const roster: Record<string, string> = {
+    [talents[0].external_id]: 'READY',
+    [talents[1].external_id]: 'MEET',
+    [talents[2].external_id]: 'CONNECTED',
+    [talents[3].external_id]: 'DESISTED',
+  };
 
   let eventId = '';
   let campusId = '';
@@ -97,9 +101,14 @@ describe('Salesforce member status sync (integration)', () => {
   });
 
   it('stores the normalized SF status per participation and updates it on re-sync', async () => {
-    const first = await syncTalents(eventExternalId, talents);
-    expect(first).toBeDefined();
-    expect((first as { error?: string }).error).toBeUndefined();
+    const identities = await syncTalents(talents);
+    expect((identities as { error?: string }).error).toBeUndefined();
+    const enrolments = await syncParticipations(
+      eventExternalId,
+      roster,
+      'full',
+    );
+    expect((enrolments as { error?: string }).error).toBeUndefined();
 
     const statusByExtId = async () => {
       const rows = await prisma.participation.findMany({
@@ -135,13 +144,33 @@ describe('Salesforce member status sync (integration)', () => {
     ).toBe(false);
 
     // Re-sync with a status transition: the status is upserted in place, not
-    // appended (mutable external state, not a ledger).
-    await syncTalents(eventExternalId, [
-      { ...talents[0], status: 'MEET' }, // READY -> MEET
-      { ...talents[1], status: 'DESISTED' }, // MEET -> DESISTED
-    ]);
+    // appended (mutable external state, not a ledger). Sent as an incremental,
+    // so the two members the roster omits keep their enrolment: absence proves
+    // nothing outside a full pass.
+    await syncParticipations(
+      eventExternalId,
+      {
+        [talents[0].external_id]: 'MEET', // READY -> MEET
+        [talents[1].external_id]: 'DESISTED', // MEET -> DESISTED
+      },
+      'incremental',
+    );
     statuses = await statusByExtId();
     expect(statuses.get(talents[0].external_id)).toBe('MEET');
     expect(statuses.get(talents[1].external_id)).toBe('DESISTED');
+    expect(statuses.size).toBe(4);
+
+    // The same partial roster as a FULL pass is a complete one by definition,
+    // so the two it omits are gone. This is the only pass that may say that.
+    const pruned = await syncParticipations(
+      eventExternalId,
+      {
+        [talents[0].external_id]: 'MEET',
+        [talents[1].external_id]: 'DESISTED',
+      },
+      'full',
+    );
+    expect(pruned).toMatchObject({ removed: 2 });
+    expect((await statusByExtId()).size).toBe(2);
   });
 });

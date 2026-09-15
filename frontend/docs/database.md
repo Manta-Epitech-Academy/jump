@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **65** modèles · **27** enums · **97** relations
+- **68** modèles · **30** enums · **98** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -21,7 +21,7 @@
 | Communication & Support | 5 |
 | Contenus & Centres d'intérêt | 4 |
 | Analytique d'usage | 2 |
-| Configuration & Système | 6 |
+| Configuration & Système | 9 |
 
 ## 1 · Authentification & Profils
 
@@ -976,6 +976,32 @@ erDiagram
     DateTime createdAt
     DateTime updatedAt
   }
+  Sync_Source {
+    String id PK
+    String salesforceCampaignId UK
+    SyncSourceKind kind
+    String campusId FK
+    Boolean enabled
+    String label
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  Sync_Run {
+    String id PK
+    SyncMode mode
+    SyncRunStatus status
+    DateTime startedAt
+    DateTime finishedAt
+    Int eventsCount
+    Int talentsCount
+    Int participationsCount
+    String error
+  }
+  Sync_Cadence {
+    SyncMode mode PK
+    Int intervalMinutes
+    DateTime updatedAt
+  }
   AdminApi_Token {
     String id PK
     String staffUserId FK
@@ -1008,5 +1034,6 @@ erDiagram
   bauth_user ||--o{ AdminApi_Token : "adminApiTokens"
   StaffProfile |o--o{ AdminFile : "adminFiles"
   Campus |o--o{ Signatory : "signatories"
+  Campus ||--o{ Sync_Source : "syncSources"
   AdminApi_Token |o--o{ AdminApi_Call : "calls"
 ```
