@@ -87,16 +87,34 @@ only reason five accounts could still sign in while the other 134 could not.
 
 **Do not answer a linking refusal by setting `requireLocalEmailVerified: false`.**
 It is one line and it works, and it would open implicit linking to every
-pre-existing local row, including the `bauth_user` rows that carry an
-`@epitech.eu` address with `role: 'student'` and a `Talent` attached (what a
-Salesforce contact holding a staff address produces). Those refuse to link
-today. With the guard off they would link, `staff/oauth/callback` would find
-neither a `StaffProfile` nor a `StaffInvitation` and delete the `bauth_user`,
-and `Talent.userId` being `onDelete: SetNull` the talent would silently lose
-their account. A blocked login is the better of the two failures. The refusal is
-asserted, not merely tolerated, in
-`services/__integration__/microsoftOAuthCallback.integration.test.ts`, which
-carries the register path, the relink and that refusal side by side.
+pre-existing local row rather than to the staff rows the refusal was about. Keep
+it at its default. But do not mistake it for a guard over who reaches the staff
+space, which is the reading it invites and which is false: it refuses only a row
+that has **never authenticated**. A guardian's row is written
+`emailVerified: true` at creation (`ensureParentAccount`, `changeParentEmail`),
+and a talent's is promoted to `true` by BetterAuth itself the first time they
+use the OTP door (`sign-in/email-otp` calls `revokeUnprovenAccountAccess` on an
+unverified row). Both link today, and the `bauth_user` rows carrying an
+`@epitech.eu` address with `role: 'student'` and a `Talent` attached, which is
+what a Salesforce contact holding a staff address produces, are exactly the ones
+that do.
+
+**So the thing that protects a non-staff identity is `auth/staffDoor.ts`, not
+the link test.** `staff/oauth/callback` refuses such a sign-in either way, on the
+domain or on the missing `StaffProfile` and `StaffInvitation`; what
+`discardStaffSignIn` decides is what it is allowed to destroy on the way out.
+The rule is ownership rather than the reason for the refusal: a row carrying a
+`Talent`, a `StaffProfile` or `role: 'parent'` is **released** (the link this
+sign-in made and the session it minted go, the identity stays), and only a row
+carrying none of the three, which is one BetterAuth minted for this sign-in and
+nobody else will want, is deleted. Releasing the link is not housekeeping: left
+behind it would leave a guardian's or a talent's account permanently reachable
+through the staff Microsoft door, which is the disjoint-doors rule at the top of
+this file. Deleting instead of releasing is silent and unrecoverable, since
+`Talent.userId` is `onDelete: SetNull`, so it is asserted on the `Talent` row in
+`services/__integration__/staffDoor.integration.test.ts`;
+`services/__integration__/microsoftOAuthCallback.integration.test.ts` carries the
+BetterAuth half, the register path beside the relink.
 
 Route guards in `src/lib/server/auth/guards.ts` enforce role-based access. Session data is loaded in `hooks.server.ts` into `event.locals` (user, session, staffProfile, talent).
 
