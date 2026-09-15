@@ -1,0 +1,65 @@
+-- Repair the rows `20260831120000_add_bauth_account_issuer` left unable to sign in.
+--
+-- That migration deletes every `bauth_account` row to add the required `issuer`
+-- column, and states that `accountLinking.trustedProviders` (which carries
+-- `microsoft`) recreates the link on the member's next sign-in. That sentence is
+-- wrong, and this is the correction: BetterAuth's link path ANDs a second
+-- condition, in `oauth2/link-account.mjs`.
+--
+--     const requireLocalEmailVerified =
+--       accountLinking?.requireLocalEmailVerified ?? true;
+--     if (!isTrustedProvider && !userInfo.emailVerified
+--         || requireLocalEmailVerified && !dbUser.user.emailVerified
+--         || ...) return { error: 'account not linked' };
+--
+-- `trustedProviders` only neutralises the PROVIDER side of that test
+-- (`userInfo.emailVerified`). The LOCAL side (`bauth_user.emailVerified`) is
+-- required by default, and Microsoft Entra ID does not emit an `email_verified`
+-- claim unless it is configured as an optional claim on the app registration.
+-- So every staff row BetterAuth created through the OAuth register path carries
+-- `false`, the link is refused, and the member is bounced with
+-- `account_not_linked` on the only door staff have (the OTP door was closed to
+-- staff addresses by #311). On the preprod clone of production data that was 134
+-- of 139 staff profiles; the 5 that still worked had been provisioned by
+-- `bootstrap-admins.ts`, `add-admin-user.ts` or `accept-invitation.ts`, which
+-- write `emailVerified: true` themselves.
+--
+-- Writing `true` here is a statement of fact, not a convenience. A `StaffProfile`
+-- row only ever exists because `staff/oauth/callback` ran for that user, which
+-- means Entra ID authenticated that address against the tenant
+-- (`MICROSOFT_TENANT_ID`) and the callback then checked the `@epitech.eu` domain
+-- on top. The proof of it WAS the `bauth_account` row, and our own migration
+-- deleted it. This restores what the deploy destroyed, on exactly the rows that
+-- carried the proof and on no others.
+--
+-- Scoped on `StaffProfile` deliberately, rather than on the email domain or on
+-- `bauth_user.role`. Talents and parents are untouched and must stay untouched:
+-- their door is the OTP one, which never reaches `handleOAuthUserInfo` (the
+-- `sign-in/email-otp` route sets `emailVerified` itself when it is false), so
+-- nothing about this incident applies to them. And a handful of `bauth_user`
+-- rows carry an `@epitech.eu` address with `role: 'student'` and a `Talent`
+-- attached, which is what a Salesforce contact holding a staff address produces.
+-- Those must go on refusing to link: were one of them to link, the staff callback
+-- would find neither a `StaffProfile` nor a `StaffInvitation` and delete the
+-- `bauth_user`, and `Talent.userId` being `onDelete: SetNull` the talent would
+-- silently lose their account. A blocked login is the better of the two failures,
+-- which is also why `accountLinking.requireLocalEmailVerified` is left at its
+-- default instead of being switched off in `server/auth.ts`.
+--
+-- Idempotent, and a no-op wherever the repair already happened: preprod and
+-- production were fixed by hand with this same `UPDATE` ahead of the v3 rollout,
+-- because the wall opens the moment the DELETE above runs and there is no
+-- "after the deploy" that is not already broken. This migration is what carries
+-- the fix to staging, to livedev, and to every database reset or regenerated
+-- from here on.
+--
+-- Nothing in Jump reads `emailVerified` (`rg emailVerified src` returns writes
+-- only), so this changes no application behaviour. It satisfies BetterAuth's
+-- linking condition and nothing else. New accounts no longer need it:
+-- `server/auth.ts` now maps the Microsoft profile onto `emailVerified: true` at
+-- creation, so the invariant this restores holds going forward rather than
+-- being re-established by the next repair.
+UPDATE "bauth_user"
+   SET "emailVerified" = true
+ WHERE "emailVerified" = false
+   AND "id" IN (SELECT "userId" FROM "StaffProfile");

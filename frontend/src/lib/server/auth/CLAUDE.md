@@ -61,6 +61,61 @@ account creation.
   The OTP door used to be what stood in for this; it is not a substitute for a
   door being open in production.
 
+**A staff `bauth_user` carries `emailVerified = true`, and that is an invariant
+rather than a detail of its row.** It is the only thing standing between the
+staff door and a lockout, because BetterAuth's account-link path ANDs two tests
+(`oauth2/link-account.mjs`) and `accountLinking.trustedProviders` answers only
+the first. The second, `requireLocalEmailVerified`, defaults to true and reads
+the LOCAL column; Entra ID emits no `email_verified` claim unless it is declared
+as an optional claim on the app registration, so BetterAuth stamps `false` on
+every account it creates and the link is refused with `account_not_linked` the
+day that member's `bauth_account` row is gone. Which is not hypothetical: 134 of
+139 staff profiles were locked out of preprod when
+`20260831120000_add_bauth_account_issuer` deleted every OAuth link and claimed
+`trustedProviders` would rebuild them (#348).
+
+Three things hold the invariant, and they are not interchangeable.
+`mapProfileToUser` on the Microsoft provider in `server/auth.ts` holds it at
+creation, which is where it belongs: reaching that callback means the tenant in
+`MICROSOFT_TENANT_ID` authenticated the address and `staff/oauth/callback` then
+refused anything outside `@epitech.eu`. The migration
+`20260915140000_verify_staff_emails_for_oauth_relink` holds it for the rows that
+predate that, scoped on `StaffProfile` because that row is the proof the
+callback ran. And the provisioning scripts (`bootstrap-admins.ts`,
+`add-admin-user.ts`, `accept-invitation.ts`) write it themselves, which is the
+only reason five accounts could still sign in while the other 134 could not.
+
+**Do not answer a linking refusal by setting `requireLocalEmailVerified: false`.**
+It is one line and it works, and it would open implicit linking to every
+pre-existing local row rather than to the staff rows the refusal was about. Keep
+it at its default. But do not mistake it for a guard over who reaches the staff
+space, which is the reading it invites and which is false: it refuses only a row
+that has **never authenticated**. A guardian's row is written
+`emailVerified: true` at creation (`ensureParentAccount`, `changeParentEmail`),
+and a talent's is promoted to `true` by BetterAuth itself the first time they
+use the OTP door (`sign-in/email-otp` calls `revokeUnprovenAccountAccess` on an
+unverified row). Both link today, and the `bauth_user` rows carrying an
+`@epitech.eu` address with `role: 'student'` and a `Talent` attached, which is
+what a Salesforce contact holding a staff address produces, are exactly the ones
+that do.
+
+**So the thing that protects a non-staff identity is `auth/staffDoor.ts`, not
+the link test.** `staff/oauth/callback` refuses such a sign-in either way, on the
+domain or on the missing `StaffProfile` and `StaffInvitation`; what
+`discardStaffSignIn` decides is what it is allowed to destroy on the way out.
+The rule is ownership rather than the reason for the refusal: a row carrying a
+`Talent`, a `StaffProfile` or `role: 'parent'` is **released** (the link this
+sign-in made and the session it minted go, the identity stays), and only a row
+carrying none of the three, which is one BetterAuth minted for this sign-in and
+nobody else will want, is deleted. Releasing the link is not housekeeping: left
+behind it would leave a guardian's or a talent's account permanently reachable
+through the staff Microsoft door, which is the disjoint-doors rule at the top of
+this file. Deleting instead of releasing is silent and unrecoverable, since
+`Talent.userId` is `onDelete: SetNull`, so it is asserted on the `Talent` row in
+`services/__integration__/staffDoor.integration.test.ts`;
+`services/__integration__/microsoftOAuthCallback.integration.test.ts` carries the
+BetterAuth half, the register path beside the relink.
+
 Route guards in `src/lib/server/auth/guards.ts` enforce role-based access. Session data is loaded in `hooks.server.ts` into `event.locals` (user, session, staffProfile, talent).
 
 Staff are routed by `StaffProfile.staffRole` (Prisma `StaffRole` enum: `admin`, `superdev`, `dev`). After login, staff redirect to their role-specific space. Guards block cross-space access and redirect to correct space. Role-to-path mapping lives in `src/lib/domain/staff.ts` (`getStaffRoleRedirectPath`).
