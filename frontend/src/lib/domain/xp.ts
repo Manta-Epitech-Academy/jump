@@ -20,6 +20,45 @@ export const WELCOME_XP_BONUS = 200;
 export const MINIGAME_XP_REWARD = 50;
 
 /**
+ * XP one minute of a CTFd activity is worth (Edouard, 15/09). An activity
+ * declared at N minutes is worth exactly `N * WORKSHOP_XP_PER_MINUTE` once it is
+ * finished, and the same scale is what `scripts/grant-reward-from-csv.ts` already
+ * applied by hand after the last stage.
+ */
+export const WORKSHOP_XP_PER_MINUTE = 10;
+
+/**
+ * What a talent has earned on one activity so far.
+ *
+ * Steps, not CTFd points, and the argument is not technical: the student reads
+ * "8 / 15 étapes" on the CTFd page, so any other denominator would make Jump
+ * state a second truth that contradicts the screen. It is also the only
+ * denominator that means anything in this content, since every intro, outro and
+ * grading step is authored `value: 0`.
+ *
+ * One rounded term over the whole activity rather than one per validated step:
+ * thirty independently rounded terms do not add up to `budgetMinutes * 10`, and
+ * a step removed from the subject lowers the denominator, which frozen per-step
+ * amounts would overshoot from the other end.
+ *
+ * `budgetMinutes` is the value snapshotted on the participation at first entry,
+ * never re-read from the event configuration, which is what lets the duration be
+ * replayed without taking XP back off anybody who has already started.
+ */
+export function workshopXp(
+  solvedSteps: number,
+  totalSteps: number,
+  budgetMinutes: number,
+): number {
+  // CTFd claims the totals, so a subject with no counted step is a claim to
+  // survive rather than an impossible state: no denominator, no XP.
+  if (totalSteps <= 0) return 0;
+  return Math.round(
+    (solvedSteps * budgetMinutes * WORKSHOP_XP_PER_MINUTE) / totalSteps,
+  );
+}
+
+/**
  * How many earliest onboarding completers, PER CAMPUS, earn an early-bird bonus.
  * Per-campus (not a global N) so a small campus (~26 students, La Reunion) isn't
  * shut out by a large one (200+) whose students simply finish first in absolute

@@ -386,6 +386,7 @@ model Talent {
   schoolingRecords    Schooling_YearRecord[]
   onboardingRecords   Onboarding_Record[]
   notes               Note_TalentNote[]
+  workshopEntries     Workshop_Participation[]
 
   @@index([xp])
   @@index([schoolId])
@@ -740,6 +741,7 @@ model Campus {
   xpRewards        XpReward[]
   signatories      Signatory[]
   syncSources      Sync_Source[]
+  workshopEntries  Workshop_Participation[]
 }
 
 model CmsPage {
@@ -867,6 +869,8 @@ model Event {
   feedbackSubmissions Feedback_Submission[]
   talentNotes         Note_TalentNote[]
   modules             EventConfig_Module[]
+  workshops           EventConfig_Workshop[]
+  workshopEntries     Workshop_Participation[]
 
   /// Not a second identity - `id` alone is already unique. It exists so the rows
   /// that denormalise `campusId` for one-hop campus scoping can reference the
@@ -2176,6 +2180,11 @@ enum XpGrantSource {
   // admin_adjustment correction and is queryable per category. Amount is
   // per-talent (the CTF score), not the activity's difficulty.
   reward
+  // One activity walked on a CTFd instance, recomputed on every progress
+  // callback rather than appended per validated step: a single grant per
+  // (talent, instance), so the talent's timeline carries one line and the
+  // rounded total is exactly `budgetMinutes * WORKSHOP_XP_PER_MINUTE`.
+  workshop
   admin_adjustment
 }
 
@@ -2200,6 +2209,126 @@ model XpReward {
 
   campus Campus? @relation(fields: [campusId], references: [id], onDelete: SetNull)
 
+  @@index([campusId])
+}
+
+// ─── Workshops (the CTFd activities a talent reaches from Jump) ───
+
+/// One deployed CTFd carrying the `workshop_platform` plugin, curated here so
+/// Jump knows where to hand a talent over. It holds NO subject content at all:
+/// the title, the step count and the description stay in CTFd, exactly as
+/// `MinigameConfig` refuses to keep the jump-games catalogue by hand.
+///
+/// `baseUrl` is a column and not an environment variable, which is the one place
+/// this diverges from jump-games: there is a single jump-games backend and there
+/// are eleven CTFd hosts, so the address belongs to the row.
+///
+/// `enabled = false` takes an instance out of every dashboard without deleting
+/// the rows pointing at it, which is how one is retired.
+model Workshop_Instance {
+  id        String   @id @default(cuid())
+  /// Stable natural key, and also the ticket audience (`workshop:<slug>`) the
+  /// plugin compares against its own configured instance name. Never renamed.
+  slug      String   @unique
+  /// Origin of the CTFd, no trailing slash: the entry action redirects to
+  /// `<baseUrl>/jump/enter?t=...`. A generated database points this at a
+  /// NON-ROUTABLE host on purpose, because a dev or preprod row carrying the
+  /// real address with `enabled = true` is one click away from handing a talent
+  /// over to a live instance from a validation environment.
+  baseUrl   String
+  /// French name a talent reads on the mission line, and the name every XP
+  /// timeline row is quoted under.
+  label     String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events         EventConfig_Workshop[]
+  participations Workshop_Participation[]
+}
+
+/// An event offering an activity: the link, carrying attributes of its own.
+///
+/// Prefixed `EventConfig_` rather than `Workshop_` because the prefix names the
+/// context that owns the WRITE path, and that is event configuration, beside
+/// `EventConfig_Module`. The shape is then exactly the closings one: an event's
+/// configuration points at a catalogue another context owns.
+model EventConfig_Workshop {
+  eventId         String
+  instanceId      String
+  /// Where it sits in this event's list, so several activities have an order.
+  position        Int
+  /// The scale parameter. It lives here and not on the catalogue row because the
+  /// same subject runs 2 h at a Coding Club and 3 h at a camp;
+  /// `Workshop_Participation.budgetMinutes` snapshots it at first entry, which is
+  /// what lets a duration be replayed without taking XP back off anybody.
+  durationMinutes Int
+  /// The words THIS event reads the activity aloud with, when the catalogue label
+  /// does not fit the format. Copies `Closing_TemplateQuestion.labelOverride`: the
+  /// wording may follow the event, the identity never moves.
+  labelOverride   String?
+  createdAt       DateTime @default(now())
+
+  event    Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  /// Restrict, like `Event.diplomaTemplateId`: deleting a catalogue row events
+  /// still point at has to fail loudly rather than silently empty a dashboard.
+  instance Workshop_Instance @relation(fields: [instanceId], references: [id], onDelete: Restrict)
+
+  @@id([eventId, instanceId])
+  @@index([instanceId])
+}
+
+/// What CTFd says one talent has done on one instance.
+///
+/// A POLLED EXTERNAL MIRROR, not a fact log. `prisma/CLAUDE.md` takes this case
+/// out of the "facts as rows" shape and sends it to a 1:1 typed row updated when
+/// the inbound payload differs, the `TalentSfImport` shape. `solvedSteps` and
+/// `totalSteps` are CTFd's CLAIM, never a count Jump made.
+///
+/// `budgetMinutes` is snapshotted from the link row at first entry, and that is
+/// the whole of how a duration can be replayed without taking XP back off the
+/// people who have already started.
+///
+/// `eventId` and `campusId` record what was true once instead of tracking a
+/// source, which is the test `prisma/CLAUDE.md` states: nullable FKs with
+/// `SetNull` and no composite key back to `Event(id, campusId)`, the shape
+/// `MinigameAttempt` already uses. They have to record, because `syncTalents`
+/// hard-deletes every enrolment a Salesforce payload omits (the incident that
+/// took `Closing_Record` off `Participation`), so a talent can lose the enrolment
+/// mid-activity and the snapshot is what survives it.
+///
+/// The key `(talent, instance)` encodes a product rule: an activity is worth its
+/// XP once per talent, for life. CTFd holds one account per talent per instance
+/// and cannot express which event a validation belongs to, so a key built on the
+/// event would be a key nothing could ever honour. That the same subject met
+/// again at a later event pays nothing follows from that, and it is a decision
+/// rather than an accident of the `sourceId`.
+model Workshop_Participation {
+  talentId       String
+  instanceId     String
+  eventId        String?
+  campusId       String?
+  /// Snapshot of `EventConfig_Workshop.durationMinutes`, taken at first entry.
+  budgetMinutes  Int
+  solvedSteps    Int       @default(0)
+  totalSteps     Int       @default(0)
+  /// XP earned and not yet celebrated on the dashboard. Raised by each callback
+  /// that increases the grant, zeroed by the acknowledgement, which is what makes
+  /// the float fire exactly once (the `xpAwarded` / `xpSeenAt` pair on
+  /// `MinigameAttempt`, one instance at a time).
+  xpPending      Int       @default(0)
+  firstEnteredAt DateTime  @default(now())
+  xpSeenAt       DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  talent   Talent            @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  instance Workshop_Instance @relation(fields: [instanceId], references: [id], onDelete: Restrict)
+  event    Event?            @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  campus   Campus?           @relation(fields: [campusId], references: [id], onDelete: SetNull)
+
+  @@id([talentId, instanceId])
+  @@index([instanceId])
+  @@index([eventId])
   @@index([campusId])
 }
 
