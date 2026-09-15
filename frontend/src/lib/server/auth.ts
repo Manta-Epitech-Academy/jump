@@ -50,7 +50,7 @@ export function createAuthOptions(
         // account's `bauth_account` row is gone, which is what happened to 134
         // of 139 staff profiles. The incident, and why the fix is not to switch
         // that option off, are in
-        // `prisma/migrations/20260915120000_verify_staff_emails_for_oauth_relink`.
+        // `prisma/migrations/20260915140000_verify_staff_emails_for_oauth_relink`.
         //
         // Declared here rather than repaired afterwards: reaching this callback
         // means the tenant named in `MICROSOFT_TENANT_ID` authenticated the

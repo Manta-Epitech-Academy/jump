@@ -79,7 +79,7 @@ Three things hold the invariant, and they are not interchangeable.
 creation, which is where it belongs: reaching that callback means the tenant in
 `MICROSOFT_TENANT_ID` authenticated the address and `staff/oauth/callback` then
 refused anything outside `@epitech.eu`. The migration
-`20260915120000_verify_staff_emails_for_oauth_relink` holds it for the rows that
+`20260915140000_verify_staff_emails_for_oauth_relink` holds it for the rows that
 predate that, scoped on `StaffProfile` because that row is the proof the
 callback ran. And the provisioning scripts (`bootstrap-admins.ts`,
 `add-admin-user.ts`, `accept-invitation.ts`) write it themselves, which is the

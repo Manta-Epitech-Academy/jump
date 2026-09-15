@@ -174,7 +174,7 @@ describe('Microsoft OAuth callback (integration)', () => {
     expect(account?.issuer).toBe(ISSUER);
     if (account) userIds.push(account.userId);
 
-    // The invariant `20260915120000_verify_staff_emails_for_oauth_relink`
+    // The invariant `20260915140000_verify_staff_emails_for_oauth_relink`
     // restores for existing rows, held at creation for new ones. Without it a
     // freshly registered staff account is born unable to survive the next time
     // its `bauth_account` row goes away, and the repair would be owed again.
