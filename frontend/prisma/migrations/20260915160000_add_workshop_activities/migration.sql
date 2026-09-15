@@ -24,11 +24,13 @@
 -- It keys on `(talentId, instanceId)`, which encodes the product rule that an
 -- activity is worth its XP once per talent for life, because CTFd holds one
 -- account per talent per instance and cannot say which event a validation belongs
--- to. `eventId` and `campusId` are snapshots with `ON DELETE SET NULL` and no
--- composite key back to `Event(id, campusId)`: the Salesforce sync hard-deletes
--- the enrolments a payload omits, so a talent can lose the enrolment mid-activity
--- and these columns are what survives it. They stay NOT NULL because it is the
--- enrolment that disappears and never the event, which no sync deletes.
+-- to. `eventId` and `campusId` are snapshots, and carry no composite key back to
+-- `Event(id, campusId)`: the Salesforce sync hard-deletes the enrolments a
+-- payload omits, so a talent can lose the enrolment mid-activity and these
+-- columns are what survives it. They stay NOT NULL, and the event FK is
+-- therefore `ON DELETE CASCADE` rather than `SET NULL`, because it is the
+-- enrolment that disappears and never the event, which nothing in the
+-- application deletes.
 -- `budgetMinutes` snapshots the link row at first entry, which is what lets a
 -- duration be replayed later without taking XP back off anybody who has already
 -- started.

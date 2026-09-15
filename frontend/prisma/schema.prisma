@@ -2148,8 +2148,10 @@ model XpGrant {
   // onboarding_early_bird→talentId (distinct row from the base because `source`
   // differs), minigame→attemptId, minigame_rank→attemptId,
   // reward→`${rewardId}_${talentId}` (one grant per talent per XpReward, see
-  // XpReward below), admin_adjustment→null (never deduped: Postgres treats NULLs
-  // as distinct under the unique index).
+  // XpReward below), workshop→`${instanceSlug}:${talentId}` (one grant per
+  // talent per activity, recomputed on every progress callback rather than
+  // appended per step, see `domain/workshops.ts`), admin_adjustment→null
+  // (never deduped: Postgres treats NULLs as distinct under the unique index).
   sourceId  String?
   amount    Int
   createdAt DateTime      @default(now())
