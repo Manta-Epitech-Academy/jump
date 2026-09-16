@@ -379,7 +379,7 @@ before adding or reworking a staff list page.
   3. **`InfoTooltip` for the rest** (`$lib/components/ui/info-tooltip`, ⓘ next to the label it belongs to): rationale, quotas, audit guarantees, "why we ask". Reachable when wanted, invisible otherwise. `KpiTile`'s `helpText` on `/staff/admin/events` is the reference use.
   4. **`Collapsible`, never a tooltip, for text somebody must be able to read and re-read**: terms a checkbox commits to, the consequences of a destructive action. Hover is not a reading surface, and it is not a place to put something a person is agreeing to.
 
-  This is the most-repeated review finding on staff dialogs and admin pages: prose accumulates one well-meant clarification at a time, and nobody deletes any of it. `StaffApiTokensDialog` is the worked example (header, tier cards, write toggle, conditions, list).
+  This is the most-repeated review finding on staff dialogs and admin pages: prose accumulates one well-meant clarification at a time, and nobody deletes any of it. The `/staff/admin/api-tokens` page is the worked example (header, tier cards, write toggle, conditions, list).
 
 - **A list whose length comes from data scrolls in its own box.** Any `{#each}` over rows the database decides the count of gets a bounded, scrollable region: `max-h-[40svh] overflow-y-auto` on the list, and the dialog or card keeps its own `max-h-[90svh] overflow-y-auto` as the floor for short viewports. Viewport-relative, not a pixel cap, so the box grows with the screen instead of leaving a letterbox on a laptop.
 
