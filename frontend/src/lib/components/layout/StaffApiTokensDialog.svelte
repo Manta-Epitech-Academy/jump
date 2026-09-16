@@ -36,8 +36,6 @@
     tokens: Promise<TokenRow[]>;
     /** Whose tokens are "mine": the list covers every admin's. */
     currentUserId: string;
-    dailyQuota: number;
-    writeQuota: number;
   };
 
   let {
@@ -45,8 +43,6 @@
     form: formData,
     tokens,
     currentUserId,
-    dailyQuota,
-    writeQuota,
   }: Props = $props();
 
   const isMine = (token: TokenRow) => token.owner.id === currentUserId;
@@ -228,7 +224,7 @@
                 </span>
               </label>
               <InfoTooltip
-                text="Configuration d'un événement, relance d'un document, résolution d'erreurs de synchronisation. Chaque modification est journalisée avec son avant/après, et limitée à {writeQuota} sur 24 h."
+                text="Configuration d'un événement, relance d'un document, résolution d'erreurs de synchronisation. Chaque modification est journalisée avec son avant/après."
               />
             </div>
             <p class="pl-6 text-xs text-muted-foreground">
@@ -270,8 +266,8 @@
             >
               Ce token ne doit être utilisé qu'avec un outil validé par
               l'établissement. Chaque appel est journalisé (token, requête,
-              date) et limité à {dailyQuota} appels sur 24 h. Vous restez responsable
-              de son usage, y compris lorsque vous le confiez à quelqu'un d'autre.
+              date). Vous restez responsable de son usage, y compris lorsque
+              vous le confiez à quelqu'un d'autre.
             </Collapsible.Content>
           </Collapsible.Root>
           {#if $errors.conditionsAccepted}
