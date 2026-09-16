@@ -10,11 +10,7 @@ import { createApiTokenSchema } from '$lib/validation/adminApiToken';
 import { outboundTrapped } from '$lib/server/outbound';
 import { canArmRealSends } from '$lib/server/armRealSends';
 import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
-import {
-  listTokens,
-  DAILY_CALL_QUOTA,
-  WRITE_CALL_QUOTA,
-} from '$lib/server/adminApi/tokens';
+import { listTokens } from '$lib/server/adminApi/tokens';
 
 export const load: LayoutServerLoad = async ({ parent, locals }) => {
   const { user, staffProfile } = await parent();
@@ -58,8 +54,6 @@ export const load: LayoutServerLoad = async ({ parent, locals }) => {
     // Every admin's tokens, not just this one's: see `listTokens`. The dialog
     // tells them apart with `user.id`, which it already has.
     apiTokens: listTokens(),
-    apiTokenDailyQuota: DAILY_CALL_QUOTA,
-    apiTokenWriteQuota: WRITE_CALL_QUOTA,
     outboundTrapped: outboundTrapped(),
     canArmRealSends: canArmRealSends(locals),
     armedRealSends: locals.armedRealSends,

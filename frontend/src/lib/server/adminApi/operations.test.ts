@@ -13,7 +13,6 @@ import { join } from 'node:path';
 import { adminEventSchema } from '$lib/validation/events';
 import {
   ADMIN_API_OPERATIONS,
-  ADMIN_API_WRITE_NAMES,
   ADMIN_API_OPERATION_NAMES,
   operationsForTier,
   isOperationAllowedForTier,
@@ -94,14 +93,6 @@ describe('the operation catalogue', () => {
       // but only the description tells a model to dry-run first.
       expect(operation.description, name).toMatch(/planDigest/);
     }
-  });
-
-  it('lists exactly the writes under the name the write quota counts', () => {
-    const writes = entries
-      .filter(([, operation]) => operation.kind === 'write')
-      .map(([name]) => name);
-    expect([...ADMIN_API_WRITE_NAMES].sort()).toEqual(writes.sort());
-    expect(writes.length).toBeGreaterThan(0);
   });
 
   // A shape check accepts 30 February, and the built-in date parser rolls it
