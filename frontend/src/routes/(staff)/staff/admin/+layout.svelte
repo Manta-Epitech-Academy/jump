@@ -15,7 +15,6 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import StaffSettingsDialog from '$lib/components/layout/StaffSettingsDialog.svelte';
-  import StaffApiTokensDialog from '$lib/components/layout/StaffApiTokensDialog.svelte';
   import AdminCommand from '$lib/components/admin/AdminCommand.svelte';
   import {
     ADMIN_NAV,
@@ -30,7 +29,6 @@
 
   let mobileMenuOpen = $state(false);
   let settingsOpen = $state(false);
-  let apiTokensOpen = $state(false);
   let commandOpen = $state(false);
 
   // Close the mobile menu on page navigation
@@ -222,12 +220,13 @@
               <Settings class="mr-2 h-4 w-4" />
               Paramètres
             </DropdownMenu.Item>
-            <DropdownMenu.Item
-              class="cursor-pointer"
-              onSelect={() => (apiTokensOpen = true)}
-            >
-              <KeyRound class="mr-2 h-4 w-4" />
-              Accès API
+            <DropdownMenu.Item class="cursor-pointer">
+              {#snippet child({ props })}
+                <a {...props} href={resolve('/staff/admin/api-tokens')}>
+                  <KeyRound class="mr-2 h-4 w-4" />
+                  Accès API
+                </a>
+              {/snippet}
             </DropdownMenu.Item>
             <form
               action="{resolve('/logout')}?type=admin"
@@ -261,13 +260,6 @@
           armedRealSendsUntil={data.armedRealSendsUntil}
           devRedirectPin={data.devRedirectPin}
           devRedirectPinTo={data.devRedirectPinTo}
-        />
-
-        <StaffApiTokensDialog
-          bind:open={apiTokensOpen}
-          form={data.apiTokenForm}
-          tokens={data.apiTokens}
-          currentUserId={data.user.id}
         />
       </div>
     </div>

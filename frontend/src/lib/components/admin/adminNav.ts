@@ -21,6 +21,7 @@ import UserX from '@lucide/svelte/icons/user-x';
 import Heart from '@lucide/svelte/icons/heart';
 import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
 import ListChecks from '@lucide/svelte/icons/list-checks';
+import KeyRound from '@lucide/svelte/icons/key-round';
 
 // Single source of truth for admin-space navigation. Both surfaces read this:
 //  - the sidebar (`(staff)/staff/admin/+layout.svelte`) renders the sections
@@ -94,6 +95,14 @@ export const ADMIN_NAV: AdminNavSection[] = [
         // 'entretien' stays a search keyword: the business renamed the act, and
         // staff who learnt the old word still type it into the palette.
         keywords: ['pdf', 'closing', 'entretien', 'synthese', 'export'],
+      },
+      {
+        label: 'Accès API',
+        href: resolve('/staff/admin/api-tokens'),
+        icon: KeyRound,
+        // 'mcp' and 'claude' are what somebody types when what they actually
+        // want is the command to connect their client, which this page carries.
+        keywords: ['token', 'api', 'mcp', 'claude', 'cle', 'clé'],
       },
       {
         label: '[DEV] S3 Test',
