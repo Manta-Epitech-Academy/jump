@@ -2322,8 +2322,8 @@ model AdminApi_Token {
 /// Append-only log of every curated-admin-API call, by token or by admin
 /// session. Facts as rows, no projection and no UI: the seminar's design rule is
 /// that audit replaces up-front restriction, and that reading what people
-/// actually ask for is free product research. Also the source of the per-token
-/// daily quota (counted, not stored).
+/// actually ask for is free product research. Also the source of the "appels sur
+/// 24 h" figure the token inventory shows (counted, not stored).
 model AdminApi_Call {
   id          String   @id @default(cuid())
   /// Null when an admin session drove the call (same operations, browser

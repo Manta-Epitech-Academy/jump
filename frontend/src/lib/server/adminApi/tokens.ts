@@ -21,46 +21,26 @@ import { prisma } from '$lib/server/db';
 const SECRET_BYTES = 32;
 const SECRET_PREFIX = 'jump_';
 
-/**
- * Max calls per token per rolling 24h. A cap the seminar asked for ("caps durs
- * ... quota par token"): a client stuck in a loop burns its own quota and
- * surfaces as 429s in the audit log, instead of hammering the pods. Counted off
- * `AdminApi_Call`, so there is no counter to keep in sync.
- */
-export const DAILY_CALL_QUOTA = 500;
+const RECENT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Max mutating calls per token per rolling 24h, counted off the same rows.
+ * The rows behind the "N appels sur 24 h" figure the token inventory shows.
  *
- * Much lower than the read quota because the failure modes are not comparable:
- * a looping reader wastes CPU, a looping writer rewrites configuration. Fifty is
- * far above any real day of admin work (the whole point is that these are
- * one-off repairs) and far below what a runaway agent would do before anyone
- * noticed.
+ * This used to be a quota window. Two ceilings hung off it, one on all calls and
+ * one on the mutating ones, and both were removed (issue #355) rather than
+ * raised: they only ever applied to an authenticated token, so they never
+ * protected the pods from the unauthenticated traffic that rate limiting is for,
+ * and a ceiling set high enough never to fire in real use is the thing this
+ * tier's own doctrine warns against - it reads as protection without being any.
+ * What bounds a token is written down in `adminApi/CLAUDE.md`.
+ *
+ * So what is left is a usage signal, and it counts every call: the 429s the
+ * quota itself produced used to be excluded, because counting them fed the count
+ * that caused them and kept a client locked out long after its burst had aged
+ * out. With no ceiling to recover from, the honest figure is all of them.
  */
-export const WRITE_CALL_QUOTA = 50;
-
-const QUOTA_WINDOW_MS = 24 * 60 * 60 * 1000;
-
-/**
- * The rows that count against the quota: everything the token was served or
- * charged for, EXCEPT the 429s the quota itself produced.
- *
- * Excluding them is not leniency, it is what makes the cap recover. A refusal
- * writes an audit row like any other call, so counting 429s fed the count that
- * caused them: a client that hit the cap and then retried faster than once every
- * ~3 minutes kept the window above 500 forever, and stayed locked out long after
- * its original burst had aged out. A misbehaving client still burns quota through
- * its 200s, 400s and 500s.
- *
- * Shared by the quota check and the dialog's "appels sur 24 h" hint so the figure
- * an admin reads is the figure that locks them out.
- */
-function quotaWindowWhere() {
-  return {
-    createdAt: { gte: new Date(Date.now() - QUOTA_WINDOW_MS) },
-    status: { not: 429 },
-  };
+function recentCallsWhere() {
+  return { createdAt: { gte: new Date(Date.now() - RECENT_WINDOW_MS) } };
 }
 
 /** sha256 hex of a secret. The stored form; never reversed, only recomputed. */
@@ -156,7 +136,7 @@ export type TokenSummary = {
   revokedAt: Date | null;
   /** The admin who minted it, so a token nobody recognises still has a name on it. */
   owner: { id: string; name: string };
-  /** Calls counted against the quota in the rolling 24h window (see `quotaWindowWhere`). */
+  /** Calls charged to it over the last 24h (see `recentCallsWhere`). */
   callsToday: number;
 };
 
@@ -184,7 +164,7 @@ export async function listTokens(): Promise<TokenSummary[]> {
       lastUsedAt: true,
       revokedAt: true,
       staffUser: { select: { id: true, name: true, email: true } },
-      _count: { select: { calls: { where: quotaWindowWhere() } } },
+      _count: { select: { calls: { where: recentCallsWhere() } } },
     },
   });
   return rows.map(({ _count, staffUser, ...token }) => ({
@@ -253,33 +233,4 @@ export async function verifyToken(
     tier: row.tier,
     writeEnabled: row.writeEnabled,
   };
-}
-
-/** Calls charged to a token in the rolling quota window (see `quotaWindowWhere`). */
-export async function countRecentCalls(tokenId: string): Promise<number> {
-  return prisma.adminApi_Call.count({
-    where: { tokenId, ...quotaWindowWhere() },
-  });
-}
-
-/**
- * Mutating calls charged to a token in the same window. Separate ceiling, same
- * rows, no second counter to keep in sync and no `kind` column on the log.
- *
- * The write names are passed in rather than imported: this module is about
- * credentials, and the catalogue is the guard's business. Keeping the arrow
- * pointing that way also keeps the token dialog's import graph from dragging in
- * every aggregation service behind the catalogue.
- */
-export async function countRecentWriteCalls(
-  tokenId: string,
-  writeOperationNames: string[],
-): Promise<number> {
-  return prisma.adminApi_Call.count({
-    where: {
-      tokenId,
-      operation: { in: writeOperationNames },
-      ...quotaWindowWhere(),
-    },
-  });
 }

@@ -23,8 +23,8 @@
  * Two axes cut across this one list, and neither is a second catalogue:
  *
  *   - `kind` tells a read from a write. It decides the HTTP verb, whether a
- *     token needs `writeEnabled`, which quota applies, and whether the answer
- *     lands on the audit row as a before/after.
+ *     token needs `writeEnabled`, and whether the answer lands on the audit row
+ *     as a before/after.
  *   - `leadership` grants an entry to tier-2 tokens (national leadership). The
  *     default is core-team-only, so the leadership surface only ever grows by an
  *     explicit opt-in here. What qualifies: a figure or a ranking, plus the
@@ -1522,10 +1522,9 @@ export function operationsForTier(
  * tools.
  *
  * Deliberately not the same question as "may they call it" (`guard.ts`), which
- * also weighs quotas and can only be answered per call. This one is about what
- * a model is shown, and the rule is that it is never shown something it would
- * only ever be refused: a write tool on a read-only token is noise that invites
- * a failed attempt.
+ * is answered per call. This one is about what a model is shown, and the rule is
+ * that it is never shown something it would only ever be refused: a write tool
+ * on a read-only token is noise that invites a failed attempt.
  */
 export function operationsOfferedTo(credential: {
   tier: AdminApiTier;
@@ -1535,13 +1534,3 @@ export function operationsOfferedTo(credential: {
     ([, op]) => op.kind !== 'write' || credential.writeEnabled,
   );
 }
-
-/**
- * Names of the mutating operations. The write quota counts audit rows by
- * operation name rather than by a `kind` column on `AdminApi_Call`: the name
- * already resolves to its entry here, and a stored marker for a derivable fact
- * is exactly the duplication the schema conventions forbid.
- */
-export const ADMIN_API_WRITE_NAMES = entries()
-  .filter(([, op]) => op.kind === 'write')
-  .map(([name]) => name);

@@ -118,7 +118,7 @@ export async function getApiUsage(
   let failed = 0;
 
   for (const row of rows) {
-    // 2xx succeeded, 4xx was refused (bad scope, bad params, no right, quota),
+    // 2xx succeeded, 4xx was refused (bad scope, bad params, no right),
     // 5xx is ours to fix. Told apart because they mean three different things
     // to whoever reads this: usage, friction, and a bug.
     if (row.status < 400) ok++;
@@ -189,7 +189,7 @@ export async function getApiUsage(
     okCalls: metric(ok, 'Appels ayant abouti à une réponse.'),
     refusedCalls: metric(
       refused,
-      "Appels refusés : périmètre inconnu, paramètre non reconnu, droit manquant ou quota atteint. Un chiffre élevé signale une difficulté d'usage, pas une panne.",
+      "Appels refusés : périmètre inconnu, paramètre non reconnu ou droit manquant. Un chiffre élevé signale une difficulté d'usage, pas une panne.",
     ),
     failedCalls: metric(
       failed,
