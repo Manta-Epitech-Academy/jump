@@ -13,7 +13,7 @@ import {
 } from '$lib/server/workshops/ticket';
 
 /**
- * Action-only route, like `/staff/api-tokens`: the control lives on the talent
+ * Action-only route, like `/staff/settings`: the control lives on the talent
  * dashboard, so a direct GET has no page to render and bounces home.
  *
  * A POST and not a link, and that is the load-bearing part. `load` runs on
