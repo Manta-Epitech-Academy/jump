@@ -2460,8 +2460,8 @@ model AdminApi_Token {
 /// Append-only log of every curated-admin-API call, by token or by admin
 /// session. Facts as rows, no projection and no UI: the seminar's design rule is
 /// that audit replaces up-front restriction, and that reading what people
-/// actually ask for is free product research. Also the source of the per-token
-/// daily quota (counted, not stored).
+/// actually ask for is free product research. Also the source of the "appels sur
+/// 24 h" figure the token inventory shows (counted, not stored).
 model AdminApi_Call {
   id          String   @id @default(cuid())
   /// Null when an admin session drove the call (same operations, browser
@@ -2479,7 +2479,7 @@ model AdminApi_Call {
   /// The validated params. PII-free by construction: this tier serves
   /// aggregates and configuration state, so its params are ids and school years.
   params      Json?
-  /// Status the caller got (200, 403, 429, ...), so refusals are auditable too,
+  /// Status the caller got (200, 403, ...), so refusals are auditable too,
   /// not just successes.
   status      Int
   /// State of what the call changed, before and after. Written by mutating

@@ -8,7 +8,6 @@ import {
   revokeToken,
   listTokens,
   hashSecret,
-  DAILY_CALL_QUOTA,
 } from '$lib/server/adminApi/tokens';
 import {
   authenticateAdminApi,
@@ -21,7 +20,7 @@ import {
   ANONYMOUS_ACTOR,
 } from '$lib/server/adminApi/audit';
 
-/** Any core read; the quota rules do not depend on which one. */
+/** Any core read; the authorisation rules do not depend on which one. */
 const READ_OPERATION = ADMIN_API_OPERATIONS.stats_sync_health;
 
 /** A request carrying (or not) a bearer, which is all the guard reads. */
@@ -177,33 +176,48 @@ describe('admin API tokens (integration)', () => {
     });
   });
 
-  it('lets a live token through and cuts it off at the daily quota', async () => {
-    const minted = await mintToken(adminUserId, { label: 'Quota' });
+  it('lets a live token through however many calls it has already made', async () => {
+    const minted = await mintToken(adminUserId, { label: 'Usage' });
 
     const credential = await authenticateAdminApi(requestWith(minted.secret));
     expect(credential).toMatchObject({ ok: true });
     if (!credential.ok) throw new Error('unreachable');
-    expect(await authorizeOperation(credential, READ_OPERATION)).toEqual({
+    expect(authorizeOperation(credential, READ_OPERATION)).toEqual({
       ok: true,
     });
 
-    // Fill the window. Rows are the counter, so there is no separate state to
-    // fake here.
+    // The two per-token ceilings that used to sit here were removed (#355), so
+    // volume authorises nothing and refuses nothing. Five hundred rows is what
+    // used to be the daily cap, and a refusal beside them is what used to be
+    // excluded from the count: neither changes the answer any more.
     await prisma.adminApi_Call.createMany({
-      data: Array.from({ length: DAILY_CALL_QUOTA }, () => ({
+      data: Array.from({ length: 500 }, () => ({
         tokenId: minted.id,
         actorUserId: adminUserId,
         operation: 'stats_sync_health',
         status: 200,
       })),
     });
-
-    expect(await authorizeOperation(credential, READ_OPERATION)).toMatchObject({
-      ok: false,
-      status: 429,
+    await prisma.adminApi_Call.create({
+      data: {
+        tokenId: minted.id,
+        actorUserId: adminUserId,
+        operation: 'stats_sync_health',
+        status: 403,
+      },
+    });
+    expect(authorizeOperation(credential, READ_OPERATION)).toEqual({
+      ok: true,
     });
 
-    // A call older than the window does not count against it.
+    // And the inventory counts every one of them, refusals included: the figure
+    // an admin reads is now a plain usage signal, not a budget being spent.
+    const listed = await listTokens();
+    expect(listed.find((token) => token.id === minted.id)?.callsToday).toBe(
+      501,
+    );
+
+    // A call older than 24h is outside the window the figure names.
     await prisma.adminApi_Call.deleteMany({ where: { tokenId: minted.id } });
     await prisma.adminApi_Call.create({
       data: {
@@ -214,9 +228,8 @@ describe('admin API tokens (integration)', () => {
         createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
       },
     });
-    expect(await authorizeOperation(credential, READ_OPERATION)).toEqual({
-      ok: true,
-    });
+    const aged = await listTokens();
+    expect(aged.find((token) => token.id === minted.id)?.callsToday).toBe(0);
   });
 
   it('lists every admin token with its owner and recent usage, newest first', async () => {
@@ -233,7 +246,7 @@ describe('admin API tokens (integration)', () => {
     // rather than to an empty label nobody can act on.
     expect(mine[0].owner.name).toContain('@epitech.eu');
     // The 48h-old row above is outside the window, so it is not counted.
-    expect(mine.find((token) => token.label === 'Quota')?.callsToday).toBe(0);
+    expect(mine.find((token) => token.label === 'Usage')?.callsToday).toBe(0);
     // Revoked tokens stay listed: the trail is what an incident is read from.
     expect(mine.some((token) => token.revokedAt !== null)).toBe(true);
     // No token list ever carries a usable secret.

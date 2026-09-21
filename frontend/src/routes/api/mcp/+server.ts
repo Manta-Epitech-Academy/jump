@@ -76,8 +76,9 @@ const handle: RequestHandler = async (event) => {
   }
 
   // The credential, not just the caller: it decides which tools get registered
-  // (tier, write capability) and is re-checked on every tool call for the parts
-  // that cannot be settled once, like the quotas.
+  // (tier, write capability), and every tool call re-derives from it what that
+  // one operation needs. Revocation is settled here rather than there: the
+  // transport is stateless, so authentication runs once per HTTP request.
   const credential = { caller: auth.caller, writeEnabled: auth.writeEnabled };
 
   // Two bounds on what this endpoint takes, both audited like any other call:
