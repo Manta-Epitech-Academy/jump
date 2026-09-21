@@ -228,6 +228,8 @@ describe('admin API tokens (integration)', () => {
         createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
       },
     });
+    const aged = await listTokens();
+    expect(aged.find((token) => token.id === minted.id)?.callsToday).toBe(0);
   });
 
   it('lists every admin token with its owner and recent usage, newest first', async () => {
