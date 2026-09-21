@@ -196,8 +196,10 @@ export function buildAdminMcpServer(
     server.registerTool(
       name,
       { description: operation.description, inputSchema: operation.schema },
-      // Authorisation (re-checked per call, because a token revoked mid-
-      // conversation, or an owner demoted mid-conversation, must stop working),
+      // Authorisation (per call, because what a tier may reach is a property
+      // of the operation and not of the connection; a token revoked or an
+      // owner demoted mid-conversation is caught a layer up, by the
+      // authentication this stateless transport runs on every request),
       // the run and the audit row are the shared step; only the answer's shape
       // is this transport's business. A refusal is answered with its own
       // message: it names the values, or the fresh plan digest, that would have
