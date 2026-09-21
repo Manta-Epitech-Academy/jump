@@ -134,11 +134,14 @@
   <header
     class="on-dark z-50 flex h-15 w-full shrink-0 items-center justify-between border-b border-chrome-border bg-chrome px-4 md:px-6"
   >
-    <div class="flex items-center gap-4">
+    <!-- Tighter gutter on a phone: the hamburger, the mark and three controls
+         share one bar, and the 8px this gives back is what keeps the mark clear
+         of them at 320px rather than flush against them. -->
+    <div class="flex min-w-0 items-center gap-2 sm:gap-4">
       <Button
         variant="ghost"
         size="icon"
-        class="relative h-10 w-10 text-chrome-foreground-muted hover:bg-chrome-hover hover:text-chrome-foreground md:hidden"
+        class="relative h-10 w-10 shrink-0 text-chrome-foreground-muted hover:bg-chrome-hover hover:text-chrome-foreground md:hidden"
         onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
       >
         <Menu
