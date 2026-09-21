@@ -106,7 +106,6 @@
         label="Configuration Claude Desktop"
         value={mcpDesktopConfig(origin, token)}
         copyLabel="Copier la configuration"
-        multiline
       />
     </Collapsible.Content>
   </Collapsible.Root>
