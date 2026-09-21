@@ -143,8 +143,8 @@ describe('auditUnreachedToolCall', () => {
 
 /**
  * A batch is well-formed JSON-RPC, so nothing downstream would fail on one. What
- * it does is spend a quota, a plan digest and an audit row N times per HTTP
- * request, ahead of the authorisation that guards them.
+ * it does is spend a plan digest and an audit row N times per HTTP request,
+ * ahead of the authorisation that guards them.
  */
 describe('envelopeRefusal', () => {
   it('refuses a batch, whatever it carries', () => {

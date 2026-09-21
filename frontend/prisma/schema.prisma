@@ -2479,7 +2479,7 @@ model AdminApi_Call {
   /// The validated params. PII-free by construction: this tier serves
   /// aggregates and configuration state, so its params are ids and school years.
   params      Json?
-  /// Status the caller got (200, 403, 429, ...), so refusals are auditable too,
+  /// Status the caller got (200, 403, ...), so refusals are auditable too,
   /// not just successes.
   status      Int
   /// State of what the call changed, before and after. Written by mutating
