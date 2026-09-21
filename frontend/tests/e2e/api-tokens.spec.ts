@@ -64,10 +64,15 @@ test.describe("l'accès API", () => {
     await expect(command).toContainText(value);
     await expect(command).toContainText('--transport http');
 
-    // Nothing can be minted over a secret that has not been acknowledged.
+    // Nothing else is on screen over a secret that has not been acknowledged,
+    // and the inventory is the load-bearing half of that. Its revoke form posts
+    // to this same route, so applying that action's result would replace the
+    // `form` prop this panel reads and take the secret with it.
     await expect(
       page.getByRole('button', { name: 'Créer un token' }),
     ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Révoquer' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /Tokens/ })).toHaveCount(0);
 
     await page.getByRole('button', { name: "J'ai copié le token" }).click();
 
@@ -79,7 +84,7 @@ test.describe("l'accès API", () => {
     await page.reload();
     await expect(page.getByText(SECRET)).toHaveCount(0);
 
-    // The token is in the shared inventory, and any admin can cut it from there.
+    // The inventory comes back with it, and any admin can cut it from there.
     const row = page.getByRole('listitem').filter({ hasText: label });
     await expect(row).toBeVisible();
 

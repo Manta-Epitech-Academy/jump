@@ -1,11 +1,11 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { superForm } from 'sveltekit-superforms';
   import { toast } from 'svelte-sonner';
   import KeyRound from '@lucide/svelte/icons/key-round';
   import Plug from '@lucide/svelte/icons/plug';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
-  import Copy from '@lucide/svelte/icons/copy';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
@@ -80,16 +80,8 @@
   // Acknowledging navigates back to the bare page, which is what drops the
   // secret: nothing clears it in place, so there is no second copy to reason
   // about.
-  const acknowledge = () => goto('/staff/admin/api-tokens', { noScroll: true });
-
-  async function copySecret(secret: string) {
-    try {
-      await navigator.clipboard.writeText(secret);
-      toast.success('Token copié.');
-    } catch {
-      toast.error('Impossible de copier. Sélectionnez le token à la main.');
-    }
-  }
+  const acknowledge = () =>
+    goto(resolve('/staff/admin/api-tokens'), { noScroll: true });
 
   const dateLabel = (value: Date | string | null) =>
     value
@@ -110,10 +102,16 @@
 
   {#if created}
     <!--
-      The reveal replaces the creation form rather than sitting above it, and
-      that is deliberate. A second token cannot be minted over a secret nobody
-      has acknowledged, and the one value on this page that cannot be fetched
-      again is the only thing to read.
+      The reveal replaces the whole page rather than sitting on top of it, and
+      that is deliberate: the one value here that cannot be fetched again is the
+      only thing to read, so it is the only thing on screen.
+
+      The inventory below it is hidden for a harder reason than tidiness. Its
+      revoke form posts to this same route, so SvelteKit applies that action's
+      result to `page.form` - the very prop this panel reads - and the secret
+      would vanish mid-read. Revoking the token one has just replaced is exactly
+      why somebody mints a new one, so that is not a corner. Acknowledging is
+      what brings the inventory back.
     -->
     <section
       class="space-y-4 rounded-sm border border-success/40 bg-success/10 p-4"
@@ -129,10 +127,6 @@
       </div>
 
       <CommandBlock label="Votre token" value={created.secret} />
-
-      <Button class="w-full" onclick={() => copySecret(created.secret)}>
-        <Copy class="mr-2 h-4 w-4" /> Copier le token
-      </Button>
 
       <div class="space-y-2 border-t border-success/30 pt-4">
         <div class="flex items-center gap-1.5">
@@ -298,74 +292,76 @@
       </p>
       <McpConnectSnippet origin={data.origin} />
     </section>
+
+    <section class="space-y-3">
+      <h2 class="flex items-center gap-2 font-heading text-display-s">
+        <KeyRound class="h-5 w-5 text-accent-space" /> Tokens
+        <InfoTooltip
+          text="La liste couvre les tokens créés par toute l'équipe admin, et vous pouvez révoquer n'importe lequel. Un token confié à une direction ne peut être coupé que d'ici : la personne qui l'utilise n'a pas de compte Jump."
+        />
+      </h2>
+
+      {#await data.tokens}
+        <p class="text-xs text-muted-foreground">Chargement…</p>
+      {:then rows}
+        {#if rows.length === 0}
+          <p class="text-xs text-muted-foreground">
+            Aucun token pour le moment.
+          </p>
+        {:else}
+          <!-- Revoked tokens are kept for the trail, so this list only ever
+               grows. It scrolls in its own box rather than stretching the page. -->
+          <ul
+            class="max-h-[40svh] divide-y divide-border overflow-y-auto rounded-sm border border-border bg-card"
+          >
+            {#each rows as token (token.id)}
+              <li class="flex flex-wrap items-center gap-3 p-3 text-sm">
+                <div class="min-w-0 flex-1">
+                  <p class="flex flex-wrap items-center gap-2">
+                    <span class="truncate font-medium">{token.label}</span>
+                    {#if token.tier === 'leadership'}
+                      <Badge variant="secondary">Direction</Badge>
+                    {/if}
+                    {#if token.writeEnabled}
+                      <Badge variant="outline">Modifications</Badge>
+                    {/if}
+                    {#if token.revokedAt}
+                      <span class="text-xs font-normal text-muted-foreground">
+                        révoqué le {dateLabel(token.revokedAt)}
+                      </span>
+                    {/if}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    Créé le {dateLabel(token.createdAt)}{isMine(token)
+                      ? ''
+                      : ` par ${token.owner.name}`} ·
+                    {#if token.lastUsedAt}
+                      dernier appel le {dateLabel(token.lastUsedAt)} ·
+                      {token.callsToday} appel{token.callsToday > 1 ? 's' : ''} sur
+                      24 h
+                    {:else}
+                      jamais utilisé
+                    {/if}
+                  </p>
+                </div>
+                {#if !token.revokedAt}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    class="cursor-pointer"
+                    onclick={() => askRevoke(token)}
+                  >
+                    Révoquer
+                  </Button>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      {/await}
+    </section>
   {/if}
-
-  <section class="space-y-3">
-    <h2 class="flex items-center gap-2 font-heading text-display-s">
-      <KeyRound class="h-5 w-5 text-accent-space" /> Tokens
-      <InfoTooltip
-        text="La liste couvre les tokens créés par toute l'équipe admin, et vous pouvez révoquer n'importe lequel. Un token confié à une direction ne peut être coupé que d'ici : la personne qui l'utilise n'a pas de compte Jump."
-      />
-    </h2>
-
-    {#await data.tokens}
-      <p class="text-xs text-muted-foreground">Chargement…</p>
-    {:then rows}
-      {#if rows.length === 0}
-        <p class="text-xs text-muted-foreground">Aucun token pour le moment.</p>
-      {:else}
-        <!-- Revoked tokens are kept for the trail, so this list only ever
-             grows. It scrolls in its own box rather than stretching the page. -->
-        <ul
-          class="max-h-[40svh] divide-y divide-border overflow-y-auto rounded-sm border border-border bg-card"
-        >
-          {#each rows as token (token.id)}
-            <li class="flex flex-wrap items-center gap-3 p-3 text-sm">
-              <div class="min-w-0 flex-1">
-                <p class="flex flex-wrap items-center gap-2">
-                  <span class="truncate font-medium">{token.label}</span>
-                  {#if token.tier === 'leadership'}
-                    <Badge variant="secondary">Direction</Badge>
-                  {/if}
-                  {#if token.writeEnabled}
-                    <Badge variant="outline">Modifications</Badge>
-                  {/if}
-                  {#if token.revokedAt}
-                    <span class="text-xs font-normal text-muted-foreground">
-                      révoqué le {dateLabel(token.revokedAt)}
-                    </span>
-                  {/if}
-                </p>
-                <p class="text-xs text-muted-foreground">
-                  Créé le {dateLabel(token.createdAt)}{isMine(token)
-                    ? ''
-                    : ` par ${token.owner.name}`} ·
-                  {#if token.lastUsedAt}
-                    dernier appel le {dateLabel(token.lastUsedAt)} ·
-                    {token.callsToday} appel{token.callsToday > 1 ? 's' : ''} sur
-                    24 h
-                  {:else}
-                    jamais utilisé
-                  {/if}
-                </p>
-              </div>
-              {#if !token.revokedAt}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  class="cursor-pointer"
-                  onclick={() => askRevoke(token)}
-                >
-                  Révoquer
-                </Button>
-              {/if}
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    {/await}
-  </section>
 </div>
 
 <ConfirmDeleteDialog

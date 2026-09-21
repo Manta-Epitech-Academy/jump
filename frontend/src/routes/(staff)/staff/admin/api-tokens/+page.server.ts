@@ -10,12 +10,18 @@
  * Three things follow from being a page, and each removed one of the conditions
  * the lost-secret bug needed:
  *
- *   - the form posts to its own route, so there is no cross-route action and no
- *     `invalidateAll` fired at the whole app to refresh a list next to it;
+ *   - the form posts to its own route, so the action's result lands on the page
+ *     that has to read it rather than on another one;
  *   - the secret is read off SvelteKit's own `form` prop in `+page.svelte`,
  *     never copied into component state, so nothing re-rendering can drop it;
  *   - it is not rendered inside a portal that mounts its children in a separate
  *     component tree.
+ *
+ * `invalidateAll` still fires, and that is not an oversight: superforms defaults
+ * it to true and the inventory below the form has to see the new row. It is
+ * harmless now because superforms invalidates BEFORE it applies the action, so
+ * the re-run `load` cannot land on top of the secret. What the page must not do
+ * is hold a second copy of that value, which is the part that was wrong.
  */
 
 import type { Actions, PageServerLoad } from './$types';

@@ -7,9 +7,10 @@
    * every time, so a second spelling of them would be a second chance to forget
    * the `overflow-x-auto`.
    *
-   * A command does not wrap. `AGENTS.md` reserves horizontal overflow for
-   * tables, diagrams and code blocks, in their own container, and a wrapped
-   * command is worse than a scrolling one: it reads as two commands.
+   * A command does not wrap, which is what the `overflow-x-auto` buys: a
+   * wrapped command reads as two commands, and somebody pastes half of it. A
+   * `<pre>` already refuses to wrap on its own, so the rule here is the
+   * container, not a whitespace class.
    */
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
 
@@ -17,11 +18,9 @@
     label: string;
     value: string;
     copyLabel?: string;
-    /** A config file is read as a block, a command as one line. */
-    multiline?: boolean;
   };
 
-  let { label, value, copyLabel, multiline = false }: Props = $props();
+  let { label, value, copyLabel }: Props = $props();
 </script>
 
 <div class="space-y-1.5">
@@ -30,6 +29,5 @@
     <CopyButton {value} label={copyLabel ?? `Copier : ${label}`} />
   </div>
   <pre
-    class="overflow-x-auto rounded-sm border border-border bg-muted px-3 py-2 font-mono text-xs
-      {multiline ? '' : 'whitespace-pre'}">{value}</pre>
+    class="overflow-x-auto rounded-sm border border-border bg-muted px-3 py-2 font-mono text-xs">{value}</pre>
 </div>
