@@ -1,7 +1,7 @@
 # Key Server Services
 
 - **`auth.ts`**: BetterAuth config (Prisma adapter, Microsoft OAuth, email OTP, admin plugin with impersonation)
-- **`adminApi/`**: curated admin API: token auth (tier + write capability), quotas, audit log with before/after, operation catalogue, write implementations, two-step plan digest, MCP server (see above)
+- **`adminApi/`**: curated admin API: token auth (tier + write capability), audit log with before/after, operation catalogue, write implementations, two-step plan digest, MCP server (see above)
 - **`services/adminStats/`**: the curated aggregates (cohort profile, school reach and lycée churn, attendance, the cross-campus comparison, closing insights and testimonials, feedback results, engagement, onboarding funnel and velocity, compliance, the operational queues, configuration state, the school-year review), each figure carrying its definition
 - **`services/adminDigest.ts`**: weekly French digest to every admin-role login, built on `adminStats/`
 - **`services/staffAdminService.ts`**: staff roster writes for `/staff/admin/users` (the role change moves `StaffProfile.staffRole` + `bauth_user.role` in one transaction)

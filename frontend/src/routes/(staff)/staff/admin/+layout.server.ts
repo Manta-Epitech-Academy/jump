@@ -6,15 +6,9 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { countAuthIdentityConflicts } from '$lib/server/services/authIdentityService';
 import { staffDevRedirectSchema } from '$lib/validation/staffSettings';
-import { createApiTokenSchema } from '$lib/validation/adminApiToken';
 import { outboundTrapped } from '$lib/server/outbound';
 import { canArmRealSends } from '$lib/server/armRealSends';
 import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
-import {
-  listTokens,
-  DAILY_CALL_QUOTA,
-  WRITE_CALL_QUOTA,
-} from '$lib/server/adminApi/tokens';
 
 export const load: LayoutServerLoad = async ({ parent, locals }) => {
   const { user, staffProfile } = await parent();
@@ -23,23 +17,18 @@ export const load: LayoutServerLoad = async ({ parent, locals }) => {
     throw redirect(302, resolve('/staff/login'));
   }
 
-  const [
-    deletionRequestsPending,
-    authConflictsPending,
-    settingsForm,
-    apiTokenForm,
-  ] = await Promise.all([
-    prisma.talentDeletionRequest.count({ where: { status: 'pending' } }),
-    countAuthIdentityConflicts(),
-    superValidate(
-      {
-        devRedirectEmails: staffProfile.devRedirectEmails.join('\n'),
-        devRedirectPhones: staffProfile.devRedirectPhones.join('\n'),
-      },
-      zod4(staffDevRedirectSchema),
-    ),
-    superValidate(zod4(createApiTokenSchema)),
-  ]);
+  const [deletionRequestsPending, authConflictsPending, settingsForm] =
+    await Promise.all([
+      prisma.talentDeletionRequest.count({ where: { status: 'pending' } }),
+      countAuthIdentityConflicts(),
+      superValidate(
+        {
+          devRedirectEmails: staffProfile.devRedirectEmails.join('\n'),
+          devRedirectPhones: staffProfile.devRedirectPhones.join('\n'),
+        },
+        zod4(staffDevRedirectSchema),
+      ),
+    ]);
 
   return {
     user,
@@ -50,16 +39,6 @@ export const load: LayoutServerLoad = async ({ parent, locals }) => {
     // dev-redirect controls are admin-only, so they live in the admin layout
     // (there is no standalone /staff/settings page).
     settingsForm,
-    // Same pattern for the API-tokens dialog (also opened from the dropdown,
-    // also backed by an action-only route). The token list is streamed rather
-    // than awaited: nothing in the admin chrome needs it, so a page must not
-    // wait on it to paint. The dialog awaits it when it opens.
-    apiTokenForm,
-    // Every admin's tokens, not just this one's: see `listTokens`. The dialog
-    // tells them apart with `user.id`, which it already has.
-    apiTokens: listTokens(),
-    apiTokenDailyQuota: DAILY_CALL_QUOTA,
-    apiTokenWriteQuota: WRITE_CALL_QUOTA,
     outboundTrapped: outboundTrapped(),
     canArmRealSends: canArmRealSends(locals),
     armedRealSends: locals.armedRealSends,

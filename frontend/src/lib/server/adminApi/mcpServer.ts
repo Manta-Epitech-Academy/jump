@@ -196,8 +196,10 @@ export function buildAdminMcpServer(
     server.registerTool(
       name,
       { description: operation.description, inputSchema: operation.schema },
-      // Authorisation (re-checked per call, because a quota is spent as the
-      // session goes and a token revoked mid-conversation must stop working),
+      // Authorisation (per call, because what a tier may reach is a property
+      // of the operation and not of the connection; a token revoked or an
+      // owner demoted mid-conversation is caught a layer up, by the
+      // authentication this stateless transport runs on every request),
       // the run and the audit row are the shared step; only the answer's shape
       // is this transport's business. A refusal is answered with its own
       // message: it names the values, or the fresh plan digest, that would have
@@ -240,13 +242,13 @@ export type EnvelopeRefusal = { status: 400; message: string };
  * through.
  *
  * A batch is well-formed JSON-RPC and this endpoint still will not take one,
- * because every control this tier has is spent *per call*: the quota, the plan
- * digest, the audit row. A batch lets a single HTTP request spend N of them
- * before the first one has been authorised, which is precisely the shape that
- * outruns "audit replaces up-front restriction". The cost was not theoretical:
- * `BODY_SIZE_LIMIT` is 64 MB and a minimal `tools/call` entry is some forty
- * bytes, so the pre-pass below used to answer one envelope with something like a
- * million sequential inserts, all of them ahead of any quota check.
+ * because every control this tier has is spent *per call*: the authorisation,
+ * the plan digest, the audit row. A batch lets a single HTTP request spend N of
+ * them before the first one has been authorised, which is precisely the shape
+ * that outruns "audit replaces up-front restriction". The cost was not
+ * theoretical: `BODY_SIZE_LIMIT` is 64 MB and a minimal `tools/call` entry is
+ * some forty bytes, so the pre-pass below used to answer one envelope with
+ * something like a million sequential inserts, all of them unauthorised.
  *
  * Nothing legitimate loses anything. MCP's 2025-06-18 revision removed batching
  * from the protocol; a client that still sends one gets a refusal it can read.
@@ -314,9 +316,9 @@ export async function auditUnreachedToolCall(
 
 /**
  * The status the protocol layer is about to answer with, or null when the call
- * will reach its tool. Deliberately does not consult the quotas: those are
- * settled by `executeOperation` inside the handler, and asking here would double
- * every counting query on the calls that succeed.
+ * will reach its tool. It answers off the envelope alone; whether the credential
+ * may run the operation is `executeOperation`'s inside the handler, and is not
+ * re-derived here.
  */
 function refusalAheadOf(
   call: ToolCall,

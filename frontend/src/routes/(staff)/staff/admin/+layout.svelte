@@ -15,7 +15,6 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import StaffSettingsDialog from '$lib/components/layout/StaffSettingsDialog.svelte';
-  import StaffApiTokensDialog from '$lib/components/layout/StaffApiTokensDialog.svelte';
   import AdminCommand from '$lib/components/admin/AdminCommand.svelte';
   import {
     ADMIN_NAV,
@@ -30,7 +29,6 @@
 
   let mobileMenuOpen = $state(false);
   let settingsOpen = $state(false);
-  let apiTokensOpen = $state(false);
   let commandOpen = $state(false);
 
   // Close the mobile menu on page navigation
@@ -136,11 +134,14 @@
   <header
     class="on-dark z-50 flex h-15 w-full shrink-0 items-center justify-between border-b border-chrome-border bg-chrome px-4 md:px-6"
   >
-    <div class="flex items-center gap-4">
+    <!-- Tighter gutter on a phone: the hamburger, the mark and three controls
+         share one bar, and the 8px this gives back is what keeps the mark clear
+         of them at 320px rather than flush against them. -->
+    <div class="flex min-w-0 items-center gap-2 sm:gap-4">
       <Button
         variant="ghost"
         size="icon"
-        class="relative h-10 w-10 text-chrome-foreground-muted hover:bg-chrome-hover hover:text-chrome-foreground md:hidden"
+        class="relative h-10 w-10 shrink-0 text-chrome-foreground-muted hover:bg-chrome-hover hover:text-chrome-foreground md:hidden"
         onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
       >
         <Menu
@@ -222,12 +223,13 @@
               <Settings class="mr-2 h-4 w-4" />
               Paramètres
             </DropdownMenu.Item>
-            <DropdownMenu.Item
-              class="cursor-pointer"
-              onSelect={() => (apiTokensOpen = true)}
-            >
-              <KeyRound class="mr-2 h-4 w-4" />
-              Accès API
+            <DropdownMenu.Item class="cursor-pointer">
+              {#snippet child({ props })}
+                <a {...props} href={resolve('/staff/admin/api-tokens')}>
+                  <KeyRound class="mr-2 h-4 w-4" />
+                  Accès API
+                </a>
+              {/snippet}
             </DropdownMenu.Item>
             <form
               action="{resolve('/logout')}?type=admin"
@@ -261,15 +263,6 @@
           armedRealSendsUntil={data.armedRealSendsUntil}
           devRedirectPin={data.devRedirectPin}
           devRedirectPinTo={data.devRedirectPinTo}
-        />
-
-        <StaffApiTokensDialog
-          bind:open={apiTokensOpen}
-          form={data.apiTokenForm}
-          tokens={data.apiTokens}
-          currentUserId={data.user.id}
-          dailyQuota={data.apiTokenDailyQuota}
-          writeQuota={data.apiTokenWriteQuota}
         />
       </div>
     </div>

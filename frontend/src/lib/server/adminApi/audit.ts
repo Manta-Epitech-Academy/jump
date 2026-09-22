@@ -6,8 +6,9 @@
  * makes misuse visible after the fact and turns the log into free product
  * research about what the team actually needs.
  *
- * `AdminApi_Call` rows are facts, never updated. Nothing projects off them except
- * the per-token quota, which is a live count rather than a stored counter.
+ * `AdminApi_Call` rows are facts, never updated. The only thing read off them is
+ * the "appels sur 24 h" figure the token inventory shows, a live count rather
+ * than a stored counter.
  */
 
 import { prisma } from '$lib/server/db';

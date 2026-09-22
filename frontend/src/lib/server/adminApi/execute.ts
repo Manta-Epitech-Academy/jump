@@ -51,7 +51,7 @@ export async function executeOperation(input: {
   const { name, operation, credential, params } = input;
   const { caller } = credential;
 
-  const allowed = await authorizeOperation(credential, operation);
+  const allowed = authorizeOperation(credential, operation);
   if (!allowed.ok) {
     await recordAdminApiCall({
       caller,
