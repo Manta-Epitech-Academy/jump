@@ -1,4 +1,9 @@
 import type { Prisma } from '@prisma/client';
+import {
+  containsToken,
+  everyTokenMatches,
+  talentIdentityMatches,
+} from '$lib/server/db/textSearch';
 
 // Admin is campus-agnostic, so the notes oversight directory is global across
 // every campus. Filter parsing / where building / row projection live here (not
@@ -41,23 +46,14 @@ export function buildNoteWhere(
   const and: Prisma.Note_TalentNoteWhereInput[] = [];
 
   // Search the note body AND the talent it's about (name / email), so one box
-  // finds "what was written" or "about whom".
-  if (f.q) {
-    and.push({
-      OR: [
-        { body: { contains: f.q, mode: 'insensitive' } },
-        {
-          talent: {
-            OR: [
-              { nom: { contains: f.q, mode: 'insensitive' } },
-              { prenom: { contains: f.q, mode: 'insensitive' } },
-              { user: { email: { contains: f.q, mode: 'insensitive' } } },
-            ],
-          },
-        },
-      ],
-    });
-  }
+  // finds "what was written" or "about whom". Per word, so the two combine:
+  // "retard dupont" finds the notes about Dupont that mention a lateness.
+  and.push(
+    ...everyTokenMatches(f.q, (token) => [
+      { body: containsToken(token) },
+      { talent: { OR: talentIdentityMatches(token) } },
+    ]),
+  );
 
   // Campus = the talent participates on one of the selected campuses (talents
   // carry no direct campus FK), same resolution as the talents directory.
