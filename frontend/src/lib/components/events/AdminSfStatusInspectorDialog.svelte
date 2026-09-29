@@ -1,4 +1,9 @@
 <script lang="ts">
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
   import * as Dialog from '$lib/components/ui/dialog';
   import { Badge } from '$lib/components/ui/badge';
   import * as Table from '$lib/components/ui/table';
@@ -82,16 +87,16 @@
 
   const filteredRows = $derived.by(() => {
     if (!data) return [];
-    const q = search.trim().toLowerCase();
+    const tokens = searchTokens(search);
     return data.participations.filter((row) => {
       if (filterVisibility === 'visible' && !row.isVisibleInDevSpace)
         return false;
       if (filterVisibility === 'hidden' && row.isVisibleInDevSpace)
         return false;
-      if (!q) return true;
-      const fullName = `${row.prenom} ${row.nom}`.toLowerCase();
-      const email = (row.email ?? '').toLowerCase();
-      return fullName.includes(q) || email.includes(q);
+      return matchesAllTokens(
+        buildHaystack([row.prenom, row.nom, row.email]),
+        tokens,
+      );
     });
   });
 

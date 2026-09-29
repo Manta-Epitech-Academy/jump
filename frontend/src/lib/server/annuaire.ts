@@ -13,6 +13,8 @@
  * the city as free text: a UAI resolves to name + commune + postal/INSEE here.
  */
 
+import { queryTokens } from '$lib/server/db/textSearch';
+
 const API_URL =
   'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-annuaire-education/records';
 
@@ -40,18 +42,47 @@ function normalize(str: string): string {
   return str.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
+/**
+ * The ODSQL `where` for a type-ahead query, word by word: each word has to
+ * match the establishment name or the commune. Passing the whole query to both
+ * `search()` calls asked for every word inside ONE field, so "hugo paris" found
+ * nothing, the name and the town being two fields (#360). `search()` already
+ * folds case and accents, which is why nothing is normalised here.
+ *
+ * ODSQL escapes with a backslash, not by doubling the quote as SQL does: the
+ * doubled form is a syntax error the dataset answers with a 400, so every query
+ * holding an apostrophe ("l'Isle") used to come back empty. The backslash is
+ * escaped first, or a word ending in one would swallow its closing quote.
+ *
+ * `search()` matches words, so a token holding no letter or digit (the "-" of
+ * "Henri IV - Paris") matches no row at all, and one such clause empties the
+ * whole answer. Those tokens are dropped, and a query made only of them yields
+ * `null`: there is nothing to search for, which is not "every lycée".
+ */
+export function annuaireSearchWhere(query: string): string | null {
+  const words = queryTokens(query)
+    .filter((word) => /[\p{L}\p{N}]/u.test(word))
+    .map((word) => {
+      const escaped = word.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      return `(search(nom_etablissement, '${escaped}') OR search(nom_commune, '${escaped}'))`;
+    });
+  if (!words.length) return null;
+  return ['type_etablissement="Lycée"', ...words].join(' AND ');
+}
+
 /** Type-ahead search over lycées by establishment name or commune. */
 export async function searchAnnuaire(q: string): Promise<AnnuaireLycee[]> {
   const query = q.trim();
   if (query.length < 2) return [];
   if (query.length > 100) return [];
+  const where = annuaireSearchWhere(query);
+  if (!where) return [];
 
-  const escaped = query.replace(/'/g, "''");
   try {
     const params = new URLSearchParams({
       limit: '20',
       select: 'identifiant_de_l_etablissement,nom_etablissement,nom_commune',
-      where: `type_etablissement="Lycée" AND (search(nom_etablissement, '${escaped}') OR search(nom_commune, '${escaped}'))`,
+      where,
       order_by: 'nom_etablissement',
     });
 

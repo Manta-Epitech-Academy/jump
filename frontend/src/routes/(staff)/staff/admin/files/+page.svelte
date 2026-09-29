@@ -1,4 +1,9 @@
 <script lang="ts">
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
   import { enhance } from '$app/forms';
   import { FORMER_STAFF_LABEL } from '$lib/domain/staff';
   import Upload from '@lucide/svelte/icons/upload';
@@ -81,11 +86,12 @@
   const uploaderLabel = (f: FileRow) =>
     f.uploadedBy?.user.name || f.uploadedBy?.user.email || FORMER_STAFF_LABEL;
 
-  const filtered = $derived(
-    data.files.filter((f) =>
-      f.name.toLowerCase().includes(searchQuery.trim().toLowerCase()),
-    ),
-  );
+  const filtered = $derived.by(() => {
+    const tokens = searchTokens(searchQuery);
+    return data.files.filter((f) =>
+      matchesAllTokens(buildHaystack([f.name]), tokens),
+    );
+  });
   const sorted = $derived.by(() => {
     const dir = sortDir === 'asc' ? 1 : -1;
     return [...filtered].sort((a, b) => dir * compare(a, b, sortKey));

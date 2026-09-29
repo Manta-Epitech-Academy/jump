@@ -1,4 +1,9 @@
 <script lang="ts">
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
   import Database from '@lucide/svelte/icons/database';
   import Pencil from '@lucide/svelte/icons/pencil';
   import FilterX from '@lucide/svelte/icons/filter-x';
@@ -136,16 +141,14 @@
   // tile shows its bucket within the current campus/year/search scope) and,
   // once status is applied, the table rows.
   const baseFiltered = $derived.by(() => {
-    const q = search.trim().toLowerCase();
+    const tokens = searchTokens(search);
     return data.events.filter((e) => {
       if (campusFilter !== 'all' && e.campusId !== campusFilter) return false;
       if (yearFilter !== 'all' && e.schoolYearLabel !== yearFilter)
         return false;
-      if (!q) return true;
-      return (
-        e.displayName.toLowerCase().includes(q) ||
-        e.titre.toLowerCase().includes(q) ||
-        e.campusName.toLowerCase().includes(q)
+      return matchesAllTokens(
+        buildHaystack([e.displayName, e.titre, e.campusName]),
+        tokens,
       );
     });
   });

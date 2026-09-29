@@ -21,6 +21,7 @@
 - **`services/adminStats/featureUsage.ts`** / **`staffActivity.ts`**: feature adoption per campus, and whether the team logs in at all
 - **`usage/memberActivity.ts`**: the one named-member read, for the dialog on `/staff/admin/users`. Deliberately not an operation: `ops_staff_activity` answers the same question in counts with no names, and a named-member read reachable with a token would put per-employee behaviour behind a credential minted for figures
 - **`db/scoped.ts`**: campus-scoped DB query helpers
+- **`db/textSearch.ts`**: the one way a search box queries the database: word by word, each word matching some field (`talentIdentityMatches` for a talent), never the whole query against one column, which is how "Prénom Nom" found nobody (#360). The in-memory lists use its twin, `components/staff/datatable/search.ts`
 
 ---
 
