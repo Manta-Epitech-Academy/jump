@@ -38,6 +38,17 @@ import { OperationRefusedError } from '$lib/server/adminApi/errors';
 const SCHOOL_YEAR = currentSchoolYearLabel();
 /** Far enough ahead that today's rows sit outside the detailed window. */
 const LATER = new Date(Date.now() + 400 * 86_400_000);
+/**
+ * When every seeded use happened: strictly before any read in this file.
+ *
+ * A read's window is half-open and ends at the reader's `now`, which is right
+ * for the product and wrong for a fixture left on the `now()` default: written
+ * and read back in the same millisecond, a row sits on the excluded bound and
+ * drops out. Measured on the test database, that is one write in six. It turned
+ * "still answers the same event cell once it clears the floor" red on CI with 2
+ * actors instead of 7, the five rows it had just written being the ones lost.
+ */
+const RECORDED_AT = new Date(Date.now() - 1_000);
 
 const stamp = Date.now();
 const CAMPUS_A = `UsageAlpha-${stamp}`;
@@ -150,6 +161,7 @@ describe('the dedupe key, against a real unique constraint', () => {
         data: [
           {
             feature: USAGE_FEATURES.DEV_EMARGEMENT_VIEW,
+            occurredAt: RECORDED_AT,
             actorKind: 'staff',
             staffProfileId: staffIds[0],
             campusId: campusA,
@@ -183,6 +195,7 @@ describe('getFeatureUsage', () => {
         // Two distinct members, three uses: the ranking must read people, not uses.
         ...[0, 1, 2].map((i) => ({
           feature: USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+          occurredAt: RECORDED_AT,
           actorKind: 'staff' as const,
           staffProfileId: staffIds[i === 2 ? 0 : i],
           campusId: campusA,
@@ -191,6 +204,7 @@ describe('getFeatureUsage', () => {
         // An impersonated use, which must not count anywhere.
         {
           feature: USAGE_FEATURES.DEV_BADGES_RENDER,
+          occurredAt: RECORDED_AT,
           actorKind: 'staff' as const,
           staffProfileId: staffIds[0],
           campusId: campusA,
@@ -275,6 +289,7 @@ describe('getCampusFeatureCoverage', () => {
     await prisma.usage_FeatureUse.create({
       data: {
         feature: USAGE_FEATURES.TALENT_XP_HISTORY_VIEW,
+        occurredAt: RECORDED_AT,
         actorKind: 'talent',
         actorHash: hashFor(1),
         campusId: campusA,
@@ -298,6 +313,7 @@ describe('getCampusFeatureCoverage', () => {
     await prisma.usage_FeatureUse.createMany({
       data: Array.from({ length: USAGE_SMALL_CELL_FLOOR }, (_, i) => ({
         feature: USAGE_FEATURES.TALENT_SETTINGS_VIEW,
+        occurredAt: RECORDED_AT,
         actorKind: 'talent' as const,
         actorHash: hashFor(100 + i),
         campusId: campusA,
@@ -327,6 +343,7 @@ describe('getFeatureAdoptionGaps', () => {
       data: [
         {
           feature: USAGE_FEATURES.DEV_EMARGEMENT_EXPORT,
+          occurredAt: RECORDED_AT,
           actorKind: 'staff' as const,
           staffProfileId: staffIds[0],
           campusId: campusA,
@@ -334,6 +351,7 @@ describe('getFeatureAdoptionGaps', () => {
         },
         {
           feature: USAGE_FEATURES.DEV_EMARGEMENT_EXPORT,
+          occurredAt: RECORDED_AT,
           actorKind: 'staff' as const,
           staffProfileId: staffIds[2],
           campusId: campusB,
@@ -397,7 +415,7 @@ describe('the rollup', () => {
       where: {
         feature: USAGE_FEATURES.DEV_INSCRITS_EXPORT,
         campusId: campusA,
-        month: usageMonth(new Date()),
+        month: usageMonth(RECORDED_AT),
       },
     });
     expect(folded?.uses).toBe(raw?.utilisations);
@@ -411,7 +429,7 @@ describe('the rollup', () => {
       where: {
         feature: USAGE_FEATURES.DEV_INSCRITS_EXPORT,
         campusId: campusA,
-        month: usageMonth(new Date()),
+        month: usageMonth(RECORDED_AT),
       },
     });
     expect(again?.uses).toBe(folded?.uses);
@@ -510,14 +528,14 @@ describe('the figures the two stores must agree on', () => {
           actorKind: 'talent' as const,
           actorHash: hashFor(300),
           campusId: campusB,
-          occurredAt: new Date(),
+          occurredAt: RECORDED_AT,
         },
         {
           feature: USAGE_FEATURES.TALENT_EVENTS_VIEW,
           actorKind: 'talent' as const,
           actorHash: hashFor(301),
           campusId: campusB,
-          occurredAt: new Date(Date.now() - 45 * 86_400_000),
+          occurredAt: new Date(RECORDED_AT.getTime() - 45 * 86_400_000),
         },
       ],
     });
@@ -563,6 +581,7 @@ describe('the figures the two stores must agree on', () => {
     await prisma.usage_FeatureUse.createMany({
       data: [0, 1].map((i) => ({
         feature: USAGE_FEATURES.TALENT_FEEDBACK_OPEN,
+        occurredAt: RECORDED_AT,
         actorKind: 'talent' as const,
         actorHash: hashFor(400 + i),
         campusId: campusA,
@@ -589,6 +608,7 @@ describe('the figures the two stores must agree on', () => {
     await prisma.usage_FeatureUse.createMany({
       data: Array.from({ length: USAGE_SMALL_CELL_FLOOR }, (_, i) => ({
         feature: USAGE_FEATURES.TALENT_FEEDBACK_OPEN,
+        occurredAt: RECORDED_AT,
         actorKind: 'talent' as const,
         actorHash: hashFor(500 + i),
         campusId: campusA,
