@@ -87,6 +87,12 @@ describe('multi-word staff search (integration)', () => {
     expect(await directory(`  Léa   ${surname} `)).toEqual([lea]);
   });
 
+  it('reads % and _ as the characters typed, not as LIKE wildcards', async () => {
+    // "L_a" would otherwise find Léa, and a lone "%" every talent there is.
+    expect(await directory(`L_a ${surname}`)).toEqual([]);
+    expect(await directory(`% ${surname}`)).toEqual([]);
+  });
+
   it('matches a note on its text and its talent at once', async () => {
     // One word from what was written, one from whom it is about: the words are
     // matched separately, so they may land in different places.

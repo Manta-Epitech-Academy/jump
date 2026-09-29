@@ -17,7 +17,9 @@ import type { Prisma } from '@prisma/client';
  * There is no character whitelist either. The ones this replaced were written
  * for the PocketBase filter strings the query was once interpolated into; Prisma
  * binds its parameters, so a whitelist only ever dropped legitimate letters
- * (`œ` is outside `À-ÿ`).
+ * (`œ` is outside `À-ÿ`). Binding is not escaping, though: Prisma hands a
+ * `contains` value to `LIKE` as a pattern, so `%` and `_` in it are wildcards,
+ * and `containsToken` escapes them so a word is only ever matched literally.
  */
 
 /** Whitespace-separated words of a query, order-free. Empty means no search. */
@@ -25,9 +27,15 @@ export function queryTokens(query: string): string[] {
   return query.trim().split(/\s+/).filter(Boolean);
 }
 
-/** The `contains` filter every searched text field takes a token through. */
+/**
+ * The `contains` filter every searched text field takes a token through, with
+ * the `LIKE` metacharacters escaped. Without it "jean_d" also finds "jeanad",
+ * and a lone "%" finds everybody. The backslash is escaped too, being the
+ * escape character itself.
+ */
 export function containsToken(token: string) {
-  return { contains: token, mode: 'insensitive' as const };
+  const literal = token.replace(/[\\%_]/g, (c) => `\\${c}`);
+  return { contains: literal, mode: 'insensitive' as const };
 }
 
 /**
