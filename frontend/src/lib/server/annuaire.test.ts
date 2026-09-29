@@ -20,6 +20,16 @@ describe('annuaireSearchWhere', () => {
     );
   });
 
+  it('drops a token with no letter or digit, which search() would match nowhere', () => {
+    // "henri -" as one phrase finds the Henri lycées; a clause of its own for
+    // "-" made every result disappear.
+    expect(annuaireSearchWhere('henri - paris')).toBe(
+      annuaireSearchWhere('henri paris'),
+    );
+    expect(annuaireSearchWhere("n° d'")).toContain("'n°'");
+    expect(annuaireSearchWhere(' - . ')).toBeNull();
+  });
+
   it('escapes a backslash first, so a trailing one cannot swallow the quote', () => {
     expect(annuaireSearchWhere('a\\')).toContain(
       "search(nom_commune, 'a\\\\')",

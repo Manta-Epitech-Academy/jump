@@ -53,12 +53,20 @@ function normalize(str: string): string {
  * doubled form is a syntax error the dataset answers with a 400, so every query
  * holding an apostrophe ("l'Isle") used to come back empty. The backslash is
  * escaped first, or a word ending in one would swallow its closing quote.
+ *
+ * `search()` matches words, so a token holding no letter or digit (the "-" of
+ * "Henri IV - Paris") matches no row at all, and one such clause empties the
+ * whole answer. Those tokens are dropped, and a query made only of them yields
+ * `null`: there is nothing to search for, which is not "every lycée".
  */
-export function annuaireSearchWhere(query: string): string {
-  const words = queryTokens(query).map((word) => {
-    const escaped = word.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    return `(search(nom_etablissement, '${escaped}') OR search(nom_commune, '${escaped}'))`;
-  });
+export function annuaireSearchWhere(query: string): string | null {
+  const words = queryTokens(query)
+    .filter((word) => /[\p{L}\p{N}]/u.test(word))
+    .map((word) => {
+      const escaped = word.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      return `(search(nom_etablissement, '${escaped}') OR search(nom_commune, '${escaped}'))`;
+    });
+  if (!words.length) return null;
   return ['type_etablissement="Lycée"', ...words].join(' AND ');
 }
 
@@ -67,12 +75,14 @@ export async function searchAnnuaire(q: string): Promise<AnnuaireLycee[]> {
   const query = q.trim();
   if (query.length < 2) return [];
   if (query.length > 100) return [];
+  const where = annuaireSearchWhere(query);
+  if (!where) return [];
 
   try {
     const params = new URLSearchParams({
       limit: '20',
       select: 'identifiant_de_l_etablissement,nom_etablissement,nom_commune',
-      where: annuaireSearchWhere(query),
+      where,
       order_by: 'nom_etablissement',
     });
 
