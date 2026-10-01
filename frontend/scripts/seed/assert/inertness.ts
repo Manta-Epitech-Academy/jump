@@ -101,5 +101,16 @@ export async function inertnessFailures(
     );
   }
 
+  // A requested pass is the purest case of the test above: `/api/worker/config`
+  // finds it by itself and answers `shouldSync: true`. Keyed on the mode, not on
+  // an id, so the generator could not even stamp it with its prefix: the table
+  // has to be empty, full stop.
+  const requests = await prisma.sync_Request.count();
+  if (requests > 0) {
+    failures.push(
+      `${requests} demande(s) de synchronisation présente(s) : le worker la servirait à son prochain réveil, donc une instruction et non un fait. Le générateur n’en écrit aucune.`,
+    );
+  }
+
   return failures;
 }

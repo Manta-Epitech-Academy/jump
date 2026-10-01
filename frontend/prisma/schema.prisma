@@ -1776,6 +1776,22 @@ model Sync_Cadence {
   updatedAt       DateTime @updatedAt
 }
 
+/// A person asking for a pass of one mode now, rather than when the cadence
+/// says. Written by `ops_request_sync`, read by `/api/worker/config` on every
+/// tick next to `Sync_Cadence`.
+///
+/// One row per mode, overwritten by the next request, and never consumed:
+/// whether a request is still pending is derived, not stored. It is pending
+/// while no successful run that covers it STARTED after it (`decideSync`), so a
+/// run already in flight when the request lands does not satisfy it (it may
+/// have read Salesforce before the change the person is waiting for), and a run
+/// that fails leaves it pending, exactly as a failed run leaves the watermark.
+/// Nothing has to clear it, so nothing can forget to.
+model Sync_Request {
+  mode        SyncMode @id
+  requestedAt DateTime
+}
+
 // A signatory whose handwritten signature is printed on the internship
 // certificate (diplôme de stage). `campusId` null = global (e.g. the Director
 // General) and applies to every campus without duplication; a set `campusId`

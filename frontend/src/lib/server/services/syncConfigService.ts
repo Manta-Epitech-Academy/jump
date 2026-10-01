@@ -15,8 +15,10 @@
 import { prisma } from '$lib/server/db';
 import {
   decideSync,
+  pendingRequests,
   type SyncCadence,
   type SyncDecision,
+  type SyncRequests,
 } from '$lib/domain/syncSchedule';
 import type { WorkerConfigAnswer } from '$lib/validation/workerSync';
 import { lastOkRun } from './syncRunService';
@@ -66,20 +68,45 @@ export async function listCadences(): Promise<SyncCadence[]> {
   }));
 }
 
+/**
+ * When a pass of each mode was last asked for. A mode nobody ever asked for has
+ * no row, which reads as `null`: never requested, and so never pending.
+ */
+export async function listRequests(): Promise<SyncRequests> {
+  const rows = await prisma.sync_Request.findMany({
+    select: { mode: true, requestedAt: true },
+  });
+  const at = (mode: SyncCadence['mode']) =>
+    rows.find((r) => r.mode === mode)?.requestedAt ?? null;
+  return { full: at('full'), incremental: at('incremental') };
+}
+
 /** The decision alone, for callers that want it without the whitelist. */
 export async function currentSyncDecision(now = new Date()): Promise<{
   decision: SyncDecision;
   cadences: SyncCadence[];
+  /** Only the requests still waiting for a run, so a reader never re-derives. */
+  pending: SyncRequests;
 }> {
-  const [cadences, lastOkFull, lastOkIncremental] = await Promise.all([
-    listCadences(),
-    lastOkRun('full'),
-    lastOkRun('incremental'),
-  ]);
+  const [cadences, requests, lastOkFull, lastOkIncremental] = await Promise.all(
+    [
+      listCadences(),
+      listRequests(),
+      lastOkRun('full'),
+      lastOkRun('incremental'),
+    ],
+  );
 
   return {
-    decision: decideSync({ now, cadences, lastOkFull, lastOkIncremental }),
+    decision: decideSync({
+      now,
+      cadences,
+      requests,
+      lastOkFull,
+      lastOkIncremental,
+    }),
     cadences,
+    pending: pendingRequests({ requests, lastOkFull, lastOkIncremental }),
   };
 }
 

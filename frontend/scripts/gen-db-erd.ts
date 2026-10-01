@@ -199,6 +199,7 @@ const DOMAINS: { title: string; models: string[] }[] = [
       'Sync_Source',
       'Sync_Run',
       'Sync_Cadence',
+      'Sync_Request',
       'AdminApi_Token',
       'AdminApi_Call',
     ],

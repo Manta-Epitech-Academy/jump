@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **71** modèles · **30** enums · **104** relations
+- **72** modèles · **30** enums · **104** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -21,7 +21,7 @@
 | Communication & Support | 5 |
 | Contenus & Centres d'intérêt | 4 |
 | Analytique d'usage | 2 |
-| Configuration & Système | 9 |
+| Configuration & Système | 10 |
 
 ## 1 · Authentification & Profils
 
@@ -1041,6 +1041,10 @@ erDiagram
     SyncMode mode PK
     Int intervalMinutes
     DateTime updatedAt
+  }
+  Sync_Request {
+    SyncMode mode PK
+    DateTime requestedAt
   }
   AdminApi_Token {
     String id PK
