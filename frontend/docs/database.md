@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **68** modèles · **30** enums · **98** relations
+- **71** modèles · **30** enums · **104** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -14,7 +14,7 @@
 | Cycle de vie talent & RGPD | 6 |
 | Événements & Participations | 8 |
 | Closings | 9 |
-| Planning & Activités | 1 |
+| Planning & Activités | 4 |
 | Progression, Portfolio & XP | 2 |
 | Minijeux | 3 |
 | Feedback | 7 |
@@ -574,9 +574,49 @@ erDiagram
     DateTime createdAt
     DateTime updatedAt
   }
+  Workshop_Instance {
+    String id PK
+    String slug UK
+    String baseUrl
+    String label
+    Boolean enabled
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  EventConfig_Workshop {
+    String eventId PK,FK
+    String instanceId PK,FK
+    Int position
+    Int durationMinutes
+    String labelOverride
+    DateTime createdAt
+  }
+  Workshop_Participation {
+    String talentId PK,FK
+    String instanceId PK,FK
+    String eventId FK
+    String campusId FK
+    Int budgetMinutes
+    Int solvedSteps
+    Int totalSteps
+    Int xpPending
+    DateTime firstEnteredAt
+    DateTime xpSeenAt
+    DateTime updatedAt
+  }
+  Talent {
+  }
+  Campus {
+  }
   Event {
   }
+  Talent ||--o{ Workshop_Participation : "workshopEntries"
+  Campus ||--o{ Workshop_Participation : "workshopEntries"
   Event ||--o{ Planning_Slot : "planningSlots"
+  Event ||--o{ EventConfig_Workshop : "workshops"
+  Event ||--o{ Workshop_Participation : "workshopEntries"
+  Workshop_Instance ||--o{ EventConfig_Workshop : "events"
+  Workshop_Instance ||--o{ Workshop_Participation : "participations"
 ```
 
 ## 6 · Progression, Portfolio & XP
