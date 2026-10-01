@@ -26,6 +26,7 @@ import { syncEvents, syncParticipations, syncTalents } from '../syncService';
 import { closeRun, lastOkRun, openRun } from '../syncRunService';
 import { getWorkerConfig, listWorkerSources } from '../syncConfigService';
 import { workerConfigAnswerSchema } from '$lib/validation/workerSync';
+import { getSyncHealth } from '../adminStats/syncHealth';
 import { assertTestDatabase } from './testDatabase';
 
 describe('the worker sync loop (integration)', () => {
@@ -292,6 +293,18 @@ describe('the worker sync loop (integration)', () => {
         resolvedCount: 0,
         releasedAt: null,
       });
+
+      // Held, and said so: the health answer names the event and which act
+      // lifts it, so a hold cannot sit unnoticed the way a refusal did.
+      const { prunesHeld } = await getSyncHealth();
+      expect(prunesHeld.value).toContainEqual(
+        expect.objectContaining({
+          eventId,
+          cause: 'unresolved_members',
+          pendingRemovals: 2,
+          releasedAt: null,
+        }),
+      );
     });
 
     it('holds the removals of an empty roster', async () => {
