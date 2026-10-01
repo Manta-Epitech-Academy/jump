@@ -296,7 +296,7 @@ Each is a **versioned catalogue** (`lib/content/reglement/`, `lib/content/droit-
 
 ### Salesforce sync: Jump decides, the worker obeys
 
-The worker holds no configuration, no cadence and no watermark: it is woken on a fixed tick, asks Jump what to do over `/api/worker/*`, obeys, and reports each run into `Sync_Run`. Which campaigns are pulled (`Sync_Source`), how often (`Sync_Cadence`) and what each run did are Jump's, and the staff steer them through named operations rather than a screen. The rule that matters most: **only a `full` pass may delete an enrolment**, because removing a member from a campaign moves no modstamp in Salesforce and is therefore invisible to any incremental. Read [`frontend/src/routes/api/worker/CLAUDE.md`](./frontend/src/routes/api/worker/CLAUDE.md) before touching any of it.
+The worker holds no configuration, no cadence and no watermark: it is woken on a fixed tick, asks Jump what to do over `/api/worker/*`, obeys, and reports each run into `Sync_Run`. Which campaigns are pulled (`Sync_Source`), how often (`Sync_Cadence`) and what each run did are Jump's, and the staff steer them through named operations rather than a screen. The rule that matters most: **only a `full` pass may delete an enrolment**, because removing a member from a campaign moves no modstamp in Salesforce and is therefore invisible to any incremental, and it does so only from a complete roster: a deletion it cannot prove is held, never refused, because a refusal fails the run and a failed run replays identically at every tick. Read [`frontend/src/routes/api/worker/CLAUDE.md`](./frontend/src/routes/api/worker/CLAUDE.md) before touching any of it.
 
 ### Salesforce reconciliation
 
