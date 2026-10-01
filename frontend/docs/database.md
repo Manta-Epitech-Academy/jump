@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **71** modèles · **30** enums · **104** relations
+- **72** modèles · **30** enums · **105** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -21,7 +21,7 @@
 | Communication & Support | 5 |
 | Contenus & Centres d'intérêt | 4 |
 | Analytique d'usage | 2 |
-| Configuration & Système | 9 |
+| Configuration & Système | 10 |
 
 ## 1 · Authentification & Profils
 
@@ -1042,6 +1042,15 @@ erDiagram
     Int intervalMinutes
     DateTime updatedAt
   }
+  Sync_PruneHold {
+    String eventId PK,FK
+    Int pendingRemovals
+    Int sentCount
+    Int resolvedCount
+    DateTime firstHeldAt
+    DateTime lastHeldAt
+    DateTime releasedAt
+  }
   AdminApi_Token {
     String id PK
     String staffUserId FK
@@ -1071,9 +1080,12 @@ erDiagram
   }
   Campus {
   }
+  Event {
+  }
   bauth_user ||--o{ AdminApi_Token : "adminApiTokens"
   StaffProfile |o--o{ AdminFile : "adminFiles"
   Campus |o--o{ Signatory : "signatories"
   Campus ||--o{ Sync_Source : "syncSources"
+  Event ||--|| Sync_PruneHold : "syncPruneHold"
   AdminApi_Token |o--o{ AdminApi_Call : "calls"
 ```

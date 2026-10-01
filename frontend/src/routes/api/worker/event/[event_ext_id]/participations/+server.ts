@@ -17,6 +17,11 @@ import { syncParticipations } from '$lib/server/services/syncService';
  * Statuses are stored raw (normalised to upper case, nothing dropped): the dev
  * workspace filters them at display time, which is what lets a past event show
  * who was expected and did not come.
+ *
+ * Only a malformed payload is refused. A roster that cannot prove its
+ * deletions holds them and still answers 200, because a refusal here fails the
+ * run and a failed run is replayed identically at every tick: see
+ * `syncParticipations`.
  */
 export const POST: RequestHandler = async ({ request, params }) => {
   requireWorkerToken(request);
@@ -27,12 +32,11 @@ export const POST: RequestHandler = async ({ request, params }) => {
   if (!parsed.success)
     throw error(400, 'Invalid payload: expected { participations, mode }');
 
-  const result = await syncParticipations(
-    params.event_ext_id,
-    parsed.data.participations,
-    parsed.data.mode,
+  return json(
+    await syncParticipations(
+      params.event_ext_id,
+      parsed.data.participations,
+      parsed.data.mode,
+    ),
   );
-  if ('error' in result) throw error(400, result.error);
-
-  return json(result);
 };
