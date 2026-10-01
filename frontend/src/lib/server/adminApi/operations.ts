@@ -172,7 +172,7 @@ import {
   resetClosingById,
   SCHOOL_RESOLVE_LIMIT,
 } from './writes/ops';
-import { writeSyncCadence, writeSyncSource } from './writes/sync';
+import { requestSync, writeSyncCadence, writeSyncSource } from './writes/sync';
 import {
   writeClosingQuestion,
   writeClosingTemplate,
@@ -1148,6 +1148,19 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => writeSyncCadence(params),
+  }),
+
+  ops_request_sync: defineWrite({
+    description:
+      'Ask the synchronisation worker for one pass of the given kind at its next wake-up (within fifteen minutes), without changing any cadence. Use it when someone needs a change made in Salesforce to reach Jump now rather than at the next scheduled pass. The request is satisfied by the first successful pass that starts after it, after which the configured cadences apply again with nothing to restore; a pass that fails leaves it pending. stats_sync_health shows whether a request is pending and what the worker will do next. Safe to repeat: asking again before it runs still yields one pass.',
+    shape: {
+      mode: z
+        .enum(['full', 'incremental'])
+        .describe(
+          'Which pass to ask for. "incremental" pulls only the campaigns Salesforce reports as changed, and is enough to see a modification; "full" pulls the whole perimeter and is the only pass that notices a member removed in Salesforce.',
+        ),
+    },
+    run: (params) => requestSync(params),
   }),
 
   ops_resolve_all_sync_errors: defineWrite({
