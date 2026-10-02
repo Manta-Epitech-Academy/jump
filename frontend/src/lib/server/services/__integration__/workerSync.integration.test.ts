@@ -424,6 +424,29 @@ describe('the worker sync loop (integration)', () => {
       expect(await enrolled()).toBe(2);
     });
 
+    it('keeps holds across an incremental run and a failed full run', async () => {
+      await syncParticipations(eventExternalId, {}, 'full');
+
+      // Neither renews a hold, and neither proves an event left the pass: an
+      // incremental never prunes, and a failed full may not have reached it.
+      // Dropping on either would empty `prunesHeld` within one tick.
+      const incremental = await openRun('incremental');
+      runIds.push(incremental.id);
+      await closeRun(incremental.id, {
+        status: 'ok',
+        counters: { events: 0, talents: 0, participations: 0 },
+      });
+      expect(await hold()).not.toBeNull();
+
+      const failed = await openRun('full');
+      runIds.push(failed.id);
+      await closeRun(failed.id, { status: 'error', error: 'boom' });
+      expect(await hold()).not.toBeNull();
+
+      await syncParticipations(eventExternalId, both, 'full');
+      expect(await hold()).toBeNull();
+    });
+
     it('skips the roster of an event Jump does not know instead of refusing it', async () => {
       // `syncEvents` skips an event whose campus does not resolve, and the
       // worker still sends its roster: refusing it would fail the run forever.
