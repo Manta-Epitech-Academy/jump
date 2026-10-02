@@ -371,6 +371,34 @@ describe('the worker sync loop (integration)', () => {
       await syncParticipations(eventExternalId, both, 'full');
     });
 
+    it('does not spend a release on a roster that arrives with members', async () => {
+      await syncParticipations(eventExternalId, {}, 'full');
+      await prisma.sync_PruneHold.update({
+        where: { eventId },
+        data: { releasedAt: new Date() },
+      });
+
+      // The release said the campaign was empty. It is not any more, and its
+      // unresolved member may be the talent whose enrolment would go.
+      const result = await syncParticipations(
+        eventExternalId,
+        { [talents[0].external_id]: 'Met', [ghost]: 'Met' },
+        'full',
+      );
+
+      expect(result).toMatchObject({ removed: 0, held: true });
+      expect(await enrolled()).toBe(2);
+      expect(await hold()).toMatchObject({
+        pendingRemovals: 1,
+        sentCount: 2,
+        resolvedCount: 1,
+        releasedAt: null,
+      });
+
+      await syncParticipations(eventExternalId, both, 'full');
+      expect(await hold()).toBeNull();
+    });
+
     it('forgets a hold that a successful full run did not renew', async () => {
       await syncParticipations(eventExternalId, {}, 'full');
 

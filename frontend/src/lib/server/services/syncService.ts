@@ -685,8 +685,9 @@ export async function syncParticipations(
  * complete roster prunes normally and deletes the row, which is the ordinary
  * outcome once the skipped member's SyncError is fixed. An admin who confirms
  * that a campaign really was emptied sets `releasedAt` (`ops_release_prune_hold`),
- * and the next full pass applies the removals against a fresh roster: the
- * deletion is still made by a full pass and by nothing else.
+ * and the next full pass applies the removals if its fresh roster is still
+ * empty: the deletion is still made by a full pass and by nothing else, and
+ * only while Salesforce still reports the campaign empty.
  */
 async function pruneFromFullRoster(roster: {
   eventId: string;
@@ -704,8 +705,13 @@ async function pruneFromFullRoster(roster: {
     const pendingRemovals = await prisma.participation.count({
       where: absent,
     });
+    // A release confirms that the campaign is EMPTY in Salesforce, so only an
+    // empty roster spends it. A roster with members is not covered by it,
+    // whatever it holds: an unresolved member may be the very person whose
+    // enrolment would go, and that hold lifts once their SyncError is fixed.
     const released =
       pendingRemovals > 0 &&
+      sentCount === 0 &&
       (
         await prisma.sync_PruneHold.findUnique({
           where: { eventId },
@@ -715,10 +721,13 @@ async function pruneFromFullRoster(roster: {
     if (pendingRemovals > 0 && !released) {
       const counts = { pendingRemovals, sentCount, resolvedCount };
       const lastHeldAt = new Date();
+      // Renewing a hold withdraws its release: the only renewal a release
+      // survives to see is a roster that is no longer empty, which is exactly
+      // what the release said it was.
       await prisma.sync_PruneHold.upsert({
         where: { eventId },
         create: { eventId, ...counts, lastHeldAt },
-        update: { ...counts, lastHeldAt },
+        update: { ...counts, lastHeldAt, releasedAt: null },
       });
       return { removed: 0, held: true };
     }

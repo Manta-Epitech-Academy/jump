@@ -1156,7 +1156,7 @@ export const ADMIN_API_OPERATIONS = {
 
   ops_release_prune_hold: defineWrite({
     description:
-      'Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when Salesforce genuinely no longer carries those members, typically a campaign emptied on purpose. It deletes nothing by itself: the next full pass applies the deletions against what Salesforce says then. Safe to repeat: releasing an already released hold changes nothing. Refused when the event has no held deletions.',
+      'Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when the campaign was genuinely emptied in Salesforce. Only a hold over an empty roster can be released: one over members Jump could not match is lifted by fixing their sync errors, after which the next full pass prunes by itself. It deletes nothing by itself: the next full pass applies the deletions if the roster it receives is still empty. Safe to repeat: releasing an already released hold changes nothing. Refused when the event has no held deletions, or when the held roster was not empty.',
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },

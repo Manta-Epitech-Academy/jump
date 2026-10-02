@@ -321,6 +321,47 @@ describe('admin API writes (integration)', () => {
       expect(String(payload.error)).toContain('stats_sync_health');
     });
 
+    it('refuses a hold over unresolved members, which only their sync errors lift', async () => {
+      await prisma.sync_PruneHold.create({
+        data: {
+          eventId,
+          pendingRemovals: 1,
+          sentCount: 2,
+          resolvedCount: 1,
+          lastHeldAt: new Date(),
+        },
+      });
+
+      const { status, payload } = await call(
+        postReleasePruneHold,
+        writeSecret,
+        {
+          eventId,
+        },
+      );
+
+      expect(status).toBe(400);
+      expect(String(payload.error)).toContain('/staff/admin/sync-errors');
+      expect(
+        (
+          await prisma.sync_PruneHold.findUnique({
+            where: { eventId },
+            select: { releasedAt: true },
+          })
+        )?.releasedAt,
+      ).toBeNull();
+
+      // And the database refuses the shape outright, whoever writes it.
+      await expect(
+        prisma.sync_PruneHold.update({
+          where: { eventId },
+          data: { releasedAt: new Date() },
+        }),
+      ).rejects.toThrow();
+
+      await prisma.sync_PruneHold.delete({ where: { eventId } });
+    });
+
     it('stamps the release and deletes nothing itself', async () => {
       await prisma.sync_PruneHold.create({
         data: {

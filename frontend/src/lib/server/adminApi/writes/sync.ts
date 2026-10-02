@@ -192,12 +192,20 @@ export async function writeSyncCadence(params: {
  * could not resolve) keeps the enrolments and records a `Sync_PruneHold`. When
  * a person knows the campaign really was emptied in Salesforce, this is how
  * they say so. It deletes nothing itself: it stamps `releasedAt`, and the next
- * full pass that carries the event removes what its fresh roster omits. So the
- * deletion is still made by a full pass and by nothing else, and against what
- * Salesforce says at that moment rather than at the moment of the hold.
+ * full pass that carries the event removes the enrolments if its fresh roster
+ * is still empty. So the deletion is still made by a full pass and by nothing
+ * else, and against what Salesforce says at that moment rather than at the
+ * moment of the hold.
  *
- * Reversible until that pass runs, by the pass itself: a complete roster in
- * between prunes normally and the release goes with the hold. Safe to repeat:
+ * Only an empty roster can be released, and that is the whole of what makes
+ * this a tool. A hold over unresolved members is the case the hold exists for:
+ * one of them may be the very talent whose enrolment would go, so releasing it
+ * would hand a person the deletion the full pass refused to make. Its way out
+ * is fixing the member's SyncError, after which the next complete roster prunes
+ * by itself. The database refuses the other shape too (`Sync_PruneHold_counts_check`).
+ *
+ * Reversible until that pass runs, by the pass itself: a roster that arrives
+ * with members renews the hold and withdraws the release. Safe to repeat:
  * releasing a released hold leaves its first release date in place.
  */
 export async function releasePruneHold(params: {
@@ -209,6 +217,10 @@ export async function releasePruneHold(params: {
   if (!before)
     throw new OperationRefusedError(
       `Aucune suppression n'est retenue sur « ${event!.label} » : sa dernière reprise complète a appliqué les siennes, ou ne le concernait pas. La liste des suppressions retenues se lit dans stats_sync_health.`,
+    );
+  if (before.sentCount > 0)
+    throw new OperationRefusedError(
+      `Les suppressions retenues sur « ${event!.label} » ne viennent pas d'une campagne vide : ${before.resolvedCount} membre(s) sur ${before.sentCount} ont pu être rattachés à un talent, et un membre non rattaché peut être l'inscrit qu'elles supprimeraient. Elles s'appliqueront d'elles-mêmes à la reprise complète suivante une fois les erreurs de ces membres traitées sur /staff/admin/sync-errors.`,
     );
   if (before.releasedAt) return { applied: true, before, after: before };
 

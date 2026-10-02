@@ -1798,8 +1798,11 @@ model Sync_Cadence {
 /// deletes the rows it did not touch, since an event the pass no longer carries
 /// has nothing left to hold. `releasedAt` is the one way out for a campaign
 /// genuinely emptied in Salesforce: an admin confirms it with
-/// `ops_release_prune_hold`, and the NEXT full pass applies the removals against
-/// a fresh roster, so only a full pass ever deletes an enrolment.
+/// `ops_release_prune_hold`, and the NEXT full pass applies the removals if its
+/// fresh roster is still empty, so only a full pass ever deletes an enrolment.
+/// Only an empty roster is released (the migration's CHECK holds it): over
+/// unresolved members, a release would take the enrolment of a talent
+/// Salesforce still lists under an id Jump has not matched.
 ///
 /// No reason column: `sentCount = 0` is an empty roster and
 /// `resolvedCount < sentCount` is one with unresolved members, read off the
@@ -1813,7 +1816,8 @@ model Sync_PruneHold {
   resolvedCount   Int
   firstHeldAt     DateTime  @default(now())
   lastHeldAt      DateTime
-  /// Set by an admin to let the next full pass apply the removals anyway.
+  /// Set by an admin who confirms the campaign is empty, to let the next full
+  /// pass apply the removals if its roster is still empty.
   releasedAt      DateTime?
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)

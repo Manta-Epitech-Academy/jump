@@ -47,8 +47,12 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   resolve are written, the removals are recorded on `Sync_PruneHold`, and the
   call succeeds. A later complete roster lifts the hold by pruning normally; an
   admin who knows the campaign really was emptied releases it
-  (`ops_release_prune_hold`) and the next full pass applies it; an `ok` full run
-  drops the holds it did not renew. `stats_sync_health.prunesHeld` lists them.
+  (`ops_release_prune_hold`) and the next full pass applies it if its roster is
+  still empty; an `ok` full run drops the holds it did not renew.
+  `stats_sync_health.prunesHeld` lists them. **Only an empty roster can be
+  released**, and a CHECK holds it: over unresolved members a release would
+  hand a person exactly the deletion the hold refused, so that hold lifts by
+  fixing the member's SyncError and nothing else.
 - **A refusal that replays identically must never fail a run.** A refusal fails
   the call, the worker closes the run in error, and a failed run is replayed at
   the next tick with the same input, so a refusal that depends only on that input

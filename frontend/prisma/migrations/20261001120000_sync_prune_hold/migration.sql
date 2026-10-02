@@ -14,7 +14,8 @@
 -- still written, the removals are recorded here, and the call succeeds. A row
 -- lives while the last full pass that carried the event held removals from it;
 -- `releasedAt` lets an admin confirm a campaign genuinely emptied in Salesforce,
--- and the next full pass then applies the removals.
+-- and the next full pass then applies the removals if its roster is still
+-- empty.
 --
 -- No backfill: the table starts empty, and the first full pass after deploy
 -- fills it with whatever it holds.
@@ -41,10 +42,14 @@ ALTER TABLE "Sync_PruneHold" ADD CONSTRAINT "Sync_PruneHold_eventId_fkey" FOREIG
 -- Prisma cannot express a CHECK constraint, so this one is hand-written. A hold
 -- with nothing to remove is not a hold (that pass prunes nothing and clears the
 -- row), and a hold over a complete roster is not one either: either shape would
--- be a row the read side reports as a held deletion that does not exist.
+-- be a row the read side reports as a held deletion that does not exist. And
+-- only an empty roster is released: a release confirms that the campaign is
+-- empty, and over unresolved members it would let the next pass take the
+-- enrolment of a talent Salesforce still lists under an id Jump has not matched.
 ALTER TABLE "Sync_PruneHold" ADD CONSTRAINT "Sync_PruneHold_counts_check"
   CHECK (
     "pendingRemovals" > 0
     AND "resolvedCount" >= 0
     AND ("resolvedCount" < "sentCount" OR ("sentCount" = 0 AND "resolvedCount" = 0))
+    AND ("releasedAt" IS NULL OR "sentCount" = 0)
   );
