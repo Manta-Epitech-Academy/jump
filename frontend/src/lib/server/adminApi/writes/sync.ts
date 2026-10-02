@@ -2,11 +2,15 @@
  * The class A writes that steer the Salesforce worker: which campaigns it pulls,
  * how often, and a pass asked for now.
  *
- * Each is bounded to one named row, reversible, and sends nothing to anybody.
- * Neither has a screen, and deliberately: a campaign is named by an opaque
- * Salesforce id that a person copies out of Salesforce anyway, and the cadence
- * is two numbers somebody changes twice a year. The admin space stops growing
- * UI, and this is the case it was written for.
+ * Each is bounded to one named row and sends nothing to anybody. A source and a
+ * cadence are reversible, by writing the previous value back. A request is not
+ * withdrawn, it is satisfied: it ends when a pass covering it succeeds, and
+ * until then it can only make the worker run sooner, never pull anything the
+ * perimeter does not already serve. None has a screen, and deliberately: a
+ * campaign is named by an opaque Salesforce id that a person copies out of
+ * Salesforce anyway, and the cadence is two numbers somebody changes twice a
+ * year. The admin space stops growing UI, and this is the case it was written
+ * for.
  *
  * What they change is read by `/api/worker/config` on the worker's next tick, so
  * tightening the incremental during a stage takes effect within fifteen minutes
