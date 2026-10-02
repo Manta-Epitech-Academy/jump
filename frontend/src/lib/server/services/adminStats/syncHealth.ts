@@ -52,6 +52,9 @@ type PassHealth = {
  * unresolved members call for different acts (confirm the emptying, or fix the
  * member's SyncError), so the answer names which one it is.
  */
+/** Held events listed by name before the answer stops naming them. */
+export const PRUNES_HELD_LIMIT = 50;
+
 type HeldPrune = {
   eventId: string;
   event: string;
@@ -75,12 +78,15 @@ export type SyncHealth = {
   errorsByType: Metric<{ errorType: string; count: number }[]>;
   oldestUnresolvedAgeDays: Metric<number | null>;
   unresolvedSchools: Metric;
+  prunesHeldEvents: Metric;
   prunesHeld: Metric<HeldPrune[]>;
+  prunesHeldTruncated: boolean;
 };
 
 async function heldPrunes(): Promise<HeldPrune[]> {
   const rows = await prisma.sync_PruneHold.findMany({
     orderBy: { firstHeldAt: 'asc' },
+    take: PRUNES_HELD_LIMIT,
     select: {
       eventId: true,
       pendingRemovals: true,
@@ -160,6 +166,7 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     grouped,
     oldest,
     unresolvedSchools,
+    prunesHeldEvents,
     prunesHeld,
   ] = await Promise.all([
     passHealth('incremental', terms.staleAfterHours.incremental),
@@ -180,6 +187,7 @@ export async function getSyncHealth(): Promise<SyncHealth> {
       select: { createdAt: true },
     }),
     prisma.school.count({ where: { resolvedAt: null } }),
+    prisma.sync_PruneHold.count(),
     heldPrunes(),
   ]);
 
@@ -227,10 +235,15 @@ export async function getSyncHealth(): Promise<SyncHealth> {
       unresolvedSchools,
       "Lycées créés à partir d'un nom sans que leur UAI ait pu être retrouvé dans l'annuaire de l'éducation nationale : leur ville et leurs codes manquent encore, et l'opération ops_resolve_schools relance la recherche. Compte des lycées, pas des talents : la part des talents dont le lycée n'est pas identifié se lit dans stats_schools_reach.",
     ),
+    prunesHeldEvents: metric(
+      prunesHeldEvents,
+      "Nombre d'événements dont la dernière reprise complète a retenu des suppressions d'inscription, détaillés dans « prunesHeld ». C'est le total : la liste peut être plus courte, « prunesHeldTruncated » dit alors que le plafond a été atteint.",
+    ),
     prunesHeld: metric(
       prunesHeld,
-      "Événements dont la dernière reprise complète a retenu des suppressions d'inscription au lieu de les appliquer, faute de pouvoir les prouver : une reprise complète supprime les inscrits absents de Salesforce, et elle ne le fait que si la liste reçue est complète. Rien n'est perdu ni bloqué, les autres campagnes se synchronisent normalement. « pendingRemovals » est le nombre d'inscriptions conservées en attendant. « cause » vaut « unresolved_members » quand des membres envoyés n'ont pas pu être rattachés à un talent (« resolvedCount » sur « sentCount ») : il faut alors traiter leurs erreurs sur /staff/admin/sync-errors, et la reprise complète suivante appliquera les suppressions d'elle-même. Elle vaut « empty_roster » quand la campagne est arrivée vide : si elle a réellement été vidée dans Salesforce, l'opération ops_release_prune_hold le confirme, et la reprise complète suivante supprime les inscriptions si la campagne lui arrive encore vide ; « releasedAt » est la date de cette confirmation. Seule une campagne arrivée vide se confirme ainsi : un membre non rattaché peut être l'inscrit que la suppression emporterait. Liste vide si rien n'est retenu.",
+      `Événements dont la dernière reprise complète a retenu des suppressions d'inscription au lieu de les appliquer, faute de pouvoir les prouver : une reprise complète supprime les inscrits absents de Salesforce, et elle ne le fait que si la liste reçue est complète. Rien n'est perdu ni bloqué, les autres campagnes se synchronisent normalement. « pendingRemovals » est le nombre d'inscriptions conservées en attendant. « cause » vaut « unresolved_members » quand des membres envoyés n'ont pas pu être rattachés à un talent (« resolvedCount » sur « sentCount ») : il faut alors traiter leurs erreurs sur /staff/admin/sync-errors, et la reprise complète suivante appliquera les suppressions d'elle-même. Elle vaut « empty_roster » quand la campagne est arrivée vide : si elle a réellement été vidée dans Salesforce, l'opération ops_release_prune_hold le confirme, et la reprise complète suivante supprime les inscriptions si la campagne lui arrive encore vide ; « releasedAt » est la date de cette confirmation. Seule une campagne arrivée vide se confirme ainsi : un membre non rattaché peut être l'inscrit que la suppression emporterait. Du plus ancien au plus récent, limité à ${PRUNES_HELD_LIMIT} lignes. Liste vide si rien n'est retenu.`,
     ),
+    prunesHeldTruncated: prunesHeldEvents > PRUNES_HELD_LIMIT,
   };
 }
 
