@@ -137,6 +137,11 @@ export const HANDLES: Record<HandleKind, Handle> = {
         covers:
           'only when grouped by event, and only events whose grid asks the question asked about',
       },
+      {
+        operation: 'stats_sync_health',
+        covers:
+          'only events whose deletions the last full synchronisation pass held back (prunesHeld)',
+      },
     ],
   },
   formId: {

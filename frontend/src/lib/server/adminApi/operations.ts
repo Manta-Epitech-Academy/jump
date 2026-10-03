@@ -172,7 +172,12 @@ import {
   resetClosingById,
   SCHOOL_RESOLVE_LIMIT,
 } from './writes/ops';
-import { requestSync, writeSyncCadence, writeSyncSource } from './writes/sync';
+import {
+  releasePruneHold,
+  requestSync,
+  writeSyncCadence,
+  writeSyncSource,
+} from './writes/sync';
 import {
   writeClosingQuestion,
   writeClosingTemplate,
@@ -1161,6 +1166,15 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => requestSync(params),
+  }),
+
+  ops_release_prune_hold: defineWrite({
+    description:
+      'Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when the campaign was genuinely emptied in Salesforce. Only a hold over an empty roster can be released: one over members Jump could not match is lifted by fixing their sync errors, after which the next full pass prunes by itself. It deletes nothing by itself: the next full pass applies the deletions if the roster it receives is still empty. That pass comes at the full cadence; ops_request_sync with mode "full" brings it forward to the next wake-up, within fifteen minutes. Safe to repeat: releasing an already released hold changes nothing. Refused when the event has no held deletions, or when the held roster was not empty.',
+    shape: {
+      eventId: z.string().min(1).describe(handleDescribe('eventId')),
+    },
+    run: (params) => releasePruneHold(params),
   }),
 
   ops_resolve_all_sync_errors: defineWrite({
