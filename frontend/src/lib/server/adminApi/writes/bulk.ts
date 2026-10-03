@@ -1,7 +1,7 @@
 /**
  * The class B writes: one configuration change across a filtered set of events.
  *
- * All three follow the same contract, and it is `runTwoStep` that enforces it
+ * All of them follow the same contract, and it is `runTwoStep` that enforces it
  * rather than each tool. Called without `planDigest`, they answer with the exact
  * list of events that would change and how; called with it, they recompute that
  * list, compare, and refuse if the world has moved. So an apply can never ride
@@ -18,7 +18,11 @@
 
 import { EventService, type AdminEventVM } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
-import { replaceShownStatuses } from '$lib/server/services/devSpaceVisibility';
+import {
+  changeShownStatuses,
+  replaceShownStatuses,
+  resolveKnownStatuses,
+} from '$lib/server/services/devSpaceVisibility';
 import { prisma } from '$lib/server/db';
 import { isEventModuleKey, EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
 import {
@@ -116,6 +120,74 @@ export async function bulkEventModules(params: {
           modules: c.from,
         })),
         after: plan.changes.map((c) => ({ eventId: c.eventId, modules: c.to })),
+      };
+    },
+  });
+}
+
+// ── Shown Salesforce statuses across many events ─────────────────────────────
+
+/**
+ * Show some statuses on, and mask others from, every event matching a filter,
+ * leaving whatever else each event shows alone. Add/remove rather than a
+ * complete set, unlike `bulkEventModules`, because the case it exists for is a
+ * word Salesforce renamed for every campus: a complete set would flatten the
+ * Coding Clubs that also show CONNECTED into whatever the stages show.
+ */
+export async function bulkEventShownStatuses(params: {
+  showStatuses?: string[];
+  hideStatuses?: string[];
+  planDigest?: string;
+  campus?: string;
+  schoolYear?: string;
+  onlyUpcoming?: boolean;
+}): Promise<WriteOutcome> {
+  const show = await resolveKnownStatuses(params.showStatuses ?? []);
+  const hide = await resolveKnownStatuses(params.hideStatuses ?? []);
+  if (show.length === 0 && hide.length === 0) {
+    throw new OperationRefusedError(
+      'Rien à changer : indiquez au moins un statut à afficher (showStatuses) ou à masquer (hideStatuses).',
+    );
+  }
+  const both = show.filter((status) => hide.includes(status));
+  if (both.length > 0) {
+    throw new OperationRefusedError(
+      `Statut${both.length > 1 ? 's' : ''} à la fois à afficher et à masquer : ${both.join(', ')}.`,
+    );
+  }
+
+  return runTwoStep({
+    requestedDigest: params.planDigest,
+    buildPlan: async () => {
+      const events = await targets(params);
+      const changes = events
+        .map((event) => {
+          const from = event.shownStatuses;
+          const to = [...new Set([...from, ...show])]
+            .filter((status) => !hide.includes(status))
+            .sort();
+          return { ...identify(event), from, to };
+        })
+        .filter((row) => row.from.join(',') !== row.to.join(','));
+      return { targeted: events.length, changes };
+    },
+    apply: async (plan) => {
+      await prisma.$transaction((tx) =>
+        changeShownStatuses(
+          tx,
+          plan.changes.map((c) => c.eventId),
+          { show, hide },
+        ),
+      );
+      return {
+        before: plan.changes.map((c) => ({
+          eventId: c.eventId,
+          shownStatuses: c.from,
+        })),
+        after: plan.changes.map((c) => ({
+          eventId: c.eventId,
+          shownStatuses: c.to,
+        })),
       };
     },
   });

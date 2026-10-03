@@ -308,8 +308,13 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   errorType: 'syncErrorType',
   salesforceCampaignId: 'salesforceCampaignId',
   modules: 'moduleKey',
-  // The Salesforce statuses an event shows, a complete set like `modules`.
+  // Salesforce status words: the list an event shows (a complete set, like
+  // `modules`), the catalogue entry one write authors, and the two halves of the
+  // bulk change. `status` alone is taken by the event-status filter.
   shownStatuses: 'sfStatus',
+  memberStatus: 'sfStatus',
+  showStatuses: 'sfStatus',
+  hideStatuses: 'sfStatus',
   // The event binding takes an id, like the certificate one beside it; authoring
   // takes a key, like `write_diploma_template`'s `code`. Both are produced by the
   // same configuration read, which returns a grid's id and its key together.

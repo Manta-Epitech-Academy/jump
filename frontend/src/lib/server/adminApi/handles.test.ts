@@ -84,6 +84,7 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'enabled',
   'visible',
   'showStatutColumn',
+  'shownByDefault',
   'pageWidthPx',
   'pageHeightPx',
   'onlyUpcoming',

@@ -176,6 +176,7 @@ import {
   releasePruneHold,
   requestSync,
   writeSyncCadence,
+  writeSyncMemberStatus,
   writeSyncSource,
 } from './writes/sync';
 import {
@@ -185,6 +186,7 @@ import {
 } from './writes/closings';
 import {
   bulkEventModules,
+  bulkEventShownStatuses,
   bulkEventActivation,
   bulkApplyEventTemplate,
   BULK_EVENTS_LIMIT,
@@ -1136,6 +1138,26 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => writeSyncSource(params),
   }),
 
+  write_sync_member_status: defineWrite({
+    description:
+      'Add a Salesforce member status to the words Jump knows, or change whether newly created events show it. A word Jump does not know is masked everywhere and reported by stats_sync_health; adding it stops the report but shows it on no existing event: write_event_config or bulk_event_shown_statuses does that. Safe to repeat: an upsert on the word. Nothing is ever deleted.',
+    shape: {
+      memberStatus: z
+        .string()
+        .min(1)
+        .describe(
+          `${handleDescribe('sfStatus')} Stored trimmed and upper-cased, the way the sync stores it.`,
+        ),
+      shownByDefault: z
+        .boolean()
+        .optional()
+        .describe(
+          'Whether an event the sync creates from now on starts by showing this status. Defaults to false for a new word; existing events are never changed by it.',
+        ),
+    },
+    run: (params) => writeSyncMemberStatus(params),
+  }),
+
   write_sync_cadence: defineWrite({
     description:
       'Set how often one synchronisation pass runs, in minutes. The incremental pass keeps data fresh; the full pass is the only one that detects a member removed in Salesforce, so spacing it out means deletions arrive later. Safe to repeat: writing the same value twice leaves the same row. Takes effect at the worker next wake-up, within fifteen minutes, with nothing to redeploy.',
@@ -1235,6 +1257,38 @@ export const ADMIN_API_OPERATIONS = {
         .describe('Digest returned by the dry run. Omit to get a dry run.'),
     },
     run: (params) => bulkEventModules(params),
+  }),
+
+  bulk_event_shown_statuses: defineWrite({
+    twoStep: true,
+    description: `Show some Salesforce member statuses on, and mask others from, every event matching a filter, leaving whatever else each event shows untouched. Made for a status Salesforce renamed everywhere: show the new word and hide the old one in one call. Call it WITHOUT planDigest first: it answers with the events that would change and a planDigest. Show that list to the human, then call again with the digest to apply. The apply is refused if anything moved in between. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
+    shape: {
+      showStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} Statuses every matching event will show, on top of what it already shows.`,
+        ),
+      hideStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} Statuses every matching event will stop showing. Their enrolments stay synced and in Jump.`,
+        ),
+      campus,
+      schoolYear,
+      onlyUpcoming: z
+        .boolean()
+        .optional()
+        .describe(
+          'Leave past events alone. Usually NOT wanted for a renamed status, whose old enrolments are rewritten by Salesforce too.',
+        ),
+      planDigest: z
+        .string()
+        .optional()
+        .describe('Digest returned by the dry run. Omit to get a dry run.'),
+    },
+    run: (params) => bulkEventShownStatuses(params),
   }),
 
   bulk_event_activation: defineWrite({

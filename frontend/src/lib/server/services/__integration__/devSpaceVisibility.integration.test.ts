@@ -18,7 +18,12 @@ import {
   writeEventConfig,
   writeEventTemplate,
 } from '$lib/server/adminApi/writes/events';
-import { bulkApplyEventTemplate } from '$lib/server/adminApi/writes/bulk';
+import {
+  bulkApplyEventTemplate,
+  bulkEventShownStatuses,
+} from '$lib/server/adminApi/writes/bulk';
+import { writeSyncMemberStatus } from '$lib/server/adminApi/writes/sync';
+import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
 import { assertTestDatabase } from './testDatabase';
 
 const stamp = Date.now();
@@ -34,6 +39,9 @@ const talents = ['ready', 'connected', 'legacy'].map((key) => ({
 const [ready, connected, legacy] = talents.map((t) => t.external_id);
 const campusName = `Vis Campus ${stamp}`;
 const templateName = `Vis Coding Club ${stamp}`;
+// A word Salesforce might start sending, unique per run because the catalogue is
+// platform-wide and has no delete.
+const renamed = `CONFIRMED_${stamp}`;
 
 describe('per-event dev-space visibility (integration)', () => {
   let campusId = '';
@@ -63,6 +71,7 @@ describe('per-event dev-space visibility (integration)', () => {
       await prisma.eventConfig_Template.deleteMany({
         where: { name: templateName },
       });
+      await prisma.sync_MemberStatus.deleteMany({ where: { status: renamed } });
       const userIds = created
         .map((t) => t.userId)
         .filter((id): id is string => id != null);
@@ -199,5 +208,50 @@ describe('per-event dev-space visibility (integration)', () => {
 
     // The stage now shows what the club showed, enrolments included.
     expect(await shownOn('stage')).toEqual([connected, legacy, ready].sort());
+  });
+
+  it('follows a status Salesforce renamed: reported, added, then shown everywhere in one plan', async () => {
+    // Salesforce starts sending the new word for the confirmed member.
+    await syncParticipations(
+      stageExternalId,
+      { [ready]: renamed.toLowerCase() },
+      'incremental',
+    );
+    let health = await getSyncHealth();
+    expect(health.unrecognisedStatusEvents.value).toContainEqual(
+      expect.objectContaining({ eventId: eventIds.stage, statuses: [renamed] }),
+    );
+    expect(await shownOn('stage')).not.toContain(ready);
+
+    // Added to the catalogue: no longer unknown, still shown nowhere.
+    const added = await writeSyncMemberStatus({ memberStatus: renamed });
+    expect(added).toMatchObject({
+      applied: true,
+      before: null,
+      after: { memberStatus: renamed, shownByDefault: false },
+    });
+    health = await getSyncHealth();
+    expect(health.memberStatuses.value).toContainEqual(
+      expect.objectContaining({ status: renamed, known: true, shownCount: 0 }),
+    );
+    expect(await shownOn('stage')).not.toContain(ready);
+
+    // Shown on every event of the campus, the old word masked, in one plan.
+    const dryRun = await bulkEventShownStatuses({
+      showStatuses: [renamed],
+      hideStatuses: ['READY'],
+      campus: campusName,
+    });
+    expect(dryRun.applied).toBe(false);
+    if (dryRun.applied) return;
+    await bulkEventShownStatuses({
+      showStatuses: [renamed],
+      hideStatuses: ['READY'],
+      campus: campusName,
+      planDigest: dryRun.planDigest,
+    });
+    expect(await shownOn('stage')).toContain(ready);
+    // Each event kept the rest of what it showed: the club still shows CONNECTED.
+    expect(await shownOn('club')).toContain(connected);
   });
 });
