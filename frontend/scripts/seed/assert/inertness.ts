@@ -101,5 +101,17 @@ export async function inertnessFailures(
     );
   }
 
+  // A held prune is a sync artefact, and a RELEASED one is an instruction: the
+  // next full pass that carries the event deletes its enrolments. Keyed on the
+  // event, so the seed prefix is read off `eventId`.
+  const holds = await prisma.sync_PruneHold.count({
+    where: { eventId: seeded },
+  });
+  if (holds > 0) {
+    failures.push(
+      `${holds} suppression(s) retenue(s) semée(s) : une retenue libérée ordonne à la reprise complète suivante de supprimer des inscriptions, donc une instruction et non un fait. Le générateur n’en écrit aucune.`,
+    );
+  }
+
   return failures;
 }

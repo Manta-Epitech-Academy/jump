@@ -39,6 +39,30 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   whichever run happens to be open would be shared mutable state on
   horizontally-scaled pods. This is also why deletions are caught by the spaced
   full reconcile and by nothing else, and why spacing that pass out has a cost.
+- **A full pass prunes only from a complete roster, and holds what it cannot
+  prove.** Complete means non-empty with every member resolved to a known talent.
+  An empty roster looks exactly like a truncated fetch, and a member the talents
+  push skipped (`MISSING_NAME`, `DUPLICATE_EMAIL`) may be the very person whose
+  enrolment the prune would take, so in either case the enrolments that did
+  resolve are written, the removals are recorded on `Sync_PruneHold`, and the
+  call succeeds. A later complete roster lifts the hold by pruning normally; an
+  admin who knows the campaign really was emptied releases it
+  (`ops_release_prune_hold`) and the next full pass applies it if its roster is
+  still empty; an `ok` full run drops the holds it did not renew.
+  `stats_sync_health.prunesHeld` lists them. **Only an empty roster can be
+  released**, and a CHECK holds it: over unresolved members a release would
+  hand a person exactly the deletion the hold refused, so that hold lifts by
+  fixing the member's SyncError and nothing else.
+- **A refusal that replays identically must never fail a run.** A refusal fails
+  the call, the worker closes the run in error, and a failed run is replayed at
+  the next tick with the same input, so a refusal that depends only on that input
+  is a refusal forever, and for every campaign of the run rather than the one it
+  was about. On 2026-10-01 a guard that refused a full roster whose single member
+  Jump did not know stopped the whole sync, the incremental included, because a
+  due full pass outranks it. So skip, count and record what cannot be applied
+  (`syncEvents` for an unknown campus, `syncTalents` for a nameless contact,
+  `syncParticipations` for an unknown event or an unprovable prune), and keep
+  refusals for a malformed payload, which is a worker bug and not data.
 - **A failed run moves nothing.** `lastDeltaAt` / `lastFullAt` are no column
   anywhere: they are `MAX(finishedAt) WHERE mode = ? AND status = 'ok'`. So a run
   that dies mid-push simply replays its window at the next tick, and nothing in
@@ -102,8 +126,9 @@ is how that stops being true.
 
 No admin screen, by design: a campaign is named by an opaque Salesforce id somebody
 copies out of Salesforce, and the cadence is two numbers changed twice a year.
-`config_sync_sources`, `stats_sync_runs`, `stats_sync_health`, `write_sync_source`
-and `write_sync_cadence` are the surface, over HTTP and as MCP tools.
+`config_sync_sources`, `stats_sync_runs`, `stats_sync_health`, `write_sync_source`,
+`write_sync_cadence` and `ops_release_prune_hold` are the surface, over HTTP and as
+MCP tools.
 
 ---
 

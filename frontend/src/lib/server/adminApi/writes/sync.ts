@@ -1,8 +1,8 @@
 /**
  * The class A writes that steer the Salesforce worker: which campaigns it pulls,
- * and how often.
+ * how often, and whether the deletions a full pass held back may go ahead.
  *
- * Both are bounded to one named row, reversible, and send nothing to anybody.
+ * Each is bounded to one named row, reversible, and sends nothing to anybody.
  * Neither has a screen, and deliberately: a campaign is named by an opaque
  * Salesforce id that a person copies out of Salesforce anyway, and the cadence
  * is two numbers somebody changes twice a year. The admin space stops growing
@@ -17,6 +17,7 @@ import { prisma } from '$lib/server/db';
 import type { SyncMode, SyncSourceKind } from '@prisma/client';
 import { OperationRefusedError } from '../errors';
 import type { WriteOutcome } from '../plan';
+import { resolveScope } from '../scope';
 
 /**
  * The shape of a Salesforce id, checked here so a typo is refused rather than
@@ -182,4 +183,74 @@ export async function writeSyncCadence(params: {
   });
 
   return { applied: true, before, after };
+}
+
+/**
+ * Let the next full pass apply the deletions it held back on one event.
+ *
+ * A full pass that cannot prove its deletions (an empty roster, or members it
+ * could not resolve) keeps the enrolments and records a `Sync_PruneHold`. When
+ * a person knows the campaign really was emptied in Salesforce, this is how
+ * they say so. It deletes nothing itself: it stamps `releasedAt`, and the next
+ * full pass that carries the event removes the enrolments if its fresh roster
+ * is still empty. So the deletion is still made by a full pass and by nothing
+ * else, and against what Salesforce says at that moment rather than at the
+ * moment of the hold.
+ *
+ * Only an empty roster can be released, and that is the whole of what makes
+ * this a tool. A hold over unresolved members is the case the hold exists for:
+ * one of them may be the very talent whose enrolment would go, so releasing it
+ * would hand a person the deletion the full pass refused to make. Its way out
+ * is fixing the member's SyncError, after which the next complete roster prunes
+ * by itself. The database refuses the other shape too (`Sync_PruneHold_counts_check`).
+ *
+ * Reversible until that pass runs, by the pass itself: a roster that arrives
+ * with members renews the hold and withdraws the release. Safe to repeat:
+ * releasing a released hold leaves its first release date in place.
+ */
+export async function releasePruneHold(params: {
+  eventId: string;
+}): Promise<WriteOutcome> {
+  const { event } = await resolveScope({ eventId: params.eventId });
+
+  const before = await pruneHoldState(params.eventId);
+  if (!before)
+    throw new OperationRefusedError(
+      `Aucune suppression n'est retenue sur « ${event!.label} » : sa dernière reprise complète a appliqué les siennes, ou ne le concernait pas. La liste des suppressions retenues se lit dans stats_sync_health.`,
+    );
+  if (before.sentCount > 0)
+    throw new OperationRefusedError(
+      `Les suppressions retenues sur « ${event!.label} » ne viennent pas d'une campagne vide : ${before.resolvedCount} membre(s) sur ${before.sentCount} ont pu être rattachés à un talent, et un membre non rattaché peut être l'inscrit qu'elles supprimeraient. Elles s'appliqueront d'elles-mêmes à la reprise complète suivante une fois les erreurs de ces membres traitées sur /staff/admin/sync-errors.`,
+    );
+  if (before.releasedAt) return { applied: true, before, after: before };
+
+  await prisma.sync_PruneHold.update({
+    where: { eventId: params.eventId },
+    data: { releasedAt: new Date() },
+  });
+  return {
+    applied: true,
+    before,
+    after: await pruneHoldState(params.eventId),
+  };
+}
+
+/** A hold as it lands on the audit row: dates as strings, since it is JSON. */
+async function pruneHoldState(eventId: string) {
+  const row = await prisma.sync_PruneHold.findUnique({
+    where: { eventId },
+    select: {
+      pendingRemovals: true,
+      sentCount: true,
+      resolvedCount: true,
+      lastHeldAt: true,
+      releasedAt: true,
+    },
+  });
+  if (!row) return null;
+  return {
+    ...row,
+    lastHeldAt: row.lastHeldAt.toISOString(),
+    releasedAt: row.releasedAt?.toISOString() ?? null,
+  };
 }

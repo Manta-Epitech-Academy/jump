@@ -587,46 +587,42 @@ export async function syncTalents(talents: WorkerTalent[]) {
  * the spaced full reconcile and by nothing else.
  *
  * An `external_id` Jump does not know is counted and skipped: the worker pushes
- * talents before enrolments, so an unknown one means that talent failed to
- * reconcile, which is already its own SyncError.
+ * talents before enrolments and fails the run if that push fails, so an unknown
+ * one is a member the talents push skipped (`MISSING_NAME`, `DUPLICATE_EMAIL`),
+ * which is already its own SyncError.
+ *
+ * **Nothing here refuses, and that is the rule this function was rebuilt on.**
+ * Every answer but a malformed payload is a success, because a refusal fails
+ * the call, the worker closes the run in error, and a failed run is replayed
+ * identically at the next tick: a refusal that depends only on its input is
+ * therefore a refusal forever, for every campaign of the run and not only for
+ * the one it was about. That is how one campaign with one unresolvable member
+ * stopped the whole sync on 2026-10-01. What a refusal used to protect is
+ * protected by `pruneFromFullRoster` instead, which holds the removals it
+ * cannot prove rather than failing the call.
+ *
+ * An event Jump does not know answers the same way: `syncEvents` skips one
+ * whose campus does not resolve, and the worker still sends its roster.
  */
 export async function syncParticipations(
   eventExternalId: string,
   statusByExternalId: Record<string, string>,
   mode: WorkerSyncMode,
 ) {
+  const externalIds = Object.keys(statusByExternalId);
+
   const event = await prisma.event.findUnique({
     where: { externalId: eventExternalId },
     select: { id: true, campusId: true },
   });
-  if (!event) return { error: 'Event not found' as const };
-
-  const externalIds = Object.keys(statusByExternalId);
-  const prunes = mode === 'full';
-
-  // An empty full payload for an event that HAS enrolments is refused, never
-  // applied. The prune below deletes every enrolment the payload does not
-  // mention, so an empty one wipes a whole cohort, and a truncated or failed
-  // fetch upstream arrives looking exactly like a legitimately empty campaign.
-  //
-  // Refused rather than logged-and-applied, and with no SyncError row: that
-  // table is keyed on (email, attemptedExtId) and shaped around one person's
-  // identity collision, so an event-level fact does not belong in it. The
-  // refusal reaches a human the honest way instead, by failing the call, which
-  // closes the run in error and leaves the watermark where it was.
-  //
-  // Emptying a campaign on purpose is therefore a deliberate act: it needs the
-  // enrolments removed in Jump, not a silent sweep nobody asked for.
-  if (prunes && externalIds.length === 0) {
-    const enrolled = await prisma.participation.count({
-      where: { eventId: event.id },
-    });
-    if (enrolled > 0) {
-      return {
-        error: `Refused: empty payload for "${eventExternalId}", which has ${enrolled} enrolment(s). Applying it would delete every one of them.`,
-      };
-    }
-  }
+  if (!event)
+    return {
+      upserted: 0,
+      skipped: externalIds.length,
+      removed: 0,
+      held: false,
+      eventUnknown: true,
+    };
 
   const known = await prisma.talent.findMany({
     where: { externalId: { in: externalIds } },
@@ -635,17 +631,6 @@ export async function syncParticipations(
   const talentIdByExternalId = new Map(
     known.map((t) => [t.externalId as string, t.id]),
   );
-
-  // The same refusal one step further in, and it is not the same case as an
-  // empty payload: a roster full of ids Jump has never heard of means the
-  // talents push failed or never happened, not that the campaign emptied. With
-  // nothing resolved, `notIn: []` matches every row and the prune would take
-  // the cohort.
-  if (prunes && externalIds.length > 0 && talentIdByExternalId.size === 0) {
-    return {
-      error: `Refused: none of the ${externalIds.length} member(s) sent for "${eventExternalId}" exist in Jump, so the talents push did not land.`,
-    };
-  }
 
   let upserted = 0;
   let skipped = 0;
@@ -673,12 +658,84 @@ export async function syncParticipations(
     upserted++;
   }
 
-  let removed = 0;
-  if (prunes) {
-    ({ count: removed } = await prisma.participation.deleteMany({
-      where: { eventId: event.id, talentId: { notIn: presentTalentIds } },
-    }));
+  if (mode !== 'full') return { upserted, skipped, removed: 0, held: false };
+
+  const prune = await pruneFromFullRoster({
+    eventId: event.id,
+    presentTalentIds,
+    sentCount: externalIds.length,
+    resolvedCount: upserted,
+  });
+  return { upserted, skipped, ...prune };
+}
+
+/**
+ * Delete the enrolments a full roster no longer mentions, but only when that
+ * roster can prove it.
+ *
+ * Absence from a full roster means "gone" only when the roster is COMPLETE:
+ * non-empty, and every member resolved to a talent Jump knows. An empty one
+ * looks exactly like a truncated fetch upstream, and a member the talents push
+ * skipped may be the very person whose enrolment would go (a `DUPLICATE_EMAIL`
+ * is typically one talent come back under a new Salesforce id). So when the
+ * roster is not complete and the prune would actually remove something, the
+ * removals are recorded on `Sync_PruneHold` and nothing is deleted.
+ *
+ * A hold is lifted by the event itself, never by a clock. A later pass with a
+ * complete roster prunes normally and deletes the row, which is the ordinary
+ * outcome once the skipped member's SyncError is fixed. An admin who confirms
+ * that a campaign really was emptied sets `releasedAt` (`ops_release_prune_hold`),
+ * and the next full pass applies the removals if its fresh roster is still
+ * empty: the deletion is still made by a full pass and by nothing else, and
+ * only while Salesforce still reports the campaign empty.
+ */
+async function pruneFromFullRoster(roster: {
+  eventId: string;
+  presentTalentIds: string[];
+  sentCount: number;
+  resolvedCount: number;
+}): Promise<{ removed: number; held: boolean }> {
+  const { eventId, presentTalentIds, sentCount, resolvedCount } = roster;
+  // `notIn: []` matches every enrolment of the event, which is the prune an
+  // empty roster asks for and exactly why that case needs proving first.
+  const absent = { eventId, talentId: { notIn: presentTalentIds } };
+  const complete = sentCount > 0 && resolvedCount === sentCount;
+
+  if (!complete) {
+    const pendingRemovals = await prisma.participation.count({
+      where: absent,
+    });
+    // A release confirms that the campaign is EMPTY in Salesforce, so only an
+    // empty roster spends it. A roster with members is not covered by it,
+    // whatever it holds: an unresolved member may be the very person whose
+    // enrolment would go, and that hold lifts once their SyncError is fixed.
+    const released =
+      pendingRemovals > 0 &&
+      sentCount === 0 &&
+      (
+        await prisma.sync_PruneHold.findUnique({
+          where: { eventId },
+          select: { releasedAt: true },
+        })
+      )?.releasedAt != null;
+    if (pendingRemovals > 0 && !released) {
+      const counts = { pendingRemovals, sentCount, resolvedCount };
+      const lastHeldAt = new Date();
+      // Renewing a hold withdraws its release: the only renewal a release
+      // survives to see is a roster that is no longer empty, which is exactly
+      // what the release said it was.
+      await prisma.sync_PruneHold.upsert({
+        where: { eventId },
+        create: { eventId, ...counts, lastHeldAt },
+        update: { ...counts, lastHeldAt, releasedAt: null },
+      });
+      return { removed: 0, held: true };
+    }
   }
 
-  return { upserted, skipped, removed };
+  const { count: removed } = await prisma.participation.deleteMany({
+    where: absent,
+  });
+  await prisma.sync_PruneHold.deleteMany({ where: { eventId } });
+  return { removed, held: false };
 }

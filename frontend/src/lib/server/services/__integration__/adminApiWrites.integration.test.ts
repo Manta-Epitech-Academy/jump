@@ -21,6 +21,7 @@ const postConfig = adminApiWrite('write_event_config');
 const postActivation = adminApiWrite('write_event_activation');
 const postFeedbackForm = adminApiWrite('write_event_feedback_form');
 const postBulkModules = adminApiWrite('bulk_event_modules');
+const postReleasePruneHold = adminApiWrite('ops_release_prune_hold');
 
 /** Calls a handler the way SvelteKit would, with a bearer and a JSON body. */
 async function call(
@@ -304,5 +305,126 @@ describe('admin API writes (integration)', () => {
 
     expect(status).toBe(409);
     expect(String(payload.error)).toContain('empreinte');
+  });
+
+  describe('releasing a held prune', () => {
+    it('refuses an event with nothing held, naming where holds are listed', async () => {
+      const { status, payload } = await call(
+        postReleasePruneHold,
+        writeSecret,
+        {
+          eventId,
+        },
+      );
+
+      expect(status).toBe(400);
+      expect(String(payload.error)).toContain('stats_sync_health');
+    });
+
+    it('refuses a hold over unresolved members, which only their sync errors lift', async () => {
+      await prisma.sync_PruneHold.create({
+        data: {
+          eventId,
+          pendingRemovals: 1,
+          sentCount: 2,
+          resolvedCount: 1,
+          lastHeldAt: new Date(),
+        },
+      });
+
+      const { status, payload } = await call(
+        postReleasePruneHold,
+        writeSecret,
+        {
+          eventId,
+        },
+      );
+
+      expect(status).toBe(400);
+      expect(String(payload.error)).toContain('/staff/admin/sync-errors');
+      expect(
+        (
+          await prisma.sync_PruneHold.findUnique({
+            where: { eventId },
+            select: { releasedAt: true },
+          })
+        )?.releasedAt,
+      ).toBeNull();
+
+      // And the database refuses the shape outright, whoever writes it.
+      await expect(
+        prisma.sync_PruneHold.update({
+          where: { eventId },
+          data: { releasedAt: new Date() },
+        }),
+      ).rejects.toThrow();
+
+      await prisma.sync_PruneHold.delete({ where: { eventId } });
+    });
+
+    it('stamps the release and deletes nothing itself', async () => {
+      await prisma.sync_PruneHold.create({
+        data: {
+          eventId,
+          pendingRemovals: 3,
+          sentCount: 0,
+          resolvedCount: 0,
+          lastHeldAt: new Date(),
+        },
+      });
+
+      const { status, payload } = await call(
+        postReleasePruneHold,
+        writeSecret,
+        {
+          eventId,
+        },
+      );
+
+      expect(status).toBe(200);
+      expect(payload.before).toMatchObject({
+        pendingRemovals: 3,
+        releasedAt: null,
+      });
+      expect(
+        (payload.after as { releasedAt: string | null }).releasedAt,
+      ).not.toBeNull();
+
+      const row = await prisma.adminApi_Call.findFirst({
+        where: {
+          actorUserId: adminUserId,
+          operation: 'ops_release_prune_hold',
+          status: 200,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(row?.after).toMatchObject({ pendingRemovals: 3 });
+    });
+
+    it('is safe to repeat: a second release keeps the first date', async () => {
+      const first = await prisma.sync_PruneHold.findUnique({
+        where: { eventId },
+        select: { releasedAt: true },
+      });
+
+      const { status, payload } = await call(
+        postReleasePruneHold,
+        writeSecret,
+        {
+          eventId,
+        },
+      );
+
+      expect(status).toBe(200);
+      expect(payload.before).toEqual(payload.after);
+      expect(
+        (
+          await prisma.sync_PruneHold.findUnique({
+            where: { eventId },
+            select: { releasedAt: true },
+          })
+        )?.releasedAt,
+      ).toEqual(first?.releasedAt);
+    });
   });
 });

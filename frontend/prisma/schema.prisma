@@ -871,6 +871,7 @@ model Event {
   modules             EventConfig_Module[]
   workshops           EventConfig_Workshop[]
   workshopEntries     Workshop_Participation[]
+  syncPruneHold       Sync_PruneHold?
 
   /// Not a second identity - `id` alone is already unique. It exists so the rows
   /// that denormalise `campusId` for one-hop campus scoping can reference the
@@ -1774,6 +1775,54 @@ model Sync_Cadence {
   mode            SyncMode @id
   intervalMinutes Int
   updatedAt       DateTime @updatedAt
+}
+
+/// The deletions a full pass wanted to make on one event and did not, because
+/// the roster it was sent could not prove them.
+///
+/// A full pass deletes every enrolment its roster does not mention, so the
+/// roster has to be COMPLETE for that absence to mean anything: non-empty, and
+/// every member resolved to a talent Jump knows. A member the talents push
+/// skipped (`MISSING_NAME`, `DUPLICATE_EMAIL`) may be the very person whose
+/// enrolment the prune would take. When the roster is not complete, the
+/// enrolments it does carry are still written and the removals are held here
+/// instead of applied.
+///
+/// Held, never refused. Refusing the roster failed the call, which closed the
+/// run in error, and a failed run is replayed identically at every tick, so one
+/// campaign with one unresolvable member stopped the sync of every campaign (it
+/// did, on 2026-10-01). A hold costs the other campaigns nothing.
+///
+/// A row exists exactly while the last full pass that carried the event held
+/// removals from it: a later complete roster deletes it, and an `ok` full run
+/// deletes the rows it did not touch, since an event the pass no longer carries
+/// has nothing left to hold. `releasedAt` is the one way out for a campaign
+/// genuinely emptied in Salesforce: an admin confirms it with
+/// `ops_release_prune_hold`, and the NEXT full pass applies the removals if its
+/// fresh roster is still empty, so only a full pass ever deletes an enrolment.
+/// Only an empty roster is released (the migration's CHECK holds it): over
+/// unresolved members, a release would take the enrolment of a talent
+/// Salesforce still lists under an id Jump has not matched.
+///
+/// No reason column: `sentCount = 0` is an empty roster and
+/// `resolvedCount < sentCount` is one with unresolved members, read off the
+/// counts rather than stored beside them.
+model Sync_PruneHold {
+  eventId         String    @id
+  /// Enrolments the prune would have deleted on the last pass that held it.
+  pendingRemovals Int
+  /// Members that pass sent, and how many of them Jump resolved.
+  sentCount       Int
+  resolvedCount   Int
+  firstHeldAt     DateTime  @default(now())
+  lastHeldAt      DateTime
+  /// Set by an admin who confirms the campaign is empty, to let the next full
+  /// pass apply the removals if its roster is still empty.
+  releasedAt      DateTime?
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([lastHeldAt])
 }
 
 // A signatory whose handwritten signature is printed on the internship

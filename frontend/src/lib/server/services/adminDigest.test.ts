@@ -64,11 +64,12 @@ function eventStub(i: number): EventStub {
   };
 }
 
-function syncPayload(over: { unresolved?: number } = {}) {
+function syncPayload(over: { unresolved?: number; prunesHeld?: number } = {}) {
   return {
     unresolvedErrors: metric(over.unresolved ?? 0, 'def'),
     errorsByType: metric([], 'def'),
     oldestUnresolvedAgeDays: metric(null, 'def'),
+    prunesHeldEvents: metric(over.prunesHeld ?? 0, 'def'),
   };
 }
 
@@ -94,6 +95,7 @@ function neverSyncedPayload(unresolved = 0) {
     unresolvedErrors: metric(unresolved, 'def'),
     errorsByType: metric([], 'def'),
     oldestUnresolvedAgeDays: metric(null, 'def'),
+    prunesHeldEvents: metric(0, 'def'),
   };
 }
 
@@ -219,6 +221,7 @@ describe('buildAdminDigest', () => {
     expect(digest.summary).toEqual({
       eventsToPrepare: 1,
       unresolvedSyncErrors: 2,
+      prunesHeldEvents: 0,
       lastSyncAgeHours: 0.5,
       failedPdfJobs: 0,
       overdueDeletionRequests: 0,
@@ -226,6 +229,23 @@ describe('buildAdminDigest', () => {
       abandonedFeatures: 0,
       singleCampusFeatures: 0,
     });
+  });
+
+  it('says when a full pass is holding deletions, which fails no run', async () => {
+    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload({ prunesHeld: 2 }));
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain('<strong>2</strong> événements gardent');
+    expect(digest.html).toContain('/staff/admin/sync-errors');
+    expect(digest.text).toContain('faute de preuve : 2');
+    expect(digest.summary.prunesHeldEvents).toBe(2);
+
+    getSyncHealth.mockResolvedValue(syncPayload());
+    const quiet = await buildAdminDigest();
+    expect(quiet.html).not.toContain('gardent des inscriptions');
+    expect(quiet.text).not.toContain('faute de preuve');
   });
 
   it('names the stuck queues, and says so plainly when there are none', async () => {

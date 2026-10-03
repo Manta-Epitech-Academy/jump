@@ -116,6 +116,11 @@ const DOMAINS: { title: string; models: string[] }[] = [
       'PlanningTemplate',
       'PlanningTemplateDay',
       'PlanningTemplateSlot',
+      // The CTFd activities: the curated instances, what an event offers, and
+      // a talent's mirrored progress on one.
+      'Workshop_Instance',
+      'EventConfig_Workshop',
+      'Workshop_Participation',
     ],
   },
   {
@@ -194,6 +199,7 @@ const DOMAINS: { title: string; models: string[] }[] = [
       'Sync_Source',
       'Sync_Run',
       'Sync_Cadence',
+      'Sync_PruneHold',
       'AdminApi_Token',
       'AdminApi_Call',
     ],

@@ -73,6 +73,7 @@ export type AdminDigest = {
   summary: {
     eventsToPrepare: number;
     unresolvedSyncErrors: number;
+    prunesHeldEvents: number;
     lastSyncAgeHours: number | null;
     failedPdfJobs: number;
     overdueDeletionRequests: number;
@@ -126,6 +127,7 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
   // a pass that is simply not due yet.
   const last = freshness.value;
   const unresolvedErrors = sync.unresolvedErrors.value;
+  const prunesHeld = sync.prunesHeldEvents.value;
 
   const eventRows = listed
     .map(
@@ -183,10 +185,20 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
         ? 'Aucune erreur en attente.'
         : '';
 
+  // A held prune fails nothing, so without this line it reaches nobody: the run
+  // closes ok and the freshness above reads healthy. Its two ways out are a
+  // member's sync error (the page linked) or confirming that the campaign was
+  // emptied, which only the admin API can do.
+  const prunesHeldLine =
+    prunesHeld > 0
+      ? `<strong>${prunesHeld}</strong> ${plural(prunesHeld, 'événement garde', 'événements gardent')} des inscriptions qu'une reprise complète n'a pas pu confirmer comme retirées de Salesforce, et rien n'y est supprimé sans preuve. Des membres non rattachés se traitent sur ${link(syncErrorsUrl, 'la page dédiée')} ; une campagne réellement vidée se confirme par l'API d'administration.`
+      : '';
+
   const syncSection = `
     <p style="margin:0 0 8px;">
       ${syncStateLine}
       ${syncErrorsLine}
+      ${prunesHeldLine}
     </p>`;
 
   // Two queues nothing else chases. A failed document means a talent has no
@@ -324,6 +336,9 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
     !last || last.stale ? `  Voir : ${dashboardUrl}` : '',
     `Erreurs de synchronisation à arbitrer : ${unresolvedErrors}`,
     unresolvedErrors > 0 ? `  Voir : ${syncErrorsUrl}` : '',
+    prunesHeld > 0
+      ? `Événements dont une reprise complète a conservé des inscriptions faute de preuve : ${prunesHeld}`
+      : '',
   ].filter(Boolean);
 
   return {
@@ -333,6 +348,7 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
     summary: {
       eventsToPrepare: toPrepare,
       unresolvedSyncErrors: unresolvedErrors,
+      prunesHeldEvents: prunesHeld,
       lastSyncAgeHours: last?.ageHours ?? null,
       failedPdfJobs,
       overdueDeletionRequests: overdueDeletions,
