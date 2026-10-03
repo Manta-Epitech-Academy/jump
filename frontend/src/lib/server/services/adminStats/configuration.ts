@@ -29,13 +29,17 @@ import {
   isEventToPrepare,
 } from '$lib/domain/eventReadiness';
 import { getStaffRoleLabel } from '$lib/domain/staff';
-import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
+import {
+  HIDDEN_PARTICIPATION_DEFINITION,
+  SYNCED_PARTICIPATION_DEFINITION,
+  VISIBLE_PARTICIPATION_DEFINITION,
+} from '$lib/domain/sfMemberStatus';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
 import { CERTIFICATE_TOKENS } from '$lib/domain/diplomas';
 import { WORKSHOP_XP_PER_MINUTE } from '$lib/domain/xp';
 import { UnknownScopeError, type Scope } from '$lib/server/adminApi/scope';
 import { handleProvenanceFr } from '$lib/server/adminApi/handles';
-import { scopedEvents, scopeLabels } from './cohort';
+import { hiddenEnrolmentsByEvent, scopedEvents, scopeLabels } from './cohort';
 
 // ── The certificate catalogue ────────────────────────────────────────────────
 
@@ -176,6 +180,8 @@ export type EventDetail = {
     label: string;
   } | null>;
   participants: Metric;
+  hiddenFromDevSpace: Metric;
+  syncedEnrolments: Metric;
 };
 
 export async function getEventDetail(eventId: string): Promise<EventDetail> {
@@ -200,6 +206,8 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
         select: { id: true, code: true, label: true },
       })
     : null;
+
+  const hidden = (await hiddenEnrolmentsByEvent([event.id])).get(event.id) ?? 0;
 
   return {
     event: metric(
@@ -256,6 +264,14 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
     participants: metric(
       event.participations,
       `Inscriptions à cet événement, ${VISIBLE_PARTICIPATION_DEFINITION}.`,
+    ),
+    hiddenFromDevSpace: metric(
+      hidden,
+      `Nombre d'${HIDDEN_PARTICIPATION_DEFINITION}`,
+    ),
+    syncedEnrolments: metric(
+      event.participations + hidden,
+      `Nombre d'${SYNCED_PARTICIPATION_DEFINITION}`,
     ),
   };
 }

@@ -17,6 +17,13 @@ vi.mock('$lib/server/services/events', () => ({
   EventService: { listAdminEvents: () => listAdminEvents() },
 }));
 
+const participationGroupBy = vi.fn();
+vi.mock('$lib/server/db', () => ({
+  prisma: {
+    participation: { groupBy: (args: unknown) => participationGroupBy(args) },
+  },
+}));
+
 const { getEventsConfigList, getEventsDirectory, EVENTS_LIST_LIMIT } =
   await import('./eventsList');
 
@@ -50,9 +57,40 @@ function event(over: Partial<AdminEventVM> = {}): AdminEventVM {
   } as AdminEventVM;
 }
 
-beforeEach(() => listAdminEvents.mockReset());
+beforeEach(() => {
+  listAdminEvents.mockReset();
+  participationGroupBy.mockReset().mockResolvedValue([]);
+});
 
 describe('getEventsConfigList', () => {
+  // `participants` is the dev-space count. Reported alone, it read as "this
+  // event has 2 enrolments" for one holding 5 (#368): the masked side and the
+  // total Jump holds travel beside it, both computed here rather than left to
+  // the consumer, and an event with none masked says 0 rather than nothing.
+  it('reports the enrolments Jump holds, and how many the dev space masks', async () => {
+    listAdminEvents.mockResolvedValue([
+      event({ id: 'nancy', participations: 2 }),
+      event({ id: 'lille', participations: 7 }),
+    ]);
+    participationGroupBy.mockResolvedValue([
+      { eventId: 'nancy', _count: { _all: 3 } },
+    ]);
+
+    const rows = (await getEventsConfigList()).list.value;
+
+    expect(
+      rows.map((r) => [
+        r.eventId,
+        r.participants,
+        r.hiddenFromDevSpace,
+        r.syncedEnrolments,
+      ]),
+    ).toEqual([
+      ['nancy', 2, 3, 5],
+      ['lille', 7, 0, 7],
+    ]);
+  });
+
   // The whole point: this state was reachable through no read before.
   it('returns the id of an event that is already visible and not yet past', async () => {
     listAdminEvents.mockResolvedValue([

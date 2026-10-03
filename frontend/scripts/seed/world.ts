@@ -28,7 +28,11 @@ import type { SchoolSpec } from './catalog/schools';
 import type { SlotBlueprint } from './catalog/planning';
 import { workshopInstanceId } from './catalog/workshops';
 import type { Rng } from './rng';
-import type { SfMemberStatus } from '../../src/lib/domain/sfMemberStatus';
+import {
+  SF_STATUS_ATTENDED,
+  SF_STATUS_CONFIRMED,
+  type SfMemberStatus,
+} from '../../src/lib/domain/sfMemberStatus';
 import { activationBlockers } from '../../src/lib/domain/eventReadiness';
 import {
   minigameRankBonus,
@@ -212,24 +216,32 @@ export type EventRef = {
  * are therefore PLACED, in fixed numbers, by the `statuts-salesforce` scenario.
  *
  * The two weights are PROFILE.md's presence figures rather than new numbers:
- * `pastEventPresence` maps MEET to present and READY to absent, so the share of
+ * `pastEventPresence` maps MET to present and READY to absent, so the share of
  * each is the share of présents and absents. Left as 81 and 16 instead of a
  * normalised 83.5 / 16.5 so the provenance stays readable; `weighted` does not
  * need them to sum to 100.
  */
 const STARTED_EVENT_SF_MIX = [
-  ['MEET', 81],
-  ['READY', 16],
+  [SF_STATUS_ATTENDED, 81],
+  [SF_STATUS_CONFIRMED, 16],
 ] as const satisfies readonly (readonly [SfMemberStatus, number])[];
 
 /**
- * An event that has not happened yet: nobody attended it, so `MEET` is not a
+ * A status Salesforce might plausibly start sending, and that
+ * `domain/sfMemberStatus.ts` does not declare. The `statuts-salesforce` scenario
+ * places it once so the unknown-status report has something to report, and the
+ * string-catalogue guard accepts this one stray value by name, and no other.
+ */
+export const UNRECOGNISED_SF_STATUS_SAMPLE = 'ATTENDED';
+
+/**
+ * An event that has not happened yet: nobody attended it, so `MET` is not a
  * state the world can be in. One weighted entry rather than an early return, so
  * a derived enrolment always consumes exactly one draw - otherwise moving an
  * event from the past to the future desynchronises every status after it.
  */
 const UPCOMING_EVENT_SF_MIX = [
-  ['READY', 100],
+  [SF_STATUS_CONFIRMED, 100],
 ] as const satisfies readonly (readonly [SfMemberStatus, number])[];
 
 /** Shared empty set, so `playedBy` allocates nothing on the common answer. */
@@ -1132,7 +1144,7 @@ export class World {
    * Enrols a talent, deriving the Salesforce member status unless told one.
    *
    * Omit `opts` and the row is VISIBLE in the dev space, and plausible for when
-   * the event happens: `MEET` or `READY` once it has started, `READY` only
+   * the event happens: `MET` or `READY` once it has started, `READY` only
    * before. Pass `{ sfMemberStatus: null }` for a legacy row synced before the
    * column existed, or a hidden status to put one where a screen needs it - both
    * of which the `statuts-salesforce` scenario does, and nothing else should.
@@ -1143,7 +1155,10 @@ export class World {
   enrol(
     event: EventRef,
     talent: TalentRef,
-    opts?: { sfMemberStatus: SfMemberStatus | null },
+    opts?: {
+      sfMemberStatus:
+        SfMemberStatus | typeof UNRECOGNISED_SF_STATUS_SAMPLE | null;
+    },
   ): void {
     const sfMemberStatus =
       opts === undefined

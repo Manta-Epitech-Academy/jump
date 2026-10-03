@@ -14,6 +14,8 @@
  * column (which Prisma round-trips as a UTC-midnight Date).
  */
 
+import { pastEventPresence } from './sfMemberStatus';
+
 export type PresenceSlot = 'morning' | 'afternoon';
 export type PresenceStatus = 'present' | 'late' | 'absent' | 'excused';
 export type PresenceSource = 'qr' | 'manual' | 'system';
@@ -294,7 +296,8 @@ export interface EffectiveStatusContext {
  * (present/late/excused, or a manual absent) wins as-is.
  *
  * Fallback: for single-day events (e.g. 1-day Coding Clubs) where no manual Jump
- * mark was made, if Salesforce marked the participant as MEET, project 'present'.
+ * mark was made, if Salesforce marked the participant as attended, project
+ * 'present'.
  */
 export function effectiveStatus(
   stored: CellStatus,
@@ -306,8 +309,7 @@ export function effectiveStatus(
 
   if (
     context?.isSingleDayEvent &&
-    context?.sfMemberStatus &&
-    context.sfMemberStatus.trim().toUpperCase() === 'MEET'
+    pastEventPresence(context.sfMemberStatus ?? null) === 'present'
   ) {
     return 'present';
   }

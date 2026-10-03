@@ -104,7 +104,7 @@
       activeSlot.slot,
     );
     // Unmarked talent in a closed créneau reads as absent (projection, not a row).
-    // For single-day events with no manual Jump mark, SF MEET status falls back to present.
+    // For single-day events with no manual Jump mark, SF MET status falls back to present.
     const status = effectiveStatus(c.status, isActiveClosed, {
       sfMemberStatus: row.sfMemberStatus,
       isSingleDayEvent,

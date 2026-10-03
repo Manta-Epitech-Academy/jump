@@ -21,7 +21,14 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { metric, type Metric } from '$lib/server/adminApi/metrics';
+import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
+import {
+  classifySfStatus,
+  SF_HIDDEN_STATUSES,
+  SF_STATUS_CLASS_LABELS,
+  SF_VISIBLE_STATUSES,
+  type SfStatusClass,
+} from '$lib/domain/sfMemberStatus';
 import {
   openRunSnapshot,
   recentRuns,
@@ -68,6 +75,35 @@ type HeldPrune = {
   releasedAt: string | null;
 };
 
+/** Events carrying an unrecognised status listed by name before the answer stops. */
+export const UNRECOGNISED_STATUS_EVENTS_LIMIT = 50;
+
+/** One Salesforce status as stored, and what the dev space does with it. */
+type MemberStatusRow = {
+  status: string | null;
+  count: number;
+  share: number | null;
+  devSpace: SfStatusClass;
+  devSpaceLabel: string;
+};
+
+/** One event holding enrolments whose status Jump does not know. */
+type UnrecognisedStatusEvent = {
+  eventId: string;
+  event: string;
+  campus: string;
+  date: string;
+  count: number;
+  statuses: string[];
+};
+
+type MemberStatusReport = {
+  rows: MemberStatusRow[];
+  unrecognised: number;
+  events: UnrecognisedStatusEvent[];
+  eventsTotal: number;
+};
+
 export type SyncHealth = {
   lastIncremental: Metric<PassHealth>;
   lastFull: Metric<PassHealth>;
@@ -82,7 +118,100 @@ export type SyncHealth = {
   prunesHeldEvents: Metric;
   prunesHeld: Metric<HeldPrune[]>;
   prunesHeldTruncated: boolean;
+  memberStatuses: Metric<MemberStatusRow[]>;
+  unrecognisedStatuses: Metric;
+  unrecognisedStatusEvents: Metric<UnrecognisedStatusEvent[]>;
+  unrecognisedStatusEventsTruncated: boolean;
 };
+
+/**
+ * Every Salesforce member status Jump holds, over every enrolment it stores, and
+ * where the ones it does not know are.
+ *
+ * Deliberately not narrowed to what the dev space shows: the point is to see
+ * what it hides. This is the report whose absence let `MET` go unread for a
+ * month (#368): a word `domain/sfMemberStatus.ts` does not declare is masked,
+ * which is the safe default, and nothing said so. Here it is counted, named and
+ * located, so a new word Salesforce starts sending reaches someone instead of
+ * quietly emptying a cohort.
+ */
+async function memberStatusReport(): Promise<MemberStatusReport> {
+  const grouped = await prisma.participation.groupBy({
+    by: ['eventId', 'sfMemberStatus'],
+    _count: { _all: true },
+  });
+
+  const byStatus = new Map<string | null, number>();
+  const unrecognisedByEvent = new Map<
+    string,
+    { count: number; statuses: Set<string> }
+  >();
+  let total = 0;
+  for (const row of grouped) {
+    const count = row._count._all;
+    total += count;
+    byStatus.set(
+      row.sfMemberStatus,
+      (byStatus.get(row.sfMemberStatus) ?? 0) + count,
+    );
+    if (classifySfStatus(row.sfMemberStatus) !== 'unrecognised') continue;
+    const entry = unrecognisedByEvent.get(row.eventId) ?? {
+      count: 0,
+      statuses: new Set<string>(),
+    };
+    entry.count += count;
+    entry.statuses.add(row.sfMemberStatus!);
+    unrecognisedByEvent.set(row.eventId, entry);
+  }
+
+  const rows = [...byStatus.entries()]
+    .map(([status, count]) => {
+      const devSpace = classifySfStatus(status);
+      return {
+        status,
+        count,
+        share: share(count, total),
+        devSpace,
+        devSpaceLabel: SF_STATUS_CLASS_LABELS[devSpace],
+      };
+    })
+    .sort((a, b) => b.count - a.count);
+
+  const events =
+    unrecognisedByEvent.size === 0
+      ? []
+      : await prisma.event.findMany({
+          where: { id: { in: [...unrecognisedByEvent.keys()] } },
+          orderBy: { date: 'desc' },
+          take: UNRECOGNISED_STATUS_EVENTS_LIMIT,
+          select: {
+            id: true,
+            titre: true,
+            publicName: true,
+            date: true,
+            campus: { select: { name: true } },
+          },
+        });
+
+  return {
+    rows,
+    unrecognised: rows
+      .filter((row) => row.devSpace === 'unrecognised')
+      .reduce((sum, row) => sum + row.count, 0),
+    events: events.map((event) => {
+      const entry = unrecognisedByEvent.get(event.id)!;
+      return {
+        eventId: event.id,
+        event: eventDisplayName(event),
+        campus: event.campus.name,
+        date: event.date.toISOString().slice(0, 10),
+        count: entry.count,
+        statuses: [...entry.statuses].sort(),
+      };
+    }),
+    eventsTotal: unrecognisedByEvent.size,
+  };
+}
 
 async function heldPrunes(): Promise<HeldPrune[]> {
   const rows = await prisma.sync_PruneHold.findMany({
@@ -169,6 +298,7 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     unresolvedSchools,
     prunesHeldEvents,
     prunesHeld,
+    statuses,
   ] = await Promise.all([
     passHealth('incremental', terms.staleAfterHours.incremental),
     passHealth('full', terms.staleAfterHours.full),
@@ -190,6 +320,7 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     prisma.school.count({ where: { resolvedAt: null } }),
     prisma.sync_PruneHold.count(),
     heldPrunes(),
+    memberStatusReport(),
   ]);
 
   const incrementalMinutes =
@@ -256,6 +387,20 @@ export async function getSyncHealth(): Promise<SyncHealth> {
       `Événements dont la dernière reprise complète a retenu des suppressions d'inscription au lieu de les appliquer, faute de pouvoir les prouver : une reprise complète supprime les inscrits absents de Salesforce, et elle ne le fait que si la liste reçue est complète. Rien n'est perdu ni bloqué, les autres campagnes se synchronisent normalement. « pendingRemovals » est le nombre d'inscriptions conservées en attendant. « cause » vaut « unresolved_members » quand des membres envoyés n'ont pas pu être rattachés à un talent (« resolvedCount » sur « sentCount ») : il faut alors traiter leurs erreurs sur /staff/admin/sync-errors, et la reprise complète suivante appliquera les suppressions d'elle-même. Elle vaut « empty_roster » quand la campagne est arrivée vide : si elle a réellement été vidée dans Salesforce, l'opération ops_release_prune_hold le confirme, et la reprise complète suivante supprime les inscriptions si la campagne lui arrive encore vide ; « releasedAt » est la date de cette confirmation. Seule une campagne arrivée vide se confirme ainsi : un membre non rattaché peut être l'inscrit que la suppression emporterait. Du plus ancien au plus récent, limité à ${PRUNES_HELD_LIMIT} lignes. Liste vide si rien n'est retenu.`,
     ),
     prunesHeldTruncated: prunesHeldEvents > PRUNES_HELD_LIMIT,
+    memberStatuses: metric(
+      statuses.rows,
+      `Toutes les inscriptions que Jump a reçues de Salesforce, réparties par statut Salesforce tel qu'il est enregistré, de la plus à la moins fréquente : « count » en nombre, « share » en pourcentage du total. Aucune n'est absente de Jump ; « devSpace » dit seulement ce que l'espace dev en fait. Il affiche ${SF_VISIBLE_STATUSES.join(' et ')}, ainsi que les inscriptions sans statut (« status » à null, importées avant que Jump n'enregistre le statut). Il masque ${SF_HIDDEN_STATUSES.join(' et ')}, et masque aussi par prudence tout statut que Jump ne connaît pas (« unrecognised »), qui est alors compté dans « unrecognisedStatuses ».`,
+    ),
+    unrecognisedStatuses: metric(
+      statuses.unrecognised,
+      "Inscriptions dont le statut Salesforce est un mot que Jump ne connaît pas : elles sont bien dans Jump, mais masquées de l'espace dev par prudence. Tout chiffre non nul mérite d'être regardé : soit Salesforce a introduit un nouveau statut, soit un statut a changé d'orthographe, et dans les deux cas des inscriptions peuvent manquer à l'espace dev. Décider de les afficher est une évolution de Jump, pas un réglage.",
+    ),
+    unrecognisedStatusEvents: metric(
+      statuses.events,
+      `Événements qui portent au moins une inscription au statut inconnu de Jump, du plus récent au plus ancien : « count » est le nombre de ces inscriptions, « statuses » les mots reçus. Le détail par talent se lit dans « Membres Salesforce », sur la page Événements de l'espace admin. Limité à ${UNRECOGNISED_STATUS_EVENTS_LIMIT} lignes ; liste vide si aucun statut n'est inconnu.`,
+    ),
+    unrecognisedStatusEventsTruncated:
+      statuses.eventsTotal > UNRECOGNISED_STATUS_EVENTS_LIMIT,
   };
 }
 

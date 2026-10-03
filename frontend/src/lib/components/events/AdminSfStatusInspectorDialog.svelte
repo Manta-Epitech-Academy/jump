@@ -14,6 +14,12 @@
   import EyeOff from '@lucide/svelte/icons/eye-off';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import * as Tooltip from '$lib/components/ui/tooltip';
+  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
+  import {
+    SF_STATUS_CLASS_LABELS,
+    type SfStatusClass,
+  } from '$lib/domain/sfMemberStatus';
 
   type ParticipationRow = {
     id: string;
@@ -24,6 +30,7 @@
     phone: string | null;
     schoolName: string | null;
     sfMemberStatus: string | null;
+    statusClass: SfStatusClass;
     isVisibleInDevSpace: boolean;
     updatedAt: string;
   };
@@ -37,7 +44,7 @@
     total: number;
     totalVisible: number;
     totalHidden: number;
-    statusCounts: Record<string, number>;
+    totalUnrecognised: number;
     participations: ParticipationRow[];
   };
 
@@ -105,9 +112,9 @@
       class: 'bg-success/10 text-success border-success/25',
       label: 'Ready',
     },
-    MEET: {
+    MET: {
       class: 'bg-epi-tech/10 text-epi-tech-ink border-epi-tech/25',
-      label: 'Meet',
+      label: 'Met',
     },
     CONNECTED: {
       class: 'bg-warning/10 text-warning border-warning/25',
@@ -119,16 +126,23 @@
     },
   };
 
-  function statusBadge(status: string | null) {
-    if (!status)
+  function statusBadge(row: ParticipationRow) {
+    if (row.statusClass === 'missing')
       return {
         class: 'bg-muted text-muted-foreground',
         label: 'Non renseigné',
       };
+    // A word Jump does not know is shown as it arrived, in a tone of its own:
+    // a neutral badge here is how `MET` read as one more status for a month.
+    if (row.statusClass === 'unrecognised')
+      return {
+        class: 'border-dashed bg-warning/10 text-warning border-warning/40',
+        label: row.sfMemberStatus ?? '',
+      };
     return (
-      STATUS_BADGE[status.toUpperCase()] ?? {
+      STATUS_BADGE[row.sfMemberStatus?.toUpperCase() ?? ''] ?? {
         class: 'bg-secondary text-secondary-foreground',
-        label: status,
+        label: row.sfMemberStatus ?? '',
       }
     );
   }
@@ -150,6 +164,11 @@
           sur {data.total} synchronisé{data.total > 1 ? 's' : ''}
           {#if data.totalHidden > 0}
             · {data.totalHidden} masqué{data.totalHidden > 1 ? 's' : ''}
+            {#if data.totalUnrecognised > 0}
+              <span class="font-bold text-warning">
+                dont {data.totalUnrecognised} au statut inconnu de Jump
+              </span>
+            {/if}
           {/if}
         {/if}
       </Dialog.Description>
@@ -245,7 +264,7 @@
                 </Table.Row>
               {:else}
                 {#each filteredRows as row (row.id)}
-                  {@const sb = statusBadge(row.sfMemberStatus)}
+                  {@const sb = statusBadge(row)}
                   <Table.Row>
                     <Table.Cell class="text-xs font-medium">
                       {row.prenom}
@@ -262,9 +281,17 @@
                       {row.email ?? '-'}
                     </Table.Cell>
                     <Table.Cell>
-                      <Badge variant="outline" class="text-xs {sb.class}">
-                        {sb.label}
-                      </Badge>
+                      <span class="inline-flex items-center gap-1.5">
+                        <Badge variant="outline" class="text-xs {sb.class}">
+                          {sb.label}
+                        </Badge>
+                        {#if row.statusClass === 'unrecognised'}
+                          <InfoTooltip
+                            label="Statut inconnu de Jump"
+                            text="Statut Salesforce que Jump ne connaît pas : l'inscription est masquée de l'espace dev par prudence. Salesforce a peut-être ajouté ou renommé un statut ; l'afficher demande une évolution de Jump."
+                          />
+                        {/if}
+                      </span>
                     </Table.Cell>
                     <Table.Cell class="text-right">
                       {#if row.isVisibleInDevSpace}
@@ -275,13 +302,27 @@
                           Visible
                         </span>
                       {:else}
-                        <span
-                          class="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground"
-                          title="Masqué de l'espace dev (statut ni READY ni MEET)"
-                        >
-                          <EyeOff class="h-3 w-3" />
-                          Masqué
-                        </span>
+                        <Tooltip.Provider delayDuration={150}>
+                          <Tooltip.Root>
+                            <Tooltip.Trigger>
+                              {#snippet child({ props })}
+                                <span
+                                  {...props}
+                                  class="inline-flex cursor-help items-center gap-1 text-xs font-bold text-muted-foreground"
+                                >
+                                  <EyeOff class="h-3 w-3" />
+                                  Masqué
+                                </span>
+                              {/snippet}
+                            </Tooltip.Trigger>
+                            <Tooltip.Content
+                              class="max-w-xs text-xs first-letter:uppercase"
+                            >
+                              {SF_STATUS_CLASS_LABELS[row.statusClass]},
+                              toujours enregistrée dans Jump.
+                            </Tooltip.Content>
+                          </Tooltip.Root>
+                        </Tooltip.Provider>
                       {/if}
                     </Table.Cell>
                   </Table.Row>

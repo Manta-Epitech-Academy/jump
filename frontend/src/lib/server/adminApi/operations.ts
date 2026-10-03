@@ -455,14 +455,14 @@ function defineWrite<Shape extends z.ZodRawShape>(op: {
 export const ADMIN_API_OPERATIONS = {
   stats_events_overview: defineOperation({
     description:
-      'Where the events stand: how many are visible in the dev workspace, ready to publish or still to configure, and how many enrolments they total. Broken down per campus and per enabled dev-workspace section. Also lists the school years that have events.',
+      'Where the events stand: how many are visible in the dev workspace, ready to publish or still to configure, and how many enrolments the dev workspace shows for them. Broken down per campus and per enabled dev-workspace section. Also lists the school years that have events.',
     shape: { schoolYear, campus },
     run: async (params) => getEventsOverview(await resolveScope(params)),
   }),
 
   stats_events: defineOperation({
     leadership: true,
-    description: `Every event of a périmètre, one row each: its id, the name teams and students see, its campus, its dates, whether it is upcoming, ongoing or past, and how many people are enrolled. Answers "what is running right now", and is where an event id comes from for the operations that take one. Capped at ${EVENTS_LIST_LIMIT} rows.`,
+    description: `Every event of a périmètre, one row each: its id, the name teams and students see, its campus, its dates, whether it is upcoming, ongoing or past, and how many enrolments the dev workspace shows for it. Answers "what is running right now", and is where an event id comes from for the operations that take one. Capped at ${EVENTS_LIST_LIMIT} rows.`,
     shape: { schoolYear, campus, status: eventStatus },
     run: async ({ status, ...scope }) =>
       getEventsDirectory(await resolveScope(scope), { status }),
@@ -482,7 +482,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   config_events: defineOperation({
-    description: `Every event of a périmètre, one row each: its id, its public and Salesforce names, its campus, its dates, how many people are enrolled, which dev-workspace sections are on, the feedback form attached to it, its configuration state, and both what is still unset and what actually stops it from being made visible. This is where an event id comes from. Filter by campus, school year, point of life or configuration state. Capped at ${EVENTS_LIST_LIMIT} rows; "truncated" tells you whether the cap was reached.`,
+    description: `Every event of a périmètre, one row each: its id, its public and Salesforce names, its campus, its dates, how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks, which dev-workspace sections are on, the feedback form attached to it, its configuration state, and both what is still unset and what actually stops it from being made visible. This is where an event id comes from. Filter by campus, school year, point of life or configuration state. Capped at ${EVENTS_LIST_LIMIT} rows; "truncated" tells you whether the cap was reached.`,
     shape: {
       schoolYear,
       campus,
@@ -500,7 +500,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_sync_health: defineOperation({
     description:
-      'Whether Salesforce is still feeding Jump: when each pass last succeeded and how old that is, the configured cadences, what the worker will do next, whether one is running, how many sync errors are waiting, their breakdown by kind, and the age of the oldest. The two passes are reported apart because only the full one detects a deletion in Salesforce. Takes no parameter.',
+      'Whether Salesforce is still feeding Jump: when each pass last succeeded and how old that is, the configured cadences, what the worker will do next, whether one is running, how many sync errors are waiting, their breakdown by kind, and the age of the oldest, and every Salesforce member status Jump holds with what the dev workspace does with it, naming the events that carry a status Jump does not know. The two passes are reported apart because only the full one detects a deletion in Salesforce. Takes no parameter.',
     shape: {},
     run: () => getSyncHealth(),
   }),
@@ -530,7 +530,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_event_detail: defineOperation({
     description:
-      'Everything configured on one event: its Salesforce and public names, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form attached to it, and how many people are enrolled.',
+      'Everything configured on one event: its Salesforce and public names, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form attached to it, and how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks.',
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },
@@ -539,7 +539,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_campus_overview: defineOperation({
     description:
-      'Per campus: how many events, how many are visible in the dev workspace, how many still need work, total enrolments, the staff by role, and which dev-workspace sections are in use.',
+      'Per campus: how many events, how many are visible in the dev workspace, how many still need work, how many enrolments the dev workspace shows, the staff by role, and which dev-workspace sections are in use.',
     shape: { schoolYear, campus },
     run: async (params) => getCampusOverview(await resolveScope(params)),
   }),

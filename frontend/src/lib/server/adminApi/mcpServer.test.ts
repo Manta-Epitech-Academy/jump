@@ -201,6 +201,17 @@ describe('the standing instructions', () => {
     }
   });
 
+  // An event answered `participants: 2` while holding 5 synced enrolments, and a
+  // model relayed it as "2 inscrits". The masked 3 are in Jump all the same.
+  it('tells both tiers a dev-space count is not what Jump holds', () => {
+    for (const tier of ['core', 'leadership'] as const) {
+      const instructions = adminMcpInstructions(tier);
+      expect(instructions).toMatch(/Jump stores every enrolment/);
+      expect(instructions).toContain('hiddenFromDevSpace');
+      expect(instructions).toContain('syncedEnrolments');
+    }
+  });
+
   it('warns both tiers about the student quotes they now both receive', () => {
     for (const tier of ['core', 'leadership'] as const) {
       expect(adminMcpInstructions(tier)).toMatch(/never guess who said one/i);

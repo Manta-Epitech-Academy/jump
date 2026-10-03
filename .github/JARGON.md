@@ -44,10 +44,13 @@ They are **never** exposed raw in the UI: they map to French domain labels.
 | Salesforce Value   | Business Meaning                                                      | Displayed in Jump UI                                |
 | ------------------ | --------------------------------------------------------------------- | ---------------------------------------------------- |
 | `READY`            | Talent confirmed attendance                                           | Visible in dev workspace. For past events: *Absent* (confirmed but did not show up) |
-| `MEET`             | Talent attended the event                                             | Visible in dev workspace. For past events: *Présent* |
-| `CONNECTED`        | Talent clicked Salesforce link but did not confirm                    | **Not visible** in dev workspace. Retained in DB for debugging. |
-| `DESISTED`         | Talent explicitly withdrew                                            | **Not visible** in dev workspace. Retained in DB for debugging. |
+| `MET`              | Talent attended the event                                             | Visible in dev workspace. For past events: *Présent* |
+| `CONNECTED`        | Talent clicked Salesforce link but did not confirm                    | **Not visible** in dev workspace. Still synced and stored in Jump, open to admins in « Membres Salesforce ». |
+| `DESISTED`         | Talent explicitly withdrew                                            | **Not visible** in dev workspace. Still synced and stored in Jump, open to admins in « Membres Salesforce ». |
+| any other value    | A word Jump does not declare (Salesforce added or renamed a status)   | **Not visible** in dev workspace, as a precaution. Still in Jump, counted and located by `stats_sync_health` and the weekly digest, flagged in « Membres Salesforce ». |
 | `null` (legacy)    | Row synced prior to `sfMemberStatus` field introduction               | Treated as visible (preserves historical behavior)  |
+
+A masked enrolment is never missing from Jump: only the dev workspace leaves it out. Say "affichée dans l'espace dev" for the shown count, never "dans Jump", and give the masked count beside it when an answer has one.
 
 Source of truth in code: `frontend/src/lib/domain/sfMemberStatus.ts`.
 
@@ -60,7 +63,7 @@ These three concepts are distinct and must not be confused in code or documentat
 | Concept            | Definition                                                                                        | Data Source                |
 | ------------------ | -------------------------------------------------------------------------------------------------- | -------------------------- |
 | **Participation**  | The fact that a talent is enrolled in an event (originates from Salesforce via worker). `Participation` entity in DB. | Salesforce sync worker     |
-| **Présence SF**    | For a *past* event: inferred from `sfMemberStatus` (`MEET` = present, `READY` = absent). No manual entry in Jump. | `Participation.sfMemberStatus` |
+| **Présence SF**    | For a *past* event: inferred from `sfMemberStatus` (`MET` = present, `READY` = absent). No manual entry in Jump. | `Participation.sfMemberStatus` |
 | **Émargement**     | Real-time attendance tracking during the event, entered by staff inside Jump. `EventPresence` entity in DB. Independent of SF statuses. | Staff entry in Jump        |
 
 ---

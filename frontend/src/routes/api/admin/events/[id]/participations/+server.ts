@@ -1,7 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { prisma } from '$lib/server/db';
-import { isVisibleInDevSpace } from '$lib/domain/sfMemberStatus';
+import {
+  classifySfStatus,
+  isVisibleInDevSpace,
+} from '$lib/domain/sfMemberStatus';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
   if (locals.staffProfile?.staffRole !== 'admin') {
@@ -40,7 +43,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   });
 
   const rows = participations.map((p) => {
-    const isVisible = isVisibleInDevSpace(p.sfMemberStatus);
+    // Classified here, not in the dialog: it renders what this says and
+    // restates no part of the rule.
+    const statusClass = classifySfStatus(p.sfMemberStatus);
     return {
       id: p.id,
       talentId: p.talent.id,
@@ -50,25 +55,16 @@ export const GET: RequestHandler = async ({ params, locals }) => {
       phone: p.talent.phone ?? null,
       schoolName: p.talent.school?.name ?? null,
       sfMemberStatus: p.sfMemberStatus,
-      isVisibleInDevSpace: isVisible,
+      statusClass,
+      isVisibleInDevSpace: isVisibleInDevSpace(p.sfMemberStatus),
       updatedAt: p.updatedAt,
     };
   });
 
-  // Compute breakdown stats
-  const statusCounts: Record<string, number> = {};
-  let totalVisible = 0;
-  let totalHidden = 0;
-
-  for (const r of rows) {
-    const key = r.sfMemberStatus ?? 'UNSPECIFIED';
-    statusCounts[key] = (statusCounts[key] ?? 0) + 1;
-    if (r.isVisibleInDevSpace) {
-      totalVisible++;
-    } else {
-      totalHidden++;
-    }
-  }
+  const totalVisible = rows.filter((r) => r.isVisibleInDevSpace).length;
+  const totalUnrecognised = rows.filter(
+    (r) => r.statusClass === 'unrecognised',
+  ).length;
 
   return json({
     event: {
@@ -78,8 +74,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     },
     total: rows.length,
     totalVisible,
-    totalHidden,
-    statusCounts,
+    totalHidden: rows.length - totalVisible,
+    totalUnrecognised,
     participations: rows,
   });
 };
