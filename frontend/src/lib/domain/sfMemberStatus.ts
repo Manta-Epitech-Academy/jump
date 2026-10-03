@@ -73,6 +73,15 @@ export const visibleParticipationWhere = {
 } satisfies Prisma.ParticipationWhereInput;
 
 /**
+ * The participations the dev workspace masks: the exact complement of
+ * `visibleParticipationWhere`, so the two sides of the rule cannot drift apart.
+ * A masked enrolment is still synced and stored; only the dev space hides it.
+ */
+export const hiddenParticipationWhere = {
+  NOT: visibleParticipationWhere,
+} satisfies Prisma.ParticipationWhereInput;
+
+/**
  * The same cohort rule in French, for the figures that travel with their own
  * definition (`adminApi/metrics.ts`, the weekly digest).
  *
@@ -82,12 +91,29 @@ export const visibleParticipationWhere = {
  * column existed. A definition that undersells what it counts is worse than no
  * definition, since it gets quoted verbatim to an admin.
  *
+ * It names the dev space, never Jump, and says where the others are. It used to
+ * read « visibles dans Jump », which a model relayed as « this event has 2
+ * enrolments » for an event holding 5: the 3 masked ones are in Jump all the
+ * same, synced and open to an admin. Only the dev space leaves them out.
+ *
  * Reads as a clause, so a definition can compose it: "Participations aux
  * événements du périmètre, ${VISIBLE_PARTICIPATION_DEFINITION}."
  */
 export const VISIBLE_PARTICIPATION_DEFINITION =
-  'en ne comptant que les inscriptions visibles dans Jump (statut Salesforce ' +
-  `${SF_STATUS_CONFIRMED} ou ${SF_STATUS_ATTENDED}, plus les inscriptions importées avant l'ajout du statut)`;
+  "en ne comptant que les inscriptions affichées dans l'espace dev " +
+  `(statut Salesforce ${SF_STATUS_CONFIRMED} ou ${SF_STATUS_ATTENDED}, plus les inscriptions importées avant l'ajout du statut) ; ` +
+  "les autres sont bien synchronisées et enregistrées dans Jump, seul l'espace dev les masque";
+
+/**
+ * What the masked side counts, in French, for the figure that reports it next
+ * to a dev-space count. Opens on its noun so a definition can lead into it:
+ * "« hiddenFromDevSpace » compte les ${HIDDEN_PARTICIPATION_DEFINITION}".
+ */
+export const HIDDEN_PARTICIPATION_DEFINITION =
+  "inscriptions synchronisées depuis Salesforce et enregistrées dans Jump, mais masquées de l'espace dev par leur statut Salesforce " +
+  `(${SF_HIDDEN_STATUSES.join(', ')}, ou un statut que Jump ne connaît pas). ` +
+  "Les admins les consultent dans « Membres Salesforce », sur la page Événements de l'espace admin. " +
+  "Elles s'ajoutent aux inscriptions affichées dans l'espace dev : la somme des deux est ce que Jump a reçu de Salesforce pour cet événement.";
 
 /**
  * What the dev space does with a stored status, and why.

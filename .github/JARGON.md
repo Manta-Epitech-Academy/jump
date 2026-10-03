@@ -45,9 +45,11 @@ They are **never** exposed raw in the UI: they map to French domain labels.
 | ------------------ | --------------------------------------------------------------------- | ---------------------------------------------------- |
 | `READY`            | Talent confirmed attendance                                           | Visible in dev workspace. For past events: *Absent* (confirmed but did not show up) |
 | `MET`              | Talent attended the event                                             | Visible in dev workspace. For past events: *Présent* |
-| `CONNECTED`        | Talent clicked Salesforce link but did not confirm                    | **Not visible** in dev workspace. Retained in DB for debugging. |
-| `DESISTED`         | Talent explicitly withdrew                                            | **Not visible** in dev workspace. Retained in DB for debugging. |
+| `CONNECTED`        | Talent clicked Salesforce link but did not confirm                    | **Not visible** in dev workspace. Still synced and stored in Jump, open to admins in « Membres Salesforce ». |
+| `DESISTED`         | Talent explicitly withdrew                                            | **Not visible** in dev workspace. Still synced and stored in Jump, open to admins in « Membres Salesforce ». |
 | `null` (legacy)    | Row synced prior to `sfMemberStatus` field introduction               | Treated as visible (preserves historical behavior)  |
+
+A masked enrolment is never missing from Jump: only the dev workspace leaves it out. Say "affichée dans l'espace dev" for the shown count, never "dans Jump", and give the masked count beside it when an answer has one.
 
 Source of truth in code: `frontend/src/lib/domain/sfMemberStatus.ts`.
 

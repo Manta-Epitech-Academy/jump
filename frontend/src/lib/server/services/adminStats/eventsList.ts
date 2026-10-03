@@ -33,11 +33,14 @@ import {
 } from '$lib/domain/eventReadiness';
 import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
 import type { EventModuleKey } from '$lib/domain/eventModules';
-import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
+import {
+  HIDDEN_PARTICIPATION_DEFINITION,
+  VISIBLE_PARTICIPATION_DEFINITION,
+} from '$lib/domain/sfMemberStatus';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
 import type { AdminEventVM } from '$lib/server/services/events';
-import { scopedEvents } from './cohort';
+import { hiddenEnrolmentsByEvent, scopedEvents } from './cohort';
 
 /** Hard cap on the returned list, whatever the filters. */
 export const EVENTS_LIST_LIMIT = 100;
@@ -82,6 +85,8 @@ export type EventConfigRow = EventIdentity & {
   missing: string[];
   /** What actually stops it from being made visible. Empty = nothing does. */
   activationBlockers: string[];
+  /** Synced into Jump but masked from the dev space, beside `participants`. */
+  hiddenFromDevSpace: number;
 };
 
 export type EventsList<Row> = {
@@ -152,6 +157,7 @@ export async function getEventsConfigList(
   params: EventsListParams = {},
 ): Promise<EventsList<EventConfigRow>> {
   const { matching, page } = await selectEvents(scope, params);
+  const hidden = await hiddenEnrolmentsByEvent(page.map((event) => event.id));
 
   return {
     filters: labels(scope, params),
@@ -166,8 +172,9 @@ export async function getEventsConfigList(
         feedbackFormId: event.feedbackFormId || null,
         missing: eventMissingConfig(event),
         activationBlockers: activationBlockers(event),
+        hiddenFromDevSpace: hidden.get(event.id) ?? 0,
       })),
-      `${IDENTITY_DEFINITION} « configState » est l'état affiché par la page Événements de l'espace admin : unconfigured (aucune section activée), ready (configuré mais masqué) ou shown (visible dans l'espace dev). « missing » liste ce qui n'est pas renseigné, y compris ce qui n'empêche rien ; « activationBlockers » liste ce qui empêche vraiment de le rendre visible, et une liste vide veut dire qu'un simple basculement suffit. « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION}. Limité à ${EVENTS_LIST_LIMIT} lignes.`,
+      `${IDENTITY_DEFINITION} « configState » est l'état affiché par la page Événements de l'espace admin : unconfigured (aucune section activée), ready (configuré mais masqué) ou shown (visible dans l'espace dev). « missing » liste ce qui n'est pas renseigné, y compris ce qui n'empêche rien ; « activationBlockers » liste ce qui empêche vraiment de le rendre visible, et une liste vide veut dire qu'un simple basculement suffit. « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION}. « hiddenFromDevSpace » compte les ${HIDDEN_PARTICIPATION_DEFINITION} Limité à ${EVENTS_LIST_LIMIT} lignes.`,
     ),
     truncated: matching.length > EVENTS_LIST_LIMIT,
   };

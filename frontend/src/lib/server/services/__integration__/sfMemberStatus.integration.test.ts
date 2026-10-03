@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { syncParticipations, syncTalents } from '../syncService';
-import { isVisibleInDevSpace } from '$lib/domain/sfMemberStatus';
+import {
+  isVisibleInDevSpace,
+  visibleParticipationWhere,
+} from '$lib/domain/sfMemberStatus';
+import { hiddenEnrolmentsByEvent } from '$lib/server/services/adminStats/cohort';
 import { assertTestDatabase } from './testDatabase';
 
 describe('Salesforce member status sync (integration)', () => {
@@ -20,10 +24,10 @@ describe('Salesforce member status sync (integration)', () => {
       email: `jean.ready.${stamp}@example.test`,
     },
     {
-      external_id: `test_meet_${stamp}`,
+      external_id: `test_met_${stamp}`,
       first_name: 'Claire',
-      last_name: 'Meet',
-      email: `claire.meet.${stamp}@example.test`,
+      last_name: 'Met',
+      email: `claire.met.${stamp}@example.test`,
     },
     {
       external_id: `test_connected_${stamp}`,
@@ -172,5 +176,41 @@ describe('Salesforce member status sync (integration)', () => {
     );
     expect(pruned).toMatchObject({ removed: 2 });
     expect((await statusByExtId()).size).toBe(2);
+  });
+
+  // The masked count is reported beside every dev-space count (#368), so the
+  // two where-fragments must split an event's rows exactly. A null status is
+  // the trap: in SQL, NOT (status IN (...) OR status IS NULL) only stays right
+  // if Prisma keeps the IS NULL branch, and a legacy row counted on both sides
+  // or neither would make the two figures disagree with what Jump holds.
+  it('splits every enrolment into shown or masked, legacy and unknown words included', async () => {
+    await syncParticipations(
+      eventExternalId,
+      {
+        [talents[0].external_id]: 'MET',
+        [talents[1].external_id]: 'DESISTED',
+        // The seminar's word, which Salesforce never sends: unknown, so masked.
+        [talents[2].external_id]: 'MEET',
+        [talents[3].external_id]: 'READY',
+      },
+      'full',
+    );
+    // A legacy row, synced before the column existed.
+    await prisma.participation.updateMany({
+      where: { eventId, talent: { externalId: talents[3].external_id } },
+      data: { sfMemberStatus: null },
+    });
+
+    const [total, shown, hidden] = await Promise.all([
+      prisma.participation.count({ where: { eventId } }),
+      prisma.participation.count({
+        where: { eventId, ...visibleParticipationWhere },
+      }),
+      hiddenEnrolmentsByEvent([eventId]),
+    ]);
+
+    expect(total).toBe(4);
+    expect(shown).toBe(2);
+    expect(hidden.get(eventId)).toBe(2);
   });
 });

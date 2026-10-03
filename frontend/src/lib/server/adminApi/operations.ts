@@ -482,7 +482,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   config_events: defineOperation({
-    description: `Every event of a périmètre, one row each: its id, its public and Salesforce names, its campus, its dates, how many people are enrolled, which dev-workspace sections are on, the feedback form attached to it, its configuration state, and both what is still unset and what actually stops it from being made visible. This is where an event id comes from. Filter by campus, school year, point of life or configuration state. Capped at ${EVENTS_LIST_LIMIT} rows; "truncated" tells you whether the cap was reached.`,
+    description: `Every event of a périmètre, one row each: its id, its public and Salesforce names, its campus, its dates, how many enrolments the dev workspace shows and how many Jump holds but masks there, which dev-workspace sections are on, the feedback form attached to it, its configuration state, and both what is still unset and what actually stops it from being made visible. This is where an event id comes from. Filter by campus, school year, point of life or configuration state. Capped at ${EVENTS_LIST_LIMIT} rows; "truncated" tells you whether the cap was reached.`,
     shape: {
       schoolYear,
       campus,
@@ -530,7 +530,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_event_detail: defineOperation({
     description:
-      'Everything configured on one event: its Salesforce and public names, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form attached to it, and how many people are enrolled.',
+      'Everything configured on one event: its Salesforce and public names, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form attached to it, and how many enrolments the dev workspace shows and how many Jump holds but masks there.',
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },
