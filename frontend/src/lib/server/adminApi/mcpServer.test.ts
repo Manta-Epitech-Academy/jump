@@ -208,6 +208,7 @@ describe('the standing instructions', () => {
       const instructions = adminMcpInstructions(tier);
       expect(instructions).toMatch(/Jump stores every enrolment/);
       expect(instructions).toContain('hiddenFromDevSpace');
+      expect(instructions).toContain('syncedEnrolments');
     }
   });
 

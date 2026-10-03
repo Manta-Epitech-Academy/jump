@@ -64,9 +64,10 @@ beforeEach(() => {
 
 describe('getEventsConfigList', () => {
   // `participants` is the dev-space count. Reported alone, it read as "this
-  // event has 2 enrolments" for one holding 5 (#368): the masked side travels
-  // beside it, and an event with none masked says 0 rather than nothing.
-  it('reports the enrolments Jump holds but the dev space masks', async () => {
+  // event has 2 enrolments" for one holding 5 (#368): the masked side and the
+  // total Jump holds travel beside it, both computed here rather than left to
+  // the consumer, and an event with none masked says 0 rather than nothing.
+  it('reports the enrolments Jump holds, and how many the dev space masks', async () => {
     listAdminEvents.mockResolvedValue([
       event({ id: 'nancy', participations: 2 }),
       event({ id: 'lille', participations: 7 }),
@@ -78,10 +79,15 @@ describe('getEventsConfigList', () => {
     const rows = (await getEventsConfigList()).list.value;
 
     expect(
-      rows.map((r) => [r.eventId, r.participants, r.hiddenFromDevSpace]),
+      rows.map((r) => [
+        r.eventId,
+        r.participants,
+        r.hiddenFromDevSpace,
+        r.syncedEnrolments,
+      ]),
     ).toEqual([
-      ['nancy', 2, 3],
-      ['lille', 7, 0],
+      ['nancy', 2, 3, 5],
+      ['lille', 7, 0, 7],
     ]);
   });
 

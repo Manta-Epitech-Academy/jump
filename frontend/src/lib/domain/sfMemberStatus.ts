@@ -112,8 +112,18 @@ export const VISIBLE_PARTICIPATION_DEFINITION =
 export const HIDDEN_PARTICIPATION_DEFINITION =
   "inscriptions synchronisées depuis Salesforce et enregistrées dans Jump, mais masquées de l'espace dev par leur statut Salesforce " +
   `(${SF_HIDDEN_STATUSES.join(', ')}, ou un statut que Jump ne connaît pas). ` +
-  "Les admins les consultent dans « Membres Salesforce », sur la page Événements de l'espace admin. " +
-  "Elles s'ajoutent aux inscriptions affichées dans l'espace dev : la somme des deux est ce que Jump a reçu de Salesforce pour cet événement.";
+  "Les admins les consultent dans « Membres Salesforce », sur la page Événements de l'espace admin.";
+
+/**
+ * What Jump holds for an event whatever the status, in French, for the figure
+ * returned beside the shown and masked counts. Returned rather than described as
+ * the sum of the other two: a definition that tells its reader to add two
+ * figures leaves the one actually quoted to be computed downstream. Opens on its
+ * noun, like {@link HIDDEN_PARTICIPATION_DEFINITION}.
+ */
+export const SYNCED_PARTICIPATION_DEFINITION =
+  'inscriptions synchronisées depuis Salesforce et enregistrées dans Jump, quel que soit leur statut Salesforce : ' +
+  "celles que l'espace dev affiche comme celles qu'il masque.";
 
 /**
  * What the dev space does with a stored status, and why.

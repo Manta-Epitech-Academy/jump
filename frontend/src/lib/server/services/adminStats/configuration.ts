@@ -31,6 +31,7 @@ import {
 import { getStaffRoleLabel } from '$lib/domain/staff';
 import {
   HIDDEN_PARTICIPATION_DEFINITION,
+  SYNCED_PARTICIPATION_DEFINITION,
   VISIBLE_PARTICIPATION_DEFINITION,
 } from '$lib/domain/sfMemberStatus';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
@@ -180,6 +181,7 @@ export type EventDetail = {
   } | null>;
   participants: Metric;
   hiddenFromDevSpace: Metric;
+  syncedEnrolments: Metric;
 };
 
 export async function getEventDetail(eventId: string): Promise<EventDetail> {
@@ -205,7 +207,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
       })
     : null;
 
-  const hidden = await hiddenEnrolmentsByEvent([event.id]);
+  const hidden = (await hiddenEnrolmentsByEvent([event.id])).get(event.id) ?? 0;
 
   return {
     event: metric(
@@ -264,8 +266,12 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
       `Inscriptions à cet événement, ${VISIBLE_PARTICIPATION_DEFINITION}.`,
     ),
     hiddenFromDevSpace: metric(
-      hidden.get(event.id) ?? 0,
+      hidden,
       `Nombre d'${HIDDEN_PARTICIPATION_DEFINITION}`,
+    ),
+    syncedEnrolments: metric(
+      event.participations + hidden,
+      `Nombre d'${SYNCED_PARTICIPATION_DEFINITION}`,
     ),
   };
 }
