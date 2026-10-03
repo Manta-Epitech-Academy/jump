@@ -129,6 +129,17 @@ export const HIDDEN_PARTICIPATION_DEFINITION =
  */
 export type SfStatusClass = 'shown' | 'hidden' | 'unrecognised' | 'missing';
 
+/**
+ * What each class means for an enrolment, in French, worded around the dev space
+ * and never around Jump: every one of these enrolments is in Jump.
+ */
+export const SF_STATUS_CLASS_LABELS: Record<SfStatusClass, string> = {
+  shown: "affichée dans l'espace dev",
+  hidden: "masquée de l'espace dev",
+  unrecognised: "statut inconnu de Jump, masquée de l'espace dev",
+  missing: "sans statut, affichée dans l'espace dev",
+};
+
 export function classifySfStatus(status: string | null): SfStatusClass {
   const normalized = normalizeSfStatus(status);
   if (normalized === null) return 'missing';

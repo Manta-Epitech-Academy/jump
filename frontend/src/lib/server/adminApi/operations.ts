@@ -500,7 +500,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_sync_health: defineOperation({
     description:
-      'Whether Salesforce is still feeding Jump: when each pass last succeeded and how old that is, the configured cadences, what the worker will do next, whether one is running, how many sync errors are waiting, their breakdown by kind, and the age of the oldest. The two passes are reported apart because only the full one detects a deletion in Salesforce. Takes no parameter.',
+      'Whether Salesforce is still feeding Jump: when each pass last succeeded and how old that is, the configured cadences, what the worker will do next, whether one is running, how many sync errors are waiting, their breakdown by kind, and the age of the oldest, and every Salesforce member status Jump holds with what the dev workspace does with it, naming the events that carry a status Jump does not know. The two passes are reported apart because only the full one detects a deletion in Salesforce. Takes no parameter.',
     shape: {},
     run: () => getSyncHealth(),
   }),

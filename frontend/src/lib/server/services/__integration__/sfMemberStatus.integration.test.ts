@@ -6,6 +6,7 @@ import {
   visibleParticipationWhere,
 } from '$lib/domain/sfMemberStatus';
 import { hiddenEnrolmentsByEvent } from '$lib/server/services/adminStats/cohort';
+import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
 import { assertTestDatabase } from './testDatabase';
 
 describe('Salesforce member status sync (integration)', () => {
@@ -212,5 +213,16 @@ describe('Salesforce member status sync (integration)', () => {
     expect(total).toBe(4);
     expect(shown).toBe(2);
     expect(hidden.get(eventId)).toBe(2);
+
+    // And the unknown word is reported rather than masked in silence: named in
+    // the status breakdown, located on this event (#368).
+    const health = await getSyncHealth();
+    expect(health.memberStatuses.value).toContainEqual(
+      expect.objectContaining({ status: 'MEET', devSpace: 'unrecognised' }),
+    );
+    expect(health.unrecognisedStatuses.value).toBeGreaterThanOrEqual(1);
+    expect(health.unrecognisedStatusEvents.value).toContainEqual(
+      expect.objectContaining({ eventId, count: 1, statuses: ['MEET'] }),
+    );
   });
 });

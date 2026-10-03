@@ -64,12 +64,36 @@ function eventStub(i: number): EventStub {
   };
 }
 
-function syncPayload(over: { unresolved?: number; prunesHeld?: number } = {}) {
+function syncPayload(
+  over: {
+    unresolved?: number;
+    prunesHeld?: number;
+    unrecognised?: number;
+  } = {},
+) {
+  const unrecognised = over.unrecognised ?? 0;
   return {
     unresolvedErrors: metric(over.unresolved ?? 0, 'def'),
     errorsByType: metric([], 'def'),
     oldestUnresolvedAgeDays: metric(null, 'def'),
     prunesHeldEvents: metric(over.prunesHeld ?? 0, 'def'),
+    unrecognisedStatuses: metric(unrecognised, 'def'),
+    unrecognisedStatusEvents: metric(
+      unrecognised > 0
+        ? [
+            {
+              eventId: 'evt',
+              event: 'Coding Club',
+              campus: 'Nancy',
+              date: '2026-09-30',
+              count: unrecognised,
+              statuses: ['ATTENDED'],
+            },
+          ]
+        : [],
+      'def',
+    ),
+    unrecognisedStatusEventsTruncated: false,
   };
 }
 
@@ -96,6 +120,9 @@ function neverSyncedPayload(unresolved = 0) {
     errorsByType: metric([], 'def'),
     oldestUnresolvedAgeDays: metric(null, 'def'),
     prunesHeldEvents: metric(0, 'def'),
+    unrecognisedStatuses: metric(0, 'def'),
+    unrecognisedStatusEvents: metric([], 'def'),
+    unrecognisedStatusEventsTruncated: false,
   };
 }
 
@@ -222,6 +249,7 @@ describe('buildAdminDigest', () => {
       eventsToPrepare: 1,
       unresolvedSyncErrors: 2,
       prunesHeldEvents: 0,
+      unrecognisedSfStatuses: 0,
       lastSyncAgeHours: 0.5,
       failedPdfJobs: 0,
       overdueDeletionRequests: 0,
@@ -246,6 +274,29 @@ describe('buildAdminDigest', () => {
     const quiet = await buildAdminDigest();
     expect(quiet.html).not.toContain('gardent des inscriptions');
     expect(quiet.text).not.toContain('faute de preuve');
+  });
+
+  // An unknown status masks an enrolment and fails nothing, which is how every
+  // attendee went missing from the dev space for a month (#368).
+  it('says when Salesforce sends a status Jump does not know', async () => {
+    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload({ unrecognised: 3 }));
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain(
+      '<strong>3</strong> inscriptions portent un statut Salesforce que Jump ne connaît pas, sur 1 événement',
+    );
+    expect(digest.html).toContain('stats_sync_health');
+    expect(digest.text).toContain("masquées de l'espace dev : 3");
+    expect(digest.summary.unrecognisedSfStatuses).toBe(3);
+
+    getSyncHealth.mockResolvedValue(syncPayload());
+    const quiet = await buildAdminDigest();
+    expect(quiet.html).not.toContain(
+      'statut Salesforce que Jump ne connaît pas',
+    );
+    expect(quiet.text).not.toContain('statut Salesforce inconnu');
   });
 
   it('names the stuck queues, and says so plainly when there are none', async () => {

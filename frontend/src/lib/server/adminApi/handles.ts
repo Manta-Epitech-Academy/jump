@@ -140,7 +140,7 @@ export const HANDLES: Record<HandleKind, Handle> = {
       {
         operation: 'stats_sync_health',
         covers:
-          'only events whose deletions the last full synchronisation pass held back (prunesHeld)',
+          'only events whose deletions the last full synchronisation pass held back (prunesHeld), or that hold an enrolment whose Salesforce status Jump does not know (unrecognisedStatusEvents)',
       },
     ],
   },

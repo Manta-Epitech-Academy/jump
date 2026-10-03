@@ -74,6 +74,7 @@ export type AdminDigest = {
     eventsToPrepare: number;
     unresolvedSyncErrors: number;
     prunesHeldEvents: number;
+    unrecognisedSfStatuses: number;
     lastSyncAgeHours: number | null;
     failedPdfJobs: number;
     overdueDeletionRequests: number;
@@ -128,6 +129,8 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
   const last = freshness.value;
   const unresolvedErrors = sync.unresolvedErrors.value;
   const prunesHeld = sync.prunesHeldEvents.value;
+  const unrecognisedStatuses = sync.unrecognisedStatuses.value;
+  const unrecognisedEvents = sync.unrecognisedStatusEvents.value.length;
 
   const eventRows = listed
     .map(
@@ -194,11 +197,20 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
       ? `<strong>${prunesHeld}</strong> ${plural(prunesHeld, 'événement garde', 'événements gardent')} des inscriptions qu'une reprise complète n'a pas pu confirmer comme retirées de Salesforce, et rien n'y est supprimé sans preuve. Des membres non rattachés se traitent sur ${link(syncErrorsUrl, 'la page dédiée')} ; une campagne réellement vidée se confirme par l'API d'administration.`
       : '';
 
+  // Same reason as the held prunes: a status Jump does not know fails nothing,
+  // it only masks the enrolment from the dev space, and that is how every
+  // attendee went missing for a month before anyone saw it (#368).
+  const unrecognisedStatusesLine =
+    unrecognisedStatuses > 0
+      ? `<strong>${unrecognisedStatuses}</strong> ${plural(unrecognisedStatuses, 'inscription porte', 'inscriptions portent')} un statut Salesforce que Jump ne connaît pas, sur ${unrecognisedEvents}${sync.unrecognisedStatusEventsTruncated ? ' événements ou plus' : ` ${plural(unrecognisedEvents, 'événement', 'événements')}`} : ${plural(unrecognisedStatuses, 'elle est bien dans Jump mais masquée', 'elles sont bien dans Jump mais masquées')} de l'espace dev. Les statuts reçus et les événements concernés se lisent par l'API d'administration (stats_sync_health).`
+      : '';
+
   const syncSection = `
     <p style="margin:0 0 8px;">
       ${syncStateLine}
       ${syncErrorsLine}
       ${prunesHeldLine}
+      ${unrecognisedStatusesLine}
     </p>`;
 
   // Two queues nothing else chases. A failed document means a talent has no
@@ -339,6 +351,9 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
     prunesHeld > 0
       ? `Événements dont une reprise complète a conservé des inscriptions faute de preuve : ${prunesHeld}`
       : '',
+    unrecognisedStatuses > 0
+      ? `Inscriptions à un statut Salesforce inconnu de Jump, masquées de l'espace dev : ${unrecognisedStatuses}`
+      : '',
   ].filter(Boolean);
 
   return {
@@ -349,6 +364,7 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
       eventsToPrepare: toPrepare,
       unresolvedSyncErrors: unresolvedErrors,
       prunesHeldEvents: prunesHeld,
+      unrecognisedSfStatuses: unrecognisedStatuses,
       lastSyncAgeHours: last?.ageHours ?? null,
       failedPdfJobs,
       overdueDeletionRequests: overdueDeletions,
