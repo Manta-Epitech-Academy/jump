@@ -107,44 +107,26 @@
     });
   });
 
-  const STATUS_BADGE: Record<string, { class: string; label: string }> = {
-    READY: {
-      class: 'bg-success/10 text-success border-success/25',
-      label: 'Ready',
-    },
-    MET: {
-      class: 'bg-epi-tech/10 text-epi-tech-ink border-epi-tech/25',
-      label: 'Met',
-    },
-    CONNECTED: {
-      class: 'bg-warning/10 text-warning border-warning/25',
-      label: 'Connected',
-    },
-    DESISTED: {
-      class: 'bg-destructive/10 text-destructive border-destructive/25',
-      label: 'Desisted',
-    },
+  // Styled by what the dev space does with the word on THIS event, never by the
+  // word itself: which words are shown is set per event, so a colour per word
+  // would paint CONNECTED as masked on the Coding Club that shows it.
+  const STATUS_CLASS_BADGE: Record<SfStatusClass, string> = {
+    shown: 'bg-success/10 text-success border-success/25',
+    hidden: 'bg-secondary text-secondary-foreground',
+    // A word Jump does not know gets a tone of its own: a neutral badge here is
+    // how `MET` read as one more status for a month.
+    unrecognised: 'border-dashed bg-warning/10 text-warning border-warning/40',
+    missing: 'bg-muted text-muted-foreground',
   };
 
   function statusBadge(row: ParticipationRow) {
-    if (row.statusClass === 'missing')
-      return {
-        class: 'bg-muted text-muted-foreground',
-        label: 'Non renseigné',
-      };
-    // A word Jump does not know is shown as it arrived, in a tone of its own:
-    // a neutral badge here is how `MET` read as one more status for a month.
-    if (row.statusClass === 'unrecognised')
-      return {
-        class: 'border-dashed bg-warning/10 text-warning border-warning/40',
-        label: row.sfMemberStatus ?? '',
-      };
-    return (
-      STATUS_BADGE[row.sfMemberStatus?.toUpperCase() ?? ''] ?? {
-        class: 'bg-secondary text-secondary-foreground',
-        label: row.sfMemberStatus ?? '',
-      }
-    );
+    return {
+      class: STATUS_CLASS_BADGE[row.statusClass],
+      label:
+        row.statusClass === 'missing'
+          ? 'Non renseigné'
+          : (row.sfMemberStatus ?? ''),
+    };
   }
 </script>
 
@@ -288,7 +270,7 @@
                         {#if row.statusClass === 'unrecognised'}
                           <InfoTooltip
                             label="Statut inconnu de Jump"
-                            text="Statut Salesforce que Jump ne connaît pas : l'inscription est masquée de l'espace dev par prudence. Salesforce a peut-être ajouté ou renommé un statut ; l'afficher demande une évolution de Jump."
+                            text="Statut Salesforce que Jump ne connaît pas encore : l'inscription est masquée de l'espace dev par prudence. Salesforce a peut-être ajouté ou renommé un statut. Une fois ajouté au catalogue des statuts par l'API d'administration, il peut être affiché depuis la configuration de l'événement."
                           />
                         {/if}
                       </span>
