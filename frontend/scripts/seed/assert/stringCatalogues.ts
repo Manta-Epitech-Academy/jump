@@ -39,8 +39,7 @@ import {
   CHOICE_TONES,
   CHOICE_ICON_TOKENS,
 } from '../../../src/lib/domain/closing';
-import { SF_MEMBER_STATUSES } from '../../../src/lib/domain/sfMemberStatus';
-import { UNRECOGNISED_SF_STATUS_SAMPLE } from '../world';
+import { SF_STATUSES, UNRECOGNISED_SF_STATUS_SAMPLE } from '../world';
 import { INTEREST_KINDS } from '../../../src/lib/domain/interests';
 import {
   REGLEMENT_VERSIONS,
@@ -92,7 +91,10 @@ const CATALOGUES: readonly Catalogue[] = [
     // Plus the one word the generator places on purpose so the "unknown
     // status" report has something to report. Declared here by name, so any
     // other stray value still fails.
-    values: () => [...SF_MEMBER_STATUSES, UNRECOGNISED_SF_STATUS_SAMPLE],
+    values: () => [
+      ...Object.values(SF_STATUSES),
+      UNRECOGNISED_SF_STATUS_SAMPLE,
+    ],
     requireEveryValue: true,
   },
   {

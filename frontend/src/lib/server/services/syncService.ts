@@ -10,7 +10,14 @@ import {
   changeUserEmail,
   EmailChangeConflict,
 } from '$lib/server/services/userEmail';
-import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
+import {
+  isShownInDevSpace,
+  normalizeSfStatus,
+} from '$lib/domain/sfMemberStatus';
+import {
+  defaultShownStatuses,
+  shownStatusesByEvent,
+} from '$lib/server/services/devSpaceVisibility';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
 import type {
@@ -91,6 +98,8 @@ export async function syncEvents(events: WorkerEvent[]) {
   let updated = 0;
   let skipped = 0;
   const unresolvedCampuses = new Set<string>();
+  // Read lazily, once per push: most pushes create no event at all.
+  let shownByDefault: string[] | undefined;
 
   for (const e of events) {
     const campusId = campusIdByExternalName.get(e.campus_ext_name);
@@ -109,11 +118,13 @@ export async function syncEvents(events: WorkerEvent[]) {
     });
 
     if (!existing) {
-      // Seed the per-event modules once, at creation. After this the rows are
-      // Jump-owned: the update branch never touches them, so the dev team's
-      // per-event surface config is never clobbered. Everything else (window,
-      // welcome, feedback form) stays unset until an admin configures the event
-      // from the config wizard - a synced event lands hidden and single-day.
+      // Seed the per-event modules and the shown Salesforce statuses once, at
+      // creation. After this the rows are Jump-owned: the update branch never
+      // touches them, so the dev team's per-event config is never clobbered.
+      // Everything else (window, welcome, feedback form) stays unset until an
+      // admin configures the event from the config wizard - a synced event
+      // lands hidden and single-day.
+      shownByDefault ??= await defaultShownStatuses();
       await prisma.event.create({
         data: {
           externalId: e.external_id,
@@ -122,6 +133,9 @@ export async function syncEvents(events: WorkerEvent[]) {
           campusId,
           modules: {
             create: defaultEventModules().map((moduleKey) => ({ moduleKey })),
+          },
+          shownStatuses: {
+            create: shownByDefault.map((status) => ({ status })),
           },
         },
       });
@@ -628,6 +642,10 @@ export async function syncParticipations(
     where: { externalId: { in: externalIds } },
     select: { id: true, externalId: true },
   });
+  // Read once per roster: what this event shows decides each row's projection,
+  // written in the same statement as the status it derives from.
+  const shown =
+    (await shownStatusesByEvent([event.id])).get(event.id) ?? new Set();
   const talentIdByExternalId = new Map(
     known.map((t) => [t.externalId as string, t.id]),
   );
@@ -644,6 +662,7 @@ export async function syncParticipations(
     }
 
     const sfMemberStatus = normalizeSfStatus(rawStatus);
+    const shownInDevSpace = isShownInDevSpace(sfMemberStatus, shown);
     await prisma.participation.upsert({
       where: { talentId_eventId: { talentId, eventId: event.id } },
       create: {
@@ -651,8 +670,9 @@ export async function syncParticipations(
         eventId: event.id,
         campusId: event.campusId,
         sfMemberStatus,
+        shownInDevSpace,
       },
-      update: { sfMemberStatus },
+      update: { sfMemberStatus, shownInDevSpace },
     });
     presentTalentIds.push(talentId);
     upserted++;

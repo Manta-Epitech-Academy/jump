@@ -869,6 +869,7 @@ model Event {
   feedbackSubmissions Feedback_Submission[]
   talentNotes         Note_TalentNote[]
   modules             EventConfig_Module[]
+  shownStatuses       EventConfig_ShownStatus[]
   workshops           EventConfig_Workshop[]
   workshopEntries     Workshop_Participation[]
   syncPruneHold       Sync_PruneHold?
@@ -909,6 +910,30 @@ model EventConfig_Module {
 
   @@id([eventId, moduleKey])
   @@index([moduleKey])
+}
+
+/// One Salesforce member status the dev space shows for this event. A row's mere
+/// presence = shown, exactly like `EventConfig_Module`: a status the event names
+/// no row for is masked from the dev space (still synced, still in Jump, open to
+/// an admin in « Membres Salesforce »).
+///
+/// Per event, because what the dev team wants to see differs by format: a Coding
+/// Club shows the members Salesforce leaves at CONNECTED, a stage does not. Seeded
+/// at creation from the catalogue's `shownByDefault` words, copied from a template
+/// at a point in time, and Jump-owned afterwards: the sync never writes it.
+///
+/// `Participation.shownInDevSpace` is its projection, recomputed in the same
+/// transaction as any change here (`services/devSpaceVisibility.ts`).
+model EventConfig_ShownStatus {
+  eventId String
+  /// Bound to the catalogue, so an event can only show a word Jump knows.
+  status  String
+
+  event      Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  definition Sync_MemberStatus @relation(fields: [status], references: [status], onDelete: Restrict)
+
+  @@id([eventId, status])
+  @@index([status])
 }
 
 // A reusable, named event-configuration preset (global), created by staff from
@@ -953,6 +978,7 @@ model EventConfig_Template {
   closingTemplate Closing_Template?            @relation("EventConfigTemplateClosingTemplate", fields: [closingTemplateId], references: [id], onDelete: Restrict)
   createdBy       StaffProfile?                @relation("EventConfigTemplateCreator", fields: [createdById], references: [id], onDelete: SetNull)
   modules         EventConfig_TemplateModule[]
+  shownStatuses   EventConfig_TemplateShownStatus[]
 
   @@index([feedbackFormId])
   @@index([diplomaTemplateId])
@@ -969,6 +995,19 @@ model EventConfig_TemplateModule {
   template EventConfig_Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@id([templateId, moduleKey])
+}
+
+/// Mirror of `EventConfig_ShownStatus` on the template side, so a preset carries
+/// which Salesforce statuses the dev space shows and applying it is a row copy.
+model EventConfig_TemplateShownStatus {
+  templateId String
+  status     String
+
+  template   EventConfig_Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  definition Sync_MemberStatus    @relation(fields: [status], references: [status], onDelete: Restrict)
+
+  @@id([templateId, status])
+  @@index([status])
 }
 
 /// A certificate Jump can issue at the end of an event: the internship
@@ -1032,6 +1071,15 @@ model Participation {
   eventId        String
   campusId       String
   sfMemberStatus String? // raw Salesforce CampaignMember status, e.g. CONNECTED/READY/MET/DESISTED
+  /// Whether the dev space shows this enrolment: a cached projection of
+  /// `sfMemberStatus` against the event's `EventConfig_ShownStatus` rows, true
+  /// when there is no status at all (a row synced before the column existed; the
+  /// migration's CHECK holds that half). Stored rather than computed because a
+  /// Prisma `where` cannot compare a column with another table's rows, and every
+  /// dev count, list and aggregate filters on it (`visibleParticipationWhere`).
+  /// Written only through `services/devSpaceVisibility.ts` and the sync, in the
+  /// same statement or transaction as whatever it derives from.
+  shownInDevSpace Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1047,6 +1095,7 @@ model Participation {
   @@unique([talentId, eventId])
   @@index([eventId])
   @@index([eventId, sfMemberStatus])
+  @@index([eventId, shownInDevSpace])
   @@index([campusId])
   @@index([talentId])
   @@index([talentId, campusId])
@@ -1839,6 +1888,31 @@ model Sync_PruneHold {
 model Sync_Request {
   mode        SyncMode @id
   requestedAt DateTime
+}
+
+/// A Salesforce `CampaignMember` status Jump knows: the vocabulary, not what any
+/// one event does with it. Normalised (trimmed, upper case) like
+/// `Participation.sfMemberStatus`.
+///
+/// Data, not code, because the vocabulary is Salesforce's and moves without a
+/// release: a campus invents a status, the head office renames one for every
+/// campus. `write_sync_member_status` adds or edits a word; there is no delete,
+/// since events and templates reference it and a retired word still names what
+/// old enrolments carry.
+///
+/// A word absent from here is unrecognised: masked from the dev space on every
+/// event and reported by `stats_sync_health` and the weekly digest, which is how a
+/// new word is noticed rather than hidden in silence. `shownByDefault` is what a
+/// newly created event starts showing (`EventConfig_ShownStatus`), copied once.
+/// The four words Salesforce sent at the time ship with the migration.
+model Sync_MemberStatus {
+  status         String   @id
+  shownByDefault Boolean
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  events    EventConfig_ShownStatus[]
+  templates EventConfig_TemplateShownStatus[]
 }
 
 // A signatory whose handwritten signature is printed on the internship

@@ -119,6 +119,9 @@ export async function seedE2eData(): Promise<void> {
       campusId: E2E.campusId,
       devActivatedAt: now,
       modules: { create: { moduleKey: EVENT_MODULES.EMARGEMENT } },
+      // What the dev space shows, as the worker gives a new event: the READY
+      // members below are on the roster because this row says so.
+      shownStatuses: { create: [{ status: 'READY' }, { status: 'MET' }] },
       workshops: {
         create: {
           instanceId: E2E.workshopInstanceId,

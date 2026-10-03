@@ -29,6 +29,7 @@ import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { addMinigamePublications, addXpRewards } from '../factories/engagement';
 import { addAdminApiTokens, addInvitations } from '../factories/operations';
 import { id, seq } from '../ids';
+import { DEFAULT_SHOWN_STATUSES, SF_STATUSES } from '../world';
 import type { Scenario } from './types';
 
 export const platform: Scenario = {
@@ -252,6 +253,20 @@ export const platform: Scenario = {
             preset.name === 'Stage de seconde'
               ? { showStatutColumn: true }
               : undefined,
+        });
+      }
+      // The Salesforce statuses the preset shows, copied onto an event with the
+      // rest. The Coding Club one also shows CONNECTED, because that is the
+      // format whose members Salesforce leaves at CONNECTED and the team still
+      // wants to see; the stage does not.
+      const shown =
+        preset.name === 'Coding Club'
+          ? [...DEFAULT_SHOWN_STATUSES, SF_STATUSES.connected]
+          : DEFAULT_SHOWN_STATUSES;
+      for (const status of shown) {
+        world.buffer.eventConfig_TemplateShownStatus.push({
+          templateId,
+          status,
         });
       }
     }

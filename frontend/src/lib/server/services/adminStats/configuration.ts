@@ -179,6 +179,7 @@ export type EventDetail = {
     code: string;
     label: string;
   } | null>;
+  shownStatuses: Metric<string[]>;
   participants: Metric;
   hiddenFromDevSpace: Metric;
   syncedEnrolments: Metric;
@@ -260,6 +261,10 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
           }
         : null,
       "Le certificat que cet événement délivre depuis la page Inscrits, une page par inscrit, ou null s'il n'en délivre aucun : le bouton de génération est alors absent. « templateId » est l'identifiant à passer à write_event_diploma_template.",
+    ),
+    shownStatuses: metric(
+      event.shownStatuses,
+      "Les statuts Salesforce dont l'espace dev affiche les inscriptions sur cet événement. Les inscriptions aux autres statuts restent synchronisées et enregistrées dans Jump, seul l'espace dev les masque ; celles sans statut sont toujours affichées. Se règle avec write_event_config (« shownStatuses »).",
     ),
     participants: metric(
       event.participations,
@@ -415,6 +420,7 @@ export type TemplateRow = {
   startTime: string;
   modules: EventModuleKey[];
   feedbackFormId: string | null;
+  shownStatuses: string[];
 };
 
 export type EventTemplates = { templates: Metric<TemplateRow[]> };
@@ -432,6 +438,7 @@ export async function getEventTemplates(): Promise<EventTemplates> {
         startTime: template.startTime,
         modules: template.modules,
         feedbackFormId: template.feedbackFormId,
+        shownStatuses: template.shownStatuses,
       })),
       "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie.",
     ),

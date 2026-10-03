@@ -22,6 +22,7 @@ import {
 } from '$lib/domain/eventReadiness';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import { setEventShownStatuses } from '$lib/server/services/devSpaceVisibility';
 
 /**
  * The per-event view model the admin surfaces consume: the events cockpit
@@ -82,6 +83,8 @@ export type AdminEventVM = {
   diplomaTemplateId: string;
   /** The closing grid the event's 1:1s use (id), or "" = it holds none. */
   closingTemplateId: string;
+  /** The Salesforce statuses the dev space shows for this event, sorted. */
+  shownStatuses: string[];
   participations: number;
 };
 
@@ -145,6 +148,7 @@ const ADMIN_EVENT_SELECT = {
   createdAt: true,
   campus: { select: { name: true, timezone: true } },
   modules: { select: { moduleKey: true, settings: true } },
+  shownStatuses: { select: { status: true }, orderBy: { status: 'asc' } },
   _count: {
     select: {
       participations: { where: visibleParticipationWhere },
@@ -230,6 +234,7 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
       feedbackFormId: e.feedbackFormId ?? '',
       diplomaTemplateId: e.diplomaTemplateId ?? '',
       closingTemplateId: e.closingTemplateId ?? '',
+      shownStatuses: e.shownStatuses.map((row) => row.status),
       participations: e._count.participations,
     };
   });
@@ -322,6 +327,7 @@ export const EventService = {
       feedbackFormId: string;
       diplomaTemplateId: string;
       closingTemplateId: string;
+      shownStatuses: string[];
     },
   ) {
     // Surfaces a clean 404 (rather than a transaction-level throw) if the event
@@ -402,6 +408,9 @@ export const EventService = {
 
     await prisma.$transaction(async (tx) => {
       await applyModuleDiff(tx, eventId, data.modules, data.moduleSettings);
+      // Refuses a word the catalogue does not hold, which rolls the whole save
+      // back: a configuration is saved entirely or not at all.
+      await setEventShownStatuses(tx, eventId, data.shownStatuses);
       await tx.event.update({
         where: { id: eventId },
         data: {

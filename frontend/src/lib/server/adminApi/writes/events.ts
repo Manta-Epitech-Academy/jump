@@ -43,6 +43,7 @@ type EventState = {
   startTime: string;
   endDate: string;
   modules: string[];
+  shownStatuses: string[];
   feedbackFormId: string | null;
   diplomaTemplateId: string | null;
   visibleInDevWorkspace: boolean;
@@ -56,6 +57,7 @@ const stateOf = (event: AdminEventVM): EventState => ({
   startTime: event.startTime,
   endDate: event.endDate,
   modules: [...event.modules].sort(),
+  shownStatuses: event.shownStatuses,
   feedbackFormId: event.feedbackFormId || null,
   diplomaTemplateId: event.diplomaTemplateId || null,
   visibleInDevWorkspace: event.configState === 'shown',
@@ -93,6 +95,7 @@ async function saveEvent(
     diplomaTemplateId: string;
     closingTemplateId: string;
     moduleSettings: Record<string, unknown>;
+    shownStatuses: string[];
   }>,
 ): Promise<WriteOutcome> {
   const before = stateOf(event);
@@ -108,6 +111,7 @@ async function saveEvent(
     feedbackFormId: patch.feedbackFormId ?? event.feedbackFormId,
     diplomaTemplateId: patch.diplomaTemplateId ?? event.diplomaTemplateId,
     closingTemplateId: patch.closingTemplateId ?? event.closingTemplateId,
+    shownStatuses: patch.shownStatuses ?? event.shownStatuses,
   });
 
   return { applied: true, before, after: stateOf(await loadEvent(event.id)) };
@@ -120,6 +124,7 @@ export async function writeEventConfig(params: {
   startTime?: string;
   endDate?: string;
   modules?: string[];
+  shownStatuses?: string[];
 }): Promise<WriteOutcome> {
   const event = await loadEvent(params.eventId);
 
@@ -244,6 +249,7 @@ export async function writeEventTemplate(params: {
     feedbackFormId: event.feedbackFormId,
     diplomaTemplateId: event.diplomaTemplateId,
     closingTemplateId: event.closingTemplateId,
+    shownStatuses: event.shownStatuses,
     // Nobody's staff profile: the preset was saved by a token, and the audit
     // row already carries which one.
     actorId: null,

@@ -5,7 +5,7 @@
  * other answer in this folder counts events; none of them lists them, so the id
  * that twelve operations take as a parameter was obtainable only from
  * `config_unconfigured_events` (which by construction excludes anything already
- * visible), from `stats_attendance_rate` (past events only) and from
+ * visible), from a since-retired attendance rate (past events only) and from
  * `ops_emargement_coverage` (only where that section is on). An event that was
  * visible and had not happened yet - the most ordinary state an event can be in -
  * had its id in no read at all, and for a leadership token no non-past event id
@@ -82,6 +82,8 @@ export type EventConfigRow = EventIdentity & {
   configStateLabel: string;
   modules: EventModuleKey[];
   feedbackFormId: string | null;
+  /** The Salesforce statuses the dev space shows for this event. */
+  shownStatuses: string[];
   /** What is not filled in yet. Descriptive: see `activationBlockers`. */
   missing: string[];
   /** What actually stops it from being made visible. Empty = nothing does. */
@@ -175,13 +177,14 @@ export async function getEventsConfigList(
           configStateLabel: EVENT_CONFIG_STATE_LABELS[event.configState],
           modules: event.modules,
           feedbackFormId: event.feedbackFormId || null,
+          shownStatuses: event.shownStatuses,
           missing: eventMissingConfig(event),
           activationBlockers: activationBlockers(event),
           hiddenFromDevSpace: masked,
           syncedEnrolments: event.participations + masked,
         };
       }),
-      `${IDENTITY_DEFINITION} « configState » est l'état affiché par la page Événements de l'espace admin : unconfigured (aucune section activée), ready (configuré mais masqué) ou shown (visible dans l'espace dev). « missing » liste ce qui n'est pas renseigné, y compris ce qui n'empêche rien ; « activationBlockers » liste ce qui empêche vraiment de le rendre visible, et une liste vide veut dire qu'un simple basculement suffit. « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION}. « hiddenFromDevSpace » compte les ${HIDDEN_PARTICIPATION_DEFINITION} « syncedEnrolments » compte les ${SYNCED_PARTICIPATION_DEFINITION} Limité à ${EVENTS_LIST_LIMIT} lignes.`,
+      `${IDENTITY_DEFINITION} « configState » est l'état affiché par la page Événements de l'espace admin : unconfigured (aucune section activée), ready (configuré mais masqué) ou shown (visible dans l'espace dev). « missing » liste ce qui n'est pas renseigné, y compris ce qui n'empêche rien ; « activationBlockers » liste ce qui empêche vraiment de le rendre visible, et une liste vide veut dire qu'un simple basculement suffit. « shownStatuses » liste les statuts Salesforce dont l'espace dev affiche les inscriptions sur cet événement. « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION}. « hiddenFromDevSpace » compte les ${HIDDEN_PARTICIPATION_DEFINITION} « syncedEnrolments » compte les ${SYNCED_PARTICIPATION_DEFINITION} Limité à ${EVENTS_LIST_LIMIT} lignes.`,
     ),
     truncated: matching.length > EVENTS_LIST_LIMIT,
   };
@@ -202,7 +205,7 @@ export async function getEventsDirectory(
     events: metric(matching.length, countDefinition),
     list: metric(
       page.map(identityOf),
-      `${IDENTITY_DEFINITION} « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION} : c'est le nombre d'inscrits, pas le nombre de personnes venues, qui se lit avec stats_attendance_rate. Limité à ${EVENTS_LIST_LIMIT} lignes.`,
+      `${IDENTITY_DEFINITION} « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION} : c'est le nombre d'inscrits, pas le nombre de personnes venues. Limité à ${EVENTS_LIST_LIMIT} lignes.`,
     ),
     truncated: matching.length > EVENTS_LIST_LIMIT,
   };

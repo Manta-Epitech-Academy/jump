@@ -4,7 +4,6 @@
   import { resolve } from '$app/paths';
   import * as Avatar from '$lib/components/ui/avatar';
   import { getInitials } from '$lib/avatar';
-  import { presenceLabel } from '$lib/domain/sfMemberStatus';
   import PullQuote from '$lib/components/staff/PullQuote.svelte';
   import ClosingVerdictChip from '$lib/components/dev/closings/ClosingVerdictChip.svelte';
   import type { TalentJourney } from '$lib/domain/talentJourney';
@@ -16,8 +15,10 @@
    * This replaces a bare event log, which enumerated the same events and told you
    * nothing about the person.
    *
-   * Two levels, and the nesting is the meaning. An event is a line: its name,
-   * whether they turned up, when. A closing is a PANEL under that line, because a
+   * Two levels, and the nesting is the meaning. An event is a line: its name and
+   * when. No presence or absence on it, deliberately: this page exists to show the
+   * talent at their best, and an absence is not something the team reads here. A
+   * closing is a PANEL under that line, because a
    * closing is one conversation and everything it produced belongs together - the
    * team's verdict, what the talent said, what the team wrote. Rendered flat, as
    * this was, the verdict floated at the far right of the event line and the two
@@ -106,16 +107,6 @@
               {entry.eventName}
             {/if}
           </span>
-          {#if entry.presence}
-            <span
-              class="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium {entry.presence ===
-              'present'
-                ? 'bg-success/10 text-success'
-                : 'bg-muted text-foreground-secondary'}"
-            >
-              {presenceLabel(entry.presence)}
-            </span>
-          {/if}
           <span class="shrink-0 font-mono text-xs text-muted-foreground">
             {entry.dateLabel}
           </span>

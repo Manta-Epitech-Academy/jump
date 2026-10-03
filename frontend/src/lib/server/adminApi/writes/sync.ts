@@ -1,7 +1,8 @@
 /**
  * The class A writes that steer the Salesforce worker: which campaigns it pulls,
  * how often, a pass asked for now, and whether the deletions a full pass held
- * back may go ahead.
+ * back may go ahead. Plus the vocabulary of member statuses it brings back,
+ * which is Salesforce's and moves without a release.
  *
  * Each is bounded to one named row and sends nothing to anybody. A source and a
  * cadence are reversible, by writing the previous value back. A request is not
@@ -21,6 +22,7 @@
  */
 
 import { prisma } from '$lib/server/db';
+import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
 import type { SyncMode, SyncSourceKind } from '@prisma/client';
 import { OperationRefusedError } from '../errors';
 import type { WriteOutcome } from '../plan';
@@ -293,4 +295,50 @@ async function pruneHoldState(eventId: string) {
     lastHeldAt: row.lastHeldAt.toISOString(),
     releasedAt: row.releasedAt?.toISOString() ?? null,
   };
+}
+
+type MemberStatusState = { memberStatus: string; shownByDefault: boolean };
+
+/**
+ * Add a Salesforce member status to the words Jump knows, or change whether a
+ * newly created event shows it.
+ *
+ * Bounded to one catalogue row, and changes no event: an event shows a word only
+ * once `write_event_config` or `bulk_event_shown_statuses` says so, which is
+ * what keeps a new word from appearing on every cohort at once. What it does
+ * change is that the word stops being reported as unknown. There is no delete:
+ * events and templates reference the word, and old enrolments still carry it.
+ * Safe to repeat, it is an upsert on the word.
+ */
+export async function writeSyncMemberStatus(params: {
+  memberStatus: string;
+  shownByDefault?: boolean;
+}): Promise<WriteOutcome> {
+  const status = normalizeSfStatus(params.memberStatus);
+  if (status === null)
+    throw new OperationRefusedError('Le statut Salesforce est vide.');
+
+  const stateOf = async (): Promise<MemberStatusState | null> => {
+    const row = await prisma.sync_MemberStatus.findUnique({
+      where: { status },
+      select: { status: true, shownByDefault: true },
+    });
+    return row
+      ? { memberStatus: row.status, shownByDefault: row.shownByDefault }
+      : null;
+  };
+
+  const before = await stateOf();
+  await prisma.sync_MemberStatus.upsert({
+    where: { status },
+    // Masked on new events unless asked: a word nobody has looked at yet should
+    // not start filling cohorts on its own.
+    create: { status, shownByDefault: params.shownByDefault ?? false },
+    update:
+      params.shownByDefault !== undefined
+        ? { shownByDefault: params.shownByDefault }
+        : {},
+  });
+
+  return { applied: true, before, after: await stateOf() };
 }

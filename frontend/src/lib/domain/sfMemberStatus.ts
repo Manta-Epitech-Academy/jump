@@ -1,107 +1,91 @@
 /**
- * Salesforce CampaignMember status mapping.
+ * Salesforce CampaignMember statuses, and what the dev space does with them.
  *
  * Statuses are Salesforce vocabulary, stored normalized (trimmed + uppercased)
- * in `Participation.sfMemberStatus`. Never expose raw words to users; French
- * labels only.
+ * in `Participation.sfMemberStatus`. The worker syncs every campaign member
+ * whatever its status; only the dev space filters.
  *
- * Business rules (July 2026 seminar, firm):
- *   - The worker syncs ALL campaign members regardless of status.
- *   - Visible statuses in the dev space: READY and the attended status only.
- *   - CONNECTED and DESISTED are never shown anywhere in dev.
- *   - For a PAST event: attended = present, READY = absent.
+ * Which words the dev space shows is CONFIGURATION, per event, and nothing in
+ * this file names one (#371). It used to: READY and MET shown, CONNECTED and
+ * DESISTED hidden, fixed at the July 2026 seminar. That stopped fitting the day a
+ * Coding Club wanted its CONNECTED members and a stage did not, and it made every
+ * word Salesforce added or renamed cost a release - the seminar's `MEET`, which
+ * Salesforce never sends, hid every attendee for a month (#368) because a word
+ * the code did not declare was hidden without a sound.
  *
- * The attended word is `MET`. The seminar notes, and this file until #368, said
- * `MEET`, which Salesforce never sends: every attendee was hidden from the dev
- * space and counted nowhere, and nothing said so, because a word this file does
- * not declare is hidden without a sound. That is why each word is written once,
- * below, and every definition, label and test reads it from here.
+ * Three pieces of data replace it, and this file holds the rules over them:
+ *   - `Sync_MemberStatus`, the vocabulary Jump knows. A word missing from it is
+ *     unrecognised: masked everywhere, and reported so somebody decides.
+ *   - `EventConfig_ShownStatus`, the words one event shows.
+ *   - `Participation.shownInDevSpace`, the projection every dev count and list
+ *     filters on, recomputed by `services/devSpaceVisibility.ts`.
+ *
+ * Presence is not read off a status any more: the émargement is Jump's only
+ * presence record.
  */
 
 import type { Prisma } from '@prisma/client';
 
-/** Salesforce's word for a member who attended. */
-export const SF_STATUS_ATTENDED = 'MET';
-
-/** Salesforce's word for a member who confirmed they would come. */
-export const SF_STATUS_CONFIRMED = 'READY';
-
-/** Statuses shown in the dev workspace. Null (legacy) is also visible. */
-export const SF_VISIBLE_STATUSES = [
-  SF_STATUS_CONFIRMED,
-  SF_STATUS_ATTENDED,
-] as const;
-
-/** Statuses the dev workspace never shows. Retained in the DB for diagnosis. */
-export const SF_HIDDEN_STATUSES = ['CONNECTED', 'DESISTED'] as const;
-
 /**
- * Every status we know Salesforce sends, visible and hidden together.
- *
- * A CATALOGUE OF KNOWN VALUES, NOT A CLOSED SET. The worker syncs every campaign
- * member whatever its status, and `normalizeSfStatus` only trims and uppercases:
- * a fifth word invented in Salesforce tomorrow is stored as it arrives. That is
- * the whole reason `Participation.sfMemberStatus` is a `String` and not a Prisma
- * enum - turning it into one would make an unknown status a write failure in the
- * middle of a sync, which is the opposite of what an anti-corruption boundary is
- * for.
- *
- * It exists because the two hidden words used to live in a comment here, in a
- * table in JARGON.md, and in the keys of a component-local record - so anything
- * needing the full list (the seed generator, its coverage check) had no choice
- * but to restate them a fourth time.
- */
-export const SF_MEMBER_STATUSES = [
-  ...SF_VISIBLE_STATUSES,
-  ...SF_HIDDEN_STATUSES,
-] as const;
-
-/** One of the statuses we know about. Raw input is still a plain `string`. */
-export type SfMemberStatus = (typeof SF_MEMBER_STATUSES)[number];
-
-/**
- * Prisma where-fragment for the participations visible in the dev workspace:
- * the visible SF statuses plus legacy rows synced before the column existed
- * (`null`). Spread into any `Participation` where / relation filter so every dev
- * count, list and breakdown stays on one cohort definition and can't drift.
+ * Prisma where-fragment for the participations visible in the dev workspace.
+ * Spread into any `Participation` where / relation filter so every dev count,
+ * list and breakdown stays on one cohort definition and can't drift. It reads
+ * the projection rather than the policy, because a `where` cannot compare a
+ * participation's status with its event's rows.
  */
 export const visibleParticipationWhere = {
-  OR: [
-    { sfMemberStatus: { in: [...SF_VISIBLE_STATUSES] } },
-    { sfMemberStatus: null },
-  ],
+  shownInDevSpace: true,
 } satisfies Prisma.ParticipationWhereInput;
 
 /**
  * The participations the dev workspace masks: the exact complement of
- * `visibleParticipationWhere`, so the two sides of the rule cannot drift apart.
- * A masked enrolment is still synced and stored; only the dev space hides it.
+ * `visibleParticipationWhere`. A masked enrolment is still synced and stored;
+ * only the dev space hides it.
  */
 export const hiddenParticipationWhere = {
-  NOT: visibleParticipationWhere,
+  shownInDevSpace: false,
 } satisfies Prisma.ParticipationWhereInput;
+
+/**
+ * Whether the dev space shows an enrolment with this status on an event that
+ * shows `shown`. A row with no status is always shown: it was synced before the
+ * column existed, and no event can name the absence of a word (the migration's
+ * CHECK holds that half).
+ *
+ * The SQL twin is `recomputeShownInDevSpace` in `services/devSpaceVisibility.ts`,
+ * which applies the same rule to every row of an event at once; an integration
+ * test keeps the two in agreement.
+ */
+export function isShownInDevSpace(
+  status: string | null,
+  shown: ReadonlySet<string>,
+): boolean {
+  const normalized = normalizeSfStatus(status);
+  return normalized === null || shown.has(normalized);
+}
 
 /**
  * The same cohort rule in French, for the figures that travel with their own
  * definition (`adminApi/metrics.ts`, the weekly digest).
  *
  * It lives here, next to the `where` it describes, because it was written out by
- * hand in two aggregates at once: two copies of one rule, and both named the two
- * statuses while the filter also keeps legacy rows synced before the status
- * column existed. A definition that undersells what it counts is worse than no
- * definition, since it gets quoted verbatim to an admin.
+ * hand in two aggregates at once, and a definition that undersells what it
+ * counts is worse than no definition, since it gets quoted verbatim to an admin.
  *
  * It names the dev space, never Jump, and says where the others are. It used to
  * read « visibles dans Jump », which a model relayed as « this event has 2
  * enrolments » for an event holding 5: the 3 masked ones are in Jump all the
  * same, synced and open to an admin. Only the dev space leaves them out.
  *
+ * It names no status either: which ones are shown is set event by event, so a
+ * definition listing words would be wrong for some event the day it is quoted.
+ *
  * Reads as a clause, so a definition can compose it: "Participations aux
  * événements du périmètre, ${VISIBLE_PARTICIPATION_DEFINITION}."
  */
 export const VISIBLE_PARTICIPATION_DEFINITION =
   "en ne comptant que les inscriptions affichées dans l'espace dev " +
-  `(statut Salesforce ${SF_STATUS_CONFIRMED} ou ${SF_STATUS_ATTENDED}, plus les inscriptions importées avant l'ajout du statut) ; ` +
+  "(celles dont le statut Salesforce fait partie des statuts que leur événement affiche, réglés événement par événement, plus les inscriptions importées avant l'ajout du statut) ; " +
   "les autres sont bien synchronisées et enregistrées dans Jump, seul l'espace dev les masque";
 
 /**
@@ -111,7 +95,7 @@ export const VISIBLE_PARTICIPATION_DEFINITION =
  */
 export const HIDDEN_PARTICIPATION_DEFINITION =
   "inscriptions synchronisées depuis Salesforce et enregistrées dans Jump, mais masquées de l'espace dev par leur statut Salesforce " +
-  `(${SF_HIDDEN_STATUSES.join(', ')}, ou un statut que Jump ne connaît pas). ` +
+  "(un statut que leur événement n'affiche pas, ou un statut que Jump ne connaît pas). " +
   "Les admins les consultent dans « Membres Salesforce », sur la page Événements de l'espace admin.";
 
 /**
@@ -126,11 +110,12 @@ export const SYNCED_PARTICIPATION_DEFINITION =
   "celles que l'espace dev affiche comme celles qu'il masque.";
 
 /**
- * What the dev space does with a stored status, and why.
+ * What the dev space does with a stored status on one event, and why.
  *
- *   - `shown`: a status the seminar decided to display.
- *   - `hidden`: a status the seminar decided to mask (a false lead, a withdrawal).
- *   - `unrecognised`: a word this file does not declare. Masked, like `hidden`,
+ *   - `shown`: a word the event shows.
+ *   - `hidden`: a word Jump knows and the event does not show (a false lead, a
+ *     withdrawal, or simply a format that does not want it).
+ *   - `unrecognised`: a word missing from the catalogue. Masked, like `hidden`,
  *     because showing an unknown status is the riskier default, but kept apart
  *     so that it can be reported: masking it in silence is how `MET` went
  *     unseen for a month.
@@ -150,35 +135,20 @@ export const SF_STATUS_CLASS_LABELS: Record<SfStatusClass, string> = {
   missing: "sans statut, affichée dans l'espace dev",
 };
 
-export function classifySfStatus(status: string | null): SfStatusClass {
+/**
+ * Classify a stored status against the catalogue (`known`) and the event's own
+ * policy (`shown`). Both are sets of normalized words, loaded by the caller: the
+ * rule is pure, the data is not.
+ */
+export function classifySfStatus(
+  status: string | null,
+  vocabulary: { known: ReadonlySet<string>; shown: ReadonlySet<string> },
+): SfStatusClass {
   const normalized = normalizeSfStatus(status);
   if (normalized === null) return 'missing';
-  if ((SF_VISIBLE_STATUSES as readonly string[]).includes(normalized))
-    return 'shown';
-  if ((SF_HIDDEN_STATUSES as readonly string[]).includes(normalized))
-    return 'hidden';
+  if (vocabulary.shown.has(normalized)) return 'shown';
+  if (vocabulary.known.has(normalized)) return 'hidden';
   return 'unrecognised';
-}
-
-/** Whether a participation appears in the dev workspace. */
-export function isVisibleInDevSpace(status: string | null): boolean {
-  const statusClass = classifySfStatus(status);
-  return statusClass === 'shown' || statusClass === 'missing';
-}
-
-/**
- * For past events only: derive a presence outcome from the SF member status.
- *   - attended -> 'present'
- *   - READY -> 'absent' (said they would come, did not)
- *   - anything else -> null (no meaningful presence signal)
- */
-export function pastEventPresence(
-  status: string | null,
-): 'present' | 'absent' | null {
-  const normalized = normalizeSfStatus(status);
-  if (normalized === SF_STATUS_ATTENDED) return 'present';
-  if (normalized === SF_STATUS_CONFIRMED) return 'absent';
-  return null;
 }
 
 /** Normalize a raw SF status for DB storage: trim + uppercase. */
@@ -189,9 +159,4 @@ export function normalizeSfStatus(
   const trimmed = raw.trim();
   if (!trimmed) return null;
   return trimmed.toUpperCase();
-}
-
-/** French label for a presence outcome (past events). */
-export function presenceLabel(presence: 'present' | 'absent'): string {
-  return presence === 'present' ? 'Présent' : 'Absent';
 }
