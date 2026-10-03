@@ -202,7 +202,7 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
   // attendee went missing for a month before anyone saw it (#368).
   const unrecognisedStatusesLine =
     unrecognisedStatuses > 0
-      ? `<strong>${unrecognisedStatuses}</strong> ${plural(unrecognisedStatuses, 'inscription porte', 'inscriptions portent')} un statut Salesforce que Jump ne connaît pas, sur ${unrecognisedEvents}${sync.unrecognisedStatusEventsTruncated ? ' événements ou plus' : ` ${plural(unrecognisedEvents, 'événement', 'événements')}`} : ${plural(unrecognisedStatuses, 'elle est bien dans Jump mais masquée', 'elles sont bien dans Jump mais masquées')} de l'espace dev. Les statuts reçus et les événements concernés se lisent par l'API d'administration (stats_sync_health).`
+      ? `<strong>${unrecognisedStatuses}</strong> ${plural(unrecognisedStatuses, 'inscription porte', 'inscriptions portent')} un statut Salesforce que Jump ne connaît pas, sur ${unrecognisedEvents}${sync.unrecognisedStatusEventsTruncated ? ' événements ou plus' : ` ${plural(unrecognisedEvents, 'événement', 'événements')}`} : ${plural(unrecognisedStatuses, 'elle est bien dans Jump mais masquée', 'elles sont bien dans Jump mais masquées')} de l'espace dev. Les statuts reçus et les événements concernés se lisent par l'API d'administration.`
       : '';
 
   const syncSection = `

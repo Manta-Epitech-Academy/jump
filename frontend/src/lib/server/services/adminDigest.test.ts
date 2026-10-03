@@ -287,7 +287,9 @@ describe('buildAdminDigest', () => {
     expect(digest.html).toContain(
       '<strong>3</strong> inscriptions portent un statut Salesforce que Jump ne connaît pas, sur 1 événement',
     );
-    expect(digest.html).toContain('stats_sync_health');
+    expect(digest.html).toContain(
+      "Les statuts reçus et les événements concernés se lisent par l'API d'administration.",
+    );
     expect(digest.text).toContain("masquées de l'espace dev : 3");
     expect(digest.summary.unrecognisedSfStatuses).toBe(3);
 
