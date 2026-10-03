@@ -16,7 +16,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { schoolYearOf } from '$lib/domain/schoolYear';
-import { SF_STATUS_ATTENDED } from '$lib/domain/sfMemberStatus';
 import { assertTestDatabase } from './testDatabase';
 import {
   ADMIN_API_OPERATIONS,
@@ -165,7 +164,7 @@ describe('no read operation leaks a talent identity (integration)', () => {
         talentId: talent.id,
         eventId: event.id,
         campusId,
-        sfMemberStatus: SF_STATUS_ATTENDED,
+        sfMemberStatus: 'MET',
       },
     });
 

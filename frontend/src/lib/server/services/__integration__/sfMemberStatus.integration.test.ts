@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { syncParticipations, syncTalents } from '../syncService';
-import {
-  isVisibleInDevSpace,
-  visibleParticipationWhere,
-} from '$lib/domain/sfMemberStatus';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { hiddenEnrolmentsByEvent } from '$lib/server/services/adminStats/cohort';
 import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
 import { assertTestDatabase } from './testDatabase';
@@ -68,6 +65,8 @@ describe('Salesforce member status sync (integration)', () => {
         externalId: eventExternalId,
         campusId,
         date: new Date('2026-01-01T09:00:00.000Z'),
+        // What the dev space shows for this event, as a new event starts.
+        shownStatuses: { create: [{ status: 'READY' }, { status: 'MET' }] },
       },
     });
     eventId = event.id;
@@ -115,16 +114,21 @@ describe('Salesforce member status sync (integration)', () => {
     );
     expect((enrolments as { error?: string }).error).toBeUndefined();
 
-    const statusByExtId = async () => {
+    const rowsByExtId = async () => {
       const rows = await prisma.participation.findMany({
         where: { eventId },
         select: {
           sfMemberStatus: true,
+          shownInDevSpace: true,
           talent: { select: { externalId: true } },
         },
       });
-      return new Map(rows.map((p) => [p.talent.externalId, p.sfMemberStatus]));
+      return new Map(rows.map((p) => [p.talent.externalId, p]));
     };
+    const statusByExtId = async () =>
+      new Map(
+        [...(await rowsByExtId())].map(([id, p]) => [id, p.sfMemberStatus]),
+      );
 
     // Ingested as-is, normalized to upper-case, whatever the status.
     let statuses = await statusByExtId();
@@ -133,20 +137,15 @@ describe('Salesforce member status sync (integration)', () => {
     expect(statuses.get(talents[2].external_id)).toBe('CONNECTED');
     expect(statuses.get(talents[3].external_id)).toBe('DESISTED');
 
-    // Dev-space visibility follows isVisibleInDevSpace: READY/MET shown, the
-    // rest hidden: the whole point of ingesting the status.
-    expect(
-      isVisibleInDevSpace(statuses.get(talents[0].external_id) ?? null),
-    ).toBe(true);
-    expect(
-      isVisibleInDevSpace(statuses.get(talents[1].external_id) ?? null),
-    ).toBe(true);
-    expect(
-      isVisibleInDevSpace(statuses.get(talents[2].external_id) ?? null),
-    ).toBe(false);
-    expect(
-      isVisibleInDevSpace(statuses.get(talents[3].external_id) ?? null),
-    ).toBe(false);
+    // Dev-space visibility is written with the status, from what the event
+    // shows: READY/MET shown, the rest hidden.
+    const shown = new Map(
+      [...(await rowsByExtId())].map(([id, p]) => [id, p.shownInDevSpace]),
+    );
+    expect(shown.get(talents[0].external_id)).toBe(true);
+    expect(shown.get(talents[1].external_id)).toBe(true);
+    expect(shown.get(talents[2].external_id)).toBe(false);
+    expect(shown.get(talents[3].external_id)).toBe(false);
 
     // Re-sync with a status transition: the status is upserted in place, not
     // appended (mutable external state, not a ledger). Sent as an incremental,
@@ -218,7 +217,7 @@ describe('Salesforce member status sync (integration)', () => {
     // the status breakdown, located on this event (#368).
     const health = await getSyncHealth();
     expect(health.memberStatuses.value).toContainEqual(
-      expect.objectContaining({ status: 'MEET', devSpace: 'unrecognised' }),
+      expect.objectContaining({ status: 'MEET', known: false }),
     );
     expect(health.unrecognisedStatuses.value).toBeGreaterThanOrEqual(1);
     expect(health.unrecognisedStatusEvents.value).toContainEqual(

@@ -22,13 +22,7 @@
 
 import { prisma } from '$lib/server/db';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
-import {
-  classifySfStatus,
-  SF_HIDDEN_STATUSES,
-  SF_STATUS_CLASS_LABELS,
-  SF_VISIBLE_STATUSES,
-  type SfStatusClass,
-} from '$lib/domain/sfMemberStatus';
+import { memberStatusCatalogue } from '$lib/server/services/devSpaceVisibility';
 import {
   openRunSnapshot,
   recentRuns,
@@ -78,13 +72,19 @@ type HeldPrune = {
 /** Events carrying an unrecognised status listed by name before the answer stops. */
 export const UNRECOGNISED_STATUS_EVENTS_LIMIT = 50;
 
-/** One Salesforce status as stored, and what the dev space does with it. */
+/**
+ * One Salesforce status: a word of the catalogue, a word received, or both. What
+ * the dev space does with it is decided per event, so the row carries how many
+ * of its enrolments are shown rather than one verdict for the whole platform.
+ */
 type MemberStatusRow = {
   status: string | null;
+  known: boolean;
+  /** Null for a word the catalogue does not hold, and for the missing status. */
+  shownByDefault: boolean | null;
   count: number;
   share: number | null;
-  devSpace: SfStatusClass;
-  devSpaceLabel: string;
+  shownCount: number;
 };
 
 /** One event holding enrolments whose status Jump does not know. */
@@ -130,18 +130,28 @@ export type SyncHealth = {
  *
  * Deliberately not narrowed to what the dev space shows: the point is to see
  * what it hides. This is the report whose absence let `MET` go unread for a
- * month (#368): a word `domain/sfMemberStatus.ts` does not declare is masked,
- * which is the safe default, and nothing said so. Here it is counted, named and
+ * month (#368): a word missing from the catalogue (`Sync_MemberStatus`) is
+ * masked, which is the safe default, and nothing said so. Here it is counted, named and
  * located, so a new word Salesforce starts sending reaches someone instead of
  * quietly emptying a cohort.
  */
 async function memberStatusReport(): Promise<MemberStatusReport> {
-  const grouped = await prisma.participation.groupBy({
-    by: ['eventId', 'sfMemberStatus'],
-    _count: { _all: true },
-  });
+  const [grouped, catalogue] = await Promise.all([
+    prisma.participation.groupBy({
+      by: ['eventId', 'sfMemberStatus', 'shownInDevSpace'],
+      _count: { _all: true },
+    }),
+    memberStatusCatalogue(),
+  ]);
+  const shownByDefaultOf = new Map(
+    catalogue.map((row) => [row.status, row.shownByDefault]),
+  );
 
-  const byStatus = new Map<string | null, number>();
+  // Every word of the catalogue starts at zero, so a word nothing carries yet is
+  // listed too: this is where the vocabulary is read before it is written to.
+  const byStatus = new Map<string | null, { count: number; shown: number }>(
+    catalogue.map((row) => [row.status, { count: 0, shown: 0 }]),
+  );
   const unrecognisedByEvent = new Map<
     string,
     { count: number; statuses: Set<string> }
@@ -150,31 +160,31 @@ async function memberStatusReport(): Promise<MemberStatusReport> {
   for (const row of grouped) {
     const count = row._count._all;
     total += count;
-    byStatus.set(
-      row.sfMemberStatus,
-      (byStatus.get(row.sfMemberStatus) ?? 0) + count,
-    );
-    if (classifySfStatus(row.sfMemberStatus) !== 'unrecognised') continue;
+    const tally = byStatus.get(row.sfMemberStatus) ?? { count: 0, shown: 0 };
+    tally.count += count;
+    if (row.shownInDevSpace) tally.shown += count;
+    byStatus.set(row.sfMemberStatus, tally);
+    if (row.sfMemberStatus === null || shownByDefaultOf.has(row.sfMemberStatus))
+      continue;
     const entry = unrecognisedByEvent.get(row.eventId) ?? {
       count: 0,
       statuses: new Set<string>(),
     };
     entry.count += count;
-    entry.statuses.add(row.sfMemberStatus!);
+    entry.statuses.add(row.sfMemberStatus);
     unrecognisedByEvent.set(row.eventId, entry);
   }
 
   const rows = [...byStatus.entries()]
-    .map(([status, count]) => {
-      const devSpace = classifySfStatus(status);
-      return {
-        status,
-        count,
-        share: share(count, total),
-        devSpace,
-        devSpaceLabel: SF_STATUS_CLASS_LABELS[devSpace],
-      };
-    })
+    .map(([status, tally]) => ({
+      status,
+      known: status !== null && shownByDefaultOf.has(status),
+      shownByDefault:
+        status === null ? null : (shownByDefaultOf.get(status) ?? null),
+      count: tally.count,
+      share: share(tally.count, total),
+      shownCount: tally.shown,
+    }))
     .sort((a, b) => b.count - a.count);
 
   const events =
@@ -196,7 +206,7 @@ async function memberStatusReport(): Promise<MemberStatusReport> {
   return {
     rows,
     unrecognised: rows
-      .filter((row) => row.devSpace === 'unrecognised')
+      .filter((row) => row.status !== null && !row.known)
       .reduce((sum, row) => sum + row.count, 0),
     events: events.map((event) => {
       const entry = unrecognisedByEvent.get(event.id)!;
@@ -389,11 +399,11 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     prunesHeldTruncated: prunesHeldEvents > PRUNES_HELD_LIMIT,
     memberStatuses: metric(
       statuses.rows,
-      `Toutes les inscriptions que Jump a reçues de Salesforce, réparties par statut Salesforce tel qu'il est enregistré, de la plus à la moins fréquente : « count » en nombre, « share » en pourcentage du total. Aucune n'est absente de Jump ; « devSpace » dit seulement ce que l'espace dev en fait. Il affiche ${SF_VISIBLE_STATUSES.join(' et ')}, ainsi que les inscriptions sans statut (« status » à null, importées avant que Jump n'enregistre le statut). Il masque ${SF_HIDDEN_STATUSES.join(' et ')}, et masque aussi par prudence tout statut que Jump ne connaît pas (« unrecognised »), qui est alors compté dans « unrecognisedStatuses ».`,
+      "Le vocabulaire Salesforce de Jump : chaque statut de son catalogue et chaque statut effectivement reçu, du plus au moins fréquent. « count » est le nombre d'inscriptions qui le portent et « share » leur part du total. « known » dit si le statut figure au catalogue ; « shownByDefault » s'il est affiché d'emblée sur un événement nouvellement créé (null pour un statut hors catalogue). « shownCount » est le nombre de ces inscriptions que l'espace dev affiche : chaque événement règle lui-même les statuts qu'il affiche (« shownStatuses » dans config_event_detail), un même statut peut donc être affiché sur un événement et masqué sur un autre. Aucune inscription n'est absente de Jump. La ligne dont « status » vaut null regroupe les inscriptions importées avant que Jump n'enregistre le statut, toujours affichées.",
     ),
     unrecognisedStatuses: metric(
       statuses.unrecognised,
-      "Inscriptions dont le statut Salesforce est un mot que Jump ne connaît pas : elles sont bien dans Jump, mais masquées de l'espace dev par prudence. Tout chiffre non nul mérite d'être regardé : soit Salesforce a introduit un nouveau statut, soit un statut a changé d'orthographe, et dans les deux cas des inscriptions peuvent manquer à l'espace dev. Décider de les afficher est une évolution de Jump, pas un réglage.",
+      "Inscriptions dont le statut Salesforce est un mot absent du catalogue de Jump : elles sont bien dans Jump, mais masquées de l'espace dev sur tous les événements. Tout chiffre non nul mérite d'être regardé : soit Salesforce a introduit un nouveau statut, soit un statut a changé d'orthographe, et dans les deux cas des inscriptions peuvent manquer à l'espace dev. Pour les afficher, le statut s'ajoute au catalogue (write_sync_member_status), puis s'affiche sur les événements concernés (write_event_config, ou bulk_event_shown_statuses pour un périmètre).",
     ),
     unrecognisedStatusEvents: metric(
       statuses.events,

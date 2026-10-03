@@ -30,17 +30,17 @@ import { codingClubTitre } from '../catalog/events';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
 import {
-  SF_STATUS_ATTENDED,
-  SF_STATUS_CONFIRMED,
-} from '../../../src/lib/domain/sfMemberStatus';
-import { UNRECOGNISED_SF_STATUS_SAMPLE } from '../world';
+  DEFAULT_SHOWN_STATUSES,
+  SF_STATUSES,
+  UNRECOGNISED_SF_STATUS_SAMPLE,
+} from '../world';
 import { makeCohort } from './helpers';
 import type { Scenario } from './types';
 
 export const sfStatuses: Scenario = {
   name: 'statuts-salesforce',
   summary:
-    'Les statuts Salesforce sur un même événement, dont un que Jump ne connaît pas : ce que l’espace dev montre et ce qu’il cache.',
+    'Les statuts Salesforce, dont un que Jump ne connaît pas : ce que l’espace dev montre et ce qu’il cache, réglé événement par événement.',
   run(world) {
     const { profile, clock } = world.ctx;
     const campus = [...world.campuses.values()][0]!;
@@ -86,15 +86,15 @@ export const sfStatuses: Scenario = {
 
     // Shown: the two words the dev space displays.
     for (const talent of attended) {
-      world.enrol(event, talent, { sfMemberStatus: SF_STATUS_ATTENDED });
+      world.enrol(event, talent, { sfMemberStatus: SF_STATUSES.attended });
     }
     for (const talent of confirmed) {
-      world.enrol(event, talent, { sfMemberStatus: SF_STATUS_CONFIRMED });
+      world.enrol(event, talent, { sfMemberStatus: SF_STATUSES.confirmed });
     }
     // Hidden: enrolled, never shown in the dev space. The gap between the two
     // counts is the whole point of the admin inspector.
-    world.enrol(event, connected, { sfMemberStatus: 'CONNECTED' });
-    world.enrol(event, desisted, { sfMemberStatus: 'DESISTED' });
+    world.enrol(event, connected, { sfMemberStatus: SF_STATUSES.connected });
+    world.enrol(event, desisted, { sfMemberStatus: SF_STATUSES.desisted });
     // Masked like the two above, but reported: nobody decided to hide it.
     world.enrol(event, unrecognised, {
       sfMemberStatus: UNRECOGNISED_SF_STATUS_SAMPLE,
@@ -115,6 +115,48 @@ export const sfStatuses: Scenario = {
         'Inspecter les statuts Salesforce (espace admin) : les statuts bruts, le partage visible / masqué, et un statut inconnu de Jump signalé comme tel',
         'Statuts Salesforce reçus (API d’administration, stats_sync_health) : un statut inconnu compté et rattaché à cet événement, repris par le digest hebdomadaire',
         'Des inscriptions sans statut, comme avant la synchronisation de juillet 2026',
+      ],
+    });
+
+    // The same word, shown on one event and masked on the other: a Coding Club
+    // wants the members Salesforce leaves at CONNECTED, the open day above does
+    // not. One talent is on both, so the difference reads on one person.
+    const clubDays = world.eventWindow(-8, 1);
+    const club = world.addEvent({
+      key: 'statuts-salesforce-club',
+      titre: codingClubTitre({ campus: campus.name, date: clubDays[0]! }),
+      publicName: `Coding Club ${campus.name}`,
+      cohortNoun: COHORT_NOUNS.PARTICIPANT,
+      campus,
+      days: clubDays,
+      startMinutes: 14 * 60,
+      devActivated: true,
+      modules: [EVENT_MODULES.INSCRITS],
+      shownStatuses: [...DEFAULT_SHOWN_STATUSES, SF_STATUSES.connected],
+    });
+    const clubCohort = makeCohort(world, {
+      size: profile.name === 'ci' ? 4 : 8,
+      campus,
+      schoolYear: clock.schoolYear,
+    });
+    const half = Math.floor(clubCohort.length / 2);
+    world.enrol(club, connected, { sfMemberStatus: SF_STATUSES.connected });
+    for (const talent of clubCohort.slice(0, half)) {
+      world.enrol(club, talent, { sfMemberStatus: SF_STATUSES.connected });
+    }
+    for (const talent of clubCohort.slice(half)) {
+      world.enrol(club, talent, { sfMemberStatus: SF_STATUSES.attended });
+    }
+
+    world.ctx.manifest.push({
+      scenario: sfStatuses.name,
+      summary: sfStatuses.summary,
+      campus: campus.name,
+      event: eventDisplayName(club),
+      covers: [
+        `Inscrits : les membres restés à ${SF_STATUSES.connected} sont affichés, parce que cet événement affiche ce statut`,
+        `Le même talent au statut ${SF_STATUSES.connected} est affiché ici et masqué sur la journée portes ouvertes`,
+        'Configuration de l’événement (espace admin) : les statuts Salesforce affichés, réglés pour cet événement',
       ],
     });
   },

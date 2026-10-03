@@ -16,7 +16,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { schoolYearOf } from '$lib/domain/schoolYear';
-import { SF_STATUS_ATTENDED } from '$lib/domain/sfMemberStatus';
 import { assertTestDatabase } from './testDatabase';
 import { getCampusComparison } from '$lib/server/services/adminStats/campusComparison';
 import { getSchoolChurn } from '$lib/server/services/adminStats/schoolChurn';
@@ -130,8 +129,8 @@ describe('the comparing leadership figures (integration)', () => {
       schoolId: kept.id,
       complete: true,
     });
-    await enrol(returning.id, busyEarlyA, SF_STATUS_ATTENDED);
-    await enrol(returning.id, busyEarlyB, SF_STATUS_ATTENDED);
+    await enrol(returning.id, busyEarlyA, 'MET');
+    await enrol(returning.id, busyEarlyB, 'MET');
 
     const fromLostSchool = await talent({
       civilite: 'homme',
@@ -140,7 +139,7 @@ describe('the comparing leadership figures (integration)', () => {
     await enrol(fromLostSchool.id, busyEarlyA, 'READY');
 
     const elsewhere = await talent({ civilite: 'femme', schoolId: kept.id });
-    await enrol(elsewhere.id, earlierOnly, SF_STATUS_ATTENDED);
+    await enrol(elsewhere.id, earlierOnly, 'MET');
 
     // Current year: the busy campus keeps one lycée and gains another, the empty
     // campus has an event nobody signed up to, the earlier campus has none at all.
@@ -150,7 +149,7 @@ describe('the comparing leadership figures (integration)', () => {
 
     for (const civilite of ['femme', 'femme', 'homme']) {
       const t = await talent({ civilite, schoolId: kept.id, complete: true });
-      await enrol(t.id, busyNow, SF_STATUS_ATTENDED);
+      await enrol(t.id, busyNow, 'MET');
     }
     const fromNewSchool = await talent({
       civilite: 'homme',
