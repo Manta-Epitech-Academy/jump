@@ -210,14 +210,12 @@ describe('the comparing leadership figures (integration)', () => {
       );
     });
 
-    it('rates show-up on concluded statuses, and leaves an unmeasurable one unranked', async () => {
+    it('leaves a campus it cannot measure unranked rather than last', async () => {
       const { rankings } = await getCampusComparison({
         schoolYear: currentYear,
       });
-      const rows = seeded(rankings.showUpRate.value);
+      const rows = seeded(rankings.womenShare.value);
 
-      // Three MET against one READY.
-      expect(forCampus(rows, BUSY)?.value).toBe(75);
       // The empty campus has a past event and no enrolment: nothing to rate.
       expect(forCampus(rows, EMPTY)?.value).toBeNull();
       expect(forCampus(rows, EMPTY)?.rank).toBeNull();

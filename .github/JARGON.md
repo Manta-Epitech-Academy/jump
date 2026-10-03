@@ -43,8 +43,8 @@ They are **never** exposed raw in the UI: they map to French domain labels.
 
 | Salesforce Value   | Business Meaning                                                      | Displayed in Jump UI                                |
 | ------------------ | --------------------------------------------------------------------- | ---------------------------------------------------- |
-| `READY`            | Talent confirmed attendance                                           | Visible in dev workspace. For past events: *Absent* (confirmed but did not show up) |
-| `MET`              | Talent attended the event                                             | Visible in dev workspace. For past events: *Présent* |
+| `READY`            | Talent confirmed attendance                                           | Visible in dev workspace. |
+| `MET`              | Talent attended the event                                             | Visible in dev workspace. |
 | `CONNECTED`        | Talent clicked Salesforce link but did not confirm                    | **Not visible** in dev workspace. Still synced and stored in Jump, open to admins in « Membres Salesforce ». |
 | `DESISTED`         | Talent explicitly withdrew                                            | **Not visible** in dev workspace. Still synced and stored in Jump, open to admins in « Membres Salesforce ». |
 | any other value    | A word Jump does not declare (Salesforce added or renamed a status)   | **Not visible** in dev workspace, as a precaution. Still in Jump, counted and located by `stats_sync_health` and the weekly digest, flagged in « Membres Salesforce ». |
@@ -56,15 +56,14 @@ Source of truth in code: `frontend/src/lib/domain/sfMemberStatus.ts`.
 
 ---
 
-## Participation vs Presence vs Émargement
+## Participation vs Émargement
 
-These three concepts are distinct and must not be confused in code or documentation.
+These two concepts are distinct and must not be confused in code or documentation. A Salesforce status says nothing about presence in Jump: no screen, figure or export reads `MET` as « présent » or `READY` as « absent ».
 
 | Concept            | Definition                                                                                        | Data Source                |
 | ------------------ | -------------------------------------------------------------------------------------------------- | -------------------------- |
 | **Participation**  | The fact that a talent is enrolled in an event (originates from Salesforce via worker). `Participation` entity in DB. | Salesforce sync worker     |
-| **Présence SF**    | For a *past* event: inferred from `sfMemberStatus` (`MET` = present, `READY` = absent). No manual entry in Jump. | `Participation.sfMemberStatus` |
-| **Émargement**     | Real-time attendance tracking during the event, entered by staff inside Jump. `EventPresence` entity in DB. Independent of SF statuses. | Staff entry in Jump        |
+| **Émargement**     | Real-time attendance tracking during the event, entered by staff inside Jump. `EventPresence` entity in DB. The only presence record in Jump, independent of SF statuses: an unmarked cell in a closed slot reads absent. | Staff entry in Jump        |
 
 ---
 

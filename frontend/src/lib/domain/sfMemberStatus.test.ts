@@ -6,9 +6,7 @@ import {
   SF_STATUS_ATTENDED,
   classifySfStatus,
   isVisibleInDevSpace,
-  pastEventPresence,
   normalizeSfStatus,
-  presenceLabel,
 } from './sfMemberStatus';
 
 describe('sfMemberStatus domain logic', () => {
@@ -39,14 +37,11 @@ describe('sfMemberStatus domain logic', () => {
     });
 
     // Regression for #368: the attended word is the one Salesforce sends. The
-    // seminar's `MEET` is not a status at all, and must read as unknown rather
-    // than as an attendance.
-    it('reads MET as attended, and MEET as a word it does not know', () => {
+    // seminar's `MEET` is not a status at all, and must read as unknown.
+    it('shows MET, and reads MEET as a word it does not know', () => {
       expect(SF_STATUS_ATTENDED).toBe('MET');
       expect(classifySfStatus('Met')).toBe('shown');
-      expect(pastEventPresence('Met')).toBe('present');
       expect(classifySfStatus('MEET')).toBe('unrecognised');
-      expect(pastEventPresence('MEET')).toBe(null);
     });
   });
 
@@ -84,28 +79,6 @@ describe('sfMemberStatus domain logic', () => {
     });
   });
 
-  describe('pastEventPresence', () => {
-    it('returns null for null status', () => {
-      expect(pastEventPresence(null)).toBe(null);
-    });
-
-    it('maps MET to present', () => {
-      expect(pastEventPresence('MET')).toBe('present');
-      expect(pastEventPresence('met')).toBe('present');
-      expect(pastEventPresence('Met  ')).toBe('present');
-    });
-
-    it('maps READY to absent', () => {
-      expect(pastEventPresence('READY')).toBe('absent');
-      expect(pastEventPresence('ready')).toBe('absent');
-    });
-
-    it('returns null for other statuses', () => {
-      expect(pastEventPresence('CONNECTED')).toBe(null);
-      expect(pastEventPresence('DESISTED')).toBe(null);
-    });
-  });
-
   describe('normalizeSfStatus', () => {
     it('returns null for null, undefined, or empty string', () => {
       expect(normalizeSfStatus(null)).toBe(null);
@@ -118,13 +91,6 @@ describe('sfMemberStatus domain logic', () => {
       expect(normalizeSfStatus('ready')).toBe('READY');
       expect(normalizeSfStatus('met  ')).toBe('MET');
       expect(normalizeSfStatus('Connected')).toBe('CONNECTED');
-    });
-  });
-
-  describe('presenceLabel', () => {
-    it('returns French labels', () => {
-      expect(presenceLabel('present')).toBe('Présent');
-      expect(presenceLabel('absent')).toBe('Absent');
     });
   });
 });

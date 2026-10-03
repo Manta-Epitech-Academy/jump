@@ -120,10 +120,6 @@ export const HANDLES: Record<HandleKind, Handle> = {
         covers: 'only events that still need work before their cohort arrives',
       },
       {
-        operation: 'stats_attendance_rate',
-        covers: 'only events that have already happened',
-      },
-      {
         operation: 'ops_emargement_coverage',
         covers: 'only events with the attendance section enabled',
       },

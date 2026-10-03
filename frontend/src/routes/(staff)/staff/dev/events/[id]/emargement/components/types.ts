@@ -7,7 +7,6 @@ import type { PresenceRecord } from '$lib/domain/eventPresence';
 // streamed cohort payload.
 export const PRESENCE_ROSTER_SELECT = {
   talentId: true,
-  sfMemberStatus: true,
   talent: {
     select: {
       nom: true,
@@ -25,7 +24,6 @@ export const PRESENCE_ROSTER_SELECT = {
 /** One projected roster row. `talentId` is the stable row key. */
 export type PresenceRow = {
   talentId: string;
-  sfMemberStatus: string | null;
   nom: string;
   prenom: string;
   /** Count of staff notes on this talent; surfaced in the trigger's hover tooltip.
@@ -42,7 +40,6 @@ export type PresenceRow = {
 // route (not in the UI stream).
 export const PRESENCE_EXPORT_SELECT = {
   talentId: true,
-  sfMemberStatus: true,
   talent: {
     select: {
       nom: true,

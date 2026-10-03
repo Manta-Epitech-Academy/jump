@@ -5,7 +5,7 @@
  * other answer in this folder counts events; none of them lists them, so the id
  * that twelve operations take as a parameter was obtainable only from
  * `config_unconfigured_events` (which by construction excludes anything already
- * visible), from `stats_attendance_rate` (past events only) and from
+ * visible), from a since-retired attendance rate (past events only) and from
  * `ops_emargement_coverage` (only where that section is on). An event that was
  * visible and had not happened yet - the most ordinary state an event can be in -
  * had its id in no read at all, and for a leadership token no non-past event id
@@ -202,7 +202,7 @@ export async function getEventsDirectory(
     events: metric(matching.length, countDefinition),
     list: metric(
       page.map(identityOf),
-      `${IDENTITY_DEFINITION} « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION} : c'est le nombre d'inscrits, pas le nombre de personnes venues, qui se lit avec stats_attendance_rate. Limité à ${EVENTS_LIST_LIMIT} lignes.`,
+      `${IDENTITY_DEFINITION} « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION} : c'est le nombre d'inscrits, pas le nombre de personnes venues. Limité à ${EVENTS_LIST_LIMIT} lignes.`,
     ),
     truncated: matching.length > EVENTS_LIST_LIMIT,
   };

@@ -32,12 +32,7 @@ import {
   SF_STATUS_ATTENDED,
   classifySfStatus,
   isVisibleInDevSpace,
-  pastEventPresence,
 } from '../../../src/lib/domain/sfMemberStatus';
-import {
-  effectiveStatus,
-  presenceSlots,
-} from '../../../src/lib/domain/eventPresence';
 import {
   ACTIVATION_BLOCKERS,
   activationBlockerKeys,
@@ -405,95 +400,6 @@ export async function reachabilityFailures(
   if (!mixedEvent)
     failures.push(
       'Aucun événement ne porte à la fois une inscription visible et une inscription masquée',
-    );
-
-  const derivedPresences = new Set(
-    participations
-      .filter((row) => row.event.date <= anchor)
-      .map((row) => pastEventPresence(row.sfMemberStatus)),
-  );
-  for (const expected of ['present', 'absent', null] as const) {
-    if (!derivedPresences.has(expected))
-      failures.push(
-        `pastEventPresence ne produit jamais ${expected ?? 'null'} sur un événement passé`,
-      );
-  }
-
-  // The one presence shape that consults Salesforce at all: a cell nobody
-  // marked, in a closed slot, on a single-day event. Run the product's own
-  // `effectiveStatus` over what was written rather than restating its rule.
-  const closures = await prisma.eventPresenceClosure.findMany({
-    where: { eventId: { startsWith: 'sd_' } },
-    select: { eventId: true, day: true, slot: true },
-  });
-  const marks = await prisma.eventPresence.findMany({
-    where: { eventId: { startsWith: 'sd_' } },
-    select: {
-      eventId: true,
-      talentId: true,
-      day: true,
-      slot: true,
-      status: true,
-    },
-  });
-  const markKey = (
-    eventId: string,
-    talentId: string,
-    day: Date,
-    slot: string,
-  ) => `${eventId}|${talentId}|${day.toISOString().slice(0, 10)}|${slot}`;
-  const markByKey = new Map(
-    marks.map((mark) => [
-      markKey(mark.eventId, mark.talentId, mark.day, mark.slot),
-      mark.status,
-    ]),
-  );
-
-  const projected = new Set<string>();
-  let overridden = 0;
-  for (const closure of closures) {
-    const roster = participations.filter(
-      (row) => row.event.id === closure.eventId,
-    );
-    // `isSingleDayEvent` in the émargement loader is `slots.length <= 2`, so
-    // ask `presenceSlots` rather than restate it. A null `endDate` is NOT the
-    // same question: every event configured for the dev space now carries one,
-    // set to 23:59 on its own last day, and reading the column alone would have
-    // silently turned this whole block into a no-op.
-    const event = roster[0]?.event;
-    const singleDay =
-      event !== undefined &&
-      presenceSlots(event, event.campus.timezone).length <= 2;
-    for (const row of roster) {
-      const stored = markByKey.get(
-        markKey(closure.eventId, row.talentId, closure.day, closure.slot),
-      );
-      const resolved = effectiveStatus(stored ?? 'pending', true, {
-        isSingleDayEvent: singleDay,
-        sfMemberStatus: row.sfMemberStatus,
-      });
-      if (stored === undefined) projected.add(resolved);
-      else if (
-        stored !==
-        effectiveStatus('pending', true, {
-          isSingleDayEvent: singleDay,
-          sfMemberStatus: row.sfMemberStatus,
-        })
-      )
-        overridden += 1;
-    }
-  }
-  if (!projected.has('present'))
-    failures.push(
-      'Aucune cellule non marquée d’un créneau clos ne se lit « présent » depuis Salesforce',
-    );
-  if (!projected.has('absent'))
-    failures.push(
-      'Aucune cellule non marquée d’un créneau clos ne se lit « absent »',
-    );
-  if (overridden === 0)
-    failures.push(
-      'Aucune marque manuelle ne contredit le statut Salesforce, donc « la saisie humaine l’emporte » n’est démontré nulle part',
     );
 
   return failures;

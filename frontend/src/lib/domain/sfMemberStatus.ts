@@ -9,7 +9,6 @@
  *   - The worker syncs ALL campaign members regardless of status.
  *   - Visible statuses in the dev space: READY and the attended status only.
  *   - CONNECTED and DESISTED are never shown anywhere in dev.
- *   - For a PAST event: attended = present, READY = absent.
  *
  * The attended word is `MET`. The seminar notes, and this file until #368, said
  * `MEET`, which Salesforce never sends: every attendee was hidden from the dev
@@ -166,21 +165,6 @@ export function isVisibleInDevSpace(status: string | null): boolean {
   return statusClass === 'shown' || statusClass === 'missing';
 }
 
-/**
- * For past events only: derive a presence outcome from the SF member status.
- *   - attended -> 'present'
- *   - READY -> 'absent' (said they would come, did not)
- *   - anything else -> null (no meaningful presence signal)
- */
-export function pastEventPresence(
-  status: string | null,
-): 'present' | 'absent' | null {
-  const normalized = normalizeSfStatus(status);
-  if (normalized === SF_STATUS_ATTENDED) return 'present';
-  if (normalized === SF_STATUS_CONFIRMED) return 'absent';
-  return null;
-}
-
 /** Normalize a raw SF status for DB storage: trim + uppercase. */
 export function normalizeSfStatus(
   raw: string | null | undefined,
@@ -189,9 +173,4 @@ export function normalizeSfStatus(
   const trimmed = raw.trim();
   if (!trimmed) return null;
   return trimmed.toUpperCase();
-}
-
-/** French label for a presence outcome (past events). */
-export function presenceLabel(presence: 'present' | 'absent'): string {
-  return presence === 'present' ? 'Présent' : 'Absent';
 }

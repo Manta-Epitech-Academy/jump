@@ -12,7 +12,6 @@ import {
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { NOTE_INCLUDE, serializeNote } from '$lib/server/talentNotes';
 import { getTalentJourney } from '$lib/server/services/talentJourneyService';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import {
   LATEST_IMAGE_RIGHTS_DECISION_ORDER,
@@ -21,12 +20,6 @@ import {
 import { imageRightsCorrectionSchema } from '$lib/validation/imageRights';
 import type { Communication } from '$lib/domain/communications';
 import { getTalentXpStory } from '$lib/server/services/xpStoryService';
-import {
-  visibleParticipationWhere,
-  pastEventPresence,
-} from '$lib/domain/sfMemberStatus';
-import { eventDisplayName } from '$lib/domain/event';
-import { getLifecycleBounds, getEventStatus } from '$lib/domain/eventLifecycle';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 
@@ -44,75 +37,56 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     OR: [{ talentId: params.id }, { parentOfTalentId: params.id }],
   };
   try {
-    const [student, participations, broadcastRows, xpStory, noteRows] =
-      await Promise.all([
-        db.talent.findUniqueOrThrow({
-          where: { id: params.id },
-          include: {
-            user: true,
-            interests: { include: { interest: true } },
-            school: { select: { name: true } },
-            // Image-rights decision history (newest first) for the audit trail in
-            // the rail: who decided what and when, parent vs staff correction.
-            // Ordered on the decision instant first, so the head of this list is
-            // the last thing a guardian actually decided - which is what the rail
-            // resolves the publishing stance from.
-            imageRightsRecords: {
-              orderBy: LATEST_IMAGE_RIGHTS_DECISION_ORDER,
-              include: {
-                recordedBy: { select: { user: { select: { name: true } } } },
-              },
+    const [student, broadcastRows, xpStory, noteRows] = await Promise.all([
+      db.talent.findUniqueOrThrow({
+        where: { id: params.id },
+        include: {
+          user: true,
+          interests: { include: { interest: true } },
+          school: { select: { name: true } },
+          // Image-rights decision history (newest first) for the audit trail in
+          // the rail: who decided what and when, parent vs staff correction.
+          // Ordered on the decision instant first, so the head of this list is
+          // the last thing a guardian actually decided - which is what the rail
+          // resolves the publishing stance from.
+          imageRightsRecords: {
+            orderBy: LATEST_IMAGE_RIGHTS_DECISION_ORDER,
+            include: {
+              recordedBy: { select: { user: { select: { name: true } } } },
             },
           },
-        }),
-        db.participation.findMany({
-          where: { talentId: params.id, ...visibleParticipationWhere },
-          select: {
-            id: true,
-            sfMemberStatus: true,
-            event: {
-              select: {
-                id: true,
-                titre: true,
-                publicName: true,
-                date: true,
-                endDate: true,
-                modules: { select: { moduleKey: true } },
-              },
+        },
+      }),
+      prisma.broadcastRecipient.findMany({
+        where: broadcastsWhere,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          status: true,
+          sentAt: true,
+          openedAt: true,
+          parentOfTalentId: true,
+          broadcast: {
+            select: {
+              id: true,
+              name: true,
+              channel: true,
+              subjectSnapshot: true,
+              createdAt: true,
+              template: { select: { name: true } },
             },
           },
-          orderBy: { event: { date: 'desc' } },
-        }),
-        prisma.broadcastRecipient.findMany({
-          where: broadcastsWhere,
-          orderBy: { createdAt: 'desc' },
-          select: {
-            id: true,
-            status: true,
-            sentAt: true,
-            openedAt: true,
-            parentOfTalentId: true,
-            broadcast: {
-              select: {
-                id: true,
-                name: true,
-                channel: true,
-                subjectSnapshot: true,
-                createdAt: true,
-                template: { select: { name: true } },
-              },
-            },
-          },
-        }),
-        getTalentXpStory(params.id, timezone),
-        // Staff notes feed (newest first). Visibility is already asserted by the
-        // scoped `student` query above resolving for this campus.
-        prisma.note_TalentNote.findMany({
-          where: { talentId: params.id },
-          orderBy: { createdAt: 'desc' },
-          include: NOTE_INCLUDE,
-        }),
-      ]);
+        },
+      }),
+      getTalentXpStory(params.id, timezone),
+      // Staff notes feed (newest first). Visibility is already asserted by the
+      // scoped `student` query above resolving for this campus.
+      prisma.note_TalentNote.findMany({
+        where: { talentId: params.id },
+        orderBy: { createdAt: 'desc' },
+        include: NOTE_INCLUDE,
+      }),
+    ]);
 
     const notes = noteRows.map(serializeNote);
 

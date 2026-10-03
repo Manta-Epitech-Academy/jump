@@ -20,7 +20,7 @@
  * One query for the whole comparison. Both dashboards' aggregation
  * (`computeFormStats`) answers per form, so grouping through it would mean one full
  * pass per campus; the answers to a single question are few enough to read once and
- * bucket in memory, which is what `attendanceRate` does with participations.
+ * bucket in memory, which is what `campusComparison` does with participations.
  */
 
 import { prisma } from '$lib/server/db';

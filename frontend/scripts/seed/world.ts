@@ -215,9 +215,10 @@ export type EventRef = {
  * "200 inscrits" stop being true. `CONNECTED`, `DESISTED` and the legacy `null`
  * are therefore PLACED, in fixed numbers, by the `statuts-salesforce` scenario.
  *
- * The two weights are PROFILE.md's presence figures rather than new numbers:
- * `pastEventPresence` maps MET to present and READY to absent, so the share of
- * each is the share of présents and absents. Left as 81 and 16 instead of a
+ * The two weights borrow PROFILE.md's émargement figures rather than new
+ * numbers: on an event that has happened, Salesforce moves the members who came
+ * to MET and leaves the others at READY, so the shares follow the présents and
+ * the absents the émargement measured. Left as 81 and 16 instead of a
  * normalised 83.5 / 16.5 so the provenance stays readable; `weighted` does not
  * need them to sum to 100.
  */
