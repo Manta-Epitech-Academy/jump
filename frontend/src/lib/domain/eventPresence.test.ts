@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { SF_STATUS_ATTENDED } from './sfMemberStatus';
 import {
   effectiveStatus,
   presenceDays,
@@ -23,7 +24,7 @@ describe('eventPresence Domain Logic & Projections', () => {
       expect(effectiveStatus('pending', false)).toBe('pending');
       expect(
         effectiveStatus('pending', false, {
-          sfMemberStatus: 'MEET',
+          sfMemberStatus: SF_STATUS_ATTENDED,
           isSingleDayEvent: true,
         }),
       ).toBe('pending');
@@ -39,23 +40,23 @@ describe('eventPresence Domain Logic & Projections', () => {
       ).toBe('absent');
       expect(
         effectiveStatus('pending', true, {
-          sfMemberStatus: 'MEET',
+          sfMemberStatus: SF_STATUS_ATTENDED,
           isSingleDayEvent: false, // multi-day stage
         }),
       ).toBe('absent');
     });
 
-    it('falls back to present for closed slots on single-day event when SF status is MEET', () => {
+    it('falls back to present for closed slots on single-day event when SF status is MET', () => {
       expect(
         effectiveStatus('pending', true, {
-          sfMemberStatus: 'MEET',
+          sfMemberStatus: SF_STATUS_ATTENDED,
           isSingleDayEvent: true,
         }),
       ).toBe('present');
 
       expect(
         effectiveStatus('pending', true, {
-          sfMemberStatus: 'meet',
+          sfMemberStatus: 'met',
           isSingleDayEvent: true,
         }),
       ).toBe('present');

@@ -1,7 +1,7 @@
 /**
  * The Salesforce member statuses, and what they do to a screen.
  *
- * The dev space shows `READY` and `MEET` and hides `CONNECTED` and `DESISTED`,
+ * The dev space shows `READY` and `MET` and hides `CONNECTED` and `DESISTED`,
  * and `visibleParticipationWhere` spreads that rule through fifteen files - the
  * enrolment lists, émargement, the talent fiche, and the admin figures behind
  * `cohortOverview`, `attendanceRate` and `feedbackResults`. None of it had ever
@@ -17,7 +17,7 @@
  * It also carries the one presence state nothing else in the dataset produces: a
  * cell nobody marked, in a slot that is closed, on a single-day event. That is
  * the only shape in which `effectiveStatus` consults Salesforce at all - a
- * `MEET` reads présent, a `READY` reads absent - and one cell contradicts it on
+ * `MET` reads présent, a `READY` reads absent - and one cell contradicts it on
  * purpose, because "a manual mark always wins" is a rule you can only see by
  * breaking it.
  *
@@ -29,6 +29,10 @@
 import { codingClubTitre } from '../catalog/events';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
+import {
+  SF_STATUS_ATTENDED,
+  SF_STATUS_CONFIRMED,
+} from '../../../src/lib/domain/sfMemberStatus';
 import { makeCohort } from './helpers';
 import type { Scenario } from './types';
 
@@ -77,7 +81,7 @@ export const sfStatuses: Scenario = {
     // Cut by index, so every group is the same size on every run and in every
     // profile. A draw here would make the assertions probabilistic.
     const third = Math.floor(size / 3);
-    const meetUnmarked = cohort.slice(0, third);
+    const attendedUnmarked = cohort.slice(0, third);
     const readyUnmarked = cohort.slice(third, third * 2);
     const contradicted = cohort[third * 2]!;
     const connected = cohort[third * 2 + 1]!;
@@ -85,12 +89,12 @@ export const sfStatuses: Scenario = {
     const legacy = cohort.slice(third * 2 + 3);
 
     // Visible, unmarked: the closed slot projects présent from Salesforce.
-    for (const talent of meetUnmarked) {
-      world.enrol(event, talent, { sfMemberStatus: 'MEET' });
+    for (const talent of attendedUnmarked) {
+      world.enrol(event, talent, { sfMemberStatus: SF_STATUS_ATTENDED });
     }
     // Visible, unmarked: signed up, never came. The same slot reads absent.
     for (const talent of readyUnmarked) {
-      world.enrol(event, talent, { sfMemberStatus: 'READY' });
+      world.enrol(event, talent, { sfMemberStatus: SF_STATUS_CONFIRMED });
     }
     // Hidden: enrolled, never shown in the dev space. The gap between the two
     // counts is the whole point of the admin inspector.
@@ -104,7 +108,7 @@ export const sfStatuses: Scenario = {
 
     // The contradiction. Salesforce says they came, a human says they did not,
     // and the stored mark wins.
-    world.enrol(event, contradicted, { sfMemberStatus: 'MEET' });
+    world.enrol(event, contradicted, { sfMemberStatus: SF_STATUS_ATTENDED });
     world.markPresence({
       event,
       talent: contradicted,
@@ -135,8 +139,8 @@ export const sfStatuses: Scenario = {
       covers: [
         'Inscrits : le compte visible est inférieur au compte inscrit, deux participations étant masquées',
         'Inspecter les statuts Salesforce (espace admin) : les quatre statuts bruts et le partage visible / masqué',
-        'Émargement, créneau du matin clos : un MEET non marqué lit « présent », un READY non marqué lit « absent »',
-        'Une marque manuelle « absent » sur un MEET : la saisie humaine l’emporte sur Salesforce',
+        `Émargement, créneau du matin clos : un ${SF_STATUS_ATTENDED} non marqué lit « présent », un ${SF_STATUS_CONFIRMED} non marqué lit « absent »`,
+        `Une marque manuelle « absent » sur un ${SF_STATUS_ATTENDED} : la saisie humaine l’emporte sur Salesforce`,
         'Des inscriptions sans statut, comme avant la synchronisation de juillet 2026',
         'Créneau de l’après-midi laissé ouvert : « tout présent » et la clôture restent exerçables',
       ],

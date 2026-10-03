@@ -29,6 +29,7 @@ import {
 import { schoolYearOf } from '../../../src/lib/domain/schoolYear';
 import {
   SF_MEMBER_STATUSES,
+  SF_STATUS_ATTENDED,
   isVisibleInDevSpace,
   pastEventPresence,
 } from '../../../src/lib/domain/sfMemberStatus';
@@ -361,14 +362,15 @@ export async function reachabilityFailures(
       'Aucune inscription sans statut, alors que celles importées avant juillet 2026 en sont dépourvues',
     );
 
-  // Nobody attended an event that has not happened. A drawn `MEET` on a future
+  // Nobody attended an event that has not happened. A drawn `MET` on a future
   // event is the one illegal state this generator could produce silently.
   const impossible = participations.filter(
-    (row) => row.event.date > anchor && row.sfMemberStatus === 'MEET',
+    (row) =>
+      row.event.date > anchor && row.sfMemberStatus === SF_STATUS_ATTENDED,
   );
   if (impossible.length > 0)
     failures.push(
-      `${impossible.length} inscriptions au statut MEET sur un événement qui n'a pas eu lieu`,
+      `${impossible.length} inscriptions au statut ${SF_STATUS_ATTENDED} sur un événement qui n'a pas eu lieu`,
     );
 
   // One event carrying both sides of the filter, which is what the admin

@@ -7,15 +7,30 @@
  *
  * Business rules (July 2026 seminar, firm):
  *   - The worker syncs ALL campaign members regardless of status.
- *   - Visible statuses in the dev space: READY and MEET only.
+ *   - Visible statuses in the dev space: READY and the attended status only.
  *   - CONNECTED and DESISTED are never shown anywhere in dev.
- *   - For a PAST event: MEET = present, READY = absent.
+ *   - For a PAST event: attended = present, READY = absent.
+ *
+ * The attended word is `MET`. The seminar notes, and this file until #368, said
+ * `MEET`, which Salesforce never sends: every attendee was hidden from the dev
+ * space and counted nowhere, and nothing said so, because a word this file does
+ * not declare is hidden without a sound. That is why each word is written once,
+ * below, and every definition, label and test reads it from here.
  */
 
 import type { Prisma } from '@prisma/client';
 
+/** Salesforce's word for a member who attended. */
+export const SF_STATUS_ATTENDED = 'MET';
+
+/** Salesforce's word for a member who confirmed they would come. */
+export const SF_STATUS_CONFIRMED = 'READY';
+
 /** Statuses shown in the dev workspace. Null (legacy) is also visible. */
-export const SF_VISIBLE_STATUSES = ['READY', 'MEET'] as const;
+export const SF_VISIBLE_STATUSES = [
+  SF_STATUS_CONFIRMED,
+  SF_STATUS_ATTENDED,
+] as const;
 
 /** Statuses the dev workspace never shows. Retained in the DB for diagnosis. */
 export const SF_HIDDEN_STATUSES = ['CONNECTED', 'DESISTED'] as const;
@@ -62,9 +77,9 @@ export const visibleParticipationWhere = {
  * definition (`adminApi/metrics.ts`, the weekly digest).
  *
  * It lives here, next to the `where` it describes, because it was written out by
- * hand in two aggregates at once: two copies of one rule, and both said "READY ou
- * MEET" while the filter also keeps legacy rows synced before the status column
- * existed. A definition that undersells what it counts is worse than no
+ * hand in two aggregates at once: two copies of one rule, and both named the two
+ * statuses while the filter also keeps legacy rows synced before the status
+ * column existed. A definition that undersells what it counts is worse than no
  * definition, since it gets quoted verbatim to an admin.
  *
  * Reads as a clause, so a definition can compose it: "Participations aux
@@ -72,31 +87,50 @@ export const visibleParticipationWhere = {
  */
 export const VISIBLE_PARTICIPATION_DEFINITION =
   'en ne comptant que les inscriptions visibles dans Jump (statut Salesforce ' +
-  "READY ou MEET, plus les inscriptions importées avant l'ajout du statut)";
+  `${SF_STATUS_CONFIRMED} ou ${SF_STATUS_ATTENDED}, plus les inscriptions importées avant l'ajout du statut)`;
 
 /**
- * Whether a participation should appear in the dev workspace.
- * Null = legacy row synced before the status column existed: keep visible.
+ * What the dev space does with a stored status, and why.
+ *
+ *   - `shown`: a status the seminar decided to display.
+ *   - `hidden`: a status the seminar decided to mask (a false lead, a withdrawal).
+ *   - `unrecognised`: a word this file does not declare. Masked, like `hidden`,
+ *     because showing an unknown status is the riskier default, but kept apart
+ *     so that it can be reported: masking it in silence is how `MET` went
+ *     unseen for a month.
+ *   - `missing`: no status at all, a row synced before the column existed.
+ *     Shown, to keep what those screens displayed before statuses arrived.
  */
+export type SfStatusClass = 'shown' | 'hidden' | 'unrecognised' | 'missing';
+
+export function classifySfStatus(status: string | null): SfStatusClass {
+  const normalized = normalizeSfStatus(status);
+  if (normalized === null) return 'missing';
+  if ((SF_VISIBLE_STATUSES as readonly string[]).includes(normalized))
+    return 'shown';
+  if ((SF_HIDDEN_STATUSES as readonly string[]).includes(normalized))
+    return 'hidden';
+  return 'unrecognised';
+}
+
+/** Whether a participation appears in the dev workspace. */
 export function isVisibleInDevSpace(status: string | null): boolean {
-  if (status === null) return true;
-  const upper = status.trim().toUpperCase();
-  return (SF_VISIBLE_STATUSES as readonly string[]).includes(upper);
+  const statusClass = classifySfStatus(status);
+  return statusClass === 'shown' || statusClass === 'missing';
 }
 
 /**
  * For past events only: derive a presence outcome from the SF member status.
- *   - MEET -> 'present' (they attended)
+ *   - attended -> 'present'
  *   - READY -> 'absent' (said they would come, did not)
  *   - anything else -> null (no meaningful presence signal)
  */
 export function pastEventPresence(
   status: string | null,
 ): 'present' | 'absent' | null {
-  if (status === null) return null;
-  const upper = status.trim().toUpperCase();
-  if (upper === 'MEET') return 'present';
-  if (upper === 'READY') return 'absent';
+  const normalized = normalizeSfStatus(status);
+  if (normalized === SF_STATUS_ATTENDED) return 'present';
+  if (normalized === SF_STATUS_CONFIRMED) return 'absent';
   return null;
 }
 

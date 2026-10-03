@@ -44,7 +44,7 @@ They are **never** exposed raw in the UI: they map to French domain labels.
 | Salesforce Value   | Business Meaning                                                      | Displayed in Jump UI                                |
 | ------------------ | --------------------------------------------------------------------- | ---------------------------------------------------- |
 | `READY`            | Talent confirmed attendance                                           | Visible in dev workspace. For past events: *Absent* (confirmed but did not show up) |
-| `MEET`             | Talent attended the event                                             | Visible in dev workspace. For past events: *Présent* |
+| `MET`              | Talent attended the event                                             | Visible in dev workspace. For past events: *Présent* |
 | `CONNECTED`        | Talent clicked Salesforce link but did not confirm                    | **Not visible** in dev workspace. Retained in DB for debugging. |
 | `DESISTED`         | Talent explicitly withdrew                                            | **Not visible** in dev workspace. Retained in DB for debugging. |
 | `null` (legacy)    | Row synced prior to `sfMemberStatus` field introduction               | Treated as visible (preserves historical behavior)  |
@@ -60,7 +60,7 @@ These three concepts are distinct and must not be confused in code or documentat
 | Concept            | Definition                                                                                        | Data Source                |
 | ------------------ | -------------------------------------------------------------------------------------------------- | -------------------------- |
 | **Participation**  | The fact that a talent is enrolled in an event (originates from Salesforce via worker). `Participation` entity in DB. | Salesforce sync worker     |
-| **Présence SF**    | For a *past* event: inferred from `sfMemberStatus` (`MEET` = present, `READY` = absent). No manual entry in Jump. | `Participation.sfMemberStatus` |
+| **Présence SF**    | For a *past* event: inferred from `sfMemberStatus` (`MET` = present, `READY` = absent). No manual entry in Jump. | `Participation.sfMemberStatus` |
 | **Émargement**     | Real-time attendance tracking during the event, entered by staff inside Jump. `EventPresence` entity in DB. Independent of SF statuses. | Staff entry in Jump        |
 
 ---

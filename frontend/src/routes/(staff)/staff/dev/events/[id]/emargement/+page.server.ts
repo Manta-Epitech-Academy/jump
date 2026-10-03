@@ -90,7 +90,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   const cohort: Promise<EmargementCohort> = (async () => {
     const [participations, presenceRows] = await Promise.all([
       db.participation.findMany({
-        // Only visible SF statuses (READY, MEET) plus legacy null rows: the
+        // Only visible SF statuses (READY, MET) plus legacy null rows: the
         // émargement roster mirrors the inscrits filter - CONNECTED/DESISTED
         // members never appear. For a past event, a READY member with no
         // EventPresence row reads as absent in every closed slot
@@ -145,7 +145,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 
     // Stage attendance rate over the whole grid: project every unmarked cell in a
     // CLOSED créneau to absent (open créneaux stay pending and are ignored).
-    // For single-slot events with no manual Jump mark, SF MEET status falls back to present.
+    // For single-slot events with no manual Jump mark, SF MET status falls back to present.
     const storedStatus = new Map(
       presences.map((p) => [`${p.talentId}|${p.day}|${p.slot}`, p.status]),
     );

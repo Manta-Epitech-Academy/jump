@@ -105,9 +105,9 @@
       class: 'bg-success/10 text-success border-success/25',
       label: 'Ready',
     },
-    MEET: {
+    MET: {
       class: 'bg-epi-tech/10 text-epi-tech-ink border-epi-tech/25',
-      label: 'Meet',
+      label: 'Met',
     },
     CONNECTED: {
       class: 'bg-warning/10 text-warning border-warning/25',
@@ -277,7 +277,7 @@
                       {:else}
                         <span
                           class="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground"
-                          title="Masqué de l'espace dev (statut ni READY ni MEET)"
+                          title="Masqué de l'espace dev (statut ni READY ni MET)"
                         >
                           <EyeOff class="h-3 w-3" />
                           Masqué

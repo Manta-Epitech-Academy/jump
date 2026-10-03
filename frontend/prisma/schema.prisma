@@ -1031,7 +1031,7 @@ model Participation {
   talentId       String
   eventId        String
   campusId       String
-  sfMemberStatus String? // raw Salesforce CampaignMember status, e.g. CONNECTED/READY/MEET/DESISTED
+  sfMemberStatus String? // raw Salesforce CampaignMember status, e.g. CONNECTED/READY/MET/DESISTED
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

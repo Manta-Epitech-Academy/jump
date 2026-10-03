@@ -186,8 +186,8 @@ describe('getEventsOverview', () => {
   });
 
   // The clause is owned by the module that owns the filter it describes. Two
-  // aggregates used to spell it out by hand, and both said "READY ou MEET" while
-  // the filter also keeps legacy statusless rows.
+  // aggregates used to spell it out by hand, and both named only the two
+  // statuses while the filter also keeps legacy statusless rows.
   it('states the visible-cohort rule from its single owner, not a local copy', async () => {
     listAdminEvents.mockResolvedValue([event()]);
 

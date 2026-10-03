@@ -40,7 +40,7 @@ describe('Salesforce member status sync (integration)', () => {
   ];
   const roster: Record<string, string> = {
     [talents[0].external_id]: 'READY',
-    [talents[1].external_id]: 'MEET',
+    [talents[1].external_id]: 'MET',
     [talents[2].external_id]: 'CONNECTED',
     [talents[3].external_id]: 'DESISTED',
   };
@@ -124,11 +124,11 @@ describe('Salesforce member status sync (integration)', () => {
     // Ingested as-is, normalized to upper-case, whatever the status.
     let statuses = await statusByExtId();
     expect(statuses.get(talents[0].external_id)).toBe('READY');
-    expect(statuses.get(talents[1].external_id)).toBe('MEET');
+    expect(statuses.get(talents[1].external_id)).toBe('MET');
     expect(statuses.get(talents[2].external_id)).toBe('CONNECTED');
     expect(statuses.get(talents[3].external_id)).toBe('DESISTED');
 
-    // Dev-space visibility follows isVisibleInDevSpace: READY/MEET shown, the
+    // Dev-space visibility follows isVisibleInDevSpace: READY/MET shown, the
     // rest hidden: the whole point of ingesting the status.
     expect(
       isVisibleInDevSpace(statuses.get(talents[0].external_id) ?? null),
@@ -150,13 +150,13 @@ describe('Salesforce member status sync (integration)', () => {
     await syncParticipations(
       eventExternalId,
       {
-        [talents[0].external_id]: 'MEET', // READY -> MEET
-        [talents[1].external_id]: 'DESISTED', // MEET -> DESISTED
+        [talents[0].external_id]: 'MET', // READY -> MET
+        [talents[1].external_id]: 'DESISTED', // MET -> DESISTED
       },
       'incremental',
     );
     statuses = await statusByExtId();
-    expect(statuses.get(talents[0].external_id)).toBe('MEET');
+    expect(statuses.get(talents[0].external_id)).toBe('MET');
     expect(statuses.get(talents[1].external_id)).toBe('DESISTED');
     expect(statuses.size).toBe(4);
 
@@ -165,7 +165,7 @@ describe('Salesforce member status sync (integration)', () => {
     const pruned = await syncParticipations(
       eventExternalId,
       {
-        [talents[0].external_id]: 'MEET',
+        [talents[0].external_id]: 'MET',
         [talents[1].external_id]: 'DESISTED',
       },
       'full',

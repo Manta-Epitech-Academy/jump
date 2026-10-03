@@ -1,7 +1,7 @@
 /**
  * Of the students who signed up, how many actually turned up.
  *
- * For a past event Salesforce's member status IS the presence record: MEET means
+ * For a past event Salesforce's member status IS the presence record: MET means
  * they came, READY means they said they would and did not
  * (`domain/sfMemberStatus.pastEventPresence`). That mapping is a business rule
  * fixed at the July 2026 seminar, it lives in the domain module, and this
@@ -25,6 +25,8 @@
 import { prisma } from '$lib/server/db';
 import {
   pastEventPresence,
+  SF_STATUS_ATTENDED,
+  SF_STATUS_CONFIRMED,
   visibleParticipationWhere,
   VISIBLE_PARTICIPATION_DEFINITION,
 } from '$lib/domain/sfMemberStatus';
@@ -40,8 +42,7 @@ export const ATTENDANCE_EVENTS_LIMIT = 60;
  * campuses on it. Stating the denominator is the whole point: the rate is over the
  * enrolments whose status concludes something, never over every enrolment.
  */
-export const SHOW_UP_RATE_RULE =
-  'Part des inscriptions exploitables qui ont donné lieu à une présence, en pourcentage, sur les événements déjà terminés. Une inscription est exploitable quand son statut Salesforce conclut sur la venue : MEET (venue) ou READY (pas venue). Celles sans statut exploitable sont exclues du calcul plutôt que comptées comme des absences.';
+export const SHOW_UP_RATE_RULE = `Part des inscriptions exploitables qui ont donné lieu à une présence, en pourcentage, sur les événements déjà terminés. Une inscription est exploitable quand son statut Salesforce conclut sur la venue : ${SF_STATUS_ATTENDED} (venue) ou ${SF_STATUS_CONFIRMED} (pas venue). Celles sans statut exploitable sont exclues du calcul plutôt que comptées comme des absences.`;
 
 export type EventAttendance = {
   eventId: string;
@@ -51,7 +52,7 @@ export type EventAttendance = {
   enrolled: number;
   present: number;
   absent: number;
-  /** Shown by Jump, but neither MEET nor READY: no usable presence signal. */
+  /** Shown by Jump, but neither attended nor READY: no usable presence signal. */
   unknown: number;
   /** Percentage of enrolments that turned into a presence. */
   showUpRate: number | null;
@@ -118,7 +119,7 @@ export async function getAttendanceRate(
       absent: 0,
       unknown: 0,
     };
-    // MEET + READY only. Deliberately NOT every enrolment the dev workspace
+    // Attended + READY only. Deliberately NOT every enrolment the dev workspace
     // lists: a status-less row belongs to no side of this ratio, so it sits in
     // `unknown` and the denominator stays the population the answer can speak
     // for. `enrolled + unknown` is what the workspace shows.
@@ -149,7 +150,7 @@ export async function getAttendanceRate(
     ),
     enrolled: metric(
       enrolled,
-      "Inscriptions à ces événements passés dont le statut Salesforce conclut sur la venue : MEET (la personne est venue) ou READY (elle ne l'est pas). C'est le dénominateur du taux de présence. Les inscriptions sans statut exploitable n'y figurent pas, elles sont comptées dans « unknown » ; la somme des deux correspond aux inscriptions affichées dans l'espace dev.",
+      `Inscriptions à ces événements passés dont le statut Salesforce conclut sur la venue : ${SF_STATUS_ATTENDED} (la personne est venue) ou ${SF_STATUS_CONFIRMED} (elle ne l'est pas). C'est le dénominateur du taux de présence. Les inscriptions sans statut exploitable n'y figurent pas, elles sont comptées dans « unknown » ; la somme des deux correspond aux inscriptions affichées dans l'espace dev.`,
     ),
     shownEnrolments: metric(
       enrolled + sum((r) => r.unknown),
@@ -157,11 +158,11 @@ export async function getAttendanceRate(
     ),
     present: metric(
       present,
-      'Inscriptions dont le statut Salesforce vaut MEET après coup, ce qui signifie que la personne est venue.',
+      `Inscriptions dont le statut Salesforce vaut ${SF_STATUS_ATTENDED} après coup, ce qui signifie que la personne est venue.`,
     ),
     absent: metric(
       sum((r) => r.absent),
-      "Inscriptions restées au statut Salesforce READY après l'événement : la personne s'était inscrite et n'est pas venue.",
+      `Inscriptions restées au statut Salesforce ${SF_STATUS_CONFIRMED} après l'événement : la personne s'était inscrite et n'est pas venue.`,
     ),
     absentRate: metric(
       share(

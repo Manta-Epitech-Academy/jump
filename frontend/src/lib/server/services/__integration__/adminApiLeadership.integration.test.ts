@@ -16,6 +16,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { schoolYearOf } from '$lib/domain/schoolYear';
+import { SF_STATUS_ATTENDED } from '$lib/domain/sfMemberStatus';
 import { assertTestDatabase } from './testDatabase';
 import { getCampusComparison } from '$lib/server/services/adminStats/campusComparison';
 import { getSchoolChurn } from '$lib/server/services/adminStats/schoolChurn';
@@ -129,8 +130,8 @@ describe('the comparing leadership figures (integration)', () => {
       schoolId: kept.id,
       complete: true,
     });
-    await enrol(returning.id, busyEarlyA, 'MEET');
-    await enrol(returning.id, busyEarlyB, 'MEET');
+    await enrol(returning.id, busyEarlyA, SF_STATUS_ATTENDED);
+    await enrol(returning.id, busyEarlyB, SF_STATUS_ATTENDED);
 
     const fromLostSchool = await talent({
       civilite: 'homme',
@@ -139,7 +140,7 @@ describe('the comparing leadership figures (integration)', () => {
     await enrol(fromLostSchool.id, busyEarlyA, 'READY');
 
     const elsewhere = await talent({ civilite: 'femme', schoolId: kept.id });
-    await enrol(elsewhere.id, earlierOnly, 'MEET');
+    await enrol(elsewhere.id, earlierOnly, SF_STATUS_ATTENDED);
 
     // Current year: the busy campus keeps one lycée and gains another, the empty
     // campus has an event nobody signed up to, the earlier campus has none at all.
@@ -149,7 +150,7 @@ describe('the comparing leadership figures (integration)', () => {
 
     for (const civilite of ['femme', 'femme', 'homme']) {
       const t = await talent({ civilite, schoolId: kept.id, complete: true });
-      await enrol(t.id, busyNow, 'MEET');
+      await enrol(t.id, busyNow, SF_STATUS_ATTENDED);
     }
     const fromNewSchool = await talent({
       civilite: 'homme',
@@ -215,7 +216,7 @@ describe('the comparing leadership figures (integration)', () => {
       });
       const rows = seeded(rankings.showUpRate.value);
 
-      // Three MEET against one READY.
+      // Three MET against one READY.
       expect(forCampus(rows, BUSY)?.value).toBe(75);
       // The empty campus has a past event and no enrolment: nothing to rate.
       expect(forCampus(rows, EMPTY)?.value).toBeNull();

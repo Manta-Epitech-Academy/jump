@@ -3,6 +3,8 @@ import {
   SF_VISIBLE_STATUSES,
   SF_HIDDEN_STATUSES,
   SF_MEMBER_STATUSES,
+  SF_STATUS_ATTENDED,
+  classifySfStatus,
   isVisibleInDevSpace,
   pastEventPresence,
   normalizeSfStatus,
@@ -35,6 +37,29 @@ describe('sfMemberStatus domain logic', () => {
       expect(normalizeSfStatus(' rescheduled ')).toBe('RESCHEDULED');
       expect(isVisibleInDevSpace('RESCHEDULED')).toBe(false);
     });
+
+    // Regression for #368: the attended word is the one Salesforce sends. The
+    // seminar's `MEET` is not a status at all, and must read as unknown rather
+    // than as an attendance.
+    it('reads MET as attended, and MEET as a word it does not know', () => {
+      expect(SF_STATUS_ATTENDED).toBe('MET');
+      expect(classifySfStatus('Met')).toBe('shown');
+      expect(pastEventPresence('Met')).toBe('present');
+      expect(classifySfStatus('MEET')).toBe('unrecognised');
+      expect(pastEventPresence('MEET')).toBe(null);
+    });
+  });
+
+  describe('classifySfStatus', () => {
+    it('keeps an unknown word apart from a deliberately hidden one', () => {
+      expect(classifySfStatus('CONNECTED')).toBe('hidden');
+      expect(classifySfStatus('NO_SHOW')).toBe('unrecognised');
+    });
+
+    it('calls a blank status missing, like a null one', () => {
+      expect(classifySfStatus(null)).toBe('missing');
+      expect(classifySfStatus('  ')).toBe('missing');
+    });
   });
 
   describe('isVisibleInDevSpace', () => {
@@ -42,12 +67,12 @@ describe('sfMemberStatus domain logic', () => {
       expect(isVisibleInDevSpace(null)).toBe(true);
     });
 
-    it('returns true for READY and MEET (case-insensitive)', () => {
+    it('returns true for READY and MET (case-insensitive)', () => {
       expect(isVisibleInDevSpace('READY')).toBe(true);
       expect(isVisibleInDevSpace('ready')).toBe(true);
       expect(isVisibleInDevSpace('Ready  ')).toBe(true);
-      expect(isVisibleInDevSpace('MEET')).toBe(true);
-      expect(isVisibleInDevSpace('meet')).toBe(true);
+      expect(isVisibleInDevSpace('MET')).toBe(true);
+      expect(isVisibleInDevSpace('met')).toBe(true);
     });
 
     it('returns false for CONNECTED, DESISTED, and unknown statuses', () => {
@@ -64,10 +89,10 @@ describe('sfMemberStatus domain logic', () => {
       expect(pastEventPresence(null)).toBe(null);
     });
 
-    it('maps MEET to present', () => {
-      expect(pastEventPresence('MEET')).toBe('present');
-      expect(pastEventPresence('meet')).toBe('present');
-      expect(pastEventPresence('Meet  ')).toBe('present');
+    it('maps MET to present', () => {
+      expect(pastEventPresence('MET')).toBe('present');
+      expect(pastEventPresence('met')).toBe('present');
+      expect(pastEventPresence('Met  ')).toBe('present');
     });
 
     it('maps READY to absent', () => {
@@ -91,7 +116,7 @@ describe('sfMemberStatus domain logic', () => {
 
     it('trims and uppercases valid status strings', () => {
       expect(normalizeSfStatus('ready')).toBe('READY');
-      expect(normalizeSfStatus('meet  ')).toBe('MEET');
+      expect(normalizeSfStatus('met  ')).toBe('MET');
       expect(normalizeSfStatus('Connected')).toBe('CONNECTED');
     });
   });
