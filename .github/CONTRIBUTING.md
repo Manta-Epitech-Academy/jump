@@ -226,13 +226,18 @@ same ids, only intact. Which is why the anchor is held constant for the whole wi
 passed explicitly on each run - taking it from the trigger date would shift every date in the dataset
 between two promotions of one release, and the PO would no longer be looking at the same thing.
 
-**Not true of the live `staging` yet.** Nothing has ever seeded it: the container `CMD` is
-`migrate deploy` and nothing else, so it carries whatever has accumulated in it, the Salesforce sync
-included for as long as the worker was pointed there. The generator refuses a database it has never
-filled rather than filling it half-way, so the switchover is a `prisma migrate reset`, then a
-generation, then `frontend/scripts/bootstrap-admins.ts` for the admin accounts the reset destroys. That,
-and the Job that re-seeds during the window, is #294. Until it lands, read this section as the target
-and not as the state.
+**How it is re-seeded.** The `seed` job of `.github/workflows/docker-build.yml` runs on every push to
+`dev` and to `staging`, after the rollout of that push is complete (so the new pod has applied its
+migrations) and after the seeder image of that commit is pushed. It creates the Job in
+`.github/k8s/seed-job.yml`, one at a time per branch, and fails visibly if the generator does. On `dev`
+the anchor is the run date. On `staging` it is the `SEED_TODAY_STAGING` repository variable: set it to
+the freeze date when cutting a release and leave it alone for the window, since the job refuses to seed
+`staging` without it rather than move the dataset under the PO. An out-of-band run, for a generation
+between two pushes, is `jumper-k3s/scripts/jump/seed.sh`.
+
+The live `staging` was switched over on 2026-09-07: a `prisma migrate reset`, a generation, then
+`frontend/scripts/bootstrap-admins.ts` for the admin accounts the reset destroys. Nothing had seeded it
+before, and the generator refuses a database it has never filled rather than filling it half-way.
 
 The reset belongs to that switchover alone, and not to the re-seeds that follow it. A database this
 generator has already filled goes on accumulating rows it did not write, because the application keeps

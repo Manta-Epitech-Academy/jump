@@ -1,0 +1,44 @@
+# Writes the kubeconfig every job that talks to the cluster needs. One place,
+# so the two jobs that reach k3s (the rollout restart and the re-seed) cannot
+# drift on how they authenticate. The token is a team-admins ServiceAccount
+# token minted with jumper-k3s/scripts/k8s-access.sh, held in the K3S_TOKEN
+# repository secret.
+name: k3s kubeconfig
+description: Configure kubectl against the Jump k3s cluster.
+inputs:
+  url:
+    description: API server URL (the K3S_URL secret).
+    required: true
+  token:
+    description: ServiceAccount token (the K3S_TOKEN secret).
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v4
+
+    - name: Configure kubeconfig
+      shell: bash
+      run: |
+        mkdir -p ~/.kube
+        cat > ~/.kube/config <<KUBECONFIG
+        apiVersion: v1
+        kind: Config
+        clusters:
+          - cluster:
+              server: ${{ inputs.url }}
+              insecure-skip-tls-verify: true
+            name: k3s
+        contexts:
+          - context:
+              cluster: k3s
+              user: k3s-user
+            name: k3s
+        current-context: k3s
+        users:
+          - name: k3s-user
+            user:
+              token: ${{ inputs.token }}
+        KUBECONFIG
+        chmod 600 ~/.kube/config

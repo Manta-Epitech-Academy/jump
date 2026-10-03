@@ -1,0 +1,43 @@
+# The re-seed Job the `seed` job of docker-build.yml creates after a deploy.
+# Rendered with envsubst; every ${SEED_*} below is set by the workflow.
+#
+# Fixed name on purpose: the workflow deletes the previous Job before creating
+# this one, so two pushes in a row cannot leave two generators writing the same
+# deterministic ids into one database at once (which fails on the first primary
+# key they both reach). `backoffLimit: 0` for the same reason: a retry would be
+# a second generator, not a second chance.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: jump-seed
+  namespace: ${SEED_NAMESPACE}
+  labels:
+    app: jump-seed
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: jump-seed
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: eliotamn-github
+      containers:
+        - name: seeder
+          image: ${SEED_IMAGE}
+          # The tag (`dev`, `staging`) moves on every push: a cached layer would
+          # seed with the previous commit's generator.
+          imagePullPolicy: Always
+          args:
+            - "--env"
+            - "${SEED_ENV}"
+            - "--profile"
+            - "${SEED_PROFILE}"
+            - "--today"
+            - "${SEED_TODAY}"
+          envFrom:
+            - secretRef:
+                name: jump-sk-secret
