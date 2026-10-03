@@ -705,6 +705,12 @@ export const ADMIN_API_OPERATIONS = {
         .describe(
           `The complete set of dev-workspace sections this event exposes; sections left out are turned off. One of: ${EVENT_MODULE_KEYS.join(', ')}.`,
         ),
+      shownStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} The complete set of Salesforce member statuses whose enrolments the dev workspace shows for this event; statuses left out are masked (still synced and in Jump). Enrolments with no status at all are always shown.`,
+        ),
     },
     run: (params) => writeEventConfig(params),
   }),
@@ -1252,7 +1258,7 @@ export const ADMIN_API_OPERATIONS = {
 
   bulk_apply_event_template: defineWrite({
     twoStep: true,
-    description: `Apply a saved preset's sections to every event matching a filter. Only the sections are applied in bulk, not the preset's names or times. Dry run first (no planDigest), then apply with the digest it returns. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
+    description: `Apply a saved preset's sections and shown Salesforce statuses to every event matching a filter. Only those two are applied in bulk, not the preset's names or times. Dry run first (no planDigest), then apply with the digest it returns. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
     shape: {
       templateName: z.string().min(1).describe(handleDescribe('templateName')),
       campus,

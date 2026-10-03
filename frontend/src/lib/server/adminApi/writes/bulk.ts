@@ -18,6 +18,8 @@
 
 import { EventService, type AdminEventVM } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
+import { replaceShownStatuses } from '$lib/server/services/devSpaceVisibility';
+import { prisma } from '$lib/server/db';
 import { isEventModuleKey, EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
 import {
   activationBlockers,
@@ -182,6 +184,7 @@ export async function bulkApplyEventTemplate(params: {
     );
   }
   const desired = [...template.modules].sort();
+  const shown = [...template.shownStatuses].sort();
 
   return runTwoStep({
     requestedDigest: params.planDigest,
@@ -192,8 +195,14 @@ export async function bulkApplyEventTemplate(params: {
           ...identify(event),
           from: [...event.modules].sort(),
           to: desired,
+          shownStatusesFrom: event.shownStatuses,
+          shownStatusesTo: shown,
         }))
-        .filter((row) => row.from.join(',') !== row.to.join(','));
+        .filter(
+          (row) =>
+            row.from.join(',') !== row.to.join(',') ||
+            row.shownStatusesFrom.join(',') !== row.shownStatusesTo.join(','),
+        );
       return {
         template: template.name,
         targeted: events.length,
@@ -201,20 +210,24 @@ export async function bulkApplyEventTemplate(params: {
         // Said out loud because the preset carries more than sections, and a
         // bulk apply deliberately does not touch the rest: renaming 40 events
         // in one call is not something a plan should slip in.
-        note: "Seules les sections sont appliquées en masse. Le nom public, le nom des participants et l'heure d'arrivée portés par le modèle ne sont pas recopiés ici.",
+        note: "Seules les sections et les statuts Salesforce affichés sont appliqués en masse. Le nom public, le nom des participants et l'heure d'arrivée portés par le modèle ne sont pas recopiés ici.",
       };
     },
     apply: async (plan) => {
-      await EventService.bulkSetModules(
-        plan.changes.map((c) => c.eventId),
-        desired,
-      );
+      const ids = plan.changes.map((c) => c.eventId);
+      await EventService.bulkSetModules(ids, desired);
+      await prisma.$transaction((tx) => replaceShownStatuses(tx, ids, shown));
       return {
         before: plan.changes.map((c) => ({
           eventId: c.eventId,
           modules: c.from,
+          shownStatuses: c.shownStatusesFrom,
         })),
-        after: plan.changes.map((c) => ({ eventId: c.eventId, modules: c.to })),
+        after: plan.changes.map((c) => ({
+          eventId: c.eventId,
+          modules: c.to,
+          shownStatuses: c.shownStatusesTo,
+        })),
       };
     },
   });

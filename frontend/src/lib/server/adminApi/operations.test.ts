@@ -176,6 +176,7 @@ const EVENT_FIELD_WRITES: Record<string, string> = {
   feedbackFormId: 'write_event_feedback_form.formId',
   diplomaTemplateId: 'write_event_diploma_template.templateId',
   closingTemplateId: 'write_event_closing_template.closingTemplateId',
+  shownStatuses: 'write_event_config.shownStatuses',
 };
 
 /** Every operation name a `+server.ts` under /api/admin actually mounts. */

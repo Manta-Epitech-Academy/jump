@@ -7,6 +7,7 @@ import {
   parseModuleSettings,
   type EventModuleKey,
 } from '$lib/domain/eventModules';
+import { resolveKnownStatuses } from '$lib/server/services/devSpaceVisibility';
 
 /**
  * Service for `EventConfig_Template` - reusable, named, global event-config
@@ -37,6 +38,8 @@ type EventConfigTemplateSummary = {
   modules: EventModuleKey[];
   /** Per-module sub-options, keyed by module key (fully defaulted). */
   moduleSettings: Record<string, unknown>;
+  /** The Salesforce statuses the dev space shows, sorted. */
+  shownStatuses: string[];
 };
 
 type TemplateRow = {
@@ -50,10 +53,12 @@ type TemplateRow = {
   diplomaTemplateId: string | null;
   closingTemplateId: string | null;
   modules: { moduleKey: string; settings: Prisma.JsonValue }[];
+  shownStatuses: { status: string }[];
 };
 
 const TEMPLATE_INCLUDE = {
   modules: { select: { moduleKey: true, settings: true } },
+  shownStatuses: { select: { status: true }, orderBy: { status: 'asc' } },
 } satisfies Prisma.EventConfig_TemplateInclude;
 
 function toSummary(t: TemplateRow): EventConfigTemplateSummary {
@@ -75,6 +80,7 @@ function toSummary(t: TemplateRow): EventConfigTemplateSummary {
     closingTemplateId: t.closingTemplateId,
     modules: present.map((m) => m.moduleKey as EventModuleKey),
     moduleSettings,
+    shownStatuses: t.shownStatuses.map((row) => row.status),
   };
 }
 
@@ -157,6 +163,7 @@ export const EventConfigTemplateService = {
     feedbackFormId: string;
     diplomaTemplateId: string;
     closingTemplateId: string;
+    shownStatuses: string[];
     actorId: string | null;
   }): Promise<{ id: string; updated: boolean }> {
     const name = input.name.trim();
@@ -173,6 +180,9 @@ export const EventConfigTemplateService = {
     const cohortNoun = input.cohortNoun.trim() || null;
     const startMinutes = hhmmToMinutes(input.startTime);
     const moduleRows = moduleCreateRows(input.modules, input.moduleSettings);
+    const shownRows = (await resolveKnownStatuses(input.shownStatuses)).map(
+      (status) => ({ status }),
+    );
 
     const existing = await prisma.eventConfig_Template.findUnique({
       where: { name },
@@ -180,9 +190,12 @@ export const EventConfigTemplateService = {
     });
 
     if (existing) {
-      // Replace the config wholesale (drop old module rows, recreate) in one tx.
+      // Replace the config wholesale (drop old child rows, recreate) in one tx.
       await prisma.$transaction([
         prisma.eventConfig_TemplateModule.deleteMany({
+          where: { templateId: existing.id },
+        }),
+        prisma.eventConfig_TemplateShownStatus.deleteMany({
           where: { templateId: existing.id },
         }),
         prisma.eventConfig_Template.update({
@@ -196,6 +209,7 @@ export const EventConfigTemplateService = {
             diplomaTemplateId,
             closingTemplateId,
             modules: { create: moduleRows },
+            shownStatuses: { create: shownRows },
           },
         }),
       ]);
@@ -214,6 +228,7 @@ export const EventConfigTemplateService = {
         closingTemplateId,
         createdById: input.actorId,
         modules: { create: moduleRows },
+        shownStatuses: { create: shownRows },
       },
       select: { id: true },
     });

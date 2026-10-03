@@ -693,6 +693,7 @@
     closingGrids={data.closingGrids}
     formPreviews={data.formPreviews}
     templates={data.templates}
+    sfStatuses={data.sfStatuses}
   />
 
   <AdminSfStatusInspectorDialog

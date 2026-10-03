@@ -98,17 +98,37 @@ export async function setEventShownStatuses(
   eventId: string,
   statuses: readonly string[],
 ): Promise<void> {
-  const wanted = await resolveKnownStatuses(statuses, tx);
+  await replaceShownStatuses(
+    tx,
+    [eventId],
+    await resolveKnownStatuses(statuses, tx),
+  );
+}
+
+/**
+ * Make every one of these events show exactly `statuses`, which is what applying
+ * a template does. Set-based, so the cost does not grow with the selection. The
+ * words are expected to be resolved already (`resolveKnownStatuses`, or read off
+ * a template whose rows the catalogue already binds).
+ */
+export async function replaceShownStatuses(
+  tx: Prisma.TransactionClient,
+  eventIds: readonly string[],
+  statuses: readonly string[],
+): Promise<void> {
+  if (eventIds.length === 0) return;
   await tx.eventConfig_ShownStatus.deleteMany({
-    where: { eventId, status: { notIn: wanted } },
+    where: { eventId: { in: [...eventIds] }, status: { notIn: [...statuses] } },
   });
-  if (wanted.length > 0) {
+  if (statuses.length > 0) {
     await tx.eventConfig_ShownStatus.createMany({
-      data: wanted.map((status) => ({ eventId, status })),
+      data: eventIds.flatMap((eventId) =>
+        statuses.map((status) => ({ eventId, status })),
+      ),
       skipDuplicates: true,
     });
   }
-  await recomputeShownInDevSpace(tx, [eventId]);
+  await recomputeShownInDevSpace(tx, eventIds);
 }
 
 /**

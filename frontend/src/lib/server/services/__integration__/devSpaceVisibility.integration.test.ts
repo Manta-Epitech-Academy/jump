@@ -14,6 +14,11 @@ import {
   setEventShownStatuses,
 } from '../devSpaceVisibility';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import {
+  writeEventConfig,
+  writeEventTemplate,
+} from '$lib/server/adminApi/writes/events';
+import { bulkApplyEventTemplate } from '$lib/server/adminApi/writes/bulk';
 import { assertTestDatabase } from './testDatabase';
 
 const stamp = Date.now();
@@ -27,6 +32,8 @@ const talents = ['ready', 'connected', 'legacy'].map((key) => ({
   email: `vis.${key}.${stamp}@example.test`,
 }));
 const [ready, connected, legacy] = talents.map((t) => t.external_id);
+const campusName = `Vis Campus ${stamp}`;
+const templateName = `Vis Coding Club ${stamp}`;
 
 describe('per-event dev-space visibility (integration)', () => {
   let campusId = '';
@@ -36,7 +43,7 @@ describe('per-event dev-space visibility (integration)', () => {
     assertTestDatabase();
     const campus = await prisma.campus.create({
       data: {
-        name: `Vis Campus ${stamp}`,
+        name: campusName,
         externalName: campusExternalName,
       },
     });
@@ -53,6 +60,9 @@ describe('per-event dev-space visibility (integration)', () => {
         where: { externalId: { in: talents.map((t) => t.external_id) } },
       });
       await prisma.event.deleteMany({ where: { campusId } });
+      await prisma.eventConfig_Template.deleteMany({
+        where: { name: templateName },
+      });
       const userIds = created
         .map((t) => t.userId)
         .filter((id): id is string => id != null);
@@ -151,5 +161,43 @@ describe('per-event dev-space visibility (integration)', () => {
         data: { shownInDevSpace: false },
       }),
     ).rejects.toThrow();
+  });
+
+  it('sets what one event shows through write_event_config, and refuses an unknown word', async () => {
+    const outcome = await writeEventConfig({
+      eventId: eventIds.stage,
+      shownStatuses: ['READY', 'MET'],
+    });
+    expect(outcome).toMatchObject({
+      applied: true,
+      before: { shownStatuses: ['CONNECTED'] },
+      after: { shownStatuses: ['MET', 'READY'] },
+    });
+    expect(await shownOn('stage')).toEqual([legacy, ready].sort());
+
+    await expect(
+      writeEventConfig({ eventId: eventIds.stage, shownStatuses: ['MEET'] }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('carries the statuses from a saved template onto every event it is applied to', async () => {
+    // The Coding Club shows CONNECTED; saving it as a preset captures that.
+    await writeEventTemplate({ eventId: eventIds.club, name: templateName });
+
+    const dryRun = await bulkApplyEventTemplate({
+      templateName,
+      campus: campusName,
+    });
+    expect(dryRun.applied).toBe(false);
+    if (dryRun.applied) return;
+    const applied = await bulkApplyEventTemplate({
+      templateName,
+      campus: campusName,
+      planDigest: dryRun.planDigest,
+    });
+    expect(applied.applied).toBe(true);
+
+    // The stage now shows what the club showed, enrolments included.
+    expect(await shownOn('stage')).toEqual([connected, legacy, ready].sort());
   });
 });
