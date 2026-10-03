@@ -7,11 +7,7 @@
 // the FK is `Restrict` so a hand-deletion of one still in use fails loudly.
 import { prisma } from '$lib/server/db';
 import { unknownCertificateTokens } from '$lib/domain/diplomas';
-import {
-  certificateProblems,
-  sanitizeCertificateCss,
-  sanitizeCertificateHtml,
-} from '$lib/server/diplomaSanitize';
+import { sanitizeCertificateDesign } from '$lib/server/diplomaSanitize';
 import { renderCertificateSample } from '$lib/server/services/diplomaGenerator';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
@@ -78,17 +74,18 @@ export async function writeDiplomaTemplate(params: {
     );
   }
 
-  const problems = certificateProblems({
+  // The refusal is what the sanitiser had to remove, so what gets stored is
+  // what was written: a design either passes intact or is not stored at all.
+  const screened = sanitizeCertificateDesign({
     styleCss: params.styleCss,
     bodyHtml: params.bodyHtml,
   });
-  if (problems.length > 0) throw new OperationRefusedError(problems.join(' '));
+  if (screened.problems.length > 0) {
+    throw new OperationRefusedError(screened.problems.join(' '));
+  }
 
-  // Sanitised even though the checks above passed: what gets stored is what a
-  // browser will execute, and that should not depend on a scanner being complete.
   const design = {
-    styleCss: sanitizeCertificateCss(params.styleCss),
-    bodyHtml: sanitizeCertificateHtml(params.bodyHtml),
+    ...screened.design,
     pageWidthPx: params.pageWidthPx ?? before?.pageWidthPx ?? 1123,
     pageHeightPx: params.pageHeightPx ?? before?.pageHeightPx ?? 794,
   };
