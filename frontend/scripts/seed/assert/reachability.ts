@@ -30,6 +30,7 @@ import { schoolYearOf } from '../../../src/lib/domain/schoolYear';
 import {
   SF_MEMBER_STATUSES,
   SF_STATUS_ATTENDED,
+  classifySfStatus,
   isVisibleInDevSpace,
   pastEventPresence,
 } from '../../../src/lib/domain/sfMemberStatus';
@@ -356,6 +357,22 @@ export async function reachabilityFailures(
   for (const status of SF_MEMBER_STATUSES) {
     if (!seenStatuses.has(status))
       failures.push(`Aucune inscription au statut Salesforce ${status}`);
+  }
+  // Every way the dev space treats a status, the unknown word included: that is
+  // the class only `stats_sync_health` and the inspector badge report.
+  const seenClasses = new Set(
+    participations.map((row) => classifySfStatus(row.sfMemberStatus)),
+  );
+  for (const statusClass of [
+    'shown',
+    'hidden',
+    'unrecognised',
+    'missing',
+  ] as const) {
+    if (!seenClasses.has(statusClass))
+      failures.push(
+        `Aucune inscription dont le statut Salesforce se classe « ${statusClass} »`,
+      );
   }
   if (!seenStatuses.has('(null)'))
     failures.push(

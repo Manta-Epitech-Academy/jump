@@ -227,6 +227,14 @@ const STARTED_EVENT_SF_MIX = [
 ] as const satisfies readonly (readonly [SfMemberStatus, number])[];
 
 /**
+ * A status Salesforce might plausibly start sending, and that
+ * `domain/sfMemberStatus.ts` does not declare. The `statuts-salesforce` scenario
+ * places it once so the unknown-status report has something to report, and the
+ * string-catalogue guard accepts this one stray value by name, and no other.
+ */
+export const UNRECOGNISED_SF_STATUS_SAMPLE = 'ATTENDED';
+
+/**
  * An event that has not happened yet: nobody attended it, so `MET` is not a
  * state the world can be in. One weighted entry rather than an early return, so
  * a derived enrolment always consumes exactly one draw - otherwise moving an
@@ -1147,7 +1155,10 @@ export class World {
   enrol(
     event: EventRef,
     talent: TalentRef,
-    opts?: { sfMemberStatus: SfMemberStatus | null },
+    opts?: {
+      sfMemberStatus:
+        SfMemberStatus | typeof UNRECOGNISED_SF_STATUS_SAMPLE | null;
+    },
   ): void {
     const sfMemberStatus =
       opts === undefined

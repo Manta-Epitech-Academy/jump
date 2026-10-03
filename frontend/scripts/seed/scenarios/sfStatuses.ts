@@ -21,6 +21,13 @@
  * purpose, because "a manual mark always wins" is a rule you can only see by
  * breaking it.
  *
+ * It also carries one word Jump does not know, the way Salesforce would send
+ * one the day a status is added or renamed (#368: the seminar wrote `MEET`, the
+ * CRM sends `MET`, and every attendee vanished from the dev space without a
+ * sound). That row is masked like a hidden one and reported where a hidden one
+ * is not: a warning badge in the admin inspector, `unrecognisedStatuses` in
+ * `stats_sync_health`, a line in the weekly digest.
+ *
  * Sizes are fixed per profile and the groups are cut by index, never drawn: the
  * assertions in `assert/reachability.ts` depend on each group being non-empty,
  * and `--check` runs the smallest profile there is.
@@ -33,13 +40,14 @@ import {
   SF_STATUS_ATTENDED,
   SF_STATUS_CONFIRMED,
 } from '../../../src/lib/domain/sfMemberStatus';
+import { UNRECOGNISED_SF_STATUS_SAMPLE } from '../world';
 import { makeCohort } from './helpers';
 import type { Scenario } from './types';
 
 export const sfStatuses: Scenario = {
   name: 'statuts-salesforce',
   summary:
-    'Les quatre statuts Salesforce sur un même événement : ce que l’espace dev montre, ce qu’il cache, et la présence qu’il déduit.',
+    'Les statuts Salesforce sur un même événement, dont un que Jump ne connaît pas : ce que l’espace dev montre, ce qu’il cache, et la présence qu’il déduit.',
   run(world) {
     const { profile, clock } = world.ctx;
     const campus = [...world.campuses.values()][0]!;
@@ -71,7 +79,7 @@ export const sfStatuses: Scenario = {
       modules: [EVENT_MODULES.INSCRITS, EVENT_MODULES.EMARGEMENT],
     });
 
-    const size = profile.name === 'ci' ? 12 : 24;
+    const size = profile.name === 'ci' ? 13 : 25;
     const cohort = makeCohort(world, {
       size,
       campus,
@@ -86,7 +94,8 @@ export const sfStatuses: Scenario = {
     const contradicted = cohort[third * 2]!;
     const connected = cohort[third * 2 + 1]!;
     const desisted = cohort[third * 2 + 2]!;
-    const legacy = cohort.slice(third * 2 + 3);
+    const unrecognised = cohort[third * 2 + 3]!;
+    const legacy = cohort.slice(third * 2 + 4);
 
     // Visible, unmarked: the closed slot projects présent from Salesforce.
     for (const talent of attendedUnmarked) {
@@ -100,6 +109,10 @@ export const sfStatuses: Scenario = {
     // counts is the whole point of the admin inspector.
     world.enrol(event, connected, { sfMemberStatus: 'CONNECTED' });
     world.enrol(event, desisted, { sfMemberStatus: 'DESISTED' });
+    // Masked like the two above, but reported: nobody decided to hide it.
+    world.enrol(event, unrecognised, {
+      sfMemberStatus: UNRECOGNISED_SF_STATUS_SAMPLE,
+    });
     // Legacy rows, synced before the column existed. They keep `unknownShare` in
     // `adminStats/attendanceRate` non-zero, which is a branch nothing else feeds.
     for (const talent of legacy) {
@@ -137,8 +150,9 @@ export const sfStatuses: Scenario = {
       campus: campus.name,
       event: eventDisplayName(event),
       covers: [
-        'Inscrits : le compte visible est inférieur au compte inscrit, deux participations étant masquées',
-        'Inspecter les statuts Salesforce (espace admin) : les quatre statuts bruts et le partage visible / masqué',
+        'Inscrits : le compte visible est inférieur au compte inscrit, trois participations étant masquées',
+        'Inspecter les statuts Salesforce (espace admin) : les statuts bruts, le partage visible / masqué, et un statut inconnu de Jump signalé comme tel',
+        'Statuts Salesforce reçus (API d’administration, stats_sync_health) : un statut inconnu compté et rattaché à cet événement, repris par le digest hebdomadaire',
         `Émargement, créneau du matin clos : un ${SF_STATUS_ATTENDED} non marqué lit « présent », un ${SF_STATUS_CONFIRMED} non marqué lit « absent »`,
         `Une marque manuelle « absent » sur un ${SF_STATUS_ATTENDED} : la saisie humaine l’emporte sur Salesforce`,
         'Des inscriptions sans statut, comme avant la synchronisation de juillet 2026',
