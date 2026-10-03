@@ -21,6 +21,7 @@ const postConfig = adminApiWrite('write_event_config');
 const postActivation = adminApiWrite('write_event_activation');
 const postFeedbackForm = adminApiWrite('write_event_feedback_form');
 const postBulkModules = adminApiWrite('bulk_event_modules');
+const postRequestSync = adminApiWrite('ops_request_sync');
 const postReleasePruneHold = adminApiWrite('ops_release_prune_hold');
 
 /** Calls a handler the way SvelteKit would, with a bearer and a JSON body. */
@@ -87,6 +88,7 @@ describe('admin API writes (integration)', () => {
       await prisma.eventConfig_Module.deleteMany({ where: { eventId } });
       await prisma.event.deleteMany({ where: { campusId } });
       await prisma.campus.deleteMany({ where: { id: campusId } });
+      await prisma.sync_Request.deleteMany();
       await prisma.bauth_user.delete({ where: { id: adminUserId } });
     } catch {
       // ignore - the test database is disposable
@@ -305,6 +307,28 @@ describe('admin API writes (integration)', () => {
 
     expect(status).toBe(409);
     expect(String(payload.error)).toContain('empreinte');
+  });
+
+  it('records a requested sync on the audit row, and moves only its date on repeat', async () => {
+    const first = await call(postRequestSync, writeSecret, {
+      mode: 'incremental',
+    });
+    expect(first.status).toBe(200);
+    expect(first.payload.after).toMatchObject({ mode: 'incremental' });
+
+    const second = await call(postRequestSync, writeSecret, {
+      mode: 'incremental',
+    });
+    expect(second.status).toBe(200);
+    // One row per mode: asking twice is still one request, made later.
+    expect(second.payload.before).toEqual(first.payload.after);
+    expect(await prisma.sync_Request.count()).toBe(1);
+
+    const row = await prisma.adminApi_Call.findFirst({
+      where: { actorUserId: adminUserId, operation: 'ops_request_sync' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(row?.after).toMatchObject({ mode: 'incremental' });
   });
 
   describe('releasing a held prune', () => {

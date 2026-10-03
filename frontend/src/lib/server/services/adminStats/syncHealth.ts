@@ -72,7 +72,8 @@ export type SyncHealth = {
   lastIncremental: Metric<PassHealth>;
   lastFull: Metric<PassHealth>;
   cadence: Metric<{ incrementalMinutes: number; fullMinutes: number }>;
-  nextRun: Metric<{ due: boolean; mode: string }>;
+  nextRun: Metric<{ due: boolean; mode: string; reason: string }>;
+  pendingRequests: Metric<{ full: string | null; incremental: string | null }>;
   runningSince: Metric<string | null>;
   unresolvedErrors: Metric;
   errorsByType: Metric<{ errorType: string; count: number }[]>;
@@ -160,7 +161,7 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     incremental,
     full,
     cadences,
-    { decision },
+    { decision, pending },
     running,
     unresolved,
     grouped,
@@ -207,11 +208,22 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     ),
     cadence: metric(
       { incrementalMinutes, fullMinutes },
-      "Fréquences configurées, en minutes : « incrementalMinutes » entre deux passes incrémentales, « fullMinutes » entre deux reprises complètes. Modifiables par l'opération write_sync_cadence, sans intervention sur l'infrastructure : le worker les relit à chaque réveil.",
+      "Fréquences configurées, en minutes : « incrementalMinutes » entre deux passes incrémentales, « fullMinutes » entre deux reprises complètes. Modifiables par l'opération write_sync_cadence, sans intervention sur l'infrastructure : le worker les relit à chaque réveil. Pour une passe immédiate sans toucher aux fréquences, l'opération ops_request_sync.",
     ),
     nextRun: metric(
-      { due: decision.shouldSync, mode: decision.mode },
-      'Ce que le worker fera à son prochain réveil : « due » dit si une synchronisation est attendue maintenant, « mode » laquelle. « due » à faux est le cas normal entre deux passes, pas une panne.',
+      {
+        due: decision.shouldSync,
+        mode: decision.mode,
+        reason: decision.reason,
+      },
+      "Ce que le worker fera à son prochain réveil : « due » dit si une synchronisation est attendue maintenant, « mode » laquelle, et « reason » pourquoi : « cadence » quand c'est la fréquence configurée qui la rend due, « requested » quand quelqu'un l'a demandée avec ops_request_sync. « due » à faux est le cas normal entre deux passes, pas une panne.",
+    ),
+    pendingRequests: metric(
+      {
+        full: pending.full?.toISOString() ?? null,
+        incremental: pending.incremental?.toISOString() ?? null,
+      },
+      'Passes demandées avec ops_request_sync et pas encore faites, avec la date de la demande, ou null pour un mode sans demande en attente. Une demande est satisfaite par la première passe réussie qui DÉMARRE après elle (une reprise complète satisfait aussi une demande incrémentale) : une passe déjà en cours au moment de la demande ne compte pas, et une passe en échec laisse la demande en attente pour le réveil suivant.',
     ),
     runningSince: metric(
       running ? running.startedAt.toISOString() : null,

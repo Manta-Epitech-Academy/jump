@@ -26,6 +26,7 @@ import { syncEvents, syncParticipations, syncTalents } from '../syncService';
 import { closeRun, lastOkRun, openRun } from '../syncRunService';
 import { getWorkerConfig, listWorkerSources } from '../syncConfigService';
 import { workerConfigAnswerSchema } from '$lib/validation/workerSync';
+import { requestSync } from '$lib/server/adminApi/writes/sync';
 import { getSyncHealth } from '../adminStats/syncHealth';
 import { assertTestDatabase } from './testDatabase';
 
@@ -83,6 +84,7 @@ describe('the worker sync loop (integration)', () => {
         where: { campusId: { in: [armedCampusId, darkCampusId] } },
       });
       await prisma.sync_Run.deleteMany({ where: { id: { in: runIds } } });
+      await prisma.sync_Request.deleteMany();
       const created = await prisma.talent.findMany({
         where: { externalId: { in: talents.map((t) => t.external_id) } },
         select: { id: true, userId: true },
@@ -549,5 +551,55 @@ describe('the worker sync loop (integration)', () => {
         counters: { events: 0, talents: 0, participations: 0 },
       }),
     ).toEqual({ ok: false, reason: 'not_found' });
+  });
+
+  it('serves a requested pass at the next tick, then goes back to the cadence', async () => {
+    // Earlier cases closed recent ok runs of both modes, so nothing is due on
+    // cadence: whatever the answer says next is the request's doing.
+    expect((await getWorkerConfig()).shouldSync).toBe(false);
+
+    await requestSync({ mode: 'incremental' });
+
+    const asked = await getWorkerConfig();
+    expect(asked).toMatchObject({ shouldSync: true, mode: 'incremental' });
+    const health = await getSyncHealth();
+    expect(health.nextRun.value).toMatchObject({ reason: 'requested' });
+    expect(health.pendingRequests.value.incremental).not.toBeNull();
+
+    // The pass the worker makes on that answer satisfies the request, and the
+    // cadence, which nobody touched, rules again.
+    const run = await openRun('incremental');
+    runIds.push(run.id);
+    await closeRun(run.id, {
+      status: 'ok',
+      counters: { events: 0, talents: 0, participations: 0 },
+    });
+
+    expect((await getWorkerConfig()).shouldSync).toBe(false);
+    expect((await getSyncHealth()).pendingRequests.value).toEqual({
+      full: null,
+      incremental: null,
+    });
+  });
+
+  it('keeps a request pending through a failed run', async () => {
+    await requestSync({ mode: 'full' });
+
+    const failed = await openRun('full');
+    runIds.push(failed.id);
+    await closeRun(failed.id, { status: 'error', error: 'boom' });
+
+    expect(await getWorkerConfig()).toMatchObject({
+      shouldSync: true,
+      mode: 'full',
+    });
+
+    const retried = await openRun('full');
+    runIds.push(retried.id);
+    await closeRun(retried.id, {
+      status: 'ok',
+      counters: { events: 0, talents: 0, participations: 0 },
+    });
+    expect((await getWorkerConfig()).shouldSync).toBe(false);
   });
 });

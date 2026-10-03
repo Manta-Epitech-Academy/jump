@@ -21,7 +21,7 @@ memory, because `since: undefined` is present in an object and gone from its JSO
 
 | Step | Route                            | Note                                                                 |
 | ---- | -------------------------------- | -------------------------------------------------------------------- |
-| 1    | `GET /config`                    | Jump decides. Nothing due means the tick ends here, with no run row. |
+| 1    | `GET /config`                    | Jump decides, on cadence or request. Nothing due: tick ends, no row. |
 | 2    | `POST /runs`                     | Opens a `Sync_Run`. Only a real pass gets one.                       |
 | 3    | `POST /events`                   | The whole list, campus per event.                                    |
 | 4    | `POST /talents`                  | Identities, deduplicated across the run, paginated by 50.            |
@@ -70,6 +70,14 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   refused for the same reason: the worker fires a second `error` PATCH when its
   success PATCH is what failed, and applying it would walk the watermark back over
   data that did land.
+- **A requested pass is satisfied by a run that STARTED after it.** `ops_request_sync`
+  writes one `Sync_Request` row per mode and nothing ever consumes it: it is
+  pending while no successful run that covers it started after it. A run already
+  in flight when the request landed may have read Salesforce before the change
+  somebody is waiting for, so finishing later is not enough; a failed run leaves
+  it pending, as it leaves the watermark; and a full pass covers an incremental
+  request, never the reverse. That is why it is a date and not a flag: a flag
+  needs clearing, and the clearing is where it would get lost.
 - **Dueness reads `finishedAt`, the incremental window reads `startedAt`.** They
   are deliberately two dates. A record modified WHILE a run was executing carries
   a modstamp that run's `finishedAt` has already passed, so resuming from
@@ -127,8 +135,10 @@ is how that stops being true.
 No admin screen, by design: a campaign is named by an opaque Salesforce id somebody
 copies out of Salesforce, and the cadence is two numbers changed twice a year.
 `config_sync_sources`, `stats_sync_runs`, `stats_sync_health`, `write_sync_source`,
-`write_sync_cadence` and `ops_release_prune_hold` are the surface, over HTTP and as
-MCP tools.
+`write_sync_cadence`, `ops_request_sync` and `ops_release_prune_hold` are the
+surface, over HTTP and as MCP tools. "Sync now" is a request, never a lowered
+cadence: a cadence lowered to get one pass has to be raised again by somebody who
+remembers to.
 
 ---
 

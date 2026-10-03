@@ -43,6 +43,16 @@ export type SyncCadence = { mode: SyncMode; intervalMinutes: number };
  */
 export type SyncRunMark = { startedAt: Date; finishedAt: Date };
 
+/**
+ * When a person last asked for a pass of each mode, or `null` if never.
+ *
+ * A request is a date and not a flag, because what makes it pending is
+ * relative to the runs: it is satisfied by a successful run that STARTED after
+ * it, and by nothing else. So nothing has to clear it, and a run that fails
+ * leaves it pending exactly as it leaves the watermark.
+ */
+export type SyncRequests = { full: Date | null; incremental: Date | null };
+
 export type SyncDecision = {
   shouldSync: boolean;
   /**
@@ -57,6 +67,13 @@ export type SyncDecision = {
    * and `undefined` does not survive `JSON.stringify` either.
    */
   since: string | null;
+  /**
+   * Why the pass is due: its cadence, or a person asking for it. Ours, not the
+   * worker's: `getWorkerConfig` hands the worker the three fields above and
+   * nothing else, so its contract is unchanged. Names the cadence when nothing
+   * is due, as `mode` names the pass that would come next.
+   */
+  reason: 'cadence' | 'requested';
 };
 
 function minutesSince(from: Date, now: Date): number {
@@ -86,12 +103,44 @@ function isDue(
 }
 
 /**
- * Decide the next run from the clock, the configured cadences, and the last
- * SUCCESSFUL run of each mode.
+ * The requests still waiting for a run that covers them, each kept as the date
+ * it was made, `null` for a mode with nothing pending.
+ *
+ * Compared on `startedAt`, never `finishedAt`: a run that was already in flight
+ * when the request landed may have read Salesforce before the change the person
+ * is waiting for, so it does not count even though it finished afterwards. A
+ * full pass covers everything an incremental would, so it satisfies an
+ * incremental request; the reverse is not true, since only a full pass can see
+ * a deletion.
+ */
+export function pendingRequests(input: {
+  requests: SyncRequests;
+  lastOkFull: SyncRunMark | null;
+  lastOkIncremental: SyncRunMark | null;
+}): SyncRequests {
+  const { requests, lastOkFull, lastOkIncremental } = input;
+  const startedAfter = (run: SyncRunMark | null, at: Date) =>
+    run !== null && run.startedAt.getTime() > at.getTime();
+  const pending = (
+    at: Date | null,
+    covering: readonly (SyncRunMark | null)[],
+  ) => (at && !covering.some((run) => startedAfter(run, at)) ? at : null);
+
+  return {
+    full: pending(requests.full, [lastOkFull]),
+    incremental: pending(requests.incremental, [lastOkIncremental, lastOkFull]),
+  };
+}
+
+/**
+ * Decide the next run from the clock, the configured cadences, any pass a
+ * person asked for, and the last SUCCESSFUL run of each mode.
  *
  * Only successful runs count, and that is the whole failure story: a run that
  * ends in error moves nothing, so the next tick asks for the same window again
- * instead of stepping over it. Nothing else has to remember that a run failed.
+ * instead of stepping over it. Nothing else has to remember that a run failed,
+ * and that holds for a request too: it stays pending until a run covering it
+ * succeeds (`pendingRequests`).
  *
  * `full` outranks `incremental` when both are due. Doing the incremental first
  * would advance its watermark over a window the full pass is about to cover
@@ -100,20 +149,34 @@ function isDue(
 export function decideSync(input: {
   now: Date;
   cadences: readonly SyncCadence[];
+  requests: SyncRequests;
   lastOkFull: SyncRunMark | null;
   lastOkIncremental: SyncRunMark | null;
 }): SyncDecision {
-  const { now, cadences, lastOkFull, lastOkIncremental } = input;
+  const { now, cadences, requests, lastOkFull, lastOkIncremental } = input;
 
-  if (isDue(lastOkFull, cadences, 'full', now)) {
-    return { shouldSync: true, mode: 'full', since: null };
+  const pending = pendingRequests({ requests, lastOkFull, lastOkIncremental });
+
+  const fullRequested = pending.full !== null;
+  if (fullRequested || isDue(lastOkFull, cadences, 'full', now)) {
+    return {
+      shouldSync: true,
+      mode: 'full',
+      since: null,
+      reason: fullRequested ? 'requested' : 'cadence',
+    };
   }
 
-  if (isDue(lastOkIncremental, cadences, 'incremental', now)) {
+  const incrementalRequested = pending.incremental !== null;
+  if (
+    incrementalRequested ||
+    isDue(lastOkIncremental, cadences, 'incremental', now)
+  ) {
     return {
       shouldSync: true,
       mode: 'incremental',
       since: incrementalSince(lastOkIncremental),
+      reason: incrementalRequested ? 'requested' : 'cadence',
     };
   }
 
@@ -124,6 +187,7 @@ export function decideSync(input: {
     shouldSync: false,
     mode: 'incremental',
     since: incrementalSince(lastOkIncremental),
+    reason: 'cadence',
   };
 }
 

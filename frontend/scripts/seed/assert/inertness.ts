@@ -19,7 +19,7 @@
  * ── What belongs here, and what does not ──────────────────────────────────────
  *
  * One entry per queue a scheduler actually drains, keyed on the rows that
- * scheduler claims. Three neighbours deliberately have no entry:
+ * scheduler claims. Four neighbours deliberately have no entry:
  *
  *   - `OnboardingPdfJob`, whose `pending` rows are inert. `runOnboardingPdfJob`
  *     is only ever called with an explicit job id (fire-and-forget after the
@@ -36,6 +36,15 @@
  *     knowing: on a long-lived environment the « image orpheline » case the
  *     « où trouver quoi » page advertises is gone after the first GC tick, so
  *     re-generate rather than hunt for it.
+ *   - `Sync_Request`, which `/api/worker/config` also finds by itself. A request
+ *     changes WHEN the worker runs, never WHAT it pulls: the perimeter is
+ *     `Sync_Source` and `Campus.externalName`, held below and in
+ *     `assert/coverage.ts`. So a stray one costs at most a pass the cadence
+ *     would make anyway, over whatever perimeter is already served, which on a
+ *     generated database is none. Entering it would also break the `sd_` rule
+ *     below: it is keyed on the mode, so only a whole-table count could check
+ *     it, and that count fails `--check` on any environment where somebody has
+ *     since asked for a pass with `ops_request_sync`, which is a correct row.
  *
  * The test for an entry is therefore not "is this a job table", nor even "does a
  * scheduler find these rows BY ITSELF": that is the first question, and the

@@ -174,6 +174,7 @@ import {
 } from './writes/ops';
 import {
   releasePruneHold,
+  requestSync,
   writeSyncCadence,
   writeSyncSource,
 } from './writes/sync';
@@ -1154,9 +1155,22 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => writeSyncCadence(params),
   }),
 
+  ops_request_sync: defineWrite({
+    description:
+      'Ask the synchronisation worker for one pass of the given kind at its next wake-up (within fifteen minutes), without changing any cadence. Use it when someone needs a change made in Salesforce to reach Jump now rather than at the next scheduled pass. The request is satisfied by the first successful pass that starts after it, after which the configured cadences apply again with nothing to restore; a pass that fails leaves it pending. stats_sync_health shows whether a request is pending and what the worker will do next. Safe to repeat: asking again before it runs still yields one pass.',
+    shape: {
+      mode: z
+        .enum(['full', 'incremental'])
+        .describe(
+          'Which pass to ask for. "incremental" pulls only the campaigns Salesforce reports as changed, and is enough to see a modification; "full" pulls the whole perimeter and is the only pass that notices a member removed in Salesforce.',
+        ),
+    },
+    run: (params) => requestSync(params),
+  }),
+
   ops_release_prune_hold: defineWrite({
     description:
-      'Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when the campaign was genuinely emptied in Salesforce. Only a hold over an empty roster can be released: one over members Jump could not match is lifted by fixing their sync errors, after which the next full pass prunes by itself. It deletes nothing by itself: the next full pass applies the deletions if the roster it receives is still empty. Safe to repeat: releasing an already released hold changes nothing. Refused when the event has no held deletions, or when the held roster was not empty.',
+      'Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when the campaign was genuinely emptied in Salesforce. Only a hold over an empty roster can be released: one over members Jump could not match is lifted by fixing their sync errors, after which the next full pass prunes by itself. It deletes nothing by itself: the next full pass applies the deletions if the roster it receives is still empty. That pass comes at the full cadence; ops_request_sync with mode "full" brings it forward to the next wake-up, within fifteen minutes. Safe to repeat: releasing an already released hold changes nothing. Refused when the event has no held deletions, or when the held roster was not empty.',
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },

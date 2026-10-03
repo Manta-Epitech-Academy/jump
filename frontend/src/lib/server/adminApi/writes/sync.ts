@@ -1,16 +1,23 @@
 /**
  * The class A writes that steer the Salesforce worker: which campaigns it pulls,
- * how often, and whether the deletions a full pass held back may go ahead.
+ * how often, a pass asked for now, and whether the deletions a full pass held
+ * back may go ahead.
  *
- * Each is bounded to one named row, reversible, and sends nothing to anybody.
- * Neither has a screen, and deliberately: a campaign is named by an opaque
- * Salesforce id that a person copies out of Salesforce anyway, and the cadence
- * is two numbers somebody changes twice a year. The admin space stops growing
- * UI, and this is the case it was written for.
+ * Each is bounded to one named row and sends nothing to anybody. A source and a
+ * cadence are reversible, by writing the previous value back. A request is not
+ * withdrawn, it is satisfied: it ends when a pass covering it succeeds, and
+ * until then it can only make the worker run sooner, never pull anything the
+ * perimeter does not already serve. A release is withdrawn by the full pass
+ * itself, when the roster it brings is no longer empty. None has a screen, and
+ * deliberately: a campaign is named by an opaque Salesforce id that a person
+ * copies out of Salesforce anyway, and the cadence is two numbers somebody
+ * changes twice a year. The admin space stops growing UI, and this is the case
+ * it was written for.
  *
- * What they change is read by `/api/worker/config` on the worker's next tick, so
- * tightening the incremental during a stage takes effect within fifteen minutes
- * with nothing redeployed and nobody touching the cluster.
+ * What they change is read by the worker's next tick, through `/api/worker/config`
+ * for the first three and through the next full pass's participations push for
+ * a release, so tightening the incremental during a stage takes effect within
+ * fifteen minutes with nothing redeployed and nobody touching the cluster.
  */
 
 import { prisma } from '$lib/server/db';
@@ -183,6 +190,39 @@ export async function writeSyncCadence(params: {
   });
 
   return { applied: true, before, after };
+}
+
+/**
+ * Ask for a pass of one mode at the worker's next wake-up, whatever the cadence
+ * says.
+ *
+ * The cadence is untouched, so there is nothing to put back afterwards: the
+ * request is satisfied by the first successful run of that mode (or, for an
+ * incremental, of either) that starts after it, and from then on the cadence
+ * rules again. A run that fails leaves it pending, the same way it leaves the
+ * watermark. Safe to repeat: a second request only moves the date forward, and
+ * still asks for one pass, not two.
+ */
+export async function requestSync(params: {
+  mode: SyncMode;
+}): Promise<WriteOutcome> {
+  const select = { mode: true, requestedAt: true } as const;
+  const state = (row: { mode: SyncMode; requestedAt: Date } | null) =>
+    row ? { mode: row.mode, requestedAt: row.requestedAt.toISOString() } : null;
+
+  const before = await prisma.sync_Request.findUnique({
+    where: { mode: params.mode },
+    select,
+  });
+  const requestedAt = new Date();
+  const after = await prisma.sync_Request.upsert({
+    where: { mode: params.mode },
+    create: { mode: params.mode, requestedAt },
+    update: { requestedAt },
+    select,
+  });
+
+  return { applied: true, before: state(before), after: state(after) };
 }
 
 /**
