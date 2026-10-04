@@ -133,9 +133,7 @@ describe('which activities a talent is offered (integration)', () => {
 
   it('shows nothing of an event that starts tomorrow, and refuses its entry', async () => {
     const { today, activities } = await listTalentWorkshops(talentId, NOW);
-    const shown = [...(today?.activities ?? []), ...activities].map(
-      (a) => a.slug,
-    );
+    const shown = [...today, ...activities].map((a) => a.slug);
     expect(shown).not.toContain(slug('tomorrow'));
     expect(await resolveWorkshopEntry(talentId, slug('tomorrow'), NOW)).toBe(
       null,
@@ -144,7 +142,7 @@ describe('which activities a talent is offered (integration)', () => {
 
   it('puts every event running today in the hero, multi-day ones included', async () => {
     const { today } = await listTalentWorkshops(talentId, NOW);
-    expect(today?.activities.map((a) => a.slug).sort()).toEqual(
+    expect(today.map((a) => a.slug).sort()).toEqual(
       [slug('reunion'), slug('stage'), slug('today')].sort(),
     );
   });
@@ -158,7 +156,6 @@ describe('which activities a talent is offered (integration)', () => {
       select: { id: true },
     });
     expect(entry?.eventId).toBe(todaysEvent.id);
-    expect(today?.eventName).toContain('Aujourd’hui');
   });
 
   it('keeps past events below the hero, newest first, and what was started', async () => {
@@ -176,8 +173,8 @@ describe('which activities a talent is offered (integration)', () => {
     // 22:00 in Paris, already 01:00 tomorrow in Saint-Denis.
     const late = new Date('2026-10-28T21:00:00Z');
     const { today, activities } = await listTalentWorkshops(talentId, late);
-    expect(today?.activities.map((a) => a.slug)).toContain(slug('today'));
-    expect(today?.activities.map((a) => a.slug)).not.toContain(slug('reunion'));
+    expect(today.map((a) => a.slug)).toContain(slug('today'));
+    expect(today.map((a) => a.slug)).not.toContain(slug('reunion'));
     expect(activities.map((a) => a.slug)).toContain(slug('reunion'));
   });
 });

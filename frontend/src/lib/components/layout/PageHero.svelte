@@ -5,11 +5,6 @@
   type Props = {
     /** Vertical padding density. Compact for sub-pages, comfortable for top-level dashboards. */
     density?: 'compact' | 'comfortable';
-    /**
-     * The pixel squares in the top-right corner. Off when the content puts
-     * something of its own there (a mascot), so the two do not overlap.
-     */
-    pixels?: boolean;
     /** Extra classes appended to the outer wrapper. */
     class?: string;
     children: Snippet;
@@ -17,7 +12,6 @@
 
   let {
     density = 'comfortable',
-    pixels = true,
     class: extraClass,
     children,
   }: Props = $props();
@@ -27,33 +21,38 @@
   );
 </script>
 
-<!-- Not clipped itself: only the texture is. Content may break out of the
-     frame (the talent hero's mascot does), and an `overflow-hidden` here would
-     cut it off at the edge. -->
 <div
   class={cn(
     // Full-bleed brand blue: the charte's hero surface. There is no
     // variant, and a neon or orange fill here would be a page-sized accent.
-    'on-dark relative rounded-sm bg-epi-blue text-white',
+    'on-dark relative overflow-hidden rounded-sm bg-epi-blue text-white',
     paddingClass,
     extraClass,
   )}
 >
+  <!-- Blueprint grid texture (charte signature) -->
   <div
-    class="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+    class="pointer-events-none absolute inset-0 blueprint-grid-inverse"
+    aria-hidden="true"
+  ></div>
+
+  <!-- Pixel overlays (50%-opacity squares, charte signature texture) -->
+  <div
+    class="pointer-events-none absolute top-4 right-4 hidden md:block"
     aria-hidden="true"
   >
-    <!-- Blueprint grid texture (charte signature) -->
-    <div class="absolute inset-0 blueprint-grid-inverse"></div>
-
-    {#if pixels}
-      <!-- Pixel overlays (translucent squares, charte signature texture) -->
-      <div class="absolute top-4 right-4 hidden md:block">
-        <div class="absolute top-0 right-0 size-14 bg-white/50"></div>
-        <div class="absolute top-0 right-16 h-14 w-7 bg-white/25"></div>
-        <div class="absolute top-16 right-0 size-7 bg-white/35"></div>
-      </div>
-    {/if}
+    <div
+      class="absolute"
+      style="top: 0; right: 0; width: 56px; height: 56px; background: rgba(255,255,255,0.5);"
+    ></div>
+    <div
+      class="absolute"
+      style="top: 0; right: 64px; width: 28px; height: 56px; background: rgba(255,255,255,0.25);"
+    ></div>
+    <div
+      class="absolute"
+      style="top: 64px; right: 0; width: 28px; height: 28px; background: rgba(255,255,255,0.35);"
+    ></div>
   </div>
 
   <div class="relative z-10">

@@ -44,10 +44,10 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     ).not.toBe('');
 
     await page.goto('/');
-    // The event runs today, so its activity is the hero, named after it, and
-    // not a row further down.
+    // The event runs today, so its activity is the hero, not a row further
+    // down.
     const hero = page.getByRole('region', { name: 'Ton activité du jour' });
-    await expect(hero).toContainText("Aujourd'hui · Émargement E2E");
+    await expect(hero).toBeVisible();
     const mission = hero.locator('form[action^="/activites/"]');
     await expect(mission).toBeVisible();
     // A new tab, which is what leaves this one alive to come back to.

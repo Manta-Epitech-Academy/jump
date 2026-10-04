@@ -146,8 +146,6 @@ export type WorkshopActivity = {
   slug: string;
   /** What the talent reads: the event's own wording when it set one. */
   label: string;
-  /** The event offering it, as a talent reads its name. */
-  eventName: string;
   solvedSteps: number;
   totalSteps: number;
   /** Null until the talent has entered once. */
@@ -163,10 +161,10 @@ export type WorkshopActivity = {
 
 export type TalentWorkshops = {
   /**
-   * The activities of the event running today, for the dashboard's hero. Null
-   * on any day no event of the talent's offering one is running.
+   * The activities of the events running today, for the dashboard's hero.
+   * Empty on any day none of the talent's events offering one is running.
    */
-  today: { eventName: string; activities: WorkshopActivity[] } | null;
+  today: WorkshopActivity[];
   /** Every other activity the talent has been offered, newest event first. */
   activities: WorkshopActivity[];
 };

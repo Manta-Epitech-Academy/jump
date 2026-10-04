@@ -4,10 +4,7 @@
   import { Button } from '$lib/components/ui/button';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import { cn } from '$lib/utils';
-  import type {
-    TalentWorkshops,
-    WorkshopActivity,
-  } from '$lib/domain/workshops';
+  import type { WorkshopActivity } from '$lib/domain/workshops';
 
   // The day's activity, on the day and only then, above everything else on the
   // dashboard. A talent arriving on an event day should have no doubt about
@@ -16,22 +13,23 @@
   // training below is a row in a card.
   //
   // It leads with what the subject says about itself (its tagline, its cover,
-  // its mascot), copied from the instance when an admin declared it. Every
-  // picture is optional and may also fail to load (a seeded environment has no
-  // bytes behind its keys): the hero then stands on its label and the brand
-  // ground alone, which has to read as finished, not as broken.
-  let { today }: { today: NonNullable<TalentWorkshops['today']> } = $props();
+  // its mascot), copied from the instance when an admin declared it, and with
+  // nothing else: the event's name is a Salesforce campaign title more often
+  // than not, and being on the page at all already says « today ». Every
+  // picture is optional and may fail to load (a seeded environment has no bytes
+  // behind its keys): the hero then stands on its label and the brand ground,
+  // which has to read as finished, not as broken.
+  let { activities }: { activities: WorkshopActivity[] } = $props();
 
-  const single = $derived(today.activities.length === 1);
+  const single = $derived(activities.length === 1);
   // The one hopeful action: the first activity not yet walked to the end.
   const primarySlug = $derived(
     (
-      today.activities.find(
+      activities.find(
         (a) => a.totalSteps === 0 || a.solvedSteps < a.totalSteps,
-      ) ?? today.activities[0]
+      ) ?? activities[0]
     )?.slug,
   );
-  const mascot = $derived(today.activities[0]?.cover?.mascot ?? null);
 
   // Pictures that failed to load, by URL, so a broken one leaves no hole.
   let broken = $state<Record<string, true>>({});
@@ -52,50 +50,13 @@
     a.totalSteps > 0 ? Math.round((a.solvedSteps / a.totalSteps) * 100) : 0;
 </script>
 
-<!-- Room above the frame only when the mascot breaks out of it. -->
-<section
-  aria-labelledby="today-activity-title"
-  class={cn('relative', loads(mascot?.url) && 'sm:pt-14 md:pt-20')}
->
-  <PageHero
-    pixels={!loads(mascot?.url)}
-    density="compact"
-    class="rounded-xl sm:px-8 sm:py-8"
-  >
-    {#if mascot && loads(mascot.url)}
-      <!-- The subject's character, standing on the frame's top edge, clear of
-           the cover below it: decorative, the tagline carries the meaning. -->
-      <img
-        src={mascot.url}
-        width={mascot.width}
-        height={mascot.height}
-        alt=""
-        decoding="async"
-        onerror={() => markBroken(mascot.url)}
-        class={cn(
-          'pointer-events-none absolute -top-14 right-6 hidden h-20 w-auto sm:block md:-top-20 md:h-28',
-          // A sprite drawn at a few dozen pixels is pixel art: scaled up,
-          // it keeps its pixels instead of blurring.
-          mascot.width < 128 && '[image-rendering:pixelated]',
-        )}
-      />
-    {/if}
-
-    <p class="flex items-center gap-2 epi-overline text-white">
-      <span class="relative flex size-2" aria-hidden="true">
-        <span
-          class="absolute inline-flex size-full rounded-full bg-epi-tech opacity-75 motion-safe:animate-ping"
-        ></span>
-        <span class="relative inline-flex size-2 rounded-full bg-epi-tech"
-        ></span>
-      </span>
-      Aujourd'hui · {today.eventName}
-    </p>
-    <h2 id="today-activity-title" class="sr-only">Ton activité du jour</h2>
-
-    <div class={cn('mt-5 grid gap-8', !single && 'md:grid-cols-2')}>
-      {#each today.activities as activity (activity.slug)}
+<section aria-labelledby="today-activity-title">
+  <h2 id="today-activity-title" class="sr-only">Ton activité du jour</h2>
+  <PageHero density="compact" class="rounded-xl sm:px-8 sm:py-8">
+    <div class={cn('grid gap-8', !single && 'md:grid-cols-2')}>
+      {#each activities as activity (activity.slug)}
         {@const picture = pictureOf(activity)}
+        {@const mascot = activity.cover?.mascot}
         {@const isPrimary = activity.slug === primarySlug}
         <article
           class={cn(
@@ -127,6 +88,25 @@
           {/if}
 
           <div class="flex min-w-0 flex-1 flex-col gap-4">
+            {#if mascot && loads(mascot.url)}
+              <!-- The subject's character, above its line. Drawn no larger
+                   than a small sprite needs: scaled past its own pixels it
+                   reads as low resolution rather than as pixel art.
+                   Decorative: the tagline carries the meaning. -->
+              <img
+                src={mascot.url}
+                width={mascot.width}
+                height={mascot.height}
+                alt=""
+                decoding="async"
+                onerror={() => markBroken(mascot.url)}
+                class={cn(
+                  'h-14 w-auto self-start',
+                  mascot.width < 128 && '[image-rendering:pixelated]',
+                )}
+              />
+            {/if}
+
             <div>
               <!-- The label is the headline when the subject has no tagline
                    of its own, so it is not repeated above it. -->

@@ -139,7 +139,7 @@
   // « CTFd » and « flag » never appear on this surface.
   let workshops = $derived(data.workshops);
   let hasActivities = $derived(
-    workshops.today !== null || workshops.activities.length > 0,
+    workshops.today.length > 0 || workshops.activities.length > 0,
   );
 
   // An activity is walked in a SECOND TAB, so coming back here reloads nothing on
@@ -221,11 +221,11 @@
       </div>
     {/each}
 
-    {#if workshops.today}
+    {#if workshops.today.length > 0}
       <!-- The day's activity, above everything, on the day only. Outside the
            grid so it is first on a phone too. -->
       <div class="mb-6" in:fly={{ y: 8, duration: 320 }}>
-        <TodayActivityHero today={workshops.today} />
+        <TodayActivityHero activities={workshops.today} />
       </div>
     {/if}
 
@@ -599,7 +599,7 @@
           <div class="space-y-4 p-6">
             {@render minigameMission()}
 
-            {#if !hasMinigame && workshops.today}
+            {#if !hasMinigame && workshops.today.length > 0}
               <!-- No training today, but the day is not a day off: it points
                      at the hero rather than saying « repos » under it. -->
               <p class="py-2 text-sm text-muted-foreground">

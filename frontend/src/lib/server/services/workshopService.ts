@@ -30,7 +30,6 @@ import {
   getLifecycleBounds,
   type LifecycleBounds,
 } from '$lib/domain/eventLifecycle';
-import { eventDisplayName } from '$lib/domain/event';
 import { grantXp } from './xpService';
 
 export type WorkshopEntry = {
@@ -69,8 +68,6 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
           select: {
             date: true,
             endDate: true,
-            titre: true,
-            publicName: true,
             campus: { select: { timezone: true } },
             workshops: {
               where: { instance: instanceWhere },
@@ -114,7 +111,6 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
         status,
         eventId: enrolment.eventId,
         campusId: enrolment.campusId,
-        eventName: eventDisplayName(event),
         durationMinutes: link.durationMinutes,
         labelOverride: link.labelOverride,
         instance: link.instance,
@@ -130,7 +126,7 @@ export async function listTalentWorkshops(
   now: Date = new Date(),
 ): Promise<TalentWorkshops> {
   const offered = await offeredWorkshops(talentId, now);
-  if (offered.length === 0) return { today: null, activities: [] };
+  if (offered.length === 0) return { today: [], activities: [] };
 
   const instanceIds = offered.map((o) => o.instanceId);
   const [entries, covers] = await Promise.all([
@@ -173,7 +169,6 @@ export async function listTalentWorkshops(
     return {
       slug: o.instance.slug,
       label: o.labelOverride ?? o.instance.label,
-      eventName: o.eventName,
       solvedSteps: entry?.solvedSteps ?? 0,
       totalSteps: entry?.totalSteps ?? 0,
       startedAt: entry?.firstEnteredAt ?? null,
@@ -188,17 +183,8 @@ export async function listTalentWorkshops(
     };
   };
 
-  const todays = offered.filter((o) => o.today);
   return {
-    today:
-      todays.length > 0
-        ? {
-            // Two events of one talent's running the same day is rare, and
-            // naming both is still one hero.
-            eventName: [...new Set(todays.map((o) => o.eventName))].join(' · '),
-            activities: todays.map(toActivity),
-          }
-        : null,
+    today: offered.filter((o) => o.today).map(toActivity),
     activities: offered.filter((o) => !o.today).map(toActivity),
   };
 }
