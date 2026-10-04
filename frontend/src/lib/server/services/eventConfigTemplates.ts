@@ -58,7 +58,7 @@ type TemplateRow = {
 
 const TEMPLATE_INCLUDE = {
   modules: { select: { moduleKey: true, settings: true } },
-  shownStatuses: { select: { status: true }, orderBy: { status: 'asc' } },
+  shownStatuses: { select: { status: true } },
 } satisfies Prisma.EventConfig_TemplateInclude;
 
 function toSummary(t: TemplateRow): EventConfigTemplateSummary {
@@ -80,7 +80,8 @@ function toSummary(t: TemplateRow): EventConfigTemplateSummary {
     closingTemplateId: t.closingTemplateId,
     modules: present.map((m) => m.moduleKey as EventModuleKey),
     moduleSettings,
-    shownStatuses: t.shownStatuses.map((row) => row.status),
+    // Sorted in code, like the event's own list (`buildAdminEventVMs`).
+    shownStatuses: t.shownStatuses.map((row) => row.status).sort(),
   };
 }
 

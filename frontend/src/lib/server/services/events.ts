@@ -148,7 +148,7 @@ const ADMIN_EVENT_SELECT = {
   createdAt: true,
   campus: { select: { name: true, timezone: true } },
   modules: { select: { moduleKey: true, settings: true } },
-  shownStatuses: { select: { status: true }, orderBy: { status: 'asc' } },
+  shownStatuses: { select: { status: true } },
   _count: {
     select: {
       participations: { where: visibleParticipationWhere },
@@ -234,7 +234,10 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
       feedbackFormId: e.feedbackFormId ?? '',
       diplomaTemplateId: e.diplomaTemplateId ?? '',
       closingTemplateId: e.closingTemplateId ?? '',
-      shownStatuses: e.shownStatuses.map((row) => row.status),
+      // Sorted here rather than by the query: the bulk plans compare this list
+      // with sets sorted in code, and a database orders by its collation, which
+      // need not agree with code-unit order once a word carries a space.
+      shownStatuses: e.shownStatuses.map((row) => row.status).sort(),
       participations: e._count.participations,
     };
   });
