@@ -25,6 +25,8 @@ import {
   STAGE_TEMPLATE_KEY,
 } from '../catalog/closings';
 import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
+import { CLUB_CERTIFICATE } from '../catalog/diplomas';
+import { sanitizeCertificateDesign } from '../../../src/lib/server/diplomaSanitize';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { addMinigamePublications, addXpRewards } from '../factories/engagement';
 import { addAdminApiTokens, addInvitations } from '../factories/operations';
@@ -198,6 +200,21 @@ export const platform: Scenario = {
       kind: RETIRED_QUESTION.kind,
       max: null,
       optionIds: retiredOptionIds,
+    });
+
+    // The one certificate that draws. The Coding Club scenario issues it from
+    // every session, so its export is one click away. Stored as the write would
+    // store it, not as authored, so a dataset cannot hold a design the API would
+    // have refused or rewritten.
+    const certificate = sanitizeCertificateDesign(CLUB_CERTIFICATE).design;
+    world.buffer.diploma_Template.push({
+      id: id('dpl', CLUB_CERTIFICATE.code),
+      code: CLUB_CERTIFICATE.code,
+      label: CLUB_CERTIFICATE.label,
+      styleCss: certificate.styleCss,
+      bodyHtml: certificate.bodyHtml,
+      pageWidthPx: 1123,
+      pageHeightPx: 794,
     });
 
     // The presets the config wizard applies. A preset is a point-in-time copy:

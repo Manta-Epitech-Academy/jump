@@ -107,6 +107,33 @@ describe('what a stored body keeps', () => {
   });
 });
 
+describe('what a stored drawing keeps', () => {
+  /**
+   * A ghost, its gradient, a reused eye, a soft filter and a word in the brand
+   * face: what an author actually reaches for, and what used to be built out of
+   * clip-path polygons and tiled gradients because SVG was refused.
+   */
+  const GHOST = `<svg class="ghost" viewBox="0 0 84 120" width="84" height="120"><defs><linearGradient id="g"><stop offset="0" stop-color="#fff"></stop><stop offset="1" stop-color="#e4e7fc"></stop></linearGradient><filter id="soft"><feGaussianBlur stdDeviation="1"></feGaussianBlur></filter><symbol id="eye"><ellipse cx="5" cy="7" rx="5" ry="7" fill="#0e1442"></ellipse></symbol></defs><path d="M0 42a42 42 0 0 1 84 0v58l-14-9-14 9-14-9-14 9-14-9-14 9z" fill="url(#g)" filter="url(#soft)"></path><use href="#eye" x="24" y="32"></use><use href="#eye" x="46" y="30"></use><text x="42" y="116" text-anchor="middle" font-family="Anton">BOO</text></svg>`;
+
+  it('keeps shapes, gradients, filters, reuse and text byte for byte', () => {
+    const { design, problems } = screen({ bodyHtml: GHOST });
+
+    expect(problems).toEqual([]);
+    expect(design.bodyHtml).toBe(GHOST);
+  });
+
+  // Every page repeats the markup, so a drawing's ids repeat too. That is valid
+  // enough for Chrome, which resolves `url(#g)` to the first one, and they are
+  // identical by construction since every page is the same template.
+  it('accepts the same drawing on a page that also carries tokens', () => {
+    const { problems } = screen({
+      bodyHtml: `${GHOST}<h1 class="title">{prenom} {nom}</h1>`,
+    });
+
+    expect(problems).toEqual([]);
+  });
+});
+
 describe('what a stored body refuses, naming it', () => {
   it.each([
     ['a script', '<script>fetch("http://x")</script><p>a</p>', '<script>'],
@@ -115,7 +142,36 @@ describe('what a stored body refuses, naming it', () => {
     ['a stylesheet', '<style>p{}</style><p>a</p>', '<style>'],
     ['a frame', '<iframe src="data:text/html,x"></iframe>', '<iframe>'],
     ['a form', '<form><p>a</p></form>', '<form>'],
-    ['inline SVG', '<svg><path d="M0 0"/></svg>', '<svg>'],
+    [
+      'HTML smuggled into a drawing',
+      '<svg><foreignObject><p>a</p></foreignObject></svg>',
+      '<foreignobject>',
+    ],
+    [
+      'an animation, which can rewrite an attribute',
+      '<svg><a href="#x"><set attributeName="href" to="javascript:x()"/></a></svg>',
+      '<set>',
+    ],
+    [
+      'a moving drawing',
+      '<svg><rect width="1" height="1"><animateTransform attributeName="transform" type="rotate"/></rect></svg>',
+      '<animatetransform>',
+    ],
+    [
+      'a script inside a drawing',
+      '<svg><script>x()</script></svg>',
+      '<script>',
+    ],
+    [
+      'a drawing reusing something outside the page',
+      '<svg><use href="http://x/y.svg#a"/></svg>',
+      'href (sur <use>)',
+    ],
+    [
+      'a paint that fetches',
+      '<svg><rect fill="url(http://x/y.svg#g)"/></svg>',
+      'fill (sur <rect>)',
+    ],
     ['an event handler', '<p onclick="x()">a</p>', 'onclick (sur <p>)'],
     ['a remote link', '<a href="http://x">a</a>', 'href (sur <a>)'],
     ['a protocol-relative link', '<a href="//x/y">a</a>', 'href (sur <a>)'],

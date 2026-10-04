@@ -88,7 +88,9 @@ describe('certificate authoring (integration)', () => {
       });
       await prisma.event.deleteMany({ where: { campusId } });
       await prisma.campus.deleteMany({ where: { id: campusId } });
-      await prisma.diploma_Template.deleteMany({ where: { code } });
+      await prisma.diploma_Template.deleteMany({
+        where: { code: { startsWith: code } },
+      });
       await prisma.bauth_user.delete({ where: { id: adminUserId } });
     } catch {
       // ignore - the test database is disposable
@@ -205,6 +207,42 @@ describe('certificate authoring (integration)', () => {
         where: { code: `${code}-escape` },
       }),
     ).toBeNull();
+  }, 60_000);
+
+  it('stores an inline drawing as written, and prints it', async () => {
+    // A full-page band behind the text, so whether it reached the page cannot be
+    // missed. Compared against the same design without it: identical previews
+    // would mean the drawing was stored but never drawn, a failure that is
+    // silent everywhere else (a blank background, no error).
+    const drawn = `${code}-drawn`;
+    const band =
+      '<svg class="band" viewBox="0 0 10 10" preserveAspectRatio="none"><defs><linearGradient id="g"><stop offset="0" stop-color="#f4895f"></stop><stop offset="1" stop-color="#e879f9"></stop></linearGradient></defs><rect width="10" height="10" fill="url(#g)"></rect></svg>';
+    const styleCss = `${VALID.styleCss} .band { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; }`;
+
+    async function previewOf(bodyHtml: string) {
+      const { status, payload } = await call(postTemplate, secret, {
+        code: drawn,
+        label: 'Certificat dessiné',
+        ...VALID,
+        styleCss,
+        bodyHtml,
+      });
+      expect(status, JSON.stringify(payload)).toBe(200);
+      return getDiplomaTemplatePreview({
+        code: drawn,
+        origin: 'https://jump.example',
+      });
+    }
+
+    const shown = await previewOf(`${band}${VALID.bodyHtml}`);
+    const stored = await prisma.diploma_Template.findUniqueOrThrow({
+      where: { code: drawn },
+      select: { bodyHtml: true },
+    });
+    expect(stored.bodyHtml).toBe(`${band}${VALID.bodyHtml}`);
+
+    const plain = await previewOf(VALID.bodyHtml);
+    expect(shown.image.base64).not.toBe(plain.image.base64);
   }, 60_000);
 
   it('attaches a certificate to an event and detaches it again', async () => {

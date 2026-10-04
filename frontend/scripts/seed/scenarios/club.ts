@@ -21,6 +21,7 @@ import {
   CLUB_TEMPLATE,
   CLUB_TEMPLATE_QUESTION_KEYS,
 } from '../catalog/closings';
+import { CLUB_CERTIFICATE } from '../catalog/diplomas';
 import { codingClubPublicName, codingClubTitre } from '../catalog/events';
 import { WORKSHOPS } from '../catalog/workshops';
 import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
@@ -162,6 +163,10 @@ export const club: Scenario = {
           EVENT_MODULES.CLOSINGS,
         ],
         closingTemplateId: clubTemplateId,
+        // One design per series, issued by each of its events: how the live
+        // catalogue is used, and the certificate a PO can export to see a
+        // drawing printed.
+        diplomaTemplateId: id('dpl', CLUB_CERTIFICATE.code),
         workshops: activitiesFor(session, upcoming),
       });
       sessionEvents.push(event);

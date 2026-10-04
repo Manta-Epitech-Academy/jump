@@ -770,7 +770,7 @@ export const ADMIN_API_OPERATIONS = {
       bodyHtml: z
         .string()
         .describe(
-          'The markup of ONE page, repeated per recipient, with {placeholders}. No <style> tag: put CSS in styleCss.',
+          'The markup of ONE page, repeated per recipient, with {placeholders}. No <style> tag: put CSS in styleCss. Inline <svg> is welcome for drawings and ornaments, text included.',
         ),
       pageWidthPx: z
         .number()

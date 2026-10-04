@@ -86,14 +86,33 @@ purifier.addHook('uponSanitizeAttribute', (_node, data) => {
   }
 });
 
+/**
+ * HTML, and inline SVG next to it, because a certificate's ornaments are drawings
+ * and SVG is how an author draws. Without it they were built from CSS instead
+ * (clip-path polygons, tiled gradients), which costs more tokens to write and,
+ * for some of those tricks, far more to print: one of them was rasterised on
+ * every page of `halloween-camp`.
+ *
+ * Inline rather than as an image, on purpose. It reaches the document's fonts, so
+ * a seal can carry its words in Anton, and it is what a model writes without
+ * being taught anything. The cost is that a drawing is repeated with each page,
+ * which is a few hundred bytes for a real ornament, and the write reports what a
+ * page weighs if a heavy one ever lands.
+ *
+ * `use` and fragment references (`url(#id)`, `href="#id"`) stay inside the page.
+ * What SVG adds that a printed page cannot honour is taken out: `foreignObject`
+ * (HTML smuggled into the drawing, out of reach of this list) and the animation
+ * elements (a page is printed once, and `set` can rewrite an attribute).
+ */
 const BODY_CONFIG = {
-  USE_PROFILES: { html: true },
+  USE_PROFILES: { html: true, svg: true, svgFilters: true },
+  ADD_TAGS: ['use'],
   ALLOWED_URI_REGEXP: LOCAL_URI,
   // Without it a leading `<script>` or `<style>` is parsed into the head, which
   // DOMPurify discards without listing it in `removed`: the tag would vanish
   // from the stored design and never reach the refusal.
   FORCE_BODY: true,
-  // Most of these are outside the HTML profile already. They are named anyway,
+  // Several of these are outside the profiles already. They are named anyway,
   // because this list is the statement of intent a reader looks for.
   FORBID_TAGS: [
     'script',
@@ -105,6 +124,11 @@ const BODY_CONFIG = {
     'base',
     'meta',
     'form',
+    'foreignObject',
+    'animate',
+    'animateMotion',
+    'animateTransform',
+    'set',
   ],
 };
 
@@ -152,7 +176,7 @@ function sanitizeBody(bodyHtml: string): { html: string; problems: string[] } {
   const problems: string[] = [];
   if (tags.length > 0) {
     problems.push(
-      `Le corps du certificat contient des balises qui ne peuvent pas y figurer : ${tags.join(', ')}. Le document est imprimé tel quel : rien n'y est exécuté, chargé ni saisi. Le CSS va dans le champ « styleCss », inséré une seule fois dans l'en-tête du document au lieu d'être répété à chaque page.`,
+      `Le corps du certificat contient des balises qui ne peuvent pas y figurer : ${tags.join(', ')}. Le document est imprimé tel quel : rien n'y est exécuté, chargé, animé ni saisi, et un dessin SVG ne peut pas embarquer de HTML. Le CSS va dans le champ « styleCss », inséré une seule fois dans l'en-tête du document au lieu d'être répété à chaque page.`,
     );
   }
   if (attributes.length > 0) {
@@ -173,7 +197,7 @@ function stylesheetProblems(styleCss: string): string[] {
   }
   if (REMOTE_URL.test(styleCss)) {
     problems.push(
-      "« styleCss » référence une ressource distante avec url(...). Le document est rendu sans accès réseau : rien d'extérieur ne peut être chargé. Utilisez une image en data: URI, ou la variable --epitech-logo pour le logo.",
+      "« styleCss » référence une ressource distante avec url(...). Le document est rendu sans accès réseau : rien d'extérieur ne peut être chargé. Dessinez-le en SVG dans « bodyHtml », utilisez une image en data: URI, ou la variable --epitech-logo pour le logo.",
     );
   }
   if (AT_IMPORT.test(styleCss)) {
