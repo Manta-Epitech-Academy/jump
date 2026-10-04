@@ -16,7 +16,11 @@
  * the first one changed the world the plan described.
  */
 
-import { EventService, type AdminEventVM } from '$lib/server/services/events';
+import {
+  EventService,
+  setModulesForEvents,
+  type AdminEventVM,
+} from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
 import {
   changeShownStatuses,
@@ -287,8 +291,12 @@ export async function bulkApplyEventTemplate(params: {
     },
     apply: async (plan) => {
       const ids = plan.changes.map((c) => c.eventId);
-      await EventService.bulkSetModules(ids, desired);
-      await prisma.$transaction((tx) => replaceShownStatuses(tx, ids, shown));
+      // One transaction for both halves of the preset, so a failure cannot
+      // leave events with the template's sections and their old statuses.
+      await prisma.$transaction(async (tx) => {
+        await setModulesForEvents(tx, ids, desired);
+        await replaceShownStatuses(tx, ids, shown);
+      });
       return {
         before: plan.changes.map((c) => ({
           eventId: c.eventId,

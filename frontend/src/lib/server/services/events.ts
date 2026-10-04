@@ -247,7 +247,7 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
  * `createdAt`). The single-event wizard save is the authoritative sub-option
  * editor, so it always (re)writes settings. The bulk list edit is a different
  * shape - presence only, across many events - and takes the set-based path in
- * `bulkSetModules` instead of looping this.
+ * `setModulesForEvents` instead of looping this.
  *
  * Race-safe on the PK: the upsert means two admins saving the same event no
  * longer hit a P2002 that rolls the save back.
@@ -285,6 +285,61 @@ async function applyModuleDiff(
       update: { settings: value },
     });
   }
+}
+
+/**
+ * Makes many events expose exactly the given module set, inside an open
+ * transaction. Set-based, NOT a per-event diff: two statements regardless of the
+ * selection size - one `deleteMany` to drop every module outside the target set
+ * across all selected events, one `createMany` (skipDuplicates) to add the
+ * target modules to those that lack them. A per-event read-modify-write loop
+ * here meant ~2 round-trips per event inside one interactive transaction (268
+ * events ≈ 536 serial queries, leaning on the bumped 15s tx timeout); the set
+ * form is O(1) in queries.
+ *
+ * `skipDuplicates` is what preserves per-event sub-options: an event that
+ * already has a target module keeps its row (and its `settings`) untouched, so
+ * a bulk apply never resets a campus's tuned settings - only presence changes.
+ *
+ * Takes the caller's transaction so a bulk write that changes more than the
+ * sections (applying a template also sets the shown Salesforce statuses) lands
+ * whole or not at all. `EventService.bulkSetModules` is the standalone form.
+ */
+export async function setModulesForEvents(
+  tx: Prisma.TransactionClient,
+  eventIds: readonly string[],
+  modules: readonly string[],
+) {
+  if (eventIds.length === 0) return;
+  const desired = [
+    ...new Set(modules.filter(isEventModuleKey)),
+  ] as EventModuleKey[];
+  // Default sub-options per target module: the same value the per-event add
+  // path used, computed once instead of per (event × module) pair.
+  const defaults = new Map<EventModuleKey, Prisma.InputJsonValue>(
+    desired.map((key) => [
+      key,
+      parseModuleSettings(key, undefined) as Prisma.InputJsonValue,
+    ]),
+  );
+  await tx.eventConfig_Module.deleteMany({
+    where: {
+      eventId: { in: [...eventIds] },
+      // Empty target set = expose nothing: drop every module (no key filter).
+      ...(desired.length ? { moduleKey: { notIn: desired } } : {}),
+    },
+  });
+  if (desired.length === 0) return;
+  await tx.eventConfig_Module.createMany({
+    data: eventIds.flatMap((eventId) =>
+      desired.map((moduleKey) => ({
+        eventId,
+        moduleKey,
+        settings: defaults.get(moduleKey),
+      })),
+    ),
+    skipDuplicates: true,
+  });
 }
 
 export const EventService = {
@@ -431,53 +486,15 @@ export const EventService = {
 
   /**
    * Makes many events expose exactly the given module set at once (admin list
-   * bulk edit). Set-based, NOT a per-event diff: two statements regardless of the
-   * selection size - one `deleteMany` to drop every module outside the target
-   * set across all selected events, one `createMany` (skipDuplicates) to add the
-   * target modules to those that lack them. A per-event read-modify-write loop
-   * here meant ~2 round-trips per event inside one interactive transaction (268
-   * events ≈ 536 serial queries, leaning on the bumped 15s tx timeout); the set
-   * form is O(1) in queries.
-   *
-   * `skipDuplicates` is what preserves per-event sub-options: an event that
-   * already has a target module keeps its row (and its `settings`) untouched, so
-   * a bulk apply never resets a campus's tuned settings - only presence changes.
-   * Wrapped in a transaction so a failed insert rolls the deletes back. Admin-
-   * only and cross-campus like `updateEventConfig`: the ids are the authority.
+   * bulk edit): {@link setModulesForEvents} in its own transaction, so a failed
+   * insert rolls the deletes back. Admin-only and cross-campus like
+   * `updateEventConfig`: the ids are the authority.
    */
   async bulkSetModules(eventIds: string[], modules: string[]) {
     if (eventIds.length === 0) return;
-    const desired = [
-      ...new Set(modules.filter(isEventModuleKey)),
-    ] as EventModuleKey[];
-    // Default sub-options per target module: the same value the per-event add
-    // path used, computed once instead of per (event × module) pair.
-    const defaults = new Map<EventModuleKey, Prisma.InputJsonValue>(
-      desired.map((key) => [
-        key,
-        parseModuleSettings(key, undefined) as Prisma.InputJsonValue,
-      ]),
+    await prisma.$transaction((tx) =>
+      setModulesForEvents(tx, eventIds, modules),
     );
-    await prisma.$transaction(async (tx) => {
-      await tx.eventConfig_Module.deleteMany({
-        where: {
-          eventId: { in: eventIds },
-          // Empty target set = expose nothing: drop every module (no key filter).
-          ...(desired.length ? { moduleKey: { notIn: desired } } : {}),
-        },
-      });
-      if (desired.length === 0) return;
-      await tx.eventConfig_Module.createMany({
-        data: eventIds.flatMap((eventId) =>
-          desired.map((moduleKey) => ({
-            eventId,
-            moduleKey,
-            settings: defaults.get(moduleKey),
-          })),
-        ),
-        skipDuplicates: true,
-      });
-    });
   },
 
   /**
