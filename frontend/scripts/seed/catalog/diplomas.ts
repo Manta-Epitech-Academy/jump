@@ -9,8 +9,9 @@
  *
  * Written the way an author writes one over `write_diploma_template`: ornaments
  * as SVG in the markup, a word inside the badge in the brand face. The scenario
- * stores it through the write's own sanitiser, and `assert/designs.ts` checks the
- * stored bytes are the ones the API would have kept.
+ * stores it as written, and `assert/designs.ts` checks those bytes are the ones
+ * the API would have kept, so it is written the way the sanitiser serialises
+ * (explicit closing tags, no self-closing SVG).
  */
 
 export const CLUB_CERTIFICATE = {
