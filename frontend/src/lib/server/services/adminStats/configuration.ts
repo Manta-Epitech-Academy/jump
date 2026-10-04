@@ -456,6 +456,13 @@ export type WorkshopInstanceRow = {
   enabled: boolean;
   attachedEvents: number;
   talentsEntered: number;
+  /** What Jump last copied of the subject's cover; null until a first read. */
+  cover: {
+    title: string;
+    tagline: string | null;
+    images: string[];
+    fetchedAt: Date;
+  } | null;
 };
 
 export type WorkshopInstances = {
@@ -466,10 +473,11 @@ export type WorkshopInstances = {
 /**
  * The CTFd instances Jump can send a talent to, and how much each is used.
  *
- * Carries no subject content, because Jump holds none: the title, the steps and
- * the description live in CTFd. What it does carry is the slug, which is what
- * both writes take, and the two counts that say whether an instance is still
- * worth keeping in the catalogue.
+ * The subject itself (its steps, its wording) lives in CTFd. What Jump holds of
+ * it is the cover copied from the instance, so an admin can see whether the
+ * dashboard has something to lead with and when it was last read. It also
+ * carries the slug, which is what both writes take, and the two counts that say
+ * whether an instance is still worth keeping in the catalogue.
  *
  * `talentsEntered` is a count and never a list: this tier returns no talent
  * identity, at any level.
@@ -483,6 +491,14 @@ export async function getWorkshopInstances(): Promise<WorkshopInstances> {
       baseUrl: true,
       enabled: true,
       _count: { select: { events: true, participations: true } },
+      cover: {
+        select: {
+          title: true,
+          tagline: true,
+          fetchedAt: true,
+          images: { select: { kind: true }, orderBy: { kind: 'asc' } },
+        },
+      },
     },
   });
 
@@ -495,8 +511,14 @@ export async function getWorkshopInstances(): Promise<WorkshopInstances> {
         enabled: instance.enabled,
         attachedEvents: instance._count.events,
         talentsEntered: instance._count.participations,
+        cover: instance.cover && {
+          title: instance.cover.title,
+          tagline: instance.cover.tagline,
+          images: instance.cover.images.map((image) => image.kind),
+          fetchedAt: instance.cover.fetchedAt,
+        },
       })),
-      "Les activités en ligne que Jump sait proposer. « slug » est la clé stable à passer aux deux opérations d'écriture, « label » le nom que lit un talent, « baseUrl » l'adresse de l'instance vers laquelle il est envoyé, « enabled » si elle est proposée aujourd'hui, « attachedEvents » le nombre d'événements qui la proposent et « talentsEntered » le nombre de talents qui y sont entrés au moins une fois. Le contenu du sujet (titre, nombre d'étapes, énoncé) n'est pas ici : il vit dans l'instance elle-même.",
+      "Les activités en ligne que Jump sait proposer. « slug » est la clé stable à passer aux deux opérations d'écriture, « label » le nom que lit un talent, « baseUrl » l'adresse de l'instance vers laquelle il est envoyé, « enabled » si elle est proposée aujourd'hui, « attachedEvents » le nombre d'événements qui la proposent et « talentsEntered » le nombre de talents qui y sont entrés au moins une fois. « cover » est l'aperçu que Jump a recopié depuis l'instance pour l'accueil des talents : le titre du sujet, son accroche, les images copiées (« media » le visuel, « poster » l'image fixe, « mascot » la mascotte) et la date de la dernière copie, ou null si l'instance n'a encore jamais été lue. Le sujet lui-même (étapes, énoncé) n'est pas ici : il vit dans l'instance.",
     ),
     scale: metric(
       `Une activité déclarée à N minutes sur un événement vaut N x ${WORKSHOP_XP_PER_MINUTE} XP une fois entièrement terminée, au prorata des étapes validées. Le barème d'un talent est figé à sa première entrée : changer la durée ne reprend d'XP à personne et n'en ajoute pas rétroactivement.`,

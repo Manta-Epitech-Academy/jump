@@ -1,6 +1,12 @@
 // The class A writes for the CTFd activities: curating an instance, and saying
-// which ones an event offers. Bounded to named rows, reversible, and nothing
-// leaves the platform.
+// which ones an event offers. Bounded to named rows and reversible.
+//
+// Declaring an instance also READS from it: `refreshWorkshopCover` asks the
+// instance for its subject's cover and copies it, so the dashboard's headline
+// and pictures are never typed in twice. That read sends nothing anywhere a
+// person would receive, and it goes only to the origin the admin just named, so
+// the class does not move. Its outcome is reported in the answer and never fails
+// the write: the curation lands whatever the instance says.
 //
 // There is deliberately no delete. `config_workshop_instances` returns slugs, so
 // a delete tool would be something a model could aim on its own, which puts it in
@@ -11,20 +17,65 @@ import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import { UnknownScopeError } from '../scope';
 import type { WriteOutcome } from '../plan';
+import {
+  refreshWorkshopCover,
+  type CoverRefreshStatus,
+} from '$lib/server/workshops/cover';
 
 type WorkshopInstanceState = {
   slug: string;
   label: string;
   baseUrl: string;
   enabled: boolean;
+  /** What Jump last copied of the subject's cover, null until a first read. */
+  cover: {
+    title: string;
+    tagline: string | null;
+    images: string[];
+    fetchedAt: Date;
+  } | null;
 };
 
 const INSTANCE_SELECT = {
+  id: true,
   slug: true,
   label: true,
   baseUrl: true,
   enabled: true,
+  cover: {
+    select: {
+      title: true,
+      tagline: true,
+      fetchedAt: true,
+      images: { select: { kind: true }, orderBy: { kind: 'asc' } },
+    },
+  },
 } as const;
+
+async function instanceState(
+  slug: string,
+): Promise<(WorkshopInstanceState & { id: string }) | null> {
+  const row = await prisma.workshop_Instance.findUnique({
+    where: { slug },
+    select: INSTANCE_SELECT,
+  });
+  if (!row) return null;
+  return {
+    ...row,
+    cover: row.cover && {
+      title: row.cover.title,
+      tagline: row.cover.tagline,
+      images: row.cover.images.map((image) => image.kind),
+      fetchedAt: row.cover.fetchedAt,
+    },
+  };
+}
+
+const withoutId = <T extends { id: string }>(state: T | null) => {
+  if (!state) return null;
+  const { id: _id, ...rest } = state;
+  return rest;
+};
 
 /**
  * An origin and nothing else: no path, no query, no trailing slash, because the
@@ -67,23 +118,37 @@ export async function writeWorkshopInstance(params: {
     );
   }
 
-  const before = await prisma.workshop_Instance.findUnique({
-    where: { slug },
-    select: INSTANCE_SELECT,
-  });
+  const before = await instanceState(slug);
   const baseUrl = normaliseBaseUrl(params.baseUrl);
   // Left as it stands when the caller says nothing, so editing a label cannot
   // silently put a retired instance back in front of a cohort.
   const enabled = params.enabled ?? before?.enabled ?? true;
 
-  const after = await prisma.workshop_Instance.upsert({
+  const { id } = await prisma.workshop_Instance.upsert({
     where: { slug },
     create: { slug, label, baseUrl, enabled },
     update: { label, baseUrl, enabled },
-    select: INSTANCE_SELECT,
+    select: { id: true },
   });
 
-  return { applied: true, before, after };
+  // A retired instance is not asked anything: it may well be gone, and nobody
+  // will see its cover again until it is switched back on, which reads it.
+  const cover: { status: CoverRefreshStatus | 'not_read'; detail: string } =
+    enabled
+      ? await refreshWorkshopCover({ id, slug, baseUrl })
+      : {
+          status: 'not_read',
+          detail:
+            "Activité désactivée : son aperçu n'est pas relu. Il le sera quand elle sera réactivée.",
+        };
+
+  const after = await instanceState(slug);
+  return {
+    applied: true,
+    before: withoutId(before),
+    after: withoutId(after),
+    answer: { before: withoutId(before), after: withoutId(after), cover },
+  };
 }
 
 type EventWorkshopsState = {

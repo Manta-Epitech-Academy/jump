@@ -116,11 +116,13 @@ const DOMAINS: { title: string; models: string[] }[] = [
       'PlanningTemplate',
       'PlanningTemplateDay',
       'PlanningTemplateSlot',
-      // The CTFd activities: the curated instances, what an event offers, and
-      // a talent's mirrored progress on one.
+      // The CTFd activities: the curated instances, what an event offers, a
+      // talent's mirrored progress on one, and the cover copied from it.
       'Workshop_Instance',
       'EventConfig_Workshop',
       'Workshop_Participation',
+      'Workshop_Cover',
+      'Workshop_CoverImage',
     ],
   },
   {

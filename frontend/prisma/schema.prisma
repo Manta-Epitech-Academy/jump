@@ -2356,9 +2356,11 @@ model XpReward {
 // ─── Workshops (the CTFd activities a talent reaches from Jump) ───
 
 /// One deployed CTFd carrying the `workshop_platform` plugin, curated here so
-/// Jump knows where to hand a talent over. It holds NO subject content at all:
-/// the title, the step count and the description stay in CTFd, exactly as
-/// `MinigameConfig` refuses to keep the jump-games catalogue by hand.
+/// Jump knows where to hand a talent over. Nothing of the subject is TYPED here:
+/// the steps and the description stay in CTFd, exactly as `MinigameConfig`
+/// refuses to keep the jump-games catalogue by hand. What a talent's dashboard
+/// shows of the subject (its headline and pictures) is read back from the
+/// instance into `Workshop_Cover`, never entered a second time.
 ///
 /// `baseUrl` is a column and not an environment variable, which is the one place
 /// this diverges from jump-games: there is a single jump-games backend and there
@@ -2386,6 +2388,67 @@ model Workshop_Instance {
 
   events         EventConfig_Workshop[]
   participations Workshop_Participation[]
+  cover          Workshop_Cover?
+}
+
+/// How the instance's starter subject presents itself, as the instance last
+/// answered `GET <baseUrl>/jump/meta`: the subject repo's `cover` block, synced
+/// there by the plugin. A POLLED EXTERNAL MIRROR (the `TalentSfImport` shape,
+/// see `prisma/CLAUDE.md`), kept apart from the curation row so that what
+/// Jump decided and what CTFd claims never share a column. Read again each time
+/// `write_workshop_instance` runs, rewritten only when the answer differs.
+///
+/// Absent until the first successful read, and kept as it stands when a later
+/// read fails: a stale cover is a better dashboard than none.
+model Workshop_Cover {
+  instanceId String    @id
+  /// The subject's title in CTFd, for the admin's eyes. Talents read the
+  /// instance `label` (or the event's override), which every XP row quotes.
+  title      String
+  summary    String?
+  /// The one line the dashboard's hero leads with.
+  tagline    String?
+  /// When this copy was taken: the last read that changed it.
+  fetchedAt  DateTime
+
+  instance Workshop_Instance     @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  images   Workshop_CoverImage[]
+}
+
+/// Which picture of a cover an image is.
+enum WorkshopCoverKind {
+  /// The cover itself, a still or an animation.
+  media
+  /// A still of it, shown instead when the talent asked for reduced motion.
+  poster
+  /// The subject's character, drawn overflowing the hero.
+  mascot
+}
+
+/// One picture of a cover, copied into Jump's storage rather than linked to the
+/// instance: a minor's browser fetches nothing from another host (DESIGN.md,
+/// avatars), a re-sync renames the instance's files, and the dashboard must not
+/// depend on CTFd on a day it is not running an event.
+///
+/// A row exists only for a picture that was actually copied, so a cover never
+/// holds half an image.
+model Workshop_CoverImage {
+  instanceId  String
+  kind        WorkshopCoverKind
+  /// The instance's own path (`/files/ws-<subject>/<name>-<hash>.<ext>`). It is
+  /// content-hashed by the sync, so an equal path means an unchanged picture
+  /// and nothing is downloaded again.
+  sourcePath  String
+  /// Storage key, content-addressed: `workshops/<instanceId>/<kind>-<sha>.<ext>`.
+  key         String            @unique
+  contentType String
+  /// Intrinsic size, so the dashboard reserves the box before the bytes land.
+  width       Int
+  height      Int
+
+  cover Workshop_Cover @relation(fields: [instanceId], references: [instanceId], onDelete: Cascade)
+
+  @@id([instanceId, kind])
 }
 
 /// An event offering an activity: the link, carrying attributes of its own.

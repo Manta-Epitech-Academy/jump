@@ -31,3 +31,36 @@ export function workshopSlugFromSourceId(
   const slug = sourceId.split(SEPARATOR)[0];
   return slug ? slug : null;
 }
+
+/**
+ * Where a copied cover picture lives, and the URL a page asks for it at.
+ *
+ * Composed here and nowhere else, because the proxy route turns its two path
+ * segments back into the key and the two directions must not drift. The key is
+ * content-addressed (`digest` is a hash of the stored bytes), which is what lets
+ * the proxy cache a picture forever: new bytes are a new key.
+ */
+export type WorkshopCoverKind = 'media' | 'poster' | 'mascot';
+
+const COVER_PREFIX = 'workshops';
+
+export function workshopCoverKey(
+  instanceId: string,
+  kind: WorkshopCoverKind,
+  digest: string,
+  extension: string,
+): string {
+  return `${COVER_PREFIX}/${instanceId}/${kind}-${digest}.${extension}`;
+}
+
+/** The key the proxy route's `[instanceId]/[file]` segments name. */
+export function workshopCoverKeyFromPath(
+  instanceId: string,
+  file: string,
+): string {
+  return `${COVER_PREFIX}/${instanceId}/${file}`;
+}
+
+export function workshopCoverUrl(key: string): string {
+  return `/api/workshops/covers/${key.slice(COVER_PREFIX.length + 1)}`;
+}

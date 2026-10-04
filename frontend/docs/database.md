@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **73** modèles · **30** enums · **105** relations
+- **78** modèles · **31** enums · **111** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -14,7 +14,7 @@
 | Cycle de vie talent & RGPD | 6 |
 | Événements & Participations | 8 |
 | Closings | 9 |
-| Planning & Activités | 4 |
+| Planning & Activités | 6 |
 | Progression, Portfolio & XP | 2 |
 | Minijeux | 3 |
 | Feedback | 7 |
@@ -22,6 +22,7 @@
 | Contenus & Centres d'intérêt | 4 |
 | Analytique d'usage | 2 |
 | Configuration & Système | 11 |
+| Autres | 3 |
 
 ## 1 · Authentification & Profils
 
@@ -381,6 +382,7 @@ erDiagram
     String eventId FK,UK
     String campusId FK
     String sfMemberStatus
+    Boolean shownInDevSpace
     DateTime createdAt
     DateTime updatedAt
   }
@@ -604,6 +606,22 @@ erDiagram
     DateTime xpSeenAt
     DateTime updatedAt
   }
+  Workshop_Cover {
+    String instanceId PK,FK
+    String title
+    String summary
+    String tagline
+    DateTime fetchedAt
+  }
+  Workshop_CoverImage {
+    String instanceId PK,FK
+    WorkshopCoverKind kind PK
+    String sourcePath
+    String key UK
+    String contentType
+    Int width
+    Int height
+  }
   Talent {
   }
   Campus {
@@ -617,6 +635,8 @@ erDiagram
   Event ||--o{ Workshop_Participation : "workshopEntries"
   Workshop_Instance ||--o{ EventConfig_Workshop : "events"
   Workshop_Instance ||--o{ Workshop_Participation : "participations"
+  Workshop_Instance ||--|| Workshop_Cover : "cover"
+  Workshop_Cover ||--o{ Workshop_CoverImage : "images"
 ```
 
 ## 6 · Progression, Portfolio & XP
@@ -1092,4 +1112,32 @@ erDiagram
   Campus ||--o{ Sync_Source : "syncSources"
   Event ||--|| Sync_PruneHold : "syncPruneHold"
   AdminApi_Token |o--o{ AdminApi_Call : "calls"
+```
+
+## 13 · Autres
+
+```mermaid
+erDiagram
+  EventConfig_ShownStatus {
+    String eventId PK,FK
+    String status PK,FK
+  }
+  EventConfig_TemplateShownStatus {
+    String templateId PK,FK
+    String status PK,FK
+  }
+  Sync_MemberStatus {
+    String status PK
+    Boolean shownByDefault
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  Event {
+  }
+  EventConfig_Template {
+  }
+  Event ||--o{ EventConfig_ShownStatus : "shownStatuses"
+  Sync_MemberStatus ||--o{ EventConfig_ShownStatus : "events"
+  EventConfig_Template ||--o{ EventConfig_TemplateShownStatus : "shownStatuses"
+  Sync_MemberStatus ||--o{ EventConfig_TemplateShownStatus : "templates"
 ```

@@ -598,7 +598,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_workshop_instances: defineOperation({
     description:
-      'The online activities Jump can send a talent to: their slug, the French name a talent reads, the CTFd address behind each, whether it is offered today, how many events offer it and how many talents have entered it. No subject content, because Jump holds none: the title, the step count and the wording live in the instance itself. Also returns how an activity turns into XP. Returns the slugs the two activity write operations take.',
+      'The online activities Jump can send a talent to: their slug, the French name a talent reads, the CTFd address behind each, whether it is offered today, how many events offer it, how many talents have entered it, and the cover Jump last copied from the instance for the talent dashboard (headline, which pictures, when), or null if it was never read. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP. Returns the slugs the two activity write operations take.',
     shape: {},
     run: () => getWorkshopInstances(),
   }),
@@ -811,7 +811,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_workshop_instance: defineWrite({
     description:
-      'Declare or update one online activity, identified by its slug: a slug that does not exist yet creates one, an existing slug updates it. Only curates where Jump sends a talent; it authors no subject content, which lives in the CTFd instance. Set enabled to false to stop offering it everywhere at once without unpicking any event. Safe to repeat: the same slug and the same values leave one activity. Answers with the activity before and after.',
+      "Declare or update one online activity, identified by its slug: a slug that does not exist yet creates one, an existing slug updates it. It curates where Jump sends a talent and authors no subject content. When the activity is enabled it then reads the subject's cover from the instance (GET <baseUrl>/jump/meta: headline and pictures, authored in the subject repo) and copies it for the talent dashboard, so nothing about the subject is typed here. Repeat it after the subject is re-synced on the instance to pick up a new cover. That read never fails the write: the answer's cover.status says fetched, unchanged, no_cover, unreachable, instance_mismatch (the address answers under another slug), invalid or not_read (disabled), with a French detail to relay. Set enabled to false to stop offering it everywhere at once without unpicking any event. Safe to repeat: the same slug and the same values leave one activity. Answers with the activity before and after.",
     shape: {
       slug: z
         .string()
