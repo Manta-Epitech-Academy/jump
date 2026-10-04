@@ -143,7 +143,11 @@
       });
       const result = deserialize(await res.text());
       if (result.type === 'success') {
-        toast.success(`${status} ajouté au catalogue des statuts.`);
+        // The box that said so is gone once the last unknown word is added,
+        // so the next step travels with the confirmation.
+        toast.success(
+          `${status} ajouté, et toujours masqué : cochez-le dans la configuration des événements qui doivent l'afficher.`,
+        );
         onStatusAdded?.(status);
         await loadData();
       } else {
@@ -243,7 +247,7 @@
                 </span>
                 <InfoTooltip
                   label="Ce que change l'ajout au catalogue"
-                  text="Salesforce a peut-être ajouté ou renommé un statut. Ajouté au catalogue, il n'est plus signalé comme inconnu mais reste masqué sur chaque événement, jusqu'à ce que sa configuration l'affiche."
+                  text="Salesforce a peut-être ajouté ou renommé un statut. L'ajouter au catalogue le fait connaître de Jump : il n'est plus signalé comme inconnu."
                 />
                 <Button
                   size="sm"
@@ -260,7 +264,8 @@
               </div>
             {/each}
             <p class="text-xs text-muted-foreground">
-              Définitif : un statut ajouté au catalogue ne se retire pas.
+              Ajouté, il reste masqué : cochez-le dans la configuration des
+              événements qui doivent l'afficher.
             </p>
           </div>
         {/if}
