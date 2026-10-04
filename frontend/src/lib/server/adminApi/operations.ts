@@ -742,7 +742,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_diploma_template: defineWrite({
     description:
-      'Create or replace a certificate design, identified by its code: a code that does not exist yet creates one, an existing code replaces it. Refused, saying what is wrong, if it uses an unknown placeholder, references anything remote, carries markup that cannot be printed, or does not render. Safe to repeat: the same code and the same design leave one certificate. Answers with what was stored (code, label, page size), whether anything changed, and an "apercu" sentence carrying a link to its preview, to quote as the preview operation says. The design itself is not repeated: config_diploma_templates returns it.',
+      'Create or replace a certificate design, identified by its code: a code that does not exist yet creates one, an existing code replaces it. Refused, saying what is wrong, if it uses an unknown placeholder, references anything remote, carries markup that cannot be printed, or does not render. Safe to repeat: the same code and the same design leave one certificate. Answers with what was stored (code, label, page size), whether anything changed, what a printed page weighs (reported, never refused), and an "apercu" sentence carrying a link to its preview, to quote as the preview operation says. The design itself is not repeated: config_diploma_templates returns it.',
     shape: {
       code: z
         .string()

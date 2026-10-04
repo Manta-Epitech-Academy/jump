@@ -221,6 +221,32 @@ describe('certificate authoring (integration)', () => {
     ).toBeNull();
   }, 60_000);
 
+  it('reports what a printed page weighs, and refuses nothing for it', async () => {
+    type Weight = { value: { perPageKb: number; cohortMb: number } };
+    async function weightOf(styleCss: string) {
+      const { status, payload } = await call(postTemplate, secret, {
+        code: `${code}-weight`,
+        label: 'Poids',
+        ...VALID,
+        styleCss,
+      });
+      expect(status, JSON.stringify(payload)).toBe(200);
+      return (payload.weight as Weight).value;
+    }
+
+    const plain = await weightOf(VALID.styleCss);
+    // A full-page blur is redrawn as an image on every page: hundreds of KB a
+    // page, tens of MB at the cohort tail. It is a legitimate design all the
+    // same, so it is stored and its cost is said, never refused.
+    const blurred = await weightOf(
+      `${VALID.styleCss} .page { background: radial-gradient(circle, #f4895f, #2c47d8); filter: blur(8px); }`,
+    );
+
+    expect(plain.perPageKb).toBeLessThan(50);
+    expect(blurred.perPageKb).toBeGreaterThan(plain.perPageKb * 10);
+    expect(blurred.cohortMb).toBeGreaterThan(plain.cohortMb);
+  }, 60_000);
+
   it('stores an inline drawing as written, and prints it', async () => {
     // A full-page band behind the text, so whether it reached the page cannot be
     // missed. Compared against the same design without it: identical previews

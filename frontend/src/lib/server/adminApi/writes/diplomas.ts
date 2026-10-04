@@ -6,11 +6,15 @@
 // puts it in class C. A certificate is retired by leaving it unreferenced, and
 // the FK is `Restrict` so a hand-deletion of one still in use fails loudly.
 import { prisma } from '$lib/server/db';
-import { unknownCertificateTokens } from '$lib/domain/diplomas';
+import {
+  COHORT_TAIL_PAGES,
+  unknownCertificateTokens,
+} from '$lib/domain/diplomas';
 import { sanitizeCertificateDesign } from '$lib/server/diplomaSanitize';
 import { renderCertificateSample } from '$lib/server/services/diplomaGenerator';
 import { diplomaTemplatePreviewLink } from '$lib/server/diplomaTemplates';
 import { OperationRefusedError } from '../errors';
+import { metric } from '../metrics';
 import { handleProvenanceFr } from '../handles';
 import { UnknownScopeError } from '../scope';
 import { canonicalJson, type WriteOutcome } from '../plan';
@@ -97,8 +101,9 @@ export async function writeDiplomaTemplate(params: {
 
   // Last gate before storing: a design that makes the renderer fail or run away
   // is refused here rather than discovered in front of a whole cohort.
+  let sample: Awaited<ReturnType<typeof renderCertificateSample>>;
   try {
-    await renderCertificateSample(design);
+    sample = await renderCertificateSample(design);
   } catch (err) {
     throw new OperationRefusedError(
       `Ce certificat ne se rend pas : ${err instanceof Error ? err.message : String(err)}. Rien n'a été enregistré.`,
@@ -129,6 +134,17 @@ export async function writeDiplomaTemplate(params: {
         pageWidthPx: after.pageWidthPx,
         pageHeightPx: after.pageHeightPx,
       },
+      weight: metric(
+        {
+          perPageKb: Math.round(sample.bytesPerPage / 1024),
+          // One decimal: 0.4 Mo and 68 Mo are both worth reading as they are.
+          cohortMb:
+            Math.round(
+              ((sample.bytesPerPage * COHORT_TAIL_PAGES) / 1024 / 1024) * 10,
+            ) / 10,
+        },
+        `Ce que chaque inscrit ajoute au PDF exporté (perPageKb, en Ko) et le poids du fichier pour une cohorte de ${COHORT_TAIL_PAGES} inscrits (cohortMb, en Mo), mesurés sur un rendu d'exemple. Texte, formes, dégradés et SVG pèsent quelques Ko par page. Un effet que l'impression convertit en image (flou, filtre, ombre floue) est redessiné à chaque page et peut en peser plusieurs centaines : un halo dessiné par un radial-gradient qui s'estompe vers le transparent rend presque pareil pour presque rien. C'est une indication, aucun poids n'est refusé.`,
+      ),
       apercu: diplomaTemplatePreviewLink({
         code: after.code,
         label: after.label,
