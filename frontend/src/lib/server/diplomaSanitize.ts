@@ -61,6 +61,27 @@ const CSS_MARKUP = /</;
 const LOCAL_URI = /^(?:data:|(?![/\\])[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
 
 /**
+ * The attributes a browser resolves as an address. `LOCAL_URI` cannot hold these
+ * to `data:` and `#...`, because DOMPurify applies it to ordinary values too and
+ * `logo.png` looks like `spacingAndGlyphs` to a regex. So the hook below does, by
+ * name: a relative path fetches nothing in a render with no network and no base
+ * URL, and an image that silently prints blank is the failure the refusal exists
+ * to prevent.
+ */
+const ADDRESS_ATTRIBUTES = new Set([
+  'href',
+  'xlink:href',
+  'src',
+  'srcset',
+  'poster',
+  'background',
+  'cite',
+  'longdesc',
+]);
+/** An address that stays inside the document, or none at all. */
+const IN_DOCUMENT_ADDRESS = /^(?:data:|#|$)/i;
+
+/**
  * One DOMPurify bound to its own window, rather than the shared
  * `isomorphic-dompurify` singleton that the CMS, the broadcast renderer and
  * `renderMarkdown` use. A hook installed on the singleton changes sanitising for
@@ -79,9 +100,17 @@ const purifier = createDOMPurify(new JSDOM('').window);
  * URI carries a `;` of its own (`data:image/png;base64,...`), so the obvious
  * version corrupted exactly the thing the authoring contract tells people to use.
  * Dropping it is also what makes it reach `removed`, and therefore the refusal.
+ *
+ * An address attribute is held to `data:` or `#...` here too, for the reason
+ * given on `ADDRESS_ATTRIBUTES`.
  */
 purifier.addHook('uponSanitizeAttribute', (_node, data) => {
-  if (REMOTE_URL.test(data.attrValue) || CSS_EXPRESSION.test(data.attrValue)) {
+  if (
+    REMOTE_URL.test(data.attrValue) ||
+    CSS_EXPRESSION.test(data.attrValue) ||
+    (ADDRESS_ATTRIBUTES.has(data.attrName) &&
+      !IN_DOCUMENT_ADDRESS.test(data.attrValue))
+  ) {
     data.keepAttr = false;
   }
 });
@@ -108,6 +137,16 @@ const BODY_CONFIG = {
   USE_PROFILES: { html: true, svg: true, svgFilters: true },
   ADD_TAGS: ['use'],
   ALLOWED_URI_REGEXP: LOCAL_URI,
+  // A namespace declaration is a name, not an address, but its value starts
+  // with `http:`, so the rule above refused the `<svg>` root a model writes by
+  // habit whenever it reaches for `xlink:href`.
+  ADD_URI_SAFE_ATTR: ['xmlns:xlink'],
+  // Clobbering protection keeps a page's scripts from reading `document.title`
+  // as an element, so it refuses `id="title"`, `id="name"`, `id="images"`. This
+  // markup is printed with scripts off and never inserted into a live page, so
+  // the protection guards nothing here and refused natural ids for a reason no
+  // author could act on.
+  SANITIZE_DOM: false,
   // Without it a leading `<script>` or `<style>` is parsed into the head, which
   // DOMPurify discards without listing it in `removed`: the tag would vanish
   // from the stored design and never reach the refusal.
@@ -181,7 +220,7 @@ function sanitizeBody(bodyHtml: string): { html: string; problems: string[] } {
   }
   if (attributes.length > 0) {
     problems.push(
-      `Le corps du certificat contient des attributs qui ne peuvent pas y figurer : ${attributes.join(', ')}. Un document imprimé ne réagit à aucun événement, et une adresse ou un url(...) ne peut désigner qu'une donnée intégrée (data:) ou un repère de la page (#...) : le document est rendu sans accès réseau.`,
+      `Le corps du certificat contient des attributs qui ne peuvent pas y figurer : ${attributes.join(', ')}. Un document imprimé ne réagit à aucun événement (on...), une adresse ou un url(...) ne peut désigner qu'une donnée intégrée (data:) ou un repère de la page (#...) puisque le document est rendu sans accès réseau, et seuls les attributs HTML et SVG sont reconnus.`,
     );
   }
   return { html, problems };

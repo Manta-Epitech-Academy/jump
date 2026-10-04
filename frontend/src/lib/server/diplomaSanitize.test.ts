@@ -79,6 +79,17 @@ describe('what a stored body keeps', () => {
     expect(design.bodyHtml).toBe(html);
   });
 
+  // Clobbering protection refuses an id that names a property of `document`,
+  // which guards nothing in a page printed with scripts off.
+  it('keeps an id that a live page would reserve', () => {
+    const html = '<h1 id="title">{prenom}</h1><p id="name">a</p>';
+
+    const { design, problems } = screen({ bodyHtml: html });
+
+    expect(problems).toEqual([]);
+    expect(design.bodyHtml).toBe(html);
+  });
+
   it('keeps table geometry', () => {
     const { design, problems } = screen({
       bodyHtml: '<table><tr><td colspan="2" width="50%">a</td></tr></table>',
@@ -120,6 +131,18 @@ describe('what a stored drawing keeps', () => {
 
     expect(problems).toEqual([]);
     expect(design.bodyHtml).toBe(GHOST);
+  });
+
+  // The root a model writes by habit next to `xlink:href`. Its namespace value
+  // starts with `http:`, which the address rule used to read as a link.
+  it('keeps the xlink namespace declaration', () => {
+    const html =
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="#a"></use></svg>';
+
+    const { design, problems } = screen({ bodyHtml: html });
+
+    expect(problems).toEqual([]);
+    expect(design.bodyHtml).toBe(html);
   });
 
   // Every page repeats the markup, so a drawing's ids repeat too. That is valid
@@ -176,6 +199,14 @@ describe('what a stored body refuses, naming it', () => {
     ['a remote link', '<a href="http://x">a</a>', 'href (sur <a>)'],
     ['a protocol-relative link', '<a href="//x/y">a</a>', 'href (sur <a>)'],
     ['a script URL', '<a href="javascript:x()">a</a>', 'href (sur <a>)'],
+    // No network and no base URL: a relative image prints blank, so it is
+    // refused rather than stored.
+    ['a relative image', '<img src="logo.png">', 'src (sur <img>)'],
+    [
+      'a drawing reusing a relative file',
+      '<svg><use href="seal.svg#a"/></svg>',
+      'href (sur <use>)',
+    ],
     [
       'a style that fetches',
       '<p style="color: red; background: url(http://x/y.png)">a</p>',
