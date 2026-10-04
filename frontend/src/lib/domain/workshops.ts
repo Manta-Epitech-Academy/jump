@@ -135,3 +135,38 @@ function outranks(
   if (byPhase !== 0) return byPhase > 0;
   return a.eventDate.getTime() > b.eventDate.getTime();
 }
+
+/**
+ * What the talent dashboard renders of the activities: the view a page reads,
+ * built server-side by `listTalentWorkshops`.
+ */
+export type WorkshopCoverImage = { url: string; width: number; height: number };
+
+export type WorkshopActivity = {
+  slug: string;
+  /** What the talent reads: the event's own wording when it set one. */
+  label: string;
+  /** The event offering it, as a talent reads its name. */
+  eventName: string;
+  solvedSteps: number;
+  totalSteps: number;
+  /** Null until the talent has entered once. */
+  startedAt: Date | null;
+  /** What the subject says about itself, copied from the instance; null until read. */
+  cover: {
+    tagline: string | null;
+    media: WorkshopCoverImage | null;
+    poster: WorkshopCoverImage | null;
+    mascot: WorkshopCoverImage | null;
+  } | null;
+};
+
+export type TalentWorkshops = {
+  /**
+   * The activities of the event running today, for the dashboard's hero. Null
+   * on any day no event of the talent's offering one is running.
+   */
+  today: { eventName: string; activities: WorkshopActivity[] } | null;
+  /** Every other activity the talent has been offered, newest event first. */
+  activities: WorkshopActivity[];
+};

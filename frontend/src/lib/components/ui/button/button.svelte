@@ -21,6 +21,10 @@
         ghost:
           'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
         link: 'text-primary underline-offset-4 hover:underline',
+        // `buttonNeon` (DESIGN.md): the one hopeful action on a talent or login
+        // surface, never in a staff toolbar. Its text is `epiBlue`, which is
+        // what makes this the one accent fill a button may carry.
+        neon: 'bg-epi-tech text-epi-blue hover:bg-epi-tech/90 shadow-raised active:translate-y-px',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',

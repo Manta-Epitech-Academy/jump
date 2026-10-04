@@ -34,7 +34,7 @@ function signedCallback(body: string): Record<string, string> {
 test.describe('un talent inscrit à un événement qui propose une activité', () => {
   test.use({ storageState: storageStatePath(E2E.talentReady.email) });
 
-  test('voit la mission, puis ses XP au retour sur l’onglet', async ({
+  test('voit l’activité du jour en tête, puis ses XP au retour sur l’onglet', async ({
     page,
     request,
   }) => {
@@ -44,11 +44,15 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     ).not.toBe('');
 
     await page.goto('/');
-    const mission = page.locator('form[action^="/activites/"]');
+    // The event runs today, so its activity is the hero, named after it, and
+    // not a row further down.
+    const hero = page.getByRole('region', { name: 'Ton activité du jour' });
+    await expect(hero).toContainText("Aujourd'hui · Émargement E2E");
+    const mission = hero.locator('form[action^="/activites/"]');
     await expect(mission).toBeVisible();
     // A new tab, which is what leaves this one alive to come back to.
     await expect(mission).toHaveAttribute('target', '_blank');
-    await expect(mission).toContainText(E2E.workshopLabel);
+    await expect(hero).toContainText(E2E.workshopLabel);
 
     // The talent enters. Done over the action rather than by writing the row, so
     // what pins the event, the campus and the minute budget is the code that
@@ -98,12 +102,12 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     const toast = page.getByText('Tu gagnes +300 XP', { exact: false });
     await expect(toast).toBeVisible();
     await expect(page.getByText('Activité en cours')).toBeVisible();
-    await expect(mission).toContainText('5 / 10 étapes validées');
+    await expect(hero).toContainText('5 / 10 étapes validées');
 
     // And it is owed once. A second return celebrates nothing, because the
     // acknowledgement went out with the first.
     await page.reload();
-    await expect(mission).toContainText('5 / 10 étapes validées');
+    await expect(hero).toContainText('5 / 10 étapes validées');
     await page.evaluate(() =>
       document.dispatchEvent(new Event('visibilitychange')),
     );
