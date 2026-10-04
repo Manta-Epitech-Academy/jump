@@ -25,7 +25,7 @@ import { buildPreviewPlanningView } from '$lib/server/talentPlanningPreview';
 import { listAttendedEvents } from '$lib/server/talent/attendedEvents';
 import {
   getUnseenWorkshopReward,
-  listWorkshopMissions,
+  listTalentWorkshops,
 } from '$lib/server/services/workshopService';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
@@ -133,10 +133,11 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     const minigameRankReward = await getUnseenMinigameRankReward(studentId);
 
     // The CTFd activities the talent's own events offer, with whatever CTFd last
-    // reported about each. Not narrowed by date: a Coding Club is designed never
-    // to finish and the students carry on at home, so an activity outlives the
-    // afternoon it was handed out on.
-    const workshopMissions = await listWorkshopMissions(studentId);
+    // reported about each: today's for the hero, every other one below. An
+    // activity appears on its event's first campus day and stays from then on,
+    // because a Coding Club is designed never to finish and the students carry
+    // on at home (`selectWorkshopOfferings` holds the rule).
+    const workshops = await listTalentWorkshops(studentId);
 
     // Everything earned on an activity and not yet celebrated. The talent walks
     // the activity in another tab, so nothing here witnesses the moment: the float
@@ -289,7 +290,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       minigame,
       minigameReward,
       minigameRankReward,
-      workshopMissions,
+      workshops,
       workshopReward,
       onboardingArrival,
       welcome,

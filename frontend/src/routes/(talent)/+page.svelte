@@ -136,7 +136,10 @@
   // The CTFd activities the talent's events offer. Student-facing wording all the
   // way: the words « CTFd » and « flag » never appear on this surface.
   const ACTIVITY_LABEL = 'Passe à la pratique';
-  let workshopMissions = $derived(data.workshopMissions);
+  let workshopMissions = $derived([
+    ...(data.workshops.today?.activities ?? []),
+    ...data.workshops.activities,
+  ]);
 
   // An activity is walked in a SECOND TAB, so coming back here reloads nothing on
   // its own and the XP earned meanwhile would only appear on the next navigation.

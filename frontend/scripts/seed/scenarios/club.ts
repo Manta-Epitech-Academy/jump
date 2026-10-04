@@ -56,7 +56,7 @@ const SESSION_OFFSETS = [
   -189, -168, -147, -126, -105, -84, -63, -42, -21, 6,
 ] as const;
 
-const [PACMAN, LINUX] = WORKSHOPS;
+const [PACMAN, LINUX, SANTA] = WORKSHOPS;
 
 /**
  * Which online activities a session offers.
@@ -69,18 +69,26 @@ const [PACMAN, LINUX] = WORKSHOPS;
  * so an event still pointing at something nobody may enter exists in the data.
  *
  * THE `labelOverride` GOES ON THE OFFERED INSTANCE, NOT THE RETIRED ONE, and
- * that is the whole of why it is here. `listWorkshopMissions` only ever reads a
+ * that is the whole of why it is here. `listTalentWorkshops` only ever reads a
  * link whose instance is `enabled`, so an override on the retired row is a column
  * no screen can reach: the branch it exists to exercise
  * (`o.labelOverride ?? o.instance.label`) would render nowhere in any generated
- * dataset. It sits on the PAST session rather than the upcoming one because the
- * first enrolment that offers an activity is the one that wins, and the anchor
- * regular is guaranteed onto every session: the override is therefore what their
- * dashboard reads, deterministically, run after run. The upcoming session offers
- * the same subject under its catalogue label, which is the other branch.
+ * dataset. It sits on the PAST session rather than the upcoming one because an
+ * event that has not started offers nothing (`selectWorkshopOfferings`), and the
+ * anchor regular is guaranteed onto every session: the override is therefore
+ * what their « Mes activités » card reads, deterministically, run after run.
+ *
+ * The upcoming session offers the same subject under its catalogue label, and a
+ * second one nobody has walked yet. Neither shows before its day: the first
+ * because the anchor regular's past session already resolves it, the second
+ * because nothing does, which is the « pas avant le jour J » state.
  */
 function activitiesFor(session: number, upcoming: boolean) {
-  if (upcoming) return [{ slug: PACMAN!.slug, durationMinutes: 150 }];
+  if (upcoming)
+    return [
+      { slug: PACMAN!.slug, durationMinutes: 150 },
+      { slug: SANTA!.slug, durationMinutes: SANTA!.durationMinutes },
+    ];
   if (session !== SESSION_OFFSETS.length - 2) return [];
   return [
     {

@@ -28,6 +28,7 @@ import {
   codingClubTitre,
 } from '../catalog/events';
 import { id } from '../ids';
+import { WORKSHOPS } from '../catalog/workshops';
 import {
   makeCohort,
   cohortSize,
@@ -37,6 +38,12 @@ import {
   RETURNING_SHARE_WITH_CLOSINGS,
 } from './helpers';
 import type { Scenario } from './types';
+
+const SANTA = WORKSHOPS.find((w) => w.slug === 'santa-shooter')!;
+const TODAY_ACTIVITY = {
+  slug: SANTA.slug,
+  durationMinutes: SANTA.durationMinutes,
+};
 
 export const longTail: Scenario = {
   name: 'longue-traine',
@@ -193,6 +200,11 @@ export const longTail: Scenario = {
             : [EVENT_MODULES.INSCRITS]
           : [],
         closingTemplateId: runsClosings ? clubTemplateId : null,
+        // The event running today offers an activity, so its whole roster
+        // opens the dashboard on the day's hero. The instance it offers has
+        // never been read (`cover: null`), which is the hero with nothing but
+        // a label to lead with.
+        workshops: index === 1 ? [TODAY_ACTIVITY] : undefined,
       });
       created += 1;
       if (!configured) unconfigured += 1;
@@ -350,7 +362,7 @@ export const longTail: Scenario = {
       covers: [
         `${created} événements ordinaires répartis sur tous les campus`,
         `${empty} sans aucun inscrit, ${unconfigured} sans aucun module configuré`,
-        'un événement à venir, un en cours, un terminé hier',
+        'un événement à venir, un en cours (qui propose une activité : le bandeau du jour), un terminé hier',
         'un événement « prêt à publier » que l’activation refuse : il lui manque la date de fin',
         `${zeroClosingCampus.name} : closings configurés, inscrits réels, aucun closing conduit`,
         'des cohortes tirées sur la vraie distribution : médiane autour de 23',

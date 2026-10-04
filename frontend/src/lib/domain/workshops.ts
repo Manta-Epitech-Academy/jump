@@ -1,3 +1,5 @@
+import type { EventLifecycleStatus } from './eventLifecycle';
+
 /**
  * How a workshop XP grant is addressed.
  *
@@ -63,4 +65,73 @@ export function workshopCoverKeyFromPath(
 
 export function workshopCoverUrl(key: string): string {
   return `/api/workshops/covers/${key.slice(COVER_PREFIX.length + 1)}`;
+}
+
+/**
+ * Which activities a talent is offered, through which enrolment, and which of
+ * them are today's.
+ *
+ * An activity is offered once the event offering it has STARTED (its first
+ * campus day), and from then on for good: a Coding Club is designed never to
+ * finish, and the students carry on at home in the evening and the days after.
+ * Before that day it is neither shown nor enterable, so nobody starts a camp's
+ * subject a week early. The one exception is a talent who has already walked
+ * it: what they started stays theirs, whatever their enrolments say now.
+ *
+ * An instance offered by several of a talent's enrolments resolves to ONE
+ * offering: the event running today when there is one (that is the one the
+ * day's hero is about), otherwise the most recent that has started, and only
+ * failing both a future one the talent is already walking it through. The chosen
+ * enrolment is what a first entry pins its event, campus and minute budget on.
+ *
+ * Ordered newest event first, then by the event's own order, which is the order
+ * a talent reads them in.
+ *
+ * Pure: the caller computes each event's status in its campus timezone.
+ */
+export function selectWorkshopOfferings<
+  T extends {
+    instanceId: string;
+    eventDate: Date;
+    position: number;
+    status: EventLifecycleStatus;
+  },
+>(
+  rows: readonly T[],
+  startedInstanceIds: ReadonlySet<string>,
+): (T & { today: boolean })[] {
+  const chosen = new Map<string, T>();
+  for (const row of rows) {
+    if (row.status === 'upcoming' && !startedInstanceIds.has(row.instanceId))
+      continue;
+    const current = chosen.get(row.instanceId);
+    if (!current || outranks(row, current)) chosen.set(row.instanceId, row);
+  }
+  return [...chosen.values()]
+    .map((row) => ({ ...row, today: row.status === 'ongoing' }))
+    .sort(
+      (a, b) =>
+        b.eventDate.getTime() - a.eventDate.getTime() ||
+        a.position - b.position,
+    );
+}
+
+/**
+ * Today's event over any other, then one that has run over one still to come
+ * (which only survives at all for a talent who already started the activity),
+ * then the most recent.
+ */
+const PHASE_RANK: Record<EventLifecycleStatus, number> = {
+  ongoing: 2,
+  past: 1,
+  upcoming: 0,
+};
+
+function outranks(
+  a: { eventDate: Date; status: EventLifecycleStatus },
+  b: { eventDate: Date; status: EventLifecycleStatus },
+): boolean {
+  const byPhase = PHASE_RANK[a.status] - PHASE_RANK[b.status];
+  if (byPhase !== 0) return byPhase > 0;
+  return a.eventDate.getTime() > b.eventDate.getTime();
 }
