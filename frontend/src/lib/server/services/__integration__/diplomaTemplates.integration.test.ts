@@ -106,12 +106,18 @@ describe('certificate authoring (integration)', () => {
 
     expect(status).toBe(200);
     expect(payload.applied).toBe(true);
-    // Nothing existed before, so there is nothing to restore it to.
-    expect(payload.before).toBeNull();
-    expect(payload.after).toMatchObject({ code, label: 'Certificat de test' });
+    expect(payload.created).toBe(true);
+    expect(payload.certificate).toMatchObject({
+      code,
+      label: 'Certificat de test',
+    });
+    // The link the author would otherwise ask for next, in the preview's words.
+    expect(String(payload.apercu)).toContain(
+      `/api/admin/config/diploma-template-preview?code=${code}`,
+    );
   }, 60_000);
 
-  it('records the previous design in the audit row, so an edit is recoverable', async () => {
+  it('records the previous design in the audit row, and answers without it', async () => {
     const { payload } = await call(postTemplate, secret, {
       code,
       label: 'Certificat de test v2',
@@ -119,9 +125,15 @@ describe('certificate authoring (integration)', () => {
       bodyHtml: '<h1 class="title">Version deux</h1><p>{prenom}</p>',
     });
 
-    expect(payload.applied).toBe(true);
-    expect(payload.before).toMatchObject({ label: 'Certificat de test' });
-    expect(payload.after).toMatchObject({ label: 'Certificat de test v2' });
+    expect(payload).toMatchObject({
+      applied: true,
+      created: false,
+      changed: true,
+    });
+    // The design is what the caller has just sent: echoing it twice, before and
+    // after, was kilobytes read back on every edit.
+    expect(JSON.stringify(payload)).not.toContain('Version deux');
+    expect(payload).not.toHaveProperty('before');
 
     const row = await prisma.adminApi_Call.findFirst({
       where: { operation: 'write_diploma_template', status: 200 },
@@ -137,7 +149,7 @@ describe('certificate authoring (integration)', () => {
     const body = { code, label: 'Certificat de test v2', ...VALID };
     await call(postTemplate, secret, body);
     const { payload } = await call(postTemplate, secret, body);
-    expect(payload.before).toEqual(payload.after);
+    expect(payload.changed).toBe(false);
   }, 60_000);
 
   it('refuses a misspelled placeholder, and stores nothing', async () => {

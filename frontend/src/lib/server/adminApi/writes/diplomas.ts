@@ -9,17 +9,19 @@ import { prisma } from '$lib/server/db';
 import { unknownCertificateTokens } from '$lib/domain/diplomas';
 import { sanitizeCertificateDesign } from '$lib/server/diplomaSanitize';
 import { renderCertificateSample } from '$lib/server/services/diplomaGenerator';
+import { diplomaTemplatePreviewLink } from '$lib/server/diplomaTemplates';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import { UnknownScopeError } from '../scope';
-import type { WriteOutcome } from '../plan';
+import { canonicalJson, type WriteOutcome } from '../plan';
 
 /**
- * What a certificate write reports, before and after.
+ * What a certificate write records on its audit row, before and after.
  *
  * The full design, not a digest: it is the artifact, it carries no personal data,
  * and a bad edit is only recoverable if the previous text is in the audit row.
- * `POST /api/jobs/gc-api-audit` bounds how long that is kept.
+ * `POST /api/jobs/gc-api-audit` bounds how long that is kept. It is not what the
+ * caller is told: see the `answer` at the end of `writeDiplomaTemplate`.
  */
 type DiplomaTemplateState = {
   code: string;
@@ -46,6 +48,8 @@ export async function writeDiplomaTemplate(params: {
   bodyHtml: string;
   pageWidthPx?: number;
   pageHeightPx?: number;
+  /** Origin of the request being answered, for the preview link. */
+  origin: string;
 }): Promise<WriteOutcome> {
   const code = params.code.trim();
   const label = params.label.trim();
@@ -55,10 +59,11 @@ export async function writeDiplomaTemplate(params: {
     );
   }
 
-  const before = await prisma.diploma_Template.findUnique({
-    where: { code },
-    select: STATE_SELECT,
-  });
+  const before: DiplomaTemplateState | null =
+    await prisma.diploma_Template.findUnique({
+      where: { code },
+      select: STATE_SELECT,
+    });
 
   // A misspelled placeholder would print as `{dateDbut}` on paper, so it is a
   // refusal rather than something the render silently carries through.
@@ -100,14 +105,37 @@ export async function writeDiplomaTemplate(params: {
     );
   }
 
-  const after = await prisma.diploma_Template.upsert({
+  const after: DiplomaTemplateState = await prisma.diploma_Template.upsert({
     where: { code },
     create: { code, label, ...design },
     update: { label, ...design },
     select: STATE_SELECT,
   });
 
-  return { applied: true, before, after };
+  return {
+    applied: true,
+    before,
+    after,
+    // A receipt, not the design: the caller has just sent the design, and
+    // `config_diploma_templates` returns it to whoever needs it again. What the
+    // caller cannot know is whether anything changed and what it looks like now,
+    // so it gets that, and the preview link it would otherwise ask for next.
+    answer: {
+      created: before === null,
+      changed: canonicalJson(before) !== canonicalJson(after),
+      certificate: {
+        code: after.code,
+        label: after.label,
+        pageWidthPx: after.pageWidthPx,
+        pageHeightPx: after.pageHeightPx,
+      },
+      apercu: diplomaTemplatePreviewLink({
+        code: after.code,
+        label: after.label,
+        origin: params.origin,
+      }).apercu,
+    },
+  };
 }
 
 /** What every event-scoped certificate write reports. */
