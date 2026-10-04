@@ -176,6 +176,7 @@ import {
   releasePruneHold,
   requestSync,
   writeSyncCadence,
+  writeSyncMemberStatus,
   writeSyncSource,
 } from './writes/sync';
 import {
@@ -185,6 +186,7 @@ import {
 } from './writes/closings';
 import {
   bulkEventModules,
+  bulkEventShownStatuses,
   bulkEventActivation,
   bulkApplyEventTemplate,
   BULK_EVENTS_LIMIT,
@@ -203,10 +205,6 @@ import {
   BROADCASTS_DEFAULT_DAYS,
   BROADCASTS_MAX_DAYS,
 } from '$lib/server/services/adminStats/opsQueues';
-import {
-  getAttendanceRate,
-  ATTENDANCE_EVENTS_LIMIT,
-} from '$lib/server/services/adminStats/attendanceRate';
 import {
   getFeatureUsage,
   getFeatureAdoptionGaps,
@@ -615,7 +613,7 @@ export const ADMIN_API_OPERATIONS = {
   stats_school_year_review: defineOperation({
     leadership: true,
     description:
-      'One school year summarised for a steering review: events run, cohort size and make-up, high-school and territorial reach, real show-up rate, whether talents came back, and what they said in their closings. Pass compareTo to also get every headline figure as a movement against another year, already computed. Also returns "limites", stating in French what these figures cannot be read as. The school year is required.',
+      'One school year summarised for a steering review: events run, cohort size and make-up, high-school and territorial reach, whether talents came back, and what they said in their closings. Pass compareTo to also get every headline figure as a movement against another year, already computed. Also returns "limites", stating in French what these figures cannot be read as. The school year is required.',
     shape: {
       schoolYear: requiredSchoolYear.describe(
         'School year, e.g. "2026-2027". Required for this operation.',
@@ -636,7 +634,7 @@ export const ADMIN_API_OPERATIONS = {
   stats_campus_comparison: defineOperation({
     leadership: true,
     description:
-      'The same figure across every campus, already ranked: cohort size, share of women, completed sign-ups, real show-up rate, how many high schools each one reaches, whether talents came back, how much of the closing work is done, and the share of profiles the team judged favourably. One ranking per figure, sorted highest first, so nothing has to be ordered or divided afterwards. A campus the figure cannot be computed for is unranked rather than last - a campus that conducted no closing is not a campus without a compatible profile. The school year is required and no campus filter exists: this operation IS the cross-campus view, narrow it and you get one row.',
+      'The same figure across every campus, already ranked: cohort size, share of women, completed sign-ups, how many high schools each one reaches, whether talents came back, how much of the closing work is done, and the share of profiles the team judged favourably. One ranking per figure, sorted highest first, so nothing has to be ordered or divided afterwards. A campus the figure cannot be computed for is unranked rather than last - a campus that conducted no closing is not a campus without a compatible profile. The school year is required and no campus filter exists: this operation IS the cross-campus view, narrow it and you get one row.',
     shape: {
       schoolYear: requiredSchoolYear.describe(
         'School year, e.g. "2026-2027". Required: comparing campuses across every year folds the programme growth into the comparison.',
@@ -708,6 +706,12 @@ export const ADMIN_API_OPERATIONS = {
         .optional()
         .describe(
           `The complete set of dev-workspace sections this event exposes; sections left out are turned off. One of: ${EVENT_MODULE_KEYS.join(', ')}.`,
+        ),
+      shownStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} The complete set of Salesforce member statuses whose enrolments the dev workspace shows for this event; statuses left out are masked (still synced and in Jump). Enrolments with no status at all are always shown.`,
         ),
     },
     run: (params) => writeEventConfig(params),
@@ -1135,6 +1139,26 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => writeSyncSource(params),
   }),
 
+  write_sync_member_status: defineWrite({
+    description:
+      'Add a Salesforce member status to the words Jump knows, or change whether newly created events show it. A word Jump does not know is masked everywhere and reported by stats_sync_health; adding it stops the report but shows it on no existing event: write_event_config or bulk_event_shown_statuses does that. Safe to repeat: an upsert on the word. Nothing is ever deleted.',
+    shape: {
+      memberStatus: z
+        .string()
+        .min(1)
+        .describe(
+          `${handleDescribe('sfStatus')} Stored trimmed and upper-cased, the way the sync stores it.`,
+        ),
+      shownByDefault: z
+        .boolean()
+        .optional()
+        .describe(
+          'Whether an event the sync creates from now on starts by showing this status. Defaults to false for a new word; existing events are never changed by it.',
+        ),
+    },
+    run: (params) => writeSyncMemberStatus(params),
+  }),
+
   write_sync_cadence: defineWrite({
     description:
       'Set how often one synchronisation pass runs, in minutes. The incremental pass keeps data fresh; the full pass is the only one that detects a member removed in Salesforce, so spacing it out means deletions arrive later. Safe to repeat: writing the same value twice leaves the same row. Takes effect at the worker next wake-up, within fifteen minutes, with nothing to redeploy.',
@@ -1236,6 +1260,38 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => bulkEventModules(params),
   }),
 
+  bulk_event_shown_statuses: defineWrite({
+    twoStep: true,
+    description: `Show some Salesforce member statuses on, and mask others from, every event matching a filter, leaving whatever else each event shows untouched. Made for a status Salesforce renamed everywhere: show the new word and hide the old one in one call. Call it WITHOUT planDigest first: it answers with the events that would change and a planDigest. Show that list to the human, then call again with the digest to apply. The apply is refused if anything moved in between. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
+    shape: {
+      showStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} Statuses every matching event will show, on top of what it already shows.`,
+        ),
+      hideStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} Statuses every matching event will stop showing. Their enrolments stay synced and in Jump.`,
+        ),
+      campus,
+      schoolYear,
+      onlyUpcoming: z
+        .boolean()
+        .optional()
+        .describe(
+          'Leave past events alone. Usually NOT wanted for a renamed status, whose old enrolments are rewritten by Salesforce too.',
+        ),
+      planDigest: z
+        .string()
+        .optional()
+        .describe('Digest returned by the dry run. Omit to get a dry run.'),
+    },
+    run: (params) => bulkEventShownStatuses(params),
+  }),
+
   bulk_event_activation: defineWrite({
     twoStep: true,
     description: `Show or hide every event matching a filter in the dev workspace. Dry run first (no planDigest), then apply with the digest it returns. Events that are not ready to be shown are listed as skipped in the plan rather than silently failing. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
@@ -1257,7 +1313,7 @@ export const ADMIN_API_OPERATIONS = {
 
   bulk_apply_event_template: defineWrite({
     twoStep: true,
-    description: `Apply a saved preset's sections to every event matching a filter. Only the sections are applied in bulk, not the preset's names or times. Dry run first (no planDigest), then apply with the digest it returns. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
+    description: `Apply a saved preset's sections and shown Salesforce statuses to every event matching a filter. Only those two are applied in bulk, not the preset's names or times. Dry run first (no planDigest), then apply with the digest it returns. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
     shape: {
       templateName: z.string().min(1).describe(handleDescribe('templateName')),
       campus,
@@ -1580,13 +1636,6 @@ export const ADMIN_API_OPERATIONS = {
         question,
         groupBy,
       }),
-  }),
-
-  stats_attendance_rate: defineOperation({
-    leadership: true,
-    description: `Of the people who signed up for an event that has already happened, how many actually turned up, overall and event by event. Only past events count. Capped at ${ATTENDANCE_EVENTS_LIMIT} events in the per-event list.`,
-    shape: { schoolYear, campus, eventId },
-    run: async (params) => getAttendanceRate(await resolveScope(params)),
   }),
 } as const;
 

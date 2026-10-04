@@ -28,11 +28,7 @@ import type { SchoolSpec } from './catalog/schools';
 import type { SlotBlueprint } from './catalog/planning';
 import { workshopInstanceId } from './catalog/workshops';
 import type { Rng } from './rng';
-import {
-  SF_STATUS_ATTENDED,
-  SF_STATUS_CONFIRMED,
-  type SfMemberStatus,
-} from '../../src/lib/domain/sfMemberStatus';
+import { isShownInDevSpace } from '../../src/lib/domain/sfMemberStatus';
 import { activationBlockers } from '../../src/lib/domain/eventReadiness';
 import {
   minigameRankBonus,
@@ -202,7 +198,38 @@ export type EventRef = {
    * reason the returning pool exists.
    */
   closingTemplateId: string | null;
+  /** The Salesforce statuses this event's dev space shows, which is what
+   *  decides each enrolment's `shownInDevSpace` as it is written. */
+  shownStatuses: ReadonlySet<string>;
 };
+
+/**
+ * Salesforce's member statuses, as this generator plays Salesforce.
+ *
+ * Jump's own catalogue is data (`Sync_MemberStatus`, shipped by the migration
+ * that introduced it), so the words are named here only because the generator
+ * stands in for the CRM that sends them. `assert/reachability.ts` checks the two
+ * agree: every word here is in the catalogue, and every word of the catalogue
+ * is placed somewhere.
+ */
+export const SF_STATUSES = {
+  attended: 'MET',
+  confirmed: 'READY',
+  connected: 'CONNECTED',
+  desisted: 'DESISTED',
+} as const;
+
+export type SeedSfStatus = (typeof SF_STATUSES)[keyof typeof SF_STATUSES];
+
+/**
+ * What an event shows unless a scenario says otherwise: the catalogue's
+ * `shownByDefault` words, which is what the worker gives an event it creates.
+ * Checked against the catalogue by `assert/reachability.ts`.
+ */
+export const DEFAULT_SHOWN_STATUSES: readonly SeedSfStatus[] = [
+  SF_STATUSES.confirmed,
+  SF_STATUSES.attended,
+];
 
 /**
  * The Salesforce member status a participation gets when nobody says otherwise.
@@ -215,20 +242,21 @@ export type EventRef = {
  * "200 inscrits" stop being true. `CONNECTED`, `DESISTED` and the legacy `null`
  * are therefore PLACED, in fixed numbers, by the `statuts-salesforce` scenario.
  *
- * The two weights are PROFILE.md's presence figures rather than new numbers:
- * `pastEventPresence` maps MET to present and READY to absent, so the share of
- * each is the share of présents and absents. Left as 81 and 16 instead of a
+ * The two weights borrow PROFILE.md's émargement figures rather than new
+ * numbers: on an event that has happened, Salesforce moves the members who came
+ * to MET and leaves the others at READY, so the shares follow the présents and
+ * the absents the émargement measured. Left as 81 and 16 instead of a
  * normalised 83.5 / 16.5 so the provenance stays readable; `weighted` does not
  * need them to sum to 100.
  */
 const STARTED_EVENT_SF_MIX = [
-  [SF_STATUS_ATTENDED, 81],
-  [SF_STATUS_CONFIRMED, 16],
-] as const satisfies readonly (readonly [SfMemberStatus, number])[];
+  [SF_STATUSES.attended, 81],
+  [SF_STATUSES.confirmed, 16],
+] as const satisfies readonly (readonly [SeedSfStatus, number])[];
 
 /**
- * A status Salesforce might plausibly start sending, and that
- * `domain/sfMemberStatus.ts` does not declare. The `statuts-salesforce` scenario
+ * A status Salesforce might plausibly start sending, and that Jump's catalogue
+ * (`Sync_MemberStatus`) does not hold. The `statuts-salesforce` scenario
  * places it once so the unknown-status report has something to report, and the
  * string-catalogue guard accepts this one stray value by name, and no other.
  */
@@ -241,8 +269,8 @@ export const UNRECOGNISED_SF_STATUS_SAMPLE = 'ATTENDED';
  * event from the past to the future desynchronises every status after it.
  */
 const UPCOMING_EVENT_SF_MIX = [
-  [SF_STATUS_CONFIRMED, 100],
-] as const satisfies readonly (readonly [SfMemberStatus, number])[];
+  [SF_STATUSES.confirmed, 100],
+] as const satisfies readonly (readonly [SeedSfStatus, number])[];
 
 /** Shared empty set, so `playedBy` allocates nothing on the common answer. */
 const EMPTY_SET: ReadonlySet<string> = new Set<string>();
@@ -1005,6 +1033,9 @@ export class World {
     modules?: readonly string[];
     /** Per-module options, keyed by module. Only some modules take any. */
     moduleSettings?: Readonly<Record<string, Prisma.InputJsonValue>>;
+    /** The Salesforce statuses the dev space shows. Defaults to what the
+     *  worker gives an event it creates ({@link DEFAULT_SHOWN_STATUSES}). */
+    shownStatuses?: readonly SeedSfStatus[];
     closingTemplateId?: string | null;
     feedbackFormId?: string | null;
     diplomaTemplateId?: string | null;
@@ -1113,6 +1144,13 @@ export class World {
       });
     }
 
+    const shownStatuses = new Set<string>(
+      opts.shownStatuses ?? DEFAULT_SHOWN_STATUSES,
+    );
+    for (const status of shownStatuses) {
+      this.buffer.eventConfig_ShownStatus.push({ eventId, status });
+    }
+
     for (const [index, workshop] of (opts.workshops ?? []).entries()) {
       this.buffer.eventConfig_Workshop.push({
         eventId,
@@ -1134,6 +1172,7 @@ export class World {
       endDate,
       days,
       closingTemplateId: opts.closingTemplateId ?? null,
+      shownStatuses,
     };
     this.events.push(ref);
     this.roster.set(eventId, []);
@@ -1143,8 +1182,8 @@ export class World {
   /**
    * Enrols a talent, deriving the Salesforce member status unless told one.
    *
-   * Omit `opts` and the row is VISIBLE in the dev space, and plausible for when
-   * the event happens: `MET` or `READY` once it has started, `READY` only
+   * Omit `opts` and the row is VISIBLE in the dev space (on an event showing the
+   * default statuses), and plausible for when the event happens: `MET` or `READY` once it has started, `READY` only
    * before. Pass `{ sfMemberStatus: null }` for a legacy row synced before the
    * column existed, or a hidden status to put one where a screen needs it - both
    * of which the `statuts-salesforce` scenario does, and nothing else should.
@@ -1157,7 +1196,7 @@ export class World {
     talent: TalentRef,
     opts?: {
       sfMemberStatus:
-        SfMemberStatus | typeof UNRECOGNISED_SF_STATUS_SAMPLE | null;
+        SeedSfStatus | typeof UNRECOGNISED_SF_STATUS_SAMPLE | null;
     },
   ): void {
     const sfMemberStatus =
@@ -1179,6 +1218,8 @@ export class World {
       eventId: event.id,
       campusId: event.campusId,
       sfMemberStatus,
+      // The projection, derived as it is written, like the sync does.
+      shownInDevSpace: isShownInDevSpace(sfMemberStatus, event.shownStatuses),
     });
     this.roster.get(event.id)!.push(talent);
     let attended = this.enrolledEventsByTalent.get(talent.id);

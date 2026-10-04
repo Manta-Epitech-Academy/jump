@@ -6,7 +6,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AdminEventVM } from '$lib/server/services/events';
-import { SF_STATUS_ATTENDED } from '$lib/domain/sfMemberStatus';
 
 const listAdminEvents = vi.fn();
 // Only the query is stubbed; the rest of the module stays real. The rule under
@@ -31,7 +30,6 @@ vi.mock('$lib/server/db', () => ({
 
 const { getCampusComparison } = await import('./campusComparison');
 const { WOMEN_SHARE_RULE } = await import('./cohortProfile');
-const { SHOW_UP_RATE_RULE } = await import('./attendanceRate');
 
 /**
  * Both halves of the closing gate are spelled out, never defaulted.
@@ -55,7 +53,7 @@ function event(over: Partial<AdminEventVM> = {}): AdminEventVM {
   } as AdminEventVM;
 }
 
-type Enrolment = { talentId: string; eventId: string; sfMemberStatus: string };
+type Enrolment = { talentId: string; eventId: string };
 /** A closing names its talent as well as its event: the record keys on the pair,
  *  and the service matches it back to the cohort on it. */
 type Closing = {
@@ -111,22 +109,18 @@ describe('getCampusComparison', () => {
         {
           talentId: 't1',
           eventId: 'nantes',
-          sfMemberStatus: SF_STATUS_ATTENDED,
         },
         {
           talentId: 't2',
           eventId: 'nantes',
-          sfMemberStatus: SF_STATUS_ATTENDED,
         },
         {
           talentId: 't3',
           eventId: 'nantes',
-          sfMemberStatus: SF_STATUS_ATTENDED,
         },
         {
           talentId: 't4',
           eventId: 'lille',
-          sfMemberStatus: SF_STATUS_ATTENDED,
         },
       ],
       talents: [],
@@ -151,8 +145,8 @@ describe('getCampusComparison', () => {
         event({ id: 'c', campusName: 'Nice' }),
       ],
       enrolments: [
-        { talentId: 't1', eventId: 'a', sfMemberStatus: SF_STATUS_ATTENDED },
-        { talentId: 't2', eventId: 'b', sfMemberStatus: SF_STATUS_ATTENDED },
+        { talentId: 't1', eventId: 'a' },
+        { talentId: 't2', eventId: 'b' },
       ],
       talents: [],
     });
@@ -174,58 +168,39 @@ describe('getCampusComparison', () => {
   it('puts an unmeasurable value last and leaves it unranked', async () => {
     seed({
       events: [
-        event({ id: 'past', campusName: 'Lille', status: 'past' }),
-        event({ id: 'soon', campusName: 'Nantes', status: 'upcoming' }),
+        event({ id: 'a', campusName: 'Lille' }),
+        event({ id: 'b', campusName: 'Nantes' }),
       ],
       enrolments: [
-        { talentId: 't1', eventId: 'past', sfMemberStatus: SF_STATUS_ATTENDED },
-        { talentId: 't2', eventId: 'past', sfMemberStatus: 'READY' },
-        { talentId: 't3', eventId: 'soon', sfMemberStatus: 'READY' },
+        { talentId: 't1', eventId: 'a' },
+        { talentId: 't2', eventId: 'a' },
+        { talentId: 't3', eventId: 'b' },
       ],
-      talents: [],
+      talents: [
+        { id: 't1', civilite: 'femme', schoolId: null },
+        { id: 't2', civilite: 'homme', schoolId: null },
+        { id: 't3', civilite: null, schoolId: null },
+      ],
     });
 
-    const { showUpRate } = (
+    const { womenShare } = (
       await getCampusComparison({ schoolYear: '2025-2026' })
     ).rankings;
 
-    expect(showUpRate.value).toEqual([
+    expect(womenShare.value).toEqual([
       { campus: 'Lille', value: 50, rank: 1 },
-      // Nantes' only event has not happened: nobody could have shown up yet.
+      // Nantes' only talent has no civilité: the share cannot be measured.
       { campus: 'Nantes', value: null, rank: null },
     ]);
-  });
-
-  it('excludes a status that concludes nothing from the show-up denominator', async () => {
-    seed({
-      events: [event({ id: 'past', campusName: 'Lille' })],
-      enrolments: [
-        { talentId: 't1', eventId: 'past', sfMemberStatus: SF_STATUS_ATTENDED },
-        { talentId: 't2', eventId: 'past', sfMemberStatus: 'READY' },
-        // Imported before Jump recorded the status: not an absence.
-        { talentId: 't3', eventId: 'past', sfMemberStatus: '' },
-      ],
-      talents: [],
-    });
-
-    const { showUpRate } = (
-      await getCampusComparison({ schoolYear: '2025-2026' })
-    ).rankings;
-
-    expect(showUpRate.value[0]).toEqual({
-      campus: 'Lille',
-      value: 50,
-      rank: 1,
-    });
   });
 
   it('computes the share of women on the campus, over known civilités only', async () => {
     seed({
       events: [event({ id: 'a', campusName: 'Lille' })],
       enrolments: [
-        { talentId: 't1', eventId: 'a', sfMemberStatus: SF_STATUS_ATTENDED },
-        { talentId: 't2', eventId: 'a', sfMemberStatus: SF_STATUS_ATTENDED },
-        { talentId: 't3', eventId: 'a', sfMemberStatus: SF_STATUS_ATTENDED },
+        { talentId: 't1', eventId: 'a' },
+        { talentId: 't2', eventId: 'a' },
+        { talentId: 't3', eventId: 'a' },
       ],
       talents: [
         { id: 't1', civilite: 'femme', schoolId: 's1' },
@@ -251,8 +226,8 @@ describe('getCampusComparison', () => {
         event({ id: 'b', campusName: 'Nantes' }),
       ],
       enrolments: [
-        { talentId: 't1', eventId: 'a', sfMemberStatus: SF_STATUS_ATTENDED },
-        { talentId: 't1', eventId: 'b', sfMemberStatus: SF_STATUS_ATTENDED },
+        { talentId: 't1', eventId: 'a' },
+        { talentId: 't1', eventId: 'b' },
       ],
       talents: [{ id: 't1', civilite: 'femme', schoolId: null }],
     });
@@ -273,7 +248,6 @@ describe('getCampusComparison', () => {
     const { rankings } = await getCampusComparison({ schoolYear: '2025-2026' });
 
     expect(rankings.womenShare.definition).toContain(WOMEN_SHARE_RULE);
-    expect(rankings.showUpRate.definition).toContain(SHOW_UP_RATE_RULE);
     // And every ranking explains its own axis, including the unranked nulls.
     for (const ranking of Object.values(rankings)) {
       expect(ranking.definition).toContain('null');
@@ -312,22 +286,18 @@ describe('getCampusComparison, closing axes', () => {
         {
           talentId: 't1',
           eventId: 'lille-stage',
-          sfMemberStatus: SF_STATUS_ATTENDED,
         },
         {
           talentId: 't2',
           eventId: 'lille-stage',
-          sfMemberStatus: SF_STATUS_ATTENDED,
         },
         {
           talentId: 't3',
           eventId: 'lille-club',
-          sfMemberStatus: SF_STATUS_ATTENDED,
         },
         {
           talentId: 't4',
           eventId: 'lille-club',
-          sfMemberStatus: SF_STATUS_ATTENDED,
         },
       ],
       talents: [],
@@ -365,12 +335,10 @@ describe('getCampusComparison, closing axes', () => {
         {
           talentId: 't1',
           eventId: 'lille-stage',
-          sfMemberStatus: SF_STATUS_ATTENDED,
         },
         {
           talentId: 't2',
           eventId: 'lille-sans-grille',
-          sfMemberStatus: SF_STATUS_ATTENDED,
         },
       ],
       talents: [],
@@ -401,12 +369,10 @@ describe('getCampusComparison, closing axes', () => {
         {
           talentId: 't1',
           eventId: 'lille',
-          sfMemberStatus: SF_STATUS_ATTENDED,
         },
         {
           talentId: 't2',
           eventId: 'rennes',
-          sfMemberStatus: SF_STATUS_ATTENDED,
         },
       ],
       talents: [],
@@ -434,17 +400,14 @@ describe('getCampusComparison, closing axes', () => {
         {
           talentId: 't1',
           eventId: 'nantes',
-          sfMemberStatus: SF_STATUS_ATTENDED,
         },
         {
           talentId: 't2',
           eventId: 'nantes',
-          sfMemberStatus: SF_STATUS_ATTENDED,
         },
         {
           talentId: 't3',
           eventId: 'nantes',
-          sfMemberStatus: SF_STATUS_ATTENDED,
         },
       ],
       talents: [],

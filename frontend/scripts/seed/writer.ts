@@ -61,8 +61,10 @@ export type Buffered = {
   diploma_Template: Prisma.Diploma_TemplateCreateManyInput[];
   eventConfig_Template: Prisma.EventConfig_TemplateCreateManyInput[];
   eventConfig_TemplateModule: Prisma.EventConfig_TemplateModuleCreateManyInput[];
+  eventConfig_TemplateShownStatus: Prisma.EventConfig_TemplateShownStatusCreateManyInput[];
   event: Prisma.EventCreateManyInput[];
   eventConfig_Module: Prisma.EventConfig_ModuleCreateManyInput[];
+  eventConfig_ShownStatus: Prisma.EventConfig_ShownStatusCreateManyInput[];
   eventConfig_Workshop: Prisma.EventConfig_WorkshopCreateManyInput[];
   participation: Prisma.ParticipationCreateManyInput[];
   planning_Slot: Prisma.Planning_SlotCreateManyInput[];
@@ -121,8 +123,10 @@ const MODEL_ORDER = [
   'diploma_Template',
   'eventConfig_Template',
   'eventConfig_TemplateModule',
+  'eventConfig_TemplateShownStatus',
   'event',
   'eventConfig_Module',
+  'eventConfig_ShownStatus',
   'eventConfig_Workshop',
   'participation',
   'planning_Slot',
@@ -417,9 +421,17 @@ export async function wipe(
   await drop('eventConfig_Module', () =>
     prisma.eventConfig_Module.deleteMany({ where: { eventId: seeded } }),
   );
+  await drop('eventConfig_ShownStatus', () =>
+    prisma.eventConfig_ShownStatus.deleteMany({ where: { eventId: seeded } }),
+  );
   await drop('event', () => prisma.event.deleteMany({ where: { id: seeded } }));
   await drop('eventConfig_TemplateModule', () =>
     prisma.eventConfig_TemplateModule.deleteMany({
+      where: { templateId: seeded },
+    }),
+  );
+  await drop('eventConfig_TemplateShownStatus', () =>
+    prisma.eventConfig_TemplateShownStatus.deleteMany({
       where: { templateId: seeded },
     }),
   );

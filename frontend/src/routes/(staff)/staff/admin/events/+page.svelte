@@ -240,6 +240,16 @@
   }
 
   // ─── Inspector dialog ───────────────────────────────────────────────────
+  // The Salesforce status catalogue, as a local mirror: « Membres Salesforce »
+  // can add a word from here or from inside the config wizard, and the wizard's
+  // checkboxes must offer it at once. Grown in place rather than re-read with
+  // `invalidateAll`, which would reset a wizard form somebody is still editing.
+  let sfStatuses = $state<string[]>(untrack(() => [...data.sfStatuses]));
+  function addSfStatus(status: string) {
+    if (!sfStatuses.includes(status))
+      sfStatuses = [...sfStatuses, status].sort();
+  }
+
   let inspectorOpen = $state(false);
   let inspectingEventId = $state<string | null>(null);
   let inspectingEventTitle = $state<string>('');
@@ -693,12 +703,15 @@
     closingGrids={data.closingGrids}
     formPreviews={data.formPreviews}
     templates={data.templates}
+    {sfStatuses}
+    onSfStatusAdded={addSfStatus}
   />
 
   <AdminSfStatusInspectorDialog
     bind:open={inspectorOpen}
     eventId={inspectingEventId}
     eventTitle={inspectingEventTitle}
+    onStatusAdded={addSfStatus}
   />
 
   <Dialog.Root bind:open={bulkOpen}>

@@ -1,10 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { prisma } from '$lib/server/db';
+import { classifySfStatus } from '$lib/domain/sfMemberStatus';
 import {
-  classifySfStatus,
-  isVisibleInDevSpace,
-} from '$lib/domain/sfMemberStatus';
+  memberStatusCatalogue,
+  shownStatusesByEvent,
+} from '$lib/server/services/devSpaceVisibility';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
   if (locals.staffProfile?.staffRole !== 'admin') {
@@ -21,31 +22,41 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     return new Response('Event not found', { status: 404 });
   }
 
-  const participations = await prisma.participation.findMany({
-    where: { eventId },
-    select: {
-      id: true,
-      sfMemberStatus: true,
-      createdAt: true,
-      updatedAt: true,
-      talent: {
-        select: {
-          id: true,
-          nom: true,
-          prenom: true,
-          phone: true,
-          user: { select: { email: true } },
-          school: { select: { name: true } },
+  const [participations, catalogue, shownByEvent] = await Promise.all([
+    prisma.participation.findMany({
+      where: { eventId },
+      select: {
+        id: true,
+        sfMemberStatus: true,
+        shownInDevSpace: true,
+        createdAt: true,
+        updatedAt: true,
+        talent: {
+          select: {
+            id: true,
+            nom: true,
+            prenom: true,
+            phone: true,
+            user: { select: { email: true } },
+            school: { select: { name: true } },
+          },
         },
       },
-    },
-    orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
-  });
+      orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
+    }),
+    memberStatusCatalogue(),
+    shownStatusesByEvent([eventId]),
+  ]);
+  const vocabulary = {
+    known: new Set(catalogue.map((row) => row.status)),
+    shown: shownByEvent.get(eventId) ?? new Set<string>(),
+  };
 
   const rows = participations.map((p) => {
     // Classified here, not in the dialog: it renders what this says and
-    // restates no part of the rule.
-    const statusClass = classifySfStatus(p.sfMemberStatus);
+    // restates no part of the rule. Visibility is the stored projection, the
+    // very column every dev screen filters on.
+    const statusClass = classifySfStatus(p.sfMemberStatus, vocabulary);
     return {
       id: p.id,
       talentId: p.talent.id,
@@ -56,7 +67,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
       schoolName: p.talent.school?.name ?? null,
       sfMemberStatus: p.sfMemberStatus,
       statusClass,
-      isVisibleInDevSpace: isVisibleInDevSpace(p.sfMemberStatus),
+      isVisibleInDevSpace: p.shownInDevSpace,
       updatedAt: p.updatedAt,
     };
   });

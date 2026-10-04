@@ -558,9 +558,6 @@ describe("the talent's journey", () => {
       recommendation: 'bon_profil',
       verdictNote: 'À relancer pour la JPO.',
     });
-    // Presence is read off the Salesforce status and only means anything once
-    // the event is over: on a running one `READY` says "confirmed", not "absent".
-    expect(journey.entries[0].presence).toBeNull();
 
     await prisma.closing_Record.deleteMany({ where: { talentId: talent.id } });
     await prisma.participation.deleteMany({ where: { id: participation.id } });
@@ -618,8 +615,6 @@ describe("the talent's journey", () => {
     expect(journey.entries).toHaveLength(1);
     expect(journey.closingCount).toBe(1);
     expect(journey.entries[0].eventId).toBe(event.id);
-    // No participation left to read a Salesforce status off.
-    expect(journey.entries[0].presence).toBeNull();
     expect(journey.entries[0].closing).toMatchObject({
       status: 'done',
       recommendation: 'bon_profil',

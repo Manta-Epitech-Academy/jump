@@ -84,6 +84,7 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'enabled',
   'visible',
   'showStatutColumn',
+  'shownByDefault',
   'pageWidthPx',
   'pageHeightPx',
   'onlyUpcoming',
@@ -231,10 +232,10 @@ describe('every handle is obtainable by whoever needs it', () => {
     expect(holesIn(HANDLES)).toEqual([]);
   });
 
-  // Proof the check bites. Dropping the two producers that cover every event
-  // leaves `stats_attendance_rate`, which returns past events only - the shape of
-  // the hole that shipped, where the parameter looked reachable because something
-  // did return it.
+  // Proof the check bites. Keeping only `config_unconfigured_events`, which is
+  // core-only and returns a subset of events, is the shape of the hole that
+  // shipped, where the parameter looked reachable because something did return
+  // it.
   it('reports a hole when the only producers left are core-only or partial', () => {
     const doctored = {
       ...HANDLES,

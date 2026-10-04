@@ -39,6 +39,7 @@ export type HandleKind =
   | 'pdfJobId'
   | 'syncErrorType'
   | 'salesforceCampaignId'
+  | 'sfStatus'
   | 'moduleKey'
   | 'closingTemplateId'
   | 'closingTemplateKey'
@@ -118,10 +119,6 @@ export const HANDLES: Record<HandleKind, Handle> = {
       {
         operation: 'config_unconfigured_events',
         covers: 'only events that still need work before their cohort arrives',
-      },
-      {
-        operation: 'stats_attendance_rate',
-        covers: 'only events that have already happened',
       },
       {
         operation: 'ops_emargement_coverage',
@@ -212,6 +209,21 @@ export const HANDLES: Record<HandleKind, Handle> = {
       },
     ],
   },
+  sfStatus: {
+    what: 'Salesforce member status word, as Salesforce sends it (e.g. READY).',
+    frNoun: 'statuts Salesforce',
+    frGender: 'm',
+    producedBy: [
+      // The catalogue and every word actually received, known or not: the one
+      // place a new word Salesforce started sending is read before anybody
+      // adds it.
+      { operation: 'stats_sync_health' },
+      {
+        operation: 'config_event_detail',
+        covers: 'only the statuses that event shows',
+      },
+    ],
+  },
   moduleKey: {
     what: 'Dev-workspace section key.',
     frNoun: 'clés de section',
@@ -296,6 +308,13 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   errorType: 'syncErrorType',
   salesforceCampaignId: 'salesforceCampaignId',
   modules: 'moduleKey',
+  // Salesforce status words: the list an event shows (a complete set, like
+  // `modules`), the catalogue entry one write authors, and the two halves of the
+  // bulk change. `status` alone is taken by the event-status filter.
+  shownStatuses: 'sfStatus',
+  memberStatus: 'sfStatus',
+  showStatuses: 'sfStatus',
+  hideStatuses: 'sfStatus',
   // The event binding takes an id, like the certificate one beside it; authoring
   // takes a key, like `write_diploma_template`'s `code`. Both are produced by the
   // same configuration read, which returns a grid's id and its key together.

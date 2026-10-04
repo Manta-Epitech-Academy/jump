@@ -55,6 +55,10 @@ export const adminEventSchema = z.object({
   // the surface stays hidden; there is no per-type fallback. A non-empty value is
   // a `Closing_Template` id, checked server-side against an existing row.
   closingTemplateId: z.string().default(''),
+  // The Salesforce member statuses the dev space shows for this event. Empty =
+  // it shows only the enrolments synced before statuses existed. Each word is
+  // checked server-side against the catalogue (`Sync_MemberStatus`).
+  shownStatuses: z.array(z.string().trim().min(1)).default([]),
 });
 
 export type AdminEventForm = z.infer<typeof adminEventSchema>;
@@ -118,4 +122,7 @@ export const eventConfigTemplateSaveSchema = z.object({
   // Same for the closing grid, and for the same reason: a preset that copied the
   // modules but not the grid would apply a closings surface with nothing to ask.
   closingTemplateId: z.string().default(''),
+  // And the Salesforce statuses the dev space shows, which is what a format
+  // differs on most visibly (a Coding Club shows CONNECTED, a stage does not).
+  shownStatuses: z.array(z.string().trim().min(1)).default([]),
 });
