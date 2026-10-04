@@ -88,7 +88,9 @@ describe('certificate authoring (integration)', () => {
       });
       await prisma.event.deleteMany({ where: { campusId } });
       await prisma.campus.deleteMany({ where: { id: campusId } });
-      await prisma.diploma_Template.deleteMany({ where: { code } });
+      await prisma.diploma_Template.deleteMany({
+        where: { code: { startsWith: code } },
+      });
       await prisma.bauth_user.delete({ where: { id: adminUserId } });
     } catch {
       // ignore - the test database is disposable
@@ -104,12 +106,18 @@ describe('certificate authoring (integration)', () => {
 
     expect(status).toBe(200);
     expect(payload.applied).toBe(true);
-    // Nothing existed before, so there is nothing to restore it to.
-    expect(payload.before).toBeNull();
-    expect(payload.after).toMatchObject({ code, label: 'Certificat de test' });
+    expect(payload.created).toBe(true);
+    expect(payload.certificate).toMatchObject({
+      code,
+      label: 'Certificat de test',
+    });
+    // The link the author would otherwise ask for next, in the preview's words.
+    expect(String(payload.apercu)).toContain(
+      `/api/admin/config/diploma-template-preview?code=${code}`,
+    );
   }, 60_000);
 
-  it('records the previous design in the audit row, so an edit is recoverable', async () => {
+  it('records the previous design in the audit row, and answers without it', async () => {
     const { payload } = await call(postTemplate, secret, {
       code,
       label: 'Certificat de test v2',
@@ -117,9 +125,15 @@ describe('certificate authoring (integration)', () => {
       bodyHtml: '<h1 class="title">Version deux</h1><p>{prenom}</p>',
     });
 
-    expect(payload.applied).toBe(true);
-    expect(payload.before).toMatchObject({ label: 'Certificat de test' });
-    expect(payload.after).toMatchObject({ label: 'Certificat de test v2' });
+    expect(payload).toMatchObject({
+      applied: true,
+      created: false,
+      changed: true,
+    });
+    // The design is what the caller has just sent: echoing it twice, before and
+    // after, was kilobytes read back on every edit.
+    expect(JSON.stringify(payload)).not.toContain('Version deux');
+    expect(payload).not.toHaveProperty('before');
 
     const row = await prisma.adminApi_Call.findFirst({
       where: { operation: 'write_diploma_template', status: 200 },
@@ -135,7 +149,7 @@ describe('certificate authoring (integration)', () => {
     const body = { code, label: 'Certificat de test v2', ...VALID };
     await call(postTemplate, secret, body);
     const { payload } = await call(postTemplate, secret, body);
-    expect(payload.before).toEqual(payload.after);
+    expect(payload.changed).toBe(false);
   }, 60_000);
 
   it('refuses a misspelled placeholder, and stores nothing', async () => {
@@ -205,6 +219,68 @@ describe('certificate authoring (integration)', () => {
         where: { code: `${code}-escape` },
       }),
     ).toBeNull();
+  }, 60_000);
+
+  it('reports what a printed page weighs, and refuses nothing for it', async () => {
+    type Weight = { value: { perPageKb: number; cohortMb: number } };
+    async function weightOf(styleCss: string) {
+      const { status, payload } = await call(postTemplate, secret, {
+        code: `${code}-weight`,
+        label: 'Poids',
+        ...VALID,
+        styleCss,
+      });
+      expect(status, JSON.stringify(payload)).toBe(200);
+      return (payload.weight as Weight).value;
+    }
+
+    const plain = await weightOf(VALID.styleCss);
+    // A full-page blur is redrawn as an image on every page: hundreds of KB a
+    // page, tens of MB at the cohort tail. It is a legitimate design all the
+    // same, so it is stored and its cost is said, never refused.
+    const blurred = await weightOf(
+      `${VALID.styleCss} .page { background: radial-gradient(circle, #f4895f, #2c47d8); filter: blur(8px); }`,
+    );
+
+    expect(plain.perPageKb).toBeLessThan(50);
+    expect(blurred.perPageKb).toBeGreaterThan(plain.perPageKb * 10);
+    expect(blurred.cohortMb).toBeGreaterThan(plain.cohortMb);
+  }, 60_000);
+
+  it('stores an inline drawing as written, and prints it', async () => {
+    // A full-page band behind the text, so whether it reached the page cannot be
+    // missed. Compared against the same design without it: identical previews
+    // would mean the drawing was stored but never drawn, a failure that is
+    // silent everywhere else (a blank background, no error).
+    const drawn = `${code}-drawn`;
+    const band =
+      '<svg class="band" viewBox="0 0 10 10" preserveAspectRatio="none"><defs><linearGradient id="g"><stop offset="0" stop-color="#f4895f"></stop><stop offset="1" stop-color="#e879f9"></stop></linearGradient></defs><rect width="10" height="10" fill="url(#g)"></rect></svg>';
+    const styleCss = `${VALID.styleCss} .band { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; }`;
+
+    async function previewOf(bodyHtml: string) {
+      const { status, payload } = await call(postTemplate, secret, {
+        code: drawn,
+        label: 'Certificat dessiné',
+        ...VALID,
+        styleCss,
+        bodyHtml,
+      });
+      expect(status, JSON.stringify(payload)).toBe(200);
+      return getDiplomaTemplatePreview({
+        code: drawn,
+        origin: 'https://jump.example',
+      });
+    }
+
+    const shown = await previewOf(`${band}${VALID.bodyHtml}`);
+    const stored = await prisma.diploma_Template.findUniqueOrThrow({
+      where: { code: drawn },
+      select: { bodyHtml: true },
+    });
+    expect(stored.bodyHtml).toBe(`${band}${VALID.bodyHtml}`);
+
+    const plain = await previewOf(VALID.bodyHtml);
+    expect(shown.image.base64).not.toBe(plain.image.base64);
   }, 60_000);
 
   it('attaches a certificate to an event and detaches it again', async () => {

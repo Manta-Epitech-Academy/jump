@@ -58,6 +58,7 @@ export type Buffered = {
   closing_Template: Prisma.Closing_TemplateCreateManyInput[];
   closing_TemplateSection: Prisma.Closing_TemplateSectionCreateManyInput[];
   closing_TemplateQuestion: Prisma.Closing_TemplateQuestionCreateManyInput[];
+  diploma_Template: Prisma.Diploma_TemplateCreateManyInput[];
   eventConfig_Template: Prisma.EventConfig_TemplateCreateManyInput[];
   eventConfig_TemplateModule: Prisma.EventConfig_TemplateModuleCreateManyInput[];
   event: Prisma.EventCreateManyInput[];
@@ -117,6 +118,7 @@ const MODEL_ORDER = [
   'closing_Template',
   'closing_TemplateSection',
   'closing_TemplateQuestion',
+  'diploma_Template',
   'eventConfig_Template',
   'eventConfig_TemplateModule',
   'event',
@@ -423,6 +425,9 @@ export async function wipe(
   );
   await drop('eventConfig_Template', () =>
     prisma.eventConfig_Template.deleteMany({ where: { id: seeded } }),
+  );
+  await drop('diploma_Template', () =>
+    prisma.diploma_Template.deleteMany({ where: { id: seeded } }),
   );
   await drop('workshop_Instance', () =>
     prisma.workshop_Instance.deleteMany({ where: { id: seeded } }),

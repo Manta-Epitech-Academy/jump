@@ -27,6 +27,14 @@ export type CertificateToken = keyof typeof CERTIFICATE_TOKENS;
 
 const TOKEN_NAMES = new Set<string>(Object.keys(CERTIFICATE_TOKENS));
 
+/**
+ * The largest cohort a certificate is printed for in one file: the stage de
+ * seconde, the tail of the distribution AGENTS.md (*Scale*) says to design for.
+ * A design's weight is projected onto it, so an author sees what the biggest
+ * export of their design will cost. A projection, not a limit.
+ */
+export const COHORT_TAIL_PAGES = 200;
+
 /** `{token}`, the same shape the feedback-form copy uses. */
 const TOKEN_PATTERN = /\{(\w+)\}/g;
 

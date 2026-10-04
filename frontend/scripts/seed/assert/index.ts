@@ -18,6 +18,7 @@ import { inertnessFailures } from './inertness';
 import { coverageFailures, KNOWN_GAP_COUNT } from './coverage';
 import { usageCoherenceFailures } from './usageCoherence';
 import { careerFailures } from './careers';
+import { designFailures } from './designs';
 
 export async function runChecks(
   prisma: PrismaClient,
@@ -37,6 +38,7 @@ export async function runChecks(
     ],
     ['cohérence des usages', await usageCoherenceFailures(prisma)],
     ['parcours et classement', await careerFailures(prisma)],
+    ['certificats semés', await designFailures(prisma)],
   ];
 
   let failed = 0;
