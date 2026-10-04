@@ -2,10 +2,11 @@
  * Which Salesforce statuses the dev space shows, event by event, and the
  * projection that makes it cheap to read.
  *
- * The one writer of `EventConfig_ShownStatus` and of
- * `Participation.shownInDevSpace` outside the sync, so the projection cannot be
- * recomputed in one place and forgotten in another: the config wizard, the admin
- * API, the bulk edits and the template copies all come through here.
+ * The one writer of the catalogue (`Sync_MemberStatus`), of
+ * `EventConfig_ShownStatus` and of `Participation.shownInDevSpace` outside the
+ * sync, so the projection cannot be recomputed in one place and forgotten in
+ * another: the config wizard, the admin API, the bulk edits, the template copies
+ * and the « Membres Salesforce » dialog all come through here.
  *
  * The rule itself is `isShownInDevSpace` in `domain/sfMemberStatus.ts`; the
  * statement below is its set-based twin, applied to every enrolment of the
@@ -27,6 +28,31 @@ export async function memberStatusCatalogue(): Promise<
     orderBy: { status: 'asc' },
     select: { status: true, shownByDefault: true },
   });
+}
+
+/**
+ * Add a word to the catalogue, or change whether a newly created event shows it.
+ * The one writer of `Sync_MemberStatus`: `write_sync_member_status` and the
+ * « Membres Salesforce » dialog both come through here.
+ *
+ * Changes no event: an event shows a word only once its own policy says so,
+ * which is what keeps a new word from appearing on every cohort at once. What it
+ * does change is that the word stops being reported as unknown. Masked on new
+ * events unless asked, since a word nobody has looked at yet should not start
+ * filling cohorts on its own. An upsert on the word, so safe to repeat.
+ */
+export async function upsertMemberStatus(
+  raw: string,
+  shownByDefault?: boolean,
+): Promise<string> {
+  const status = normalizeSfStatus(raw);
+  if (status === null) throw error(400, 'Le statut Salesforce est vide.');
+  await prisma.sync_MemberStatus.upsert({
+    where: { status },
+    create: { status, shownByDefault: shownByDefault ?? false },
+    update: shownByDefault !== undefined ? { shownByDefault } : {},
+  });
+  return status;
 }
 
 /** What a newly created event starts showing. */

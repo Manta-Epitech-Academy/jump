@@ -89,6 +89,7 @@
     formPreviews,
     templates,
     sfStatuses,
+    onSfStatusAdded,
   }: {
     open: boolean;
     editing: EditingEvent | null;
@@ -102,6 +103,8 @@
     templates: TemplateVM[];
     /** The Salesforce statuses Jump knows, which an event may show. */
     sfStatuses: string[];
+    /** A word « Membres Salesforce » just added to the catalogue. */
+    onSfStatusAdded: (status: string) => void;
   } = $props();
 
   const { form, errors, enhance, delayed } = superForm(
@@ -1224,6 +1227,7 @@
     bind:open={inspectorOpen}
     eventId={editing.id}
     eventTitle={editing.publicName || editing.titre}
+    onStatusAdded={onSfStatusAdded}
   />
 {/if}
 

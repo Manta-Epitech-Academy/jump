@@ -23,6 +23,7 @@
 
 import { prisma } from '$lib/server/db';
 import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
+import { upsertMemberStatus } from '$lib/server/services/devSpaceVisibility';
 import type { SyncMode, SyncSourceKind } from '@prisma/client';
 import { OperationRefusedError } from '../errors';
 import type { WriteOutcome } from '../plan';
@@ -301,14 +302,10 @@ type MemberStatusState = { memberStatus: string; shownByDefault: boolean };
 
 /**
  * Add a Salesforce member status to the words Jump knows, or change whether a
- * newly created event shows it.
- *
- * Bounded to one catalogue row, and changes no event: an event shows a word only
- * once `write_event_config` or `bulk_event_shown_statuses` says so, which is
- * what keeps a new word from appearing on every cohort at once. What it does
- * change is that the word stops being reported as unknown. There is no delete:
- * events and templates reference the word, and old enrolments still carry it.
- * Safe to repeat, it is an upsert on the word.
+ * newly created event shows it. Bounded to one catalogue row and changes no
+ * event: the rule and the write are `upsertMemberStatus`'s, shared with the
+ * « Membres Salesforce » dialog. There is no delete: events and templates
+ * reference the word, and old enrolments still carry it.
  */
 export async function writeSyncMemberStatus(params: {
   memberStatus: string;
@@ -329,16 +326,6 @@ export async function writeSyncMemberStatus(params: {
   };
 
   const before = await stateOf();
-  await prisma.sync_MemberStatus.upsert({
-    where: { status },
-    // Masked on new events unless asked: a word nobody has looked at yet should
-    // not start filling cohorts on its own.
-    create: { status, shownByDefault: params.shownByDefault ?? false },
-    update:
-      params.shownByDefault !== undefined
-        ? { shownByDefault: params.shownByDefault }
-        : {},
-  });
-
+  await upsertMemberStatus(status, params.shownByDefault);
   return { applied: true, before, after: await stateOf() };
 }

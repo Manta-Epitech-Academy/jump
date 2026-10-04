@@ -7,7 +7,10 @@ import { EventService } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
 import { listDiplomaTemplates } from '$lib/server/diplomaTemplates';
 import { listClosingTemplates } from '$lib/server/closingTemplates';
-import { memberStatusCatalogue } from '$lib/server/services/devSpaceVisibility';
+import {
+  memberStatusCatalogue,
+  upsertMemberStatus,
+} from '$lib/server/services/devSpaceVisibility';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
@@ -256,6 +259,30 @@ export const actions: Actions = {
     } catch (err) {
       console.error(err);
       return fail(500, { templateError: 'Erreur lors de la suppression.' });
+    }
+  },
+
+  // « Ajouter au catalogue » on a status Jump does not know, in « Membres
+  // Salesforce ». The same write as `write_sync_member_status`: the word becomes
+  // known and stops being reported, and no event shows it until its own
+  // configuration says so. Posted via fetch, since the dialog also opens from
+  // inside the config wizard's form.
+  addMemberStatus: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SF_STATUS_ADD, { locals });
+    const fd = await request.formData();
+    try {
+      const status = await upsertMemberStatus(String(fd.get('status') ?? ''));
+      return { memberStatusAdded: status };
+    } catch (err) {
+      if (isHttpError(err)) {
+        return fail(err.status, {
+          memberStatusError: String(err.body.message),
+        });
+      }
+      console.error(err);
+      return fail(500, {
+        memberStatusError: "Erreur lors de l'ajout du statut.",
+      });
     }
   },
 
