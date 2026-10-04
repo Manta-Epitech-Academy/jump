@@ -1,18 +1,19 @@
 /**
  * The Salesforce member statuses, and what they do to a screen.
  *
- * The dev space shows `READY` and `MET` and hides `CONNECTED` and `DESISTED`,
- * and `visibleParticipationWhere` spreads that rule through fifteen files - the
+ * Each event decides which statuses its dev space shows, and
+ * `visibleParticipationWhere` spreads that decision through fifteen files - the
  * enrolment lists, émargement, the talent fiche, and the admin figures behind
  * `cohortOverview` and `feedbackResults`. None of it had ever
  * been visible anywhere: the sync stopped on 2026-07-09, twelve days before the
  * column was added, so every row in production and in this generator was null
  * and every filter admitted everything.
  *
- * So this event is where the rule becomes something a person can look at. It
- * carries every status at once, and the counts deliberately disagree: more
- * enrolled than visible, which is exactly what the admin inspector exists to
- * explain.
+ * So the open day below is where the rule becomes something a person can look
+ * at. It shows the default words, `READY` and `MET`, carries every status at
+ * once, and the counts deliberately disagree: more enrolled than visible, which
+ * is exactly what the admin inspector exists to explain. The Coding Club after
+ * it shows `CONNECTED` as well, which is the per-event half.
  *
  * It also carries one word Jump does not know, the way Salesforce would send
  * one the day a status is added or renamed (#368: the seminar wrote `MEET`, the
@@ -84,7 +85,7 @@ export const sfStatuses: Scenario = {
     const unrecognised = cohort[third * 2 + 2]!;
     const legacy = cohort.slice(third * 2 + 3);
 
-    // Shown: the two words the dev space displays.
+    // Shown: the two words this event displays.
     for (const talent of attended) {
       world.enrol(event, talent, { sfMemberStatus: SF_STATUSES.attended });
     }
