@@ -97,7 +97,10 @@ const SAMPLE_DATA = {
 export async function renderCertificateSample(
   design: CertificateDesign,
 ): Promise<{ bytesPerPage: number }> {
-  const [recipient, other] = [SAMPLE_DATA.students[1], SAMPLE_DATA.students[0]];
+  // The same recipient on both pages, so the second page adds no glyph the first
+  // did not already embed: the difference is the page and nothing else. The
+  // name with diacritics, because it exercises the font subsets a real one needs.
+  const recipient = SAMPLE_DATA.students[1];
   const render = async (students: readonly { prenom: string; nom: string }[]) =>
     renderPdf({
       html: await buildCertificateHtml(design, { ...SAMPLE_DATA, students }),
@@ -111,7 +114,7 @@ export async function renderCertificateSample(
   // would not exercise.
   const [one, two] = await Promise.all([
     render([recipient]),
-    render([recipient, other]),
+    render([recipient, recipient]),
   ]);
   return { bytesPerPage: Math.max(0, two.byteLength - one.byteLength) };
 }
