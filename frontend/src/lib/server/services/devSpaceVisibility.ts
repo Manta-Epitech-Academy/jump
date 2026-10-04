@@ -166,12 +166,17 @@ export async function changeShownStatuses(
  * Re-derive `shownInDevSpace` for every enrolment of these events from their
  * current policy. One statement, so the projection never disagrees with the
  * rows it was read from inside the caller's transaction.
+ *
+ * The sync calls it too, once a roster is written. It derives each row as it
+ * upserts it, from the policy it read before the loop, so a policy change that
+ * commits mid-roster would otherwise be overwritten on the rows still to come,
+ * and an incremental pass never sends those members again.
  */
-async function recomputeShownInDevSpace(
-  tx: Prisma.TransactionClient,
+export async function recomputeShownInDevSpace(
+  db: Db,
   eventIds: readonly string[],
 ): Promise<void> {
-  await tx.$executeRaw`
+  await db.$executeRaw`
     UPDATE "Participation" p
     SET "shownInDevSpace" = (
       p."sfMemberStatus" IS NULL

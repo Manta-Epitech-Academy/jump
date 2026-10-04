@@ -16,6 +16,7 @@ import {
 } from '$lib/domain/sfMemberStatus';
 import {
   defaultShownStatuses,
+  recomputeShownInDevSpace,
   shownStatusesByEvent,
 } from '$lib/server/services/devSpaceVisibility';
 import { schoolYearOf } from '$lib/domain/schoolYear';
@@ -643,7 +644,8 @@ export async function syncParticipations(
     select: { id: true, externalId: true },
   });
   // Read once per roster: what this event shows decides each row's projection,
-  // written in the same statement as the status it derives from.
+  // written in the same statement as the status it derives from, and re-derived
+  // for the whole event once the roster is written.
   const shown =
     (await shownStatusesByEvent([event.id])).get(event.id) ?? new Set();
   const talentIdByExternalId = new Map(
@@ -677,6 +679,11 @@ export async function syncParticipations(
     presentTalentIds.push(talentId);
     upserted++;
   }
+  // The policy above was read before the loop, so a change an admin commits
+  // while the roster is being written would be overwritten on the rows still to
+  // come. Re-derived once from the policy as it stands, which also catches the
+  // members this pass did not send.
+  if (upserted > 0) await recomputeShownInDevSpace(prisma, [event.id]);
 
   if (mode !== 'full') return { upserted, skipped, removed: 0, held: false };
 

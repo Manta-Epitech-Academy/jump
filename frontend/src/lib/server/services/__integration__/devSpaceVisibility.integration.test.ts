@@ -150,6 +150,28 @@ describe('per-event dev-space visibility (integration)', () => {
     expect(await shownOn('stage')).toEqual([connected, legacy].sort());
   });
 
+  it('re-derives the whole event after a roster, so a policy changed mid-roster is not overwritten', async () => {
+    // The state a policy change committed while a roster was being written
+    // leaves behind: the stage now shows READY, and the READY row was written
+    // from the policy read before the change.
+    await prisma.eventConfig_ShownStatus.create({
+      data: { eventId: eventIds.stage, status: 'READY' },
+    });
+    expect(await shownOn('stage')).toEqual([connected, legacy].sort());
+
+    // An incremental pass that does not even send the READY member.
+    await syncParticipations(
+      stageExternalId,
+      { [connected]: 'CONNECTED' },
+      'incremental',
+    );
+    expect(await shownOn('stage')).toEqual([connected, legacy, ready].sort());
+
+    await prisma.$transaction((tx) =>
+      setEventShownStatuses(tx, eventIds.stage, ['CONNECTED']),
+    );
+  });
+
   it('refuses a word the catalogue does not hold, naming the ones it does', async () => {
     await expect(
       prisma.$transaction((tx) =>
