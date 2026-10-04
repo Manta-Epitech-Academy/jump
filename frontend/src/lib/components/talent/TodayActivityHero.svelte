@@ -21,7 +21,6 @@
   // which has to read as finished, not as broken.
   let { activities }: { activities: WorkshopActivity[] } = $props();
 
-  const single = $derived(activities.length === 1);
   // The one hopeful action: the first activity not yet walked to the end.
   const primarySlug = $derived(
     (
@@ -52,8 +51,12 @@
 
 <section aria-labelledby="today-activity-title">
   <h2 id="today-activity-title" class="sr-only">Ton activité du jour</h2>
-  <PageHero density="compact" class="rounded-xl sm:px-8 sm:py-8">
-    <div class={cn('grid gap-8', !single && 'md:grid-cols-2')}>
+  <PageHero
+    density="compact"
+    pixels={!activities.some((a) => pictureOf(a))}
+    class="rounded-xl"
+  >
+    <div class="grid gap-6">
       {#each activities as activity (activity.slug)}
         {@const picture = pictureOf(activity)}
         {@const mascot = activity.cover?.mascot}
@@ -61,14 +64,14 @@
         <article
           class={cn(
             'flex flex-col gap-5',
-            single && picture && 'md:flex-row-reverse md:items-center md:gap-8',
+            picture && 'sm:flex-row-reverse sm:items-center sm:gap-6',
           )}
         >
           {#if picture}
             <!-- A rectangle, no radius and no shadow (DESIGN.md: images).
                  The still replaces the animation for whoever asked for
                  reduced motion. -->
-            <picture class={cn('block shrink-0', single && 'md:w-1/2')}>
+            <picture class="block shrink-0 sm:w-2/5">
               {#if picture.still && picture.still !== picture.main}
                 <source
                   media="(prefers-reduced-motion: reduce)"
@@ -87,7 +90,7 @@
             </picture>
           {/if}
 
-          <div class="flex min-w-0 flex-1 flex-col gap-4">
+          <div class="flex min-w-0 flex-1 flex-col gap-3">
             {#if mascot && loads(mascot.url)}
               <!-- The subject's character, above its line. Drawn no larger
                    than a small sprite needs: scaled past its own pixels it
@@ -101,7 +104,7 @@
                 decoding="async"
                 onerror={() => markBroken(mascot.url)}
                 class={cn(
-                  'h-14 w-auto self-start',
+                  'h-12 w-auto self-start',
                   mascot.width < 128 && '[image-rendering:pixelated]',
                 )}
               />
@@ -116,12 +119,7 @@
                   : 'Activité'}
               </p>
               <p
-                class={cn(
-                  'mt-2 font-heading text-white',
-                  single
-                    ? 'text-display-l sm:text-display-xl'
-                    : 'text-display-l',
-                )}
+                class="mt-2 font-heading text-display-m text-white sm:text-display-l"
               >
                 {activity.cover?.tagline ?? activity.label}<TitleCursor />
               </p>
@@ -165,9 +163,8 @@
             >
               <Button
                 type="submit"
-                size="lg"
                 variant={isPrimary ? 'neon' : 'outline'}
-                class="h-11 w-full sm:w-auto"
+                class="w-full sm:w-auto"
               >
                 {started(activity) ? 'Reprendre' : 'C’est parti'}
                 <ArrowRight class="size-4" />

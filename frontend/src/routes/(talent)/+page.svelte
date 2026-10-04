@@ -221,14 +221,6 @@
       </div>
     {/each}
 
-    {#if workshops.today.length > 0}
-      <!-- The day's activity, above everything, on the day only. Outside the
-           grid so it is first on a phone too. -->
-      <div class="mb-6" in:fly={{ y: 8, duration: 320 }}>
-        <TodayActivityHero activities={workshops.today} />
-      </div>
-    {/if}
-
     <!-- The daily training, the one mission of "Mission du jour": accented
          (gamepad, colour) and shaped as a row, nothing like the activities.
          Pre-play it's a "Commencer" CTA; once played it links to the campus
@@ -583,6 +575,14 @@
         class="contents md:col-span-8 md:block md:space-y-6"
         in:fly={{ x: 20, duration: 400, delay: 300 }}
       >
+        {#if workshops.today.length > 0}
+          <!-- The day's activity, on the day only: the head of the right
+               column, level with the XP card, and first of all on a phone. -->
+          <div class="order-first">
+            <TodayActivityHero activities={workshops.today} />
+          </div>
+        {/if}
+
         <!-- order-3: sits below Actualités on mobile, with its history link -->
         <div
           class="order-3 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
