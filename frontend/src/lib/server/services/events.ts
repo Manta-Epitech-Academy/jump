@@ -419,9 +419,8 @@ export const EventService = {
         })
       : null;
     if (refusal) throw error(400, refusal);
-    // 23:59 campus-local on the chosen day: `getEventStatus` only flips the
-    // event to "past" once that whole day has elapsed, and `toDateKey` still
-    // resolves it to that day for the émargement créneaux.
+    // 23:59 campus-local on the chosen day, so `toDateKey` resolves it to that
+    // day for the émargement créneaux whatever the campus timezone.
     const endDate = data.endDate
       ? fromWallClock(data.endDate, '23:59', event.campus.timezone)
       : null;

@@ -1078,10 +1078,8 @@ export class World {
       );
     }
     // 23:59 in the CAMPUS's timezone, the way production stores it, not midnight
-    // UTC - and both readers depend on the difference. `presenceDays` keys the
-    // day off the campus clock, so a Réunion event ending at 23:59 UTC would
-    // grow a second émargement day; `getEventStatus` compares the instant, so an
-    // event ending at midnight reads « passé » from its own first minute.
+    // UTC. `presenceDays` keys the day off the campus clock, so a Réunion event
+    // ending at 23:59 UTC would grow a second émargement day.
     const endDate = withEndDate
       ? fromWallClock(
           clock.dateKey(days[days.length - 1]!),
