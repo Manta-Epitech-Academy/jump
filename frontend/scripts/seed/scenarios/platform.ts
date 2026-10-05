@@ -16,6 +16,10 @@ import {
   XP_REWARDS,
 } from '../catalog/platform';
 import {
+  TALENT_HOME_HIGHLIGHTS,
+  TALENT_HOME_NOTES,
+} from '../catalog/talentHome';
+import {
   BROADCAST_TEMPLATE_DEFAULTS,
   EMAIL_TEMPLATE_DEFAULTS,
 } from '../catalog/interestsAndTemplates';
@@ -122,6 +126,38 @@ export const platform: Scenario = {
         });
       }
     }
+
+    // What the first campuses put on their talents' home (see the catalogue).
+    for (const campus of campuses) {
+      const note = TALENT_HOME_NOTES[campus.name];
+      if (note)
+        world.buffer.talentHome_Note.push({
+          campusId: campus.id,
+          markdown: note,
+          updatedAt: clock.today,
+        });
+      const highlight = TALENT_HOME_HIGHLIGHTS[campus.name];
+      if (highlight)
+        world.buffer.talentHome_Highlight.push({
+          campusId: campus.id,
+          title: highlight.title,
+          summary: highlight.summary,
+          date: new Date(
+            `${clock.dateKey(clock.days(highlight.dayOffset))}T00:00:00.000Z`,
+          ),
+          url: highlight.url,
+          updatedAt: clock.today,
+        });
+    }
+    world.ctx.manifest.push({
+      scenario: 'accueil des campus',
+      summary: 'Le mot du campus et l’événement mis en avant, par campus.',
+      covers: [
+        'Paris : un mot du campus (titre, liste, liens) et un événement mis en avant sous « Planning à venir »',
+        'Marseille : un mot du campus seul, la carte planning garde son état vide',
+        'Lyon : un événement mis en avant dont le jour est passé, que l’accueil ne montre plus',
+      ],
+    });
 
     // One signature that belongs to no campus: the national one, used where a
     // document is issued by the school rather than by a site. `campusId` is

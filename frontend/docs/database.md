@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **77** modèles · **31** enums · **110** relations
+- **79** modèles · **31** enums · **112** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -19,7 +19,7 @@
 | Minijeux | 3 |
 | Feedback | 7 |
 | Communication & Support | 5 |
-| Contenus & Centres d'intérêt | 4 |
+| Contenus & Centres d'intérêt | 6 |
 | Analytique d'usage | 2 |
 | Configuration & Système | 11 |
 | Autres | 3 |
@@ -927,6 +927,19 @@ erDiagram
     String uploadedById FK
     DateTime createdAt
   }
+  TalentHome_Note {
+    String campusId PK,FK
+    String markdown
+    DateTime updatedAt
+  }
+  TalentHome_Highlight {
+    String campusId PK,FK
+    String title
+    String summary
+    DateTime date
+    String url
+    DateTime updatedAt
+  }
   Interest {
     String id PK
     String nom UK
@@ -944,11 +957,15 @@ erDiagram
   }
   Talent {
   }
+  Campus {
+  }
   Event {
   }
   bauth_user |o--o{ CmsPage : "cmsPages"
   StaffProfile |o--o{ CmsImage : "cmsImages"
   Talent ||--o{ TalentInterest : "interests"
+  Campus ||--|| TalentHome_Note : "homeNote"
+  Campus ||--|| TalentHome_Highlight : "homeHighlight"
   Event ||--o{ CmsPage : "cmsPages"
   Interest ||--o{ TalentInterest : "talentInterests"
 ```

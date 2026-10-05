@@ -742,6 +742,8 @@ model Campus {
   signatories      Signatory[]
   syncSources      Sync_Source[]
   workshopEntries  Workshop_Participation[]
+  homeNote         TalentHome_Note?
+  homeHighlight    TalentHome_Highlight?
 }
 
 model CmsPage {
@@ -761,6 +763,44 @@ model CmsPage {
 
   @@unique([slug, eventId])
   @@index([eventId])
+}
+
+/// « Le mot du campus »: free text a campus puts on its talents' home, in the
+/// Actualités card. Authored over the admin API (`write_talent_home_note`), so
+/// current state, one row per campus, and no row means no note. Who wrote it
+/// and what it said before is in `AdminApi_Call`, which is why there is no
+/// `updatedBy` here.
+///
+/// Markdown, stored exactly as written or refused: no image (a minor's browser
+/// fetches nothing from another host) and no raw HTML. Rendered at read time.
+model TalentHome_Note {
+  campusId  String   @id
+  markdown  String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  campus Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
+}
+
+/// The one event a campus invites its talents to sign up for, shown at the
+/// foot of « Planning à venir » with a link to an outside sign-up form. Chosen
+/// by hand per campus (`write_talent_home_highlight`), never derived from
+/// Salesforce: a JPO or a camp is not something the talent is enrolled in yet.
+///
+/// Its own table rather than columns beside the note, so a half-written
+/// highlight cannot exist: a row is all four fields or nothing.
+model TalentHome_Highlight {
+  campusId  String   @id
+  title     String
+  summary   String
+  /// The event's calendar day. The reader stops showing the highlight once
+  /// that day has passed on the campus clock, so a camp's invitation does not
+  /// outlive the camp.
+  date      DateTime @db.Date
+  /// The sign-up form, https only.
+  url       String
+  updatedAt DateTime @updatedAt
+
+  campus Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
 }
 
 /// One activity in an event's programme, at the hour it runs.

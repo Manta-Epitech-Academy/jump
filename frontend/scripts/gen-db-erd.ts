@@ -179,7 +179,15 @@ const DOMAINS: { title: string; models: string[] }[] = [
   },
   {
     title: "Contenus & Centres d'intérêt",
-    models: ['CmsPage', 'CmsImage', 'Interest', 'TalentInterest'],
+    models: [
+      'CmsPage',
+      'CmsImage',
+      // What a campus puts on its talents' home: its note and its highlight.
+      'TalentHome_Note',
+      'TalentHome_Highlight',
+      'Interest',
+      'TalentInterest',
+    ],
   },
   {
     // Apart from "Configuration & Système" on purpose: these two are a

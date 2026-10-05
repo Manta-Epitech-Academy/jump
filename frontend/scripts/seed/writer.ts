@@ -40,6 +40,8 @@ export type Buffered = {
   bauth_user: Prisma.bauth_userCreateManyInput[];
   staffProfile: Prisma.StaffProfileCreateManyInput[];
   signatory: Prisma.SignatoryCreateManyInput[];
+  talentHome_Note: Prisma.TalentHome_NoteCreateManyInput[];
+  talentHome_Highlight: Prisma.TalentHome_HighlightCreateManyInput[];
   staffInvitation: Prisma.StaffInvitationCreateManyInput[];
   adminApi_Token: Prisma.AdminApi_TokenCreateManyInput[];
   adminApi_Call: Prisma.AdminApi_CallCreateManyInput[];
@@ -102,6 +104,8 @@ const MODEL_ORDER = [
   'bauth_user',
   'staffProfile',
   'signatory',
+  'talentHome_Note',
+  'talentHome_Highlight',
   'staffInvitation',
   'adminApi_Token',
   'adminApi_Call',
@@ -497,6 +501,12 @@ export async function wipe(
   );
   await drop('staffInvitation', () =>
     prisma.staffInvitation.deleteMany({ where: { id: seeded } }),
+  );
+  await drop('talentHome_Highlight', () =>
+    prisma.talentHome_Highlight.deleteMany({ where: { campusId: seeded } }),
+  );
+  await drop('talentHome_Note', () =>
+    prisma.talentHome_Note.deleteMany({ where: { campusId: seeded } }),
   );
   await drop('signatory', () =>
     prisma.signatory.deleteMany({ where: { id: seeded } }),
