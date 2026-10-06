@@ -366,7 +366,7 @@
       {/if}
     {/snippet}
 
-    <div class="grid gap-6 md:grid-cols-12">
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-12">
       <!-- LEFT COLUMN: profile + "Planning à venir" rail (the active event,
            the next upcoming session, or a quiet rest state).
            On mobile the wrapper collapses (display: contents) so its children
