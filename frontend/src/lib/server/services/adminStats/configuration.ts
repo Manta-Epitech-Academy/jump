@@ -564,7 +564,7 @@ export async function getTalentHomeContent(
           shown: isHighlightOpen(homeHighlight.date, timezone, now),
         },
       })),
-      "Ce que chaque campus affiche sur l'accueil de ses talents, en plus de leurs propres inscriptions. « note » est le mot du campus tel qu'il a été écrit (Markdown), affiché dans la carte Actualités, ou null s'il n'y en a pas. « highlight » est l'événement mis en avant au pied de « Planning à venir » : son titre, son texte, son jour, le lien du formulaire d'inscription, et « shown », qui dit s'il est encore affiché (il disparaît seul une fois son jour passé, à l'heure du campus), ou null s'il n'y en a pas. Un talent voit le campus de son événement en cours, sinon de son prochain, sinon de son dernier.",
+      "Ce que chaque campus affiche sur l'accueil de ses talents, en plus de leurs propres inscriptions. « note » est le mot du campus tel qu'il a été écrit (Markdown), affiché dans la carte Actualités, ou null s'il n'y en a pas. « highlight » est l'événement mis en avant au pied de « Planning à venir » : son titre, son texte, son jour, le lien du formulaire d'inscription, et « shown », qui dit s'il est encore affiché (il disparaît seul une fois son jour passé, à l'heure du campus), ou null s'il n'y en a pas. Un talent voit le campus de son événement le plus tardif, à venir compris.",
     ),
   };
 }
