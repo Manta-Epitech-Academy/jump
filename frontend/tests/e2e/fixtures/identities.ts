@@ -28,6 +28,10 @@ export const E2E = {
   workshopLabel: 'Atelier E2E',
   /** What it is worth on that event: a round number, so the XP is one too. */
   workshopDurationMinutes: 60,
+  /** What the campus puts on its talents' home: its note and its highlight. */
+  homeNoteLink: 'https://discord.invalid/e2e',
+  homeHighlightTitle: 'Recode le jeu Snake en JS',
+  homeHighlightUrl: 'https://www.epitech.invalid/inscription/?CampaignId=e2e',
 
   /** Dev-workspace member: `can('devMember')`, campus-scoped. */
   dev: { userId: 'e2e-user-dev', email: `dev${E2E_DOMAIN}` },

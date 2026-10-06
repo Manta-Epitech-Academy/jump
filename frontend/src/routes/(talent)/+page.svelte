@@ -17,7 +17,10 @@
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import CalendarCheck from '@lucide/svelte/icons/calendar-check';
   import FeedbackBanner from '$lib/components/feedback/FeedbackBanner.svelte';
-  import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
+  import NewsFeedCard, {
+    type NewsFeedItem,
+  } from '$lib/components/talent/NewsFeedCard.svelte';
+  import HighlightedEvent from '$lib/components/talent/HighlightedEvent.svelte';
   import TodayActivityHero from '$lib/components/talent/TodayActivityHero.svelte';
   import MyActivitiesCard from '$lib/components/talent/MyActivitiesCard.svelte';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
@@ -84,6 +87,16 @@
   // dev preview when an admin impersonates this talent). The widget branches on
   // `planning.state` alone; no raw participation rows reach the UI.
   let planning = $derived(data.planning);
+
+  // What the talent's campus puts on their home: a note for the Actualités
+  // feed, and an event to sign up for at the foot of the planning card.
+  let home = $derived(data.home);
+  let newsItems = $derived<NewsFeedItem[]>([
+    ...(home.note ? [{ kind: 'campus' as const, html: home.note }] : []),
+    ...(data.welcome
+      ? [{ kind: 'welcome' as const, html: data.welcome.content }]
+      : []),
+  ]);
 
   // The widget's state is always shown (it's participation-derived), but the
   // "Voir le planning" CTA opens the /calendar grid, which only exists when the
@@ -495,7 +508,10 @@
                     >{/if}.
                 </p>
               </div>
-            {:else}
+            {:else if !home.highlight}
+              <!-- Nothing planned and nothing to sign up for. With a
+                   highlight, the highlight is the card's content instead:
+                   « rien de prévu » above an invitation would contradict it. -->
               <div
                 class="flex flex-col items-center justify-center text-center"
               >
@@ -512,6 +528,17 @@
                   dès qu'il y a du nouveau !
                 </p>
               </div>
+            {/if}
+
+            {#if home.highlight}
+              <!-- The campus's invitation, below the talent's own session and
+                   set apart from it. -->
+              <HighlightedEvent
+                highlight={home.highlight}
+                class={planning.state === 'none'
+                  ? undefined
+                  : 'mt-6 border-t border-border pt-6'}
+              />
             {/if}
           </div>
         </div>
@@ -569,8 +596,8 @@
         {/if}
       </div>
 
-      <!-- RIGHT COLUMN: the daily training, then the activities already
-           offered, then the Actualités feed. -->
+      <!-- RIGHT COLUMN: the day's activity on its day, the Actualités feed,
+           the daily training, then the activities already offered. -->
       <div
         class="contents md:col-span-8 md:block md:space-y-6"
         in:fly={{ x: 20, duration: 400, delay: 300 }}
@@ -583,7 +610,16 @@
           </div>
         {/if}
 
-        <!-- order-3: sits below Actualités on mobile, with its history link -->
+        {#if newsItems.length > 0}
+          <!-- The campus's word and the event's welcome, under the day's
+               activity and above the training, so the two « today » blocks
+               never stack. order-2: right under the profile card on mobile. -->
+          <div class="order-2">
+            <NewsFeedCard items={newsItems} highlight={welcomeHighlight} />
+          </div>
+        {/if}
+
+        <!-- order-3: below Actualités, on a phone as on a desktop -->
         <div
           class="order-3 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
         >
@@ -601,10 +637,10 @@
 
             {#if !hasMinigame && workshops.today.length > 0}
               <!-- No training today, but the day is not a day off: it points
-                     at the hero rather than saying « repos » under it. -->
+                     at the hero rather than saying « repos » below it. -->
               <p class="py-2 text-sm text-muted-foreground">
                 Pas d’entraînement aujourd’hui : ton activité du jour t’attend
-                juste au-dessus.
+                en haut de la page.
               </p>
             {:else if !hasMinigame}
               <!-- Nothing to do today: no daily training, and no event of
@@ -633,16 +669,6 @@
           <!-- order-3 too, after the training on a phone as on a desktop. -->
           <div class="order-3">
             <MyActivitiesCard activities={workshops.activities} />
-          </div>
-        {/if}
-
-        {#if data.welcome}
-          <!-- order-2: sits right under the profile card on mobile -->
-          <div class="order-2">
-            <NewsFeedCard
-              welcomeContent={data.welcome.content}
-              highlight={welcomeHighlight}
-            />
           </div>
         {/if}
       </div>

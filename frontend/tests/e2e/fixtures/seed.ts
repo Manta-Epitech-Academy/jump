@@ -83,6 +83,22 @@ export async function seedE2eData(): Promise<void> {
       name: 'E2E Campus',
       externalName: 'E2E_CAMPUS',
       timezone: CAMPUS_TIMEZONE,
+      homeNote: {
+        create: {
+          markdown: `## Bienvenue\n\nRejoins [le Discord du campus](${E2E.homeNoteLink}).`,
+        },
+      },
+      // A week out, so the highlight is still open whenever the suite runs.
+      homeHighlight: {
+        create: {
+          title: E2E.homeHighlightTitle,
+          summary: 'Deux heures pour coder ton propre Snake.',
+          date: dateKeyToDbDate(
+            toDateKey(new Date(Date.now() + 7 * 86_400_000), CAMPUS_TIMEZONE),
+          ),
+          url: E2E.homeHighlightUrl,
+        },
+      },
     },
   });
 

@@ -27,6 +27,7 @@ import {
   getUnseenWorkshopReward,
   listTalentWorkshops,
 } from '$lib/server/services/workshopService';
+import { getTalentHome } from '$lib/server/services/talentHomeService';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -138,6 +139,9 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     // because a Coding Club is designed never to finish and the students carry
     // on at home (`selectWorkshopOfferings` holds the rule).
     const workshops = await listTalentWorkshops(studentId);
+    // What the talent's campus puts on their home: its note, its highlighted
+    // event.
+    const home = await getTalentHome(locals.talentCampusId ?? null);
 
     // Everything earned on an activity and not yet celebrated. The talent walks
     // the activity in another tab, so nothing here witnesses the moment: the float
@@ -294,6 +298,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       workshopReward,
       onboardingArrival,
       welcome,
+      home,
       pastEvents,
       timeZone: tz,
       pendingFeedback,

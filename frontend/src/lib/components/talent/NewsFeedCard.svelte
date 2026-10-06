@@ -1,3 +1,13 @@
+<script lang="ts" module>
+  /**
+   * One entry of the feed, already rendered and sanitised server-side.
+   *
+   * `campus` is « le mot du campus », always there once the campus wrote one.
+   * `welcome` is an event's welcome message, there while that event runs.
+   */
+  export type NewsFeedItem = { kind: 'campus' | 'welcome'; html: string };
+</script>
+
 <script lang="ts">
   import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
   import { Button } from '$lib/components/ui/button';
@@ -5,26 +15,47 @@
   import WelcomeMessageBody from '$lib/components/talent/WelcomeMessageBody.svelte';
   import Newspaper from '@lucide/svelte/icons/newspaper';
   import Mail from '@lucide/svelte/icons/mail';
+  import Megaphone from '@lucide/svelte/icons/megaphone';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
-  // Seed of the talent's "fil d'actualité". Today the only item is the stage
-  // welcome message; future items (announcements, badges earned, etc.) stack
-  // into the same list. The list region is height-bounded + scrollable so the
-  // feed grows without pushing page height.
+  // The talent's "fil d'actualité": the campus's note, then an event's welcome
+  // message while one runs. Each item shows a clamped preview, and a long one
+  // opens whole in a dialog. The list region is height-bounded + scrollable so
+  // the feed grows without pushing page height.
   //
-  // This card is the welcome message's permanent home. `highlight` flags it
-  // fresh (ring + "Nouveau") on first arrival from onboarding.
+  // `highlight` flags the welcome message fresh (ring + "Nouveau") on first
+  // arrival from onboarding.
   let {
-    welcomeContent,
+    items,
     highlight = false,
   }: {
-    welcomeContent: string | null;
+    items: NewsFeedItem[];
     highlight?: boolean;
   } = $props();
 
+  const LABELS = {
+    campus: { title: 'Le mot du campus', icon: Megaphone },
+    welcome: { title: 'Message de bienvenue', icon: Mail },
+  } as const;
+
+  // `openKind` outlives the dialog's closing, so its content stays put while
+  // it animates out.
   let open = $state(false);
+  let openKind = $state<NewsFeedItem['kind'] | null>(null);
+  const openItem = $derived(items.find((item) => item.kind === openKind));
   let bodyRef = $state<HTMLDivElement | null>(null);
+
+  // Which previews are cut off by the clamp, so a short note does not offer a
+  // button that would only open the same words again.
+  let clipped = $state<Partial<Record<NewsFeedItem['kind'], boolean>>>({});
+  function measure(node: HTMLElement, kind: NewsFeedItem['kind']) {
+    const observer = new ResizeObserver(() => {
+      clipped = { ...clipped, [kind]: node.scrollHeight > node.clientHeight };
+    });
+    observer.observe(node);
+    return { destroy: () => observer.disconnect() };
+  }
 
   // On open, pin the message to the top. The scroll container differs per
   // platform (the dialog panel on desktop, the body itself on mobile), so walk
@@ -64,46 +95,58 @@
   </div>
 
   <div class="max-h-[40rem] divide-y divide-border overflow-y-auto">
-    {#if welcomeContent}
+    {#each items as item (item.kind)}
+      {@const label = LABELS[item.kind]}
       <article class="p-6">
         <div
           class="mb-2 flex items-center gap-1.5 epi-overline text-muted-foreground"
         >
-          <Mail class="h-3.5 w-3.5" />
-          Message de bienvenue
+          <label.icon class="h-3.5 w-3.5" />
+          {label.title}
         </div>
 
-        <!-- Clamped preview: fades out, full content in the dialog. -->
-        <div class="relative max-h-[20rem] overflow-hidden">
-          <WelcomeMessageBody content={welcomeContent} class="prose-sm" />
-          <div
-            class="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-card to-transparent"
-          ></div>
-        </div>
-
-        <Button
-          variant="outline"
-          onclick={() => (open = true)}
-          class="mt-4 w-full gap-2 rounded-xl border-border transition-colors hover:border-epi-blue hover:bg-epi-blue hover:text-white dark:hover:border-epi-blue dark:hover:bg-epi-blue dark:hover:text-white"
+        <!-- Clamped preview: fades out when cut, full content in the dialog. -->
+        <div
+          class="relative max-h-[20rem] overflow-hidden"
+          use:measure={item.kind}
         >
-          Lire le message <ArrowRight class="h-4 w-4" />
-        </Button>
+          <WelcomeMessageBody content={item.html} class="prose-sm" />
+          {#if clipped[item.kind]}
+            <div
+              class="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-card to-transparent"
+            ></div>
+          {/if}
+        </div>
+
+        {#if clipped[item.kind]}
+          <Button
+            variant="outline"
+            onclick={() => {
+              openKind = item.kind;
+              open = true;
+            }}
+            class="mt-4 w-full gap-2 rounded-xl border-border transition-colors hover:border-epi-blue hover:bg-epi-blue hover:text-white dark:hover:border-epi-blue dark:hover:bg-epi-blue dark:hover:text-white"
+          >
+            Lire la suite <ArrowRight class="h-4 w-4" />
+          </Button>
+        {/if}
       </article>
-    {/if}
+    {/each}
   </div>
 </div>
 
-{#if welcomeContent}
+{#if openItem}
+  {@const label = LABELS[openItem.kind]}
   <ResponsiveDialog.Root bind:open>
     <ResponsiveDialog.Content class="sm:max-w-2xl">
       <ResponsiveDialog.Header>
         <ResponsiveDialog.Title class="flex items-center gap-2">
-          <Mail class="h-5 w-5 text-epi-blue" />
-          Message de bienvenue
+          <label.icon class="h-5 w-5 text-epi-blue" />
+          {label.title}
         </ResponsiveDialog.Title>
       </ResponsiveDialog.Header>
       <ResponsiveDialog.Body bind:ref={bodyRef}>
-        <WelcomeMessageBody content={welcomeContent} />
+        <WelcomeMessageBody content={openItem.html} />
       </ResponsiveDialog.Body>
     </ResponsiveDialog.Content>
   </ResponsiveDialog.Root>
