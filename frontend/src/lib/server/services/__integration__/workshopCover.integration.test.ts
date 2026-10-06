@@ -63,7 +63,7 @@ vi.mock('$lib/server/images/process', async (importOriginal) => {
 
 const { writeWorkshopInstance } =
   await import('$lib/server/adminApi/writes/workshops');
-const { COVER_IMAGE_MAX_BYTES } = await import('$lib/server/workshops/cover');
+const { REMOTE_IMAGE_MAX_BYTES } = await import('$lib/server/images/remote');
 const { GET: coverProxy } =
   await import('../../../../routes/api/workshops/covers/[instanceId]/[file]/+server');
 
@@ -301,7 +301,7 @@ describe('the cover an instance hands back (integration)', () => {
       meta = { status: 200, body };
       files.set('/files/ws-pacman/huge.gif', {
         bytes: gif,
-        length: COVER_IMAGE_MAX_BYTES + 1,
+        length: REMOTE_IMAGE_MAX_BYTES + 1,
       });
       await expectKept('invalid', await declare());
     });

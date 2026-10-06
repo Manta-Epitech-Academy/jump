@@ -16,15 +16,14 @@
  * cover is a better dashboard than none.
  */
 
-import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { prisma } from '$lib/server/db';
-import { getStorage } from '$lib/server/infra/storage';
 import {
-  processImage,
-  readGifSize,
-  sniffImageType,
-} from '$lib/server/images/process';
+  copyRemoteImage,
+  RemoteImageRefusal,
+  swapStoredImages,
+  type CopiedImage,
+} from '$lib/server/images/remote';
 import {
   workshopCoverKey,
   type WorkshopCoverKind,
@@ -54,19 +53,12 @@ const KINDS: WorkshopCoverKind[] = ['media', 'poster', 'mascot'];
 
 const META_PATH = '/jump/meta';
 const META_TIMEOUT_MS = 5_000;
-const IMAGE_TIMEOUT_MS = 15_000;
-/**
- * A cover is shown to every talent of an event on the day, on phones, often on
- * mobile data: past this it is not a cover any more, it is a video.
- */
-export const COVER_IMAGE_MAX_BYTES = 6 * 1024 * 1024;
 /** Longest stored edge per picture. The mascot is drawn small. */
 const MAX_EDGE: Record<WorkshopCoverKind, number> = {
   media: 1280,
   poster: 1280,
   mascot: 512,
 };
-const WEBP_QUALITY = 80;
 
 /**
  * A path on the instance itself. Root-relative and nothing else: no scheme, no
@@ -182,63 +174,50 @@ async function refresh(instance: {
     };
   }
 
-  const storage = getStorage();
-  const uploaded: StoredImage[] = [];
-  try {
-    for (const { kind, path } of toFetch) {
-      const image = await copyImage(instance, kind, path);
-      await storage.save(image.key, image.bytes, image.contentType);
-      uploaded.push(image.row);
-    }
-    const images = [...kept, ...uploaded];
-    await prisma.$transaction([
-      prisma.workshop_Cover.upsert({
-        where: { instanceId: instance.id },
-        create: {
-          instanceId: instance.id,
-          title: cover.title,
-          summary: cover.summary,
-          tagline: cover.tagline,
-          fetchedAt: new Date(),
-        },
-        update: {
-          title: cover.title,
-          summary: cover.summary,
-          tagline: cover.tagline,
-          fetchedAt: new Date(),
-        },
-      }),
-      prisma.workshop_CoverImage.deleteMany({
-        where: { instanceId: instance.id },
-      }),
-      prisma.workshop_CoverImage.createMany({
-        data: images.map((image) => ({ instanceId: instance.id, ...image })),
-      }),
-    ]);
-  } catch (err) {
-    // Nothing references what this attempt uploaded unless the transaction
-    // landed, so it goes. A key that was already stored is never in this list.
-    const storedKeys = new Set(stored?.images.map((i) => i.key));
-    await Promise.all(
-      uploaded
-        .filter((image) => !storedKeys.has(image.key))
-        .map((image) => storage.delete(image.key).catch(() => {})),
-    );
-    throw err;
+  const uploaded: (StoredImage & { bytes: Uint8Array })[] = [];
+  for (const { kind, path } of toFetch) {
+    uploaded.push(await copyImage(instance, kind, path));
   }
-
-  // Only now that no row points at them. A picture re-uploaded under the same
-  // content-addressed key is still referenced and stays.
-  const liveKeys = new Set([...kept, ...uploaded].map((i) => i.key));
-  await Promise.all(
-    (stored?.images ?? [])
-      .filter((image) => !liveKeys.has(image.key))
-      .map((image) => storage.delete(image.key).catch(() => {})),
-  );
+  const images: StoredImage[] = [
+    ...kept,
+    ...uploaded.map(({ bytes: _bytes, ...row }) => row),
+  ];
+  await swapStoredImages({
+    next: uploaded,
+    // A kept picture is in neither list, so it is neither re-stored nor deleted.
+    previousKeys: (stored?.images ?? [])
+      .filter((image) => !kept.includes(image))
+      .map((image) => image.key),
+    commit: () =>
+      prisma.$transaction([
+        prisma.workshop_Cover.upsert({
+          where: { instanceId: instance.id },
+          create: {
+            instanceId: instance.id,
+            title: cover.title,
+            summary: cover.summary,
+            tagline: cover.tagline,
+            fetchedAt: new Date(),
+          },
+          update: {
+            title: cover.title,
+            summary: cover.summary,
+            tagline: cover.tagline,
+            fetchedAt: new Date(),
+          },
+        }),
+        prisma.workshop_CoverImage.deleteMany({
+          where: { instanceId: instance.id },
+        }),
+        prisma.workshop_CoverImage.createMany({
+          data: images.map((image) => ({ instanceId: instance.id, ...image })),
+        }),
+      ]),
+  });
 
   return {
     status: 'fetched',
-    detail: `Aperçu repris de l'instance : ${describe(cover.tagline, [...kept, ...uploaded])}.`,
+    detail: `Aperçu repris de l'instance : ${describe(cover.tagline, images)}.`,
   };
 }
 
@@ -282,75 +261,34 @@ async function copyImage(
   instance: { id: string; baseUrl: string },
   kind: WorkshopCoverKind,
   path: string,
-): Promise<{
-  key: string;
-  bytes: Uint8Array;
-  contentType: string;
-  row: StoredImage;
-}> {
-  const refuse = (why: string) =>
-    new CoverRefusal(
-      'invalid',
-      `L'image « ${kind} » (${path}) ${why}. L'aperçu enregistré est conservé.`,
-    );
-
-  let response: Response;
+): Promise<StoredImage & { bytes: Uint8Array }> {
+  let image: CopiedImage;
   try {
-    response = await fetch(new URL(path, instance.baseUrl), {
-      redirect: 'error',
-      signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
-    });
-  } catch {
-    throw refuse("n'a pas pu être téléchargée");
-  }
-  if (!response.ok) throw refuse(`a répondu ${response.status}`);
-  const declared = Number(response.headers.get('content-length'));
-  if (declared > COVER_IMAGE_MAX_BYTES) throw refuse('dépasse 6 Mo');
-  const raw = new Uint8Array(await response.arrayBuffer());
-  if (raw.byteLength > COVER_IMAGE_MAX_BYTES) throw refuse('dépasse 6 Mo');
-
-  const type = sniffImageType(raw);
-  if (!type) throw refuse("n'est ni un GIF, ni un PNG, ni un JPEG, ni un WebP");
-
-  let stored: { bytes: Uint8Array; contentType: string; extension: string };
-  let size: { width: number; height: number } | null;
-  if (type === 'gif') {
-    // Kept byte for byte: the pipeline re-encodes to a single still, which
-    // would flatten the animation the subject chose.
-    size = readGifSize(raw);
-    stored = { bytes: raw, contentType: 'image/gif', extension: 'gif' };
-  } else {
-    // Re-encoded like every image Jump stores, which also drops EXIF.
-    const processed = await processImage(raw, {
+    image = await copyRemoteImage(new URL(path, instance.baseUrl), {
       maxEdge: MAX_EDGE[kind],
-      quality: WEBP_QUALITY,
-    }).catch(() => null);
-    if (!processed) throw refuse("n'a pas pu être lue");
-    size = { width: processed.width, height: processed.height };
-    stored = {
-      bytes: processed.bytes,
-      contentType: processed.contentType,
-      extension: 'webp',
-    };
+      animated: true,
+    });
+  } catch (err) {
+    if (!(err instanceof RemoteImageRefusal)) throw err;
+    throw new CoverRefusal(
+      'invalid',
+      `L'image « ${kind} » (${path}) ${err.message}. L'aperçu enregistré est conservé.`,
+    );
   }
-  if (!size) throw refuse("n'a pas de dimensions lisibles");
-
-  const digest = createHash('sha256')
-    .update(stored.bytes)
-    .digest('hex')
-    .slice(0, 16);
-  const key = workshopCoverKey(instance.id, kind, digest, stored.extension);
+  const key = workshopCoverKey(
+    instance.id,
+    kind,
+    image.digest,
+    image.extension,
+  );
   return {
+    kind,
+    sourcePath: path,
     key,
-    bytes: stored.bytes,
-    contentType: stored.contentType,
-    row: {
-      kind,
-      sourcePath: path,
-      key,
-      contentType: stored.contentType,
-      ...size,
-    },
+    bytes: image.bytes,
+    contentType: image.contentType,
+    width: image.width,
+    height: image.height,
   };
 }
 
