@@ -108,7 +108,7 @@
     planning.state === 'upcoming' ? minutesToHHMM(planning.startMinutes) : '',
   );
 
-  // The daily minigame is the first mission inside the "Mission du jour" card:
+  // The daily minigame is the row inside the "Entraînement du jour" card:
   // a distinct, accented row, playable or already-played, independent of any
   // event. The rich campus leaderboard now lives on the game's own page.
   let hasMinigame = $derived(
@@ -221,11 +221,11 @@
       </div>
     {/each}
 
-    <!-- The daily training, the one mission of "Mission du jour": accented
+    <!-- The daily training, the one row of "Entraînement du jour": accented
          (gamepad, colour) and shaped as a row, nothing like the activities.
          Pre-play it's a "Commencer" CTA; once played it links to the campus
          leaderboard on the game's own page. -->
-    {#snippet minigameMission()}
+    {#snippet dailyTraining()}
       {#if hasMinigame && minigamePublication}
         <div class="relative">
           {#if minigamePlayed && minigameWon}
@@ -414,7 +414,7 @@
 
         <!-- Planning à venir: the active event if one covers today, else the
              next upcoming session, else a quiet rest state. order-4 keeps it
-             last on mobile (after the mission card). Always shown (the state is
+             last on mobile (after the training card). Always shown (the state is
              participation-derived, truthful regardless of the planning flag);
              only the ongoing "Voir le planning" CTA is flag-gated, since it
              opens the /calendar grid that 404s when the flag is off. -->
@@ -592,12 +592,12 @@
           >
             <Rocket class="h-4 w-4 shrink-0 text-epi-blue" />
             <h2 class="font-heading text-display-s text-foreground">
-              Mission du jour<TitleCursor />
+              Entraînement du jour<TitleCursor />
             </h2>
           </div>
 
           <div class="space-y-4 p-6">
-            {@render minigameMission()}
+            {@render dailyTraining()}
 
             {#if !hasMinigame && workshops.today.length > 0}
               <!-- No training today, but the day is not a day off: it points
@@ -621,7 +621,7 @@
                   Repos aujourd'hui
                 </h3>
                 <p class="mt-2 max-w-sm text-sm text-muted-foreground">
-                  Aucune mission pour aujourd'hui. Profites-en pour souffler, on
+                  Pas d'entraînement aujourd'hui. Profites-en pour souffler, on
                   remet ça bientôt !
                 </p>
               </div>

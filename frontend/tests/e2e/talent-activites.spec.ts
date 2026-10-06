@@ -48,10 +48,10 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     // down.
     const hero = page.getByRole('region', { name: 'Ton activité du jour' });
     await expect(hero).toBeVisible();
-    const mission = hero.locator('form[action^="/activites/"]');
-    await expect(mission).toBeVisible();
+    const enter = hero.locator('form[action^="/activites/"]');
+    await expect(enter).toBeVisible();
     // A new tab, which is what leaves this one alive to come back to.
-    await expect(mission).toHaveAttribute('target', '_blank');
+    await expect(enter).toHaveAttribute('target', '_blank');
     await expect(hero).toContainText(E2E.workshopLabel);
 
     // The talent enters. Done over the action rather than by writing the row, so

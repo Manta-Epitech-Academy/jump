@@ -108,7 +108,7 @@ export async function seedE2eData(): Promise<void> {
 
   // ── The curated activity the event offers ────────────────────────────────
   // A non-routable host, exactly as the generator seeds one: this fixture never
-  // hands anybody over, it only needs the row the mission line and the callback
+  // hands anybody over, it only needs the row the dashboard and the callback
   // are built from.
   await prisma.workshop_Instance.create({
     data: {
