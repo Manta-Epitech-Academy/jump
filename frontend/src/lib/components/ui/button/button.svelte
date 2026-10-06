@@ -25,6 +25,11 @@
         // surface, never in a staff toolbar. Its text is `epiBlue`, which is
         // what makes this the one accent fill a button may carry.
         neon: 'bg-epi-tech text-epi-blue hover:bg-epi-tech/90 shadow-raised active:translate-y-px',
+        // Any other action on a brand-blue surface: the translucent white panel
+        // DESIGN.md names as the one fill a dark surface takes. `outline` there
+        // paints `bg-background` under the surface's inherited white text.
+        overlay:
+          'bg-white/10 text-white ring-1 ring-inset ring-white/20 hover:bg-white/15 active:translate-y-px',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',
