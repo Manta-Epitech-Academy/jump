@@ -601,10 +601,12 @@
 
             {#if !hasMinigame && workshops.today.length > 0}
               <!-- No training today, but the day is not a day off: it points
-                     at the hero rather than saying « repos » under it. -->
+                     at the hero rather than saying « repos » under it. The hero
+                     heads the page rather than this card: on a phone the XP
+                     and news cards sit between the two. -->
               <p class="py-2 text-sm text-muted-foreground">
                 Pas d’entraînement aujourd’hui : ton activité du jour t’attend
-                juste au-dessus.
+                en haut de la page.
               </p>
             {:else if !hasMinigame}
               <!-- Nothing to do today: no daily training, and no event of
