@@ -17,14 +17,15 @@ async function expectLeavesSafely(link: Locator, href: string) {
 test.describe('un talent dont l’événement a lieu aujourd’hui', () => {
   test.use({ storageState: storageStatePath(E2E.talentReady.email) });
 
-  test('lit le mot du campus, et voit l’événement mis en avant comme la suite de sa journée', async ({
+  test('lit le message de son campus, et voit l’événement mis en avant comme la suite de sa journée', async ({
     page,
   }) => {
     await page.goto('/');
 
-    await expect(page.getByText('Le mot du campus')).toBeVisible();
+    // The campus's message stands on its own words: no label of the page's.
+    const news = page.getByRole('region', { name: /Actualités/ });
     await expectLeavesSafely(
-      page.getByRole('link', { name: 'le Discord du campus' }),
+      news.getByRole('link', { name: 'le Discord du campus' }),
       E2E.homeNoteLink,
     );
 

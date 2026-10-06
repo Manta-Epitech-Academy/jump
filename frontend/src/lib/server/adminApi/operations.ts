@@ -944,7 +944,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_talent_home_note: defineWrite({
     description:
-      "Set or clear one campus's note on its talents' home (« le mot du campus »), shown in the news card of every talent whose campus it is (a talent's campus is the one of their latest-dated event, upcoming ones included): welcome words, the next dates, a Discord link. Markdown: headings, lists, emphasis, and links to https:// or mailto: only. An image or raw HTML is refused rather than stripped, so what is stored is exactly what talents read. At most 1500 characters. Pass markdown null to remove it. Safe to repeat: the same text leaves the same note. Answers with the note before and after.",
+      "Set or clear one campus's note on its talents' home (« le mot du campus »), the one message in the news card (« Actualités ») of every talent whose campus it is (a talent's campus is the one of their latest-dated event, upcoming ones included): welcome words, the next dates, a Discord link. The page adds no label or title of its own, so open with a heading when the message needs one. Markdown: headings, lists, emphasis, and links to https:// or mailto: only. An image or raw HTML is refused rather than stripped, so what is stored is exactly what talents read. At most 1500 characters. Pass markdown null to remove it. Safe to repeat: the same text leaves the same note. Answers with the note before and after.",
     shape: {
       campus: z.string().min(1).describe('Campus name, e.g. "Lille".'),
       markdown: z

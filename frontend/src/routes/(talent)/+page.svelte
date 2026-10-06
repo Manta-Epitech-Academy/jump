@@ -14,9 +14,7 @@
   import Coffee from '@lucide/svelte/icons/coffee';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import FeedbackBanner from '$lib/components/feedback/FeedbackBanner.svelte';
-  import NewsFeedCard, {
-    type NewsFeedItem,
-  } from '$lib/components/talent/NewsFeedCard.svelte';
+  import NewsCard from '$lib/components/talent/NewsCard.svelte';
   import TalentHomeHero from '$lib/components/talent/TalentHomeHero.svelte';
   import ActivitiesCard from '$lib/components/talent/ActivitiesCard.svelte';
   import SessionCard from '$lib/components/talent/SessionCard.svelte';
@@ -54,15 +52,11 @@
   // Arrival celebration. The server arms `data.onboardingArrival` on the first
   // dashboard load after onboarding completes (consuming a one-shot cookie), so
   // its presence is the whole trigger: there is no URL param to read or scrub,
-  // and a refresh can't replay it. We fire the XP float + welcome toast and
-  // highlight the Actualités card so it's easy to find. No modal pops: the card
-  // surfaces the welcome message inline (the /welcome splash is a separate
-  // earlier greeting).
-  let welcomeHighlight = $state(false);
+  // and a refresh can't replay it. We fire the XP float + welcome toast; no
+  // modal pops (the /welcome splash is a separate earlier greeting).
   onMount(() => {
     const arrival = data.onboardingArrival;
     if (!arrival) return;
-    welcomeHighlight = true;
 
     const { totalXp, earlyBirdBonus } = arrival;
 
@@ -89,14 +83,6 @@
   // The one thing the blue hero suggests doing now, or null on a day with
   // nothing to suggest (`pickHomeHero`, server-side).
   let hero = $derived(data.hero);
-
-  // The campus's note and the event's welcome, in the Actualités feed.
-  let newsItems = $derived<NewsFeedItem[]>([
-    ...(data.note ? [{ kind: 'campus' as const, html: data.note }] : []),
-    ...(data.welcome
-      ? [{ kind: 'welcome' as const, html: data.welcome.content }]
-      : []),
-  ]);
 
   // The daily minigame is the row inside the "Entraînement du jour" card:
   // a distinct, accented row, playable or already-played, independent of any
@@ -203,11 +189,12 @@
           {#if minigamePlayed && minigameWon}
             <a
               href={resolve(`/minigames/${minigamePublication.id}/leaderboard`)}
-              class="flex flex-col gap-3 rounded-xl border border-epi-tech-ink/30 bg-epi-tech-ink/5 p-4 transition-ui hover:bg-epi-tech-ink/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
+              class="flex flex-col gap-3 rounded-xl border border-epi-tech-ink/30 bg-epi-tech-ink/5 p-4 transition-ui hover:bg-epi-tech-ink/10 active:scale-[0.99] @sm:flex-row @sm:items-center @sm:gap-4"
             >
-              <!-- icon + text stay a row on mobile; `sm:contents` dissolves this
-                   wrapper on desktop so the CTA rejoins them on one line -->
-              <div class="flex items-center gap-4 sm:contents">
+              <!-- icon + text stay a row in a narrow card; `@sm:contents`
+                   dissolves this wrapper once the card is wide enough, so the
+                   CTA rejoins them on one line -->
+              <div class="flex items-center gap-4 @sm:contents">
                 <div
                   class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-tech-ink/15"
                 >
@@ -240,7 +227,7 @@
                 </div>
               </div>
               <span
-                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-epi-tech-ink/15 px-3 py-1.5 text-xs font-bold text-epi-tech-ink uppercase sm:w-auto"
+                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-epi-tech-ink/15 px-3 py-1.5 text-xs font-bold text-epi-tech-ink uppercase @sm:w-auto"
               >
                 <Trophy class="h-4 w-4" /> Voir le classement
               </span>
@@ -252,9 +239,9 @@
                  is still spent, so the link goes to the board, not back to play. -->
             <a
               href={resolve(`/minigames/${minigamePublication.id}/leaderboard`)}
-              class="flex flex-col gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4 transition-ui hover:bg-warning/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
+              class="flex flex-col gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4 transition-ui hover:bg-warning/10 active:scale-[0.99] @sm:flex-row @sm:items-center @sm:gap-4"
             >
-              <div class="flex items-center gap-4 sm:contents">
+              <div class="flex items-center gap-4 @sm:contents">
                 <div
                   class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-warning/15"
                 >
@@ -279,7 +266,7 @@
                 </div>
               </div>
               <span
-                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-warning/15 px-3 py-1.5 text-xs font-bold text-warning uppercase sm:w-auto"
+                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-warning/15 px-3 py-1.5 text-xs font-bold text-warning uppercase @sm:w-auto"
               >
                 <Trophy class="h-4 w-4" /> Voir le classement
               </span>
@@ -287,9 +274,9 @@
           {:else}
             <a
               href={resolve(`/minigames/${minigamePublication.id}`)}
-              class="flex flex-col gap-3 rounded-xl border border-epi-blue/20 bg-epi-blue/5 p-4 transition-ui hover:bg-epi-blue/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4 dark:border-epi-blue/30 dark:bg-epi-blue/10"
+              class="flex flex-col gap-3 rounded-xl border border-epi-blue/20 bg-epi-blue/5 p-4 transition-ui hover:bg-epi-blue/10 active:scale-[0.99] @sm:flex-row @sm:items-center @sm:gap-4 dark:border-epi-blue/30 dark:bg-epi-blue/10"
             >
-              <div class="flex items-center gap-4 sm:contents">
+              <div class="flex items-center gap-4 @sm:contents">
                 <div
                   class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-blue/10 dark:bg-epi-blue/20"
                 >
@@ -311,7 +298,7 @@
                 </div>
               </div>
               <span
-                class="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-xl bg-epi-blue px-3 py-1.5 text-sm font-bold text-white sm:w-auto"
+                class="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-xl bg-epi-blue px-3 py-1.5 text-sm font-bold text-white @sm:w-auto"
               >
                 Commencer <ArrowRight class="h-4 w-4" />
               </span>
@@ -339,19 +326,22 @@
     {/snippet}
 
     <div class="grid grid-cols-1 gap-6 md:grid-cols-12">
-      <!-- LEFT COLUMN: the talent's own standing (XP, the way into « Mon
-           parcours ») and their next session when there is one.
-           On mobile the wrapper collapses (display: contents) so its children
-           join the outer grid as siblings and `order-*` can interleave them
-           with the right column: hero, XP, Actualités, training, activities,
-           session. `order` is inert on desktop (block children, not flex/grid
-           items), so the two-column layout is untouched. -->
+      <!-- LEFT COLUMN: what is the talent's own (XP and the way into « Mon
+           parcours », the day's training that feeds it, their next session).
+           RIGHT COLUMN: what Jump suggests (the hero, the activities left to
+           do, the campus's news).
+           On mobile both wrappers collapse (display: contents) so their
+           children join the outer grid as siblings and `order-*` interleaves
+           them: hero, XP, activities, Actualités, training, session. Each
+           column lists its cards in that same relative order, so the phone
+           reads like the desktop, column by column. `order` is inert on
+           desktop (block children, not flex/grid items). -->
       <div
         class="contents md:col-span-4 md:block md:space-y-6"
         in:fly={{ x: -20, duration: 400, delay: 200 }}
       >
         <a
-          href={resolve('/xp')}
+          href={resolve('/parcours')}
           class="group relative order-2 block overflow-hidden rounded-xl border border-border bg-card p-6 shadow-raised transition-ui hover:shadow-raised active:scale-[0.98]"
         >
           <!-- Decorative background blur -->
@@ -384,41 +374,8 @@
           </div>
         </a>
 
-        {#if showsSessionCard(planning)}
-          <!-- The talent's own next session, or the way into a running
-               stage's schedule. Last on a phone: the hero already says what
-               to do today. -->
-          <div class="order-6">
-            <SessionCard {planning} timeZone={data.timeZone} />
-          </div>
-        {/if}
-      </div>
-
-      <!-- RIGHT COLUMN: the hero, the Actualités feed, the daily training,
-           then the activities left to do. -->
-      <div
-        class="contents md:col-span-8 md:block md:space-y-6"
-        in:fly={{ x: 20, duration: 400, delay: 300 }}
-      >
-        {#if hero}
-          <!-- Where Jump says what to do now: the head of the right column,
-               level with the XP card, and first of all on a phone. -->
-          <div class="order-1">
-            <TalentHomeHero {hero} />
-          </div>
-        {/if}
-
-        {#if newsItems.length > 0}
-          <!-- The campus's word and the event's welcome, under the hero and
-               above the training. -->
-          <div class="order-3">
-            <NewsFeedCard items={newsItems} highlight={welcomeHighlight} />
-          </div>
-        {/if}
-
-        <!-- order-4: below Actualités, on a phone as on a desktop -->
         <div
-          class="order-4 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
+          class="order-5 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
         >
           <div
             class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
@@ -429,12 +386,12 @@
             </h2>
           </div>
 
-          <div class="space-y-4 p-6">
+          <div class="@container space-y-4 p-6">
             {@render dailyTraining()}
 
             {#if !hasMinigame && hero}
-              <!-- No training today, but the hero above has something to do:
-                   say so in a line rather than « repos » under a suggestion. -->
+              <!-- No training today, but the hero has something to do: say so
+                   in a line rather than « repos » beside a suggestion. -->
               <p class="py-2 text-sm text-muted-foreground">
                 Pas d’entraînement aujourd’hui : ce qui t’attend est en haut de
                 la page.
@@ -461,11 +418,40 @@
           </div>
         </div>
 
+        {#if showsSessionCard(planning)}
+          <!-- The talent's own next session, or the way into a running
+               stage's schedule. Last on a phone: the hero already says what
+               to do today. -->
+          <div class="order-6">
+            <SessionCard {planning} timeZone={data.timeZone} />
+          </div>
+        {/if}
+      </div>
+
+      <div
+        class="contents md:col-span-8 md:block md:space-y-6"
+        in:fly={{ x: 20, duration: 400, delay: 300 }}
+      >
+        {#if hero}
+          <!-- Where Jump says what to do now: the head of the right column,
+               level with the XP card, and first of all on a phone. -->
+          <div class="order-1">
+            <TalentHomeHero {hero} />
+          </div>
+        {/if}
+
         {#if data.toDo.length > 0}
-          <!-- What is left to do, carried on at home. Finished activities are
-               history, and live in « Mon parcours ». -->
-          <div class="order-5">
+          <!-- What is left to do, right under the hero that suggests one of
+               them. Finished activities are history, and live in « Mon
+               parcours ». -->
+          <div class="order-3">
             <ActivitiesCard title="Mes activités" activities={data.toDo} />
+          </div>
+        {/if}
+
+        {#if data.note}
+          <div class="order-4">
+            <NewsCard html={data.note} />
           </div>
         {/if}
       </div>

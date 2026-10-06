@@ -15,8 +15,6 @@ import {
   getUnseenMinigameRankReward,
 } from '$lib/server/services/minigameService';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
-import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
-import { eventWindowEnd, eventDisplayName } from '$lib/domain/event';
 import { pendingFeedbackForm } from '$lib/domain/feedback';
 import { resolveEventNudgeForm } from '$lib/server/feedbackForms';
 import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
@@ -184,61 +182,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       };
     }
 
-    // The staff-authored CMS welcome message seeds the dashboard's Actualités
-    // feed and shows while the event's window is open; this card is its only
-    // home. Distinct from the fixed pre-onboarding splash at /welcome, which owns
-    // its own copy. Content-existence is the gate: any event carrying a `welcome`
-    // CMS page shows the card - no event type involved.
-    let welcome: { content: string } | null = null;
-    {
-      // Prefer the earliest-starting event whose window is still open AND that
-      // has a welcome page (an ongoing event outranks a not-yet-started one). A
-      // single-day event (no endDate) is "open" on its own day.
-      const now = new Date();
-      const participation = await prisma.participation.findFirst({
-        where: {
-          talentId: studentId,
-          event: {
-            cmsPages: { some: { slug: 'welcome' } },
-            OR: [
-              { endDate: { gte: now } },
-              { endDate: null, date: { gte: startOfDay } },
-            ],
-          },
-        },
-        orderBy: { event: { date: 'asc' } },
-        select: {
-          event: {
-            select: {
-              titre: true,
-              publicName: true,
-              campus: { select: { name: true, contactEmail: true } },
-              cmsPages: {
-                where: { slug: 'welcome' },
-                select: { content: true },
-              },
-            },
-          },
-        },
-      });
-      const content = participation?.event.cmsPages[0]?.content;
-      if (participation && content) {
-        const { event } = participation;
-        welcome = {
-          content: renderWelcomeMessage(content, {
-            prenom: locals.talent.prenom,
-            nom: locals.talent.nom,
-            campusName: event.campus.name,
-            campusContactEmail: event.campus.contactEmail,
-            stageName: eventDisplayName({
-              publicName: event.publicName,
-              titre: event.titre,
-            }),
-          }),
-        };
-      }
-    }
-
     // Feedback banner: nudge about the event whose feedback form still awaits
     // this talent's answer.
     let pendingFeedback: Array<{
@@ -306,7 +249,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         workshops.today.length > 0 || workshops.activities.length > 0,
       workshopReward,
       onboardingArrival,
-      welcome,
       note: home.note,
       timeZone: tz,
       pendingFeedback,
