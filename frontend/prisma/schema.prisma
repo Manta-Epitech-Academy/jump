@@ -783,7 +783,7 @@ model TalentHome_Note {
 
 /// The one event a campus invites its talents to sign up for, with a link to an
 /// outside sign-up form. The talent home's blue hero leads with it on a day the
-/// talent has no activity, and lists it as a compact « Et après » line under
+/// talent has no activity, and lists it as a compact « À venir » line under
 /// the activity on a day they have one (`pickHomeHero`). Chosen
 /// by hand per campus (`write_talent_home_highlight`), never derived from
 /// Salesforce: a JPO or a camp is not something the talent is enrolled in yet.

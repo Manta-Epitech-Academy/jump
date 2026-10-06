@@ -432,16 +432,15 @@
           <div class="space-y-4 p-6">
             {@render dailyTraining()}
 
-            {#if !hasMinigame && hero?.kind === 'activity'}
-              <!-- No training today, but the day is not a day off: it points
-                     at the hero rather than saying « repos » below it. -->
+            {#if !hasMinigame && hero}
+              <!-- No training today, but the hero above has something to do:
+                   say so in a line rather than « repos » under a suggestion. -->
               <p class="py-2 text-sm text-muted-foreground">
-                Pas d’entraînement aujourd’hui : ton activité du jour t’attend
-                en haut de la page.
+                Pas d’entraînement aujourd’hui : ce qui t’attend est en haut de
+                la page.
               </p>
             {:else if !hasMinigame}
-              <!-- Nothing to do today: no daily training, and no event of
-                     this talent's is running. -->
+              <!-- Nothing at all today: no training, and nothing in the hero. -->
               <div
                 class="flex flex-col items-center justify-center py-8 text-center"
               >
@@ -451,10 +450,10 @@
                 <h3
                   class="text-lg font-bold text-foreground-secondary uppercase"
                 >
-                  Repos aujourd'hui
+                  Repos aujourd’hui
                 </h3>
                 <p class="mt-2 max-w-sm text-sm text-muted-foreground">
-                  Pas d'entraînement aujourd'hui. Profites-en pour souffler, on
+                  Pas d’entraînement aujourd’hui. Profites-en pour souffler, on
                   remet ça bientôt !
                 </p>
               </div>

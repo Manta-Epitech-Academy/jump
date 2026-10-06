@@ -92,7 +92,7 @@ export function highlightImageUrl(key: string): string {
  * In this order, the first that applies:
  *
  *   1. an activity offered today: the day's activity, with the campus's
- *      highlighted event as a compact line under it (« Et après »), since an
+ *      highlighted event as a compact line under it (« À venir »), since an
  *      invitation still matters on an event day but less than the event;
  *   2. the campus's highlighted event, while its day has not passed;
  *   3. an activity the talent started and has not finished, which a Coding

@@ -31,7 +31,7 @@ test.describe('un talent dont l’événement a lieu aujourd’hui', () => {
     // The day's activity leads; the campus's invitation is one line under it,
     // in the same hero, and nowhere else on the page.
     const hero = page.getByRole('region', { name: 'Ton activité du jour' });
-    await expect(hero).toContainText('Et après');
+    await expect(hero).toContainText('À venir');
     await expect(hero).toContainText(E2E.homeHighlightTitle);
     await expectLeavesSafely(
       hero.getByRole('link', { name: /Je m’inscris/ }),

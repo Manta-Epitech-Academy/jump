@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { fly } from 'svelte/transition';
+  import { cn } from '$lib/utils';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import ActivitiesCard from '$lib/components/talent/ActivitiesCard.svelte';
@@ -211,8 +212,15 @@
 
     {#if data.finishedActivities.length > 0 || data.pastEvents.length > 0}
       <!-- What the talent has done, before the ledger of what it earned. -->
+      <!-- Side by side when both exist; one alone takes the width rather than
+           leaving half a row empty. -->
       <div
-        class="mb-8 grid gap-6 md:grid-cols-2"
+        class={cn(
+          'mb-8 grid gap-6',
+          data.finishedActivities.length > 0 &&
+            data.pastEvents.length > 0 &&
+            'md:grid-cols-2',
+        )}
         in:fly={{ y: 20, duration: 400, delay: 100 }}
       >
         {#if data.finishedActivities.length > 0}

@@ -24,15 +24,17 @@
 
   const titleId = $props.id();
 
-  // « mardi 26 octobre », on the talent's own clock so the server render and
-  // the browser agree.
-  const day = (date: Date | string) =>
-    new Date(date).toLocaleDateString('fr-FR', {
+  // « Mardi 26 octobre », on the talent's own clock so the server render and
+  // the browser agree. It opens the line, hence the capital.
+  function day(date: Date | string): string {
+    const text = new Date(date).toLocaleDateString('fr-FR', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
       timeZone,
     });
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
 
   // Shown only once confirmed (`startMinutes` set on the admin events page): a
   // confidently wrong hour is worse for a student than none, so until then the
@@ -55,22 +57,23 @@
       <h2 id={titleId} class="text-sm font-bold text-foreground">
         Ta prochaine session
       </h2>
-      <p class="mt-1 text-sm text-muted-foreground">
-        {#if planning.publicName}{planning.publicName},{' '}{/if}<span
-          class="font-semibold text-foreground-secondary"
-          >{day(planning.date)}</span
+      <p class="mt-1 text-sm text-foreground-secondary">
+        <span class="font-semibold">{day(planning.date)}</span
         >{#if startTime}{' '}à
-          <span class="font-semibold text-foreground-secondary"
-            >{startTime}</span
-          >{/if}
+          <span class="font-semibold">{startTime}</span>{/if}
       </p>
+      {#if planning.publicName}
+        <p class="mt-0.5 truncate text-xs text-muted-foreground">
+          {planning.publicName}
+        </p>
+      {/if}
     {:else}
       <h2 id={titleId} class="text-sm font-bold text-foreground">
         {planning.publicName ?? 'Ton événement'} est en cours
       </h2>
       <a
         href={resolve('/calendar')}
-        class="group mt-1 inline-flex cursor-pointer items-center gap-1 text-sm font-semibold text-epi-blue hover:underline"
+        class="group mt-1 inline-flex cursor-pointer items-center gap-1 text-sm font-semibold text-primary hover:underline"
       >
         Voir le planning
         <ArrowRight

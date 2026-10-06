@@ -211,7 +211,7 @@
           class="flex flex-wrap items-baseline gap-x-2 gap-y-1 border-t border-white/20 pt-4 text-sm text-white/80"
         >
           <span>
-            Et après : <span class="font-semibold text-white">{next.title}</span
+            À venir : <span class="font-semibold text-white">{next.title}</span
             >, le {formatHighlightDay(next.date)}
           </span>
           <a

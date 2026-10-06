@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { onImageBroken } from '$lib/actions/onImageBroken';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   import { Button } from '$lib/components/ui/button';
   import ExternalLink from '@lucide/svelte/icons/external-link';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import { cn } from '$lib/utils';
   import {
     formatHighlightDay,
@@ -41,22 +43,30 @@
           height={picture.height}
           alt=""
           decoding="async"
-          onerror={() => (broken = true)}
+          use:onImageBroken={() => (broken = true)}
           class="block h-auto w-full shrink-0 ring-1 ring-white/20 sm:w-2/5"
         />
       {/if}
 
       <div class="flex min-w-0 flex-1 flex-col gap-3">
         <div>
-          <p class="epi-overline text-white/80">
-            À ne pas manquer · Le {formatHighlightDay(highlight.date)}
-          </p>
+          <p class="epi-overline text-white/80">À ne pas manquer</p>
           <h2
             id="highlight-hero-title"
             class="mt-2 font-heading text-display-m text-white sm:text-display-l"
           >
             {highlight.title}<TitleCursor />
           </h2>
+          <!-- The fact a sign-up turns on, so it is read as a line of its
+               own rather than in the overline's small capitals. -->
+          <p
+            class="mt-2 flex items-center gap-1.5 text-sm font-semibold text-white"
+          >
+            <CalendarDays class="size-4 shrink-0" aria-hidden="true" />
+            <span class="first-letter:uppercase"
+              >{formatHighlightDay(highlight.date)}</span
+            >
+          </p>
         </div>
 
         <p class="max-w-prose text-sm text-white/80">{highlight.summary}</p>
