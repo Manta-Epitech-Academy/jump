@@ -19,6 +19,7 @@ import {
   TALENT_HOME_HIGHLIGHTS,
   TALENT_HOME_NOTES,
 } from '../catalog/talentHome';
+import { highlightImageKey } from '../../../src/lib/domain/talentHome';
 import {
   BROADCAST_TEMPLATE_DEFAULTS,
   EMAIL_TEMPLATE_DEFAULTS,
@@ -148,13 +149,22 @@ export const platform: Scenario = {
           url: highlight.url,
           updatedAt: clock.today,
         });
+      if (highlight?.image)
+        world.buffer.talentHome_HighlightImage.push({
+          campusId: campus.id,
+          sourceUrl: `https://assets.seed.invalid/talent-home/${campus.name.toLowerCase()}.png`,
+          key: highlightImageKey(campus.id, '0000seed', 'webp'),
+          contentType: 'image/webp',
+          width: highlight.image.width,
+          height: highlight.image.height,
+        });
     }
     world.ctx.manifest.push({
       scenario: 'accueil des campus',
       summary: 'Le mot du campus et l’événement mis en avant, par campus.',
       covers: [
-        'Paris : un mot du campus (titre, liste, liens) et un événement mis en avant sous « Planning à venir »',
-        'Marseille : un mot du campus seul, la carte planning garde son état vide',
+        'Paris : un mot du campus (titre, liste, liens) et un événement mis en avant avec une image, en tête du bandeau bleu un jour sans activité',
+        'Marseille : un mot du campus seul, sans événement mis en avant',
         'Lyon : un événement mis en avant dont le jour est passé, que l’accueil ne montre plus',
       ],
     });

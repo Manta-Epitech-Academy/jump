@@ -182,9 +182,11 @@ const DOMAINS: { title: string; models: string[] }[] = [
     models: [
       'CmsPage',
       'CmsImage',
-      // What a campus puts on its talents' home: its note and its highlight.
+      // What a campus puts on its talents' home: its note, its highlight and the
+      // highlight's picture.
       'TalentHome_Note',
       'TalentHome_Highlight',
+      'TalentHome_HighlightImage',
       'Interest',
       'TalentInterest',
     ],

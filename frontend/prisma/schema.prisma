@@ -781,8 +781,10 @@ model TalentHome_Note {
   campus Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
 }
 
-/// The one event a campus invites its talents to sign up for, shown at the
-/// foot of « Planning à venir » with a link to an outside sign-up form. Chosen
+/// The one event a campus invites its talents to sign up for, with a link to an
+/// outside sign-up form. The talent home's blue hero leads with it on a day the
+/// talent has no activity, and lists it as a compact « Et après » line under
+/// the activity on a day they have one (`pickHomeHero`). Chosen
 /// by hand per campus (`write_talent_home_highlight`), never derived from
 /// Salesforce: a JPO or a camp is not something the talent is enrolled in yet.
 ///
@@ -800,7 +802,28 @@ model TalentHome_Highlight {
   url       String
   updatedAt DateTime @updatedAt
 
-  campus Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  campus Campus                     @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  image  TalentHome_HighlightImage?
+}
+
+/// The optional picture of a highlighted event, given as an https address and
+/// COPIED into storage, never linked to (`$lib/server/images/remote.ts`, the
+/// circuit an activity's cover uses). A child row rather than nullable columns
+/// on the highlight, so it can never hold half an image, and it goes with its
+/// highlight.
+model TalentHome_HighlightImage {
+  campusId    String @id
+  /// The address it was copied from, handed back by `config_talent_home` so
+  /// the admin can restate the highlight.
+  sourceUrl   String
+  /// Storage key, content-addressed: `talent-home/<campusId>/highlight-<sha>.<ext>`.
+  key         String @unique
+  contentType String
+  /// Intrinsic size, so the hero reserves the box before the bytes land.
+  width       Int
+  height      Int
+
+  highlight TalentHome_Highlight @relation(fields: [campusId], references: [campusId], onDelete: Cascade)
 }
 
 /// One activity in an event's programme, at the hour it runs.

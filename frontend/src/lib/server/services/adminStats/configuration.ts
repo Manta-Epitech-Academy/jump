@@ -548,6 +548,7 @@ export async function getTalentHomeContent(
           date: true,
           url: true,
           updatedAt: true,
+          image: { select: { sourceUrl: true } },
         },
       },
     },
@@ -559,12 +560,16 @@ export async function getTalentHomeContent(
         campus: name,
         note: homeNote,
         highlight: homeHighlight && {
-          ...homeHighlight,
+          title: homeHighlight.title,
+          summary: homeHighlight.summary,
           date: dbDateToKey(homeHighlight.date),
+          url: homeHighlight.url,
+          imageUrl: homeHighlight.image?.sourceUrl ?? null,
+          updatedAt: homeHighlight.updatedAt,
           shown: isHighlightOpen(homeHighlight.date, timezone, now),
         },
       })),
-      "Ce que chaque campus affiche sur l'accueil de ses talents, en plus de leurs propres inscriptions. « note » est le mot du campus tel qu'il a été écrit (Markdown), affiché dans la carte Actualités, ou null s'il n'y en a pas. « highlight » est l'événement mis en avant au pied de « Planning à venir » : son titre, son texte, son jour, le lien du formulaire d'inscription, et « shown », qui dit s'il est encore affiché (il disparaît seul une fois son jour passé, à l'heure du campus), ou null s'il n'y en a pas. Un talent voit le campus de son événement le plus tardif, à venir compris.",
+      "Ce que chaque campus affiche sur l'accueil de ses talents, en plus de leurs propres inscriptions. « note » est le mot du campus tel qu'il a été écrit (Markdown), affiché dans la carte Actualités, ou null s'il n'y en a pas. « highlight » est l'événement mis en avant dans le bandeau bleu de l'accueil (en grand un jour sans activité, en une ligne sous l'activité un jour d'activité) : son titre, son texte, son jour, le lien du formulaire d'inscription, « imageUrl », l'adresse d'où son image a été copiée (null s'il n'en a pas), et « shown », qui dit s'il est encore affiché (il disparaît seul une fois son jour passé, à l'heure du campus), ou null s'il n'y en a pas. Un talent voit le campus de son événement le plus tardif, à venir compris.",
     ),
   };
 }

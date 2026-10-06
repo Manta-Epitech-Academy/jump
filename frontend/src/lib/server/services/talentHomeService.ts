@@ -1,7 +1,11 @@
 import { prisma } from '$lib/server/db';
 import { renderAuthoredMarkdown } from '$lib/markdown';
 import { dbDateToKey } from '$lib/domain/eventPresence';
-import { isHighlightOpen, type TalentHome } from '$lib/domain/talentHome';
+import {
+  highlightImageUrl,
+  isHighlightOpen,
+  type TalentHome,
+} from '$lib/domain/talentHome';
 
 /**
  * What a talent's home shows of their campus: its note, rendered, and its
@@ -24,7 +28,13 @@ export async function getTalentHome(
       timezone: true,
       homeNote: { select: { markdown: true } },
       homeHighlight: {
-        select: { title: true, summary: true, date: true, url: true },
+        select: {
+          title: true,
+          summary: true,
+          date: true,
+          url: true,
+          image: { select: { key: true, width: true, height: true } },
+        },
       },
     },
   });
@@ -36,7 +46,15 @@ export async function getTalentHome(
       : null,
     highlight:
       highlight && isHighlightOpen(highlight.date, campus.timezone, now)
-        ? { ...highlight, date: dbDateToKey(highlight.date) }
+        ? {
+            ...highlight,
+            date: dbDateToKey(highlight.date),
+            image: highlight.image && {
+              url: highlightImageUrl(highlight.image.key),
+              width: highlight.image.width,
+              height: highlight.image.height,
+            },
+          }
         : null,
   };
 }

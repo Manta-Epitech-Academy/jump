@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **79** modèles · **31** enums · **112** relations
+- **80** modèles · **31** enums · **113** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -19,7 +19,7 @@
 | Minijeux | 3 |
 | Feedback | 7 |
 | Communication & Support | 5 |
-| Contenus & Centres d'intérêt | 6 |
+| Contenus & Centres d'intérêt | 7 |
 | Analytique d'usage | 2 |
 | Configuration & Système | 11 |
 | Autres | 3 |
@@ -940,6 +940,14 @@ erDiagram
     String url
     DateTime updatedAt
   }
+  TalentHome_HighlightImage {
+    String campusId PK,FK
+    String sourceUrl
+    String key UK
+    String contentType
+    Int width
+    Int height
+  }
   Interest {
     String id PK
     String nom UK
@@ -967,6 +975,7 @@ erDiagram
   Campus ||--|| TalentHome_Note : "homeNote"
   Campus ||--|| TalentHome_Highlight : "homeHighlight"
   Event ||--o{ CmsPage : "cmsPages"
+  TalentHome_Highlight ||--|| TalentHome_HighlightImage : "image"
   Interest ||--o{ TalentInterest : "talentInterests"
 ```
 

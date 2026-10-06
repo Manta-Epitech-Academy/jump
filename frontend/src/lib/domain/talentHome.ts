@@ -19,6 +19,8 @@ export type TalentHomeHighlight = {
   /** The event's calendar day. */
   date: DateKey;
   url: string;
+  /** Its picture, served by Jump; null when it has none. */
+  image: { url: string; width: number; height: number } | null;
 };
 
 export type TalentHome = {
@@ -48,4 +50,33 @@ export function formatHighlightDay(key: DateKey): string {
     month: 'long',
     timeZone: 'UTC',
   });
+}
+
+/**
+ * Where a highlight's picture lives once copied, and the URL a page asks for it
+ * at. Composed here and nowhere else, because the proxy route turns its two
+ * path segments back into the key and the two directions must not drift. The
+ * key is content-addressed, so a new picture is a new URL and the proxy can
+ * cache one forever.
+ */
+const IMAGE_PREFIX = 'talent-home';
+
+export function highlightImageKey(
+  campusId: string,
+  digest: string,
+  extension: string,
+): string {
+  return `${IMAGE_PREFIX}/${campusId}/highlight-${digest}.${extension}`;
+}
+
+/** The key the proxy route's `[campusId]/[file]` segments name. */
+export function highlightImageKeyFromPath(
+  campusId: string,
+  file: string,
+): string {
+  return `${IMAGE_PREFIX}/${campusId}/${file}`;
+}
+
+export function highlightImageUrl(key: string): string {
+  return `/api/talent-home/images/${key.slice(IMAGE_PREFIX.length + 1)}`;
 }

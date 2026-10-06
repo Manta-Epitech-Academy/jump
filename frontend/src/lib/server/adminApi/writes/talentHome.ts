@@ -11,6 +11,10 @@
  *
  * Content is refused rather than repaired: what is stored is what was written,
  * so the author never discovers on a talent's screen that part of it vanished.
+ * The one thing a write fetches is a highlight's picture, from the https
+ * address it is given, before anything is stored: a picture that cannot be
+ * copied refuses the whole write, and the class does not move, since that read
+ * sends nothing to anybody and lands only on the named campus.
  */
 
 import { prisma } from '$lib/server/db';
@@ -21,7 +25,15 @@ import {
   HIGHLIGHT_SUMMARY_MAX,
   HIGHLIGHT_TITLE_MAX,
   TALENT_HOME_NOTE_MAX,
+  highlightImageKey,
 } from '$lib/domain/talentHome';
+import {
+  copyRemoteImage,
+  HERO_PICTURE_FRAME,
+  RemoteImageRefusal,
+  swapStoredImages,
+  type CopiedImage,
+} from '$lib/server/images/remote';
 import { OperationRefusedError } from '../errors';
 import type { WriteOutcome } from '../plan';
 import { resolveScope, type ResolvedCampus } from '../scope';
@@ -88,12 +100,48 @@ export async function writeTalentHomeNote(params: {
 
 // ─── L'événement mis en avant ───
 
-async function highlightState(campus: ResolvedCampus) {
-  const row = await prisma.talentHome_Highlight.findUnique({
+async function highlightRow(campus: ResolvedCampus) {
+  return prisma.talentHome_Highlight.findUnique({
     where: { campusId: campus.id },
-    select: { title: true, summary: true, date: true, url: true },
+    select: {
+      title: true,
+      summary: true,
+      date: true,
+      url: true,
+      image: { select: { sourceUrl: true, key: true } },
+    },
   });
-  return row && { campus: campus.name, ...row, date: dbDateToKey(row.date) };
+}
+
+async function highlightState(campus: ResolvedCampus) {
+  const row = await highlightRow(campus);
+  if (!row) return null;
+  const { image, ...fields } = row;
+  return {
+    campus: campus.name,
+    ...fields,
+    date: dbDateToKey(row.date),
+    imageUrl: image?.sourceUrl ?? null,
+  };
+}
+
+/** Longest stored edge of a highlight's picture: the hero's picture slot. */
+const HIGHLIGHT_IMAGE_MAX_EDGE = 1280;
+
+/** Download the picture, or refuse the whole write saying why. */
+async function copyHighlightImage(url: string): Promise<CopiedImage> {
+  try {
+    return await copyRemoteImage(new URL(url), {
+      maxEdge: HIGHLIGHT_IMAGE_MAX_EDGE,
+      animated: false,
+      frame: HERO_PICTURE_FRAME,
+    });
+  } catch (err) {
+    if (!(err instanceof RemoteImageRefusal)) throw err;
+    throw new OperationRefusedError(
+      `L'image (${url}) ${err.message}. L'événement mis en avant n'a pas changé.`,
+    );
+  }
 }
 
 function checkSignupUrl(url: string): void {
@@ -117,9 +165,11 @@ function checkSignupUrl(url: string): void {
  * All four fields together set it, all four null clear it, and anything in
  * between is refused: a highlight with no link or no day would invite talents
  * to nothing. A day already past is refused too, since the home would never
- * show it.
+ * show it. The picture is optional and goes with the highlight: omitted, the
+ * highlight has none, and clearing the highlight removes it.
  *
- * Safe to repeat: the same values leave the same row.
+ * Safe to repeat: the same values leave the same row, and the same picture
+ * comes back under the same content-addressed key.
  */
 export async function writeTalentHomeHighlight(
   params: {
@@ -128,6 +178,7 @@ export async function writeTalentHomeHighlight(
     summary: string | null;
     date: string | null;
     url: string | null;
+    imageUrl?: string;
   },
   now: Date = new Date(),
 ): Promise<WriteOutcome> {
@@ -140,11 +191,23 @@ export async function writeTalentHomeHighlight(
       "L'événement mis en avant demande ses quatre champs (title, summary, date, url). Pour le retirer, passez les quatre à null.",
     );
 
+  const previous = await highlightRow(campus);
   const before = await highlightState(campus);
+  const previousKeys = previous?.image ? [previous.image.key] : [];
 
   if (title === null || summary === null || date === null || url === null) {
-    await prisma.talentHome_Highlight.deleteMany({
-      where: { campusId: campus.id },
+    if (params.imageUrl)
+      throw new OperationRefusedError(
+        "Une image ne peut pas être donnée sans l'événement qu'elle illustre. Pour retirer l'événement mis en avant, passez les quatre champs à null sans image.",
+      );
+    // The picture row goes with the highlight (cascade); its bytes go after.
+    await swapStoredImages({
+      next: [],
+      previousKeys,
+      commit: () =>
+        prisma.talentHome_Highlight.deleteMany({
+          where: { campusId: campus.id },
+        }),
     });
     return { applied: true, before, after: await highlightState(campus) };
   }
@@ -173,11 +236,36 @@ export async function writeTalentHomeHighlight(
       `Le ${date} est déjà passé à ${campus.name} (nous sommes le ${today}) : l'accueil ne l'afficherait jamais.`,
     );
 
+  const image = params.imageUrl
+    ? await copyHighlightImage(params.imageUrl)
+    : null;
+  const imageRow = image && {
+    campusId: campus.id,
+    sourceUrl: params.imageUrl!,
+    key: highlightImageKey(campus.id, image.digest, image.extension),
+    contentType: image.contentType,
+    width: image.width,
+    height: image.height,
+  };
+
   const values = { title, summary, date: dateKeyToDbDate(date), url };
-  await prisma.talentHome_Highlight.upsert({
-    where: { campusId: campus.id },
-    create: { campusId: campus.id, ...values },
-    update: values,
+  await swapStoredImages({
+    next: image && imageRow ? [{ ...imageRow, bytes: image.bytes }] : [],
+    previousKeys,
+    commit: () =>
+      prisma.$transaction([
+        prisma.talentHome_Highlight.upsert({
+          where: { campusId: campus.id },
+          create: { campusId: campus.id, ...values },
+          update: values,
+        }),
+        prisma.talentHome_HighlightImage.deleteMany({
+          where: { campusId: campus.id },
+        }),
+        ...(imageRow
+          ? [prisma.talentHome_HighlightImage.create({ data: imageRow })]
+          : []),
+      ]),
   });
   return { applied: true, before, after: await highlightState(campus) };
 }

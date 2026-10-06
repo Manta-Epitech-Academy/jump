@@ -4,10 +4,16 @@
  *
  * The writes go through the wrapper, as in `adminApiWrites.integration.test.ts`,
  * so the refusals are the ones a caller actually receives and the audit row is
- * the one that makes « remettre l'ancien texte » possible.
+ * the one that makes « remettre l'ancien texte » possible. The highlight's
+ * picture is the exception: the wrapper takes https only, so the copy is driven
+ * through the write itself against a picture host on a local socket, with
+ * storage and the image pipeline stubbed as in `workshopCover.integration.test.ts`.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { isHttpError } from '@sveltejs/kit';
 import type { RequestEvent, RequestHandler } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
@@ -17,6 +23,56 @@ import { adminApiRead, adminApiWrite } from '$lib/server/adminApi/route';
 import { writeTalentHomeHighlight } from '$lib/server/adminApi/writes/talentHome';
 import { getTalentHome } from '$lib/server/services/talentHomeService';
 import { toDateKey } from '$lib/domain/planningTime';
+import { OperationRefusedError } from '$lib/server/adminApi/errors';
+import { GET as imageProxy } from '../../../../routes/api/talent-home/images/[campusId]/[file]/+server';
+
+const objects = new Map<string, Uint8Array>();
+/** The size the stubbed pipeline reports for a picture. */
+let pictureSize = { width: 1280, height: 720 };
+
+vi.mock('$lib/server/infra/storage', () => ({
+  getStorage: () => ({
+    save: async (key: string, data: Uint8Array) => {
+      objects.set(key, data);
+      return key;
+    },
+    get: async (key: string) => {
+      const data = objects.get(key);
+      if (!data) throw new Error(`Object not found: ${key}`);
+      return Buffer.from(data);
+    },
+    delete: async (key: string) => {
+      objects.delete(key);
+    },
+    getDownloadUrl: async (key: string) => `https://example.invalid/${key}`,
+  }),
+  isObjectNotFound: () => false,
+}));
+
+vi.mock('$lib/server/images/process', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('$lib/server/images/process')>();
+  return {
+    ...actual,
+    processImage: vi.fn(async (input: Uint8Array) => ({
+      bytes: input,
+      contentType: 'image/webp' as const,
+      ...pictureSize,
+    })),
+  };
+});
+
+const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const png = (seed: number) => new Uint8Array([...PNG_MAGIC, seed, seed, seed]);
+const gif = new Uint8Array([
+  ...'GIF89a'.split('').map((c) => c.charCodeAt(0)),
+  0x80,
+  0x02,
+  0x68,
+  0x01,
+  0,
+  0,
+]);
 
 const postNote = adminApiWrite('write_talent_home_note');
 const postHighlight = adminApiWrite('write_talent_home_highlight');
@@ -157,13 +213,14 @@ describe('the campus content on a talent’s home (integration)', () => {
   it('sets the highlight, and refuses an http link, a past day or a half-filled one', async () => {
     const set = await post(postHighlight, secret, highlight);
     expect(set.status).toBe(200);
-    expect(set.payload.after).toEqual(highlight);
+    expect(set.payload.after).toEqual({ ...highlight, imageUrl: null });
 
     for (const body of [
       { ...highlight, url: 'http://www.epitech.invalid/form' },
       { ...highlight, date: dayFromToday(-1) },
       { ...highlight, url: null },
       { ...highlight, summary: 'x'.repeat(301) },
+      { ...highlight, imageUrl: 'http://www.epitech.invalid/affiche.png' },
     ]) {
       const { status } = await post(postHighlight, secret, body);
       expect(status).toBe(400);
@@ -179,6 +236,7 @@ describe('the campus content on a talent’s home (integration)', () => {
       summary: highlight.summary,
       date: highlight.date,
       url: highlight.url,
+      image: null,
     });
   });
 
@@ -219,6 +277,118 @@ describe('the campus content on a talent’s home (integration)', () => {
     expect(await getTalentHome(campusId)).toEqual({
       note: null,
       highlight: null,
+    });
+  });
+
+  describe('the highlight’s picture', () => {
+    let server: Server;
+    let host = '';
+    const files = new Map<string, Uint8Array>([
+      ['/snake.png', png(1)],
+      ['/snake.gif', gif],
+    ]);
+
+    beforeAll(async () => {
+      server = createServer((req, res) => {
+        const file = files.get(req.url ?? '');
+        if (!file) {
+          res.writeHead(404).end();
+          return;
+        }
+        res.writeHead(200).end(Buffer.from(file));
+      });
+      await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve),
+      );
+      host = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    });
+
+    afterAll(async () => {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    });
+
+    const storedImage = () =>
+      prisma.talentHome_HighlightImage.findUnique({ where: { campusId } });
+
+    it('copies it, shows it on the home, and serves it to a signed-in user only', async () => {
+      pictureSize = { width: 1280, height: 720 };
+      const outcome = await writeTalentHomeHighlight({
+        ...highlight,
+        imageUrl: `${host}/snake.png`,
+      });
+      expect(outcome.applied && outcome.after).toMatchObject({
+        imageUrl: `${host}/snake.png`,
+      });
+
+      const image = (await storedImage())!;
+      expect(objects.has(image.key)).toBe(true);
+      expect((await getTalentHome(campusId)).highlight?.image).toEqual({
+        url: `/api/talent-home/images/${campusId}/${image.key.split('/').pop()}`,
+        width: 1280,
+        height: 720,
+      });
+
+      const serve = async (user: object | null) => {
+        try {
+          return await imageProxy({
+            params: { campusId, file: image.key.split('/').pop()! },
+            locals: { user },
+          } as unknown as Parameters<typeof imageProxy>[0]);
+        } catch (err) {
+          if (isHttpError(err)) return err.status;
+          throw err;
+        }
+      };
+      const ok = (await serve({ id: 'u' })) as Response;
+      expect(ok.headers.get('cache-control')).toContain('immutable');
+      expect(await serve(null)).toBe(401);
+    });
+
+    it('refuses a GIF, a small or portrait picture, and keeps the one it had', async () => {
+      const before = await storedImage();
+      const attempts: [string, { width: number; height: number }, RegExp][] = [
+        ['/snake.gif', { width: 1280, height: 720 }, /est un GIF/],
+        ['/snake.png', { width: 320, height: 200 }, /au moins 480/],
+        ['/snake.png', { width: 600, height: 900 }, /image horizontale/],
+      ];
+      for (const [path, size, saying] of attempts) {
+        pictureSize = size;
+        const refusal = await writeTalentHomeHighlight({
+          ...highlight,
+          imageUrl: `${host}${path}`,
+        }).catch((err) => err);
+        expect(refusal).toBeInstanceOf(OperationRefusedError);
+        expect((refusal as Error).message).toMatch(saying);
+      }
+      expect(await storedImage()).toEqual(before);
+      expect(objects.has(before!.key)).toBe(true);
+    });
+
+    it('drops the picture and its bytes when a write leaves it out', async () => {
+      const before = (await storedImage())!;
+      await writeTalentHomeHighlight(highlight);
+      expect(await storedImage()).toBeNull();
+      expect(objects.has(before.key)).toBe(false);
+    });
+
+    it('drops the picture and its bytes with the highlight', async () => {
+      pictureSize = { width: 1280, height: 720 };
+      files.set('/other.png', png(2));
+      await writeTalentHomeHighlight({
+        ...highlight,
+        imageUrl: `${host}/other.png`,
+      });
+      const image = (await storedImage())!;
+
+      await writeTalentHomeHighlight({
+        campus: campusName,
+        title: null,
+        summary: null,
+        date: null,
+        url: null,
+      });
+      expect(await storedImage()).toBeNull();
+      expect(objects.has(image.key)).toBe(false);
     });
   });
 
