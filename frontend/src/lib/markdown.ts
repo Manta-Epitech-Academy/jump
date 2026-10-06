@@ -2,6 +2,7 @@ import { Marked } from 'marked';
 import { markedHighlight } from 'marked-highlight';
 import hljs from 'highlight.js';
 import DOMPurify from 'isomorphic-dompurify';
+import { typeset } from './domain/typography';
 
 const renderer = {
   code({ text, lang }: { text: string; lang?: string }) {
@@ -11,21 +12,25 @@ const renderer = {
   },
 };
 
-const marked = new Marked(
-  markedHighlight({
-    emptyLangClass: 'hljs',
-    langPrefix: 'hljs language-',
-    highlight(code, lang) {
-      const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-      return hljs.highlight(code, { language }).value;
+function createMarked(): Marked {
+  return new Marked(
+    markedHighlight({
+      emptyLangClass: 'hljs',
+      langPrefix: 'hljs language-',
+      highlight(code, lang) {
+        const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+        return hljs.highlight(code, { language }).value;
+      },
+    }),
+    {
+      gfm: true,
+      breaks: true,
+      renderer,
     },
-  }),
-  {
-    gfm: true,
-    breaks: true,
-    renderer,
-  },
-);
+  );
+}
+
+const marked = createMarked();
 
 export function renderMarkdown(markdown: string): string {
   const html = marked.parse(markdown) as string;
@@ -44,6 +49,21 @@ export function renderMarkdown(markdown: string): string {
 //     stripped at render time, so what is stored is exactly what is shown.
 //   - A link goes to https or to a mail address, and opens in a new tab with no
 //     referrer, so leaving Jump never takes the dashboard with it.
+//
+// And one courtesy on top: its text is typeset (`typeset`), so a « ! » the
+// author spaced the French way never wraps alone onto the next line. Only the
+// text runs are touched, never the Markdown itself, whose syntax has spaced
+// colons of its own (a table's `| :--- |`).
+
+// `use` chains this after the highlighter's own `walkTokens`, which passing
+// `walkTokens` to `parse` would replace. A text token with children renders
+// them; only a leaf carries the text that is printed.
+const authoredMarked = createMarked().use({
+  walkTokens(token) {
+    if (token.type === 'text' && !token.tokens)
+      token.text = typeset(token.text);
+  },
+});
 
 const AUTHORED_LINK_PROTOCOLS = new Set(['https:', 'mailto:']);
 
@@ -88,7 +108,7 @@ function openLinksElsewhere(node: Element): void {
  * in `server/cms/sanitize.ts`, so no other DOMPurify caller inherits it.
  */
 export function renderAuthoredMarkdown(markdown: string): string {
-  const html = marked.parse(markdown) as string;
+  const html = authoredMarked.parse(markdown) as string;
   DOMPurify.addHook('afterSanitizeAttributes', openLinksElsewhere);
   try {
     return DOMPurify.sanitize(html, { FORBID_TAGS: ['img'] });

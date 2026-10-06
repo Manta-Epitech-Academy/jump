@@ -46,4 +46,13 @@ describe('renderAuthoredMarkdown', () => {
       renderAuthoredMarkdown('![x](https://tracker.example/a.png)'),
     ).not.toContain('<img');
   });
+
+  it('binds French punctuation to its word, and leaves Markdown syntax alone', () => {
+    const html = renderAuthoredMarkdown(
+      '## Bonne rentrée !\n\n| Jour | Heure |\n| :--- | ---: |\n| Mercredi | 14:00 |',
+    );
+    expect(html).toContain('Bonne rentrée&nbsp;!');
+    expect(html).toContain('<table>');
+    expect(html).toContain('14:00');
+  });
 });
