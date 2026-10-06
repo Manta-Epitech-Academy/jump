@@ -109,7 +109,7 @@
             </span>
 
             <span
-              class="hidden shrink-0 items-center gap-1 text-xs font-bold text-epi-blue uppercase sm:inline-flex"
+              class="hidden shrink-0 items-center gap-1 text-xs font-bold text-primary uppercase sm:inline-flex"
             >
               {finished(activity)
                 ? 'Revoir'

@@ -118,11 +118,14 @@
                   ? `Activité · ${activity.label}`
                   : 'Activité'}
               </p>
-              <p
+              <!-- The visible title is each activity's heading under the
+                   section's own (sr-only), so a day with two activities reads
+                   as two entries rather than as one run of text. -->
+              <h3
                 class="mt-2 font-heading text-display-m text-white sm:text-display-l"
               >
                 {activity.cover.tagline ?? activity.label}<TitleCursor />
-              </p>
+              </h3>
             </div>
 
             {#if activity.totalSteps > 0}
@@ -167,7 +170,8 @@
                 class="w-full sm:w-auto"
               >
                 {started(activity) ? 'Reprendre' : 'C’est parti'}
-                <ArrowRight class="size-4" />
+                <ArrowRight class="size-4" aria-hidden="true" />
+                <span class="sr-only">(nouvel onglet)</span>
               </Button>
             </form>
           </div>
