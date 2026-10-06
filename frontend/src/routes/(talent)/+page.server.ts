@@ -22,12 +22,13 @@ import { resolveEventNudgeForm } from '$lib/server/feedbackForms';
 import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
 import { toPlanningView } from '$lib/domain/talentPlanning';
 import { buildPreviewPlanningView } from '$lib/server/talentPlanningPreview';
-import { listAttendedEvents } from '$lib/server/talent/attendedEvents';
 import {
   getUnseenWorkshopReward,
   listTalentWorkshops,
 } from '$lib/server/services/workshopService';
 import { getTalentHome } from '$lib/server/services/talentHomeService';
+import { pickHomeHero } from '$lib/domain/talentHome';
+import { isActivityFinished } from '$lib/domain/workshops';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -51,25 +52,23 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     });
     const filterDateEnd = endOfDay.toDate();
 
-    // "Planning à venir" widget state, collapsed to a single view-model. When
-    // an admin impersonating this talent has armed a preview, we substitute the
+    // The session card's state, collapsed to a single view-model. When an
+    // admin impersonating this talent has armed a preview, we substitute the
     // view-model wholesale and skip the queries entirely (there's no real state
     // to recompute once we're faking it), mirroring the dev space's phase
-    // override. Otherwise we derive it from the talent's actual participations.
-    // The two events we read are scoped to just the fields the widget shows.
-    //
-    // Always computed, even when the campus runs its schedule outside Jump
-    // (planning flag off): this is participation-derived (Participation → Event),
-    // never planning rows, so a talent there still has events to surface. The
-    // flag only gates the detailed /calendar grid: the widget drops its "Voir
-    // le planning" CTA client-side when it's off, keeping the state itself.
+    // override. Otherwise we derive it from the talent's actual participations,
+    // reading only the fields the card shows: never the Salesforce `titre`.
     const eventSelect = {
       event: {
         select: {
-          titre: true,
           publicName: true,
           date: true,
           startMinutes: true,
+          planningSlots: {
+            where: { activityType: { not: 'orga' } },
+            select: { id: true },
+            take: 1,
+          },
         },
       },
     } as const;
@@ -134,14 +133,27 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     const minigameRankReward = await getUnseenMinigameRankReward(studentId);
 
     // The CTFd activities the talent's own events offer, with whatever CTFd last
-    // reported about each: today's for the hero, every other one below. An
-    // activity appears on its event's first campus day and stays from then on,
-    // because a Coding Club is designed never to finish and the students carry
-    // on at home (`selectWorkshopOfferings` holds the rule).
+    // reported about each. An activity appears on its event's first campus day
+    // and stays from then on, because a Coding Club is designed never to finish
+    // and the students carry on at home (`selectWorkshopOfferings` holds the
+    // rule).
     const workshops = await listTalentWorkshops(studentId);
     // What the talent's campus puts on their home: its note, its highlighted
     // event.
     const home = await getTalentHome(locals.talentCampusId ?? null);
+    // The one thing the blue hero suggests doing now (`pickHomeHero`).
+    const hero = pickHomeHero({
+      today: workshops.today,
+      highlight: home.highlight,
+      activities: workshops.activities,
+    });
+    // What is left to do, below: every activity not finished, except the one
+    // the hero already suggests. Finished ones belong to « Mon parcours ».
+    const toDo = workshops.activities.filter(
+      (activity) =>
+        !isActivityFinished(activity) &&
+        !(hero?.kind === 'continue' && hero.activity.slug === activity.slug),
+    );
 
     // Everything earned on an activity and not yet celebrated. The talent walks
     // the activity in another tab, so nothing here witnesses the moment: the float
@@ -227,12 +239,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       }
     }
 
-    // Past events the talent attended (widget: 5 most recent).
-    const pastEvents = await listAttendedEvents(studentId, {
-      timeZone: tz,
-      take: 5,
-    });
-
     // Feedback banner: nudge about the event whose feedback form still awaits
     // this talent's answer.
     let pendingFeedback: Array<{
@@ -294,12 +300,14 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       minigame,
       minigameReward,
       minigameRankReward,
-      workshops,
+      hero,
+      toDo,
+      hasActivities:
+        workshops.today.length > 0 || workshops.activities.length > 0,
       workshopReward,
       onboardingArrival,
       welcome,
-      home,
-      pastEvents,
+      note: home.note,
       timeZone: tz,
       pendingFeedback,
     };

@@ -1,10 +1,12 @@
 import { toDateKey, type DateKey } from './planningTime';
 import { dateKeyToDbDate, dbDateToKey } from './eventPresence';
+import { isActivityFinished, type WorkshopActivity } from './workshops';
 
 // What a campus puts on its talents' home besides their own enrolments: « le
 // mot du campus » and one event to sign up for. Both are typed by hand over the
 // admin API, campus by campus; this module holds the rules the writer and the
-// reader share, so the two cannot disagree on a limit or on a day.
+// reader share, so the two cannot disagree on a limit or on a day, and the rule
+// that decides what the home's hero suggests.
 
 /** Long enough for a rentrée message with a few dates and links. */
 export const TALENT_HOME_NOTE_MAX = 1500;
@@ -79,4 +81,51 @@ export function highlightImageKeyFromPath(
 
 export function highlightImageUrl(key: string): string {
   return `/api/talent-home/images/${key.slice(IMAGE_PREFIX.length + 1)}`;
+}
+
+/**
+ * What the blue hero at the head of a talent's home shows: the one thing Jump
+ * suggests doing now. Every day, and never more than one thing, because the
+ * hero is « where Jump tells you what to do » and a second suggestion of the
+ * same weight would make the talent choose instead of act.
+ *
+ * In this order, the first that applies:
+ *
+ *   1. an activity offered today: the day's activity, with the campus's
+ *      highlighted event as a compact line under it (« Et après »), since an
+ *      invitation still matters on an event day but less than the event;
+ *   2. the campus's highlighted event, while its day has not passed;
+ *   3. an activity the talent started and has not finished, which a Coding
+ *      Club is designed for them to carry on at home: the most recently
+ *      started first;
+ *   4. nothing. The hero is not filled for the sake of it.
+ */
+export type HomeHero =
+  | {
+      kind: 'activity';
+      activities: WorkshopActivity[];
+      next: TalentHomeHighlight | null;
+    }
+  | { kind: 'highlight'; highlight: TalentHomeHighlight }
+  | { kind: 'continue'; activity: WorkshopActivity };
+
+export function pickHomeHero({
+  today,
+  highlight,
+  activities,
+}: {
+  /** The activities offered today (`TalentWorkshops.today`). */
+  today: WorkshopActivity[];
+  /** The campus's highlighted event, already filtered on its day. */
+  highlight: TalentHomeHighlight | null;
+  /** Every other activity offered (`TalentWorkshops.activities`). */
+  activities: WorkshopActivity[];
+}): HomeHero | null {
+  if (today.length > 0)
+    return { kind: 'activity', activities: today, next: highlight };
+  if (highlight) return { kind: 'highlight', highlight };
+  const inProgress = activities
+    .filter((a) => a.startedAt !== null && !isActivityFinished(a))
+    .sort((a, b) => b.startedAt!.getTime() - a.startedAt!.getTime());
+  return inProgress[0] ? { kind: 'continue', activity: inProgress[0] } : null;
 }

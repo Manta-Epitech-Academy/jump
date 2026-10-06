@@ -2,8 +2,8 @@ import type { RequestEvent } from '@sveltejs/kit';
 import type { PlanningView } from '$lib/domain/talentPlanning';
 
 /**
- * Dev-tooling: lets an admin impersonating a talent cycle the dashboard's
- * "Planning à venir" widget through every state without seeding events. It is
+ * Dev-tooling: lets an admin impersonating a talent cycle the home's session
+ * card through every state without seeding events. It is
  * the talent-portal twin of the dev space's stage phase override
  * (`devPhaseOverride.ts`) and follows the same defense-in-depth shape:
  *
@@ -24,9 +24,9 @@ export const TALENT_PLANNING_PREVIEW_COOKIE = 'talent_planning_preview';
 
 /**
  * The four previewable states. `active_stage`/`active_club` both land on the
- * widget's "ongoing" branch but differ in the event name shown (Stage de Seconde
- * vs Coding Club), the two variants the PR screenshots call out, so they're
- * distinct options. `upcoming` and `none` map 1:1 to their branches.
+ * card's "ongoing" branch but differ in what it can offer: a stage has a
+ * schedule to open, so the card shows; a Coding Club has none, so it does not.
+ * `upcoming` and `none` map 1:1 to their branches.
  */
 const PLANNING_PREVIEW_VALUES = [
   'active_stage',
@@ -74,22 +74,17 @@ export function buildPreviewPlanningView(
     case 'active_stage':
       return {
         state: 'ongoing',
-        titre: 'Stage de Seconde',
-        publicName: null,
+        publicName: 'Stage de seconde',
+        hasPlanning: true,
       };
     case 'active_club':
-      return {
-        state: 'ongoing',
-        titre: 'Coding Club',
-        publicName: null,
-      };
+      return { state: 'ongoing', publicName: null, hasPlanning: false };
     case 'upcoming': {
       const date = new Date();
       date.setDate(date.getDate() + PREVIEW_UPCOMING_LEAD_DAYS);
       return {
         state: 'upcoming',
-        titre: 'Coding Club',
-        publicName: null,
+        publicName: 'Coding Club',
         // A confirmed time (14:00) so the "à HH:MM" line is exercised too.
         startMinutes: 14 * 60,
         date,

@@ -138,6 +138,12 @@ export const platform: Scenario = {
           updatedAt: clock.today,
         });
       const highlight = TALENT_HOME_HIGHLIGHTS[campus.name];
+      // An open highlight leads the hero of every talent of its campus who has
+      // no activity that day, which would hide what a later scenario places
+      // on purpose: the club's regulars carrying an activity on at home. So
+      // its campus is reserved, and `pickCampus` sends them elsewhere.
+      if (highlight && highlight.dayOffset >= 0)
+        world.reservedCampusNames.add(campus.name);
       if (highlight)
         world.buffer.talentHome_Highlight.push({
           campusId: campus.id,
@@ -163,7 +169,7 @@ export const platform: Scenario = {
       scenario: 'accueil des campus',
       summary: 'Le mot du campus et l’événement mis en avant, par campus.',
       covers: [
-        'Paris : un mot du campus (titre, liste, liens) et un événement mis en avant avec une image, en tête du bandeau bleu un jour sans activité',
+        'Paris : un mot du campus (titre, liste, liens) et un événement mis en avant avec une image, en tête du bandeau bleu de tout talent de Paris sans activité ce jour-là',
         'Marseille : un mot du campus seul, sans événement mis en avant',
         'Lyon : un événement mis en avant dont le jour est passé, que l’accueil ne montre plus',
       ],

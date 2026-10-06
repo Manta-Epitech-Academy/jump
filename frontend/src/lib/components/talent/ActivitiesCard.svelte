@@ -4,22 +4,29 @@
   import Terminal from '@lucide/svelte/icons/terminal';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import { cn } from '$lib/utils';
-  import type { WorkshopActivity } from '$lib/domain/workshops';
+  import {
+    isActivityFinished,
+    type WorkshopActivity,
+  } from '$lib/domain/workshops';
 
-  // Every activity a talent's events have offered, once its day has passed: a
-  // Coding Club is designed never to finish, so these are carried on at home.
-  // Quieter than the day's hero on purpose, and shaped unlike the daily
-  // training card above it, so the two are never mistaken for one another: a
-  // list of subjects with a picture and a count, not a row with a game pad.
+  // A list of activities a talent's events have offered, each one a way back
+  // in. Two hosts: the home's « Mes activités », what is left to do (a Coding
+  // Club is designed never to finish, so these are carried on at home), and
+  // « Mon parcours », what is done. Quieter than the hero on purpose, and shaped
+  // unlike the daily training card, so the two are never mistaken for one
+  // another: a list of subjects with a picture and a count, not a row with a
+  // game pad.
   //
   // A row shows the subject's still when it has one, and a brand tile when it
-  // has none yet (an instance never read), so the rows stay aligned. It does
-  // not name the event, whose name is a Salesforce campaign title more often
-  // than not.
+  // has none, so the rows stay aligned. It does not name the event, whose name
+  // is a Salesforce campaign title more often than not.
   //
   // Its length is decided by the events the talent went to, not by this code,
   // so the list scrolls in its own box from the first row.
-  let { activities }: { activities: WorkshopActivity[] } = $props();
+  let { title, activities }: { title: string; activities: WorkshopActivity[] } =
+    $props();
+
+  const titleId = $props.id();
 
   let broken = $state<Record<string, true>>({});
 
@@ -29,28 +36,24 @@
   }
 
   function statusOf(activity: WorkshopActivity): string {
+    if (isActivityFinished(activity))
+      return `Terminée : ${activity.totalSteps} étapes validées`;
     if (activity.totalSteps > 0)
       return `${activity.solvedSteps} / ${activity.totalSteps} étapes validées`;
     return activity.startedAt ? 'Commencée' : 'Pas encore commencée';
   }
-
-  const finished = (a: WorkshopActivity) =>
-    a.totalSteps > 0 && a.solvedSteps >= a.totalSteps;
 </script>
 
 <section
   class="overflow-hidden rounded-xl border border-border bg-card shadow-raised"
-  aria-labelledby="my-activities-title"
+  aria-labelledby={titleId}
 >
   <div
     class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
   >
     <Terminal class="h-4 w-4 shrink-0 text-epi-blue" />
-    <h2
-      id="my-activities-title"
-      class="font-heading text-display-s text-foreground"
-    >
-      Mes activités<TitleCursor />
+    <h2 id={titleId} class="font-heading text-display-s text-foreground">
+      {title}<TitleCursor />
     </h2>
   </div>
 
@@ -111,7 +114,7 @@
             <span
               class="hidden shrink-0 items-center gap-1 text-xs font-bold text-primary uppercase sm:inline-flex"
             >
-              {finished(activity)
+              {isActivityFinished(activity)
                 ? 'Revoir'
                 : activity.startedAt
                   ? 'Reprendre'

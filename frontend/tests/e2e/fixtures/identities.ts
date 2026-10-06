@@ -32,6 +32,9 @@ export const E2E = {
   homeNoteLink: 'https://discord.invalid/e2e',
   homeHighlightTitle: 'Recode le jeu Snake en JS',
   homeHighlightUrl: 'https://www.epitech.invalid/inscription/?CampaignId=e2e',
+  /** A session three days out, the only event of `talentIdle`. */
+  upcomingEventId: 'e2e-event-upcoming',
+  upcomingEventName: 'Coding Club E2E',
 
   /** Dev-workspace member: `can('devMember')`, campus-scoped. */
   dev: { userId: 'e2e-user-dev', email: `dev${E2E_DOMAIN}` },
@@ -45,6 +48,18 @@ export const E2E = {
     email: `talent-ready${E2E_DOMAIN}`,
     nom: 'READYTEST',
     prenom: 'Alix',
+  },
+  /**
+   * Onboarded like `talentReady`, but whose only event is three days out: no
+   * activity today, so the home's hero leads with the campus's highlighted
+   * event, and the session card shows the date.
+   */
+  talentIdle: {
+    userId: 'e2e-user-talent-idle',
+    talentId: 'e2e-talent-idle',
+    email: `talent-idle${E2E_DOMAIN}`,
+    nom: 'IDLETEST',
+    prenom: 'Noa',
   },
   /** Nothing signed: belongs in the welcome / onboarding funnel. */
   talentFresh: {
@@ -84,6 +99,7 @@ export const E2E_ACCOUNTS = [
   E2E.dev,
   E2E.admin,
   E2E.talentReady,
+  E2E.talentIdle,
   E2E.talentFresh,
   E2E.talentRules,
   E2E.parentPending,

@@ -7,22 +7,20 @@
   import { fly } from 'svelte/transition';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
-  import { eventDisplayName, minutesToHHMM } from '$lib/domain/event';
   import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import History from '@lucide/svelte/icons/history';
+  import Route from '@lucide/svelte/icons/route';
   import Coffee from '@lucide/svelte/icons/coffee';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
-  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
-  import CalendarCheck from '@lucide/svelte/icons/calendar-check';
   import FeedbackBanner from '$lib/components/feedback/FeedbackBanner.svelte';
   import NewsFeedCard, {
     type NewsFeedItem,
   } from '$lib/components/talent/NewsFeedCard.svelte';
-  import HighlightedEvent from '$lib/components/talent/HighlightedEvent.svelte';
-  import TodayActivityHero from '$lib/components/talent/TodayActivityHero.svelte';
-  import MyActivitiesCard from '$lib/components/talent/MyActivitiesCard.svelte';
+  import TalentHomeHero from '$lib/components/talent/TalentHomeHero.svelte';
+  import ActivitiesCard from '$lib/components/talent/ActivitiesCard.svelte';
+  import SessionCard from '$lib/components/talent/SessionCard.svelte';
+  import { showsSessionCard } from '$lib/domain/talentPlanning';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
@@ -83,43 +81,22 @@
   });
 
   let student = $derived(data.student);
-  // Single view-model for the "Planning à venir" widget (server-derived, or a
-  // dev preview when an admin impersonates this talent). The widget branches on
-  // `planning.state` alone; no raw participation rows reach the UI.
+  // The talent's own session (server-derived, or a dev preview when an admin
+  // impersonates this talent): a small card, and only when it has something to
+  // say (`showsSessionCard`).
   let planning = $derived(data.planning);
 
-  // What the talent's campus puts on their home: a note for the Actualités
-  // feed, and an event to sign up for at the foot of the planning card.
-  let home = $derived(data.home);
+  // The one thing the blue hero suggests doing now, or null on a day with
+  // nothing to suggest (`pickHomeHero`, server-side).
+  let hero = $derived(data.hero);
+
+  // The campus's note and the event's welcome, in the Actualités feed.
   let newsItems = $derived<NewsFeedItem[]>([
-    ...(home.note ? [{ kind: 'campus' as const, html: home.note }] : []),
+    ...(data.note ? [{ kind: 'campus' as const, html: data.note }] : []),
     ...(data.welcome
       ? [{ kind: 'welcome' as const, html: data.welcome.content }]
       : []),
   ]);
-
-  // The widget's state is always shown (it's participation-derived), but the
-  // "Voir le planning" CTA opens the /calendar grid, which only exists when the
-  // talent actually has a planned event. Data-driven, no campus flag.
-  let hasPlanning = $derived(data.hasPlannedEvents);
-
-  // Name for the planning widget: the event's admin-set public name when set,
-  // else the SF `titre` as a fallback (see `eventDisplayName`).
-  let planningEventName = $derived(
-    planning.state === 'ongoing' || planning.state === 'upcoming'
-      ? eventDisplayName(planning)
-      : '',
-  );
-
-  // Wall-clock start time of the next session ("10:00"), shown only once it has
-  // been *confirmed* (`startMinutes` set, on the admin events page). We
-  // deliberately don't fall back to the type default here: a confidently-wrong
-  // hour is worse for a student than none, so until it's confirmed the talent
-  // sees the date alone (never the SF `date`'s meaningless midnight). Staff see
-  // the type default meanwhile, with the admin list flagging it to confirm.
-  let upcomingStartTime = $derived(
-    planning.state === 'upcoming' ? minutesToHHMM(planning.startMinutes) : '',
-  );
 
   // The daily minigame is the row inside the "Entraînement du jour" card:
   // a distinct, accented row, playable or already-played, independent of any
@@ -147,14 +124,6 @@
   // can't drift.
   const DAILY_TRAINING_LABEL = 'Entraîne ton cerveau';
 
-  // The CTFd activities the talent's events offer: today's in the hero, the
-  // rest in their own card. Student-facing wording all the way: the words
-  // « CTFd » and « flag » never appear on this surface.
-  let workshops = $derived(data.workshops);
-  let hasActivities = $derived(
-    workshops.today.length > 0 || workshops.activities.length > 0,
-  );
-
   // An activity is walked in a SECOND TAB, so coming back here reloads nothing on
   // its own and the XP earned meanwhile would only appear on the next navigation.
   //
@@ -165,7 +134,7 @@
   // listener only from the second visit onwards, which is the one nobody
   // demonstrates.
   $effect(() => {
-    if (!hasActivities) return;
+    if (!data.hasActivities) return;
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') void invalidateAll();
     };
@@ -176,16 +145,6 @@
 
   function formatChrono(ms: number | null): string {
     return ms === null ? '-' : `${(ms / 1000).toFixed(1)}s`;
-  }
-
-  // Long, words-based date ("23 mai 2026") for the upcoming-session copy.
-  function formatDateLong(date: Date | string | undefined): string {
-    if (!date) return '';
-    return new Date(date).toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
   }
 </script>
 
@@ -380,12 +339,12 @@
     {/snippet}
 
     <div class="grid grid-cols-1 gap-6 md:grid-cols-12">
-      <!-- LEFT COLUMN: profile + "Planning à venir" rail (the active event,
-           the next upcoming session, or a quiet rest state).
+      <!-- LEFT COLUMN: the talent's own standing (XP, the way into « Mon
+           parcours ») and their next session when there is one.
            On mobile the wrapper collapses (display: contents) so its children
            join the outer grid as siblings and `order-*` can interleave them
-           with the right column, keeping Actualités right under the profile
-           card. `order` is inert on desktop (block children, not flex/grid
+           with the right column: hero, XP, Actualités, training, activities,
+           session. `order` is inert on desktop (block children, not flex/grid
            items), so the two-column layout is untouched. -->
       <div
         class="contents md:col-span-4 md:block md:space-y-6"
@@ -393,7 +352,7 @@
       >
         <a
           href={resolve('/xp')}
-          class="group active:scale-[0.98]d relative order-1 block overflow-hidden rounded-xl border border-border bg-card p-6 shadow-raised transition-ui hover:shadow-raised active:scale-[0.98]"
+          class="group relative order-2 block overflow-hidden rounded-xl border border-border bg-card p-6 shadow-raised transition-ui hover:shadow-raised active:scale-[0.98]"
         >
           <!-- Decorative background blur -->
           <div
@@ -416,8 +375,8 @@
             <span
               class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground transition-ui group-hover:bg-epi-blue/10 group-hover:text-epi-blue dark:group-hover:bg-epi-blue/20"
             >
-              <History class="h-3 w-3" />
-              Voir mon historique
+              <Route class="h-3 w-3" />
+              Mon parcours
               <ArrowRight
                 class="h-3 w-3 transition-transform group-hover:translate-x-0.5"
               />
@@ -425,203 +384,41 @@
           </div>
         </a>
 
-        <!-- Planning à venir: the active event if one covers today, else the
-             next upcoming session, else a quiet rest state. order-4 keeps it
-             last on mobile (after the training card). Always shown (the state is
-             participation-derived, truthful regardless of the planning flag);
-             only the ongoing "Voir le planning" CTA is flag-gated, since it
-             opens the /calendar grid that 404s when the flag is off. -->
-        <div
-          class="order-4 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
-        >
-          <div
-            class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
-          >
-            <CalendarClock class="h-4 w-4 shrink-0 text-epi-blue" />
-            <h2 class="font-heading text-display-s text-foreground">
-              Planning à venir<TitleCursor />
-            </h2>
-          </div>
-
-          <div class="p-6">
-            {#if planning.state === 'ongoing'}
-              <div
-                class="flex flex-col items-center justify-center text-center"
-              >
-                <div class="mb-4 rounded-full bg-primary/10 p-4">
-                  <CalendarClock class="h-8 w-8 text-epi-blue" />
-                </div>
-                <h3 class="text-lg font-bold text-foreground">
-                  {planningEventName}
-                </h3>
-                <!-- Live status: a pulsing dot so an active IRL event reads as
-                     "happening now", distinct from the action button below. -->
-                <span
-                  class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-epi-blue/10 px-2.5 py-1 text-xs font-bold text-epi-blue uppercase"
-                >
-                  <span class="relative flex h-2 w-2">
-                    <span
-                      class="absolute inline-flex h-full w-full animate-ping rounded-full bg-epi-blue opacity-75"
-                    ></span>
-                    <span
-                      class="relative inline-flex h-2 w-2 rounded-full bg-epi-blue"
-                    ></span>
-                  </span>
-                  En cours
-                </span>
-                {#if hasPlanning}
-                  <!-- The primary action this widget exists to drive during a
-                       live event: a full-width filled CTA, mirroring the
-                       minigame "Commencer" button so it reads as the main tap. -->
-                  <a
-                    href={resolve('/calendar')}
-                    class="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-epi-blue px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-epi-blue/90"
-                  >
-                    Voir le planning <ArrowRight class="h-4 w-4 shrink-0" />
-                  </a>
-                {:else}
-                  <!-- No /calendar to open (planning flag off): the live status
-                       stands alone, with a line pointing the talent on-site so
-                       the card doesn't read as truncated where the CTA was. -->
-                  <p class="mt-3 text-sm text-muted-foreground">
-                    Ça se passe en ce moment. Rejoins ton groupe sur place !
-                  </p>
-                {/if}
-              </div>
-            {:else if planning.state === 'upcoming'}
-              <div
-                class="flex flex-col items-center justify-center text-center"
-              >
-                <div class="mb-4 rounded-full bg-primary/10 p-4">
-                  <Rocket class="h-8 w-8 text-epi-blue" />
-                </div>
-                <h3 class="text-lg font-bold text-foreground">
-                  {planningEventName}
-                </h3>
-                <p class="mt-2 text-sm text-muted-foreground">
-                  Ta prochaine session est prévue le<br /><strong
-                    class="text-foreground-secondary"
-                    >{formatDateLong(planning.date)}</strong
-                  >{#if upcomingStartTime}{' '}à
-                    <strong class="text-foreground-secondary"
-                      >{upcomingStartTime}</strong
-                    >{/if}.
-                </p>
-              </div>
-            {:else if !home.highlight}
-              <!-- Nothing planned and nothing to sign up for. With a
-                   highlight, the highlight is the card's content instead:
-                   « rien de prévu » above an invitation would contradict it. -->
-              <div
-                class="flex flex-col items-center justify-center text-center"
-              >
-                <div class="mb-4 rounded-full bg-muted/50 p-4">
-                  <Coffee class="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3
-                  class="text-base font-bold text-foreground-secondary uppercase"
-                >
-                  Rien de prévu
-                </h3>
-                <p class="mt-2 text-sm text-muted-foreground">
-                  Aucune session à venir pour le moment. On te préviendra ici
-                  dès qu'il y a du nouveau !
-                </p>
-              </div>
-            {/if}
-
-            {#if home.highlight}
-              <!-- The campus's invitation, below the talent's own session and
-                   set apart from it. -->
-              <HighlightedEvent
-                highlight={home.highlight}
-                class={planning.state === 'none'
-                  ? undefined
-                  : 'mt-6 border-t border-border pt-6'}
-              />
-            {/if}
-          </div>
-        </div>
-
-        <!-- Past events the talent attended. order-5 keeps it last in the
-             left column on mobile (after planning). -->
-        {#if data.pastEvents.length > 0}
-          <div
-            class="order-5 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
-          >
-            <div
-              class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
-            >
-              <CalendarCheck class="h-4 w-4 shrink-0 text-epi-blue" />
-              <h2 class="font-heading text-display-s text-foreground">
-                Événements passés<TitleCursor />
-              </h2>
-            </div>
-
-            <!-- Date left, name right. The date column sizes to the widest date,
-                 so every name starts at the same x instead of jittering with
-                 "4 avr." vs "14 mars". -->
-            <div
-              class="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 px-6 pt-4 pb-2"
-            >
-              {#each data.pastEvents as ev (ev.id)}
-                <span class="text-xs text-muted-foreground">
-                  {new Date(ev.date).toLocaleDateString('fr-FR', {
-                    timeZone: data.timeZone,
-                    day: 'numeric',
-                    month: 'short',
-                  })}
-                </span>
-                <span
-                  class="min-w-0 truncate text-sm font-medium text-foreground-secondary"
-                >
-                  {eventDisplayName(ev)}
-                </span>
-              {/each}
-            </div>
-
-            <div class="flex justify-center pb-4">
-              <a
-                href={resolve('/events')}
-                class="group inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground transition-ui hover:bg-epi-blue/10 hover:text-epi-blue dark:hover:bg-epi-blue/20"
-              >
-                <CalendarCheck class="h-3 w-3" />
-                Voir tout
-                <ArrowRight
-                  class="h-3 w-3 transition-transform group-hover:translate-x-0.5"
-                />
-              </a>
-            </div>
+        {#if showsSessionCard(planning)}
+          <!-- The talent's own next session, or the way into a running
+               stage's schedule. Last on a phone: the hero already says what
+               to do today. -->
+          <div class="order-6">
+            <SessionCard {planning} timeZone={data.timeZone} />
           </div>
         {/if}
       </div>
 
-      <!-- RIGHT COLUMN: the day's activity on its day, the Actualités feed,
-           the daily training, then the activities already offered. -->
+      <!-- RIGHT COLUMN: the hero, the Actualités feed, the daily training,
+           then the activities left to do. -->
       <div
         class="contents md:col-span-8 md:block md:space-y-6"
         in:fly={{ x: 20, duration: 400, delay: 300 }}
       >
-        {#if workshops.today.length > 0}
-          <!-- The day's activity, on the day only: the head of the right
-               column, level with the XP card, and first of all on a phone. -->
-          <div class="order-first">
-            <TodayActivityHero activities={workshops.today} />
+        {#if hero}
+          <!-- Where Jump says what to do now: the head of the right column,
+               level with the XP card, and first of all on a phone. -->
+          <div class="order-1">
+            <TalentHomeHero {hero} />
           </div>
         {/if}
 
         {#if newsItems.length > 0}
-          <!-- The campus's word and the event's welcome, under the day's
-               activity and above the training, so the two « today » blocks
-               never stack. order-2: right under the profile card on mobile. -->
-          <div class="order-2">
+          <!-- The campus's word and the event's welcome, under the hero and
+               above the training. -->
+          <div class="order-3">
             <NewsFeedCard items={newsItems} highlight={welcomeHighlight} />
           </div>
         {/if}
 
-        <!-- order-3: below Actualités, on a phone as on a desktop -->
+        <!-- order-4: below Actualités, on a phone as on a desktop -->
         <div
-          class="order-3 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
+          class="order-4 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
         >
           <div
             class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
@@ -635,7 +432,7 @@
           <div class="space-y-4 p-6">
             {@render dailyTraining()}
 
-            {#if !hasMinigame && workshops.today.length > 0}
+            {#if !hasMinigame && hero?.kind === 'activity'}
               <!-- No training today, but the day is not a day off: it points
                      at the hero rather than saying « repos » below it. -->
               <p class="py-2 text-sm text-muted-foreground">
@@ -665,10 +462,11 @@
           </div>
         </div>
 
-        {#if workshops.activities.length > 0}
-          <!-- order-3 too, after the training on a phone as on a desktop. -->
-          <div class="order-3">
-            <MyActivitiesCard activities={workshops.activities} />
+        {#if data.toDo.length > 0}
+          <!-- What is left to do, carried on at home. Finished activities are
+               history, and live in « Mon parcours ». -->
+          <div class="order-5">
+            <ActivitiesCard title="Mes activités" activities={data.toDo} />
           </div>
         {/if}
       </div>

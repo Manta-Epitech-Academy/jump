@@ -4,14 +4,29 @@
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   import { Button } from '$lib/components/ui/button';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
   import { cn } from '$lib/utils';
-  import type { WorkshopActivity } from '$lib/domain/workshops';
+  import {
+    isActivityFinished,
+    type WorkshopActivity,
+  } from '$lib/domain/workshops';
+  import {
+    formatHighlightDay,
+    type TalentHomeHighlight,
+  } from '$lib/domain/talentHome';
 
-  // The day's activity, on the day and only then, above everything else on the
-  // dashboard. A talent arriving on an event day should have no doubt about
-  // where to click, so this is the one full-bleed blue surface of the page and
-  // the one neon button, and it looks like nothing else on it: the daily
-  // training below is a row in a card.
+  // An activity in the home's hero, in one of two cases `pickHomeHero` decides:
+  // the day's activity on its day (`today`), or, on a day with nothing else to
+  // suggest, the one the talent started and has not finished, which a Coding
+  // Club is designed for them to carry on at home (`continue`). A talent
+  // arriving on an event day should have no doubt about where to click, so this
+  // is the one full-bleed blue surface of the page and the one neon button, and
+  // it looks like nothing else on it: the daily training below is a row in a
+  // card.
+  //
+  // On the day, the campus's highlighted event follows as one compact line at
+  // the foot (`next`): an invitation still matters on an event day, but less
+  // than the event, so it gets a text link and never a second button.
   //
   // It leads with how the activity presents itself (its tagline, its cover, its
   // mascot), authored over the API and copied into Jump, and with nothing else: the event's name is a Salesforce campaign title more often
@@ -19,15 +34,26 @@
   // picture is optional and may fail to load (a seeded environment has no bytes
   // behind its keys): the hero then stands on its label and the brand ground,
   // which has to read as finished, not as broken.
-  let { activities }: { activities: WorkshopActivity[] } = $props();
+  let {
+    activities,
+    context,
+    next = null,
+  }: {
+    activities: WorkshopActivity[];
+    context: 'today' | 'continue';
+    next?: TalentHomeHighlight | null;
+  } = $props();
+
+  const title = $derived(
+    context === 'today' ? 'Ton activité du jour' : 'À continuer chez toi',
+  );
+  const overline = $derived(
+    context === 'today' ? 'Activité' : 'À continuer chez toi',
+  );
 
   // The one hopeful action: the first activity not yet walked to the end.
   const primarySlug = $derived(
-    (
-      activities.find(
-        (a) => a.totalSteps === 0 || a.solvedSteps < a.totalSteps,
-      ) ?? activities[0]
-    )?.slug,
+    (activities.find((a) => !isActivityFinished(a)) ?? activities[0])?.slug,
   );
 
   // Pictures that failed to load, by URL, so a broken one leaves no hole.
@@ -49,8 +75,8 @@
     a.totalSteps > 0 ? Math.round((a.solvedSteps / a.totalSteps) * 100) : 0;
 </script>
 
-<section aria-labelledby="today-activity-title">
-  <h2 id="today-activity-title" class="sr-only">Ton activité du jour</h2>
+<section aria-labelledby="activity-hero-title">
+  <h2 id="activity-hero-title" class="sr-only">{title}</h2>
   <PageHero
     density="compact"
     pixels={!activities.some((a) => pictureOf(a))}
@@ -115,8 +141,8 @@
                    of its own, so it is not repeated above it. -->
               <p class="epi-overline text-white/80">
                 {activity.cover.tagline
-                  ? `Activité · ${activity.label}`
-                  : 'Activité'}
+                  ? `${overline} · ${activity.label}`
+                  : overline}
               </p>
               <!-- The visible title is each activity's heading under the
                    section's own (sr-only), so a day with two activities reads
@@ -177,6 +203,29 @@
           </div>
         </article>
       {/each}
+
+      {#if next}
+        <!-- What comes after the day, in a line: the hero already has its
+             one button. -->
+        <p
+          class="flex flex-wrap items-baseline gap-x-2 gap-y-1 border-t border-white/20 pt-4 text-sm text-white/80"
+        >
+          <span>
+            Et après : <span class="font-semibold text-white">{next.title}</span
+            >, le {formatHighlightDay(next.date)}
+          </span>
+          <a
+            href={next.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex cursor-pointer items-center gap-1 font-semibold text-white underline underline-offset-4 hover:text-epi-tech focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            Je m’inscris
+            <ExternalLink class="size-3.5" aria-hidden="true" />
+            <span class="sr-only">(nouvel onglet)</span>
+          </a>
+        </p>
+      {/if}
     </div>
   </PageHero>
 </section>

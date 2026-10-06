@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { formatHighlightDay, isHighlightOpen } from './talentHome';
+import {
+  formatHighlightDay,
+  isHighlightOpen,
+  pickHomeHero,
+  type TalentHomeHighlight,
+} from './talentHome';
+import type { WorkshopActivity } from './workshops';
 
 const day = (key: string) => new Date(`${key}T00:00:00.000Z`);
 
@@ -36,5 +42,77 @@ describe('isHighlightOpen', () => {
 describe('formatHighlightDay', () => {
   it('names the day itself, whatever the reader’s timezone', () => {
     expect(formatHighlightDay('2026-10-07')).toBe('mercredi 7 octobre');
+  });
+});
+
+describe('pickHomeHero', () => {
+  const activity = (
+    slug: string,
+    progress: { solved: number; total: number; startedAt: string | null },
+  ): WorkshopActivity => ({
+    slug,
+    label: slug,
+    solvedSteps: progress.solved,
+    totalSteps: progress.total,
+    startedAt: progress.startedAt ? new Date(progress.startedAt) : null,
+    cover: { tagline: null, media: null, poster: null, mascot: null },
+  });
+  const highlight: TalentHomeHighlight = {
+    title: 'Recode le jeu Snake en JS',
+    summary: 'Deux heures pour coder ton propre Snake.',
+    date: '2026-10-14',
+    url: 'https://www.epitech.invalid/inscription',
+    image: null,
+  };
+  const pacman = activity('pacman', {
+    solved: 3,
+    total: 10,
+    startedAt: '2026-10-01T10:00:00Z',
+  });
+  const santa = activity('santa', {
+    solved: 1,
+    total: 30,
+    startedAt: '2026-10-03T10:00:00Z',
+  });
+  const linux = activity('linux', {
+    solved: 12,
+    total: 12,
+    startedAt: '2026-10-04T10:00:00Z',
+  });
+  const untouched = activity('snake', { solved: 0, total: 0, startedAt: null });
+
+  it('leads with the day’s activity, the highlight as what comes after', () => {
+    expect(
+      pickHomeHero({ today: [pacman], highlight, activities: [santa] }),
+    ).toEqual({ kind: 'activity', activities: [pacman], next: highlight });
+    expect(
+      pickHomeHero({ today: [pacman], highlight: null, activities: [] }),
+    ).toEqual({ kind: 'activity', activities: [pacman], next: null });
+  });
+
+  it('leads with the campus’s highlight on a day without an activity', () => {
+    expect(
+      pickHomeHero({ today: [], highlight, activities: [pacman] }),
+    ).toEqual({ kind: 'highlight', highlight });
+  });
+
+  it('suggests carrying on the most recently started unfinished activity', () => {
+    expect(
+      pickHomeHero({
+        today: [],
+        highlight: null,
+        activities: [pacman, linux, untouched, santa],
+      }),
+    ).toEqual({ kind: 'continue', activity: santa });
+  });
+
+  it('suggests nothing rather than filling the hero', () => {
+    expect(
+      pickHomeHero({
+        today: [],
+        highlight: null,
+        activities: [linux, untouched],
+      }),
+    ).toBeNull();
   });
 });

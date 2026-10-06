@@ -1339,8 +1339,8 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   }),
   [USAGE_FEATURES.TALENT_XP_HISTORY_VIEW]: def({
     key: USAGE_FEATURES.TALENT_XP_HISTORY_VIEW,
-    label: 'Ton historique d’XP',
-    definition: `Consultations de l’historique d’XP. ${BUCKET_NOTE}`,
+    label: 'Ton parcours',
+    definition: `Consultations de « Mon parcours » (les XP gagnés, les activités terminées, les événements passés). ${BUCKET_NOTE}`,
     audience: 'talent',
     space: 'talent',
     kind: 'view',

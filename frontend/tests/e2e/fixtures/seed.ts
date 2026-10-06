@@ -3,7 +3,7 @@
  *
  * Deliberately NOT the seed generator (`scripts/seed/`): that builds a dataset
  * shaped like production, and a spec anchored to it breaks the next time
- * somebody adjusts a scenario. This seeds the six accounts and the one event
+ * somebody adjusts a scenario. This seeds the seven accounts and the two events
  * the specs actually assert on. Who those accounts are is declared in
  * `./identities.ts`, which the config and the specs share.
  *
@@ -52,7 +52,9 @@ function campusToday(): { date: Date; endDate: Date } {
 export async function purgeE2eData(): Promise<void> {
   // The event first: EventConfig_Module, Participation, EventPresence and the
   // closures all cascade off it.
-  await prisma.event.deleteMany({ where: { id: E2E.eventId } });
+  await prisma.event.deleteMany({
+    where: { id: { in: [E2E.eventId, E2E.upcomingEventId] } },
+  });
   // Then the talents. Talent -> bauth_user is SetNull, not Cascade, so deleting
   // the accounts first would leave orphan Talent rows behind (the same order the
   // load-test cleanup documents).
@@ -215,6 +217,66 @@ export async function seedE2eData(): Promise<void> {
               campusId: E2E.campusId,
               // A visible SF status: the émargement roster mirrors the inscrits
               // filter, so CONNECTED/DESISTED would seed an invisible talent.
+              sfMemberStatus: 'READY',
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Signed like the talent above, but enrolled only in a session three days
+  // out: the home has no activity to lead with, so it leads with the campus's
+  // highlight, and the session card has a date (and a confirmed hour) to give.
+  await prisma.event.create({
+    data: {
+      id: E2E.upcomingEventId,
+      titre: 'E2E-Prochain-Campagne-SF',
+      publicName: E2E.upcomingEventName,
+      cohortNoun: 'participant',
+      date: dateKeyToDbDate(
+        toDateKey(new Date(Date.now() + 3 * 86_400_000), CAMPUS_TIMEZONE),
+      ),
+      startMinutes: 14 * 60,
+      campusId: E2E.campusId,
+    },
+  });
+  await prisma.bauth_user.create({
+    data: {
+      id: E2E.talentIdle.userId,
+      email: E2E.talentIdle.email,
+      emailVerified: true,
+      role: 'student',
+      name: `${E2E.talentIdle.prenom} ${E2E.talentIdle.nom}`,
+      talent: {
+        create: {
+          id: E2E.talentIdle.talentId,
+          nom: E2E.talentIdle.nom,
+          prenom: E2E.talentIdle.prenom,
+          niveau: 'Terminale',
+          ...dossierComplete,
+          charterAcceptedAt: now,
+          welcomeSeenAt: now,
+          onboardingSchoolYear: schoolYear,
+          // A guardian with no account: settled here, so the talent is not
+          // held, and no parent session of this suite gains a second child.
+          parentEmail: `parent-idle${E2E_DOMAIN}`,
+          parentRulesSignedAt: now,
+          imageRightsDecision: 'accepted',
+          imageRightsDecidedAt: now,
+          onboardingRecords: {
+            create: {
+              schoolYear,
+              ...dossierComplete,
+              parentRulesSignedAt: now,
+              imageRightsDecision: 'accepted',
+              imageRightsDecidedAt: now,
+            },
+          },
+          participations: {
+            create: {
+              eventId: E2E.upcomingEventId,
+              campusId: E2E.campusId,
               sfMemberStatus: 'READY',
             },
           },

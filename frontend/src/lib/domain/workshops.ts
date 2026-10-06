@@ -162,6 +162,17 @@ export type WorkshopActivity = {
   };
 };
 
+/**
+ * Whether the talent has walked an activity to its end. An activity whose step
+ * count CTFd has not reported yet (`totalSteps` 0) is never finished: nothing
+ * says there is no step left.
+ */
+export function isActivityFinished(
+  activity: Pick<WorkshopActivity, 'solvedSteps' | 'totalSteps'>,
+): boolean {
+  return activity.totalSteps > 0 && activity.solvedSteps >= activity.totalSteps;
+}
+
 export type TalentWorkshops = {
   /**
    * The activities of the events running today, for the dashboard's hero.

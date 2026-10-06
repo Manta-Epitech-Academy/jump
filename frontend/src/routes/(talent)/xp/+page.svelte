@@ -3,6 +3,9 @@
   import { fly } from 'svelte/transition';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
+  import ActivitiesCard from '$lib/components/talent/ActivitiesCard.svelte';
+  import PastEventsCard from '$lib/components/talent/PastEventsCard.svelte';
+  import Route from '@lucide/svelte/icons/route';
   import { xpHistoryLabel } from '$lib/domain/xpStory';
   import { toDateKey } from '$lib/domain/eventPresence';
   import Trophy from '@lucide/svelte/icons/trophy';
@@ -170,11 +173,11 @@
 </script>
 
 <svelte:head>
-  <title>Mon XP</title>
+  <title>Mon parcours</title>
 </svelte:head>
 
 <div class="flex min-h-screen flex-col">
-  <TalentPageHeader title="Mon XP" icon={Trophy} />
+  <TalentPageHeader title="Mon parcours" icon={Route} />
 
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
     <!-- Hero: current XP total + stats -->
@@ -205,6 +208,28 @@
         </div>
       </div>
     </div>
+
+    {#if data.finishedActivities.length > 0 || data.pastEvents.length > 0}
+      <!-- What the talent has done, before the ledger of what it earned. -->
+      <div
+        class="mb-8 grid gap-6 md:grid-cols-2"
+        in:fly={{ y: 20, duration: 400, delay: 100 }}
+      >
+        {#if data.finishedActivities.length > 0}
+          <ActivitiesCard
+            title="Activités terminées"
+            activities={data.finishedActivities}
+          />
+        {/if}
+        {#if data.pastEvents.length > 0}
+          <PastEventsCard events={data.pastEvents} timeZone={data.timeZone} />
+        {/if}
+      </div>
+    {/if}
+
+    <h2 class="mb-4 font-heading text-display-s text-foreground">
+      Historique des XP
+    </h2>
 
     <!-- Timeline -->
     {#if groupedDays.length > 0}
