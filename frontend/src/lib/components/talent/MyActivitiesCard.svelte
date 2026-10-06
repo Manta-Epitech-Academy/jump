@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onImageBroken } from '$lib/actions/onImageBroken';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   import Terminal from '@lucide/svelte/icons/terminal';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -76,7 +77,8 @@
                 alt=""
                 loading="lazy"
                 decoding="async"
-                onerror={() => (broken = { ...broken, [thumbnail.url]: true })}
+                use:onImageBroken={() =>
+                  (broken = { ...broken, [thumbnail.url]: true })}
                 class="h-12 w-20 shrink-0 object-cover"
               />
             {:else}

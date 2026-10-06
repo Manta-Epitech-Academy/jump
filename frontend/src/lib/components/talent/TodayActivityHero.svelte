@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onImageBroken } from '$lib/actions/onImageBroken';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   import { Button } from '$lib/components/ui/button';
@@ -83,7 +84,7 @@
                 height={picture.main.height}
                 alt=""
                 decoding="async"
-                onerror={() => markBroken(picture.main.url)}
+                use:onImageBroken={() => markBroken(picture.main.url)}
                 class="block h-auto w-full ring-1 ring-white/20"
               />
             </picture>
@@ -101,7 +102,7 @@
                 height={mascot.height}
                 alt=""
                 decoding="async"
-                onerror={() => markBroken(mascot.url)}
+                use:onImageBroken={() => markBroken(mascot.url)}
                 class={cn(
                   'h-12 w-auto self-start',
                   mascot.width < 128 && '[image-rendering:pixelated]',
