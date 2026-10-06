@@ -18,12 +18,13 @@
  * `Content-Type`. And a refusal names the status at most, never the body.
  */
 
-import { createHash } from 'node:crypto';
 import { lookup as dnsLookup } from 'node:dns';
 import { get as httpGet, type IncomingMessage } from 'node:http';
 import { get as httpsGet } from 'node:https';
 import { isIP, type LookupFunction } from 'node:net';
 import { error } from '@sveltejs/kit';
+import type { Prisma } from '@prisma/client';
+import { prisma } from '$lib/server/db';
 import { isPublicAddress } from '$lib/server/infra/publicAddress';
 import { getStorage } from '$lib/server/infra/storage';
 import { processImage, readGifSize, sniffImageType } from './process';
@@ -65,8 +66,6 @@ export type CopiedImage = {
   extension: string;
   width: number;
   height: number;
-  /** Of the stored bytes: equal pictures get equal keys, so a repeat is free. */
-  digest: string;
 };
 
 /**
@@ -182,7 +181,7 @@ export async function copyRemoteImage(
   const type = sniffImageType(raw);
   if (!type) throw refuse("n'est ni un GIF, ni un PNG, ni un JPEG, ni un WebP");
 
-  let stored: Omit<CopiedImage, 'digest'>;
+  let stored: CopiedImage;
   if (type === 'gif') {
     if (!options.animated) {
       throw refuse(
@@ -222,11 +221,7 @@ export async function copyRemoteImage(
     }
   }
 
-  const digest = createHash('sha256')
-    .update(stored.bytes)
-    .digest('hex')
-    .slice(0, 16);
-  return { ...stored, digest };
+  return stored;
 }
 
 export type StoredObject = {
@@ -237,53 +232,53 @@ export type StoredObject = {
 
 /**
  * Replace the pictures a row references, without ever leaving it pointing at
- * nothing or leaving bytes nobody points at.
+ * nothing or leaving bytes nobody points at, however many writes overlap.
  *
- * `next` is every picture of the new state, `previousKeys` every key of the old
- * one. The new bytes are stored first, then `commit` swaps the references in
- * one transaction; if it throws, only what this call stored goes. After the
- * commit, an old key the new state no longer names is deleted. A picture that
- * comes back under the same content-addressed key is neither re-stored nor
- * deleted.
+ * It rests on one rule the caller keeps: every key in `next` is new, minted for
+ * this write and never used before. A key then has exactly one party that may
+ * delete it, the write that stored it if that write fails, or the write whose
+ * transaction replaced it, so nothing another writer does can bring back a key
+ * this one deletes. That is also what keeps every byte outside the
+ * transaction, where a slow upload cannot hold a lock or time a commit out.
+ *
+ * The new bytes are stored first. `commit` then swaps the references in one
+ * transaction and answers the keys it replaced, which it must read under a lock
+ * serialising writers of those rows: two writers reading the same old keys
+ * would each delete those, and the first one's new pictures would be left
+ * behind with nothing pointing at them. If anything fails, what this call
+ * stored goes; once the commit lands, what it replaced goes.
  */
 export async function swapStoredImages<T>({
   next,
-  previousKeys,
   commit,
 }: {
   next: StoredObject[];
-  previousKeys: readonly string[];
-  commit: () => Promise<T>;
+  commit: (
+    tx: Prisma.TransactionClient,
+  ) => Promise<{ replaced: readonly string[]; result: T }>;
 }): Promise<T> {
   const storage = getStorage();
-  const previous = new Set(previousKeys);
-  const added: string[] = [];
-  let result: T;
+  const discard = (keys: readonly string[]) =>
+    Promise.all(keys.map((key) => storage.delete(key).catch(() => {})));
+
+  let outcome: Awaited<ReturnType<typeof commit>>;
   try {
     for (const object of next) {
-      if (previous.has(object.key)) continue;
       await storage.save(object.key, object.bytes, object.contentType);
-      added.push(object.key);
     }
-    result = await commit();
+    outcome = await prisma.$transaction(commit);
   } catch (err) {
-    await Promise.all(added.map((key) => storage.delete(key).catch(() => {})));
+    await discard(next.map((object) => object.key));
     throw err;
   }
-
-  const live = new Set(next.map((object) => object.key));
-  await Promise.all(
-    previousKeys
-      .filter((key) => !live.has(key))
-      .map((key) => storage.delete(key).catch(() => {})),
-  );
-  return result;
+  await discard(outcome.replaced);
+  return outcome.result;
 }
 
 /**
  * The response serving one stored picture, for a proxy that has already checked
- * a row references `key`. The key is content-addressed (a new picture is a new
- * URL), which is what makes caching it forever safe.
+ * a row references `key`. A key is never reused (a new picture is a new URL),
+ * which is what makes caching it forever safe.
  */
 export async function storedImageResponse(
   key: string,

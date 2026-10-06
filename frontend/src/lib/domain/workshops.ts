@@ -38,9 +38,12 @@ export function workshopSlugFromSourceId(
  * Where a cover picture lives once copied, and the URL a page asks for it at.
  *
  * Composed here and nowhere else, because the proxy route turns its two path
- * segments back into the key and the two directions must not drift. The key is
- * content-addressed (`digest` is a hash of the stored bytes), which is what lets
- * the proxy cache a picture forever: new bytes are a new key.
+ * segments back into the key and the two directions must not drift.
+ *
+ * A key belongs to ONE write (`writeId`, minted per `write_workshop_cover`
+ * call) and is never reused, even for bytes another write already stored. That
+ * is what lets the proxy cache a picture forever, and what lets each key have
+ * exactly one party that may delete it (`images/remote.ts`, `swapStoredImages`).
  */
 export type WorkshopCoverKind = 'media' | 'poster' | 'mascot';
 
@@ -49,10 +52,10 @@ const COVER_PREFIX = 'workshops';
 export function workshopCoverKey(
   instanceId: string,
   kind: WorkshopCoverKind,
-  digest: string,
+  writeId: string,
   extension: string,
 ): string {
-  return `${COVER_PREFIX}/${instanceId}/${kind}-${digest}.${extension}`;
+  return `${COVER_PREFIX}/${instanceId}/${kind}-${writeId}.${extension}`;
 }
 
 /** The key the proxy route's `[instanceId]/[file]` segments name. */
