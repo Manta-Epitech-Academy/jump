@@ -176,18 +176,13 @@
         class="mt-2 space-y-2 text-sm leading-relaxed text-muted-foreground"
       >
         <p>
-          On note quelles pages de Jump sont ouvertes et quels boutons servent,
-          pour savoir ce qui est utile et retirer ce qui ne sert à personne. Ton
-          nom n’est jamais attaché à ces lignes : elles portent un code qui
-          change chaque mois et qui ne permet pas de remonter jusqu’à toi.
+          On compte les pages de Jump que tu ouvres pour savoir ce qui sert. Ton
+          nom n’y figure pas, et ces données sont effacées au bout de {USAGE_RAW_RETENTION_MONTHS}
+          mois.
         </p>
         <p>
-          Ces lignes sont effacées au bout de {USAGE_RAW_RETENTION_MONTHS} mois. Il
-          ne reste ensuite qu’un total par mois, sans aucun code.
-        </p>
-        <p>
-          Si tu coupes ce réglage, plus rien n’est enregistré à partir de là. Ça
-          ne change rien au reste de ton compte.
+          Tu peux désactiver ce comptage à tout moment : plus rien ne sera alors
+          enregistré.
         </p>
       </Collapsible.Content>
     </Collapsible.Root>
