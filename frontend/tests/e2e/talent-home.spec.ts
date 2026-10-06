@@ -47,7 +47,7 @@ test.describe('un talent dont l’événement a lieu aujourd’hui', () => {
     await expect(page.getByText('Événements passés')).toHaveCount(0);
 
     await page.getByRole('link', { name: /Mon parcours/ }).click();
-    await expect(page).toHaveURL(/\/xp$/);
+    await expect(page).toHaveURL(/\/parcours$/);
     await expect(
       page.getByRole('heading', { name: 'Mon parcours' }),
     ).toBeVisible();

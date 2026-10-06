@@ -89,7 +89,7 @@ Eight rules, and each is enforced rather than hoped for:
 
   **And a row carries the date of the fact it records, not a date of its own.**
   Every `XpGrant` was stamped `days(-20)` - derived from the anchor, so the rule
-  above was satisfied, and wrong anyway: the talent's `/xp` page orders by
+  above was satisfied, and wrong anyway: the talent's `/parcours` page orders by
   `createdAt` and `xpStoryService` prints a date per grant, so the whole history
   rendered as one undated block in arbitrary order. Seventeen minigame grants
   made it look fine. `grantXp` takes an `at` now and each caller passes its own

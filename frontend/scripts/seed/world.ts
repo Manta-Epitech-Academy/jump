@@ -1506,7 +1506,7 @@ export class World {
     /**
      * When the granting fact happened. A ledger row whose date is not its
      * fact's date is a row the application could not have written: the talent's
-     * own `/xp` page orders by `createdAt` and `xpStoryService` prints a date
+     * own `/parcours` page orders by `createdAt` and `xpStoryService` prints a date
      * label per grant, so a dataset stamping every row on one day renders the
      * whole history as an undated block in arbitrary order. It survived as long
      * as it did because there were seventeen minigame grants to look at; the

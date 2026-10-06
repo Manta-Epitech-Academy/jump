@@ -1490,7 +1490,7 @@ export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
 
   // Talent space
   '/(talent)': USAGE_FEATURES.TALENT_DASHBOARD_VIEW,
-  '/(talent)/xp': USAGE_FEATURES.TALENT_XP_HISTORY_VIEW,
+  '/(talent)/parcours': USAGE_FEATURES.TALENT_XP_HISTORY_VIEW,
   '/(talent)/events': USAGE_FEATURES.TALENT_EVENTS_VIEW,
   '/(talent)/calendar': USAGE_FEATURES.TALENT_CALENDAR_VIEW,
   '/(talent)/minigames/[publicationId]/leaderboard':
