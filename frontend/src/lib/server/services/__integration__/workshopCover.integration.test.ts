@@ -21,11 +21,14 @@ import { assertTestDatabase } from './testDatabase';
  * downloads, what it refuses to follow or to keep, what it stores, and that a
  * refused write leaves the cover exactly as it was.
  *
- * Storage and the image pipeline are the two things stubbed. Storage records
- * every key so a rotation and its cleanup are visible; the pipeline is
- * `Bun.Image`, which vitest's Node runner does not have, so it hands the bytes
- * back as they came (which keeps the content-addressed keys meaningful) at a
- * size each test can set.
+ * Storage, the image pipeline and the address policy are the three things
+ * stubbed. Storage records every key so a rotation and its cleanup are
+ * visible; the pipeline is `Bun.Image`, which vitest's Node runner does not
+ * have, so it hands the bytes back as they came (which keeps the
+ * content-addressed keys meaningful) at a size each test can set. The address
+ * policy refuses loopback, which is where the test host lives, so it is let
+ * through here and judged on its own in `infra/publicAddress.test.ts`; one test
+ * turns it back on to see a refusal reach the admin.
  */
 const objects = new Map<string, Uint8Array>();
 /** The size the stubbed pipeline reports for a still. */
@@ -50,6 +53,10 @@ vi.mock('$lib/server/infra/storage', () => ({
   isObjectNotFound: () => false,
 }));
 
+vi.mock('$lib/server/infra/publicAddress', () => ({
+  isPublicAddress: vi.fn(() => true),
+}));
+
 vi.mock('$lib/server/images/process', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('$lib/server/images/process')>();
@@ -69,6 +76,7 @@ const { ADMIN_API_OPERATIONS } =
   await import('$lib/server/adminApi/operations');
 const { OperationRefusedError } = await import('$lib/server/adminApi/errors');
 const { REMOTE_IMAGE_MAX_BYTES } = await import('$lib/server/images/remote');
+const { isPublicAddress } = await import('$lib/server/infra/publicAddress');
 const { GET: coverProxy } =
   await import('../../../../routes/api/workshops/covers/[instanceId]/[file]/+server');
 
@@ -92,10 +100,15 @@ describe('the cover an admin gives an activity (integration)', () => {
   let server: Server;
   let host = '';
   let instanceId = '';
-  /** What the host serves, by path: bytes, a fake length, or a redirect. */
+  /**
+   * What the host serves, by path: bytes, a fake length, a body streamed with
+   * no length at all, or a redirect.
+   */
   let files: Map<
     string,
-    { bytes: Uint8Array; length?: number } | { redirect: string }
+    | { bytes: Uint8Array; length?: number }
+    | { stream: number }
+    | { redirect: string }
   >;
 
   const at = (path: string) => `${host}${path}`;
@@ -129,6 +142,22 @@ describe('the cover an admin gives an activity (integration)', () => {
       }
       if ('redirect' in file) {
         res.writeHead(302, { location: file.redirect }).end();
+        return;
+      }
+      if ('stream' in file) {
+        // Chunked, so nothing announces the size before the bytes arrive.
+        res.writeHead(200);
+        const chunk = Buffer.alloc(64 * 1024, 0x89);
+        let left = file.stream;
+        const pump = () => {
+          while (left > 0) {
+            left -= chunk.byteLength;
+            if (!res.write(chunk)) return void res.once('drain', pump);
+          }
+          res.end();
+        };
+        res.on('close', () => (left = 0));
+        pump();
         return;
       }
       res.writeHead(200, {
@@ -282,6 +311,35 @@ describe('the cover an admin gives an activity (integration)', () => {
         { ...fullCover(), mediaUrl: at('/huge.gif') },
         /dépasse 6 Mo/,
       );
+    });
+
+    it('a picture over 6 MB that never said how large it was', async () => {
+      files.set('/flux.png', { stream: REMOTE_IMAGE_MAX_BYTES * 4 });
+      await expectRefused(
+        { ...fullCover(), posterUrl: at('/flux.png') },
+        /dépasse 6 Mo/,
+      );
+    });
+
+    it('an address that is not public, written as an IP or as a name', async () => {
+      vi.mocked(isPublicAddress).mockReturnValue(false);
+      try {
+        // An IP is judged before the request, a name by the lookup the
+        // request connects through: every address is a name here, so the
+        // refusal can only have come from the second.
+        await expectRefused(fullCover(), /adresse interne/);
+        const byName = Object.fromEntries(
+          Object.entries(fullCover()).map(([field, value]) => [
+            field,
+            field.endsWith('Url')
+              ? value.replace('127.0.0.1', 'localhost')
+              : value,
+          ]),
+        ) as ReturnType<typeof fullCover>;
+        await expectRefused(byName, /adresse interne/);
+      } finally {
+        vi.mocked(isPublicAddress).mockReturnValue(true);
+      }
     });
 
     it('a still too narrow for the hero, or not landscape', async () => {
