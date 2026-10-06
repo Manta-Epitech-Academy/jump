@@ -83,6 +83,11 @@
   // The one thing the blue hero suggests doing now, or null on a day with
   // nothing to suggest (`pickHomeHero`, server-side).
   let hero = $derived(data.hero);
+  // Whether the suggestions' column holds anything. When it does not, the
+  // training moves into it (see the layout below).
+  let suggestsSomething = $derived(
+    !!hero || data.toDo.length > 0 || !!data.note,
+  );
 
   // The daily minigame is the row inside the "Entraînement du jour" card:
   // a distinct, accented row, playable or already-played, independent of any
@@ -305,17 +310,19 @@
             </a>
           {/if}
           {#if dev}
-            <!-- Dev-only: flips today's attempt; out of flow, stripped in prod -->
+            <!-- Dev-only: flips today's attempt; stripped in prod. Under the
+                 row rather than over it: in a narrow card an overlay sat on
+                 the row's own label. -->
             <form
               method="POST"
               action="?/devToggleMinigame"
               use:enhance
-              class="absolute top-1.5 right-2"
+              class="mt-2 flex justify-end"
             >
               <button
                 type="submit"
                 title="Dev : basculer l'état de l'entraînement du jour"
-                class="epi-overline text-muted-foreground hover:text-epi-blue"
+                class="cursor-pointer epi-overline text-muted-foreground hover:text-epi-blue"
               >
                 {minigamePlayed ? 'dev: reset' : 'dev: joué'}
               </button>
@@ -325,19 +332,65 @@
       {/if}
     {/snippet}
 
-    <div class="grid grid-cols-1 gap-6 md:grid-cols-12">
+    {#snippet trainingCard()}
+      <div
+        class="order-5 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
+      >
+        <div
+          class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
+        >
+          <Rocket class="h-4 w-4 shrink-0 text-epi-blue" />
+          <h2 class="font-heading text-display-s text-foreground">
+            Entraînement du jour<TitleCursor />
+          </h2>
+        </div>
+
+        <div class="@container space-y-4 p-6">
+          {@render dailyTraining()}
+
+          {#if !hasMinigame && hero}
+            <!-- No training today, but the hero has something to do: say so
+                 in a line rather than « repos » beside a suggestion. -->
+            <p class="py-2 text-sm text-muted-foreground">
+              Pas d’entraînement aujourd’hui : ce qui t’attend est en haut de la
+              page.
+            </p>
+          {:else if !hasMinigame}
+            <!-- Nothing at all today: no training, and nothing in the hero. -->
+            <div
+              class="flex flex-col items-center justify-center py-8 text-center"
+            >
+              <div class="mb-4 rounded-full bg-muted/50 p-4">
+                <Coffee class="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 class="text-lg font-bold text-foreground-secondary uppercase">
+                Repos aujourd’hui
+              </h3>
+              <p class="mt-2 max-w-sm text-sm text-muted-foreground">
+                Pas d’entraînement aujourd’hui. Profites-en pour souffler, on
+                remet ça bientôt !
+              </p>
+            </div>
+          {/if}
+        </div>
+      </div>
+    {/snippet}
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
       <!-- LEFT COLUMN: what is the talent's own (XP and the way into « Mon
            parcours », the day's training that feeds it, their next session).
            RIGHT COLUMN: what Jump suggests (the hero, the activities left to
            do, the campus's news).
-           On mobile both wrappers collapse (display: contents) so their
+           Two columns from `lg` only: at a tablet's width a third of the
+           page is too narrow for the training card.
+           Below that both wrappers collapse (display: contents) so their
            children join the outer grid as siblings and `order-*` interleaves
            them: hero, XP, activities, Actualités, training, session. Each
            column lists its cards in that same relative order, so the phone
-           reads like the desktop, column by column. `order` is inert on
-           desktop (block children, not flex/grid items). -->
+           reads like the desktop, column by column. `order` is inert in two
+           columns (block children, not flex/grid items). -->
       <div
-        class="contents md:col-span-4 md:block md:space-y-6"
+        class="contents lg:col-span-4 lg:block lg:space-y-6"
         in:fly={{ x: -20, duration: 400, delay: 200 }}
       >
         <a
@@ -374,49 +427,9 @@
           </div>
         </a>
 
-        <div
-          class="order-5 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
-        >
-          <div
-            class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
-          >
-            <Rocket class="h-4 w-4 shrink-0 text-epi-blue" />
-            <h2 class="font-heading text-display-s text-foreground">
-              Entraînement du jour<TitleCursor />
-            </h2>
-          </div>
-
-          <div class="@container space-y-4 p-6">
-            {@render dailyTraining()}
-
-            {#if !hasMinigame && hero}
-              <!-- No training today, but the hero has something to do: say so
-                   in a line rather than « repos » beside a suggestion. -->
-              <p class="py-2 text-sm text-muted-foreground">
-                Pas d’entraînement aujourd’hui : ce qui t’attend est en haut de
-                la page.
-              </p>
-            {:else if !hasMinigame}
-              <!-- Nothing at all today: no training, and nothing in the hero. -->
-              <div
-                class="flex flex-col items-center justify-center py-8 text-center"
-              >
-                <div class="mb-4 rounded-full bg-muted/50 p-4">
-                  <Coffee class="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3
-                  class="text-lg font-bold text-foreground-secondary uppercase"
-                >
-                  Repos aujourd’hui
-                </h3>
-                <p class="mt-2 max-w-sm text-sm text-muted-foreground">
-                  Pas d’entraînement aujourd’hui. Profites-en pour souffler, on
-                  remet ça bientôt !
-                </p>
-              </div>
-            {/if}
-          </div>
-        </div>
+        {#if suggestsSomething}
+          {@render trainingCard()}
+        {/if}
 
         {#if showsSessionCard(planning)}
           <!-- The talent's own next session, or the way into a running
@@ -429,7 +442,7 @@
       </div>
 
       <div
-        class="contents md:col-span-8 md:block md:space-y-6"
+        class="contents lg:col-span-8 lg:block lg:space-y-6"
         in:fly={{ x: 20, duration: 400, delay: 300 }}
       >
         {#if hero}
@@ -453,6 +466,13 @@
           <div class="order-4">
             <NewsCard html={data.note} />
           </div>
+        {/if}
+
+        {#if !suggestsSomething}
+          <!-- A day the campus suggests nothing: the training is all there is
+               to do, so it takes the suggestions' column rather than leave it
+               empty beside the XP card. -->
+          {@render trainingCard()}
         {/if}
       </div>
     </div>
