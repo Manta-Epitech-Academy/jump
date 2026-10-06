@@ -14,19 +14,22 @@ import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
 
 /**
- * An activity's cover, read back from its instance and copied into Jump.
+ * How an activity presents itself, authored over the API and copied into Jump.
  *
- * Driven through the WRITE an admin calls, against a fake instance on a real
- * socket, because what is under test is the whole exchange: what Jump asks for,
- * what it refuses to follow, what it stores, and that none of the ways the
- * instance can let it down ever fails the declaration itself.
+ * Driven through the WRITE an admin calls, against a picture host on a real
+ * socket, because what is under test is the whole exchange: what Jump
+ * downloads, what it refuses to follow or to keep, what it stores, and that a
+ * refused write leaves the cover exactly as it was.
  *
  * Storage and the image pipeline are the two things stubbed. Storage records
- * every key so a rotation and its cleanup are visible; the pipeline is `Bun.Image`,
- * which vitest's Node runner does not have, so it hands the bytes back as they
- * came, which keeps the content-addressed keys meaningful.
+ * every key so a rotation and its cleanup are visible; the pipeline is
+ * `Bun.Image`, which vitest's Node runner does not have, so it hands the bytes
+ * back as they came (which keeps the content-addressed keys meaningful) at a
+ * size each test can set.
  */
 const objects = new Map<string, Uint8Array>();
+/** The size the stubbed pipeline reports for a still. */
+let stillSize = { width: 800, height: 450 };
 
 vi.mock('$lib/server/infra/storage', () => ({
   getStorage: () => ({
@@ -55,14 +58,16 @@ vi.mock('$lib/server/images/process', async (importOriginal) => {
     processImage: vi.fn(async (input: Uint8Array) => ({
       bytes: input,
       contentType: 'image/webp' as const,
-      width: 320,
-      height: 200,
+      ...stillSize,
     })),
   };
 });
 
-const { writeWorkshopInstance } =
+const { writeWorkshopCover, writeWorkshopInstance } =
   await import('$lib/server/adminApi/writes/workshops');
+const { ADMIN_API_OPERATIONS } =
+  await import('$lib/server/adminApi/operations');
+const { OperationRefusedError } = await import('$lib/server/adminApi/errors');
 const { REMOTE_IMAGE_MAX_BYTES } = await import('$lib/server/images/remote');
 const { GET: coverProxy } =
   await import('../../../../routes/api/workshops/covers/[instanceId]/[file]/+server');
@@ -80,46 +85,32 @@ const gif = new Uint8Array([
   0,
 ]);
 
-type Answer = {
-  cover: { status: string; detail: string };
-  after: { label: string; cover: { images: string[] } | null };
-};
-
-describe('the cover an instance hands back (integration)', () => {
+describe('the cover an admin gives an activity (integration)', () => {
   const stamp = Date.now();
   const slug = `test-cover-${stamp}`;
 
   let server: Server;
-  let baseUrl = '';
+  let host = '';
   let instanceId = '';
-  /** What the fake instance answers on `/jump/meta`: a status and a body. */
-  let meta: { status: number; body: unknown };
-  /** What it serves under `/files/...`. */
-  let files: Map<string, { bytes: Uint8Array; length?: number }>;
+  /** What the host serves, by path: bytes, a fake length, or a redirect. */
+  let files: Map<
+    string,
+    { bytes: Uint8Array; length?: number } | { redirect: string }
+  >;
 
+  const at = (path: string) => `${host}${path}`;
   const fullCover = () => ({
-    instance: slug,
-    cover: {
-      title: 'IA du fantôme de Pac-Man',
-      summary: 'Programmez le fantôme.',
-      tagline: 'Bientôt c’est TON code',
-      media: '/files/ws-pacman/jeu-demo-aaaa.gif',
-      poster: '/files/ws-pacman/jeu-aaaa.png',
-      mascot: '/files/ws-pacman/fantome-aaaa.png',
-    },
+    slug,
+    tagline: 'Bientôt c’est TON code',
+    mediaUrl: at('/jeu-demo.gif'),
+    posterUrl: at('/jeu.png'),
+    mascotUrl: at('/fantome.png'),
   });
 
-  async function declare(
-    overrides: { baseUrl?: string; enabled?: boolean; label?: string } = {},
-  ): Promise<Answer> {
-    const outcome = await writeWorkshopInstance({
-      slug,
-      label: overrides.label ?? 'Pacman IA',
-      baseUrl: overrides.baseUrl ?? baseUrl,
-      enabled: overrides.enabled ?? true,
-    });
+  async function write(params: Parameters<typeof writeWorkshopCover>[0]) {
+    const outcome = await writeWorkshopCover(params);
     if (!outcome.applied) throw new Error('the write did not apply');
-    return outcome.answer as Answer;
+    return outcome;
   }
 
   const storedImages = () =>
@@ -131,14 +122,13 @@ describe('the cover an instance hands back (integration)', () => {
   beforeAll(async () => {
     assertTestDatabase();
     server = createServer((req, res) => {
-      if (req.url === '/jump/meta') {
-        res.writeHead(meta.status, { 'content-type': 'application/json' });
-        res.end(JSON.stringify(meta.body));
-        return;
-      }
       const file = files.get(req.url ?? '');
       if (!file) {
         res.writeHead(404).end();
+        return;
+      }
+      if ('redirect' in file) {
+        res.writeHead(302, { location: file.redirect }).end();
         return;
       }
       res.writeHead(200, {
@@ -149,15 +139,24 @@ describe('the cover an instance hands back (integration)', () => {
     await new Promise<void>((resolve) =>
       server.listen(0, '127.0.0.1', resolve),
     );
-    baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    host = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+
+    await writeWorkshopInstance({
+      slug,
+      label: 'Pacman IA',
+      baseUrl: 'https://pacman.example.invalid',
+    });
+    instanceId = (
+      await prisma.workshop_Instance.findUniqueOrThrow({ where: { slug } })
+    ).id;
   });
 
   beforeEach(() => {
-    meta = { status: 200, body: fullCover() };
+    stillSize = { width: 800, height: 450 };
     files = new Map([
-      ['/files/ws-pacman/jeu-demo-aaaa.gif', { bytes: gif }],
-      ['/files/ws-pacman/jeu-aaaa.png', { bytes: png(1) }],
-      ['/files/ws-pacman/fantome-aaaa.png', { bytes: png(2) }],
+      ['/jeu-demo.gif', { bytes: gif }],
+      ['/jeu.png', { bytes: png(1) }],
+      ['/fantome.png', { bytes: png(2) }],
     ]);
   });
 
@@ -166,22 +165,18 @@ describe('the cover an instance hands back (integration)', () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
-  it('copies the text and every picture on a first declaration', async () => {
-    const answer = await declare();
-    expect(answer.cover.status).toBe('fetched');
+  it('copies the tagline and every picture', async () => {
+    const outcome = await write(fullCover());
 
-    const instance = await prisma.workshop_Instance.findUniqueOrThrow({
-      where: { slug },
-      select: { id: true, cover: true },
-    });
-    instanceId = instance.id;
-    expect(instance.cover).toMatchObject({
-      title: 'IA du fantôme de Pac-Man',
+    expect(outcome.after).toMatchObject({
       tagline: 'Bientôt c’est TON code',
+      images: [
+        { kind: 'media', sourceUrl: at('/jeu-demo.gif') },
+        { kind: 'poster', sourceUrl: at('/jeu.png') },
+        { kind: 'mascot', sourceUrl: at('/fantome.png') },
+      ],
     });
-
     const images = await storedImages();
-    expect(images.map((i) => i.kind)).toEqual(['media', 'poster', 'mascot']);
     for (const image of images) expect(objects.has(image.key)).toBe(true);
 
     // The animation is kept byte for byte, sized off its own header.
@@ -195,50 +190,36 @@ describe('the cover an instance hands back (integration)', () => {
     );
   });
 
-  it('writes nothing when the answer is what is already stored', async () => {
+  it('keeps every picture in place when the same cover is written again', async () => {
     const before = await storedImages();
-    const fetchedAt = (
-      await prisma.workshop_Cover.findUniqueOrThrow({
-        where: { instanceId },
-      })
-    ).fetchedAt;
+    const objectCount = objects.size;
 
-    const answer = await declare();
+    const outcome = await write(fullCover());
 
-    expect(answer.cover.status).toBe('unchanged');
+    expect(outcome.after).toEqual(outcome.before);
     expect(await storedImages()).toEqual(before);
-    const after = await prisma.workshop_Cover.findUniqueOrThrow({
-      where: { instanceId },
-    });
-    expect(after.fetchedAt).toEqual(fetchedAt);
+    expect(objects.size).toBe(objectCount);
   });
 
-  it('rotates a picture the subject replaced, and deletes the old copy', async () => {
+  it('picks up a picture replaced at the same address, and deletes the old copy', async () => {
     const oldPoster = (await storedImages()).find((i) => i.kind === 'poster')!;
-    const body = fullCover();
-    body.cover.poster = '/files/ws-pacman/jeu-bbbb.png';
-    meta = { status: 200, body };
-    files.set('/files/ws-pacman/jeu-bbbb.png', { bytes: png(3) });
+    files.set('/jeu.png', { bytes: png(3) });
 
-    const answer = await declare();
+    await write(fullCover());
 
-    expect(answer.cover.status).toBe('fetched');
     const poster = (await storedImages()).find((i) => i.kind === 'poster')!;
-    expect(poster.sourcePath).toBe('/files/ws-pacman/jeu-bbbb.png');
     expect(poster.key).not.toBe(oldPoster.key);
     expect(objects.has(poster.key)).toBe(true);
     expect(objects.has(oldPoster.key)).toBe(false);
   });
 
-  it('drops a picture the subject no longer declares', async () => {
+  it('removes what the call leaves out', async () => {
     const mascot = (await storedImages()).find((i) => i.kind === 'mascot')!;
-    const body = fullCover();
-    body.cover.poster = '/files/ws-pacman/jeu-bbbb.png';
-    files.set('/files/ws-pacman/jeu-bbbb.png', { bytes: png(3) });
-    (body.cover as { mascot: string | null }).mascot = null;
-    meta = { status: 200, body };
 
-    expect((await declare()).cover.status).toBe('fetched');
+    const { mascotUrl: _mascot, tagline: _tagline, ...rest } = fullCover();
+    const outcome = await write(rest);
+
+    expect(outcome.after).toMatchObject({ tagline: null });
     expect((await storedImages()).map((i) => i.kind)).toEqual([
       'media',
       'poster',
@@ -246,72 +227,100 @@ describe('the cover an instance hands back (integration)', () => {
     expect(objects.has(mascot.key)).toBe(false);
   });
 
-  describe('every failure keeps the stored cover and still lands the write', () => {
-    let kept: Awaited<ReturnType<typeof storedImages>>;
-    beforeEach(async () => {
-      kept = await storedImages();
-    });
+  describe('a picture that cannot be copied refuses the whole write', () => {
+    async function expectRefused(
+      params: Parameters<typeof writeWorkshopCover>[0],
+      saying: RegExp,
+    ) {
+      const before = await storedImages();
+      const tagline = (
+        await prisma.workshop_Instance.findUniqueOrThrow({ where: { slug } })
+      ).tagline;
+      const keys = [...objects.keys()];
 
-    async function expectKept(status: string, answer: Answer) {
-      expect(answer.cover.status).toBe(status);
-      expect(answer.cover.detail.length).toBeGreaterThan(0);
-      expect(await storedImages()).toEqual(kept);
+      const refusal = await writeWorkshopCover(params).catch((err) => err);
+
+      expect(refusal).toBeInstanceOf(OperationRefusedError);
+      expect((refusal as Error).message).toMatch(saying);
+      expect(await storedImages()).toEqual(before);
+      expect(
+        (await prisma.workshop_Instance.findUniqueOrThrow({ where: { slug } }))
+          .tagline,
+      ).toBe(tagline);
+      expect([...objects.keys()]).toEqual(keys);
     }
 
-    it('an instance answering under another slug', async () => {
-      meta = { status: 200, body: { ...fullCover(), instance: 'another-box' } };
-      await expectKept('instance_mismatch', await declare());
+    it('an unreachable host', async () => {
+      await expectRefused(
+        { ...fullCover(), mascotUrl: 'http://127.0.0.1:1/fantome.png' },
+        /La mascotte .* n'a pas pu être téléchargée/,
+      );
     });
 
-    it('an instance with nothing to present', async () => {
-      meta = { status: 404, body: { error: 'nothing to present' } };
-      await expectKept('no_cover', await declare());
+    it('a redirect, which is never followed', async () => {
+      files.set('/ailleurs.png', { redirect: at('/fantome.png') });
+      await expectRefused(
+        { ...fullCover(), mascotUrl: at('/ailleurs.png') },
+        /redirige ailleurs/,
+      );
     });
 
-    it('an instance that does not answer, while the curation still lands', async () => {
-      const answer = await declare({
-        baseUrl: 'http://127.0.0.1:1',
-        label: 'Pacman IA (relabelled)',
-      });
-      await expectKept('unreachable', answer);
-      expect(answer.after.label).toBe('Pacman IA (relabelled)');
-      await declare(); // Back to the fake instance for the cases below.
+    it('bytes that are not a picture', async () => {
+      files.set('/page.png', { bytes: new TextEncoder().encode('<html>') });
+      await expectRefused(
+        { ...fullCover(), posterUrl: at('/page.png') },
+        /ni un GIF, ni un PNG/,
+      );
     });
 
-    it('a picture that would leave the instance', async () => {
-      const body = fullCover();
-      body.cover.poster = '//evil.example/jeu.png';
-      meta = { status: 200, body };
-      await expectKept('invalid', await declare());
-    });
-
-    it('a picture that is not one', async () => {
-      const body = fullCover();
-      body.cover.poster = '/files/ws-pacman/page.png';
-      meta = { status: 200, body };
-      files.set('/files/ws-pacman/page.png', {
-        bytes: new TextEncoder().encode('<!doctype html><p>hello'),
-      });
-      await expectKept('invalid', await declare());
-    });
-
-    it('a picture past the size a cover may weigh', async () => {
-      const body = fullCover();
-      body.cover.media = '/files/ws-pacman/huge.gif';
-      meta = { status: 200, body };
-      files.set('/files/ws-pacman/huge.gif', {
+    it('a picture over 6 MB', async () => {
+      files.set('/huge.gif', {
         bytes: gif,
         length: REMOTE_IMAGE_MAX_BYTES + 1,
       });
-      await expectKept('invalid', await declare());
+      await expectRefused(
+        { ...fullCover(), mediaUrl: at('/huge.gif') },
+        /dépasse 6 Mo/,
+      );
+    });
+
+    it('a still too narrow for the hero, or not landscape', async () => {
+      stillSize = { width: 320, height: 200 };
+      await expectRefused(fullCover(), /il en faut au moins 480/);
+      stillSize = { width: 600, height: 800 };
+      await expectRefused(fullCover(), /image horizontale/);
+    });
+
+    it('an animated still', async () => {
+      await expectRefused(
+        { ...fullCover(), posterUrl: at('/jeu-demo.gif') },
+        /est un GIF/,
+      );
+    });
+
+    it('an animation with no still for reduced motion', async () => {
+      const { posterUrl: _poster, ...rest } = fullCover();
+      await expectRefused(rest, /besoin d'une image fixe/);
+    });
+
+    it('an activity that does not exist', async () => {
+      await expectRefused(
+        { ...fullCover(), slug: `${slug}-absent` },
+        /introuvable/,
+      );
     });
   });
 
-  it('does not ask a disabled instance anything', async () => {
-    meta = { status: 500, body: null };
-    const answer = await declare({ enabled: false });
-    expect(answer.cover.status).toBe('not_read');
-    expect(answer.after.cover).not.toBeNull();
+  it('takes nothing but an https address, at the operation boundary', () => {
+    const { schema } = ADMIN_API_OPERATIONS.write_workshop_cover;
+    expect(
+      schema.safeParse({ slug, mediaUrl: 'https://cdn.example.invalid/a.png' })
+        .success,
+    ).toBe(true);
+    expect(
+      schema.safeParse({ slug, mediaUrl: 'http://cdn.example.invalid/a.png' })
+        .success,
+    ).toBe(false);
   });
 
   describe('the proxy that serves the copies', () => {

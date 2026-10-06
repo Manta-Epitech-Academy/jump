@@ -5,9 +5,9 @@
  * Two directions, and they never cross. Jump decides who may enter and mints a
  * ticket for it (`workshops/ticket.ts`); CTFd reports progress back over a signed
  * callback, and this file turns that report into one XP grant. Nothing here polls
- * CTFd: a talent's progress arrives, it is never asked for. (The one thing Jump
- * does read from an instance, its cover, is read when an admin declares it, in
- * `workshops/cover.ts`, never on a talent's request.)
+ * CTFd: a talent's progress arrives, it is never asked for. How an activity is
+ * presented (its tagline and pictures) is not CTFd's either: it is authored over
+ * the API (`write_workshop_cover`) and only read here.
  *
  * Which activities a talent is offered is ONE rule, `selectWorkshopOfferings`,
  * and both readers go through `offeredWorkshops`: the dashboard that shows them
@@ -24,6 +24,7 @@ import {
   workshopGrantSourceId,
   type TalentWorkshops,
   type WorkshopActivity,
+  type WorkshopCoverKind,
 } from '$lib/domain/workshops';
 import {
   getEventStatus,
@@ -76,7 +77,13 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
                 durationMinutes: true,
                 labelOverride: true,
                 instance: {
-                  select: { id: true, slug: true, label: true, baseUrl: true },
+                  select: {
+                    id: true,
+                    slug: true,
+                    label: true,
+                    tagline: true,
+                    baseUrl: true,
+                  },
                 },
               },
             },
@@ -129,7 +136,7 @@ export async function listTalentWorkshops(
   if (offered.length === 0) return { today: [], activities: [] };
 
   const instanceIds = offered.map((o) => o.instanceId);
-  const [entries, covers] = await Promise.all([
+  const [entries, images] = await Promise.all([
     prisma.workshop_Participation.findMany({
       where: { talentId, instanceId: { in: instanceIds } },
       select: {
@@ -139,25 +146,25 @@ export async function listTalentWorkshops(
         firstEnteredAt: true,
       },
     }),
-    prisma.workshop_Cover.findMany({
+    prisma.workshop_CoverImage.findMany({
       where: { instanceId: { in: instanceIds } },
       select: {
         instanceId: true,
-        tagline: true,
-        images: {
-          select: { kind: true, key: true, width: true, height: true },
-        },
+        kind: true,
+        key: true,
+        width: true,
+        height: true,
       },
     }),
   ]);
   const entryByInstance = new Map(entries.map((e) => [e.instanceId, e]));
-  const coverByInstance = new Map(covers.map((c) => [c.instanceId, c]));
 
   const toActivity = (o: (typeof offered)[number]): WorkshopActivity => {
     const entry = entryByInstance.get(o.instanceId);
-    const cover = coverByInstance.get(o.instanceId);
-    const image = (kind: 'media' | 'poster' | 'mascot') => {
-      const found = cover?.images.find((i) => i.kind === kind);
+    const image = (kind: WorkshopCoverKind) => {
+      const found = images.find(
+        (i) => i.instanceId === o.instanceId && i.kind === kind,
+      );
       return found
         ? {
             url: workshopCoverUrl(found.key),
@@ -172,14 +179,12 @@ export async function listTalentWorkshops(
       solvedSteps: entry?.solvedSteps ?? 0,
       totalSteps: entry?.totalSteps ?? 0,
       startedAt: entry?.firstEnteredAt ?? null,
-      cover: cover
-        ? {
-            tagline: cover.tagline,
-            media: image('media'),
-            poster: image('poster'),
-            mascot: image('mascot'),
-          }
-        : null,
+      cover: {
+        tagline: o.instance.tagline,
+        media: image('media'),
+        poster: image('poster'),
+        mascot: image('mascot'),
+      },
     };
   };
 

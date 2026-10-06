@@ -156,7 +156,11 @@ import {
   writeDiplomaTemplate,
   writeEventDiplomaTemplate,
 } from './writes/diplomas';
-import { writeWorkshopInstance, writeEventWorkshops } from './writes/workshops';
+import {
+  writeWorkshopInstance,
+  writeWorkshopCover,
+  writeEventWorkshops,
+} from './writes/workshops';
 import {
   writeEventInscritsOptions,
   writeEventConfig,
@@ -450,6 +454,24 @@ function defineWrite<Shape extends z.ZodRawShape>(op: {
   };
 }
 
+/**
+ * An https address of a picture Jump is to download and copy. The scheme is
+ * checked here, at the boundary, so every write that takes a picture refuses
+ * the same thing in the same words, and the service under it can be exercised
+ * against a local test server.
+ */
+function pictureUrl(describe: string) {
+  return z
+    .string()
+    .url()
+    .refine((value) => value.startsWith('https://'), {
+      message:
+        'An https address is required: Jump downloads the picture from it.',
+    })
+    .optional()
+    .describe(describe);
+}
+
 export const ADMIN_API_OPERATIONS = {
   stats_events_overview: defineOperation({
     description:
@@ -598,7 +620,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_workshop_instances: defineOperation({
     description:
-      'The online activities Jump can send a talent to: their slug, the French name a talent reads, the CTFd address behind each, whether it is offered today, how many events offer it, how many talents have entered it, and the cover Jump last copied from the instance for the talent dashboard (headline, which pictures, when), or null if it was never read. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP. Returns the slugs the two activity write operations take.',
+      'The online activities Jump can send a talent to: their slug, the French name a talent reads, the CTFd address behind each, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop_cover takes back). The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP. Returns the slugs the activity write operations take.',
     shape: {},
     run: () => getWorkshopInstances(),
   }),
@@ -811,7 +833,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_workshop_instance: defineWrite({
     description:
-      "Declare or update one online activity, identified by its slug: a slug that does not exist yet creates one, an existing slug updates it. It curates where Jump sends a talent and authors no subject content. When the activity is enabled it then reads the subject's cover from the instance (GET <baseUrl>/jump/meta: headline and pictures, authored in the subject repo) and copies it for the talent dashboard, so nothing about the subject is typed here. Repeat it after the subject is re-synced on the instance to pick up a new cover. That read never fails the write: the answer's cover.status says fetched, unchanged, no_cover, unreachable, instance_mismatch (the address answers under another slug), invalid or not_read (disabled), with a French detail to relay. Set enabled to false to stop offering it everywhere at once without unpicking any event. Safe to repeat: the same slug and the same values leave one activity. Answers with the activity before and after.",
+      'Declare or update one online activity, identified by its slug: a slug that does not exist yet creates one, an existing slug updates it. It curates where Jump sends a talent and authors no subject content; how the activity looks on the talent dashboard is write_workshop_cover. Set enabled to false to stop offering it everywhere at once without unpicking any event. Safe to repeat: the same slug and the same values leave one activity. Answers with the activity before and after.',
     shape: {
       slug: z
         .string()
@@ -843,6 +865,33 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => writeWorkshopInstance(params),
+  }),
+
+  write_workshop_cover: defineWrite({
+    description:
+      "Set how one online activity presents itself on the talent dashboard: a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host. The call states the WHOLE cover: anything omitted is removed, so to change one part, read config_workshop_instances first and pass the rest back as it stands. media is the main visual (PNG, JPEG, WebP, or an animated GIF, in which case posterUrl is required as the still shown to talents who reduce motion); poster and mascot are stills. media and poster must be landscape, between square and 21:9, at least 480 px wide; every picture under 6 MB, served directly with no redirect. All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: every picture is downloaded again and an identical one keeps its place, so repeating also picks up a picture replaced at the same address. Answers with the cover before and after.",
+    shape: {
+      slug: z.string().min(1).describe(handleDescribe('workshopSlug')),
+      tagline: z
+        .string()
+        .trim()
+        .min(1)
+        .max(90)
+        .optional()
+        .describe(
+          'French, one line a talent reads big, e.g. "Apprends à un fantôme à te traquer". Omit to lead with the activity name.',
+        ),
+      mediaUrl: pictureUrl(
+        'https address of the main visual, a still or an animated GIF. Omit for none.',
+      ),
+      posterUrl: pictureUrl(
+        'https address of a still of the visual. Required when the visual is an animated GIF; otherwise it is shown in its place when the visual fails to load. Omit for none.',
+      ),
+      mascotUrl: pictureUrl(
+        "https address of the subject's character, drawn small above the tagline (pixel art stays crisp). Omit for none.",
+      ),
+    },
+    run: (params) => writeWorkshopCover(params),
   }),
 
   write_event_workshops: defineWrite({

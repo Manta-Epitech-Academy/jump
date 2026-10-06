@@ -201,9 +201,8 @@ export const longTail: Scenario = {
           : [],
         closingTemplateId: runsClosings ? clubTemplateId : null,
         // The event running today offers an activity, so its whole roster
-        // opens the dashboard on the day's hero. The instance it offers has
-        // never been read (`cover: null`), which is the hero with nothing but
-        // a label to lead with.
+        // opens the dashboard on the day's hero. The activity it offers has no
+        // cover, which is the hero with nothing but a label to lead with.
         workshops: index === 1 ? [TODAY_ACTIVITY] : undefined,
       });
       created += 1;

@@ -23,7 +23,7 @@
   let broken = $state<Record<string, true>>({});
 
   function thumbnailOf(activity: WorkshopActivity) {
-    const image = activity.cover?.poster ?? activity.cover?.media ?? null;
+    const image = activity.cover.poster ?? activity.cover.media ?? null;
     return image && !broken[image.url] ? image : null;
   }
 

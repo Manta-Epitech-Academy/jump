@@ -35,7 +35,7 @@ export function workshopSlugFromSourceId(
 }
 
 /**
- * Where a copied cover picture lives, and the URL a page asks for it at.
+ * Where a cover picture lives once copied, and the URL a page asks for it at.
  *
  * Composed here and nowhere else, because the proxy route turns its two path
  * segments back into the key and the two directions must not drift. The key is
@@ -150,13 +150,16 @@ export type WorkshopActivity = {
   totalSteps: number;
   /** Null until the talent has entered once. */
   startedAt: Date | null;
-  /** What the subject says about itself, copied from the instance; null until read. */
+  /**
+   * How the activity presents itself, authored over the API. Every part is
+   * optional: with none, the activity stands on its label.
+   */
   cover: {
     tagline: string | null;
     media: WorkshopCoverImage | null;
     poster: WorkshopCoverImage | null;
     mascot: WorkshopCoverImage | null;
-  } | null;
+  };
 };
 
 export type TalentWorkshops = {

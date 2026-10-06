@@ -61,6 +61,12 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'label',
   // The address of a CTFd instance, typed once when it is deployed.
   'baseUrl',
+  // How an activity presents itself: a line and the addresses of pictures Jump
+  // downloads. Authored, not picked from anything Jump holds.
+  'tagline',
+  'mediaUrl',
+  'posterUrl',
+  'mascotUrl',
   // A certificate design. Authored rather than picked from anywhere, which is the
   // whole point of the table it is stored in.
   'styleCss',

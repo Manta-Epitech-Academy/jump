@@ -1,12 +1,12 @@
-// The class A writes for the CTFd activities: curating an instance, and saying
-// which ones an event offers. Bounded to named rows and reversible.
+// The class A writes for the CTFd activities: curating an instance, presenting
+// it on the talent dashboard, and saying which ones an event offers. Bounded to
+// named rows and reversible.
 //
-// Declaring an instance also READS from it: `refreshWorkshopCover` asks the
-// instance for its subject's cover and copies it, so the dashboard's headline
-// and pictures are never typed in twice. That read sends nothing anywhere a
-// person would receive, and it goes only to the origin the admin just named, so
-// the class does not move. Its outcome is reported in the answer and never fails
-// the write: the curation lands whatever the instance says.
+// Presenting one (`writeWorkshopCover`) downloads the pictures it is given, from
+// addresses an admin chose, before anything is stored. That read sends nothing
+// anywhere a person would receive and writes only to the named activity, so the
+// class does not move. It is all or nothing: a picture that cannot be copied
+// refuses the whole write, and the cover stays as it was.
 //
 // There is deliberately no delete. `config_workshop_instances` returns slugs, so
 // a delete tool would be something a model could aim on its own, which puts it in
@@ -18,64 +18,37 @@ import { handleProvenanceFr } from '../handles';
 import { UnknownScopeError } from '../scope';
 import type { WriteOutcome } from '../plan';
 import {
-  refreshWorkshopCover,
-  type CoverRefreshStatus,
-} from '$lib/server/workshops/cover';
+  copyRemoteImage,
+  HERO_PICTURE_FRAME,
+  RemoteImageRefusal,
+  swapStoredImages,
+  type CopiedImage,
+} from '$lib/server/images/remote';
+import {
+  workshopCoverKey,
+  type WorkshopCoverKind,
+} from '$lib/domain/workshops';
 
 type WorkshopInstanceState = {
   slug: string;
   label: string;
   baseUrl: string;
   enabled: boolean;
-  /** What Jump last copied of the subject's cover, null until a first read. */
-  cover: {
-    title: string;
-    tagline: string | null;
-    images: string[];
-    fetchedAt: Date;
-  } | null;
 };
 
 const INSTANCE_SELECT = {
-  id: true,
   slug: true,
   label: true,
   baseUrl: true,
   enabled: true,
-  cover: {
-    select: {
-      title: true,
-      tagline: true,
-      fetchedAt: true,
-      images: { select: { kind: true }, orderBy: { kind: 'asc' } },
-    },
-  },
 } as const;
 
-async function instanceState(
-  slug: string,
-): Promise<(WorkshopInstanceState & { id: string }) | null> {
-  const row = await prisma.workshop_Instance.findUnique({
+function instanceState(slug: string): Promise<WorkshopInstanceState | null> {
+  return prisma.workshop_Instance.findUnique({
     where: { slug },
     select: INSTANCE_SELECT,
   });
-  if (!row) return null;
-  return {
-    ...row,
-    cover: row.cover && {
-      title: row.cover.title,
-      tagline: row.cover.tagline,
-      images: row.cover.images.map((image) => image.kind),
-      fetchedAt: row.cover.fetchedAt,
-    },
-  };
 }
-
-const withoutId = <T extends { id: string }>(state: T | null) => {
-  if (!state) return null;
-  const { id: _id, ...rest } = state;
-  return rest;
-};
 
 /**
  * An origin and nothing else: no path, no query, no trailing slash, because the
@@ -124,30 +97,162 @@ export async function writeWorkshopInstance(params: {
   // silently put a retired instance back in front of a cohort.
   const enabled = params.enabled ?? before?.enabled ?? true;
 
-  const { id } = await prisma.workshop_Instance.upsert({
+  await prisma.workshop_Instance.upsert({
     where: { slug },
     create: { slug, label, baseUrl, enabled },
     update: { label, baseUrl, enabled },
-    select: { id: true },
   });
 
-  // A retired instance is not asked anything: it may well be gone, and nobody
-  // will see its cover again until it is switched back on, which reads it.
-  const cover: { status: CoverRefreshStatus | 'not_read'; detail: string } =
-    enabled
-      ? await refreshWorkshopCover({ id, slug, baseUrl })
-      : {
-          status: 'not_read',
-          detail:
-            "Activité désactivée : son aperçu n'est pas relu. Il le sera quand elle sera réactivée.",
-        };
+  return { applied: true, before, after: await instanceState(slug) };
+}
 
-  const after = await instanceState(slug);
+/** How an activity presents itself, as `write_workshop_cover` states it. */
+type WorkshopCoverState = {
+  slug: string;
+  tagline: string | null;
+  /** The address each picture was copied from, by kind. */
+  images: { kind: WorkshopCoverKind; sourceUrl: string }[];
+};
+
+const COVER_KINDS: WorkshopCoverKind[] = ['media', 'poster', 'mascot'];
+
+/** French name of each picture, for a refusal the admin reads. */
+const COVER_LABEL_FR: Record<WorkshopCoverKind, string> = {
+  media: 'Le visuel',
+  poster: "L'image fixe",
+  mascot: 'La mascotte',
+};
+
+/**
+ * How each picture is copied. Only the visual may move: the still exists to
+ * replace it for a talent who asked for reduced motion, and the mascot is drawn
+ * beside a line of text, where an animation would compete with it. The two
+ * pictures in the hero's picture slot carry its frame; the mascot is a small
+ * sprite and carries none.
+ */
+const COVER_COPY: Record<
+  WorkshopCoverKind,
+  Parameters<typeof copyRemoteImage>[1]
+> = {
+  media: { maxEdge: 1280, animated: true, frame: HERO_PICTURE_FRAME },
+  poster: { maxEdge: 1280, animated: false, frame: HERO_PICTURE_FRAME },
+  mascot: { maxEdge: 512, animated: false },
+};
+
+async function coverState(
+  instanceId: string,
+): Promise<WorkshopCoverState & { keys: string[] }> {
+  const instance = await prisma.workshop_Instance.findUniqueOrThrow({
+    where: { id: instanceId },
+    select: {
+      slug: true,
+      tagline: true,
+      coverImages: {
+        select: { kind: true, sourceUrl: true, key: true },
+        orderBy: { kind: 'asc' },
+      },
+    },
+  });
+  return {
+    slug: instance.slug,
+    tagline: instance.tagline,
+    images: instance.coverImages.map(({ kind, sourceUrl }) => ({
+      kind,
+      sourceUrl,
+    })),
+    keys: instance.coverImages.map((image) => image.key),
+  };
+}
+
+const withoutKeys = ({
+  keys: _keys,
+  ...state
+}: { keys: string[] } & WorkshopCoverState) => state;
+
+export async function writeWorkshopCover(params: {
+  slug: string;
+  tagline?: string;
+  mediaUrl?: string;
+  posterUrl?: string;
+  mascotUrl?: string;
+}): Promise<WriteOutcome> {
+  const instance = await prisma.workshop_Instance.findUnique({
+    where: { slug: params.slug.trim() },
+    select: { id: true },
+  });
+  if (!instance) {
+    throw new OperationRefusedError(
+      `Activité « ${params.slug} » introuvable. ${handleProvenanceFr('workshopSlug')}`,
+    );
+  }
+
+  const tagline = params.tagline?.trim() || null;
+  const urls: Partial<Record<WorkshopCoverKind, string>> = {
+    media: params.mediaUrl,
+    poster: params.posterUrl,
+    mascot: params.mascotUrl,
+  };
+
+  // Every picture given is downloaded again, every time: the key is a hash of
+  // the bytes, so an unchanged picture comes back under the same key and costs
+  // nothing, and a picture replaced at the same address is picked up.
+  const copied = await Promise.all(
+    COVER_KINDS.filter((kind) => urls[kind]).map(async (kind) => {
+      const sourceUrl = urls[kind]!;
+      let image: CopiedImage;
+      try {
+        image = await copyRemoteImage(new URL(sourceUrl), COVER_COPY[kind]);
+      } catch (err) {
+        if (!(err instanceof RemoteImageRefusal)) throw err;
+        throw new OperationRefusedError(
+          `${COVER_LABEL_FR[kind]} (${sourceUrl}) ${err.message}. L'aperçu de l'activité n'a pas changé.`,
+        );
+      }
+      return { kind, sourceUrl, image };
+    }),
+  );
+
+  const moving = copied.find((c) => c.kind === 'media')?.image;
+  if (moving?.contentType === 'image/gif' && !urls.poster) {
+    throw new OperationRefusedError(
+      "Un visuel animé a besoin d'une image fixe (posterUrl) : c'est elle que voit un talent qui a demandé à réduire les animations. L'aperçu de l'activité n'a pas changé.",
+    );
+  }
+
+  const before = await coverState(instance.id);
+  const rows = copied.map(({ kind, sourceUrl, image }) => ({
+    instanceId: instance.id,
+    kind,
+    sourceUrl,
+    key: workshopCoverKey(instance.id, kind, image.digest, image.extension),
+    contentType: image.contentType,
+    width: image.width,
+    height: image.height,
+    bytes: image.bytes,
+  }));
+
+  await swapStoredImages({
+    next: rows,
+    previousKeys: before.keys,
+    commit: () =>
+      prisma.$transaction([
+        prisma.workshop_Instance.update({
+          where: { id: instance.id },
+          data: { tagline },
+        }),
+        prisma.workshop_CoverImage.deleteMany({
+          where: { instanceId: instance.id },
+        }),
+        prisma.workshop_CoverImage.createMany({
+          data: rows.map(({ bytes: _bytes, ...row }) => row),
+        }),
+      ]),
+  });
+
   return {
     applied: true,
-    before: withoutId(before),
-    after: withoutId(after),
-    answer: { before: withoutId(before), after: withoutId(after), cover },
+    before: withoutKeys(before),
+    after: withoutKeys(await coverState(instance.id)),
   };
 }
 

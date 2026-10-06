@@ -7,11 +7,11 @@
  * history of the database, while these are removed and rewritten on every full
  * run.
  *
- * Each carries the cover a real instance would have handed back on
- * `/jump/meta`, in the three shapes the dashboard has to render: a full one
- * (headline, animation, still, mascot), a sparse one (a title and a still), and
- * none at all (an instance never read). Like every stored file here, the
- * pictures are KEYS WITHOUT BYTES: a seeded environment has no bucket behind
+ * Each carries the cover an admin would have written with `write_workshop_cover`,
+ * in the three shapes the dashboard has to render: a full one (tagline,
+ * animation, still, mascot), a sparse one (a still and no tagline), and none at
+ * all (the label alone). Like every stored file here, the pictures are KEYS
+ * WITHOUT BYTES: a seeded environment has no bucket behind
  * them, so the dashboard's fallback for a picture that does not load is what a
  * reviewer sees, which is also the path that most needs looking at.
  *
@@ -45,14 +45,6 @@ type CoverImageSpec = {
   readonly height: number;
 };
 
-/** What the instance would answer on `/jump/meta`, already copied. */
-type CoverSpec = {
-  readonly title: string;
-  readonly summary: string | null;
-  readonly tagline: string | null;
-  readonly images: readonly CoverImageSpec[];
-};
-
 export type WorkshopSpec = {
   readonly slug: string;
   readonly label: string;
@@ -62,8 +54,10 @@ export type WorkshopSpec = {
   readonly durationMinutes: number;
   /** How many steps the subject holds, mirrored by a seeded participation. */
   readonly totalSteps: number;
-  /** Null for an instance Jump has never read. */
-  readonly cover: CoverSpec | null;
+  /** The line the hero leads with; null to lead with the label. */
+  readonly tagline: string | null;
+  /** The pictures, as copied: none for an activity that stands on its label. */
+  readonly images: readonly CoverImageSpec[];
 };
 
 export const WORKSHOPS: readonly WorkshopSpec[] = [
@@ -74,34 +68,30 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     enabled: true,
     durationMinutes: 120,
     totalSteps: 15,
-    cover: {
-      title: 'IA du fantôme de Pac-Man',
-      summary: "Programmez l'intelligence du fantôme de Pac-Man, en Lua.",
-      tagline: 'Bientôt c’est TON code qui fera bouger ce fantôme',
-      images: [
-        {
-          kind: 'media',
-          file: 'jeu-demo',
-          contentType: 'image/gif',
-          width: 640,
-          height: 400,
-        },
-        {
-          kind: 'poster',
-          file: 'jeu',
-          contentType: 'image/webp',
-          width: 640,
-          height: 400,
-        },
-        {
-          kind: 'mascot',
-          file: 'fantome',
-          contentType: 'image/webp',
-          width: 256,
-          height: 256,
-        },
-      ],
-    },
+    tagline: 'Bientôt c’est TON code qui fera bouger ce fantôme',
+    images: [
+      {
+        kind: 'media',
+        file: 'jeu-demo',
+        contentType: 'image/gif',
+        width: 640,
+        height: 400,
+      },
+      {
+        kind: 'poster',
+        file: 'jeu',
+        contentType: 'image/webp',
+        width: 640,
+        height: 400,
+      },
+      {
+        kind: 'mascot',
+        file: 'fantome',
+        contentType: 'image/webp',
+        width: 256,
+        height: 256,
+      },
+    ],
   },
   {
     // Retired rather than deleted, which is how an activity leaves the
@@ -113,31 +103,28 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     enabled: false,
     durationMinutes: 90,
     totalSteps: 12,
-    cover: {
-      title: 'Découverte de Linux',
-      summary: null,
-      tagline: null,
-      images: [
-        {
-          kind: 'poster',
-          file: 'terminal',
-          contentType: 'image/webp',
-          width: 1280,
-          height: 720,
-        },
-      ],
-    },
+    tagline: null,
+    images: [
+      {
+        kind: 'poster',
+        file: 'terminal',
+        contentType: 'image/webp',
+        width: 1280,
+        height: 720,
+      },
+    ],
   },
   {
-    // Offered and never read: a cover the instance has not handed back yet,
-    // which the dashboard renders with the label alone.
+    // Offered and never given a cover, which the dashboard renders with the
+    // label alone.
     slug: 'santa-shooter',
     label: 'Santa Shooter',
     baseUrl: 'https://santa-shooter.ctfd.invalid',
     enabled: true,
     durationMinutes: 180,
     totalSteps: 31,
-    cover: null,
+    tagline: null,
+    images: [],
   },
 ];
 
@@ -165,6 +152,7 @@ export async function seedWorkshopInstances(
       id: workshopInstanceId(workshop.slug),
       slug: workshop.slug,
       label: workshop.label,
+      tagline: workshop.tagline,
       baseUrl: workshop.baseUrl,
       enabled: workshop.enabled,
       createdAt: anchor,
@@ -173,43 +161,26 @@ export async function seedWorkshopInstances(
     skipDuplicates: true,
   });
 
-  // Create-only like the rows above: an instance an admin has since re-read
-  // keeps the cover it was given.
-  const covered = WORKSHOPS.flatMap((workshop) =>
-    workshop.cover
-      ? [
-          {
-            instanceId: workshopInstanceId(workshop.slug),
-            cover: workshop.cover,
-          },
-        ]
-      : [],
-  );
-  await prisma.workshop_Cover.createMany({
-    data: covered.map(({ instanceId, cover }) => ({
-      instanceId,
-      title: cover.title,
-      summary: cover.summary,
-      tagline: cover.tagline,
-      fetchedAt: anchor,
-    })),
-    skipDuplicates: true,
-  });
+  // Create-only like the rows above: an activity an admin has since dressed
+  // keeps the pictures it was given.
   await prisma.workshop_CoverImage.createMany({
-    data: covered.flatMap(({ instanceId, cover }) =>
-      cover.images.map((image) => {
+    data: WORKSHOPS.flatMap((workshop) => {
+      const instanceId = workshopInstanceId(workshop.slug);
+      return workshop.images.map((image) => {
         const extension = image.contentType === 'image/gif' ? 'gif' : 'webp';
         return {
           instanceId,
           kind: image.kind,
-          sourcePath: `/files/ws-seed/${image.file}-0000seed.${image.contentType === 'image/gif' ? 'gif' : 'png'}`,
+          // As an admin would have given it: an https address, here on a host
+          // that cannot resolve, since nothing ever downloads it again.
+          sourceUrl: `https://assets.seed.invalid/${workshop.slug}/${image.file}.${image.contentType === 'image/gif' ? 'gif' : 'png'}`,
           key: workshopCoverKey(instanceId, image.kind, '0000seed', extension),
           contentType: image.contentType,
           width: image.width,
           height: image.height,
         };
-      }),
-    ),
+      });
+    }),
     skipDuplicates: true,
   });
   return count;

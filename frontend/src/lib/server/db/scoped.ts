@@ -433,8 +433,8 @@ export function scopedPrisma(campusId: string) {
       // scoped above. And `Workshop_Participation` is only ever read by `talentId`
       // off `locals.talent`, so a guard here would protect a path the application
       // does not walk, which is the same call `Planning_Slot` states above.
-      // `Workshop_Cover` and `Workshop_CoverImage` mirror a catalogue row and
-      // inherit its globality: a subject's cover is the same on every campus.
+      // `Workshop_CoverImage` belongs to a catalogue row and inherits its
+      // globality: an activity's cover is the same on every campus.
       // What would change that: the first dev-space read listing participations by
       // event, which would need the one-hop shape `EventPresence` uses.
     },

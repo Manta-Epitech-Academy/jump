@@ -4,9 +4,9 @@ import { prisma } from '$lib/server/db';
 import { storedImageResponse } from '$lib/server/images/remote';
 import { workshopCoverKeyFromPath } from '$lib/domain/workshops';
 
-// A picture of an activity's cover, copied from its CTFd instance
-// (`$lib/server/workshops/cover.ts`), streamed from storage. The browser never
-// asks the instance itself, which is the point of the copy.
+// A picture of an activity's cover, copied into storage when an admin wrote it
+// (`write_workshop_cover`, `$lib/server/images/remote.ts`). The browser never
+// asks the host it came from, which is the point of the copy.
 //
 // Served only for a key a cover row still references, so this proxy reads
 // nothing else of the bucket whatever path it is handed. Signed-in users only,

@@ -12,9 +12,8 @@
   // the one neon button, and it looks like nothing else on it: the daily
   // training below is a row in a card.
   //
-  // It leads with what the subject says about itself (its tagline, its cover,
-  // its mascot), copied from the instance when an admin declared it, and with
-  // nothing else: the event's name is a Salesforce campaign title more often
+  // It leads with how the activity presents itself (its tagline, its cover, its
+  // mascot), authored over the API and copied into Jump, and with nothing else: the event's name is a Salesforce campaign title more often
   // than not, and being on the page at all already says « today ». Every
   // picture is optional and may fail to load (a seeded environment has no bytes
   // behind its keys): the hero then stands on its label and the brand ground,
@@ -38,8 +37,8 @@
   /** The picture to show, or null to stand on the brand ground. */
   function pictureOf(activity: WorkshopActivity) {
     const cover = activity.cover;
-    const still = loads(cover?.poster?.url) ? cover!.poster : null;
-    const moving = loads(cover?.media?.url) ? cover!.media : null;
+    const still = loads(cover.poster?.url) ? cover.poster : null;
+    const moving = loads(cover.media?.url) ? cover.media : null;
     const main = moving ?? still;
     return main ? { main, still } : null;
   }
@@ -59,7 +58,7 @@
     <div class="grid gap-6">
       {#each activities as activity (activity.slug)}
         {@const picture = pictureOf(activity)}
-        {@const mascot = activity.cover?.mascot}
+        {@const mascot = activity.cover.mascot}
         {@const isPrimary = activity.slug === primarySlug}
         <article
           class={cn(
@@ -114,14 +113,14 @@
               <!-- The label is the headline when the subject has no tagline
                    of its own, so it is not repeated above it. -->
               <p class="epi-overline text-white/80">
-                {activity.cover?.tagline
+                {activity.cover.tagline
                   ? `Activité · ${activity.label}`
                   : 'Activité'}
               </p>
               <p
                 class="mt-2 font-heading text-display-m text-white sm:text-display-l"
               >
-                {activity.cover?.tagline ?? activity.label}<TitleCursor />
+                {activity.cover.tagline ?? activity.label}<TitleCursor />
               </p>
             </div>
 
