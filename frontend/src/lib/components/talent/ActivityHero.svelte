@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onImageBroken } from '$lib/actions/onImageBroken';
+  import CopiedPicture from '$lib/components/talent/CopiedPicture.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   import { Button } from '$lib/components/ui/button';
@@ -94,26 +94,14 @@
           )}
         >
           {#if picture}
-            <!-- A rectangle, no radius and no shadow (DESIGN.md: images).
-                 The still replaces the animation for whoever asked for
-                 reduced motion. -->
-            <picture class="block shrink-0 sm:w-2/5">
-              {#if picture.still && picture.still !== picture.main}
-                <source
-                  media="(prefers-reduced-motion: reduce)"
-                  srcset={picture.still.url}
-                />
-              {/if}
-              <img
-                src={picture.main.url}
-                width={picture.main.width}
-                height={picture.main.height}
-                alt=""
-                decoding="async"
-                use:onImageBroken={() => markBroken(picture.main.url)}
-                class="block h-auto w-full ring-1 ring-white/20"
-              />
-            </picture>
+            <!-- A rectangle, no radius and no shadow (DESIGN.md: images),
+                 whatever its proportion (`CopiedPicture` bounds it). -->
+            <CopiedPicture
+              picture={picture.main}
+              still={picture.still}
+              layout="hero"
+              onBroken={() => markBroken(picture.main.url)}
+            />
           {/if}
 
           <div class="flex min-w-0 flex-1 flex-col gap-3">
@@ -122,17 +110,10 @@
                    than a small sprite needs: scaled past its own pixels it
                    reads as low resolution rather than as pixel art.
                    Decorative: the tagline carries the meaning. -->
-              <img
-                src={mascot.url}
-                width={mascot.width}
-                height={mascot.height}
-                alt=""
-                decoding="async"
-                use:onImageBroken={() => markBroken(mascot.url)}
-                class={cn(
-                  'h-12 w-auto self-start',
-                  mascot.width < 128 && '[image-rendering:pixelated]',
-                )}
+              <CopiedPicture
+                picture={mascot}
+                layout="sprite"
+                onBroken={() => markBroken(mascot.url)}
               />
             {/if}
 

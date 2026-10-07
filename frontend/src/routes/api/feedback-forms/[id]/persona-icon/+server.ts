@@ -10,6 +10,11 @@ import {
   PERSONA_ICON_INPUT_TYPES,
   PERSONA_ICON_MAX_UPLOAD_BYTES,
 } from '$lib/server/feedbackForms/personaIcon';
+import {
+  CanvasTooLargeError,
+  describeCanvas,
+  MAX_INPUT_PIXELS,
+} from '$lib/server/images/process';
 
 // Persona avatar for a feedback form. POST/DELETE are admin-only (mutate the
 // form). GET is intentionally PUBLIC: the icon is non-sensitive staff-chosen art
@@ -32,7 +37,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
   }
   if (file.size > PERSONA_ICON_MAX_UPLOAD_BYTES) {
     return json(
-      { message: "L'image dépasse la limite de 2 Mo." },
+      { message: "L'image dépasse la limite de 20 Mo." },
       {
         status: 413,
       },
@@ -50,9 +55,11 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     });
   } catch (err) {
     console.error('[feedback persona-icon] upload failed', err);
-    if ((err as { code?: string })?.code === 'ERR_IMAGE_TOO_MANY_PIXELS') {
+    if (err instanceof CanvasTooLargeError) {
       return json(
-        { message: "L'image a une résolution trop élevée." },
+        {
+          message: `L'image fait ${describeCanvas(err)}, au-delà de ${Math.floor(MAX_INPUT_PIXELS / 1_000_000)} mégapixels : envoyez-en une version plus petite.`,
+        },
         { status: 413 },
       );
     }

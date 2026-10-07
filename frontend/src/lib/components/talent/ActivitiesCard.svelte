@@ -8,6 +8,7 @@
     isActivityFinished,
     type WorkshopActivity,
   } from '$lib/domain/workshops';
+  import { motionlessUrl } from '$lib/domain/pictures';
 
   // A list of activities a talent's events have offered, each one a way back
   // in. « Mon parcours » hosts it twice: what is left to do (a Coding Club is
@@ -29,9 +30,14 @@
 
   let broken = $state<Record<string, true>>({});
 
+  // Always a still, even for an animated visual: a list row is not where
+  // anything should move. Contained rather than cropped, so a picture of any
+  // proportion shows whole.
   function thumbnailOf(activity: WorkshopActivity) {
     const image = activity.cover.poster ?? activity.cover.media ?? null;
-    return image && !broken[image.url] ? image : null;
+    if (!image) return null;
+    const url = motionlessUrl(image);
+    return broken[url] ? null : { url };
   }
 
   function statusOf(activity: WorkshopActivity): string {
@@ -74,14 +80,12 @@
             {#if thumbnail}
               <img
                 src={thumbnail.url}
-                width={thumbnail.width}
-                height={thumbnail.height}
                 alt=""
                 loading="lazy"
                 decoding="async"
                 use:onImageBroken={() =>
                   (broken = { ...broken, [thumbnail.url]: true })}
-                class="h-12 w-20 shrink-0 object-cover"
+                class="h-12 w-20 shrink-0 bg-muted object-contain"
               />
             {:else}
               <span

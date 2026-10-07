@@ -1,6 +1,7 @@
 import { toDateKey, type DateKey } from './planningTime';
 import { dateKeyToDbDate, dbDateToKey } from './eventPresence';
 import { isActivityFinished, type WorkshopActivity } from './workshops';
+import type { ShownPicture } from './pictures';
 
 // What a campus puts on its talents' home besides their own enrolments: « le
 // mot du campus » and one event to sign up for. Both are typed by hand over the
@@ -22,7 +23,7 @@ export type TalentHomeHighlight = {
   date: DateKey;
   url: string;
   /** Its picture, served by Jump; null when it has none. */
-  image: { url: string; width: number; height: number } | null;
+  image: ShownPicture | null;
 };
 
 export type TalentHome = {
@@ -58,8 +59,9 @@ export function formatHighlightDay(key: DateKey): string {
  * Where a highlight's picture lives once copied, and the URL a page asks for it
  * at. Composed here and nowhere else, because the proxy route turns its two
  * path segments back into the key and the two directions must not drift. A key
- * is minted per write and never reused, so a new picture is a new URL and the
- * proxy can cache one forever (`images/remote.ts`, `swapStoredImages`).
+ * is minted by the write that copies the picture and names those bytes only,
+ * so a new picture is a new URL and the proxy can cache one forever
+ * (`images/remote.ts`, `replacePictures`).
  */
 const IMAGE_PREFIX = 'talent-home';
 

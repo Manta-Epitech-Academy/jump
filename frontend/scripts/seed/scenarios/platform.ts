@@ -20,6 +20,7 @@ import {
   TALENT_HOME_NOTES,
 } from '../catalog/talentHome';
 import { highlightImageKey } from '../../../src/lib/domain/talentHome';
+import { stillKeyOf } from '../../../src/lib/domain/pictures';
 import {
   BROADCAST_TEMPLATE_DEFAULTS,
   EMAIL_TEMPLATE_DEFAULTS,
@@ -157,15 +158,23 @@ export const platform: Scenario = {
           url: highlight.url,
           updatedAt: clock.today,
         });
-      if (highlight?.image)
+      if (highlight?.image) {
+        const { animated, width, height } = highlight.image;
+        const key = highlightImageKey(
+          campus.id,
+          '0000seed',
+          animated ? 'gif' : 'webp',
+        );
         world.buffer.talentHome_HighlightImage.push({
           campusId: campus.id,
-          sourceUrl: `https://assets.seed.invalid/talent-home/${campus.name.toLowerCase()}.png`,
-          key: highlightImageKey(campus.id, '0000seed', 'webp'),
-          contentType: 'image/webp',
-          width: highlight.image.width,
-          height: highlight.image.height,
+          sourceUrl: `https://assets.seed.invalid/talent-home/${campus.name.toLowerCase()}.${animated ? 'gif' : 'png'}`,
+          key,
+          stillKey: animated ? stillKeyOf(key) : null,
+          contentType: animated ? 'image/gif' : 'image/webp',
+          width,
+          height,
         });
+      }
     }
 
     // One signature that belongs to no campus: the national one, used where a

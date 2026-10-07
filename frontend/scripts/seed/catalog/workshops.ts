@@ -36,6 +36,7 @@ import {
   workshopCoverKey,
   type WorkshopCoverKind,
 } from '../../../src/lib/domain/workshops';
+import { stillKeyOf } from '../../../src/lib/domain/pictures';
 
 type CoverImageSpec = {
   readonly kind: WorkshopCoverKind;
@@ -167,14 +168,23 @@ export async function seedWorkshopInstances(
     data: WORKSHOPS.flatMap((workshop) => {
       const instanceId = workshopInstanceId(workshop.slug);
       return workshop.images.map((image) => {
-        const extension = image.contentType === 'image/gif' ? 'gif' : 'webp';
+        const animated = image.contentType === 'image/gif';
+        const extension = animated ? 'gif' : 'webp';
+        const key = workshopCoverKey(
+          instanceId,
+          image.kind,
+          '0000seed',
+          extension,
+        );
         return {
           instanceId,
           kind: image.kind,
           // As an admin would have given it: an https address, here on a host
           // that cannot resolve, since nothing ever downloads it again.
           sourceUrl: `https://assets.seed.invalid/${workshop.slug}/${image.file}.${image.contentType === 'image/gif' ? 'gif' : 'png'}`,
-          key: workshopCoverKey(instanceId, image.kind, '0000seed', extension),
+          key,
+          // An animation is stored with its first frame, as the copy does.
+          stillKey: animated ? stillKeyOf(key) : null,
           contentType: image.contentType,
           width: image.width,
           height: image.height,

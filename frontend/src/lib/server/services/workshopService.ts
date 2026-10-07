@@ -152,6 +152,7 @@ export async function listTalentWorkshops(
         instanceId: true,
         kind: true,
         key: true,
+        stillKey: true,
         width: true,
         height: true,
       },
@@ -170,6 +171,7 @@ export async function listTalentWorkshops(
             url: workshopCoverUrl(found.key),
             width: found.width,
             height: found.height,
+            stillUrl: found.stillKey ? workshopCoverUrl(found.stillKey) : null,
           }
         : null;
     };

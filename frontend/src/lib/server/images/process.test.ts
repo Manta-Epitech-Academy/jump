@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readGifSize, sniffImageType } from './process';
+import { readGifSize, sniffImageType, unsupportedImageName } from './process';
 
 const bytes = (...parts: (string | number[])[]) =>
   new Uint8Array(
@@ -46,5 +46,53 @@ describe('readGifSize', () => {
     expect(readGifSize(bytes([0xff, 0xd8, 0xff, 0, 0, 0, 1, 0, 1, 0]))).toBe(
       null,
     );
+  });
+});
+
+describe('unsupportedImageName', () => {
+  it('names the formats a refusal should name rather than list around', () => {
+    expect(
+      unsupportedImageName(bytes('<svg xmlns="http://www.w3.org/2000/svg">')),
+    ).toBe('SVG');
+    expect(
+      unsupportedImageName(
+        bytes('  <?xml version="1.0"?>\n<svg viewBox="0 0 1 1">'),
+      ),
+    ).toBe('SVG');
+    expect(unsupportedImageName(bytes([0, 0, 0, 28], 'ftypavif'))).toBe('AVIF');
+    expect(unsupportedImageName(bytes([0, 0, 0, 24], 'ftypheic'))).toBe('HEIC');
+  });
+
+  it('names an AVIF that declares itself only among its compatible brands', () => {
+    // major brand, minor version, then the compatible brands
+    const avif = bytes([0, 0, 0, 28], 'ftypmif1', [0, 0, 0, 0], 'mif1avifmiaf');
+    expect(unsupportedImageName(avif)).toBe('AVIF');
+    const heic = bytes([0, 0, 0, 24], 'ftypmif1', [0, 0, 0, 0], 'mif1heic');
+    expect(unsupportedImageName(heic)).toBe('HEIC');
+  });
+
+  // Wikimedia's own logo: a doctype whose internal subset puts the root tag
+  // past the first kilobyte, which a search for `<svg` near the start missed.
+  it('names an SVG whose root comes after a long doctype', () => {
+    const subset = `<!ENTITY st0 "${'opacity:.5;'.repeat(300)}">`;
+    expect(
+      unsupportedImageName(
+        bytes(
+          '<?xml version="1.0" encoding="utf-8"?>',
+          `<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "svg11.dtd" [${subset}]>`,
+          '<!-- Generator: Adobe Illustrator -->',
+          '<svg version="1.1">',
+        ),
+      ),
+    ).toBe('SVG');
+  });
+
+  it('names nothing else', () => {
+    expect(unsupportedImageName(bytes('<?xml version="1.0"?><rss>'))).toBe(
+      null,
+    );
+    expect(unsupportedImageName(bytes([0, 0, 0, 24], 'ftypisom'))).toBe(null);
+    expect(unsupportedImageName(bytes('<!doctype html>'))).toBe(null);
+    expect(unsupportedImageName(new Uint8Array())).toBe(null);
   });
 });
