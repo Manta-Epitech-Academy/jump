@@ -750,14 +750,43 @@ model Campus {
 /// and what it said before is in `AdminApi_Call`, which is why there is no
 /// `updatedBy` here.
 ///
-/// Markdown, stored exactly as written or refused: no image (a minor's browser
-/// fetches nothing from another host) and no raw HTML. Rendered at read time.
+/// Markdown, stored exactly as written or refused: no raw HTML, and a picture
+/// only by an https address, which the write copies (`TalentHome_NoteImage`)
+/// since a minor's browser fetches nothing from another host. Rendered at read
+/// time.
 model TalentHome_Note {
   campusId  String   @id
   markdown  String   @db.Text
   updatedAt DateTime @updatedAt
 
-  campus Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  campus Campus                @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  images TalentHome_NoteImage[]
+}
+
+/// A picture of a campus note, copied from the address its Markdown names
+/// (`![…](https://…)`) when the note was written, and served by Jump: a
+/// talent's browser fetches nothing from another host. The note keeps the
+/// address as its author wrote it; the renderer finds the copy by that
+/// address. A row exists only for an address the current text still names.
+model TalentHome_NoteImage {
+  /// Storage key, `talent-home/<campusId>/note-<writeId>-<n>.<ext>`: minted by
+  /// the write that copied it, so only the write that replaces it deletes it.
+  key         String  @id
+  campusId    String
+  /// The address as the note's Markdown writes it. A write restating it keeps
+  /// this copy rather than downloading it again (`replacePictures`).
+  sourceUrl   String
+  /// For an animated GIF, its first frame as a WebP, what a talent who asked
+  /// for reduced motion sees instead. Null for a still.
+  stillKey    String? @unique
+  contentType String
+  /// Intrinsic size, so the card reserves the box before the bytes land.
+  width       Int
+  height      Int
+
+  note TalentHome_Note @relation(fields: [campusId], references: [campusId], onDelete: Cascade)
+
+  @@unique([campusId, sourceUrl])
 }
 
 /// The one event a campus invites its talents to sign up for, with a link to an

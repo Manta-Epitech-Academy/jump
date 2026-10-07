@@ -18,8 +18,12 @@ import {
 import {
   TALENT_HOME_HIGHLIGHTS,
   TALENT_HOME_NOTES,
+  TALENT_HOME_NOTE_IMAGES,
 } from '../catalog/talentHome';
-import { highlightImageKey } from '../../../src/lib/domain/talentHome';
+import {
+  highlightImageKey,
+  noteImageKey,
+} from '../../../src/lib/domain/talentHome';
 import { stillKeyOf } from '../../../src/lib/domain/pictures';
 import {
   BROADCAST_TEMPLATE_DEFAULTS,
@@ -134,12 +138,30 @@ export const platform: Scenario = {
     // (`campusHome`), and reported there.
     for (const campus of campuses) {
       const note = TALENT_HOME_NOTES[campus.name];
-      if (note)
+      if (note) {
         world.buffer.talentHome_Note.push({
           campusId: campus.id,
           markdown: note,
           updatedAt: clock.today,
         });
+        (TALENT_HOME_NOTE_IMAGES[campus.name] ?? []).forEach((image, index) => {
+          const key = noteImageKey(
+            campus.id,
+            '0000seed',
+            index,
+            image.animated ? 'gif' : 'webp',
+          );
+          world.buffer.talentHome_NoteImage.push({
+            campusId: campus.id,
+            sourceUrl: image.sourceUrl,
+            key,
+            stillKey: image.animated ? stillKeyOf(key) : null,
+            contentType: image.animated ? 'image/gif' : 'image/webp',
+            width: image.width,
+            height: image.height,
+          });
+        });
+      }
       const highlight = TALENT_HOME_HIGHLIGHTS[campus.name];
       // An open highlight leads the hero of every talent of its campus who has
       // no activity that day, which would hide what a later scenario places

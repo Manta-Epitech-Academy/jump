@@ -5,6 +5,7 @@
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   import { cn } from '$lib/utils';
+  import { hideBrokenPictures } from '$lib/actions/hideBrokenPictures';
 
   // The campus's word to its talents (`write_talent_home_note`), already
   // rendered and sanitised server-side. The page frames it with « Actualités »
@@ -42,9 +43,19 @@
 </script>
 
 <!-- The message itself, in the clamped preview and whole in the dialog, so the
-     two cannot be typeset differently. -->
+     two cannot be typeset differently. Its pictures are drawn whole, centred,
+     never past their own pixels, and bounded in height (smaller in the
+     preview, where the text has to stay readable around them); a rectangle
+     with no radius (DESIGN.md: images). One that cannot be shown is hidden
+     rather than left as a broken glyph. -->
 {#snippet message(className?: string)}
-  <div class={cn('prose max-w-none prose-slate dark:prose-invert', className)}>
+  <div
+    class={cn(
+      'prose max-w-none prose-slate dark:prose-invert prose-img:mx-auto prose-img:my-4 prose-img:block prose-img:h-auto prose-img:w-auto prose-img:max-w-full',
+      className,
+    )}
+    use:hideBrokenPictures={html}
+  >
     {@html html}
   </div>
 {/snippet}
@@ -68,7 +79,7 @@
   <div class="p-6">
     <!-- Clamped preview: fades out when cut, full content in the dialog. -->
     <div class="relative max-h-[20rem] overflow-hidden" use:measure>
-      {@render message('prose-sm')}
+      {@render message('prose-sm prose-img:max-h-64')}
       {#if clipped}
         <div
           class="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-card to-transparent"
@@ -97,7 +108,7 @@
       </ResponsiveDialog.Title>
     </ResponsiveDialog.Header>
     <ResponsiveDialog.Body bind:ref={bodyRef}>
-      {@render message()}
+      {@render message('prose-img:max-h-[60svh]')}
     </ResponsiveDialog.Body>
   </ResponsiveDialog.Content>
 </ResponsiveDialog.Root>

@@ -43,6 +43,7 @@ export type Buffered = {
   talentHome_Note: Prisma.TalentHome_NoteCreateManyInput[];
   talentHome_Highlight: Prisma.TalentHome_HighlightCreateManyInput[];
   talentHome_HighlightImage: Prisma.TalentHome_HighlightImageCreateManyInput[];
+  talentHome_NoteImage: Prisma.TalentHome_NoteImageCreateManyInput[];
   staffInvitation: Prisma.StaffInvitationCreateManyInput[];
   adminApi_Token: Prisma.AdminApi_TokenCreateManyInput[];
   adminApi_Call: Prisma.AdminApi_CallCreateManyInput[];
@@ -106,6 +107,7 @@ const MODEL_ORDER = [
   'talentHome_Note',
   'talentHome_Highlight',
   'talentHome_HighlightImage',
+  'talentHome_NoteImage',
   'staffInvitation',
   'adminApi_Token',
   'adminApi_Call',
@@ -493,6 +495,11 @@ export async function wipe(
   );
   await drop('staffInvitation', () =>
     prisma.staffInvitation.deleteMany({ where: { id: seeded } }),
+  );
+  await drop('talentHome_NoteImage', () =>
+    prisma.talentHome_NoteImage.deleteMany({
+      where: { campusId: seeded },
+    }),
   );
   await drop('talentHome_HighlightImage', () =>
     prisma.talentHome_HighlightImage.deleteMany({
