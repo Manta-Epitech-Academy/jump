@@ -136,7 +136,16 @@ export function addSyncRuns(world: World): void {
   );
 }
 
-/** An RGPD erasure request in each state the workflow can be in. */
+/**
+ * An RGPD erasure request in each state the workflow can be in.
+ *
+ * `talents` are the people behind the pending, rejected and cancelled
+ * requests, in that order. The fulfilled one is not drawn from them: fulfilling
+ * a request is what runs `anonymizeTalent`, so its talent can only be an erased
+ * one (`addErasedTalent`), never somebody who still carries a name, a phone and
+ * a Salesforce id. Giving it a drawn talent was a state the application cannot
+ * reach.
+ */
 export function addDeletionRequests(
   world: World,
   talents: readonly TalentRef[],
@@ -148,18 +157,27 @@ export function addDeletionRequests(
     'rejected',
     'cancelled',
   ];
+  const drawn = [...talents];
   for (const [index, status] of states.entries()) {
-    const talent = talents[index];
-    if (!talent) break;
     const settled = status !== 'pending';
+    const resolvedAt = settled ? world.ctx.clock.days(-30 + index) : null;
+    const talent =
+      status === 'fulfilled' && resolvedAt
+        ? addErasedTalent(world, resolvedAt)
+        : drawn.shift();
+    if (!talent) break;
     world.buffer.talentDeletionRequest.push({
       id: id('tdr', status),
       talentId: talent.id,
       status,
       // A request filed with no stated reason is the ordinary case on a form
       // whose reason box is optional, and « aucun motif indiqué » is a
-      // rendering the queue has to have an example of.
-      reason: index === 0 ? null : 'Demande du responsable légal.',
+      // rendering the queue has to have an example of. The fulfilled one has
+      // none either, for another reason: the erasure scrubs it.
+      reason:
+        index === 0 || status === 'fulfilled'
+          ? null
+          : 'Demande du responsable légal.',
       requestedAt: world.ctx.clock.days(-40 + index),
       // Acknowledged, but not yet acted on: the state between « reçue » and
       // « traitée ». The pending one is deliberately NOT acknowledged, because
@@ -168,13 +186,59 @@ export function addDeletionRequests(
       // A bare string with no foreign key, on purpose: the audit of who
       // resolved an erasure has to outlive that person's own account.
       resolvedBy: settled ? staffUserId : null,
-      resolvedAt: settled ? world.ctx.clock.days(-30 + index) : null,
+      resolvedAt,
       resolutionNote:
         status === 'rejected'
           ? 'Talent encore inscrit à un événement à venir.'
           : null,
     });
   }
+}
+
+/**
+ * A talent as `anonymizeTalent` leaves one: placeholder names, every contact
+ * and Salesforce field gone, the mirror deleted, the account scrubbed, and
+ * `anonymizedAt` stamped at the erasure. It is the row a CTFd instance is told
+ * about when it asks which of its accounts belong to erased talents.
+ *
+ * Kept out of `world.talents` on purpose, so no later scenario can draw it and
+ * hang an enrolment, a closing or a note on somebody who no longer exists.
+ */
+export function addErasedTalent(world: World, erasedAt: Date): TalentRef {
+  const talentId = id('tal', 'efface');
+  const userId = id('usr', 'tal', 'efface');
+  const email = `anonymized-${talentId}@jump.internal`;
+  world.buffer.bauth_user.push({
+    id: userId,
+    email,
+    name: 'Utilisateur Anonymisé',
+    emailVerified: false,
+    role: 'student',
+    createdAt: world.ctx.clock.days(-300),
+  });
+  world.buffer.talent.push({
+    id: talentId,
+    userId,
+    nom: 'Anonymisé',
+    prenom: 'Anonymisé',
+    niveau: null,
+    phone: null,
+    externalId: null,
+    schoolId: null,
+    highSchoolNameManual: null,
+    anonymizedAt: erasedAt,
+    createdAt: world.ctx.clock.days(-300),
+  });
+  return {
+    id: talentId,
+    userId,
+    email,
+    prenom: 'Anonymisé',
+    nom: 'Anonymisé',
+    niveau: null,
+    campusId: null,
+    parentEmail: null,
+  };
 }
 
 /**

@@ -248,7 +248,9 @@ export const operations: Scenario = {
     );
     addSyncRuns(world);
     if (team[0]) {
-      const deletionTalents = rng.sample(world.talents, 4);
+      // Three: the fulfilled request's talent is an erased one the factory
+      // places itself, since fulfilling is what erases.
+      const deletionTalents = rng.sample(world.talents, 3);
       addDeletionRequests(world, deletionTalents, team[0].userId);
       addClosingReset(world, rng.sample(world.talents, 3), team[0]);
       // The PENDING request's talent (index 0, see `addDeletionRequests`),
@@ -265,7 +267,7 @@ export const operations: Scenario = {
       covers: [
         'une douzaine d’erreurs de synchronisation, dont une répétée 11 357 fois',
         'quatre comptes rendus de synchronisation : une reprise complète réussie, une passe incrémentale réussie, une en échec et une encore ouverte',
-        'une demande de suppression RGPD dans chacun de ses quatre états',
+        'une demande de suppression RGPD dans chacun de ses quatre états, la traitée portant sur un talent effacé',
         'une réinitialisation de closing et une réparation d’identité, avec leur trace',
         'cinq campagnes : mail et SMS, envoyée, partiellement en échec, en échec',
         'des relances ciblées sur les ouvreurs, les non-ouvreurs et toute la cohorte',
