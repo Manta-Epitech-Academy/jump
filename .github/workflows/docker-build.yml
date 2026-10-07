@@ -194,24 +194,40 @@ jobs:
           # Foreground, so the call returns once the previous Job's pod is gone and
           # not merely its Job object: a pod still terminating is a generator
           # still writing.
-          kubectl delete job jump-seed -n "$SEED_NAMESPACE" --ignore-not-found --wait=true
+          kubectl delete job jump-seed -n "$SEED_NAMESPACE" --ignore-not-found --cascade=foreground --wait=true
           envsubst '$SEED_NAMESPACE $SEED_ENV $SEED_PROFILE $SEED_TODAY $SEED_IMAGE' \
             < .github/k8s/seed-job.yml | kubectl create -f -
 
           # `kubectl wait --for=condition=complete` sits out its whole timeout on
-          # a Job that has already failed, so poll both outcomes instead.
+          # a Job that has already failed, so poll both outcomes instead. A read
+          # that fails is a lost tick, not a verdict: under the step's `bash -e`
+          # it would otherwise end the run without the generator's tail.
           for _ in $(seq 1 180); do
-            succeeded=$(kubectl get job jump-seed -n "$SEED_NAMESPACE" -o jsonpath='{.status.succeeded}')
-            failed=$(kubectl get job jump-seed -n "$SEED_NAMESPACE" -o jsonpath='{.status.failed}')
-            if [ "${succeeded:-0}" -ge 1 ]; then
-              kubectl logs job/jump-seed -n "$SEED_NAMESPACE" --tail=40
-              exit 0
-            fi
-            if [ "${failed:-0}" -ge 1 ]; then
-              kubectl logs job/jump-seed -n "$SEED_NAMESPACE" --tail=80
-              echo "::error::The seed Job failed in $SEED_NAMESPACE."
-              exit 1
-            fi
+            outcome=$(kubectl get job jump-seed -n "$SEED_NAMESPACE" -o jsonpath='{.status.succeeded}/{.status.failed}' || true)
+            case "$outcome" in
+              1/*)
+                kubectl logs job/jump-seed -n "$SEED_NAMESPACE" --tail=40 || true
+                exit 0
+                ;;
+              */1)
+                kubectl logs job/jump-seed -n "$SEED_NAMESPACE" --tail=80 || true
+                echo "::error::The seed Job failed in $SEED_NAMESPACE."
+                exit 1
+                ;;
+            esac
+
+            # A pod that cannot start is neither succeeded nor failed, so it
+            # would sit out the whole deadline and leave no log to read. Only
+            # the reasons the kubelet does not recover from on its own: a lone
+            # ErrImagePull is a registry blip it retries.
+            waiting=$(kubectl get pods -n "$SEED_NAMESPACE" -l job-name=jump-seed -o jsonpath='{.items[*].status.containerStatuses[*].state.waiting.reason}' || true)
+            case "$waiting" in
+              *ImagePullBackOff*|*InvalidImageName*|*CreateContainerConfigError*)
+                kubectl describe pods -n "$SEED_NAMESPACE" -l job-name=jump-seed | tail -n 20 || true
+                echo "::error::The seed Job cannot start in $SEED_NAMESPACE ($waiting)."
+                exit 1
+                ;;
+            esac
             sleep 10
           done
           kubectl logs job/jump-seed -n "$SEED_NAMESPACE" --tail=80 || true
