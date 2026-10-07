@@ -135,7 +135,9 @@ jobs:
   #
   # Ordering is the whole job. After `restart-k3s`, and after the rollout is
   # complete, because `migrate deploy` is the container CMD and a pod is not
-  # ready until it has applied the schema this generator writes against. After
+  # ready until it has applied the schema this generator writes against. That
+  # last clause is the readinessProbe on `jump-sk`, which lives in jump-k3s:
+  # without one a pod is ready the moment its container starts. After
   # `build-seeder`, whose image it runs by digest, so a later push moving the
   # branch tag cannot swap the generator under it. Serialised per branch,
   # because two generators writing the same deterministic ids into one database
