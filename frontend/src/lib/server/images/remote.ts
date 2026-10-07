@@ -360,6 +360,15 @@ export type PictureRequest = {
   maxEdge: number;
 };
 
+/**
+ * Whether a stored copy is everything a fresh copy would be: an animation
+ * carries its still. Every row written since stills were derived is whole; one
+ * that is not is copied again the next time its address is restated.
+ */
+function isWholeCopy(picture: StoredPicture): boolean {
+  return picture.contentType !== 'image/gif' || picture.stillKey !== null;
+}
+
 /** A reused picture another write replaced between the read and the lock. */
 class ReusedPictureGone extends Error {}
 
@@ -369,8 +378,11 @@ class ReusedPictureGone extends Error {}
  *
  * A request whose address is the one its slot was already copied from keeps
  * that copy: correcting a line of text must not fail because the host of a
- * picture stopped answering, nor wait on a download that changes nothing. Any
- * other request is downloaded, under a key minted for this write, so the rule
+ * picture stopped answering, nor wait on a download that changes nothing. A
+ * copy is kept only when it is whole, though (`isWholeCopy`): an animation
+ * copied before stills were derived has none, and keeping it would leave a
+ * talent who asked for reduced motion with the animation for good. Any other
+ * request is downloaded, under a key minted for this write, so the rule
  * `swapStoredImages` rests on (every stored key is new) holds for everything
  * this call stores. The decision is taken before the lock, since downloads
  * cannot wait inside a transaction; if another write replaced a kept picture
@@ -413,7 +425,8 @@ export async function replacePictures<T>({
         stored.find(
           (picture) =>
             picture.slot === request.slot &&
-            picture.sourceUrl === request.sourceUrl,
+            picture.sourceUrl === request.sourceUrl &&
+            isWholeCopy(picture),
         ) ?? null,
     );
 

@@ -313,6 +313,27 @@ describe('the cover an admin gives an activity (integration)', () => {
     await write(fullCover());
   });
 
+  // A GIF visual copied before stills were derived has none. Kept as it is, a
+  // cover restated without its poster would animate for the talents who asked
+  // for no motion, with nothing the admin could do short of a new address.
+  it('copies again an animation it holds without a still', async () => {
+    const legacy = (await storedImages()).find((i) => i.kind === 'media')!;
+    objects.delete(legacy.stillKey!);
+    await prisma.workshop_CoverImage.update({
+      where: { key: legacy.key },
+      data: { stillKey: null },
+    });
+
+    const { posterUrl: _poster, ...rest } = fullCover();
+    await write(rest);
+
+    const media = (await storedImages()).find((i) => i.kind === 'media')!;
+    expect(media.key).not.toBe(legacy.key);
+    expect(media.stillKey).not.toBeNull();
+    await expectStorageMatchesRows();
+    await write(fullCover());
+  });
+
   it('follows a redirect, and records the address it was given', async () => {
     files.set('/raccourci.png', { redirect: at('/fantome-v2.png') });
     files.set('/fantome-v2.png', { bytes: png(5) });
