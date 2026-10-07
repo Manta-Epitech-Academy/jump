@@ -293,22 +293,15 @@ export async function applyWorkshopProgress(
     payload.totalSteps,
     participation.budgetMinutes,
   );
-  const sourceId = workshopGrantSourceId(instance.slug, payload.talentId);
 
+  // No celebration state is written here: what the dashboard owes is derived
+  // from this grant (see `getUnseenWorkshopReward`), which is what makes a
+  // replayed or concurrent callback harmless rather than counted twice.
   await prisma.$transaction(async (tx) => {
-    const previous = await tx.xpGrant.findUnique({
-      where: { source_sourceId: { source: 'workshop', sourceId } },
-      select: { amount: true },
-    });
-    // What is still owed a celebration. Floored at zero so a subject that loses a
-    // step, which lowers the denominator and can lower the amount, never leaves a
-    // negative arrears behind.
-    const gained = Math.max(0, amount - (previous?.amount ?? 0));
-
     await grantXp(tx, {
       talentId: payload.talentId,
       source: 'workshop',
-      sourceId,
+      sourceId: workshopGrantSourceId(instance.slug, payload.talentId),
       amount,
       campusId: participation.campusId,
     });
@@ -318,31 +311,83 @@ export async function applyWorkshopProgress(
       data: {
         solvedSteps: payload.solvedSteps,
         totalSteps: payload.totalSteps,
-        xpPending: { increment: gained },
       },
     });
   });
 }
 
-/** The float the dashboard owes this talent, or null when it owes none. */
+/**
+ * The float the dashboard owes this talent, or null when it owes none.
+ *
+ * `xp` is what it announces; `upTo` is what it acknowledges once shown, one
+ * grant amount per activity, so XP arriving while the animation plays are not
+ * acknowledged with it.
+ */
+export type WorkshopReward = {
+  xp: number;
+  upTo: { instanceId: string; amount: number }[];
+};
+
+/**
+ * Each activity owes its grant minus the amount already celebrated, read off
+ * the same ledger `Talent.xp` sums, so the toast can never announce more than
+ * the profile gained. A grant that fell below what was shown owes nothing until
+ * it climbs past it again.
+ */
 export async function getUnseenWorkshopReward(
   talentId: string,
-): Promise<{ xp: number } | null> {
-  const pending = await prisma.workshop_Participation.aggregate({
-    where: { talentId, xpPending: { gt: 0 } },
-    _sum: { xpPending: true },
-  });
-  const xp = pending._sum.xpPending ?? 0;
-  return xp > 0 ? { xp } : null;
+): Promise<WorkshopReward | null> {
+  const [participations, grants] = await Promise.all([
+    prisma.workshop_Participation.findMany({
+      where: { talentId },
+      select: {
+        instanceId: true,
+        xpCelebrated: true,
+        instance: { select: { slug: true } },
+      },
+    }),
+    prisma.xpGrant.findMany({
+      where: { talentId, source: 'workshop' },
+      select: { sourceId: true, amount: true },
+    }),
+  ]);
+  const earnedBySourceId = new Map(
+    grants.map((grant) => [grant.sourceId, grant.amount]),
+  );
+
+  const upTo: WorkshopReward['upTo'] = [];
+  let xp = 0;
+  for (const participation of participations) {
+    const earned =
+      earnedBySourceId.get(
+        workshopGrantSourceId(participation.instance.slug, talentId),
+      ) ?? 0;
+    if (earned <= participation.xpCelebrated) continue;
+    xp += earned - participation.xpCelebrated;
+    upTo.push({ instanceId: participation.instanceId, amount: earned });
+  }
+  return xp > 0 ? { xp, upTo } : null;
 }
 
 /**
- * Idempotent by its predicate rather than by a guard: a second call matches no
- * row, so leaving mid-animation cannot replay the celebration.
+ * Record what the dashboard showed, and only ever upwards.
+ *
+ * The amounts come from the client, and are not clamped to the grant on
+ * purpose: a grant that fell after the page loaded must not pull the mark back
+ * down, or the climb back would be celebrated a second time. An inflated amount
+ * can only silence this talent's own celebration. Idempotent by its predicate,
+ * so a second call, or a stale tab acknowledging less, changes nothing.
  */
-export async function markWorkshopRewardsSeen(talentId: string): Promise<void> {
-  await prisma.workshop_Participation.updateMany({
-    where: { talentId, xpPending: { gt: 0 } },
-    data: { xpPending: 0, xpSeenAt: new Date() },
-  });
+export async function markWorkshopRewardsSeen(
+  talentId: string,
+  upTo: WorkshopReward['upTo'],
+): Promise<void> {
+  await prisma.$transaction(
+    upTo.map(({ instanceId, amount }) =>
+      prisma.workshop_Participation.updateMany({
+        where: { talentId, instanceId, xpCelebrated: { lt: amount } },
+        data: { xpCelebrated: amount },
+      }),
+    ),
+  );
 }

@@ -7,17 +7,14 @@
   import { fly } from 'svelte/transition';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
-  import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import Route from '@lucide/svelte/icons/route';
-  import Coffee from '@lucide/svelte/icons/coffee';
-  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import FeedbackBanner from '$lib/components/feedback/FeedbackBanner.svelte';
   import NewsCard from '$lib/components/talent/NewsCard.svelte';
   import TalentHomeHero from '$lib/components/talent/TalentHomeHero.svelte';
-  import ActivitiesCard from '$lib/components/talent/ActivitiesCard.svelte';
   import SessionCard from '$lib/components/talent/SessionCard.svelte';
+  import DailyTrainingTile from '$lib/components/talent/DailyTrainingTile.svelte';
   import { showsSessionCard } from '$lib/domain/talentPlanning';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
@@ -25,7 +22,7 @@
   import MinigameRewardCelebration from '$lib/components/talent/MinigameRewardCelebration.svelte';
   import WorkshopRewardCelebration from '$lib/components/talent/WorkshopRewardCelebration.svelte';
   import { onMount } from 'svelte';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import { cn } from '$lib/utils';
 
   let { data }: { data: PageData } = $props();
 
@@ -83,37 +80,27 @@
   // The one thing the blue hero suggests doing now, or null on a day with
   // nothing to suggest (`pickHomeHero`, server-side).
   let hero = $derived(data.hero);
-  // Whether the suggestions' column holds anything. When it does not, the
-  // training moves into it (see the layout below).
-  let suggestsSomething = $derived(
-    !!hero || data.toDo.length > 0 || !!data.note,
-  );
+  // Whether Jump has anything to suggest (the hero, the campus's news). When
+  // it has not, the talent's own cards take the whole width rather than leave
+  // a column empty beside them.
+  let suggestsSomething = $derived(!!hero || !!data.note);
 
-  // The daily minigame is the row inside the "Entraînement du jour" card:
-  // a distinct, accented row, playable or already-played, independent of any
-  // event. The rich campus leaderboard now lives on the game's own page.
-  let hasMinigame = $derived(
-    !!data.minigame &&
-      (data.minigame.ok || data.minigame.reason === 'already_played'),
-  );
-  let minigamePublication = $derived(data.minigame?.publication ?? null);
-  let minigamePlayed = $derived(
-    !!data.minigame &&
-      !data.minigame.ok &&
-      data.minigame.reason === 'already_played',
-  );
-  let minigameAttempt = $derived(
-    data.minigame && !data.minigame.ok ? data.minigame.lastAttempt : null,
-  );
-  // A finalized attempt is either a win (`done`: ranked on the board, earned
-  // XP) or a loss (`invalid`: played, but no XP and absent from the board).
-  // The played card must tell these apart: a loss shown as "Défi relevé !"
-  // reads as a win the talent never actually got.
-  let minigameWon = $derived(minigameAttempt?.status === 'done');
-  // Student-facing name for the daily minigame: the PO frames it as brain
-  // training, not a "mini-jeu". Defined once so the played/unplayed branches
-  // can't drift.
-  const DAILY_TRAINING_LABEL = 'Entraîne ton cerveau';
+  // The daily brain training, one tile among the talent's own cards, or
+  // nothing on a day without one. Today's attempt is passed once it is
+  // finished (`already_played`); a pending one is not an attempt yet.
+  let training = $derived.by(() => {
+    const minigame = data.minigame;
+    if (!minigame?.publication) return null;
+    if (minigame.ok)
+      return { publication: minigame.publication, attempt: null };
+    if (minigame.reason !== 'already_played' || !minigame.lastAttempt)
+      return null;
+    return { publication: minigame.publication, attempt: minigame.lastAttempt };
+  });
+
+  // Whether the talent has a card of their own beside the XP one. Without
+  // one, the XP card is alone in its row and takes the whole of it.
+  let ownCards = $derived(!!training || showsSessionCard(planning));
 
   // An activity is walked in a SECOND TAB, so coming back here reloads nothing on
   // its own and the XP earned meanwhile would only appear on the next navigation.
@@ -133,10 +120,6 @@
     return () =>
       document.removeEventListener('visibilitychange', onVisibilityChange);
   });
-
-  function formatChrono(ms: number | null): string {
-    return ms === null ? '-' : `${(ms / 1000).toFixed(1)}s`;
-  }
 </script>
 
 <svelte:head>
@@ -184,135 +167,12 @@
       </div>
     {/each}
 
-    <!-- The daily training, the one row of "Entraînement du jour": accented
-         (gamepad, colour) and shaped as a row, nothing like the activities.
-         Pre-play it's a "Commencer" CTA; once played it links to the campus
-         leaderboard on the game's own page. -->
     {#snippet dailyTraining()}
-      {#if hasMinigame && minigamePublication}
-        <div class="relative">
-          {#if minigamePlayed && minigameWon}
-            <a
-              href={resolve(`/minigames/${minigamePublication.id}/leaderboard`)}
-              class="flex flex-col gap-3 rounded-xl border border-epi-tech-ink/30 bg-epi-tech-ink/5 p-4 transition-ui hover:bg-epi-tech-ink/10 active:scale-[0.99] @sm:flex-row @sm:items-center @sm:gap-4"
-            >
-              <!-- icon + text stay a row in a narrow card; `@sm:contents`
-                   dissolves this wrapper once the card is wide enough, so the
-                   CTA rejoins them on one line -->
-              <div class="flex items-center gap-4 @sm:contents">
-                <div
-                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-tech-ink/15"
-                >
-                  <Gamepad2 class="h-5 w-5 text-epi-tech-ink" />
-                </div>
-                <div class="min-w-0 flex-1">
-                  <div
-                    class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
-                  >
-                    <span class="text-epi-tech-ink">{DAILY_TRAINING_LABEL}</span
-                    >
-                    <span class="text-muted-foreground">•</span>
-                    <span class="text-muted-foreground">
-                      {minigamePublication.gameName} · niveau {minigamePublication.level}
-                    </span>
-                  </div>
-                  <p class="mt-0.5 text-sm font-semibold text-foreground">
-                    Défi relevé !
-                    {#if minigameAttempt && (minigameAttempt.score !== null || minigameAttempt.chrono !== null)}
-                      <span class="font-normal text-muted-foreground">
-                        {#if minigameAttempt.score !== null}{minigameAttempt.score}
-                          pts{/if}{#if minigameAttempt.score !== null && minigameAttempt.chrono !== null}
-                          ·
-                        {/if}{#if minigameAttempt.chrono !== null}{formatChrono(
-                            minigameAttempt.chrono,
-                          )}{/if}
-                      </span>
-                    {/if}
-                  </p>
-                </div>
-              </div>
-              <span
-                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-epi-tech-ink/15 px-3 py-1.5 text-xs font-bold text-epi-tech-ink uppercase @sm:w-auto"
-              >
-                <Trophy class="h-4 w-4" /> Voir le classement
-              </span>
-            </a>
-          {:else if minigamePlayed}
-            <!-- Played but didn't validate the run: no XP, not on the board. Say
-                 so honestly (amber, not the teal "win" treatment) rather than
-                 congratulating a "Défi relevé !" that never happened. The attempt
-                 is still spent, so the link goes to the board, not back to play. -->
-            <a
-              href={resolve(`/minigames/${minigamePublication.id}/leaderboard`)}
-              class="flex flex-col gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4 transition-ui hover:bg-warning/10 active:scale-[0.99] @sm:flex-row @sm:items-center @sm:gap-4"
-            >
-              <div class="flex items-center gap-4 @sm:contents">
-                <div
-                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-warning/15"
-                >
-                  <Gamepad2 class="h-5 w-5 text-warning" />
-                </div>
-                <div class="min-w-0 flex-1">
-                  <div
-                    class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
-                  >
-                    <span class="text-warning">{DAILY_TRAINING_LABEL}</span>
-                    <span class="text-muted-foreground">•</span>
-                    <span class="text-muted-foreground">
-                      {minigamePublication.gameName} · niveau {minigamePublication.level}
-                    </span>
-                  </div>
-                  <p class="mt-0.5 text-sm font-semibold text-foreground">
-                    Pas validé cette fois
-                    <span class="font-normal text-muted-foreground"
-                      >· retente demain</span
-                    >
-                  </p>
-                </div>
-              </div>
-              <span
-                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-warning/15 px-3 py-1.5 text-xs font-bold text-warning uppercase @sm:w-auto"
-              >
-                <Trophy class="h-4 w-4" /> Voir le classement
-              </span>
-            </a>
-          {:else}
-            <a
-              href={resolve(`/minigames/${minigamePublication.id}`)}
-              class="flex flex-col gap-3 rounded-xl border border-epi-blue/20 bg-epi-blue/5 p-4 transition-ui hover:bg-epi-blue/10 active:scale-[0.99] @sm:flex-row @sm:items-center @sm:gap-4 dark:border-epi-blue/30 dark:bg-epi-blue/10"
-            >
-              <div class="flex items-center gap-4 @sm:contents">
-                <div
-                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-blue/10 dark:bg-epi-blue/20"
-                >
-                  <Gamepad2 class="h-5 w-5 text-epi-blue" />
-                </div>
-                <div class="min-w-0 flex-1">
-                  <div
-                    class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
-                  >
-                    <span class="text-epi-blue">{DAILY_TRAINING_LABEL}</span>
-                    <span class="text-muted-foreground">•</span>
-                    <span class="text-muted-foreground">
-                      {minigamePublication.gameName} · niveau {minigamePublication.level}
-                    </span>
-                  </div>
-                  <p class="mt-0.5 text-sm font-semibold text-foreground">
-                    Relève le défi du jour et grimpe au classement !
-                  </p>
-                </div>
-              </div>
-              <span
-                class="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-xl bg-epi-blue px-3 py-1.5 text-sm font-bold text-white @sm:w-auto"
-              >
-                Commencer <ArrowRight class="h-4 w-4" />
-              </span>
-            </a>
-          {/if}
+      {#if training}
+        <div class="max-lg:order-3">
+          <DailyTrainingTile {...training} />
           {#if dev}
-            <!-- Dev-only: flips today's attempt; stripped in prod. Under the
-                 row rather than over it: in a narrow card an overlay sat on
-                 the row's own label. -->
+            <!-- Dev-only: flips today's attempt; stripped in prod. -->
             <form
               method="POST"
               action="?/devToggleMinigame"
@@ -324,7 +184,7 @@
                 title="Dev : basculer l'état de l'entraînement du jour"
                 class="cursor-pointer epi-overline text-muted-foreground hover:text-epi-blue"
               >
-                {minigamePlayed ? 'dev: reset' : 'dev: joué'}
+                {training.attempt ? 'dev: reset' : 'dev: joué'}
               </button>
             </form>
           {/if}
@@ -332,77 +192,37 @@
       {/if}
     {/snippet}
 
-    {#snippet trainingCard()}
-      <div
-        class="order-5 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
-      >
-        <div
-          class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
-        >
-          <Rocket class="h-4 w-4 shrink-0 text-epi-blue" />
-          <h2 class="font-heading text-display-s text-foreground">
-            Entraînement du jour<TitleCursor />
-          </h2>
-        </div>
-
-        <div class="@container space-y-4 p-6">
-          {@render dailyTraining()}
-
-          {#if !hasMinigame && hero}
-            <!-- No training today, but the hero has something to do: say so
-                 in a line rather than « repos » beside a suggestion. -->
-            <p class="py-2 text-sm text-muted-foreground">
-              Pas d’entraînement aujourd’hui : ce qui t’attend est en haut de la
-              page.
-            </p>
-          {:else if !hasMinigame}
-            <!-- Nothing at all today: no training, and nothing in the hero. -->
-            <div
-              class="flex flex-col items-center justify-center py-8 text-center"
-            >
-              <div class="mb-4 rounded-full bg-muted/50 p-4">
-                <Coffee class="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 class="text-lg font-bold text-foreground-secondary uppercase">
-                Repos aujourd’hui
-              </h3>
-              <p class="mt-2 max-w-sm text-sm text-muted-foreground">
-                Pas d’entraînement aujourd’hui. Profites-en pour souffler, on
-                remet ça bientôt !
-              </p>
-            </div>
-          {/if}
-        </div>
-      </div>
-    {/snippet}
-
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
       <!-- LEFT COLUMN: what is the talent's own (XP and the way into « Mon
            parcours », the day's training that feeds it, their next session).
-           RIGHT COLUMN: what Jump suggests (the hero, the activities left to
-           do, the campus's news).
+           RIGHT COLUMN: what Jump suggests (the hero, the campus's news).
            Two columns from `lg` only: at a tablet's width a third of the
-           page is too narrow for the training card.
-           Below that both wrappers collapse (display: contents) so their
-           children join the outer grid as siblings and `order-*` interleaves
-           them: hero, XP, activities, Actualités, training, session. Each
-           column lists its cards in that same relative order, so the phone
-           reads like the desktop, column by column. `order` is inert in two
-           columns (block children, not flex/grid items). -->
+           page is too narrow for the XP card.
+           On a day Jump suggests nothing, there is no right column: the
+           talent's cards take the width, the XP card beside the training and
+           the session, or alone across the page, rather than a column left
+           empty.
+           Below `lg` every wrapper collapses (display: contents) so the cards
+           join the outer grid as siblings and `max-lg:order-*` interleaves
+           them: hero, XP, training, Actualités, session. From `lg` the columns
+           read in source order, which is why every `order` stops there. -->
       <div
-        class="contents lg:col-span-4 lg:block lg:space-y-6"
+        class={cn(
+          'contents',
+          suggestsSomething
+            ? 'lg:col-span-4 lg:block lg:space-y-6'
+            : 'lg:col-span-12 lg:grid lg:grid-cols-12 lg:items-start lg:gap-6',
+        )}
         in:fly={{ x: -20, duration: 400, delay: 200 }}
       >
         <a
           href={resolve('/parcours')}
-          class="group relative order-2 block overflow-hidden rounded-xl border border-border bg-card p-6 shadow-raised transition-ui hover:shadow-raised active:scale-[0.98]"
+          class={cn(
+            'group block cursor-pointer rounded-xl border border-border bg-card p-6 shadow-raised transition-ui active:scale-[0.98] max-lg:order-2',
+            ownCards ? 'lg:col-span-4' : 'lg:col-span-12',
+          )}
         >
-          <!-- Decorative background blur -->
-          <div
-            class="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-epi-together/10 blur-2xl"
-          ></div>
-
-          <div class="relative z-10 flex flex-col items-center text-center">
+          <div class="flex flex-col items-center text-center">
             <div
               class="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-epi-together-ink/10"
             >
@@ -415,11 +235,24 @@
               </span>
               <span class="text-lg font-bold text-epi-together">XP</span>
             </div>
+            <!-- The way into everything the home no longer lists: the
+                 activities left to do (counted here), the finished ones, the
+                 events attended, the XP history. -->
             <span
               class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground transition-ui group-hover:bg-epi-blue/10 group-hover:text-epi-blue dark:group-hover:bg-epi-blue/20"
             >
               <Route class="h-3 w-3" />
               Mon parcours
+              {#if data.toDoCount > 0}
+                <span
+                  class="inline-flex min-w-5 items-center justify-center rounded-full bg-epi-blue px-1.5 text-xs font-bold text-white"
+                  aria-hidden="true">{data.toDoCount}</span
+                >
+                <span class="sr-only">
+                  , {data.toDoCount}
+                  {data.toDoCount > 1 ? 'activités' : 'activité'} à faire
+                </span>
+              {/if}
               <ArrowRight
                 class="h-3 w-3 transition-transform group-hover:translate-x-0.5"
               />
@@ -427,54 +260,47 @@
           </div>
         </a>
 
-        {#if suggestsSomething}
-          {@render trainingCard()}
-        {/if}
+        {#if ownCards}
+          <div
+            class={cn(
+              'contents lg:block lg:space-y-6',
+              !suggestsSomething && 'lg:col-span-8',
+            )}
+          >
+            {@render dailyTraining()}
 
-        {#if showsSessionCard(planning)}
-          <!-- The talent's own next session, or the way into a running
-               stage's schedule. Last on a phone: the hero already says what
-               to do today. -->
-          <div class="order-6">
-            <SessionCard {planning} timeZone={data.timeZone} />
+            {#if showsSessionCard(planning)}
+              <!-- The talent's own next session, or the way into a running
+                   stage's schedule. Last on a phone: the hero already says
+                   what to do today. -->
+              <div class="max-lg:order-5">
+                <SessionCard {planning} timeZone={data.timeZone} />
+              </div>
+            {/if}
           </div>
         {/if}
       </div>
 
-      <div
-        class="contents lg:col-span-8 lg:block lg:space-y-6"
-        in:fly={{ x: 20, duration: 400, delay: 300 }}
-      >
-        {#if hero}
-          <!-- Where Jump says what to do now: the head of the right column,
-               level with the XP card, and first of all on a phone. -->
-          <div class="order-1">
-            <TalentHomeHero {hero} />
-          </div>
-        {/if}
+      {#if suggestsSomething}
+        <div
+          class="contents lg:col-span-8 lg:block lg:space-y-6"
+          in:fly={{ x: 20, duration: 400, delay: 300 }}
+        >
+          {#if hero}
+            <!-- Where Jump says what to do now: the head of the right column,
+                 level with the XP card, and first of all on a phone. -->
+            <div class="max-lg:order-1">
+              <TalentHomeHero {hero} />
+            </div>
+          {/if}
 
-        {#if data.toDo.length > 0}
-          <!-- What is left to do, right under the hero that suggests one of
-               them. Finished activities are history, and live in « Mon
-               parcours ». -->
-          <div class="order-3">
-            <ActivitiesCard title="Mes activités" activities={data.toDo} />
-          </div>
-        {/if}
-
-        {#if data.note}
-          <div class="order-4">
-            <NewsCard html={data.note} />
-          </div>
-        {/if}
-
-        {#if !suggestsSomething}
-          <!-- A day the campus suggests nothing: the training is all there is
-               to do, so it takes the suggestions' column rather than leave it
-               empty beside the XP card. -->
-          {@render trainingCard()}
-        {/if}
-      </div>
+          {#if data.note}
+            <div class="max-lg:order-4">
+              <NewsCard html={data.note} />
+            </div>
+          {/if}
+        </div>
+      {/if}
     </div>
   </div>
 

@@ -602,9 +602,8 @@ erDiagram
     Int budgetMinutes
     Int solvedSteps
     Int totalSteps
-    Int xpPending
+    Int xpCelebrated
     DateTime firstEnteredAt
-    DateTime xpSeenAt
     DateTime updatedAt
   }
   Workshop_CoverImage {
