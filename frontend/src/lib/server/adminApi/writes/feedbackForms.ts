@@ -443,7 +443,12 @@ export async function writeFeedbackForm(
         if (created) {
           await prisma.feedback_Form
             .delete({ where: { id: created.id } })
-            .catch(() => {});
+            .catch((cleanup) =>
+              console.error(
+                `[adminApi] write_feedback_form left the half-written form ${created.id}:`,
+                cleanup,
+              ),
+            );
         }
         throw err;
       }
