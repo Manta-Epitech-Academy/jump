@@ -4,6 +4,7 @@ import { isHttpError } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { workshopKeys } from '$lib/server/workshops/ticket';
 import { workshopGrantSourceId } from '$lib/domain/workshops';
+import { getUnseenWorkshopReward } from '$lib/server/services/workshopService';
 import { POST } from '../../../../routes/api/workshops/callback/+server';
 import { assertTestDatabase } from './testDatabase';
 
@@ -83,13 +84,15 @@ describe('the workshop progress callback (integration)', () => {
       }),
       prisma.workshop_Participation.findUnique({
         where: { talentId_instanceId: { talentId, instanceId } },
-        select: { solvedSteps: true, totalSteps: true, xpPending: true },
+        select: { solvedSteps: true, totalSteps: true },
       }),
     ]);
+    // What the dashboard would celebrate on the talent's next return.
+    const owed = (await getUnseenWorkshopReward(talentId))?.xp ?? 0;
     const grants = await prisma.xpGrant.count({
       where: { talentId, source: 'workshop' },
     });
-    return { grant, participation, grants };
+    return { grant, participation, grants, owed };
   };
 
   beforeAll(async () => {
@@ -193,13 +196,13 @@ describe('the workshop progress callback (integration)', () => {
 
   it('grants the first progress and leaves the XP owed a celebration', async () => {
     expect(await post(progress(5))).toBe(200);
-    const { grant, participation, grants } = await readState();
+    const { grant, participation, grants, owed } = await readState();
     expect(grants).toBe(1);
     // A third of a two-hour activity, rounded once over the whole thing.
     expect(grant?.amount).toBe(400);
     expect(participation?.solvedSteps).toBe(5);
     expect(participation?.totalSteps).toBe(TOTAL_STEPS);
-    expect(participation?.xpPending).toBe(400);
+    expect(owed).toBe(400);
   });
 
   it('changes nothing when the same progress is replayed', async () => {
@@ -209,22 +212,20 @@ describe('the workshop progress callback (integration)', () => {
     expect(after.grants).toBe(1);
     expect(after.grant?.amount).toBe(before.grant?.amount);
     expect(after.grant?.createdAt).toEqual(before.grant?.createdAt);
-    // The arrears are what a replay must not inflate: a second float would
-    // celebrate XP the talent has already been shown.
-    expect(after.participation?.xpPending).toBe(
-      before.participation?.xpPending,
-    );
+    // What is owed is what a replay must not inflate: a second float would
+    // celebrate XP the ledger never paid.
+    expect(after.owed).toBe(before.owed);
   });
 
   it('raises the one grant rather than adding a second', async () => {
     expect(await post(progress(15))).toBe(200);
-    const { grant, participation, grants } = await readState();
+    const { grant, participation, grants, owed } = await readState();
     expect(grants).toBe(1);
     // Finished whole: exactly the declared minutes, ten XP each.
     expect(grant?.amount).toBe(BUDGET_MINUTES * 10);
     expect(participation?.solvedSteps).toBe(15);
-    // Only the difference is owed a celebration, on top of what was still owed.
-    expect(participation?.xpPending).toBe(BUDGET_MINUTES * 10);
+    // Nothing was celebrated in between, so the whole grant is owed, once.
+    expect(owed).toBe(BUDGET_MINUTES * 10);
   });
 
   it('keeps the talent on the budget pinned at their first entry', async () => {

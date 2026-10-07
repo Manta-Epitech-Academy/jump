@@ -90,10 +90,43 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     });
     expect(callback.status()).toBe(200);
 
+    // The acknowledgement is held until the talent has come back twice, so the
+    // second return revalidates while the server still owes the same XP. That
+    // is the window where the page has to know it already celebrated them, and
+    // where re-running the effect must not cut the float it is already playing.
+    const acks: unknown[] = [];
+    page.on('request', (sent) => {
+      if (new URL(sent.url()).pathname === '/api/workshops/rewards-seen') {
+        acks.push(sent.postDataJSON());
+      }
+    });
+    let releaseAck!: () => void;
+    const ackHeld = new Promise<void>((resolve) => (releaseAck = resolve));
+    await page.route('**/api/workshops/rewards-seen', async (route) => {
+      await ackHeld;
+      await route.continue();
+    });
+    const revalidated = () =>
+      page.waitForResponse((response) =>
+        response.url().includes('__data.json'),
+      );
+
     // Coming back to the tab is the trigger, and the only one.
+    let revalidation = revalidated();
     await page.evaluate(() =>
       document.dispatchEvent(new Event('visibilitychange')),
     );
+    await revalidation;
+    revalidation = revalidated();
+    await page.evaluate(() =>
+      document.dispatchEvent(new Event('visibilitychange')),
+    );
+    await revalidation;
+    const ackLanded = page.waitForResponse((response) =>
+      response.url().endsWith('/api/workshops/rewards-seen'),
+    );
+    releaseAck();
+    expect((await ackLanded).status()).toBe(200);
 
     // Half of a sixty-minute activity, at ten XP the minute. Asserted on the
     // toast rather than on the float: the float counts its number up over 900 ms
@@ -101,6 +134,11 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     // the amount as one string for six seconds.
     const toast = page.getByText('Tu gagnes +300 XP', { exact: false });
     await expect(toast).toBeVisible();
+    await expect(toast).toHaveCount(1);
+    // Acknowledged once, with the amount that was on screen.
+    expect(acks).toEqual([
+      { upTo: [{ instanceId: expect.any(String), amount: 300 }] },
+    ]);
     await expect(page.getByText('Activité en cours')).toBeVisible();
     await expect(hero).toContainText('5 / 10 étapes validées');
 
