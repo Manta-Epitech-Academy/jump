@@ -61,6 +61,16 @@ export const REMOTE_DOWNLOAD_MAX_BYTES = 20 * 1024 * 1024;
 export const REMOTE_ANIMATION_MAX_BYTES = 6 * 1024 * 1024;
 
 const TIMEOUT_MS = 15_000;
+
+/**
+ * Sent with every download. Some hosts (Wikimedia among them) answer 403 to a
+ * request that does not say who is asking, which would refuse a picture the
+ * admin can open in any browser for a reason that has nothing to do with it.
+ */
+const REQUEST_HEADERS = {
+  'user-agent': 'Jump/1.0 (Epitech Academy; picture copy)',
+  accept: 'image/*',
+};
 const WEBP_QUALITY = 80;
 const MAX_REDIRECTS = 5;
 
@@ -140,7 +150,11 @@ function request(url: URL): Promise<Answer> {
   return new Promise((resolve, reject) => {
     const req = get(
       url,
-      { lookup: publicLookup, signal: AbortSignal.timeout(TIMEOUT_MS) },
+      {
+        lookup: publicLookup,
+        headers: REQUEST_HEADERS,
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      },
       (response: IncomingMessage) => {
         const fail = (why: string) => {
           response.destroy();

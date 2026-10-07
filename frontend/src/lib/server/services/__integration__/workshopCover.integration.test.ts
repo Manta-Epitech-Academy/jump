@@ -118,6 +118,8 @@ describe('the cover an admin gives an activity (integration)', () => {
     | { redirect: string }
   >;
 
+  /** The User-Agent of every request the host received. */
+  const userAgents: string[] = [];
   const at = (path: string) => `${host}${path}`;
   const fullCover = () => ({
     slug,
@@ -158,6 +160,7 @@ describe('the cover an admin gives an activity (integration)', () => {
   beforeAll(async () => {
     assertTestDatabase();
     server = createServer((req, res) => {
+      userAgents.push(req.headers['user-agent'] ?? '');
       const file = files.get(req.url ?? '');
       if (!file) {
         res.writeHead(404).end();
@@ -231,6 +234,9 @@ describe('the cover an admin gives an activity (integration)', () => {
     });
     const images = await storedImages();
     for (const image of images) expect(objects.has(image.key)).toBe(true);
+    // Some hosts refuse a request that does not say who is asking.
+    expect(userAgents.length).toBeGreaterThan(0);
+    for (const agent of userAgents) expect(agent).toMatch(/^Jump\//);
 
     // The animation is kept byte for byte, sized off its own header, with its
     // first frame beside it for reduced motion.
