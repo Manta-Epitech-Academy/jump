@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onImageBroken } from '$lib/actions/onImageBroken';
-  import type { ShownPicture } from '$lib/domain/pictures';
+  import { reducedMotionUrl, type ShownPicture } from '$lib/domain/pictures';
 
   // A picture Jump copied (`ShownPicture`), drawn as it is: any proportion, any
   // size, still or animated. The host bounds it through `class` (a maximum
@@ -10,7 +10,8 @@
   //
   // An animation gives way to a still for a talent who asked for reduced
   // motion: the one its author chose (`still`, a cover's poster) or, failing
-  // that, its first frame, which Jump derived when it copied it.
+  // that, its first frame, which Jump derived when it copied it
+  // (`reducedMotionUrl`).
   let {
     picture,
     still = null,
@@ -28,15 +29,12 @@
     onBroken: () => void;
   } = $props();
 
-  const reducedMotionUrl = $derived(still?.url ?? picture.stillUrl);
+  const motionless = $derived(reducedMotionUrl(picture, still));
 </script>
 
 <picture class={pictureClass}>
-  {#if reducedMotionUrl && reducedMotionUrl !== picture.url}
-    <source
-      media="(prefers-reduced-motion: reduce)"
-      srcset={reducedMotionUrl}
-    />
+  {#if motionless}
+    <source media="(prefers-reduced-motion: reduce)" srcset={motionless} />
   {/if}
   <img
     src={picture.url}

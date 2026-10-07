@@ -15,6 +15,26 @@ export type ShownPicture = {
   stillUrl: string | null;
 };
 
+/** The picture as it shows without moving: its still for an animation, itself otherwise. */
+export function motionlessUrl(picture: ShownPicture): string {
+  return picture.stillUrl ?? picture.url;
+}
+
+/**
+ * What a talent who asked for reduced motion sees in place of `picture`, or
+ * null when `picture` already holds still. `chosen` is a still its author
+ * picked (a cover's poster) and wins over the first frame Jump derived. Any
+ * picture is taken in any place, so `chosen` may itself be an animation, and
+ * it is reduced like the rest rather than trusted to hold still.
+ */
+export function reducedMotionUrl(
+  picture: ShownPicture,
+  chosen: ShownPicture | null = null,
+): string | null {
+  const url = motionlessUrl(chosen ?? picture);
+  return url === picture.url ? null : url;
+}
+
 /**
  * The storage key of an animation's still, beside the animation's own key. Pure,
  * so the seed composes it the same way the copy does.

@@ -8,6 +8,7 @@
     isActivityFinished,
     type WorkshopActivity,
   } from '$lib/domain/workshops';
+  import { motionlessUrl } from '$lib/domain/pictures';
 
   // A list of activities a talent's events have offered, each one a way back
   // in. Two hosts: the home's « Mes activités », what is left to do (a Coding
@@ -36,7 +37,7 @@
   function thumbnailOf(activity: WorkshopActivity) {
     const image = activity.cover.poster ?? activity.cover.media ?? null;
     if (!image) return null;
-    const url = image.stillUrl ?? image.url;
+    const url = motionlessUrl(image);
     return broken[url] ? null : { url };
   }
 
