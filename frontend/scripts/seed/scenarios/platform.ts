@@ -129,6 +129,8 @@ export const platform: Scenario = {
     }
 
     // What the first campuses put on their talents' home (see the catalogue).
+    // Who to sign in as to see it is placed later, once the events exist
+    // (`campusHome`), and reported there.
     for (const campus of campuses) {
       const note = TALENT_HOME_NOTES[campus.name];
       if (note)
@@ -165,15 +167,6 @@ export const platform: Scenario = {
           height: highlight.image.height,
         });
     }
-    world.ctx.manifest.push({
-      scenario: 'accueil des campus',
-      summary: 'Le mot du campus et l’événement mis en avant, par campus.',
-      covers: [
-        'Paris : un mot du campus (titre, liste, liens) et un événement mis en avant avec une image, en tête du bandeau bleu de tout talent de Paris sans activité ce jour-là',
-        'Marseille : un mot du campus seul, sans événement mis en avant',
-        'Lyon : un événement mis en avant dont le jour est passé, que l’accueil ne montre plus',
-      ],
-    });
 
     // One signature that belongs to no campus: the national one, used where a
     // document is issued by the school rather than by a site. `campusId` is
