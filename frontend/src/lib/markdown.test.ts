@@ -31,6 +31,14 @@ describe('authoredMarkdownProblems', () => {
     );
     expect(authoredMarkdownProblems('[relatif](/xp)')).toHaveLength(1);
   });
+
+  it('names a bare www address as written, with the https one to use', () => {
+    expect(authoredMarkdownProblems('Infos sur www.epitech.invalid !')).toEqual(
+      [
+        'Lien refusé (www.epitech.invalid) : écrivez l’adresse complète, https://www.epitech.invalid.',
+      ],
+    );
+  });
 });
 
 describe('renderAuthoredMarkdown', () => {

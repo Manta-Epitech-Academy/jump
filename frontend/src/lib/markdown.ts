@@ -87,12 +87,21 @@ export function authoredMarkdownProblems(markdown: string): string[] {
     } else if (token.type === 'html') {
       problems.add('Le HTML n’est pas accepté, seulement le Markdown.');
     } else if (token.type === 'link' && !isAuthoredHref(token.href)) {
-      problems.add(
-        `Lien refusé (${token.href}) : seuls les liens https:// et mailto: sont acceptés.`,
-      );
+      problems.add(linkProblem(token.raw, token.href));
     }
   });
   return [...problems];
+}
+
+/**
+ * A refused link, in the author's own words. A bare `www.` address is linked by
+ * GFM to `http://`, a scheme the author never typed, so it is named as written
+ * and the full https address is given to copy back.
+ */
+function linkProblem(raw: string, href: string): string {
+  if (raw.startsWith('www.'))
+    return `Lien refusé (${raw}) : écrivez l’adresse complète, https://${raw}.`;
+  return `Lien refusé (${href}) : seuls les liens https:// et mailto: sont acceptés.`;
 }
 
 function openLinksElsewhere(node: Element): void {
