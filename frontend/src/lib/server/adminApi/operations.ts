@@ -486,16 +486,16 @@ const PICTURE_RULES =
  * the same thing in the same words, and the service under it can be exercised
  * against a local test server.
  */
+const httpsPictureUrl = z
+  .string()
+  .url()
+  .refine((value) => value.startsWith('https://'), {
+    message:
+      'An https address is required: Jump downloads the picture from it.',
+  });
+
 function pictureUrl(describe: string) {
-  return z
-    .string()
-    .url()
-    .refine((value) => value.startsWith('https://'), {
-      message:
-        'An https address is required: Jump downloads the picture from it.',
-    })
-    .optional()
-    .describe(describe);
+  return httpsPictureUrl.optional().describe(describe);
 }
 
 /**
@@ -892,17 +892,11 @@ export const ADMIN_API_OPERATIONS = {
       personaName: formFields.personaName.describe(
         'Name the persona introduces itself by. Omit for the default mascot.',
       ),
-      personaIconUrl: z
-        .string()
-        .url()
-        .refine((value) => value.startsWith('https://'), {
-          message:
-            'An https address is required: Jump downloads the picture from it.',
-        })
+      personaIconUrl: httpsPictureUrl
         .nullable()
         .optional()
         .describe(
-          'https address of the persona avatar. Jump downloads it and keeps a 256 px still (an animation keeps its first frame); PNG, JPEG, WebP or GIF up to 20 MB, from a public address. Restating the address the icon came from downloads nothing. Null puts the default mascot back. Omit to leave the icon as it is, which is the only way to keep one uploaded in the builder.',
+          'https address of the persona avatar. Jump downloads it and keeps a 256 px still: PNG, JPEG or WebP up to 20 MB, or a GIF up to 6 MB whose first frame is kept, from a public address. Restating the address the icon came from downloads nothing. Null puts the default mascot back. Omit to leave the icon as it is, which is the only way to keep one uploaded in the builder.',
         ),
       status: formFields.status.describe(
         'draft while it is being written, published to accept responses, archived to retire it.',
