@@ -15,7 +15,10 @@
  * instead of being defended against.
  *
  * THE FORMAT IS A FROZEN CONTRACT shared with `kevin-cazal/workshop_platform`.
- * Changing anything in it means changing both halves.
+ * Changing anything in it means changing both halves. The one addition so far,
+ * the four session claims, was made so that either half could ship first: the
+ * plugin reads claims with `.get` and lets an unknown one through, and accepts a
+ * ticket that carries none of the four.
  *
  * SINGLE USE IS ENFORCED IN THE PLUGIN, by burning the `jti` through the cache's
  * SETNX. Jump storing it would buy nothing, because Jump cannot observe the
@@ -36,6 +39,30 @@ const WORKSHOP_TICKET_ISSUER = 'jump';
  */
 const DISPLAY_NAME_MAX = 128;
 
+/** The widest session or campus key the plugin stores: a cuid with room to spare. */
+const SESSION_KEY_MAX = 64;
+
+/** The widest session or campus label the plugin stores. */
+const SESSION_LABEL_MAX = 128;
+
+/**
+ * The Jump session a talent enters an activity under: the event their
+ * participation was pinned to on first entry, and that event's campus.
+ *
+ * The plugin keeps each session to itself (its `audience.py`): an instance
+ * serves several events over its life, reused by a campus from one request to
+ * the next, shared by a season's camps, or kept up for a flagship subject, and
+ * a talent is ranked among the people of their own event only. The campus is
+ * for the plugin's staff pages. The labels are what the staff read there: an
+ * event name and a campus name, nothing about the talent.
+ */
+export type WorkshopSession = {
+  id: string;
+  label: string;
+  campusId: string;
+  campusLabel: string;
+};
+
 export type WorkshopTicketClaims = {
   /** Which Jump environment minted it. The plugin selects a key with it, and takes the callback origin from THAT key's configuration, never from the token. */
   kid: string;
@@ -46,7 +73,24 @@ export type WorkshopTicketClaims = {
   iat: number;
   exp: number;
   jti: string;
+  /**
+   * The session, as four flat strings rather than an object so the plugin
+   * checks each with the same one-line test as every other claim. All four or
+   * none: Jump always sends them, and a ticket from before they existed carries
+   * none, which the plugin accepts and files under no session.
+   */
+  session?: string;
+  session_label?: string;
+  campus?: string;
+  campus_label?: string;
 };
+
+const SESSION_CLAIMS = [
+  ['session', SESSION_KEY_MAX],
+  ['session_label', SESSION_LABEL_MAX],
+  ['campus', SESSION_KEY_MAX],
+  ['campus_label', SESSION_LABEL_MAX],
+] as const;
 
 /**
  * Two keys from one secret, so compromising one direction is not a forging
@@ -107,6 +151,7 @@ export function mintWorkshopTicket(input: {
   slug: string;
   kid: string;
   secret: string;
+  session: WorkshopSession;
   /** Injected by the test; production always mints from the clock. */
   now?: Date;
 }): string {
@@ -120,6 +165,10 @@ export function mintWorkshopTicket(input: {
     iat,
     exp: iat + WORKSHOP_TICKET_TTL_SECONDS,
     jti: randomUUID(),
+    session: input.session.id,
+    session_label: input.session.label.slice(0, SESSION_LABEL_MAX),
+    campus: input.session.campusId,
+    campus_label: input.session.campusLabel.slice(0, SESSION_LABEL_MAX),
   };
   const payload = b64url(Buffer.from(JSON.stringify(claims), 'utf8'));
   const { ticketKey } = workshopKeys(input.secret);
@@ -175,6 +224,18 @@ export function verifyWorkshopTicket(
   // Whatever the token claims: a bug on the Jump side must not be able to hand
   // out a bearer valid for a month that CTFd has no way to revoke.
   if (claims.exp - claims.iat > WORKSHOP_TICKET_TTL_SECONDS) return null;
+
+  // All four session claims or none of them, each a non-empty string within
+  // what the plugin stores. A partial set is refused rather than half-filed: an
+  // account in a session with no campus would vanish from every staff filter.
+  const present = SESSION_CLAIMS.filter(([key]) => claims[key] !== undefined);
+  if (present.length !== 0 && present.length !== SESSION_CLAIMS.length)
+    return null;
+  for (const [key, max] of present) {
+    const value = claims[key];
+    if (typeof value !== 'string' || value.length === 0 || value.length > max)
+      return null;
+  }
 
   return claims;
 }

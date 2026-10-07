@@ -23,6 +23,12 @@ const SECRET = 'a-shared-secret-for-this-environment';
 const SLUG = 'pacman-ia';
 const KID = 'jump-test';
 const NOW = new Date('2026-09-15T12:00:00Z');
+const SESSION = {
+  id: 'sd_evt_paris_cc_0001',
+  label: 'Coding Club Paris (15/09/2026)',
+  campusId: 'sd_cmp_paris',
+  campusLabel: 'Paris',
+};
 
 const mint = (
   overrides: Partial<Parameters<typeof mintWorkshopTicket>[0]> = {},
@@ -33,9 +39,30 @@ const mint = (
     slug: SLUG,
     kid: KID,
     secret: SECRET,
+    session: SESSION,
     now: NOW,
     ...overrides,
   });
+
+/**
+ * Sign arbitrary claims with the right key, for the refusals that are about
+ * what a correctly signed token says rather than about its signature.
+ */
+const signClaims = (claims: Record<string, unknown>) => {
+  const { ticketKey } = workshopKeys(SECRET);
+  const payload = Buffer.from(JSON.stringify(claims), 'utf8').toString(
+    'base64url',
+  );
+  const signature = createHmac('sha256', ticketKey)
+    .update(payload)
+    .digest('base64url');
+  return `${payload}.${signature}`;
+};
+
+const claimsOf = (token: string) =>
+  JSON.parse(
+    Buffer.from(token.split('.')[0]!, 'base64url').toString('utf8'),
+  ) as Record<string, unknown>;
 
 const verify = (
   token: string,
@@ -83,7 +110,6 @@ describe('the entry ticket', () => {
     // A bug on the Jump side must not be able to hand out a bearer valid for a
     // month, which CTFd has no way to revoke: the ceiling is applied to what the
     // token says about itself, not only to the clock.
-    const { ticketKey } = workshopKeys(SECRET);
     const iat = Math.floor(NOW.getTime() / 1000);
     const claims = {
       kid: KID,
@@ -95,13 +121,46 @@ describe('the entry ticket', () => {
       exp: iat + 30 * 24 * 3600,
       jti: 'forged-but-correctly-signed',
     };
-    const payload = Buffer.from(JSON.stringify(claims), 'utf8').toString(
-      'base64url',
+    expect(verify(signClaims(claims))).toBeNull();
+  });
+
+  it('names the session the plugin files the account under', () => {
+    const claims = verify(mint());
+    expect(claims?.session).toBe(SESSION.id);
+    expect(claims?.session_label).toBe(SESSION.label);
+    expect(claims?.campus).toBe(SESSION.campusId);
+    expect(claims?.campus_label).toBe(SESSION.campusLabel);
+  });
+
+  it('accepts a ticket that names no session, as one minted before they existed', () => {
+    const {
+      session: _session,
+      session_label: _sessionLabel,
+      campus: _campus,
+      campus_label: _campusLabel,
+      ...rest
+    } = claimsOf(mint());
+    expect(verify(signClaims(rest))).not.toBeNull();
+  });
+
+  it('refuses half a session: an account in a session with no campus leaves every staff filter', () => {
+    const {
+      campus: _campus,
+      campus_label: _campusLabel,
+      ...rest
+    } = claimsOf(mint());
+    expect(verify(signClaims(rest))).toBeNull();
+    expect(verify(signClaims({ ...claimsOf(mint()), session: '' }))).toBeNull();
+  });
+
+  it('keeps a long event name within what the plugin stores', () => {
+    const claims = verify(
+      mint({ session: { ...SESSION, label: 'Coding Club '.repeat(20) } }),
     );
-    const signature = createHmac('sha256', ticketKey)
-      .update(payload)
-      .digest('base64url');
-    expect(verify(`${payload}.${signature}`)).toBeNull();
+    expect(claims?.session_label?.length).toBe(128);
+    expect(
+      verify(signClaims({ ...claimsOf(mint()), campus: 'x'.repeat(65) })),
+    ).toBeNull();
   });
 
   it('refuses a ticket minted for another instance', () => {
