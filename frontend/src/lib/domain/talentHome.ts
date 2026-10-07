@@ -57,18 +57,18 @@ export function formatHighlightDay(key: DateKey): string {
 /**
  * Where a highlight's picture lives once copied, and the URL a page asks for it
  * at. Composed here and nowhere else, because the proxy route turns its two
- * path segments back into the key and the two directions must not drift. The
- * key is content-addressed, so a new picture is a new URL and the proxy can
- * cache one forever.
+ * path segments back into the key and the two directions must not drift. A key
+ * is minted per write and never reused, so a new picture is a new URL and the
+ * proxy can cache one forever (`images/remote.ts`, `swapStoredImages`).
  */
 const IMAGE_PREFIX = 'talent-home';
 
 export function highlightImageKey(
   campusId: string,
-  digest: string,
+  writeId: string,
   extension: string,
 ): string {
-  return `${IMAGE_PREFIX}/${campusId}/highlight-${digest}.${extension}`;
+  return `${IMAGE_PREFIX}/${campusId}/highlight-${writeId}.${extension}`;
 }
 
 /** The key the proxy route's `[campusId]/[file]` segments name. */

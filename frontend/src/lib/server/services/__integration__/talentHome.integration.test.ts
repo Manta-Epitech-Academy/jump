@@ -49,6 +49,12 @@ vi.mock('$lib/server/infra/storage', () => ({
   isObjectNotFound: () => false,
 }));
 
+// The address policy refuses loopback, which is where the test host lives, so
+// it is let through here and judged on its own in `infra/publicAddress.test.ts`.
+vi.mock('$lib/server/infra/publicAddress', () => ({
+  isPublicAddress: vi.fn(() => true),
+}));
+
 vi.mock('$lib/server/images/process', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('$lib/server/images/process')>();

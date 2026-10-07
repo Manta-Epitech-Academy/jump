@@ -17,6 +17,8 @@
  * sends nothing to anybody and lands only on the named campus.
  */
 
+import { randomBytes } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { authoredMarkdownProblems } from '$lib/markdown';
 import { isCalendarDay, toDateKey } from '$lib/domain/planningTime';
@@ -113,8 +115,9 @@ async function highlightRow(campus: ResolvedCampus) {
   });
 }
 
-async function highlightState(campus: ResolvedCampus) {
-  const row = await highlightRow(campus);
+type HighlightRow = NonNullable<Awaited<ReturnType<typeof highlightRow>>>;
+
+function presentHighlight(campus: ResolvedCampus, row: HighlightRow | null) {
   if (!row) return null;
   const { image, ...fields } = row;
   return {
@@ -122,6 +125,37 @@ async function highlightState(campus: ResolvedCampus) {
     ...fields,
     date: dbDateToKey(row.date),
     imageUrl: image?.sourceUrl ?? null,
+  };
+}
+
+async function highlightState(campus: ResolvedCampus) {
+  return presentHighlight(campus, await highlightRow(campus));
+}
+
+/**
+ * The highlight as it stands inside a write's transaction, and the picture key
+ * that write is about to replace. Taken under a lock on the campus row, which
+ * exists even before its first highlight does, so a second write on this campus
+ * waits here and then reads what this one wrote (`swapStoredImages`).
+ */
+async function lockedHighlightState(
+  tx: Prisma.TransactionClient,
+  campus: ResolvedCampus,
+) {
+  await tx.$executeRaw`SELECT 1 FROM "Campus" WHERE id = ${campus.id} FOR NO KEY UPDATE`;
+  const row = await tx.talentHome_Highlight.findUnique({
+    where: { campusId: campus.id },
+    select: {
+      title: true,
+      summary: true,
+      date: true,
+      url: true,
+      image: { select: { sourceUrl: true, key: true } },
+    },
+  });
+  return {
+    state: presentHighlight(campus, row),
+    keys: row?.image ? [row.image.key] : [],
   };
 }
 
@@ -168,8 +202,9 @@ function checkSignupUrl(url: string): void {
  * show it. The picture is optional and goes with the highlight: omitted, the
  * highlight has none, and clearing the highlight removes it.
  *
- * Safe to repeat: the same values leave the same row, and the same picture
- * comes back under the same content-addressed key.
+ * Safe to repeat: the same values leave the same row. The picture is copied
+ * again and stored under a key minted for this write, never reused, so two
+ * overlapping writes cannot delete each other's picture.
  */
 export async function writeTalentHomeHighlight(
   params: {
@@ -191,23 +226,21 @@ export async function writeTalentHomeHighlight(
       "L'événement mis en avant demande ses quatre champs (title, summary, date, url). Pour le retirer, passez les quatre à null.",
     );
 
-  const previous = await highlightRow(campus);
-  const before = await highlightState(campus);
-  const previousKeys = previous?.image ? [previous.image.key] : [];
-
   if (title === null || summary === null || date === null || url === null) {
     if (params.imageUrl)
       throw new OperationRefusedError(
         "Une image ne peut pas être donnée sans l'événement qu'elle illustre. Pour retirer l'événement mis en avant, passez les quatre champs à null sans image.",
       );
     // The picture row goes with the highlight (cascade); its bytes go after.
-    await swapStoredImages({
+    const { before } = await swapStoredImages({
       next: [],
-      previousKeys,
-      commit: () =>
-        prisma.talentHome_Highlight.deleteMany({
+      commit: async (tx) => {
+        const before = await lockedHighlightState(tx, campus);
+        await tx.talentHome_Highlight.deleteMany({
           where: { campusId: campus.id },
-        }),
+        });
+        return { replaced: before.keys, result: { before: before.state } };
+      },
     });
     return { applied: true, before, after: await highlightState(campus) };
   }
@@ -239,33 +272,40 @@ export async function writeTalentHomeHighlight(
   const image = params.imageUrl
     ? await copyHighlightImage(params.imageUrl)
     : null;
+  // A fresh key for this write, even for a picture that has not changed: a key
+  // shared by two writes is one that either of them could delete under the
+  // other (`swapStoredImages`).
   const imageRow = image && {
     campusId: campus.id,
     sourceUrl: params.imageUrl!,
-    key: highlightImageKey(campus.id, image.digest, image.extension),
+    key: highlightImageKey(
+      campus.id,
+      randomBytes(8).toString('hex'),
+      image.extension,
+    ),
     contentType: image.contentType,
     width: image.width,
     height: image.height,
   };
 
   const values = { title, summary, date: dateKeyToDbDate(date), url };
-  await swapStoredImages({
+  const { before } = await swapStoredImages({
     next: image && imageRow ? [{ ...imageRow, bytes: image.bytes }] : [],
-    previousKeys,
-    commit: () =>
-      prisma.$transaction([
-        prisma.talentHome_Highlight.upsert({
-          where: { campusId: campus.id },
-          create: { campusId: campus.id, ...values },
-          update: values,
-        }),
-        prisma.talentHome_HighlightImage.deleteMany({
-          where: { campusId: campus.id },
-        }),
-        ...(imageRow
-          ? [prisma.talentHome_HighlightImage.create({ data: imageRow })]
-          : []),
-      ]),
+    commit: async (tx) => {
+      const before = await lockedHighlightState(tx, campus);
+      await tx.talentHome_Highlight.upsert({
+        where: { campusId: campus.id },
+        create: { campusId: campus.id, ...values },
+        update: values,
+      });
+      await tx.talentHome_HighlightImage.deleteMany({
+        where: { campusId: campus.id },
+      });
+      if (imageRow) {
+        await tx.talentHome_HighlightImage.create({ data: imageRow });
+      }
+      return { replaced: before.keys, result: { before: before.state } };
+    },
   });
   return { applied: true, before, after: await highlightState(campus) };
 }
