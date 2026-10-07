@@ -38,6 +38,8 @@ import { metric, type Metric } from '$lib/server/adminApi/metrics';
 import { CERTIFICATE_TOKENS } from '$lib/domain/diplomas';
 import { WORKSHOP_XP_PER_MINUTE } from '$lib/domain/xp';
 import type { WorkshopCoverKind } from '$lib/domain/workshops';
+import { dbDateToKey } from '$lib/domain/eventPresence';
+import { isHighlightOpen } from '$lib/domain/talentHome';
 import { UnknownScopeError, type Scope } from '$lib/server/adminApi/scope';
 import { handleProvenanceFr } from '$lib/server/adminApi/handles';
 import { hiddenEnrolmentsByEvent, scopedEvents, scopeLabels } from './cohort';
@@ -517,6 +519,57 @@ export async function getWorkshopInstances(): Promise<WorkshopInstances> {
     scale: metric(
       `Une activité déclarée à N minutes sur un événement vaut N x ${WORKSHOP_XP_PER_MINUTE} XP une fois entièrement terminée, au prorata des étapes validées. Le barème d'un talent est figé à sa première entrée : changer la durée ne reprend d'XP à personne et n'en ajoute pas rétroactivement.`,
       "Comment une activité se transforme en XP, et ce qu'un changement de durée fait aux talents déjà entrés.",
+    ),
+  };
+}
+
+// ─── Talent home content ───────────────────────────────────────────────────
+
+/**
+ * What each campus puts on its talents' home, as written: the note's Markdown
+ * and the highlighted event. Campuses with neither are listed too, because the
+ * question this answers is usually « which campuses are still empty ».
+ */
+export async function getTalentHomeContent(
+  scope: Scope,
+  now: Date = new Date(),
+) {
+  const rows = await prisma.campus.findMany({
+    where: scope.campus ? { id: scope.campus.id } : undefined,
+    orderBy: { name: 'asc' },
+    select: {
+      name: true,
+      timezone: true,
+      homeNote: { select: { markdown: true, updatedAt: true } },
+      homeHighlight: {
+        select: {
+          title: true,
+          summary: true,
+          date: true,
+          url: true,
+          updatedAt: true,
+          image: { select: { sourceUrl: true } },
+        },
+      },
+    },
+  });
+
+  return {
+    campuses: metric(
+      rows.map(({ name, timezone, homeNote, homeHighlight }) => ({
+        campus: name,
+        note: homeNote,
+        highlight: homeHighlight && {
+          title: homeHighlight.title,
+          summary: homeHighlight.summary,
+          date: dbDateToKey(homeHighlight.date),
+          url: homeHighlight.url,
+          imageUrl: homeHighlight.image?.sourceUrl ?? null,
+          updatedAt: homeHighlight.updatedAt,
+          shown: isHighlightOpen(homeHighlight.date, timezone, now),
+        },
+      })),
+      "Ce que chaque campus affiche sur l'accueil de ses talents, en plus de leurs propres inscriptions. « note » est le mot du campus tel qu'il a été écrit (Markdown), affiché dans la carte Actualités, ou null s'il n'y en a pas. « highlight » est l'événement mis en avant dans le bandeau bleu de l'accueil (en grand un jour sans activité, en une ligne sous l'activité un jour d'activité) : son titre, son texte, son jour, le lien du formulaire d'inscription, « imageUrl », l'adresse d'où son image a été copiée (null s'il n'en a pas), et « shown », qui dit s'il est encore affiché (il disparaît seul une fois son jour passé, à l'heure du campus), ou null s'il n'y en a pas. Un talent voit le campus de son événement le plus tardif, à venir compris.",
     ),
   };
 }

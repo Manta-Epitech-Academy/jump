@@ -19,7 +19,7 @@
  * ── What belongs here, and what does not ──────────────────────────────────────
  *
  * One entry per queue a scheduler actually drains, keyed on the rows that
- * scheduler claims. Four neighbours deliberately have no entry:
+ * scheduler claims. Three neighbours deliberately have no entry:
  *
  *   - `OnboardingPdfJob`, whose `pending` rows are inert. `runOnboardingPdfJob`
  *     is only ever called with an explicit job id (fire-and-forget after the
@@ -28,14 +28,6 @@
  *   - `/api/jobs/publish-minigame`, which rotates the daily publication on every
  *     tick whatever the database holds. It acts on an empty database too, so it
  *     is not the seed that makes it act, and there is no row here to withhold.
- *   - `/api/jobs/gc-cms-images`, which DOES find a seeded row by itself: the
- *     orphan `CmsImage` this generator writes on purpose is exactly what
- *     `sweepOrphanCmsImages` reclaims. It is listed rather than entered because
- *     reclaiming it is the correct behaviour and costs nothing outside the
- *     database, where a send cannot be taken back. What it costs is worth
- *     knowing: on a long-lived environment the « image orpheline » case the
- *     « où trouver quoi » page advertises is gone after the first GC tick, so
- *     re-generate rather than hunt for it.
  *   - `Sync_Request`, which `/api/worker/config` also finds by itself. A request
  *     changes WHEN the worker runs, never WHAT it pulls: the perimeter is
  *     `Sync_Source` and `Campus.externalName`, held below and in

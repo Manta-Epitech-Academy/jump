@@ -321,7 +321,7 @@ export const club: Scenario = {
         {
           role: 'talent (closing sans participation)',
           email: anchorRegular.email,
-          note: 'la participation de la première séance a été supprimée après coup ; le closing tient toujours',
+          note: 'la participation de la première séance a été supprimée après coup ; le closing tient toujours. Sur son accueil : Pacman IA commencé et pas fini, que le bandeau bleu propose de continuer chez soi, et sa prochaine séance dans la carte de session',
         },
       ],
     });

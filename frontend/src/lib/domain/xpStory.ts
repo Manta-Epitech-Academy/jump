@@ -44,7 +44,7 @@ function podiumTierFromBonus(amount: number): 1 | 2 | 3 | 'top' {
 /**
  * Explicit, plain-French label for a single grant in the history feed - the one
  * place that knows how every XP fact is worded, read by both the dev staff fiche
- * and the talent's own `/xp` timeline. Either reader must understand exactly what
+ * and the talent's own `/parcours` timeline. Either reader must understand exactly what
  * earned the XP, with no internal jargon and no anglicisms ("early bird" /
  * "onboarding" stay out).
  *

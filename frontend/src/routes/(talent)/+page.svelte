@@ -7,19 +7,18 @@
   import { fly } from 'svelte/transition';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
-  import { eventDisplayName, minutesToHHMM } from '$lib/domain/event';
   import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import History from '@lucide/svelte/icons/history';
+  import Route from '@lucide/svelte/icons/route';
   import Coffee from '@lucide/svelte/icons/coffee';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
-  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
-  import CalendarCheck from '@lucide/svelte/icons/calendar-check';
   import FeedbackBanner from '$lib/components/feedback/FeedbackBanner.svelte';
-  import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
-  import TodayActivityHero from '$lib/components/talent/TodayActivityHero.svelte';
-  import MyActivitiesCard from '$lib/components/talent/MyActivitiesCard.svelte';
+  import NewsCard from '$lib/components/talent/NewsCard.svelte';
+  import TalentHomeHero from '$lib/components/talent/TalentHomeHero.svelte';
+  import ActivitiesCard from '$lib/components/talent/ActivitiesCard.svelte';
+  import SessionCard from '$lib/components/talent/SessionCard.svelte';
+  import { showsSessionCard } from '$lib/domain/talentPlanning';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
@@ -53,15 +52,11 @@
   // Arrival celebration. The server arms `data.onboardingArrival` on the first
   // dashboard load after onboarding completes (consuming a one-shot cookie), so
   // its presence is the whole trigger: there is no URL param to read or scrub,
-  // and a refresh can't replay it. We fire the XP float + welcome toast and
-  // highlight the Actualités card so it's easy to find. No modal pops: the card
-  // surfaces the welcome message inline (the /welcome splash is a separate
-  // earlier greeting).
-  let welcomeHighlight = $state(false);
+  // and a refresh can't replay it. We fire the XP float + welcome toast; no
+  // modal pops (the /welcome splash is a separate earlier greeting).
   onMount(() => {
     const arrival = data.onboardingArrival;
     if (!arrival) return;
-    welcomeHighlight = true;
 
     const { totalXp, earlyBirdBonus } = arrival;
 
@@ -80,32 +75,18 @@
   });
 
   let student = $derived(data.student);
-  // Single view-model for the "Planning à venir" widget (server-derived, or a
-  // dev preview when an admin impersonates this talent). The widget branches on
-  // `planning.state` alone; no raw participation rows reach the UI.
+  // The talent's own session (server-derived, or a dev preview when an admin
+  // impersonates this talent): a small card, and only when it has something to
+  // say (`showsSessionCard`).
   let planning = $derived(data.planning);
 
-  // The widget's state is always shown (it's participation-derived), but the
-  // "Voir le planning" CTA opens the /calendar grid, which only exists when the
-  // talent actually has a planned event. Data-driven, no campus flag.
-  let hasPlanning = $derived(data.hasPlannedEvents);
-
-  // Name for the planning widget: the event's admin-set public name when set,
-  // else the SF `titre` as a fallback (see `eventDisplayName`).
-  let planningEventName = $derived(
-    planning.state === 'ongoing' || planning.state === 'upcoming'
-      ? eventDisplayName(planning)
-      : '',
-  );
-
-  // Wall-clock start time of the next session ("10:00"), shown only once it has
-  // been *confirmed* (`startMinutes` set, on the admin events page). We
-  // deliberately don't fall back to the type default here: a confidently-wrong
-  // hour is worse for a student than none, so until it's confirmed the talent
-  // sees the date alone (never the SF `date`'s meaningless midnight). Staff see
-  // the type default meanwhile, with the admin list flagging it to confirm.
-  let upcomingStartTime = $derived(
-    planning.state === 'upcoming' ? minutesToHHMM(planning.startMinutes) : '',
+  // The one thing the blue hero suggests doing now, or null on a day with
+  // nothing to suggest (`pickHomeHero`, server-side).
+  let hero = $derived(data.hero);
+  // Whether the suggestions' column holds anything. When it does not, the
+  // training moves into it (see the layout below).
+  let suggestsSomething = $derived(
+    !!hero || data.toDo.length > 0 || !!data.note,
   );
 
   // The daily minigame is the row inside the "Entraînement du jour" card:
@@ -134,14 +115,6 @@
   // can't drift.
   const DAILY_TRAINING_LABEL = 'Entraîne ton cerveau';
 
-  // The CTFd activities the talent's events offer: today's in the hero, the
-  // rest in their own card. Student-facing wording all the way: the words
-  // « CTFd » and « flag » never appear on this surface.
-  let workshops = $derived(data.workshops);
-  let hasActivities = $derived(
-    workshops.today.length > 0 || workshops.activities.length > 0,
-  );
-
   // An activity is walked in a SECOND TAB, so coming back here reloads nothing on
   // its own and the XP earned meanwhile would only appear on the next navigation.
   //
@@ -152,7 +125,7 @@
   // listener only from the second visit onwards, which is the one nobody
   // demonstrates.
   $effect(() => {
-    if (!hasActivities) return;
+    if (!data.hasActivities) return;
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') void invalidateAll();
     };
@@ -163,16 +136,6 @@
 
   function formatChrono(ms: number | null): string {
     return ms === null ? '-' : `${(ms / 1000).toFixed(1)}s`;
-  }
-
-  // Long, words-based date ("23 mai 2026") for the upcoming-session copy.
-  function formatDateLong(date: Date | string | undefined): string {
-    if (!date) return '';
-    return new Date(date).toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
   }
 </script>
 
@@ -231,11 +194,12 @@
           {#if minigamePlayed && minigameWon}
             <a
               href={resolve(`/minigames/${minigamePublication.id}/leaderboard`)}
-              class="flex flex-col gap-3 rounded-xl border border-epi-tech-ink/30 bg-epi-tech-ink/5 p-4 transition-ui hover:bg-epi-tech-ink/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
+              class="flex flex-col gap-3 rounded-xl border border-epi-tech-ink/30 bg-epi-tech-ink/5 p-4 transition-ui hover:bg-epi-tech-ink/10 active:scale-[0.99] @sm:flex-row @sm:items-center @sm:gap-4"
             >
-              <!-- icon + text stay a row on mobile; `sm:contents` dissolves this
-                   wrapper on desktop so the CTA rejoins them on one line -->
-              <div class="flex items-center gap-4 sm:contents">
+              <!-- icon + text stay a row in a narrow card; `@sm:contents`
+                   dissolves this wrapper once the card is wide enough, so the
+                   CTA rejoins them on one line -->
+              <div class="flex items-center gap-4 @sm:contents">
                 <div
                   class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-tech-ink/15"
                 >
@@ -268,7 +232,7 @@
                 </div>
               </div>
               <span
-                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-epi-tech-ink/15 px-3 py-1.5 text-xs font-bold text-epi-tech-ink uppercase sm:w-auto"
+                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-epi-tech-ink/15 px-3 py-1.5 text-xs font-bold text-epi-tech-ink uppercase @sm:w-auto"
               >
                 <Trophy class="h-4 w-4" /> Voir le classement
               </span>
@@ -280,9 +244,9 @@
                  is still spent, so the link goes to the board, not back to play. -->
             <a
               href={resolve(`/minigames/${minigamePublication.id}/leaderboard`)}
-              class="flex flex-col gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4 transition-ui hover:bg-warning/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
+              class="flex flex-col gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4 transition-ui hover:bg-warning/10 active:scale-[0.99] @sm:flex-row @sm:items-center @sm:gap-4"
             >
-              <div class="flex items-center gap-4 sm:contents">
+              <div class="flex items-center gap-4 @sm:contents">
                 <div
                   class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-warning/15"
                 >
@@ -307,7 +271,7 @@
                 </div>
               </div>
               <span
-                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-warning/15 px-3 py-1.5 text-xs font-bold text-warning uppercase sm:w-auto"
+                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-warning/15 px-3 py-1.5 text-xs font-bold text-warning uppercase @sm:w-auto"
               >
                 <Trophy class="h-4 w-4" /> Voir le classement
               </span>
@@ -315,9 +279,9 @@
           {:else}
             <a
               href={resolve(`/minigames/${minigamePublication.id}`)}
-              class="flex flex-col gap-3 rounded-xl border border-epi-blue/20 bg-epi-blue/5 p-4 transition-ui hover:bg-epi-blue/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4 dark:border-epi-blue/30 dark:bg-epi-blue/10"
+              class="flex flex-col gap-3 rounded-xl border border-epi-blue/20 bg-epi-blue/5 p-4 transition-ui hover:bg-epi-blue/10 active:scale-[0.99] @sm:flex-row @sm:items-center @sm:gap-4 dark:border-epi-blue/30 dark:bg-epi-blue/10"
             >
-              <div class="flex items-center gap-4 sm:contents">
+              <div class="flex items-center gap-4 @sm:contents">
                 <div
                   class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-blue/10 dark:bg-epi-blue/20"
                 >
@@ -339,24 +303,26 @@
                 </div>
               </div>
               <span
-                class="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-xl bg-epi-blue px-3 py-1.5 text-sm font-bold text-white sm:w-auto"
+                class="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-xl bg-epi-blue px-3 py-1.5 text-sm font-bold text-white @sm:w-auto"
               >
                 Commencer <ArrowRight class="h-4 w-4" />
               </span>
             </a>
           {/if}
           {#if dev}
-            <!-- Dev-only: flips today's attempt; out of flow, stripped in prod -->
+            <!-- Dev-only: flips today's attempt; stripped in prod. Under the
+                 row rather than over it: in a narrow card an overlay sat on
+                 the row's own label. -->
             <form
               method="POST"
               action="?/devToggleMinigame"
               use:enhance
-              class="absolute top-1.5 right-2"
+              class="mt-2 flex justify-end"
             >
               <button
                 type="submit"
                 title="Dev : basculer l'état de l'entraînement du jour"
-                class="epi-overline text-muted-foreground hover:text-epi-blue"
+                class="cursor-pointer epi-overline text-muted-foreground hover:text-epi-blue"
               >
                 {minigamePlayed ? 'dev: reset' : 'dev: joué'}
               </button>
@@ -366,21 +332,70 @@
       {/if}
     {/snippet}
 
-    <div class="grid grid-cols-1 gap-6 md:grid-cols-12">
-      <!-- LEFT COLUMN: profile + "Planning à venir" rail (the active event,
-           the next upcoming session, or a quiet rest state).
-           On mobile the wrapper collapses (display: contents) so its children
-           join the outer grid as siblings and `order-*` can interleave them
-           with the right column, keeping Actualités right under the profile
-           card. `order` is inert on desktop (block children, not flex/grid
-           items), so the two-column layout is untouched. -->
+    {#snippet trainingCard()}
       <div
-        class="contents md:col-span-4 md:block md:space-y-6"
+        class="order-5 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
+      >
+        <div
+          class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
+        >
+          <Rocket class="h-4 w-4 shrink-0 text-epi-blue" />
+          <h2 class="font-heading text-display-s text-foreground">
+            Entraînement du jour<TitleCursor />
+          </h2>
+        </div>
+
+        <div class="@container space-y-4 p-6">
+          {@render dailyTraining()}
+
+          {#if !hasMinigame && hero}
+            <!-- No training today, but the hero has something to do: say so
+                 in a line rather than « repos » beside a suggestion. -->
+            <p class="py-2 text-sm text-muted-foreground">
+              Pas d’entraînement aujourd’hui : ce qui t’attend est en haut de la
+              page.
+            </p>
+          {:else if !hasMinigame}
+            <!-- Nothing at all today: no training, and nothing in the hero. -->
+            <div
+              class="flex flex-col items-center justify-center py-8 text-center"
+            >
+              <div class="mb-4 rounded-full bg-muted/50 p-4">
+                <Coffee class="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 class="text-lg font-bold text-foreground-secondary uppercase">
+                Repos aujourd’hui
+              </h3>
+              <p class="mt-2 max-w-sm text-sm text-muted-foreground">
+                Pas d’entraînement aujourd’hui. Profites-en pour souffler, on
+                remet ça bientôt !
+              </p>
+            </div>
+          {/if}
+        </div>
+      </div>
+    {/snippet}
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <!-- LEFT COLUMN: what is the talent's own (XP and the way into « Mon
+           parcours », the day's training that feeds it, their next session).
+           RIGHT COLUMN: what Jump suggests (the hero, the activities left to
+           do, the campus's news).
+           Two columns from `lg` only: at a tablet's width a third of the
+           page is too narrow for the training card.
+           Below that both wrappers collapse (display: contents) so their
+           children join the outer grid as siblings and `order-*` interleaves
+           them: hero, XP, activities, Actualités, training, session. Each
+           column lists its cards in that same relative order, so the phone
+           reads like the desktop, column by column. `order` is inert in two
+           columns (block children, not flex/grid items). -->
+      <div
+        class="contents lg:col-span-4 lg:block lg:space-y-6"
         in:fly={{ x: -20, duration: 400, delay: 200 }}
       >
         <a
-          href={resolve('/xp')}
-          class="group active:scale-[0.98]d relative order-1 block overflow-hidden rounded-xl border border-border bg-card p-6 shadow-raised transition-ui hover:shadow-raised active:scale-[0.98]"
+          href={resolve('/parcours')}
+          class="group relative order-2 block overflow-hidden rounded-xl border border-border bg-card p-6 shadow-raised transition-ui hover:shadow-raised active:scale-[0.98]"
         >
           <!-- Decorative background blur -->
           <div
@@ -403,8 +418,8 @@
             <span
               class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground transition-ui group-hover:bg-epi-blue/10 group-hover:text-epi-blue dark:group-hover:bg-epi-blue/20"
             >
-              <History class="h-3 w-3" />
-              Voir mon historique
+              <Route class="h-3 w-3" />
+              Mon parcours
               <ArrowRight
                 class="h-3 w-3 transition-transform group-hover:translate-x-0.5"
               />
@@ -412,240 +427,52 @@
           </div>
         </a>
 
-        <!-- Planning à venir: the active event if one covers today, else the
-             next upcoming session, else a quiet rest state. order-4 keeps it
-             last on mobile (after the training card). Always shown (the state is
-             participation-derived, truthful regardless of the planning flag);
-             only the ongoing "Voir le planning" CTA is flag-gated, since it
-             opens the /calendar grid that 404s when the flag is off. -->
-        <div
-          class="order-4 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
-        >
-          <div
-            class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
-          >
-            <CalendarClock class="h-4 w-4 shrink-0 text-epi-blue" />
-            <h2 class="font-heading text-display-s text-foreground">
-              Planning à venir<TitleCursor />
-            </h2>
-          </div>
+        {#if suggestsSomething}
+          {@render trainingCard()}
+        {/if}
 
-          <div class="p-6">
-            {#if planning.state === 'ongoing'}
-              <div
-                class="flex flex-col items-center justify-center text-center"
-              >
-                <div class="mb-4 rounded-full bg-primary/10 p-4">
-                  <CalendarClock class="h-8 w-8 text-epi-blue" />
-                </div>
-                <h3 class="text-lg font-bold text-foreground">
-                  {planningEventName}
-                </h3>
-                <!-- Live status: a pulsing dot so an active IRL event reads as
-                     "happening now", distinct from the action button below. -->
-                <span
-                  class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-epi-blue/10 px-2.5 py-1 text-xs font-bold text-epi-blue uppercase"
-                >
-                  <span class="relative flex h-2 w-2">
-                    <span
-                      class="absolute inline-flex h-full w-full animate-ping rounded-full bg-epi-blue opacity-75"
-                    ></span>
-                    <span
-                      class="relative inline-flex h-2 w-2 rounded-full bg-epi-blue"
-                    ></span>
-                  </span>
-                  En cours
-                </span>
-                {#if hasPlanning}
-                  <!-- The primary action this widget exists to drive during a
-                       live event: a full-width filled CTA, mirroring the
-                       minigame "Commencer" button so it reads as the main tap. -->
-                  <a
-                    href={resolve('/calendar')}
-                    class="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-epi-blue px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-epi-blue/90"
-                  >
-                    Voir le planning <ArrowRight class="h-4 w-4 shrink-0" />
-                  </a>
-                {:else}
-                  <!-- No /calendar to open (planning flag off): the live status
-                       stands alone, with a line pointing the talent on-site so
-                       the card doesn't read as truncated where the CTA was. -->
-                  <p class="mt-3 text-sm text-muted-foreground">
-                    Ça se passe en ce moment. Rejoins ton groupe sur place !
-                  </p>
-                {/if}
-              </div>
-            {:else if planning.state === 'upcoming'}
-              <div
-                class="flex flex-col items-center justify-center text-center"
-              >
-                <div class="mb-4 rounded-full bg-primary/10 p-4">
-                  <Rocket class="h-8 w-8 text-epi-blue" />
-                </div>
-                <h3 class="text-lg font-bold text-foreground">
-                  {planningEventName}
-                </h3>
-                <p class="mt-2 text-sm text-muted-foreground">
-                  Ta prochaine session est prévue le<br /><strong
-                    class="text-foreground-secondary"
-                    >{formatDateLong(planning.date)}</strong
-                  >{#if upcomingStartTime}{' '}à
-                    <strong class="text-foreground-secondary"
-                      >{upcomingStartTime}</strong
-                    >{/if}.
-                </p>
-              </div>
-            {:else}
-              <div
-                class="flex flex-col items-center justify-center text-center"
-              >
-                <div class="mb-4 rounded-full bg-muted/50 p-4">
-                  <Coffee class="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3
-                  class="text-base font-bold text-foreground-secondary uppercase"
-                >
-                  Rien de prévu
-                </h3>
-                <p class="mt-2 text-sm text-muted-foreground">
-                  Aucune session à venir pour le moment. On te préviendra ici
-                  dès qu'il y a du nouveau !
-                </p>
-              </div>
-            {/if}
-          </div>
-        </div>
-
-        <!-- Past events the talent attended. order-5 keeps it last in the
-             left column on mobile (after planning). -->
-        {#if data.pastEvents.length > 0}
-          <div
-            class="order-5 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
-          >
-            <div
-              class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
-            >
-              <CalendarCheck class="h-4 w-4 shrink-0 text-epi-blue" />
-              <h2 class="font-heading text-display-s text-foreground">
-                Événements passés<TitleCursor />
-              </h2>
-            </div>
-
-            <!-- Date left, name right. The date column sizes to the widest date,
-                 so every name starts at the same x instead of jittering with
-                 "4 avr." vs "14 mars". -->
-            <div
-              class="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 px-6 pt-4 pb-2"
-            >
-              {#each data.pastEvents as ev (ev.id)}
-                <span class="text-xs text-muted-foreground">
-                  {new Date(ev.date).toLocaleDateString('fr-FR', {
-                    timeZone: data.timeZone,
-                    day: 'numeric',
-                    month: 'short',
-                  })}
-                </span>
-                <span
-                  class="min-w-0 truncate text-sm font-medium text-foreground-secondary"
-                >
-                  {eventDisplayName(ev)}
-                </span>
-              {/each}
-            </div>
-
-            <div class="flex justify-center pb-4">
-              <a
-                href={resolve('/events')}
-                class="group inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground transition-ui hover:bg-epi-blue/10 hover:text-epi-blue dark:hover:bg-epi-blue/20"
-              >
-                <CalendarCheck class="h-3 w-3" />
-                Voir tout
-                <ArrowRight
-                  class="h-3 w-3 transition-transform group-hover:translate-x-0.5"
-                />
-              </a>
-            </div>
+        {#if showsSessionCard(planning)}
+          <!-- The talent's own next session, or the way into a running
+               stage's schedule. Last on a phone: the hero already says what
+               to do today. -->
+          <div class="order-6">
+            <SessionCard {planning} timeZone={data.timeZone} />
           </div>
         {/if}
       </div>
 
-      <!-- RIGHT COLUMN: the daily training, then the activities already
-           offered, then the Actualités feed. -->
       <div
-        class="contents md:col-span-8 md:block md:space-y-6"
+        class="contents lg:col-span-8 lg:block lg:space-y-6"
         in:fly={{ x: 20, duration: 400, delay: 300 }}
       >
-        {#if workshops.today.length > 0}
-          <!-- The day's activity, on the day only: the head of the right
-               column, level with the XP card, and first of all on a phone. -->
-          <div class="order-first">
-            <TodayActivityHero activities={workshops.today} />
+        {#if hero}
+          <!-- Where Jump says what to do now: the head of the right column,
+               level with the XP card, and first of all on a phone. -->
+          <div class="order-1">
+            <TalentHomeHero {hero} />
           </div>
         {/if}
 
-        <!-- order-3: sits below Actualités on mobile, with its history link -->
-        <div
-          class="order-3 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
-        >
-          <div
-            class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
-          >
-            <Rocket class="h-4 w-4 shrink-0 text-epi-blue" />
-            <h2 class="font-heading text-display-s text-foreground">
-              Entraînement du jour<TitleCursor />
-            </h2>
-          </div>
-
-          <div class="space-y-4 p-6">
-            {@render dailyTraining()}
-
-            {#if !hasMinigame && workshops.today.length > 0}
-              <!-- No training today, but the day is not a day off: it points
-                     at the hero rather than saying « repos » under it. The hero
-                     heads the page rather than this card: on a phone the XP
-                     and news cards sit between the two. -->
-              <p class="py-2 text-sm text-muted-foreground">
-                Pas d’entraînement aujourd’hui : ton activité du jour t’attend
-                en haut de la page.
-              </p>
-            {:else if !hasMinigame}
-              <!-- Nothing to do today: no daily training, and no event of
-                     this talent's is running. -->
-              <div
-                class="flex flex-col items-center justify-center py-8 text-center"
-              >
-                <div class="mb-4 rounded-full bg-muted/50 p-4">
-                  <Coffee class="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3
-                  class="text-lg font-bold text-foreground-secondary uppercase"
-                >
-                  Repos aujourd'hui
-                </h3>
-                <p class="mt-2 max-w-sm text-sm text-muted-foreground">
-                  Pas d'entraînement aujourd'hui. Profites-en pour souffler, on
-                  remet ça bientôt !
-                </p>
-              </div>
-            {/if}
-          </div>
-        </div>
-
-        {#if workshops.activities.length > 0}
-          <!-- order-3 too, after the training on a phone as on a desktop. -->
+        {#if data.toDo.length > 0}
+          <!-- What is left to do, right under the hero that suggests one of
+               them. Finished activities are history, and live in « Mon
+               parcours ». -->
           <div class="order-3">
-            <MyActivitiesCard activities={workshops.activities} />
+            <ActivitiesCard title="Mes activités" activities={data.toDo} />
           </div>
         {/if}
 
-        {#if data.welcome}
-          <!-- order-2: sits right under the profile card on mobile -->
-          <div class="order-2">
-            <NewsFeedCard
-              welcomeContent={data.welcome.content}
-              highlight={welcomeHighlight}
-            />
+        {#if data.note}
+          <div class="order-4">
+            <NewsCard html={data.note} />
           </div>
+        {/if}
+
+        {#if !suggestsSomething}
+          <!-- A day the campus suggests nothing: the training is all there is
+               to do, so it takes the suggestions' column rather than leave it
+               empty beside the XP card. -->
+          {@render trainingCard()}
         {/if}
       </div>
     </div>

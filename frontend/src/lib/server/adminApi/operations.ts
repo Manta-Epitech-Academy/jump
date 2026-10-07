@@ -148,6 +148,7 @@ import {
   getFeedbackForms,
   getEventTemplates,
   getWorkshopInstances,
+  getTalentHomeContent,
 } from '$lib/server/services/adminStats/configuration';
 import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
 import { WORKSHOP_XP_PER_MINUTE } from '$lib/domain/xp';
@@ -161,6 +162,10 @@ import {
   writeWorkshopCover,
   writeEventWorkshops,
 } from './writes/workshops';
+import {
+  writeTalentHomeHighlight,
+  writeTalentHomeNote,
+} from './writes/talentHome';
 import {
   writeEventInscritsOptions,
   writeEventConfig,
@@ -625,6 +630,18 @@ export const ADMIN_API_OPERATIONS = {
     run: () => getWorkshopInstances(),
   }),
 
+  config_talent_home: defineOperation({
+    description:
+      "What each campus shows on its talents' home besides their own enrolments: the campus note (Markdown, in the news card) and the highlighted event to sign up for (title, text, day, sign-up link, the address its picture was copied from if it has one, and whether it is still shown, since it hides itself once its day has passed). Lists every campus, including those with neither, so it answers which campuses are still empty. Pass campus to read one. This is what to read before rewriting either with write_talent_home_note or write_talent_home_highlight.",
+    shape: {
+      campus: z
+        .string()
+        .optional()
+        .describe('Campus name, e.g. "Lille". Omit to list every campus.'),
+    },
+    run: async (params) => getTalentHomeContent(await resolveScope(params)),
+  }),
+
   config_event_templates: defineOperation({
     description:
       'Saved event-configuration presets and exactly what each one applies: sections, sub-options, public name, cohort noun, arrival time and default feedback form. Returns the names the bulk apply operation takes.',
@@ -923,6 +940,58 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => writeEventWorkshops(params),
+  }),
+
+  write_talent_home_note: defineWrite({
+    description:
+      "Set or clear one campus's note on its talents' home (« le mot du campus »), the one message in the news card (« Actualités ») of every talent whose campus it is (a talent's campus is the one of their latest-dated event, upcoming ones included): welcome words, the next dates, a Discord link. The page adds no label or title of its own, so open with a heading when the message needs one. Markdown: headings, lists, emphasis, and links to https:// or mailto: only. An image or raw HTML is refused rather than stripped, so what is stored is exactly what talents read. At most 1500 characters. Pass markdown null to remove it. Safe to repeat: the same text leaves the same note. Answers with the note before and after.",
+    shape: {
+      campus: z.string().min(1).describe('Campus name, e.g. "Lille".'),
+      markdown: z
+        .string()
+        .nullable()
+        .describe(
+          'The whole note in Markdown, replacing the previous one; null removes it. Write it in French, addressing the talent as « tu ».',
+        ),
+    },
+    run: (params) => writeTalentHomeNote(params),
+  }),
+
+  write_talent_home_highlight: defineWrite({
+    description:
+      "Set or clear the one event a campus puts forward on its talents' home, with a button that opens the sign-up form in a new tab: a JPO, the next Coding Club, a camp. It leads the home's blue hero on any day the talent has no activity, and sits as a compact line under the activity on a day they have one. It is chosen by hand, never taken from Salesforce. Give all four of title, summary, date and url to set it, all four null to remove it; anything in between is refused. imageUrl is optional: an https picture Jump downloads and copies (PNG, JPEG or WebP, landscape between square and 21:9, at least 480 px wide, under 6 MB, served with no redirect); omitted, the highlight has none, and a picture that cannot be copied refuses the whole write. It hides itself once its day has passed on the campus clock, so nothing has to be cleaned up afterwards, and a day already past is refused. Safe to repeat: the same values leave the same highlight, and the picture is downloaded again so one replaced at the same address is picked up. Answers with the highlight before and after.",
+    shape: {
+      campus: z.string().min(1).describe('Campus name, e.g. "Lille".'),
+      title: z
+        .string()
+        .nullable()
+        .describe(
+          'What the event is, in French, at most 80 characters, e.g. "Recode le jeu Snake en JS".',
+        ),
+      summary: z
+        .string()
+        .nullable()
+        .describe(
+          'What happens there and why come, in French addressing the talent as « tu », at most 300 characters.',
+        ),
+      date: z
+        .string()
+        .refine(isCalendarDay, 'A real calendar day, e.g. "2026-10-07".')
+        .nullable()
+        .describe(
+          'The day the event takes place, YYYY-MM-DD. It is shown until the end of that day.',
+        ),
+      url: z
+        .string()
+        .nullable()
+        .describe(
+          'The sign-up form, https only, e.g. "https://www.epitech.eu/inscription-atelier-programmation-informatique/?CampaignId=701Sm00000xAuQMIA0".',
+        ),
+      imageUrl: pictureUrl(
+        'https address of a picture of the event, shown in the hero beside its title. Omit for none, and always omit it when clearing.',
+      ),
+    },
+    run: (params) => writeTalentHomeHighlight(params),
   }),
 
   write_closing_question: defineWrite({

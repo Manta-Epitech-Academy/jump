@@ -150,7 +150,7 @@ describe('the view-route map', () => {
     expect(
       usageConnectionFeature('/(staff)/staff/dev/events/[id]/inscrits'),
     ).toBe(USAGE_FEATURES.DEV_CONNECTION);
-    expect(usageConnectionFeature('/(talent)/xp')).toBe(
+    expect(usageConnectionFeature('/(talent)/parcours')).toBe(
       USAGE_FEATURES.TALENT_CONNECTION,
     );
     // Admin is tested before dev, or every admin route would read as a dev one.

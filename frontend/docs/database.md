@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **77** modèles · **31** enums · **110** relations
+- **78** modèles · **31** enums · **110** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -19,7 +19,7 @@
 | Minijeux | 3 |
 | Feedback | 7 |
 | Communication & Support | 5 |
-| Contenus & Centres d'intérêt | 4 |
+| Contenus & Centres d'intérêt | 5 |
 | Analytique d'usage | 2 |
 | Configuration & Système | 11 |
 | Autres | 3 |
@@ -909,23 +909,26 @@ erDiagram
 
 ```mermaid
 erDiagram
-  CmsPage {
-    String id PK
-    String slug UK
-    String eventId FK,UK
-    String content
+  TalentHome_Note {
+    String campusId PK,FK
+    String markdown
     DateTime updatedAt
-    String updatedBy FK
   }
-  CmsImage {
-    String id PK
-    String s3Key UK
+  TalentHome_Highlight {
+    String campusId PK,FK
+    String title
+    String summary
+    DateTime date
+    String url
+    DateTime updatedAt
+  }
+  TalentHome_HighlightImage {
+    String campusId PK,FK
+    String sourceUrl
+    String key UK
     String contentType
     Int width
     Int height
-    Int size
-    String uploadedById FK
-    DateTime createdAt
   }
   Interest {
     String id PK
@@ -938,18 +941,14 @@ erDiagram
     String talentId PK,FK
     String interestId PK,FK
   }
-  bauth_user {
-  }
-  StaffProfile {
-  }
   Talent {
   }
-  Event {
+  Campus {
   }
-  bauth_user |o--o{ CmsPage : "cmsPages"
-  StaffProfile |o--o{ CmsImage : "cmsImages"
   Talent ||--o{ TalentInterest : "interests"
-  Event ||--o{ CmsPage : "cmsPages"
+  Campus ||--|| TalentHome_Note : "homeNote"
+  Campus ||--|| TalentHome_Highlight : "homeHighlight"
+  TalentHome_Highlight ||--|| TalentHome_HighlightImage : "image"
   Interest ||--o{ TalentInterest : "talentInterests"
 ```
 

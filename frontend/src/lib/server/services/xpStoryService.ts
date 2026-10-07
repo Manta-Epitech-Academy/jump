@@ -19,7 +19,7 @@ function dateLabel(date: Date, timeZone: string): string {
  * it in the `sourceId`, so both are parsed HERE and nowhere else: a `reward` is
  * `${rewardId}_${talentId}` (written by `grant-reward-from-csv`), a `workshop` is
  * `${instanceSlug}:${talentId}`. Shared by both readers, the dev fiche XP story
- * and the talent `/xp` timeline, so the contract stays parsed in one place.
+ * and the talent `/parcours` timeline, so the contract stays parsed in one place.
  */
 export async function resolveGrantLabels(
   talentId: string,

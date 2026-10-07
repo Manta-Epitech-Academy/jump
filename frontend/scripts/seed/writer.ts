@@ -40,6 +40,9 @@ export type Buffered = {
   bauth_user: Prisma.bauth_userCreateManyInput[];
   staffProfile: Prisma.StaffProfileCreateManyInput[];
   signatory: Prisma.SignatoryCreateManyInput[];
+  talentHome_Note: Prisma.TalentHome_NoteCreateManyInput[];
+  talentHome_Highlight: Prisma.TalentHome_HighlightCreateManyInput[];
+  talentHome_HighlightImage: Prisma.TalentHome_HighlightImageCreateManyInput[];
   staffInvitation: Prisma.StaffInvitationCreateManyInput[];
   adminApi_Token: Prisma.AdminApi_TokenCreateManyInput[];
   adminApi_Call: Prisma.AdminApi_CallCreateManyInput[];
@@ -88,8 +91,6 @@ export type Buffered = {
   syncError: Prisma.SyncErrorCreateManyInput[];
   sync_Run: Prisma.Sync_RunCreateManyInput[];
   adminFile: Prisma.AdminFileCreateManyInput[];
-  cmsImage: Prisma.CmsImageCreateManyInput[];
-  cmsPage: Prisma.CmsPageCreateManyInput[];
   audit_ImpersonationEvent: Prisma.Audit_ImpersonationEventCreateManyInput[];
   usage_FeatureUse: Prisma.Usage_FeatureUseCreateManyInput[];
   usage_FeatureMonthly: Prisma.Usage_FeatureMonthlyCreateManyInput[];
@@ -102,6 +103,9 @@ const MODEL_ORDER = [
   'bauth_user',
   'staffProfile',
   'signatory',
+  'talentHome_Note',
+  'talentHome_Highlight',
+  'talentHome_HighlightImage',
   'staffInvitation',
   'adminApi_Token',
   'adminApi_Call',
@@ -150,8 +154,6 @@ const MODEL_ORDER = [
   'syncError',
   'sync_Run',
   'adminFile',
-  'cmsImage',
-  'cmsPage',
   'audit_ImpersonationEvent',
   'usage_FeatureUse',
   'usage_FeatureMonthly',
@@ -337,12 +339,6 @@ export async function wipe(
   await drop('audit_ImpersonationEvent', () =>
     prisma.audit_ImpersonationEvent.deleteMany({ where: { id: seeded } }),
   );
-  await drop('cmsPage', () =>
-    prisma.cmsPage.deleteMany({ where: { id: seeded } }),
-  );
-  await drop('cmsImage', () =>
-    prisma.cmsImage.deleteMany({ where: { id: seeded } }),
-  );
   await drop('adminFile', () =>
     prisma.adminFile.deleteMany({ where: { id: seeded } }),
   );
@@ -497,6 +493,17 @@ export async function wipe(
   );
   await drop('staffInvitation', () =>
     prisma.staffInvitation.deleteMany({ where: { id: seeded } }),
+  );
+  await drop('talentHome_HighlightImage', () =>
+    prisma.talentHome_HighlightImage.deleteMany({
+      where: { campusId: seeded },
+    }),
+  );
+  await drop('talentHome_Highlight', () =>
+    prisma.talentHome_Highlight.deleteMany({ where: { campusId: seeded } }),
+  );
+  await drop('talentHome_Note', () =>
+    prisma.talentHome_Note.deleteMany({ where: { campusId: seeded } }),
   );
   await drop('signatory', () =>
     prisma.signatory.deleteMany({ where: { id: seeded } }),

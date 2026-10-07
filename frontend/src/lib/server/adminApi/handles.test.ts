@@ -67,6 +67,14 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'mediaUrl',
   'posterUrl',
   'mascotUrl',
+  // What a campus puts on its talents' home: its note, and the event it puts
+  // forward with the address of that event's outside sign-up form.
+  'markdown',
+  'title',
+  'summary',
+  'date',
+  'url',
+  'imageUrl',
   // A certificate design. Authored rather than picked from anywhere, which is the
   // whole point of the table it is stored in.
   'styleCss',

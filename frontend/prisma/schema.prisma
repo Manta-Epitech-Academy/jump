@@ -81,7 +81,6 @@ model bauth_user {
   staffProfile              StaffProfile?
   talent                    Talent?
   invitationsIssued         StaffInvitation[]    @relation("StaffInvitationInvitedBy")
-  cmsPages                  CmsPage[]
   broadcastsCreated         Broadcast[]          @relation("BroadcastCreator")
   templatesCreated          MessageTemplate[]    @relation("MessageTemplateCreator")
   broadcastsReceivedAsStaff BroadcastRecipient[] @relation("BroadcastRecipientStaff")
@@ -209,7 +208,6 @@ model StaffProfile {
   campus                 Campus?                     @relation(fields: [campusId], references: [id])
   closingsConducted      Closing_Record[]
   adminFiles             AdminFile[]
-  cmsImages              CmsImage[]
   presencesMarked        EventPresence[]
   presenceClosuresMade   EventPresenceClosure[]
   imageRightsCorrections ImageRightsDecisionRecord[]
@@ -742,25 +740,69 @@ model Campus {
   signatories      Signatory[]
   syncSources      Sync_Source[]
   workshopEntries  Workshop_Participation[]
+  homeNote         TalentHome_Note?
+  homeHighlight    TalentHome_Highlight?
 }
 
-model CmsPage {
-  id        String   @id @default(cuid())
-  slug      String
-  eventId   String
-  content   String   @db.Text
+/// « Le mot du campus »: free text a campus puts on its talents' home, in the
+/// Actualités card. Authored over the admin API (`write_talent_home_note`), so
+/// current state, one row per campus, and no row means no note. Who wrote it
+/// and what it said before is in `AdminApi_Call`, which is why there is no
+/// `updatedBy` here.
+///
+/// Markdown, stored exactly as written or refused: no image (a minor's browser
+/// fetches nothing from another host) and no raw HTML. Rendered at read time.
+model TalentHome_Note {
+  campusId  String   @id
+  markdown  String   @db.Text
   updatedAt DateTime @updatedAt
-  /// Attribution, not ownership: SetNull so deleting the author's account leaves
-  /// the page standing. It defaulted to RESTRICT, which made anyone who had ever
-  /// edited a page undeletable, reported to the admin as a bare "Erreur lors de
-  /// la suppression du membre".
-  updatedBy String?
 
-  event Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user  bauth_user? @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
+  campus Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
+}
 
-  @@unique([slug, eventId])
-  @@index([eventId])
+/// The one event a campus invites its talents to sign up for, with a link to an
+/// outside sign-up form. The talent home's blue hero leads with it on a day the
+/// talent has no activity, and lists it as a compact « À venir » line under
+/// the activity on a day they have one (`pickHomeHero`). Chosen
+/// by hand per campus (`write_talent_home_highlight`), never derived from
+/// Salesforce: a JPO or a camp is not something the talent is enrolled in yet.
+///
+/// Its own table rather than columns beside the note, so a half-written
+/// highlight cannot exist: a row is all four fields or nothing.
+model TalentHome_Highlight {
+  campusId  String   @id
+  title     String
+  summary   String
+  /// The event's calendar day. The reader stops showing the highlight once
+  /// that day has passed on the campus clock, so a camp's invitation does not
+  /// outlive the camp.
+  date      DateTime @db.Date
+  /// The sign-up form, https only.
+  url       String
+  updatedAt DateTime @updatedAt
+
+  campus Campus                     @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  image  TalentHome_HighlightImage?
+}
+
+/// The optional picture of a highlighted event, given as an https address and
+/// COPIED into storage, never linked to (`$lib/server/images/remote.ts`, the
+/// circuit an activity's cover uses). A child row rather than nullable columns
+/// on the highlight, so it can never hold half an image, and it goes with its
+/// highlight.
+model TalentHome_HighlightImage {
+  campusId    String @id
+  /// The address it was copied from, handed back by `config_talent_home` so
+  /// the admin can restate the highlight.
+  sourceUrl   String
+  /// Storage key, content-addressed: `talent-home/<campusId>/highlight-<sha>.<ext>`.
+  key         String @unique
+  contentType String
+  /// Intrinsic size, so the hero reserves the box before the bytes land.
+  width       Int
+  height      Int
+
+  highlight TalentHome_Highlight @relation(fields: [campusId], references: [campusId], onDelete: Cascade)
 }
 
 /// One activity in an event's programme, at the hour it runs.
@@ -861,7 +903,6 @@ model Event {
   participations      Participation[]
   closings            Closing_Record[]
   planningSlots       Planning_Slot[]
-  cmsPages            CmsPage[]
   broadcasts          Broadcast[]
   minigameAttempts    MinigameAttempt[]
   presenceClosures    EventPresenceClosure[]
@@ -1943,38 +1984,9 @@ model AdminFile {
   s3Key        String   @unique
   contentType  String
   size         Int
-  /// SetNull, like its twin `CmsImage` below: this is a SHARED library, so a
-  /// departure must not take everyone's files with it - and cascading also
-  /// stranded the S3 objects, since nothing sweeps a bucket on a foreign key.
-  uploadedById String?
-  createdAt    DateTime @default(now())
-
-  uploadedBy StaffProfile? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
-
-  @@index([uploadedById])
-}
-
-// An image embedded in CMS content (the welcome-message rich text). Bytes live
-// in S3 under `s3Key`; the editor references the image via `/api/cms/images/<id>`.
-// Dimensions are the post-downscale intrinsic size (see `server/cms/image.ts`).
-//
-// Whether an image is still used is determined by the content itself (the
-// `/api/cms/images/<id>` URL inside some `CmsPage.content`), not by a column
-// here, so there is no event link to keep in sync. A row whose id appears in
-// no content is garbage: an abandoned upload, an image edited out of a message,
-// or one whose page was deleted. The GC sweep (`/api/jobs/gc-cms-images`)
-// reclaims those, freeing both the row and the S3 object. This reconciliation
-// exists because S3 and Postgres cannot commit atomically and an abandoned
-// upload fires no server event: it is the safety net, not a substitute for
-// correctness on the happy path. `uploadedById` is kept for attribution and is
-// SetNull so deleting the author never deletes the image.
-model CmsImage {
-  id           String   @id @default(cuid())
-  s3Key        String   @unique
-  contentType  String
-  width        Int
-  height       Int
-  size         Int
+  /// SetNull: this is a SHARED library, so a departure must not take
+  /// everyone's files with it - and cascading also stranded the S3 objects,
+  /// since nothing sweeps a bucket on a foreign key.
   uploadedById String?
   createdAt    DateTime @default(now())
 
@@ -2066,7 +2078,10 @@ model MessageTemplate {
   channel     BroadcastChannel
   subject     String?
   body        String
-  /// Attribution only, SetNull: see `CmsPage.updatedBy`.
+  /// Attribution, not ownership: SetNull so deleting the author's account
+  /// leaves the template standing. It defaulted to RESTRICT, which made anyone
+  /// who had ever written one undeletable, reported to the admin as a bare
+  /// "Erreur lors de la suppression du membre".
   createdById String?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -2107,7 +2122,7 @@ model Broadcast {
   subjectSnapshot   String?
   bodySnapshot      String
   status            BroadcastStatus        @default(queued)
-  /// Attribution only, SetNull: see `CmsPage.updatedBy`. A send that has already
+  /// Attribution only, SetNull: see `MessageTemplate.createdById`. A send that has already
   /// gone out is a fact, so it outlives the account that triggered it.
   createdById       String?
   createdAt         DateTime               @default(now())

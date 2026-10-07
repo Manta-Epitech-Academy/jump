@@ -31,7 +31,7 @@
   const name = $derived(
     [talent?.prenom, talent?.nom].filter(Boolean).join(' ') || 'ce talent',
   );
-  // Dev-tooling: cycle the dashboard "Planning à venir" widget through its
+  // Dev-tooling: cycle the talent home's session card through its
   // states. Resolved by the root layout load; only true while impersonating a
   // talent, so the toggle never shows on a real student's session.
   const canPreviewPlanning = $derived(Boolean(page.data.canPreviewPlanning));
