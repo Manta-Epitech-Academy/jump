@@ -68,6 +68,12 @@ jobs:
       contents: read
       packages: write
 
+    # The pushed image by digest, not by tag: the tag moves on the next push,
+    # and the `seed` job has to run the generator of this commit whatever
+    # landed on the tag since.
+    outputs:
+      image: ${{ steps.meta.outputs.prefix }}-seeder@${{ steps.build.outputs.digest }}
+
     steps:
       - uses: actions/checkout@v6
 
@@ -86,6 +92,7 @@ jobs:
       - uses: docker/setup-buildx-action@v4
 
       - uses: docker/build-push-action@v7
+        id: build
         with:
           context: frontend
           target: seeder
@@ -129,9 +136,10 @@ jobs:
   # Ordering is the whole job. After `restart-k3s`, and after the rollout is
   # complete, because `migrate deploy` is the container CMD and a pod is not
   # ready until it has applied the schema this generator writes against. After
-  # `build-seeder`, so the Job pulls the image of this commit and not the
-  # previous push's. Serialised per branch, because two generators writing the
-  # same deterministic ids into one database collide on the first primary key.
+  # `build-seeder`, whose image it runs by digest, so a later push moving the
+  # branch tag cannot swap the generator under it. Serialised per branch,
+  # because two generators writing the same deterministic ids into one database
+  # collide on the first primary key.
   #
   # The anchor (`--today`) is what keeps a re-seed byte-identical to the last
   # one, and CONTRIBUTING.md (the validation window) says why it must not move
@@ -161,7 +169,6 @@ jobs:
       - name: Resolve the target
         id: target
         run: |
-          PREFIX=$(echo "ghcr.io/${{ github.repository_owner }}/jump" | tr '[:upper:]' '[:lower:]')
           case "${{ github.ref_name }}" in
             dev)     NS=jump-dev; ENV=dev ;;
             staging) NS=jump-stg; ENV=staging ;;
@@ -170,7 +177,6 @@ jobs:
             echo "namespace=$NS"
             echo "env=$ENV"
             echo "today=$(cat .github/seed-anchor)"
-            echo "image=$PREFIX-seeder:${{ github.ref_name }}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Wait for the rollout
@@ -182,9 +188,12 @@ jobs:
           SEED_ENV: ${{ steps.target.outputs.env }}
           SEED_PROFILE: staging
           SEED_TODAY: ${{ steps.target.outputs.today }}
-          SEED_IMAGE: ${{ steps.target.outputs.image }}
+          SEED_IMAGE: ${{ needs.build-seeder.outputs.image }}
         run: |
           echo "Seeding $SEED_NAMESPACE: $SEED_IMAGE --env $SEED_ENV --profile $SEED_PROFILE --today $SEED_TODAY"
+          # Foreground, so the call returns once the previous Job's pod is gone and
+          # not merely its Job object: a pod still terminating is a generator
+          # still writing.
           kubectl delete job jump-seed -n "$SEED_NAMESPACE" --ignore-not-found --wait=true
           envsubst '$SEED_NAMESPACE $SEED_ENV $SEED_PROFILE $SEED_TODAY $SEED_IMAGE' \
             < .github/k8s/seed-job.yml | kubectl create -f -

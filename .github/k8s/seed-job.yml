@@ -27,10 +27,9 @@ spec:
         - name: eliotamn-github
       containers:
         - name: seeder
+          # A digest, so the default pull policy is the right one: the
+          # reference cannot point at another generator than the one it names.
           image: ${SEED_IMAGE}
-          # The tag (`dev`, `staging`) moves on every push: a cached layer would
-          # seed with the previous commit's generator.
-          imagePullPolicy: Always
           args:
             - "--env"
             - "${SEED_ENV}"
