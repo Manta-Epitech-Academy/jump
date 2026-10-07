@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import type { EventLifecycleStatus } from './eventLifecycle';
-import { selectWorkshopOfferings } from './workshops';
+import {
+  activitiesToDo,
+  selectWorkshopOfferings,
+  type WorkshopActivity,
+} from './workshops';
 
 const offering = (
   instanceId: string,
@@ -122,5 +126,39 @@ describe('selectWorkshopOfferings', () => {
         (o) => o.instanceId,
       ),
     ).toEqual(expected);
+  });
+});
+
+describe('activitiesToDo', () => {
+  const activity = (
+    slug: string,
+    solved: number,
+    total: number,
+    startedAt: string | null = null,
+  ): WorkshopActivity => ({
+    slug,
+    label: slug,
+    solvedSteps: solved,
+    totalSteps: total,
+    startedAt: startedAt ? new Date(startedAt) : null,
+    cover: { tagline: null, media: null, poster: null, mascot: null },
+  });
+  const snake = activity('snake', 0, 0);
+  const pacman = activity('pacman', 3, 10, '2026-10-01T10:00:00Z');
+  const linux = activity('linux', 12, 12, '2026-10-02T10:00:00Z');
+  const docker = activity('docker', 1, 8, '2026-10-03T10:00:00Z');
+  const git = activity('git', 0, 6);
+
+  it('leaves the finished ones to the history', () => {
+    expect(activitiesToDo([linux])).toEqual([]);
+  });
+
+  it('puts the most recently entered first, then those never opened in their order', () => {
+    expect(activitiesToDo([snake, pacman, linux, docker, git])).toEqual([
+      docker,
+      pacman,
+      snake,
+      git,
+    ]);
   });
 });

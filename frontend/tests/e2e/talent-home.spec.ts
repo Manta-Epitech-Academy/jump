@@ -41,17 +41,25 @@ test.describe('un talent dont l’événement a lieu aujourd’hui', () => {
     await expect(page.getByText(E2E.homeHighlightTitle)).toHaveCount(1);
   });
 
-  test('retrouve son historique dans « Mon parcours », et plus sur l’accueil', async ({
+  test('retrouve son historique et ses activités à faire dans « Mon parcours », et plus sur l’accueil', async ({
     page,
   }) => {
     await page.goto('/');
     await expect(page.getByText('Événements passés')).toHaveCount(0);
+    // The home suggests one activity, in its hero, and lists none: the pill
+    // counts what is left and leads to the list.
+    await expect(page.getByText('Mes activités')).toHaveCount(0);
 
-    await page.getByRole('link', { name: /Mon parcours/ }).click();
+    await page
+      .getByRole('link', { name: /Mon parcours.*1 activité à faire/ })
+      .click();
     await expect(page).toHaveURL(/\/parcours$/);
     await expect(
       page.getByRole('heading', { name: 'Mon parcours' }),
     ).toBeVisible();
+    await expect(
+      page.getByRole('region', { name: /Activités à faire/ }),
+    ).toContainText(E2E.workshopLabel);
   });
 });
 

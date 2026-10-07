@@ -21,8 +21,8 @@
   // Club is designed for them to carry on at home (`continue`). A talent
   // arriving on an event day should have no doubt about where to click, so this
   // is the one full-bleed blue surface of the page and the one neon button, and
-  // it looks like nothing else on it: the daily training below is a row in a
-  // card.
+  // it looks like nothing else on it: the daily training is a small tile
+  // among the talent's own cards.
   //
   // On the day, the campus's highlighted event follows as one compact line at
   // the foot (`next`): an invitation still matters on an event day, but less

@@ -5,7 +5,7 @@ import { resolveGrantLabels } from '$lib/server/services/xpStoryService';
 import { getBrowserTimezone } from '$lib/server/db/scoped';
 import { listAttendedEvents } from '$lib/server/talent/attendedEvents';
 import { listTalentWorkshops } from '$lib/server/services/workshopService';
-import { isActivityFinished } from '$lib/domain/workshops';
+import { activitiesToDo, isActivityFinished } from '$lib/domain/workshops';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -42,19 +42,20 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
   // without this both fall to the generic fallback label on the timeline.
   const grantLabels = await resolveGrantLabels(locals.talent.id, grants);
 
-  // What the talent has done besides the XP it earned: the activities walked
-  // to the end, and the latest events attended. History, which is why it is
-  // here and not on the home, which keeps what is still to do.
+  // Every activity the talent has been offered, what is left to do and what is
+  // done, and the latest events attended. The home shows one suggestion at a
+  // time in its hero; this page is where the whole list lives.
   const [workshops, pastEvents] = await Promise.all([
     listTalentWorkshops(locals.talent.id),
     listAttendedEvents(locals.talent.id, { timeZone, take: 5 }),
   ]);
 
+  const offered = [...workshops.today, ...workshops.activities];
+
   return {
     timeZone,
-    finishedActivities: [...workshops.today, ...workshops.activities].filter(
-      isActivityFinished,
-    ),
+    toDoActivities: activitiesToDo(offered),
+    finishedActivities: offered.filter(isActivityFinished),
     pastEvents,
     grants: grants.map(({ sourceId, ...g }) => ({
       ...g,
