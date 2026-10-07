@@ -310,6 +310,15 @@ describe('formIntegrityProblems', () => {
     });
     expect(formIntegrityProblems(withEmail)).toEqual([]);
   });
+
+  it('refuses a multiple choice demanding more picks than it has options', () => {
+    const multiple = (minSelections: number) =>
+      form({ questions: [question({ type: 'multiple', minSelections })] });
+    expect(formIntegrityProblems(multiple(2))).toEqual([]);
+    expect(formIntegrityProblems(multiple(3))).toEqual([
+      '« avis » demande au moins 3 choix parmi 2 option(s) : personne ne pourrait y répondre.',
+    ]);
+  });
 });
 
 describe('referenceProblems', () => {

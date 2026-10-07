@@ -172,6 +172,11 @@ export function formIntegrityProblems(form: AuthoredForm): string[] {
         `« ${q.key} » : une option hors échelle (« extra ») n'existe que sur une question de type scale.`,
       );
     }
+    if (q.minSelections !== null && q.minSelections > choices.length) {
+      problems.push(
+        `« ${q.key} » demande au moins ${q.minSelections} choix parmi ${choices.length} option(s) : personne ne pourrait y répondre.`,
+      );
+    }
 
     // A submission resolves an answer by its label, so two options reading the
     // same would make one of them unreachable.
