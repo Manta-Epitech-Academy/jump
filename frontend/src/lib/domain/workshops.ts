@@ -1,4 +1,5 @@
 import type { EventLifecycleStatus } from './eventLifecycle';
+import type { ShownPicture } from './pictures';
 
 /**
  * How a workshop XP grant is addressed.
@@ -40,10 +41,11 @@ export function workshopSlugFromSourceId(
  * Composed here and nowhere else, because the proxy route turns its two path
  * segments back into the key and the two directions must not drift.
  *
- * A key belongs to ONE write (`writeId`, minted per `write_workshop_cover`
- * call) and is never reused, even for bytes another write already stored. That
- * is what lets the proxy cache a picture forever, and what lets each key have
- * exactly one party that may delete it (`images/remote.ts`, `swapStoredImages`).
+ * A key is minted by the write that copies the picture (`writeId`) and names
+ * those bytes only: a later write that restates the same address keeps it, and
+ * one that gives another address mints a new key. That is what lets the proxy
+ * cache a picture forever, and what lets each key have exactly one party that
+ * may delete it (`images/remote.ts`, `replacePictures`).
  */
 export type WorkshopCoverKind = 'media' | 'poster' | 'mascot';
 
@@ -154,7 +156,7 @@ function outranks(a: Ranked, b: Ranked): boolean {
  * What the talent dashboard renders of the activities: the view a page reads,
  * built server-side by `listTalentWorkshops`.
  */
-export type WorkshopCoverImage = { url: string; width: number; height: number };
+export type WorkshopCoverImage = ShownPicture;
 
 export type WorkshopActivity = {
   slug: string;

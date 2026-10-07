@@ -332,6 +332,7 @@ describe('the campus content on a talent’s home (integration)', () => {
         url: `/api/talent-home/images/${campusId}/${image.key.split('/').pop()}`,
         width: 1280,
         height: 720,
+        stillUrl: null,
       });
 
       const serve = async (user: object | null) => {
@@ -350,24 +351,72 @@ describe('the campus content on a talent’s home (integration)', () => {
       expect(await serve(null)).toBe(401);
     });
 
-    it('refuses a GIF, a small or portrait picture, and keeps the one it had', async () => {
+    it('keeps its copy when the highlight is restated, even once the host stops answering', async () => {
       const before = await storedImage();
-      const attempts: [string, { width: number; height: number }, RegExp][] = [
-        ['/snake.gif', { width: 1280, height: 720 }, /est un GIF/],
-        ['/snake.png', { width: 320, height: 200 }, /au moins 480/],
-        ['/snake.png', { width: 600, height: 900 }, /image horizontale/],
-      ];
-      for (const [path, size, saying] of attempts) {
-        pictureSize = size;
-        const refusal = await writeTalentHomeHighlight({
+      files.delete('/snake.png');
+      try {
+        await writeTalentHomeHighlight({
           ...highlight,
-          imageUrl: `${host}${path}`,
-        }).catch((err) => err);
-        expect(refusal).toBeInstanceOf(OperationRefusedError);
-        expect((refusal as Error).message).toMatch(saying);
+          summary: 'Un autre texte',
+          imageUrl: `${host}/snake.png`,
+        });
+      } finally {
+        files.set('/snake.png', png(1));
       }
       expect(await storedImage()).toEqual(before);
-      expect(objects.has(before!.key)).toBe(true);
+    });
+
+    it('takes an animation, a small or a portrait picture', async () => {
+      const attempts: [string, { width: number; height: number }][] = [
+        ['/snake.gif', { width: 1280, height: 720 }],
+        ['/petit.png', { width: 320, height: 200 }],
+        ['/portrait.png', { width: 600, height: 900 }],
+      ];
+      files.set('/petit.png', png(3));
+      files.set('/portrait.png', png(4));
+      for (const [path, size] of attempts) {
+        pictureSize = size;
+        await writeTalentHomeHighlight({
+          ...highlight,
+          imageUrl: `${host}${path}`,
+        });
+        expect((await storedImage())?.sourceUrl).toBe(`${host}${path}`);
+      }
+      // The animation's still went with it when the next picture replaced it.
+      const keys = [...objects.keys()].filter((key) =>
+        key.startsWith(`talent-home/${campusId}/`),
+      );
+      expect(keys).toEqual([(await storedImage())!.key]);
+    });
+
+    it('serves an animation with its still for reduced motion', async () => {
+      pictureSize = { width: 1280, height: 720 };
+      await writeTalentHomeHighlight({
+        ...highlight,
+        imageUrl: `${host}/snake.gif`,
+      });
+      const image = (await storedImage())!;
+      expect(image.stillKey).not.toBeNull();
+      expect((await getTalentHome(campusId)).highlight?.image?.stillUrl).toBe(
+        `/api/talent-home/images/${campusId}/${image.stillKey!.split('/').pop()}`,
+      );
+      const response = (await imageProxy({
+        params: { campusId, file: image.stillKey!.split('/').pop()! },
+        locals: { user: { id: 'u' } },
+      } as unknown as Parameters<typeof imageProxy>[0])) as Response;
+      expect(response.headers.get('content-type')).toBe('image/webp');
+    });
+
+    it('refuses what it cannot show, and keeps the picture it had', async () => {
+      const before = await storedImage();
+      files.set('/logo.svg', new TextEncoder().encode('<svg xmlns="x">'));
+      const refusal = await writeTalentHomeHighlight({
+        ...highlight,
+        imageUrl: `${host}/logo.svg`,
+      }).catch((err) => err);
+      expect(refusal).toBeInstanceOf(OperationRefusedError);
+      expect((refusal as Error).message).toMatch(/est un SVG/);
+      expect(await storedImage()).toEqual(before);
     });
 
     it('drops the picture and its bytes when a write leaves it out', async () => {
@@ -375,6 +424,7 @@ describe('the campus content on a talent’s home (integration)', () => {
       await writeTalentHomeHighlight(highlight);
       expect(await storedImage()).toBeNull();
       expect(objects.has(before.key)).toBe(false);
+      if (before.stillKey) expect(objects.has(before.stillKey)).toBe(false);
     });
 
     it('drops the picture and its bytes with the highlight', async () => {

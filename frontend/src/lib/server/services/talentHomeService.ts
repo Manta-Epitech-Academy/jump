@@ -33,7 +33,9 @@ export async function getTalentHome(
           summary: true,
           date: true,
           url: true,
-          image: { select: { key: true, width: true, height: true } },
+          image: {
+            select: { key: true, stillKey: true, width: true, height: true },
+          },
         },
       },
     },
@@ -53,6 +55,9 @@ export async function getTalentHome(
               url: highlightImageUrl(highlight.image.key),
               width: highlight.image.width,
               height: highlight.image.height,
+              stillUrl: highlight.image.stillKey
+                ? highlightImageUrl(highlight.image.stillKey)
+                : null,
             },
           }
         : null,

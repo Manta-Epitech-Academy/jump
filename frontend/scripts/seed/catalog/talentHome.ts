@@ -26,7 +26,12 @@ export type HighlightSpec = {
   readonly dayOffset: number;
   readonly url: string;
   /** Its picture as copied, or null for a highlight without one. */
-  readonly image: { readonly width: number; readonly height: number } | null;
+  readonly image: {
+    readonly width: number;
+    readonly height: number;
+    /** An animated GIF, stored with its first frame as a still. */
+    readonly animated: boolean;
+  } | null;
 };
 
 export const TALENT_HOME_NOTES: Readonly<Record<string, string>> = {
@@ -55,7 +60,7 @@ export const TALENT_HOME_HIGHLIGHTS: Readonly<Record<string, HighlightSpec>> = {
       'Deux heures pour coder ton propre Snake avec des étudiants Epitech, sans rien avoir installé avant. Viens avec un ami, on fournit les ordinateurs.',
     dayOffset: 9,
     url: 'https://www.epitech.invalid/inscription-atelier-programmation-informatique/?CampaignId=sd-snake',
-    image: { width: 1280, height: 720 },
+    image: { width: 1280, height: 720, animated: true },
   },
   Lyon: {
     title: 'Journée portes ouvertes',
@@ -63,6 +68,7 @@ export const TALENT_HOME_HIGHLIGHTS: Readonly<Record<string, HighlightSpec>> = {
       'Visite le campus, rencontre les étudiants et découvre les projets de première année.',
     dayOffset: -4,
     url: 'https://www.epitech.invalid/journees-portes-ouvertes/?CampaignId=sd-jpo',
-    image: null,
+    // A portrait still, the shape the hero used to refuse.
+    image: { width: 1080, height: 1350, animated: false },
   },
 };

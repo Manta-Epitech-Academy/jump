@@ -4,8 +4,8 @@
 // such as sharp: it ships with the runtime, so there is no prebuilt-binary /
 // musl friction on our Alpine base. See the Dockerfile pin and `engines.bun`.
 //
-// One pipeline, parameterized by output size: CMS content images downscale to a
-// large edge, persona avatars to a small one. Callers own their own upload-size
+// One pipeline, parameterized by output size: pictures copied from an address
+// (`remote.ts`) downscale to a large edge, persona avatars to a small one. Callers own their own upload-size
 // and mime validation; this module only transforms already-accepted bytes.
 
 /**
@@ -31,7 +31,26 @@ export const IMAGE_INPUT_TYPES = [
  * (Sharp-parity) default. The check reads the header and runs before any pixel
  * buffer is allocated, so a tiny file claiming a huge canvas is refused cheaply.
  */
-const DEFAULT_MAX_INPUT_PIXELS = 4096 * 4096; // ~16.8 MP, comfortably above any photo
+export const MAX_INPUT_PIXELS = 4096 * 4096; // ~16.8 MP
+
+/**
+ * A canvas past `MAX_INPUT_PIXELS`, with the size its header announced, so a
+ * refusal can say what was received and what to send instead rather than
+ * that the picture « could not be read ».
+ */
+export class CanvasTooLargeError extends Error {
+  constructor(
+    readonly width: number,
+    readonly height: number,
+  ) {
+    super(`canvas ${width} x ${height} exceeds ${MAX_INPUT_PIXELS} pixels`);
+  }
+}
+
+/** « 5712 × 4284 px », the way a refusal names a canvas. */
+export function describeCanvas({ width, height }: CanvasTooLargeError): string {
+  return `${width} × ${height} px`;
+}
 
 export type ProcessedImage = {
   bytes: Uint8Array;
@@ -45,8 +64,6 @@ export type ProcessImageOptions = {
   maxEdge: number;
   /** WebP quality (0-100). */
   quality: number;
-  /** Header-level canvas guard; defaults to ~16.8 MP. */
-  maxInputPixels?: number;
 };
 
 function assertBunImage(): void {
@@ -60,7 +77,10 @@ function assertBunImage(): void {
 }
 
 /**
- * Decode, downscale and re-encode an uploaded image to WebP, off the JS thread.
+ * Decode, downscale and re-encode an image to WebP, off the JS thread. A GIF is
+ * decoded to its first frame, which is how an animation gets the still a
+ * talent who asked for reduced motion sees instead (`remote.ts`). A canvas past
+ * `MAX_INPUT_PIXELS` throws `CanvasTooLargeError`.
  *
  * `autoOrient` (the Bun.Image default) bakes JPEG EXIF orientation into the
  * pixels and then drops metadata, so the stored image renders upright and we
@@ -69,17 +89,20 @@ function assertBunImage(): void {
  */
 export async function processImage(
   input: Uint8Array,
-  {
-    maxEdge,
-    quality,
-    maxInputPixels = DEFAULT_MAX_INPUT_PIXELS,
-  }: ProcessImageOptions,
+  { maxEdge, quality }: ProcessImageOptions,
 ): Promise<ProcessedImage> {
   assertBunImage();
-  const bytes = await new Bun.Image(input, { maxPixels: maxInputPixels })
+  const bytes = await new Bun.Image(input, { maxPixels: MAX_INPUT_PIXELS })
     .resize(maxEdge, maxEdge, { fit: 'inside', withoutEnlargement: true })
     .webp({ quality })
-    .bytes();
+    .bytes()
+    .catch(async (err: unknown) => {
+      if ((err as { code?: string })?.code !== 'ERR_IMAGE_TOO_MANY_PIXELS')
+        throw err;
+      // Only the header is read here, so the size is cheap to learn.
+      const { width, height } = await new Bun.Image(input).metadata();
+      throw new CanvasTooLargeError(width, height);
+    });
   const { width, height } = await new Bun.Image(bytes).metadata();
   return { bytes, contentType: 'image/webp', width, height };
 }
@@ -109,6 +132,40 @@ export function sniffImageType(bytes: Uint8Array): SniffedImageType | null {
   if (startsWith(bytes, [0xff, 0xd8, 0xff])) return 'jpeg';
   if (startsWith(bytes, ascii('RIFF')) && startsWith(bytes, ascii('WEBP'), 8))
     return 'webp';
+  return null;
+}
+
+/**
+ * The name of a picture format Jump recognises but cannot show, for a refusal
+ * that says what was received instead of listing what was expected: an SVG
+ * (a document that can carry script, never served), an AVIF or a HEIC (which
+ * `Bun.Image` cannot decode on Linux). Null for anything else.
+ */
+export function unsupportedImageName(
+  bytes: Uint8Array,
+): 'SVG' | 'AVIF' | 'HEIC' | null {
+  // ISO base media: a `ftyp` box at offset 4, its major brand right after.
+  if (startsWith(bytes, ascii('ftyp'), 4)) {
+    const brand = String.fromCharCode(...bytes.slice(8, 12));
+    if (brand === 'avif' || brand === 'avis') return 'AVIF';
+    if (
+      ['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'mif1', 'msf1'].includes(
+        brand,
+      )
+    )
+      return 'HEIC';
+  }
+  const head = new TextDecoder()
+    .decode(bytes.slice(0, 1024))
+    .replace(/^\uFEFF/, '')
+    .trimStart()
+    .toLowerCase();
+  if (
+    head.startsWith('<svg') ||
+    ((head.startsWith('<?xml') || head.startsWith('<!doctype svg')) &&
+      head.includes('<svg'))
+  )
+    return 'SVG';
   return null;
 }
 

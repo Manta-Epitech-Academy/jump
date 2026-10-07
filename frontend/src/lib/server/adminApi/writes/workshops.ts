@@ -2,8 +2,9 @@
 // it on the talent dashboard, and saying which ones an event offers. Bounded to
 // named rows and reversible.
 //
-// Presenting one (`writeWorkshopCover`) downloads the pictures it is given, from
-// addresses an admin chose, before anything is stored. That read sends nothing
+// Presenting one (`writeWorkshopCover`) downloads the pictures it is given and
+// does not already hold, from addresses an admin chose, before anything is
+// stored. That read sends nothing
 // anywhere a person would receive and writes only to the named activity, so the
 // class does not move. It is all or nothing: a picture that cannot be copied
 // refuses the whole write, and the cover stays as it was.
@@ -12,20 +13,13 @@
 // a delete tool would be something a model could aim on its own, which puts it in
 // class C. An instance is retired with `enabled: false`, and the link's FK is
 // `Restrict` so a hand-deletion of one still offered fails loudly.
-import { randomBytes } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import { UnknownScopeError } from '../scope';
 import type { WriteOutcome } from '../plan';
-import {
-  copyRemoteImage,
-  HERO_PICTURE_FRAME,
-  RemoteImageRefusal,
-  swapStoredImages,
-  type CopiedImage,
-} from '$lib/server/images/remote';
+import { replacePictures, type StoredPicture } from '$lib/server/images/remote';
 import {
   workshopCoverKey,
   type WorkshopCoverKind,
@@ -126,32 +120,38 @@ const COVER_LABEL_FR: Record<WorkshopCoverKind, string> = {
 };
 
 /**
- * How each picture is copied. Only the visual may move: the still exists to
- * replace it for a talent who asked for reduced motion, and the mascot is drawn
- * beside a line of text, where an animation would compete with it. The two
- * pictures in the hero's picture slot carry its frame; the mascot is a small
- * sprite and carries none.
+ * Longest stored edge of each picture: the hero's picture slot for the visual
+ * and its still, a small sprite for the mascot. Any proportion and any format
+ * Jump can show are taken, an animation included (`copyRemoteImage`); the hero
+ * lays out whatever it is given.
  */
-const COVER_COPY: Record<
-  WorkshopCoverKind,
-  Parameters<typeof copyRemoteImage>[1]
-> = {
-  media: { maxEdge: 1280, animated: true, frame: HERO_PICTURE_FRAME },
-  poster: { maxEdge: 1280, animated: false, frame: HERO_PICTURE_FRAME },
-  mascot: { maxEdge: 512, animated: false },
+const COVER_MAX_EDGE: Record<WorkshopCoverKind, number> = {
+  media: 1280,
+  poster: 1280,
+  mascot: 512,
 };
+
+const COVER_IMAGE_SELECT = {
+  kind: true,
+  sourceUrl: true,
+  key: true,
+  stillKey: true,
+  contentType: true,
+  width: true,
+  height: true,
+} as const;
 
 async function coverState(
   tx: Prisma.TransactionClient,
   instanceId: string,
-): Promise<WorkshopCoverState & { keys: string[] }> {
+): Promise<WorkshopCoverState> {
   const instance = await tx.workshop_Instance.findUniqueOrThrow({
     where: { id: instanceId },
     select: {
       slug: true,
       tagline: true,
       coverImages: {
-        select: { kind: true, sourceUrl: true, key: true },
+        select: { kind: true, sourceUrl: true },
         orderBy: { kind: 'asc' },
       },
     },
@@ -159,19 +159,16 @@ async function coverState(
   return {
     slug: instance.slug,
     tagline: instance.tagline,
-    images: instance.coverImages.map(({ kind, sourceUrl }) => ({
-      kind,
-      sourceUrl,
-    })),
-    keys: instance.coverImages.map((image) => image.key),
+    images: instance.coverImages,
   };
 }
 
-const withoutKeys = ({
-  keys: _keys,
-  ...state
-}: { keys: string[] } & WorkshopCoverState) => state;
-
+/**
+ * Set how one activity presents itself. The call states the whole cover:
+ * anything omitted is removed. A picture whose address has not changed keeps
+ * the copy already stored (`replacePictures`), so restating the cover to
+ * change its tagline downloads nothing.
+ */
 export async function writeWorkshopCover(params: {
   slug: string;
   tagline?: string;
@@ -196,53 +193,36 @@ export async function writeWorkshopCover(params: {
     mascot: params.mascotUrl,
   };
 
-  // Every picture given is downloaded again, every time, so a picture replaced
-  // at the same address is picked up.
-  const copied = await Promise.all(
-    COVER_KINDS.filter((kind) => urls[kind]).map(async (kind) => {
-      const sourceUrl = urls[kind]!;
-      let image: CopiedImage;
-      try {
-        image = await copyRemoteImage(new URL(sourceUrl), COVER_COPY[kind]);
-      } catch (err) {
-        if (!(err instanceof RemoteImageRefusal)) throw err;
-        throw new OperationRefusedError(
-          `${COVER_LABEL_FR[kind]} (${sourceUrl}) ${err.message}. L'aperçu de l'activité n'a pas changé.`,
-        );
-      }
-      return { kind, sourceUrl, image };
-    }),
-  );
-
-  const moving = copied.find((c) => c.kind === 'media')?.image;
-  if (moving?.contentType === 'image/gif' && !urls.poster) {
-    throw new OperationRefusedError(
-      "Un visuel animé a besoin d'une image fixe (posterUrl) : c'est elle que voit un talent qui a demandé à réduire les animations. L'aperçu de l'activité n'a pas changé.",
-    );
-  }
-
-  // Fresh keys for this write, even for a picture that has not changed: a key
-  // shared by two writes is one that either of them could delete under the
-  // other (`swapStoredImages`).
-  const writeId = randomBytes(8).toString('hex');
-  const rows = copied.map(({ kind, sourceUrl, image }) => ({
-    instanceId: instance.id,
-    kind,
-    sourceUrl,
-    key: workshopCoverKey(instance.id, kind, writeId, image.extension),
-    contentType: image.contentType,
-    width: image.width,
-    height: image.height,
-    bytes: image.bytes,
-  }));
-
-  const { before, after } = await swapStoredImages({
-    next: rows,
-    commit: async (tx) => {
-      // Taken before the cover is read, so a second write on this activity
-      // waits here and then reads what this one wrote: the keys it answers as
-      // replaced are then always the ones it actually replaced.
+  const { before, after } = await replacePictures({
+    requests: COVER_KINDS.filter((kind) => urls[kind]).map((kind) => ({
+      slot: kind,
+      sourceUrl: urls[kind]!,
+      maxEdge: COVER_MAX_EDGE[kind],
+    })),
+    keyFor: (request, writeId, extension) =>
+      workshopCoverKey(
+        instance.id,
+        request.slot as WorkshopCoverKind,
+        writeId,
+        extension,
+      ),
+    refusal: (request, why) =>
+      new OperationRefusedError(
+        `${COVER_LABEL_FR[request.slot as WorkshopCoverKind]} (${request.sourceUrl}) ${why}. L'aperçu de l'activité n'a pas changé.`,
+      ),
+    readStored: async (db): Promise<StoredPicture[]> =>
+      (
+        await db.workshop_CoverImage.findMany({
+          where: { instanceId: instance.id },
+          select: COVER_IMAGE_SELECT,
+        })
+      ).map(({ kind, ...picture }) => ({ slot: kind, ...picture })),
+    // Taken before the cover is read, so a second write on this activity
+    // waits here and then reads what this one wrote.
+    lock: async (tx) => {
       await tx.$executeRaw`SELECT 1 FROM "Workshop_Instance" WHERE id = ${instance.id} FOR UPDATE`;
+    },
+    commit: async (tx, pictures) => {
       const before = await coverState(tx, instance.id);
       await tx.workshop_Instance.update({
         where: { id: instance.id },
@@ -252,20 +232,17 @@ export async function writeWorkshopCover(params: {
         where: { instanceId: instance.id },
       });
       await tx.workshop_CoverImage.createMany({
-        data: rows.map(({ bytes: _bytes, ...row }) => row),
+        data: pictures.map(({ slot, ...picture }) => ({
+          instanceId: instance.id,
+          kind: slot as WorkshopCoverKind,
+          ...picture,
+        })),
       });
-      return {
-        replaced: before.keys,
-        result: { before, after: await coverState(tx, instance.id) },
-      };
+      return { before, after: await coverState(tx, instance.id) };
     },
   });
 
-  return {
-    applied: true,
-    before: withoutKeys(before),
-    after: withoutKeys(after),
-  };
+  return { applied: true, before, after };
 }
 
 type EventWorkshopsState = {

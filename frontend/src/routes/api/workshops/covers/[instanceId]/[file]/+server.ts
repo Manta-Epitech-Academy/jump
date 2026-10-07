@@ -8,19 +8,22 @@ import { workshopCoverKeyFromPath } from '$lib/domain/workshops';
 // (`write_workshop_cover`, `$lib/server/images/remote.ts`). The browser never
 // asks the host it came from, which is the point of the copy.
 //
-// Served only for a key a cover row still references, so this proxy reads
-// nothing else of the bucket whatever path it is handed. Signed-in users only,
-// like the welcome message's images: the one surface is the talent dashboard,
-// already behind auth.
+// Served only for a key a cover row still references (the picture, or the
+// still Jump derived from an animation), so this proxy reads nothing else of
+// the bucket whatever path it is handed. Signed-in users only: the surfaces are
+// the talent's home and « Mon parcours », already behind auth.
 
 export const GET: RequestHandler = async ({ params, locals }) => {
   if (!locals.user) throw error(401);
 
-  const image = await prisma.workshop_CoverImage.findUnique({
-    where: { key: workshopCoverKeyFromPath(params.instanceId, params.file) },
+  const key = workshopCoverKeyFromPath(params.instanceId, params.file);
+  const image = await prisma.workshop_CoverImage.findFirst({
+    where: { OR: [{ key }, { stillKey: key }] },
     select: { key: true, contentType: true },
   });
   if (!image) throw error(404);
 
-  return storedImageResponse(image.key, image.contentType);
+  return image.key === key
+    ? storedImageResponse(key, image.contentType)
+    : storedImageResponse(key, 'image/webp');
 };

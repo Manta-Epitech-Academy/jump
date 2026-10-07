@@ -13,11 +13,15 @@ import {
   type ProcessedImage,
 } from '$lib/server/images/process';
 
-/** Accepted upload mime types (JPEG/PNG/WebP). Shared with the CMS pipeline. */
+/** Accepted upload mime types (JPEG/PNG/WebP), the shared pipeline's. */
 export const PERSONA_ICON_INPUT_TYPES = IMAGE_INPUT_TYPES;
 
-/** Hard cap on the raw upload. An avatar never needs more than a couple MB. */
-export const PERSONA_ICON_MAX_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB
+/**
+ * Cap on the raw upload. The icon is stored at 256 px whatever it was sent at,
+ * so this only bounds what the pod holds while decoding: a photo straight off a
+ * phone fits under it, and nobody has to shrink one by hand first.
+ */
+export const PERSONA_ICON_MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // 20 MB
 
 /** Stored edge: the avatar renders at ~28-32px, so 256 covers retina + preview. */
 const PERSONA_ICON_MAX_EDGE = 256;

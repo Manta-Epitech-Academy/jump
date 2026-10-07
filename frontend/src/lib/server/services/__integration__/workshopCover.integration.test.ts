@@ -33,6 +33,8 @@ import { assertTestDatabase } from './testDatabase';
 const objects = new Map<string, Uint8Array>();
 /** The size the stubbed pipeline reports for a still. */
 let stillSize = { width: 800, height: 450 };
+/** Set to the canvas the stubbed pipeline should find too large to decode. */
+let tooLarge: { width: number; height: number } | null = null;
 
 vi.mock('$lib/server/infra/storage', () => ({
   getStorage: () => ({
@@ -62,11 +64,15 @@ vi.mock('$lib/server/images/process', async (importOriginal) => {
     await importOriginal<typeof import('$lib/server/images/process')>();
   return {
     ...actual,
-    processImage: vi.fn(async (input: Uint8Array) => ({
-      bytes: input,
-      contentType: 'image/webp' as const,
-      ...stillSize,
-    })),
+    processImage: vi.fn(async (input: Uint8Array) => {
+      if (tooLarge)
+        throw new actual.CanvasTooLargeError(tooLarge.width, tooLarge.height);
+      return {
+        bytes: input,
+        contentType: 'image/webp' as const,
+        ...stillSize,
+      };
+    }),
   };
 });
 
@@ -75,7 +81,8 @@ const { writeWorkshopCover, writeWorkshopInstance } =
 const { ADMIN_API_OPERATIONS } =
   await import('$lib/server/adminApi/operations');
 const { OperationRefusedError } = await import('$lib/server/adminApi/errors');
-const { REMOTE_IMAGE_MAX_BYTES } = await import('$lib/server/images/remote');
+const { REMOTE_ANIMATION_MAX_BYTES, REMOTE_DOWNLOAD_MAX_BYTES } =
+  await import('$lib/server/images/remote');
 const { isPublicAddress } = await import('$lib/server/infra/publicAddress');
 const { GET: coverProxy } =
   await import('../../../../routes/api/workshops/covers/[instanceId]/[file]/+server');
@@ -133,11 +140,15 @@ describe('the cover an admin gives an activity (integration)', () => {
     });
 
   /**
-   * The bucket holds exactly what the rows name for this activity: nothing a
-   * row points at is missing, and nothing is left that no row points at.
+   * The bucket holds exactly what the rows name for this activity (each
+   * picture, and the still of each animation): nothing a row points at is
+   * missing, and nothing is left that no row points at.
    */
   async function expectStorageMatchesRows() {
-    const named = (await storedImages()).map((image) => image.key).sort();
+    const named = (await storedImages())
+      .flatMap((image) => [image.key, image.stillKey])
+      .filter((key): key is string => !!key)
+      .sort();
     const held = [...objects.keys()]
       .filter((key) => key.startsWith(`workshops/${instanceId}/`))
       .sort();
@@ -194,6 +205,7 @@ describe('the cover an admin gives an activity (integration)', () => {
 
   beforeEach(() => {
     stillSize = { width: 800, height: 450 };
+    tooLarge = null;
     files = new Map([
       ['/jeu-demo.gif', { bytes: gif }],
       ['/jeu.png', { bytes: png(1) }],
@@ -220,15 +232,19 @@ describe('the cover an admin gives an activity (integration)', () => {
     const images = await storedImages();
     for (const image of images) expect(objects.has(image.key)).toBe(true);
 
-    // The animation is kept byte for byte, sized off its own header.
+    // The animation is kept byte for byte, sized off its own header, with its
+    // first frame beside it for reduced motion.
     const media = images.find((i) => i.kind === 'media')!;
     expect(media.contentType).toBe('image/gif');
     expect([media.width, media.height]).toEqual([640, 360]);
     expect(objects.get(media.key)).toEqual(gif);
-    // A still goes through the pipeline.
-    expect(images.find((i) => i.kind === 'poster')!.contentType).toBe(
-      'image/webp',
-    );
+    expect(media.stillKey).not.toBeNull();
+    expect(objects.has(media.stillKey!)).toBe(true);
+    // A still goes through the pipeline, and has no still of its own.
+    const poster = images.find((i) => i.kind === 'poster')!;
+    expect(poster.contentType).toBe('image/webp');
+    expect(poster.stillKey).toBeNull();
+    await expectStorageMatchesRows();
   });
 
   it('leaves the same cover when the same call is written again, and no copy behind', async () => {
@@ -238,15 +254,86 @@ describe('the cover an admin gives an activity (integration)', () => {
     await expectStorageMatchesRows();
   });
 
-  it('picks up a picture replaced at the same address, and deletes the old copy', async () => {
-    const oldPoster = (await storedImages()).find((i) => i.kind === 'poster')!;
-    files.set('/jeu.png', { bytes: png(3) });
+  it('keeps the copy of an address it already holds, even once the host stops answering', async () => {
+    const before = await storedImages();
+    files.clear();
 
-    await write(fullCover());
+    await write({ ...fullCover(), tagline: 'Une autre accroche' });
+
+    expect(await storedImages()).toEqual(before);
+    await expectStorageMatchesRows();
+  });
+
+  it('copies a picture given at a new address, and deletes the old copy', async () => {
+    const oldPoster = (await storedImages()).find((i) => i.kind === 'poster')!;
+    files.set('/jeu-v2.png', { bytes: png(3) });
+
+    await write({ ...fullCover(), posterUrl: at('/jeu-v2.png') });
 
     const poster = (await storedImages()).find((i) => i.kind === 'poster')!;
     expect(objects.get(poster.key)).toEqual(png(3));
     expect(objects.has(oldPoster.key)).toBe(false);
+    await expectStorageMatchesRows();
+  });
+
+  it('takes any proportion, any size and an animation anywhere', async () => {
+    files.set('/portrait.png', { bytes: png(4) });
+    stillSize = { width: 320, height: 900 };
+
+    await write({
+      ...fullCover(),
+      posterUrl: at('/portrait.png'),
+      mascotUrl: at('/jeu-demo.gif'),
+    });
+
+    const images = await storedImages();
+    const poster = images.find((i) => i.kind === 'poster')!;
+    expect([poster.width, poster.height]).toEqual([320, 900]);
+    const mascot = images.find((i) => i.kind === 'mascot')!;
+    expect(mascot.contentType).toBe('image/gif');
+    expect(mascot.stillKey).not.toBeNull();
+    await expectStorageMatchesRows();
+  });
+
+  it('takes an animated visual with no still of its own', async () => {
+    const { posterUrl: _poster, ...rest } = fullCover();
+
+    await write(rest);
+
+    const images = await storedImages();
+    expect(images.map((i) => i.kind)).toEqual(['media', 'mascot']);
+    expect(images.find((i) => i.kind === 'media')!.stillKey).not.toBeNull();
+    await expectStorageMatchesRows();
+    await write(fullCover());
+  });
+
+  it('follows a redirect, and records the address it was given', async () => {
+    files.set('/raccourci.png', { redirect: at('/fantome-v2.png') });
+    files.set('/fantome-v2.png', { bytes: png(5) });
+
+    const outcome = await write({
+      ...fullCover(),
+      mascotUrl: at('/raccourci.png'),
+    });
+
+    expect(outcome.after).toMatchObject({
+      images: expect.arrayContaining([
+        { kind: 'mascot', sourceUrl: at('/raccourci.png') },
+      ]),
+    });
+    const mascot = (await storedImages()).find((i) => i.kind === 'mascot')!;
+    expect(objects.get(mascot.key)).toEqual(png(5));
+    await write(fullCover());
+  });
+
+  it('takes a still up to 20 MB, since it is re-encoded', async () => {
+    const large = new Uint8Array(10 * 1024 * 1024);
+    large.set(PNG_MAGIC);
+    files.set('/photo.png', { bytes: large });
+
+    await write({ ...fullCover(), posterUrl: at('/photo.png') });
+
+    await write(fullCover());
     await expectStorageMatchesRows();
   });
 
@@ -283,9 +370,18 @@ describe('the cover an admin gives an activity (integration)', () => {
           const key = `workshops/${instanceId}/${image.kind}-other.webp`;
           objects.set(key, png(9));
           otherKeys.push(key);
-          await tx.workshop_CoverImage.create({ data: { ...image, key } });
+          await tx.workshop_CoverImage.create({
+            data: {
+              ...image,
+              key,
+              stillKey: null,
+              sourceUrl: `${image.sourceUrl}?autre`,
+            },
+          });
         }
-        return replaced.map((image) => image.key);
+        return replaced.flatMap((image) =>
+          image.stillKey ? [image.key, image.stillKey] : [image.key],
+        );
       },
       { timeout: 15_000 },
     );
@@ -354,38 +450,63 @@ describe('the cover an admin gives an activity (integration)', () => {
       );
     });
 
-    it('a redirect, which is never followed', async () => {
-      files.set('/ailleurs.png', { redirect: at('/fantome.png') });
+    it('a redirect that never ends', async () => {
+      files.set('/boucle.png', { redirect: at('/boucle.png') });
       await expectRefused(
-        { ...fullCover(), mascotUrl: at('/ailleurs.png') },
-        /redirige ailleurs/,
+        { ...fullCover(), mascotUrl: at('/boucle.png') },
+        /redirige plus de 5 fois/,
       );
     });
 
-    it('bytes that are not a picture', async () => {
+    it('bytes that are not a picture, naming a known format', async () => {
       files.set('/page.png', { bytes: new TextEncoder().encode('<html>') });
       await expectRefused(
         { ...fullCover(), posterUrl: at('/page.png') },
-        /ni un GIF, ni un PNG/,
+        /n'est pas une image/,
       );
-    });
-
-    it('a picture over 6 MB', async () => {
-      files.set('/huge.gif', {
-        bytes: gif,
-        length: REMOTE_IMAGE_MAX_BYTES + 1,
+      files.set('/logo.svg', {
+        bytes: new TextEncoder().encode(
+          '<svg xmlns="http://www.w3.org/2000/svg">',
+        ),
       });
       await expectRefused(
-        { ...fullCover(), mediaUrl: at('/huge.gif') },
-        /dépasse 6 Mo/,
+        { ...fullCover(), posterUrl: at('/logo.svg') },
+        /est un SVG/,
       );
     });
 
-    it('a picture over 6 MB that never said how large it was', async () => {
-      files.set('/flux.png', { stream: REMOTE_IMAGE_MAX_BYTES * 4 });
+    it('an animation too heavy for a phone', async () => {
+      const heavy = new Uint8Array(REMOTE_ANIMATION_MAX_BYTES + 1);
+      heavy.set(gif);
+      files.set('/lourd.gif', { bytes: heavy });
+      await expectRefused(
+        { ...fullCover(), mediaUrl: at('/lourd.gif') },
+        /trop lourd pour un téléphone/,
+      );
+    });
+
+    it('a download over 20 MB, announced or not', async () => {
+      files.set('/huge.png', {
+        bytes: png(1),
+        length: REMOTE_DOWNLOAD_MAX_BYTES + 1,
+      });
+      await expectRefused(
+        { ...fullCover(), posterUrl: at('/huge.png') },
+        /dépasse 20 Mo/,
+      );
+      files.set('/flux.png', { stream: REMOTE_DOWNLOAD_MAX_BYTES * 2 });
       await expectRefused(
         { ...fullCover(), posterUrl: at('/flux.png') },
-        /dépasse 6 Mo/,
+        /dépasse 20 Mo/,
+      );
+    });
+
+    it('a canvas too large to decode, saying its size', async () => {
+      tooLarge = { width: 8064, height: 6048 };
+      files.set('/geante.png', { bytes: png(6) });
+      await expectRefused(
+        { ...fullCover(), posterUrl: at('/geante.png') },
+        /8064 × 6048 px, au-delà de 16 mégapixels/,
       );
     });
 
@@ -408,25 +529,6 @@ describe('the cover an admin gives an activity (integration)', () => {
       } finally {
         vi.mocked(isPublicAddress).mockReturnValue(true);
       }
-    });
-
-    it('a still too narrow for the hero, or not landscape', async () => {
-      stillSize = { width: 320, height: 200 };
-      await expectRefused(fullCover(), /il en faut au moins 480/);
-      stillSize = { width: 600, height: 800 };
-      await expectRefused(fullCover(), /image horizontale/);
-    });
-
-    it('an animated still', async () => {
-      await expectRefused(
-        { ...fullCover(), posterUrl: at('/jeu-demo.gif') },
-        /est un GIF/,
-      );
-    });
-
-    it('an animation with no still for reduced motion', async () => {
-      const { posterUrl: _poster, ...rest } = fullCover();
-      await expectRefused(rest, /besoin d'une image fixe/);
     });
 
     it('an activity that does not exist', async () => {
@@ -474,6 +576,15 @@ describe('the cover an admin gives an activity (integration)', () => {
       expect(ok.headers.get('content-type')).toBe('image/gif');
       expect(ok.headers.get('cache-control')).toContain('immutable');
       expect(new Uint8Array(await ok.arrayBuffer())).toEqual(gif);
+    });
+
+    it('serves the still of an animation as a WebP', async () => {
+      const media = (await storedImages()).find((i) => i.kind === 'media')!;
+      const response = await get(media.stillKey!);
+      expect(response).toBeInstanceOf(Response);
+      expect((response as Response).headers.get('content-type')).toBe(
+        'image/webp',
+      );
     });
 
     it('refuses a signed-out caller and a key no cover references', async () => {

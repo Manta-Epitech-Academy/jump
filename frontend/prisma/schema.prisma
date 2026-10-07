@@ -793,10 +793,16 @@ model TalentHome_Highlight {
 model TalentHome_HighlightImage {
   campusId    String @id
   /// The address it was copied from, handed back by `config_talent_home` so
-  /// the admin can restate the highlight.
+  /// the admin can restate the highlight. A write restating it keeps this copy
+  /// rather than downloading it again (`replacePictures`).
   sourceUrl   String
-  /// Storage key, content-addressed: `talent-home/<campusId>/highlight-<sha>.<ext>`.
-  key         String @unique
+  /// Storage key, `talent-home/<campusId>/highlight-<writeId>.<ext>`: minted by
+  /// the write that copied it, so only the write that replaces it deletes it.
+  key         String  @unique
+  /// For an animated GIF, its first frame as a WebP, what a talent who asked
+  /// for reduced motion sees instead. Same size as the animation. Null for a
+  /// still.
+  stillKey    String? @unique
   contentType String
   /// Intrinsic size, so the hero reserves the box before the bytes land.
   width       Int
@@ -2417,7 +2423,8 @@ model Workshop_Instance {
 enum WorkshopCoverKind {
   /// The cover itself, a still or an animation.
   media
-  /// A still of it, shown instead when the talent asked for reduced motion.
+  /// A still chosen for it, shown instead when the talent asked for reduced
+  /// motion. Without one, an animation shows its own first frame (`stillKey`).
   poster
   /// The subject's character, drawn small above the hero's line.
   mascot
@@ -2435,12 +2442,17 @@ model Workshop_CoverImage {
   instanceId  String
   kind        WorkshopCoverKind
   /// The address it was copied from, handed back by `config_workshop_instances`
-  /// so the admin can see and restate the cover. Not a change detector: every
-  /// write downloads it again.
+  /// so the admin can see and restate the cover. A write restating the same
+  /// address for the same kind keeps this copy rather than downloading it
+  /// again (`replacePictures`).
   sourceUrl   String
-  /// Storage key, `workshops/<instanceId>/<kind>-<writeId>.<ext>`: minted per
-  /// write and never reused, so only the write that replaces it deletes it.
+  /// Storage key, `workshops/<instanceId>/<kind>-<writeId>.<ext>`: minted by
+  /// the write that copied it, so only the write that replaces it deletes it.
   key         String            @unique
+  /// For an animated GIF, its first frame as a WebP, shown to a talent who
+  /// asked for reduced motion when the cover names no poster. Same size as the
+  /// animation. Null for a still.
+  stillKey    String?           @unique
   contentType String
   /// Intrinsic size, so the dashboard reserves the box before the bytes land.
   width       Int

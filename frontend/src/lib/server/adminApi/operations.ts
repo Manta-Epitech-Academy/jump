@@ -63,6 +63,10 @@ import { z } from 'zod';
 import type { AdminApi_TokenTier } from '@prisma/client';
 import { EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
 import { isCalendarDay, isWallClock } from '$lib/domain/planningTime';
+import {
+  HIGHLIGHT_SUMMARY_MAX,
+  HIGHLIGHT_TITLE_MAX,
+} from '$lib/domain/talentHome';
 import { resolveScope, UnknownScopeError } from './scope';
 import {
   handleDescribe,
@@ -465,6 +469,13 @@ function defineWrite<Shape extends z.ZodRawShape>(op: {
  * the same thing in the same words, and the service under it can be exercised
  * against a local test server.
  */
+/**
+ * What every picture-taking write accepts, said once so the operations cannot
+ * describe the same copy in different words (`images/remote.ts`).
+ */
+const PICTURE_RULES =
+  'Any proportion and any size: Jump downloads the picture (following redirects), keeps it whole and lays it out itself, never cropping or stretching it. PNG, JPEG, WebP or GIF, animated or not, up to 20 MB (an animated GIF up to 6 MB, since talents load it as it is on their phones); Jump shows a still of an animation to talents who asked for reduced motion. Refused, with the reason: an address that is not public, a file that is not one of those formats (an SVG, AVIF or HEIC is named as such), a picture over about 16 megapixels. An address the call already holds a copy of is not downloaded again, so restating it is free and never fails; to replace a picture, give its new address.';
+
 function pictureUrl(describe: string) {
   return z
     .string()
@@ -885,8 +896,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_workshop_cover: defineWrite({
-    description:
-      "Set how one online activity presents itself on the talent dashboard: a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host. The call states the WHOLE cover: anything omitted is removed, so to change one part, read config_workshop_instances first and pass the rest back as it stands. media is the main visual (PNG, JPEG, WebP, or an animated GIF, in which case posterUrl is required as the still shown to talents who reduce motion); poster and mascot are stills. media and poster must be landscape, between square and 21:9, at least 480 px wide; every picture under 6 MB, on a public address, served directly with no redirect. All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same cover, and since every picture is downloaded again, repeating also picks up a picture replaced at the same address. Answers with the cover before and after.",
+    description: `Set how one online activity presents itself on the talent dashboard: a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host. The call states the WHOLE cover: anything omitted is removed, so to change one part, read config_workshop_instances first and pass the rest back as it stands. media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same cover. Answers with the cover before and after.`,
     shape: {
       slug: z.string().min(1).describe(handleDescribe('workshopSlug')),
       tagline: z
@@ -899,10 +909,10 @@ export const ADMIN_API_OPERATIONS = {
           'French, one line a talent reads big, e.g. "Apprends à un fantôme à te traquer". Omit to lead with the activity name.',
         ),
       mediaUrl: pictureUrl(
-        'https address of the main visual, a still or an animated GIF. Omit for none.',
+        'https address of the main visual, a still or an animated GIF, any proportion. Omit for none.',
       ),
       posterUrl: pictureUrl(
-        'https address of a still of the visual. Required when the visual is an animated GIF; otherwise it is shown in its place when the visual fails to load. Omit for none.',
+        'https address of a still chosen for the visual, shown in its place to talents who reduce motion and when the visual fails to load. Optional even for an animated visual, whose first frame is used otherwise. Omit for none.',
       ),
       mascotUrl: pictureUrl(
         "https address of the subject's character, drawn small above the tagline (pixel art stays crisp). Omit for none.",
@@ -958,18 +968,19 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_talent_home_highlight: defineWrite({
-    description:
-      "Set or clear the one event a campus puts forward on its talents' home, with a button that opens the sign-up form in a new tab: a JPO, the next Coding Club, a camp. It leads the home's blue hero on any day the talent has no activity, and sits as a compact line under the activity on a day they have one. It is chosen by hand, never taken from Salesforce. Give all four of title, summary, date and url to set it, all four null to remove it; anything in between is refused. imageUrl is optional: an https picture Jump downloads and copies (PNG, JPEG or WebP, landscape between square and 21:9, at least 480 px wide, under 6 MB, served with no redirect); omitted, the highlight has none, and a picture that cannot be copied refuses the whole write. It hides itself once its day has passed on the campus clock, so nothing has to be cleaned up afterwards, and a day already past is refused. Safe to repeat: the same values leave the same highlight, and the picture is downloaded again so one replaced at the same address is picked up. Answers with the highlight before and after.",
+    description: `Set or clear the one event a campus puts forward on its talents' home, with a button that opens the sign-up form in a new tab: a JPO, the next Coding Club, a camp. It leads the home's blue hero on any day the talent has no activity, and sits as a compact line under the activity on a day they have one. It is chosen by hand, never taken from Salesforce. Give all four of title, summary, date and url to set it, all four null to remove it; anything in between is refused. imageUrl is optional: an https picture Jump copies. ${PICTURE_RULES} Omitted, the highlight has none, and a picture that cannot be copied refuses the whole write. It hides itself once its day has passed on the campus clock, so nothing has to be cleaned up afterwards, and a day already past is refused. Safe to repeat: the same values leave the same highlight. Answers with the highlight before and after.`,
     shape: {
       campus: z.string().min(1).describe('Campus name, e.g. "Lille".'),
       title: z
         .string()
+        .max(HIGHLIGHT_TITLE_MAX)
         .nullable()
         .describe(
           'What the event is, in French, at most 80 characters, e.g. "Recode le jeu Snake en JS".',
         ),
       summary: z
         .string()
+        .max(HIGHLIGHT_SUMMARY_MAX)
         .nullable()
         .describe(
           'What happens there and why come, in French addressing the talent as « tu », at most 300 characters.',

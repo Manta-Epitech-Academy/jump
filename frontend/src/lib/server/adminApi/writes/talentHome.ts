@@ -12,12 +12,12 @@
  * Content is refused rather than repaired: what is stored is what was written,
  * so the author never discovers on a talent's screen that part of it vanished.
  * The one thing a write fetches is a highlight's picture, from the https
- * address it is given, before anything is stored: a picture that cannot be
+ * address it is given, before anything is stored (and only when the highlight
+ * does not already hold a copy of that address): a picture that cannot be
  * copied refuses the whole write, and the class does not move, since that read
  * sends nothing to anybody and lands only on the named campus.
  */
 
-import { randomBytes } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { authoredMarkdownProblems } from '$lib/markdown';
@@ -30,11 +30,9 @@ import {
   highlightImageKey,
 } from '$lib/domain/talentHome';
 import {
-  copyRemoteImage,
-  HERO_PICTURE_FRAME,
-  RemoteImageRefusal,
+  replacePictures,
   swapStoredImages,
-  type CopiedImage,
+  type StoredPicture,
 } from '$lib/server/images/remote';
 import { OperationRefusedError } from '../errors';
 import type { WriteOutcome } from '../plan';
@@ -102,16 +100,18 @@ export async function writeTalentHomeNote(params: {
 
 // ─── L'événement mis en avant ───
 
+const HIGHLIGHT_SELECT = {
+  title: true,
+  summary: true,
+  date: true,
+  url: true,
+  image: { select: { sourceUrl: true, key: true, stillKey: true } },
+} as const;
+
 async function highlightRow(campus: ResolvedCampus) {
   return prisma.talentHome_Highlight.findUnique({
     where: { campusId: campus.id },
-    select: {
-      title: true,
-      summary: true,
-      date: true,
-      url: true,
-      image: { select: { sourceUrl: true, key: true } },
-    },
+    select: HIGHLIGHT_SELECT,
   });
 }
 
@@ -133,50 +133,43 @@ async function highlightState(campus: ResolvedCampus) {
 }
 
 /**
- * The highlight as it stands inside a write's transaction, and the picture key
- * that write is about to replace. Taken under a lock on the campus row, which
- * exists even before its first highlight does, so a second write on this campus
- * waits here and then reads what this one wrote (`swapStoredImages`).
+ * Lock the campus row, which exists even before its first highlight does, so a
+ * second write on this campus waits here and then reads what this one wrote.
  */
-async function lockedHighlightState(
+async function lockCampus(
   tx: Prisma.TransactionClient,
   campus: ResolvedCampus,
 ) {
   await tx.$executeRaw`SELECT 1 FROM "Campus" WHERE id = ${campus.id} FOR NO KEY UPDATE`;
-  const row = await tx.talentHome_Highlight.findUnique({
+}
+
+/** The highlight's picture as `replacePictures` reads it, in its one slot. */
+const HIGHLIGHT_SLOT = 'highlight';
+
+async function storedHighlightPicture(
+  db: Prisma.TransactionClient,
+  campus: ResolvedCampus,
+): Promise<StoredPicture[]> {
+  const image = await db.talentHome_HighlightImage.findUnique({
     where: { campusId: campus.id },
     select: {
-      title: true,
-      summary: true,
-      date: true,
-      url: true,
-      image: { select: { sourceUrl: true, key: true } },
+      sourceUrl: true,
+      key: true,
+      stillKey: true,
+      contentType: true,
+      width: true,
+      height: true,
     },
   });
-  return {
-    state: presentHighlight(campus, row),
-    keys: row?.image ? [row.image.key] : [],
-  };
+  return image ? [{ slot: HIGHLIGHT_SLOT, ...image }] : [];
 }
 
-/** Longest stored edge of a highlight's picture: the hero's picture slot. */
+/**
+ * Longest stored edge of a highlight's picture: the hero's picture slot. Any
+ * proportion and any format Jump can show are taken, an animation included;
+ * the hero lays out whatever it is given.
+ */
 const HIGHLIGHT_IMAGE_MAX_EDGE = 1280;
-
-/** Download the picture, or refuse the whole write saying why. */
-async function copyHighlightImage(url: string): Promise<CopiedImage> {
-  try {
-    return await copyRemoteImage(new URL(url), {
-      maxEdge: HIGHLIGHT_IMAGE_MAX_EDGE,
-      animated: false,
-      frame: HERO_PICTURE_FRAME,
-    });
-  } catch (err) {
-    if (!(err instanceof RemoteImageRefusal)) throw err;
-    throw new OperationRefusedError(
-      `L'image (${url}) ${err.message}. L'événement mis en avant n'a pas changé.`,
-    );
-  }
-}
 
 function checkSignupUrl(url: string): void {
   let parsed: URL;
@@ -202,9 +195,8 @@ function checkSignupUrl(url: string): void {
  * show it. The picture is optional and goes with the highlight: omitted, the
  * highlight has none, and clearing the highlight removes it.
  *
- * Safe to repeat: the same values leave the same row. The picture is copied
- * again and stored under a key minted for this write, never reused, so two
- * overlapping writes cannot delete each other's picture.
+ * Safe to repeat: the same values leave the same row, and a picture whose
+ * address has not changed keeps the copy already stored (`replacePictures`).
  */
 export async function writeTalentHomeHighlight(
   params: {
@@ -235,11 +227,20 @@ export async function writeTalentHomeHighlight(
     const { before } = await swapStoredImages({
       next: [],
       commit: async (tx) => {
-        const before = await lockedHighlightState(tx, campus);
+        await lockCampus(tx, campus);
+        const before = await tx.talentHome_Highlight.findUnique({
+          where: { campusId: campus.id },
+          select: HIGHLIGHT_SELECT,
+        });
         await tx.talentHome_Highlight.deleteMany({
           where: { campusId: campus.id },
         });
-        return { replaced: before.keys, result: { before: before.state } };
+        return {
+          replaced: [before?.image?.key, before?.image?.stillKey].filter(
+            (key): key is string => !!key,
+          ),
+          result: { before: presentHighlight(campus, before) },
+        };
       },
     });
     return { applied: true, before, after: await highlightState(campus) };
@@ -269,30 +270,30 @@ export async function writeTalentHomeHighlight(
       `Le ${date} est déjà passé à ${campus.name} (nous sommes le ${today}) : l'accueil ne l'afficherait jamais.`,
     );
 
-  const image = params.imageUrl
-    ? await copyHighlightImage(params.imageUrl)
-    : null;
-  // A fresh key for this write, even for a picture that has not changed: a key
-  // shared by two writes is one that either of them could delete under the
-  // other (`swapStoredImages`).
-  const imageRow = image && {
-    campusId: campus.id,
-    sourceUrl: params.imageUrl!,
-    key: highlightImageKey(
-      campus.id,
-      randomBytes(8).toString('hex'),
-      image.extension,
-    ),
-    contentType: image.contentType,
-    width: image.width,
-    height: image.height,
-  };
-
   const values = { title, summary, date: dateKeyToDbDate(date), url };
-  const { before } = await swapStoredImages({
-    next: image && imageRow ? [{ ...imageRow, bytes: image.bytes }] : [],
-    commit: async (tx) => {
-      const before = await lockedHighlightState(tx, campus);
+  const before = await replacePictures({
+    requests: params.imageUrl
+      ? [
+          {
+            slot: HIGHLIGHT_SLOT,
+            sourceUrl: params.imageUrl,
+            maxEdge: HIGHLIGHT_IMAGE_MAX_EDGE,
+          },
+        ]
+      : [],
+    keyFor: (_request, writeId, extension) =>
+      highlightImageKey(campus.id, writeId, extension),
+    refusal: (request, why) =>
+      new OperationRefusedError(
+        `L'image (${request.sourceUrl}) ${why}. L'événement mis en avant n'a pas changé.`,
+      ),
+    readStored: (db) => storedHighlightPicture(db, campus),
+    lock: (tx) => lockCampus(tx, campus),
+    commit: async (tx, pictures) => {
+      const before = await tx.talentHome_Highlight.findUnique({
+        where: { campusId: campus.id },
+        select: HIGHLIGHT_SELECT,
+      });
       await tx.talentHome_Highlight.upsert({
         where: { campusId: campus.id },
         create: { campusId: campus.id, ...values },
@@ -301,10 +302,12 @@ export async function writeTalentHomeHighlight(
       await tx.talentHome_HighlightImage.deleteMany({
         where: { campusId: campus.id },
       });
-      if (imageRow) {
-        await tx.talentHome_HighlightImage.create({ data: imageRow });
+      for (const { slot: _slot, ...picture } of pictures) {
+        await tx.talentHome_HighlightImage.create({
+          data: { campusId: campus.id, ...picture },
+        });
       }
-      return { replaced: before.keys, result: { before: before.state } };
+      return presentHighlight(campus, before);
     },
   });
   return { applied: true, before, after: await highlightState(campus) };
