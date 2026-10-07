@@ -20,7 +20,10 @@ import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
 import { mintToken } from '$lib/server/adminApi/tokens';
 import { adminApiRead, adminApiWrite } from '$lib/server/adminApi/route';
-import { writeTalentHomeHighlight } from '$lib/server/adminApi/writes/talentHome';
+import {
+  writeTalentHomeHighlight,
+  writeTalentHomeNote,
+} from '$lib/server/adminApi/writes/talentHome';
 import { getTalentHome } from '$lib/server/services/talentHomeService';
 import { toDateKey } from '$lib/domain/planningTime';
 import { OperationRefusedError } from '$lib/server/adminApi/errors';
@@ -54,6 +57,23 @@ vi.mock('$lib/server/infra/storage', () => ({
 vi.mock('$lib/server/infra/publicAddress', () => ({
   isPublicAddress: vi.fn(() => true),
 }));
+
+// A note names its pictures in Markdown, where only https is accepted, while
+// the test host speaks plain http: an https request is carried to it as http,
+// so the copy is exercised end to end on the address the note writes.
+vi.mock('node:https', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:https')>();
+  const http = await import('node:http');
+  return {
+    ...actual,
+    get: (url: URL, options: object, callback: never) =>
+      http.get(
+        new URL(url.href.replace(/^https:/, 'http:')),
+        options,
+        callback,
+      ),
+  };
+});
 
 vi.mock('$lib/server/images/process', async (importOriginal) => {
   const actual =
@@ -190,10 +210,14 @@ describe('the campus content on a talent’s home (integration)', () => {
     expect(audit?.after).toMatchObject({ markdown: body.markdown });
   });
 
-  it('refuses a note carrying an image or HTML, and keeps the previous one', async () => {
+  it('refuses a note carrying HTML or a picture not on https, and keeps the previous one', async () => {
     for (const markdown of [
-      '![affiche](https://tracker.example/a.png)',
+      '![affiche](http://tracker.example/a.png)',
       '<script>alert(1)</script>',
+      Array.from(
+        { length: 11 },
+        (_, i) => `![${i}](https://cdn.example/${i}.png)`,
+      ).join('\n'),
     ]) {
       const { status } = await post(postNote, secret, {
         campus: campusName,
@@ -417,6 +441,102 @@ describe('the campus content on a talent’s home (integration)', () => {
       expect(refusal).toBeInstanceOf(OperationRefusedError);
       expect((refusal as Error).message).toMatch(/est un SVG/);
       expect(await storedImage()).toEqual(before);
+    });
+
+    describe('the note’s pictures', () => {
+      const noteImages = () =>
+        prisma.talentHome_NoteImage.findMany({
+          where: { campusId },
+          orderBy: { key: 'asc' },
+        });
+      const secure = (path: string) =>
+        `${host.replace(/^http:/, 'https:')}${path}`;
+      const noteWith = (...paths: string[]) =>
+        [
+          '## Bonne rentrée',
+          ...paths.map((path) => `![${path}](${secure(path)})`),
+        ].join('\n\n');
+
+      it('copies each picture the note names, and draws the copies on the home', async () => {
+        files.set('/affiche.png', png(7));
+        pictureSize = { width: 1080, height: 1350 };
+        await writeTalentHomeNote({
+          campus: campusName,
+          markdown: noteWith('/affiche.png', '/snake.gif'),
+        });
+
+        const images = await noteImages();
+        expect(images.map((i) => i.sourceUrl).sort()).toEqual(
+          [secure('/affiche.png'), secure('/snake.gif')].sort(),
+        );
+        for (const image of images) expect(objects.has(image.key)).toBe(true);
+        const gifCopy = images.find((i) => i.contentType === 'image/gif')!;
+        expect(objects.has(gifCopy.stillKey!)).toBe(true);
+
+        const html = (await getTalentHome(campusId)).note!;
+        expect(html).not.toContain(host.replace(/^http:\/\//, ''));
+        for (const image of images)
+          expect(html).toContain(image.key.split('/').pop());
+        expect(html).toContain('prefers-reduced-motion');
+
+        const served = (await imageProxy({
+          params: { campusId, file: gifCopy.stillKey!.split('/').pop()! },
+          locals: { user: { id: 'u' } },
+        } as unknown as Parameters<typeof imageProxy>[0])) as Response;
+        expect(served.headers.get('content-type')).toBe('image/webp');
+      });
+
+      it('keeps the copies when only the text changes, even once the host stops answering', async () => {
+        const before = await noteImages();
+        const saved = new Map(files);
+        files.clear();
+        try {
+          await writeTalentHomeNote({
+            campus: campusName,
+            markdown: `${noteWith('/affiche.png', '/snake.gif')}\n\nÀ mercredi !`,
+          });
+        } finally {
+          for (const [path, bytes] of saved) files.set(path, bytes);
+        }
+        expect(await noteImages()).toEqual(before);
+      });
+
+      it('refuses the whole note when one picture cannot be copied', async () => {
+        const before = await prisma.talentHome_Note.findUnique({
+          where: { campusId },
+        });
+        const refusal = await writeTalentHomeNote({
+          campus: campusName,
+          markdown: noteWith('/affiche.png', '/absente.png'),
+        }).catch((err) => err);
+        expect(refusal).toBeInstanceOf(OperationRefusedError);
+        expect((refusal as Error).message).toMatch(/L'image n°2/);
+        expect(
+          await prisma.talentHome_Note.findUnique({ where: { campusId } }),
+        ).toEqual(before);
+      });
+
+      it('drops the copy of a picture the text no longer names', async () => {
+        const gifCopy = (await noteImages()).find(
+          (i) => i.contentType === 'image/gif',
+        )!;
+        await writeTalentHomeNote({
+          campus: campusName,
+          markdown: noteWith('/affiche.png'),
+        });
+        expect((await noteImages()).map((i) => i.sourceUrl)).toEqual([
+          secure('/affiche.png'),
+        ]);
+        expect(objects.has(gifCopy.key)).toBe(false);
+        expect(objects.has(gifCopy.stillKey!)).toBe(false);
+      });
+
+      it('drops every copy with the note', async () => {
+        const images = await noteImages();
+        await writeTalentHomeNote({ campus: campusName, markdown: null });
+        expect(await noteImages()).toEqual([]);
+        for (const image of images) expect(objects.has(image.key)).toBe(false);
+      });
     });
 
     it('drops the picture and its bytes when a write leaves it out', async () => {

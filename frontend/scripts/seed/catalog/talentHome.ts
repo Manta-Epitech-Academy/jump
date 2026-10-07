@@ -46,13 +46,50 @@ export const TALENT_HOME_NOTES: Readonly<Record<string, string>> = {
     '- Ton premier site web, de la page blanche à la mise en ligne',
     '- Une IA qui joue à Pac-Man à ta place',
     '',
+    '![Un mercredi de Coding Club à Paris](https://assets.seed.invalid/talent-home/paris-club.png)',
+    '',
     'Rejoins la communauté sur [le Discord du campus](https://discord.invalid/epitech-paris) pour ne rater aucune date.',
+    '',
+    '![Le Snake de la dernière séance](https://assets.seed.invalid/talent-home/paris-snake.gif)',
     '',
     'Une question ? [Écris-nous](mailto:paris@epitech.invalid).',
   ].join('\n'),
   Marseille: [
     'Bienvenue sur ton espace ! Les prochaines dates des Coding Clubs arrivent très vite : en attendant, entraîne-toi chaque jour avec l’entraînement du jour.',
   ].join('\n'),
+};
+
+/**
+ * The copies of the pictures each note names, by the address the note writes,
+ * as the write would have stored them: a portrait still and an animation, so a
+ * generated home shows both shapes the card has to lay out. No bytes stand
+ * behind the keys, which the card's broken-picture handling hides.
+ */
+export const TALENT_HOME_NOTE_IMAGES: Readonly<
+  Record<
+    string,
+    readonly {
+      readonly sourceUrl: string;
+      readonly width: number;
+      readonly height: number;
+      readonly animated: boolean;
+    }[]
+  >
+> = {
+  Paris: [
+    {
+      sourceUrl: 'https://assets.seed.invalid/talent-home/paris-club.png',
+      width: 1080,
+      height: 1350,
+      animated: false,
+    },
+    {
+      sourceUrl: 'https://assets.seed.invalid/talent-home/paris-snake.gif',
+      width: 480,
+      height: 270,
+      animated: true,
+    },
+  ],
 };
 
 export const TALENT_HOME_HIGHLIGHTS: Readonly<Record<string, HighlightSpec>> = {

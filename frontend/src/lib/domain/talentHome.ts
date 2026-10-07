@@ -9,8 +9,17 @@ import type { ShownPicture } from './pictures';
 // reader share, so the two cannot disagree on a limit or on a day, and the rule
 // that decides what the home's hero suggests.
 
-/** Long enough for a rentrée message with a few dates and links. */
+/**
+ * Long enough for a rentrée message with a few dates and links. Counted on the
+ * text the author wrote, not on the addresses of its pictures, which are as
+ * long as their host makes them and which a talent never reads.
+ */
 export const TALENT_HOME_NOTE_MAX = 1500;
+/**
+ * Pictures in one note. Far past what a message needs, and what bounds the
+ * downloads a single write makes and what a talent's phone loads with the home.
+ */
+export const TALENT_HOME_NOTE_MAX_IMAGES = 10;
 export const HIGHLIGHT_TITLE_MAX = 80;
 /** The PO's own figure: a line or two under the title, never an article. */
 export const HIGHLIGHT_SUMMARY_MAX = 300;
@@ -56,8 +65,8 @@ export function formatHighlightDay(key: DateKey): string {
 }
 
 /**
- * Where a highlight's picture lives once copied, and the URL a page asks for it
- * at. Composed here and nowhere else, because the proxy route turns its two
+ * Where a campus's home pictures live once copied (its highlight's, its note's),
+ * and the URL a page asks for one at. Composed here and nowhere else, because the proxy route turns its two
  * path segments back into the key and the two directions must not drift. A key
  * is minted by the write that copies the picture and names those bytes only,
  * so a new picture is a new URL and the proxy can cache one forever
@@ -73,15 +82,25 @@ export function highlightImageKey(
   return `${IMAGE_PREFIX}/${campusId}/highlight-${writeId}.${extension}`;
 }
 
+/** A picture of the campus note, the `index`-th of the write that copied it. */
+export function noteImageKey(
+  campusId: string,
+  writeId: string,
+  index: number,
+  extension: string,
+): string {
+  return `${IMAGE_PREFIX}/${campusId}/note-${writeId}-${index}.${extension}`;
+}
+
 /** The key the proxy route's `[campusId]/[file]` segments name. */
-export function highlightImageKeyFromPath(
+export function talentHomeImageKeyFromPath(
   campusId: string,
   file: string,
 ): string {
   return `${IMAGE_PREFIX}/${campusId}/${file}`;
 }
 
-export function highlightImageUrl(key: string): string {
+export function talentHomeImageUrl(key: string): string {
   return `/api/talent-home/images/${key.slice(IMAGE_PREFIX.length + 1)}`;
 }
 

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { authoredMarkdownProblems, renderAuthoredMarkdown } from './markdown';
+import {
+  authoredImageSources,
+  authoredMarkdownProblems,
+  authoredTextLength,
+  renderAuthoredMarkdown,
+} from './markdown';
+import type { ShownPicture } from './domain/pictures';
 
 describe('authoredMarkdownProblems', () => {
   it('accepts headings, lists, emphasis and https or mail links', () => {
@@ -10,10 +16,16 @@ describe('authoredMarkdownProblems', () => {
     ).toEqual([]);
   });
 
-  it('refuses an image, even inside a list', () => {
+  it('accepts a picture named by an https address, and refuses any other', () => {
     expect(
-      authoredMarkdownProblems('- ![affiche](https://tracker.example/a.png)'),
-    ).toEqual(['Les images ne sont pas acceptées.']);
+      authoredMarkdownProblems('- ![affiche](https://cdn.example/a.png)'),
+    ).toEqual([]);
+    expect(
+      authoredMarkdownProblems('![affiche](http://cdn.example/a.png)'),
+    ).toEqual([
+      'Image refusée (http://cdn.example/a.png) : donnez son adresse complète, en https://.',
+    ]);
+    expect(authoredMarkdownProblems('![affiche](/a.png)')).toHaveLength(1);
   });
 
   it('refuses raw HTML, block or inline', () => {
@@ -49,10 +61,61 @@ describe('renderAuthoredMarkdown', () => {
     expect(html).toContain('rel="noopener noreferrer"');
   });
 
-  it('never renders an image, whatever was stored', () => {
+  const affiche: ShownPicture = {
+    url: '/api/talent-home/images/c1/note-w-0.webp',
+    width: 1080,
+    height: 1350,
+    stillUrl: null,
+  };
+  const anime: ShownPicture = {
+    url: '/api/talent-home/images/c1/note-w-1.gif',
+    width: 480,
+    height: 270,
+    stillUrl: '/api/talent-home/images/c1/note-w-1-still.webp',
+  };
+  const copies = new Map([
+    ['https://cdn.example/affiche.png', affiche],
+    ['https://cdn.example/demo.gif', anime],
+  ]);
+
+  it('draws a picture from its copy, sized, never from the address written', () => {
+    const html = renderAuthoredMarkdown(
+      '![L’affiche du stage](https://cdn.example/affiche.png)',
+      copies,
+    );
+    expect(html).toContain(`src="${affiche.url}"`);
+    expect(html).toContain('width="1080"');
+    expect(html).toContain('height="1350"');
+    expect(html).toContain('alt="L’affiche du stage"');
+    expect(html).toContain('loading="lazy"');
+    expect(html).not.toContain('cdn.example');
+  });
+
+  it('gives an animation its still under reduced motion', () => {
+    const html = renderAuthoredMarkdown(
+      '![démo](https://cdn.example/demo.gif)',
+      copies,
+    );
+    expect(html).toContain('<picture>');
+    expect(html).toContain('media="(prefers-reduced-motion: reduce)"');
+    expect(html).toContain(`srcset="${anime.stillUrl}"`);
+  });
+
+  it('draws nothing for a picture with no copy, whatever was stored', () => {
+    expect(
+      renderAuthoredMarkdown('![x](https://tracker.example/a.png)', copies),
+    ).not.toContain('<img');
     expect(
       renderAuthoredMarkdown('![x](https://tracker.example/a.png)'),
-    ).not.toContain('<img');
+    ).not.toContain('tracker.example');
+  });
+
+  it('strips an address that is not a copy from a picture that reached the sanitiser', () => {
+    const html = renderAuthoredMarkdown(
+      '<img src="https://tracker.example/pixel.gif">',
+      copies,
+    );
+    expect(html).not.toContain('tracker.example');
   });
 
   it('binds French punctuation to its word, and leaves Markdown syntax alone', () => {
@@ -62,5 +125,25 @@ describe('renderAuthoredMarkdown', () => {
     expect(html).toContain('Bonne rentrée&nbsp;!');
     expect(html).toContain('<table>');
     expect(html).toContain('14:00');
+  });
+});
+
+describe('the pictures of authored Markdown', () => {
+  const note =
+    '![a](https://cdn.example/a.png) texte ![b](https://cdn.example/very/long/address/b.gif) ![a encore](https://cdn.example/a.png)';
+
+  it('lists each address once, in order', () => {
+    expect(authoredImageSources(note)).toEqual([
+      'https://cdn.example/a.png',
+      'https://cdn.example/very/long/address/b.gif',
+    ]);
+  });
+
+  it('counts the text without the addresses', () => {
+    expect(authoredTextLength(note)).toBe(
+      note.length -
+        2 * 'https://cdn.example/a.png'.length -
+        'https://cdn.example/very/long/address/b.gif'.length,
+    );
   });
 });

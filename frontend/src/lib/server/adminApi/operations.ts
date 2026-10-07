@@ -66,6 +66,8 @@ import { isCalendarDay, isWallClock } from '$lib/domain/planningTime';
 import {
   HIGHLIGHT_SUMMARY_MAX,
   HIGHLIGHT_TITLE_MAX,
+  TALENT_HOME_NOTE_MAX,
+  TALENT_HOME_NOTE_MAX_IMAGES,
 } from '$lib/domain/talentHome';
 import { resolveScope, UnknownScopeError } from './scope';
 import {
@@ -953,8 +955,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_talent_home_note: defineWrite({
-    description:
-      "Set or clear one campus's note on its talents' home (« le mot du campus »), the one message in the news card (« Actualités ») of every talent whose campus it is (a talent's campus is the one of their latest-dated event, upcoming ones included): welcome words, the next dates, a Discord link. The page adds no label or title of its own, so open with a heading when the message needs one. Markdown: headings, lists, emphasis, and links to https:// or mailto: only. An image or raw HTML is refused rather than stripped, so what is stored is exactly what talents read. At most 1500 characters. Pass markdown null to remove it. Safe to repeat: the same text leaves the same note. Answers with the note before and after.",
+    description: `Set or clear one campus's note on its talents' home (« le mot du campus »), the one message in the news card (« Actualités ») of every talent whose campus it is (a talent's campus is the one of their latest-dated event, upcoming ones included): welcome words, the next dates, a Discord link, pictures. The page adds no label or title of its own, so open with a heading when the message needs one. Markdown: headings, lists, emphasis, links to https:// or mailto:, and pictures written ![what it shows](https://…), at most ${TALENT_HOME_NOTE_MAX_IMAGES}. Jump copies each picture and talents see the copy, drawn whole and bounded in size in the card, larger when they open the message; the note keeps the address as written. ${PICTURE_RULES} Raw HTML is refused rather than stripped, so what is stored is exactly what talents read. At most ${TALENT_HOME_NOTE_MAX} characters, not counting the pictures' addresses. All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Pass markdown null to remove it. Safe to repeat: the same text leaves the same note. Answers with the note before and after.`,
     shape: {
       campus: z.string().min(1).describe('Campus name, e.g. "Lille".'),
       markdown: z

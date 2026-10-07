@@ -11,23 +11,29 @@
  *
  * Content is refused rather than repaired: what is stored is what was written,
  * so the author never discovers on a talent's screen that part of it vanished.
- * The one thing a write fetches is a highlight's picture, from the https
- * address it is given, before anything is stored (and only when the highlight
- * does not already hold a copy of that address): a picture that cannot be
- * copied refuses the whole write, and the class does not move, since that read
- * sends nothing to anybody and lands only on the named campus.
+ * The one thing a write fetches is a picture (the highlight's, those the note
+ * names), from the https address it is given, before anything is stored, and
+ * only when the campus does not already hold a copy of that address: a picture
+ * that cannot be copied refuses the whole write, and the class does not move,
+ * since that read sends nothing to anybody and lands only on the named campus.
  */
 
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { authoredMarkdownProblems } from '$lib/markdown';
+import {
+  authoredImageSources,
+  authoredMarkdownProblems,
+  authoredTextLength,
+} from '$lib/markdown';
 import { isCalendarDay, toDateKey } from '$lib/domain/planningTime';
 import { dateKeyToDbDate, dbDateToKey } from '$lib/domain/eventPresence';
 import {
   HIGHLIGHT_SUMMARY_MAX,
   HIGHLIGHT_TITLE_MAX,
   TALENT_HOME_NOTE_MAX,
+  TALENT_HOME_NOTE_MAX_IMAGES,
   highlightImageKey,
+  noteImageKey,
 } from '$lib/domain/talentHome';
 import {
   replacePictures,
@@ -46,6 +52,18 @@ async function namedCampus(name: string): Promise<ResolvedCampus> {
   return campus;
 }
 
+/**
+ * Lock the campus row, which exists even before its note or highlight does, so
+ * a second write on this campus waits here and then reads what this one wrote
+ * (`replacePictures`, `swapStoredImages`).
+ */
+async function lockCampus(
+  tx: Prisma.TransactionClient,
+  campus: ResolvedCampus,
+) {
+  await tx.$executeRaw`SELECT 1 FROM "Campus" WHERE id = ${campus.id} FOR NO KEY UPDATE`;
+}
+
 // ─── Le mot du campus ───
 
 async function noteState(campus: ResolvedCampus) {
@@ -56,11 +74,35 @@ async function noteState(campus: ResolvedCampus) {
   return row && { campus: campus.name, markdown: row.markdown };
 }
 
+/** Longest stored edge of a note's picture: the card's width, the dialog's. */
+const NOTE_IMAGE_MAX_EDGE = 1600;
+
+async function storedNotePictures(
+  db: Prisma.TransactionClient,
+  campus: ResolvedCampus,
+): Promise<StoredPicture[]> {
+  const images = await db.talentHome_NoteImage.findMany({
+    where: { campusId: campus.id },
+    select: {
+      sourceUrl: true,
+      key: true,
+      stillKey: true,
+      contentType: true,
+      width: true,
+      height: true,
+    },
+  });
+  // A note names each address once at most as a picture to hold, so the
+  // address is the slot.
+  return images.map((image) => ({ slot: image.sourceUrl, ...image }));
+}
+
 /**
- * Set or clear one campus's note.
+ * Set or clear one campus's note, and the copies of the pictures it names.
  *
- * Safe to repeat: the same text leaves the same row, and clearing a campus that
- * has no note changes nothing.
+ * Safe to repeat: the same text leaves the same row, its pictures are not
+ * downloaded again (`replacePictures`), and clearing a campus that has no note
+ * changes nothing.
  */
 export async function writeTalentHomeNote(params: {
   campus: string;
@@ -69,14 +111,20 @@ export async function writeTalentHomeNote(params: {
   const campus = await namedCampus(params.campus);
   const { markdown } = params;
 
+  const sources = markdown === null ? [] : authoredImageSources(markdown);
   if (markdown !== null) {
     if (markdown.trim() === '')
       throw new OperationRefusedError(
         'Le mot du campus est vide. Pour le retirer, passez markdown à null.',
       );
-    if (markdown.length > TALENT_HOME_NOTE_MAX)
+    const length = authoredTextLength(markdown);
+    if (length > TALENT_HOME_NOTE_MAX)
       throw new OperationRefusedError(
-        `Le mot du campus fait ${markdown.length} caractères, la limite est ${TALENT_HOME_NOTE_MAX}.`,
+        `Le mot du campus fait ${length} caractères (sans compter les adresses des images), la limite est ${TALENT_HOME_NOTE_MAX}.`,
+      );
+    if (sources.length > TALENT_HOME_NOTE_MAX_IMAGES)
+      throw new OperationRefusedError(
+        `Le mot du campus contient ${sources.length} images, la limite est ${TALENT_HOME_NOTE_MAX_IMAGES}.`,
       );
     const problems = authoredMarkdownProblems(markdown);
     if (problems.length > 0)
@@ -85,16 +133,52 @@ export async function writeTalentHomeNote(params: {
       );
   }
 
-  const before = await noteState(campus);
-  if (markdown === null) {
-    await prisma.talentHome_Note.deleteMany({ where: { campusId: campus.id } });
-  } else {
-    await prisma.talentHome_Note.upsert({
-      where: { campusId: campus.id },
-      create: { campusId: campus.id, markdown },
-      update: { markdown },
-    });
-  }
+  const before = await replacePictures({
+    requests: sources.map((sourceUrl) => ({
+      slot: sourceUrl,
+      sourceUrl,
+      maxEdge: NOTE_IMAGE_MAX_EDGE,
+    })),
+    keyFor: (request, writeId, extension) =>
+      noteImageKey(
+        campus.id,
+        writeId,
+        sources.indexOf(request.sourceUrl),
+        extension,
+      ),
+    refusal: (request, why) =>
+      new OperationRefusedError(
+        `L'image n°${sources.indexOf(request.sourceUrl) + 1} (${request.sourceUrl}) ${why}. Le mot du campus n'a pas changé.`,
+      ),
+    readStored: (db) => storedNotePictures(db, campus),
+    lock: (tx) => lockCampus(tx, campus),
+    commit: async (tx, pictures) => {
+      const before = await tx.talentHome_Note.findUnique({
+        where: { campusId: campus.id },
+        select: { markdown: true },
+      });
+      if (markdown === null) {
+        // The pictures' rows go with the note (cascade); their bytes after.
+        await tx.talentHome_Note.deleteMany({ where: { campusId: campus.id } });
+      } else {
+        await tx.talentHome_Note.upsert({
+          where: { campusId: campus.id },
+          create: { campusId: campus.id, markdown },
+          update: { markdown },
+        });
+        await tx.talentHome_NoteImage.deleteMany({
+          where: { campusId: campus.id },
+        });
+        await tx.talentHome_NoteImage.createMany({
+          data: pictures.map(({ slot: _slot, ...picture }) => ({
+            campusId: campus.id,
+            ...picture,
+          })),
+        });
+      }
+      return before && { campus: campus.name, markdown: before.markdown };
+    },
+  });
   return { applied: true, before, after: await noteState(campus) };
 }
 
@@ -130,17 +214,6 @@ function presentHighlight(campus: ResolvedCampus, row: HighlightRow | null) {
 
 async function highlightState(campus: ResolvedCampus) {
   return presentHighlight(campus, await highlightRow(campus));
-}
-
-/**
- * Lock the campus row, which exists even before its first highlight does, so a
- * second write on this campus waits here and then reads what this one wrote.
- */
-async function lockCampus(
-  tx: Prisma.TransactionClient,
-  campus: ResolvedCampus,
-) {
-  await tx.$executeRaw`SELECT 1 FROM "Campus" WHERE id = ${campus.id} FOR NO KEY UPDATE`;
 }
 
 /** The highlight's picture as `replacePictures` reads it, in its one slot. */
