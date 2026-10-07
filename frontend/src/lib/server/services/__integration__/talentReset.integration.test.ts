@@ -11,10 +11,10 @@ import { assertTestDatabase } from './testDatabase';
  * The reset enumerates the talent-scoped tables by hand, which is the only thing
  * it can do and the reason a new one gets forgotten: `Workshop_Participation`
  * was, and the omission is invisible in a diff because the row it leaves is
- * well-formed. It costs an arrears (`xpPending`) that survives the `XpGrant`
- * delete, so the next dashboard load floats XP the ledger no longer holds, and a
- * `budgetMinutes` snapshot that outlives the reset it was supposed to be undone
- * by.
+ * well-formed. It costs a celebration mark (`xpCelebrated`) that survives the
+ * `XpGrant` delete, so XP re-earned from zero are never floated until they pass
+ * it, and a `budgetMinutes` snapshot that outlives the reset it was supposed to
+ * be undone by.
  *
  * Asserted through `resetTalentToImport` rather than over a list of table names:
  * a test that restated the enumeration would pass by agreeing with the bug.
@@ -75,7 +75,7 @@ describe('resetting a talent to import (integration)', () => {
         budgetMinutes: 120,
         solvedSteps: 6,
         totalSteps: 15,
-        xpPending: 480,
+        xpCelebrated: 480,
       },
     });
     await prisma.xpGrant.create({
