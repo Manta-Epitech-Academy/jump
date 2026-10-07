@@ -2356,9 +2356,14 @@ model XpReward {
 // ─── Workshops (the CTFd activities a talent reaches from Jump) ───
 
 /// One deployed CTFd carrying the `workshop_platform` plugin, curated here so
-/// Jump knows where to hand a talent over. It holds NO subject content at all:
-/// the title, the step count and the description stay in CTFd, exactly as
-/// `MinigameConfig` refuses to keep the jump-games catalogue by hand.
+/// Jump knows where to hand a talent over. Nothing of the subject is TYPED here:
+/// the steps and the description stay in CTFd, exactly as `MinigameConfig`
+/// refuses to keep the jump-games catalogue by hand. What a talent's dashboard
+/// shows of it is a different matter, and is authored here over the API
+/// (`write_workshop_cover`): the `tagline` and the `Workshop_CoverImage` rows.
+/// It was first read back from the instance, and that was dropped on purpose:
+/// the people who configure an activity's look are not the ones who deploy its
+/// CTFd, so one source of truth had to be chosen, and it is the one they hold.
 ///
 /// `baseUrl` is a column and not an environment variable, which is the one place
 /// this diverges from jump-games: there is a single jump-games backend and there
@@ -2377,15 +2382,58 @@ model Workshop_Instance {
   /// real address with `enabled = true` is one click away from handing a talent
   /// over to a live instance from a validation environment.
   baseUrl   String
-  /// French name a talent reads on the mission line, and the name every XP
+  /// French name a talent reads on the dashboard, and the name every XP
   /// timeline row is quoted under.
   label     String
+  /// The one line the dashboard's activity hero leads with, in place of the
+  /// label. Written by `write_workshop_cover`, never by `write_workshop_instance`,
+  /// so curating where an activity lives cannot wipe how it is presented.
+  tagline   String?
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   events         EventConfig_Workshop[]
   participations Workshop_Participation[]
+  coverImages    Workshop_CoverImage[]
+}
+
+/// Which picture of a cover an image is.
+enum WorkshopCoverKind {
+  /// The cover itself, a still or an animation.
+  media
+  /// A still of it, shown instead when the talent asked for reduced motion.
+  poster
+  /// The subject's character, drawn small above the hero's line.
+  mascot
+}
+
+/// One picture of an activity's cover, authored over the API as an https
+/// address and COPIED into Jump's storage rather than linked to: a minor's
+/// browser fetches nothing from another host (DESIGN.md, avatars), and the
+/// dashboard must not break the day that host moves a file
+/// (`$lib/server/images/remote.ts`).
+///
+/// A row exists only for a picture that was actually copied, so a cover never
+/// holds half an image; an instance with none stands on its label alone.
+model Workshop_CoverImage {
+  instanceId  String
+  kind        WorkshopCoverKind
+  /// The address it was copied from, handed back by `config_workshop_instances`
+  /// so the admin can see and restate the cover. Not a change detector: every
+  /// write downloads it again.
+  sourceUrl   String
+  /// Storage key, `workshops/<instanceId>/<kind>-<writeId>.<ext>`: minted per
+  /// write and never reused, so only the write that replaces it deletes it.
+  key         String            @unique
+  contentType String
+  /// Intrinsic size, so the dashboard reserves the box before the bytes land.
+  width       Int
+  height      Int
+
+  instance Workshop_Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@id([instanceId, kind])
 }
 
 /// An event offering an activity: the link, carrying attributes of its own.

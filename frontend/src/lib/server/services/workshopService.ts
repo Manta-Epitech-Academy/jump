@@ -5,24 +5,33 @@
  * Two directions, and they never cross. Jump decides who may enter and mints a
  * ticket for it (`workshops/ticket.ts`); CTFd reports progress back over a signed
  * callback, and this file turns that report into one XP grant. Nothing here polls
- * CTFd: a talent's progress arrives, it is never asked for.
+ * CTFd: a talent's progress arrives, it is never asked for. How an activity is
+ * presented (its tagline and pictures) is not CTFd's either: it is authored over
+ * the API (`write_workshop_cover`) and only read here.
+ *
+ * Which activities a talent is offered is ONE rule, `selectWorkshopOfferings`,
+ * and both readers go through `offeredWorkshops`: the dashboard that shows them
+ * and the entry action that lets a talent in. A rule the page applied and the
+ * entry did not would be a hidden activity one hand-made POST away.
  */
 
 import { prisma } from '$lib/server/db';
 import type { Prisma } from '@prisma/client';
 import { workshopXp } from '$lib/domain/xp';
-import { workshopGrantSourceId } from '$lib/domain/workshops';
+import {
+  selectWorkshopOfferings,
+  workshopCoverUrl,
+  workshopGrantSourceId,
+  type TalentWorkshops,
+  type WorkshopActivity,
+  type WorkshopCoverKind,
+} from '$lib/domain/workshops';
+import {
+  getEventStatus,
+  getLifecycleBounds,
+  type LifecycleBounds,
+} from '$lib/domain/eventLifecycle';
 import { grantXp } from './xpService';
-
-export type WorkshopMission = {
-  slug: string;
-  /** What the talent reads: the event's own wording when it set one. */
-  label: string;
-  solvedSteps: number;
-  totalSteps: number;
-  /** Null until the talent has entered once. */
-  startedAt: Date | null;
-};
 
 export type WorkshopEntry = {
   instanceId: string;
@@ -35,135 +44,168 @@ export type WorkshopEntry = {
 };
 
 /**
- * Every activity the talent's enrolments offer, one row per instance.
+ * Every activity the talent is offered, one per instance, through the enrolment
+ * `selectWorkshopOfferings` resolves it to.
  *
- * Ordered by the offering event's date ascending, so the FIRST enrolment that
- * offers an activity is the one that authorises it. Two talents enrolled in two
- * events carrying the same subject therefore get one mission and one snapshot,
- * which is what the `(talent, instance)` key already says: the activity is worth
- * its XP once, for life.
- *
- * Deliberately not narrowed by date. A Coding Club is designed never to finish
- * and the students carry on at home in the evening and the days after, so an
- * activity whose event is over is still an activity to walk.
+ * Each event's status is read on its OWN campus clock, so "today" for a Réunion
+ * event is Réunion's today, whatever the browser says.
  */
-async function offeredWorkshops(
-  talentId: string,
-  slug?: string,
-): Promise<
-  {
-    eventId: string;
-    campusId: string;
-    position: number;
-    durationMinutes: number;
-    labelOverride: string | null;
-    instance: {
-      id: string;
-      slug: string;
-      label: string;
-      baseUrl: string;
-    };
-  }[]
-> {
+async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
   const instanceWhere: Prisma.Workshop_InstanceWhereInput = {
     enabled: true,
     ...(slug ? { slug } : {}),
   };
 
-  const enrolments = await prisma.participation.findMany({
-    where: {
-      talentId,
-      event: { workshops: { some: { instance: instanceWhere } } },
-    },
-    orderBy: [{ event: { date: 'asc' } }, { eventId: 'asc' }],
-    select: {
-      eventId: true,
-      campusId: true,
-      event: {
-        select: {
-          workshops: {
-            where: { instance: instanceWhere },
-            orderBy: [{ position: 'asc' }, { instanceId: 'asc' }],
-            select: {
-              position: true,
-              durationMinutes: true,
-              labelOverride: true,
-              instance: {
-                select: { id: true, slug: true, label: true, baseUrl: true },
+  const [enrolments, started] = await Promise.all([
+    prisma.participation.findMany({
+      where: {
+        talentId,
+        event: { workshops: { some: { instance: instanceWhere } } },
+      },
+      select: {
+        eventId: true,
+        campusId: true,
+        event: {
+          select: {
+            date: true,
+            endDate: true,
+            campus: { select: { timezone: true } },
+            workshops: {
+              where: { instance: instanceWhere },
+              select: {
+                position: true,
+                durationMinutes: true,
+                labelOverride: true,
+                instance: {
+                  select: {
+                    id: true,
+                    slug: true,
+                    label: true,
+                    tagline: true,
+                    baseUrl: true,
+                  },
+                },
               },
             },
           },
         },
       },
-    },
-  });
+    }),
+    prisma.workshop_Participation.findMany({
+      where: { talentId },
+      select: { instanceId: true },
+    }),
+  ]);
 
-  const seen = new Set<string>();
-  const offered = [];
-  for (const enrolment of enrolments) {
-    for (const link of enrolment.event.workshops) {
-      if (seen.has(link.instance.id)) continue;
-      seen.add(link.instance.id);
-      offered.push({
+  const boundsByTimezone = new Map<string, LifecycleBounds>();
+  const boundsFor = (timezone: string) => {
+    let bounds = boundsByTimezone.get(timezone);
+    if (!bounds) {
+      bounds = getLifecycleBounds(timezone, now);
+      boundsByTimezone.set(timezone, bounds);
+    }
+    return bounds;
+  };
+
+  return selectWorkshopOfferings(
+    enrolments.flatMap((enrolment) => {
+      const { event } = enrolment;
+      const status = getEventStatus(event, boundsFor(event.campus.timezone));
+      return event.workshops.map((link) => ({
+        instanceId: link.instance.id,
+        eventDate: event.date,
+        position: link.position,
+        status,
         eventId: enrolment.eventId,
         campusId: enrolment.campusId,
-        position: link.position,
         durationMinutes: link.durationMinutes,
         labelOverride: link.labelOverride,
         instance: link.instance,
-      });
-    }
-  }
-  return offered;
+      }));
+    }),
+    new Set(started.map((row) => row.instanceId)),
+  );
 }
 
-/** What the dashboard's "Mission du jour" card renders, progress included. */
-export async function listWorkshopMissions(
+/** What the dashboard renders: today's hero, and every other activity. */
+export async function listTalentWorkshops(
   talentId: string,
-): Promise<WorkshopMission[]> {
-  const offered = await offeredWorkshops(talentId);
-  if (offered.length === 0) return [];
+  now: Date = new Date(),
+): Promise<TalentWorkshops> {
+  const offered = await offeredWorkshops(talentId, now);
+  if (offered.length === 0) return { today: [], activities: [] };
 
-  const entries = await prisma.workshop_Participation.findMany({
-    where: {
-      talentId,
-      instanceId: { in: offered.map((o) => o.instance.id) },
-    },
-    select: {
-      instanceId: true,
-      solvedSteps: true,
-      totalSteps: true,
-      firstEnteredAt: true,
-    },
-  });
-  const byInstance = new Map(entries.map((e) => [e.instanceId, e]));
+  const instanceIds = offered.map((o) => o.instanceId);
+  const [entries, images] = await Promise.all([
+    prisma.workshop_Participation.findMany({
+      where: { talentId, instanceId: { in: instanceIds } },
+      select: {
+        instanceId: true,
+        solvedSteps: true,
+        totalSteps: true,
+        firstEnteredAt: true,
+      },
+    }),
+    prisma.workshop_CoverImage.findMany({
+      where: { instanceId: { in: instanceIds } },
+      select: {
+        instanceId: true,
+        kind: true,
+        key: true,
+        width: true,
+        height: true,
+      },
+    }),
+  ]);
+  const entryByInstance = new Map(entries.map((e) => [e.instanceId, e]));
 
-  return offered
-    .sort((a, b) => a.position - b.position)
-    .map((o) => {
-      const entry = byInstance.get(o.instance.id);
-      return {
-        slug: o.instance.slug,
-        label: o.labelOverride ?? o.instance.label,
-        solvedSteps: entry?.solvedSteps ?? 0,
-        totalSteps: entry?.totalSteps ?? 0,
-        startedAt: entry?.firstEnteredAt ?? null,
-      };
-    });
+  const toActivity = (o: (typeof offered)[number]): WorkshopActivity => {
+    const entry = entryByInstance.get(o.instanceId);
+    const image = (kind: WorkshopCoverKind) => {
+      const found = images.find(
+        (i) => i.instanceId === o.instanceId && i.kind === kind,
+      );
+      return found
+        ? {
+            url: workshopCoverUrl(found.key),
+            width: found.width,
+            height: found.height,
+          }
+        : null;
+    };
+    return {
+      slug: o.instance.slug,
+      label: o.labelOverride ?? o.instance.label,
+      solvedSteps: entry?.solvedSteps ?? 0,
+      totalSteps: entry?.totalSteps ?? 0,
+      startedAt: entry?.firstEnteredAt ?? null,
+      cover: {
+        tagline: o.instance.tagline,
+        media: image('media'),
+        poster: image('poster'),
+        mascot: image('mascot'),
+      },
+    };
+  };
+
+  return {
+    today: offered.filter((o) => o.today).map(toActivity),
+    activities: offered.filter((o) => !o.today).map(toActivity),
+  };
 }
 
 /**
  * Whether this talent may enter this activity, and on whose enrolment.
  *
- * `null` is the refusal: no such instance, it is switched off, or no enrolment of
- * this talent offers it.
+ * `null` is the refusal: no such instance, it is switched off, no enrolment of
+ * this talent offers it, or the event offering it has not started yet.
  */
 export async function resolveWorkshopEntry(
   talentId: string,
   slug: string,
+  now: Date = new Date(),
 ): Promise<WorkshopEntry | null> {
-  const offered = await offeredWorkshops(talentId, slug);
-  const match = offered[0];
+  const [match] = await offeredWorkshops(talentId, now, slug);
   if (!match) return null;
   return {
     instanceId: match.instance.id,

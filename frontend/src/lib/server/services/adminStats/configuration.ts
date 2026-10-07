@@ -37,6 +37,7 @@ import {
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
 import { CERTIFICATE_TOKENS } from '$lib/domain/diplomas';
 import { WORKSHOP_XP_PER_MINUTE } from '$lib/domain/xp';
+import type { WorkshopCoverKind } from '$lib/domain/workshops';
 import { UnknownScopeError, type Scope } from '$lib/server/adminApi/scope';
 import { handleProvenanceFr } from '$lib/server/adminApi/handles';
 import { hiddenEnrolmentsByEvent, scopedEvents, scopeLabels } from './cohort';
@@ -456,6 +457,11 @@ export type WorkshopInstanceRow = {
   enabled: boolean;
   attachedEvents: number;
   talentsEntered: number;
+  /** How it presents itself on the talent dashboard, as last written. */
+  cover: {
+    tagline: string | null;
+    images: { kind: WorkshopCoverKind; sourceUrl: string }[];
+  };
 };
 
 export type WorkshopInstances = {
@@ -466,10 +472,11 @@ export type WorkshopInstances = {
 /**
  * The CTFd instances Jump can send a talent to, and how much each is used.
  *
- * Carries no subject content, because Jump holds none: the title, the steps and
- * the description live in CTFd. What it does carry is the slug, which is what
- * both writes take, and the two counts that say whether an instance is still
- * worth keeping in the catalogue.
+ * The subject itself (its steps, its wording) lives in CTFd. What Jump holds is
+ * how the dashboard presents it, with the address each picture was copied from,
+ * so an admin can restate a cover without having kept it anywhere. It also
+ * carries the slug, which is what every activity write takes, and the two counts that say
+ * whether an instance is still worth keeping in the catalogue.
  *
  * `talentsEntered` is a count and never a list: this tier returns no talent
  * identity, at any level.
@@ -483,6 +490,11 @@ export async function getWorkshopInstances(): Promise<WorkshopInstances> {
       baseUrl: true,
       enabled: true,
       _count: { select: { events: true, participations: true } },
+      tagline: true,
+      coverImages: {
+        select: { kind: true, sourceUrl: true },
+        orderBy: { kind: 'asc' },
+      },
     },
   });
 
@@ -495,8 +507,12 @@ export async function getWorkshopInstances(): Promise<WorkshopInstances> {
         enabled: instance.enabled,
         attachedEvents: instance._count.events,
         talentsEntered: instance._count.participations,
+        cover: {
+          tagline: instance.tagline,
+          images: instance.coverImages,
+        },
       })),
-      "Les activités en ligne que Jump sait proposer. « slug » est la clé stable à passer aux deux opérations d'écriture, « label » le nom que lit un talent, « baseUrl » l'adresse de l'instance vers laquelle il est envoyé, « enabled » si elle est proposée aujourd'hui, « attachedEvents » le nombre d'événements qui la proposent et « talentsEntered » le nombre de talents qui y sont entrés au moins une fois. Le contenu du sujet (titre, nombre d'étapes, énoncé) n'est pas ici : il vit dans l'instance elle-même.",
+      "Les activités en ligne que Jump sait proposer. « slug » est la clé stable que prennent les opérations d'écriture sur les activités, « label » le nom que lit un talent, « baseUrl » l'adresse de l'instance vers laquelle il est envoyé, « enabled » si elle est proposée aujourd'hui, « attachedEvents » le nombre d'événements qui la proposent et « talentsEntered » le nombre de talents qui y sont entrés au moins une fois. « cover » est la façon dont l'activité se présente sur l'accueil des talents, saisie par write_workshop_cover : son accroche (null si elle n'en a pas, l'accueil affiche alors « label ») et ses images, chacune avec l'adresse d'où Jump l'a copiée (« media » le visuel, « poster » l'image fixe, « mascot » la mascotte). Le sujet lui-même (étapes, énoncé) n'est pas ici : il vit dans l'instance.",
     ),
     scale: metric(
       `Une activité déclarée à N minutes sur un événement vaut N x ${WORKSHOP_XP_PER_MINUTE} XP une fois entièrement terminée, au prorata des étapes validées. Le barème d'un talent est figé à sa première entrée : changer la durée ne reprend d'XP à personne et n'en ajoute pas rétroactivement.`,

@@ -14,11 +14,12 @@
   import History from '@lucide/svelte/icons/history';
   import Coffee from '@lucide/svelte/icons/coffee';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
-  import Terminal from '@lucide/svelte/icons/terminal';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import CalendarCheck from '@lucide/svelte/icons/calendar-check';
   import FeedbackBanner from '$lib/components/feedback/FeedbackBanner.svelte';
   import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
+  import TodayActivityHero from '$lib/components/talent/TodayActivityHero.svelte';
+  import MyActivitiesCard from '$lib/components/talent/MyActivitiesCard.svelte';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
@@ -107,7 +108,7 @@
     planning.state === 'upcoming' ? minutesToHHMM(planning.startMinutes) : '',
   );
 
-  // The daily minigame is the first mission inside the "Mission du jour" card:
+  // The daily minigame is the row inside the "Entraînement du jour" card:
   // a distinct, accented row, playable or already-played, independent of any
   // event. The rich campus leaderboard now lives on the game's own page.
   let hasMinigame = $derived(
@@ -133,21 +134,25 @@
   // can't drift.
   const DAILY_TRAINING_LABEL = 'Entraîne ton cerveau';
 
-  // The CTFd activities the talent's events offer. Student-facing wording all the
-  // way: the words « CTFd » and « flag » never appear on this surface.
-  const ACTIVITY_LABEL = 'Passe à la pratique';
-  let workshopMissions = $derived(data.workshopMissions);
+  // The CTFd activities the talent's events offer: today's in the hero, the
+  // rest in their own card. Student-facing wording all the way: the words
+  // « CTFd » and « flag » never appear on this surface.
+  let workshops = $derived(data.workshops);
+  let hasActivities = $derived(
+    workshops.today.length > 0 || workshops.activities.length > 0,
+  );
 
   // An activity is walked in a SECOND TAB, so coming back here reloads nothing on
   // its own and the XP earned meanwhile would only appear on the next navigation.
   //
   // Armed as soon as an activity is OFFERED, not once one has been entered, and
-  // the difference is the whole first visit: the row is what sends the talent to
-  // the other tab, so on the return that matters most nothing had been entered
-  // when this page was rendered. Waiting for `startedAt` armed the listener only
-  // from the second visit onwards, which is the one nobody demonstrates.
+  // the difference is the whole first visit: the hero is what sends the talent
+  // to the other tab, so on the return that matters most nothing had been
+  // entered when this page was rendered. Waiting for `startedAt` armed the
+  // listener only from the second visit onwards, which is the one nobody
+  // demonstrates.
   $effect(() => {
-    if (workshopMissions.length === 0) return;
+    if (!hasActivities) return;
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') void invalidateAll();
     };
@@ -216,11 +221,11 @@
       </div>
     {/each}
 
-    <!-- The daily minigame as the first "mission" of the day: same row language
-         as the activities below, but accented (gamepad, colour) so it reads as
-         a distinct kind of mission. Pre-play it's a "Commencer" CTA; once played
-         it links to the campus leaderboard on the game's own page. -->
-    {#snippet minigameMission()}
+    <!-- The daily training, the one row of "Entraînement du jour": accented
+         (gamepad, colour) and shaped as a row, nothing like the activities.
+         Pre-play it's a "Commencer" CTA; once played it links to the campus
+         leaderboard on the game's own page. -->
+    {#snippet dailyTraining()}
       {#if hasMinigame && minigamePublication}
         <div class="relative">
           {#if minigamePlayed && minigameWon}
@@ -361,73 +366,7 @@
       {/if}
     {/snippet}
 
-    <!-- The event's activities, same row language as the training above: the
-         whole row is the control, the icon and the text rejoin the CTA on
-         desktop, and the CTA reads « Commencer » or « Reprendre ». Each row is a
-         FORM and not a link, because entering mints a ticket and opens a
-         participation, and `load` runs on speculative hover-preload.
-         `target="_blank"` is load-bearing rather than a preference: it is what
-         leaves this tab alive for the talent to come back to, which is where the
-         XP are celebrated. The list scrolls in its own box from day one: how many
-         rows it holds is decided by the event configuration, not by this code. -->
-    {#snippet activityMissions()}
-      {#if workshopMissions.length > 0}
-        <div class="max-h-[40svh] space-y-4 overflow-y-auto">
-          {#each workshopMissions as mission (mission.slug)}
-            {@const started = mission.startedAt !== null}
-            <form
-              method="POST"
-              action={`/activites/${mission.slug}`}
-              target="_blank"
-            >
-              <button
-                type="submit"
-                class="flex w-full cursor-pointer flex-col gap-3 rounded-xl border border-epi-together-ink/20 bg-epi-together-ink/5 p-4 text-left transition-ui hover:bg-epi-together-ink/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
-              >
-                <div class="flex items-center gap-4 sm:contents">
-                  <div
-                    class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-together-ink/10"
-                  >
-                    <Terminal class="h-5 w-5 text-epi-together-ink" />
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <div
-                      class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
-                    >
-                      <span class="text-epi-together-ink">{ACTIVITY_LABEL}</span
-                      >
-                      <span class="text-muted-foreground">•</span>
-                      <span class="truncate text-muted-foreground"
-                        >{mission.label}</span
-                      >
-                    </div>
-                    <p class="mt-0.5 text-sm font-semibold text-foreground">
-                      {#if mission.totalSteps > 0}
-                        {mission.solvedSteps} / {mission.totalSteps} étapes validées
-                      {:else if started}
-                        Tu as commencé, reprends là où tu t’es arrêté !
-                      {:else}
-                        Avance à ton rythme, chaque étape te rapporte des XP.
-                      {/if}
-                    </p>
-                  </div>
-                </div>
-                <span
-                  class="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-xl px-3 py-1.5 text-sm font-bold sm:w-auto {started
-                    ? 'bg-epi-together-ink/15 text-epi-together-ink'
-                    : 'bg-epi-blue text-white'}"
-                >
-                  {started ? 'Reprendre' : 'Commencer'}
-                  <ArrowRight class="h-4 w-4" />
-                </span>
-              </button>
-            </form>
-          {/each}
-        </div>
-      {/if}
-    {/snippet}
-
-    <div class="grid gap-6 md:grid-cols-12">
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-12">
       <!-- LEFT COLUMN: profile + "Planning à venir" rail (the active event,
            the next upcoming session, or a quiet rest state).
            On mobile the wrapper collapses (display: contents) so its children
@@ -475,7 +414,7 @@
 
         <!-- Planning à venir: the active event if one covers today, else the
              next upcoming session, else a quiet rest state. order-4 keeps it
-             last on mobile (after the mission card). Always shown (the state is
+             last on mobile (after the training card). Always shown (the state is
              participation-derived, truthful regardless of the planning flag);
              only the ongoing "Voir le planning" CTA is flag-gated, since it
              opens the /calendar grid that 404s when the flag is off. -->
@@ -630,12 +569,20 @@
         {/if}
       </div>
 
-      <!-- RIGHT COLUMN: the day's missions (minigame first, then the event's
-           activities), then the Actualités feed as the second element. -->
+      <!-- RIGHT COLUMN: the daily training, then the activities already
+           offered, then the Actualités feed. -->
       <div
         class="contents md:col-span-8 md:block md:space-y-6"
         in:fly={{ x: 20, duration: 400, delay: 300 }}
       >
+        {#if workshops.today.length > 0}
+          <!-- The day's activity, on the day only: the head of the right
+               column, level with the XP card, and first of all on a phone. -->
+          <div class="order-first">
+            <TodayActivityHero activities={workshops.today} />
+          </div>
+        {/if}
+
         <!-- order-3: sits below Actualités on mobile, with its history link -->
         <div
           class="order-3 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
@@ -645,17 +592,25 @@
           >
             <Rocket class="h-4 w-4 shrink-0 text-epi-blue" />
             <h2 class="font-heading text-display-s text-foreground">
-              Mission du jour<TitleCursor />
+              Entraînement du jour<TitleCursor />
             </h2>
           </div>
 
           <div class="space-y-4 p-6">
-            {@render minigameMission()}
-            {@render activityMissions()}
+            {@render dailyTraining()}
 
-            {#if !hasMinigame && workshopMissions.length === 0}
-              <!-- Nothing of any kind today: no daily training, and no event of
-                   this talent's offers an activity. -->
+            {#if !hasMinigame && workshops.today.length > 0}
+              <!-- No training today, but the day is not a day off: it points
+                     at the hero rather than saying « repos » under it. The hero
+                     heads the page rather than this card: on a phone the XP
+                     and news cards sit between the two. -->
+              <p class="py-2 text-sm text-muted-foreground">
+                Pas d’entraînement aujourd’hui : ton activité du jour t’attend
+                en haut de la page.
+              </p>
+            {:else if !hasMinigame}
+              <!-- Nothing to do today: no daily training, and no event of
+                     this talent's is running. -->
               <div
                 class="flex flex-col items-center justify-center py-8 text-center"
               >
@@ -668,13 +623,20 @@
                   Repos aujourd'hui
                 </h3>
                 <p class="mt-2 max-w-sm text-sm text-muted-foreground">
-                  Aucune mission pour aujourd'hui. Profites-en pour souffler, on
+                  Pas d'entraînement aujourd'hui. Profites-en pour souffler, on
                   remet ça bientôt !
                 </p>
               </div>
             {/if}
           </div>
         </div>
+
+        {#if workshops.activities.length > 0}
+          <!-- order-3 too, after the training on a phone as on a desktop. -->
+          <div class="order-3">
+            <MyActivitiesCard activities={workshops.activities} />
+          </div>
+        {/if}
 
         {#if data.welcome}
           <!-- order-2: sits right under the profile card on mobile -->

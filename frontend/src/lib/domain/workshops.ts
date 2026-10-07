@@ -1,3 +1,5 @@
+import type { EventLifecycleStatus } from './eventLifecycle';
+
 /**
  * How a workshop XP grant is addressed.
  *
@@ -31,3 +33,155 @@ export function workshopSlugFromSourceId(
   const slug = sourceId.split(SEPARATOR)[0];
   return slug ? slug : null;
 }
+
+/**
+ * Where a cover picture lives once copied, and the URL a page asks for it at.
+ *
+ * Composed here and nowhere else, because the proxy route turns its two path
+ * segments back into the key and the two directions must not drift.
+ *
+ * A key belongs to ONE write (`writeId`, minted per `write_workshop_cover`
+ * call) and is never reused, even for bytes another write already stored. That
+ * is what lets the proxy cache a picture forever, and what lets each key have
+ * exactly one party that may delete it (`images/remote.ts`, `swapStoredImages`).
+ */
+export type WorkshopCoverKind = 'media' | 'poster' | 'mascot';
+
+const COVER_PREFIX = 'workshops';
+
+export function workshopCoverKey(
+  instanceId: string,
+  kind: WorkshopCoverKind,
+  writeId: string,
+  extension: string,
+): string {
+  return `${COVER_PREFIX}/${instanceId}/${kind}-${writeId}.${extension}`;
+}
+
+/** The key the proxy route's `[instanceId]/[file]` segments name. */
+export function workshopCoverKeyFromPath(
+  instanceId: string,
+  file: string,
+): string {
+  return `${COVER_PREFIX}/${instanceId}/${file}`;
+}
+
+export function workshopCoverUrl(key: string): string {
+  return `/api/workshops/covers/${key.slice(COVER_PREFIX.length + 1)}`;
+}
+
+/**
+ * Which activities a talent is offered, through which enrolment, and which of
+ * them are today's.
+ *
+ * An activity is offered once the event offering it has STARTED (its first
+ * campus day), and from then on for good: a Coding Club is designed never to
+ * finish, and the students carry on at home in the evening and the days after.
+ * Before that day it is neither shown nor enterable, so nobody starts a camp's
+ * subject a week early. The one exception is a talent who has already walked
+ * it: what they started stays theirs, even when the only enrolment still
+ * offering it is for an event to come.
+ *
+ * An instance offered by several of a talent's enrolments resolves to ONE
+ * offering: the event running today when there is one (that is the one the
+ * day's hero is about), otherwise the most recent that has started, and only
+ * failing both a future one the talent is already walking it through. The chosen
+ * enrolment is what a first entry pins its event, campus and minute budget on,
+ * so two events of the same day and phase are told apart by id rather than left
+ * to whatever order the rows arrived in.
+ *
+ * Ordered newest event first, then by the event's own order, which is the order
+ * a talent reads them in. Two events of the same day are kept apart, by id, so
+ * the list reads the same on every load.
+ *
+ * Pure: the caller computes each event's status in its campus timezone.
+ */
+export function selectWorkshopOfferings<
+  T extends {
+    instanceId: string;
+    eventId: string;
+    eventDate: Date;
+    position: number;
+    status: EventLifecycleStatus;
+  },
+>(
+  rows: readonly T[],
+  startedInstanceIds: ReadonlySet<string>,
+): (T & { today: boolean })[] {
+  const chosen = new Map<string, T>();
+  for (const row of rows) {
+    if (row.status === 'upcoming' && !startedInstanceIds.has(row.instanceId))
+      continue;
+    const current = chosen.get(row.instanceId);
+    if (!current || outranks(row, current)) chosen.set(row.instanceId, row);
+  }
+  return [...chosen.values()]
+    .map((row) => ({ ...row, today: row.status === 'ongoing' }))
+    .sort(
+      (a, b) =>
+        b.eventDate.getTime() - a.eventDate.getTime() ||
+        a.eventId.localeCompare(b.eventId) ||
+        a.position - b.position,
+    );
+}
+
+/**
+ * Today's event over any other, then one that has run over one still to come
+ * (which only survives at all for a talent who already started the activity),
+ * then the most recent, then the lower id.
+ */
+const PHASE_RANK: Record<EventLifecycleStatus, number> = {
+  ongoing: 2,
+  past: 1,
+  upcoming: 0,
+};
+
+type Ranked = {
+  eventId: string;
+  eventDate: Date;
+  status: EventLifecycleStatus;
+};
+
+function outranks(a: Ranked, b: Ranked): boolean {
+  const byPhase = PHASE_RANK[a.status] - PHASE_RANK[b.status];
+  if (byPhase !== 0) return byPhase > 0;
+  const byDate = a.eventDate.getTime() - b.eventDate.getTime();
+  if (byDate !== 0) return byDate > 0;
+  return a.eventId < b.eventId;
+}
+
+/**
+ * What the talent dashboard renders of the activities: the view a page reads,
+ * built server-side by `listTalentWorkshops`.
+ */
+export type WorkshopCoverImage = { url: string; width: number; height: number };
+
+export type WorkshopActivity = {
+  slug: string;
+  /** What the talent reads: the event's own wording when it set one. */
+  label: string;
+  solvedSteps: number;
+  totalSteps: number;
+  /** Null until the talent has entered once. */
+  startedAt: Date | null;
+  /**
+   * How the activity presents itself, authored over the API. Every part is
+   * optional: with none, the activity stands on its label.
+   */
+  cover: {
+    tagline: string | null;
+    media: WorkshopCoverImage | null;
+    poster: WorkshopCoverImage | null;
+    mascot: WorkshopCoverImage | null;
+  };
+};
+
+export type TalentWorkshops = {
+  /**
+   * The activities of the events running today, for the dashboard's hero.
+   * Empty on any day none of the talent's events offering one is running.
+   */
+  today: WorkshopActivity[];
+  /** Every other activity the talent has been offered, newest event first. */
+  activities: WorkshopActivity[];
+};

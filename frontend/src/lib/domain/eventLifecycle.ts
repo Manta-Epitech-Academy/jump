@@ -1,4 +1,4 @@
-import { now as nowInTimezone } from '@internationalized/date';
+import { fromDate } from '@internationalized/date';
 
 /**
  * Single source of truth for "is an event upcoming, ongoing, or past".
@@ -7,28 +7,35 @@ import { now as nowInTimezone } from '@internationalized/date';
  * When `endDate` is null the event is treated as single-day: it occupies the
  * calendar day of `date` (in the campus timezone).
  *
+ * The answer is decided by CALENDAR DAY, never by instant. An event is ongoing
+ * on every campus day its window touches, from the first minute of its first
+ * day to the last minute of its last one. Comparing instants instead got both
+ * ends wrong: Salesforce stores `date` at UTC midnight, so a Paris event read
+ * « à venir » until 02:00 on its own day, and an `endDate` written at UTC
+ * midnight read « passé » from the first minute of its last day.
+ *
  * Because day boundaries are timezone-dependent, callers compute the bounds
  * once for the campus with `getLifecycleBounds` and pass them in.
  */
 export type EventLifecycleStatus = 'upcoming' | 'ongoing' | 'past';
 
 export type LifecycleBounds = {
-  /** Current instant. */
-  now: Date;
-  /** Start of the campus's current calendar day. */
+  /** Start of the campus's calendar day containing `at`. */
   startOfDay: Date;
-  /** End of the campus's current calendar day. */
+  /** End of the campus's calendar day containing `at`. */
   endOfDay: Date;
 };
 
-export function getLifecycleBounds(timezone: string): LifecycleBounds {
-  const tzNow = nowInTimezone(timezone);
+export function getLifecycleBounds(
+  timezone: string,
+  at: Date = new Date(),
+): LifecycleBounds {
+  const zoned = fromDate(at, timezone);
   return {
-    now: tzNow.toDate(),
-    startOfDay: tzNow
+    startOfDay: zoned
       .set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
       .toDate(),
-    endOfDay: tzNow
+    endOfDay: zoned
       .set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
       .toDate(),
   };
@@ -38,12 +45,8 @@ export function getEventStatus(
   event: { date: Date; endDate: Date | null },
   b: LifecycleBounds,
 ): EventLifecycleStatus {
-  if (event.endDate) {
-    if (event.endDate.getTime() < b.now.getTime()) return 'past';
-    if (event.date.getTime() > b.now.getTime()) return 'upcoming';
-    return 'ongoing';
-  }
-  if (event.date.getTime() < b.startOfDay.getTime()) return 'past';
+  const end = event.endDate ?? event.date;
+  if (end.getTime() < b.startOfDay.getTime()) return 'past';
   if (event.date.getTime() > b.endOfDay.getTime()) return 'upcoming';
   return 'ongoing';
 }

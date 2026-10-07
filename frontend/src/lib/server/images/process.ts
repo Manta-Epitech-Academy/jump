@@ -83,3 +83,47 @@ export async function processImage(
   const { width, height } = await new Bun.Image(bytes).metadata();
   return { bytes, contentType: 'image/webp', width, height };
 }
+
+/** What a file's first bytes say it is, whatever it was named or served as. */
+export type SniffedImageType = 'gif' | 'png' | 'jpeg' | 'webp';
+
+const startsWith = (bytes: Uint8Array, prefix: number[], at = 0) =>
+  bytes.length >= at + prefix.length &&
+  prefix.every((byte, i) => bytes[at + i] === byte);
+
+const ascii = (text: string) => [...text].map((c) => c.charCodeAt(0));
+
+/**
+ * The image type from its magic bytes, or null for anything else.
+ *
+ * For bytes Jump did not receive from a person but fetched itself (an
+ * activity's cover), where neither the URL's extension nor the response's
+ * `Content-Type` is evidence of anything: what is stored and served back has to
+ * be what it claims to be.
+ */
+export function sniffImageType(bytes: Uint8Array): SniffedImageType | null {
+  if (startsWith(bytes, ascii('GIF87a')) || startsWith(bytes, ascii('GIF89a')))
+    return 'gif';
+  if (startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    return 'png';
+  if (startsWith(bytes, [0xff, 0xd8, 0xff])) return 'jpeg';
+  if (startsWith(bytes, ascii('RIFF')) && startsWith(bytes, ascii('WEBP'), 8))
+    return 'webp';
+  return null;
+}
+
+/**
+ * A GIF's canvas size, read off its header without decoding a frame.
+ *
+ * An animated GIF is kept as it is (the pipeline above would flatten it), so
+ * this is the only way to learn its size: two little-endian 16-bit words right
+ * after the six-byte signature.
+ */
+export function readGifSize(
+  bytes: Uint8Array,
+): { width: number; height: number } | null {
+  if (sniffImageType(bytes) !== 'gif' || bytes.length < 10) return null;
+  const width = bytes[6]! | (bytes[7]! << 8);
+  const height = bytes[8]! | (bytes[9]! << 8);
+  return width > 0 && height > 0 ? { width, height } : null;
+}
