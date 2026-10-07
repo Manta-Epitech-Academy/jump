@@ -25,7 +25,8 @@ import {
   listTalentWorkshops,
 } from '$lib/server/services/workshopService';
 import { getTalentHome } from '$lib/server/services/talentHomeService';
-import { activitiesLeftToDo, pickHomeHero } from '$lib/domain/talentHome';
+import { pickHomeHero } from '$lib/domain/talentHome';
+import { activitiesToDo } from '$lib/domain/workshops';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -144,8 +145,12 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       highlight: home.highlight,
       activities: workshops.activities,
     });
-    // What is left to do, below the hero (`activitiesLeftToDo`).
-    const toDo = activitiesLeftToDo(workshops.activities, hero);
+    // How many activities are left to walk, counted on the « Mon parcours »
+    // pill: the list itself lives on that page, the home only suggests one.
+    const toDoCount = activitiesToDo([
+      ...workshops.today,
+      ...workshops.activities,
+    ]).length;
 
     // Everything earned on an activity and not yet celebrated. The talent walks
     // the activity in another tab, so nothing here witnesses the moment: the float
@@ -238,7 +243,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       minigameReward,
       minigameRankReward,
       hero,
-      toDo,
+      toDoCount,
       hasActivities:
         workshops.today.length > 0 || workshops.activities.length > 0,
       workshopReward,

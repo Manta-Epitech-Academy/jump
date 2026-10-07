@@ -1543,10 +1543,10 @@ export class World {
    * exactly these numbers on every callback, so a seeded pair that disagrees is a
    * pair no callback could have produced.
    *
-   * `celebrated` is the one-shot float's state, and both halves are worth
-   * placing: `false` leaves the XP owed a celebration, which is what a talent
-   * coming back to the Jump tab sees, and `true` is the state every talent is in
-   * afterwards.
+   * `celebrated` is the float's state, and both halves are worth placing:
+   * `false` leaves the whole grant owed a celebration, which is what a talent
+   * coming back to the Jump tab sees, and `true` marks it all shown, the state
+   * every talent is in afterwards.
    */
   enterWorkshop(opts: {
     talent: TalentRef;
@@ -1572,9 +1572,8 @@ export class World {
       budgetMinutes: opts.budgetMinutes,
       solvedSteps: opts.solvedSteps,
       totalSteps: opts.totalSteps,
-      xpPending: opts.celebrated ? 0 : amount,
+      xpCelebrated: opts.celebrated ? amount : 0,
       firstEnteredAt: opts.at,
-      xpSeenAt: opts.celebrated ? opts.at : null,
       updatedAt: opts.at,
     });
     if (amount > 0) {

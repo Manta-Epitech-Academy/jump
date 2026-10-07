@@ -55,7 +55,7 @@ export const TALENT_HOME_NOTES: Readonly<Record<string, string>> = {
     'Une question ? [Écris-nous](mailto:paris@epitech.invalid).',
   ].join('\n'),
   Marseille: [
-    'Bienvenue sur ton espace ! Les prochaines dates des Coding Clubs arrivent très vite : en attendant, entraîne-toi chaque jour avec l’entraînement du jour.',
+    'Bienvenue sur ton espace ! Les prochaines dates des Coding Clubs arrivent très vite : en attendant, entraîne ton cerveau chaque jour, directement depuis ton accueil.',
   ].join('\n'),
 };
 

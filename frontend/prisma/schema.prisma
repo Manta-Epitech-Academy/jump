@@ -2564,13 +2564,14 @@ model Workshop_Participation {
   budgetMinutes  Int
   solvedSteps    Int       @default(0)
   totalSteps     Int       @default(0)
-  /// XP earned and not yet celebrated on the dashboard. Raised by each callback
-  /// that increases the grant, zeroed by the acknowledgement, which is what makes
-  /// the float fire exactly once (the `xpAwarded` / `xpSeenAt` pair on
-  /// `MinigameAttempt`, one instance at a time).
-  xpPending      Int       @default(0)
+  /// The grant amount the dashboard has already celebrated. What is still owed a
+  /// celebration is the grant minus this, read off the ledger, so it cannot
+  /// drift from what the profile adds up: a replayed or concurrent callback, or a
+  /// progress that falls and climbs back, owes only what `Talent.xp` gained. Only
+  /// the acknowledgement writes it, with the amount the dashboard showed, and
+  /// only ever upwards, so a stale tab cannot replay a float.
+  xpCelebrated   Int       @default(0)
   firstEnteredAt DateTime  @default(now())
-  xpSeenAt       DateTime?
   updatedAt      DateTime  @updatedAt
 
   talent   Talent            @relation(fields: [talentId], references: [id], onDelete: Cascade)

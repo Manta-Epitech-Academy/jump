@@ -210,6 +210,17 @@
       </div>
     </div>
 
+    {#if data.toDoActivities.length > 0}
+      <!-- What is left to walk, first: the home suggests one activity at a
+           time, and this is where the talent finds every other one. -->
+      <div class="mb-8" in:fly={{ y: 20, duration: 400, delay: 50 }}>
+        <ActivitiesCard
+          title="Activités à faire"
+          activities={data.toDoActivities}
+        />
+      </div>
+    {/if}
+
     {#if data.finishedActivities.length > 0 || data.pastEvents.length > 0}
       <!-- What the talent has done, before the ledger of what it earned. -->
       <!-- Side by side when both exist; one alone takes the width rather than

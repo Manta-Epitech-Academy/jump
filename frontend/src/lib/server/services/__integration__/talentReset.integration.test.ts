@@ -11,10 +11,10 @@ import { assertTestDatabase } from './testDatabase';
  * The reset enumerates the talent-scoped tables by hand, which is the only thing
  * it can do and the reason a new one gets forgotten: `Workshop_Participation`
  * was, and the omission is invisible in a diff because the row it leaves is
- * well-formed. It costs an arrears (`xpPending`) that survives the `XpGrant`
- * delete, so the next dashboard load floats XP the ledger no longer holds, and a
- * `budgetMinutes` snapshot that outlives the reset it was supposed to be undone
- * by.
+ * well-formed. It costs a celebration mark (`xpCelebrated`) that survives the
+ * `XpGrant` delete, so XP re-earned from zero are never floated until they pass
+ * it, and a `budgetMinutes` snapshot that outlives the reset it was supposed to
+ * be undone by.
  *
  * Asserted through `resetTalentToImport` rather than over a list of table names:
  * a test that restated the enumeration would pass by agreeing with the bug.
@@ -63,9 +63,9 @@ describe('resetting a talent to import (integration)', () => {
       data: { talentId, eventId, campusId },
     });
 
-    // Mid-activity, with XP that arrived while the Jump tab was in the
-    // background: the state this feature creates, and the one an admin resets a
-    // talent out of.
+    // Mid-activity, with its XP already celebrated: the state a talent is in
+    // between two returns to the dashboard, and the one an admin resets them out
+    // of.
     await prisma.workshop_Participation.create({
       data: {
         talentId,
@@ -75,7 +75,7 @@ describe('resetting a talent to import (integration)', () => {
         budgetMinutes: 120,
         solvedSteps: 6,
         totalSteps: 15,
-        xpPending: 480,
+        xpCelebrated: 480,
       },
     });
     await prisma.xpGrant.create({
@@ -115,9 +115,9 @@ describe('resetting a talent to import (integration)', () => {
       }),
     ]);
 
-    // The mirror goes with the ledger. Kept, it would float 480 XP over a
-    // profile card reading 0 and report "6 / 15 étapes validées" for a talent
-    // returned to import.
+    // The mirror goes with the ledger. Kept, its mark would hold back every
+    // float until the XP earned after the reset passed 480, and it would report
+    // "6 / 15 étapes validées" for a talent returned to import.
     expect(participation).toBeNull();
     expect(grants).toBe(0);
     expect(talent?.xp).toBe(0);

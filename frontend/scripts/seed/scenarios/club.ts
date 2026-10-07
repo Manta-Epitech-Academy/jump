@@ -76,7 +76,7 @@ const [PACMAN, LINUX, SANTA] = WORKSHOPS;
  * dataset. It sits on the PAST session rather than the upcoming one because an
  * event that has not started offers nothing (`selectWorkshopOfferings`), and the
  * anchor regular is guaranteed onto every session: the override is therefore
- * what their « Mes activités » card reads, deterministically, run after run.
+ * what their « Activités à faire » list on « Mon parcours » reads, deterministically, run after run.
  *
  * The upcoming session offers the same subject under its catalogue label, and a
  * second one nobody has walked yet. Neither shows before its day: the first
@@ -321,7 +321,7 @@ export const club: Scenario = {
         {
           role: 'talent (closing sans participation)',
           email: anchorRegular.email,
-          note: 'la participation de la première séance a été supprimée après coup ; le closing tient toujours. Sur son accueil : Pacman IA commencé et pas fini, que le bandeau bleu propose de continuer chez soi, et sa prochaine séance dans la carte de session',
+          note: 'la participation de la première séance a été supprimée après coup ; le closing tient toujours. Sur son accueil : Pacman IA commencé et pas fini, que le bandeau bleu propose de continuer chez soi, et sa prochaine séance dans la carte de session ; « Mon parcours » le liste dans « Activités à faire »',
         },
       ],
     });
