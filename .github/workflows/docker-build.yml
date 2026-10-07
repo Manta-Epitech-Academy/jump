@@ -135,10 +135,11 @@ jobs:
   #
   # The anchor (`--today`) is what keeps a re-seed byte-identical to the last
   # one, and CONTRIBUTING.md (the validation window) says why it must not move
-  # between two promotions of one release. On `dev` it is the run date. On
-  # `staging` it is the SEED_TODAY_STAGING repository variable, set at the
-  # freeze and left alone for the window; without it the job refuses rather
-  # than shifting every date in the dataset under the PO.
+  # between two promotions of one release. It is read from `.github/seed-anchor`
+  # on both branches, never computed: a retouche push carries it unchanged
+  # without anybody remembering anything, and moving it is a commit somebody
+  # reviews. Both branches also generate the same profile, so `dev` holds the
+  # world `staging` is judged on, and only `--env` differs between the two.
   seed:
     runs-on: ubuntu-latest
     needs: [build-seeder, restart-k3s]
@@ -162,18 +163,13 @@ jobs:
         run: |
           PREFIX=$(echo "ghcr.io/${{ github.repository_owner }}/jump" | tr '[:upper:]' '[:lower:]')
           case "${{ github.ref_name }}" in
-            dev)     NS=jump-dev; ENV=dev;     PROFILE=dev;     TODAY=$(date -u +%F) ;;
-            staging) NS=jump-stg; ENV=staging; PROFILE=staging; TODAY="${{ vars.SEED_TODAY_STAGING }}" ;;
+            dev)     NS=jump-dev; ENV=dev ;;
+            staging) NS=jump-stg; ENV=staging ;;
           esac
-          if [ -z "$TODAY" ]; then
-            echo "::error::SEED_TODAY_STAGING is not set. Set the repository variable to the freeze date (YYYY-MM-DD) before promoting to staging; the anchor must stay constant for the validation window."
-            exit 1
-          fi
           {
             echo "namespace=$NS"
             echo "env=$ENV"
-            echo "profile=$PROFILE"
-            echo "today=$TODAY"
+            echo "today=$(cat .github/seed-anchor)"
             echo "image=$PREFIX-seeder:${{ github.ref_name }}"
           } >> "$GITHUB_OUTPUT"
 
@@ -184,7 +180,7 @@ jobs:
         env:
           SEED_NAMESPACE: ${{ steps.target.outputs.namespace }}
           SEED_ENV: ${{ steps.target.outputs.env }}
-          SEED_PROFILE: ${{ steps.target.outputs.profile }}
+          SEED_PROFILE: staging
           SEED_TODAY: ${{ steps.target.outputs.today }}
           SEED_IMAGE: ${{ steps.target.outputs.image }}
         run: |
