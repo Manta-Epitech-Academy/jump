@@ -418,3 +418,27 @@ export async function markWorkshopRewardsSeen(
     ),
   );
 }
+
+/** The most talent ids one erasure question may carry. */
+export const WORKSHOP_ERASURE_BATCH_MAX = 500;
+
+/**
+ * Which of these talents Jump has erased, for a CTFd instance deciding which of
+ * its accounts to delete.
+ *
+ * Positive proof only: an id comes back when its talent carries
+ * `anonymizedAt`, and an id Jump does not know is simply absent. The plugin
+ * deletes what comes back, so "unknown" must never read as "erased": a
+ * development Jump re-seeded under an instance that still holds its old
+ * accounts would otherwise have every one of them deleted, and so would a
+ * production instance asked about by a misconfigured key. A deletion this
+ * answer cannot prove is held, the same rule the Salesforce prune follows.
+ */
+export async function erasedTalentIds(talentIds: string[]): Promise<string[]> {
+  if (talentIds.length === 0) return [];
+  const rows = await prisma.talent.findMany({
+    where: { id: { in: talentIds }, anonymizedAt: { not: null } },
+    select: { id: true },
+  });
+  return rows.map((row) => row.id);
+}
