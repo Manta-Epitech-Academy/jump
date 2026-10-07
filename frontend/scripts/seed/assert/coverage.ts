@@ -120,6 +120,8 @@ const NOT_YET_SEEDED: Readonly<Record<string, string>> = {
     'les trois fixtures portent toutes une intro ; aucune ne montre le rendu sans.',
   'Feedback_Form.personaIconKey':
     'aucune fixture ne nomme de persona, donc l’en-tête illustré du formulaire ne s’affiche jamais.',
+  'Feedback_Form.personaIconSourceUrl':
+    'voir `Feedback_Form.personaIconKey` : c’est l’adresse d’où cette icône aurait été copiée. Le même manque, et il ne se comble pas sans elle : le générateur n’écrit aucun fichier, et l’avatar du persona n’a pas de repli quand son image ne charge pas.',
   'Feedback_Question.minSelections':
     'aucune question multi ne fixe de minimum, donc la validation « choisis-en au moins N » ne se déclenche nulle part.',
   'Feedback_Submission.matchedAt':
