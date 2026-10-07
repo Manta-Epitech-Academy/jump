@@ -558,6 +558,27 @@ describe('the cover an admin gives an activity (integration)', () => {
       }
     });
 
+    // A public address handing the request on to an internal one is the whole
+    // reason every hop is a request of its own. The first hop is an IP, judged
+    // before it is dialled and let through; the second is a name, judged by
+    // the lookup it connects through and refused.
+    it('a redirect to an address that is not public', async () => {
+      files.set('/vers-interne.png', {
+        redirect: `${host.replace('127.0.0.1', 'localhost')}/fantome.png`,
+      });
+      vi.mocked(isPublicAddress)
+        .mockReturnValueOnce(true)
+        .mockReturnValue(false);
+      try {
+        await expectRefused(
+          { ...fullCover(), mascotUrl: at('/vers-interne.png') },
+          /La mascotte .* adresse interne/,
+        );
+      } finally {
+        vi.mocked(isPublicAddress).mockReturnValue(true);
+      }
+    });
+
     it('an activity that does not exist', async () => {
       await expectRefused(
         { ...fullCover(), slug: `${slug}-absent` },
