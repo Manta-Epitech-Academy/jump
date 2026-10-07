@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onImageBroken } from '$lib/actions/onImageBroken';
+  import CopiedPicture from '$lib/components/talent/CopiedPicture.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   import { Button } from '$lib/components/ui/button';
@@ -94,26 +94,17 @@
           )}
         >
           {#if picture}
-            <!-- A rectangle, no radius and no shadow (DESIGN.md: images).
-                 The still replaces the animation for whoever asked for
-                 reduced motion. -->
-            <picture class="block shrink-0 sm:w-2/5">
-              {#if picture.still && picture.still !== picture.main}
-                <source
-                  media="(prefers-reduced-motion: reduce)"
-                  srcset={picture.still.url}
-                />
-              {/if}
-              <img
-                src={picture.main.url}
-                width={picture.main.width}
-                height={picture.main.height}
-                alt=""
-                decoding="async"
-                use:onImageBroken={() => markBroken(picture.main.url)}
-                class="block h-auto w-full ring-1 ring-white/20"
-              />
-            </picture>
+            <!-- A rectangle, no radius and no shadow (DESIGN.md: images),
+                 whatever its proportion: bounded in height so a portrait
+                 leaves the line and the button on a phone's screen, centred
+                 in its column, never stretched past its own pixels. -->
+            <CopiedPicture
+              picture={picture.main}
+              still={picture.still}
+              onBroken={() => markBroken(picture.main.url)}
+              pictureClass="flex shrink-0 justify-center sm:w-2/5"
+              class="block h-auto max-h-[40svh] w-auto max-w-full ring-1 ring-white/20 sm:max-h-80"
+            />
           {/if}
 
           <div class="flex min-w-0 flex-1 flex-col gap-3">
@@ -122,15 +113,12 @@
                    than a small sprite needs: scaled past its own pixels it
                    reads as low resolution rather than as pixel art.
                    Decorative: the tagline carries the meaning. -->
-              <img
-                src={mascot.url}
-                width={mascot.width}
-                height={mascot.height}
-                alt=""
-                decoding="async"
-                use:onImageBroken={() => markBroken(mascot.url)}
+              <CopiedPicture
+                picture={mascot}
+                onBroken={() => markBroken(mascot.url)}
+                pictureClass="self-start"
                 class={cn(
-                  'h-12 w-auto self-start',
+                  'h-12 w-auto max-w-full',
                   mascot.width < 128 && '[image-rendering:pixelated]',
                 )}
               />

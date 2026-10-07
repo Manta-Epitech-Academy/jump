@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onImageBroken } from '$lib/actions/onImageBroken';
+  import CopiedPicture from '$lib/components/talent/CopiedPicture.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   import { Button } from '$lib/components/ui/button';
@@ -36,15 +36,13 @@
       )}
     >
       {#if picture}
-        <!-- A rectangle, no radius and no shadow (DESIGN.md: images). -->
-        <img
-          src={picture.url}
-          width={picture.width}
-          height={picture.height}
-          alt=""
-          decoding="async"
-          use:onImageBroken={() => (broken = true)}
-          class="block h-auto w-full shrink-0 ring-1 ring-white/20 sm:w-2/5"
+        <!-- A rectangle, no radius and no shadow (DESIGN.md: images),
+             bounded like an activity's visual whatever its proportion. -->
+        <CopiedPicture
+          {picture}
+          onBroken={() => (broken = true)}
+          pictureClass="flex shrink-0 justify-center sm:w-2/5"
+          class="block h-auto max-h-[40svh] w-auto max-w-full ring-1 ring-white/20 sm:max-h-80"
         />
       {/if}
 
