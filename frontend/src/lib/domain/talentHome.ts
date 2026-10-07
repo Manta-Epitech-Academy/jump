@@ -129,3 +129,19 @@ export function pickHomeHero({
     .sort((a, b) => b.startedAt!.getTime() - a.startedAt!.getTime());
   return inProgress[0] ? { kind: 'continue', activity: inProgress[0] } : null;
 }
+
+/**
+ * What « Mes activités » lists under the hero: every activity offered on
+ * another day and not finished, except the one the hero already suggests, so
+ * no activity is offered twice on one screen. Finished ones are history, and
+ * belong to « Mon parcours ».
+ */
+export function activitiesLeftToDo(
+  activities: WorkshopActivity[],
+  hero: HomeHero | null,
+): WorkshopActivity[] {
+  const suggested = hero?.kind === 'continue' ? hero.activity.slug : null;
+  return activities.filter(
+    (activity) => !isActivityFinished(activity) && activity.slug !== suggested,
+  );
+}

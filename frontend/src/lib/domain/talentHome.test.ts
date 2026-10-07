@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  activitiesLeftToDo,
   formatHighlightDay,
   isHighlightOpen,
   pickHomeHero,
@@ -114,5 +115,39 @@ describe('pickHomeHero', () => {
         activities: [linux, untouched],
       }),
     ).toBeNull();
+  });
+});
+
+describe('activitiesLeftToDo', () => {
+  const activity = (
+    slug: string,
+    solved: number,
+    total: number,
+  ): WorkshopActivity => ({
+    slug,
+    label: slug,
+    solvedSteps: solved,
+    totalSteps: total,
+    startedAt: solved > 0 ? new Date('2026-10-01T10:00:00Z') : null,
+    cover: { tagline: null, media: null, poster: null, mascot: null },
+  });
+  const pacman = activity('pacman', 3, 10);
+  const linux = activity('linux', 12, 12);
+  const snake = activity('snake', 0, 0);
+
+  it('keeps what is not finished, and never the activity the hero suggests', () => {
+    expect(
+      activitiesLeftToDo([pacman, linux, snake], {
+        kind: 'continue',
+        activity: pacman,
+      }),
+    ).toEqual([snake]);
+  });
+
+  it('keeps every unfinished activity when the hero suggests something else', () => {
+    expect(activitiesLeftToDo([pacman, linux, snake], null)).toEqual([
+      pacman,
+      snake,
+    ]);
   });
 });

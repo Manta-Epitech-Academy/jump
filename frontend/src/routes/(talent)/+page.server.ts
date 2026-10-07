@@ -25,8 +25,7 @@ import {
   listTalentWorkshops,
 } from '$lib/server/services/workshopService';
 import { getTalentHome } from '$lib/server/services/talentHomeService';
-import { pickHomeHero } from '$lib/domain/talentHome';
-import { isActivityFinished } from '$lib/domain/workshops';
+import { activitiesLeftToDo, pickHomeHero } from '$lib/domain/talentHome';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -145,13 +144,8 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       highlight: home.highlight,
       activities: workshops.activities,
     });
-    // What is left to do, below: every activity not finished, except the one
-    // the hero already suggests. Finished ones belong to « Mon parcours ».
-    const toDo = workshops.activities.filter(
-      (activity) =>
-        !isActivityFinished(activity) &&
-        !(hero?.kind === 'continue' && hero.activity.slug === activity.slug),
-    );
+    // What is left to do, below the hero (`activitiesLeftToDo`).
+    const toDo = activitiesLeftToDo(workshops.activities, hero);
 
     // Everything earned on an activity and not yet celebrated. The talent walks
     // the activity in another tab, so nothing here witnesses the moment: the float
