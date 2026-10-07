@@ -176,8 +176,9 @@
         class="mt-2 space-y-2 text-sm leading-relaxed text-muted-foreground"
       >
         <p>
-          On compte les pages de Jump que tu ouvres pour savoir ce qui sert. Ton
-          nom n’y figure pas, et ces données sont effacées au bout de {USAGE_RAW_RETENTION_MONTHS}
+          On compte ce que tu ouvres sur Jump (pages, documents, jeux,
+          activités, questionnaires) pour savoir ce qui sert. Ton nom n’y figure
+          pas, et ces données sont effacées au bout de {USAGE_RAW_RETENTION_MONTHS}
           mois.
         </p>
         <p>
