@@ -7,8 +7,8 @@
   import type { AttendedEvent } from '$lib/server/talent/attendedEvents';
 
   // The latest events the talent attended, on « Mon parcours », with the way to
-  // all of them. History, so it lives behind the XP card and not on the home,
-  // which keeps what is still to do.
+  // all of them. It lives behind the XP card and not on the home, which keeps
+  // only the one thing to do now.
   let { events, timeZone }: { events: AttendedEvent[]; timeZone: string } =
     $props();
 

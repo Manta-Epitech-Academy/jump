@@ -1318,7 +1318,7 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   [USAGE_FEATURES.TALENT_XP_HISTORY_VIEW]: def({
     key: USAGE_FEATURES.TALENT_XP_HISTORY_VIEW,
     label: 'Ton parcours',
-    definition: `Consultations de « Mon parcours » (les XP gagnés, les activités terminées, les événements passés). ${BUCKET_NOTE}`,
+    definition: `Consultations de « Mon parcours » (les XP gagnés, les activités à faire et terminées, les événements passés). ${BUCKET_NOTE}`,
     audience: 'talent',
     space: 'talent',
     kind: 'view',
@@ -1391,7 +1391,7 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     key: USAGE_FEATURES.TALENT_WORKSHOP_OPEN,
     label: 'L’ouverture d’une activité',
     definition:
-      'Ouvertures d’une activité depuis l’accueil, comptées au départ vers l’activité et non aux étapes validées. Une par ouverture : c’est le seul chiffre qui distingue une activité ouverte une fois et abandonnée d’une activité reprise cinq soirs de suite. Les étapes et les XP sont des faits déjà enregistrés ailleurs.',
+      'Ouvertures d’une activité depuis l’accueil ou « Mon parcours », comptées au départ vers l’activité et non aux étapes validées. Une par ouverture : c’est le seul chiffre qui distingue une activité ouverte une fois et abandonnée d’une activité reprise cinq soirs de suite. Les étapes et les XP sont des faits déjà enregistrés ailleurs.',
     audience: 'talent',
     space: 'talent',
     kind: 'action',
