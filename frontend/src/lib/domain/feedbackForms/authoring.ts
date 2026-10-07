@@ -186,6 +186,15 @@ export function formIntegrityProblems(form: AuthoredForm): string[] {
     }
   }
 
+  // The answering route refuses a talent when authenticated access is off, so a
+  // nudge would point the dashboard at a form that turns them away. The builder
+  // switches it off for you; a whole-form write says what it wants instead.
+  if (form.dashboardNudge && !form.allowsAuthenticatedAccess) {
+    problems.push(
+      'La relance sur le tableau de bord (dashboardNudge) ne vaut que pour un formulaire ouvert aux talents connectés (allowsAuthenticatedAccess) : elle les enverrait sur un formulaire qui les refuse.',
+    );
+  }
+
   if (
     form.status === 'published' &&
     publicMissingEmail({ ...form, questions })

@@ -98,8 +98,11 @@ async function assertSectionInForm(
 
 // ─── Form ───
 
+// `staffId` is the author shown in the builder, null when the caller has no staff
+// profile (an admin API token can belong to none): the columns are `SetNull`
+// already, since a departure must never delete a form.
 export async function createForm(
-  staffId: string,
+  staffId: string | null,
   input: { title: string; intro?: string | null; personaName?: string | null },
 ): Promise<{ id: string }> {
   const slug = await uniqueSlug(input.title);
@@ -143,7 +146,7 @@ export async function updateForm(
 
 /** Deep-clones a form (+ sections, questions, options) into a fresh draft. */
 export async function duplicateForm(
-  staffId: string,
+  staffId: string | null,
   sourceId: string,
 ): Promise<{ id: string }> {
   const src = await getFormGraphById(sourceId);
@@ -221,7 +224,10 @@ export async function duplicateForm(
     if (key) {
       await prisma.feedback_Form.update({
         where: { id: created.id },
-        data: { personaIconKey: key },
+        data: {
+          personaIconKey: key,
+          personaIconSourceUrl: src.personaIconSourceUrl,
+        },
       });
     }
   }

@@ -274,6 +274,14 @@ describe('formIntegrityProblems', () => {
     ]);
   });
 
+  it('refuses a dashboard nudge towards a form connected talents cannot open', () => {
+    expect(
+      formIntegrityProblems(
+        form({ dashboardNudge: true, allowsAuthenticatedAccess: false }),
+      ),
+    ).toHaveLength(1);
+  });
+
   it('refuses a published public form that asks no e-mail, and lets a draft be', () => {
     const open = { allowsPublicAccess: true };
     expect(formIntegrityProblems(form({ ...open, status: 'draft' }))).toEqual(

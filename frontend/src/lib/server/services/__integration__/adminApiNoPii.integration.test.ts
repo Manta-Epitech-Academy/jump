@@ -313,7 +313,9 @@ describe('no read operation leaks a talent identity (integration)', () => {
       // Operations with a required parameter cannot be called blind. They are
       // still exercised, with the seeded ids, rather than dropped from cover.
       const blind = operation.schema.safeParse({});
-      const args = blind.success ? blind.data : requiredArgsFor(name, seeded);
+      const args =
+        WIDENED_BY[name]?.(seeded) ??
+        (blind.success ? blind.data : requiredArgsFor(name, seeded));
 
       const answer = await operation.run(args as Record<string, unknown>, {
         tier: 'core',
@@ -375,6 +377,21 @@ describe('no read operation leaks a talent identity (integration)', () => {
     );
   });
 });
+
+/**
+ * Arguments that widen an answer, for the operations whose optional parameter
+ * ADDS content to what they return rather than narrowing it. Called blind, such
+ * an operation would only ever be checked on its smaller shape, and the larger
+ * one is where a select reaching a respondent would land.
+ */
+const WIDENED_BY: Partial<
+  Record<
+    AdminApiOperationName,
+    (seeded: { formId: string }) => Record<string, unknown>
+  >
+> = {
+  config_feedback_forms: (seeded) => ({ formId: seeded.formId }),
+};
 
 /**
  * Arguments for the operations that require one. Deliberately explicit and

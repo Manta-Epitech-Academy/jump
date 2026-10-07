@@ -42,6 +42,11 @@ import { dbDateToKey } from '$lib/domain/eventPresence';
 import { isHighlightOpen } from '$lib/domain/talentHome';
 import { UnknownScopeError, type Scope } from '$lib/server/adminApi/scope';
 import { handleProvenanceFr } from '$lib/server/adminApi/handles';
+import { STRUCTURE_LOCKED_MESSAGE } from '$lib/domain/feedbackForms/authoring';
+import {
+  readFeedbackFormContent,
+  type FeedbackFormContent,
+} from '$lib/server/feedbackForms/content';
 import { hiddenEnrolmentsByEvent, scopedEvents, scopeLabels } from './cohort';
 
 // ── The certificate catalogue ────────────────────────────────────────────────
@@ -387,9 +392,33 @@ export type FormRow = {
   openToPublic: boolean;
 };
 
-export type FeedbackForms = { forms: Metric<FormRow[]> };
+export type FeedbackForms = {
+  forms: Metric<FormRow[]>;
+  form: Metric<FeedbackFormContent | null>;
+  authoring: Metric<string[]>;
+};
 
-export async function getFeedbackForms(): Promise<FeedbackForms> {
+/**
+ * What an author is told before writing a form, as rules the write applies.
+ * Each one is enforced by `domain/feedbackForms/authoring.ts` or the question
+ * schema; this is their statement, so a model reads them before its first
+ * refusal rather than learning them one refusal at a time.
+ */
+const FEEDBACK_AUTHORING_CONTRACT = [
+  "Un formulaire s'écrit en entier : relisez-le avec « formId », modifiez ce qui doit changer, renvoyez le tout. Ce qui n'est pas renvoyé est retiré, sauf l'icône du persona, qui n'est touchée que si « personaIconUrl » est donné.",
+  "L'ordre des tableaux est l'ordre affiché : d'abord les questions hors section, puis chaque section avec ses questions.",
+  "Une question est identifiée par sa clé, une section et une option par leur identifiant. Renvoyez « sectionId » et « optionId » tels que lus : renommer une option en gardant son identifiant garde les réponses déjà données, l'omettre crée une nouvelle option.",
+  `${STRUCTURE_LOCKED_MESSAGE} Une fois des réponses reçues, seuls les textes (titres, intros, énoncés, libellés, réactions, persona) et les réglages du formulaire (statut, accès, relance) changent encore ; ajouter, retirer, déplacer ou réordonner une section, une question ou une option, ou changer la clé, le type ou le caractère obligatoire d'une question, est refusé. La sortie : write_feedback_form_copy, modifier la copie, archiver l'original.`,
+  "Une question à choix (single, multiple, scale) a au moins une option ; une question libre (text, textarea) n'en a aucune ; une option « extra » (hors échelle, comme « je ne sais pas ») n'existe que sur une question scale. Deux options d'une même question ne portent jamais le même libellé.",
+  "Une donnée d'identité (identityField) n'est collectée qu'une fois par formulaire, n'est posée qu'au public, et prend le type qui lui correspond : text pour email, phone, firstName et lastName, single pour civility et campus.",
+  "Un formulaire publié et ouvert au public (allowsPublicAccess) doit demander l'e-mail ; la relance sur le tableau de bord (dashboardNudge) suppose l'accès des talents connectés (allowsAuthenticatedAccess).",
+  'Les textes du persona peuvent citer {prenom}, {nom}, {campus} et {civilite}. Une intro ou une conclusion vide laisse le message par défaut.',
+  "Retirer un formulaire, c'est l'archiver (status archived). Aucune opération ne supprime un formulaire.",
+];
+
+export async function getFeedbackForms(
+  params: { formId?: string } = {},
+): Promise<FeedbackForms> {
   const rows = await prisma.feedback_Form.findMany({
     orderBy: [{ status: 'asc' }, { title: 'asc' }],
     select: {
@@ -400,6 +429,19 @@ export async function getFeedbackForms(): Promise<FeedbackForms> {
       _count: { select: { questions: true, submissions: true, events: true } },
     },
   });
+
+  // Asked for one form: hand it back whole so it can be edited rather than
+  // rewritten. Withheld from the list, where every form's questions would be
+  // pages nobody asked for.
+  let content: FeedbackFormContent | null = null;
+  if (params.formId) {
+    content = await readFeedbackFormContent(prisma, params.formId);
+    if (!content) {
+      throw new UnknownScopeError(
+        `Formulaire « ${params.formId} » introuvable. ${handleProvenanceFr('formId')}`,
+      );
+    }
+  }
 
   return {
     forms: metric(
@@ -413,6 +455,14 @@ export async function getFeedbackForms(): Promise<FeedbackForms> {
         openToPublic: form.allowsPublicAccess,
       })),
       "Les formulaires de bilan existants. « status » vaut brouillon, publié ou archivé : seul un formulaire publié peut recevoir des réponses. « attachedEvents » compte les événements qui l'utilisent, « formId » est l'identifiant à passer aux opérations qui lisent ses résultats ou le rattachent à un événement.",
+    ),
+    form: metric(
+      content,
+      "Le formulaire demandé par « formId », en entier et dans la forme exacte que write_feedback_form accepte : ses réglages, son persona, puis ses questions hors section et ses sections, dans l'ordre où un répondant les rencontre. Null si aucun formulaire n'a été demandé. « locked » vaut vrai dès qu'il a reçu une réponse : sa structure est alors figée. « personaIcon » est null pour la mascotte par défaut ; son « sourceUrl » est l'adresse d'où l'icône a été copiée, ou null si elle a été déposée dans l'interface.",
+    ),
+    authoring: metric(
+      FEEDBACK_AUTHORING_CONTRACT,
+      "Ce qu'il faut savoir avant d'écrire un formulaire. Ce sont des règles appliquées : ce qui les enfreint est refusé à l'enregistrement, pas corrigé en silence.",
     ),
   };
 }

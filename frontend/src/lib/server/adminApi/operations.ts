@@ -199,6 +199,14 @@ import {
   writeClosingTemplate,
   writeEventClosingTemplate,
 } from './writes/closings';
+import { writeFeedbackForm, copyFeedbackForm } from './writes/feedbackForms';
+import {
+  formFields,
+  optionFields,
+  questionFields,
+  sectionFields,
+  withQuestionRules,
+} from '$lib/validation/feedbackForms';
 import {
   bulkEventModules,
   bulkEventShownStatuses,
@@ -490,6 +498,64 @@ function pictureUrl(describe: string) {
     .describe(describe);
 }
 
+/**
+ * One answer option of a feedback form, as `write_feedback_form` takes it and
+ * `config_feedback_forms` returns it. Strict at every depth: a misspelt
+ * `optionId` silently dropped would turn a rename into a new option.
+ */
+const feedbackOption = z.strictObject({
+  optionId: z
+    .string()
+    .min(1)
+    .nullish()
+    .describe(
+      'The id config_feedback_forms returned for this option. Keep it to edit the option: a renamed option keeps the answers already given to it. Omit it to create an option.',
+    ),
+  label: optionFields.label.describe(
+    'French, what the respondent picks. Unique within its question: answers are matched on it.',
+  ),
+  kind: optionFields.kind.describe(
+    '"choice" for an ordinary option. "extra" only on a scale question, for an answer outside the scale such as "Je ne sais pas".',
+  ),
+  reaction: optionFields.reaction.describe(
+    'French line the persona says right after this option is picked. Omit for none.',
+  ),
+});
+
+const feedbackQuestion = withQuestionRules(
+  z.strictObject({
+    key: questionFields.key.describe(
+      'Stable identifier of the question in this form, lowercase letters, digits and _ only. It is what identifies the question: keep it to edit the question, a new key is a new question.',
+    ),
+    prompt: questionFields.prompt.describe(
+      'French, what the persona asks. May cite {prenom}, {nom}, {campus}, {civilite}.',
+    ),
+    type: questionFields.type.describe(
+      'single, multiple or scale take options (a scale lists them best first); text and textarea take a free answer and no options.',
+    ),
+    required: questionFields.required.describe('Defaults to true.'),
+    identityField: questionFields.identityField.describe(
+      "Makes this a question that collects the respondent's identity, asked to public respondents only (a connected talent is already known). At most one question per field. Omit for an ordinary question.",
+    ),
+    inputKind: questionFields.inputKind.describe(
+      'Text questions only: checks the answer as an e-mail or a phone number. An identity question derives it from its field.',
+    ),
+    minSelections: questionFields.minSelections.describe(
+      'Multiple choice only: fewest options to pick.',
+    ),
+    maxSelections: questionFields.maxSelections.describe(
+      'Multiple choice only: most options to pick.',
+    ),
+    placeholder: questionFields.placeholder.describe(
+      'French hint shown in an empty text field.',
+    ),
+    options: z
+      .array(feedbackOption)
+      .default([])
+      .describe('The options, in display order.'),
+  }),
+);
+
 export const ADMIN_API_OPERATIONS = {
   stats_events_overview: defineOperation({
     description:
@@ -631,9 +697,17 @@ export const ADMIN_API_OPERATIONS = {
 
   config_feedback_forms: defineOperation({
     description:
-      'The feedback form catalogue: title, status (draft, published, archived), question count, response count, how many events use it, and whether it accepts public responses. Returns the form ids the other feedback operations take.',
-    shape: {},
-    run: () => getFeedbackForms(),
+      'The feedback form catalogue: title, status (draft, published, archived), question count, response count, how many events use it, and whether it accepts public responses. Returns the form ids the other feedback operations take. Pass formId to also get that form whole, in the exact shape write_feedback_form takes, which is what you edit from rather than rewriting it, and the authoring rules a write enforces.',
+    shape: {
+      formId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          `${handleDescribe('formId')} Pass one to also return the whole form; omit for the catalogue alone.`,
+        ),
+    },
+    run: (params) => getFeedbackForms(params),
   }),
 
   config_workshop_instances: defineOperation({
@@ -794,6 +868,97 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => writeEventFeedbackForm(params),
+  }),
+
+  write_feedback_form: defineWrite({
+    twoStep: true,
+    description:
+      "Create a feedback form, or replace one whole. Read it first with config_feedback_forms and its formId, change what must change, and send everything back: whatever is left out is removed (settings, sections, questions, options), except the persona icon, which is only touched when personaIconUrl is given. Questions outside any section come first, then each section with its own, which is the order respondents meet them. A question is identified by its key, a section and an option by the sectionId and optionId the read returned: keep them to edit those rows, omit them to create new ones. Call it WITHOUT planDigest first: it answers with the form as it stands, the form that would replace it, and a planDigest. Show that to the human, then call again with the digest to apply. Once a form has responses its structure is frozen: wording and settings still change, but adding, removing, moving or reordering a section, question or option, or changing a question's key, type, required flag, identity field, input kind or selection bounds is refused; copy it with write_feedback_form_copy, write the copy, then archive the original. Also refused, every reason at once: a choice question with no option, options on a free-text question, two options with one label, an identity field asked twice or on the wrong type, a dashboard nudge on a form connected talents cannot open, a published form open to the public that asks no e-mail. The apply is refused if the form was edited or answered in between. Retire a form by setting status to archived; nothing deletes one. Safe to repeat on an existing form: a retried apply is refused once its digest no longer matches. Creating (no formId) is NOT safe to repeat, every apply makes a new form, so keep the formId it answers with. Answers with the form as written, ids included.",
+    shape: {
+      formId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(`${handleDescribe('formId')} Omit to create a new form.`),
+      title: formFields.title.describe(
+        'French, the name staff see in the catalogue.',
+      ),
+      intro: formFields.intro.describe(
+        "French opening line the persona speaks, may cite {prenom}. Omit for Jump's default greeting.",
+      ),
+      outro: formFields.outro.describe(
+        "French closing line the persona speaks. Omit for Jump's default goodbye.",
+      ),
+      personaName: formFields.personaName.describe(
+        'Name the persona introduces itself by. Omit for the default mascot.',
+      ),
+      personaIconUrl: z
+        .string()
+        .url()
+        .refine((value) => value.startsWith('https://'), {
+          message:
+            'An https address is required: Jump downloads the picture from it.',
+        })
+        .nullable()
+        .optional()
+        .describe(
+          'https address of the persona avatar. Jump downloads it and keeps a 256 px still (an animation keeps its first frame); PNG, JPEG, WebP or GIF up to 20 MB, from a public address. Restating the address the icon came from downloads nothing. Null puts the default mascot back. Omit to leave the icon as it is, which is the only way to keep one uploaded in the builder.',
+        ),
+      status: formFields.status.describe(
+        'draft while it is being written, published to accept responses, archived to retire it.',
+      ),
+      allowsAuthenticatedAccess: formFields.allowsAuthenticatedAccess.describe(
+        'Connected talents can answer it from Jump.',
+      ),
+      allowsPublicAccess: formFields.allowsPublicAccess.describe(
+        'Anybody with the public link can answer it. Requires an e-mail identity question once published.',
+      ),
+      dashboardNudge: formFields.dashboardNudge.describe(
+        'The talent dashboard reminds connected talents to answer it. Requires allowsAuthenticatedAccess.',
+      ),
+      questions: z
+        .array(feedbackQuestion)
+        .describe('Questions outside any section, asked first, in order.'),
+      sections: z
+        .array(
+          z.strictObject({
+            sectionId: z
+              .string()
+              .min(1)
+              .nullish()
+              .describe(
+                'The id config_feedback_forms returned for this section. Keep it to edit the section, omit it to create one.',
+              ),
+            title: sectionFields.title.describe(
+              'French heading of this part of the form.',
+            ),
+            intro: sectionFields.intro.describe(
+              'French line the persona says when the section starts. Omit for none.',
+            ),
+            questions: z
+              .array(feedbackQuestion)
+              .describe('The questions of this section, in order.'),
+          }),
+        )
+        .describe('The sections, in order, each with its questions.'),
+      planDigest: z
+        .string()
+        .optional()
+        .describe('Digest returned by the dry run. Omit to get a dry run.'),
+    },
+    run: (params, ctx) => writeFeedbackForm(params, ctx.actorUserId),
+  }),
+
+  write_feedback_form_copy: defineWrite({
+    description:
+      'Copy a feedback form whole into a new draft: the same sections, questions, options, persona and icon, none of its responses. The copy starts as a draft, closed to the public, with no dashboard nudge, and its title ends in « (copie) ». This is how a form that already has responses is restructured: copy it, write the copy with write_feedback_form, then archive the original. NOT safe to repeat: every call makes another copy, so keep the formId it answers with. Answers with the copy, ids included.',
+    shape: {
+      formId: z
+        .string()
+        .min(1)
+        .describe(`${handleDescribe('formId')} The form to copy.`),
+    },
+    run: (params, ctx) => copyFeedbackForm(params, ctx.actorUserId),
   }),
 
   write_diploma_template: defineWrite({
