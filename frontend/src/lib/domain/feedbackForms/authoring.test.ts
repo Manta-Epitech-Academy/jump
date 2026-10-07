@@ -319,6 +319,23 @@ describe('formIntegrityProblems', () => {
       '« avis » demande au moins 3 choix parmi 2 option(s) : personne ne pourrait y répondre.',
     ]);
   });
+
+  it('spares a frozen structure its own defects, never what wording or settings break', () => {
+    const [yes] = question().options;
+    const answered = form({
+      questions: [
+        question({ options: [] }),
+        question({ key: 'choix', options: [yes, { ...yes, optionId: 'o9' }] }),
+      ],
+      dashboardNudge: true,
+      allowsAuthenticatedAccess: false,
+    });
+    expect(formIntegrityProblems(answered, { structureFrozen: true })).toEqual([
+      "« choix » propose deux fois l'option « Oui ».",
+      expect.stringContaining('dashboardNudge'),
+    ]);
+    expect(formIntegrityProblems(answered)).toHaveLength(3);
+  });
 });
 
 describe('referenceProblems', () => {

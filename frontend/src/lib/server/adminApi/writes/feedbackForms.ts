@@ -201,6 +201,15 @@ async function buildFormPlan(
     }
   }
 
+  // After the lock, which is what makes an answered form's structure the stored
+  // one: a defect it already carries is not this write's to refuse.
+  const problems = formIntegrityProblems(wanted, {
+    structureFrozen: current?.locked ?? false,
+  });
+  if (problems.length > 0) {
+    refuse("Ce formulaire n'est pas enregistrable en l'état.", problems);
+  }
+
   const personaIcon =
     params.personaIconUrl === undefined
       ? (current?.personaIcon ?? null)
@@ -349,11 +358,6 @@ export async function writeFeedbackForm(
   actorUserId: string,
 ): Promise<WriteOutcome> {
   const wanted = authoredForm(params);
-  const problems = formIntegrityProblems(wanted);
-  if (problems.length > 0) {
-    refuse("Ce formulaire n'est pas enregistrable en l'état.", problems);
-  }
-
   return runTwoStep({
     requestedDigest: params.planDigest,
     buildPlan: () => buildFormPlan(params, wanted),

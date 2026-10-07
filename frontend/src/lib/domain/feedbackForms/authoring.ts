@@ -128,8 +128,25 @@ const CHOICE_TYPES: ReadonlySet<QuestionType> = new Set([
  * selection bounds only on a multiple choice) live on the question schema in
  * `validation/feedbackForms.ts`; these are the rules that need the whole form,
  * or a question together with its options.
+ *
+ * `structureFrozen` is for a form that has responses. Its structure is then the
+ * one already stored (`structuralChanges` refuses any other), so a defect found
+ * there was not made by this write and cannot be undone by it: refusing it
+ * would block every edit that remains possible, archiving the form included.
+ * What wording and settings can still break is checked either way.
  */
-export function formIntegrityProblems(form: AuthoredForm): string[] {
+export function formIntegrityProblems(
+  form: AuthoredForm,
+  { structureFrozen = false }: { structureFrozen?: boolean } = {},
+): string[] {
+  return [
+    ...(structureFrozen ? [] : structureProblems(form)),
+    ...settingProblems(form),
+  ];
+}
+
+/** The rules over what is asked and what can be answered: frozen by responses. */
+function structureProblems(form: AuthoredForm): string[] {
   const problems: string[] = [];
   const questions = allQuestions(form);
 
@@ -177,9 +194,19 @@ export function formIntegrityProblems(form: AuthoredForm): string[] {
         `« ${q.key} » demande au moins ${q.minSelections} choix parmi ${choices.length} option(s) : personne ne pourrait y répondre.`,
       );
     }
+  }
 
-    // A submission resolves an answer by its label, so two options reading the
-    // same would make one of them unreachable.
+  return problems;
+}
+
+/** The rules over wording and settings, which still change once answered. */
+function settingProblems(form: AuthoredForm): string[] {
+  const problems: string[] = [];
+  const questions = allQuestions(form);
+
+  // A submission resolves an answer by its label, so two options reading the
+  // same would make one of them unreachable.
+  for (const q of questions) {
     const labels = new Set<string>();
     for (const o of q.options) {
       if (labels.has(o.label)) {

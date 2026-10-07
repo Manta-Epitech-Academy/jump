@@ -437,6 +437,33 @@ describe('feedback forms authored over the API (integration)', () => {
     expect((await readForm(formId)).questions).toHaveLength(1);
   });
 
+  it('lets an answered form be archived despite a defect its frozen structure carries', async () => {
+    const created = await write(baseForm('défaut figé'));
+    const formId = created.payload.formId!;
+    // A choice question emptied in the builder before the first response, which
+    // nothing there forbids, and which the lock now forbids fixing.
+    await prisma.feedback_Question.create({
+      data: {
+        formId,
+        key: 'vide',
+        position: 2,
+        prompt: 'Rien à choisir ?',
+        type: 'single',
+        required: false,
+      },
+    });
+    await submitTo(formId);
+
+    const read = await readForm(formId);
+    expect(read.locked).toBe(true);
+    const archived = await write({
+      ...asWrite(read as FormRead & Record<string, unknown>),
+      status: 'archived',
+    });
+    expect(archived.status, String(archived.payload.error)).toBe(200);
+    expect((await readForm(formId)).status).toBe('archived');
+  });
+
   it('refuses an apply once somebody else has edited the form since the plan', async () => {
     const created = await write(baseForm('édité entre-temps'));
     const formId = created.payload.formId!;
