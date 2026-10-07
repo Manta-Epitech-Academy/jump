@@ -10,6 +10,7 @@ import {
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { RequestEvent, RequestHandler } from '@sveltejs/kit';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
@@ -217,12 +218,15 @@ describe('feedback forms authored over the API (integration)', () => {
     ],
   });
 
-  async function submitTo(formId: string) {
-    const option = await prisma.feedback_QuestionOption.findFirstOrThrow({
+  async function submitTo(
+    formId: string,
+    db: Prisma.TransactionClient = prisma,
+  ) {
+    const option = await db.feedback_QuestionOption.findFirstOrThrow({
       where: { question: { formId, key: 'avis' } },
       orderBy: { position: 'asc' },
     });
-    await prisma.feedback_Submission.create({
+    await db.feedback_Submission.create({
       data: {
         formId,
         source: 'public',
@@ -434,6 +438,61 @@ describe('feedback forms authored over the API (integration)', () => {
     });
     expect(refused.status).toBe(400);
     expect(refused.payload.error).toContain('write_feedback_form_copy');
+    expect((await readForm(formId)).questions).toHaveLength(1);
+  });
+
+  // The plan is rebuilt on apply, so the two tests around this one are refused
+  // before the write's transaction opens. This one lands a response after that
+  // check and before the transaction reads the form: only the lock and the
+  // re-read under it stand between that response and a structural edit.
+  it('refuses an apply that a response overtakes while it is being written', async () => {
+    const created = await write(baseForm('répondu pendant'));
+    const formId = created.payload.formId!;
+    const body = {
+      ...asWrite(
+        (await readForm(formId)) as FormRead & Record<string, unknown>,
+      ),
+      questions: [],
+    };
+    const dry = await call(postForm, secret, body);
+
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    let responder = '';
+    let held!: () => void;
+    const holding = new Promise<void>((resolve) => (held = resolve));
+    const responding = prisma.$transaction(
+      async (tx) => {
+        await submitTo(formId, tx);
+        const [{ xid }] = await tx.$queryRaw<
+          { xid: string }[]
+        >`SELECT pg_current_xact_id()::text AS xid`;
+        responder = xid;
+        held();
+        await released;
+      },
+      { timeout: 15_000 },
+    );
+
+    await holding;
+    const applying = call(postForm, secret, {
+      ...body,
+      planDigest: dry.payload.planDigest,
+    });
+    // Released only once the apply is queued behind the response.
+    for (;;) {
+      const [{ waiting }] = await prisma.$queryRaw<{ waiting: number }[]>`
+        SELECT count(*)::int AS waiting FROM pg_locks
+        WHERE NOT granted AND locktype = 'transactionid'
+          AND transactionid::text = ${responder}`;
+      if (waiting > 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    release();
+    await responding;
+
+    const refused = await applying;
+    expect(refused.status).toBe(409);
     expect((await readForm(formId)).questions).toHaveLength(1);
   });
 

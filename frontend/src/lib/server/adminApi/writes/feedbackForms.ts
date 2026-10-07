@@ -392,10 +392,14 @@ export async function writeFeedbackForm(
               ? [{ key: iconKey, bytes: iconBytes, contentType: 'image/webp' }]
               : [],
           commit: async (tx) => {
-            // Serialises writers of this form, then checks nobody changed it
-            // since the plan was shown: the digest was compared before this
-            // transaction opened, and a response arriving in the gap would
-            // otherwise let a structural edit through on a locked form.
+            // The digest was compared before this transaction opened, so check
+            // again under the form's lock. Recording a response takes a key
+            // share on this row, so one arriving in the gap either committed
+            // already, and the re-read sees it, or waits for this write: either
+            // way no structural edit lands on an answered form. The builder's
+            // field edits lock only their own rows, so one committing after
+            // this re-read is overwritten, last writer wins, as between two
+            // builder tabs.
             await tx.$executeRaw`SELECT 1 FROM "Feedback_Form" WHERE id = ${formId} FOR UPDATE`;
             const live = (await readFeedbackFormContent(tx, formId))!;
             if (
