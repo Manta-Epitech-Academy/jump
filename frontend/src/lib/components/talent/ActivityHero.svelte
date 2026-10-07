@@ -95,15 +95,12 @@
         >
           {#if picture}
             <!-- A rectangle, no radius and no shadow (DESIGN.md: images),
-                 whatever its proportion: bounded in height so a portrait
-                 leaves the line and the button on a phone's screen, centred
-                 in its column, never stretched past its own pixels. -->
+                 whatever its proportion (`CopiedPicture` bounds it). -->
             <CopiedPicture
               picture={picture.main}
               still={picture.still}
+              layout="hero"
               onBroken={() => markBroken(picture.main.url)}
-              pictureClass="flex shrink-0 justify-center sm:w-2/5"
-              class="block h-auto max-h-[40svh] w-auto max-w-full ring-1 ring-white/20 sm:max-h-80"
             />
           {/if}
 
@@ -115,12 +112,8 @@
                    Decorative: the tagline carries the meaning. -->
               <CopiedPicture
                 picture={mascot}
+                layout="sprite"
                 onBroken={() => markBroken(mascot.url)}
-                pictureClass="self-start"
-                class={cn(
-                  'h-12 w-auto max-w-full',
-                  mascot.width < 128 && '[image-rendering:pixelated]',
-                )}
               />
             {/if}
 

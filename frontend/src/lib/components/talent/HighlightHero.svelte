@@ -40,9 +40,8 @@
              bounded like an activity's visual whatever its proportion. -->
         <CopiedPicture
           {picture}
+          layout="hero"
           onBroken={() => (broken = true)}
-          pictureClass="flex shrink-0 justify-center sm:w-2/5"
-          class="block h-auto max-h-[40svh] w-auto max-w-full ring-1 ring-white/20 sm:max-h-80"
         />
       {/if}
 
