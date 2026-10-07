@@ -78,16 +78,13 @@
         {:else}
           <p class="mt-1 text-sm text-foreground-secondary">
             {#if outcome === 'won'}
-              <span class="font-semibold">Défi relevé</span>{#if result}<span
-                  class="text-muted-foreground"
-                >
-                  · {result}</span
+              <span class="font-semibold">Défi relevé</span
+              >{#if result}{' '}<span class="text-muted-foreground"
+                  >· {result}</span
                 >{/if}
             {:else}
-              <span class="font-semibold">Pas validé</span><span
-                class="text-muted-foreground"
-              >
-                · retente demain</span
+              <span class="font-semibold">Pas validé</span>{' '}<span
+                class="text-muted-foreground">· retente demain</span
               >
             {/if}
           </p>
