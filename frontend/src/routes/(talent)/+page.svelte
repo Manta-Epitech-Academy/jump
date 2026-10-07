@@ -98,6 +98,10 @@
     return { publication: minigame.publication, attempt: minigame.lastAttempt };
   });
 
+  // Whether the talent has a card of their own beside the XP one. Without
+  // one, the XP card is alone in its row and takes the whole of it.
+  let ownCards = $derived(!!training || showsSessionCard(planning));
+
   // An activity is walked in a SECOND TAB, so coming back here reloads nothing on
   // its own and the XP earned meanwhile would only appear on the next navigation.
   //
@@ -165,7 +169,7 @@
 
     {#snippet dailyTraining()}
       {#if training}
-        <div class="order-3">
+        <div class="max-lg:order-3">
           <DailyTrainingTile {...training} />
           {#if dev}
             <!-- Dev-only: flips today's attempt; stripped in prod. -->
@@ -196,11 +200,12 @@
            page is too narrow for the XP card.
            On a day Jump suggests nothing, there is no right column: the
            talent's cards take the width, the XP card beside the training and
-           the session, rather than a column left empty.
+           the session, or alone across the page, rather than a column left
+           empty.
            Below `lg` every wrapper collapses (display: contents) so the cards
-           join the outer grid as siblings and `order-*` interleaves them:
-           hero, XP, training, Actualités, session. `order` is inert in two
-           columns (block children, not flex/grid items). -->
+           join the outer grid as siblings and `max-lg:order-*` interleaves
+           them: hero, XP, training, Actualités, session. From `lg` the columns
+           read in source order, which is why every `order` stops there. -->
       <div
         class={cn(
           'contents',
@@ -212,7 +217,10 @@
       >
         <a
           href={resolve('/parcours')}
-          class="group order-2 block cursor-pointer rounded-xl border border-border bg-card p-6 shadow-raised transition-ui active:scale-[0.98] lg:col-span-4"
+          class={cn(
+            'group block cursor-pointer rounded-xl border border-border bg-card p-6 shadow-raised transition-ui active:scale-[0.98] max-lg:order-2',
+            ownCards ? 'lg:col-span-4' : 'lg:col-span-12',
+          )}
         >
           <div class="flex flex-col items-center text-center">
             <div
@@ -252,7 +260,7 @@
           </div>
         </a>
 
-        {#if training || showsSessionCard(planning)}
+        {#if ownCards}
           <div
             class={cn(
               'contents lg:block lg:space-y-6',
@@ -265,7 +273,7 @@
               <!-- The talent's own next session, or the way into a running
                    stage's schedule. Last on a phone: the hero already says
                    what to do today. -->
-              <div class="order-5">
+              <div class="max-lg:order-5">
                 <SessionCard {planning} timeZone={data.timeZone} />
               </div>
             {/if}
@@ -281,13 +289,13 @@
           {#if hero}
             <!-- Where Jump says what to do now: the head of the right column,
                  level with the XP card, and first of all on a phone. -->
-            <div class="order-1">
+            <div class="max-lg:order-1">
               <TalentHomeHero {hero} />
             </div>
           {/if}
 
           {#if data.note}
-            <div class="order-4">
+            <div class="max-lg:order-4">
               <NewsCard html={data.note} />
             </div>
           {/if}
