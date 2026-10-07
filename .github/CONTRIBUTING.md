@@ -234,7 +234,7 @@ branches generate the `staging` profile from the anchor committed in `.github/se
 holds the world `staging` is judged on. A retouche carries that file unchanged, which is what keeps the
 anchor still for the window without anybody remembering to; moving it is a one-line commit, made between
 two windows and never during one. An out-of-band run, for a generation between two pushes, is
-`jumper-k3s/scripts/jump/seed.sh`, which anchors on its own run date until it reads that file too.
+`jump-k3s/scripts/jump/seed.sh`, which anchors on its own run date until it reads that file too.
 
 The live `staging` was switched over on 2026-09-07: a `prisma migrate reset`, a generation, then
 `frontend/scripts/bootstrap-admins.ts` for the admin accounts the reset destroys. Nothing had seeded it
