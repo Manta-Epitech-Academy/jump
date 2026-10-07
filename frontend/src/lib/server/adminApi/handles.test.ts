@@ -93,6 +93,18 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'retired',
   'options',
   'sections',
+  // A feedback form, written whole: its settings, its persona and the address of
+  // the picture Jump downloads for it, and its questions. Authored, like a
+  // closing grid; the section and option ids nested inside are handles, and are
+  // returned by config_feedback_forms with the form they belong to.
+  'intro',
+  'outro',
+  'personaName',
+  'personaIconUrl',
+  'allowsAuthenticatedAccess',
+  'allowsPublicAccess',
+  'dashboardNudge',
+  'questions',
   // Flags, windows and sizes.
   'intervalMinutes',
   'enabled',

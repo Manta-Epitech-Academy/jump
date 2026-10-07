@@ -154,7 +154,13 @@ export const HANDLES: Record<HandleKind, Handle> = {
     what: 'A question\'s stable key inside its form, e.g. "reco". Its wording is not an identifier: it is phrased for students and editable per form.',
     frNoun: 'clés de question',
     frGender: 'f',
-    producedBy: [{ operation: 'stats_feedback_results' }],
+    producedBy: [
+      { operation: 'stats_feedback_results' },
+      {
+        operation: 'config_feedback_forms',
+        covers: 'with formId, every question of that form, answered or not',
+      },
+    ],
   },
   templateName: {
     what: 'Event configuration preset name, which is what identifies it.',

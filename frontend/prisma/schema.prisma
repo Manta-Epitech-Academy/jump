@@ -1295,6 +1295,11 @@ model Feedback_Form {
   // mascot art. Served through the public /api/feedback-forms/[id]/persona-icon
   // proxy; the key changes on every replace so the rendered ?v= URL busts cache.
   personaIconKey String?
+  // The https address the icon was copied from, when an admin API write gave
+  // one. Null for an icon uploaded in the builder, and for none. It is what
+  // lets a write that restates the same address keep the stored copy instead
+  // of downloading it again under a new key.
+  personaIconSourceUrl String?
   status         Feedback_FormStatus @default(draft)
 
   allowsAuthenticatedAccess Boolean @default(true)

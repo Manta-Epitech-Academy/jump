@@ -108,7 +108,8 @@ const CORE_INSTRUCTIONS = [
   'Tools whose name starts with write_ or bulk_ change data. Every one of them is',
   'logged with what it changed, each states in its description whether repeating',
   'it is safe, and each answers with the resulting state: report that state rather',
-  'than asserting success. A bulk_ tool must first be called without planDigest to',
+  'than asserting success. A tool that takes a planDigest (every bulk_ tool, and',
+  'the writes that replace a whole structure) must first be called without it to',
   'obtain a plan; show that plan to the human, and only then call it again with',
   'the digest it returned.',
 ];
