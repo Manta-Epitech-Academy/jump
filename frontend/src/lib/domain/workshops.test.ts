@@ -7,12 +7,13 @@ const offering = (
   day: string,
   status: EventLifecycleStatus,
   position = 0,
+  eventId = `${instanceId}@${day}`,
 ) => ({
   instanceId,
   eventDate: new Date(`${day}T00:00:00Z`),
   status,
   position,
-  eventId: `${instanceId}@${day}`,
+  eventId,
 });
 
 const none = new Set<string>();
@@ -82,11 +83,44 @@ describe('selectWorkshopOfferings', () => {
   it('lists the newest event first, then in the event’s own order', () => {
     const rows = [
       offering('linux', '2026-03-11', 'past', 0),
-      offering('santa', '2026-10-28', 'ongoing', 1),
-      offering('pacman', '2026-10-28', 'ongoing', 0),
+      offering('pacman', '2026-10-28', 'ongoing', 1, 'camp'),
+      offering('santa', '2026-10-28', 'ongoing', 0, 'camp'),
     ];
     expect(
       selectWorkshopOfferings(rows, none).map((o) => o.instanceId),
-    ).toEqual(['pacman', 'santa', 'linux']);
+    ).toEqual(['santa', 'pacman', 'linux']);
+  });
+
+  // Two events of the same day, both offering one subject: whichever is chosen
+  // pins the minute budget on a first entry, so it cannot depend on the order
+  // the database happened to return the enrolments in.
+  it('resolves a tie between two events of the same day the same way every time', () => {
+    const club = offering('pacman', '2026-10-28', 'ongoing', 0, 'evt-b');
+    const camp = offering('pacman', '2026-10-28', 'ongoing', 0, 'evt-a');
+    for (const rows of [
+      [club, camp],
+      [camp, club],
+    ]) {
+      expect(selectWorkshopOfferings(rows, none)).toEqual([
+        expect.objectContaining({ eventId: 'evt-a' }),
+      ]);
+    }
+  });
+
+  it('keeps two events of the same day apart, in the same order every time', () => {
+    const rows = [
+      offering('santa', '2026-10-28', 'ongoing', 0, 'evt-b'),
+      offering('linux', '2026-10-28', 'ongoing', 1, 'evt-a'),
+      offering('pacman', '2026-10-28', 'ongoing', 0, 'evt-a'),
+    ];
+    const expected = ['pacman', 'linux', 'santa'];
+    expect(
+      selectWorkshopOfferings(rows, none).map((o) => o.instanceId),
+    ).toEqual(expected);
+    expect(
+      selectWorkshopOfferings([...rows].reverse(), none).map(
+        (o) => o.instanceId,
+      ),
+    ).toEqual(expected);
   });
 });

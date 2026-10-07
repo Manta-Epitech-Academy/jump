@@ -123,6 +123,8 @@
                 class="size-3.5 transition-transform group-hover:translate-x-0.5"
               />
             </span>
+            <!-- Outside the action word, which a phone does not show. -->
+            <span class="sr-only">(nouvel onglet)</span>
           </button>
         </form>
       </li>

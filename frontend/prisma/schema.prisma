@@ -2484,10 +2484,10 @@ model Workshop_CoverImage {
   kind        WorkshopCoverKind
   /// The address it was copied from, handed back by `config_workshop_instances`
   /// so the admin can see and restate the cover. Not a change detector: every
-  /// write downloads again, and the content-addressed `key` is what says
-  /// whether the picture changed.
+  /// write downloads it again.
   sourceUrl   String
-  /// Storage key, content-addressed: `workshops/<instanceId>/<kind>-<sha>.<ext>`.
+  /// Storage key, `workshops/<instanceId>/<kind>-<writeId>.<ext>`: minted per
+  /// write and never reused, so only the write that replaces it deletes it.
   key         String            @unique
   contentType String
   /// Intrinsic size, so the dashboard reserves the box before the bytes land.

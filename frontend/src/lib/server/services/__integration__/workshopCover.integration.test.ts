@@ -21,11 +21,14 @@ import { assertTestDatabase } from './testDatabase';
  * downloads, what it refuses to follow or to keep, what it stores, and that a
  * refused write leaves the cover exactly as it was.
  *
- * Storage and the image pipeline are the two things stubbed. Storage records
- * every key so a rotation and its cleanup are visible; the pipeline is
- * `Bun.Image`, which vitest's Node runner does not have, so it hands the bytes
- * back as they came (which keeps the content-addressed keys meaningful) at a
- * size each test can set.
+ * Storage, the image pipeline and the address policy are the three things
+ * stubbed. Storage records every key so a rotation and its cleanup are
+ * visible; the pipeline is `Bun.Image`, which vitest's Node runner does not
+ * have, so it hands the bytes back as they came (so a stored copy can be
+ * compared with what the host served) at a size each test can set. The address
+ * policy refuses loopback, which is where the test host lives, so it is let
+ * through here and judged on its own in `infra/publicAddress.test.ts`; one test
+ * turns it back on to see a refusal reach the admin.
  */
 const objects = new Map<string, Uint8Array>();
 /** The size the stubbed pipeline reports for a still. */
@@ -50,6 +53,10 @@ vi.mock('$lib/server/infra/storage', () => ({
   isObjectNotFound: () => false,
 }));
 
+vi.mock('$lib/server/infra/publicAddress', () => ({
+  isPublicAddress: vi.fn(() => true),
+}));
+
 vi.mock('$lib/server/images/process', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('$lib/server/images/process')>();
@@ -69,6 +76,7 @@ const { ADMIN_API_OPERATIONS } =
   await import('$lib/server/adminApi/operations');
 const { OperationRefusedError } = await import('$lib/server/adminApi/errors');
 const { REMOTE_IMAGE_MAX_BYTES } = await import('$lib/server/images/remote');
+const { isPublicAddress } = await import('$lib/server/infra/publicAddress');
 const { GET: coverProxy } =
   await import('../../../../routes/api/workshops/covers/[instanceId]/[file]/+server');
 
@@ -92,10 +100,15 @@ describe('the cover an admin gives an activity (integration)', () => {
   let server: Server;
   let host = '';
   let instanceId = '';
-  /** What the host serves, by path: bytes, a fake length, or a redirect. */
+  /**
+   * What the host serves, by path: bytes, a fake length, a body streamed with
+   * no length at all, or a redirect.
+   */
   let files: Map<
     string,
-    { bytes: Uint8Array; length?: number } | { redirect: string }
+    | { bytes: Uint8Array; length?: number }
+    | { stream: number }
+    | { redirect: string }
   >;
 
   const at = (path: string) => `${host}${path}`;
@@ -119,6 +132,18 @@ describe('the cover an admin gives an activity (integration)', () => {
       orderBy: { kind: 'asc' },
     });
 
+  /**
+   * The bucket holds exactly what the rows name for this activity: nothing a
+   * row points at is missing, and nothing is left that no row points at.
+   */
+  async function expectStorageMatchesRows() {
+    const named = (await storedImages()).map((image) => image.key).sort();
+    const held = [...objects.keys()]
+      .filter((key) => key.startsWith(`workshops/${instanceId}/`))
+      .sort();
+    expect(held).toEqual(named);
+  }
+
   beforeAll(async () => {
     assertTestDatabase();
     server = createServer((req, res) => {
@@ -129,6 +154,22 @@ describe('the cover an admin gives an activity (integration)', () => {
       }
       if ('redirect' in file) {
         res.writeHead(302, { location: file.redirect }).end();
+        return;
+      }
+      if ('stream' in file) {
+        // Chunked, so nothing announces the size before the bytes arrive.
+        res.writeHead(200);
+        const chunk = Buffer.alloc(64 * 1024, 0x89);
+        let left = file.stream;
+        const pump = () => {
+          while (left > 0) {
+            left -= chunk.byteLength;
+            if (!res.write(chunk)) return void res.once('drain', pump);
+          }
+          res.end();
+        };
+        res.on('close', () => (left = 0));
+        pump();
         return;
       }
       res.writeHead(200, {
@@ -190,15 +231,11 @@ describe('the cover an admin gives an activity (integration)', () => {
     );
   });
 
-  it('keeps every picture in place when the same cover is written again', async () => {
-    const before = await storedImages();
-    const objectCount = objects.size;
-
+  it('leaves the same cover when the same call is written again, and no copy behind', async () => {
     const outcome = await write(fullCover());
 
     expect(outcome.after).toEqual(outcome.before);
-    expect(await storedImages()).toEqual(before);
-    expect(objects.size).toBe(objectCount);
+    await expectStorageMatchesRows();
   });
 
   it('picks up a picture replaced at the same address, and deletes the old copy', async () => {
@@ -208,9 +245,68 @@ describe('the cover an admin gives an activity (integration)', () => {
     await write(fullCover());
 
     const poster = (await storedImages()).find((i) => i.kind === 'poster')!;
-    expect(poster.key).not.toBe(oldPoster.key);
-    expect(objects.has(poster.key)).toBe(true);
+    expect(objects.get(poster.key)).toEqual(png(3));
     expect(objects.has(oldPoster.key)).toBe(false);
+    await expectStorageMatchesRows();
+  });
+
+  // Two admins, or a model retrying on a timeout while its first call is still
+  // in flight. The other writer is played by hand so that the overlap is the
+  // one that matters, every time: it holds the activity while this write
+  // reaches its transaction, then commits a cover of its own and clears what
+  // it replaced, exactly as a write does. This write must then replace the
+  // OTHER writer's pictures, not the ones it saw before waiting, or theirs are
+  // left in the bucket with no row naming them.
+  it('replaces what a concurrent write committed while it waited', async () => {
+    const otherKeys: string[] = [];
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    let holder = '';
+    let held!: () => void;
+    const holding = new Promise<void>((resolve) => (held = resolve));
+
+    const other = prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT 1 FROM "Workshop_Instance" WHERE id = ${instanceId} FOR UPDATE`;
+        const [{ xid }] = await tx.$queryRaw<
+          { xid: string }[]
+        >`SELECT pg_current_xact_id()::text AS xid`;
+        holder = xid;
+        held();
+        await released;
+
+        const replaced = await tx.workshop_CoverImage.findMany({
+          where: { instanceId },
+        });
+        await tx.workshop_CoverImage.deleteMany({ where: { instanceId } });
+        for (const image of replaced) {
+          const key = `workshops/${instanceId}/${image.kind}-other.webp`;
+          objects.set(key, png(9));
+          otherKeys.push(key);
+          await tx.workshop_CoverImage.create({ data: { ...image, key } });
+        }
+        return replaced.map((image) => image.key);
+      },
+      { timeout: 15_000 },
+    );
+
+    await holding;
+    const writing = write(fullCover());
+    // Released only once this write is queued behind the other one.
+    for (;;) {
+      const [{ waiting }] = await prisma.$queryRaw<{ waiting: number }[]>`
+        SELECT count(*)::int AS waiting FROM pg_locks
+        WHERE NOT granted AND locktype = 'transactionid'
+          AND transactionid::text = ${holder}`;
+      if (waiting > 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    release();
+    for (const key of await other) objects.delete(key);
+    await writing;
+
+    for (const key of otherKeys) expect(objects.has(key)).toBe(false);
+    await expectStorageMatchesRows();
   });
 
   it('removes what the call leaves out', async () => {
@@ -225,6 +321,7 @@ describe('the cover an admin gives an activity (integration)', () => {
       'poster',
     ]);
     expect(objects.has(mascot.key)).toBe(false);
+    await expectStorageMatchesRows();
   });
 
   describe('a picture that cannot be copied refuses the whole write', () => {
@@ -282,6 +379,35 @@ describe('the cover an admin gives an activity (integration)', () => {
         { ...fullCover(), mediaUrl: at('/huge.gif') },
         /dépasse 6 Mo/,
       );
+    });
+
+    it('a picture over 6 MB that never said how large it was', async () => {
+      files.set('/flux.png', { stream: REMOTE_IMAGE_MAX_BYTES * 4 });
+      await expectRefused(
+        { ...fullCover(), posterUrl: at('/flux.png') },
+        /dépasse 6 Mo/,
+      );
+    });
+
+    it('an address that is not public, written as an IP or as a name', async () => {
+      vi.mocked(isPublicAddress).mockReturnValue(false);
+      try {
+        // An IP is judged before the request, a name by the lookup the
+        // request connects through: every address is a name here, so the
+        // refusal can only have come from the second.
+        await expectRefused(fullCover(), /adresse interne/);
+        const byName = Object.fromEntries(
+          Object.entries(fullCover()).map(([field, value]) => [
+            field,
+            field.endsWith('Url')
+              ? value.replace('127.0.0.1', 'localhost')
+              : value,
+          ]),
+        ) as ReturnType<typeof fullCover>;
+        await expectRefused(byName, /adresse interne/);
+      } finally {
+        vi.mocked(isPublicAddress).mockReturnValue(true);
+      }
     });
 
     it('a still too narrow for the hero, or not landscape', async () => {

@@ -38,9 +38,12 @@ export function workshopSlugFromSourceId(
  * Where a cover picture lives once copied, and the URL a page asks for it at.
  *
  * Composed here and nowhere else, because the proxy route turns its two path
- * segments back into the key and the two directions must not drift. The key is
- * content-addressed (`digest` is a hash of the stored bytes), which is what lets
- * the proxy cache a picture forever: new bytes are a new key.
+ * segments back into the key and the two directions must not drift.
+ *
+ * A key belongs to ONE write (`writeId`, minted per `write_workshop_cover`
+ * call) and is never reused, even for bytes another write already stored. That
+ * is what lets the proxy cache a picture forever, and what lets each key have
+ * exactly one party that may delete it (`images/remote.ts`, `swapStoredImages`).
  */
 export type WorkshopCoverKind = 'media' | 'poster' | 'mascot';
 
@@ -49,10 +52,10 @@ const COVER_PREFIX = 'workshops';
 export function workshopCoverKey(
   instanceId: string,
   kind: WorkshopCoverKind,
-  digest: string,
+  writeId: string,
   extension: string,
 ): string {
-  return `${COVER_PREFIX}/${instanceId}/${kind}-${digest}.${extension}`;
+  return `${COVER_PREFIX}/${instanceId}/${kind}-${writeId}.${extension}`;
 }
 
 /** The key the proxy route's `[instanceId]/[file]` segments name. */
@@ -76,22 +79,27 @@ export function workshopCoverUrl(key: string): string {
  * finish, and the students carry on at home in the evening and the days after.
  * Before that day it is neither shown nor enterable, so nobody starts a camp's
  * subject a week early. The one exception is a talent who has already walked
- * it: what they started stays theirs, whatever their enrolments say now.
+ * it: what they started stays theirs, even when the only enrolment still
+ * offering it is for an event to come.
  *
  * An instance offered by several of a talent's enrolments resolves to ONE
  * offering: the event running today when there is one (that is the one the
  * day's hero is about), otherwise the most recent that has started, and only
  * failing both a future one the talent is already walking it through. The chosen
- * enrolment is what a first entry pins its event, campus and minute budget on.
+ * enrolment is what a first entry pins its event, campus and minute budget on,
+ * so two events of the same day and phase are told apart by id rather than left
+ * to whatever order the rows arrived in.
  *
  * Ordered newest event first, then by the event's own order, which is the order
- * a talent reads them in.
+ * a talent reads them in. Two events of the same day are kept apart, by id, so
+ * the list reads the same on every load.
  *
  * Pure: the caller computes each event's status in its campus timezone.
  */
 export function selectWorkshopOfferings<
   T extends {
     instanceId: string;
+    eventId: string;
     eventDate: Date;
     position: number;
     status: EventLifecycleStatus;
@@ -112,6 +120,7 @@ export function selectWorkshopOfferings<
     .sort(
       (a, b) =>
         b.eventDate.getTime() - a.eventDate.getTime() ||
+        a.eventId.localeCompare(b.eventId) ||
         a.position - b.position,
     );
 }
@@ -119,7 +128,7 @@ export function selectWorkshopOfferings<
 /**
  * Today's event over any other, then one that has run over one still to come
  * (which only survives at all for a talent who already started the activity),
- * then the most recent.
+ * then the most recent, then the lower id.
  */
 const PHASE_RANK: Record<EventLifecycleStatus, number> = {
   ongoing: 2,
@@ -127,13 +136,18 @@ const PHASE_RANK: Record<EventLifecycleStatus, number> = {
   upcoming: 0,
 };
 
-function outranks(
-  a: { eventDate: Date; status: EventLifecycleStatus },
-  b: { eventDate: Date; status: EventLifecycleStatus },
-): boolean {
+type Ranked = {
+  eventId: string;
+  eventDate: Date;
+  status: EventLifecycleStatus;
+};
+
+function outranks(a: Ranked, b: Ranked): boolean {
   const byPhase = PHASE_RANK[a.status] - PHASE_RANK[b.status];
   if (byPhase !== 0) return byPhase > 0;
-  return a.eventDate.getTime() > b.eventDate.getTime();
+  const byDate = a.eventDate.getTime() - b.eventDate.getTime();
+  if (byDate !== 0) return byDate > 0;
+  return a.eventId < b.eventId;
 }
 
 /**

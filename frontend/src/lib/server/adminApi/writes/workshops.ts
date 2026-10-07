@@ -12,6 +12,8 @@
 // a delete tool would be something a model could aim on its own, which puts it in
 // class C. An instance is retired with `enabled: false`, and the link's FK is
 // `Restrict` so a hand-deletion of one still offered fails loudly.
+import { randomBytes } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
@@ -140,9 +142,10 @@ const COVER_COPY: Record<
 };
 
 async function coverState(
+  tx: Prisma.TransactionClient,
   instanceId: string,
 ): Promise<WorkshopCoverState & { keys: string[] }> {
-  const instance = await prisma.workshop_Instance.findUniqueOrThrow({
+  const instance = await tx.workshop_Instance.findUniqueOrThrow({
     where: { id: instanceId },
     select: {
       slug: true,
@@ -193,9 +196,8 @@ export async function writeWorkshopCover(params: {
     mascot: params.mascotUrl,
   };
 
-  // Every picture given is downloaded again, every time: the key is a hash of
-  // the bytes, so an unchanged picture comes back under the same key and costs
-  // nothing, and a picture replaced at the same address is picked up.
+  // Every picture given is downloaded again, every time, so a picture replaced
+  // at the same address is picked up.
   const copied = await Promise.all(
     COVER_KINDS.filter((kind) => urls[kind]).map(async (kind) => {
       const sourceUrl = urls[kind]!;
@@ -219,40 +221,50 @@ export async function writeWorkshopCover(params: {
     );
   }
 
-  const before = await coverState(instance.id);
+  // Fresh keys for this write, even for a picture that has not changed: a key
+  // shared by two writes is one that either of them could delete under the
+  // other (`swapStoredImages`).
+  const writeId = randomBytes(8).toString('hex');
   const rows = copied.map(({ kind, sourceUrl, image }) => ({
     instanceId: instance.id,
     kind,
     sourceUrl,
-    key: workshopCoverKey(instance.id, kind, image.digest, image.extension),
+    key: workshopCoverKey(instance.id, kind, writeId, image.extension),
     contentType: image.contentType,
     width: image.width,
     height: image.height,
     bytes: image.bytes,
   }));
 
-  await swapStoredImages({
+  const { before, after } = await swapStoredImages({
     next: rows,
-    previousKeys: before.keys,
-    commit: () =>
-      prisma.$transaction([
-        prisma.workshop_Instance.update({
-          where: { id: instance.id },
-          data: { tagline },
-        }),
-        prisma.workshop_CoverImage.deleteMany({
-          where: { instanceId: instance.id },
-        }),
-        prisma.workshop_CoverImage.createMany({
-          data: rows.map(({ bytes: _bytes, ...row }) => row),
-        }),
-      ]),
+    commit: async (tx) => {
+      // Taken before the cover is read, so a second write on this activity
+      // waits here and then reads what this one wrote: the keys it answers as
+      // replaced are then always the ones it actually replaced.
+      await tx.$executeRaw`SELECT 1 FROM "Workshop_Instance" WHERE id = ${instance.id} FOR UPDATE`;
+      const before = await coverState(tx, instance.id);
+      await tx.workshop_Instance.update({
+        where: { id: instance.id },
+        data: { tagline },
+      });
+      await tx.workshop_CoverImage.deleteMany({
+        where: { instanceId: instance.id },
+      });
+      await tx.workshop_CoverImage.createMany({
+        data: rows.map(({ bytes: _bytes, ...row }) => row),
+      });
+      return {
+        replaced: before.keys,
+        result: { before, after: await coverState(tx, instance.id) },
+      };
+    },
   });
 
   return {
     applied: true,
     before: withoutKeys(before),
-    after: withoutKeys(await coverState(instance.id)),
+    after: withoutKeys(after),
   };
 }
 

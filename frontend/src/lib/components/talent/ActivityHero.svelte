@@ -192,7 +192,7 @@
             >
               <Button
                 type="submit"
-                variant={isPrimary ? 'neon' : 'outline'}
+                variant={isPrimary ? 'neon' : 'overlay'}
                 class="w-full sm:w-auto"
               >
                 {started(activity) ? 'Reprendre' : 'C’est parti'}
