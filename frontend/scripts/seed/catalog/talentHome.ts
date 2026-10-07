@@ -5,14 +5,16 @@
  * Placed, never drawn, and on the three campuses every profile has, so each
  * state the home has to render exists even in CI:
  *
- *   - Paris writes both, the highlight with a picture, so a talent there sees
- *     the note in Actualités and the invitation leading the home's hero on a
- *     day without an activity (the picture is a key without bytes, like every
- *     stored file the generator writes, so the hero's fallback is what shows);
+ *   - Paris writes both, the highlight with an animated picture (stored with
+ *     its still), so a talent there sees the note in Actualités and the
+ *     invitation leading the home's hero on a day without an activity (the
+ *     picture is a key without bytes, like every stored file the generator
+ *     writes, so the hero's fallback is what shows);
  *   - Marseille writes only a note, so a talent there with an activity left
  *     unfinished sees the hero suggest carrying it on at home;
  *   - Lyon put forward an event whose day has passed, which the home must no
- *     longer show and `config_talent_home` must report as no longer shown.
+ *     longer show and `config_talent_home` must report as no longer shown. Its
+ *     picture is a still, the case of a picture with no still of its own.
  *
  * The sign-up links point at `.invalid` (RFC 2606), for the reason
  * `catalog/workshops.ts` gives: a validation environment must not send anybody
@@ -68,7 +70,6 @@ export const TALENT_HOME_HIGHLIGHTS: Readonly<Record<string, HighlightSpec>> = {
       'Visite le campus, rencontre les étudiants et découvre les projets de première année.',
     dayOffset: -4,
     url: 'https://www.epitech.invalid/journees-portes-ouvertes/?CampaignId=sd-jpo',
-    // A portrait still, the shape the hero used to refuse.
     image: { width: 1080, height: 1350, animated: false },
   },
 };

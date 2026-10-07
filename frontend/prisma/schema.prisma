@@ -800,7 +800,8 @@ model TalentHome_HighlightImage {
   /// the write that copied it, so only the write that replaces it deletes it.
   key         String  @unique
   /// For an animated GIF, its first frame as a WebP, what a talent who asked
-  /// for reduced motion sees instead. Same size as the animation. Null for a
+  /// for reduced motion sees instead. Same proportion as the animation, so the
+  /// size below lays it out too, though it may hold fewer pixels. Null for a
   /// still.
   stillKey    String? @unique
   contentType String
@@ -2450,8 +2451,9 @@ model Workshop_CoverImage {
   /// the write that copied it, so only the write that replaces it deletes it.
   key         String            @unique
   /// For an animated GIF, its first frame as a WebP, shown to a talent who
-  /// asked for reduced motion when the cover names no poster. Same size as the
-  /// animation. Null for a still.
+  /// asked for reduced motion when the cover names no poster. Same proportion
+  /// as the animation, so the size below lays it out too, though it may hold
+  /// fewer pixels. Null for a still.
   stillKey    String?           @unique
   contentType String
   /// Intrinsic size, so the dashboard reserves the box before the bytes land.
