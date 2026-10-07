@@ -71,6 +71,22 @@ describe('unsupportedImageName', () => {
     expect(unsupportedImageName(heic)).toBe('HEIC');
   });
 
+  // Wikimedia's own logo: a doctype whose internal subset puts the root tag
+  // past the first kilobyte, which a search for `<svg` near the start missed.
+  it('names an SVG whose root comes after a long doctype', () => {
+    const subset = `<!ENTITY st0 "${'opacity:.5;'.repeat(300)}">`;
+    expect(
+      unsupportedImageName(
+        bytes(
+          '<?xml version="1.0" encoding="utf-8"?>',
+          `<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "svg11.dtd" [${subset}]>`,
+          '<!-- Generator: Adobe Illustrator -->',
+          '<svg version="1.1">',
+        ),
+      ),
+    ).toBe('SVG');
+  });
+
   it('names nothing else', () => {
     expect(unsupportedImageName(bytes('<?xml version="1.0"?><rss>'))).toBe(
       null,

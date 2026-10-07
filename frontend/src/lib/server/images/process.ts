@@ -154,16 +154,17 @@ export function unsupportedImageName(
       return 'AVIF';
     if (brands.some((brand) => HEIC_BRANDS.includes(brand))) return 'HEIC';
   }
-  const head = new TextDecoder()
-    .decode(bytes.slice(0, 1024))
+  // An SVG is XML whose root element is `svg`. What precedes the root is read
+  // past rather than searched through: an XML declaration, comments, and a
+  // doctype whose internal subset can run for kilobytes (Wikimedia's own logo
+  // puts its `<svg` 2.7 kB in), so the doctype's root name is taken as the
+  // answer when there is one.
+  const prolog = new TextDecoder()
+    .decode(bytes.slice(0, 4096))
     .replace(/^\uFEFF/, '')
-    .trimStart()
+    .replace(/^(?:\s+|<\?[\s\S]*?\?>|<!--[\s\S]*?-->)+/, '')
     .toLowerCase();
-  if (
-    head.startsWith('<svg') ||
-    ((head.startsWith('<?xml') || head.startsWith('<!doctype svg')) &&
-      head.includes('<svg'))
-  )
+  if (/^<!doctype\s+svg[\s>]/.test(prolog) || /^<svg[\s>]/.test(prolog))
     return 'SVG';
   return null;
 }
