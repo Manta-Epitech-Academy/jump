@@ -10,6 +10,7 @@ import type {
 import { prisma } from '$lib/server/db';
 import { assertEditable, getFormGraphById } from '$lib/server/feedbackForms';
 import { IDENTITY_NOT_MULTIPLE_MESSAGE } from '$lib/validation/feedbackForms';
+import { STRUCTURAL_QUESTION_FIELDS } from '$lib/domain/feedbackForms/authoring';
 import { getStorage } from '$lib/server/infra/storage';
 import { copyPersonaIcon } from '$lib/server/feedbackForms/personaIcon';
 
@@ -401,14 +402,10 @@ export async function createQuestion(
   });
 }
 
-const STRUCTURAL_QUESTION_FIELDS: (keyof QuestionStructureInput)[] = [
-  'key',
-  'type',
-  'required',
-  'identityField',
-  'inputKind',
-  'minSelections',
-  'maxSelections',
+// The fields that change what an answer means, plus where the question sits,
+// which a single-question patch carries as its section.
+const STRUCTURAL_PATCH_FIELDS: readonly (keyof QuestionStructureInput)[] = [
+  ...STRUCTURAL_QUESTION_FIELDS,
   'sectionId',
 ];
 
@@ -418,7 +415,7 @@ export async function updateQuestion(
   patch: Partial<QuestionStructureInput>,
 ): Promise<void> {
   await assertQuestionInForm(formId, id);
-  const touchesStructure = STRUCTURAL_QUESTION_FIELDS.some(
+  const touchesStructure = STRUCTURAL_PATCH_FIELDS.some(
     (f) => patch[f] !== undefined,
   );
   if (touchesStructure) await assertEditable(formId);
