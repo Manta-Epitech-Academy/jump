@@ -96,10 +96,19 @@ function authoredMarked(pictures: ReadonlyMap<string, ShownPicture>): Marked {
 }
 
 const AUTHORED_LINK_PROTOCOLS = new Set(['https:', 'mailto:']);
+/**
+ * A picture is downloaded from its address (`images/remote.ts`), so it has to
+ * be one that parses: an address that only starts like one (`https://`) would
+ * pass a prefix test and fail the copy as an internal error.
+ */
+const AUTHORED_PICTURE_PROTOCOLS = new Set(['https:']);
 
-function isAuthoredHref(href: string): boolean {
+function isAuthoredHref(
+  href: string,
+  protocols: ReadonlySet<string> = AUTHORED_LINK_PROTOCOLS,
+): boolean {
   try {
-    return AUTHORED_LINK_PROTOCOLS.has(new URL(href).protocol);
+    return protocols.has(new URL(href).protocol);
   } catch {
     return false;
   }
@@ -123,10 +132,15 @@ export function authoredImageSources(markdown: string): string[] {
 /**
  * The length of what the author wrote, leaving out the addresses of its
  * pictures: a CDN address can run to hundreds of characters nobody reads.
+ *
+ * Each address is left out once, and only if it is written out in the source.
+ * A reference-style picture (`![a][r]`, with `[r]: https://…` defined once)
+ * names its address once however many times it is used, so leaving it out
+ * per use would count less than the text itself, below zero if repeated.
  */
 export function authoredTextLength(markdown: string): number {
-  return imageTokens(markdown).reduce(
-    (length, image) => length - image.href.length,
+  return authoredImageSources(markdown).reduce(
+    (length, href) => (markdown.includes(href) ? length - href.length : length),
     markdown.length,
   );
 }
@@ -139,7 +153,7 @@ export function authoredMarkdownProblems(markdown: string): string[] {
   const problems = new Set<string>();
   marked.walkTokens(marked.lexer(markdown), (token) => {
     if (token.type === 'image') {
-      if (!token.href.startsWith('https://'))
+      if (!isAuthoredHref(token.href, AUTHORED_PICTURE_PROTOCOLS))
         problems.add(
           `Image refusée (${token.href}) : donnez son adresse complète, en https://.`,
         );

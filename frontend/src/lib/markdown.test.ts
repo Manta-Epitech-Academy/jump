@@ -28,6 +28,14 @@ describe('authoredMarkdownProblems', () => {
     expect(authoredMarkdownProblems('![affiche](/a.png)')).toHaveLength(1);
   });
 
+  it('refuses a picture address that starts like https but does not parse', () => {
+    for (const markdown of [
+      '![affiche](https://)',
+      '![affiche](<https://cdn example/a.png>)',
+    ])
+      expect(authoredMarkdownProblems(markdown)).toHaveLength(1);
+  });
+
   it('refuses raw HTML, block or inline', () => {
     expect(authoredMarkdownProblems('<div>salut</div>')).toHaveLength(1);
     expect(authoredMarkdownProblems('salut <b>toi</b>')).toHaveLength(1);
@@ -139,11 +147,17 @@ describe('the pictures of authored Markdown', () => {
     ]);
   });
 
-  it('counts the text without the addresses', () => {
+  it('counts the text without the addresses, each once', () => {
     expect(authoredTextLength(note)).toBe(
       note.length -
-        2 * 'https://cdn.example/a.png'.length -
+        'https://cdn.example/a.png'.length -
         'https://cdn.example/very/long/address/b.gif'.length,
     );
+  });
+
+  it('never counts less than the text of a reference-style picture used again and again', () => {
+    const address = `https://cdn.example/${'x'.repeat(200)}.png`;
+    const repeated = `${'![a][r] '.repeat(50)}\n\n[r]: ${address}`;
+    expect(authoredTextLength(repeated)).toBe(repeated.length - address.length);
   });
 });
