@@ -13,7 +13,8 @@
   // in. « Mon parcours » hosts it twice: what is left to do (a Coding Club is
   // designed never to finish, so these are carried on at home) and what is
   // done. The home shows none of it: its hero suggests one activity at a time,
-  // and the « Mon parcours » pill counts the rest.
+  // and the « Mon parcours » pill counts the list it leads to, the hero's
+  // activity included, so the number matches what the talent finds there.
   //
   // A row shows the subject's still when it has one, and a brand tile when it
   // has none, so the rows stay aligned. It does not name the event, whose name
