@@ -63,9 +63,9 @@ describe('resetting a talent to import (integration)', () => {
       data: { talentId, eventId, campusId },
     });
 
-    // Mid-activity, with XP that arrived while the Jump tab was in the
-    // background: the state this feature creates, and the one an admin resets a
-    // talent out of.
+    // Mid-activity, with its XP already celebrated: the state a talent is in
+    // between two returns to the dashboard, and the one an admin resets them out
+    // of.
     await prisma.workshop_Participation.create({
       data: {
         talentId,
@@ -115,9 +115,9 @@ describe('resetting a talent to import (integration)', () => {
       }),
     ]);
 
-    // The mirror goes with the ledger. Kept, it would float 480 XP over a
-    // profile card reading 0 and report "6 / 15 étapes validées" for a talent
-    // returned to import.
+    // The mirror goes with the ledger. Kept, its mark would hold back every
+    // float until the XP earned after the reset passed 480, and it would report
+    // "6 / 15 étapes validées" for a talent returned to import.
     expect(participation).toBeNull();
     expect(grants).toBe(0);
     expect(talent?.xp).toBe(0);
