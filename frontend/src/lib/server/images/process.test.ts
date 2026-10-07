@@ -63,6 +63,14 @@ describe('unsupportedImageName', () => {
     expect(unsupportedImageName(bytes([0, 0, 0, 24], 'ftypheic'))).toBe('HEIC');
   });
 
+  it('names an AVIF that declares itself only among its compatible brands', () => {
+    // major brand, minor version, then the compatible brands
+    const avif = bytes([0, 0, 0, 28], 'ftypmif1', [0, 0, 0, 0], 'mif1avifmiaf');
+    expect(unsupportedImageName(avif)).toBe('AVIF');
+    const heic = bytes([0, 0, 0, 24], 'ftypmif1', [0, 0, 0, 0], 'mif1heic');
+    expect(unsupportedImageName(heic)).toBe('HEIC');
+  });
+
   it('names nothing else', () => {
     expect(unsupportedImageName(bytes('<?xml version="1.0"?><rss>'))).toBe(
       null,

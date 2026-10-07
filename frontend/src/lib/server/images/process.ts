@@ -144,16 +144,15 @@ export function sniffImageType(bytes: Uint8Array): SniffedImageType | null {
 export function unsupportedImageName(
   bytes: Uint8Array,
 ): 'SVG' | 'AVIF' | 'HEIC' | null {
-  // ISO base media: a `ftyp` box at offset 4, its major brand right after.
+  // ISO base media: a `ftyp` box first, carrying its major brand and then its
+  // compatible ones. An AVIF may name the generic `mif1` as its major brand and
+  // `avif` only among the compatible ones, so every brand is read, and AVIF is
+  // looked for before the generic brands HEIC shares with it.
   if (startsWith(bytes, ascii('ftyp'), 4)) {
-    const brand = String.fromCharCode(...bytes.slice(8, 12));
-    if (brand === 'avif' || brand === 'avis') return 'AVIF';
-    if (
-      ['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'mif1', 'msf1'].includes(
-        brand,
-      )
-    )
-      return 'HEIC';
+    const brands = ftypBrands(bytes);
+    if (brands.some((brand) => brand === 'avif' || brand === 'avis'))
+      return 'AVIF';
+    if (brands.some((brand) => HEIC_BRANDS.includes(brand))) return 'HEIC';
   }
   const head = new TextDecoder()
     .decode(bytes.slice(0, 1024))
@@ -167,6 +166,32 @@ export function unsupportedImageName(
   )
     return 'SVG';
   return null;
+}
+
+/** The `ftyp` brands of a HEIF file that is not an AVIF, generic ones included. */
+const HEIC_BRANDS = [
+  'heic',
+  'heix',
+  'hevc',
+  'hevx',
+  'heim',
+  'heis',
+  'mif1',
+  'msf1',
+];
+
+/**
+ * The brands of an ISO base media `ftyp` box: the major brand (offset 8), then
+ * the compatible ones from offset 16 to the end of the box, as its big-endian
+ * size at offset 0 says, read no further than the bytes there are.
+ */
+function ftypBrands(bytes: Uint8Array): string[] {
+  const size = new DataView(bytes.buffer, bytes.byteOffset).getUint32(0);
+  const end = Math.min(size, bytes.length);
+  const brand = (at: number) => String.fromCharCode(...bytes.slice(at, at + 4));
+  const brands = [brand(8)];
+  for (let at = 16; at + 4 <= end; at += 4) brands.push(brand(at));
+  return brands;
 }
 
 /**
