@@ -89,7 +89,6 @@ export const USAGE_FEATURES = {
   ADMIN_ACCOUNT_DELETIONS_VIEW: 'admin_account_deletions_view',
   ADMIN_COMMUNICATION_VIEW: 'admin_communication_view',
   ADMIN_EMAIL_ACTIONS_VIEW: 'admin_email_actions_view',
-  ADMIN_WELCOME_PAGES_VIEW: 'admin_welcome_pages_view',
 
   // ── Admin space, actions, exports and documents ───────────────────
   ADMIN_EVENT_CONFIG_SAVE: 'admin_event_config_save',
@@ -129,7 +128,6 @@ export const USAGE_FEATURES = {
   ADMIN_SIGNATORY_WRITE: 'admin_signatory_write',
   ADMIN_INTEREST_WRITE: 'admin_interest_write',
   ADMIN_MINIGAME_WRITE: 'admin_minigame_write',
-  ADMIN_WELCOME_PAGE_SAVE: 'admin_welcome_page_save',
   ADMIN_EMAIL_ACTIONS_SAVE: 'admin_email_actions_save',
   ADMIN_ACCOUNT_DELETION_FULFIL: 'admin_account_deletion_fulfil',
   ADMIN_ACCOUNT_DELETION_REJECT: 'admin_account_deletion_reject',
@@ -794,16 +792,6 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     scope: 'global',
     dedupe: 'bucket',
   }),
-  [USAGE_FEATURES.ADMIN_WELCOME_PAGES_VIEW]: def({
-    key: USAGE_FEATURES.ADMIN_WELCOME_PAGES_VIEW,
-    label: 'Pages d’accueil',
-    definition: `Consultations de l’éditeur des pages d’accueil. ${BUCKET_NOTE}`,
-    audience: 'staff',
-    space: 'admin',
-    kind: 'view',
-    scope: 'global',
-    dedupe: 'bucket',
-  }),
 
   // ── Admin space, actions, exports and documents ───────────────────
   [USAGE_FEATURES.ADMIN_EVENT_CONFIG_SAVE]: def({
@@ -1189,16 +1177,6 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     scope: 'global',
     dedupe: 'each',
   }),
-  [USAGE_FEATURES.ADMIN_WELCOME_PAGE_SAVE]: def({
-    key: USAGE_FEATURES.ADMIN_WELCOME_PAGE_SAVE,
-    label: 'Page d’accueil enregistrée',
-    definition: 'Enregistrements d’une page d’accueil.',
-    audience: 'staff',
-    space: 'admin',
-    kind: 'action',
-    scope: 'global',
-    dedupe: 'each',
-  }),
   [USAGE_FEATURES.ADMIN_EMAIL_ACTIONS_SAVE]: def({
     key: USAGE_FEATURES.ADMIN_EMAIL_ACTIONS_SAVE,
     label: 'Actions dans les emails enregistrées',
@@ -1486,7 +1464,6 @@ export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
     USAGE_FEATURES.ADMIN_ACCOUNT_DELETIONS_VIEW,
   '/(staff)/staff/admin/communication': USAGE_FEATURES.ADMIN_COMMUNICATION_VIEW,
   '/(staff)/staff/admin/email-actions': USAGE_FEATURES.ADMIN_EMAIL_ACTIONS_VIEW,
-  '/(staff)/staff/admin/welcome-pages': USAGE_FEATURES.ADMIN_WELCOME_PAGES_VIEW,
 
   // Talent space
   '/(talent)': USAGE_FEATURES.TALENT_DASHBOARD_VIEW,

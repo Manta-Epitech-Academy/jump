@@ -113,8 +113,8 @@ function openLinksElsewhere(node: Element): void {
 /**
  * Render Markdown that passed `authoredMarkdownProblems`. Images are still
  * forbidden here, as a second line should a row ever be written another way.
- * The hook is added and removed around the one synchronous `sanitize` call, as
- * in `server/cms/sanitize.ts`, so no other DOMPurify caller inherits it.
+ * The hook is added and removed around the one synchronous `sanitize` call, so
+ * no other DOMPurify caller inherits it.
  */
 export function renderAuthoredMarkdown(markdown: string): string {
   const html = authoredMarked.parse(markdown) as string;

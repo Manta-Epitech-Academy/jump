@@ -177,7 +177,7 @@ every rung of the ladder, because those are the states the wizard is made of and
 no amount of realistic volume produces them.
 
 Two things it does not touch. The E2E fixtures
-(`frontend/tests/e2e/fixtures/seed.ts`) keep their own six accounts: a spec
+(`frontend/tests/e2e/fixtures/seed.ts`) keep their own handful of accounts: a spec
 anchored to a large dataset breaks the first time somebody adjusts it. And the
 integration suites keep building their own fixtures per file, several of them
 reading platform-wide aggregates a full dataset would silently widen.

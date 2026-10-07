@@ -1,10 +1,10 @@
 <script lang="ts">
   import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
   import { Button } from '$lib/components/ui/button';
-  import WelcomeMessageBody from '$lib/components/talent/WelcomeMessageBody.svelte';
   import Newspaper from '@lucide/svelte/icons/newspaper';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import { cn } from '$lib/utils';
 
   // The campus's word to its talents (`write_talent_home_note`), already
   // rendered and sanitised server-side. The page frames it with « Actualités »
@@ -41,6 +41,14 @@
   });
 </script>
 
+<!-- The message itself, in the clamped preview and whole in the dialog, so the
+     two cannot be typeset differently. -->
+{#snippet message(className?: string)}
+  <div class={cn('prose max-w-none prose-slate dark:prose-invert', className)}>
+    {@html html}
+  </div>
+{/snippet}
+
 <section
   aria-labelledby="news-card-title"
   class="overflow-hidden rounded-xl border border-border bg-card shadow-raised"
@@ -60,7 +68,7 @@
   <div class="p-6">
     <!-- Clamped preview: fades out when cut, full content in the dialog. -->
     <div class="relative max-h-[20rem] overflow-hidden" use:measure>
-      <WelcomeMessageBody content={html} class="prose-sm" />
+      {@render message('prose-sm')}
       {#if clipped}
         <div
           class="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-card to-transparent"
@@ -89,7 +97,7 @@
       </ResponsiveDialog.Title>
     </ResponsiveDialog.Header>
     <ResponsiveDialog.Body bind:ref={bodyRef}>
-      <WelcomeMessageBody content={html} />
+      {@render message()}
     </ResponsiveDialog.Body>
   </ResponsiveDialog.Content>
 </ResponsiveDialog.Root>

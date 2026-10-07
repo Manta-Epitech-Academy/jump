@@ -39,13 +39,13 @@ Pour la règle 13, le script accepte un indicateur de remplacement (`focus:borde
 Une exception se déclare **sur place**, au-dessus de l'élément concerné, et **doit porter sa raison** :
 
 ```svelte
-<!-- design-lint-ignore: dans une surface de saisie riche, le curseur est
-     l'indicateur de focus ; un outline autour d'un éditeur de 300 px est pire. -->
+<!-- design-lint-ignore: le panneau prend le focus quand son onglet est activé,
+     et l'onglet sélectionné montre déjà où le focus est allé. -->
 ```
 
 Un marqueur sans raison ne compte pas. Il n'y a **pas** de fichier d'exemptions : une liste centralisée devient une dette qu'on ne relit plus, alors qu'une raison écrite à côté du code se juge.
 
-Les trois exceptions actuelles sont l'éditeur CMS, le contenu d'un `DropdownMenu` et celui d'un `Tabs` : les deux derniers reçoivent le focus par programme pour le piéger, donc un outline entourerait tout le panneau ouvert.
+Les exceptions en vigueur se retrouvent en cherchant `design-lint-ignore` dans le code, chacune avec sa raison : une liste recopiée ici serait le fichier d'exemptions refusé plus haut.
 
 ## Fichiers hors périmètre
 

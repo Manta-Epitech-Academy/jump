@@ -11,6 +11,14 @@
 -- copied into storage, never linked to.
 --
 -- No backfill: no campus has either today, and no row means nothing shown.
+--
+-- The campus note replaces the per-event welcome page (`CmsPage`, slug
+-- `welcome`) as the one message of the Actualités card, so the page, its rich
+-- editor and the pictures uploaded through it (`CmsImage`) are dropped here,
+-- in the change that retires them. Their content is not carried over: a
+-- welcome page belongs to one event and a note to a whole campus, and the
+-- note is written afresh over the API. The pictures' bytes stay in storage
+-- under `cms-images/`, which nothing references any more.
 
 -- CreateTable
 CREATE TABLE "TalentHome_Note" (
@@ -56,3 +64,9 @@ ALTER TABLE "TalentHome_Highlight" ADD CONSTRAINT "TalentHome_Highlight_campusId
 
 -- AddForeignKey
 ALTER TABLE "TalentHome_HighlightImage" ADD CONSTRAINT "TalentHome_HighlightImage_campusId_fkey" FOREIGN KEY ("campusId") REFERENCES "TalentHome_Highlight"("campusId") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- DropTable
+DROP TABLE "CmsPage";
+
+-- DropTable
+DROP TABLE "CmsImage";

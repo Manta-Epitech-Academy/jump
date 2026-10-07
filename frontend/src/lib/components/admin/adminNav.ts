@@ -10,7 +10,6 @@ import Megaphone from '@lucide/svelte/icons/megaphone';
 import Send from '@lucide/svelte/icons/send';
 import Mails from '@lucide/svelte/icons/mails';
 import MailCog from '@lucide/svelte/icons/mail-warning';
-import DoorOpen from '@lucide/svelte/icons/door-open';
 import Map from '@lucide/svelte/icons/map';
 import CalendarCog from '@lucide/svelte/icons/calendar-cog';
 import Signature from '@lucide/svelte/icons/signature';
@@ -139,12 +138,6 @@ export const ADMIN_NAV: AdminNavSection[] = [
         href: resolve('/staff/admin/email-actions'),
         icon: MailCog,
         keywords: ['email', 'action', 'mapping'],
-      },
-      {
-        label: "Pages d'accueil",
-        href: resolve('/staff/admin/welcome-pages'),
-        icon: DoorOpen,
-        keywords: ['welcome', 'cms'],
       },
     ],
   },

@@ -14,7 +14,6 @@ import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
 import {
   addAdminFiles,
   addImpersonationAudit,
-  addWelcomePages,
 } from '../factories/adminContent';
 import {
   addBroadcast,
@@ -65,18 +64,12 @@ export const operations: Scenario = {
     foldUsageMonthly(world);
 
     // The admin space's stored content, in every profile: none of it carries a
-    // failure, and all four tables render an untested screen as a tidy empty
+    // failure, and both tables render an untested screen as a tidy empty
     // state rather than as a gap.
     const admin =
       world.staff.find((member) => member.role === 'admin') ?? world.staff[0];
     if (admin) {
       addAdminFiles(world, admin);
-      addWelcomePages(world, {
-        events: world.events.filter(
-          (candidate) => candidate.date > world.ctx.clock.today,
-        ),
-        author: admin,
-      });
       addImpersonationAudit(world, {
         admin,
         staffTarget: world.staff[1] ?? admin,
@@ -231,7 +224,7 @@ export const operations: Scenario = {
         covers: [
           'campagnes mail et SMS',
           'chiffres d’adoption au-dessus du plancher de masquage',
-          'bibliothèque de fichiers, pages d’accueil et audit d’impersonation',
+          'bibliothèque de fichiers et audit d’impersonation',
         ],
       });
       return;
@@ -282,7 +275,6 @@ export const operations: Scenario = {
         'l’adoption sur ~80 % du catalogue de fonctionnalités, le reste laissé sans usage pour que les « écarts d’adoption » aient un sens',
         'le cube mensuel d’usage, dont un mois au-delà de la fenêtre de rétention',
         'trois fichiers dans la bibliothèque partagée, dont un déposé par un membre parti',
-        'deux pages d’accueil rédigées, une image utilisée et une orpheline',
         'deux impersonations tracées, dont une jamais quittée',
       ],
     });

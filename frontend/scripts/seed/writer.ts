@@ -91,8 +91,6 @@ export type Buffered = {
   syncError: Prisma.SyncErrorCreateManyInput[];
   sync_Run: Prisma.Sync_RunCreateManyInput[];
   adminFile: Prisma.AdminFileCreateManyInput[];
-  cmsImage: Prisma.CmsImageCreateManyInput[];
-  cmsPage: Prisma.CmsPageCreateManyInput[];
   audit_ImpersonationEvent: Prisma.Audit_ImpersonationEventCreateManyInput[];
   usage_FeatureUse: Prisma.Usage_FeatureUseCreateManyInput[];
   usage_FeatureMonthly: Prisma.Usage_FeatureMonthlyCreateManyInput[];
@@ -156,8 +154,6 @@ const MODEL_ORDER = [
   'syncError',
   'sync_Run',
   'adminFile',
-  'cmsImage',
-  'cmsPage',
   'audit_ImpersonationEvent',
   'usage_FeatureUse',
   'usage_FeatureMonthly',
@@ -342,12 +338,6 @@ export async function wipe(
   );
   await drop('audit_ImpersonationEvent', () =>
     prisma.audit_ImpersonationEvent.deleteMany({ where: { id: seeded } }),
-  );
-  await drop('cmsPage', () =>
-    prisma.cmsPage.deleteMany({ where: { id: seeded } }),
-  );
-  await drop('cmsImage', () =>
-    prisma.cmsImage.deleteMany({ where: { id: seeded } }),
   );
   await drop('adminFile', () =>
     prisma.adminFile.deleteMany({ where: { id: seeded } }),

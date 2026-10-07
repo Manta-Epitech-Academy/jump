@@ -85,12 +85,6 @@
     "@prisma/client": "^7.10.0",
     "@smithy/node-http-handler": "^4.11.3",
     "@tailwindcss/typography": "^0.5.20",
-    "@tiptap/core": "^3.30.5",
-    "@tiptap/extension-image": "^3.30.5",
-    "@tiptap/extension-link": "^3.30.5",
-    "@tiptap/extension-placeholder": "^3.30.5",
-    "@tiptap/pm": "^3.30.5",
-    "@tiptap/starter-kit": "^3.30.5",
     "@types/bun": "^1.4.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^25.9.5",
@@ -112,7 +106,6 @@
     "qrcode": "^1.5.4",
     "resend": "^6.24.0",
     "sveltekit-superforms": "^2.30.2",
-    "tiptap-markdown": "^0.9.0",
     "zod": "^4.4.3"
   },
   "overrides": {
