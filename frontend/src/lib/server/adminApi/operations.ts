@@ -159,26 +159,13 @@ import {
 import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
 import { WORKSHOP_XP_PER_MINUTE } from '$lib/domain/xp';
 import { getSchoolYearReview } from '$lib/server/services/adminStats/schoolYearReview';
-import {
-  writeDiplomaTemplate,
-  writeEventDiplomaTemplate,
-} from './writes/diplomas';
-import {
-  writeWorkshopInstance,
-  writeWorkshopCover,
-  writeEventWorkshops,
-} from './writes/workshops';
+import { writeDiplomaTemplate } from './writes/diplomas';
+import { writeWorkshopInstance, writeWorkshopCover } from './writes/workshops';
 import {
   writeTalentHomeHighlight,
   writeTalentHomeNote,
 } from './writes/talentHome';
-import {
-  writeEventInscritsOptions,
-  writeEventConfig,
-  writeEventActivation,
-  writeEventFeedbackForm,
-  writeEventTemplate,
-} from './writes/events';
+import { writeEventConfig, writeEventTemplate } from './writes/events';
 import {
   retryPdfJob,
   resolveSyncErrorRows,
@@ -194,11 +181,7 @@ import {
   writeSyncMemberStatus,
   writeSyncSource,
 } from './writes/sync';
-import {
-  writeClosingQuestion,
-  writeClosingTemplate,
-  writeEventClosingTemplate,
-} from './writes/closings';
+import { writeClosingQuestion, writeClosingTemplate } from './writes/closings';
 import { writeFeedbackForm, copyFeedbackForm } from './writes/feedbackForms';
 import {
   formFields,
@@ -800,7 +783,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_event_config: defineWrite({
     description:
-      "Change one event's configuration. Patch semantics: only the fields you pass change, everything else is left exactly as it is, so you never have to restate the rest. Safe to repeat, it sets values rather than adjusting them. Answers with the state before and after.",
+      "Change anything about one event's configuration in one call: names, dates, dev-workspace sections and their options, shown Salesforce statuses, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Patch semantics: only the fields you pass change, null clears a reference, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call. Safe to repeat, it sets values rather than adjusting them. Answers with the state before and after.",
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
       publicName: z
@@ -839,35 +822,78 @@ export const ADMIN_API_OPERATIONS = {
         .describe(
           `${handleDescribe('sfStatus')} The complete set of Salesforce member statuses whose enrolments the dev workspace shows for this event; statuses left out are masked (still synced and in Jump). Enrolments with no status at all are always shown.`,
         ),
-    },
-    run: (params) => writeEventConfig(params),
-  }),
-
-  write_event_activation: defineWrite({
-    description:
-      'Show or hide one event in the dev workspace. Refused, with what is missing, if the event is not ready to be shown. Safe to repeat. Answers with the state before and after.',
-    shape: {
-      eventId: z.string().min(1).describe(handleDescribe('eventId')),
-      visible: z
-        .boolean()
-        .describe('True to show it in the dev workspace, false to hide it.'),
-    },
-    run: (params) => writeEventActivation(params),
-  }),
-
-  write_event_feedback_form: defineWrite({
-    description:
-      'Attach a feedback form to one event, or detach the current one by omitting formId. Authors no content, only points at an existing form. Safe to repeat. Answers with the state before and after.',
-    shape: {
-      eventId: z.string().min(1).describe(handleDescribe('eventId')),
-      formId: z
-        .string()
+      moduleSettings: z
+        .strictObject({
+          inscrits: z
+            .strictObject({
+              showStatutColumn: z
+                .boolean()
+                .optional()
+                .describe(
+                  "Show the dossier progress column (connexion, règlement, droit à l'image) on the Inscrits table.",
+                ),
+            })
+            .optional(),
+        })
         .optional()
         .describe(
-          `${handleDescribe('formId')} Omit to detach the current form.`,
+          'Sub-options per section, only those you pass change. A section must be in the saved modules, so enable it in the same call if it is not.',
+        ),
+      visible: z
+        .boolean()
+        .optional()
+        .describe(
+          'True to show it in the dev workspace, false to hide it. Showing needs a public name, an end date and at least one section, as saved by this call.',
+        ),
+      feedbackFormId: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          `${handleDescribe('formId')} The form its bilan section uses. Null detaches it.`,
+        ),
+      diplomaTemplateId: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          `${handleDescribe('diplomaTemplateId')} The certificate its Inscrits export issues. Null so it issues none.`,
+        ),
+      closingTemplateId: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          `${handleDescribe('closingTemplateId')} The grid its closings use. Null so it holds none.`,
+        ),
+      workshops: z
+        .array(
+          z.strictObject({
+            slug: z.string().min(1).describe(handleDescribe('workshopSlug')),
+            durationMinutes: z
+              .number()
+              .int()
+              .positive()
+              .describe(
+                `How long the activity runs at this event, in minutes. It is the scale: finishing it whole is worth durationMinutes x ${WORKSHOP_XP_PER_MINUTE} XP. Changing it changes nobody retroactively, since a talent's scale is pinned when they first enter.`,
+              ),
+            labelOverride: z
+              .string()
+              .optional()
+              .describe(
+                'The words this event reads the activity aloud with, when the catalogue name does not fit the format. Wording only: every figure keeps the catalogue label.',
+              ),
+          }),
+        )
+        .optional()
+        .describe(
+          'The complete ordered list of online activities this event offers, in the order a talent sees them; anything left out is no longer offered, an empty list offers none.',
         ),
     },
-    run: (params) => writeEventFeedbackForm(params),
+    run: (params) => writeEventConfig(params),
   }),
 
   write_feedback_form: defineWrite({
@@ -1004,22 +1030,6 @@ export const ADMIN_API_OPERATIONS = {
       writeDiplomaTemplate({ ...params, origin: ctx.origin }),
   }),
 
-  write_event_diploma_template: defineWrite({
-    description:
-      'Set which certificate one event issues, or stop it issuing any by omitting templateId. Only points at an existing certificate, it authors nothing. Safe to repeat. Answers with the state before and after.',
-    shape: {
-      eventId: z.string().min(1).describe(handleDescribe('eventId')),
-      templateId: z
-        .string()
-        .min(1)
-        .optional()
-        .describe(
-          `${handleDescribe('diplomaTemplateId')} Omit so the event issues none.`,
-        ),
-    },
-    run: (params) => writeEventDiplomaTemplate(params),
-  }),
-
   write_workshop_instance: defineWrite({
     description:
       'Declare or update one online activity, identified by its slug: a slug that does not exist yet creates one, an existing slug updates it. It curates where Jump sends a talent and authors no subject content; how the activity looks on the talent dashboard is write_workshop_cover. Set enabled to false to stop offering it everywhere at once without unpicking any event. Safe to repeat: the same slug and the same values leave one activity. Answers with the activity before and after.',
@@ -1038,7 +1048,7 @@ export const ADMIN_API_OPERATIONS = {
         .string()
         .min(1)
         .describe(
-          'French name a talent reads on their dashboard, e.g. "Pacman IA". An event may read it differently without changing it, see write_event_workshops.',
+          'French name a talent reads on their dashboard, e.g. "Pacman IA". An event may read it differently without changing it, see the workshops of write_event_config.',
         ),
       baseUrl: z
         .string()
@@ -1080,37 +1090,6 @@ export const ADMIN_API_OPERATIONS = {
       ),
     },
     run: (params) => writeWorkshopCover(params),
-  }),
-
-  write_event_workshops: defineWrite({
-    description:
-      "Set which online activities one event offers, and in what order. The list is the complete set: activities left out are no longer offered by this event. durationMinutes is what the activity is worth there, so the same subject can be worth more at a camp than at a Coding Club. Changing it retroactively changes NOBODY: a talent's scale is pinned the first time they enter, so nothing is ever taken back and nothing is added after the fact. Pass an empty list so the event offers none. Safe to repeat: the same list leaves the same rows. Answers with the state before and after.",
-    shape: {
-      eventId: z.string().min(1).describe(handleDescribe('eventId')),
-      workshops: z
-        .array(
-          z.strictObject({
-            slug: z.string().min(1).describe(handleDescribe('workshopSlug')),
-            durationMinutes: z
-              .number()
-              .int()
-              .positive()
-              .describe(
-                `How long the activity runs at this event, in minutes. It is the scale: finishing it whole is worth durationMinutes x ${WORKSHOP_XP_PER_MINUTE} XP.`,
-              ),
-            labelOverride: z
-              .string()
-              .optional()
-              .describe(
-                'The words this event reads the activity aloud with, when the catalogue name does not fit the format. Wording only: every figure keeps the catalogue label.',
-              ),
-          }),
-        )
-        .describe(
-          'The complete ordered list of activities this event offers; anything left out is no longer offered. The order is the order a talent sees on their dashboard.',
-        ),
-    },
-    run: (params) => writeEventWorkshops(params),
   }),
 
   write_talent_home_note: defineWrite({
@@ -1314,37 +1293,6 @@ export const ADMIN_API_OPERATIONS = {
         .describe('Digest returned by the dry run. Omit to get a dry run.'),
     },
     run: (params) => writeClosingTemplate(params),
-  }),
-
-  write_event_closing_template: defineWrite({
-    description:
-      'Set which closing grid one event uses, or stop it holding closings by omitting closingTemplateId. Only points at an existing grid, it authors nothing. Safe to repeat. Answers with the state before and after.',
-    shape: {
-      eventId: z.string().min(1).describe(handleDescribe('eventId')),
-      closingTemplateId: z
-        .string()
-        .min(1)
-        .optional()
-        .describe(
-          `${handleDescribe('closingTemplateId')} Omit so the event holds no closings.`,
-        ),
-    },
-    run: (params) => writeEventClosingTemplate(params),
-  }),
-
-  write_event_inscrits_options: defineWrite({
-    description:
-      "Change the sub-options of one event's Inscrits section. Patch semantics: only what you pass changes. Refused if the section is not enabled on that event, since the options would have no effect. Safe to repeat. Answers with the state before and after.",
-    shape: {
-      eventId: z.string().min(1).describe(handleDescribe('eventId')),
-      showStatutColumn: z
-        .boolean()
-        .optional()
-        .describe(
-          "Show the dossier progress column (connexion, règlement, droit à l'image) on the Inscrits table.",
-        ),
-    },
-    run: (params) => writeEventInscritsOptions(params),
   }),
 
   write_event_template: defineWrite({

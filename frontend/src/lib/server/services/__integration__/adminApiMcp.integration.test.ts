@@ -151,7 +151,7 @@ describe('the admin MCP server (integration)', () => {
     const result = await (
       await clientFor(readSecret)
     ).callTool({
-      name: 'write_event_activation',
+      name: 'write_event_config',
       arguments: { eventId: 'whatever', visible: true },
     });
 
@@ -162,7 +162,7 @@ describe('the admin MCP server (integration)', () => {
       await prisma.adminApi_Call.count({
         where: {
           actorUserId: adminUserId,
-          operation: 'write_event_activation',
+          operation: 'write_event_config',
         },
       }),
     ).toBe(0);

@@ -18,8 +18,6 @@ import { adminApiWrite } from '$lib/server/adminApi/route';
 import { planDigest } from '$lib/server/adminApi/plan';
 
 const postConfig = adminApiWrite('write_event_config');
-const postActivation = adminApiWrite('write_event_activation');
-const postFeedbackForm = adminApiWrite('write_event_feedback_form');
 const postBulkModules = adminApiWrite('bulk_event_modules');
 const postRequestSync = adminApiWrite('ops_request_sync');
 const postReleasePruneHold = adminApiWrite('ops_release_prune_hold');
@@ -166,38 +164,34 @@ describe('admin API writes (integration)', () => {
     expect(String(payload.error)).toContain('emargements');
   });
 
-  // The same class of mistake as the section above, except the judgement comes
-  // from a service this tier shares with the admin pages, which says "your
-  // request is at fault" with `error(400, ...)` rather than with one of this
-  // tier's own refusals. That used to reach the caller as "Erreur interne",
-  // leaving a model nothing to correct and booking an ordinary stale id as a Jump
-  // bug in the log, where `ops_api_usage` reports 5xx as something to go and look
-  // at. Nothing is mutated on this path, so the fixture survives it.
+  // The same class of mistake as the section above: an id nothing holds is the
+  // caller's to correct, so it comes back as a refusal naming where a valid one
+  // comes from, never as "Erreur interne", which would leave a model nothing to
+  // correct and book an ordinary stale id as a Jump bug in the log, where
+  // `ops_api_usage` reports 5xx as something to go and look at. Nothing is
+  // mutated on this path, so the fixture survives it.
   it('hands back a missing feedback form as a refusal, not an internal error', async () => {
-    const { status, payload } = await call(postFeedbackForm, writeSecret, {
+    const { status, payload } = await call(postConfig, writeSecret, {
       eventId,
-      formId: `form-does-not-exist-${stamp}`,
+      feedbackFormId: `form-does-not-exist-${stamp}`,
     });
 
     expect(status).toBe(400);
     expect(String(payload.error)).toContain('Formulaire');
+    expect(String(payload.error)).toContain('config_feedback_forms');
 
     const row = await prisma.adminApi_Call.findFirst({
-      where: {
-        actorUserId: adminUserId,
-        operation: 'write_event_feedback_form',
-      },
+      where: { actorUserId: adminUserId, operation: 'write_event_config' },
       orderBy: { createdAt: 'desc' },
     });
     expect(row?.status).toBe(400);
   });
 
   // The activation rule reaching the path that writes the name and the gate in
-  // one call. `write_event_activation` has always refused an activation with no
-  // public name, but patch semantics carry the STORED activation into a call
-  // that only meant to edit a name, so this one could take a live event down to
-  // no public name and leave it live: in the dev switcher, under its raw
-  // Salesforce title. Same rule, same sentence, third spelling.
+  // one call. Patch semantics carry the STORED activation into a call that only
+  // meant to edit a name, so without the rule this could take a live event down
+  // to no public name and leave it live: in the dev switcher, under its raw
+  // Salesforce title.
   it('refuses to strip the public name of an event that stays visible', async () => {
     const live = await prisma.event.create({
       data: {
@@ -232,10 +226,10 @@ describe('admin API writes (integration)', () => {
   });
 
   // And the way through, so the refusal above is a detour rather than a dead
-  // end: hide it, then rename it. The rule is about what may be VISIBLE, never
-  // about what may be named, and over this tier the two are separate operations
-  // by design.
-  it('accepts clearing the public name once the event is hidden', async () => {
+  // end: hide it and rename it in the same call. The rule is about what may be
+  // VISIBLE, never about what may be named, and it is judged on the
+  // configuration being saved.
+  it('accepts clearing the public name in the call that hides the event', async () => {
     const hidden = await prisma.event.create({
       data: {
         titre: `WriteHidden-${stamp}`,
@@ -248,14 +242,9 @@ describe('admin API writes (integration)', () => {
       },
     });
 
-    const hide = await call(postActivation, writeSecret, {
-      eventId: hidden.id,
-      visible: false,
-    });
-    expect(hide.status).toBe(200);
-
     const { status } = await call(postConfig, writeSecret, {
       eventId: hidden.id,
+      visible: false,
       publicName: '',
     });
 
@@ -270,6 +259,201 @@ describe('admin API writes (integration)', () => {
       where: { eventId: hidden.id },
     });
     await prisma.event.delete({ where: { id: hidden.id } });
+  });
+
+  // The reason the facets are one write: configuring a blank event and showing
+  // it used to take four tools in an order the caller had to guess, and the
+  // activation was judged on what was stored before the others landed.
+  it('configures a blank event and shows it in one call', async () => {
+    const blank = await prisma.event.create({
+      data: {
+        titre: `WriteBlank-${stamp}`,
+        date: new Date(Date.now() + 30 * 86_400_000),
+        campusId,
+      },
+    });
+
+    const { status, payload } = await call(postConfig, writeSecret, {
+      eventId: blank.id,
+      publicName: 'Stage de seconde',
+      endDate: '2027-05-07',
+      modules: ['inscrits', 'emargement'],
+      moduleSettings: { inscrits: { showStatutColumn: true } },
+      visible: true,
+    });
+
+    expect(status).toBe(200);
+    expect(payload.before).toMatchObject({ visibleInDevWorkspace: false });
+    expect(payload.after).toMatchObject({
+      publicName: 'Stage de seconde',
+      endDate: '2027-05-07',
+      modules: ['emargement', 'inscrits'],
+      moduleSettings: { inscrits: { showStatutColumn: true } },
+      visibleInDevWorkspace: true,
+    });
+
+    await prisma.eventConfig_Module.deleteMany({
+      where: { eventId: blank.id },
+    });
+    await prisma.event.delete({ where: { id: blank.id } });
+  });
+
+  // All or nothing: a refusal on one facet leaves every other facet of the same
+  // call unwritten, which is what four separate tools could never promise.
+  it('writes nothing when the activation it asks for is refused', async () => {
+    const blank = await prisma.event.create({
+      data: {
+        titre: `WriteRefused-${stamp}`,
+        date: new Date(Date.now() + 30 * 86_400_000),
+        campusId,
+      },
+    });
+
+    const { status, payload } = await call(postConfig, writeSecret, {
+      eventId: blank.id,
+      publicName: 'Stage sans fin',
+      modules: ['inscrits'],
+      visible: true,
+    });
+
+    expect(status).toBe(400);
+    expect(String(payload.error)).toContain('date de fin');
+    const after = await prisma.event.findUniqueOrThrow({
+      where: { id: blank.id },
+      include: { modules: true },
+    });
+    expect(after.publicName).toBeNull();
+    expect(after.modules).toEqual([]);
+    expect(after.devActivatedAt).toBeNull();
+
+    await prisma.event.delete({ where: { id: blank.id } });
+  });
+
+  // A section's options exist only while the section does, so naming them alone
+  // is refused, and naming them with the section that enables them is not.
+  it('sets a section option only with the section enabled by the same save', async () => {
+    const event = await prisma.event.create({
+      data: {
+        titre: `WriteOptions-${stamp}`,
+        date: new Date(Date.now() + 30 * 86_400_000),
+        campusId,
+      },
+    });
+    const options = { inscrits: { showStatutColumn: true } };
+
+    const refused = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      moduleSettings: options,
+    });
+    expect(refused.status).toBe(400);
+    expect(String(refused.payload.error)).toContain('inscrits');
+
+    const accepted = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      modules: ['inscrits'],
+      moduleSettings: options,
+    });
+    expect(accepted.status).toBe(200);
+    expect(accepted.payload.after).toMatchObject({ moduleSettings: options });
+
+    await prisma.eventConfig_Module.deleteMany({
+      where: { eventId: event.id },
+    });
+    await prisma.event.delete({ where: { id: event.id } });
+  });
+
+  // Null and omitted are two different instructions under patch semantics: one
+  // detaches, the other leaves the reference alone.
+  it('detaches a reference on null and keeps it when omitted', async () => {
+    const grid = await prisma.closing_Template.create({
+      data: { key: `write_grid_${stamp}`, label: 'Grille de test' },
+    });
+    const event = await prisma.event.create({
+      data: {
+        titre: `WriteGrid-${stamp}`,
+        date: new Date(Date.now() + 30 * 86_400_000),
+        campusId,
+        closingTemplateId: grid.id,
+      },
+    });
+
+    const kept = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      cohortNoun: 'stagiaire',
+    });
+    expect(kept.payload.after).toMatchObject({ closingTemplateId: grid.id });
+
+    const detached = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      closingTemplateId: null,
+    });
+    expect(detached.status).toBe(200);
+    expect(detached.payload.after).toMatchObject({ closingTemplateId: null });
+
+    await prisma.event.delete({ where: { id: event.id } });
+    await prisma.closing_Template.delete({ where: { id: grid.id } });
+  });
+
+  // Replaced whole and in order, and left alone by a call that does not name it.
+  it('replaces the activities an event offers, in the order given', async () => {
+    const [pacman, snake] = await Promise.all(
+      ['pacman', 'snake'].map((name) =>
+        prisma.workshop_Instance.create({
+          data: {
+            slug: `write-${name}-${stamp}`,
+            label: name,
+            baseUrl: `https://${name}.example.org`,
+          },
+        }),
+      ),
+    );
+    const event = await prisma.event.create({
+      data: {
+        titre: `WriteWorkshops-${stamp}`,
+        date: new Date(Date.now() + 30 * 86_400_000),
+        campusId,
+      },
+    });
+
+    const { status, payload } = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      workshops: [
+        { slug: snake.slug, durationMinutes: 90 },
+        { slug: pacman.slug, durationMinutes: 60, labelOverride: 'Pacman' },
+      ],
+    });
+    expect(status).toBe(200);
+    expect(payload.after).toMatchObject({
+      workshops: [
+        { slug: snake.slug, durationMinutes: 90, labelOverride: null },
+        { slug: pacman.slug, durationMinutes: 60, labelOverride: 'Pacman' },
+      ],
+    });
+
+    const untouched = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      cohortNoun: 'participant',
+    });
+    expect(
+      (untouched.payload.after as { workshops: unknown[] }).workshops,
+    ).toHaveLength(2);
+
+    const unknown = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      workshops: [{ slug: `nowhere-${stamp}`, durationMinutes: 30 }],
+    });
+    expect(unknown.status).toBe(400);
+    expect(String(unknown.payload.error)).toContain(
+      'config_workshop_instances',
+    );
+
+    await prisma.eventConfig_Workshop.deleteMany({
+      where: { eventId: event.id },
+    });
+    await prisma.event.delete({ where: { id: event.id } });
+    await prisma.workshop_Instance.deleteMany({
+      where: { id: { in: [pacman.id, snake.id] } },
+    });
   });
 
   it('plans a bulk change before applying it, and applies it on the digest', async () => {

@@ -104,12 +104,12 @@ describe('auditUnreachedToolCall', () => {
 
   it('records a write attempted with a read-only token as forbidden', async () => {
     await auditUnreachedToolCall(
-      call('write_event_activation', { eventId: 'evt', visible: true }),
+      call('write_event_config', { eventId: 'evt', visible: true }),
       { ...coreWriter, writeEnabled: false },
     );
 
     expect(recordAdminApiCall.mock.calls[0][0]).toMatchObject({
-      operation: 'write_event_activation',
+      operation: 'write_event_config',
       status: 403,
     });
   });

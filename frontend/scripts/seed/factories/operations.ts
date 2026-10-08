@@ -330,9 +330,9 @@ export function addAdminApiTokens(world: World, staff: StaffRef): void {
   //
   // The operation and the field have to belong together, because an audit row
   // is read as the record of a call that was actually made: `cohortNoun` is a
-  // field of `write_event_config`, and `write_event_inscrits_options` - which
-  // this named - takes `showStatutColumn` and nothing else, so the row
-  // described a call the catalogue would have refused. The noun is singular for
+  // field of `write_event_config`, and the operation this once named took
+  // `showStatutColumn` and nothing else, so the row described a call the
+  // catalogue would have refused. The noun is singular for
   // the same reason it is singular everywhere else: `cohortNounForms` builds
   // the plural and never the reverse.
   world.buffer.adminApi_Call.push({

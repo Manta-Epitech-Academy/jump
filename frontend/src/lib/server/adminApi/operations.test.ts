@@ -161,8 +161,8 @@ describe('what a credential is offered as tools', () => {
  * `operation.param`. Explicit and exhaustive, with a throwing default, for the
  * same reason `requiredArgsFor` is: a new config field then fails this test until
  * somebody decides how the API exposes it, instead of quietly having no API at
- * all. Three params are deliberately named differently from the form field, which
- * is why this cannot be a key intersection.
+ * all. One param is deliberately named differently from the form field
+ * (`devActivated` is `visible`), which is why this cannot be a key intersection.
  */
 const EVENT_FIELD_WRITES: Record<string, string> = {
   id: 'write_event_config.eventId',
@@ -171,11 +171,11 @@ const EVENT_FIELD_WRITES: Record<string, string> = {
   startTime: 'write_event_config.startTime',
   endDate: 'write_event_config.endDate',
   modules: 'write_event_config.modules',
-  moduleSettings: 'write_event_inscrits_options.showStatutColumn',
-  devActivated: 'write_event_activation.visible',
-  feedbackFormId: 'write_event_feedback_form.formId',
-  diplomaTemplateId: 'write_event_diploma_template.templateId',
-  closingTemplateId: 'write_event_closing_template.closingTemplateId',
+  moduleSettings: 'write_event_config.moduleSettings',
+  devActivated: 'write_event_config.visible',
+  feedbackFormId: 'write_event_config.feedbackFormId',
+  diplomaTemplateId: 'write_event_config.diplomaTemplateId',
+  closingTemplateId: 'write_event_config.closingTemplateId',
   shownStatuses: 'write_event_config.shownStatuses',
 };
 

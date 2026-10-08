@@ -131,7 +131,7 @@ export async function getDiplomaTemplates(params: {
         pageHeightPx: t.pageHeightPx,
         attachedEvents: t._count.events,
       })),
-      "Les certificats que Jump sait délivrer. « label » est le nom que voient les équipes et qui nomme le fichier téléchargé, « code » la clé stable à passer à write_diploma_template pour le modifier, « templateId » l'identifiant à passer à write_event_diploma_template pour le rattacher à un événement, et « attachedEvents » le nombre d'événements qui le délivrent aujourd'hui.",
+      "Les certificats que Jump sait délivrer. « label » est le nom que voient les équipes et qui nomme le fichier téléchargé, « code » la clé stable à passer à write_diploma_template pour le modifier, « templateId » l'identifiant à passer à write_event_config (diplomaTemplateId) pour le rattacher à un événement, et « attachedEvents » le nombre d'événements qui le délivrent aujourd'hui.",
     ),
     design: metric(
       design,
@@ -270,7 +270,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
             label: certificate.label,
           }
         : null,
-      "Le certificat que cet événement délivre depuis la page Inscrits, une page par inscrit, ou null s'il n'en délivre aucun : le bouton de génération est alors absent. « templateId » est l'identifiant à passer à write_event_diploma_template.",
+      "Le certificat que cet événement délivre depuis la page Inscrits, une page par inscrit, ou null s'il n'en délivre aucun : le bouton de génération est alors absent. « templateId » est l'identifiant à passer à write_event_config (diplomaTemplateId).",
     ),
     shownStatuses: metric(
       event.shownStatuses,

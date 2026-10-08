@@ -290,6 +290,34 @@ async function applyModuleDiff(
   }
 }
 
+/** One online activity an event offers, already resolved to its instance. */
+export type EventWorkshopLink = {
+  instanceId: string;
+  durationMinutes: number;
+  labelOverride: string | null;
+};
+
+/**
+ * Replaces the activities ONE event offers with `links`, in that order, inside an
+ * open transaction.
+ *
+ * Replaced whole: removing a link takes the activity off that event's dashboards
+ * and nothing else, because a talent's participation holds its own snapshot of
+ * the event, the campus and the minute budget and is not bound to this row. XP
+ * already granted stay granted.
+ */
+async function replaceEventWorkshops(
+  tx: Prisma.TransactionClient,
+  eventId: string,
+  links: readonly EventWorkshopLink[],
+) {
+  await tx.eventConfig_Workshop.deleteMany({ where: { eventId } });
+  if (links.length === 0) return;
+  await tx.eventConfig_Workshop.createMany({
+    data: links.map((link, position) => ({ eventId, position, ...link })),
+  });
+}
+
 /**
  * Makes many events expose exactly the given module set, inside an open
  * transaction. Set-based, NOT a per-event diff: two statements regardless of the
@@ -371,6 +399,11 @@ export const EventService = {
    * campus-tz day, stored at end-of-day so the last day still reads as
    * "ongoing"; empty clears it back to a single-day event. Note an applied
    * planning template also rewrites `endDate` (its last day wins).
+   *
+   * `workshops` is the one part that is optional: the config dialog has no
+   * activity field, so it leaves the event's activities as they are, and only
+   * the admin API's `write_event_config` replaces them, in this same transaction
+   * so a refused save leaves them untouched too.
    */
   async updateEventConfig(
     eventId: string,
@@ -386,6 +419,7 @@ export const EventService = {
       diplomaTemplateId: string;
       closingTemplateId: string;
       shownStatuses: string[];
+      workshops?: readonly EventWorkshopLink[];
     },
   ) {
     // Surfaces a clean 404 (rather than a transaction-level throw) if the event
@@ -399,16 +433,16 @@ export const EventService = {
         campus: { select: { timezone: true } },
       },
     });
-    // The third spelling of the activation rule, and the one that was missing.
-    // `bulkSetActivation` refuses through `activatableEventWhere` and
-    // `write_event_activation` refuses through `activationBlockers`, but this
-    // path writes `publicName` and `devActivatedAt` in the same call and checked
-    // neither against the other: clearing the public name of an activated event
-    // left it live in the dev workspace under its raw Salesforce title, which is
-    // the one state the rule exists to prevent. It reaches here from both
-    // consumers - the config dialog, and `write_event_config`, whose patch
-    // semantics carry the stored activation forward into a call that only meant
-    // to edit a name.
+    // The activation rule, judged on the configuration being saved rather than
+    // the one stored. `bulkSetActivation` refuses through `activatableEventWhere`;
+    // this path writes `publicName` and `devActivatedAt` in the same call, and
+    // once checked neither against the other: clearing the public name of an
+    // activated event left it live in the dev workspace under its raw Salesforce
+    // title, which is the one state the rule exists to prevent. It reaches here
+    // from both consumers - the config dialog, and `write_event_config`, whose
+    // patch semantics carry the stored activation forward into a call that only
+    // meant to edit a name, and which also shows an event through here, so a
+    // call naming the missing pieces and the activation together succeeds.
     const refusal = data.devActivated
       ? activationRefusal({
           publicName: data.publicName.trim() || null,
@@ -468,6 +502,9 @@ export const EventService = {
       // Refuses a word the catalogue does not hold, which rolls the whole save
       // back: a configuration is saved entirely or not at all.
       await setEventShownStatuses(tx, eventId, data.shownStatuses);
+      if (data.workshops) {
+        await replaceEventWorkshops(tx, eventId, data.workshops);
+      }
       await tx.event.update({
         where: { id: eventId },
         data: {

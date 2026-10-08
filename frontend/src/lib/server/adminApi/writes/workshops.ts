@@ -1,6 +1,7 @@
-// The class A writes for the CTFd activities: curating an instance, presenting
-// it on the talent dashboard, and saying which ones an event offers. Bounded to
-// named rows and reversible.
+// The class A writes for the CTFd activities: curating an instance, and
+// presenting it on the talent dashboard. Which ones an event offers is part of
+// the event's configuration (`write_event_config`). Bounded to named rows and
+// reversible.
 //
 // Presenting one (`writeWorkshopCover`) downloads the pictures it is given and
 // does not already hold, from addresses an admin chose, before anything is
@@ -17,7 +18,6 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
-import { UnknownScopeError } from '../scope';
 import type { WriteOutcome } from '../plan';
 import { replacePictures, type StoredPicture } from '$lib/server/images/remote';
 import {
@@ -243,106 +243,4 @@ export async function writeWorkshopCover(params: {
   });
 
   return { applied: true, before, after };
-}
-
-type EventWorkshopsState = {
-  eventId: string;
-  workshops: {
-    slug: string;
-    label: string;
-    durationMinutes: number;
-    labelOverride: string | null;
-  }[];
-};
-
-async function eventWorkshopsState(
-  eventId: string,
-): Promise<EventWorkshopsState> {
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
-    select: {
-      id: true,
-      workshops: {
-        orderBy: { position: 'asc' },
-        select: {
-          durationMinutes: true,
-          labelOverride: true,
-          instance: { select: { slug: true, label: true } },
-        },
-      },
-    },
-  });
-  if (!event) {
-    throw new UnknownScopeError(
-      `Événement « ${eventId} » introuvable. ${handleProvenanceFr('eventId')}`,
-    );
-  }
-  return {
-    eventId: event.id,
-    workshops: event.workshops.map((link) => ({
-      slug: link.instance.slug,
-      label: link.instance.label,
-      durationMinutes: link.durationMinutes,
-      labelOverride: link.labelOverride,
-    })),
-  };
-}
-
-export async function writeEventWorkshops(params: {
-  eventId: string;
-  workshops: {
-    slug: string;
-    durationMinutes: number;
-    labelOverride?: string;
-  }[];
-}): Promise<WriteOutcome> {
-  const before = await eventWorkshopsState(params.eventId);
-
-  const slugs = params.workshops.map((w) => w.slug.trim());
-  const duplicates = slugs.filter(
-    (slug, index) => slugs.indexOf(slug) !== index,
-  );
-  if (duplicates.length > 0) {
-    throw new OperationRefusedError(
-      `Une activité ne peut être proposée qu'une fois par événement. En double : ${[...new Set(duplicates)].join(', ')}.`,
-    );
-  }
-
-  const known = await prisma.workshop_Instance.findMany({
-    where: { slug: { in: slugs } },
-    select: { id: true, slug: true },
-  });
-  const idBySlug = new Map(known.map((i) => [i.slug, i.id]));
-  const unknown = slugs.filter((slug) => !idBySlug.has(slug));
-  if (unknown.length > 0) {
-    throw new OperationRefusedError(
-      `Activités introuvables : ${unknown.join(', ')}. ${handleProvenanceFr('workshopSlug')}`,
-    );
-  }
-
-  // Replaced whole, for one named event: removing a link takes the activity off
-  // that event's dashboards and nothing else, because a talent's participation
-  // holds its own snapshot of the event, the campus and the minute budget and is
-  // not bound to this row. XP already granted stay granted.
-  await prisma.$transaction(async (tx) => {
-    await tx.eventConfig_Workshop.deleteMany({
-      where: { eventId: params.eventId },
-    });
-    if (slugs.length === 0) return;
-    await tx.eventConfig_Workshop.createMany({
-      data: params.workshops.map((workshop, index) => ({
-        eventId: params.eventId,
-        instanceId: idBySlug.get(workshop.slug.trim())!,
-        position: index,
-        durationMinutes: workshop.durationMinutes,
-        labelOverride: workshop.labelOverride?.trim() || null,
-      })),
-    });
-  });
-
-  return {
-    applied: true,
-    before,
-    after: await eventWorkshopsState(params.eventId),
-  };
 }

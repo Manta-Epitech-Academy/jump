@@ -299,6 +299,9 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   feature: 'usageFeatureKey',
   eventId: 'eventId',
   formId: 'formId',
+  // The event configuration names each reference after the column it sets, so
+  // the three sit side by side unambiguously in one write.
+  feedbackFormId: 'formId',
   // The feedback form's question key. The closing bank's is `questionKey`, below.
   question: 'questionKey',
   templateName: 'templateName',
@@ -309,7 +312,7 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   // keyed by parameter name across the whole catalogue: a second, unrelated
   // `code` would need one of the two renamed rather than a second entry here.
   code: 'diplomaCode',
-  templateId: 'diplomaTemplateId',
+  diplomaTemplateId: 'diplomaTemplateId',
   jobId: 'pdfJobId',
   errorType: 'syncErrorType',
   salesforceCampaignId: 'salesforceCampaignId',
@@ -321,8 +324,8 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   memberStatus: 'sfStatus',
   showStatuses: 'sfStatus',
   hideStatuses: 'sfStatus',
-  // The event binding takes an id, like the certificate one beside it; authoring
-  // takes a key, like `write_diploma_template`'s `code`. Both are produced by the
+  // The event configuration takes an id, like the certificate one beside it;
+  // authoring takes a key, like `write_diploma_template`'s `code`. Both are produced by the
   // same configuration read, which returns a grid's id and its key together.
   closingTemplateId: 'closingTemplateId',
   templateKey: 'closingTemplateKey',
