@@ -72,7 +72,6 @@ import {
 import { resolveScope, UnknownScopeError } from './scope';
 import { handleDescribe, handleProvenanceFr } from './handles';
 import type { WriteOutcome } from './plan';
-import { getEventsOverview } from '$lib/server/services/adminStats/eventsOverview';
 import { getOnboardingFunnel } from '$lib/server/services/adminStats/onboardingFunnel';
 import {
   getEventsConfigList,
@@ -533,13 +532,6 @@ const feedbackQuestion = withQuestionRules(
   .meta({ id: 'FeedbackQuestion' });
 
 export const ADMIN_API_OPERATIONS = {
-  stats_events_overview: defineOperation({
-    description:
-      'Where the events stand: how many are visible in the dev workspace, ready to publish or still to configure, and how many enrolments the dev workspace shows for them. Broken down per campus and per enabled dev-workspace section. Also lists the school years that have events.',
-    shape: { schoolYear, campus },
-    run: async (params) => getEventsOverview(await resolveScope(params)),
-  }),
-
   stats_events: defineOperation({
     leadership: true,
     description: `Every event of a périmètre, one row each: its id, the name teams and students see, its campus, its dates, whether it is upcoming, ongoing or past, and how many enrolments the dev workspace shows for it. Answers "what is running right now", and is where an event id comes from for the operations that take one. Capped at ${EVENTS_LIST_LIMIT} rows.`,
@@ -613,7 +605,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_campus_overview: defineOperation({
     description:
-      'Per campus: how many events, how many are visible in the dev workspace, how many still need work, how many enrolments the dev workspace shows, the staff by role, and which dev-workspace sections are in use.',
+      'Where the events stand, in total and per campus (every campus, even one with no event in scope): how many are visible in the dev workspace, ready to publish or still to configure, how many still need work, how many enrolments the dev workspace shows, which dev-workspace sections are in use, and the staff by role.',
     shape: { schoolYear, campus },
     run: async (params) => getCampusOverview(await resolveScope(params)),
   }),

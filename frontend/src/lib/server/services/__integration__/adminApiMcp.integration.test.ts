@@ -105,7 +105,7 @@ describe('the admin MCP server (integration)', () => {
   // the SDK.
   it('advertises each tool as refusing unknown parameters', async () => {
     const { tools } = await (await clientFor(readSecret)).listTools();
-    const overview = tools.find((t) => t.name === 'stats_events_overview');
+    const overview = tools.find((t) => t.name === 'config_campus_overview');
 
     expect(overview?.inputSchema).toMatchObject({
       type: 'object',
@@ -172,7 +172,7 @@ describe('the admin MCP server (integration)', () => {
     const result = await (
       await clientFor(readSecret)
     ).callTool({
-      name: 'stats_events_overview',
+      name: 'config_campus_overview',
       arguments: { campus: `Lile-${stamp}` },
     });
 
@@ -182,7 +182,7 @@ describe('the admin MCP server (integration)', () => {
     expect(textOf(result)).toContain('Campus disponibles');
 
     const row = await prisma.adminApi_Call.findFirst({
-      where: { actorUserId: adminUserId, operation: 'stats_events_overview' },
+      where: { actorUserId: adminUserId, operation: 'config_campus_overview' },
       orderBy: { createdAt: 'desc' },
     });
     expect(row?.status).toBe(400);

@@ -250,7 +250,7 @@ export const HANDLES: Record<HandleKind, Handle> = {
     frGender: 'f',
     producedBy: [
       { operation: 'config_event_detail' },
-      { operation: 'stats_events_overview' },
+      { operation: 'config_campus_overview' },
     ],
   },
   closingTemplateId: {

@@ -129,7 +129,7 @@ describe('what a credential is offered as tools', () => {
     const offered = names({ tier: 'core', writeEnabled: false });
     expect(offered.some((n) => n.startsWith('write_'))).toBe(false);
     expect(offered.some((n) => n.startsWith('bulk_'))).toBe(false);
-    expect(offered).toContain('stats_events_overview');
+    expect(offered).toContain('config_campus_overview');
   });
 
   it('shows a write-enabled core token the writes as well', () => {

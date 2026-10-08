@@ -2724,7 +2724,7 @@ model AdminApi_Call {
   /// later deletion.
   actorUserId String
   /// Operation name, the same vocabulary as the MCP tool names
-  /// (`stats_events_overview`, ...). A plain String so a new operation needs no
+  /// (`config_campus_overview`, ...). A plain String so a new operation needs no
   /// migration; the catalogue lives in `$lib/server/adminApi/operations.ts`.
   operation   String
   /// The validated params. PII-free by construction: this tier serves

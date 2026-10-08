@@ -53,7 +53,7 @@ beforeEach(() => recordAdminApiCall.mockReset());
 describe('auditUnreachedToolCall', () => {
   it('stays silent on a call that will reach its tool, which logs its own outcome', async () => {
     await auditUnreachedToolCall(
-      call('stats_events_overview', { campus: 'Lille' }),
+      call('config_campus_overview', { campus: 'Lille' }),
       coreWriter,
     );
     expect(recordAdminApiCall).not.toHaveBeenCalled();
@@ -61,13 +61,13 @@ describe('auditUnreachedToolCall', () => {
 
   it('records the misspelled filter the SDK rejects before the handler', async () => {
     await auditUnreachedToolCall(
-      call('stats_events_overview', { campusID: 'Lille' }),
+      call('config_campus_overview', { campusID: 'Lille' }),
       coreWriter,
     );
 
     expect(recordAdminApiCall).toHaveBeenCalledTimes(1);
     expect(recordAdminApiCall.mock.calls[0][0]).toMatchObject({
-      operation: 'stats_events_overview',
+      operation: 'config_campus_overview',
       status: 400,
     });
   });
@@ -77,7 +77,7 @@ describe('auditUnreachedToolCall', () => {
   // does not have, and the call log must not become the place that keeps it.
   it('never stores the unvalidated arguments of a refused call', async () => {
     await auditUnreachedToolCall(
-      call('stats_events_overview', { nom: 'Dupont' }),
+      call('config_campus_overview', { nom: 'Dupont' }),
       coreWriter,
     );
 
@@ -130,7 +130,7 @@ describe('auditUnreachedToolCall', () => {
       { jsonrpc: '2.0', id: 1, method: 'tools/list' },
       { method: 'tools/call' },
       { method: 'tools/call', params: { name: '' } },
-      [call('stats_events_overview', { nope: 1 })],
+      [call('config_campus_overview', { nope: 1 })],
     ]) {
       await auditUnreachedToolCall(body, coreWriter);
     }
@@ -155,7 +155,7 @@ describe('auditUnreachedToolCall', () => {
 describe('envelopeRefusal', () => {
   it('refuses a batch, whatever it carries', () => {
     for (const batch of [
-      [call('stats_sync_health'), call('stats_events_overview')],
+      [call('stats_sync_health'), call('config_campus_overview')],
       [call('stats_sync_health')],
       [],
     ]) {

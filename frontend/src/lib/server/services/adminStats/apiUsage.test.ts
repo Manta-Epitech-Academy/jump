@@ -22,7 +22,7 @@ vi.mock('$lib/server/db', () => ({
 
 const { getApiUsage } = await import('./apiUsage');
 
-const KNOWN = ['stats_sync_health', 'stats_events_overview'];
+const KNOWN = ['stats_sync_health', 'config_campus_overview'];
 
 function call(operation: string, status: number) {
   return { operation, status, tokenId: null, createdAt: new Date(0) };
@@ -39,7 +39,7 @@ describe('mostRefused', () => {
     callFindMany.mockResolvedValue([
       call('stats_sync_health', 200),
       call('stats_sync_health', 400),
-      call('stats_events_overview', 400),
+      call('config_campus_overview', 400),
     ]);
 
     const usage = await getApiUsage({}, KNOWN);
@@ -47,7 +47,7 @@ describe('mostRefused', () => {
     expect(
       usage.mostRefused.value.map((r) => [r.operation, r.refusedShare]),
     ).toEqual([
-      ['stats_events_overview', 100],
+      ['config_campus_overview', 100],
       ['stats_sync_health', 50],
     ]);
   });
@@ -128,7 +128,7 @@ describe('per-operation refusal rate', () => {
     callFindMany.mockResolvedValue([
       ...Array.from({ length: 99 }, () => call('stats_sync_health', 200)),
       call('stats_sync_health', 400),
-      call('stats_events_overview', 400),
+      call('config_campus_overview', 400),
     ]);
 
     const usage = await getApiUsage({}, KNOWN);
@@ -137,7 +137,7 @@ describe('per-operation refusal rate', () => {
     );
 
     expect(byName.get('stats_sync_health')).toBe(1);
-    expect(byName.get('stats_events_overview')).toBe(100);
+    expect(byName.get('config_campus_overview')).toBe(100);
     // The global rate cannot express that difference.
     expect(usage.refusalRate.value).toBe(2);
   });
