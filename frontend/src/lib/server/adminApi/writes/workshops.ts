@@ -1,11 +1,15 @@
-// The class A write for the CTFd activities: one activity, curated and
-// presented in one call. Which ones an event offers is part of the event's
-// configuration (`write_event_config`). Bounded to named rows and reversible.
+// The class A writes for the CTFd activities, one per entity: a host and its
+// address (`write_workshop_instance`), and an activity, the content a host
+// serves, curated and presented in one call (`write_workshop`). Which ones an
+// event offers is part of the event's configuration (`write_event_config`).
+// Bounded to named rows and reversible.
 //
-// Curation (where Jump sends a talent: the name, the instance address, whether it
-// is offered) and presentation (the cover on the talent dashboard) are facets of
-// one activity, so they are fields of one write rather than two tools, and a new
-// activity can be declared with its cover in one call.
+// Curation (the name a talent reads, the host serving it, whether it is offered)
+// and presentation (the cover on the talent dashboard) are facets of one
+// activity, so they are fields of one write rather than two tools, and a new
+// activity can be declared with its cover in one call. The host is not a facet
+// of it: several activities name one host, so its address is written once, on
+// the host.
 //
 // Presenting one downloads the pictures it is given and does not already hold,
 // from addresses an admin chose, before anything is stored. That read sends
@@ -14,14 +18,15 @@
 // copied refuses the whole write, curation included, and the activity stays as
 // it was.
 //
-// There is deliberately no delete. `config_workshop_instances` returns slugs, so
-// a delete tool would be something a model could aim on its own, which puts it in
-// class C. An instance is retired with `enabled: false`, and the link's FK is
-// `Restrict` so a hand-deletion of one still offered fails loudly.
+// There is deliberately no delete. `config_workshops` returns slugs, so a delete
+// tool would be something a model could aim on its own, which puts it in class
+// C. An activity is retired with `enabled: false`, and every FK onto it and onto
+// its host is `Restrict` so a hand-deletion of one still in use fails loudly.
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { OperationRefusedError } from '../errors';
+import { handleProvenanceFr } from '../handles';
 import type { WriteOutcome } from '../plan';
 import { replacePictures, type StoredPicture } from '$lib/server/images/remote';
 import {
@@ -54,6 +59,49 @@ function normaliseBaseUrl(raw: string): string {
     );
   }
   return parsed.origin;
+}
+
+/** What the host write reports, before and after. */
+async function instanceState(slug: string) {
+  const row = await prisma.workshop_Instance.findUnique({
+    where: { slug },
+    select: {
+      slug: true,
+      baseUrl: true,
+      activities: { select: { slug: true }, orderBy: { slug: 'asc' } },
+    },
+  });
+  return row
+    ? {
+        instance: row.slug,
+        baseUrl: row.baseUrl,
+        activities: row.activities.map((a) => a.slug),
+      }
+    : null;
+}
+
+/** Declare a CTFd host, or move it to another address. */
+export async function writeWorkshopInstance(params: {
+  instance: string;
+  baseUrl: string;
+}): Promise<WriteOutcome> {
+  const slug = params.instance.trim();
+  if (!slug) {
+    throw new OperationRefusedError(
+      "Une instance a besoin d'une clé technique : celle que son administration CTFd affiche comme « slug » de l'instance.",
+    );
+  }
+
+  const before = await instanceState(slug);
+  const baseUrl = normaliseBaseUrl(params.baseUrl);
+
+  await prisma.workshop_Instance.upsert({
+    where: { slug },
+    create: { slug, baseUrl },
+    update: { baseUrl },
+  });
+
+  return { applied: true, before, after: await instanceState(slug) };
 }
 
 /** How an activity presents itself on the talent dashboard. */
@@ -97,13 +145,13 @@ const COVER_IMAGE_SELECT = {
 
 /** What the activity write reports, before and after: everything it can set. */
 async function workshopState(db: Prisma.TransactionClient, slug: string) {
-  const instance = await db.workshop_Instance.findUnique({
+  const activity = await db.workshop_Activity.findUnique({
     where: { slug },
     select: {
       slug: true,
       label: true,
-      baseUrl: true,
       enabled: true,
+      instance: { select: { slug: true } },
       tagline: true,
       coverImages: {
         select: { kind: true, sourceUrl: true },
@@ -111,32 +159,64 @@ async function workshopState(db: Prisma.TransactionClient, slug: string) {
       },
     },
   });
-  if (!instance) return null;
-  const { tagline, coverImages, ...curation } = instance;
+  if (!activity) return null;
+  const { instance, tagline, coverImages, ...curation } = activity;
   // The address each picture was copied from, by kind.
-  return { ...curation, cover: { tagline, images: coverImages } };
+  return {
+    ...curation,
+    instance: instance.slug,
+    cover: { tagline, images: coverImages },
+  };
+}
+
+/**
+ * Moving an activity to another host is refused once a talent has entered it.
+ *
+ * The other host holds a fresh CTFd account for each of them, and a progress
+ * report is the whole state recounted, so the first step validated there
+ * replaces a finished activity's grant with one step's worth: the XP of a
+ * content walked once, for life, would fall back to nearly nothing. Before
+ * anybody enters, a move only corrects a declaration, which is what it is for.
+ * A host that merely changes address keeps its accounts, and is
+ * `write_workshop_instance`'s.
+ */
+async function refuseMoveOnceEntered(
+  activityId: string,
+  slug: string,
+  currentInstance: string,
+): Promise<void> {
+  const entered = await prisma.workshop_Participation.count({
+    where: { activityId },
+  });
+  if (entered > 0) {
+    throw new OperationRefusedError(
+      `L'activité « ${slug} » ne change plus d'instance : ${entered} talent(s) y sont déjà entrés sur « ${currentInstance} », et l'autre instance les ferait repartir de zéro, XP compris. Si c'est la même instance à une nouvelle adresse, mettez cette adresse à jour avec write_workshop_instance.`,
+    );
+  }
 }
 
 /**
  * Declare or update one activity: a slug that does not exist yet creates one,
- * which then needs its name and address; an existing slug changes only what the
- * call names. `cover` states the whole cover when given (anything it omits is
- * removed), `null` removes it, and an omitted `cover` leaves it alone. A picture
- * whose address has not changed keeps the copy already stored
- * (`replacePictures`), so restating the cover to change its tagline downloads
- * nothing.
+ * which then needs its name and its host; an existing slug changes only what the
+ * call names. The slug is the plugin's own name for the content, so it is taken
+ * as given and never derived: a mismatch is refused by the host at the first
+ * entry, which is the point. `cover` states the whole cover when given
+ * (anything it omits is removed), `null` removes it, and an omitted `cover`
+ * leaves it alone. A picture whose address has not changed keeps the copy
+ * already stored (`replacePictures`), so restating the cover to change its
+ * tagline downloads nothing.
  */
 export async function writeWorkshop(params: {
   slug: string;
+  instance?: string;
   label?: string;
-  baseUrl?: string;
   enabled?: boolean;
   cover?: WorkshopCoverInput | null;
 }): Promise<WriteOutcome> {
   const slug = params.slug.trim();
-  const existing = await prisma.workshop_Instance.findUnique({
+  const existing = await prisma.workshop_Activity.findUnique({
     where: { slug },
-    select: { id: true },
+    select: { id: true, instance: { select: { id: true, slug: true } } },
   });
   const label = params.label?.trim();
   if (label === '') {
@@ -144,35 +224,51 @@ export async function writeWorkshop(params: {
       "Le libellé d'une activité ne peut pas être vide : c'est le nom que lit un talent sur son accueil.",
     );
   }
-  const baseUrl =
-    params.baseUrl === undefined ? undefined : normaliseBaseUrl(params.baseUrl);
+
+  let instanceId: string | undefined;
+  if (params.instance !== undefined) {
+    const host = await prisma.workshop_Instance.findUnique({
+      where: { slug: params.instance.trim() },
+      select: { id: true },
+    });
+    if (!host) {
+      throw new OperationRefusedError(
+        `Instance « ${params.instance} » introuvable. ${handleProvenanceFr('workshopInstanceSlug')}`,
+      );
+    }
+    instanceId = host.id;
+    if (existing && existing.instance.id !== host.id) {
+      await refuseMoveOnceEntered(existing.id, slug, existing.instance.slug);
+    }
+  }
+
   // A new activity's id is minted here rather than by the database, because its
   // cover's storage keys are named after it before the row exists.
   const id = existing?.id ?? randomUUID();
-  let creation: Prisma.Workshop_InstanceCreateInput | null = null;
+  let creation: Prisma.Workshop_ActivityUncheckedCreateInput | null = null;
   if (!existing) {
-    if (!label || !baseUrl) {
+    if (!label || !instanceId) {
       throw new OperationRefusedError(
-        "Une nouvelle activité a besoin d'un libellé français (celui que lit un talent sur son accueil) et de l'adresse de son instance (label, baseUrl).",
+        "Une nouvelle activité a besoin d'un libellé français (celui que lit un talent sur son accueil) et de l'instance qui la sert (label, instance).",
       );
     }
-    creation = { id, slug, label, baseUrl, enabled: params.enabled ?? true };
+    creation = { id, slug, label, instanceId, enabled: params.enabled ?? true };
   }
   // On an existing activity, only what the call names changes: an omitted
   // `enabled` in particular stays as it stands, so editing a label cannot
-  // silently put a retired instance back in front of a cohort.
-  const saveInstance = async (
+  // silently put a retired activity back in front of a cohort.
+  const saveActivity = async (
     tx: Prisma.TransactionClient,
     tagline?: string | null,
   ) => {
     if (!creation) {
-      return tx.workshop_Instance.update({
+      return tx.workshop_Activity.update({
         where: { id },
-        data: { label, baseUrl, enabled: params.enabled, tagline },
+        data: { label, instanceId, enabled: params.enabled, tagline },
       });
     }
     try {
-      return await tx.workshop_Instance.create({
+      return await tx.workshop_Activity.create({
         data: { ...creation, tagline },
       });
     } catch (err) {
@@ -194,7 +290,7 @@ export async function writeWorkshop(params: {
 
   if (params.cover === undefined) {
     const before = await workshopState(prisma, slug);
-    await saveInstance(prisma);
+    await saveActivity(prisma);
     return {
       applied: true,
       before,
@@ -229,24 +325,24 @@ export async function writeWorkshop(params: {
     readStored: async (db): Promise<StoredPicture[]> =>
       (
         await db.workshop_CoverImage.findMany({
-          where: { instanceId: id },
+          where: { activityId: id },
           select: COVER_IMAGE_SELECT,
         })
       ).map(({ kind, ...picture }) => ({ slot: kind, ...picture })),
     // Taken before the cover is read, so a second write on this activity
     // waits here and then reads what this one wrote.
     lock: async (tx) => {
-      await tx.$executeRaw`SELECT 1 FROM "Workshop_Instance" WHERE id = ${id} FOR UPDATE`;
+      await tx.$executeRaw`SELECT 1 FROM "Workshop_Activity" WHERE id = ${id} FOR UPDATE`;
     },
     commit: async (tx, pictures) => {
       // Read under the lock, so what the audit row calls "before" is the state
       // this write actually replaced, not one a concurrent write has moved on.
       const before = await workshopState(tx, slug);
-      await saveInstance(tx, tagline);
-      await tx.workshop_CoverImage.deleteMany({ where: { instanceId: id } });
+      await saveActivity(tx, tagline);
+      await tx.workshop_CoverImage.deleteMany({ where: { activityId: id } });
       await tx.workshop_CoverImage.createMany({
         data: pictures.map(({ slot, ...picture }) => ({
-          instanceId: id,
+          activityId: id,
           kind: slot as WorkshopCoverKind,
           ...picture,
         })),

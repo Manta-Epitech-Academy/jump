@@ -9,7 +9,7 @@ export const workshopRewardAckSchema = z.object({
   upTo: z
     .array(
       z.object({
-        instanceId: z.string().min(1),
+        activityId: z.string().min(1),
         amount: z.number().int().min(0),
       }),
     )

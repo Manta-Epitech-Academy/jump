@@ -16,7 +16,7 @@ import { workshopCoverKeyFromPath } from '$lib/domain/workshops';
 export const GET: RequestHandler = async ({ params, locals }) => {
   if (!locals.user) throw error(401);
 
-  const key = workshopCoverKeyFromPath(params.instanceId, params.file);
+  const key = workshopCoverKeyFromPath(params.activityId, params.file);
   const image = await prisma.workshop_CoverImage.findFirst({
     where: { OR: [{ key }, { stillKey: key }] },
     select: { key: true, contentType: true },

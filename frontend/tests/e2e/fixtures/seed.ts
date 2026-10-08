@@ -64,9 +64,15 @@ export async function purgeE2eData(): Promise<void> {
   await prisma.bauth_user.deleteMany({
     where: { email: { endsWith: E2E_DOMAIN } },
   });
-  // The instance last: the link and the participation both Restrict onto it, so
-  // it cannot go before the event (which cascades the link) and the talents
-  // (which cascade the participation).
+  // The activities last, then their host: the link and the participation both
+  // Restrict onto an activity, so it cannot go before the event (which
+  // cascades the link) and the talents (which cascade the participation), and
+  // an activity Restricts onto its host in turn. Every activity on the host and
+  // not only this fixture's own: a database migrated from before the split
+  // holds one carrying the host's id, and it would hold the host in place.
+  await prisma.workshop_Activity.deleteMany({
+    where: { instanceId: E2E.workshopInstanceId },
+  });
   await prisma.workshop_Instance.deleteMany({
     where: { id: E2E.workshopInstanceId },
   });
@@ -131,9 +137,15 @@ export async function seedE2eData(): Promise<void> {
   await prisma.workshop_Instance.create({
     data: {
       id: E2E.workshopInstanceId,
-      slug: E2E.workshopSlug,
-      label: E2E.workshopLabel,
+      slug: E2E.workshopInstanceSlug,
       baseUrl: 'https://e2e.ctfd.invalid',
+      activities: {
+        create: {
+          id: E2E.workshopActivityId,
+          slug: E2E.workshopSlug,
+          label: E2E.workshopLabel,
+        },
+      },
     },
   });
 
@@ -155,7 +167,7 @@ export async function seedE2eData(): Promise<void> {
       shownStatuses: { create: [{ status: 'READY' }, { status: 'MET' }] },
       workshops: {
         create: {
-          instanceId: E2E.workshopInstanceId,
+          activityId: E2E.workshopActivityId,
           position: 0,
           durationMinutes: E2E.workshopDurationMinutes,
         },

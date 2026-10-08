@@ -46,6 +46,7 @@ export type HandleKind =
   | 'closingQuestionKey'
   | 'closingId'
   | 'workshopSlug'
+  | 'workshopInstanceSlug'
   | 'usageFeatureKey';
 
 /**
@@ -113,10 +114,17 @@ export const HANDLES: Record<HandleKind, Handle> = {
   },
 
   workshopSlug: {
-    what: 'Activity slug, the stable key of one deployed CTFd instance.',
+    what: 'Activity slug, the stable key of one content a CTFd instance serves, exactly as that instance names it.',
     frNoun: "clés d'activité",
     frGender: 'f',
-    producedBy: [{ operation: 'config_workshop_instances' }],
+    producedBy: [{ operation: 'config_workshops' }],
+  },
+
+  workshopInstanceSlug: {
+    what: 'Instance slug, the stable key of one deployed CTFd host, whatever content it serves.',
+    frNoun: "clés d'instance",
+    frGender: 'f',
+    producedBy: [{ operation: 'config_workshops' }],
   },
 
   eventId: {
@@ -351,8 +359,10 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   // The activity catalogue's own key, on the write that authors one. Nothing else
   // in the catalogue takes a bare `slug`, and this map is keyed by parameter name
   // across the whole catalogue: a second, unrelated `slug` would need one of the
-  // two renamed rather than a second entry here.
+  // two renamed rather than a second entry here. That is why the host an activity
+  // runs on is `instance` and not a second `slug`.
   slug: 'workshopSlug',
+  instance: 'workshopInstanceSlug',
   // The ordered list an event offers, whose entries are addressed by the same
   // slug, exactly as `modules` is a list addressed by module key.
   workshops: 'workshopSlug',

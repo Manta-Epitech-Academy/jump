@@ -290,9 +290,9 @@ async function applyModuleDiff(
   }
 }
 
-/** One online activity an event offers, already resolved to its instance. */
+/** One online activity an event offers, already resolved to its row. */
 export type EventWorkshopLink = {
-  instanceId: string;
+  activityId: string;
   durationMinutes: number;
   labelOverride: string | null;
 };

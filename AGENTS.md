@@ -265,7 +265,7 @@ Prefer the least coupling that works, delete a questioned mechanism instead of r
 
 ### XP System
 
-XP follows the ledger pattern above. Each granting fact is one `XpGrant` row (unique on `(source, sourceId)`; sources: `onboarding`, `onboarding_early_bird`, `minigame`, `minigame_rank`, `reward`, `admin_adjustment`). `Talent.xp` = `SUM(amount)` and `Talent.eventsCount` = present-participation count, both cached projections.
+XP follows the ledger pattern above. Each granting fact is one `XpGrant` row (unique on `(source, sourceId)`; sources: `onboarding`, `onboarding_early_bird`, `minigame`, `minigame_rank`, `reward`, `workshop`, `admin_adjustment`). `Talent.xp` = `SUM(amount)` and `Talent.eventsCount` = present-participation count, both cached projections.
 
 - **Never mutate `Talent.xp` directly.** It's a cached projection of `XpGrant`; go through `xpService` so the recompute stays atomic.
 - **Level is derived, not stored** (`Talent.level` was dropped). Use `computeLevel(xp)` (tiers: Novice 0-199, Apprentice 200-499, Expert 500+). `JUMP_LEVELS` is canonical in `domain/xp.ts`; `xpRangeForLevel` maps a tier back to an `xp` range for the broadcast filter. No level tier is surfaced in the dev workspace, so there is no French label helper.

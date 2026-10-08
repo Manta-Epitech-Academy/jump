@@ -56,7 +56,7 @@ function podiumTierFromBonus(amount: number): 1 | 2 | 3 | 'top' {
  *
  * `sourceLabel` is the name of the thing a grant names, resolved server-side off
  * the grant's `sourceId` by `resolveGrantLabels`: the `XpReward.name` behind a
- * `reward` (e.g. "OSINT CTFD Stage Seconde"), the `Workshop_Instance.label`
+ * `reward` (e.g. "OSINT CTFD Stage Seconde"), the `Workshop_Activity.label`
  * behind a `workshop`. It carries the identity, so a grant without it falls back
  * to a generic but still meaningful label rather than the old catch-all
  * "XP gagnés".

@@ -439,6 +439,11 @@ export async function wipe(
   await drop('diploma_Template', () =>
     prisma.diploma_Template.deleteMany({ where: { id: seeded } }),
   );
+  // The activity before its host, which it Restricts onto; its cover pictures
+  // go with it.
+  await drop('workshop_Activity', () =>
+    prisma.workshop_Activity.deleteMany({ where: { id: seeded } }),
+  );
   await drop('workshop_Instance', () =>
     prisma.workshop_Instance.deleteMany({ where: { id: seeded } }),
   );

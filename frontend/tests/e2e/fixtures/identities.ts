@@ -22,8 +22,10 @@ export const E2E_DOMAIN = '@e2e.invalid';
 export const E2E = {
   campusId: 'e2e-campus',
   eventId: 'e2e-event-emargement',
-  /** The one curated activity, offered by the event above. */
+  /** The one curated activity, offered by the event above, and its host. */
   workshopInstanceId: 'e2e-workshop-instance',
+  workshopInstanceSlug: 'e2e-instance',
+  workshopActivityId: 'e2e-workshop-activity',
   workshopSlug: 'e2e-atelier',
   workshopLabel: 'Atelier E2E',
   /** What it is worth on that event: a round number, so the XP is one too. */

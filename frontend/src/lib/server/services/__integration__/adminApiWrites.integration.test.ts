@@ -466,13 +466,19 @@ describe('admin API writes (integration)', () => {
 
   // Replaced whole and in order, and left alone by a call that does not name it.
   it('replaces the activities an event offers, in the order given', async () => {
+    const host = await prisma.workshop_Instance.create({
+      data: {
+        slug: `write-host-${stamp}`,
+        baseUrl: 'https://host.example.org',
+      },
+    });
     const [pacman, snake] = await Promise.all(
       ['pacman', 'snake'].map((name) =>
-        prisma.workshop_Instance.create({
+        prisma.workshop_Activity.create({
           data: {
             slug: `write-${name}-${stamp}`,
+            instanceId: host.id,
             label: name,
-            baseUrl: `https://${name}.example.org`,
           },
         }),
       ),
@@ -513,17 +519,16 @@ describe('admin API writes (integration)', () => {
       workshops: [{ slug: `nowhere-${stamp}`, durationMinutes: 30 }],
     });
     expect(unknown.status).toBe(400);
-    expect(String(unknown.payload.error)).toContain(
-      'config_workshop_instances',
-    );
+    expect(String(unknown.payload.error)).toContain('config_workshops');
 
     await prisma.eventConfig_Workshop.deleteMany({
       where: { eventId: event.id },
     });
     await prisma.event.delete({ where: { id: event.id } });
-    await prisma.workshop_Instance.deleteMany({
+    await prisma.workshop_Activity.deleteMany({
       where: { id: { in: [pacman.id, snake.id] } },
     });
+    await prisma.workshop_Instance.delete({ where: { id: host.id } });
   });
 
   it('plans a bulk change before applying it, and applies it on the digest', async () => {

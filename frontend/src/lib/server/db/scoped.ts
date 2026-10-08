@@ -426,9 +426,10 @@ export function scopedPrisma(campusId: string) {
       },
 
       // ── The workshop models have no delegate, on purpose ──
-      // `Workshop_Instance` is a global catalogue, the argument `Diploma_Template`
-      // already carries word for word: the event selecting one is campus-scoped, so
-      // a campus key here would re-encode a tie an FK already holds.
+      // `Workshop_Instance` and `Workshop_Activity` are a global catalogue, the
+      // argument `Diploma_Template` already carries word for word: the event
+      // selecting one is campus-scoped, so a campus key here would re-encode a tie
+      // an FK already holds.
       // `EventConfig_Workshop` is only ever reached through `Event`, which is
       // scoped above. And `Workshop_Participation` is only ever read by `talentId`
       // off `locals.talent`, so a guard here would protect a path the application

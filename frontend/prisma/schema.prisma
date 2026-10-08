@@ -2350,7 +2350,7 @@ model XpGrant {
   // onboarding_early_bird→talentId (distinct row from the base because `source`
   // differs), minigame→attemptId, minigame_rank→attemptId,
   // reward→`${rewardId}_${talentId}` (one grant per talent per XpReward, see
-  // XpReward below), workshop→`${instanceSlug}:${talentId}` (one grant per
+  // XpReward below), workshop→`${activitySlug}:${talentId}` (one grant per
   // talent per activity, recomputed on every progress callback rather than
   // appended per step, see `domain/workshops.ts`), admin_adjustment→null
   // (never deduped: Postgres treats NULLs as distinct under the unique index).
@@ -2386,7 +2386,7 @@ enum XpGrantSource {
   reward
   // One activity walked on a CTFd instance, recomputed on every progress
   // callback rather than appended per validated step: a single grant per
-  // (talent, instance), so the talent's timeline carries one line and the
+  // (talent, activity), so the talent's timeline carries one line and the
   // rounded total is exactly `budgetMinutes * WORKSHOP_XP_PER_MINUTE`.
   workshop
   admin_adjustment
@@ -2418,52 +2418,82 @@ model XpReward {
 
 // ─── Workshops (the CTFd activities a talent reaches from Jump) ───
 
-/// One deployed CTFd carrying the `workshop_platform` plugin, curated here so
-/// Jump knows where to hand a talent over. Nothing of the subject is TYPED here:
-/// the steps and the description stay in CTFd, exactly as `MinigameConfig`
-/// refuses to keep the jump-games catalogue by hand. What a talent's dashboard
-/// shows of it is a different matter, and is authored here over the API
-/// (`write_workshop`, its `cover`): the `tagline` and the `Workshop_CoverImage` rows.
-/// It was first read back from the instance, and that was dropped on purpose:
-/// the people who configure an activity's look are not the ones who deploy its
-/// CTFd, so one source of truth had to be chosen, and it is the one they hold.
+/// One deployed CTFd carrying the `workshop_platform` plugin: a HOST, and nothing
+/// else. What a talent walks on it is a `Workshop_Activity`, because a host serves
+/// one content after another (a campus instance passed on to the next request, a
+/// season's instance serving every camp in turn), and everything a talent keeps,
+/// the participation, the XP grant and the name in the timeline, belongs to the
+/// content they walked, not to the machine it ran on.
 ///
 /// `baseUrl` is a column and not an environment variable, which is the one place
 /// this diverges from jump-games: there is a single jump-games backend and there
 /// are eleven CTFd hosts, so the address belongs to the row.
-///
-/// `enabled = false` takes an instance out of every dashboard without deleting
-/// the rows pointing at it, which is how one is retired.
 model Workshop_Instance {
-  id        String   @id @default(cuid())
+  id         String              @id @default(cuid())
   /// Stable natural key, and also the ticket audience (`workshop:<slug>`) the
-  /// plugin compares against its own configured instance name. Never renamed,
-  /// and never reused for another subject: a CTFd host redeployed with a new
-  /// subject (a campus instance passed on to the next request, a season's camp
-  /// instance) takes a new slug, so a new row. The participation and the XP
-  /// grant are keyed on this row "once per talent, for life", so a reused slug
-  /// would let the new subject's progress replace the old subject's XP.
-  slug      String   @unique
+  /// plugin compares against its own configured instance name. It names the
+  /// host only, so a rotation keeps it.
+  slug       String              @unique
   /// Origin of the CTFd, no trailing slash: the entry action redirects to
   /// `<baseUrl>/jump/enter?t=...`. A generated database points this at a
   /// NON-ROUTABLE host on purpose, because a dev or preprod row carrying the
-  /// real address with `enabled = true` is one click away from handing a talent
-  /// over to a live instance from a validation environment.
-  baseUrl   String
+  /// real address behind an enabled activity is one click away from handing a
+  /// talent over to a live instance from a validation environment.
+  baseUrl    String
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  activities Workshop_Activity[]
+}
+
+/// One content deployed on a host, the thing a talent walks: what an event
+/// offers, what a participation and an XP grant are filed under, and what the
+/// dashboard shows. Nothing of the subject is TYPED here: the steps and the
+/// description stay in CTFd, exactly as `MinigameConfig` refuses to keep the
+/// jump-games catalogue by hand. What a talent's dashboard shows of it is a
+/// different matter, and is authored here over the API (`write_workshop`, its
+/// `cover`): the `tagline` and the `Workshop_CoverImage` rows. It was first read
+/// back from the instance, and that was dropped on purpose: the people who
+/// configure an activity's look are not the ones who deploy its CTFd, so one
+/// source of truth had to be chosen, and it is the one they hold.
+///
+/// It names the host that serves it, many activities to one host: an activity
+/// is on one host at a time, so every event offering it reaches the same place
+/// without restating where. That host is fixed once a talent has entered it,
+/// because another host would hold fresh accounts and its first report would
+/// take their XP back (`write_workshop`).
+///
+/// `enabled = false` takes an activity out of every dashboard without deleting
+/// the rows pointing at it, which is how one is retired once its host has moved
+/// on to another content.
+model Workshop_Activity {
+  id             String                   @id @default(cuid())
+  /// The plugin's name for the content this host serves, the `workshop.slug` of
+  /// a composed workshop or the `project.slug` of a single subject, exactly as
+  /// the instance's `/admin/workshop/jump` shows it. Never renamed and never
+  /// reused: every XP grant is filed under it. The plugin reports it with every
+  /// progress callback and refuses an entry whose ticket names another, so a
+  /// slug that does not match fails at the door instead of losing XP.
+  slug           String                   @unique
+  instanceId     String
   /// French name a talent reads on the dashboard, and the name every XP
   /// timeline row is quoted under.
-  label     String
+  label          String
   /// The one line the dashboard's activity hero leads with, in place of the
   /// label. Written only through `write_workshop`'s `cover`, so a call that
-  /// curates where an activity lives and names no cover cannot wipe it.
-  tagline   String?
-  enabled   Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  /// curates what an activity is and names no cover cannot wipe it.
+  tagline        String?
+  enabled        Boolean                  @default(true)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
 
+  /// Restrict: a host still serving an activity is not one to delete.
+  instance       Workshop_Instance        @relation(fields: [instanceId], references: [id], onDelete: Restrict)
   events         EventConfig_Workshop[]
   participations Workshop_Participation[]
   coverImages    Workshop_CoverImage[]
+
+  @@index([instanceId])
 }
 
 /// Which picture of a cover an image is.
@@ -2484,16 +2514,16 @@ enum WorkshopCoverKind {
 /// (`$lib/server/images/remote.ts`).
 ///
 /// A row exists only for a picture that was actually copied, so a cover never
-/// holds half an image; an instance with none stands on its label alone.
+/// holds half an image; an activity with none stands on its label alone.
 model Workshop_CoverImage {
-  instanceId  String
+  activityId  String
   kind        WorkshopCoverKind
-  /// The address it was copied from, handed back by `config_workshop_instances`
+  /// The address it was copied from, handed back by `config_workshops`
   /// so the admin can see and restate the cover. A write restating the same
   /// address for the same kind keeps this copy rather than downloading it
   /// again (`replacePictures`).
   sourceUrl   String
-  /// Storage key, `workshops/<instanceId>/<kind>-<writeId>.<ext>`: minted by
+  /// Storage key, `workshops/<activityId>/<kind>-<writeId>.<ext>`: minted by
   /// the write that copied it, so only the write that replaces it deletes it.
   key         String            @unique
   /// For an animated GIF, its first frame as a WebP, shown to a talent who
@@ -2506,9 +2536,9 @@ model Workshop_CoverImage {
   width       Int
   height      Int
 
-  instance Workshop_Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  activity Workshop_Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
 
-  @@id([instanceId, kind])
+  @@id([activityId, kind])
 }
 
 /// An event offering an activity: the link, carrying attributes of its own.
@@ -2519,7 +2549,7 @@ model Workshop_CoverImage {
 /// configuration points at a catalogue another context owns.
 model EventConfig_Workshop {
   eventId         String
-  instanceId      String
+  activityId      String
   /// Where it sits in this event's list, so several activities have an order.
   position        Int
   /// The scale parameter. It lives here and not on the catalogue row because the
@@ -2536,13 +2566,13 @@ model EventConfig_Workshop {
   event    Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   /// Restrict, like `Event.diplomaTemplateId`: deleting a catalogue row events
   /// still point at has to fail loudly rather than silently empty a dashboard.
-  instance Workshop_Instance @relation(fields: [instanceId], references: [id], onDelete: Restrict)
+  activity Workshop_Activity @relation(fields: [activityId], references: [id], onDelete: Restrict)
 
-  @@id([eventId, instanceId])
-  @@index([instanceId])
+  @@id([eventId, activityId])
+  @@index([activityId])
 }
 
-/// What CTFd says one talent has done on one instance.
+/// What CTFd says one talent has done on one activity.
 ///
 /// A POLLED EXTERNAL MIRROR, not a fact log. `prisma/CLAUDE.md` takes this case
 /// out of the "facts as rows" shape and sends it to a 1:1 typed row updated when
@@ -2566,15 +2596,18 @@ model EventConfig_Workshop {
 /// the event, which no sync ever deletes, so both stay required rather than
 /// nullable: a null here would be a state nothing can produce.
 ///
-/// The key `(talent, instance)` encodes a product rule: an activity is worth its
-/// XP once per talent, for life. CTFd holds one account per talent per instance
-/// and cannot express which event a validation belongs to, so a key built on the
-/// event would be a key nothing could ever honour. That the same subject met
+/// The key `(talent, activity)` encodes a product rule: a content is worth its XP
+/// once per talent, for life. CTFd holds one account per talent per instance and
+/// cannot express which event a validation belongs to, so a key built on the
+/// event would be a key nothing could ever honour. That the same content met
 /// again at a later event pays nothing follows from that, and it is a decision
-/// rather than an accident of the `sourceId`.
+/// rather than an accident of the `sourceId`. It is the CONTENT and not the host
+/// because a host changes content: keyed on the host, a regular's second camp on
+/// the season's instance replaced the first camp's XP and stayed pinned to the
+/// first camp's event, budget and room.
 model Workshop_Participation {
   talentId       String
-  instanceId     String
+  activityId     String
   eventId        String
   campusId       String
   /// Snapshot of `EventConfig_Workshop.durationMinutes`, taken at first entry.
@@ -2592,14 +2625,14 @@ model Workshop_Participation {
   updatedAt      DateTime  @updatedAt
 
   talent   Talent            @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  instance Workshop_Instance @relation(fields: [instanceId], references: [id], onDelete: Restrict)
+  activity Workshop_Activity @relation(fields: [activityId], references: [id], onDelete: Restrict)
   event    Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   /// Restrict, matching `Participation.campus`: a campus still holding walked
   /// activities is not one to delete out from under them.
   campus   Campus            @relation(fields: [campusId], references: [id])
 
-  @@id([talentId, instanceId])
-  @@index([instanceId])
+  @@id([talentId, activityId])
+  @@index([activityId])
   @@index([eventId])
   @@index([campusId])
 }

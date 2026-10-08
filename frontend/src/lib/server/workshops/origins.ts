@@ -4,7 +4,8 @@
  * Read from the `Workshop_Instance` rows because that is the only source that
  * cannot drift: the same rows the entry action redirects to, so an instance
  * added over the API works the moment it is offered, and one nobody curated is
- * not in the policy.
+ * not in the policy. A host serving no enabled activity is left out, since no
+ * entry can lead there.
  *
  * CACHED FOR A MINUTE, and that cache is a read cache and not state: every pod
  * computes its own, nothing is authoritative here, and the worst a stale entry
@@ -28,7 +29,7 @@ export async function workshopBaseUrls(): Promise<string[]> {
   if (now < expiresAt) return cached;
   try {
     const rows = await prisma.workshop_Instance.findMany({
-      where: { enabled: true },
+      where: { activities: { some: { enabled: true } } },
       select: { baseUrl: true },
     });
     cached = rows.map((row) => row.baseUrl);

@@ -39,7 +39,7 @@ export const actions: Actions = {
     }
 
     // The gate: only an activity one of the talent's own events offers. An
-    // unknown slug, a switched-off instance and an activity nobody offered them
+    // unknown slug, a switched-off activity and one nobody offered them
     // are one refusal on purpose, so the answer tells a prober nothing.
     const entry = await resolveWorkshopEntry(locals.talent.id, params.slug);
     if (!entry) {
@@ -54,7 +54,8 @@ export const actions: Actions = {
     const token = mintWorkshopTicket({
       talentId: locals.talent.id,
       displayName: workshopDisplayName(locals.talent.prenom, locals.talent.nom),
-      slug: entry.slug,
+      slug: entry.instanceSlug,
+      content: entry.activitySlug,
       kid,
       secret,
       session,

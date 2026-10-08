@@ -4,26 +4,28 @@ import type { ShownPicture } from './pictures';
 /**
  * How a workshop XP grant is addressed.
  *
- * ONE `XpGrant` per (talent, instance), recomputed on every progress callback
+ * ONE `XpGrant` per (talent, activity), recomputed on every progress callback
  * rather than appended per validated step, so the talent's timeline carries one
  * line instead of thirty (several of them at "+0 XP") and the rounded total is
  * exactly `budgetMinutes * WORKSHOP_XP_PER_MINUTE`. `grantXp` upserts on
  * `(source, sourceId)`, so a replay writes the same value and a correction
  * repairs in place.
  *
- * The id is the instance slug and the talent, in that order, because the slug is
- * the stable natural key and is never renamed. It is composed and parsed here,
- * and nowhere else: the XP timeline resolves an activity's label by reading the
- * slug back out of it.
+ * The id is the activity slug and the talent, in that order, because the slug is
+ * the stable natural key and is never renamed. It is the activity's and not its
+ * host's because a host serves one content after another: keyed on the host, a
+ * new content's progress replaced the previous one's XP. It is composed and
+ * parsed here, and nowhere else: the XP timeline resolves an activity's label by
+ * reading the slug back out of it.
  */
 
 const SEPARATOR = ':';
 
 export function workshopGrantSourceId(
-  instanceSlug: string,
+  activitySlug: string,
   talentId: string,
 ): string {
-  return `${instanceSlug}${SEPARATOR}${talentId}`;
+  return `${activitySlug}${SEPARATOR}${talentId}`;
 }
 
 /** The slug back out of a `workshop` grant's `sourceId`, or null if it is malformed. */
@@ -52,20 +54,20 @@ export type WorkshopCoverKind = 'media' | 'poster' | 'mascot';
 const COVER_PREFIX = 'workshops';
 
 export function workshopCoverKey(
-  instanceId: string,
+  activityId: string,
   kind: WorkshopCoverKind,
   writeId: string,
   extension: string,
 ): string {
-  return `${COVER_PREFIX}/${instanceId}/${kind}-${writeId}.${extension}`;
+  return `${COVER_PREFIX}/${activityId}/${kind}-${writeId}.${extension}`;
 }
 
-/** The key the proxy route's `[instanceId]/[file]` segments name. */
+/** The key the proxy route's `[activityId]/[file]` segments name. */
 export function workshopCoverKeyFromPath(
-  instanceId: string,
+  activityId: string,
   file: string,
 ): string {
-  return `${COVER_PREFIX}/${instanceId}/${file}`;
+  return `${COVER_PREFIX}/${activityId}/${file}`;
 }
 
 export function workshopCoverUrl(key: string): string {
@@ -84,7 +86,7 @@ export function workshopCoverUrl(key: string): string {
  * it: what they started stays theirs, even when the only enrolment still
  * offering it is for an event to come.
  *
- * An instance offered by several of a talent's enrolments resolves to ONE
+ * An activity offered by several of a talent's enrolments resolves to ONE
  * offering: the event running today when there is one (that is the one the
  * day's hero is about), otherwise the most recent that has started, and only
  * failing both a future one the talent is already walking it through. The chosen
@@ -100,7 +102,7 @@ export function workshopCoverUrl(key: string): string {
  */
 export function selectWorkshopOfferings<
   T extends {
-    instanceId: string;
+    activityId: string;
     eventId: string;
     eventDate: Date;
     position: number;
@@ -108,14 +110,14 @@ export function selectWorkshopOfferings<
   },
 >(
   rows: readonly T[],
-  startedInstanceIds: ReadonlySet<string>,
+  startedActivityIds: ReadonlySet<string>,
 ): (T & { today: boolean })[] {
   const chosen = new Map<string, T>();
   for (const row of rows) {
-    if (row.status === 'upcoming' && !startedInstanceIds.has(row.instanceId))
+    if (row.status === 'upcoming' && !startedActivityIds.has(row.activityId))
       continue;
-    const current = chosen.get(row.instanceId);
-    if (!current || outranks(row, current)) chosen.set(row.instanceId, row);
+    const current = chosen.get(row.activityId);
+    if (!current || outranks(row, current)) chosen.set(row.activityId, row);
   }
   return [...chosen.values()]
     .map((row) => ({ ...row, today: row.status === 'ongoing' }))

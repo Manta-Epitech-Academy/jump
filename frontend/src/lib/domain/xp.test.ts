@@ -70,7 +70,7 @@ describe('the activity XP scale', () => {
 });
 
 describe('the activity grant id', () => {
-  it('reads the instance slug back out of what it composed', () => {
+  it('reads the activity slug back out of what it composed', () => {
     const sourceId = workshopGrantSourceId('pacman-ia', 'sd_tal_paris_0001');
     expect(sourceId).toBe('pacman-ia:sd_tal_paris_0001');
     expect(workshopSlugFromSourceId(sourceId)).toBe('pacman-ia');

@@ -23,7 +23,8 @@ describe('which activities a talent is offered (integration)', () => {
 
   let talentId = '';
   const campusIds: string[] = [];
-  const instanceIds = new Map<string, string>();
+  let instanceId = '';
+  const activityIds = new Map<string, string>();
 
   const slug = (name: string) => `offer-${name}-${stamp}`;
 
@@ -49,7 +50,7 @@ describe('which activities a talent is offered (integration)', () => {
       await prisma.eventConfig_Workshop.create({
         data: {
           eventId: row.id,
-          instanceId: instanceIds.get(name)!,
+          activityId: activityIds.get(name)!,
           position,
           durationMinutes: 120,
         },
@@ -63,6 +64,14 @@ describe('which activities a talent is offered (integration)', () => {
 
   beforeAll(async () => {
     assertTestDatabase();
+    instanceId = (
+      await prisma.workshop_Instance.create({
+        data: {
+          slug: `offer-host-${stamp}`,
+          baseUrl: 'https://offer.ctfd.invalid',
+        },
+      })
+    ).id;
     for (const name of [
       'tomorrow',
       'today',
@@ -71,14 +80,10 @@ describe('which activities a talent is offered (integration)', () => {
       'started',
       'reunion',
     ]) {
-      const row = await prisma.workshop_Instance.create({
-        data: {
-          slug: slug(name),
-          label: `Atelier ${name}`,
-          baseUrl: 'https://offer.ctfd.invalid',
-        },
+      const row = await prisma.workshop_Activity.create({
+        data: { slug: slug(name), instanceId, label: `Atelier ${name}` },
       });
-      instanceIds.set(name, row.id);
+      activityIds.set(name, row.id);
     }
     talentId = (
       await prisma.talent.create({ data: { prenom: 'Lou', nom: 'Offre' } })
@@ -109,7 +114,7 @@ describe('which activities a talent is offered (integration)', () => {
     await prisma.workshop_Participation.create({
       data: {
         talentId,
-        instanceId: instanceIds.get('started')!,
+        activityId: activityIds.get('started')!,
         eventId: future,
         campusId: paris,
         budgetMinutes: 120,
@@ -122,9 +127,10 @@ describe('which activities a talent is offered (integration)', () => {
     try {
       await prisma.talent.deleteMany({ where: { id: talentId } });
       await prisma.event.deleteMany({ where: { campusId: { in: campusIds } } });
-      await prisma.workshop_Instance.deleteMany({
-        where: { id: { in: [...instanceIds.values()] } },
+      await prisma.workshop_Activity.deleteMany({
+        where: { id: { in: [...activityIds.values()] } },
       });
+      await prisma.workshop_Instance.deleteMany({ where: { id: instanceId } });
       await prisma.campus.deleteMany({ where: { id: { in: campusIds } } });
     } catch {
       // ignore: the test database is disposable

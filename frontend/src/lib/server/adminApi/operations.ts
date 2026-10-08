@@ -147,14 +147,14 @@ import {
   getCampusOverview,
   getFeedbackForms,
   getEventTemplates,
-  getWorkshopInstances,
+  getWorkshops,
   getTalentHomeContent,
 } from '$lib/server/services/adminStats/configuration';
 import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
 import { WORKSHOP_XP_PER_MINUTE } from '$lib/domain/xp';
 import { getSchoolYearReview } from '$lib/server/services/adminStats/schoolYearReview';
 import { writeDiplomaTemplate } from './writes/diplomas';
-import { writeWorkshop } from './writes/workshops';
+import { writeWorkshop, writeWorkshopInstance } from './writes/workshops';
 import {
   writeTalentHomeHighlight,
   writeTalentHomeNote,
@@ -679,11 +679,11 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => getFeedbackForms(params),
   }),
 
-  config_workshop_instances: defineOperation({
+  config_workshops: defineOperation({
     description:
-      'The online activities Jump can send a talent to: their slug, the French name a talent reads, the CTFd address behind each, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover). The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP. Returns the slugs write_workshop and the workshops of write_event_config take.',
+      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover). An instance is a host: its slug, its address and the activities declared on it, retired ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take.',
     shape: {},
-    run: () => getWorkshopInstances(),
+    run: () => getWorkshops(),
   }),
 
   config_talent_home: defineOperation({
@@ -1022,18 +1022,51 @@ export const ADMIN_API_OPERATIONS = {
       writeDiplomaTemplate({ ...params, origin: ctx.origin }),
   }),
 
+  write_workshop_instance: defineWrite({
+    description:
+      'Declare or update one CTFd instance, the host online activities run on, identified by its slug: a slug that does not exist yet creates one, an existing slug updates its address. It says where Jump sends a talent and nothing else; what the instance serves is write_workshop. Safe to repeat: the same slug and the same address leave one instance. Answers with the instance before and after.',
+    shape: {
+      instance: z
+        .string()
+        .min(1)
+        .regex(
+          /^[a-z0-9-]+$/,
+          'Lowercase letters, digits and hyphens only, e.g. "camps-2026".',
+        )
+        .describe(
+          `${handleDescribe('workshopInstanceSlug')} It is the slug set on the instance's own CTFd admin page (/admin/workshop/jump), which the instance checks every entry against. Creates or updates by it. It names the host only, so it stays the same when the instance moves on to another content.`,
+        ),
+      baseUrl: z
+        .string()
+        .min(1)
+        .describe(
+          'Address of the CTFd instance, origin only with no path, e.g. "https://pacman.epiboost.fr". Jump appends the entry path itself.',
+        ),
+    },
+    run: (params) => writeWorkshopInstance(params),
+  }),
+
   write_workshop: defineWrite({
-    description: `Declare or update one online activity, identified by its slug: where Jump sends a talent (its French name, the CTFd instance address, whether it is offered) and how it presents itself on the talent dashboard (its cover). A slug that does not exist yet creates one; on an existing one only the fields you pass change. It authors no subject content. The cover is a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host: media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same activity. Answers with the activity before and after.`,
+    description: `Declare or update one online activity, the content a CTFd instance serves, identified by its slug: what a talent reads (its French name), the instance serving it, whether it is offered, and how it presents itself on the talent dashboard (its cover). A slug that does not exist yet creates one; on an existing one only the fields you pass change. When an instance moves on to another content, declare that content as a new activity on the same instance and retire the old one with enabled false: every talent keeps the XP of the content they walked, filed under its own slug. It authors no subject content. The cover is a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host: media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same activity. Answers with the activity before and after.`,
     shape: {
       slug: z
         .string()
         .min(1)
+        // The longest content name the instance accepts in an entry ticket.
+        .max(128)
         .regex(
           /^[a-z0-9-]+$/,
           'Lowercase letters, digits and hyphens only, e.g. "pacman-ia".',
         )
         .describe(
-          `${handleDescribe('workshopSlug')} Creates or updates by it, so a slug that does not exist yet is a new activity. Never rename one: it is what every past XP grant is filed under. Never point one at another subject either: a CTFd host redeployed with a new subject is a new slug, or that subject's progress replaces the old one's XP.`,
+          `${handleDescribe('workshopSlug')} It must be exactly the content the instance's own CTFd admin page (/admin/workshop/jump) shows as synced there: the instance refuses an entry for any other, so a typo fails at the first entry rather than losing anyone's XP. Creates or updates by it. Never rename one: it is what every past XP grant is filed under.`,
+        ),
+      instance: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          `${handleDescribe('workshopInstanceSlug')} The instance serving this content. Required to create one. It can be changed only while no talent has entered the activity: another instance would start them over on fresh accounts and take back their XP. An instance that only changes address is updated with write_workshop_instance.`,
         ),
       label: z
         .string()
@@ -1041,13 +1074,6 @@ export const ADMIN_API_OPERATIONS = {
         .optional()
         .describe(
           'French name a talent reads on their dashboard, e.g. "Pacman IA". Required to create one. An event may read it differently without changing it, see the workshops of write_event_config.',
-        ),
-      baseUrl: z
-        .string()
-        .min(1)
-        .optional()
-        .describe(
-          'Address of the CTFd instance, origin only with no path, e.g. "https://pacman.epiboost.fr". Required to create one. Jump appends the entry path itself.',
         ),
       enabled: z
         .boolean()
@@ -1079,7 +1105,7 @@ export const ADMIN_API_OPERATIONS = {
         .nullable()
         .optional()
         .describe(
-          'The WHOLE cover: anything it omits is removed, so to change one part read config_workshop_instances first and pass the rest back as it stands. Null removes the cover; omit it to leave the cover as it is.',
+          'The WHOLE cover: anything it omits is removed, so to change one part read config_workshops first and pass the rest back as it stands. Null removes the cover; omit it to leave the cover as it is.',
         ),
     },
     run: (params) => writeWorkshop(params),

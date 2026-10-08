@@ -26,6 +26,7 @@ describe('resetting a talent to import (integration)', () => {
   let campusId = '';
   let eventId = '';
   let instanceId = '';
+  let activityId = '';
   let talentId = '';
 
   beforeAll(async () => {
@@ -44,13 +45,13 @@ describe('resetting a talent to import (integration)', () => {
     });
     eventId = event.id;
     const instance = await prisma.workshop_Instance.create({
-      data: {
-        slug,
-        label: 'Atelier de test',
-        baseUrl: 'https://reset.ctfd.invalid',
-      },
+      data: { slug: `${slug}-host`, baseUrl: 'https://reset.ctfd.invalid' },
     });
     instanceId = instance.id;
+    const activity = await prisma.workshop_Activity.create({
+      data: { slug, instanceId, label: 'Atelier de test' },
+    });
+    activityId = activity.id;
     const talent = await prisma.talent.create({
       data: { prenom: 'Camille', nom: 'Réinitialisée' },
     });
@@ -69,7 +70,7 @@ describe('resetting a talent to import (integration)', () => {
     await prisma.workshop_Participation.create({
       data: {
         talentId,
-        instanceId,
+        activityId,
         eventId,
         campusId,
         budgetMinutes: 120,
@@ -93,6 +94,7 @@ describe('resetting a talent to import (integration)', () => {
   afterAll(async () => {
     try {
       await prisma.talent.deleteMany({ where: { id: talentId } });
+      await prisma.workshop_Activity.deleteMany({ where: { id: activityId } });
       await prisma.workshop_Instance.deleteMany({ where: { id: instanceId } });
       await prisma.event.deleteMany({ where: { id: eventId } });
       await prisma.campus.deleteMany({ where: { id: campusId } });
@@ -106,7 +108,7 @@ describe('resetting a talent to import (integration)', () => {
 
     const [participation, grants, talent] = await Promise.all([
       prisma.workshop_Participation.findUnique({
-        where: { talentId_instanceId: { talentId, instanceId } },
+        where: { talentId_activityId: { talentId, activityId } },
       }),
       prisma.xpGrant.count({ where: { talentId } }),
       prisma.talent.findUnique({

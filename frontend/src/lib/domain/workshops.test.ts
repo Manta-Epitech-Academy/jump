@@ -7,13 +7,13 @@ import {
 } from './workshops';
 
 const offering = (
-  instanceId: string,
+  activityId: string,
   day: string,
   status: EventLifecycleStatus,
   position = 0,
-  eventId = `${instanceId}@${day}`,
+  eventId = `${activityId}@${day}`,
 ) => ({
-  instanceId,
+  activityId,
   eventDate: new Date(`${day}T00:00:00Z`),
   status,
   position,
@@ -37,13 +37,13 @@ describe('selectWorkshopOfferings', () => {
       [offering('pacman', '2026-10-28', 'ongoing')],
       none,
     );
-    expect(today).toMatchObject({ instanceId: 'pacman', today: true });
+    expect(today).toMatchObject({ activityId: 'pacman', today: true });
 
     const [later] = selectWorkshopOfferings(
       [offering('pacman', '2026-10-28', 'past')],
       none,
     );
-    expect(later).toMatchObject({ instanceId: 'pacman', today: false });
+    expect(later).toMatchObject({ activityId: 'pacman', today: false });
   });
 
   it('keeps what a talent already started, even if only a future event offers it', () => {
@@ -51,7 +51,7 @@ describe('selectWorkshopOfferings', () => {
       [offering('pacman', '2026-12-02', 'upcoming')],
       new Set(['pacman']),
     );
-    expect(kept).toMatchObject({ instanceId: 'pacman', today: false });
+    expect(kept).toMatchObject({ activityId: 'pacman', today: false });
   });
 
   it('prefers an event that has run over a future one, for a talent already on it', () => {
@@ -64,7 +64,7 @@ describe('selectWorkshopOfferings', () => {
     ]);
   });
 
-  it('resolves an instance offered twice to today, then to the most recent', () => {
+  it('resolves an activity offered twice to today, then to the most recent', () => {
     const rows = [
       offering('pacman', '2026-03-11', 'past'),
       offering('pacman', '2026-10-28', 'ongoing'),
@@ -91,7 +91,7 @@ describe('selectWorkshopOfferings', () => {
       offering('santa', '2026-10-28', 'ongoing', 0, 'camp'),
     ];
     expect(
-      selectWorkshopOfferings(rows, none).map((o) => o.instanceId),
+      selectWorkshopOfferings(rows, none).map((o) => o.activityId),
     ).toEqual(['santa', 'pacman', 'linux']);
   });
 
@@ -119,11 +119,11 @@ describe('selectWorkshopOfferings', () => {
     ];
     const expected = ['pacman', 'linux', 'santa'];
     expect(
-      selectWorkshopOfferings(rows, none).map((o) => o.instanceId),
+      selectWorkshopOfferings(rows, none).map((o) => o.activityId),
     ).toEqual(expected);
     expect(
       selectWorkshopOfferings([...rows].reverse(), none).map(
-        (o) => o.instanceId,
+        (o) => o.activityId,
       ),
     ).toEqual(expected);
   });

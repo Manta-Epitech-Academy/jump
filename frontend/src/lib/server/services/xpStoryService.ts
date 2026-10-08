@@ -18,7 +18,7 @@ function dateLabel(date: Date, timeZone: string): string {
  * Two sources carry an identity that does not live on the grant, and both encode
  * it in the `sourceId`, so both are parsed HERE and nowhere else: a `reward` is
  * `${rewardId}_${talentId}` (written by `grant-reward-from-csv`), a `workshop` is
- * `${instanceSlug}:${talentId}`. Shared by both readers, the dev fiche XP story
+ * `${activitySlug}:${talentId}`. Shared by both readers, the dev fiche XP story
  * and the talent `/parcours` timeline, so the contract stays parsed in one place.
  */
 export async function resolveGrantLabels(
@@ -32,7 +32,7 @@ export async function resolveGrantLabels(
 
   // sourceId -> rewardId, for the reward grants we actually have.
   const rewardIdBySourceId = new Map<string, string>();
-  // sourceId -> instance slug, for the workshop grants.
+  // sourceId -> activity slug, for the workshop grants.
   const slugBySourceId = new Map<string, string>();
   for (const g of grants) {
     if (!g.sourceId) continue;
@@ -47,7 +47,7 @@ export async function resolveGrantLabels(
     return new Map();
   }
 
-  const [rewards, instances] = await Promise.all([
+  const [rewards, activities] = await Promise.all([
     rewardIdBySourceId.size > 0
       ? prisma.xpReward.findMany({
           where: { id: { in: [...new Set(rewardIdBySourceId.values())] } },
@@ -55,14 +55,14 @@ export async function resolveGrantLabels(
         })
       : Promise.resolve([]),
     slugBySourceId.size > 0
-      ? prisma.workshop_Instance.findMany({
+      ? prisma.workshop_Activity.findMany({
           where: { slug: { in: [...new Set(slugBySourceId.values())] } },
           select: { slug: true, label: true },
         })
       : Promise.resolve([]),
   ]);
   const nameByRewardId = new Map(rewards.map((r) => [r.id, r.name]));
-  const labelBySlug = new Map(instances.map((i) => [i.slug, i.label]));
+  const labelBySlug = new Map(activities.map((a) => [a.slug, a.label]));
 
   const labelBySourceId = new Map<string, string>();
   for (const [sourceId, rewardId] of rewardIdBySourceId) {

@@ -80,7 +80,7 @@ async function stateOf(event: AdminEventVM): Promise<EventState> {
     select: {
       durationMinutes: true,
       labelOverride: true,
-      instance: { select: { slug: true } },
+      activity: { select: { slug: true } },
     },
   });
   return {
@@ -96,7 +96,7 @@ async function stateOf(event: AdminEventVM): Promise<EventState> {
     diplomaTemplateId: event.diplomaTemplateId || null,
     closingTemplateId: event.closingTemplateId || null,
     workshops: workshops.map((link) => ({
-      slug: link.instance.slug,
+      slug: link.activity.slug,
       durationMinutes: link.durationMinutes,
       labelOverride: link.labelOverride,
     })),
@@ -240,7 +240,7 @@ async function resolvedReference(
   return id;
 }
 
-/** The activities as the service stores them, slugs resolved to instances. */
+/** The activities as the service stores them, slugs resolved to their rows. */
 async function resolvedWorkshops(
   workshops: NonNullable<EventConfigPatch['workshops']>,
 ): Promise<EventWorkshopLink[]> {
@@ -253,11 +253,11 @@ async function resolvedWorkshops(
       `Une activité ne peut être proposée qu'une fois par événement. En double : ${[...new Set(duplicates)].join(', ')}.`,
     );
   }
-  const known = await prisma.workshop_Instance.findMany({
+  const known = await prisma.workshop_Activity.findMany({
     where: { slug: { in: slugs } },
     select: { id: true, slug: true },
   });
-  const idBySlug = new Map(known.map((i) => [i.slug, i.id]));
+  const idBySlug = new Map(known.map((a) => [a.slug, a.id]));
   const unknown = slugs.filter((slug) => !idBySlug.has(slug));
   if (unknown.length > 0) {
     throw new OperationRefusedError(
@@ -265,7 +265,7 @@ async function resolvedWorkshops(
     );
   }
   return workshops.map((workshop, index) => ({
-    instanceId: idBySlug.get(slugs[index])!,
+    activityId: idBySlug.get(slugs[index])!,
     durationMinutes: workshop.durationMinutes,
     labelOverride: workshop.labelOverride?.trim() || null,
   }));
