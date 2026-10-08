@@ -471,24 +471,28 @@ function pictureUrl(describe: string) {
  * `config_feedback_forms` returns it. Strict at every depth: a misspelt
  * `optionId` silently dropped would turn a rename into a new option.
  */
-const feedbackOption = z.strictObject({
-  optionId: z
-    .string()
-    .min(1)
-    .nullish()
-    .describe(
-      'The id config_feedback_forms returned for this option. Keep it to edit the option: a renamed option keeps the answers already given to it. Omit it to create an option.',
+const feedbackOption = z
+  .strictObject({
+    optionId: z
+      .string()
+      .min(1)
+      .nullish()
+      .describe(
+        'The id config_feedback_forms returned for this option. Keep it to edit the option: a renamed option keeps the answers already given to it. Omit it to create an option.',
+      ),
+    label: optionFields.label.describe(
+      'French, what the respondent picks. Unique within its question: answers are matched on it.',
     ),
-  label: optionFields.label.describe(
-    'French, what the respondent picks. Unique within its question: answers are matched on it.',
-  ),
-  kind: optionFields.kind.describe(
-    '"choice" for an ordinary option. "extra" only on a scale question, for an answer outside the scale such as "Je ne sais pas".',
-  ),
-  reaction: optionFields.reaction.describe(
-    'French line the persona says right after this option is picked. Omit for none.',
-  ),
-});
+    kind: optionFields.kind.describe(
+      '"choice" for an ordinary option. "extra" only on a scale question, for an answer outside the scale such as "Je ne sais pas".',
+    ),
+    reaction: optionFields.reaction.describe(
+      'French line the persona says right after this option is picked. Omit for none.',
+    ),
+  })
+  // Named, so the JSON Schema a client reads defines it once and references it,
+  // rather than inlining it in every question that carries options.
+  .meta({ id: 'FeedbackOption' });
 
 const feedbackQuestion = withQuestionRules(
   z.strictObject({
@@ -503,7 +507,7 @@ const feedbackQuestion = withQuestionRules(
     ),
     required: questionFields.required.describe('Defaults to true.'),
     identityField: questionFields.identityField.describe(
-      "Makes this a question that collects the respondent's identity, asked to public respondents only (a connected talent is already known). At most one question per field. Omit for an ordinary question.",
+      "Makes this a question that collects the respondent's identity, asked to public respondents only (a connected talent is already known). At most one question per field, never on a multiple choice. Omit for an ordinary question.",
     ),
     inputKind: questionFields.inputKind.describe(
       'Text questions only: checks the answer as an e-mail or a phone number. An identity question derives it from its field.',
@@ -512,7 +516,7 @@ const feedbackQuestion = withQuestionRules(
       'Multiple choice only: fewest options to pick.',
     ),
     maxSelections: questionFields.maxSelections.describe(
-      'Multiple choice only: most options to pick.',
+      'Multiple choice only: most options to pick, no more than it has options.',
     ),
     placeholder: questionFields.placeholder.describe(
       'French hint shown in an empty text field.',
@@ -522,7 +526,11 @@ const feedbackQuestion = withQuestionRules(
       .default([])
       .describe('The options, in display order.'),
   }),
-);
+)
+  // Named for the same reason as the option: a form takes questions in two
+  // places (outside any section, and inside each one), and inlined twice the
+  // question was two thirds of this tool's whole schema.
+  .meta({ id: 'FeedbackQuestion' });
 
 export const ADMIN_API_OPERATIONS = {
   stats_events_overview: defineOperation({
@@ -878,7 +886,7 @@ export const ADMIN_API_OPERATIONS = {
   write_feedback_form: defineWrite({
     twoStep: true,
     description:
-      "Create a feedback form, or replace one whole. Read it first with config_feedback_forms and its formId, change what must change, and send everything back: whatever is left out is removed (settings, sections, questions, options), except the persona icon, which is only touched when personaIconUrl is given. Questions outside any section come first, then each section with its own, which is the order respondents meet them. A question is identified by its key, a section and an option by the sectionId and optionId the read returned: keep them to edit those rows, omit them to create new ones. Call it WITHOUT planDigest first: it answers with the form as it stands, the form that would replace it, and a planDigest. Show that to the human, then call again with the digest to apply. Once a form has responses its structure is frozen: wording and settings still change, but adding, removing, moving or reordering a section, question or option, or changing a question's key, type, required flag, identity field, input kind or selection bounds is refused; copy it with write_feedback_form_copy, write the copy, then archive the original. Also refused, every reason at once: a choice question with no option, a multiple choice demanding more picks than it has options, options on a free-text question, two options with one label, an identity field asked twice or on the wrong type, a dashboard nudge on a form connected talents cannot open, a published form open to the public that asks no e-mail; on an answered form, a defect its frozen structure already carries is not refused, so wording, settings and archiving stay possible. The apply is refused if the form was edited or answered in between. Retire a form by setting status to archived; nothing deletes one. Safe to repeat on an existing form: a retried apply is refused once its digest no longer matches. Creating (no formId) is NOT safe to repeat, every apply makes a new form, so keep the formId it answers with. Answers with the form as written, ids included.",
+      'Create a feedback form, or replace one whole. Read it first with config_feedback_forms and its formId, change what must change, and send everything back: whatever is left out is removed. Without planDigest it answers with the form as it stands, the form that would replace it, and a planDigest; the apply is refused if the form was edited or answered in between. Once a form has responses its structure is frozen: wording and settings still change, but adding, removing or reordering a section, question or option, or changing what a question collects (key, type, required, identity field, input kind, selection bounds) is refused; copy it with write_feedback_form_copy, write the copy, then archive the original. A defect a frozen structure already carries is not refused, so wording, settings and archiving stay possible. The rules stated on the parameters are checked together and every refusal comes back at once. Retire a form by setting status to archived; nothing deletes one. Safe to repeat on an existing form, since a retried apply no longer matches its digest; creating (no formId) is NOT, so keep the formId it answers with. Answers with the form as written, ids included.',
     shape: {
       formId: z
         .string()
@@ -950,7 +958,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_feedback_form_copy: defineWrite({
     description:
-      'Copy a feedback form whole into a new draft: the same sections, questions, options, persona and icon, none of its responses. The copy starts as a draft, closed to the public, with no dashboard nudge, and its title ends in « (copie) ». This is how a form that already has responses is restructured: copy it, write the copy with write_feedback_form, then archive the original. NOT safe to repeat: every call makes another copy, so keep the formId it answers with. Answers with the copy, ids included.',
+      'Copy a feedback form whole into a new draft: the same sections, questions, options, persona and icon, none of its responses. The copy starts as a draft, closed to the public, with no dashboard nudge, and its title ends in « (copie) ». NOT safe to repeat: every call makes another copy, so keep the formId it answers with. Answers with the copy, ids included.',
     shape: {
       formId: z
         .string()
