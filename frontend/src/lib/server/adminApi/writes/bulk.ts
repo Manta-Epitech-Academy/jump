@@ -38,6 +38,7 @@ import { isEventModuleKey, EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
 import {
   activationBlockers,
   canBeMadeVisible,
+  eventConfigState,
 } from '$lib/domain/eventReadiness';
 import { OperationRefusedError } from '../errors';
 import { runTwoStep, type WriteOutcome } from '../plan';
@@ -181,13 +182,23 @@ export async function bulkEventConfig(
           : event.shownStatuses;
         // Judged on the event as this call leaves it, so a section the same
         // call adds counts. An event missing a public name, an end date or a
-        // section cannot be shown, and a plan that promised it would be is a
-        // plan that lies: it is listed with what it lacks, and the rest of the
-        // call still applies to it.
+        // section cannot be activated, so its gate is left off rather than
+        // armed for a later section to trip.
         const leftAs = { ...event, modules: modulesTo };
-        let visibleTo = visible ?? event.devActivated;
-        if (visibleTo && !event.devActivated && !canBeMadeVisible(leftAs)) {
-          visibleTo = false;
+        const visibleTo =
+          visible && !event.devActivated && !canBeMadeVisible(leftAs)
+            ? false
+            : (visible ?? event.devActivated);
+        // Asked to be shown and left invisible, whether the rule refused its
+        // gate or the gate was already on with no section to show: a plan that
+        // read as having shown it would lie, so it is listed with what it
+        // lacks, and the rest of the call still applies to it.
+        const shownAfter =
+          eventConfigState({
+            devActivated: visibleTo,
+            moduleCount: modulesTo.length,
+          }) === 'shown';
+        if (visible && !shownAfter) {
           skipped.push({
             ...identify(event),
             reason: `ne peut pas être affiché, il manque : ${activationBlockers(leftAs).join(', ')}`,

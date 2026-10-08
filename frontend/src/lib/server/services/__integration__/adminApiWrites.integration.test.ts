@@ -578,6 +578,46 @@ describe('admin API writes (integration)', () => {
     await prisma.campus.delete({ where: { id: bulkCampus.id } });
   });
 
+  // Its gate is already on, so nothing about it changes, and that is exactly
+  // why the plan has to say it: without a section it shows nothing, and a plan
+  // silent about it read as having shown it.
+  it('names an activated event left with no section among those it cannot show', async () => {
+    const bulkCampus = await prisma.campus.create({
+      data: { name: `BulkArmed-${stamp}`, timezone: 'Europe/Paris' },
+    });
+    const soon = new Date(Date.now() + 20 * 86_400_000);
+    const armed = await prisma.event.create({
+      data: {
+        titre: `BulkArmed-${stamp}`,
+        publicName: 'Coding Club activé',
+        date: soon,
+        endDate: soon,
+        devActivatedAt: new Date(),
+        campusId: bulkCampus.id,
+      },
+    });
+
+    const dry = await call(postBulk, writeSecret, {
+      campus: bulkCampus.name,
+      visible: true,
+    });
+    expect(dry.status).toBe(200);
+    const plan = dry.payload.plan as {
+      changes: unknown[];
+      skipped: { eventId: string; reason: string }[];
+    };
+    expect(plan.changes).toEqual([]);
+    expect(plan.skipped).toEqual([
+      expect.objectContaining({
+        eventId: armed.id,
+        reason: expect.stringContaining('aucune section activée'),
+      }),
+    ]);
+
+    await prisma.event.delete({ where: { id: armed.id } });
+    await prisma.campus.delete({ where: { id: bulkCampus.id } });
+  });
+
   it('refuses a complete status list together with an add or remove', async () => {
     const { status, payload } = await call(postBulk, writeSecret, {
       campus: `WriteCampus-${stamp}`,
