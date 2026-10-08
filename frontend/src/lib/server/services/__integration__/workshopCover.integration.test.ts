@@ -76,7 +76,7 @@ vi.mock('$lib/server/images/process', async (importOriginal) => {
   };
 });
 
-const { writeWorkshopCover, writeWorkshopInstance } =
+const { writeWorkshopCover, writeWorkshopInstance, writeWorkshopActivity } =
   await import('$lib/server/adminApi/writes/workshops');
 const { ADMIN_API_OPERATIONS } =
   await import('$lib/server/adminApi/operations');
@@ -85,7 +85,7 @@ const { REMOTE_ANIMATION_MAX_BYTES, REMOTE_DOWNLOAD_MAX_BYTES } =
   await import('$lib/server/images/remote');
 const { isPublicAddress } = await import('$lib/server/infra/publicAddress');
 const { GET: coverProxy } =
-  await import('../../../../routes/api/workshops/covers/[instanceId]/[file]/+server');
+  await import('../../../../routes/api/workshops/covers/[activityId]/[file]/+server');
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const png = (seed: number) => new Uint8Array([...PNG_MAGIC, seed, seed, seed]);
@@ -106,7 +106,7 @@ describe('the cover an admin gives an activity (integration)', () => {
 
   let server: Server;
   let host = '';
-  let instanceId = '';
+  let activityId = '';
   /**
    * What the host serves, by path: bytes, a fake length, a body streamed with
    * no length at all, or a redirect.
@@ -137,7 +137,7 @@ describe('the cover an admin gives an activity (integration)', () => {
 
   const storedImages = () =>
     prisma.workshop_CoverImage.findMany({
-      where: { instanceId },
+      where: { activityId },
       orderBy: { kind: 'asc' },
     });
 
@@ -152,7 +152,7 @@ describe('the cover an admin gives an activity (integration)', () => {
       .filter((key): key is string => !!key)
       .sort();
     const held = [...objects.keys()]
-      .filter((key) => key.startsWith(`workshops/${instanceId}/`))
+      .filter((key) => key.startsWith(`workshops/${activityId}/`))
       .sort();
     expect(held).toEqual(named);
   }
@@ -197,12 +197,16 @@ describe('the cover an admin gives an activity (integration)', () => {
     host = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
     await writeWorkshopInstance({
-      slug,
-      label: 'Pacman IA',
+      instance: `${slug}-host`,
       baseUrl: 'https://pacman.example.invalid',
     });
-    instanceId = (
-      await prisma.workshop_Instance.findUniqueOrThrow({ where: { slug } })
+    await writeWorkshopActivity({
+      slug,
+      instance: `${slug}-host`,
+      label: 'Pacman IA',
+    });
+    activityId = (
+      await prisma.workshop_Activity.findUniqueOrThrow({ where: { slug } })
     ).id;
   });
 
@@ -217,7 +221,10 @@ describe('the cover an admin gives an activity (integration)', () => {
   });
 
   afterAll(async () => {
-    await prisma.workshop_Instance.deleteMany({ where: { slug } });
+    await prisma.workshop_Activity.deleteMany({ where: { slug } });
+    await prisma.workshop_Instance.deleteMany({
+      where: { slug: `${slug}-host` },
+    });
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
@@ -381,7 +388,7 @@ describe('the cover an admin gives an activity (integration)', () => {
 
     const other = prisma.$transaction(
       async (tx) => {
-        await tx.$executeRaw`SELECT 1 FROM "Workshop_Instance" WHERE id = ${instanceId} FOR UPDATE`;
+        await tx.$executeRaw`SELECT 1 FROM "Workshop_Activity" WHERE id = ${activityId} FOR UPDATE`;
         const [{ xid }] = await tx.$queryRaw<
           { xid: string }[]
         >`SELECT pg_current_xact_id()::text AS xid`;
@@ -390,11 +397,11 @@ describe('the cover an admin gives an activity (integration)', () => {
         await released;
 
         const replaced = await tx.workshop_CoverImage.findMany({
-          where: { instanceId },
+          where: { activityId },
         });
-        await tx.workshop_CoverImage.deleteMany({ where: { instanceId } });
+        await tx.workshop_CoverImage.deleteMany({ where: { activityId } });
         for (const image of replaced) {
-          const key = `workshops/${instanceId}/${image.kind}-other.webp`;
+          const key = `workshops/${activityId}/${image.kind}-other.webp`;
           objects.set(key, png(9));
           otherKeys.push(key);
           await tx.workshop_CoverImage.create({
@@ -454,7 +461,7 @@ describe('the cover an admin gives an activity (integration)', () => {
     ) {
       const before = await storedImages();
       const tagline = (
-        await prisma.workshop_Instance.findUniqueOrThrow({ where: { slug } })
+        await prisma.workshop_Activity.findUniqueOrThrow({ where: { slug } })
       ).tagline;
       const keys = [...objects.keys()];
 
@@ -464,7 +471,7 @@ describe('the cover an admin gives an activity (integration)', () => {
       expect((refusal as Error).message).toMatch(saying);
       expect(await storedImages()).toEqual(before);
       expect(
-        (await prisma.workshop_Instance.findUniqueOrThrow({ where: { slug } }))
+        (await prisma.workshop_Activity.findUniqueOrThrow({ where: { slug } }))
           .tagline,
       ).toBe(tagline);
       expect([...objects.keys()]).toEqual(keys);
@@ -607,7 +614,7 @@ describe('the cover an admin gives an activity (integration)', () => {
       const [, id, file] = key.split('/');
       try {
         return await coverProxy({
-          params: { instanceId: id, file },
+          params: { activityId: id, file },
           locals: { user },
         } as unknown as Parameters<typeof coverProxy>[0]);
       } catch (err) {
@@ -638,7 +645,7 @@ describe('the cover an admin gives an activity (integration)', () => {
     it('refuses a signed-out caller and a key no cover references', async () => {
       const media = (await storedImages()).find((i) => i.kind === 'media')!;
       expect(await get(media.key, null)).toBe(401);
-      expect(await get(`workshops/${instanceId}/media-unknown.gif`)).toBe(404);
+      expect(await get(`workshops/${activityId}/media-unknown.gif`)).toBe(404);
     });
   });
 });

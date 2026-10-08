@@ -52,6 +52,9 @@ import type { EventRef } from '../world';
  * two or three closings, on one campus, which is the hole this change exists to
  * fill.
  */
+/** The session at which the season's host served the subject retired since. */
+const ROTATED_SESSION = 6;
+
 const SESSION_OFFSETS = [
   -189, -168, -147, -126, -105, -84, -63, -42, -21, 6,
 ] as const;
@@ -68,11 +71,17 @@ const [PACMAN, LINUX, SANTA] = WORKSHOPS;
  * link and not on the catalogue, and the retired instance is attached beside it,
  * so an event still pointing at something nobody may enter exists in the data.
  *
- * THE `labelOverride` GOES ON THE OFFERED INSTANCE, NOT THE RETIRED ONE, and
+ * Earlier in the season, the season's host served the subject that is retired
+ * now, and the anchor regular walked it: that host has served two contents in
+ * turn, and the regular's history carries both, each under its own name. That
+ * earlier session (`ROTATED_SESSION`) is a session of its own and not the one
+ * the override sits on.
+ *
+ * THE `labelOverride` GOES ON THE OFFERED ACTIVITY, NOT THE RETIRED ONE, and
  * that is the whole of why it is here. `listTalentWorkshops` only ever reads a
- * link whose instance is `enabled`, so an override on the retired row is a column
+ * link whose activity is `enabled`, so an override on the retired row is a column
  * no screen can reach: the branch it exists to exercise
- * (`o.labelOverride ?? o.instance.label`) would render nowhere in any generated
+ * (`o.labelOverride ?? o.activity.label`) would render nowhere in any generated
  * dataset. It sits on the PAST session rather than the upcoming one because an
  * event that has not started offers nothing (`selectWorkshopOfferings`), and the
  * anchor regular is guaranteed onto every session: the override is therefore
@@ -89,6 +98,8 @@ function activitiesFor(session: number, upcoming: boolean) {
       { slug: PACMAN!.slug, durationMinutes: 150 },
       { slug: SANTA!.slug, durationMinutes: SANTA!.durationMinutes },
     ];
+  if (session === ROTATED_SESSION)
+    return [{ slug: LINUX!.slug, durationMinutes: LINUX!.durationMinutes }];
   if (session !== SESSION_OFFSETS.length - 2) return [];
   return [
     {
@@ -201,12 +212,24 @@ export const club: Scenario = {
       );
       for (const talent of attending) world.enrol(event, talent);
 
-      // Three states of an activity, placed rather than drawn, because each one
+      // The states of an activity, placed rather than drawn, because each one
       // renders a different thing and a draw either produces them or does not:
-      // nobody has entered the retired one, one regular is owed a celebration
-      // (the XP arrived while the Jump tab was in the background, which is the
-      // demo), and another has already seen theirs.
-      if (!upcoming && activitiesFor(session, upcoming).length > 0) {
+      // the anchor regular walked the retired one back when the season's host
+      // served it, one regular is owed a celebration (the XP arrived while the
+      // Jump tab was in the background, which is the demo), and another has
+      // already seen theirs.
+      if (session === ROTATED_SESSION) {
+        world.enterWorkshop({
+          talent: anchorRegular,
+          event,
+          slug: LINUX!.slug,
+          budgetMinutes: LINUX!.durationMinutes,
+          solvedSteps: LINUX!.totalSteps,
+          totalSteps: LINUX!.totalSteps,
+          at: day,
+          celebrated: true,
+        });
+      } else if (!upcoming && activitiesFor(session, upcoming).length > 0) {
         const other = attending.find((t) => t.id !== anchorRegular.id);
         world.enterWorkshop({
           talent: anchorRegular,

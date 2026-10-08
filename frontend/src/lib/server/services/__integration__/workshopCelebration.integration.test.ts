@@ -31,6 +31,7 @@ describe('the activity XP celebration (integration)', () => {
     campusIds: [] as string[],
     eventIds: [] as string[],
     instanceIds: [] as string[],
+    activityIds: [] as string[],
     talentIds: [] as string[],
   };
 
@@ -61,7 +62,10 @@ describe('the activity XP celebration (integration)', () => {
         where: { id: { in: created.talentIds } },
       });
       await prisma.eventConfig_Workshop.deleteMany({
-        where: { instanceId: { in: created.instanceIds } },
+        where: { activityId: { in: created.activityIds } },
+      });
+      await prisma.workshop_Activity.deleteMany({
+        where: { id: { in: created.activityIds } },
       });
       await prisma.workshop_Instance.deleteMany({
         where: { id: { in: created.instanceIds } },
@@ -81,18 +85,19 @@ describe('the activity XP celebration (integration)', () => {
   async function enteredTalent() {
     const n = created.talentIds.length;
     const slug = `test-celebration-${stamp}-${n}`;
+    const instanceSlug = `test-celebration-host-${stamp}-${n}`;
     const instance = await prisma.workshop_Instance.create({
-      data: {
-        slug,
-        label: 'Atelier de test',
-        baseUrl: 'https://test.ctfd.invalid',
-      },
+      data: { slug: instanceSlug, baseUrl: 'https://test.ctfd.invalid' },
     });
     created.instanceIds.push(instance.id);
+    const activity = await prisma.workshop_Activity.create({
+      data: { slug, instanceId: instance.id, label: 'Atelier de test' },
+    });
+    created.activityIds.push(activity.id);
     await prisma.eventConfig_Workshop.create({
       data: {
         eventId,
-        instanceId: instance.id,
+        activityId: activity.id,
         position: n,
         durationMinutes: BUDGET_MINUTES,
       },
@@ -107,7 +112,7 @@ describe('the activity XP celebration (integration)', () => {
     await prisma.workshop_Participation.create({
       data: {
         talentId: talent.id,
-        instanceId: instance.id,
+        activityId: activity.id,
         eventId,
         campusId,
         budgetMinutes: BUDGET_MINUTES,
@@ -120,7 +125,8 @@ describe('the activity XP celebration (integration)', () => {
       /** What CTFd reports: the whole state, recounted at send time. */
       report: (solvedSteps: number, totalSteps: number) =>
         applyWorkshopProgress({
-          instanceSlug: slug,
+          instanceSlug,
+          contentSlug: slug,
           talentId,
           solvedSteps,
           totalSteps,
@@ -268,7 +274,7 @@ describe('the activity XP celebration (integration)', () => {
       await t.report(2, 12);
       expect(await ack({}, t.talentId)).toBe(400);
       expect(
-        await ack({ upTo: [{ instanceId: 'x', amount: -5 }] }, t.talentId),
+        await ack({ upTo: [{ activityId: 'x', amount: -5 }] }, t.talentId),
       ).toBe(400);
       expect((await getUnseenWorkshopReward(t.talentId))?.xp).toBe(100);
     });

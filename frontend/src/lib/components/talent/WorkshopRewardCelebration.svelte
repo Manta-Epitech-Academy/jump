@@ -47,11 +47,11 @@
     if (!reward) return;
     const { xp, upTo } = reward;
     const isNew = upTo.some(
-      ({ instanceId, amount }) => amount > (acknowledged.get(instanceId) ?? 0),
+      ({ activityId, amount }) => amount > (acknowledged.get(activityId) ?? 0),
     );
     if (!isNew) return;
-    for (const { instanceId, amount } of upTo) {
-      acknowledged.set(instanceId, amount);
+    for (const { activityId, amount } of upTo) {
+      acknowledged.set(activityId, amount);
     }
 
     void fetch('/api/workshops/rewards-seen', {

@@ -17,9 +17,15 @@ import {
  * freshness window is `verifyCallbackSignature`'s own five minutes, which is what
  * makes a captured body un-replayable later.
  *
- * `X-Idempotency-Key` is read for the logs only: the write is idempotent by
- * construction (one grant per talent and instance, upserted), so a resend whose
- * response was lost costs nothing.
+ * `contentSlug` is required: it names the content the progress belongs to, and
+ * without it the report cannot be filed anywhere honest. Refusing it answers an
+ * instance that predates the field with an error its outbox keeps and resends
+ * once the instance is upgraded, which is recoverable; filing it under a guess
+ * would not be.
+ *
+ * `X-Idempotency-Key` is not read: the write is idempotent by construction (one
+ * grant per talent and activity, upserted), so a resend whose response was lost
+ * costs nothing.
  */
 export const POST: RequestHandler = async ({ request }) => {
   const secret = env.WORKSHOP_TICKET_SECRET;
@@ -48,6 +54,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
   if (
     typeof payload.instanceSlug !== 'string' ||
+    typeof payload.contentSlug !== 'string' ||
+    payload.contentSlug.length === 0 ||
     typeof payload.talentId !== 'string' ||
     !Number.isInteger(payload.solvedSteps) ||
     !Number.isInteger(payload.totalSteps) ||

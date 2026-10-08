@@ -153,7 +153,7 @@ import {
   getCampusOverview,
   getFeedbackForms,
   getEventTemplates,
-  getWorkshopInstances,
+  getWorkshops,
   getTalentHomeContent,
 } from '$lib/server/services/adminStats/configuration';
 import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
@@ -165,6 +165,7 @@ import {
 } from './writes/diplomas';
 import {
   writeWorkshopInstance,
+  writeWorkshopActivity,
   writeWorkshopCover,
   writeEventWorkshops,
 } from './writes/workshops';
@@ -710,11 +711,11 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => getFeedbackForms(params),
   }),
 
-  config_workshop_instances: defineOperation({
+  config_workshops: defineOperation({
     description:
-      'The online activities Jump can send a talent to: their slug, the French name a talent reads, the CTFd address behind each, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop_cover takes back). The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP. Returns the slugs the activity write operations take.',
+      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop_cover takes back). An instance is a host: its slug, its address and the activities it has served. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP. Returns the slugs the activity and instance write operations take.',
     shape: {},
-    run: () => getWorkshopInstances(),
+    run: () => getWorkshops(),
   }),
 
   config_talent_home: defineOperation({
@@ -1022,7 +1023,31 @@ export const ADMIN_API_OPERATIONS = {
 
   write_workshop_instance: defineWrite({
     description:
-      'Declare or update one online activity, identified by its slug: a slug that does not exist yet creates one, an existing slug updates it. It curates where Jump sends a talent and authors no subject content; how the activity looks on the talent dashboard is write_workshop_cover. Set enabled to false to stop offering it everywhere at once without unpicking any event. Safe to repeat: the same slug and the same values leave one activity. Answers with the activity before and after.',
+      'Declare or update one CTFd instance, the host an online activity runs on, identified by its slug: a slug that does not exist yet creates one, an existing slug updates its address. It says where Jump sends a talent and nothing else; what the instance serves is write_workshop_activity. Safe to repeat: the same slug and the same address leave one instance. Answers with the instance before and after.',
+    shape: {
+      instance: z
+        .string()
+        .min(1)
+        .regex(
+          /^[a-z0-9-]+$/,
+          'Lowercase letters, digits and hyphens only, e.g. "camps-2026".',
+        )
+        .describe(
+          `${handleDescribe('workshopInstanceSlug')} It is the slug set on the instance's own CTFd admin page (/admin/workshop/jump), which the instance checks every entry against. Creates or updates by it. It names the host only, so it stays the same when the instance moves on to another content.`,
+        ),
+      baseUrl: z
+        .string()
+        .min(1)
+        .describe(
+          'Address of the CTFd instance, origin only with no path, e.g. "https://pacman.epiboost.fr". Jump appends the entry path itself.',
+        ),
+    },
+    run: (params) => writeWorkshopInstance(params),
+  }),
+
+  write_workshop_activity: defineWrite({
+    description:
+      'Declare or update one online activity, the content a CTFd instance serves, identified by its slug: a slug that does not exist yet creates one, an existing slug updates it. When an instance moves on to another content, declare that content as a new activity on the same instance and retire the old one with enabled false: every talent keeps the XP of the content they walked, filed under its own slug. It authors no subject content; how the activity looks on the talent dashboard is write_workshop_cover. Set enabled to false to stop offering it everywhere at once without unpicking any event. Safe to repeat: the same slug and the same values leave one activity. Answers with the activity before and after.',
     shape: {
       slug: z
         .string()
@@ -1032,19 +1057,19 @@ export const ADMIN_API_OPERATIONS = {
           'Lowercase letters, digits and hyphens only, e.g. "pacman-ia".',
         )
         .describe(
-          `${handleDescribe('workshopSlug')} Creates or updates by it, so a slug that does not exist yet is a new activity. Never rename one: it is what every past XP grant is filed under. Never point one at another subject either: a CTFd host redeployed with a new subject is a new slug, or that subject's progress replaces the old one's XP.`,
+          `${handleDescribe('workshopSlug')} It must be exactly the content the instance's own CTFd admin page (/admin/workshop/jump) shows as synced there: the instance refuses an entry for any other, so a typo fails at the first entry rather than losing anyone's XP. Creates or updates by it. Never rename one: it is what every past XP grant is filed under.`,
+        ),
+      instance: z
+        .string()
+        .min(1)
+        .describe(
+          `${handleDescribe('workshopInstanceSlug')} The instance serving this content now; changing it moves the activity to another host.`,
         ),
       label: z
         .string()
         .min(1)
         .describe(
           'French name a talent reads on their dashboard, e.g. "Pacman IA". An event may read it differently without changing it, see write_event_workshops.',
-        ),
-      baseUrl: z
-        .string()
-        .min(1)
-        .describe(
-          'Address of the CTFd instance, origin only with no path, e.g. "https://pacman.epiboost.fr". Jump appends the entry path itself.',
         ),
       enabled: z
         .boolean()
@@ -1053,11 +1078,11 @@ export const ADMIN_API_OPERATIONS = {
           'Whether it is offered today. Omit to leave it as it stands, which is what keeps a label fix from putting a retired activity back in front of a cohort.',
         ),
     },
-    run: (params) => writeWorkshopInstance(params),
+    run: (params) => writeWorkshopActivity(params),
   }),
 
   write_workshop_cover: defineWrite({
-    description: `Set how one online activity presents itself on the talent dashboard: a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host. The call states the WHOLE cover: anything omitted is removed, so to change one part, read config_workshop_instances first and pass the rest back as it stands. media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same cover. Answers with the cover before and after.`,
+    description: `Set how one online activity presents itself on the talent dashboard: a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host. The call states the WHOLE cover: anything omitted is removed, so to change one part, read config_workshops first and pass the rest back as it stands. media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same cover. Answers with the cover before and after.`,
     shape: {
       slug: z.string().min(1).describe(handleDescribe('workshopSlug')),
       tagline: z

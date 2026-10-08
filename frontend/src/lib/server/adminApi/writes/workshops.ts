@@ -1,6 +1,6 @@
-// The class A writes for the CTFd activities: curating an instance, presenting
-// it on the talent dashboard, and saying which ones an event offers. Bounded to
-// named rows and reversible.
+// The class A writes for the CTFd activities: declaring a host, declaring the
+// content it serves, presenting that content on the talent dashboard, and saying
+// which ones an event offers. Bounded to named rows and reversible.
 //
 // Presenting one (`writeWorkshopCover`) downloads the pictures it is given and
 // does not already hold, from addresses an admin chose, before anything is
@@ -9,10 +9,10 @@
 // class does not move. It is all or nothing: a picture that cannot be copied
 // refuses the whole write, and the cover stays as it was.
 //
-// There is deliberately no delete. `config_workshop_instances` returns slugs, so
-// a delete tool would be something a model could aim on its own, which puts it in
-// class C. An instance is retired with `enabled: false`, and the link's FK is
-// `Restrict` so a hand-deletion of one still offered fails loudly.
+// There is deliberately no delete. `config_workshops` returns slugs, so a delete
+// tool would be something a model could aim on its own, which puts it in class
+// C. An activity is retired with `enabled: false`, and every FK onto it and onto
+// its host is `Restrict` so a hand-deletion of one still in use fails loudly.
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { OperationRefusedError } from '../errors';
@@ -26,24 +26,58 @@ import {
 } from '$lib/domain/workshops';
 
 type WorkshopInstanceState = {
-  slug: string;
-  label: string;
+  instance: string;
   baseUrl: string;
+  activities: string[];
+};
+
+async function instanceState(
+  slug: string,
+): Promise<WorkshopInstanceState | null> {
+  const row = await prisma.workshop_Instance.findUnique({
+    where: { slug },
+    select: {
+      slug: true,
+      baseUrl: true,
+      activities: { select: { slug: true }, orderBy: { slug: 'asc' } },
+    },
+  });
+  return row
+    ? {
+        instance: row.slug,
+        baseUrl: row.baseUrl,
+        activities: row.activities.map((a) => a.slug),
+      }
+    : null;
+}
+
+type WorkshopActivityState = {
+  slug: string;
+  instance: string;
+  label: string;
   enabled: boolean;
 };
 
-const INSTANCE_SELECT = {
-  slug: true,
-  label: true,
-  baseUrl: true,
-  enabled: true,
-} as const;
-
-function instanceState(slug: string): Promise<WorkshopInstanceState | null> {
-  return prisma.workshop_Instance.findUnique({
+async function activityState(
+  slug: string,
+): Promise<WorkshopActivityState | null> {
+  const row = await prisma.workshop_Activity.findUnique({
     where: { slug },
-    select: INSTANCE_SELECT,
+    select: {
+      slug: true,
+      label: true,
+      enabled: true,
+      instance: { select: { slug: true } },
+    },
   });
+  return row
+    ? {
+        slug: row.slug,
+        instance: row.instance.slug,
+        label: row.label,
+        enabled: row.enabled,
+      }
+    : null;
 }
 
 /**
@@ -73,33 +107,71 @@ function normaliseBaseUrl(raw: string): string {
   return parsed.origin;
 }
 
+/** Declare a CTFd host, or move it to another address. */
 export async function writeWorkshopInstance(params: {
-  slug: string;
-  label: string;
+  instance: string;
   baseUrl: string;
+}): Promise<WriteOutcome> {
+  const slug = params.instance.trim();
+  if (!slug) {
+    throw new OperationRefusedError(
+      "Une instance a besoin d'une clé technique : celle que son administration CTFd affiche comme « slug » de l'instance.",
+    );
+  }
+
+  const before = await instanceState(slug);
+  const baseUrl = normaliseBaseUrl(params.baseUrl);
+
+  await prisma.workshop_Instance.upsert({
+    where: { slug },
+    create: { slug, baseUrl },
+    update: { baseUrl },
+  });
+
+  return { applied: true, before, after: await instanceState(slug) };
+}
+
+/**
+ * Declare a content a host serves, or move it to another host. The slug is the
+ * plugin's own name for the content, so it is taken as given and never derived:
+ * a mismatch is refused by the host at the first entry, which is the point.
+ */
+export async function writeWorkshopActivity(params: {
+  slug: string;
+  instance: string;
+  label: string;
   enabled?: boolean;
 }): Promise<WriteOutcome> {
   const slug = params.slug.trim();
   const label = params.label.trim();
   if (!slug || !label) {
     throw new OperationRefusedError(
-      "Une activité a besoin d'une clé technique et d'un libellé français (celui que lit un talent sur son accueil).",
+      "Une activité a besoin d'une clé technique (le contenu qu'affiche son instance) et d'un libellé français (celui que lit un talent sur son accueil).",
     );
   }
 
-  const before = await instanceState(slug);
-  const baseUrl = normaliseBaseUrl(params.baseUrl);
+  const host = await prisma.workshop_Instance.findUnique({
+    where: { slug: params.instance.trim() },
+    select: { id: true },
+  });
+  if (!host) {
+    throw new OperationRefusedError(
+      `Instance « ${params.instance} » introuvable. ${handleProvenanceFr('workshopInstanceSlug')}`,
+    );
+  }
+
+  const before = await activityState(slug);
   // Left as it stands when the caller says nothing, so editing a label cannot
-  // silently put a retired instance back in front of a cohort.
+  // silently put a retired activity back in front of a cohort.
   const enabled = params.enabled ?? before?.enabled ?? true;
 
-  await prisma.workshop_Instance.upsert({
+  await prisma.workshop_Activity.upsert({
     where: { slug },
-    create: { slug, label, baseUrl, enabled },
-    update: { label, baseUrl, enabled },
+    create: { slug, instanceId: host.id, label, enabled },
+    update: { instanceId: host.id, label, enabled },
   });
 
-  return { applied: true, before, after: await instanceState(slug) };
+  return { applied: true, before, after: await activityState(slug) };
 }
 
 /** How an activity presents itself, as `write_workshop_cover` states it. */
@@ -143,10 +215,10 @@ const COVER_IMAGE_SELECT = {
 
 async function coverState(
   tx: Prisma.TransactionClient,
-  instanceId: string,
+  activityId: string,
 ): Promise<WorkshopCoverState> {
-  const instance = await tx.workshop_Instance.findUniqueOrThrow({
-    where: { id: instanceId },
+  const activity = await tx.workshop_Activity.findUniqueOrThrow({
+    where: { id: activityId },
     select: {
       slug: true,
       tagline: true,
@@ -157,9 +229,9 @@ async function coverState(
     },
   });
   return {
-    slug: instance.slug,
-    tagline: instance.tagline,
-    images: instance.coverImages,
+    slug: activity.slug,
+    tagline: activity.tagline,
+    images: activity.coverImages,
   };
 }
 
@@ -176,11 +248,11 @@ export async function writeWorkshopCover(params: {
   posterUrl?: string;
   mascotUrl?: string;
 }): Promise<WriteOutcome> {
-  const instance = await prisma.workshop_Instance.findUnique({
+  const activity = await prisma.workshop_Activity.findUnique({
     where: { slug: params.slug.trim() },
     select: { id: true },
   });
-  if (!instance) {
+  if (!activity) {
     throw new OperationRefusedError(
       `Activité « ${params.slug} » introuvable. ${handleProvenanceFr('workshopSlug')}`,
     );
@@ -201,7 +273,7 @@ export async function writeWorkshopCover(params: {
     })),
     keyFor: (request, writeId, extension) =>
       workshopCoverKey(
-        instance.id,
+        activity.id,
         request.slot as WorkshopCoverKind,
         writeId,
         extension,
@@ -213,32 +285,32 @@ export async function writeWorkshopCover(params: {
     readStored: async (db): Promise<StoredPicture[]> =>
       (
         await db.workshop_CoverImage.findMany({
-          where: { instanceId: instance.id },
+          where: { activityId: activity.id },
           select: COVER_IMAGE_SELECT,
         })
       ).map(({ kind, ...picture }) => ({ slot: kind, ...picture })),
     // Taken before the cover is read, so a second write on this activity
     // waits here and then reads what this one wrote.
     lock: async (tx) => {
-      await tx.$executeRaw`SELECT 1 FROM "Workshop_Instance" WHERE id = ${instance.id} FOR UPDATE`;
+      await tx.$executeRaw`SELECT 1 FROM "Workshop_Activity" WHERE id = ${activity.id} FOR UPDATE`;
     },
     commit: async (tx, pictures) => {
-      const before = await coverState(tx, instance.id);
-      await tx.workshop_Instance.update({
-        where: { id: instance.id },
+      const before = await coverState(tx, activity.id);
+      await tx.workshop_Activity.update({
+        where: { id: activity.id },
         data: { tagline },
       });
       await tx.workshop_CoverImage.deleteMany({
-        where: { instanceId: instance.id },
+        where: { activityId: activity.id },
       });
       await tx.workshop_CoverImage.createMany({
         data: pictures.map(({ slot, ...picture }) => ({
-          instanceId: instance.id,
+          activityId: activity.id,
           kind: slot as WorkshopCoverKind,
           ...picture,
         })),
       });
-      return { before, after: await coverState(tx, instance.id) };
+      return { before, after: await coverState(tx, activity.id) };
     },
   });
 
@@ -267,7 +339,7 @@ async function eventWorkshopsState(
         select: {
           durationMinutes: true,
           labelOverride: true,
-          instance: { select: { slug: true, label: true } },
+          activity: { select: { slug: true, label: true } },
         },
       },
     },
@@ -280,8 +352,8 @@ async function eventWorkshopsState(
   return {
     eventId: event.id,
     workshops: event.workshops.map((link) => ({
-      slug: link.instance.slug,
-      label: link.instance.label,
+      slug: link.activity.slug,
+      label: link.activity.label,
       durationMinutes: link.durationMinutes,
       labelOverride: link.labelOverride,
     })),
@@ -308,11 +380,11 @@ export async function writeEventWorkshops(params: {
     );
   }
 
-  const known = await prisma.workshop_Instance.findMany({
+  const known = await prisma.workshop_Activity.findMany({
     where: { slug: { in: slugs } },
     select: { id: true, slug: true },
   });
-  const idBySlug = new Map(known.map((i) => [i.slug, i.id]));
+  const idBySlug = new Map(known.map((a) => [a.slug, a.id]));
   const unknown = slugs.filter((slug) => !idBySlug.has(slug));
   if (unknown.length > 0) {
     throw new OperationRefusedError(
@@ -332,7 +404,7 @@ export async function writeEventWorkshops(params: {
     await tx.eventConfig_Workshop.createMany({
       data: params.workshops.map((workshop, index) => ({
         eventId: params.eventId,
-        instanceId: idBySlug.get(workshop.slug.trim())!,
+        activityId: idBySlug.get(workshop.slug.trim())!,
         position: index,
         durationMinutes: workshop.durationMinutes,
         labelOverride: workshop.labelOverride?.trim() || null,

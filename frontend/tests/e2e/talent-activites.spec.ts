@@ -78,7 +78,8 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     // CTFd reports half the steps. Nothing on this page witnesses it: the
     // dashboard is already open and nothing reloads it.
     const body = JSON.stringify({
-      instanceSlug: E2E.workshopSlug,
+      instanceSlug: E2E.workshopInstanceSlug,
+      contentSlug: E2E.workshopSlug,
       talentId: E2E.talentReady.talentId,
       solvedSteps: 5,
       totalSteps: 10,
@@ -137,7 +138,7 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     await expect(toast).toHaveCount(1);
     // Acknowledged once, with the amount that was on screen.
     expect(acks).toEqual([
-      { upTo: [{ instanceId: expect.any(String), amount: 300 }] },
+      { upTo: [{ activityId: E2E.workshopActivityId, amount: 300 }] },
     ]);
     await expect(page.getByText('Activité en cours')).toBeVisible();
     await expect(hero).toContainText('5 / 10 étapes validées');

@@ -502,10 +502,11 @@ export async function getEventTemplates(): Promise<EventTemplates> {
 
 // ── The activity catalogue ───────────────────────────────────────────────────
 
-export type WorkshopInstanceRow = {
+export type WorkshopActivityRow = {
   slug: string;
   label: string;
-  baseUrl: string;
+  /** The slug of the instance serving it now. */
+  instance: string;
   enabled: boolean;
   attachedEvents: number;
   talentsEntered: number;
@@ -516,55 +517,82 @@ export type WorkshopInstanceRow = {
   };
 };
 
-export type WorkshopInstances = {
+export type WorkshopInstanceRow = {
+  slug: string;
+  baseUrl: string;
+  /** The slugs of every activity it has served, retired ones included. */
+  activities: string[];
+};
+
+export type Workshops = {
+  activities: Metric<WorkshopActivityRow[]>;
   instances: Metric<WorkshopInstanceRow[]>;
   scale: Metric<string>;
 };
 
 /**
- * The CTFd instances Jump can send a talent to, and how much each is used.
+ * The activities Jump can send a talent to, the CTFd instances serving them,
+ * and how much each activity is used.
  *
  * The subject itself (its steps, its wording) lives in CTFd. What Jump holds is
  * how the dashboard presents it, with the address each picture was copied from,
  * so an admin can restate a cover without having kept it anywhere. It also
- * carries the slug, which is what every activity write takes, and the two counts that say
- * whether an instance is still worth keeping in the catalogue.
+ * carries the slugs every activity and instance write takes, and the two counts
+ * that say whether an activity is still worth keeping in the catalogue.
  *
  * `talentsEntered` is a count and never a list: this tier returns no talent
  * identity, at any level.
  */
-export async function getWorkshopInstances(): Promise<WorkshopInstances> {
-  const rows = await prisma.workshop_Instance.findMany({
-    orderBy: { label: 'asc' },
-    select: {
-      slug: true,
-      label: true,
-      baseUrl: true,
-      enabled: true,
-      _count: { select: { events: true, participations: true } },
-      tagline: true,
-      coverImages: {
-        select: { kind: true, sourceUrl: true },
-        orderBy: { kind: 'asc' },
+export async function getWorkshops(): Promise<Workshops> {
+  const [activities, instances] = await Promise.all([
+    prisma.workshop_Activity.findMany({
+      orderBy: { label: 'asc' },
+      select: {
+        slug: true,
+        label: true,
+        enabled: true,
+        instance: { select: { slug: true } },
+        _count: { select: { events: true, participations: true } },
+        tagline: true,
+        coverImages: {
+          select: { kind: true, sourceUrl: true },
+          orderBy: { kind: 'asc' },
+        },
       },
-    },
-  });
+    }),
+    prisma.workshop_Instance.findMany({
+      orderBy: { slug: 'asc' },
+      select: {
+        slug: true,
+        baseUrl: true,
+        activities: { select: { slug: true }, orderBy: { slug: 'asc' } },
+      },
+    }),
+  ]);
 
   return {
-    instances: metric(
-      rows.map((instance) => ({
-        slug: instance.slug,
-        label: instance.label,
-        baseUrl: instance.baseUrl,
-        enabled: instance.enabled,
-        attachedEvents: instance._count.events,
-        talentsEntered: instance._count.participations,
+    activities: metric(
+      activities.map((activity) => ({
+        slug: activity.slug,
+        label: activity.label,
+        instance: activity.instance.slug,
+        enabled: activity.enabled,
+        attachedEvents: activity._count.events,
+        talentsEntered: activity._count.participations,
         cover: {
-          tagline: instance.tagline,
-          images: instance.coverImages,
+          tagline: activity.tagline,
+          images: activity.coverImages,
         },
       })),
-      "Les activités en ligne que Jump sait proposer. « slug » est la clé stable que prennent les opérations d'écriture sur les activités, « label » le nom que lit un talent, « baseUrl » l'adresse de l'instance vers laquelle il est envoyé, « enabled » si elle est proposée aujourd'hui, « attachedEvents » le nombre d'événements qui la proposent et « talentsEntered » le nombre de talents qui y sont entrés au moins une fois. « cover » est la façon dont l'activité se présente sur l'accueil des talents, saisie par write_workshop_cover : son accroche (null si elle n'en a pas, l'accueil affiche alors « label ») et ses images, chacune avec l'adresse d'où Jump l'a copiée (« media » le visuel, « poster » l'image fixe, « mascot » la mascotte). Le sujet lui-même (étapes, énoncé) n'est pas ici : il vit dans l'instance.",
+      "Les activités en ligne que Jump sait proposer. Une activité est un contenu servi par une instance. « slug » est la clé stable que prennent les opérations d'écriture sur les activités, et le nom que l'instance donne à ce contenu, « label » le nom que lit un talent, « instance » l'instance qui le sert, « enabled » si l'activité est proposée aujourd'hui, « attachedEvents » le nombre d'événements qui la proposent et « talentsEntered » le nombre de talents qui y sont entrés au moins une fois. « cover » est la façon dont l'activité se présente sur l'accueil des talents, saisie par write_workshop_cover : son accroche (null si elle n'en a pas, l'accueil affiche alors « label ») et ses images, chacune avec l'adresse d'où Jump l'a copiée (« media » le visuel, « poster » l'image fixe, « mascot » la mascotte). Le sujet lui-même (étapes, énoncé) n'est pas ici : il vit dans l'instance.",
+    ),
+    instances: metric(
+      instances.map((instance) => ({
+        slug: instance.slug,
+        baseUrl: instance.baseUrl,
+        activities: instance.activities.map((a) => a.slug),
+      })),
+      "Les instances qui servent ces activités. « slug » est la clé de l'instance, celle que son administration affiche et que prend write_workshop_instance, « baseUrl » l'adresse vers laquelle un talent est envoyé, « activities » les activités qu'elle a servies, celles qui ne sont plus proposées comprises. Une instance passe d'un contenu à l'autre au fil des demandes : chaque contenu reste une activité à part, et les XP d'un talent restent rangés sous celle qu'il a faite.",
     ),
     scale: metric(
       `Une activité déclarée à N minutes sur un événement vaut N x ${WORKSHOP_XP_PER_MINUTE} XP une fois entièrement terminée, au prorata des étapes validées. Le barème d'un talent est figé à sa première entrée : changer la durée ne reprend d'XP à personne et n'en ajoute pas rétroactivement.`,

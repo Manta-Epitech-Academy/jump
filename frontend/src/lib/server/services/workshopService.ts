@@ -4,7 +4,8 @@
  *
  * Two directions, and they never cross. Jump decides who may enter and mints a
  * ticket for it (`workshops/ticket.ts`); CTFd reports progress back over a signed
- * callback, and this file turns that report into one XP grant. Nothing here polls
+ * callback, and this file turns that report into one XP grant per activity, the
+ * content a host serves and not the host itself. Nothing here polls
  * CTFd: a talent's progress arrives, it is never asked for. How an activity is
  * presented (its tagline and pictures) is not CTFd's either: it is authored over
  * the API (`write_workshop_cover`) and only read here.
@@ -40,8 +41,11 @@ import {
 import { grantXp } from './xpService';
 
 export type WorkshopEntry = {
-  instanceId: string;
-  slug: string;
+  activityId: string;
+  /** The content the ticket names, so the host can refuse another one. */
+  activitySlug: string;
+  /** The host, which the ticket's audience names. */
+  instanceSlug: string;
   baseUrl: string;
   /** The enrolment that authorised the entry, pinned on first entry only. */
   eventId: string;
@@ -50,14 +54,14 @@ export type WorkshopEntry = {
 };
 
 /**
- * Every activity the talent is offered, one per instance, through the enrolment
+ * Every activity the talent is offered, once each, through the enrolment
  * `selectWorkshopOfferings` resolves it to.
  *
  * Each event's status is read on its OWN campus clock, so "today" for a Réunion
  * event is Réunion's today, whatever the browser says.
  */
 async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
-  const instanceWhere: Prisma.Workshop_InstanceWhereInput = {
+  const activityWhere: Prisma.Workshop_ActivityWhereInput = {
     enabled: true,
     ...(slug ? { slug } : {}),
   };
@@ -66,7 +70,7 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
     prisma.participation.findMany({
       where: {
         talentId,
-        event: { workshops: { some: { instance: instanceWhere } } },
+        event: { workshops: { some: { activity: activityWhere } } },
       },
       select: {
         eventId: true,
@@ -77,18 +81,18 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
             endDate: true,
             campus: { select: { timezone: true } },
             workshops: {
-              where: { instance: instanceWhere },
+              where: { activity: activityWhere },
               select: {
                 position: true,
                 durationMinutes: true,
                 labelOverride: true,
-                instance: {
+                activity: {
                   select: {
                     id: true,
                     slug: true,
                     label: true,
                     tagline: true,
-                    baseUrl: true,
+                    instance: { select: { slug: true, baseUrl: true } },
                   },
                 },
               },
@@ -99,7 +103,7 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
     }),
     prisma.workshop_Participation.findMany({
       where: { talentId },
-      select: { instanceId: true },
+      select: { activityId: true },
     }),
   ]);
 
@@ -118,7 +122,7 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
       const { event } = enrolment;
       const status = getEventStatus(event, boundsFor(event.campus.timezone));
       return event.workshops.map((link) => ({
-        instanceId: link.instance.id,
+        activityId: link.activity.id,
         eventDate: event.date,
         position: link.position,
         status,
@@ -126,10 +130,10 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
         campusId: enrolment.campusId,
         durationMinutes: link.durationMinutes,
         labelOverride: link.labelOverride,
-        instance: link.instance,
+        activity: link.activity,
       }));
     }),
-    new Set(started.map((row) => row.instanceId)),
+    new Set(started.map((row) => row.activityId)),
   );
 }
 
@@ -141,21 +145,21 @@ export async function listTalentWorkshops(
   const offered = await offeredWorkshops(talentId, now);
   if (offered.length === 0) return { today: [], activities: [] };
 
-  const instanceIds = offered.map((o) => o.instanceId);
+  const activityIds = offered.map((o) => o.activityId);
   const [entries, images] = await Promise.all([
     prisma.workshop_Participation.findMany({
-      where: { talentId, instanceId: { in: instanceIds } },
+      where: { talentId, activityId: { in: activityIds } },
       select: {
-        instanceId: true,
+        activityId: true,
         solvedSteps: true,
         totalSteps: true,
         firstEnteredAt: true,
       },
     }),
     prisma.workshop_CoverImage.findMany({
-      where: { instanceId: { in: instanceIds } },
+      where: { activityId: { in: activityIds } },
       select: {
-        instanceId: true,
+        activityId: true,
         kind: true,
         key: true,
         stillKey: true,
@@ -164,13 +168,13 @@ export async function listTalentWorkshops(
       },
     }),
   ]);
-  const entryByInstance = new Map(entries.map((e) => [e.instanceId, e]));
+  const entryByActivity = new Map(entries.map((e) => [e.activityId, e]));
 
   const toActivity = (o: (typeof offered)[number]): WorkshopActivity => {
-    const entry = entryByInstance.get(o.instanceId);
+    const entry = entryByActivity.get(o.activityId);
     const image = (kind: WorkshopCoverKind) => {
       const found = images.find(
-        (i) => i.instanceId === o.instanceId && i.kind === kind,
+        (i) => i.activityId === o.activityId && i.kind === kind,
       );
       return found
         ? {
@@ -182,13 +186,13 @@ export async function listTalentWorkshops(
         : null;
     };
     return {
-      slug: o.instance.slug,
-      label: o.labelOverride ?? o.instance.label,
+      slug: o.activity.slug,
+      label: o.labelOverride ?? o.activity.label,
       solvedSteps: entry?.solvedSteps ?? 0,
       totalSteps: entry?.totalSteps ?? 0,
       startedAt: entry?.firstEnteredAt ?? null,
       cover: {
-        tagline: o.instance.tagline,
+        tagline: o.activity.tagline,
         media: image('media'),
         poster: image('poster'),
         mascot: image('mascot'),
@@ -205,7 +209,7 @@ export async function listTalentWorkshops(
 /**
  * Whether this talent may enter this activity, and on whose enrolment.
  *
- * `null` is the refusal: no such instance, it is switched off, no enrolment of
+ * `null` is the refusal: no such activity, it is switched off, no enrolment of
  * this talent offers it, or the event offering it has not started yet.
  */
 export async function resolveWorkshopEntry(
@@ -216,9 +220,10 @@ export async function resolveWorkshopEntry(
   const [match] = await offeredWorkshops(talentId, now, slug);
   if (!match) return null;
   return {
-    instanceId: match.instance.id,
-    slug: match.instance.slug,
-    baseUrl: match.instance.baseUrl,
+    activityId: match.activity.id,
+    activitySlug: match.activity.slug,
+    instanceSlug: match.activity.instance.slug,
+    baseUrl: match.activity.instance.baseUrl,
     eventId: match.eventId,
     campusId: match.campusId,
     budgetMinutes: match.durationMinutes,
@@ -248,11 +253,11 @@ export async function enterWorkshop(
 ): Promise<WorkshopSession> {
   const { event } = await prisma.workshop_Participation.upsert({
     where: {
-      talentId_instanceId: { talentId, instanceId: entry.instanceId },
+      talentId_activityId: { talentId, activityId: entry.activityId },
     },
     create: {
       talentId,
-      instanceId: entry.instanceId,
+      activityId: entry.activityId,
       eventId: entry.eventId,
       campusId: entry.campusId,
       budgetMinutes: entry.budgetMinutes,
@@ -282,7 +287,10 @@ export async function enterWorkshop(
 }
 
 export type WorkshopCallbackPayload = {
+  /** The host that sent it. */
   instanceSlug: string;
+  /** The content it serves, which is what the progress belongs to. */
+  contentSlug: string;
   talentId: string;
   solvedSteps: number;
   totalSteps: number;
@@ -296,23 +304,39 @@ export type WorkshopCallbackPayload = {
  * scale reads the steps, so a payload claiming completion with a partial count is
  * paid for what it actually reports.
  *
- * An unknown instance or an unknown participation returns silently rather than
- * failing, the shape `minigameService.applyCallback` uses: the sender is an outbox
- * with a backoff, so a refusal it cannot act on would simply be retried forever.
+ * The progress is filed under the CONTENT the host reports, and only when that
+ * content is an activity this very host serves: a report naming an activity
+ * that lives on another host is a host misconfigured on one side or the other,
+ * and crediting it would pay one content's progress into another's grant.
+ *
+ * An unknown or mismatched activity, or an unknown participation, returns
+ * rather than failing, the shape `minigameService.applyCallback` uses: the
+ * sender is an outbox with a backoff, so a refusal it cannot act on would simply
+ * be retried forever. The first two are configuration a person has to fix, so
+ * they are logged; the third is a talent nobody let in, which is not.
  */
 export async function applyWorkshopProgress(
   payload: WorkshopCallbackPayload,
 ): Promise<void> {
-  const instance = await prisma.workshop_Instance.findUnique({
-    where: { slug: payload.instanceSlug },
-    select: { id: true, slug: true },
+  const activity = await prisma.workshop_Activity.findUnique({
+    where: { slug: payload.contentSlug },
+    select: { id: true, slug: true, instance: { select: { slug: true } } },
   });
-  if (!instance) return;
+  if (!activity || activity.instance.slug !== payload.instanceSlug) {
+    console.warn(
+      `[workshops] progress from host "${payload.instanceSlug}" for content "${payload.contentSlug}" ignored: ${
+        activity
+          ? `that activity is served by "${activity.instance.slug}"`
+          : 'no activity has that slug'
+      }`,
+    );
+    return;
+  }
 
   const key = {
-    talentId_instanceId: {
+    talentId_activityId: {
       talentId: payload.talentId,
-      instanceId: instance.id,
+      activityId: activity.id,
     },
   };
   const participation = await prisma.workshop_Participation.findUnique({
@@ -334,7 +358,7 @@ export async function applyWorkshopProgress(
     await grantXp(tx, {
       talentId: payload.talentId,
       source: 'workshop',
-      sourceId: workshopGrantSourceId(instance.slug, payload.talentId),
+      sourceId: workshopGrantSourceId(activity.slug, payload.talentId),
       amount,
       campusId: participation.campusId,
     });
@@ -358,7 +382,7 @@ export async function applyWorkshopProgress(
  */
 export type WorkshopReward = {
   xp: number;
-  upTo: { instanceId: string; amount: number }[];
+  upTo: { activityId: string; amount: number }[];
 };
 
 /**
@@ -374,9 +398,9 @@ export async function getUnseenWorkshopReward(
     prisma.workshop_Participation.findMany({
       where: { talentId },
       select: {
-        instanceId: true,
+        activityId: true,
         xpCelebrated: true,
-        instance: { select: { slug: true } },
+        activity: { select: { slug: true } },
       },
     }),
     prisma.xpGrant.findMany({
@@ -393,11 +417,11 @@ export async function getUnseenWorkshopReward(
   for (const participation of participations) {
     const earned =
       earnedBySourceId.get(
-        workshopGrantSourceId(participation.instance.slug, talentId),
+        workshopGrantSourceId(participation.activity.slug, talentId),
       ) ?? 0;
     if (earned <= participation.xpCelebrated) continue;
     xp += earned - participation.xpCelebrated;
-    upTo.push({ instanceId: participation.instanceId, amount: earned });
+    upTo.push({ activityId: participation.activityId, amount: earned });
   }
   return xp > 0 ? { xp, upTo } : null;
 }
@@ -416,9 +440,9 @@ export async function markWorkshopRewardsSeen(
   upTo: WorkshopReward['upTo'],
 ): Promise<void> {
   await prisma.$transaction(
-    upTo.map(({ instanceId, amount }) =>
+    upTo.map(({ activityId, amount }) =>
       prisma.workshop_Participation.updateMany({
-        where: { talentId, instanceId, xpCelebrated: { lt: amount } },
+        where: { talentId, activityId, xpCelebrated: { lt: amount } },
         data: { xpCelebrated: amount },
       }),
     ),

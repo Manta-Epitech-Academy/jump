@@ -1,7 +1,12 @@
 /**
- * The CTFd activity catalogue.
+ * The CTFd activity catalogue: two hosts, and the three contents they served.
  *
- * Three rows, two offered and one retired, because `assert/coverage.ts` wants
+ * One host has served two contents in turn, the first one retired, which is
+ * how an instance passes from one request to the next in production and the
+ * case the activity key exists for: a regular who walked both keeps two rows in
+ * their history, under two names.
+ *
+ * Three activities, two offered and one retired, because `assert/coverage.ts` wants
  * both values of every boolean and the `MinigameConfig.enabled` exemption does
  * not carry over: that one sits outside the wipe and its value depends on the
  * history of the database, while these are removed and rewritten on every full
@@ -17,7 +22,7 @@
  *
  * `baseUrl` POINTS AT A HOST THAT CANNOT RESOLVE, and that is the point rather
  * than a placeholder. `.invalid` is reserved by RFC 2606. A dev or preprod
- * database carrying the real `epiboost.fr` address with `enabled: true` would be
+ * database carrying the real `epiboost.fr` address behind an enabled activity would be
  * one click away from handing a talent over to a live instance from a validation
  * environment, which is the class of thing this generator exists to make
  * impossible (see the worker-inertness rule in `scripts/seed/CLAUDE.md`).
@@ -46,10 +51,22 @@ type CoverImageSpec = {
   readonly height: number;
 };
 
+export type WorkshopInstanceSpec = {
+  readonly slug: string;
+  readonly baseUrl: string;
+};
+
+export const WORKSHOP_INSTANCES = {
+  /** The season's host: one content, then the next. */
+  season: { slug: 'ctfd-saison', baseUrl: 'https://saison.ctfd.invalid' },
+  santa: { slug: 'ctfd-santa', baseUrl: 'https://santa-shooter.ctfd.invalid' },
+} as const satisfies Record<string, WorkshopInstanceSpec>;
+
 export type WorkshopSpec = {
   readonly slug: string;
   readonly label: string;
-  readonly baseUrl: string;
+  /** The host serving it. */
+  readonly instance: WorkshopInstanceSpec;
   readonly enabled: boolean;
   /** How long it runs where a scenario attaches it, in minutes. */
   readonly durationMinutes: number;
@@ -63,9 +80,10 @@ export type WorkshopSpec = {
 
 export const WORKSHOPS: readonly WorkshopSpec[] = [
   {
+    // What the season's host serves now, after `discover-linux` below.
     slug: 'pacman-ia',
     label: 'Pacman IA',
-    baseUrl: 'https://pacman-ia.ctfd.invalid',
+    instance: WORKSHOP_INSTANCES.season,
     enabled: true,
     durationMinutes: 120,
     totalSteps: 15,
@@ -95,12 +113,13 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     ],
   },
   {
-    // Retired rather than deleted, which is how an activity leaves the
-    // catalogue: the events that offered it keep their rows, and the talents who
-    // walked it keep their XP.
+    // What the season's host served first, retired rather than deleted once
+    // the host moved on, which is how an activity leaves the catalogue: the
+    // events that offered it keep their rows, and the talents who walked it keep
+    // their XP, under its own name.
     slug: 'discover-linux',
     label: 'Discover Linux',
-    baseUrl: 'https://discover-linux.ctfd.invalid',
+    instance: WORKSHOP_INSTANCES.season,
     enabled: false,
     durationMinutes: 90,
     totalSteps: 12,
@@ -120,7 +139,7 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     // label alone.
     slug: 'santa-shooter',
     label: 'Santa Shooter',
-    baseUrl: 'https://santa-shooter.ctfd.invalid',
+    instance: WORKSHOP_INSTANCES.santa,
     enabled: true,
     durationMinutes: 180,
     totalSteps: 31,
@@ -129,10 +148,9 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
   },
 ];
 
-export const WORKSHOP_SLUGS = WORKSHOPS.map((workshop) => workshop.slug);
-
 /**
- * The id a seeded instance carries, derived rather than read back.
+ * The ids a seeded host and a seeded activity carry, derived rather than read
+ * back.
  *
  * `loadPreexistingRows` exists for catalogue rows whose ids the generator does
  * not choose (the feedback forms' cuids, the closing bank a migration owns).
@@ -143,18 +161,33 @@ export function workshopInstanceId(slug: string): string {
   return id('wsi', slug);
 }
 
-/** Returns how many instances were inserted; 0 means everything was already there. */
-export async function seedWorkshopInstances(
+export function workshopActivityId(slug: string): string {
+  return id('wsa', slug);
+}
+
+/** Returns how many activities were inserted; 0 means everything was already there. */
+export async function seedWorkshops(
   prisma: PrismaClient,
   anchor: Date,
 ): Promise<number> {
-  const { count } = await prisma.workshop_Instance.createMany({
+  await prisma.workshop_Instance.createMany({
+    data: Object.values(WORKSHOP_INSTANCES).map((instance) => ({
+      id: workshopInstanceId(instance.slug),
+      slug: instance.slug,
+      baseUrl: instance.baseUrl,
+      createdAt: anchor,
+      updatedAt: anchor,
+    })),
+    skipDuplicates: true,
+  });
+
+  const { count } = await prisma.workshop_Activity.createMany({
     data: WORKSHOPS.map((workshop) => ({
-      id: workshopInstanceId(workshop.slug),
+      id: workshopActivityId(workshop.slug),
       slug: workshop.slug,
+      instanceId: workshopInstanceId(workshop.instance.slug),
       label: workshop.label,
       tagline: workshop.tagline,
-      baseUrl: workshop.baseUrl,
       enabled: workshop.enabled,
       createdAt: anchor,
       updatedAt: anchor,
@@ -166,18 +199,18 @@ export async function seedWorkshopInstances(
   // keeps the pictures it was given.
   await prisma.workshop_CoverImage.createMany({
     data: WORKSHOPS.flatMap((workshop) => {
-      const instanceId = workshopInstanceId(workshop.slug);
+      const activityId = workshopActivityId(workshop.slug);
       return workshop.images.map((image) => {
         const animated = image.contentType === 'image/gif';
         const extension = animated ? 'gif' : 'webp';
         const key = workshopCoverKey(
-          instanceId,
+          activityId,
           image.kind,
           '0000seed',
           extension,
         );
         return {
-          instanceId,
+          activityId,
           kind: image.kind,
           // As an admin would have given it: an https address, here on a host
           // that cannot resolve, since nothing ever downloads it again.

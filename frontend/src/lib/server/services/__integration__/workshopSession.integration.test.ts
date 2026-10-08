@@ -14,23 +14,36 @@ import { assertTestDatabase } from './testDatabase';
  * later enrolment, but their participation, their XP and their CTFd account all
  * stay with the first one. The ticket has to name the first one too, or the
  * plugin would be told about a session the account will never be filed in.
+ *
+ * The pin belongs to the CONTENT, not to the host: when the same host serves the
+ * next content, a regular entering it through a later event is in that later
+ * event's session, on that event's budget.
  */
 describe('the session an activity entry names (integration)', () => {
   const stamp = Date.now();
+  const hostSlug = `test-host-session-${stamp}`;
   const slug = `test-workshop-session-${stamp}`;
+  const nextSlug = `test-workshop-session-next-${stamp}`;
   let campusId = '';
   let firstEventId = '';
   let laterEventId = '';
   let instanceId = '';
+  let activityId = '';
+  let nextActivityId = '';
   let talentId = '';
 
-  const entryFor = (eventId: string): WorkshopEntry => ({
-    instanceId,
-    slug,
+  const entryFor = (
+    eventId: string,
+    activity = { id: activityId, slug },
+    budgetMinutes = 120,
+  ): WorkshopEntry => ({
+    activityId: activity.id,
+    activitySlug: activity.slug,
+    instanceSlug: hostSlug,
     baseUrl: 'https://test.ctfd.invalid',
     eventId,
     campusId,
-    budgetMinutes: 120,
+    budgetMinutes,
   });
 
   beforeAll(async () => {
@@ -59,13 +72,19 @@ describe('the session an activity entry names (integration)', () => {
     firstEventId = first.id;
     laterEventId = later.id;
     const instance = await prisma.workshop_Instance.create({
-      data: {
-        slug,
-        label: 'Atelier de test',
-        baseUrl: 'https://test.ctfd.invalid',
-      },
+      data: { slug: hostSlug, baseUrl: 'https://test.ctfd.invalid' },
     });
     instanceId = instance.id;
+    const [activity, next] = await Promise.all([
+      prisma.workshop_Activity.create({
+        data: { slug, instanceId, label: 'Atelier de test' },
+      }),
+      prisma.workshop_Activity.create({
+        data: { slug: nextSlug, instanceId, label: 'Atelier suivant' },
+      }),
+    ]);
+    activityId = activity.id;
+    nextActivityId = next.id;
     const talent = await prisma.talent.create({
       data: { prenom: 'Camille', nom: 'Session' },
     });
@@ -75,6 +94,9 @@ describe('the session an activity entry names (integration)', () => {
   afterAll(async () => {
     try {
       await prisma.talent.deleteMany({ where: { id: talentId } });
+      await prisma.workshop_Activity.deleteMany({
+        where: { id: { in: [activityId, nextActivityId] } },
+      });
       await prisma.workshop_Instance.deleteMany({ where: { id: instanceId } });
       await prisma.event.deleteMany({
         where: { id: { in: [firstEventId, laterEventId] } },
@@ -86,7 +108,10 @@ describe('the session an activity entry names (integration)', () => {
   });
 
   it('names the event of the first entry, with its public name, date and campus', async () => {
-    const session = await enterWorkshop(talentId, entryFor(firstEventId));
+    const session = await enterWorkshop(
+      talentId,
+      entryFor(firstEventId, { id: activityId, slug }),
+    );
     expect(session).toEqual({
       id: firstEventId,
       label: 'Coding Club octobre (14/10/2026)',
@@ -96,7 +121,32 @@ describe('the session an activity entry names (integration)', () => {
   });
 
   it('keeps naming the first event when the talent comes back through a later one', async () => {
-    const session = await enterWorkshop(talentId, entryFor(laterEventId));
+    const session = await enterWorkshop(
+      talentId,
+      entryFor(laterEventId, { id: activityId, slug }),
+    );
     expect(session.id).toBe(firstEventId);
+  });
+
+  it('names the later event for the next content on the same host, on its budget', async () => {
+    const session = await enterWorkshop(
+      talentId,
+      entryFor(laterEventId, { id: nextActivityId, slug: nextSlug }, 180),
+    );
+    expect(session.id).toBe(laterEventId);
+    const pinned = await prisma.workshop_Participation.findMany({
+      where: { talentId },
+      select: { activityId: true, eventId: true, budgetMinutes: true },
+    });
+    expect(pinned).toEqual(
+      expect.arrayContaining([
+        { activityId, eventId: firstEventId, budgetMinutes: 120 },
+        {
+          activityId: nextActivityId,
+          eventId: laterEventId,
+          budgetMinutes: 180,
+        },
+      ]),
+    );
   });
 });

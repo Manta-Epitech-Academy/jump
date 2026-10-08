@@ -26,7 +26,7 @@ import { SEED_MAIL_DOMAIN, STAFF_MAIL_DOMAIN } from './catalog/people';
 import type { CampusSpec } from './catalog/campuses';
 import type { SchoolSpec } from './catalog/schools';
 import type { SlotBlueprint } from './catalog/planning';
-import { workshopInstanceId } from './catalog/workshops';
+import { workshopActivityId } from './catalog/workshops';
 import type { Rng } from './rng';
 import { isShownInDevSpace } from '../../src/lib/domain/sfMemberStatus';
 import { activationBlockers } from '../../src/lib/domain/eventReadiness';
@@ -1152,7 +1152,7 @@ export class World {
     for (const [index, workshop] of (opts.workshops ?? []).entries()) {
       this.buffer.eventConfig_Workshop.push({
         eventId,
-        instanceId: workshopInstanceId(workshop.slug),
+        activityId: workshopActivityId(workshop.slug),
         position: index,
         durationMinutes: workshop.durationMinutes,
         labelOverride: workshop.labelOverride ?? null,
@@ -1566,7 +1566,7 @@ export class World {
     );
     this.buffer.workshop_Participation.push({
       talentId: opts.talent.id,
-      instanceId: workshopInstanceId(opts.slug),
+      activityId: workshopActivityId(opts.slug),
       eventId: opts.event.id,
       campusId: opts.event.campusId,
       budgetMinutes: opts.budgetMinutes,

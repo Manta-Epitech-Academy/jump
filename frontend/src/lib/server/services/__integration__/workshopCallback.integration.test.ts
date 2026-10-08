@@ -5,6 +5,7 @@ import { prisma } from '$lib/server/db';
 import { workshopKeys } from '$lib/server/workshops/ticket';
 import { workshopGrantSourceId } from '$lib/domain/workshops';
 import { getUnseenWorkshopReward } from '$lib/server/services/workshopService';
+import { resolveGrantLabels } from '$lib/server/services/xpStoryService';
 import { POST } from '../../../../routes/api/workshops/callback/+server';
 import { assertTestDatabase } from './testDatabase';
 
@@ -20,7 +21,10 @@ import { assertTestDatabase } from './testDatabase';
  */
 describe('the workshop progress callback (integration)', () => {
   const stamp = Date.now();
+  // The host, and the two contents it serves one after the other.
+  const hostSlug = `test-host-${stamp}`;
   const slug = `test-workshop-${stamp}`;
+  const nextSlug = `test-workshop-next-${stamp}`;
   const secret = process.env.WORKSHOP_TICKET_SECRET ?? '';
   const BUDGET_MINUTES = 120;
   const TOTAL_STEPS = 15;
@@ -28,6 +32,8 @@ describe('the workshop progress callback (integration)', () => {
   let campusId = '';
   let eventId = '';
   let instanceId = '';
+  let activityId = '';
+  let nextActivityId = '';
   let talentId = '';
   let sourceId = '';
 
@@ -68,8 +74,9 @@ describe('the workshop progress callback (integration)', () => {
     }
   }
 
-  const progress = (solvedSteps: number) => ({
-    instanceSlug: slug,
+  const progress = (solvedSteps: number, contentSlug = slug) => ({
+    instanceSlug: hostSlug,
+    contentSlug,
     talentId,
     solvedSteps,
     totalSteps: TOTAL_STEPS,
@@ -83,7 +90,7 @@ describe('the workshop progress callback (integration)', () => {
         select: { amount: true, createdAt: true },
       }),
       prisma.workshop_Participation.findUnique({
-        where: { talentId_instanceId: { talentId, instanceId } },
+        where: { talentId_activityId: { talentId, activityId } },
         select: { solvedSteps: true, totalSteps: true },
       }),
     ]);
@@ -115,17 +122,22 @@ describe('the workshop progress callback (integration)', () => {
     });
     eventId = event.id;
     const instance = await prisma.workshop_Instance.create({
-      data: {
-        slug,
-        label: 'Atelier de test',
-        baseUrl: 'https://test.ctfd.invalid',
-      },
+      data: { slug: hostSlug, baseUrl: 'https://test.ctfd.invalid' },
     });
     instanceId = instance.id;
+    const activity = await prisma.workshop_Activity.create({
+      data: { slug, instanceId, label: 'Atelier de test' },
+    });
+    activityId = activity.id;
+    // What the same host serves next, once the first content is over.
+    const next = await prisma.workshop_Activity.create({
+      data: { slug: nextSlug, instanceId, label: 'Atelier suivant' },
+    });
+    nextActivityId = next.id;
     await prisma.eventConfig_Workshop.create({
       data: {
         eventId,
-        instanceId,
+        activityId,
         position: 0,
         durationMinutes: BUDGET_MINUTES,
       },
@@ -143,7 +155,7 @@ describe('the workshop progress callback (integration)', () => {
     await prisma.workshop_Participation.create({
       data: {
         talentId,
-        instanceId,
+        activityId,
         eventId,
         campusId,
         budgetMinutes: BUDGET_MINUTES,
@@ -154,8 +166,13 @@ describe('the workshop progress callback (integration)', () => {
   afterAll(async () => {
     try {
       await prisma.talent.deleteMany({ where: { id: talentId } });
-      await prisma.eventConfig_Workshop.deleteMany({ where: { instanceId } });
-      await prisma.workshop_Instance.deleteMany({ where: { id: instanceId } });
+      await prisma.eventConfig_Workshop.deleteMany({ where: { activityId } });
+      await prisma.workshop_Activity.deleteMany({
+        where: { id: { in: [activityId, nextActivityId] } },
+      });
+      await prisma.workshop_Instance.deleteMany({
+        where: { slug: { in: [hostSlug, `test-other-host-${stamp}`] } },
+      });
       await prisma.event.deleteMany({ where: { id: eventId } });
       await prisma.campus.deleteMany({ where: { id: campusId } });
     } catch {
@@ -180,9 +197,43 @@ describe('the workshop progress callback (integration)', () => {
 
   it('refuses a payload of the wrong shape', async () => {
     expect(
-      await post({ instanceSlug: slug, talentId, solvedSteps: 'quatre' }),
+      await post({
+        instanceSlug: hostSlug,
+        contentSlug: slug,
+        talentId,
+        solvedSteps: 'quatre',
+      }),
     ).toBe(400);
     expect(await post({ ...progress(4), solvedSteps: -1 })).toBe(400);
+  });
+
+  it('refuses a report that does not name its content', async () => {
+    // An instance older than the content field: refused, so its outbox keeps
+    // the row and resends it once upgraded, rather than Jump filing it under a
+    // guess.
+    const withoutContent: Record<string, unknown> = { ...progress(4) };
+    delete withoutContent.contentSlug;
+    expect(await post(withoutContent)).toBe(400);
+    expect(await post({ ...progress(4), contentSlug: '' })).toBe(400);
+    expect((await readState()).grants).toBe(0);
+  });
+
+  it('grants nothing for a content Jump does not know', async () => {
+    expect(await post(progress(4, `unknown-content-${stamp}`))).toBe(200);
+    expect((await readState()).grants).toBe(0);
+  });
+
+  it('grants nothing for a content another host serves', async () => {
+    // Both sides are configured, but not alike: crediting it would pay one
+    // content's progress into another's grant.
+    const other = await prisma.workshop_Instance.create({
+      data: {
+        slug: `test-other-host-${stamp}`,
+        baseUrl: 'https://other.ctfd.invalid',
+      },
+    });
+    expect(await post({ ...progress(4), instanceSlug: other.slug })).toBe(200);
+    expect((await readState()).grants).toBe(0);
   });
 
   it('accepts a talent it knows nothing about, and grants nothing', async () => {
@@ -233,10 +284,63 @@ describe('the workshop progress callback (integration)', () => {
     // pays the two hours this talent entered under, which is the whole of what
     // "changing a duration takes XP back off nobody" rests on.
     await prisma.eventConfig_Workshop.update({
-      where: { eventId_instanceId: { eventId, instanceId } },
+      where: { eventId_activityId: { eventId, activityId } },
       data: { durationMinutes: 180 },
     });
     expect(await post(progress(15))).toBe(200);
     expect((await readState()).grant?.amount).toBe(BUDGET_MINUTES * 10);
+  });
+
+  it('files the next content on the same host apart, and leaves the first untouched', async () => {
+    // The defect this key exists for: a host rotated to another content, and a
+    // regular who walks it too. Keyed on the host, this progress replaced the
+    // first content's XP; keyed on the content, it is a grant of its own.
+    const before = await readState();
+    await prisma.workshop_Participation.create({
+      data: {
+        talentId,
+        activityId: nextActivityId,
+        eventId,
+        campusId,
+        budgetMinutes: 60,
+      },
+    });
+    expect(await post(progress(3, nextSlug))).toBe(200);
+
+    const after = await readState();
+    expect(after.grants).toBe(2);
+    expect(after.grant?.amount).toBe(before.grant?.amount);
+    expect(after.participation?.solvedSteps).toBe(
+      before.participation?.solvedSteps,
+    );
+    const nextGrant = await prisma.xpGrant.findUnique({
+      where: {
+        source_sourceId: {
+          source: 'workshop',
+          sourceId: workshopGrantSourceId(nextSlug, talentId),
+        },
+      },
+      select: { amount: true },
+    });
+    // Three of fifteen steps of an hour, on the next content's own budget.
+    expect(nextGrant?.amount).toBe(120);
+
+    // And each row of the history keeps its own name: renaming what the host
+    // serves now does not rename what the talent walked before.
+    await prisma.workshop_Activity.update({
+      where: { id: nextActivityId },
+      data: { label: 'Atelier suivant, renommé' },
+    });
+    const labels = await resolveGrantLabels(talentId, [
+      { source: 'workshop', sourceId },
+      {
+        source: 'workshop',
+        sourceId: workshopGrantSourceId(nextSlug, talentId),
+      },
+    ]);
+    expect(labels.get(sourceId)).toBe('Atelier de test');
+    expect(labels.get(workshopGrantSourceId(nextSlug, talentId))).toBe(
+      'Atelier suivant, renommé',
+    );
   });
 });
