@@ -90,7 +90,7 @@ export const EVENT_MISSING_LABELS = {
  * Everything not filled in yet on an event, in the order a human would fix it.
  *
  * Here rather than in the aggregates because it was written twice, character for
- * character, in `unconfiguredEvents.ts` and in `configuration.ts`'s event detail -
+ * character, in the list of events to prepare and in `configuration.ts`'s event detail -
  * two answers a reader compares, so a label edited in one place would have read
  * as two different truths about the same event.
  *

@@ -129,13 +129,13 @@ describe('what a credential is offered as tools', () => {
     const offered = names({ tier: 'core', writeEnabled: false });
     expect(offered.some((n) => n.startsWith('write_'))).toBe(false);
     expect(offered.some((n) => n.startsWith('bulk_'))).toBe(false);
-    expect(offered).toContain('stats_events_overview');
+    expect(offered).toContain('config_campus_overview');
   });
 
   it('shows a write-enabled core token the writes as well', () => {
     const offered = names({ tier: 'core', writeEnabled: true });
     expect(offered).toContain('write_event_config');
-    expect(offered).toContain('bulk_event_modules');
+    expect(offered).toContain('bulk_event_config');
   });
 
   // Belt and braces with the catalogue rule: even a leadership token that
@@ -161,8 +161,8 @@ describe('what a credential is offered as tools', () => {
  * `operation.param`. Explicit and exhaustive, with a throwing default, for the
  * same reason `requiredArgsFor` is: a new config field then fails this test until
  * somebody decides how the API exposes it, instead of quietly having no API at
- * all. Three params are deliberately named differently from the form field, which
- * is why this cannot be a key intersection.
+ * all. One param is deliberately named differently from the form field
+ * (`devActivated` is `visible`), which is why this cannot be a key intersection.
  */
 const EVENT_FIELD_WRITES: Record<string, string> = {
   id: 'write_event_config.eventId',
@@ -171,11 +171,11 @@ const EVENT_FIELD_WRITES: Record<string, string> = {
   startTime: 'write_event_config.startTime',
   endDate: 'write_event_config.endDate',
   modules: 'write_event_config.modules',
-  moduleSettings: 'write_event_inscrits_options.showStatutColumn',
-  devActivated: 'write_event_activation.visible',
-  feedbackFormId: 'write_event_feedback_form.formId',
-  diplomaTemplateId: 'write_event_diploma_template.templateId',
-  closingTemplateId: 'write_event_closing_template.closingTemplateId',
+  moduleSettings: 'write_event_config.moduleSettings',
+  devActivated: 'write_event_config.visible',
+  feedbackFormId: 'write_event_config.feedbackFormId',
+  diplomaTemplateId: 'write_event_config.diplomaTemplateId',
+  closingTemplateId: 'write_event_config.closingTemplateId',
   shownStatuses: 'write_event_config.shownStatuses',
 };
 

@@ -1,5 +1,6 @@
-// The class A writes for certificates: authoring a design, and pointing an event
-// at one. Bounded to named rows, reversible, and nothing leaves the platform.
+// The class A write for certificates: authoring a design. Pointing an event at
+// one is part of the event's configuration (`write_event_config`). Bounded to
+// named rows, reversible, and nothing leaves the platform.
 //
 // There is deliberately no delete. `config_diploma_templates` returns template
 // ids, so a delete tool would be something a model could aim on its own, which
@@ -15,8 +16,6 @@ import { renderCertificateSample } from '$lib/server/services/diplomaGenerator';
 import { diplomaTemplatePreviewLink } from '$lib/server/diplomaTemplates';
 import { OperationRefusedError } from '../errors';
 import { metric } from '../metrics';
-import { handleProvenanceFr } from '../handles';
-import { UnknownScopeError } from '../scope';
 import { canonicalJson, type WriteOutcome } from '../plan';
 
 /**
@@ -151,66 +150,5 @@ export async function writeDiplomaTemplate(params: {
         origin: params.origin,
       }).apercu,
     },
-  };
-}
-
-/** What every event-scoped certificate write reports. */
-type EventCertificateState = {
-  eventId: string;
-  certificate: { code: string; label: string } | null;
-};
-
-async function eventCertificateState(
-  eventId: string,
-): Promise<EventCertificateState> {
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
-    select: {
-      id: true,
-      diplomaTemplate: { select: { code: true, label: true } },
-    },
-  });
-  if (!event) {
-    throw new UnknownScopeError(
-      `Événement « ${eventId} » introuvable. ${handleProvenanceFr('eventId')}`,
-    );
-  }
-  return { eventId: event.id, certificate: event.diplomaTemplate };
-}
-
-export async function writeEventDiplomaTemplate(params: {
-  eventId: string;
-  templateId?: string;
-}): Promise<WriteOutcome> {
-  const before = await eventCertificateState(params.eventId);
-
-  // A blank id is "issues none", never a row to go looking for. The catalogue's
-  // schema refuses an empty string upstream; normalising here is what makes that
-  // a second line of defence rather than the only one, because `?? null` on a
-  // string that might be empty puts `''` in an FK column and answers a caller's
-  // own mistake with "erreur interne".
-  const templateId = params.templateId?.trim() || null;
-
-  if (templateId) {
-    const exists = await prisma.diploma_Template.findUnique({
-      where: { id: templateId },
-      select: { id: true },
-    });
-    if (!exists) {
-      throw new OperationRefusedError(
-        `Certificat « ${templateId} » introuvable. ${handleProvenanceFr('diplomaTemplateId')}`,
-      );
-    }
-  }
-
-  await prisma.event.update({
-    where: { id: params.eventId },
-    data: { diplomaTemplateId: templateId },
-  });
-
-  return {
-    applied: true,
-    before,
-    after: await eventCertificateState(params.eventId),
   };
 }

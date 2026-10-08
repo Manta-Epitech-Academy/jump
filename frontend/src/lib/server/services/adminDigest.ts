@@ -29,7 +29,7 @@
 import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 import { sendEmail, MAIL_FROM } from '$lib/server/email';
-import { getUnconfiguredEvents } from '$lib/server/services/adminStats/unconfiguredEvents';
+import { getEventsConfigList } from '$lib/server/services/adminStats/eventsList';
 import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
 import { getDataFreshness } from '$lib/server/services/adminStats/dataFreshness';
 import {
@@ -98,7 +98,9 @@ const link = (href: string, label: string) =>
 export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
   const [events, sync, freshness, pdfJobs, deletions, adoption] =
     await Promise.all([
-      getUnconfiguredEvents(),
+      // The events still to prepare, soonest first: the same list
+      // `config_events` answers with `state: to_prepare`.
+      getEventsConfigList({}, { state: 'to_prepare' }),
       getSyncHealth(),
       getDataFreshness(),
       getPdfJobsHealth(),
@@ -114,10 +116,10 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
   const onboardingPdfsUrl = `${baseUrl}/staff/admin/onboarding-pdfs`;
   const accountDeletionsUrl = `${baseUrl}/staff/admin/account-deletions`;
 
-  const toPrepare = events.toPrepare.value;
-  const listed = events.events.value.slice(0, LISTED_EVENTS);
+  const toPrepare = events.events.value;
+  const listed = events.list.value.slice(0, LISTED_EVENTS);
   // Counted off the total, NOT off the returned list: that list is itself capped
-  // at UNCONFIGURED_EVENTS_LIMIT, so subtracting from its length made the mail
+  // at EVENTS_LIST_LIMIT, so subtracting from its length made the mail
   // contradict its own lead ("200 événements demandent une action" above a table
   // of 15 plus "et 85 autres") as soon as the cap was reached.
   const remaining = toPrepare - listed.length;
@@ -136,7 +138,7 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
     .map(
       (e) => `
         <tr>
-          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.titre)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.salesforceName)}</td>
           <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.campus)}</td>
           <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.dateLabel)}</td>
           <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.missing.join(', ') || e.configStateLabel)}</td>
@@ -312,7 +314,7 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
     `Événements à préparer : ${toPrepare}`,
     ...listed.map(
       (e) =>
-        `  - ${e.titre} (${e.campus}, ${e.dateLabel}) : ${e.missing.join(', ') || e.configStateLabel}`,
+        `  - ${e.salesforceName} (${e.campus}, ${e.dateLabel}) : ${e.missing.join(', ') || e.configStateLabel}`,
     ),
     remaining > 0 ? `  ... et ${remaining} autre(s).` : '',
     toPrepare > 0 ? `  Voir : ${eventsUrl}` : '',

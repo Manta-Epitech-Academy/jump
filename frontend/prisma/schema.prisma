@@ -2451,17 +2451,17 @@ model Workshop_Instance {
 /// dashboard shows. Nothing of the subject is TYPED here: the steps and the
 /// description stay in CTFd, exactly as `MinigameConfig` refuses to keep the
 /// jump-games catalogue by hand. What a talent's dashboard shows of it is a
-/// different matter, and is authored here over the API (`write_workshop_cover`):
-/// the `tagline` and the `Workshop_CoverImage` rows. It was first read back from
-/// the instance, and that was dropped on purpose: the people who configure an
-/// activity's look are not the ones who deploy its CTFd, so one source of truth
-/// had to be chosen, and it is the one they hold.
+/// different matter, and is authored here over the API (`write_workshop`, its
+/// `cover`): the `tagline` and the `Workshop_CoverImage` rows. It was first read
+/// back from the instance, and that was dropped on purpose: the people who
+/// configure an activity's look are not the ones who deploy its CTFd, so one
+/// source of truth had to be chosen, and it is the one they hold.
 ///
 /// It names the host that serves it, many activities to one host: an activity
 /// is on one host at a time, so every event offering it reaches the same place
 /// without restating where. That host is fixed once a talent has entered it,
 /// because another host would hold fresh accounts and its first report would
-/// take their XP back (`write_workshop_activity`).
+/// take their XP back (`write_workshop`).
 ///
 /// `enabled = false` takes an activity out of every dashboard without deleting
 /// the rows pointing at it, which is how one is retired once its host has moved
@@ -2480,8 +2480,8 @@ model Workshop_Activity {
   /// timeline row is quoted under.
   label          String
   /// The one line the dashboard's activity hero leads with, in place of the
-  /// label. Written by `write_workshop_cover`, never by `write_workshop_activity`,
-  /// so curating what an activity is cannot wipe how it is presented.
+  /// label. Written only through `write_workshop`'s `cover`, so a call that
+  /// curates what an activity is and names no cover cannot wipe it.
   tagline        String?
   enabled        Boolean                  @default(true)
   createdAt      DateTime                 @default(now())
@@ -2769,7 +2769,7 @@ model AdminApi_Call {
   /// later deletion.
   actorUserId String
   /// Operation name, the same vocabulary as the MCP tool names
-  /// (`stats_events_overview`, ...). A plain String so a new operation needs no
+  /// (`config_campus_overview`, ...). A plain String so a new operation needs no
   /// migration; the catalogue lives in `$lib/server/adminApi/operations.ts`.
   operation   String
   /// The validated params. PII-free by construction: this tier serves

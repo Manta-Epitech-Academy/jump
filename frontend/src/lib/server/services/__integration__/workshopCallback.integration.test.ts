@@ -6,7 +6,7 @@ import { workshopKeys } from '$lib/server/workshops/ticket';
 import { workshopGrantSourceId } from '$lib/domain/workshops';
 import { getUnseenWorkshopReward } from '$lib/server/services/workshopService';
 import { resolveGrantLabels } from '$lib/server/services/xpStoryService';
-import { writeWorkshopActivity } from '$lib/server/adminApi/writes/workshops';
+import { writeWorkshop } from '$lib/server/adminApi/writes/workshops';
 import { OperationRefusedError } from '$lib/server/adminApi/errors';
 import { POST } from '../../../../routes/api/workshops/callback/+server';
 import { assertTestDatabase } from './testDatabase';
@@ -349,11 +349,7 @@ describe('the workshop progress callback (integration)', () => {
     // report would recount one step against a grant already earned.
     const before = await readState();
     await expect(
-      writeWorkshopActivity({
-        slug,
-        instance: otherHostSlug,
-        label: 'Atelier de test',
-      }),
+      writeWorkshop({ slug, instance: otherHostSlug }),
     ).rejects.toBeInstanceOf(OperationRefusedError);
     const activity = await prisma.workshop_Activity.findUniqueOrThrow({
       where: { slug },
@@ -370,10 +366,9 @@ describe('the workshop progress callback (integration)', () => {
     await prisma.workshop_Activity.create({
       data: { slug: freshSlug, instanceId, label: 'Atelier neuf' },
     });
-    const moved = await writeWorkshopActivity({
+    const moved = await writeWorkshop({
       slug: freshSlug,
       instance: otherHostSlug,
-      label: 'Atelier neuf',
     });
     expect(moved).toMatchObject({
       applied: true,

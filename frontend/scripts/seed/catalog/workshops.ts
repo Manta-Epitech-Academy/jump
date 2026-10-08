@@ -12,7 +12,7 @@
  * history of the database, while these are removed and rewritten on every full
  * run.
  *
- * Each carries the cover an admin would have written with `write_workshop_cover`,
+ * Each carries the cover an admin would have written with `write_workshop`,
  * in the three shapes the dashboard has to render: a full one (tagline,
  * animation, still, mascot), a sparse one (a still and no tagline), and none at
  * all (the label alone). Like every stored file here, the pictures are KEYS

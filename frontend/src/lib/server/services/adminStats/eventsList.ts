@@ -3,8 +3,8 @@
  *
  * The gap this closes is not a missing figure, it is a missing address. Every
  * other answer in this folder counts events; none of them lists them, so the id
- * that twelve operations take as a parameter was obtainable only from
- * `config_unconfigured_events` (which by construction excludes anything already
+ * that twelve operations take as a parameter was obtainable only from a list of
+ * the events still to prepare (which by construction excluded anything already
  * visible), from a since-retired attendance rate (past events only) and from
  * `ops_emargement_coverage` (only where that section is on). An event that was
  * visible and had not happened yet - the most ordinary state an event can be in -
@@ -22,6 +22,14 @@
  *
  * Built on `scopedEvents`, so no query is added: the view model the admin events
  * cockpit renders already carries every field either projection needs.
+ *
+ * It is also the one list of the events still to prepare (`state: to_prepare`):
+ * a second operation answering exactly that with fewer fields was retired, and
+ * the weekly digest reads this. Which is why the order is the order of what to
+ * act on rather than of the calendar: what is coming, soonest first, then what
+ * is over, most recent first. The cap then keeps the rows that matter for every
+ * filter, the list of events to prepare reads in order of urgency, and a past
+ * event never pushes an upcoming one out of the page.
  */
 
 import {
@@ -122,7 +130,18 @@ const identityOf = (event: AdminEventVM): EventIdentity => ({
 });
 
 const IDENTITY_DEFINITION =
-  "Un événement par ligne, du plus récent au plus ancien par date de début. « eventId » est l'identifiant à passer aux opérations qui prennent un événement en filtre. « event » est le nom que voient les équipes et les talents. « status » vaut upcoming (à venir), ongoing (en cours) ou past (terminé), calculé dans le fuseau horaire du campus.";
+  "Un événement par ligne : d'abord ceux à venir ou en cours, du plus proche au plus lointain, puis ceux qui sont terminés, du plus récent au plus ancien. « eventId » est l'identifiant à passer aux opérations qui prennent un événement en filtre. « event » est le nom que voient les équipes et les talents. « status » vaut upcoming (à venir), ongoing (en cours) ou past (terminé), calculé dans le fuseau horaire du campus.";
+
+/**
+ * What is coming first, soonest first; then what is over, most recent first.
+ * See the header for why the list is not in calendar order.
+ */
+function byActionability(a: AdminEventVM, b: AdminEventVM): number {
+  const aPast = a.status === 'past';
+  const bPast = b.status === 'past';
+  if (aPast !== bPast) return aPast ? 1 : -1;
+  return aPast ? b.dateTs - a.dateTs : a.dateTs - b.dateTs;
+}
 
 /** The rows a scope selects, filtered and capped once for both projections. */
 async function selectEvents(
@@ -131,12 +150,14 @@ async function selectEvents(
 ): Promise<{ matching: AdminEventVM[]; page: AdminEventVM[] }> {
   const { events } = await scopedEvents(scope);
 
-  const matching = events.filter((event) => {
-    if (params.status && event.status !== params.status) return false;
-    if (!params.state) return true;
-    if (params.state === 'to_prepare') return isEventToPrepare(event);
-    return event.configState === params.state;
-  });
+  const matching = events
+    .filter((event) => {
+      if (params.status && event.status !== params.status) return false;
+      if (!params.state) return true;
+      if (params.state === 'to_prepare') return isEventToPrepare(event);
+      return event.configState === params.state;
+    })
+    .sort(byActionability);
 
   return { matching, page: matching.slice(0, EVENTS_LIST_LIMIT) };
 }

@@ -8,7 +8,7 @@
  * content a host serves and not the host itself. Nothing here polls
  * CTFd: a talent's progress arrives, it is never asked for. How an activity is
  * presented (its tagline and pictures) is not CTFd's either: it is authored over
- * the API (`write_workshop_cover`) and only read here.
+ * the API (`write_workshop`) and only read here.
  *
  * Which activities a talent is offered is ONE rule, `selectWorkshopOfferings`,
  * and both readers go through `offeredWorkshops`: the dashboard that shows them

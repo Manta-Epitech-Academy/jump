@@ -1,6 +1,6 @@
 /**
- * Configuration state, read back: one event in full, a campus at a glance, and
- * the two catalogues (feedback forms, event presets) whose ids the write
+ * Configuration state, read back: one event in full, where events stand campus
+ * by campus, and the two catalogues (feedback forms, event presets) whose ids the write
  * operations need.
  *
  * That last point is why the catalogues are here at all rather than "nice to
@@ -26,7 +26,6 @@ import {
   EVENT_CONFIG_STATE_LABELS,
   EVENT_CONFIG_STATE_HINTS,
   eventMissingConfig,
-  isEventToPrepare,
 } from '$lib/domain/eventReadiness';
 import { getStaffRoleLabel } from '$lib/domain/staff';
 import {
@@ -48,6 +47,14 @@ import {
   type FeedbackFormContent,
 } from '$lib/server/feedbackForms/content';
 import { hiddenEnrolmentsByEvent, scopedEvents, scopeLabels } from './cohort';
+import {
+  eventStateCounts,
+  moduleUsage,
+  summariseEvents,
+  type EventStateCounts,
+  type EventsSummary,
+  type ModuleRow,
+} from './eventsOverview';
 
 // ── The certificate catalogue ────────────────────────────────────────────────
 
@@ -131,7 +138,7 @@ export async function getDiplomaTemplates(params: {
         pageHeightPx: t.pageHeightPx,
         attachedEvents: t._count.events,
       })),
-      "Les certificats que Jump sait délivrer. « label » est le nom que voient les équipes et qui nomme le fichier téléchargé, « code » la clé stable à passer à write_diploma_template pour le modifier, « templateId » l'identifiant à passer à write_event_diploma_template pour le rattacher à un événement, et « attachedEvents » le nombre d'événements qui le délivrent aujourd'hui.",
+      "Les certificats que Jump sait délivrer. « label » est le nom que voient les équipes et qui nomme le fichier téléchargé, « code » la clé stable à passer à write_diploma_template pour le modifier, « templateId » l'identifiant à passer à write_event_config (diplomaTemplateId) pour le rattacher à un événement, et « attachedEvents » le nombre d'événements qui le délivrent aujourd'hui.",
     ),
     design: metric(
       design,
@@ -270,7 +277,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
             label: certificate.label,
           }
         : null,
-      "Le certificat que cet événement délivre depuis la page Inscrits, une page par inscrit, ou null s'il n'en délivre aucun : le bouton de génération est alors absent. « templateId » est l'identifiant à passer à write_event_diploma_template.",
+      "Le certificat que cet événement délivre depuis la page Inscrits, une page par inscrit, ou null s'il n'en délivre aucun : le bouton de génération est alors absent. « templateId » est l'identifiant à passer à write_event_config (diplomaTemplateId).",
     ),
     shownStatuses: metric(
       event.shownStatuses,
@@ -291,30 +298,18 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
   };
 }
 
-// ── One campus, at a glance ──────────────────────────────────────────────────
+// ── Where events stand, campus by campus ────────────────────────────────────
 
-export type CampusRow = {
-  campus: string;
-  events: number;
-  visible: number;
-  /**
-   * Configured but hidden. Returned because without it the row does not add up:
-   * `visible` needs both the activation gate and a section, while the `modules`
-   * tally below counts the section alone, so a campus with 25 configured events
-   * and 2 activated ones read as a contradiction with nothing naming the 23.
-   */
-  readyToPublish: number;
-  unconfigured: number;
-  toPrepare: number;
-  participants: number;
-  staff: { role: string; label: string; count: number }[];
-  modules: { module: EventModuleKey; label: string; events: number }[];
-};
+export type CampusRow = { campus: string } & EventStateCounts & {
+    staff: { role: string; label: string; count: number }[];
+    modules: ModuleRow[];
+  };
 
 export type CampusOverview = {
   filters: { schoolYear: string; campus: string };
-  campuses: Metric<CampusRow[]>;
-};
+} & EventsSummary & {
+    campuses: Metric<CampusRow[]>;
+  };
 
 export async function getCampusOverview(
   scope: Scope = {},
@@ -332,24 +327,14 @@ export async function getCampusOverview(
     }),
   ]);
 
+  // Every campus, including one with no event in scope: a campus that ran
+  // nothing this year is the row somebody needs to see, and it is the commoner
+  // case on a narrowed périmètre.
   const rows: CampusRow[] = campuses.map((campus) => {
     const own = events.filter((e) => e.campusId === campus.id);
-    const moduleCounts = new Map<EventModuleKey, number>();
-    for (const event of own) {
-      for (const key of event.modules) {
-        moduleCounts.set(key, (moduleCounts.get(key) ?? 0) + 1);
-      }
-    }
     return {
       campus: campus.name,
-      events: own.length,
-      visible: own.filter((e) => e.configState === 'shown').length,
-      readyToPublish: own.filter((e) => e.configState === 'ready').length,
-      unconfigured: own.filter((e) => e.configState === 'unconfigured').length,
-      // The shared predicate, not a fourth spelling of it: this was the only site
-      // in the repository that rewrote it inline instead of importing it.
-      toPrepare: own.filter(isEventToPrepare).length,
-      participants: own.reduce((sum, e) => sum + e.participations, 0),
+      ...eventStateCounts(own),
       staff: staff
         .filter((s) => s.campusId === campus.id && s.staffRole)
         .map((s) => ({
@@ -358,24 +343,17 @@ export async function getCampusOverview(
           count: s._count._all,
         }))
         .sort((a, b) => b.count - a.count),
-      modules: EVENT_MODULE_KEYS.filter((key) => moduleCounts.has(key)).map(
-        (key) => ({
-          module: key,
-          label: EVENT_MODULE_DEFS[key].label,
-          events: moduleCounts.get(key) ?? 0,
-        }),
-      ),
+      modules: moduleUsage(own),
     };
   });
 
+  const labels = scopeLabels(scope);
   return {
-    filters: {
-      schoolYear: scopeLabels(scope).schoolYear,
-      campus: scopeLabels(scope).campus,
-    },
+    filters: { schoolYear: labels.schoolYear, campus: labels.campus },
+    ...summariseEvents(events),
     campuses: metric(
       rows,
-      "Par campus : ses événements sur le périmètre, répartis entre « visible » (activé et pourvu d'au moins une section), « readyToPublish » (configuré mais encore masqué) et « unconfigured » (aucune section activée) : la somme des trois fait le total. « toPrepare » compte, parmi eux, ceux qui ne sont pas passés et ne sont pas encore visibles : c'est ce qui demande une action, et ce n'est donc pas l'écart entre le total et « visible ». « modules » compte les événements où chaque section est activée, sans tenir compte de l'activation, donc il inclut les événements configurés mais masqués : c'est pourquoi ce décompte peut largement dépasser « visible ». Un événement pourvu de quatre sections compte une fois dans chacune des quatre lignes. Les effectifs d'équipe sont ceux d'aujourd'hui, ils ne dépendent pas de l'année scolaire demandée.",
+      `Les mêmes chiffres campus par campus, chaque campus compris, même sans événement sur le périmètre : « events » est le total, que « visible », « readyToPublish » et « unconfigured » répartissent ; « visibleShare » est la part des événements du campus visibles dans l'espace dev ; « toPrepare » compte ceux qui ne sont pas passés et pas encore visibles ; « participants » compte les participations, ${VISIBLE_PARTICIPATION_DEFINITION} ; « modules » compte les événements où chaque section est activée, sans tenir compte de l'activation. Les effectifs d'équipe (« staff ») sont ceux d'aujourd'hui, ils ne dépendent pas de l'année scolaire demandée.`,
     ),
   };
 }
@@ -474,7 +452,10 @@ export type TemplateRow = {
   cohortNoun: string | null;
   startTime: string;
   modules: EventModuleKey[];
+  moduleSettings: Record<string, unknown>;
   feedbackFormId: string | null;
+  diplomaTemplateId: string | null;
+  closingTemplateId: string | null;
   shownStatuses: string[];
 };
 
@@ -492,10 +473,13 @@ export async function getEventTemplates(): Promise<EventTemplates> {
         cohortNoun: template.cohortNoun,
         startTime: template.startTime,
         modules: template.modules,
+        moduleSettings: template.moduleSettings,
         feedbackFormId: template.feedbackFormId,
+        diplomaTemplateId: template.diplomaTemplateId,
+        closingTemplateId: template.closingTemplateId,
         shownStatuses: template.shownStatuses,
       })),
-      "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie.",
+      "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun.",
     ),
   };
 }
@@ -584,7 +568,7 @@ export async function getWorkshops(): Promise<Workshops> {
           images: activity.coverImages,
         },
       })),
-      "Les activités en ligne que Jump sait proposer. Une activité est un contenu servi par une instance. « slug » est la clé stable que prennent les opérations d'écriture sur les activités, et le nom que l'instance donne à ce contenu, « label » le nom que lit un talent, « instance » l'instance qui le sert, « enabled » si l'activité est proposée aujourd'hui, « attachedEvents » le nombre d'événements qui la proposent et « talentsEntered » le nombre de talents qui y sont entrés au moins une fois. « cover » est la façon dont l'activité se présente sur l'accueil des talents, saisie par write_workshop_cover : son accroche (null si elle n'en a pas, l'accueil affiche alors « label ») et ses images, chacune avec l'adresse d'où Jump l'a copiée (« media » le visuel, « poster » l'image fixe, « mascot » la mascotte). Le sujet lui-même (étapes, énoncé) n'est pas ici : il vit dans l'instance.",
+      "Les activités en ligne que Jump sait proposer. Une activité est un contenu servi par une instance. « slug » est la clé stable que prennent les opérations d'écriture sur les activités, et le nom que l'instance donne à ce contenu, « label » le nom que lit un talent, « instance » l'instance qui le sert, « enabled » si l'activité est proposée aujourd'hui, « attachedEvents » le nombre d'événements qui la proposent et « talentsEntered » le nombre de talents qui y sont entrés au moins une fois. « cover » est la façon dont l'activité se présente sur l'accueil des talents, saisie par write_workshop (« cover ») : son accroche (null si elle n'en a pas, l'accueil affiche alors « label ») et ses images, chacune avec l'adresse d'où Jump l'a copiée (« media » le visuel, « poster » l'image fixe, « mascot » la mascotte). Le sujet lui-même (étapes, énoncé) n'est pas ici : il vit dans l'instance.",
     ),
     instances: metric(
       instances.map((instance) => ({
